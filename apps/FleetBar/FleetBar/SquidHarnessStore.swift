@@ -46,6 +46,41 @@ struct SquidHarnessValue: Codable, Equatable, Sendable {
     let afterTool: String
 }
 
+enum SquidHookCircuitState: String, Codable, Sendable {
+    case closed
+    case open
+    case halfOpen = "half_open"
+}
+
+struct SquidHookCircuit: Codable, Equatable, Sendable, Identifiable {
+    let hook: String
+    let label: String
+    let state: SquidHookCircuitState
+    let consecutiveFailures: Int
+    let openedAt: String?
+    let retryAt: String?
+    let lastReason: String
+    let lastDurationMs: Int
+    let lastExitCode: Int?
+    let updatedAt: String
+
+    var id: String { hook }
+}
+
+struct SquidHookHealthThresholds: Codable, Equatable, Sendable {
+    let consecutiveFailures: Int
+    let slowMs: Int
+    let cooldownMs: Int
+}
+
+struct SquidHookHealthSnapshot: Codable, Equatable, Sendable {
+    let degraded: Bool
+    let capturedAt: String
+    let thresholds: SquidHookHealthThresholds
+    let circuits: [SquidHookCircuit]
+    let remediation: String
+}
+
 struct SquidHarnessSnapshot: Codable, Equatable, Sendable {
     let schemaVersion: Int
     let state: SquidHarnessLifecycle
@@ -55,9 +90,91 @@ struct SquidHarnessSnapshot: Codable, Equatable, Sendable {
     let providers: [SquidHarnessProviderStatus]
     let identity: SquidHarnessIdentityStatus
     let value: SquidHarnessValue
+    let health: SquidHookHealthSnapshot?
 
     var detectedProviderCount: Int { providers.filter(\.detected).count }
     var wiredProviderCount: Int { providers.filter { $0.detected && $0.wired }.count }
+}
+
+enum SquidHookDebugState: String, Codable, Sendable {
+    case running
+    case overdue
+    case completed
+    case skipped
+    case blocked
+    case failed
+
+    var label: String { rawValue.uppercased() }
+    var color: Color {
+        switch self {
+        case .completed: return Fleet.Color.healthy
+        case .running: return Fleet.Color.active
+        case .skipped: return Fleet.Color.dormant
+        case .blocked, .overdue: return Fleet.Color.warning
+        case .failed: return Fleet.Color.failure
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .completed: return "checkmark.circle.fill"
+        case .running: return "clock.fill"
+        case .skipped: return "minus.circle"
+        case .blocked: return "hand.raised.fill"
+        case .overdue: return "exclamationmark.triangle.fill"
+        case .failed: return "xmark.octagon.fill"
+        }
+    }
+}
+
+struct SquidHookDebugStep: Codable, Equatable, Sendable, Identifiable {
+    let id: String
+    let phase: String
+    let label: String
+    let hook: String
+    let state: SquidHookDebugState
+    let startedAt: String
+    let expectedBy: String
+    let finishedAt: String?
+    let durationMs: Int?
+    let deadlineMs: Int
+    let outcome: String?
+    let exitCode: Int?
+    let description: String
+}
+
+struct SquidHookDebugSession: Codable, Equatable, Sendable, Identifiable {
+    let id: String
+    let runtimeSessionId: String
+    let provider: String
+    let providerLabel: String
+    let workspace: String
+    let workspaceLabel: String
+    let state: SquidHookDebugState
+    let startedAt: String
+    let lastActivityAt: String
+    let steps: [SquidHookDebugStep]
+}
+
+struct SquidHookDebugRetention: Codable, Equatable, Sendable {
+    let maxBytes: Int
+    let eventPath: String
+}
+
+struct SquidHookDebugSnapshot: Codable, Equatable, Sendable {
+    let schemaVersion: Int
+    let enabled: Bool
+    let enabledAt: String?
+    let capturedAt: String
+    let workspace: String?
+    let privacy: String
+    let retention: SquidHookDebugRetention
+    let health: SquidHookHealthSnapshot?
+    let sessions: [SquidHookDebugSession]
+
+    var overdueCount: Int {
+        sessions.flatMap(\.steps).filter { $0.state == .overdue }.count
+    }
 }
 
 struct SquidCommandResult: Sendable {
@@ -107,8 +224,11 @@ enum SquidHarnessCLI {
 @MainActor
 final class SquidHarnessStore: ObservableObject {
     @Published private(set) var snapshot: SquidHarnessSnapshot?
+    @Published private(set) var debugSnapshot: SquidHookDebugSnapshot?
     @Published private(set) var isWorking = false
+    @Published private(set) var isDebugWorking = false
     @Published private(set) var message: String?
+    @Published private(set) var debugMessage: String?
 
     private let runner: SquidCommandRunner
 
@@ -133,8 +253,17 @@ final class SquidHarnessStore: ObservableObject {
                 : result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             return
         }
+        guard decoded.schemaVersion == 1 else {
+            snapshot = nil
+            message = "Squid status uses an unsupported data format. Update FleetBar before relying on it."
+            return
+        }
         snapshot = decoded
-        message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
+        if decoded.state == .degraded, let circuit = decoded.health?.circuits.first(where: { $0.state != .closed }) {
+            message = "\(circuit.label) disabled itself after repeated \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")) events. Choose Repair."
+        } else {
+            message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
+        }
     }
 
     func arm(projectDir: String) async {
@@ -143,6 +272,57 @@ final class SquidHarnessStore: ObservableObject {
 
     func disarm(projectDir: String) async {
         await mutate(["squid", "off", "--cwd", projectDir], projectDir: projectDir, success: "Squid disarmed for this project.")
+    }
+
+    func refreshDebug(projectDir: String) async {
+        isDebugWorking = true
+        defer { isDebugWorking = false }
+        let result = await runner(["squid", "debug", "status", "--json", "--cwd", projectDir])
+        decodeDebug(result)
+    }
+
+    func setDebugCapture(_ enabled: Bool, projectDir: String) async {
+        isDebugWorking = true
+        debugMessage = nil
+        let action = enabled ? "on" : "off"
+        let result = await runner(["squid", "debug", action, "--json", "--cwd", projectDir])
+        isDebugWorking = false
+        decodeDebug(result)
+        if result.status == 0 {
+            debugMessage = enabled
+                ? "Capturing sanitized hook timing for new invocations."
+                : "Capture stopped; the retained timeline remains available."
+        }
+    }
+
+    func clearDebug(projectDir: String) async {
+        isDebugWorking = true
+        debugMessage = nil
+        let result = await runner(["squid", "debug", "clear", "--json", "--cwd", projectDir])
+        isDebugWorking = false
+        decodeDebug(result)
+        if result.status == 0 { debugMessage = "Hook timeline cleared." }
+    }
+
+    private func decodeDebug(_ result: SquidCommandResult) {
+        guard let data = result.stdout.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(SquidHookDebugSnapshot.self, from: data) else {
+            debugSnapshot = nil
+            let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            debugMessage = detail.isEmpty ? "Squid hook timing is unavailable." : detail
+            return
+        }
+        guard decoded.schemaVersion == 1 else {
+            debugSnapshot = nil
+            debugMessage = "Squid hook timing uses an unsupported data format. Update FleetBar before relying on it."
+            return
+        }
+        debugSnapshot = decoded
+        debugMessage = nil
+        if result.status != 0 {
+            let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !detail.isEmpty { debugMessage = detail }
+        }
     }
 
     private func mutate(_ arguments: [String], projectDir: String, success: String) async {
@@ -168,6 +348,7 @@ final class SquidHarnessStore: ObservableObject {
 struct SquidHarnessStrip: View {
     @ObservedObject var store: SquidHarnessStore
     let projectDir: String
+    @State private var showingDebug = false
 
     private var lifecycle: SquidHarnessLifecycle { store.snapshot?.state ?? .off }
 
@@ -193,7 +374,7 @@ struct SquidHarnessStrip: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text("Before each turn: context · before each edit: collision gate · after each tool: fleet trace")
+                Text("Before each turn: context · before each edit: collision gate · cumulative session evidence; no post-tool process")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -211,6 +392,14 @@ struct SquidHarnessStrip: View {
             if store.isWorking {
                 ProgressView().controlSize(.small)
             }
+            Button {
+                showingDebug = true
+                Task { await store.refreshDebug(projectDir: projectDir) }
+            } label: {
+                Label("Inspect", systemImage: "waveform.path.ecg.rectangle")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityHint("Shows each Squid hook step, its actual timing, and its expected deadline")
             Button(lifecycle.isFullyWired ? "Disarm" : (lifecycle == .degraded ? "Repair" : "Arm")) {
                 Task {
                     if lifecycle.isFullyWired { await store.disarm(projectDir: projectDir) }
@@ -227,5 +416,249 @@ struct SquidHarnessStrip: View {
         .background(lifecycle.color.opacity(0.09), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous).stroke(lifecycle.color.opacity(0.24), lineWidth: 1))
         .help("Port Daddy adds coordination context outside the agent conversation")
+        .sheet(isPresented: $showingDebug) {
+            SquidHookDebugSheet(store: store, projectDir: projectDir)
+        }
+    }
+}
+
+struct SquidHookDebugSheet: View {
+    @ObservedObject var store: SquidHarnessStore
+    let projectDir: String
+    @Environment(\.dismiss) private var dismiss
+
+    private var snapshot: SquidHookDebugSnapshot? { store.debugSnapshot }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            content
+        }
+        .frame(minWidth: 760, idealWidth: 860, minHeight: 560, idealHeight: 680)
+        .background(Fleet.Chrome.popoverBackground)
+        .task {
+            while !Task.isCancelled {
+                await store.refreshDebug(projectDir: projectDir)
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.m) {
+            HStack(alignment: .top, spacing: Fleet.Space.m) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                        .fill(Fleet.Color.active.opacity(0.14))
+                    Image(systemName: "waveform.path.ecg.rectangle")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.active)
+                }
+                .frame(width: 46, height: 46)
+
+                VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                    Text("Squid hook timeline")
+                        .font(.title2.weight(.semibold))
+                    Text("Every agent session, every coordination step, and the deadline it was expected to meet.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if store.isDebugWorking { ProgressView().controlSize(.small) }
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+
+            HStack(spacing: Fleet.Space.s) {
+                debugBadge
+                if let count = snapshot?.overdueCount, count > 0 {
+                    Label("\(count) overdue", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.warning)
+                }
+                if snapshot?.health?.degraded == true {
+                    Label("HOOK DISABLED", systemImage: "bolt.slash.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.failure)
+                }
+                Spacer()
+                Button(snapshot?.enabled == true ? "Stop capture" : "Start capture") {
+                    Task { await store.setDebugCapture(snapshot?.enabled != true, projectDir: projectDir) }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(snapshot?.enabled == true ? Fleet.Color.dormant : Fleet.Color.active)
+                .disabled(store.isDebugWorking)
+                Button("Clear") {
+                    Task { await store.clearDebug(projectDir: projectDir) }
+                }
+                .buttonStyle(.bordered)
+                .disabled(store.isDebugWorking || snapshot?.sessions.isEmpty != false)
+            }
+
+            if let message = store.debugMessage {
+                Text(message)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Squid debug status: \(message)")
+            }
+            if let health = snapshot?.health,
+               let circuit = health.circuits.first(where: { $0.state != .closed }) {
+                VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                    Text("\(circuit.label) is \(circuit.state.rawValue.uppercased()) after \(circuit.consecutiveFailures) consecutive unhealthy calls; the last reason was \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")).")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.failure)
+                    Text(health.remediation)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(Fleet.Space.s)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Fleet.Color.failure.opacity(0.08), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+            }
+        }
+        .padding(Fleet.Space.l)
+    }
+
+    @ViewBuilder
+    private var debugBadge: some View {
+        let enabled = snapshot?.enabled == true
+        Label(enabled ? "CAPTURING" : "CAPTURE OFF", systemImage: enabled ? "record.circle.fill" : "record.circle")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(enabled ? Fleet.Color.healthy : Fleet.Color.dormant)
+            .padding(.horizontal, Fleet.Space.s)
+            .padding(.vertical, Fleet.Space.xs)
+            .background((enabled ? Fleet.Color.healthy : Fleet.Color.dormant).opacity(0.12), in: Capsule())
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let snapshot, !snapshot.sessions.isEmpty {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Fleet.Space.m) {
+                    privacyCard(snapshot)
+                    ForEach(snapshot.sessions) { session in
+                        sessionCard(session)
+                    }
+                }
+                .padding(Fleet.Space.l)
+            }
+        } else {
+            VStack(spacing: Fleet.Space.m) {
+                Image(systemName: "waveform.path")
+                    .font(.system(.largeTitle, design: .rounded))
+                    .foregroundStyle(Fleet.Color.dormant)
+                Text(snapshot?.enabled == true ? "Waiting for the next hook invocation" : "Capture is off")
+                    .font(.headline)
+                Text(snapshot?.enabled == true
+                     ? "New PD TURN and direct PD EDIT steps will appear here automatically; retained PD TRACE rows are legacy history."
+                     : "Start capture to see what each agent session is running and whether it met its deadline.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 480)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(Fleet.Space.xl)
+        }
+    }
+
+    private func privacyCard(_ snapshot: SquidHookDebugSnapshot) -> some View {
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            Image(systemName: "lock.shield.fill")
+                .foregroundStyle(Fleet.Color.healthy)
+            VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                Text("Sanitized local timing")
+                    .font(.callout.weight(.semibold))
+                Text(snapshot.privacy)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Text("Bounded retention: \(snapshot.retention.maxBytes / 1_048_576) MiB")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(Fleet.Space.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Fleet.Color.healthy.opacity(0.08), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+    }
+
+    private func sessionCard(_ session: SquidHookDebugSession) -> some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.m) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                    Text(session.providerLabel)
+                        .font(.headline)
+                    Text("\(session.runtimeSessionId) · \(session.workspaceLabel)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                stateBadge(session.state)
+            }
+            ForEach(session.steps) { step in
+                stepRow(step)
+            }
+        }
+        .padding(Fleet.Space.m)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous).stroke(session.state.color.opacity(0.22)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(session.providerLabel) session \(session.runtimeSessionId), \(session.state.label)")
+    }
+
+    private func stepRow(_ step: SquidHookDebugStep) -> some View {
+        HStack(alignment: .top, spacing: Fleet.Space.m) {
+            Image(systemName: step.state.symbol)
+                .foregroundStyle(step.state.color)
+                .font(.body.weight(.semibold))
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: Fleet.Space.s) {
+                HStack {
+                    Text(step.label)
+                        .font(.callout.monospaced().weight(.bold))
+                    stateBadge(step.state)
+                    Spacer()
+                    if let duration = step.durationMs {
+                        Text("\(duration) ms")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                timelineLine(label: "Actual", value: "\(step.startedAt) → \(step.finishedAt ?? "running")")
+                timelineLine(label: "Expected", value: "by \(step.expectedBy) · \(step.deadlineMs) ms")
+                Text(step.description)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, Fleet.Space.s)
+        .overlay(alignment: .bottom) { Divider() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(step.label), \(step.state.label). Actual start \(step.startedAt). Expected by \(step.expectedBy). \(step.description)")
+    }
+
+    private func timelineLine(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
+                .frame(width: 64, alignment: .leading)
+            Text(value)
+                .font(.caption.monospacedDigit())
+                .textSelection(.enabled)
+        }
+    }
+
+    private func stateBadge(_ state: SquidHookDebugState) -> some View {
+        Text(state.label)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(state.color)
+            .padding(.horizontal, Fleet.Space.s)
+            .padding(.vertical, 3)
+            .background(state.color.opacity(0.12), in: Capsule())
     }
 }

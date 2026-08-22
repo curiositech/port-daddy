@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 import SwiftUI
 import ViewInspector
@@ -149,6 +150,46 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertFalse(quitPath.contains("ScrollView"), quitPath)
     }
 
+    func testFooterDistinguishesUnavailableFromPolling() throws {
+        let unavailableStore = FleetStore(
+            autoStart: false,
+            endpointResolver: { .unavailable(.noPublication) })
+        let unavailable = try FleetPopover(
+            store: unavailableStore,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
+        XCTAssertNoThrow(try unavailable.find(text: "Unavailable"))
+
+        let pollingStore = FleetStore(
+            autoStart: false,
+            endpointResolver: {
+                .available(url: "http://127.0.0.1:54321", source: .publishedPortFile)
+            })
+        let polling = try FleetPopover(
+            store: pollingStore,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
+        XCTAssertNoThrow(try polling.find(text: "Polling"))
+    }
+
+    func testRenderEndpointFooterStatesWhenRequested() throws {
+        guard let outputDirectory = ProcessInfo.processInfo.environment["FLEETBAR_ENDPOINT_SNAPSHOT_DIR"],
+              !outputDirectory.isEmpty else {
+            throw XCTSkip("Set FLEETBAR_ENDPOINT_SNAPSHOT_DIR to render endpoint-state artifacts.")
+        }
+
+        try renderEndpointSnapshot(
+            endpoint: .unavailable(.noPublication),
+            name: "unavailable",
+            outputDirectory: outputDirectory)
+        try renderEndpointSnapshot(
+            endpoint: .available(url: "http://127.0.0.1:54321", source: .publishedPortFile),
+            name: "polling",
+            outputDirectory: outputDirectory)
+    }
+
     func testHeaderExposesVisualTaskOutsideScrollView() throws {
         let store = FleetStore(autoStart: false)
         store.isDaemonRunning = true
@@ -210,7 +251,7 @@ final class FleetPopoverTests: XCTestCase {
     /// The Bosun status text has no single-line limit, so SwiftUI can wrap it.
     func testDaemonReportBosunDiagnosticCanWrap() throws {
         let bosunReason = "daemon heartbeat writer active; pd-bosun supervisor binary available"
-        let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.resolveBaseURL()))
+        let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.availableBaseURL() ?? "http://127.0.0.1:8080"))
             .appendingPathComponent("status")
             .absoluteString
         let store = FleetStore(autoStart: false)
@@ -470,6 +511,46 @@ final class FleetPopoverTests: XCTestCase {
         p.operatorNextAction = "Start this fleet on the current daemon."
         p.remediation = remediation
         return p
+    }
+
+    private func renderEndpointSnapshot(
+        endpoint: DaemonEndpoint,
+        name: String,
+        outputDirectory: String
+    ) throws {
+        let store = FleetStore(autoStart: false, endpointResolver: { endpoint })
+        store.isDaemonRunning = endpoint.isAvailable
+        store.projects = []
+
+        let view = FleetPopover(
+            store: store,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        )
+        .frame(width: 420, height: 760)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .preferredColorScheme(.dark)
+
+        let hosting = NSHostingView(rootView: view)
+        hosting.frame = NSRect(x: 0, y: 0, width: 420, height: 760)
+        hosting.appearance = NSAppearance(named: .darkAqua)
+        hosting.layoutSubtreeIfNeeded()
+        guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            XCTFail("Could not encode endpoint-state snapshot as PNG")
+            return
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        guard let data = bitmap.representation(using: .png, properties: [:]) else {
+            XCTFail("Could not encode endpoint-state snapshot as PNG")
+            return
+        }
+        XCTAssertGreaterThan(data.count, 20_000, "Endpoint-state snapshot should render real UI.")
+
+        let output = URL(fileURLWithPath: outputDirectory).appendingPathComponent("\(name).png")
+        try FileManager.default.createDirectory(
+            at: output.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        try data.write(to: output)
     }
 
     private func project(agents: [FleetAgent]) -> FleetProject {

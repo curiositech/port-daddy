@@ -248,17 +248,18 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
  * Handle `pd sent` — read receipts: the messages YOU sent and whether each was
  * read, and when. The sender side of the inbox (`pd inbox` is the recipient side).
  */
-export async function handleSent(options: CLIOptions): Promise<void> {
-  if (options.help) {
-    console.log('Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]');
-    console.log('');
-    console.log('Show messages YOU sent and their read receipts (read + when).');
-    console.log('  --unread        Only messages not yet read by the recipient');
-    console.log('  --limit <n>     Max messages to show (default 50)');
-    console.log('  --agent <id>    Sender identity (default: AGENT_ID env or current session)');
-    process.exit(0);
-  }
+export const SENT_HELP: string = [
+  'Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]',
+  '',
+  'Show messages YOU sent and their read receipts (read + when).',
+  '  --unread        Only messages not yet read by the recipient',
+  '  --limit <n>     Max messages to show (default 50)',
+  '  --agent <id>    Sender identity',
+  '                  (default: --agent, else $AGENT_ID, else the current',
+  '                   session, else cli-<pid>)',
+].join('\n');
 
+export async function handleSent(options: CLIOptions): Promise<void> {
   const agentId: string =
     (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
 
