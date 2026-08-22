@@ -15,6 +15,7 @@ import { join } from 'node:path';
 const { spawnViaCliTube } = await import('../../lib/spawner/backends/cli-tube.js');
 
 jest.setTimeout(20_000);
+const REAL_CHILD_DEADLINE_MS = 2_000;
 
 let tempDir;
 let originalAgyBin;
@@ -53,6 +54,25 @@ afterEach(() => {
 });
 
 describe('cli-tube real timeout lifecycle', () => {
+  test('process-tree sampling never delays a child that exits normally', async () => {
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
+    process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
+
+    try {
+      const res = await spawnViaCliTube({
+        cli: 'agy',
+        prompt: 'exit normally while liveness is sampled',
+        timeoutMs: 10_000,
+      });
+
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      expect(res.durationMs).toBeLessThan(5_000);
+    } finally {
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
+    }
+  });
+
   test('does not finalize a timed-out run until the CLI parent and inherited-stdio descendant are dead', async () => {
     const parentPidFile = join(tempDir, 'parent.pid');
     const survivorPidFile = join(tempDir, 'survivor.pid');
@@ -60,20 +80,59 @@ describe('cli-tube real timeout lifecycle', () => {
     const res = await spawnViaCliTube({
       cli: 'agy',
       prompt: 'hold open inherited stdout',
-      timeoutMs: 250,
+      timeoutMs: REAL_CHILD_DEADLINE_MS,
       env: {
         PD_PARENT_PID_FILE: parentPidFile,
         PD_SURVIVOR_PID_FILE: survivorPidFile,
       },
     });
 
-    expect(res.error).toContain('agy timed out after 250ms');
+    expect(res.error).toContain(`agy timed out after ${REAL_CHILD_DEADLINE_MS}ms`);
     expect(existsSync(parentPidFile)).toBe(true);
     expect(existsSync(survivorPidFile)).toBe(true);
     const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
     const survivorPid = Number(readFileSync(survivorPidFile, 'utf8'));
     await expectPidDead(parentPid);
     await expectPidDead(survivorPid);
+  });
+
+  test('no deadline: a real child outliving the old hidden 5-minute default is never killed', async () => {
+    // Uses a fake clock on the PARENT (test) process only — the real child
+    // below runs on its own real V8/event loop and is unaffected by it. This
+    // lets the test prove "no termination timer fires even after 10 virtual
+    // minutes" without ever waiting real minutes.
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
+    process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
+
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    try {
+      const resultPromise = spawnViaCliTube({
+        cli: 'agy',
+        prompt: 'run past the old hidden default',
+        // No timeoutMs: no deadline.
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(jest.getTimerCount()).toBe(0);
+
+      // Advance the parent's virtual clock ten minutes past the old hidden
+      // 5-minute default. The real child (a separate process) keeps running
+      // on real wall-clock time, unaffected.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(jest.getTimerCount()).toBe(0);
+
+      // The real child exits on its own (real ~150ms); the wait settles off
+      // its `close` event, never off a fake timer.
+      const res = await resultPromise;
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      // Cleanup leaves no handles: nothing was ever scheduled to clear.
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
+    }
   });
 
   test('kills an inherited-stdio descendant even when the CLI parent exits before timeout', async () => {
@@ -86,7 +145,7 @@ describe('cli-tube real timeout lifecycle', () => {
     const res = await spawnViaCliTube({
       cli: 'agy',
       prompt: 'spawn survivor then exit parent',
-      timeoutMs: 250,
+      timeoutMs: REAL_CHILD_DEADLINE_MS,
       env: {
         PD_PARENT_PID_FILE: parentPidFile,
         PD_LAUNCHER_PID_FILE: launcherPidFile,
@@ -95,7 +154,7 @@ describe('cli-tube real timeout lifecycle', () => {
       },
     });
 
-    expect(res.error).toContain('agy timed out after 250ms');
+    expect(res.error).toContain(`agy timed out after ${REAL_CHILD_DEADLINE_MS}ms`);
     expect(existsSync(parentPidFile)).toBe(true);
     expect(existsSync(launcherPidFile)).toBe(true);
     expect(existsSync(survivorPidFile)).toBe(true);
@@ -161,6 +220,20 @@ writeFileSync(pidFile, String(survivor.pid));
 survivor.unref();
 
 setInterval(() => {}, 1000);
+`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+function installSlowExitingAgy(dir, sleepMs) {
+  const binDir = join(dir, 'slow-exit-bin');
+  mkdirSync(binDir, { recursive: true });
+  const file = join(binDir, 'agy');
+  writeFileSync(file, `#!${process.execPath}
+setTimeout(() => {
+  console.log('done sleeping');
+  process.exit(0);
+}, ${sleepMs});
 `);
   chmodSync(file, 0o755);
   return file;

@@ -93,6 +93,33 @@ describe('build-latest-json FleetBar signed flag', () => {
     expect(stderr).toContain('unsigned must be boolean');
   });
 
+  // Gatekeeper on a downloaded .app requires signing AND notarization. v3.27.0
+  // shipped signed-but-unnotarized while the feed said signed:true — these pin
+  // the feed to the manifest's `notarized` field whenever it is present.
+  test('signed but notarized:false → fleetbar signed:false (the v3.27.0 quarantine)', () => {
+    writeFleetbarManifestBody(JSON.stringify({ unsigned: false, notarized: false }));
+    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    expect(fleetbarSigned(feed)).toBe(false);
+  });
+
+  test('signed and notarized:true → fleetbar signed:true', () => {
+    writeFleetbarManifestBody(JSON.stringify({ unsigned: false, notarized: true }));
+    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    expect(fleetbarSigned(feed)).toBe(true);
+  });
+
+  test('unsigned:true wins even when notarized claims true', () => {
+    writeFleetbarManifestBody(JSON.stringify({ unsigned: true, notarized: true }));
+    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    expect(fleetbarSigned(feed)).toBe(false);
+  });
+
+  test('manifest without notarized keeps signing-only semantics (older manifests)', () => {
+    writeFleetbarManifestBody(JSON.stringify({ unsigned: false }));
+    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    expect(fleetbarSigned(feed)).toBe(true);
+  });
+
   test('ignores same-named manifests outside dist/fleetbar', () => {
     mkdirSync(join(dir, 'dist', 'other'), { recursive: true });
     writeFileSync(join(dir, 'dist', 'other', 'fleetbar-preview-manifest.json'), JSON.stringify({ unsigned: true }));

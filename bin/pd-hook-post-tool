@@ -101,6 +101,31 @@ suffix() {
 TS_EPOCH="$(date +%s)000"
 ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
 
+# ── Compaction: pheromones are an append-only historical trace log (one line
+# per file mutation, fleet-wide, forever) and are the entry that balloons this
+# file — an unpruned 3k+ line matrix.env made the READER tentacle
+# (pd-hook-prompt) take 20-30s+ per turn. Locks and alerts are live state, not
+# history, so they are never pruned by this pass — only the pheromone tail is
+# trimmed, keeping the most recent COMPACT_KEEP (freshness is judged by the
+# embedded `ts:` field, not file position, so reordering is harmless).
+MAX_LINES="${PD_SQUID_MATRIX_MAX_LINES:-1000}"
+COMPACT_KEEP="${PD_SQUID_MATRIX_COMPACT_KEEP:-500}"
+compact_if_needed() {
+  [ -f "$MATRIX" ] || return 0
+  total="$(wc -l < "$MATRIX" 2>/dev/null | tr -d ' ')"
+  case "$total" in ''|*[!0-9]*) return 0 ;; esac
+  [ "$total" -gt "$MAX_LINES" ] 2>/dev/null || return 0
+  tmp="${MATRIX}.compact.$$"
+  if {
+    grep -v -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null
+    grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null | tail -n "$COMPACT_KEEP"
+  } > "$tmp" 2>/dev/null; then
+    mv "$tmp" "$MATRIX" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+  else
+    rm -f "$tmp" 2>/dev/null
+  fi
+}
+
 # ── Acquire the lock (flock if present, else mkdir) and append atomically ────
 # One pheromone per touched path. A multi-file apply_patch produces N lines; the
 # per-path timestamp suffix keeps keys unique within the same epoch ms via a
@@ -125,6 +150,7 @@ append_line() {
   done <<INNER_EOF
 $TARGETS
 INNER_EOF
+  compact_if_needed
 }
 
 if command -v flock >/dev/null 2>&1; then

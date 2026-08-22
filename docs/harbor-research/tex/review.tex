@@ -1,0 +1,323 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.7em}{}
+
+\newtheorem{target}{Target}[section]
+\newtheorem{claim}{Claim}[section]
+\theoremstyle{definition}
+\newtheorem{mech}{Mechanism}
+\newtheorem{sol}{Solution}
+\theoremstyle{remark}
+\newtheorem*{verdict}{Verdict}
+\newtheorem*{note}{Engineering note}
+
+\newcommand{\grade}[1]{\textsc{[#1]}}
+
+\title{\textbf{Reading the Coordination Papers}\\[4pt]
+\large Review, Exercise Solutions, and Nine Extensions\\[2pt]
+\normalsize On \emph{The Harbor, the Person, and the Economy} (Owens, v1.0, Aug.\ 2026)}
+\author{Prepared by Claude for Erich Owens}
+\date{August 15, 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\textbf{Contents of this document.} Part~\ref{sec:review} is the review, in document form. Part~\ref{sec:sols} solves the exercises engaged during the review, including the starred open ones where a real answer exists. Part~\ref{sec:mechs} evaluates nine proposed mechanisms for fold-in, each with theoretical undergirding and a provable target. Part~\ref{sec:condo} designs the shared remote harbor (Alice, Bob, Carl). Part~\ref{sec:cleanroom} designs the clean-room harbor (Derek and Erin). Part~\ref{sec:priorities} consolidates priorities. The volume's own claim vocabulary is used throughout: a \grade{target} here is \emph{proposed}, never asserted as closed.
+
+\section{The review}\label{sec:review}
+
+\subsection{Objective and state}
+The volume develops one continuous argument: a single-writer kernel gives local transactional truth; a legibility layer makes it operable; non-forgeable identity turns spawns into sanctionable persons; bonds and escrow price cooperation; the Anchor Protocol discharges the cryptographic obligations; federation names what two sovereigns may owe one another. The claim discipline (\emph{implemented / partial / specified / proposed}) is real and rare, and the volume's willingness to demote its own elegant claims --- the monitor-is-a-detector correction, the split-ranker ``one ranker'' claim shown false-as-stated, the sheaf gesture demoted to a formalization target --- is its signature. What remains open, by the volume's own ledger: the grading oracle (Conj.~III.11.1), cross-operator attestation, cross-organ atomicity (a buildable defect), and every empirical parameter.
+
+\subsection{What is strongest}
+The split-ranker theorem (Thm.~I.7.1) is the best design rule in the book: modest mathematics, sharp consequence. \emph{Read-poverty} is a keeper coinage. The whitewashing-cost bound's ``newcomer policy as a shape, not a scalar'' is the correct reformulation of Friedman--Resnick. The maturity ledger is arguably the meta-contribution: the volume practices the epistemics it preaches.
+
+\subsection{Four pushbacks}
+\paragraph{1. The economics models the wrong player.} The repeated-game machinery ($\delta^\star \approx 0.253$, graduated triggers) presumes actors who compute discounted payoffs. LLM agents mostly do not; their dominant failures are non-strategic (confabulation, sycophancy, injected instructions), and a bond cannot deter an agent that does not know it is defecting. The volume's own ``principal above the actor'' move is the save --- taken all the way: every incentive claim is a claim about \emph{principals} and about \emph{selection pressure on agent configurations}. Operators keep configurations that earn and retire configurations that get slashed. That is replicator dynamics, not rational choice; recasting the equilibrium chapters in evolutionary terms dissolves the awkward question of an ephemeral spawn's discount factor. Separately, the stochastic failure class needs its own machinery --- calibration and verification, not deterrence --- and deserves one section cleanly separating the two error models.
+
+\paragraph{2. Hobbes is the wrong contract.} Agents on one machine were never in a state of nature; they are born under a common power. The consent that matters is the \emph{operator's consent to be constrained by their own daemon}: footgun guards that stop \emph{you}, completion gates that refuse \emph{your} wishful green. That is Ulysses at the mast --- Elster's precommitment devices --- not Leviathan. Hobbes sells the pitch; Elster describes the mechanism. The inalienable operator-override then becomes philosophically live rather than obvious: a precommitment device with an escape hatch is barely a precommitment, and the tension between revocable consent and binding oneself deserves a section.
+
+\paragraph{3. At $n{=}1$ the economy is control theory in a costume --- with a missing genealogy.} A bond denominated in a currency you mint, forfeited to yourself, conserves trivially; economic content appears only at federation. The honest defense of internal prices is that they are decentralized optimization signals, and that defense has a distinguished lineage: Sutherland's ``A Futures Market in Computer Time'' (CACM 1968) and, above all, Miller \& Drexler's agoric open systems papers (1988) --- capabilities plus markets for computation \emph{is} their program, and Port Daddy is its direct descendant. Simon (1971) coined ``a wealth of information creates a poverty of attention''; read-poverty is nearly his phrase and he belongs beside Miller and Scott. The bibliography, ironically for a single-writer volume, has many writers: Macaroons appears four times, Hobbes three, Demers three, Ostrom three. Deduplicate.
+
+\paragraph{4. The digest is an attack surface.} Stigmergic markers, bus messages, and digests are attacker-controlled inputs read into other agents' contexts and into the operator's eyes. Prompt injection through the coordination layer --- digest poisoning --- belongs in Chapter II's threat model as a named section, not in a starred exercise. The instinct in \S I.3.2 (``the zoom target must be verifiable, not self-reported'') is the right seed; grow it into provenance labels and taint discipline on every read-surface. (Part~\ref{sec:cleanroom} builds the full apparatus.)
+
+\subsection{What the volume is almost arriving at}
+\begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
+\item \textbf{The split-digest corollary.} Theorem~I.7.1 proves two readers with incompatible loss functions cannot share one scoring head; ``the digest IS the compaction'' then quietly assumes compaction has one reader. It has two: the successor agent (task continuation) and the operator (oversight). By the theorem's own construction, no single compaction serves both. Corollary: \emph{every} read-surface projection needs per-reader heads over shared substrate --- digests, checkpoints, resurrection handoffs. Compact from durable artifacts, per reader class. One-page proof, real design change.
+\item \textbf{Digest-with-zoom is two-stage group testing.} Theorem~I.6.1 is a covering bound on the non-adaptive stage; zoom is adaptive, and the group-testing literature (Dorfman onward; Du \& Hwang) quantifies what adaptivity buys over the $k\log_2(N/k)$ floor. There is a provable Pareto frontier trading digest bits against expected zoom-opens. Better: Thm.~I.6.1 is falsifiable --- zero-miss digests below the bit floor must miss. Plot empirical miss rate against digest token budget against the information floor; that figure would be the volume's first data and its best.
+\item \textbf{Conjecture III.11.1 is an inspection game.} $\rho d B > G$ is Becker's (1968) expected-penalty condition; the audit-the-auditors recursion with contraction is the inspection-game literature (Avenhaus, von Stengel, Zamir). It also yields the deeper reframe: \emph{reputation is amortized verification} --- a dynamic audit schedule lowering $\rho$ as posterior honesty rises while maintaining deterrence, minimizing audit spend. Solution~\ref{sol:rho} works the critical rate.
+\item \textbf{The completion gate is an interactive proof system.} ``A green that wasn't checked is a lie'' is soundness; tests are spot-checks; re-audits are amplification. Delegated computation (Goldwasser--Kalai--Rothblum onward) is the theory of a weak verifier checking a strong prover, which is the grading-oracle problem for mechanical properties.
+\item \textbf{Attenuation is scope of employment.} The economically relevant continuity is \emph{liability} continuity --- a legal concept, not a metaphysical one. The law of agency maps exactly: \emph{respondeat superior} (the principal answers for the agent's torts within scope of employment); scope of employment $\approx$ capability attenuation; the bond is vicarious-liability insurance. This gives Chapter~III a second spine sturdier than the personal-identity one, with centuries of boundary case law attached.
+\end{enumerate}
+
+\subsection{Genealogy and citation gaps}
+Miller \& Drexler (agoric open systems, 1988); Sutherland (1968); Simon (1971); Elster (\emph{Ulysses and the Sirens}, 1979); Becker (1968); inspection games (Avenhaus--von Stengel--Zamir); Kamenica--Gentzkow (Bayesian persuasion, for reputation disclosure); group testing (Dorfman 1943; Du \& Hwang); and --- substantively --- \textbf{CONIKS} (Melara et al., USENIX Security 2015) and its descendants (Key Transparency; WhatsApp's auditable key directories): transparency logs specifically for \emph{identity-key binding across mutually distrusting domains}, which is much closer to the federated witness log than Certificate Transparency is, and is the nearest existing relative of the cross-operator-attestation gap. Evaluating it is cheaper than inventing.
+
+\subsection{What is less interesting}
+The Myerson--Satterthwaite corner is correctly scoped but least binding: real platforms escape MS via fees and subsidies, and the shared grading oracle makes values common-ish, putting the setting in Akerlof/lemons territory where the live theory is information design. The sheaf gesture, as it stands, is ornament: either build the small gluing model for a bounded gossip topology (the volume's own E3$^\star$; Solution~\ref{sol:glue3} sketches it) or cut it. Gap \#1 (multi-dimensional reputation aggregation) may dissolve by the volume's own philosophy: refuse to aggregate; expose the vector; buyers gate on per-axis predicates --- which ``score as telemetry, gate on predicates'' already licenses.
+
+\subsection{Next moves as ranked in the review}
+(1) The Thm.~I.6.1 falsification experiment; (2) the split-digest corollary; (3) recasting III.11.1 as an inspection game. Each is a week, not a year, and each converts prose into evidence --- the volume's own standard. Part~\ref{sec:priorities} re-ranks after folding in the nine new mechanisms.
+
+\section{Solutions to selected exercises}\label{sec:sols}
+
+\subsection{Chapter I, \S I.6 (read-poverty and the lower bound)}
+
+\begin{sol}[6.1]
+Read-poverty binds because the write side already has mature primitives --- claims backed by database uniqueness constraints, locks, merge queues, anomaly detection --- so double-writes are structurally handled, while the read side (find the right agent, the relevant work, the trustworthy collaborator) has no primitive at all: legible state accumulates faster than it can be consulted, and participants regress to $O(n)$ eyeball search or act blind.
+\end{sol}
+
+\begin{sol}[6.2]
+Write-time cost: every registration, claim, note, and episode update must also maintain the directory structure (index maintenance on insert). Read-time speed purchased: queries of the form ``who/what matches $q$'' answer in $O(\text{query})$ --- an index lookup --- instead of scanning $O(n)$ participants, exactly the table-scan-to-index trade.
+\end{sol}
+
+\begin{sol}[6.3]
+At $n{=}1$: the session briefing (state recovery after absence), the honest-attestation/completion gate (verified-green vs.\ no-evidence-of-bad), and the footgun guard (irreversible-action interception). None is discovery-ranking because discovery answers ``who among many'': with a single agent there is no candidate set, so a ranker is vacuous while the three surfaces above already have a customer.
+\end{sol}
+
+\begin{sol}[6.4]
+The floor is $\log_2\binom{N}{k} - \log_2\binom{m}{k}$. As $k \to 0$ both terms vanish: a swarm in which almost nothing is load-bearing is digestible in a few bits (``nothing to see, here's why''). As $k \to N/2$, $\binom{N}{k}$ peaks at $\approx 2^N/\sqrt{\pi N/2}$, so for any fixed review budget $m \ll N$ the floor grows to $\Theta(N)$ bits --- essentially one bit per artifact; the digest must enumerate. Hence a mostly-safe swarm is cheap to digest and a mostly-dangerous one cannot be summarized at all: past a load-bearing density, ``summarize'' degenerates to ``list,'' which is the formal justification for keeping the dangerous set small by construction (attenuation, footgun guards) rather than hoping to digest it.
+\end{sol}
+
+\begin{sol}[6.5$^\star$, adversarial load-bearing estimation]\label{sol:65}
+The bound survives trivially against an oblivious adversary (it is a lower bound). Against an adaptive adversary the right model is: the digest is computed from observable features $\phi(a)$ of each artifact, and the adversary perturbs $\phi$ within a budget. A zero-miss digest must then treat all $\phi$-indistinguishable artifacts alike, so the effective bound becomes $\log_2\binom{N}{k'}$ with $k'$ the size of the indistinguishability class containing the true load-bearing set --- the adversary attacks in two directions: \emph{inflation} (make everything appear load-bearing, driving the floor toward $\Theta(N)$: a legibility denial-of-service that forces the operator to open everything) and \emph{mimicry} (make load-bearing artifacts appear inert, making zero-miss unattainable from corrupted features at any digest size). The defense is the volume's own \S I.3.2 made quantitative: build the digest only from signals the agent cannot forge (witnessed outcomes, oracle-bound checks, structural facts the kernel records), and treat forgeable features as advisory. The residue is an inspection game: sample-audit inert-labeled artifacts at rate $\rho$ with penalty $B$ such that $\rho d B$ exceeds the gain from a successful mimicry --- the same Becker condition as Conj.~III.11.1, which suggests one unified deterrence budget across mimicry, escalation-spoofing, and dishonest grading.
+\end{sol}
+
+\subsection{Chapter I, \S I.7 (discovery and the split ranker)}
+
+\begin{sol}[7.1]
+No strictly monotone scalar transform can identify the discovery head with the attention head, because high-fit/low-risk and low-fit/high-risk items order oppositely under them. Discovery maximizes capability fit (Eq.~I.2); the attention queue maximizes regret-if-ignored $=$ stakes $\times$ irreversibility $\times$ anomaly (Eq.~I.3).
+\end{sol}
+
+\begin{sol}[7.2]
+The attention queue's inputs (anomaly, distress) are self-influenceable by the scored party, its payoff (operator attention) is a scarce prize agents compete for, and its miss-cost asymmetry forces it to err toward surfacing --- so manufactured distress is subsidized. The discovery head is anchored in pull signals (what the agent demonstrably did), which are costly to forge, and its prize is self-punishing: winning a routing you cannot serve produces a witnessed failure.
+\end{sol}
+
+\begin{sol}[7.3]
+\emph{Without} Prop.~I.7.1: agent $A$ dies holding a claim on $f$; the row persists as ``current''; every claim attempt by live agent $B$ is rejected by the uniqueness constraint indefinitely; unblocking requires manual garbage collection. \emph{With} it: the claim is a lease with a class-specific half-life; the read-projection weights it by $e^{-\lambda t}$ and the write boundary treats an expired lease as vacant. $B$ unblocks at its first claim attempt after the lease lapses --- the stale row decayed out of ``current'' instead of persisting as misleading truth.
+\end{sol}
+
+\begin{sol}[7.4]
+Escalation $e$ fires; the queue surfaces it; the operator dismisses. The daemon debits the agent's escalation standing by $\delta$; subsequent escalations from that identity carry a discounted prior and need a higher regret score to surface. Genuine distress survives because (i) the debit prices \emph{dismissed} escalations, not escalations per se --- validated ones (operator acts) restore standing; and (ii) the regret head still multiplies stakes and irreversibility, so a true high-stakes anomaly clears even a raised threshold. It is a reputation loop on the alarm channel: crying wolf has negative expected value unless the wolf is usually real.
+\end{sol}
+
+\begin{sol}[7.5$^\star$, implicit relevance feedback]
+Accept/reject is click data; pairwise preferences (accepted $\succ$ rejected) can train the weights $w$ by standard learning-to-rank. Two Goodhart channels: the loop optimizes for \emph{operator acceptance}, not task success, so agents drift toward legibility-pleasing self-presentation over capability; and only surfaced candidates receive feedback (selection bias), requiring propensity-weighted counterfactual correction. The fix is to move the label downstream: train on the \emph{witnessed outcome} of the routed work (did it land, per the outcome ledger), using the click only as an intermediate signal. Chapter III's substrate is thus the correct training signal for Chapter I's ranker --- a cross-chapter dependency worth stating in the text.
+\end{sol}
+
+\begin{sol}[7.6$^\star$, decay vs.\ summary]
+Classify each signal by (a) reconstructability from durable artifacts, (b) decision-relevance horizon, (c) write frequency. Rule: \emph{decay} high-frequency, short-horizon, reconstructable coordination traces (claims, presence, pheromones); \emph{summarize} low-frequency, long-horizon, non-reconstructable decisions (why-notes, design rationale); \emph{evict-plus-pointer} for reconstructable artifacts (diffs, logs). Slogan: never summarize what you can decay; never decay what you cannot reconstruct. The optimization underneath: choose the treatment minimizing expected retrieval cost (storage $+$ re-derivation $\times$ recall probability $+$ miss cost) subject to Thm.~I.6.1's floor on the load-bearing set.
+\end{sol}
+
+\subsection{Chapter II (kernel)}
+
+\begin{sol}[Linearizability, check]
+The four assumptions: (i) every claim/lock read and write routes through one daemon and one database connection; (ii) \texttt{read\_uncommitted} disabled; (iii) responses sent only after commit; (iv) no out-of-band writer. An out-of-band SQLite connection breaks (iv) first --- and, transitively, (i): there is now a second stream of writes not ordered by the daemon's commits, so the single serial order that the proof linearizes against no longer exists.
+\end{sol}
+
+\begin{sol}[Linearizability, trace]
+History: $A$: \texttt{claim}$(f)$ over $[t_0,t_3]$; $B$: \texttt{claim}$(f)$ over $[t_1,t_4]$ (overlapping $A$); $C$: \texttt{release}$(f)$ by $A$ over $[t_5,t_6]$. Observed: $A$ succeeds, $B$ rejected, $C$ succeeds. Valid linearization: $A$ (at its commit $t_2$), $B$ (at its rejection $t_{2.5}$), $C$. Because $A$ and $B$ overlap, the alternative order $B \to A$ would also respect real time \emph{if} the results matched it (i.e., $B$ succeeded and $A$ were rejected); with overlap, more than one linearization can respect real time, and the observed outcomes select among them. Non-overlapping pairs ($B$ before $C$) admit only one order.
+\end{sol}
+
+\begin{sol}[OP-3$^\star$, differential-test harness]
+Minimal suite: (1) claim--release--claim cycles on one key; (2) the multi-organ sequence claim $+$ session-open $+$ commitment (exercising the OP-11 wrapper once it exists); (3) crash injection --- \texttt{kill -9} between write and commit, then reopen and assert recovery state; (4) WAL checkpoint boundaries straddled by operations; (5) contention --- two clients through the daemon's queue with busy-timeout at the boundary; (6) pragma-sensitive sweeps: \texttt{synchronous} and \texttt{journal\_mode} settings the shim normalizes. Observable-state assertions: after every step, a canonical full-table dump hash must be identical across runtimes, and every response (including error codes and rejection reasons) must be byte-identical. Drive the identical operation sequence against the test-runtime bindings and the compiled daemon; any divergence is an I11 counterexample. This turns runtime parity from hope into a CI artifact.
+\end{sol}
+
+\begin{sol}[OP-11, cross-organ atomicity]
+Partial failure: port claimed, session opened, commitment write fails. Residual state: a resource held by a session with no recorded obligation --- the completion gate has nothing to close, the agent sees a live session and works, the monitor sees an unaccounted claim, and later audit cannot bind outcome to commitment. The interface change: expose a single multi-organ \texttt{begin} endpoint whose body is one local transaction (\texttt{BEGIN IMMEDIATE} \dots\ \texttt{COMMIT}) spanning all three writes. The Saga alternative --- compensations that release the port and close the session on commitment failure --- is strictly worse here: there is a visibility window in which other agents observe the partial state, the compensation itself can fail, and idempotent undo logic must be written and tested. Sagas earn their complexity when steps are remote; with one writer and one file, atomicity is free and the transaction is strictly simpler and strictly stronger.
+\end{sol}
+
+\subsection{Chapter III (identity and the oracle)}
+
+\begin{sol}[III.6, ex.\ 1]
+A reputation is exactly as meaningful as the cost of discarding the name it attaches to. Whitewash: mint fresh $i'$ at zero cost, route future work through it; the newcomer score weakly dominates the sanctioned score, so the sanction is never borne. Sybil: mint $n$ identities; each receives newcomer standing; their aggregate outweighs any honest signal, forging every quorum. One cause, two attacks; one cure --- strictly positive abandonment cost.
+\end{sol}
+
+\begin{sol}[III.6, ex.\ 2]
+The shape (full work ability, reduced economic ceiling) charges the whitewasher the cumulative surplus gap $W$ \emph{every reset}, while the honest newcomer pays only the one maturation they would pay anyway --- and retains full capacity to contribute and accumulate witnessed history. ``Distrust newcomers'' (reduced work ability) inverts this: it imposes deadweight loss on the honest party's contribution capacity while barely touching the fraudster, whose objective is the earning ceiling, not the work. The shape taxes exactly the behavior it means to deter.
+\end{sol}
+
+\begin{sol}[III.6, ex.\ 3$^\star$, bond-farming]
+Principal binding is \emph{necessary}: it kills the laundering channel, since reputation keys to the principal via the delegation chain, so ``selling experienced agents'' transfers nothing without transferring the principal --- and then the buyer inherits the whole record, wash trades included. But binding alone does not stop a principal from inflating its own record. The elegant sufficient defense is \emph{counterparty-diversity weighting}: an outcome graded against a counterparty sharing your principal (or one with high interaction correlation) contributes zero or heavily discounted reputation weight --- EigenTrust's pre-trusted-set instinct applied to outcome provenance. Its false-positive cost on honest pairs is near zero, because honest high-volume pairs across \emph{distinct} principals are unaffected; only intra-principal volume is discounted, which is precisely the wash-trade signature. Sampled adversarial re-audit of high-velocity, low-diversity pairs then covers collusion \emph{across} principals, at cost $\rho \times$ audit price $\times$ flagged volume, tuned by the Becker condition ($\rho d B > $ wash gain). The listing fee is a rate limiter, not a defense.
+\end{sol}
+
+\begin{sol}[III.11, ex.\ 1]
+The grade's \emph{producer} must itself be incentive-compatible. ``The daemon derives the grade'' relocates trust without discharging it: the daemon computes mechanically from judge inputs, and if a judge gains from a dishonest input, mechanical derivation faithfully launders the dishonesty into an authoritative-looking grade.
+\end{sol}
+
+\begin{sol}[III.11, ex.\ 2]
+Judge $J$ posts bond $B_J$ and grades a job dishonestly for private gain $G$. With probability $\rho$ a re-audit fires; with probability $d$ it detects and overturns. On overturn: a tombstone retracts the outcome (append-only compensation, propagating across harbors within the revocation window); $J$'s bond is slashed to the harmed party or commons; $J$'s judge-reputation is debited; the graded agent's downstream reputation is recomputed net of the tombstoned entry.
+\end{sol}
+
+\begin{sol}[III.11, ex.\ 4$^\star$, the critical audit rate]\label{sol:rho}
+Local deterrence at level $k$ requires $\rho_k d_k B_k > G_k$, i.e.
+\[ \rho^\star_k \;=\; \frac{G_k}{d_k B_k}, \]
+the inspection-game / Becker condition: audit no less often than the bribe ceiling over detection-weighted stakes. For the tower to contract, corrupting level $k{+}1$ must be dearer than what level-$k$ corruption is worth. Sufficient conditions: (i) $B_{k+1} \ge B_k$ (stakes do not shrink up the tower); (ii) auditors are drawn unpredictably from a pool spanning $\ge q$ disjoint cliques, so a briber must corrupt in expectation $1/\rho_{k+1}$ independent auditors before the audit lands, giving $G_{k+1} \lesssim G_k \cdot \rho_{k+1}/q$; contraction $\lambda = \rho_{k+1}/q < 1$ holds whenever the pool exceeds one clique and sampling is unpredictable. Termination: the tower need not be infinite --- it stops at an exogenously honest level (the operator at $n{=}1$; a bonded, rated arbitration market at scale, which is ex.\ 10's object). This converts Conj.~III.11.1 from an open conjecture into a parameterized theorem with named sufficient conditions; what remains open is only whether a \emph{deployed} pool satisfies them, which is an audit-log measurement, not a proof.
+\end{sol}
+
+\subsection{Chapter IV (economy)}
+
+\begin{sol}[E1, Myerson--Satterthwaite]
+One sentence: for bilateral trade with independent private values on overlapping continuous supports, no mechanism is simultaneously Bayesian incentive-compatible, interim individually rational, budget-balanced, and ex-post efficient. Checklist before applying to a harbor trade: values truly private and \emph{independent}? (a shared grading oracle correlates them --- common-value contamination voids the theorem's premises); supports overlapping? (if buyer value always exceeds seller cost, efficient trade is trivially implementable); is budget balance actually required? (a harbor can subsidize or charge fees, exiting the corner); is the trade bilateral? (the three-sided market with an insurer is a different mechanism class); is it one-shot? (repeated trade with reputation relaxes the bind).
+\end{sol}
+
+\begin{sol}[E2, valuation vs.\ conservation]
+Harbor $A$ escrows $100\,\alpha$; harbor $B$ escrows $50\,\beta$; at $t_0$ the oracle rate is $1\beta = 2\alpha$, so the marked portfolio is $200\,\alpha$-equivalent. Every unit moves through matched buckets; native-unit conservation holds identically. At $t_1$ the rate moves to $1\beta = 1.5\alpha$: the marked total is now $175\,\alpha$-equivalent. Nothing leaked; the scalar changed because $v_t$ moved --- exposure, not a conservation failure.
+\end{sol}
+
+\begin{sol}[E3$^\star$, an exposure bound]
+Assume the oracle publishes at interval $\tau$ and the log-rate moves at most $\delta_{\max}$ per interval (circuit-breaker model), or has volatility $\sigma$ (diffusive model). For an in-flight leg of notional $V$ with maximum settlement latency $L$:
+\[ \varphi \;\le\; V\!\left((1+\delta_{\max})^{L/\tau} - 1\right) \quad\text{or}\quad \varphi \;\le\; V\!\left(e^{\sigma\sqrt{L}\,z_{1-\epsilon}} - 1\right) \text{ w.p. } 1-\epsilon. \]
+Enforcement is standard margin methodology: require an escrow top-up when mark-to-market drift exceeds $\varphi/2$, and refuse settlement when oracle staleness exceeds $\tau_{\max}$. This names the rate source, time, and exposure bound that Property~IV.7.1 demands.
+\end{sol}
+
+\begin{sol}[Gluing E1--E2]
+E1: the site is the poset (or category) of administrative domains with morphisms given by scoped visibility; a cover of a ledger region is a set of harbors whose witness views jointly include it; restriction maps project a signed ledger view to a sub-domain (filter by scope, carry the attestation); the coefficient object is the monoid of balance vectors (or the set of signed roots) so that $F(U) = $ consistent ledger states over $U$ is a presheaf. E2: two incompatible signed roots over the same region violate the presheaf's \emph{separation} axiom on the overlap --- direct, checkable evidence of equivocation --- but a cohomology class requires the full apparatus (defined restriction maps, a coefficient structure, a \v{C}ech complex whose cocycle condition can fail). Without those data there is nothing for $H^1$ to be a class \emph{of}; the accusation is well-founded, the cohomology is not yet defined.
+\end{sol}
+
+\begin{sol}[Gluing E3$^\star$, a small model]\label{sol:glue3}
+Fix a finite connected graph $G$ of harbors, synchronous rounds, reliable per-edge delivery; let each harbor hold an append-only log and let restriction be prefix projection. Claim: if all pairwise overlaps agree on common prefixes (compatible local sections), a unique global log exists (the glue), and this holds \emph{iff} no harbor equivocated. Proof: prefix-compatible logs form a semilattice under longest-common-prefix; compatibility pairwise implies a unique join by induction on the graph; an equivocation is exactly a pair of incomparable prefixes signed by one key, which destroys pairwise compatibility on some edge once co-located. The lesson the exercise teaches: at this scale the sheaf language adds \emph{naming}, not \emph{power} --- the entire content lives in the equivocation-detection protocol --- which is the concrete ground for the review's ``commit or cut'' advice on \S IV.13.
+\end{sol}
+
+\section{Nine mechanisms: fold-in verdicts and undergirding}\label{sec:mechs}
+
+Summary of verdicts: all nine fold in. Six land in existing chapters as upgrades or corollaries; two (hypervisor, cross-provider resurrection) change the volume's claims materially; one (adversarial test writing) creates a new market inside Chapter~IV. Each entry: verdict, chapter home, theory, a provable \grade{target}, and an engineering note.
+
+\begin{mech}[Agents message each other]
+\begin{verdict} Already present (Ch.~II.7, the bus); the fold-in is discipline, not novelty. \end{verdict}
+Theory: typed performatives (speech-act theory --- Searle; Cohen \& Levesque, already cited) give messages deontic force the kernel can record; unstructured chat gives none. Two bounds worth stating. First, direct pairwise messaging reintroduces read-poverty at $O(n^2)$ channels; routing through the directory with fan-out control and per-class TTL keeps any agent's inbound context load at $O(k \log n)$ for $k$ relevant peers --- state this as the messaging analogue of Thm.~I.6.1. Second, every inbound message is attacker-influenced context (review pushback \#4): messages must carry provenance labels and be rendered into recipient context as \emph{data}, never as instructions.
+\begin{target}[Message-layer read bound]\grade{proposed} Under directory-routed messaging with per-class TTL decay and fan-out cap $f$, the expected inbound token load per agent per epoch is $O(f \cdot \bar{s} \cdot \log n)$, versus $\Theta(n\bar{s})$ under open broadcast, where $\bar{s}$ is mean message size. \end{target}
+\begin{note} The bus already exists; add typed performative envelopes, provenance labels, and the injection-taint rule. \end{note}
+\end{mech}
+
+\begin{mech}[Sole-responsibility roles: calendar avatar, test writer, roadmap owner]
+\begin{verdict} Folds in as the generalization of the volume's deepest idea: the single-writer discipline lifted from data to \emph{function}. \end{verdict}
+One writer per file becomes one owner per \emph{invariant}: the roadmap has one writer; the test suite has one accountable curator; the calendar has one avatar. Def.~III.3.1 ($R = \{O, C, A\}$) already provides the type; what is missing is the assignment rule and its price. Theory: ownership types and Rust's borrow discipline are the programming-language form of the same idea (exclusive write capability per invariant); the economics is queueing: a sole owner is an M/M/1 server, and pooling $c$ generalists into M/M/$c$ beats $c$ specialists on latency \emph{unless} skill heterogeneity (service-rate advantage of the specialist) dominates. That gives the honest boundary of the pattern.
+\begin{target}[Specialization boundary]\grade{proposed} Sole ownership of function $F$ dominates pooled service iff $\mu_{\text{spec}} / \mu_{\text{pool}} > g(\lambda_F, c)$ for an explicit queueing threshold $g$; below it, sole ownership buys accountability at a latency price that should be charged to the accountability budget, not hidden. \end{target}
+\begin{note} Implement as a claim class: \texttt{function-claim} with no expiry but with heartbeat, succession rule (who inherits the role on death --- ties to VI.6 social recovery), and a witnessed per-role outcome ledger so the role itself accumulates reputation independent of its holder. \end{note}
+\end{mech}
+
+\begin{mech}[Buffer all agent inputs; tools for paging, search, compaction]
+\begin{verdict} Folds into Ch.~I \S I.8 as the mechanism that realizes ``compact from durable artifacts.'' \end{verdict}
+This is virtual memory for context: the buffer is backing store, the context window is resident set, paging tools are the MMU. The theory is competitive analysis of online paging: LRU is $k$-competitive (Sleator--Tarjan), and marking algorithms achieve $O(\log k)$ against oblivious adversaries under randomization --- importable wholesale as bounds on ``which spans stay resident.'' The digest floor (Thm.~I.6.1) applies per page table: the \emph{index} over the buffer must retain enough bits to point at every load-bearing span.
+\begin{target}[Context paging competitiveness]\grade{proposed} With a recency-plus-pin policy (pins $=$ load-bearing spans identified by verifiable features), resident-set token cost is within a constant factor of the optimal offline compaction on workloads with bounded reuse distance; the constant degrades gracefully in the fraction of forgeable features, connecting to Solution~\ref{sol:65}. \end{target}
+\begin{note} The buffer also fixes a durability hole: inputs an agent never got to read (crashed mid-stream) survive for the successor --- which resurrection (Mechanism~8) requires anyway. \end{note}
+\end{mech}
+
+\begin{mech}[An SLM sidecar owning compaction]
+\begin{verdict} Folds in as the \emph{implementation} of the review's split-digest corollary, plus a segregation-of-duties argument. \end{verdict}
+The agent must not write its own operator-facing digest --- that is self-attestation of the surface the operator supervises through. A small model, owned by the daemon, reading agent output strictly as data, produces the oversight head; the agent may keep producing its own successor-facing head. Theory: (i) the split-digest corollary says the two heads differ, so assigning them to different producers costs nothing and buys independence; (ii) reference-monitor hygiene --- the sidecar is small enough to evaluate, cheap enough to run always, and outside the agent's persuasion loop; (iii) the honest tension to name: small models are individually more fragile to adversarial text, so the sidecar must be paired with sampled verification of its digests against artifacts (an inspection game again --- the unified deterrence budget of Solution~\ref{sol:65}).
+\begin{target}[Sidecar soundness]\grade{proposed} If the sidecar's digest is computed only from kernel-recorded structural facts plus quoted (never interpreted) agent text, then digest poisoning reduces to the mimicry case of Solution~\ref{sol:65}, and sampled audit at rate $\rho^\star = G/(dB)$ restores zero-miss in expectation. \end{target}
+\begin{note} ``Not fooled by the agents he owns'' is precisely the CaMeL-style control/data separation: agent output enters the sidecar's context in a quoted, non-executable channel; only the daemon's own records enter the instruction channel. \end{note}
+\end{mech}
+
+\begin{mech}[Daemon as hypervisor; network/IO interruption; sandboxes; ``vibe time'']
+\begin{verdict} Folds in as the single highest-leverage upgrade in the list: it moves mechanisms across the volume's own deontic line, from \emph{enforced} (post-commit, detected) to \emph{regimented} (pre-commit, unreachable). \end{verdict}
+Theorem~II.8.1 says a post-commit monitor prevents nothing; \S II.13.1 admits advisory claims are not sandboxing. A hypervisor daemon --- mediating syscalls, filesystem, and network egress \emph{before} effects commit --- is complete mediation in Anderson's sense, and Schneider's characterization then applies with teeth: exactly the safety properties over observable I/O prefixes become execution-monitor enforceable. Footgun guards stop being hand-maintained rule corpora (the open problem of \S I.4.4) and become structural authority: a force-push that never reaches the network. This also converts several \emph{partial} ledger rows: write-boundary identity enforcement, capability-bounded transactions (Def.~VI.3.1) checked at the boundary rather than trusted, and the clean-room design of Part~\ref{sec:cleanroom}, which is impossible without it.
+\begin{target}[Regimentation characterization]\grade{proposed} Under complete mediation of \{fs, net, exec\}, the set of policies Port Daddy can regiment is exactly the safety properties over the mediated action alphabet (Schneider); everything outside that alphabet (in-context persuasion, model-internal state) remains detect-and-compensate. State the alphabet explicitly and re-grade every claim in the ledger against it. \end{target}
+\begin{note} On the name: ``vibe time'' undersells a real mechanism. Given the volume's nautical register, \textbf{watch time} (standing watch) is the natural fit; \emph{witnessed runtime} or \emph{metered watch} also work. The concept --- supervised, metered, interruptible execution --- is what a ship's watch is. \end{note}
+\end{mech}
+
+\begin{mech}[CDM interviewing on transcripts for skill extraction]
+\begin{verdict} Folds into Ch.~I \S I.9.3 as the answer to its own open worry: Klein's Critical Decision Method is the canonical instrument for making m\^etis legible \emph{without} crushing it --- structured retrospective probes, not flattening metrics. \end{verdict}
+Automate CDM over episodes: probe the transcript at decision points (why this branch, what cue, what would have changed your mind), extract candidate skills with provenance links to the episodes that evidenced them. Theory to import: Klein, Calderwood \& MacGregor (1989) for the probe structure; and, crucially, \emph{off-policy evaluation} for the improvement claim --- transcripts are off-policy data, so any ``skill v2 is better'' claim needs importance-weighted or A/B evaluation against witnessed outcomes, with the variance caveats that literature supplies. This also attacks the volume's own Gap~\#4 (skill versioning starts cold): a CDM-extracted skill inherits provenance-weighted reputation from the episodes it was distilled from, warm-starting v2.
+\begin{target}[Skill inheritance rule]\grade{proposed} A skill version $v_{i+1}$ distilled from episodes $E$ inherits reputation prior $\propto \sum_{e \in E} w(e) \cdot q(e)$ with $w$ a provenance-decay weight, then updates on its own witnessed outcomes; the inheritance is bounded so that a fraudulent distillation cannot mint more prior than the episodes' own graded value (conservation of reputation across distillation). \end{target}
+\begin{note} Extraction must be consented and taint-checked: transcripts contain private data; share the distilled skill, not the transcript (this rule recurs in Parts~\ref{sec:condo} and~\ref{sec:cleanroom}). \end{note}
+\end{mech}
+
+\begin{mech}[Real agent checkpoints for arbitrary providers]
+\begin{verdict} Folds into Ch.~III's checkpoint organ (currently \emph{specified}) with an honest impossibility framing that the volume will like. \end{verdict}
+You cannot checkpoint the provider's KV-cache or weights; you can checkpoint the \emph{semantic} state: context manifest (buffered inputs, Mechanism~3), working tree hash, claims held, commitments open, capability set, episodic-memory digest, and the roadmap slice. Define the portable checkpoint as exactly that tuple. The right correctness notion is behavioral, not bitwise: replay fidelity. Because sampling is nondeterministic, a restored agent is a Parfitian \emph{survivor}, not an identical continuation --- which is precisely Chapter III's continuity-not-connectedness thesis, now with an operational metric.
+\begin{target}[Checkpoint fidelity]\grade{proposed} Define fidelity as task-resumption success rate under replay of pending obligations from the checkpoint tuple. Claim: for agents whose behavior is a function of (context, tool state, seed), the tuple is sufficient up to sampling divergence; fidelity loss is measurable per adapter and must be graded per provider in the ledger rather than asserted. \end{target}
+\begin{note} The acceptance test writes itself: restore, replay the open commitments, and let the completion gate judge --- the checkpoint is real iff the successor can close what the ancestor opened. \end{note}
+\end{mech}
+
+\begin{mech}[Cross-provider resurrection: out of Claude credits, resume elsewhere]
+\begin{verdict} Folds in as Ch.~III's flagship demo --- the Parfit chapter operationalized: the person survives provider death because identity is (role, continuity witness), not weights. It also introduces a genuinely new attack the volume should name. \end{verdict}
+The mechanism is Mechanism~7's tuple plus an identity rule: the successor presents the same non-forgeable credential and continuity witness $\kappa$, inherits claims, commitments, and ledger. The new attack: \textbf{engine substitution} --- earn reputation on a strong model, then serve (or resell) under the same identity on a weak one, spending reputation the current engine cannot honor. This is a lemons problem \emph{inside} one identity. Defense: the daemon attests the engine (model id, version) in every witnessed outcome; reputation is indexed by (person, engine class), or engine disclosure is mandatory in the float plan so buyers price it. Note the symmetry with skill versioning (Gap~\#4): both are ``the thing behind the name changed''; one rule --- \emph{reputation attaches to (identity, substrate) pairs, with disclosed substrate} --- closes both.
+\begin{target}[Resurrection soundness]\grade{proposed} A resurrection is \emph{sound} iff (i) the credential and $\kappa$ verify, (ii) the engine attestation is recorded in the successor's outcomes, and (iii) open commitments either close under the successor or are renegotiated via the float-plan amendment protocol (Gap~\#2) with escrow delta. Under (i)--(iii), sanction-respecting reputation (Def.~III.6.1) is preserved across provider migration. \end{target}
+\begin{note} As product: the ``big resume button'' is the visible face of the entire continuity organ --- the one feature that makes Ch.~III legible to a buyer in five seconds. Lead with it. \end{note}
+\end{mech}
+
+\begin{mech}[GitHub review agents, the fleet, adversarial test writing]
+\begin{verdict} Folds into Ch.~I's adversarial-review organ (\S I.4.2) and Ch.~IV as a new internal market; the theory is the review's interactive-proof point made concrete. \end{verdict}
+Frame PR verification as a prover--verifier game: the author-agent proves the change does what the float plan says; adversarial test-writers are the verifier's spot checks. Three imports: (i) \emph{soundness amplification} --- $k$ independent reviewers each detecting a planted flaw with probability $d$ miss it with probability $(1-d)^k$, where independence must be bought with principal/engine diversity (else collusion, per Solution to III.6 ex.~3); (ii) \emph{mutation testing} as the ground-truth oracle for test quality --- a test-writer's witnessed outcome is its mutation kill rate on held-out mutation operators (held out to blunt Goodhart); (iii) \emph{debate} (Irving et al., 2018) as the formal setting where two adversarial LLMs argue before a weak judge --- the closest existing theory for adversarial LLM verification and a citation the volume lacks.
+\begin{target}[Adversarial test market]\grade{proposed} A bounty per surviving mutant plus a slash per false alarm makes truthful effort a best response for test-writers under the Becker condition; the buyer's assurance level is then a purchasable quantity: $(1-d)^k$ at price $k \cdot$ (bounty $+$ bond carry). Assurance becomes a line item --- which is ``hosted trust is the product'' (\S IV.11) made literal. \end{target}
+\begin{note} Ship order: mutation-scored test-writer reputation first (measurable now, no market needed), bounties second. \end{note}
+\end{mech}
+
+\section{The condominium harbor: Alice, Bob, and Carl}\label{sec:condo}
+
+\subsection{The regime between Chapters I--III and Chapter VII}
+The volume has single-operator harbors and federated sovereign harbors, and nothing between. A shared remote harbor --- one daemon, one repo, several principals --- is a third regime: call it the \textbf{condominium harbor}. Definition VII.2.1 (sovereignty) fails by construction; what replaces the sovereign is a \emph{charter}. The load-bearing design move: keep the kernel's single \emph{writer} (one daemon serializes all writes --- mechanics), and move the contested question to a governance layer over \emph{authorization} (who may cause which writes --- politics). One writer, many sovereigns.
+
+\subsection{Coordination substrate: the roadmap is still truth, ownership is partitioned}
+Roadmap-as-truth survives multi-principal contact only if writes to it are owned. Mechanism~2 is the scaling tool: partition the namespace --- Alice owns \texttt{/auth}, Bob owns \texttt{/billing}, roadmap sections have named owners; the UX axis has an owner because \emph{someone must} (see below). Cross-namespace effects are not edits to another's truth; they are \emph{proposals}: typed performatives that ripen into commitments only when the owner accepts. This is exactly the volume's capability/permission distinction lifted to authorship: Bob is capable of proposing against \texttt{/auth}; only Alice's acceptance makes it obligatory.
+
+\subsection{What a conflict is, and who decides}
+Define a conflict as a \emph{deontic inconsistency}: commitments whose oracles cannot jointly close --- $O_A(\varphi)$ and $O_B(\neg\varphi)$, two owners scheduled onto one resource window, an accepted proposal contradicting a standing invariant. Then ``who decides what conflicts are'' has a clean split: \emph{detection} is mechanical; \emph{resolution} is political. Detection bound worth stating: general propositional consistency of a commitment set is co-NP-hard, but a restricted commitment language --- Horn-form invariants plus interval resource claims --- admits polynomial incremental checking (unit propagation; interval overlap in $O(\log n)$ per insert). Design the commitment schema to stay inside the tractable fragment and say so; that is an algorithmic bound the chapter can own. Resolution follows the charter: owner decides within namespace; cross-namespace escalates to the named principals; charter changes (not truths) are voted. Never vote on truth --- truth stays single-writer and oracle-bound; with $n \ge 3$ principals, voting on facts imports Condorcet cycles and Arrow's bind for nothing.
+
+\subsection{The lookout: contradiction-spotting as level-3 situation awareness}
+Your ``unspider/lookout'' is a standing role (Mechanism~2 again): an agent whose sole function is projection --- Endsley's level-3 SA, which the volume already cites for the operator and can now instantiate as an agent. Mechanically: incremental consistency checking over the commitment/roadmap graph (the tractable fragment above), plus reachability analysis over the plan graph (``if these three accepted proposals all land, invariant $I$ breaks in the merge''), plus anomaly projection on trends (dependency drift, test-time growth). \emph{SWE prescience} is then not mystique; it is model checking planned futures against declared invariants, surfaced through the attention queue's regret head. And it need not be about code: prescience is defined \emph{relative to the invariant set}, so UX prescience exists exactly when UX invariants are declared --- which forces the right institutional question: the charter assigns a UX axis owner, the quality vector (Def.~III.10.1) grows a UX axis, and its oracle is user telemetry and complaint streams treated as witnessed outcomes. Who defines user experience? The axis owner, accountable through that axis's ledger, contested through the charter --- same shape as every other truth in the system.
+
+\subsection{The agentic estate}
+Alice and Bob are more than operators; each trails identities, outcome ledgers, skills, memory stores, MCP configurations, and relationships --- a substrate that outlives any repo. Name it: a principal's \textbf{estate}
+\[ E_p = (\text{identities},\ \text{ledgers},\ \text{skills},\ \text{memories},\ \text{tool configs},\ \text{relationships}), \]
+content-addressed, signed by $p$, versioned, durable across projects. The repo is one project the estate visits. Sharing then has a clean rule set: \emph{skills} are lent by Anchor attenuation (Alice grants Bob a scoped, revocable, hop-bounded capability to invoke --- not copy --- her skill; the skill's content-hash reputation travels with it); \emph{transcripts} are never shared raw (taint: they carry private data) --- share CDM-distilled skills with provenance-weighted inherited reputation (Mechanism~6); \emph{memories and relationships} are non-transferable by default, exportable only through declassification gates (Part~\ref{sec:cleanroom}'s machinery, needed sooner than expected). Estate durability is a first-class requirement: export/import ceremonies, signed manifests, and the witness log recording estate versions --- this is the market-level answer to ``how to make durable this agentic substrata.''
+
+\subsection{Now do Carl}
+$n = 3$ changes two things. Coalitions: two principals can outvote one, which is why the charter votes only on charter, never on truth or on another's namespace. And Ostrom becomes the operating manual --- her eight design principles map one-to-one onto existing mechanisms: clear boundaries (admission $+$ non-forgeable identity), congruence (the charter), collective choice (charter amendment), monitoring (the witness log and lookout), graduated sanctions (the bond schedule and newcomer shape), conflict resolution (the arbitration market of III.11 ex.~10), recognition of rights to organize (principal autonomy over namespaces), nested enterprises (condominium harbors federate upward via Ch.~VII unchanged). That table is a section the volume should simply contain.
+
+\section{The clean-room harbor: Derek and Erin}\label{sec:cleanroom}
+
+\subsection{The problem, stated in the volume's terms}
+Derek holds confidential data $D$; Erin holds a proprietary agent stack $S$ (skills, prompts, fine-tunes). Each fears exfiltration of their asset through the other's channel. This is the strongest possible test of ``hosted trust is the product'' (\S IV.11): the harbor must let $S$ compute over $D$ while provably bounding what flows out in either direction.
+
+\subsection{Theoretical base}
+Four literatures, each carrying its own limit honestly:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Information-flow control.} Noninterference (Goguen--Meseguer) as the ideal; the decentralized label model (Myers--Liskov) as the practical lattice: every artifact carries owner labels, labels join on combination, and only an owner's declassifier lowers its own label.
+\item \textbf{Quantitative information flow} (min-entropy leakage, Smith 2009) to \emph{measure} what a declassifier releases, and \textbf{differential privacy} to release aggregates under a metered $\varepsilon$-budget.
+\item \textbf{Confidential computing.} TEEs with remote attestation answer ``whose machine can be trusted to run the sandbox'': a neutral enclave neither party controls. Note for the volume: TEE attestation is also the most concrete existing candidate for the cross-operator attestation gap (Def.~III.7.2) --- a hardware root standing in for the missing PKI between distrusting operators.
+\item \textbf{Provenance.} in-toto attestations (already cited) extended from build artifacts to datasets and skills: every artifact's lineage is a signed chain, so ``where did this number come from'' is answerable in court, not just in prose.
+\end{enumerate}
+And the honest limit up front: \emph{token-level taint tracking through an LLM is impossible} --- the model taints everything it writes with everything it read (taint explosion). Therefore the unit of control is the \textbf{channel}, not the token: complete mediation of every I/O path (Mechanism~5 is a prerequisite), with declassification gates at the only exits.
+
+\subsection{The design}
+A neutral \textbf{clean-room harbor}: a daemon in an attested enclave (or a bonded neutral host), with:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Labels.} Lattice $\{\bot\} \le \{D\}, \{E\} \le \{D,E\}$. Derek's data enters at $\{D\}$; Erin's skills, prompts, and weights at $\{E\}$; anything the agent produces from both is $\{D,E\}$ by join.
+\item \textbf{Complete mediation.} The hypervisor daemon mediates fs/net/exec; no raw egress from the agent sandbox; the only exits are two gates, $G_{\to E}$ and $G_{\to D}$.
+\item \textbf{Erin's exit gate $G_{\to E}$} (what Erin may learn): schema-restricted aggregates only; DP noise drawn against a metered $\varepsilon$-budget; verbatim-span suppression ($n$-gram and embedding match against $D$'s corpus); canary sentinels planted in $D$ whose appearance anywhere past the gate is a tripwire with statistical power against leak size.
+\item \textbf{Derek's exit gate $G_{\to D}$} (what Derek may learn): results and reports, never the skill text, prompts, or weights --- Erin's stack runs as a sealed capability: an attested, inference-only binary Derek can invoke but not read. Symmetrically, no fine-tuning on $D$ unless the resulting weights remain $\{D,E\}$-labeled inside the enclave, with a signed disposal-or-escrow ceremony at engagement end (memorization is exfiltration by gradient).
+\item \textbf{The release ledger.} Every declassification is a witnessed event: gate policy version hash, artifact hash, $\varepsilon$ spent, signer. The cumulative privacy budget is conserved exactly like the bond ledger --- same theorem shape as VI.10.1, which is a satisfying structural rhyme: \emph{the harbor already knows how to conserve a scarce quantity through buckets; $\varepsilon$ is one more.}
+\item \textbf{Economics, correctly subordinated.} An exfiltration bond deters marginal probing and funds detection/cleanup, but breach damage here is effectively unbounded, so the volume's own layer ordering governs: structural prevention (Layers here: labels $+$ mediation $+$ gates) is primary; bonds price the residual; an insurer (Rothschild--Stiglitz caveats apply) prices what neither can.
+\end{enumerate}
+
+\subsection{What can be proved, and what cannot}
+\begin{target}[Conditional noninterference]\grade{proposed} If (i) all channels are mediated, (ii) the gates are the only declassifiers and are correct against their specifications, and (iii) side channels (timing, token counts, error patterns) are out of model, then no $\{D\}$-labeled information reaches Erin beyond the gate-released set, and no $\{E\}$-labeled information reaches Derek beyond results --- by composition of the label lattice with complete mediation. \end{target}
+\begin{target}[$\varepsilon$-conservation]\grade{proposed} The cumulative DP budget spent at $G_{\to E}$ over any trace equals the sum of recorded releases; no sequence of operations spends unrecorded $\varepsilon$. Same proof shape as the bond-conservation theorem. \end{target}
+\begin{target}[Leakage detection power]\grade{proposed} With $c$ canaries and gate-suppression false-negative rate $\beta$, a leak of $k$ canary-bearing spans is detected with probability $\ge 1 - \beta^{k}$; publish the operating curve so assurance is a purchasable quantity, as in Mechanism~9. \end{target}
+Cannot be proved and must be said: side channels are excluded by assumption, not defeated; gate specifications are the new load-bearing oracle (symmetric to the grading oracle --- the clean room relocates trust into two auditable declassifiers rather than eliminating it); and a human reading gate output can still remember it --- the system bounds \emph{channels}, not minds.
+
+\section{Consolidated priorities}\label{sec:priorities}
+Re-ranked with the nine mechanisms folded in:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Hypervisor daemon} (Mechanism~5): moves claims across the deontic line, upgrades multiple ledger rows, and is the prerequisite for the clean room. Rename vibe time to \emph{watch time}.
+\item \textbf{Thm.~I.6.1 falsification experiment}: miss rate vs.\ digest budget vs.\ the information floor --- the volume's first datum.
+\item \textbf{Split-digest corollary $+$ SLM sidecar} (Mechanism~4): one-page proof, immediate architecture change, closes the self-attestation hole in the digest.
+\item \textbf{Resurrection demo with engine attestation} (Mechanisms~7--8): Chapter III made legible to a buyer; names and closes the engine-substitution attack.
+\item \textbf{Inspection-game rewrite of Conj.~III.11.1} (Solution~\ref{sol:rho}): converts the volume's central open conjecture into a parameterized theorem plus a measurement obligation.
+\item \textbf{Adversarial test market} (Mechanism~9): mutation-scored reputation first; bounties second; ``assurance as a line item.''
+\item \textbf{Condominium chapter} (Part~\ref{sec:condo}): the missing regime between Chapters III and VII; the Ostrom table; the estate.
+\item \textbf{Clean-room harbor} (Part~\ref{sec:cleanroom}): the commercial apex of ``hosted trust is the product,'' gated on item 1.
+\end{enumerate}
+
+\end{document}
