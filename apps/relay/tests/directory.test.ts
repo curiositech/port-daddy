@@ -156,7 +156,10 @@ function makeFakeDb(state: FakeState): { db: D1Database; log: string[] } {
       return [...byChannel.entries()].map(([channel, iat]) => ({ channel, iat }));
     }
     if (sql.includes('FROM fleet_runs WHERE id IN')) {
-      return state.fleetRuns.filter((r) => (b as string[]).includes(r.id));
+      // Last bind is the consent floor (`AND created_at >= ?`).
+      const since = b[b.length - 1] as number;
+      const ids = b.slice(0, -1) as string[];
+      return state.fleetRuns.filter((r) => ids.includes(r.id) && r.created_at >= since);
     }
     if (sql.includes('SELECT daemon_fingerprint, observed_at, weight FROM capability_index')) {
       return state.capabilityIndex.map((r) => ({
@@ -403,6 +406,74 @@ describe('D3: consent gates derivation, not just the read', () => {
     expect(state.capabilityIndex).toEqual([]);
   });
 
+  it('treats listed_at === 0 as a VALID consent instant, not as unlisted', async () => {
+    // listed_at is number | null; 0 is a real (epoch) timestamp. The guard must
+    // refuse on `listed !== 1 || listed_at === null` — never on falsiness.
+    const state = emptyState();
+    seedIdentity(state, FP, PUB);
+    state.cards.set(FP, {
+      daemon_fingerprint: FP,
+      display_name: null,
+      capabilities_json: '["rust refactoring"]',
+      card_iat: 0,
+      card_sig: 'ff',
+      listed: 1,
+      listed_at: 0,
+      updated_at: 0,
+    });
+    const now = Math.floor(Date.now() / 1000);
+    state.chainHeads.push({ sender: FP, channel: 'ch-epoch', issued_at: now });
+
+    const { db, log } = makeFakeDb(state);
+    const outcome = await refreshCapabilityIndex(makeEnv(db), FP, now);
+    expect(outcome).toEqual({ ok: true, signals: 1 });
+    expect(eventSourceReads(log).length).toBeGreaterThan(0);
+    expect(state.capabilityIndex.map((r) => r.source)).toEqual(['ch-epoch']);
+  });
+
+  it('refuses a LISTED card whose listed_at is null (fail closed, no unfloored derivation)', async () => {
+    const state = emptyState();
+    seedIdentity(state, FP, PUB);
+    state.cards.set(FP, {
+      daemon_fingerprint: FP,
+      display_name: null,
+      capabilities_json: '["rust refactoring"]',
+      card_iat: 0,
+      card_sig: 'ff',
+      listed: 1,
+      listed_at: null, // anomalous row: listed without a consent instant
+      updated_at: 0,
+    });
+    state.chainHeads.push({ sender: FP, channel: 'ch-1', issued_at: Math.floor(Date.now() / 1000) });
+
+    const { db, log } = makeFakeDb(state);
+    const outcome = await refreshCapabilityIndex(makeEnv(db), FP, Math.floor(Date.now() / 1000));
+    expect(outcome).toEqual({ ok: false, refused: 'not-listed' });
+    expect(eventSourceReads(log)).toEqual([]);
+    expect(state.capabilityIndex).toEqual([]);
+  });
+
+  it('a run CREATED pre-consent yields NO verdict signal, even when its event is post-consent', async () => {
+    const state = emptyState();
+    seedIdentity(state, FP, PUB);
+    const now = Math.floor(Date.now() / 1000);
+    // The signed event lands AFTER consent, but the run it names predates it.
+    state.events.push({ sender: FP, channel: 'relayfp:fleet-cloud:run:old', iat: now + 5 });
+    state.fleetRuns.push({ id: 'run:old', conclusion: 'success', created_at: now - 10_000 });
+    // Control: a genuinely post-consent run IS derived.
+    state.events.push({ sender: FP, channel: 'relayfp:fleet-cloud:run:new', iat: now + 5 });
+    state.fleetRuns.push({ id: 'run:new', conclusion: 'success', created_at: now + 5 });
+
+    const { db } = makeFakeDb(state);
+    const res = await handlePutHarborCard(putCard(await signedCard(PRIV, { listing: 'public' })), makeEnv(db));
+    expect(res.status).toBe(200);
+
+    const verdictSources = state.capabilityIndex
+      .filter((r) => r.signal_kind === 'run-verdict')
+      .map((r) => r.source);
+    expect(verdictSources).toEqual(['run:new']);
+  });
+
   it('derivation covers only POST-consent events (floored at listed_at)', async () => {
     const state = emptyState();
     seedIdentity(state, FP, PUB);
@@ -487,6 +558,91 @@ describe('D3: derived rows die with the consent', () => {
     expect(state.capabilityIndex.some((r) => r.source === 'ancient-channel')).toBe(false);
     // Fresh post-consent signals survive.
     expect(state.capabilityIndex.some((r) => r.source === 'active-channel')).toBe(true);
+  });
+});
+
+// ── listed_at propagation: consent windows never widen silently ───────────────
+
+describe('listed_at propagation on re-PUT / re-list', () => {
+  it('a re-PUT while LISTED preserves the original consent instant', async () => {
+    const state = emptyState();
+    seedIdentity(state, FP, PUB);
+    const { db } = makeFakeDb(state);
+    const env = makeEnv(db);
+
+    const first = await handlePutHarborCard(putCard(await signedCard(PRIV, { listing: 'public' })), env);
+    expect(first.status).toBe(200);
+    const originalListedAt = state.cards.get(FP)!.listed_at;
+    expect(originalListedAt).not.toBeNull();
+
+    // Backdate the stored consent instant so preservation is distinguishable
+    // from "just wrote now again".
+    state.cards.get(FP)!.listed_at = originalListedAt! - 5000;
+
+    const second = await handlePutHarborCard(
+      putCard(await signedCard(PRIV, { listing: 'public', capabilities: ['metal shaders'] })),
+      env,
+    );
+    expect(second.status).toBe(200);
+    expect(state.cards.get(FP)!.listed_at).toBe(originalListedAt! - 5000);
+    const body = (await second.json()) as { card: { listedAt: number } };
+    expect(body.card.listedAt).toBe(originalListedAt! - 5000);
+  });
+
+  it('listed_at from a NON-listed prior row is never propagated — re-listing starts a NEW window', async () => {
+    const state = emptyState();
+    seedIdentity(state, FP, PUB);
+    const now = Math.floor(Date.now() / 1000);
+    const stale = now - 100_000;
+    // Anomalous prior row: unlisted BUT with a leftover listed_at (crash
+    // remnant / imported data). Propagating it would silently widen the
+    // consent window by 100k seconds.
+    state.cards.set(FP, {
+      daemon_fingerprint: FP,
+      display_name: null,
+      capabilities_json: '["rust refactoring"]',
+      card_iat: 0,
+      card_sig: 'ff',
+      listed: 0,
+      listed_at: stale,
+      updated_at: 0,
+    });
+    // An event inside the stale window but before the new consent instant.
+    state.chainHeads.push({ sender: FP, channel: 'pre-new-consent', issued_at: stale + 10 });
+
+    const { db } = makeFakeDb(state);
+    const res = await handlePutHarborCard(putCard(await signedCard(PRIV, { listing: 'public' })), makeEnv(db));
+    expect(res.status).toBe(200);
+
+    const card = state.cards.get(FP)!;
+    expect(card.listed).toBe(1);
+    expect(card.listed_at).toBeGreaterThanOrEqual(now); // fresh window, not `stale`
+    // And derivation is floored at the NEW instant — the stale-window event is out.
+    expect(state.capabilityIndex.map((r) => r.source)).not.toContain('pre-new-consent');
+  });
+
+  it('a listed row that lost its listed_at is repaired to now on re-PUT (never left null)', async () => {
+    const state = emptyState();
+    seedIdentity(state, FP, PUB);
+    const now = Math.floor(Date.now() / 1000);
+    state.cards.set(FP, {
+      daemon_fingerprint: FP,
+      display_name: null,
+      capabilities_json: '["rust refactoring"]',
+      card_iat: 0,
+      card_sig: 'ff',
+      listed: 1,
+      listed_at: null, // anomalous: listed without a consent instant
+      updated_at: 0,
+    });
+
+    const { db } = makeFakeDb(state);
+    const res = await handlePutHarborCard(putCard(await signedCard(PRIV, { listing: 'public' })), makeEnv(db));
+    expect(res.status).toBe(200);
+    const card = state.cards.get(FP)!;
+    expect(card.listed).toBe(1);
+    expect(card.listed_at).not.toBeNull();
+    expect(card.listed_at).toBeGreaterThanOrEqual(now);
   });
 });
 

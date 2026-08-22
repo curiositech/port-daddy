@@ -233,9 +233,12 @@ export async function refreshCapabilityIndex(
   }
   if (runIds.length > 0) {
     const placeholders = runIds.map(() => '?').join(',');
+    // Floored at `since` like every other source query: a run CREATED before
+    // the consent instant contributes no signal, even when the signed event
+    // that attributes it arrived post-consent (D3: post-consent events only).
     const runs = await env.DB.prepare(
-      `SELECT id, conclusion, created_at FROM fleet_runs WHERE id IN (${placeholders})`
-    ).bind(...runIds).all<{ id: string; conclusion: string; created_at: number }>();
+      `SELECT id, conclusion, created_at FROM fleet_runs WHERE id IN (${placeholders}) AND created_at >= ?`
+    ).bind(...runIds, since).all<{ id: string; conclusion: string; created_at: number }>();
     for (const r of runs.results ?? []) {
       signals.push({
         capability: '*',
@@ -356,7 +359,11 @@ export async function handlePutHarborCard(request: Request, env: Env): Promise<R
 
   // Consent instant: set at the crossing, preserved while listed, cleared on
   // delist. Re-listing later starts a NEW consent window (old rows are gone).
-  const listedAt = wantsListing ? (crossesToPublic ? now : (prev?.listed_at ?? now)) : null;
+  // listed_at is propagated ONLY from a prior card that was actually LISTED —
+  // a stale listed_at on a non-listed row (crash remnant, imported data) must
+  // never widen the consent window; and a listed row that somehow lost its
+  // listed_at is repaired to `now` rather than left null.
+  const listedAt = wantsListing ? (wasListed ? (prev?.listed_at ?? now) : now) : null;
 
   await env.DB.prepare(`
     INSERT INTO harbor_cards (daemon_fingerprint, display_name, capabilities_json, card_iat, card_sig, listed, listed_at, updated_at)
