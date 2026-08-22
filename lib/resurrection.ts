@@ -26,6 +26,8 @@ export interface StaleAgent {
   staleSince: number;
   status: SalvageQueueStatus;
   notes?: string[];
+  /** Exact session-note total when available, even when notes is a bounded tail. */
+  noteCount?: number;
   // Semantic identity components for prefix filtering
   identityProject: string | null;
   identityStack: string | null;
@@ -60,6 +62,7 @@ interface ResurrectionSessions {
   getNotes(sessionId?: string | null, options?: { limit?: number }): {
     success: boolean;
     notes?: Array<{ content?: unknown }>;
+    total?: number;
   };
 }
 
@@ -221,8 +224,24 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       .map((note) => typeof note === 'string' ? note : String(note));
   }
 
-  function notesForRow(row: ResurrectionQueueRow, metadata: QueueMetadata, maxNotes = noteLimit): string[] {
-    const fallback = normalizeNotes(metadata.notes).slice(-maxNotes);
+  /**
+   * Read one bounded salvage-note tail while preserving its exact total. The
+   * design separates recovery preview cost from completeness metadata so a
+   * caller never has to materialize hundreds of notes merely to say how many
+   * were omitted.
+   *
+   * @param row Resurrection queue record whose session may own live notes.
+   * @param metadata Persisted fallback capsule used when the session is gone.
+   * @param maxNotes Maximum note bodies to materialize for this entry.
+   * @returns A bounded recent-note array plus the exact available-note total.
+   */
+  function notesForRow(
+    row: ResurrectionQueueRow,
+    metadata: QueueMetadata,
+    maxNotes = noteLimit,
+  ): { notes: string[]; total: number } {
+    const fallbackAll = normalizeNotes(metadata.notes);
+    const fallback = { notes: fallbackAll.slice(-maxNotes), total: fallbackAll.length };
     if (!row.session_id || !deps.sessions) return fallback;
 
     try {
@@ -234,7 +253,12 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
         .filter((content) => content !== null && content !== undefined)
         .map((content) => typeof content === 'string' ? content : String(content));
 
-      return liveNotes.length > 0 ? liveNotes : fallback;
+      const reportedTotal = Number.isFinite(result.total) && (result.total ?? -1) >= 0
+        ? Math.floor(result.total as number)
+        : liveNotes.length;
+      return liveNotes.length > 0
+        ? { notes: liveNotes.slice(-maxNotes), total: Math.max(reportedTotal, liveNotes.length) }
+        : fallback;
     } catch {
       return fallback;
     }
@@ -242,6 +266,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
 
   function formatQueueEntry(row: ResurrectionQueueRow, maxNotes = noteLimit): StaleAgent {
     const metadata = parseMetadata(row.metadata);
+    const noteWindow = notesForRow(row, metadata, maxNotes);
     return {
       id: row.agent_id,
       name: row.agent_name,
@@ -250,7 +275,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
       status: row.status as SalvageQueueStatus,
-      notes: notesForRow(row, metadata, maxNotes),
+      notes: noteWindow.notes,
+      noteCount: noteWindow.total,
       identityProject: row.identity_project,
       identityStack: row.identity_stack,
       identityContext: row.identity_context,
@@ -428,13 +454,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       emitter.emit('agent:resurrecting', formatQueueEntry(stmts.get.get(agentId) as ResurrectionQueueRow));
 
       const metadata = parseMetadata(row.metadata);
+      const noteWindow = notesForRow(row, metadata);
       return {
         success: true,
         agent: formatQueueEntry(row),
         context: {
           sessionId: row.session_id,
           purpose: row.purpose,
-          notes: notesForRow(row, metadata),
+          notes: noteWindow.notes,
+          noteCount: noteWindow.total,
         },
       };
     },

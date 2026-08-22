@@ -109,6 +109,15 @@ describe('published daemon endpoint discovery', () => {
     })).toEqual({ port: 4317, source: 'env', portFile: null });
   });
 
+  test.each(['not-a-port', '0', '65536', '4317junk'])
+  ('fails closed on malformed environment publication %j without reading the port file', (raw) => {
+    expect(() => discoverPublishedDaemonPort({
+      env: { PORT_DADDY_PORT: raw },
+      portFile: '/must-not-fallback',
+      readTextFile: () => { throw new Error('must not read'); },
+    })).toThrow(expect.objectContaining({ code: 'INVALID_PUBLISHED_PORT' }));
+  });
+
   test('accepts one exact decimal port plus surrounding whitespace', () => {
     expect(discoverPublishedDaemonPort({
       env: {},

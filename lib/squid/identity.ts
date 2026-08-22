@@ -179,6 +179,7 @@ export interface MatrixSnapshot {
     totals: { alerts: number; pheromones: number; locks: number };
     returned: { alerts: number; pheromones: number; locks: number };
     truncated: { alerts: boolean; pheromones: boolean; locks: boolean; any: boolean };
+    valueCharsTruncated: { alerts: number; pheromones: number; locks: number; any: boolean };
   };
 }
 
@@ -224,6 +225,7 @@ export function readMatrixSnapshot(
     totals: { alerts: 0, pheromones: 0, locks: 0 },
     returned: { alerts: 0, pheromones: 0, locks: 0 },
     truncated: { alerts: false, pheromones: false, locks: false, any: false },
+    valueCharsTruncated: { alerts: 0, pheromones: 0, locks: 0, any: false },
   };
   const snap: MatrixSnapshot = { path, exists: false, alerts: [], pheromones: [], locks: [], window: emptyWindow };
   if (!existsSync(path)) return snap;
@@ -252,6 +254,15 @@ export function readMatrixSnapshot(
     pheromones: pheromones.length > snap.pheromones.length,
     locks: locks.length > snap.locks.length,
     any: alerts.length > snap.alerts.length || pheromones.length > snap.pheromones.length || locks.length > snap.locks.length,
+  };
+  const alertCharsTruncated = alerts.slice(-limitPerKind).filter((value) => value.length > maxValueChars).length;
+  const pheromoneCharsTruncated = pheromones.slice(-limitPerKind).filter((value) => value.length > maxValueChars).length;
+  const lockCharsTruncated = locks.slice(-limitPerKind).filter((value) => value.length > maxValueChars).length;
+  snap.window.valueCharsTruncated = {
+    alerts: alertCharsTruncated,
+    pheromones: pheromoneCharsTruncated,
+    locks: lockCharsTruncated,
+    any: alertCharsTruncated > 0 || pheromoneCharsTruncated > 0 || lockCharsTruncated > 0,
   };
   return snap;
 }

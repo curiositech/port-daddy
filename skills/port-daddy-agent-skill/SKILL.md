@@ -88,6 +88,8 @@ gate outcome, and a short explanation. A start with no completion by its
 deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving the
 bounded local timeline; `clear` removes it. The format cannot retain argv,
 environment snapshots, prompts, tool inputs/results, stdout, or stderr.
+Routine `pd squid status` hides retained session identifiers and absolute paths
+while capture is off; use the explicit debug-status surface to inspect them.
 Operators use the FleetBar Squid strip's Inspect button for this same surface.
 Retained PD TRACE rows are legacy history; current installs do not schedule a
 PostToolUse process.
@@ -121,7 +123,8 @@ without asking the operator to run these agent-facing commands.
 Daemon connection code follows published truth. Port `9876` is an allocator
 preference, not a liveness witness: clients use an explicit URL, an existing
 Unix socket, or the selected daemon's published port file. Missing, malformed,
-or unreadable publication fails closed instead of guessing a listener.
+or unreadable publication fails closed instead of guessing a listener, and the
+SDK's public URL field stays empty rather than publishing a made-up endpoint.
 
 ## Default Agent Happy Path
 
@@ -147,8 +150,9 @@ pd done "<short outcome>"
 ```
 
 After admission, `pd begin` may show at most three semantically matched live
-peers. That optional hint has a 75 ms budget, excludes the new agent, never
-falls back to lexical matching, and fails open without output. A long list of
+peers. That optional hint has a 75 ms total budget, disables reconnect retries,
+aborts its request, excludes the new agent, never falls back to lexical matching,
+and fails open without output. A long list of
 salvage, roadmap, docs, files, or sessions during begin is a regression, not an
 arrival brief.
 
@@ -162,7 +166,7 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. Dirty or unpublished repository work remains blocked.
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
 ## Session Continuity
 

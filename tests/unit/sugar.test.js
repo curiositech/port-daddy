@@ -29,6 +29,7 @@ import { createTupleSpace } from '../../lib/tuples.js';
 function passingChecker() {
   return {
     checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/test', upstream: 'origin/feat/test', ahead: 0 }),
+    checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
   };
 }
 
@@ -735,6 +736,7 @@ describe('pd done origin rule', () => {
         calls++;
         return { ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 };
       },
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
     };
   }
 
@@ -827,6 +829,36 @@ describe('pd done origin rule', () => {
     expect(result.code).toBe('LEDGER_ONLY_CHECK_FAILED');
     expect(result.ledgerOnlyCheckCode).toBe('DIRTY_WORKTREE');
     expect(result.dirtyEntries).toBe(1);
+  });
+
+  test('--no-pr verifies ledger-only cleanliness even when the branch is fully pushed', () => {
+    const checker = {
+      checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 }),
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 2 uncommitted or untracked entries.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 2,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Pushed but dirty close', agentId: 'pushed-dirty-agent' });
+
+    const result = sugar.done({
+      agentId: 'pushed-dirty-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'LEDGER_ONLY_CHECK_FAILED',
+      ledgerOnlyCheckCode: 'DIRTY_WORKTREE',
+      dirtyEntries: 2,
+      originCheckCode: null,
+    });
   });
 
   test('refuses pd done when result note lacks a sentinel', () => {

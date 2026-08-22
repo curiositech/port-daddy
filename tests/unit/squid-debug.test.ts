@@ -6,7 +6,9 @@ import {
   enableSquidHookDebug,
   readSquidHookHealth,
   readSquidHookDebugSnapshot,
+  readSquidHookStatusSnapshot,
   resetSquidHookHealth,
+  SQUID_HOOK_STATUS_MAX_STEPS,
   squidHookHealthDir,
   squidHookDebugPaths,
 } from '../../lib/squid/debug.js';
@@ -51,7 +53,7 @@ beforeEach(() => {
 
 afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
 
-test('enable starts a fresh private capture and disable preserves its timeline', () => {
+test('enable starts a fresh private capture and routine status hides the retained timeline after disable', () => {
   const paths = squidHookDebugPaths(PD_HOME);
   mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
   writeFileSync(paths.events, 'stale event');
@@ -64,6 +66,13 @@ test('enable starts a fresh private capture and disable preserves its timeline',
   const disabled = disableSquidHookDebug(PD_HOME);
   expect(disabled.enabled).toBe(false);
   expect(readFileSync(paths.events, 'utf8')).toContain('run-1');
+  const routineStatus = readSquidHookStatusSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 2_000 });
+  expect(routineStatus.sessions).toEqual([]);
+  expect(routineStatus.retention.eventPath).toBe('');
+  expect(routineStatus.workspace).toBeNull();
+  expect(routineStatus.window).toMatchObject({ totalSteps: 1, returnedSteps: 0, truncated: true });
+  expect(JSON.stringify(routineStatus)).not.toContain('codex:4242');
+  expect(JSON.stringify(routineStatus)).not.toContain(WORKSPACE);
   clearSquidHookDebugEvents(PD_HOME);
   expect(readFileSync(paths.events, 'utf8')).toBe('');
 });
@@ -111,6 +120,25 @@ test('publishes an explicit bounded step window for unified Squid status', () =>
   expect(snapshot.window).toEqual({ totalSteps: 40, returnedSteps: 5, truncated: true });
   expect(snapshot.retention.maxSteps).toBe(5);
   expect(snapshot.sessions.flatMap((session) => session.steps)).toHaveLength(5);
+});
+
+test('pins the unified status window to exactly 25 recent steps', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  const records = Array.from({ length: 40 }, (_, index) =>
+    event({ kind: 'start', run: `status-${index}`, at: 1_000 + index }),
+  );
+  writeFileSync(paths.events, `${records.join('\n')}\n`);
+
+  const snapshot = readSquidHookDebugSnapshot({
+    pdHome: PD_HOME,
+    cwd: WORKSPACE,
+    nowMs: 5_000,
+    maxSteps: SQUID_HOOK_STATUS_MAX_STEPS,
+  });
+  expect(SQUID_HOOK_STATUS_MAX_STEPS).toBe(25);
+  expect(snapshot.window).toEqual({ totalSteps: 40, returnedSteps: 25, truncated: true });
+  expect(snapshot.sessions.flatMap((session) => session.steps)).toHaveLength(25);
 });
 
 test('renders no-op outcomes and drops malformed or out-of-workspace records', () => {

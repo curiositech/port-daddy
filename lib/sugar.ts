@@ -994,28 +994,43 @@ export function createSugar(deps: SugarDeps) {
           ? worktreeMeta.root
           : undefined;
 
-        const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
-        if (!originCheck.ok) {
-          const ledgerOnly = options.noPr === true && gitOriginChecker.checkLedgerOnly
+        if (options.noPr === true) {
+          // `--no-pr` is a stricter repository-artifact claim, not an escape
+          // hatch from the ordinary origin gate. Verify it on every path — a
+          // branch can be fully pushed and still have dirty/untracked work.
+          const ledgerOnly = gitOriginChecker.checkLedgerOnly
             ? gitOriginChecker.checkLedgerOnly(worktreeRoot)
             : null;
-          if (ledgerOnly?.ok) {
-            // A clean worktree with zero commits absent from all remotes has no
-            // repository artifact to orphan. `--no-pr` may close this ledger
-            // session without manufacturing an upstream branch.
-          } else {
+          if (!ledgerOnly?.ok) {
             return {
               success: false,
-              code: ledgerOnly ? 'LEDGER_ONLY_CHECK_FAILED' : 'BRANCH_NOT_ON_ORIGIN',
-              error: `pd done refused — ${ledgerOnly?.error ?? originCheck.error}`,
-              hint: ledgerOnly?.hint ?? originCheck.hint,
+              code: 'LEDGER_ONLY_CHECK_FAILED',
+              error: `pd done refused — ${ledgerOnly?.error ?? 'ledger-only repository verification is unavailable'}`,
+              hint: ledgerOnly?.hint ?? 'Run this close through a Port Daddy build that can verify worktree cleanliness and unpublished commits.',
+              branch: null,
+              upstream: null,
+              ahead: null,
+              originCheckCode: null,
+              ledgerOnlyCheckCode: ledgerOnly?.code ?? 'CHECK_UNAVAILABLE',
+              dirtyEntries: ledgerOnly?.dirtyEntries ?? null,
+              unpublishedCommits: ledgerOnly?.unpublishedCommits ?? null,
+            };
+          }
+        } else {
+          const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
+          if (!originCheck.ok) {
+            return {
+              success: false,
+              code: 'BRANCH_NOT_ON_ORIGIN',
+              error: `pd done refused — ${originCheck.error}`,
+              hint: originCheck.hint,
               branch: originCheck.branch ?? null,
               upstream: originCheck.upstream ?? null,
               ahead: originCheck.ahead ?? null,
               originCheckCode: originCheck.code,
-              ledgerOnlyCheckCode: ledgerOnly?.code ?? null,
-              dirtyEntries: ledgerOnly?.dirtyEntries ?? null,
-              unpublishedCommits: ledgerOnly?.unpublishedCommits ?? null,
+              ledgerOnlyCheckCode: null,
+              dirtyEntries: null,
+              unpublishedCommits: null,
             };
           }
         }

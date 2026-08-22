@@ -185,8 +185,9 @@ The same requirement applies to `pd session start` and the MCP `begin_session` t
 
 After registration, `pd begin` may print up to three semantically matched live
 peers. This optional arrival hint has a 75 ms budget, excludes the new agent,
-uses no lexical fallback, and disappears silently when semantic lookup is slow
-or unavailable. It must never turn session admission into a coordination dump.
+disables reconnect retries, aborts at the total deadline, uses no lexical
+fallback, and disappears silently when semantic lookup is slow or unavailable.
+It must never turn session admission into a coordination dump.
 
 ### `pd begin` charges roadmap rent
 
@@ -217,8 +218,9 @@ pd done "Auth fixed; tests green"
 
 `pd done --no-pr` is only for a genuinely ledger-only session: the worktree
 must be clean and `HEAD` must contain no commit absent from every remote ref.
-Dirty or unpublished repository work still fails closed; the flag cannot hide
-an unpushed change behind a “no artifact” receipt.
+That verifier runs even when the branch itself is fully pushed. Dirty or
+unpublished repository work still fails closed; the flag cannot hide an
+unpushed change behind a “no artifact” receipt.
 
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 
@@ -667,7 +669,10 @@ Status returns at most 25 recent hook steps and 20 recent values per matrix
 kind, with total/returned/truncated metadata; every step carries actual start,
 expected-by and finish times plus its short description. A large retained
 matrix or timeline therefore cannot truncate the JSON contract or queue more
-hook work merely because an operator asked what is running.
+hook work merely because an operator asked what is running. When debug capture
+is off, routine status publishes only retained counts and hides archived runtime
+session identifiers plus absolute workspace/event paths; use the explicit
+`pd squid debug status` surface to inspect the retained diagnostic window.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
@@ -1022,7 +1027,7 @@ Commit this so every developer gets the same deterministic port mapping:
 
 ### Environment variables
 
-- `PORT_DADDY_URL` — daemon address (default `http://localhost:9876`)
+- `PORT_DADDY_URL` — explicit daemon-address override; otherwise clients use a real Unix socket or the selected daemon's published port and never guess `9876`
 - `PORT_DADDY_RANGE_START` — port pool start (default `3100`)
 - `PORT_DADDY_YES=1` — bypass destructive-command prompts (audited)
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
