@@ -1018,20 +1018,129 @@ export async function createCheckRun(
   return body.id ?? 0;
 }
 
+/** Structured evidence from the required-check completion transport. */
+export interface CheckRunCompletionResult {
+  ok: boolean;
+  diagnostic?: string;
+  retryAfterSeconds?: number;
+}
+
 /**
- * Complete a check run. Returns whether the PATCH actually succeeded — unlike
- * the old fire-and-forget version, a failure here is never silently
- * swallowed.
+ * Queue-visible failure for a required-check completion boundary.
  *
- * The completion PATCH is retried locally (bounded, with backoff) on a
- * transient failure (network blip, GitHub 5xx, rate limit) because it is a
- * pure idempotent write. Failure is logged internally on every attempt and on
- * final exhaustion; this function returns false rather than throwing so each
- * caller can apply its own lifecycle policy. The Fleet executor treats false
- * as a queue-level failure after ship checkpoints are durable and before the
- * non-idempotent aggregate review is posted. Redelivery therefore resumes
- * without AI re-spend or duplicate reviews, while the DLQ remains able to
- * resolve a persistently lost required check honestly.
+ * Cloudflare can honor the provider's requested delay on redelivery instead
+ * of immediately hammering a rate-limited GitHub endpoint.  The diagnostic is
+ * already bounded and never includes our request headers or body, so
+ * delivery-failure persistence can give the operator a useful remediation
+ * trail without recording the GitHub token.
+ */
+export class CheckRunCompletionError extends Error {
+  constructor(
+    message: string,
+    readonly retryAfterSeconds?: number,
+  ) {
+    super(message);
+    this.name = 'CheckRunCompletionError';
+  }
+}
+
+const CHECK_COMPLETION_MAX_ATTEMPTS = 3;
+// Long provider delays belong to the queue, not a sleeping max_concurrency=1
+// consumer. Short 1-2s transport retries stay local; rate windows release the
+// slot and return with an explicit Cloudflare redelivery delay.
+const CHECK_COMPLETION_MAX_LOCAL_DELAY_MS = 5_000;
+
+/**
+ * Complete a check run and return the transport evidence needed by the queue.
+ *
+ * A failed or disconnected PATCH is ambiguous: GitHub may have committed the
+ * terminal write before the response was lost.  Read the check back before a
+ * second mutation and accept only the exact intended terminal conclusion.
+ * Mutative retries follow GitHub's published pacing rules: never closer than
+ * one second, honor Retry-After / primary reset, and wait at least one minute
+ * for an otherwise-unqualified 403/429.  Delays too large for a bounded local
+ * retry are returned to the Cloudflare message retry boundary.
+ */
+export async function completeCheckRunDetailed(
+  owner: string,
+  repo: string,
+  checkRunId: number,
+  conclusion: 'success' | 'failure' | 'neutral',
+  summary: string,
+  token: string,
+  detailsUrl?: string | null,
+  title = 'Port Daddy Fleet',
+): Promise<CheckRunCompletionResult> {
+  if (!checkRunId) return { ok: false, diagnostic: 'missing check run id' };
+  // details_url is (re)stamped on completion too, so a run that REUSED an
+  // older check run (idempotent retry path) still links to its own page.
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title, summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
+  });
+  let nextDelayMs = 0;
+  let lastDiagnostic = 'completion PATCH did not produce a terminal response';
+  for (let attempt = 1; attempt <= CHECK_COMPLETION_MAX_ATTEMPTS; attempt++) {
+    if (nextDelayMs > CHECK_COMPLETION_MAX_LOCAL_DELAY_MS) {
+      return {
+        ok: false,
+        diagnostic: lastDiagnostic,
+        retryAfterSeconds: Math.min(43_200, Math.ceil(nextDelayMs / 1000)),
+      };
+    }
+    if (nextDelayMs > 0) await sleep(nextDelayMs);
+    let res: Response;
+    try {
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+        method: 'PATCH',
+        headers: ghHeaders(token),
+        body,
+      });
+    } catch (err) {
+      lastDiagnostic = `network error: ${boundedDiagnostic(String(err))}`;
+      console.error(
+        `[fleet-executor] completeCheckRun network error attempt=${attempt}/${CHECK_COMPLETION_MAX_ATTEMPTS} ` +
+          `check=${checkRunId}: ${lastDiagnostic}`,
+      );
+      if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, token)) {
+        return { ok: true };
+      }
+      nextDelayMs = 1000 * (2 ** (attempt - 1));
+      continue;
+    }
+    if (res.ok) return { ok: true };
+    lastDiagnostic = await checkCompletionDiagnostic(res);
+    console.error(
+      `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${CHECK_COMPLETION_MAX_ATTEMPTS} ` +
+        `check=${checkRunId} ${lastDiagnostic}`,
+    );
+    if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, token)) {
+      return { ok: true };
+    }
+    if (!isRetryableGitHubMutation(res.status)) break;
+    nextDelayMs = githubMutationRetryDelayMs(res, attempt);
+  }
+  console.error(
+    `[fleet-executor] completeCheckRun EXHAUSTED retries for check=${checkRunId} owner=${owner} repo=${repo} — ` +
+      `${lastDiagnostic}; check remains fail-closed until a future delivery or DLQ completion.`,
+  );
+  return {
+    ok: false,
+    diagnostic: lastDiagnostic,
+    ...(nextDelayMs > CHECK_COMPLETION_MAX_LOCAL_DELAY_MS
+      ? { retryAfterSeconds: Math.min(43_200, Math.ceil(nextDelayMs / 1000)) }
+      : {}),
+  };
+}
+
+/**
+ * Compatibility wrapper for callers that need only success/failure.
+ *
+ * The main queue boundary uses {@link completeCheckRunDetailed} so a provider
+ * delay and bounded diagnostic survive into durable delivery evidence.
  */
 export async function completeCheckRun(
   owner: string,
@@ -1043,42 +1152,90 @@ export async function completeCheckRun(
   detailsUrl?: string | null,
   title = 'Port Daddy Fleet',
 ): Promise<boolean> {
-  if (!checkRunId) return false;
-  // details_url is (re)stamped on completion too, so a run that REUSED an
-  // older check run (idempotent retry path) still links to its own page.
-  const body = JSON.stringify({
-    status: 'completed',
-    conclusion,
-    completed_at: new Date().toISOString(),
-    output: { title, summary },
-    ...(detailsUrl ? { details_url: detailsUrl } : {}),
-  });
-  const MAX_ATTEMPTS = 3;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    if (attempt > 1) await sleep(250 * (attempt - 1));
-    let res: Response;
-    try {
-      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-        method: 'PATCH',
-        headers: ghHeaders(token),
-        body,
-      });
-    } catch (err) {
-      console.error(
-        `[fleet-executor] completeCheckRun network error attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId}: ${String(err)}`,
-      );
-      continue;
-    }
-    if (res.ok) return true;
-    console.error(
-      `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId} status=${res.status}`,
-    );
+  return (
+    await completeCheckRunDetailed(
+      owner,
+      repo,
+      checkRunId,
+      conclusion,
+      summary,
+      token,
+      detailsUrl,
+      title,
+    )
+  ).ok;
+}
+
+/** Return GitHub-compliant delay for the next mutative request. */
+export function githubMutationRetryDelayMs(
+  response: Pick<Response, 'status' | 'headers'>,
+  attempt: number,
+  nowMs = Date.now(),
+): number {
+  const retryAfter = response.headers.get('retry-after');
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.max(1000, Math.ceil(seconds * 1000));
   }
-  console.error(
-    `[fleet-executor] completeCheckRun EXHAUSTED retries for check=${checkRunId} owner=${owner} repo=${repo} — ` +
-      'check will remain in_progress until a future run reuses/DLQ-completes it (findFleetCheckRun idempotency path).',
-  );
-  return false;
+  const remaining = response.headers.get('x-ratelimit-remaining');
+  const resetHeader = response.headers.get('x-ratelimit-reset');
+  const reset = Number(resetHeader);
+  if (remaining === '0' && resetHeader && Number.isFinite(reset)) {
+    return Math.max(1000, Math.ceil(reset * 1000 - nowMs));
+  }
+  if (response.status === 403 || response.status === 429) {
+    return 60_000 * (2 ** Math.max(0, attempt - 1));
+  }
+  return Math.max(1000, 1000 * (2 ** Math.max(0, attempt - 1)));
+}
+
+function isRetryableGitHubMutation(status: number): boolean {
+  return status === 403 || status === 408 || status === 409 || status === 429 || status >= 500;
+}
+
+async function checkRunReachedConclusion(
+  owner: string,
+  repo: string,
+  checkRunId: number,
+  conclusion: 'success' | 'failure' | 'neutral',
+  token: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return false;
+    const readback = (await res.json()) as { status?: string; conclusion?: string | null };
+    return readback.status === 'completed' && readback.conclusion === conclusion;
+  } catch {
+    return false;
+  }
+}
+
+async function checkCompletionDiagnostic(res: Response): Promise<string> {
+  const requestId = res.headers.get('x-github-request-id');
+  const retryAfter = res.headers.get('retry-after');
+  const remaining = res.headers.get('x-ratelimit-remaining');
+  const reset = res.headers.get('x-ratelimit-reset');
+  let responseBody = '';
+  try {
+    responseBody = boundedDiagnostic(await res.text());
+  } catch {
+    responseBody = '<unreadable response body>';
+  }
+  return [
+    `status=${res.status}`,
+    requestId ? `request_id=${requestId}` : '',
+    retryAfter ? `retry_after=${retryAfter}` : '',
+    remaining ? `ratelimit_remaining=${remaining}` : '',
+    reset ? `ratelimit_reset=${reset}` : '',
+    responseBody ? `body=${responseBody}` : '',
+  ].filter(Boolean).join(' ');
+}
+
+function boundedDiagnostic(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 512);
 }
 
 function sleep(ms: number): Promise<void> {

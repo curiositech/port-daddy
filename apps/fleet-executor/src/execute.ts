@@ -34,6 +34,8 @@ import {
   createReview,
   createCheckRun,
   completeCheckRun,
+  completeCheckRunDetailed,
+  CheckRunCompletionError,
   findFleetCheckRun,
   findFleetCheckRunState,
   createIssue,
@@ -1595,7 +1597,7 @@ export async function executeFleet(
   // ghost in-progress check. Ship checkpoints make that retry no-spend. Keep
   // the non-idempotent aggregate review after this boundary so a completion
   // retry cannot post duplicate reviews.
-  const checkCompleted = await completeCheckRun(
+  const checkCompletion = await completeCheckRunDetailed(
     owner,
     repo,
     checkRunId,
@@ -1604,10 +1606,11 @@ export async function executeFleet(
     token,
     detailsUrl,
   );
-  if (!checkCompleted) {
-    throw new Error(
+  if (!checkCompletion.ok) {
+    throw new CheckRunCompletionError(
       `Port Daddy Fleet check completion failed after bounded retries for ${owner}/${repo}#${prNumber} ` +
-        `(check ${checkRunId})`,
+        `(check ${checkRunId}): ${checkCompletion.diagnostic ?? 'unknown GitHub response'}`,
+      checkCompletion.retryAfterSeconds,
     );
   }
 
