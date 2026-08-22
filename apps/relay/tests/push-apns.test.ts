@@ -36,6 +36,7 @@ import {
   handleListApnsDevices,
   APNS_JWT_TTL_SECONDS,
   type ApnsPushMessage,
+  jwtFingerprint,
 } from '../src/push-apns.js';
 import {
   runInterruptionNagSweep,
@@ -885,5 +886,30 @@ describe('APNs device registry API', () => {
       'iphone-1',
     );
     expect(((await again.json()) as { removed: number }).removed).toBe(0);
+  });
+});
+
+// The JWT cache key must be injective: two different credential sets can never
+// map to the same key, or the cache serves one team's provider token for
+// another team's credentials. Apple's id format makes a bare join safe today;
+// this pins the property independent of that format.
+describe('jwtFingerprint — cache key injectivity', () => {
+  it('distinct credential sets never share a cache key, even with separators in the ids', () => {
+    const a = jwtFingerprint({ APNS_KEY_ID: 'a|b', APNS_TEAM_ID: 'c', APNS_AUTH_KEY: 'k' } as never);
+    const b = jwtFingerprint({ APNS_KEY_ID: 'a', APNS_TEAM_ID: 'b|c', APNS_AUTH_KEY: 'k' } as never);
+    expect(a).not.toBe(b);
+  });
+
+  it('changing any single credential changes the key', () => {
+    const base = { APNS_KEY_ID: 'K1', APNS_TEAM_ID: 'T1', APNS_AUTH_KEY: 'k1' } as never;
+    const key = jwtFingerprint(base);
+    expect(jwtFingerprint({ ...(base as object), APNS_KEY_ID: 'K2' } as never)).not.toBe(key);
+    expect(jwtFingerprint({ ...(base as object), APNS_TEAM_ID: 'T2' } as never)).not.toBe(key);
+    expect(jwtFingerprint({ ...(base as object), APNS_AUTH_KEY: 'k2' } as never)).not.toBe(key);
+  });
+
+  it('the same credentials produce the same key (the cache can actually hit)', () => {
+    const env = { APNS_KEY_ID: 'K', APNS_TEAM_ID: 'T', APNS_AUTH_KEY: 'k' } as never;
+    expect(jwtFingerprint(env)).toBe(jwtFingerprint({ ...(env as object) } as never));
   });
 });

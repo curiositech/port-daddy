@@ -155,8 +155,25 @@ function pemToPkcs8Der(pem: string): Uint8Array {
   return der;
 }
 
-function jwtFingerprint(env: Env): string {
-  return `${env.APNS_KEY_ID}|${env.APNS_TEAM_ID}|${hashHex(env.APNS_AUTH_KEY ?? '').slice(0, 16)}`;
+/**
+ * Cache key for the provider JWT: it must change whenever ANY credential
+ * changes, and two different credential sets must never map to one key.
+ *
+ * Length-prefixed rather than a bare `a|b|c` join. Apple's key and team ids are
+ * 10-char alphanumerics today, so a separator cannot appear in them and a plain
+ * join happens to be safe — but "happens to be safe" is a property of Apple's
+ * format, not of this code, and a cache that serves one team's JWT for another
+ * team's credentials would be a confusing way to find that out. The framing is
+ * injective for any input instead.
+ */
+export function jwtFingerprint(env: Env): string {
+  return [
+    env.APNS_KEY_ID ?? '',
+    env.APNS_TEAM_ID ?? '',
+    hashHex(env.APNS_AUTH_KEY ?? '').slice(0, 16),
+  ]
+    .map((part) => `${part.length}:${part}`)
+    .join('|');
 }
 
 /**
