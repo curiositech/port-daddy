@@ -21,6 +21,20 @@
 export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const;
 export type TentacleName = (typeof TENTACLES)[number];
 
+/**
+ * Tentacles registered in agent hook lifecycles.
+ *
+ * `pd-hook-post-tool` remains staged so older installs and retained debug logs
+ * can be inspected and removed safely, but it is deliberately not registered.
+ * A synchronous process after every tool multiplied a parallel Codex batch into
+ * a visible queue and duplicated the cumulative evidence already carried by
+ * session claims and notes.
+ */
+export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool'] as const;
+
+/** Every interactive hook must either finish or become visibly overdue within one second. */
+export const SQUID_HOOK_DEADLINE_MS = 1_000;
+
 /** Marker substring present in every command we write — used for idempotent dedupe. */
 export const PD_HOOK_MARKER = 'pd-hook-';
 
@@ -32,7 +46,7 @@ export type TentacleResolver = (name: TentacleName) => string;
 export interface HookCommand {
   type: 'command';
   command: string;
-  statusMessage?: string;
+  timeout?: number;
 }
 export interface HookMatcher {
   matcher?: string;
@@ -40,16 +54,12 @@ export interface HookMatcher {
 }
 
 /** Canonical single-matcher entry (matcher omitted entirely when undefined). */
-export const SQUID_HOOK_STATUS = {
-  prompt: '◆ PD TURN · adding fresh coordination context',
-  preTool: '◆ PD EDIT · checking ownership before mutation',
-  postTool: '◆ PD TRACE · adding the outcome to fleet context',
-} as const;
-
-export function hookEntry(command: string, matcher?: string, statusMessage?: string): HookMatcher {
+export function hookEntry(command: string, matcher?: string, timeout?: number): HookMatcher {
   return {
     ...(matcher ? { matcher } : {}),
-    hooks: [{ type: 'command', command, ...(statusMessage ? { statusMessage } : {}) }],
+    // No statusMessage: a successful no-op hook is intentionally invisible.
+    // Actionable context/blocking still arrives through stdout/stderr.
+    hooks: [{ type: 'command', command, ...(timeout ? { timeout } : {}) }],
   };
 }
 
@@ -107,7 +117,7 @@ export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
 // ─── Gemini CLI (native event names) ──────────────────────────────────────────
 
 export const GEMINI_EVENTS = { prompt: 'BeforeAgent', preTool: 'BeforeTool', postTool: 'AfterTool' } as const;
-export const GEMINI_TOOL_MATCHER = 'replace|write_file|edit|run_shell_command';
+export const GEMINI_TOOL_MATCHER = 'replace|write_file|edit';
 
 // ─── Antigravity (agy) — Claude-shaped engine, broad matcher ─────────────────
 
@@ -122,10 +132,15 @@ export function buildJsonHookMap(
 ): Record<string, HookMatcher[]> {
   const ev = vendor === 'gemini' ? GEMINI_EVENTS : vendor === 'agy' ? AGY_EVENTS : CLAUDE_EVENTS;
   const matcher = vendor === 'gemini' ? GEMINI_TOOL_MATCHER : vendor === 'agy' ? AGY_TOOL_MATCHER : CLAUDE_TOOL_MATCHER;
+  // Claude and Antigravity express hook timeouts in seconds; Gemini CLI uses
+  // milliseconds. Sources (verified 2026-08-21):
+  // https://code.claude.com/docs/en/hooks#command-hook-fields
+  // https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md
+  // https://www.agy.dev/docs/ide/hooks/
+  const timeout = vendor === 'gemini' ? SQUID_HOOK_DEADLINE_MS : SQUID_HOOK_DEADLINE_MS / 1_000;
   return {
-    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, SQUID_HOOK_STATUS.prompt)],
-    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, SQUID_HOOK_STATUS.preTool)],
-    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher, SQUID_HOOK_STATUS.postTool)],
+    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, timeout)],
+    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, timeout)],
   };
 }
 
@@ -140,7 +155,7 @@ export const CODEX_PD_MARKER = 'Port Daddy Giant Squid Harness tentacles';
  */
 export const CODEX_PD_END_MARKER = 'PD_SQUID_TENTACLES_END';
 export const CODEX_TOOL_MATCHER =
-  'Bash|apply_patch|Edit|Write|edit|write|str_replace_editor|shell|shell_command|exec_command|unified_exec|run_shell_command';
+  'apply_patch|Edit|Write|edit|write|str_replace_editor';
 
 export interface CodexHooksTomlOptions {
   comments?: string[];
@@ -154,29 +169,74 @@ export interface CodexHooksTomlOptions {
  */
 export function stripCodexHooksTomlBlock(text: string): string {
   const lines = text.split('\n');
-  const out: string[] = [];
-  let skipping = false;
-  let fenced = false;
-  for (const line of lines) {
-    if (!skipping && line.includes(CODEX_PD_MARKER)) {
-      skipping = true;
-      fenced = text.includes(CODEX_PD_END_MARKER);
+  const withoutMarkedBlocks: string[] = [];
+  for (let i = 0; i < lines.length;) {
+    if (!lines[i].includes(CODEX_PD_MARKER)) {
+      withoutMarkedBlocks.push(lines[i]);
+      i += 1;
       continue;
     }
-    if (skipping) {
-      if (fenced) {
-        if (line.includes(CODEX_PD_END_MARKER)) skipping = false;
-        continue;
+
+    // A current fenced block is safe to remove exactly. For an old unfenced
+    // marker, remove only the marker (and its leading comments), then let the
+    // conservative group pass below distinguish all-PD groups from user hooks.
+    // This prevents a legacy block from swallowing a later [[hooks.*]] group.
+    let endFence = -1;
+    for (let j = i + 1; j < lines.length; j++) {
+      const trimmed = lines[j].trim();
+      if (lines[j].includes(CODEX_PD_MARKER)) break;
+      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.')) break;
+      if (lines[j].includes(CODEX_PD_END_MARKER)) {
+        endFence = j;
+        break;
       }
-      const trimmed = line.trim();
-      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.') && !trimmed.startsWith('[hooks')) {
-        skipping = false;
-        out.push(line);
-      }
+    }
+    if (endFence >= 0) {
+      i = endFence + 1;
       continue;
     }
-    out.push(line);
+
+    i += 1;
+    while (i < lines.length && (!lines[i].trim() || lines[i].trim().startsWith('#'))) i += 1;
   }
+
+  // The oldest installer emitted hook tables without any marker comment. A
+  // later fenced install therefore left both sets live. Remove only complete
+  // hook groups whose command entries are all Port Daddy tentacles; mixed or
+  // user-authored groups are preserved byte-for-byte.
+  const unmarked = withoutMarkedBlocks;
+  const out: string[] = [];
+  const parentTable = /^\s*\[\[hooks\.[^.\]\s]+\]\]\s*$/;
+  for (let i = 0; i < unmarked.length;) {
+    if (!parentTable.test(unmarked[i])) {
+      out.push(unmarked[i]);
+      i += 1;
+      continue;
+    }
+
+    let end = i + 1;
+    while (end < unmarked.length) {
+      const trimmed = unmarked[end].trim();
+      if (parentTable.test(unmarked[end])) break;
+      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.')) break;
+      end += 1;
+    }
+    const group = unmarked.slice(i, end);
+    const commandAssignments = group.filter((entry) => /^\s*command\s*=/.test(entry)).length;
+    const commands = group
+      .map((entry) => entry.match(/^\s*command\s*=\s*["']([^"']+)["']\s*$/)?.[1])
+      .filter((entry): entry is string => typeof entry === 'string');
+    const allCommandsRecognized = commandAssignments === commands.length;
+    if (
+      commands.length === 0 ||
+      !allCommandsRecognized ||
+      !commands.every((command) => command.includes(PD_HOOK_MARKER))
+    ) {
+      out.push(...group);
+    }
+    i = end;
+  }
+
   return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s*$/, '\n');
 }
 
@@ -185,9 +245,12 @@ function tomlString(v: string): string {
 }
 
 /**
- * Hand-emit Codex's `[hooks]` TOML block. All three handlers are synchronous:
- * current Codex parses `async = true` but skips that handler entirely. Shape
- * verified against Codex v0.144.4 and shared by both installation paths.
+ * Hand-emit Codex's deliberately small `[hooks]` TOML block. The turn briefing
+ * and direct-edit gate are synchronous because they can affect the current
+ * decision. There is no PostToolUse handler: current Codex skips async command
+ * hooks, and a synchronous observational process per tool created unbounded UI
+ * fan-out without adding a blocking decision. Shape verified against Codex
+ * v0.144.4 and shared by both installation paths.
  */
 export function codexHooksTomlBlock(
   resolve: TentacleResolver,
@@ -200,14 +263,13 @@ export function codexHooksTomlBlock(
   }
   L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
   L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
-  L.push('# Codex skips async command hooks, so PostToolUse is synchronous too.');
+  L.push('# Per-tool PostToolUse tracing is intentionally retired; claims and notes are cumulative.');
   L.push('');
   L.push('[[hooks.UserPromptSubmit]]');
   L.push('[[hooks.UserPromptSubmit.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-prompt'))}`);
-  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.prompt)}`);
-  L.push('timeout = 10');
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push('');
   L.push('[[hooks.PreToolUse]]');
@@ -215,17 +277,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
-  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.preTool)}`);
-  L.push('timeout = 10');
-  L.push('async = false');
-  L.push('');
-  L.push('[[hooks.PostToolUse]]');
-  L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
-  L.push('[[hooks.PostToolUse.hooks]]');
-  L.push('type = "command"');
-  L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
-  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.postTool)}`);
-  L.push('timeout = 10');
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);
   L.push('');

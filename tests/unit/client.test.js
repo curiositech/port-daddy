@@ -6,12 +6,11 @@
  */
 
 import http from 'node:http';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { jest } from '@jest/globals';
 import { PortDaddy, PortDaddyError, ConnectionError } from '../../lib/client.js';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
 // ============================================================================
 // Mock HTTP server — records requests and returns queued responses
@@ -100,20 +99,53 @@ beforeEach(() => {
 // =============================================================================
 
 describe('PortDaddy constructor', () => {
-  test('uses default URL', () => {
+  test('does not publish a guessed default URL when no endpoint exists', () => {
     const prev = process.env.PORT_DADDY_URL;
+    const prevPort = process.env.PORT_DADDY_PORT;
+    const prevPortFile = process.env.PORT_DADDY_PORT_FILE;
     delete process.env.PORT_DADDY_URL;
+    delete process.env.PORT_DADDY_PORT;
+    process.env.PORT_DADDY_PORT_FILE = join(process.cwd(), '.scratch', 'missing-daemon.port');
     try {
       const pd = new PortDaddy();
-      expect(pd.url).toBe(getDaemonTcpUrl().replace(/\/$/, ''));
+      expect(pd.url).toBe('');
     } finally {
-      if (prev !== undefined) process.env.PORT_DADDY_URL = prev;
+      if (prev === undefined) delete process.env.PORT_DADDY_URL;
+      else process.env.PORT_DADDY_URL = prev;
+      if (prevPort === undefined) delete process.env.PORT_DADDY_PORT;
+      else process.env.PORT_DADDY_PORT = prevPort;
+      if (prevPortFile === undefined) delete process.env.PORT_DADDY_PORT_FILE;
+      else process.env.PORT_DADDY_PORT_FILE = prevPortFile;
     }
   });
 
   test('accepts custom URL', () => {
     const pd = new PortDaddy({ url: 'http://custom:1234/' });
     expect(pd.url).toBe('http://custom:1234'); // Trailing slash stripped
+  });
+
+  test('constructor URL overrides an existing socket path', () => {
+    const scratchBase = join(process.cwd(), '.scratch');
+    mkdirSync(scratchBase, { recursive: true });
+    const scratch = mkdtempSync(join(scratchBase, 'pd-client-explicit-url-'));
+    const socketPath = join(scratch, 'stale.sock');
+    writeFileSync(socketPath, 'stale');
+    try {
+      const pd = new PortDaddy({ url: 'http://custom:1234', socketPath });
+      expect(pd._resolveTarget()).toEqual({ host: 'custom', port: 1234 });
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  test('uses the HTTP protocol default for an explicit URL without a port', () => {
+    const pd = new PortDaddy({ url: 'http://custom', socketPath: '/nonexistent/port-daddy.sock' });
+    expect(pd._resolveTarget()).toEqual({ host: 'custom', port: 80 });
+  });
+
+  test('fails closed when an explicit URL requests unsupported TLS transport', () => {
+    const pd = new PortDaddy({ url: 'https://custom', socketPath: '/nonexistent/port-daddy.sock' });
+    expect(() => pd._resolveTarget()).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_DAEMON_URL' }));
   });
 
   test('reads PORT_DADDY_URL from environment', () => {
@@ -140,7 +172,9 @@ describe('Socket transport fallback', () => {
     const prevUrl = process.env.PORT_DADDY_URL;
     delete process.env.PORT_DADDY_URL;
 
-    const tempDir = mkdtempSync(join(tmpdir(), 'pd-client-socket-'));
+    const scratchBase = join(process.cwd(), '.scratch');
+    mkdirSync(scratchBase, { recursive: true });
+    const tempDir = mkdtempSync(join(scratchBase, 'pd-client-socket-'));
     const socketPath = join(tempDir, 'daemon.sock');
     writeFileSync(socketPath, '');
 
@@ -170,7 +204,6 @@ describe('Socket transport fallback', () => {
 
     try {
       const pd = new PortDaddy({
-        url: `http://127.0.0.1:${mockPort}`,
         socketPath,
       });
 

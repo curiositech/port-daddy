@@ -379,11 +379,14 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
 // check green with `Port Daddy Fleet` simply absent.
 
 describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
-  function envWithQueue(sent: unknown[]) {
+  function envWithQueues(reviewSent: unknown[], gateSent?: unknown[]) {
     const cap: Captured = { events: [], audits: [] };
     const env = makeEnv(cap, []) as unknown as Record<string, unknown>;
-    env.FLEET_RUNS = { async send(job: unknown) { sent.push(job); } };
-    return env as unknown as Env;
+    env.FLEET_RUNS = { async send(job: unknown) { reviewSent.push(job); } };
+    if (gateSent) {
+      env.FLEET_GATES = { async send(job: unknown) { gateSent.push(job); } };
+    }
+    return { env: env as unknown as Env, cap };
   }
 
   const MERGE_GROUP_BODY = JSON.stringify({
@@ -397,9 +400,9 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     },
   });
 
-  it('enqueues a run and carries the queue-branch head_sha', async () => {
+  it('falls back to the review queue and carries the queue-branch head_sha', async () => {
     const sent: unknown[] = [];
-    const env = envWithQueue(sent);
+    const { env } = envWithQueues(sent);
     const res = await handleGithubWebhook(
       webhookReq({
         body: MERGE_GROUP_BODY,
@@ -430,6 +433,25 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     );
   });
 
+  it('routes deterministic checks to the independent gate queue when bound', async () => {
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
+    const { env } = envWithQueues(reviewSent, gateSent);
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: MERGE_GROUP_BODY,
+        signature: sign(SECRET, MERGE_GROUP_BODY),
+        event: 'merge_group',
+        delivery: 'mg-fast-lane',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(0);
+    expect(gateSent).toHaveLength(1);
+  });
+
   it('ignores merge_group actions that are not checks_requested', async () => {
     const sent: unknown[] = [];
     const body = JSON.stringify({
@@ -441,7 +463,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     });
     const res = await handleGithubWebhook(
       webhookReq({ body, signature: sign(SECRET, body), event: 'merge_group', delivery: 'mg-2' }),
-      envWithQueue(sent)
+      envWithQueues(sent).env
     );
     expect(res.status).toBe(204);
     expect(sent).toHaveLength(0);
@@ -450,7 +472,8 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
   it('still enqueues ordinary pull_request deliveries', async () => {
     // Regression guard: widening the predicate must not narrow the path that
     // already worked.
-    const sent: unknown[] = [];
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
     const res = await handleGithubWebhook(
       webhookReq({
         body: PR_BODY,
@@ -458,10 +481,11 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
         event: 'pull_request',
         delivery: 'pr-1',
       }),
-      envWithQueue(sent)
+      envWithQueues(reviewSent, gateSent).env
     );
     expect(res.status).toBe(204);
-    expect(sent).toHaveLength(1);
-    expect((sent[0] as { eventType: string }).eventType).toBe('pull_request');
+    expect(reviewSent).toHaveLength(1);
+    expect(gateSent).toHaveLength(0);
+    expect((reviewSent[0] as { eventType: string }).eventType).toBe('pull_request');
   });
 });

@@ -18,7 +18,14 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
-import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import {
+  daemonBinaryName,
+  jscSafeModeEnv,
+  resolveDaemonLaunchCommand,
+  resolveDistributionRoot,
+  resolveBosunBinaryPath,
+  type DaemonLaunchCommand,
+} from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 const __dirname: string = resolveDistributionRoot(MODULE_DIR);
@@ -292,11 +299,9 @@ ${jscSafeModeEnvXml()}
  * (requires reinstalling the LaunchAgent to take effect).
  */
 export function jscSafeModeEnvXml(): string {
-  if (process.env.PORT_DADDY_JSC_SAFE_MODE === '0') return '';
-  return `        <key>BUN_JSC_useConcurrentGC</key>
-        <string>0</string>
-        <key>BUN_JSC_useConcurrentJIT</key>
-        <string>0</string>`;
+  return Object.entries(jscSafeModeEnv())
+    .map(([key, value]) => `        <key>${key}</key>\n        <string>${value}</string>`)
+    .join('\n');
 }
 
 /**

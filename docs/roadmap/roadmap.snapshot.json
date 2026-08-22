@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1786311699759,
+  "generatedAt": 1787209306579,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 270,
+  "count": 277,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -620,6 +620,11 @@
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
     },
     {
+      "slug": "cartographer-offline-since-may",
+      "status": "backlog",
+      "summaryMd": "drop_feedback IS working (24 feedback:dropped tuples in live DB, 13 in the last two weeks) — the write path is fine. But the only automated consumer, the Cartographer fleet agent (pd-fleet.yml, scheduled */30 * * * *, reads pd feedback list --status open --json and harvests into the roadmap), last committed .cartographer/status.md on 2026-05-19 — ~82 days offline. Its last status recorded its own blindness: EPERM on ~/.port-daddy/daemon.sock. Confirmed live: 'pd fleet status' reports 'Fleet port-daddy defined in pd-fleet.yml but not running'. roadmap_items.promoted_from_feedback_id is not null → 0 rows, ever. So feedback accumulates in an open queue (16+ entries as of 2026-08-09, several duplicates of the same live-reproduced MCP param-naming friction) that nothing reads. Fix is operational (pd fleet up + resolve the socket EPERM) plus a durability question: should cartographer's own liveness be monitored so a second silent-death doesn't recur unnoticed for another 3 months."
+    },
+    {
       "slug": "claude-provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
@@ -628,6 +633,11 @@
       "slug": "claude-squid-mode-visual-20260716",
       "status": "backlog",
       "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
+    },
+    {
+      "slug": "cli-friction-exits-before-logging",
+      "status": "backlog",
+      "summaryMd": "SHIPPED: merged to main as e0e34d1532920698043e9c4e6c3238a7377e9e5c (PR #6802). handleBegin throws instead of process.exit(1); routes/sugar.ts logs sugar_begin_rejected on rejection."
     },
     {
       "slug": "cli-spawn-liveness-and-collection",
@@ -775,6 +785,11 @@
       "summaryMd": "Daemon-witnessed same-harness session continuation with UUID and workspace-bound evidence, owner-leased receipts, and truthful native resume semantics."
     },
     {
+      "slug": "durable-asynchronous-spawn-receipts",
+      "status": "now",
+      "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
       "slug": "feat-backend-dropdown-spawn-forecast",
       "status": "backlog",
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
@@ -873,6 +888,11 @@
       "slug": "fleetbar-visual-task-intake",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add visual task intake"
+    },
+    {
+      "slug": "frictionless-invisible-port-daddy-agent-experience",
+      "status": "backlog",
+      "summaryMd": "Make Port Daddy agent coordination hooks fast, silent by default, fail-safe, context-relevant, and easy to repair; reconcile and land overlapping open work."
     },
     {
       "slug": "gantt-real-estimate-wiring",
@@ -1042,7 +1062,7 @@
     {
       "slug": "mcp-tool-output-budgets",
       "status": "backlog",
-      "summaryMd": "Every MCP tool result must fit the calling agent's context window. swarm_awareness/active_agent_roster now return a bounded digest (compact JSON, hard 30K-char ceiling, explicit omission counters) instead of the raw pretty-printed roster that hit 256K chars in production. Full fidelity stays on GET /agent-roster. Follow-on candidates: audit other list-shaped MCP tools (sitrep, file_heat, notes) for the same unbounded-output defect."
+      "summaryMd": "Two layers now: (1) lib/swarm-awareness-digest.ts shapes swarm_awareness/active_agent_roster specifically; (2) lib/mcp-output-governor.ts is a universal backstop wrapping EVERY MCP tool result at the single dispatch point in mcp/server.ts (governToolOutput), so no tool present or future can return unbounded output. Digests are the smart per-tool layer; the governor is the dumb tool-agnostic one underneath. Follow-on: audit other list-shaped tools (sitrep, notes, file_heat) for their own smart digests rather than relying on the governor's blunt tail-cut."
     },
     {
       "slug": "migration-fixture-rehearsal-ci",
@@ -1153,6 +1173,11 @@
       "slug": "provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
+    },
+    {
+      "slug": "readme-front-door-and-accuracy-gate",
+      "status": "merge",
+      "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
     },
     {
       "slug": "release-safety-pipeline",
@@ -1270,6 +1295,11 @@
       "summaryMd": "feat(squid): harden bridge and document agent harness"
     },
     {
+      "slug": "squid-matrix-parser-consolidation",
+      "status": "now",
+      "summaryMd": "PR1 of the matrix.env elimination plan (docs/proposals/squid-matrix-elimination-plan.md, PR #7685): collapse lib/squid/identity.ts::readMatrixSnapshot() and lib/local-citizen/ink-cloud.ts to call lib/squid/matrix.ts's existing public API instead of independently re-parsing the raw matrix.env file. Zero behavior change, zero schema change, zero hook change — de-risks PR2-PR5 by making 'read the matrix' one call site instead of three before storage changes underneath it. Done when tests/unit/squid-identity.test.ts passes with zero test-file edits and no independent readFileSync/regex parsing of matrix.env remains outside lib/squid/matrix.ts."
+    },
+    {
       "slug": "squid-on-claude-code-not-wired",
       "status": "backlog",
       "summaryMd": "pd squid on's ARMED headline now reflects actual per-surface wiring truthfully (summarizeSquidOn(), cli/commands/squid.ts). PR #3351."
@@ -1323,6 +1353,11 @@
       "slug": "transcript-compliance-hitl-health",
       "status": "backlog",
       "summaryMd": "Make transcript-flow compliance explicit across major backends and fail loud when live runs lose transcript truth. Add a backend support/degraded/missing matrix for Cloudflare, Claude/Claude CLI, Codex, Gemini, agy metadata-only, and OpenAI-compatible/custom paths; expose runtime transcript health in /transcripts/compliance plus /health and /status; raise HITL-tagged critical issues when a claimed-live run has no transcript heartbeat or no terminal transcript; cover present, stalled, and missing cases with focused tests."
+    },
+    {
+      "slug": "usage-telemetry-dead-since-may",
+      "status": "backlog",
+      "summaryMd": "SHIPPED: merged to main as e0e34d1532920698043e9c4e6c3238a7377e9e5c (PR #6802). server.ts constructs createUsageTelemetry and wires it into route deps; /usage/trace stopped silently no-oping."
     },
     {
       "slug": "visual-evidence-doctrine",

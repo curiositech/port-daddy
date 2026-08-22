@@ -21,7 +21,7 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
 
         let store = CloudFleetStore(
             autoStart: false,
-            baseURL: DaemonLocation.resolveBaseURL(),
+            baseURL: "http://127.0.0.1:8080",
             session: StubURLProtocol.makeSession()
         )
         await store.refresh()
@@ -30,7 +30,7 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
         let view = CloudFleetSection(
             store: store,
             localProjects: Self.localProjects,
-            localDaemonURL: DaemonLocation.resolveBaseURL(),
+            localDaemonURL: "http://127.0.0.1:8080",
             compact: false
         )
         .frame(width: 1120, height: 760)
