@@ -19,6 +19,32 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+select_socket_paths() {
+  local socket_root="$1"
+  local pid_token="$2"
+  local short_root="$3"
+
+  SOCK="$socket_root/.pdg.$pid_token.sock"
+  IPC="$socket_root/.pdg.$pid_token.ipc"
+  if [ "${#SOCK}" -ge 96 ] || [ "${#IPC}" -ge 96 ]; then
+    SOCK="$short_root/d.$pid_token.sock"
+    IPC="$short_root/i.$pid_token.sock"
+  fi
+}
+
+# Side-effect-free inspection mode for the component test below. Keeping the
+# selector inside this executable harness proves the exact production logic,
+# rather than maintaining a test-only copy of the threshold calculation.
+if [ "${1:-}" = "--print-socket-paths" ]; then
+  select_socket_paths \
+    "${PD_DOCTOR_GATE_SOCKET_ROOT:-$ROOT_DIR}" \
+    "${PD_DOCTOR_GATE_PID_TOKEN:-$$}" \
+    "${PD_DOCTOR_GATE_SHORT_SOCKET_ROOT:-$HOME/coding/tmp/pd-doctor-sockets}"
+  printf '%s\n%s\n' "$SOCK" "$IPC"
+  exit 0
+fi
+
 DAEMON_BIN="$ROOT_DIR/dist/daemon/port-daddy-daemon"
 CLI_BIN="$ROOT_DIR/dist/port-daddy"
 PORT="${DOCTOR_GATE_PORT:-19890}"
@@ -38,13 +64,10 @@ mkdir -p "$DIAGNOSTIC_REPORT_DIR"
 # exit during daemon boot with ENAMETOOLONG before doctor ran. Keep the ordinary
 # path beside the checkout; fall back to the machine's durable coding scratch
 # root when that path would exceed the stricter 96-byte smoke-test budget.
-SOCK="$ROOT_DIR/.pdg.$$.sock"
-IPC="$ROOT_DIR/.pdg.$$.ipc"
-if [ "${#SOCK}" -ge 96 ] || [ "${#IPC}" -ge 96 ]; then
-  SHORT_SOCKET_ROOT="$HOME/coding/tmp/pd-doctor-sockets"
+SHORT_SOCKET_ROOT="$HOME/coding/tmp/pd-doctor-sockets"
+select_socket_paths "$ROOT_DIR" "$$" "$SHORT_SOCKET_ROOT"
+if [ "${SOCK#"$SHORT_SOCKET_ROOT"/}" != "$SOCK" ]; then
   mkdir -p "$SHORT_SOCKET_ROOT"
-  SOCK="$SHORT_SOCKET_ROOT/d.$$.sock"
-  IPC="$SHORT_SOCKET_ROOT/i.$$.sock"
 fi
 
 cleanup() {

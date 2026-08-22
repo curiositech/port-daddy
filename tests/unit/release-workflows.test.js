@@ -60,6 +60,44 @@ describe('release workflow topology contracts', () => {
     expect(binaryJob).not.toContain('dtolnay/rust-toolchain');
   });
 
+  test('doctor gate shortens Unix socket paths for deeply named worktrees', () => {
+    const script = join(ROOT, 'scripts', 'ci-doctor-gate.sh');
+    const shortRoot = '/Users/test/coding/tmp/pd-doctor-sockets';
+    const deepRoot = `/Users/test/coding/tmp/${'deep-worktree-segment/'.repeat(5)}port-daddy`;
+    const deep = spawnSync('bash', [script, '--print-socket-paths'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PD_DOCTOR_GATE_SOCKET_ROOT: deepRoot,
+        PD_DOCTOR_GATE_SHORT_SOCKET_ROOT: shortRoot,
+        PD_DOCTOR_GATE_PID_TOKEN: '4242',
+      },
+    });
+
+    expect(deep.status).toBe(0);
+    const [socketPath, ipcPath] = deep.stdout.trim().split('\n');
+    expect(socketPath).toBe(`${shortRoot}/d.4242.sock`);
+    expect(ipcPath).toBe(`${shortRoot}/i.4242.sock`);
+    expect(socketPath.length).toBeLessThan(96);
+    expect(ipcPath.length).toBeLessThan(96);
+
+    const ordinaryRoot = '/Users/test/coding/port-daddy';
+    const ordinary = spawnSync('bash', [script, '--print-socket-paths'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PD_DOCTOR_GATE_SOCKET_ROOT: ordinaryRoot,
+        PD_DOCTOR_GATE_SHORT_SOCKET_ROOT: shortRoot,
+        PD_DOCTOR_GATE_PID_TOKEN: '4242',
+      },
+    });
+    expect(ordinary.status).toBe(0);
+    expect(ordinary.stdout.trim().split('\n')).toEqual([
+      `${ordinaryRoot}/.pdg.4242.sock`,
+      `${ordinaryRoot}/.pdg.4242.ipc`,
+    ]);
+  });
+
   test('release discovery stays independent from the publishing credential', () => {
     const workflow = readWorkflow('release-train.yml');
     const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
