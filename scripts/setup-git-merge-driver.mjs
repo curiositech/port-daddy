@@ -49,10 +49,19 @@ function main() {
     });
     execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, DRIVER_CMD], { cwd: ROOT, stdio: 'ignore' });
     console.log(`✓ configured local git merge driver "${DRIVER_NAME}" for docs/roadmap/roadmap.snapshot.json`);
-  } catch {
+  } catch (err) {
     // Never fail an install over this — worst case, that checkout falls back
     // to ordinary textual conflicts on the snapshot, same as before this file
-    // existed.
+    // existed. But a missing `git` binary (ENOENT) is worth a warning rather
+    // than silence: unlike the "not a git checkout" return above, this is a
+    // contributor who WILL hit textual conflicts on the snapshot and has no
+    // way to know why the driver never got configured.
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+      console.warn(
+        `⚠ could not configure the "${DRIVER_NAME}" git merge driver: \`git\` was not found on PATH. ` +
+          'docs/roadmap/roadmap.snapshot.json will fall back to ordinary textual merge conflicts until this is resolved.',
+      );
+    }
   }
 }
 
