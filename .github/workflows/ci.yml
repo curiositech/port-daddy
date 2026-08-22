@@ -98,6 +98,7 @@ jobs:
       recordings: ${{ steps.filter.outputs.recordings }}
       fleetbar: ${{ steps.filter.outputs.fleetbar }}
       console: ${{ steps.filter.outputs.console }}
+      pd-ios: ${{ steps.filter.outputs.pd-ios }}
     steps:
       - id: filter
         env:
@@ -110,6 +111,7 @@ jobs:
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
             echo "console=true" >> "$GITHUB_OUTPUT"
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
@@ -118,6 +120,7 @@ jobs:
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
             echo "console=true" >> "$GITHUB_OUTPUT"
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
@@ -140,6 +143,21 @@ jobs:
             echo "console=true" >> "$GITHUB_OUTPUT"
           else
             echo "console=false" >> "$GITHUB_OUTPUT"
+          fi
+          # pd-ios (the SwiftUI operator app) depends on its own sources AND on
+          # everything it holds a hand-written port of: lib/maritime-signals.ts,
+          # the control-command contract fixture, and the relay's interruptions
+          # shape (publicShape() plus the operator_interruptions column types,
+          # which live in the feature migration and the relay baseline). Editing
+          # any of those without regenerating the iOS parity fixtures is exactly
+          # the drift this gate catches, so they trigger it. In particular a
+          # relay-only PR that retypes a column must run this job — the shape
+          # mismatch it would otherwise introduce is invisible on the relay side.
+          # ci.yml changes re-run it so the gate can be edited under test.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pd-ios=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -851,6 +869,92 @@ jobs:
       - name: Test FleetBar
         run: swift test
 
+  pd-ios:
+    # Build + unit-test the Port Daddy iOS operator app (ADR-0125).
+    #
+    # This is the FIRST xcodebuild in this repo. Every other Apple surface here
+    # is SwiftPM plus hand-assembled bundles, and `swift build` cannot target
+    # iOS at all — so the compile proof for apps/pd-ios is xcodebuild against
+    # an iOS Simulator destination, run on the same macos-latest runner and
+    # with the same "whatever Xcode the image ships" convention the fleetbar
+    # job uses. There is no .xcodeproj: xcodebuild builds the SwiftPM package's
+    # generated PortDaddyKit scheme directly.
+    #
+    # SIGNING: none, deliberately. A simulator build is unsigned, and
+    # CODE_SIGNING_ALLOWED=NO is passed so this can never start depending on a
+    # certificate. The five APPLE_* secrets in release.yml are a macOS
+    # Developer ID / notarization pair — they do not cover iOS device signing,
+    # provisioning profiles, or App Store Connect distribution. A TestFlight
+    # lane needs an Apple Distribution certificate and a provisioning profile
+    # that DO NOT EXIST in this account yet; until they do, this gate proves
+    # the app compiles and its tests pass, and nothing here ships an artifact.
+    #
+    # Path-gated via detect-changes: a non-iOS PR skips this, and a skip
+    # satisfies the required ci-gate check.
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.pd-ios == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Fixture drift gate (TypeScript -> Swift)
+        # MaritimeSignals.swift, ControlVerbs.swift and Interruptions.swift are
+        # hand-written ports of lib/maritime-signals.ts, the
+        # agent-control-command-contract fixture, and the relay's interruptions
+        # shape. This regenerates the parity fixtures from those canonical
+        # sources and fails if the checked-in copies are stale. The Swift tests
+        # then assert the ports reproduce the fixtures. Together: neither side
+        # can move without the other going red. No `bun install` is needed —
+        # the script imports two dependency-free local modules and READS the
+        # relay's source and migration as text (importing interruptions.ts
+        # would pull @noble/hashes in through crypto.ts).
+        run: bun run scripts/generate-pd-ios-fixtures.ts --check
+
+      - name: Show available schemes
+        # A diagnostic that makes a scheme-resolution failure legible instead of
+        # a wall of xcodebuild output. Never the reason a PR goes red — the
+        # build and test steps below are the gate.
+        continue-on-error: true
+        working-directory: apps/pd-ios
+        run: xcodebuild -list
+
+      - name: Resolve an iOS Simulator destination
+        # Pinning a device name breaks the moment the runner image rotates its
+        # simulators. The helper picks the newest available iPhone and fails
+        # loudly when the image has none, rather than letting xcodebuild build
+        # for something that is not an iPhone.
+        id: sim
+        run: |
+          set -euo pipefail
+          udid="$(xcrun simctl list devices available --json \
+            | python3 apps/pd-ios/scripts/resolve-simulator-destination.py)"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build PortDaddyKit for the simulator
+        working-directory: apps/pd-ios
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -scheme PortDaddyKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Test PortDaddyKit
+        working-directory: apps/pd-ios
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -scheme PortDaddyKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
   # ---------------------------------------------------------------------------
   # ci-gate: the single required check for branch protection / the merge queue.
   #
@@ -882,6 +986,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - pd-ios
       - rust-console
       - rust-console-gpui
       - rust-kernel
