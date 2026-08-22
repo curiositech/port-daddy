@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1785972321000,
+  "generatedAt": 1787209306579,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 260,
+  "count": 277,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -565,6 +565,11 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
+      "slug": "audit-git-hooks-env-bypass",
+      "status": "backlog",
+      "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
+    },
+    {
       "slug": "beacon-durable-agent-roster",
       "status": "backlog",
       "summaryMd": "Turn machine-local sessions into durable, meaningful named agents with system and repo remits, prompt and tool policy, episodic learning, searchable transcript lineage, and Port Daddy discovery."
@@ -615,6 +620,11 @@
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
     },
     {
+      "slug": "cartographer-offline-since-may",
+      "status": "backlog",
+      "summaryMd": "drop_feedback IS working (24 feedback:dropped tuples in live DB, 13 in the last two weeks) — the write path is fine. But the only automated consumer, the Cartographer fleet agent (pd-fleet.yml, scheduled */30 * * * *, reads pd feedback list --status open --json and harvests into the roadmap), last committed .cartographer/status.md on 2026-05-19 — ~82 days offline. Its last status recorded its own blindness: EPERM on ~/.port-daddy/daemon.sock. Confirmed live: 'pd fleet status' reports 'Fleet port-daddy defined in pd-fleet.yml but not running'. roadmap_items.promoted_from_feedback_id is not null → 0 rows, ever. So feedback accumulates in an open queue (16+ entries as of 2026-08-09, several duplicates of the same live-reproduced MCP param-naming friction) that nothing reads. Fix is operational (pd fleet up + resolve the socket EPERM) plus a durability question: should cartographer's own liveness be monitored so a second silent-death doesn't recur unnoticed for another 3 months."
+    },
+    {
       "slug": "claude-provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
@@ -623,6 +633,16 @@
       "slug": "claude-squid-mode-visual-20260716",
       "status": "backlog",
       "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
+    },
+    {
+      "slug": "cli-friction-exits-before-logging",
+      "status": "backlog",
+      "summaryMd": "SHIPPED: merged to main as e0e34d1532920698043e9c4e6c3238a7377e9e5c (PR #6802). handleBegin throws instead of process.exit(1); routes/sugar.ts logs sugar_begin_rejected on rejection."
+    },
+    {
+      "slug": "cli-spawn-liveness-and-collection",
+      "status": "merge",
+      "summaryMd": "Make local coding-agent spawns durable, observable, explicitly cancellable, and free of hidden task wallclock deadlines."
     },
     {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
@@ -677,22 +697,22 @@
     {
       "slug": "coordination-papers-empirical-program",
       "status": "backlog",
-      "summaryMd": "Run the empirical program behind the papers: estimate miss/false-alarm costs, detection and slash probabilities, discount and payoff parameters; validate judge reliability and conflicts; chaos-test partitions, redelivery, crash recovery, and identity-reset laundering; publish reproducible traces."
+      "summaryMd": "Measure operator miss and false-alarm costs, judge validity, crash and partition behavior, identity-reset resistance, revocation lag, and other parameters with reproducible, versioned trace bundles."
     },
     {
       "slug": "coordination-papers-mega-volume",
       "status": "now",
-      "summaryMd": "Publish the seven-paper Coordination Papers as one cohesive collected volume with a global introduction, collated contents and references, consolidated status ledger, notation concordance, research appendix, full-page visual audit, library surface, and production artifact."
+      "summaryMd": "Publish the audited seven-paper coordination series as a coherent collected volume with corrected figures and math, implementation-status ledger, collated table of contents and references, proof roadmap, library metadata, reproducible build receipts, and production artifact verification."
     },
     {
       "slug": "coordination-papers-proof-program",
       "status": "backlog",
-      "summaryMd": "Close the whitepaper proof obligations: theorem assumption/deviation matrices, settlement/custody conservation, revocation dissemination bounds under partitions, model-to-runtime conformance, Proof-of-Attention game class and tightness, and explicit conditionality for grading-oracle incentive compatibility."
+      "summaryMd": "Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions."
     },
     {
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
-      "summaryMd": "Close the code gaps exposed by the papers: reputation-grade witnessed outcomes on commitments, actor identity at every write boundary, portable execution checkpoints, sealed cross-harbor relay, witness-log revocation, custody and settlement prototype, and projection-consistency enforcement."
+      "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
     },
     {
       "slug": "daemon-down-hard-stop-mandate",
@@ -706,8 +726,13 @@
     },
     {
       "slug": "dev-berth-daemon-registration",
-      "status": "now",
-      "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
+      "status": "merge",
+      "summaryMd": "Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds."
+    },
+    {
+      "slug": "document-operator-raw-git-escape",
+      "status": "backlog",
+      "summaryMd": "Operator-only guide for the emergency raw-git escape path (real git by absolute path) when the daemon is down; kept out of all agent-facing skill surfaces per ADR-0102, with an anti-leak guard test."
     },
     {
       "slug": "door-generalize-write-boundary-enforcement",
@@ -731,8 +756,8 @@
     },
     {
       "slug": "durable-agent-cross-harness-resumption",
-      "status": "backlog",
-      "summaryMd": "Resume a sanitized handoff capsule in a different harness or backend without replaying raw transcripts, with explicit capability loss and source-to-target lineage."
+      "status": "merge",
+      "summaryMd": "Resume durable coding-agent work across harnesses with immutable predecessor lineage, one admitted successor, collectible receipts, and honest liveness."
     },
     {
       "slug": "durable-agent-handoff-capsule",
@@ -836,8 +861,8 @@
     },
     {
       "slug": "fleet-v2-adversarial-prosecutor",
-      "status": "backlog",
-      "summaryMd": "The prosecutor ship: write+run tests to FALSIFY the PR's stated objective, post red evidence (ADR-0117 D3; confirmed white space). Blocked-by: fleet-v2-sandbox-execution. Blocks: fleet-v2-remediation-loop."
+      "status": "merge",
+      "summaryMd": "Preserve exact-SHA adversarial review coverage and fail closed on missing, stale, malformed, or unprovable evidence."
     },
     {
       "slug": "fleet-v2-remediation-loop",
@@ -865,6 +890,11 @@
       "summaryMd": "feat(fleetbar): add visual task intake"
     },
     {
+      "slug": "frictionless-invisible-port-daddy-agent-experience",
+      "status": "backlog",
+      "summaryMd": "Make Port Daddy agent coordination hooks fast, silent by default, fail-safe, context-relevant, and easy to repair; reconcile and land overlapping open work."
+    },
+    {
       "slug": "gantt-real-estimate-wiring",
       "status": "now",
       "summaryMd": "Wire real roadmap_items.estimate into the Gantt scheduler (routes/roadmap.ts's GET /roadmap/board handler) instead of the hardcoded estimate:1 every task got. lib/roadmap-items.ts now exposes estimate on RoadmapItem/reads it from the DB row; routes/roadmap.ts looks it up per-task with an explicit fallback of 1 only when genuinely unset. started_at/due_at stay unwired — lib/planner-schedule.ts's schedule() is a purely relative CPM engine with no absolute-date anchor concept."
@@ -872,7 +902,12 @@
     {
       "slug": "giant-squid-hook-reliability-and-operator-proof",
       "status": "backlog",
-      "summaryMd": "Make Giant Squid hooks install reliably across supported agents, ship verified assets, and expose visible honest operator proof."
+      "summaryMd": "Ship Giant Squid harness activation, conformance, named feature-daemon proof, atomic daemon reachability, current agent documentation, and a versioned Homebrew release."
+    },
+    {
+      "slug": "git-guard-no-agent-escape",
+      "status": "backlog",
+      "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
     },
     {
       "slug": "github-webhook-delivery-dedup",
@@ -915,6 +950,11 @@
       "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files to the merging session's blast radius. Shipped as PR #3130 (this commit resolves a real content conflict with a concurrently-regenerated main roadmap snapshot)."
     },
     {
+      "slug": "guard-refusal-escalation-skill",
+      "status": "backlog",
+      "summaryMd": "Agent-skill decision tree: correct escalation path on a coordination-guard / pd-shim refusal — fix the guard input or escalate to operator; no in-band bypass (ADR-0102)."
+    },
+    {
       "slug": "guard-stash-pop-interception",
       "status": "backlog",
       "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
@@ -953,6 +993,11 @@
       "slug": "high-port-daddy-fleet-required-check",
       "status": "backlog",
       "summaryMd": "Root cause confirmed: prod CONTROL_KV fleet:paused=true set out-of-band since 2026-07-16, bypassing the audited pause endpoint, no audit trail. Fleet-executor's paused path now always mints a neutral required check-run instead of returning silently. PR #3355. Flag reset to false in prod (operator-directed)."
+    },
+    {
+      "slug": "hitl-operator-interruptions-surfaces",
+      "status": "backlog",
+      "summaryMd": "HITL operator interruptions across PD surfaces (docs/hitl-interruptions.md). Relay+web shipped earlier; this receipt covers the CLI surface (grand-plan DAG node hitl-cli): pd interruptions listing + fleet-dispatch critical-ask pre-flight."
     },
     {
       "slug": "idea-mining-pipeline",
@@ -1013,6 +1058,11 @@
       "slug": "mcp-roadmap-receipt-parity",
       "status": "backlog",
       "summaryMd": "Surface-parity gap (developer-surface review 2026-07-14, verified via pd_discover): the MCP roadmap category is read+promote only (roadmap_list/get/progress/claims/promote) — no roadmap_touch, no upsert. But the Coordination Guard's receipt rent demands a roadmap touch/upsert before commits on coordination surfaces, and rent-at-claim requires a roadmap link at begin — so MCP-only agents (claude.ai web sessions, shell-less surfaces) are STRUCTURALLY unable to pay rent; only Bash-wielding agents can comply, via CLI shell-out. Fix the narrow gap: add roadmap_touch to the MCP roadmap category (receipt notes on existing items), and a governance-gated upsert if item creation is intended for MCP at all — otherwise keep creation behind the sanctioned drop_feedback -> roadmap_promote funnel and say so in the guard's error message. Acceptance: an MCP-only session can satisfy the guard's roadmap-receipt requirement end-to-end without Bash; the guard's rent error names the MCP path."
+    },
+    {
+      "slug": "mcp-tool-output-budgets",
+      "status": "backlog",
+      "summaryMd": "Two layers now: (1) lib/swarm-awareness-digest.ts shapes swarm_awareness/active_agent_roster specifically; (2) lib/mcp-output-governor.ts is a universal backstop wrapping EVERY MCP tool result at the single dispatch point in mcp/server.ts (governToolOutput), so no tool present or future can return unbounded output. Digests are the smart per-tool layer; the governor is the dumb tool-agnostic one underneath. Follow-on: audit other list-shaped tools (sitrep, notes, file_heat) for their own smart digests rather than relying on the governor's blunt tail-cut."
     },
     {
       "slug": "migration-fixture-rehearsal-ci",
@@ -1120,9 +1170,19 @@
       "summaryMd": "Fully build out infrastructure for the provable action adjudicator (north-star Ledger RCP-9): a tamper-resistant reference monitor at the tool-call boundary that compiles natural-language policy into a Datalog/Souffle policy DAG (plus Lean 4 decide-proofs for arithmetic constraints, compiled offline, checked at ~us latency at runtime) and adjudicates every agent action Permit/Deny/Permit-with-Obligation before execution, recording verdicts into a provenance DAG. Builds on shipped substrate: ADR-0093 event-spawn trust gate, Agent Harbor gate+probes+ledger, Coordination Guard enforce mode. Production baselines now exist in the literature (FORGE arxiv:2602.16708, AgentSpec ICSE'26, AgentBC, Lean-Agent Protocol) and the skills/provable-action-adjudicator bundle documents the architecture. Ledger classifies RCP-9 as OPEN research feeding IMP-7/IMP-9 (machine-side containment); promote to a build lane once an ADR scopes the interception point (fleet-engine spawn path + MCP tool boundary) and the policy-compilation pipeline."
     },
     {
+      "slug": "provenance-gated-git-guard",
+      "status": "backlog",
+      "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
+    },
+    {
+      "slug": "readme-front-door-and-accuracy-gate",
+      "status": "merge",
+      "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
+    },
+    {
       "slug": "release-safety-pipeline",
       "status": "now",
-      "summaryMd": "Operator mandate 2026-07-14 ('I'm not doing shit with brew'): every Homebrew cut must be atomic, automated, self-healing, gated — and NO gate may ever report a failure as success. HONEST SCORECARD (verified tonight): (a) SHADOW TRAFFIC before promotion = NONE (soak-binary.sh is synthetic load only; no replay of mirrored real requests at the candidate). (b) AUTO LOCAL INSTALL = PARTIAL (release.yml builds+rolls tap; no automated post-release brew-upgrade+verify loop on the operator machine). (c) SOAK UNDER LOAD = YES (soak-binary.sh); TEST-DB POISON PROTECTION = YES (assertNotProdInTest fail-closed); TEST-TRAFFIC TELEMETRY ISOLATION = NONE (no test-context filter in cost-tracker/activity/counters — test requests would pollute prod cost/activity/event streams). (d) ATOMIC + SELF-HEALING = NONE (no promote-only-if-all-green; no auto-rollback via brew-pin-previous + restore durable-home backup stamp + scream when a promoted build misbehaves under a watch window). The kill-daemon acceptance test from #2381 (kill -> restart+alert+doctor-red) is the template for the daemon-liveness portion of the battery; tonight's wedged-alive daemon (fresh heartbeat, dead HTTP, held the socket so restarts refused) is the proof the battery must probe /health not heartbeat age. Owner: release-safety dispatch. Decision-type: HITL (promote/rollback policy) + empirical (harness). Acceptance: a candidate failing the live battery (shadow traffic + kill-daemon-recovers + soak) CANNOT promote; a promoted build misbehaving in the watch window auto-rolls-back and screams; test traffic never reaches prod telemetry; every gate verifies authoritative state and can never pass on an error."
+      "summaryMd": "pd batten declarative release-artifact verify+imprint gate (generalizes #3496 test -s); NO gate reports failure as success"
     },
     {
       "slug": "rent-at-claim-begin-gate",
@@ -1185,6 +1245,16 @@
       "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
     },
     {
+      "slug": "rust-kernel-bugfix-sweep",
+      "status": "now",
+      "summaryMd": "Fix the real bugs the rustdoc-backfill Opus agents found-but-didn't-fix (documentation-only scope at the time): pd-anchor keystore.rs soft-revoke is dead code (hard HashMap::remove instead of the revoked flag), pd-core KernelEvent.id vs pd-eventlog's sequence-derived id can diverge, pd-runtime BackendCapacity doesn't enforce active_jobs<=max_parallel_jobs, pd-eventlog KernelProjection::apply double-counts on replay, harbor-card-rs verify() doesn't validate iat or alg, pd-compat import_sessions has no rollback on partial failure."
+    },
+    {
+      "slug": "rust-kernel-integration-e2e-redteam-tests",
+      "status": "now",
+      "summaryMd": "Fill the Rust kernel (pd-anchor, harbor-card-rs, pd-core, pd-runtime, pd-eventlog) with real integration tests, TS<->Rust FFI end-to-end round-trip tests, and adversarial redteam/whitehat security tests (forged macaroons, replay attacks, timing side-channel probes on constant-time compares, malformed/fuzzed FFI input, capability-escalation attempts) — going beyond the rustdoc-backfill doctests, which only proved happy-path examples work."
+    },
+    {
       "slug": "rust-kernel-rustdoc-doctest-backfill",
       "status": "now",
       "summaryMd": "Backfill real rustdoc (prose explaining what/why/safety-contract) + runnable cargo-test --doc doctests across the existing kernel Rust crates (core/kernel/pd-anchor, pd-core, pd-runtime, pd-eventlog, pd-mesh, pd-tui, pd-compat, pd-rs, core/harbor-card-rs), per Erich's standing law that Rust kernel code doubles as real documentation/teaching material, not just implementation. Dispatched as several Opus-model subagents, one per crate/file group, each landing as its own focused PR."
@@ -1215,9 +1285,19 @@
       "summaryMd": "tests/unit/skill-graft-cli.test.js 'shorthand query renders guidance and lexical fallback note' fails on any machine with a warm ~/.port-daddy/skill-index.sqlite: the test expects the 'Semantic Tool2Vec tier is cold or unconfigured' note but the CLI under test finds the developer's real warm index (machine-state leak; reproduced on clean origin/main 2026-07-14, passes in CI only because runners are cold). Acceptance: the test pins its index location to a temp dir (or PD-test env override) and passes on a machine with a warm real index; full tests/unit suite green locally."
     },
     {
+      "slug": "spawner-agent-harbor-bridge-c1-witnessing",
+      "status": "now",
+      "summaryMd": "Bridge lib/spawner.ts agentIds into Agent Harbor as real, honestly-witnessed C1 (Transcripted) nodes via a new spawner-bridge.ts module + spawner-child AdapterKind (complianceCeiling C1). Reuses the existing event-ledger hash-chaining and transcripts.ts message log — no new hashing. kill correctly stays denied through control-gate.ts (C1 < C4 required) — the point is real evidence, not a forged grant. C2+ gateway-routing is future, separate work."
+    },
+    {
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "squid-matrix-parser-consolidation",
+      "status": "now",
+      "summaryMd": "PR1 of the matrix.env elimination plan (docs/proposals/squid-matrix-elimination-plan.md, PR #7685): collapse lib/squid/identity.ts::readMatrixSnapshot() and lib/local-citizen/ink-cloud.ts to call lib/squid/matrix.ts's existing public API instead of independently re-parsing the raw matrix.env file. Zero behavior change, zero schema change, zero hook change — de-risks PR2-PR5 by making 'read the matrix' one call site instead of three before storage changes underneath it. Done when tests/unit/squid-identity.test.ts passes with zero test-file edits and no independent readFileSync/regex parsing of matrix.env remains outside lib/squid/matrix.ts."
     },
     {
       "slug": "squid-on-claude-code-not-wired",
@@ -1273,6 +1353,11 @@
       "slug": "transcript-compliance-hitl-health",
       "status": "backlog",
       "summaryMd": "Make transcript-flow compliance explicit across major backends and fail loud when live runs lose transcript truth. Add a backend support/degraded/missing matrix for Cloudflare, Claude/Claude CLI, Codex, Gemini, agy metadata-only, and OpenAI-compatible/custom paths; expose runtime transcript health in /transcripts/compliance plus /health and /status; raise HITL-tagged critical issues when a claimed-live run has no transcript heartbeat or no terminal transcript; cover present, stalled, and missing cases with focused tests."
+    },
+    {
+      "slug": "usage-telemetry-dead-since-may",
+      "status": "backlog",
+      "summaryMd": "SHIPPED: merged to main as e0e34d1532920698043e9c4e6c3238a7377e9e5c (PR #6802). server.ts constructs createUsageTelemetry and wires it into route deps; /usage/trace stopped silently no-oping."
     },
     {
       "slug": "visual-evidence-doctrine",

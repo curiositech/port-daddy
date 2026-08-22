@@ -1,8 +1,8 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 301,
-    "passing": 301,
+    "total": 304,
+    "passing": 304,
     "failing": 0
   },
   "skills": [
@@ -1232,6 +1232,16 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "falsification-first",
+      "root": "skills/falsification-first",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "feature-flag-rollout-strategist",
       "root": "skills/feature-flag-rollout-strategist",
       "ok": true,
@@ -1441,6 +1451,31 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "harbor-exposition",
+      "root": "skills/harbor-exposition",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "harbor-results",
+      "root": "skills/harbor-results",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts"
+      ]
     },
     {
       "name": "hierarchical-skill-repr",

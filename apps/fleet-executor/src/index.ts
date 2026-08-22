@@ -16,7 +16,8 @@
  * that check run as 'failure' so a lost blocking job can never let a merge
  * through. We never ack a job whose check we could not even create.
  *
- * Retry semantics: on a thrown (recoverable) error we call `message.retry()`;
+ * Retry semantics: on a thrown (recoverable) error we record the cause against
+ * the run's transcript (delivery-failure.ts) and call `message.retry()`;
  * Cloudflare backs off and re-delivers, moving the message to the DLQ after
  * `max_retries`. On success we `message.ack()`. The orchestrator itself treats
  * a ship-level failure as a verdict (fail-closed), so a single bad ship does
@@ -27,6 +28,8 @@
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
 import { handleDlqJob } from './dlq.js';
+import { recordDeliveryAttemptStart, recordDeliveryFailure } from './delivery-failure.js';
+import { flushSquidEvents } from './squid-events.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
@@ -38,7 +41,7 @@ export default {
   async queue(
     batch: MessageBatch<FleetRunJob>,
     env: ExecutorEnv,
-    _ctx: ExecutionContext,
+    ctx: ExecutionContext,
   ): Promise<void> {
     // DLQ path: a job that exhausted retries on the main queue lands here. Its
     // 'Port Daddy Fleet' check is stuck in_progress — complete it as failure so a
@@ -54,7 +57,29 @@ export default {
 
     for (const message of batch.messages) {
       try {
+        // Attempt-start marker BEFORE any work: the one write that survives an
+        // uncatchable platform kill (memory/CPU), so a dead-letter with starts
+        // but no failures is positive evidence of that class — issue #7743.
+        await recordDeliveryAttemptStart(
+          env,
+          message.body,
+          (message as unknown as { attempts?: number }).attempts ?? 0,
+        );
         await executeFleet(message.body, env);
+        // Squid delivery never blocks the Fleet verdict, but Workers may
+        // terminate floating promises after the queue handler returns. Extend
+        // the event lifetime so the run-concluded event and reconciliation
+        // report get a best-effort chance to drain without delaying the ack.
+        // https://developers.cloudflare.com/workers/runtime-apis/context/
+        const telemetryDrain = flushSquidEvents();
+        try {
+          ctx.waitUntil(telemetryDrain);
+        } catch {
+          // Unit harnesses and non-Worker adapters may supply a bare context.
+          // The telemetry promise is already fail-soft; never turn a completed
+          // Fleet run into a retry because the adapter lacks waitUntil.
+          void telemetryDrain;
+        }
         message.ack();
       } catch (err) {
         // Recoverable infrastructure error — re-deliver. After max_retries the
@@ -64,6 +89,16 @@ export default {
         // never leaves a green or absent gate.
         console.error(
           `[fleet-executor] delivery=${message.body?.deliveryId} retry: ${String(err)}`,
+        );
+        // Persist WHY before retrying. A Worker console line does not survive
+        // the run, so without this the only artifact a dead-lettered job leaves
+        // is "was lost" with no cause — see delivery-failure.ts. Best-effort and
+        // non-throwing by construction, so it can never eat the retry below.
+        await recordDeliveryFailure(
+          env,
+          message.body,
+          (message as unknown as { attempts?: number }).attempts ?? 0,
+          err,
         );
         message.retry();
       }

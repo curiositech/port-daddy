@@ -126,6 +126,16 @@ repo-specific mechanics:
   user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
   machine-readable READY/LIVE state. A source-suite pass cannot substitute for
   this artifact-boundary proof.
+- **Prove the hook hot path stays invisible and bounded.** A healthy no-op turn
+  emits zero bytes and no status message, never starts the daemon or shells
+  through the full `pd` CLI, and filters file traces to the exact project root
+  before rendering them. Keep the prompt hook to one heading plus at
+  most two facts, clamp its context budget, and keep harness deadlines at one
+  second. The regression proof must include thousands of irrelevant matrix
+  entries while still surfacing one fresh exact-root fact. Installer tests must
+  also prove atomic, idempotent config writes and migration of duplicate legacy
+  Codex registrations without disturbing user hooks. Do not merge standing
+  every-turn reminders or SITREP compulsion back into the hook path.
 
 ## Core Decision Tree
 
@@ -358,9 +368,9 @@ work; never reset or clobber the main checkout.
 
 ### Shell gotchas (real and recurring)
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean all (rare;
-  prefer explicit paths), use `PD_SHIM_OFF=1 git add` so the bypass is
-  deliberate.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths. If the
+  refusal is wrong, repair the session/claim input and publish the
+  inconsistency; do not disable the guard.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta` → `bat`.** If
   `bat` is absent, `git log` / `git show` / `git commit` emit `command not
   found: bat` and can swallow output. Use `git -c core.pager=cat …` or
@@ -402,12 +412,19 @@ The friction below costs every fresh session real time. Internalize it.
 - **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
   guard … could not be verified"** (not the routine advisory refusal) means the
   daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
-  retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
-  worktree that holds nothing but your own commit.
+  retry. If direct session state, claims, and the refusal still disagree,
+  publish exact evidence to `coordination:inconsistency` and surface the blocker
+  to the operator instead of routing around the guard.
 - **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks. Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns (now configured automatically in `tests/helpers/integration-setup.js` and `tests/helpers/ephemeral-daemon.js`).
 - **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
 - **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.
+- **Hook fan-out is host-visible work, not free middleware**: Codex schedules a command hook once per matching nested tool call and renders concurrent batches as concurrent hook jobs. Never register an observational synchronous `PostToolUse` command, and never match an edit gate against broad `Bash` / `exec_command` / shell surfaces when the gate cannot derive a canonical target. The shipped topology is one turn briefing plus a synchronous gate only for direct edit tools; claims and notes are the cumulative outcome record. A six-tool read-only batch must schedule zero Port Daddy tool hooks. Debug/legacy `pd-hook-post-tool` assets may remain staged for migration, but absence from provider config is intentional and must still diagnose as LIVE.
+- **Hook config paths are a durable interface, not a package location**: resolve versioned release assets only while staging; every Claude/Codex/Gemini/agy lifecycle config must call `~/.port-daddy/bin/pd-hook-*`. Release smoke must reject `/Cellar/` paths, and uninstall/repair must sweep legacy project-local Codex TOML without touching user hooks. The generated wrapper owns a CLOSED/OPEN/HALF_OPEN circuit breaker (3 consecutive failures or >250 ms, 5-minute cooldown, one probe, zero hook retries). Measure latency through external `/usr/bin/time -p -o`; shell-reserved `time` leaks outside redirections under dash. A missing timer must fail open, trip the same breaker, and request FleetBar Repair. Test unexpected exit, missing executable, missing timer, slow execution, exit-2 enforcement, concurrent accounting, one-shot FleetBar remediation, repair reset, minimal tooling, macOS/Linux shell behavior, and compiled artifact wiring as separate V&V seams.
+- **Harness introspection is a bounded interface**: `pd squid status` and `pd squid debug status` must read one sanitized timeline source and emit valid JSON regardless of retained history size. Cap recent steps and matrix values, expose total/returned/truncated metadata, and keep descriptions beside actual/expected timestamps. When capture is off, routine status must omit retained session identifiers and absolute workspace/event paths; only explicit debug status may reveal that diagnostic window. Test a multi-thousand-record fixture and assert a response-size ceiling; a JSON EOF is an interface failure even when the underlying daemon route returned 200.
+- **Arrival and sitrep are on the critical path**: optional `pd begin` peer guidance is semantic-only, capped to three, fail-open, and budgeted at 75 ms total — disable reconnect retries, abort the active request, and test a transport that never settles. Sitrep must project and cap every top-level collection, nested salvage notes, and text field; preserve exact note totals separately from the DB-bounded preview. `--quiet` must request a summary-only route rather than fetching a full payload and discarding it locally. A fast database query that serializes 200 KB of histories is still a failed launcher interface.
+- **A preferred port is not endpoint evidence**: startup may seed `9876`, but SDK/CLI connection resolvers must use an explicit URL, a real socket, or a strictly parsed published port. Keep forgiving seed helpers separate from strict connection helpers, including public display fields and socket-to-TCP fallback. Reject a protocol the returned connection target cannot carry: the current Node target is HTTP-only, so accepting `https:` and then calling `node:http` is a plaintext-to-TLS-port defect, not compatibility. Fixture-test absent, malformed, unreadable, environment-published, file-published, unsupported-protocol, and constructor-URL-over-socket cases without consulting the developer's live daemon. The compiled smoke must use AF_UNIX-safe paths under `~/coding/tmp` and prove Unix plus TCP health on both boots.
+- **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
 
 ## Show-Me Runbook (operator demos)
 
@@ -572,11 +589,21 @@ re-asking them is the failure mode this section exists to kill.
    rebase; red required check → root-cause it; superseded by a landed PR →
    close it with a comment naming the superseding PR (never merge a
    semantically obsolete diff — see the #353 incident); draft → leave unless
-   its gate condition is met.
+   its gate condition is met. Compare the head's actual invariant and tree to
+   current `origin/main`; an old green check and a non-empty commit list do not
+   prove work is still missing. Carry forward the smallest valid invariant,
+   and leave broad adjacent programs open instead of relabeling them as part of
+   a cleanup sweep.
 3. **Red required check = STOP and fix the root cause**, even when the debt
    is inherited from main. Never `--admin` over a real red. Cloudflare Pages
    may be external/advisory, but prove that from branch protection before
    treating it as non-blocking.
+   A Fleet receipt that says concluded while GitHub's required check remains
+   `in_progress` is the same class of stop: inspect both sides of the delivery
+   interface. The executor must propagate an exhausted `completeCheckRun`
+   result into queue retry/DLQ before acknowledging the message. Keep ship
+   checkpoints durable and post non-idempotent aggregate reviews only after
+   the required check PATCH succeeds, so retries neither re-spend nor duplicate.
 4. **Answer every review thread.** Copilot and claude-review inline comments
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
@@ -705,6 +732,18 @@ daemon-witnessed runtime receipt.
 **Symptoms:** The operator files rage-bugs against branch A for everything branch B already fixed; review time is spent re-litigating known-done work.
 **Fix:** Build a COMBINED local preview branch — merge the PR branches locally, build the triple from that, and never push the merge branch. The operator reviews the sum, not a slice.
 **Why:** The operator reviews the intended product state, not your PR topology. Showing a partial state generates false findings that cost more than the merge does.
+
+### Letting Purser Run The Whole Repository
+**Detection:** Purser authored a small contract, but the sandbox invokes the repository's unfiltered test script. The failure names no contract case and instead ends in unrelated integration setup, daemon startup, or another suite's fixture.
+**Symptoms:** A handful of unit tests consumes minutes, a healthy PR is blocked by infrastructure it did not touch, and the author is told only that the contract failed.
+**Fix:** Keep the repository's own runner, but pass only the Purser-authored test paths after the runner's argument separator, shell-quote every path, and fail closed when the authored-file set is empty. Reproduce that exact command locally before blaming the reviewed PR.
+**Why:** Purser's authority comes from executing its stated contract. Repository-wide failures are neither that contract nor actionable review evidence.
+
+### Calling A Purser Loader Failure A Contract Failure
+**Detection:** Purser's sandbox says `Test suite failed to run`, reports zero executed tests, imports `bun:test`, `node:test`, or `vitest` into a Jest-discovered file, or uses an unbound `__dirname` in an ESM package.
+**Symptoms:** A healthy implementation PR is marked `BLOCK` even though no authored assertion ran; an invalid stacked test PR becomes a second red PR; pushing again reuses the same broken files forever.
+**Fix:** Treat runner compatibility as trusted executability evidence before the sandbox and again before every reuse. Replace an incompatible reused suite in place through the normal bounded authoring path; give a newly authored mismatch one rewrite with the exact loader error. If the trusted gate still fails, classify Purser as broken machinery, do not stack or retarget the files, and say explicitly that the implementation contract was not tested. Only an executed test-case failure may become a contract `BLOCK`.
+**Why:** A runner rejecting Purser's file is evidence about Purser, not the reviewed change. Keeping those failure domains separate makes an adversarial gate strict without making it arbitrary.
 
 ## Worked Examples
 
