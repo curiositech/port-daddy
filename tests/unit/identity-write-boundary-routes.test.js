@@ -9,7 +9,6 @@
  * soul and returns its credential once.
  */
 import Fastify from 'fastify';
-import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createLocks } from '../../lib/locks.js';
 import { createCommitments } from '../../lib/commitments.js';
