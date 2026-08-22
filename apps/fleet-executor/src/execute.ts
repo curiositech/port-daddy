@@ -1031,6 +1031,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         installationId: job.installationId,
         files: [],
         diff: '',
+        // Nothing was fetched on a short-circuited run, so zero is the honest
+        // measurement rather than a placeholder.
+        diffBytes: 0,
+        diffTruncated: false,
+        filesTruncated: false,
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
       await recordRunEnd(env, runId, 'neutral', startMs);
