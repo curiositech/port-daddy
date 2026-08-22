@@ -28,6 +28,13 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/repos                         (HTML per-repo settings screen;
+ *                                                session; sitrep dial)
+ *   POST /account/repos/set                     (plain form upsert; session +
+ *                                                GitHub repo ACL)
+ *   POST /account/repos/remove                  (plain form delete; session)
+ *   GET  /v1/repo-settings                      (device read path; pdu_ bearer
+ *                                                or session cookie)
  *   GET  /account/parleys                       (HTML; session; → a harbor's list)
  *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
  *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
@@ -152,6 +159,12 @@ import {
   handleMediatorToggle,
 } from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
+import {
+  handleRepoSettingsPage,
+  handleRepoSettingsSet,
+  handleRepoSettingsRemove,
+  handleRepoSettingsApi,
+} from './repo-settings-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
@@ -428,6 +441,21 @@ export default {
     // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
+    }
+    // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
+    // dial lives here; src/repo-settings-page.ts).
+    else if (pathname === '/account/repos' && method === 'GET') {
+      response = await handleRepoSettingsPage(request, env);
+    }
+    else if (pathname === '/account/repos/set' && method === 'POST') {
+      response = await handleRepoSettingsSet(request, env);
+    }
+    else if (pathname === '/account/repos/remove' && method === 'POST') {
+      response = await handleRepoSettingsRemove(request, env);
+    }
+    // Device-facing read path for per-repo settings (pdu_ bearer or cookie).
+    else if (pathname === '/v1/repo-settings' && method === 'GET') {
+      response = await handleRepoSettingsApi(request, env);
     }
     // Billing storefront (session + GitHub installation ownership; ADR-0116).
     else if (pathname === '/account/billing' && method === 'GET') {

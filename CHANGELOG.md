@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Operators can now record per-repo agent settings on their account.** The portdaddy.dev relay gains `/account/repos`, a session-gated, script-free screen where each repository the operator's GitHub identity can read carries its own agent settings — starting with the SITREP end-of-turn dial (off | suggest | enforce). Settings live in a new `repo_settings` D1 table, and paired devices converge through `GET /v1/repo-settings` (device token or session cookie). The page is honest about the enforcement point: each clone's local `agent.config.json` dial, with the exact snippet rendered per repository — the server never reaches into checkouts.
 - **APNs push for HITL interruptions (WS-D slice D5).** `apps/relay/src/push-apns.ts` — ES256 token-auth JWT signed in-Worker via WebCrypto and cached under Apple's refresh window, `sendApnsPush` with typed outcomes (delivered / token-gone / retryable / config-missing), a device-token registry migration, and registration endpoints bound to the authenticated account+device. A 410 marks the token dead; an unconfigured APNs is a silent no-op, so the relay runs identically without it. The decaying-nag schedule is preserved, not replaced — pushes follow the existing interruption cadence rather than inventing a second one.
 
 ### Fixed
