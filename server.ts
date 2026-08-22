@@ -658,7 +658,17 @@ const bonds = createBonds(db, {
 // no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
-const actorSouls = createActorSouls(db);
+// PORT_DADDY_NEWCOMER_ADMIT_MAX: operational knob for the per-project/day
+// distinct-newcomer admission bound. #8877 made /sugar/begin a mint door, so
+// high-churn fleets (and the integration test harness, which begins hundreds
+// of fresh agents against one ephemeral daemon) need a way to raise the
+// default without patching code. Unset/invalid keeps ADR-0040's default.
+const newcomerAdmitMaxEnv = Number(process.env.PORT_DADDY_NEWCOMER_ADMIT_MAX);
+const actorSouls = createActorSouls(db, {
+  ...(Number.isFinite(newcomerAdmitMaxEnv) && newcomerAdmitMaxEnv > 0
+    ? { newcomerAdmitMax: newcomerAdmitMaxEnv }
+    : {}),
+});
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand

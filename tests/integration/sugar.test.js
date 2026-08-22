@@ -13,6 +13,11 @@ import { request, getDaemonState } from '../helpers/integration-setup.js';
 // Track all agent IDs created during tests for cleanup
 const createdAgents = [];
 const createdSessions = [];
+// #8877 / ADR-0122: /sugar/begin mints the ADR-0040 actor credential and
+// /sugar/done requires it. Track each begin's credential so done can present
+// it, exactly the way real clients hold theirs.
+const credentialsByAgent = new Map();
+let lastCredential = null;
 
 /**
  * Helper: POST /sugar/begin
@@ -24,6 +29,10 @@ async function sugarBegin(body) {
   const res = await request('/sugar/begin', { method: 'POST', body: finalBody });
   if (res.ok && res.data.agentId) createdAgents.push(res.data.agentId);
   if (res.ok && res.data.sessionId) createdSessions.push(res.data.sessionId);
+  if (res.ok && res.data.agentId && res.data.credential) {
+    credentialsByAgent.set(res.data.agentId, res.data.credential);
+    lastCredential = res.data.credential;
+  }
   return res;
 }
 
@@ -46,7 +55,12 @@ async function sugarDone(body) {
   } else if (finalBody.skipOriginCheck === false) {
     delete finalBody.skipOriginCheck;
   }
-  return request('/sugar/done', { method: 'POST', body: finalBody });
+  const credential = (finalBody.agentId && credentialsByAgent.get(finalBody.agentId)) || lastCredential;
+  return request('/sugar/done', {
+    method: 'POST',
+    body: finalBody,
+    headers: credential ? { 'x-actor-credential': credential } : {},
+  });
 }
 
 /**

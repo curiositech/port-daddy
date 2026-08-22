@@ -212,6 +212,13 @@ impl SseParser {
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
+    /// ADR-0040 daemon-minted actor credential captured from this console's
+    /// own `POST /sugar/begin` (#8877 / ADR-0122). Attributed daemon writes —
+    /// `/sugar/done`, `POST /sessions/:id/files` — are rejected 401 without
+    /// it, so every such request attaches it as `x-actor-credential`. Interior
+    /// mutability (Mutex) because the client is shared by reference across
+    /// panes/threads and the credential arrives after construction.
+    actor_credential: std::sync::Mutex<Option<String>>,
 }
 
 /// Durable daemon truth returned for one operator WorkIntent. `intent` and
@@ -391,6 +398,19 @@ fn sse_status_is_retryable(status: reqwest::StatusCode) -> bool {
     status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
 }
 
+/// Wait before reconnecting an SSE stream, but stop immediately when the pane
+/// that owns the receiver closes or retargets. Quiet streams may never produce
+/// another frame, so checking only `tx.send(...)` leaks the task and its socket.
+async fn wait_for_sse_retry<T>(
+    tx: &tokio::sync::mpsc::Sender<T>,
+    delay: std::time::Duration,
+) -> bool {
+    tokio::select! {
+        _ = tx.closed() => false,
+        _ = tokio::time::sleep(delay) => true,
+    }
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
         // Resolution order, highest priority first:
@@ -447,6 +467,29 @@ impl DaemonClient {
                 .timeout(std::time::Duration::from_secs(15))
                 .build()
                 .expect("reqwest client with static config cannot fail to build"),
+            actor_credential: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// The ADR-0040 actor credential this console holds, if `begin_session`
+    /// has minted (or the operator injected `PD_ACTOR_CREDENTIAL`). Attributed
+    /// daemon writes attach it as the `x-actor-credential` header; without it
+    /// the daemon rejects them 401 (#8877 fail-closed, by design).
+    fn actor_credential(&self) -> Option<String> {
+        if let Some(held) = self.actor_credential.lock().ok().and_then(|c| c.clone()) {
+            return Some(held);
+        }
+        std::env::var("PD_ACTOR_CREDENTIAL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    }
+
+    /// Attach the actor credential (when held) to an outgoing request.
+    fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self.actor_credential() {
+            Some(credential) => req.header("x-actor-credential", credential),
+            None => req,
         }
     }
 
@@ -782,8 +825,10 @@ impl DaemonClient {
     ) -> Result<()> {
         let body = region_claim_body(path, start_line, end_line, agent_id);
         let resp = self
-            .http
-            .post(format!("{}/sessions/{session_id}/files", self.base))
+            .with_actor_credential(
+                self.http
+                    .post(format!("{}/sessions/{session_id}/files", self.base)),
+            )
             .json(&body)
             .send()
             .await
@@ -989,13 +1034,22 @@ impl DaemonClient {
             body["identity"] = serde_json::json!(identity);
         }
         let resp = self
-            .http
-            .post(format!("{}/sugar/begin", self.base))
+            .with_actor_credential(self.http.post(format!("{}/sugar/begin", self.base)))
             .json(&body)
             .send()
             .await
             .context("POST /sugar/begin")?;
-        ensure_success(resp, "begin_session").await?;
+        let resp = ensure_success(resp, "begin_session").await?;
+        // #8877 / ADR-0122: an uncredentialed begin MINTS this console's
+        // ADR-0040 soul and returns the credential exactly once. Capture it —
+        // `end_session` and `claim_region` are rejected 401 without it.
+        if let Ok(v) = resp.json::<serde_json::Value>().await {
+            if let Some(credential) = v.get("credential").and_then(|c| c.as_str()) {
+                if let Ok(mut held) = self.actor_credential.lock() {
+                    *held = Some(credential.to_string());
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1010,8 +1064,7 @@ impl DaemonClient {
             None => serde_json::json!({}),
         };
         let resp = self
-            .http
-            .post(format!("{}/sugar/done", self.base))
+            .with_actor_credential(self.http.post(format!("{}/sugar/done", self.base)))
             .json(&body)
             .send()
             .await
@@ -1095,7 +1148,7 @@ impl DaemonClient {
         let http = self.http.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            use tokio::time::{sleep, Duration};
+            use tokio::time::Duration;
             // Resumable, self-healing stream. A transient network blip or a daemon
             // restart used to silently kill the lane (the task just returned and
             // nothing re-opened it unless the WATCH TARGET changed). Now we
@@ -1113,13 +1166,19 @@ impl DaemonClient {
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }
-                let resp = match req.send().await {
+                let response = tokio::select! {
+                    _ = tx.closed() => return,
+                    response = req.send() => response,
+                };
+                let resp = match response {
                     Ok(r) if r.status().is_success() => r,
                     // A 429 (rate-limit Retry-After) or 5xx (daemon restarting) is
                     // TRANSIENT — back off and retry so a momentary hiccup can't
                     // kill the live lane forever.
                     Ok(r) if sse_status_is_retryable(r.status()) => {
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1129,7 +1188,9 @@ impl DaemonClient {
                     Err(_) => {
                         // Connection failure — back off and retry (daemon may be
                         // restarting, e.g. a freshness self-heal).
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1137,7 +1198,14 @@ impl DaemonClient {
                 backoff = Duration::from_millis(500); // reset on a healthy connect
                 let mut parser = SseParser::new();
                 let mut body = resp.bytes_stream();
-                while let Some(chunk) = body.next().await {
+                loop {
+                    let chunk = tokio::select! {
+                        _ = tx.closed() => return,
+                        chunk = body.next() => chunk,
+                    };
+                    let Some(chunk) = chunk else {
+                        break;
+                    };
                     let bytes = match chunk {
                         Ok(b) => b,
                         Err(_) => break, // stream error — fall through to reconnect
@@ -1165,7 +1233,9 @@ impl DaemonClient {
                 }
                 // Stream ended without the receiver being dropped (EOF or error):
                 // reconnect with backoff, resuming from `last_id`.
-                sleep(backoff).await;
+                if !wait_for_sse_retry(&tx, backoff).await {
+                    return;
+                }
                 backoff = (backoff * 2).min(MAX_BACKOFF);
             }
         });
@@ -1193,7 +1263,7 @@ impl DaemonClient {
         let http = self.http.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            use tokio::time::{sleep, Duration};
+            use tokio::time::Duration;
             let mut last_id: Option<String> = None;
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
@@ -1202,13 +1272,19 @@ impl DaemonClient {
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }
-                let resp = match req.send().await {
+                let response = tokio::select! {
+                    _ = tx.closed() => return,
+                    response = req.send() => response,
+                };
+                let resp = match response {
                     Ok(r) if r.status().is_success() => r,
                     // A 429 (connection-limit Retry-After) or 5xx (daemon restarting)
                     // is TRANSIENT — back off and retry so a momentary rate-limit or
                     // server hiccup can't kill the editor lane forever.
                     Ok(r) if sse_status_is_retryable(r.status()) => {
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1216,7 +1292,9 @@ impl DaemonClient {
                     // ever stream, so stop rather than spin against it.
                     Ok(_) => return,
                     Err(_) => {
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1224,7 +1302,14 @@ impl DaemonClient {
                 backoff = Duration::from_millis(500); // reset on a healthy connect
                 let mut parser = SseParser::new();
                 let mut body = resp.bytes_stream();
-                while let Some(chunk) = body.next().await {
+                loop {
+                    let chunk = tokio::select! {
+                        _ = tx.closed() => return,
+                        chunk = body.next() => chunk,
+                    };
+                    let Some(chunk) = chunk else {
+                        break;
+                    };
                     let bytes = match chunk {
                         Ok(b) => b,
                         Err(_) => break, // stream error — fall through to reconnect
@@ -1246,7 +1331,9 @@ impl DaemonClient {
                     }
                 }
                 // EOF/error without the receiver dropping: reconnect with backoff.
-                sleep(backoff).await;
+                if !wait_for_sse_retry(&tx, backoff).await {
+                    return;
+                }
                 backoff = (backoff * 2).min(MAX_BACKOFF);
             }
         });

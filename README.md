@@ -647,6 +647,35 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
+### Cloud Fleet — live run receipts
+
+The signed-in website at `/account/runs` is the operator's durable Cloud Fleet
+activity surface. It shows a PR review from webhook admission onward, before a
+queue consumer or transcript exists, and links into the live receipt at
+`/fleet/runs/:id`. Receipts distinguish one logical PR-head generation from its
+at-least-once queue delivery attempts and ship transcript steps. They expose
+queued, running, retrying, superseded, failed-admission, and terminal states,
+plus actual and estimated timestamps; active pages refresh on a bounded cadence
+and preserve reduced-motion preferences.
+
+Repeated delivery IDs are idempotent. A successfully enqueued newer head marks
+strictly older active generations superseded, and the executor checks that
+durable admission row before expensive work. Queue-ahead and expected-time
+values are explicitly D1-derived estimates, never a claim about Cloudflare's
+internal queue position. Intent-only receipts remain exportable/deletable and
+active receipts are never retention-pruned.
+
+FleetBar and the Cloud Fleet pane in `pd-console` read those same
+operator-gated receipts from the signed-in account; routine setup does not ask
+the operator for relay environment variables. Both surfaces show logical state,
+generation, delivery-attempt count, queue-ahead estimates, expected run timing,
+failures, and a timestamped durable transcript with a short explanation of each
+step. Active FleetBar runs refresh every five seconds, idle runs every twenty,
+and failures back off with jitter. The console loads static ship configuration
+once and re-reads transcript detail only when `lastProgressAt` changes; a failed
+detail read opens a bounded retry circuit instead of multiplying relay traffic.
+Per-step ETAs are shown only when the executor actually publishes one.
+
 ### Giant Squid — visible controls, invisible project-scoped hooks
 
 `pd squid on` arms the complete harness for the current project. It stages the
@@ -1033,6 +1062,7 @@ Commit this so every developer gets the same deterministic port mapping:
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
 - `PD_FLEET_*` — Conductor cost gates (see Bonds & Budgets)
 - `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` — permit a source-backed dev daemon
+- `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` — opt in to downloading the local embedding model (`Xenova/all-MiniLM-L6-v2`) from huggingface.co at runtime; by default the daemon never phones huggingface.co and, without a cached model, semantic retrieval degrades to the lexical (BM25) path labeled `degraded`. `TRANSFORMERS_OFFLINE=1` always wins and forces offline.
 
 ---
 

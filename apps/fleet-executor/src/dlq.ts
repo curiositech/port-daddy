@@ -33,6 +33,7 @@ import {
   runIdForDelivery,
 } from './delivery-failure.js';
 import { countShipCheckpoints } from './ship-checkpoint.js';
+import { markFleetIntentTerminal } from './run-intent.js';
 
 export const DLQ_CHECK_OUTPUT_TITLE = 'Port Daddy Fleet — infrastructure failure (no verdict)';
 const DLQ_NO_VERDICT_PREAMBLE =
@@ -61,6 +62,12 @@ function targetOf(job: FleetRunJob): DlqTarget | null {
  * Never throws.
  */
 export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  await markFleetIntentTerminal(
+    env,
+    job?.deliveryId ?? '',
+    'failure',
+    'delivery exhausted queue retries and entered the dead-letter queue',
+  );
   const target = targetOf(job);
   if (!target) {
     console.error(`[fleet-executor] DLQ: unparseable job delivery=${job?.deliveryId}`);

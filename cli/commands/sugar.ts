@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { highlightChannel } from '../../lib/maritime.js';
 import PortDaddy from '../../lib/client.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { ensureCliActorCredential, resolveCliActorCredential } from '../utils/actor-credential.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
@@ -537,7 +538,10 @@ export async function handleBegin(
     throw new Error((data.error as string) || 'Failed to begin');
   }
 
-  // Write local context file
+  // Write local context file. The daemon-minted actor credential (#8877 /
+  // ADR-0122) is returned ONCE when this begin minted a fresh soul; persist
+  // it so every subsequent attributed pd write (done, note, claims, locks)
+  // can present it via pdFetch's central header injection.
   writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
@@ -546,6 +550,9 @@ export async function handleBegin(
     purpose,
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
+    credential: typeof data.credential === 'string' && data.credential
+      ? data.credential
+      : (process.env.PD_ACTOR_CREDENTIAL?.trim() || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim() || null),
   });
 
   if (isJson(options)) {
@@ -564,12 +571,18 @@ export async function handleBegin(
       assertSafeId(agentId, 'agentId');
       assertSafeId(sessionId, 'sessionId');
       const shell = process.env.SHELL || '';
+      const mintedCredential = typeof data.credential === 'string' && data.credential ? data.credential : null;
       if (shell.endsWith('/fish')) {
         console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
         console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
+        // The minted ADR-0040 credential (#8877): exported so mutating pd
+        // commands in this shell present it even when the context file is
+        // bypassed via PD_AGENT_ID env resolution.
+        if (mintedCredential) console.log(`set -x PD_ACTOR_CREDENTIAL ${fishShellQuote(mintedCredential)}`);
       } else {
         console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
         console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
+        if (mintedCredential) console.log(`export PD_ACTOR_CREDENTIAL=${posixShellQuote(mintedCredential)}`);
       }
     } catch (err) {
       // Refuse to emit — write the reason to stderr so the caller sees it but
@@ -772,7 +785,14 @@ export async function handleDone(
     typeof body.sessionId === 'string' ? body.sessionId : ctx?.sessionId,
   );
 
-  const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  // #8877 / ADR-0122: /sugar/done requires the actor credential minted at
+  // begin; resolve it from env or the context store (only when the context's
+  // agent matches the agent this done asserts).
+  const doneAgentId = typeof body.agentId === 'string' ? body.agentId : undefined;
+  const pd = new PortDaddy({
+    agentId: doneAgentId,
+    credential: resolveCliActorCredential(doneAgentId),
+  });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
@@ -922,8 +942,19 @@ export async function handleWithLock(
   const owner = (options.owner as string) || current?.agentId || `cli-${process.pid}`;
   const pd = new PortDaddy({
     agentId: owner,
+    credential: resolveCliActorCredential(owner),
     pid: process.pid,
   });
+  // #8877 / ADR-0122: the acquire+release pair below must present ONE
+  // daemon-minted soul; mint (persisted per shell slot) when none is held.
+  if (!pd.credential) {
+    try {
+      pd.credential = await ensureCliActorCredential(owner);
+    } catch (error) {
+      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
 
   // Acquire lock
   try {

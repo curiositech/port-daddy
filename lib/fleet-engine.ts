@@ -560,6 +560,53 @@ function getFleetDaemonUrl(): string {
   return process.env.PD_URL || getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 }
 
+// The fleet respawn watcher's ADR-0040 soul credential, minted once per
+// process through POST /actors/register (#8877 / ADR-0122 — salvage claim is
+// an attributed write and rejects uncredentialed callers).
+let fleetRespawnerCredential: string | null = null;
+
+/**
+ * Claim a dead agent's salvage as this process's fleet-respawner actor.
+ *
+ * Purpose: the respawn watcher used to POST /salvage/claim with no identity
+ * at all — under the strict identity write boundary that is a 401 by design.
+ * This helper mints (once, lazily) a dedicated fleet-respawner soul through
+ * the public mint door and presents its credential on the claim, so salvage
+ * bookkeeping records WHICH actor took over the dead agent's work. A mint or
+ * claim failure resolves rather than throws: the caller treats salvage as
+ * best-effort and must still respawn the agent.
+ *
+ * @param deadId - The dead agent id whose salvage entry is being claimed.
+ * @returns A promise that resolves when the claim attempt has finished
+ *          (successfully or not).
+ */
+async function claimSalvageAsFleetRespawner(deadId: string): Promise<void> {
+  const base = getFleetDaemonUrl();
+  try {
+    if (!fleetRespawnerCredential) {
+      const res = await fetch(`${base}/actors/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alias: `fleet-respawner-${process.pid}` }),
+      });
+      const data = await res.json() as { credential?: string };
+      if (typeof data.credential === 'string' && data.credential) {
+        fleetRespawnerCredential = data.credential;
+      }
+    }
+    await fetch(`${base}/salvage/claim/${encodeURIComponent(deadId)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(fleetRespawnerCredential ? { 'x-actor-credential': fleetRespawnerCredential } : {}),
+      },
+      body: '{}',
+    });
+  } catch {
+    // Best-effort: salvage bookkeeping never blocks the respawn.
+  }
+}
+
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
 export interface FleetEvent {
@@ -2281,12 +2328,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
               console.error(`[Fleet] Auto-respawning ${agent.name} (death #${count + 1})`);
               respawnCounts.set(agent.name, count + 1);
 
-              // Claim salvage first, then re-spawn
-              fetch(`${getFleetDaemonUrl()}/salvage/claim/${encodeURIComponent(deadId)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: '{}',
-              }).then(() => runAgentOnce(agent!)).catch(() => runAgentOnce(agent!));
+              // Claim salvage first, then re-spawn. #8877 / ADR-0122: salvage
+              // mutations require a daemon-minted credential; mint (once per
+              // process) a fleet-respawner soul through the public mint door
+              // and present it. A failed mint still respawns — salvage
+              // bookkeeping is best-effort here, the respawn is not.
+              claimSalvageAsFleetRespawner(deadId)
+                .then(() => runAgentOnce(agent!))
+                .catch(() => runAgentOnce(agent!));
             } catch (e) {
               if (!(e instanceof SyntaxError)) {
                 console.error('[Fleet] Respawn handler error:', (e as Error).message);
