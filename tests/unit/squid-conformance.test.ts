@@ -53,6 +53,7 @@ describe('Giant Squid conformance', () => {
       projectRoot: '/private/tmp/abandoned-agent',
       projectArmed: false,
       daemonAlive: true,
+      daemonReady: true,
       tentaclesStaged: true,
       statuslineStaged: true,
       statuslineVisible: false,
@@ -113,6 +114,17 @@ describe('Giant Squid conformance', () => {
     expect(result.capabilities.inbox).toBe(false);
     expect(result.missing).toContain('daemon readiness lease does not match the current PID');
     expect(result.repair).toContain('finish its boot checks');
+  });
+
+  test('a legacy caller that omits readiness fails closed instead of inheriting liveness', () => {
+    const { daemonReady: _omitted, ...legacyFacts } = fullFacts();
+    const result = deriveSquidConformance(legacyFacts as SquidConformanceFacts);
+
+    expect(result.daemonAlive).toBe(true);
+    expect(result.daemonReady).toBe(false);
+    expect(result.level).toBe('READY');
+    expect(result.capabilities.suggestibility).toBe(false);
+    expect(result.missing).toContain('daemon readiness lease does not match the current PID');
   });
 
   test('PARTIAL names incomplete provider wiring and supplies one repair command', () => {
