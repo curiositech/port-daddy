@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Seamanship account page and opt-in public skill listing (WS-G′ slices 3 and 7).** A signed-in operator sees their own catalog on the relay origin — per repo, with curated `pairs-with` neighbours and the Snipe engine-room role explained on the page — and a per-skill `visibility:` opt-in projects the listed tier (name + description) into a public directory. The structural change underneath is that the visibility predicate stays ONE function: it moved to a dependency-free `lib/shipwright/skill-visibility.ts` so a Cloudflare Worker imports the same binding the Node catalog loader uses, instead of re-implementing it and drifting a tier wider; a test asserts reference identity rather than matching behaviour. Two tiers, two payloads — `listed` authorizes name and description, `public` authorizes the SKILL.md body — and an unknown tier or an unparseable `visibility` narrows to private rather than widening. Neither new D1 table has a body column: bodies are fetched on demand from the operator's own repo through their GitHub App installation, and every body request re-runs the gate against the LIVE frontmatter, so deleting `visibility: public` revokes it on the next request with no cache to invalidate. An unpublished skill and a nonexistent one return byte-identical responses.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
