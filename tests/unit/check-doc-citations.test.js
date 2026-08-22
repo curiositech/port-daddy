@@ -9,6 +9,7 @@ import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
@@ -44,5 +45,59 @@ describe('check-doc-citations guard', () => {
     expect(code).toBe(1);
     expect(stderr).toMatch(/no-such-sibling\.md/);
     expect(stderr).toMatch(/relative link target missing/);
+  });
+
+  // ── Retired documents ─────────────────────────────────────────────────────
+  //
+  // A retired plan's citations record what the repo looked like when it was
+  // written. V4-DAG.md cites `lib/hlc.ts` and `lib/sync-protocol.ts` because
+  // Part XVII was the plan then; ADR-0049 rejected it and those files were
+  // never built. This gate enforces what you touch, so adding a retirement
+  // banner would otherwise make 24 dead citations the retiring PR's problem —
+  // and "fix them" would mean editing history to make a dead document look
+  // current.
+
+  test('a retired document is skipped by the sweeps', () => {
+    const manifest = JSON.parse(
+      readFileSync(join(repo, 'docs', 'retirement-manifest.json'), 'utf8'),
+    );
+    // Premise: the retired docs really do carry citations this gate would
+    // reject. Without this the test passes for a manifest of clean files.
+    const dirty = Object.keys(manifest.retired).filter((f) => f.endsWith('.md'));
+    expect(dirty.length).toBeGreaterThan(0);
+    const anyRejected = dirty.some((f) => run(f).code !== 0);
+    expect(anyRejected).toBe(true);
+
+    // ...and the sweep the CI job actually runs is clean anyway.
+    const { code } = (() => {
+      try {
+        return { code: 0, stdout: execFileSync('node', [script], { cwd: repo, encoding: 'utf8' }) };
+      } catch (e) {
+        return { code: e.status ?? 1, stdout: (e.stdout?.toString() ?? '') + (e.stderr?.toString() ?? '') };
+      }
+    })();
+    expect(code).toBe(0);
+  });
+
+  test('the exemption is driven by the manifest, not a hardcoded list', () => {
+    // If someone hardcodes paths here instead of reading the manifest, a doc
+    // retired later silently stays under the gate. This asserts the wiring.
+    const src = readFileSync(script, 'utf8');
+    expect(src).toMatch(/retirement-manifest\.json/);
+    // Strip comments before looking for hardcoded paths: the doc comment cites
+    // V4-DAG.md as the worked example deliberately, and asserting on prose
+    // would make this test fail for explaining itself.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+    for (const p of ['V4-DAG.md', 'DAEMON-MESH', 'PHONE-INTEGRATION', 'recovery/README']) {
+      expect(code).not.toContain(p);
+    }
+  });
+
+  test('a retired document passed EXPLICITLY is still scanned', () => {
+    // Same posture as fixtures: skipped in sweeps, checkable on demand, so the
+    // exemption cannot hide a doc from every path at once.
+    const { code, stderr } = run('V4-DAG.md');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/lib\/hlc\.ts|lib\/sync-protocol\.ts/);
   });
 });
