@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import {
   clearTestCurrentContext,
   getDaemonState,
@@ -350,13 +351,17 @@ describe('CLI Integration Tests', () => {
 
     test('ideas search can find matching daemon notes', async () => {
       const phrase = `federated-note-${Date.now()}`;
+      const noteAgentId = `ideas-note-${Date.now()}`;
+      // #8877: attributed note writes require a daemon-minted credential.
+      const noteActor = await registerTestActorVia(requestWithRetry, { alias: noteAgentId });
       const noteRes = await requestWithRetry('/notes', {
         method: 'POST',
         body: {
           content: `Need ${phrase} in the operator memory surface`,
-          agentId: `ideas-note-${Date.now()}`,
+          agentId: noteAgentId,
           type: 'note',
         },
+        headers: noteActor.headers,
       });
       expect(noteRes.ok).toBe(true);
 
@@ -841,11 +846,14 @@ describe('CLI Integration Tests', () => {
     // because list() defaulted to listActive when no status was passed
     test('sessions --all shows all statuses (not just active)', async () => {
       const agentId = `bug12-agent-${Date.now()}`;
+      // #8877: attributed session starts require a daemon-minted credential.
+      const actor = await registerTestActorVia(requestWithRetry, { alias: agentId });
 
       // Create sessions with different statuses
       const activeRes = await requestWithRetry('/sessions', {
         method: 'POST',
         body: { purpose: 'Bug 12 active test', agentId },
+        headers: actor.headers,
       });
       expect(activeRes.ok).toBe(true);
       const activeId = activeRes.data.id;
@@ -853,6 +861,7 @@ describe('CLI Integration Tests', () => {
       const completedRes = await requestWithRetry('/sessions', {
         method: 'POST',
         body: { purpose: 'Bug 12 completed test', agentId },
+        headers: actor.headers,
       });
       expect(completedRes.ok).toBe(true);
       const completedId = completedRes.data.id;
@@ -866,6 +875,7 @@ describe('CLI Integration Tests', () => {
       const abandonedRes = await requestWithRetry('/sessions', {
         method: 'POST',
         body: { purpose: 'Bug 12 abandoned test', agentId },
+        headers: actor.headers,
       });
       expect(abandonedRes.ok).toBe(true);
       const abandonedId = abandonedRes.data.id;
@@ -1213,6 +1223,10 @@ describe('CLI Integration Tests', () => {
         sessionId: 'session-stale-context',
         purpose: 'Stale note fallback',
         contextSlot: `ppid-${process.pid}`,
+        // The context is deliberately STALE (bogus sessionId), but the soul
+        // credential begin minted must survive — #8877 rejects attributed
+        // note writes without it.
+        credential: beginData.credential ?? null,
       });
 
       const result = runCli(['note', '--content', 'Recovered from stale context', '--json']);

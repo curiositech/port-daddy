@@ -7,7 +7,8 @@
     "dev": "wrangler dev --local",
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy",
-    "test": "vitest run",
+    "test": "npm run test:migrations && vitest run",
+    "test:migrations": "node scripts/check-migrations.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

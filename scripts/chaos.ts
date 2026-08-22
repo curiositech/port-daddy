@@ -3,16 +3,33 @@ import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
 const BASE_URL = resolveDaemonUrl();
 
-async function req(method: string, path: string, body?: any) {
+async function req(method: string, path: string, body?: any, credential?: string) {
   const options: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      // #8877 / ADR-0122: attributed writes (sessions, notes, locks) require
+      // the daemon-minted ADR-0040 credential.
+      ...(credential ? { 'x-actor-credential': credential } : {}),
+    },
   };
   if (body) {
     options.body = JSON.stringify(body);
   }
   const res = await fetch(`${BASE_URL}${path}`, options);
   return res.json();
+}
+
+/**
+ * Mint a daemon-issued soul for a demo agent through the public mint door.
+ * Returns the plaintext credential the seeded writes below present.
+ */
+async function mintDemoActor(alias: string): Promise<string> {
+  const data = await req('POST', '/actors/register', { alias });
+  if (!data?.credential) {
+    throw new Error(`chaos: failed to mint actor for ${alias}: ${JSON.stringify(data)}`);
+  }
+  return data.credential as string;
 }
 
 async function sleep(ms: number) {
@@ -55,9 +72,12 @@ async function chaos() {
   ];
 
   console.log('Registering agents...');
+  const credentials = new Map<string, string>();
   for (const a of agents) {
     await req('POST', '/agents', a);
     await req('POST', `/agents/${a.id}/heartbeat`);
+    // Mint each demo agent's ADR-0040 soul so its attributed writes verify.
+    credentials.set(a.id, await mintDemoActor(a.id));
     await sleep(50);
   }
 
@@ -75,24 +95,24 @@ async function chaos() {
       identity: services[i],
       purpose: agents[i].purpose,
       phase: ['planning', 'in_progress', 'testing', 'reviewing'][i % 4]
-    });
-    
+    }, credentials.get(agents[i].id));
+
     await req('POST', `/sessions/${s.sessionId}/notes`, {
       content: `Initialized workspace for ${services[i]}`,
       type: 'info'
-    });
+    }, credentials.get(agents[i].id));
     await sleep(50);
     await req('POST', `/sessions/${s.sessionId}/notes`, {
       content: `Completed phase step: ${agents[i].purpose}`,
       type: 'progress'
-    });
+    }, credentials.get(agents[i].id));
   }
 
   // 5. Acquire Locks
   console.log('Acquiring locks...');
-  await req('POST', '/locks/db-migration', { owner: 'agent-db-1', ttl: 300000 });
-  await req('POST', '/locks/stripe-sandbox', { owner: 'agent-api-2', ttl: 120000 });
-  await req('POST', '/locks/e2e-cluster', { owner: 'agent-test-3', ttl: 60000 });
+  await req('POST', '/locks/db-migration', { owner: 'agent-db-1', ttl: 300000 }, credentials.get('agent-db-1'));
+  await req('POST', '/locks/stripe-sandbox', { owner: 'agent-api-2', ttl: 120000 }, credentials.get('agent-api-2'));
+  await req('POST', '/locks/e2e-cluster', { owner: 'agent-test-3', ttl: 60000 }, credentials.get('agent-test-3'));
 
   // 6. Pub/Sub Messaging
   console.log('Publishing messages...');

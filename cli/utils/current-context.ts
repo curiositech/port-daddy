@@ -10,6 +10,15 @@ export interface CurrentContext {
   identity?: string | null;
   startedAt?: number;
   contextSlot?: string;
+  /**
+   * ADR-0040 daemon-minted actor credential (`<actor_id>.<secret>`) captured
+   * from `pd begin` (#8877 / ADR-0122). Attributed writes (done, notes, file
+   * claims, locks, salvage, commitments) are rejected 401 without it, so
+   * `pdFetch` reads it from here and presents it as the `x-actor-credential`
+   * header on mutating requests. Stored in the per-worktree `.portdaddy/`
+   * context store alongside the session it authenticates.
+   */
+  credential?: string | null;
 }
 
 function sanitizeSlot(raw: string): string {
