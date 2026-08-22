@@ -34,10 +34,20 @@ export interface Env {
   /**
    * GitHub token the tick surveys with (read: PRs, checks, reviews). Without
    * it the tick skips honestly ("cannot survey; holding") — the seat never
-   * decides blind. The land-to-main capability is deliberately NOT this token:
-   * landing arrives in P1 PR 3 as a macaroon, per ADR-0109.
+   * decides blind. The land-to-main capability is deliberately NOT this
+   * token — see {@link Env.STEWARD_LAND_TOKEN}.
    */
   STEWARD_GITHUB_TOKEN?: string;
+  /**
+   * The land capability (P1 PR 3): a fine-grained, NON-admin PAT with
+   * Contents + Pull requests read/write on this one repo, held by no other
+   * system. Presence arms landing; absence means LAND verdicts are recorded
+   * but never executed — the operator's rollout switch. Non-admin is the
+   * point: GitHub itself refuses the merge whenever branch protection is
+   * unsatisfied, so "never land over a real red" is platform-enforced
+   * (ADR-0109's single-approver property, structurally).
+   */
+  STEWARD_LAND_TOKEN?: string;
 }
 
 /**

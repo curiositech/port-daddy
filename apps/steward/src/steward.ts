@@ -1,5 +1,13 @@
 import { birthCharter, reviseCharter } from './charter.js';
 import { appendDeckLog, readDeckLog } from './ledgers.js';
+import { landFailKey, shipItKey, SHIPIT_PREFIX, type ShipItGrant } from './landing.js';
+import {
+  ackClusterfudge,
+  isFrozen,
+  readClusterfudge,
+  renderClusterfudgePage,
+  TRIPWIRES,
+} from './clusterfudge.js';
 import { runTick, type TickResult } from './tick.js';
 import type { Charter, DeckLogEntry, Env, WakeEvent } from './types.js';
 
@@ -97,6 +105,13 @@ export class StewardDO {
     if (request.method === 'POST' && url.pathname === '/charter') {
       return this.handleCharterRevision(request);
     }
+    const shipIt = url.pathname.match(/^\/ship-it\/(\d+)$/);
+    if (request.method === 'POST' && shipIt) {
+      return this.handleShipIt(Number(shipIt[1]), request);
+    }
+    if (request.method === 'POST' && url.pathname === '/clusterfudge/ack') {
+      return this.handleClusterfudgeAck(request);
+    }
     return json({ error: 'not found' }, 404);
   }
 
@@ -174,6 +189,8 @@ export class StewardDO {
     const fallback =
       (await this.state.storage.get<DeckLogEntry[]>(StewardDO.KEY_FALLBACK_LOG)) ?? [];
     const recentLog = await readDeckLog(this.env.DB, repo, 5);
+    const grants = await this.state.storage.list<ShipItGrant>({ prefix: SHIPIT_PREFIX });
+    const breaker = await readClusterfudge(this.state.storage);
     return json({
       role: 'steward',
       repo,
@@ -185,8 +202,20 @@ export class StewardDO {
       fallbackEntries: fallback.length,
       recentDeckLog: recentLog,
       tick: this.env.STEWARD_GITHUB_TOKEN
-        ? 'live: decides and records LAND / NEEDS-WORK / SURFACE; landing arrives in P1 PR 3'
+        ? 'live: decides and records LAND / NEEDS-WORK / SURFACE, and executes LAND when armed'
         : 'holding: no STEWARD_GITHUB_TOKEN, cannot survey',
+      landing: this.env.STEWARD_LAND_TOKEN ? 'armed' : 'unarmed',
+      shipItGrants: [...grants.keys()].map(k => Number(k.slice(SHIPIT_PREFIX.length))),
+      clusterfudge: breaker,
+      clusterfudgePage: renderClusterfudgePage(breaker),
+      // The inventory, not an aspiration: which tripwires can actually fire
+      // today and what the rest are waiting on (§9's registry).
+      tripwires: Object.values(TRIPWIRES).map(t => ({
+        id: t.id,
+        armed: t.armed,
+        threshold: t.threshold,
+        ...(t.awaits ? { awaits: t.awaits } : {}),
+      })),
     });
   }
 
@@ -249,6 +278,71 @@ export class StewardDO {
   }
 
   /**
+   * Record an operator's ship-it grant for one PR.
+   *
+   * AUTHORITY RATIONALE: the route is reachable only through the admin-token
+   * gate, so a grant is by construction an operator act — the human judgment
+   * the protected-path gate exists to require. The grant also RESETS the
+   * PR's land-fail hold: the operator saying "ship it" is the override that
+   * clears the clusterfudge tripwire, one act with both meanings. Grants are
+   * consumed by a successful land and visible on /status until then.
+   *
+   * @param prNumber - The PR the grant covers (from the route path).
+   * @param request - POST body, optionally `{grantedBy}`; defaults to `operator`.
+   * @returns 200 with the recorded grant.
+   */
+  private async handleShipIt(prNumber: number, request: Request): Promise<Response> {
+    let grantedBy = 'operator';
+    try {
+      const body = (await request.json()) as { grantedBy?: unknown };
+      if (typeof body.grantedBy === 'string' && body.grantedBy.trim()) {
+        grantedBy = body.grantedBy.trim();
+      }
+    } catch {
+      // An empty body is fine — the admin gate already establishes authority.
+    }
+    const grant: ShipItGrant = { grantedBy, grantedAt: Date.now() };
+    await this.state.storage.put(shipItKey(prNumber), grant);
+    await this.state.storage.delete(landFailKey(prNumber));
+    // Deliberately does NOT release the clusterfudge breaker: a ship-it says
+    // "this PR is fine", a breaker ack says "the systemic problem is handled".
+    // Collapsing the two would let a per-PR override silently un-freeze the
+    // repo, which is exactly the bypass §9 exists to prevent.
+    return json({ granted: true, prNumber, grant });
+  }
+
+  /**
+   * Release the clusterfudge breaker on an operator's ack (§9).
+   *
+   * WHY THE SEAT CANNOT DO THIS ITSELF: the breaker's whole premise is that
+   * the seat's judgment has become untrustworthy, so a self-release would be
+   * the one component least qualified to make the call making it. Only this
+   * route — behind the admin bearer gate, i.e. an operator surface — clears
+   * the freeze, and it demands a recorded decision so the breaker's history
+   * reads as judgments rather than button presses.
+   *
+   * @param request - POST body `{ackedBy?, decision}`; decision is required.
+   * @returns 200 with the released state, or 400 without a decision.
+   */
+  private async handleClusterfudgeAck(request: Request): Promise<Response> {
+    let body: { ackedBy?: unknown; decision?: unknown } = {};
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return json({ error: 'body must be JSON with a decision' }, 400);
+    }
+    const decision =
+      typeof body.decision === 'string' && body.decision.trim() ? body.decision.trim() : null;
+    if (!decision) {
+      return json({ error: 'decision is required — an ack without a decision records nothing' }, 400);
+    }
+    const ackedBy =
+      typeof body.ackedBy === 'string' && body.ackedBy.trim() ? body.ackedBy.trim() : 'operator';
+    const state = await ackClusterfudge(this.state.storage, ackedBy, decision, Date.now());
+    return json({ released: true, clusterfudge: state });
+  }
+
+  /**
    * The wake — drain the inbox, write the deck-log entry, re-arm the heartbeat.
    *
    * The sanity protocol, mechanized — the design intent of §5: every alarm firing is one episodic
@@ -288,25 +382,34 @@ export class StewardDO {
     const tick: TickResult =
       repo === 'unbound'
         ? { ran: false, skipped: 'seat not yet bound to a repo', docketText: '' }
-        : await runTick(this.env, repo, now);
+        : await runTick(this.env, repo, now, fetch, undefined, this.state.storage);
     const tickLine = tick.ran
       ? tick.verdict
-        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}`
+        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}${tick.landing ? ` | ${tick.landing.reason}` : ''}`
         : `Tick: ${tick.docketText}`
       : `Tick held: ${tick.skipped}`;
+
+    // A frozen seat says so on EVERY wake, not only the one that tripped —
+    // §9's freeze is a standing condition, and a vital sign that mentions it
+    // once and then goes quiet is how a freeze gets forgotten.
+    const breaker = await readClusterfudge(this.state.storage);
+    const frozenPrefix = isFrozen(breaker)
+      ? `[CLUSTERFUDGE FROZEN — ${breaker.tripwire ?? 'unknown'}; operator ack required] `
+      : '';
 
     const entry: DeckLogEntry = {
       repo,
       entryKind: events.length > 0 ? 'wake' : 'all-quiet',
       summary:
         events.length > 0
-          ? `Wake: drained ${events.length} event(s) [${summarizeKinds(events)}]. ${tickLine}`
-          : `ALL QUIET. Heartbeat wake; inbox empty. ${tickLine}`,
+          ? `${frozenPrefix}Wake: drained ${events.length} event(s) [${summarizeKinds(events)}]. ${tickLine}`
+          : `${frozenPrefix}ALL QUIET. Heartbeat wake; inbox empty. ${tickLine}`,
       detail: JSON.stringify({
         charterVersion: charter.version,
         events: events.map(e => ({ kind: e.kind, deliveryId: e.deliveryId, prNumber: e.prNumber ?? null })),
         docket: tick.docketText,
         verdict: tick.verdict ?? null,
+        landing: tick.landing ?? null,
       }),
       wakeEvents: events.length,
       createdAt: Math.floor(now / 1000),

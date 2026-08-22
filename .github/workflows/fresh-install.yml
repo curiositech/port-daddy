@@ -7,8 +7,11 @@ name: Fresh-install smoke
 #   fresh-install — downloads the real GitHub release artifacts onto a pristine
 #     runner and exercises them (the tarball / latest.json path `pd upgrade` and
 #     FleetBar take).
-#   brew-install — the path actual humans take: `brew tap curiositech/tap &&
-#     brew install port-daddy`, then proves the installed keg serves.
+#   brew-install — installs the fully qualified third-party formula with
+#     `brew install curiositech/tap/port-daddy`, then proves the installed keg
+#     serves. The qualified formula name records the operator's explicit trust
+#     choice at Homebrew's third-party tap boundary.
+#     https://docs.brew.sh/Tap-Trust#installing-from-a-tap
 #
 # Runs AFTER a release, on a daily schedule, and on demand — never on PR push,
 # so it gates published releases rather than in-flight branches.
@@ -75,6 +78,8 @@ jobs:
         os: [macos-14, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v4
+
       # macOS runners ship brew on PATH; ubuntu runners carry linuxbrew at
       # /home/linuxbrew but do NOT put it on PATH (and some images drop it
       # entirely — installing it fresh IS the blank-machine path).
@@ -88,11 +93,39 @@ jobs:
           echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
           echo "/home/linuxbrew/.linuxbrew/sbin" >> "$GITHUB_PATH"
 
-      - name: Tap + install from Homebrew (the real user path)
+      # release.published starts this workflow before release.yml has built the
+      # assets and dispatched the tap. Installing immediately therefore proves
+      # whatever formula was current before the release, not the release that
+      # triggered this run. Poll the tap's source-of-truth version first, then
+      # refresh Homebrew and assert its resolved metadata agrees.
+      - name: Wait for the tap formula to match this release
+        if: github.event_name == 'release'
+        env:
+          EXPECTED_TAG: ${{ github.event.release.tag_name }}
+          FORMULA_URL: https://raw.githubusercontent.com/curiositech/homebrew-tap/main/Formula/port-daddy.rb
         run: |
           set -euo pipefail
+          if ! expected_version=$(node scripts/release-workflow-state.mjs \
+            wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"); then
+            echo "::error::tap formula did not reach a valid exact $EXPECTED_TAG release within 30 minutes."
+            exit 1
+          fi
           brew tap curiositech/tap
-          brew install port-daddy
+          brew update --quiet
+          brew info --json=v2 curiositech/tap/port-daddy > "$RUNNER_TEMP/port-daddy-formula.json"
+          actual_version=$(ruby -rjson -e \
+            'puts JSON.parse(File.read(ARGV.fetch(0))).fetch("formulae").first.fetch("versions").fetch("stable")' \
+            "$RUNNER_TEMP/port-daddy-formula.json")
+          if [ "$actual_version" != "$expected_version" ]; then
+            echo "::error::Homebrew resolved Port Daddy $actual_version after the tap source reached $expected_version."
+            exit 1
+          fi
+          echo "Homebrew resolves the exact triggering release: $actual_version."
+
+      - name: Install the fully qualified Homebrew formula
+        run: |
+          set -euo pipefail
+          brew install curiositech/tap/port-daddy
 
       - name: Installed keg is complete and reports a real version
         run: |

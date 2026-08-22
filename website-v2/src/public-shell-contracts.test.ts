@@ -746,6 +746,7 @@ describe('public shell contracts', () => {
     }
 
     const daemonUrlSource = readRuntime('./lib/daemon-url.ts')
-    expect(daemonUrlSource).toContain("const CANONICAL_DAEMON_BASE_URL = 'http://127.0.0.1:9876'")
+    expect(daemonUrlSource).toContain('class DaemonEndpointConfigurationError')
+    expect(daemonUrlSource).not.toContain('CANONICAL_DAEMON_BASE_URL')
   })
 })

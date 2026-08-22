@@ -33,6 +33,12 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for operator-grade delivery forensics. Console diagnostics include
+# bounded GitHub response status/request-id/rate-limit evidence; request
+# headers, request bodies, and the GitHub token are never recorded.
+[observability]
+enabled = true
+
 # ---------------------------------------------------------------------------
 # CPU budget per invocation.
 #
@@ -131,6 +137,21 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
+# Each successful invocation runs at most one new provider-heavy ship, records
+# a delivery-continuation step, then schedules the next checkpointed slice.
+# Thirteen total attempts cover this repository's eleven-ship PR roster with
+# two attempts of bounded transient-failure headroom.
+max_retries = 12
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
@@ -167,15 +188,22 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
-# Cloud squid — fleet coordination events (src/squid-events.ts). When BOTH
-# RELAY_PUBLISH_URL (var) and RELAY_PUBLISH_TOKEN (secret) are set, the
-# executor fire-and-forgets run-started / ship-verdict / pr-stacked /
-# run-concluded events onto channel 'fleet-cloud' as
-#   POST <RELAY_PUBLISH_URL>  { event: { channel, type, sender, iat, payload } }
-# with `Authorization: Bearer <RELAY_PUBLISH_TOKEN>`. Point it at a relay
-# ingest that accepts bearer-token publishes. OPTIONAL and DISABLED by default:
-# leave empty ⇒ zero fetches, feature silently off. Events are best-effort —
-# they can never block or change a run, a verdict, or the merge gate.
+# Cloud squid — fleet coordination events (src/squid-events.ts). When
+# RELAY_PUBLISH_URL (var) AND the FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX +
+# FLEET_EXECUTOR_HARBOR_CARD secrets are all set, the executor fire-and-forgets
+# run-started / ship-verdict / pr-stacked / run-concluded events onto the
+# per-run channel `<relayFp>:fleet-cloud:<runId>` as SIGNED zero-trust
+# publishes to the relay's POST /v1/publish:
+#   POST <RELAY_PUBLISH_URL>  { card, event: { v, sender, channel, seq,
+#                               prev_hash, this_hash, iat, ciphertext, sig } }
+# There is NO bearer token and NO Authorization header — the relay verifies
+# the executor's operator-provisioned identity, its harbor card, and the
+# per-run hash chain. OPTIONAL and DISABLED by default: leave empty ⇒ zero
+# fetches, feature silently off. Events are best-effort — they can never
+# block or change a run, a verdict, or the merge gate.
+#
+# FLEET_DEPLOYMENT (var, optional): names this deployment inside the squid/1
+# body's sender (`fleet-executor@<deployment>`). Default 'default'.
 #
 # TENANCY CONSENT: env wiring alone is NOT enough. Events carry the tenant
 # repo's name, PR numbers, verdicts, and stacked-PR urls onto a shared
@@ -203,7 +231,18 @@ RUN_DETAILS_BASE_URL = ""
 #                              tokens; MUST equal the relay's RUN_PAGE_SECRET
 #                              (openssl rand -hex 32, then wrangler secret put
 #                              RUN_PAGE_SECRET in BOTH workers)
-#   RELAY_PUBLISH_TOKEN        Bearer token for the cloud-squid event POSTs to
-#                              RELAY_PUBLISH_URL (see the [vars] comment above).
-#                              Optional: unset (with an empty URL) ⇒ squid
-#                              events are silently disabled.
+#   FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX
+#                              The executor's Ed25519 seed (64 hex chars) for
+#                              signed cloud-squid publishes. Generate with
+#                              `openssl rand -hex 32`, register its PUBLIC key
+#                              via the relay's operator-gated
+#                              POST /v1/fleet/executor-identity, then
+#                              `wrangler secret put` the seed here. Optional:
+#                              unset ⇒ squid events are silently disabled.
+#   FLEET_EXECUTOR_HARBOR_CARD The hv:2 harbor card returned by the same
+#                              provisioning call (relay-signed EdDSA JWT with
+#                              cap pub on <relayFp>:fleet-cloud:*). Rotate by
+#                              POST /v1/revoke-by-issuer (issuer
+#                              `operator:fleet-executor@<deployment>`) and
+#                              re-provisioning with a fresh keypair. Optional:
+#                              unset ⇒ squid events are silently disabled.

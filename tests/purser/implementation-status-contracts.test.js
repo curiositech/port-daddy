@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
 
 const paperPaths = {
   'single-writer-kernel': 'whitepaper/single-writer-kernel.tex',

@@ -47,6 +47,14 @@ import { verifyCard, extractCardSub, extractBearerToken, CardError, matchCapabil
 import { tryDecodeTransitEnvelope } from './envelope.js';
 import { fetchJwks, verifyOidcToken, invalidateJwksCache, OidcError } from './oidc.js';
 import { harborChannelKey } from './harbor-channel.js';
+import {
+  harborQuotaKey,
+  quotaGateResponse,
+  resolveQuotaSettings,
+  type QuotaCheckRequest,
+  type QuotaVerdict,
+} from './harbor-quota.js';
+import { recordHookEvent } from './mercy-hooks.js';
 import type {
   Env,
   ClientHello,
@@ -68,6 +76,26 @@ import type {
 function err(code: string, detail: string, status = 400): Response {
   const body: RelayError = { error: detail, code };
   return Response.json(body, { status });
+}
+
+function isQuotaVerdict(value: unknown): value is QuotaVerdict {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const verdict = value as Record<string, unknown>;
+  if (typeof verdict.allowed !== 'boolean') return false;
+  if (verdict.shadow !== undefined && typeof verdict.shadow !== 'boolean') return false;
+  if (
+    verdict.retryAfterSeconds !== undefined &&
+    (!Number.isSafeInteger(verdict.retryAfterSeconds) || (verdict.retryAfterSeconds as number) <= 0)
+  ) {
+    return false;
+  }
+  if (verdict.allowed) {
+    return verdict.code === undefined && verdict.retryAfterSeconds === undefined;
+  }
+  return (
+    (verdict.code === 'RATE_LIMITED' || verdict.code === 'QUOTA_EXHAUSTED') &&
+    typeof verdict.retryAfterSeconds === 'number'
+  );
 }
 
 function clientIp(request: Request): string {
@@ -455,7 +483,9 @@ export async function handlePublish(
     throw e;
   }
 
-  // Rate limit check (via DO)
+  // Rate limit + daily budget check (X8: one round-trip to the per-harbor
+  // aggregating HarborQuota DO, which carries BOTH the per-sender minute rate
+  // limit and the per-harbor daily event/byte budgets on durable storage).
   const colonIdx = channelName.indexOf(':');
   const harborFp = colonIdx >= 0 ? channelName.slice(0, colonIdx) : '';
   const channelPart = colonIdx >= 0 ? channelName.slice(colonIdx + 1) : channelName;
@@ -463,14 +493,75 @@ export async function handlePublish(
   if (harborFp) {
     const capEntry = matchCapability(card.cap, 'pub', channelName);
     const rateLimit = capEntry?.rate_per_min ?? 60;
-    const doId = env.HARBOR_CHANNEL.idFromName(harborChannelKey(harborFp, channelPart));
-    const stub = env.HARBOR_CHANNEL.get(doId);
-    const rateResp = await stub.fetch(
-      `http://do/?action=rate-check&sender=${sub}&limit=${rateLimit}`
-    );
-    const { allowed } = await rateResp.json() as { allowed: boolean };
-    if (!allowed) {
-      return err('RATE_LIMITED', `Rate limit ${rateLimit}/min exceeded`, 429);
+    if (env.HARBOR_QUOTA) {
+      const settings = resolveQuotaSettings(env);
+      // Measure decoded ciphertext bytes for the byte budget. A malformed
+      // ciphertext falls back to string length here so the pre-existing error
+      // ordering (sender mismatch fires before decode) is preserved; the
+      // payload-size gate below still decodes strictly.
+      const { base64UrlDecode: b64ForQuota } = await import('./crypto.js');
+      let eventBytes: number;
+      try {
+        eventBytes = b64ForQuota(event.ciphertext).length;
+      } catch {
+        eventBytes = event.ciphertext.length;
+      }
+      const checkBody: QuotaCheckRequest = {
+        sender: sub,
+        ratePerMin: rateLimit,
+        eventBytes,
+        eventBudget: settings.eventBudget,
+        byteBudget: settings.byteBudget,
+        enforce: settings.enforce,
+      };
+      const quotaStub = env.HARBOR_QUOTA.get(env.HARBOR_QUOTA.idFromName(harborQuotaKey(harborFp)));
+      let verdict: QuotaVerdict;
+      try {
+        const quotaResp = await quotaStub.fetch('http://do/?action=check', {
+          method: 'POST',
+          body: JSON.stringify(checkBody),
+        });
+        if (!quotaResp.ok) {
+          return err('QUOTA_ERROR', 'Harbor quota gate unavailable or returned an invalid verdict', 503);
+        }
+        const candidate: unknown = await quotaResp.json();
+        if (!isQuotaVerdict(candidate)) {
+          return err('QUOTA_ERROR', 'Harbor quota gate unavailable or returned an invalid verdict', 503);
+        }
+        verdict = candidate;
+      } catch {
+        return err('QUOTA_ERROR', 'Harbor quota gate unavailable or returned an invalid verdict', 503);
+      }
+      // X8 mercy hooks (x7-mercy-hooks): budget verdicts feed the hook
+      // ledger the sweep aggregates — an enforced 429 as `x8_quota_exhausted`,
+      // a shadow-mode pass that enforcement WOULD have refused as
+      // `x8_quota_shadow_denied` (the flip-decision signal). recordHookEvent
+      // never throws; a plain rate-limit refusal predates X8 and is not one
+      // of its hooks.
+      const hookNow = Math.floor(Date.now() / 1000);
+      if (verdict.shadow === true) {
+        await recordHookEvent(env.DB, 'x8_quota_shadow_denied', 'warn', `harbor ${harborFp}: over daily budget, passed in shadow`, hookNow);
+      }
+      const refusal = quotaGateResponse(verdict, rateLimit);
+      if (refusal) {
+        if (verdict.code === 'QUOTA_EXHAUSTED') {
+          await recordHookEvent(env.DB, 'x8_quota_exhausted', 'warn', `harbor ${harborFp}: publish refused 429 QUOTA_EXHAUSTED`, hookNow);
+        }
+        return refusal;
+      }
+    } else {
+      // Deploy-order fallback: HARBOR_QUOTA binding not provisioned yet.
+      // Rate limiting must never fail open, so the legacy in-memory
+      // HarborChannel limiter keeps guarding until the binding ships.
+      const doId = env.HARBOR_CHANNEL.idFromName(harborChannelKey(harborFp, channelPart));
+      const stub = env.HARBOR_CHANNEL.get(doId);
+      const rateResp = await stub.fetch(
+        `http://do/?action=rate-check&sender=${sub}&limit=${rateLimit}`
+      );
+      const { allowed } = await rateResp.json() as { allowed: boolean };
+      if (!allowed) {
+        return err('RATE_LIMITED', `Rate limit ${rateLimit}/min exceeded`, 429);
+      }
     }
   }
 

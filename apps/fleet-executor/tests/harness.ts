@@ -143,6 +143,14 @@ export interface GitHubState {
  */
 const DEFAULT_JEST_CONFIG = "module.exports = { testMatch: ['<rootDir>/tests/**/*.test.{js,ts}'] };\n";
 
+/** Match GitHub's Contents API: base64 encodes UTF-8 bytes, not JS code units. */
+function utf8ToBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
 export function freshState(): GitHubState {
   const files = new Map<string, string>();
   files.set('BASESHA:jest.config.js', DEFAULT_JEST_CONFIG);
@@ -251,7 +259,7 @@ export function installGitHubFetch(state: GitHubState): void {
       }
       const fileBody = state.files.get(`${ref}:${path}`);
       if (fileBody === undefined) return text('not found', 404);
-      return json({ type: 'file', encoding: 'base64', content: btoa(fileBody) });
+      return json({ type: 'file', encoding: 'base64', content: utf8ToBase64(fileBody) });
     }
 
     // --- Git Data API (purser stacked-PR machinery) ---
@@ -718,6 +726,18 @@ export function memoryD1(): D1Capture {
         return null;
       },
       async all() {
+        // Checkpoint read-back (src/ship-checkpoint.ts): every row of one kind
+        // for one run, served from the same `steps` array the INSERT path
+        // appends to — a test that checkpoints through the real code resumes
+        // through the real code.
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const results = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .map(st => ({ ship: st.ship, detail: st.detail }));
+          return { results };
+        }
         return { results: [] };
       },
     }),

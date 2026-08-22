@@ -10,18 +10,64 @@ export interface CurrentContext {
   identity?: string | null;
   startedAt?: number;
   contextSlot?: string;
+  /**
+   * ADR-0040 daemon-minted actor credential (`<actor_id>.<secret>`) captured
+   * from `pd begin` (#8877 / ADR-0122). Attributed writes (done, notes, file
+   * claims, locks, salvage, commitments) are rejected 401 without it, so
+   * `pdFetch` reads it from here and presents it as the `x-actor-credential`
+   * header on mutating requests. Stored in the per-worktree `.portdaddy/`
+   * context store alongside the session it authenticates.
+   */
+  credential?: string | null;
 }
 
 function sanitizeSlot(raw: string): string {
   return raw.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'default';
 }
 
+/**
+ * Env vars set by specific coding-agent harnesses to a value stable for the
+ * whole session (thread/conversation id), usable as the shell slot even with
+ * no TTY. This list is an optimization, not a requirement for correctness —
+ * a harness missing from it still resolves via the HEADLESS_SLOT fallback
+ * below, not via the old per-process ppid slot. Add entries as new harnesses
+ * turn up; never remove CODEX_THREAD_ID's 'codex' prefix, existing on-disk
+ * context files were written under it.
+ */
+const AGENT_SESSION_ENV_VARS: Array<{ env: string; prefix: string }> = [
+  { env: 'CODEX_THREAD_ID', prefix: 'codex' },
+  { env: 'CLAUDE_SESSION_ID', prefix: 'claude' },
+  { env: 'CLAUDE_CODE_SESSION_ID', prefix: 'claude-code' },
+  { env: 'CURSOR_SESSION_ID', prefix: 'cursor' },
+  { env: 'AIDER_SESSION_ID', prefix: 'aider' },
+  { env: 'COPILOT_SESSION_ID', prefix: 'copilot' },
+];
+
+/**
+ * Fallback slot when no TTY and no known per-tool session id is available
+ * (headless agent harnesses, `git commit` hooks forked from them, CI).
+ *
+ * The old fallback here was `ppid-${process.ppid}`. That's fatally unstable
+ * for this exact case: `git commit` forks a brand-new process to run each
+ * hook, so the hook's `pd guard check` always computes a different ppid slot
+ * than the `pd begin` that ran moments earlier in the calling shell — the
+ * session it just wrote can never be found again. A single shared slot loses
+ * the ability to distinguish multiple concurrent headless shells in the same
+ * worktree, but the ppid slot never actually provided that either (a fresh
+ * ppid on every invocation made same-shell continuity the thing that broke).
+ * One worktree normally has exactly one active non-interactive driver at a
+ * time, so this trades imaginary isolation for a fallback that works.
+ */
+const HEADLESS_SLOT = 'headless';
+
 export function resolveContextSlot(): string {
   const explicit = typeof process.env.PORT_DADDY_CONTEXT_SLOT === 'string' ? process.env.PORT_DADDY_CONTEXT_SLOT.trim() : '';
   if (explicit) return sanitizeSlot(explicit);
 
-  const codexThreadId = typeof process.env.CODEX_THREAD_ID === 'string' ? process.env.CODEX_THREAD_ID.trim() : '';
-  if (codexThreadId) return sanitizeSlot(`codex-${codexThreadId}`);
+  for (const { env, prefix } of AGENT_SESSION_ENV_VARS) {
+    const value = typeof process.env[env] === 'string' ? process.env[env].trim() : '';
+    if (value) return sanitizeSlot(`${prefix}-${value}`);
+  }
 
   const ttyCandidates = [process.stdin, process.stdout, process.stderr]
     .map((stream) => {
@@ -34,7 +80,7 @@ export function resolveContextSlot(): string {
   const termSessionId = typeof process.env.TERM_SESSION_ID === 'string' ? process.env.TERM_SESSION_ID.trim() : '';
   if (termSessionId) return sanitizeSlot(`term-${termSessionId}`);
 
-  return sanitizeSlot(`ppid-${process.ppid}`);
+  return sanitizeSlot(HEADLESS_SLOT);
 }
 
 function canUseLegacyContextForSlot(legacy: CurrentContext, slot: string): boolean {
