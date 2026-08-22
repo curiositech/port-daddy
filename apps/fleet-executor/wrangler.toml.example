@@ -34,6 +34,31 @@ compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
 # ---------------------------------------------------------------------------
+# CPU budget per invocation.
+#
+# WHY THIS EXISTS: without a [limits] block a Worker gets the 30-second default
+# CPU budget, and a fleet run does not fit in it. Exceeding it is not a JS
+# exception — the runtime TERMINATES the invocation, so index.ts's try/catch
+# never runs, the message is never acked, and the platform redelivers it. With
+# max_retries = 3 that is four full runs of the same PR (four sets of ship
+# comments, four times the model spend) ending in a dead-letter whose only
+# artifact is "was lost (job exhausted retries / dead-lettered)" — a red gate
+# with no cause attached, because no code in this Worker ever got to see one.
+#
+# Observed 2026-08-19 on PRs #7278, #7339, #7344 and #7377: every attempt ran
+# the ideation ships to completion (each rewrote its own edit-in-place comment,
+# four distinct versions per PR) and then vanished mid-run, ~75s of wall clock
+# apiece — far inside the 15-minute wall-clock budget for a queue consumer, and
+# consistent with hitting the CPU ceiling instead.
+#
+# 300_000 ms (5 minutes) is the platform maximum. It is a CEILING, not a
+# reservation: a run that finishes in two seconds of CPU is billed for two
+# seconds. The queue consumer above is already serialized (max_concurrency = 1),
+# so raising this cannot widen concurrent spend.
+[limits]
+cpu_ms = 300000
+
+# ---------------------------------------------------------------------------
 # Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
 [ai]
 binding = "AI"
@@ -106,6 +131,21 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
+# Resumed attempts skip durable ship checkpoints. Keep this example aligned
+# with the deploy config: thirteen total attempts cover this repository's
+# eleven-ship PR roster even at one newly checkpointed ship per attempt, with two
+# attempts of bounded headroom for transient failures.
+max_retries = 12
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
@@ -142,15 +182,22 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
-# Cloud squid — fleet coordination events (src/squid-events.ts). When BOTH
-# RELAY_PUBLISH_URL (var) and RELAY_PUBLISH_TOKEN (secret) are set, the
-# executor fire-and-forgets run-started / ship-verdict / pr-stacked /
-# run-concluded events onto channel 'fleet-cloud' as
-#   POST <RELAY_PUBLISH_URL>  { event: { channel, type, sender, iat, payload } }
-# with `Authorization: Bearer <RELAY_PUBLISH_TOKEN>`. Point it at a relay
-# ingest that accepts bearer-token publishes. OPTIONAL and DISABLED by default:
-# leave empty ⇒ zero fetches, feature silently off. Events are best-effort —
-# they can never block or change a run, a verdict, or the merge gate.
+# Cloud squid — fleet coordination events (src/squid-events.ts). When
+# RELAY_PUBLISH_URL (var) AND the FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX +
+# FLEET_EXECUTOR_HARBOR_CARD secrets are all set, the executor fire-and-forgets
+# run-started / ship-verdict / pr-stacked / run-concluded events onto the
+# per-run channel `<relayFp>:fleet-cloud:<runId>` as SIGNED zero-trust
+# publishes to the relay's POST /v1/publish:
+#   POST <RELAY_PUBLISH_URL>  { card, event: { v, sender, channel, seq,
+#                               prev_hash, this_hash, iat, ciphertext, sig } }
+# There is NO bearer token and NO Authorization header — the relay verifies
+# the executor's operator-provisioned identity, its harbor card, and the
+# per-run hash chain. OPTIONAL and DISABLED by default: leave empty ⇒ zero
+# fetches, feature silently off. Events are best-effort — they can never
+# block or change a run, a verdict, or the merge gate.
+#
+# FLEET_DEPLOYMENT (var, optional): names this deployment inside the squid/1
+# body's sender (`fleet-executor@<deployment>`). Default 'default'.
 #
 # TENANCY CONSENT: env wiring alone is NOT enough. Events carry the tenant
 # repo's name, PR numbers, verdicts, and stacked-PR urls onto a shared
@@ -178,7 +225,18 @@ RUN_DETAILS_BASE_URL = ""
 #                              tokens; MUST equal the relay's RUN_PAGE_SECRET
 #                              (openssl rand -hex 32, then wrangler secret put
 #                              RUN_PAGE_SECRET in BOTH workers)
-#   RELAY_PUBLISH_TOKEN        Bearer token for the cloud-squid event POSTs to
-#                              RELAY_PUBLISH_URL (see the [vars] comment above).
-#                              Optional: unset (with an empty URL) ⇒ squid
-#                              events are silently disabled.
+#   FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX
+#                              The executor's Ed25519 seed (64 hex chars) for
+#                              signed cloud-squid publishes. Generate with
+#                              `openssl rand -hex 32`, register its PUBLIC key
+#                              via the relay's operator-gated
+#                              POST /v1/fleet/executor-identity, then
+#                              `wrangler secret put` the seed here. Optional:
+#                              unset ⇒ squid events are silently disabled.
+#   FLEET_EXECUTOR_HARBOR_CARD The hv:2 harbor card returned by the same
+#                              provisioning call (relay-signed EdDSA JWT with
+#                              cap pub on <relayFp>:fleet-cloud:*). Rotate by
+#                              POST /v1/revoke-by-issuer (issuer
+#                              `operator:fleet-executor@<deployment>`) and
+#                              re-provisioning with a fresh keypair. Optional:
+#                              unset ⇒ squid events are silently disabled.

@@ -164,7 +164,16 @@ export interface SpawnSpec {
   // default spawn is unchanged (writes allowed, full-tier bond).
   capabilities?: string[];
   env?: Record<string, string>;
-  timeout?: number;    // ms, default 300000
+  /**
+   * Explicit caller/operator wallclock deadline in milliseconds. Meaning
+   * differs by backend class:
+   * - Subprocess/CLI backends (codex, aider, custom, cli:*, claude-cli) — hard
+   *   SIGTERM→SIGKILL deadline for the child process. Unset = no wall clock;
+   *   the child runs until it exits on its own (see runChild).
+   * - In-process API backends — abort-signal bound on the request; unset
+   *   falls back to DEFAULT_BACKEND_TIMEOUT_MS (see backendAbortSignal).
+   */
+  timeout?: number;
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
   // Transcript provenance (fleet ships set these so the dashboard surfaces
@@ -402,11 +411,11 @@ interface ChildRunOpts {
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    const timeoutMs = opts.timeout || 300000;
+    const timeoutMs = typeof opts.timeout === 'number' && opts.timeout > 0 ? opts.timeout : null;
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
-      timeout: timeoutMs,
+      ...(timeoutMs === null ? {} : { timeout: timeoutMs }),
       detached: true,
       shell: false,
       ...(opts.stdio ? { stdio: opts.stdio as any } : {}),
@@ -417,16 +426,16 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     const stderr: string[] = [];
     let timedOut = false;
     let settled = false;
-    let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
-    const timeoutTimer = setTimeout(() => {
+    let hardStopTimer: ReturnType<typeof setTimeout> | null = null;
+    const timeoutTimer = timeoutMs === null ? null : setTimeout(() => {
       timedOut = true;
       signalChildProcess(child, 'SIGTERM');
-      forceKillTimer = setTimeout(() => {
+      hardStopTimer = setTimeout(() => {
         signalChildProcess(child, 'SIGKILL');
       }, 5000);
-      forceKillTimer.unref?.();
+      hardStopTimer.unref?.();
     }, Math.max(1, timeoutMs - 25));
-    timeoutTimer.unref?.();
+    timeoutTimer?.unref?.();
 
     child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
     child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
@@ -434,12 +443,12 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
-      if (forceKillTimer) clearTimeout(forceKillTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (hardStopTimer) clearTimeout(hardStopTimer);
       const out = stdout.join('');
       const errText = stderr.join('');
       if (timedOut) {
-        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs}ms${errText ? `: ${errText}` : ''}`, child });
+        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs as number}ms${errText ? `: ${errText}` : ''}`, child });
       } else if (code !== 0) {
         resolve({ output: out, error: errText || `${opts.cmd} exited with code ${code}`, child });
       } else {
@@ -450,8 +459,8 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
-      if (forceKillTimer) clearTimeout(forceKillTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (hardStopTimer) clearTimeout(hardStopTimer);
       resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
     });
   });
@@ -1012,12 +1021,15 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   for (const key of CODEX_DAEMON_CONTEXT_ENV_KEYS) {
     delete env[key];
   }
+  // Current Codex defines --approve-for-me as automatic review *using* the
+  // workspace-write sandbox. Passing --sandbox beside it is a hard CLI error,
+  // so keep this one policy flag as the single source of truth.
   const args = spec.nativeResume
     ? [
         'exec',
+        '--approve-for-me',
         'resume',
         '--skip-git-repo-check',
-        '--full-auto',
         '--output-last-message', outputPath,
         '--model', model,
         '--json',
@@ -1027,8 +1039,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     : [
         'exec',
         '--skip-git-repo-check',
-        '--full-auto',
-        '--sandbox', 'workspace-write',
+        '--approve-for-me',
         '-C', workspace,
         '--output-last-message', outputPath,
         '--model', model,

@@ -29,6 +29,7 @@ jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
   LOOPBACK_TCP_HOST: '127.0.0.1',
   getDaemonTcpUrl: () => 'http://127.0.0.1:9876',
   readDaemonPort: mockReadDaemonPort,
+  resolvePublishedDaemonUrl: (explicitUrl) => explicitUrl || `http://127.0.0.1:${mockReadDaemonPort()}`,
   resolveDaemonTcpTarget: mockResolveDaemonTcpTarget,
   // The one canonical resolver fetch.ts now delegates to. Honor the same
   // existsSync flag these tests already use to choose socket vs TCP.
@@ -231,5 +232,29 @@ describe('cli/utils/fetch pdFetch', () => {
     } finally {
       delete process.env.PORT_DADDY_NO_RETRY;
     }
+  });
+
+  test('per-call retry=false disables reconnect backoff and forwards the abort signal', async () => {
+    mockExistsSync.mockReturnValue(false);
+    const controller = new AbortController();
+    mockRequest.mockImplementation((options) => {
+      expect(options.signal).toBe(controller.signal);
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => {
+        queueMicrotask(() => {
+          const error = new Error('refused');
+          error.code = 'ECONNREFUSED';
+          req.emit('error', error);
+        });
+      };
+      return req;
+    });
+
+    await expect(pdFetch('/whois', { retry: false, signal: controller.signal }))
+      .rejects.toMatchObject({ code: 'ECONNREFUSED' });
+    expect(mockRequest).toHaveBeenCalledTimes(1);
   });
 });

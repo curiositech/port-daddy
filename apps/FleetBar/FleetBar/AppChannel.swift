@@ -41,7 +41,8 @@ enum AppChannel: Equatable {
     }
 
     /// True for the shared dev-latest build (label "dev-latest" / "devlatest"),
-    /// regardless of punctuation. Used to default its daemon to the :9886 lane.
+    /// regardless of punctuation. Drives only the per-channel accent colour — the
+    /// daemon is chosen by publication/selection, never a fixed lane.
     var isDevLatest: Bool {
         guard case .dev(let label) = self else { return false }
         return label.lowercased().replacingOccurrences(of: "-", with: "").contains("devlatest")

@@ -85,6 +85,15 @@ mod harbor_pane; // Agent Node roster+detail (ch18 C3)
 mod health_pane;
 #[path = "../inbox_pane.rs"]
 mod inbox_pane;
+// HITL operator interruptions (docs/hitl-interruptions.md §4, surface 2):
+// the poll state machine + view model are gpui-free by design so the whole
+// contract (jitter bounds, 4xx park, breaker) tests on this cheap gate.
+#[allow(dead_code)]
+#[path = "../interruptions.rs"]
+mod interruptions;
+#[allow(dead_code)]
+#[path = "../interruptions_pane.rs"]
+mod interruptions_pane;
 #[path = "../lane_pane.rs"]
 mod lane_pane;
 #[path = "../lineage_pane.rs"]
@@ -267,6 +276,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(ActiveAgentsPane::new()));
     reg.register(Box::new(HarborPane::new()));
     reg.register(Box::new(GalaxyPane::new()));
+    reg.register(Box::new(interruptions_pane::InterruptionsPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));

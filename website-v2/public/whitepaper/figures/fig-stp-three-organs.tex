@@ -1,4 +1,4 @@
-% Fig 4 — the three continuity organs with honest labels: memory BUILT, checkpoint BUILT-WEAK, ledger DESIGNED.
+% Fig 4 — the three continuity organs with honest labels: memory BUILT, checkpoint PARTIAL, ledger PARTIAL.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
@@ -22,7 +22,7 @@
    \emph{Restorable state.}\\[2pt]
    {\footnotesize Today the restart organ forwards a \textbf{summary, not state}.}};
 \node[stp accent box,text width=42mm,align=left,right=of o2] (o3)
-  {{\bfseries 3. OUTCOME LEDGER}\\[-1pt]{\scriptsize\scshape specified}\\[4pt]
+  {{\bfseries 3. OUTCOME LEDGER}\\[-1pt]{\scriptsize\scshape partial}\\[4pt]
    \emph{Witnessed delivery.}\\[2pt]
    {\footnotesize Append-only; closes only against an oracle the agent cannot author.}};
 
@@ -37,8 +37,10 @@ records what happened --- typed episodes scored by
 recency$\times$importance$\times$relevance, after Generative Agents (Park 2023);
 checkpoint (\BUILTWEAK) is meant to restore execution state but today passes only
 notes (checkpoint-of-\emph{record}, not -of-\emph{execution}; ``with teeth'' is
-\VISION); the witnessed-outcome ledger (\DESIGNED) is the transitive Parfitian
-chain --- and the organ reputation keys on. The series' canonical seam sentence is
+\VISION); the witnessed-outcome ledger (\BUILTWEAK) has durable commitments and
+oracle-bound closure, but not neutral graded outcome events or reputation binding.
+See \S\ref{sec:organs} for the full continuity contract. It is the transitive
+Parfitian chain --- and the organ reputation keys on. The series' canonical seam sentence is
 exactly this picture in prose.}
 \label{fig:organs}
 \end{figure}

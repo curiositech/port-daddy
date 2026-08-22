@@ -14,6 +14,7 @@ describe('single binary distribution path', () => {
     expect(script).toContain('stageSquidReleaseAssets');
     expect(script).toContain("scripts/smoke-squid-release.mjs");
     expect(script).toContain('targetArch');
+    expect(script).toContain("from './lib/onnx-runtime-native.mjs'");
     expect(script).toContain('requestedArch !== process.arch');
     expect(script).toContain("run('bash', ['scripts/build-core.sh']");
     expect(script).toContain('dataBase64');
@@ -25,6 +26,8 @@ describe('single binary distribution path', () => {
 
   test('single binary entrypoint can route daemon mode before loading the CLI', () => {
     const bundle = readFileSync(join(process.cwd(), 'bin', 'port-daddy-bundle.ts'), 'utf8');
+    const daemonBundle = readFileSync(join(process.cwd(), 'bin', 'port-daddy-daemon.ts'), 'utf8');
+    const daemonBuild = readFileSync(join(process.cwd(), 'scripts', 'build-daemon-binary.mjs'), 'utf8');
 
     expect(bundle).toContain("process.env.PORT_DADDY_CAN_SELF_DAEMON = '1'");
     expect(bundle).toContain('embedded-native-core.generated.js');
@@ -32,13 +35,21 @@ describe('single binary distribution path', () => {
     expect(bundle).toContain('__PORT_DADDY_KOFFI_LOAD_ERROR__');
     expect(bundle).toContain("process.argv[2] === '__daemon'");
     expect(bundle).toContain("process.argv[2] === 'start' && process.argv.includes('--foreground')");
-    expect(bundle).toContain("process.argv[2] === '__db_integrity_check'");
-    expect(bundle).toContain('createDbIntegrityProof(dbPath)');
+    expect(bundle).toContain('resolveDbIntegrityHelperInvocation(process.argv)');
+    expect(bundle).toContain('runDbIntegrityHelper(dbIntegrityHelper)');
     expect(bundle).toContain("await import('../server.js')");
     expect(bundle).toContain('PORT_DADDY_SUPPRESS_CLI_MAIN');
     expect(bundle).toContain("await import('./port-daddy-cli.ts')");
     expect(bundle).toContain('port-daddy-cli.js is the npm shim');
     expect(bundle).toContain('await cli.main()');
+    expect(daemonBundle).toContain('resolveDbIntegrityHelperInvocation(process.argv)');
+    expect(daemonBundle).toContain('runDbIntegrityHelper(dbIntegrityHelper)');
+    expect(daemonBundle).toContain("await import('../server.js')");
+    expect(daemonBuild).toContain("'bin/port-daddy-daemon.ts'");
+    expect(daemonBuild).toContain("['__semantic-runtime-check']");
+    expect(daemonBuild).toContain('packageOnnxRuntimeNative');
+    expect(daemonBuild).not.toContain("['build', '--compile', 'server.ts'");
+    expect(daemonBundle).toContain("process.argv[2] === '__semantic-runtime-check'");
   });
 
   test('server publishes its PID and heartbeat before opening the registry', () => {
@@ -89,6 +100,8 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('smokeSelfHostedDaemon');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
+    expect(buildScript).toContain('DYLD_FALLBACK_LIBRARY_PATH');
+    expect(buildScript).toContain('LD_LIBRARY_PATH');
     expect(buildScript).toContain("run('cc'");
     expect(buildScript).toContain('execv(target, child_argv)');
     expect(buildScript).toContain('setenv("PORT_DADDY_FORCE_TCP", "1", 1)');
@@ -123,6 +136,28 @@ describe('single binary distribution path', () => {
     expect(workflow).toContain('node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd');
     expect(workflow).toContain('pd port-daddy port-daddy-manifest.json');
     expect(workflow).not.toContain('bin/port-daddy-cli.ts --outfile dist/pd');
+  });
+
+  test('release evidence and clean-install workflows use their real path contracts', () => {
+    const releaseWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
+    const freshInstallWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'fresh-install.yml'), 'utf8');
+
+    // Batten resolves a relative --archive from --staged-dir. Prefixing it with
+    // dist would reproduce the v3.28.2 dist/dist/<archive> release failure.
+    expect(releaseWorkflow).toContain('--archive "${{ matrix.artifact }}.tar.gz"');
+    expect(releaseWorkflow).not.toContain('--archive "dist/${{ matrix.artifact }}.tar.gz"');
+
+    // The release-triggered smoke waits for the tap's exact formula version,
+    // refreshes Homebrew only after that boundary, and still installs the fully
+    // qualified formula so the caller's explicit trust choice remains visible.
+    // https://docs.brew.sh/Tap-Trust#installing-from-a-tap
+    const waitForFormula = freshInstallWorkflow.indexOf('Wait for the tap formula to match this release');
+    const refreshTap = freshInstallWorkflow.indexOf('brew tap curiositech/tap', waitForFormula);
+    const qualifiedInstall = freshInstallWorkflow.indexOf('brew install curiositech/tap/port-daddy', refreshTap);
+    expect(waitForFormula).toBeGreaterThan(-1);
+    expect(refreshTap).toBeGreaterThan(waitForFormula);
+    expect(qualifiedInstall).toBeGreaterThan(refreshTap);
+    expect(freshInstallWorkflow).not.toContain('brew install port-daddy');
   });
 
   test('FleetBar packages the same Port Daddy payload with embedded Rust core proof', () => {
