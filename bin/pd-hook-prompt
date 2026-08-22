@@ -18,9 +18,24 @@ set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
-MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-12}"
-MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-4096}"
+# Prompt context is a scarce resource. Two actionable facts plus one heading is
+# the hard product budget: three lines / 512 bytes. Callers may lower these
+# limits for a more austere harness, but may not raise them and turn the hook
+# into a briefing dump.
+MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-2}"
+MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-512}"
+case "$MAX_ENTRIES" in ''|*[!0-9]*) MAX_ENTRIES=2 ;; esac
+case "$MAX_BYTES" in ''|*[!0-9]*) MAX_BYTES=512 ;; esac
+[ "$MAX_ENTRIES" -le 2 ] 2>/dev/null || MAX_ENTRIES=2
+[ "$MAX_BYTES" -le 512 ] 2>/dev/null || MAX_BYTES=512
 TTL_SECONDS="${PD_SQUID_PROMPT_TTL_SECONDS:-1800}"
+# Hard cap on candidate lines entering the expensive per-line loop below, no
+# matter how many the cheap grep prefilter still lets through. Without this, a
+# long-lived, multi-project fleet whose matrix.env accumulates thousands of
+# pheromones (unbounded — the writer, pd-hook-post-tool, does not prune) makes
+# this hook's per-line sed/date forks the dominant cost: at ~3k lines this hook
+# measured 20-30s+ (timeout) before this fix.
+SCAN_CAP="${PD_SQUID_PROMPT_SCAN_CAP:-60}"
 
 # Drain stdin so the CLI's pipe write never blocks, capturing it for cwd parsing.
 EVENT="$(cat 2>/dev/null || true)"
@@ -32,14 +47,6 @@ if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   [ -n "$J" ] && CWD="$J"
 fi
 
-# Read the matrix once if it exists (cheap, single grep over a flat file).
-ALERTS=""
-PHER=""
-if [ -f "$MATRIX" ]; then
-  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-fi
-
 # Relevance: use the exact pd project root (or cwd when no marker is available),
 # never a basename substring. `app` must not receive traces from `other-app`.
 BASENAME="$(basename "$CWD" 2>/dev/null || echo "$CWD")"
@@ -49,6 +56,26 @@ while [ -n "$d" ] && [ "$d" != "/" ]; do
   if [ -d "$d/.portdaddy" ]; then PROJECT_ROOT="$d"; break; fi
   d="$(dirname "$d" 2>/dev/null || true)"
 done
+
+# Read the matrix once if it exists. Alerts are rare and always global, so a
+# capped raw grep is enough. Pheromones are what blow up at scale (one per
+# file mutation, fleet-wide, forever), so they get ONE extra cheap substring
+# prefilter (`grep -F`, still O(1) forks total — not one per line) narrowing
+# to lines that at least mention this project root before ANY per-line
+# sed/date work runs below. The prefilter is intentionally loose (substring,
+# not the exact prefix the per-line loop enforces) so it can only ever admit
+# false positives, never drop a true match — correctness stays with the
+# per-line loop; this is purely a cost-shaping pass.
+ALERTS=""
+PHER=""
+if [ -f "$MATRIX" ]; then
+  # tail, not head: the matrix is append-only (oldest first), and only the
+  # freshest entries can pass is_fresh below — taking the oldest SCAN_CAP
+  # matches would force a full-cap scan that rejects every one of them on a
+  # quiet/idle matrix, instead of finding fresh matches and breaking early.
+  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null | tail -n "$SCAN_CAP" || true)"
+  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null | grep -F -- "$PROJECT_ROOT" | tail -n "$SCAN_CAP" || true)"
+fi
 
 emit_value() {
   # $1 = a `KEY="val"` matrix line → print just the unquoted value.
@@ -69,27 +96,22 @@ is_fresh() {
   [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$TTL_SECONDS" ] 2>/dev/null
 }
 
-OUT=""
+ENTRIES=""
 COUNT=0
-OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
-OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
 
 if [ -n "$ALERTS" ]; then
-  SECTION=""
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
     val="$(emit_value "$line")"
     is_fresh "$val" || continue
-    SECTION="${SECTION}- ${val}\n"
+    ENTRIES="${ENTRIES}- ${val}\n"
     COUNT=$((COUNT + 1))
   done <<EOF
 $ALERTS
 EOF
-  [ -z "$SECTION" ] || OUT="${OUT}${SECTION}"
 fi
 
-REL=""
 if [ -n "$PHER" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
@@ -99,7 +121,7 @@ if [ -n "$PHER" ]; then
     subject="${val%% | *}"
     case "$subject" in
       "$PROJECT_ROOT"|"$PROJECT_ROOT"/*)
-        REL="${REL}- ${val}\n"
+        ENTRIES="${ENTRIES}- ${val}\n"
         COUNT=$((COUNT + 1))
         ;;
     esac
@@ -108,9 +130,10 @@ $PHER
 EOF
 fi
 
-if [ -n "$REL" ]; then
-  OUT="${OUT}[PORT DADDY — PHEROMONE TRACES near ${BASENAME}]\n${REL}"
-fi
+# The common case is deliberately zero bytes. Only a fresh alert or an exact-
+# project pheromone earns context, and even then the envelope stays concise.
+OUT=""
+[ -z "$ENTRIES" ] || OUT="[PORT DADDY — ACTIONABLE COORDINATION near ${BASENAME}]\n${ENTRIES}"
 
 # Emit the bounded Suggestibility Envelope (printf interprets the \n we built
 # up; head -c enforces the byte cap). Prefer Claude Code's SANCTIONED structured

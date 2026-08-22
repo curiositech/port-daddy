@@ -102,12 +102,12 @@ final class CloudFleetStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var routeMissing = false
 
-    private var baseURL: String
+    private var baseURL: String?
     private nonisolated(unsafe) var refreshTimer: Timer?
     private let session: URLSession
 
     init(autoStart: Bool = true, baseURL: String? = nil, session: URLSession = .shared) {
-        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
+        self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
         self.session = session
 
         guard autoStart else { return }
@@ -128,12 +128,12 @@ final class CloudFleetStore: ObservableObject {
         (summary?.totals.events ?? 0) > 0
     }
 
-    var resolvedBaseURL: String {
+    var resolvedBaseURL: String? {
         baseURL
     }
 
     func rebind(baseURL nextBaseURL: String?) {
-        let next = nextBaseURL ?? DaemonLocation.resolveBaseURL()
+        let next = nextBaseURL ?? DaemonLocation.availableBaseURL()
         guard next != baseURL else { return }
 
         baseURL = next
@@ -148,7 +148,7 @@ final class CloudFleetStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        guard var components = URLComponents(string: "\(baseURL)/telemetry/cloud-app") else { return }
+        guard let baseURL, var components = URLComponents(string: "\(baseURL)/telemetry/cloud-app") else { return }
         components.queryItems = [
             URLQueryItem(name: "since", value: "86400"),
             URLQueryItem(name: "limit", value: "8"),

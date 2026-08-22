@@ -70,15 +70,33 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   RUN_PAGE_SECRET?: string;
   /**
    * OPTIONAL "cloud squid" coordination-event sink (src/squid-events.ts): the
-   * relay publish endpoint the executor fire-and-forgets run-started /
-   * ship-verdict / pr-stacked / run-concluded events to, on channel
-   * 'fleet-cloud'. BOTH this and RELAY_PUBLISH_TOKEN must be set or the
-   * feature is silently disabled — no fetch is ever attempted. Events are
-   * strictly best-effort: they never throw and never block or change a run.
+   * relay's POST /v1/publish endpoint the executor fire-and-forgets
+   * run-started / ship-verdict / pr-stacked / run-concluded events to, on
+   * per-run channel `<relayFp>:fleet-cloud:<runId>`. ALL of this,
+   * FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX, and FLEET_EXECUTOR_HARBOR_CARD
+   * must be set or the feature is silently disabled — no fetch is ever
+   * attempted. Events are strictly best-effort: they never throw and never
+   * block or change a run. There is NO bearer-token dialect on this stream.
    */
   RELAY_PUBLISH_URL?: string;
-  /** Bearer token sent with every squid-event POST. Secret; optional (see above). */
-  RELAY_PUBLISH_TOKEN?: string;
+  /**
+   * Ed25519 seed (64 hex chars) — the executor's publish identity (secret).
+   * Its public-key SHA-256 is the daemon fingerprint registered on the relay
+   * with proof_method='operator-provisioned' (POST /v1/fleet/executor-identity).
+   */
+  FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX?: string;
+  /**
+   * hv:2 harbor card returned by the relay's provisioning endpoint (secret):
+   * relay-signed EdDSA JWT, sub = this key's fingerprint, iss = aud = relay
+   * fingerprint, cap = [{op:'pub', channel:'<relayFp>:fleet-cloud:*',
+   * rate_per_min:120}]. Rotate via POST /v1/revoke-by-issuer + re-provision.
+   */
+  FLEET_EXECUTOR_HARBOR_CARD?: string;
+  /**
+   * OPTIONAL deployment label in the squid/1 body's sender name
+   * (`fleet-executor@<deployment>`). A var, not a secret. Default 'default'.
+   */
+  FLEET_DEPLOYMENT?: string;
   /**
    * OPTIONAL HITL escalation sink (src/interruptions.ts): the relay's
    * POST /v1/interruptions endpoint. When a ship hits a BLOCKING degradation

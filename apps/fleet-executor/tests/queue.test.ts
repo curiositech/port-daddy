@@ -27,6 +27,21 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
+interface CapturingCtx extends ExecutionContext {
+  waited: Promise<unknown>[];
+}
+
+function capturingCtx(): CapturingCtx {
+  const waited: Promise<unknown>[] = [];
+  return {
+    waited,
+    waitUntil(promise: Promise<unknown>) {
+      waited.push(promise);
+    },
+    passThroughOnException() {},
+  } as unknown as CapturingCtx;
+}
+
 let state: GitHubState;
 
 beforeEach(() => {
@@ -51,14 +66,17 @@ describe('queue consumer', () => {
     }).ai;
 
     const msg = fakeMessage(makeJob());
+    const ctx = capturingCtx();
     await handler.queue!(
       fakeBatch([msg]),
       makeEnv({ FLEET_TOKENS: kv, AI: ai }),
-      {} as ExecutionContext,
+      ctx,
     );
 
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
+    expect(ctx.waited).toHaveLength(1);
+    await Promise.all(ctx.waited);
   });
 
   it('retries a message when the orchestrator throws (recoverable infra error)', async () => {
@@ -73,10 +91,46 @@ describe('queue consumer', () => {
     });
 
     const msg = fakeMessage(makeJob());
-    await handler.queue!(fakeBatch([msg]), env, {} as ExecutionContext);
+    const ctx = capturingCtx();
+    await handler.queue!(fakeBatch([msg]), env, ctx);
 
     expect(msg.retry).toHaveBeenCalledTimes(1);
     expect(msg.ack).not.toHaveBeenCalled();
+    expect(ctx.waited).toHaveLength(0);
+  });
+
+  it('retries instead of acking when the required check cannot be completed', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'code-reviewer r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (/\/check-runs\/\d+$/.test(url) && (init?.method ?? 'GET') === 'PATCH') {
+          return new Response('completion unavailable', { status: 503 });
+        }
+        return realFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+
+    const msg = fakeMessage(makeJob());
+    const ctx = capturingCtx();
+    await handler.queue!(fakeBatch([msg]), makeEnv({ FLEET_TOKENS: kv, AI: ai }), ctx);
+
+    expect(msg.retry).toHaveBeenCalledTimes(1);
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(state.completed).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(ctx.waited).toHaveLength(0);
   });
 });
 
