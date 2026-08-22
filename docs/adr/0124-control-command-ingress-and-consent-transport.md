@@ -66,8 +66,16 @@ backend cannot honor renders disabled with the stated reason):
 | Backend | interrupt | steer |
 |---|---|---|
 | `cli:claude-code` | enforced: pre-tool `exit 2` denies the next tool call with `denialReason: operator interrupt`, SIGINT escalation; acked by hook receipt | **steer-as-denial**: the exit-2 denial body carries the operator's note (agent-visible), plus the tube-poll convention in Helmsman spawn prompts; acked by hook receipt or tube reply |
-| `cli:codex` | process termination; acked on child exit | `unsupported` — fallback is successor-with-handoff: cancel + re-propose with the note injected (the `pd review --retry` contract) |
+| `cli:codex` | process termination; acked on child exit; upgrades to enforced pre-tool denial once `codex-squid-verification` lands | `unsupported` until the verified adapter — fallback is successor-with-handoff: cancel + re-propose with the note injected (the `pd review --retry` contract) |
+| `cli:agy` | process termination; acked on child exit; upgrades with `agy-squid-adapter` | `unsupported` until the verified adapter — same successor-with-handoff fallback |
+| `cloudflare` (PD-owned harness) | harness-loop stop between provider calls — PD owns the loop, so interrupt is a loop-boundary check acked by the harness | steer note injected at the next loop boundary — PD owns prompt assembly |
 | observed / interactive bodies | `unsupported` (control-gate refuses C2+ on observed) | `unsupported` |
+
+Backend portability (ADR-0121, operator requirement) makes this matrix the
+disclosure contract for the selector: the sortie card shows the selected
+backend's tier, and a lane on an unverified-adapter backend renders
+"harness: none — controls limited" with only the tier's honest verbs
+enabled.
 
 A squid smoke probe asserts denial-message visibility; when the probe is
 stale, steer reports `failed` — vendor hook semantics are watched, not
@@ -86,6 +94,10 @@ assumed.
   modify = the implemented `pd review --retry` (slug `review-retry-contract`).
 - **Cost renders on every card** (`budgetUsd` + estimate); FleetBar's
   `SpawnApprovalSection` gains the cost row it lacks.
+- **Backend renders on every sortie card** with its capability tier, and the
+  card offers the selector (per-item `execution_json.backend` override over
+  the ADR-0119 profile preference order) — the operator picks the body at
+  the consent moment, not after the spawn.
 - The inline diff belongs to the *review* card in pd-console (triad law:
   more than one evidence screen never lives on FleetBar); FleetBar
   deep-links.

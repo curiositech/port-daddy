@@ -52,12 +52,37 @@ through dispatch, and surface everything the operator must decide.
   (`workintent-dispatch-intake`), Helmsman switches to direct
   `WorkIntentService.create` with `source.kind: 'schedule'`, becoming that
   source kind's first producer.
-- **Backend pin:** every Helmsman dispatch passes an explicit
-  `backend: 'cli:claude-code'` override — the only backend whose squid
-  adapter is `verified=true` and whose interrupt/steer verbs are enforceable
-  (ADR-0124). Squid injection is refuse-to-spawn for Helmsman-class
-  dispatches ("no harness, no autonomy"), prechecked at sortie-plan time via
-  `pd squid status`. The global dispatch default is untouched.
+- **Backend portability (operator requirement, 2026-08-22):** Helmsman is
+  **not pinned to any backend.** Its durable profile carries an ordered
+  `backendPreferences` list — default
+  `['cli:claude-code', 'cli:codex', 'cli:agy', 'cloudflare']` — that the
+  dispatch path actually reads (`backend-preferences-wiring` becomes an H1
+  co-requisite, not a later nicety). The sortie consent card shows the
+  selected backend and offers a **selector**: a per-item
+  `execution_json.backend` override wins over profile order, and the
+  operator may reorder the profile at any time. Cloudflare AI models run as
+  the PD-owned-harness dispatch class (Port Daddy owns tools, transcript,
+  and state per the backend catalog; model choice rides the declarative
+  model registry).
+- **Cross-backend failover — resume, not restart:** when a dispatch fails or
+  stalls on backend A, Helmsman retries once on A only for a transient
+  cause, then creates a **successor dispatch on the next backend in
+  preference order**, continuing under the ADR-0118 contract: same-family →
+  witnessed native session resume; cross-family → the sanitized handoff
+  successor capsule (never raw transcript replay). The successor binds the
+  same roadmap claim and the **remaining** budget, and every attempt writes
+  a durable continuation receipt; the lane renders the succession chain.
+  Backend failure is not Helmsman misbehavior: failover does not demote the
+  ladder, but three failovers in a day pages `high`.
+- **Honest per-backend instrumentation instead of a hard refusal:** squid
+  injection-or-refuse applies only when the *selected* backend has a
+  verified adapter and injection fails. A backend without a verified squid
+  adapter runs at a disclosed capability tier — the lane shows
+  "harness: none — controls limited" and ADR-0124's per-backend matrix
+  governs which controls render enabled. Closing those tiers is scheduled
+  work (`codex-squid-verification` at P2; `agy-squid-adapter` new), because
+  "works equally well on codex and agy" is the requirement, not permanent
+  degradation.
 
 ### The trust ladder
 
@@ -123,8 +148,11 @@ single-operator, single-machine, local-daemon, stated plainly.
 
 - Day-one eligibility is deliberately near-empty; Helmsman's early value is
   the sortie plan's pressure to shape items, not throughput.
-- Pinning to `cli:claude-code` concentrates autonomy on one vendor loop until
-  `codex-squid-verification` lands.
+- Backend portability widens the honest-capability surface: until the codex
+  and agy squid adapters are verified, dispatches on those backends run with
+  disclosed-limited controls, and cross-family failover loses in-flight
+  nuance to the sanitized capsule (by design — a capsule is a brief, not a
+  transcript).
 - Riding dispatch-compat inherits its known gaps (not Conductor-routed,
   Coordination Guard disabled in dispatch worktrees) until the WorkPlanner
   migration.
@@ -140,6 +168,15 @@ single-operator, single-machine, local-daemon, stated plainly.
   command once binder milestones are shaped.
 - **Autonomous promotion from day one.** The first climb of each rung is an
   operator decision; only re-entry after demotion auto-promotes.
+- **Pinning Helmsman to `cli:claude-code`.** Considered (it is the only
+  backend with a verified squid adapter today) and rejected by operator
+  directive: single-vendor autonomy is a availability and lock-in risk, and
+  the ADR-0118 continuation contract exists precisely so a body change does
+  not restart the work. Portability with honest per-backend capability tiers
+  replaces the pin.
+- **Restart-on-failover.** Re-proposing from scratch on a new backend throws
+  away claimed context and double-spends budget; the successor capsule +
+  continuation receipt is the contract instead.
 
 ## Implementation Matrix
 
@@ -147,7 +184,12 @@ single-operator, single-machine, local-daemon, stated plainly.
 |-------|--------------|--------|------------|-------------|
 | P0 | helmsman-charter | now | — | This ADR + the pd-helmsman proposal land; Helmsman durable profile registered |
 | P1 | helmsman-h0-sortie-plan | backlog | helmsman-charter, roadmap-now-triage, roadmap-schema-wiring, approval-stream-four-state | Daily sortie plan as a four-state consent card on the approval stream; near-eligible surfacing; focus receipt |
-| P2 | helmsman-h1-dispatch | backlog | helmsman-h0-sortie-plan, control-command-ingress | Auto-propose into dispatch with claude-code pin, squid injection-or-refuse, budgets, self-demotion |
+| P1 | backend-preferences-wiring | backlog | helmsman-charter | Dispatch reads ADR-0119 backendPreferences; per-item execution_json.backend override; sortie-card backend selector |
+| P2 | helmsman-h1-dispatch | backlog | helmsman-h0-sortie-plan, control-command-ingress, backend-preferences-wiring | Auto-propose into dispatch across the preference-ordered backends, honest per-backend instrumentation tiers, budgets, self-demotion |
+| P2 | helmsman-backend-failover | backlog | backend-preferences-wiring | ADR-0118 succession loop: transient retry once, then successor dispatch on the next backend via witnessed native resume (same-family) or sanitized handoff capsule (cross-family), same claim, remaining budget, continuation receipts |
+| P2 | codex-squid-verification | backlog | — | Capture a live block on cli:codex, flip the adapter's verified flag — codex reaches full steer/interrupt tier |
+| P3 | agy-squid-adapter | backlog | codex-squid-verification | Author + verify the cli:agy squid adapter so agy reaches the same tier |
+| P3 | cloudflare-harness-backend | backlog | backend-preferences-wiring | PD-owned-harness dispatch class for Cloudflare AI models (model choice via the declarative model registry); metered budget enforcement |
 | P3 | helmsman-h2-bounded-automerge | backlog | helmsman-h1-dispatch, workintent-dispatch-intake, review-retry-contract, merge-authority-reconciliation | Bounded auto-merge classes via the shared auto-merge gate; acceptance test = ADR-0046 phase 6's gate |
 
 ## References

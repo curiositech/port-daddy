@@ -247,7 +247,9 @@ Per-backend honesty:
 | Backend | interrupt | steer |
 |---|---|---|
 | `cli:claude-code` | enforced — pre-tool `exit 2` denies the next call with `denialReason: operator interrupt`, then SIGINT escalation; acked by hook receipt | **steer-as-denial**: the denial body carries the operator's note (agent-visible), plus the tube-poll convention written into every Helmsman spawn prompt |
-| `cli:codex` | process termination (acked on exit) | `unsupported` — honest fallback is successor-with-handoff: cancel + re-propose with the note injected (= the `pd review --retry` contract); button renders disabled with the stated reason |
+| `cli:codex` | process termination (acked on exit); upgrades to enforced pre-tool denial once `codex-squid-verification` lands | `unsupported` until the verified adapter — honest fallback is successor-with-handoff: cancel + re-propose with the note injected (= the `pd review --retry` contract); button renders disabled with the stated reason |
+| `cli:agy` | process termination (acked on exit); upgrades with `agy-squid-adapter` | `unsupported` until the verified adapter — same successor-with-handoff fallback |
+| `cloudflare` (PD-owned harness) | harness-loop stop between provider calls — PD owns the loop, so interrupt is a loop-boundary check, acked by the harness | steer note injected at the next loop boundary — PD owns prompt assembly |
 | observed / interactive | `unsupported` (control-gate already refuses C2+ on observed bodies) | `unsupported` |
 
 Sequencing: H1 depends on the interrupt verb landing; H2 additionally on
@@ -320,19 +322,42 @@ exactly one operator identity holding promotion/demotion/never-list
 authority; co-members see, never command; the Helm governs relay artifacts,
 never remote machines).
 
-### OX-6 · Runtime
+### OX-6 · Runtime — backend selector, equal citizens, seamless failover
 
-Helmsman dispatches are **pinned to `cli:claude-code`** via the per-dispatch
-backend override the runner already accepts; the global dispatch default
-(`cli:codex`) is untouched. Rationale: the autonomy frontier runs on the only
-backend where the squid adapter is `verified=true`, interrupt/steer are
-enforceable, and hook injection is already wired in the spawner. The
-CodexSquidAdapter exists but is `verified=false`; diversification is the
-cheap P3 slug `codex-squid-verification` (capture one live block, flip the
-flag). Helmsman registers as an ADR-0119 durable agent
-(`backendPreferences: ['cli:claude-code']` as its identity anchor); wiring
-`backendPreferences` into the general dispatch path is the separate P3 slug
-`backend-preferences-wiring`.
+**Operator requirement (2026-08-22): no backend pin.** Helmsman must offer a
+model/backend selector and work equally well on claude-code, codex, agy, and
+a set of Cloudflare AI models — and a failure on one must resume seamlessly
+on another.
+
+- **Selector.** Helmsman's ADR-0119 durable profile carries ordered
+  `backendPreferences` (default `['cli:claude-code', 'cli:codex',
+  'cli:agy', 'cloudflare']`), operator-editable. The dispatch path reads
+  them — `backend-preferences-wiring` moves onto the H1 critical path (P1).
+  The sortie consent card shows the selected backend and offers per-item
+  override via `execution_json.backend`, which wins over profile order.
+  Cloudflare AI models run as the PD-owned-harness dispatch class (Port
+  Daddy owns tools, transcript, and state per the backend catalog; model
+  choice rides the declarative model registry) — slug
+  `cloudflare-harness-backend`.
+- **Equal citizens.** "Equally well" is the target, reached by verifying
+  instrumentation rather than pretending it: `codex-squid-verification`
+  moves to P2 (the adapter exists, `verified=false` — capture one live
+  block, flip the flag) and `agy-squid-adapter` (new) authors + verifies the
+  agy adapter. Until a backend's adapter is verified it runs at a
+  **disclosed capability tier**: the lane shows "harness: none — controls
+  limited" and ADR-0124's per-backend matrix decides which controls render
+  enabled. Injection-or-refuse applies only when the selected backend claims
+  a verified adapter and injection fails.
+- **Failover = resume, never restart** (slug `helmsman-backend-failover`,
+  P2). On failure or stall on backend A: one retry on A for a transient
+  cause, then a **successor dispatch on the next backend in preference
+  order** under the ADR-0118 continuation contract — same-family: witnessed
+  native session resume; cross-family: the sanitized handoff successor
+  capsule (never raw transcript replay). The successor binds the same
+  roadmap claim and the *remaining* budget; every attempt writes a durable
+  continuation receipt; the lane renders the succession chain. Backend
+  failure never demotes the trust ladder (it is not Helmsman misbehavior),
+  but three failovers in a day pages `high`.
 
 ### OX-7 · The squid harness
 
@@ -342,9 +367,13 @@ privacy-projected — feeding the lane's harness-heartbeat chip, the
 daemon-side witness that a body's hooks are actually firing. A lane whose
 conformance is stale renders its controls disabled with the reason: that is
 what keeps OX-2's buttons honest. Helmsman-class dispatches flip squid
-injection from warn-and-continue to **refuse-to-spawn** ("no harness, no
-autonomy"), with a `pd squid status` precheck in sortie eligibility so
-refusal is predicted at plan time, not discovered at spawn.
+injection from warn-and-continue to **refuse-to-spawn when the selected
+backend has a verified adapter and injection fails** — a `pd squid status`
+precheck in sortie eligibility predicts refusal at plan time. A backend
+without a verified adapter is not refused (portability is the requirement,
+OX-6): it runs at its disclosed capability tier with "harness: none —
+controls limited" on the lane, and closing that tier is scheduled work
+(`codex-squid-verification`, `agy-squid-adapter`).
 
 ### OX-8 · The endgame: solely inside a Port Daddy app
 
@@ -372,7 +401,9 @@ berth, seeded live state, the GPUI app — never repl artifacts):
 
 ## Sequencing
 
-MVP = P0 + P1. Part II grew the MVP by exactly three consent/safety slugs.
+MVP = P0 + P1. Part II grew the MVP by three consent/safety slugs, and the
+backend-portability requirement (OX-6) added `backend-preferences-wiring` as
+the fourth — Helmsman must be selector-driven before it dispatches anything.
 
 | Phase | Slug | New? | Depends on |
 |---|---|---|---|
@@ -389,8 +420,11 @@ MVP = P0 + P1. Part II grew the MVP by exactly three consent/safety slugs.
 | P1 | `roadmap-schema-wiring` | existing, rescoped | — |
 | P1 | `merge-audit-detective-check` | new | `merge-authority-reconciliation` |
 | P1 | `binder-aor-restart` | new | — |
+| P1 | `backend-preferences-wiring` | new | `helmsman-charter` |
 | P2 | `control-command-ingress` | new | `approval-stream-four-state` |
-| P2 | `helmsman-h1-dispatch` | new | `helmsman-h0-sortie-plan`, `control-command-ingress` |
+| P2 | `helmsman-h1-dispatch` | new | `helmsman-h0-sortie-plan`, `control-command-ingress`, `backend-preferences-wiring` |
+| P2 | `helmsman-backend-failover` | new | `backend-preferences-wiring` |
+| P2 | `codex-squid-verification` | new | — |
 | P2 | `squid-timeline-route` | new | — |
 | P2 | `review-retry-contract` | new | — |
 | P2 | `idea-mining-pipeline` | existing, rescoped | `issue-mass-close-fleet-idea`, `roadmap-schema-wiring` |
@@ -402,8 +436,8 @@ MVP = P0 + P1. Part II grew the MVP by exactly three consent/safety slugs.
 | P3 | `console-hot-bus-consolidation` | new | — |
 | P3 | `cockpit-spawn-input` | new | `chat-consent-gate` |
 | P3 | `observed-session-lanes` | new | — |
-| P3 | `codex-squid-verification` | new | — |
-| P3 | `backend-preferences-wiring` | new | — |
+| P3 | `agy-squid-adapter` | new | `codex-squid-verification` |
+| P3 | `cloudflare-harness-backend` | new | `backend-preferences-wiring` |
 | P3 | `idea-intake-phases-1b-1d` | existing scope (ADR-0085) | `roadmap-schema-wiring` |
 | P3 | `roadmap-doc-harvest` | new | `roadmap-schema-wiring` |
 | Deferred (named, unscheduled) | `relay-client-wiring` → `helmsman-receipts-to-relay` → `multi-operator-helm-command` | new names | in that order |
@@ -445,3 +479,12 @@ MVP = P0 + P1. Part II grew the MVP by exactly three consent/safety slugs.
   pages `high`, never fails silently.
 - **Eligibility too strict at launch** — by design; the sortie plan surfaces
   near-eligible items so approval energy converts into shaped items.
+- **Cross-family failover loses in-flight nuance** — the successor capsule is
+  a sanitized brief, not a transcript, by contract (ADR-0118). Mitigation:
+  the capsule carries the acceptance gate + work-so-far summary + the
+  operator's steer notes; a failover that would lose an uncommitted diff
+  parks the worktree as salvage first.
+- **Backend capability tiers can mislead** — a lane must never render a
+  control the selected backend cannot honor; the tier chip
+  ("harness: none — controls limited") and ADR-0124's matrix are the
+  disclosure, enforced daemon-side.
