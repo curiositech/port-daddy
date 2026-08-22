@@ -75,6 +75,11 @@ jobs:
         run: git fetch --no-tags origin main:refs/remotes/origin/main
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
+      - name: Doc-retirement guard (retired docs stay bannered, banners stay registered)
+        # Whole-corpus, not changed-files: the failure this catches is a retired
+        # plan drifting back to reading as current, and the edit that does that
+        # need not touch the manifest. Cheap — it walks markdown and YAML only.
+        run: node scripts/doc-retirement-guard.mjs
 
   # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
   # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on

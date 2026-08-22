@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Four superseded planning documents now say so on their first screen, and a gate keeps them saying it.** `docs/DAEMON-MESH-ARCHITECTURE.md`, `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`, `V4-DAG.md`/`v4.dag.yaml` and `docs/recovery/README.md` carry retirement banners naming what replaced them, per ADR-0126's Formal supersessions. Nothing is deleted — demotion by default. The `docs/recovery/` hub's claim to beat every other roadmap in the repo ("this directory wins"), four months stale, is revoked in place: authority is `docs/roadmap/AUTHORITY.md` for gate truth and the relay grand plan for relay sequencing. New `scripts/doc-retirement-guard.mjs` enforces it in CI both directions — a listed document must be bannered, and a bannered document must be listed — so neither the manifest nor the banners can drift, and a banner whose replacement link does not resolve is a failure.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
