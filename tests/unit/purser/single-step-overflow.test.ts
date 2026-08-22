@@ -2,6 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   readSquidHookCliDebugSnapshot,
+  SQUID_HOOK_DEBUG_CLI_MAX_BYTES,
   squidHookDebugPaths,
 } from '../../../lib/squid/debug.js';
 
@@ -35,6 +36,7 @@ beforeEach(() => {
 afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
 
 test('falls back to valid metadata when one expanded step exceeds the byte ceiling', () => {
+  expect(SQUID_HOOK_DEBUG_CLI_MAX_BYTES).toBe(60 * 1024);
   const paths = squidHookDebugPaths(PD_HOME);
   mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
   const longWorkspace = join(WORKSPACE, 'x'.repeat(3_000));
