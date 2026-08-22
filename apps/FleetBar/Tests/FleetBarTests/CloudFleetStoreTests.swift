@@ -5,85 +5,78 @@ import ViewInspector
 
 @MainActor
 final class CloudFleetStoreTests: XCTestCase {
-    func testDecodesCloudFleetTelemetrySummary() throws {
+    override func tearDown() {
+        StubURLProtocol.handler = nil
+        super.tearDown()
+    }
+
+    func testDecodesLogicalRunHealthAndTranscriptShape() throws {
         let json = """
         {
-          "success": true,
-          "generatedAt": 1777328400000,
-          "since": 1777242000000,
-          "totals": {
-            "events": 3,
-            "uniqueDeliveries": 2,
-            "shipEvents": 2,
-            "checkRunEvents": 1,
-            "commentEvents": 1,
-            "errorEvents": 0,
-            "costUsd": 0.0132,
-            "estimatedCostEvents": 1,
-            "unknownCostEvents": 0
-          },
-          "byRepo": [{
-            "owner": "curiositech",
-            "repo": "port-daddy",
-            "events": 3,
-            "pullRequests": 1,
-            "costUsd": 0.0132,
-            "lastSeen": 1777328300000
-          }],
-          "byShip": [{
-            "ship": "red-team",
-            "events": 2,
-            "clean": 1,
-            "findings": 1,
-            "errors": 0,
-            "costUsd": 0.0132,
-            "lastSeen": 1777328300000
-          }],
-          "byBackend": [{
-            "backend": "cloudflare",
-            "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-            "events": 3,
-            "costUsd": 0.0132,
-            "estimatedCostEvents": 1
-          }],
-          "recent": [{
-            "id": "delivery-4:red-team",
-            "ts": 1777328300000,
-            "source": "github-app-receiver",
-            "provider": "github",
-            "appSlug": "port-daddy-cloud-fleet",
-            "deliveryId": "delivery-4",
-            "event": "pull_request",
-            "action": "synchronize",
-            "owner": "curiositech",
-            "repo": "port-daddy",
-            "prNumber": 628,
-            "sha": "abc123",
-            "ship": "red-team",
-            "role": "reviewer",
-            "status": "clean",
-            "conclusion": "success",
-            "backend": "cloudflare",
-            "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-            "durationMs": 1200,
-            "inputTokens": 500,
-            "cachedInputTokens": 0,
-            "outputTokens": 25,
-            "costUsd": 0.0132,
-            "costIsEstimate": true,
-            "commentUrl": "https://github.com/curiositech/port-daddy/pull/628#issuecomment-1",
-            "checkRunId": 42,
-            "metadata": {}
-          }]
+          "id": "intent:delivery-4",
+          "deliveryId": "delivery-4",
+          "repo": "curiositech/port-daddy",
+          "prNumber": 8996,
+          "prUrl": "https://github.com/curiositech/port-daddy/pull/8996",
+          "headSha": "f03a307cde1e",
+          "conclusion": null,
+          "ships": ["red-team", "qa"],
+          "neurons": 48,
+          "elapsedMs": 12500,
+          "createdAt": 1787412000,
+          "state": "retrying",
+          "generation": 3,
+          "attemptCount": 4,
+          "queuedAt": 1787411900,
+          "startedAt": 1787411950,
+          "lastProgressAt": 1787412000,
+          "finishedAt": null,
+          "expectedStartAt": 1787412060,
+          "expectedFinishAt": 1787412300,
+          "queueAheadEstimate": 2,
+          "hasTranscript": true,
+          "supersededBy": null,
+          "lastError": "GitHub completion not confirmed"
         }
         """.data(using: .utf8)!
 
-        let decoded = try JSONDecoder().decode(CloudFleetTelemetrySummary.self, from: json)
+        let run = try JSONDecoder().decode(CloudFleetRun.self, from: json)
+        XCTAssertEqual(run.repo, "curiositech/port-daddy")
+        XCTAssertEqual(run.state, "retrying")
+        XCTAssertEqual(run.generation, 3)
+        XCTAssertEqual(run.attemptCount, 4)
+        XCTAssertEqual(run.queueAheadEstimate, 2)
+        XCTAssertTrue(run.hasTranscript)
+        XCTAssertEqual(run.attemptLabel, "generation 3 · 4 deliveries")
 
-        XCTAssertEqual(decoded.totals.events, 3)
-        XCTAssertEqual(decoded.byRepo.first?.displayName, "curiositech/port-daddy")
-        XCTAssertEqual(decoded.byShip.first?.ship, "red-team")
-        XCTAssertEqual(decoded.recent.first?.repoDisplay, "curiositech/port-daddy")
+        let stepJSON = """
+        {"seq":4,"kind":"check-completion-retry","ship":null,"title":"GitHub completion deferred","createdAt":1787412010}
+        """.data(using: .utf8)!
+        let step = try JSONDecoder().decode(CloudFleetStep.self, from: stepJSON)
+        XCTAssertTrue(step.explanation.contains("rate-limited"))
+        XCTAssertNil(step.expectedAt, "The client must not fabricate a per-step ETA.")
+    }
+
+    func testAdmissionAndFailedAdmissionStatesMatchTheRelayContract() throws {
+        let admitting = try JSONDecoder().decode(CloudFleetRun.self, from: """
+        {
+          "id":"intent:admitting","repo":"curiositech/port-daddy","prNumber":8996,
+          "headSha":"abc1234","state":"admitting","generation":0,"attemptCount":-3,
+          "queueAheadEstimate":-2
+        }
+        """.data(using: .utf8)!)
+        XCTAssertTrue(admitting.isActive)
+        XCTAssertFalse(admitting.isFailure)
+        XCTAssertEqual(admitting.generation, 1)
+        XCTAssertEqual(admitting.attemptCount, 0, "No delivery may be invented before queue handoff.")
+        XCTAssertNil(admitting.queueAheadEstimate, "A corrupt negative estimate is unknown, not zero.")
+
+        let failed = try JSONDecoder().decode(CloudFleetRun.self, from: """
+        {"id":"intent:failed","repo":"curiositech/port-daddy","prNumber":8996,
+         "headSha":"abc1234","state":"enqueue_failed","attemptCount":0}
+        """.data(using: .utf8)!)
+        XCTAssertTrue(failed.isFailure)
+        XCTAssertFalse(failed.isActive)
     }
 
     func testCloudFleetSectionLabelsLocalCloudAndSafetyCopy() throws {
@@ -100,54 +93,193 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertNoThrow(try inspected.find(text: localDaemonURL))
         XCTAssertNoThrow(try inspected.find(text: "CLOUD"))
         XCTAssertNoThrow(try inspected.find(text: "SAFETY"))
-        XCTAssertNoThrow(try inspected.find(text: "writes require approval"))
+        XCTAssertNoThrow(try inspected.find(text: "read-only · account scoped"))
     }
 
-    func testCloudFleetStoreRefreshFollowsReboundDaemonURL() async throws {
-        var requestedHosts: [String] = []
+    func testRefreshUsesSignedInRelayAndLoadsLiveTranscript() async throws {
+        let account = OperatorAccount(
+            token: "pdu_fixture",
+            relayUrl: "https://relay.example",
+            login: "operator"
+        )
+        var requestedPaths: [String] = []
         StubURLProtocol.handler = { request in
-            requestedHosts.append(request.url?.host ?? "")
-            XCTAssertEqual(request.url?.path, "/telemetry/cloud-app")
-            return StubURLProtocol.Stub(status: 200, body: Self.emptyCloudFleetFixture)
+            requestedPaths.append(request.url?.path ?? "")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pdu_fixture")
+            switch request.url?.path {
+            case "/v1/fleet/health":
+                return StubURLProtocol.Stub(status: 200, body: Self.healthFixture)
+            case "/v1/fleet/activity":
+                XCTAssertEqual(request.url?.query, "limit=40")
+                return StubURLProtocol.Stub(status: 200, body: Self.activityFixture)
+            case "/v1/fleet/runs/intent%3Adelivery-live", "/v1/fleet/runs/intent:delivery-live":
+                return StubURLProtocol.Stub(status: 200, body: Self.detailFixture)
+            default:
+                XCTFail("Unexpected Cloud Fleet path: \(request.url?.absoluteString ?? "nil")")
+                return StubURLProtocol.Stub(status: 404, body: Data())
+            }
         }
 
         let store = CloudFleetStore(
             autoStart: false,
-            baseURL: "https://first-daemon.example",
-            session: StubURLProtocol.makeSession()
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { account },
+            now: { Date(timeIntervalSince1970: 1787412050) }
         )
 
         await store.refresh()
-        store.rebind(baseURL: "https://feature-berth.example")
-        await store.refresh()
 
-        XCTAssertEqual(
-            requestedHosts.filter { $0.hasSuffix(".example") },
-            ["first-daemon.example", "feature-berth.example"]
-        )
-        XCTAssertEqual(store.resolvedBaseURL, "https://feature-berth.example")
+        XCTAssertEqual(requestedPaths, [
+            "/v1/fleet/health",
+            "/v1/fleet/activity",
+            "/v1/fleet/runs/intent:delivery-live",
+        ])
+        XCTAssertEqual(store.accountLabel, "@operator")
+        XCTAssertEqual(store.health?.queueDepthEstimate, 7)
+        XCTAssertEqual(store.runs.first?.attemptCount, 4)
+        XCTAssertEqual(store.selectedRun?.id, "intent:delivery-live")
+        XCTAssertEqual(store.steps.map(\.kind), ["delivery-attempt", "checkpoint-reused"])
+        XCTAssertEqual(store.lastRefresh, Date(timeIntervalSince1970: 1787412050))
+        XCTAssertNil(store.lastError)
     }
 
-    private static let emptyCloudFleetFixture = """
+    func testRejectedTokenStopsFastPollingAndPointsToCredentials() async {
+        let account = OperatorAccount(
+            token: "pdu_expired_fixture",
+            relayUrl: "https://relay.example",
+            login: "operator"
+        )
+        StubURLProtocol.handler = { _ in
+            StubURLProtocol.Stub(status: 401, body: Data())
+        }
+        let store = CloudFleetStore(
+            autoStart: false,
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { account }
+        )
+
+        await store.refresh()
+
+        XCTAssertTrue(store.needsReauthentication)
+        XCTAssertEqual(store.consecutiveFailures, 4)
+        XCTAssertEqual(store.accountLabel, "session expired")
+        XCTAssertTrue(store.lastError?.contains("FleetBar Credentials") == true)
+    }
+
+    func testPollCadenceIsFastOnlyForActiveRunsAndBacksOffWithJitter() {
+        XCTAssertEqual(
+            CloudFleetStore.nextPollDelay(hasActiveRuns: true, consecutiveFailures: 0),
+            5
+        )
+        XCTAssertEqual(
+            CloudFleetStore.nextPollDelay(hasActiveRuns: false, consecutiveFailures: 0),
+            20
+        )
+        XCTAssertEqual(
+            CloudFleetStore.nextPollDelay(
+                hasActiveRuns: true,
+                consecutiveFailures: 3,
+                random: { $0.upperBound }
+            ),
+            40
+        )
+    }
+
+    private static let healthFixture = """
     {
-      "success": true,
-      "generatedAt": 1777328400000,
-      "since": 1777242000000,
-      "totals": {
-        "events": 0,
-        "uniqueDeliveries": 0,
-        "shipEvents": 0,
-        "checkRunEvents": 0,
-        "commentEvents": 0,
-        "errorEvents": 0,
-        "costUsd": 0,
-        "estimatedCostEvents": 0,
-        "unknownCostEvents": 0
+      "code": "OK",
+      "error": null,
+      "paused": false,
+      "lastRunAgeSec": 12,
+      "queueDepthEstimate": 7,
+      "running": 1,
+      "retrying": 1,
+      "superseded": 3,
+      "failedAdmission": 0,
+      "oldestQueuedAgeSec": 480,
+      "knownIntents": 23
+    }
+    """.data(using: .utf8)!
+
+    private static let activityFixture = """
+    {
+      "code": "OK",
+      "error": null,
+      "runs": [{
+        "id": "intent:delivery-live",
+        "deliveryId": "delivery-live",
+        "repo": "curiositech/port-daddy",
+        "prNumber": 8996,
+        "prUrl": "https://github.com/curiositech/port-daddy/pull/8996",
+        "headSha": "f03a307",
+        "conclusion": null,
+        "ships": ["red-team", "qa"],
+        "neurons": 48,
+        "elapsedMs": 55000,
+        "createdAt": 1787412000,
+        "state": "running",
+        "generation": 3,
+        "attemptCount": 4,
+        "queuedAt": 1787411900,
+        "startedAt": 1787411950,
+        "lastProgressAt": 1787412040,
+        "finishedAt": null,
+        "expectedStartAt": 1787411950,
+        "expectedFinishAt": 1787412300,
+        "queueAheadEstimate": 0,
+        "hasTranscript": true,
+        "supersededBy": null,
+        "lastError": null
+      }]
+    }
+    """.data(using: .utf8)!
+
+    private static let detailFixture = """
+    {
+      "code": "OK",
+      "error": null,
+      "run": {
+        "id": "intent:delivery-live",
+        "deliveryId": "delivery-live",
+        "repo": "curiositech/port-daddy",
+        "prNumber": 8996,
+        "prUrl": "https://github.com/curiositech/port-daddy/pull/8996",
+        "headSha": "f03a307cde1e5e25c4c488005a3241aa6ba51605",
+        "conclusion": null,
+        "ships": ["red-team", "qa"],
+        "neurons": 48,
+        "elapsedMs": 55000,
+        "createdAt": 1787412000,
+        "state": "running",
+        "generation": 3,
+        "attemptCount": 4,
+        "queuedAt": 1787411900,
+        "startedAt": 1787411950,
+        "lastProgressAt": 1787412040,
+        "finishedAt": null,
+        "expectedStartAt": 1787411950,
+        "expectedFinishAt": 1787412300,
+        "queueAheadEstimate": 0,
+        "hasTranscript": true,
+        "supersededBy": null,
+        "lastError": null
       },
-      "byRepo": [],
-      "byShip": [],
-      "byBackend": [],
-      "recent": []
+      "steps": [
+        {
+          "seq": 1,
+          "kind": "delivery-attempt",
+          "ship": null,
+          "title": "Delivery attempt 4 received",
+          "createdAt": 1787412000
+        },
+        {
+          "seq": 2,
+          "kind": "checkpoint-reused",
+          "ship": "red-team",
+          "title": "Reused completed red-team verdict",
+          "createdAt": 1787412010
+        }
+      ]
     }
     """.data(using: .utf8)!
 }

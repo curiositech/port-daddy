@@ -2,16 +2,16 @@
 //!
 //! Unlike every other pane (which polls the LOCAL daemon), this one watches a
 //! REMOTE Cloudflare relay: the cloud fleet-executor that reviews GitHub PRs.
-//! Configure it with two env vars:
-//!   - `PD_CONSOLE_RELAY_URL`   — e.g. `https://relay.port-daddy.dev`
-//!   - `PD_CONSOLE_RELAY_TOKEN` — the operator bearer token
-//! When either is unset the pane renders a clear "not configured" hint instead
-//! of erroring — the console still boots without a relay.
+//! It loads the same signed-in operator account as FleetBar
+//! (`~/.port-daddy/account.json`). Explicit `PD_CONSOLE_RELAY_URL` /
+//! `PD_CONSOLE_RELAY_TOKEN` overrides remain for tests and development, but
+//! routine operator setup never requires an environment variable.
 //!
 //! It reuses the shared `DaemonClient::http_client()` (a plain reqwest client) to
 //! issue bearer-authenticated GETs against the operator-gated relay endpoints:
-//!   - `GET /v1/fleet/health`            → paused flag, last-run age, DLQ depth
+//!   - `GET /v1/fleet/health`            → paused flag, last-run age, queue estimate
 //!   - `GET /v1/fleet/activity?limit=30` → recent `fleet_runs` (PR review runs)
+//!   - `GET /v1/fleet/runs/:id`          → live durable transcript
 //!   - `GET /v1/fleet/config`            → declared ships (read-only prompts + roles)
 //!
 //! Render-agnostic on purpose (emits `Block`s); the GPUI and ratatui renderers
@@ -22,24 +22,40 @@ use crate::pane::{Block, Pane, Tone};
 use crate::util::{age_short, arr, b, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
+use std::path::PathBuf;
+
+const DEFAULT_RELAY_URL: &str = "https://port-daddy-relay.erich-owens.workers.dev";
 
 /// One remote fleet run (a GitHub PR review the cloud executor performed).
 #[derive(Debug, Clone)]
 struct FleetRun {
+    id: String,
     pr_number: i64,
     repo: String,
+    head_sha: String,
     conclusion: String,
     ships: Vec<String>,
     elapsed_ms: i64,
     /// Unix *seconds* (relay uses `unixepoch()`), not millis.
     created_at: i64,
+    state: String,
+    generation: i64,
+    attempt_count: i64,
+    last_progress_at: Option<i64>,
+    expected_start_at: Option<i64>,
+    expected_finish_at: Option<i64>,
+    queue_ahead_estimate: Option<i64>,
+    has_transcript: bool,
+    last_error: String,
 }
 
 impl FleetRun {
     fn from_value(v: &Value) -> Self {
         Self {
+            id: s(v, "id"),
             pr_number: n(v, "prNumber"),
             repo: s(v, "repo"),
+            head_sha: s(v, "headSha"),
             conclusion: s(v, "conclusion"),
             ships: arr(v, "ships")
                 .iter()
@@ -47,7 +63,133 @@ impl FleetRun {
                 .collect(),
             elapsed_ms: n(v, "elapsedMs"),
             created_at: n(v, "createdAt"),
+            state: {
+                let state = s(v, "state");
+                if state.is_empty() {
+                    "unknown".into()
+                } else {
+                    state
+                }
+            },
+            generation: n(v, "generation").max(1),
+            attempt_count: n(v, "attemptCount").max(0),
+            last_progress_at: optional_i64(v, "lastProgressAt"),
+            expected_start_at: optional_i64(v, "expectedStartAt"),
+            expected_finish_at: optional_i64(v, "expectedFinishAt"),
+            queue_ahead_estimate: optional_i64(v, "queueAheadEstimate").filter(|value| *value >= 0),
+            has_transcript: b(v, "hasTranscript"),
+            last_error: s(v, "lastError"),
         }
+    }
+
+    fn is_active(&self) -> bool {
+        matches!(
+            self.state.as_str(),
+            "admitting" | "queued" | "running" | "retrying"
+        )
+    }
+
+    fn timing(&self) -> String {
+        match self.state.as_str() {
+            "admitting" => self
+                .expected_start_at
+                .map(|value| format!("executor handoff {}Z est.", hhmmss_seconds(value)))
+                .unwrap_or_else(|| "admission in progress".into()),
+            "queued" => {
+                let ahead = self
+                    .queue_ahead_estimate
+                    .map(|value| format!("≈{value} ahead"))
+                    .unwrap_or_else(|| "position unknown".into());
+                let eta = self
+                    .expected_start_at
+                    .map(|value| format!("start {}Z", hhmmss_seconds(value)))
+                    .unwrap_or_else(|| "start estimate pending".into());
+                format!("{ahead} · {eta}")
+            }
+            "running" => self
+                .expected_finish_at
+                .map(|value| format!("finish {}Z est.", hhmmss_seconds(value)))
+                .unwrap_or_else(|| "finish estimate pending".into()),
+            "retrying" => self
+                .expected_start_at
+                .map(|value| format!("retry {}Z", hhmmss_seconds(value)))
+                .unwrap_or_else(|| "durable retry scheduled".into()),
+            "superseded" => "replaced by newer head".into(),
+            _ => duration_short(self.elapsed_ms),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct FleetStep {
+    seq: i64,
+    kind: String,
+    ship: String,
+    title: String,
+    created_at: i64,
+    expected_at: Option<i64>,
+}
+
+impl FleetStep {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            seq: n(v, "seq"),
+            kind: s(v, "kind"),
+            ship: s(v, "ship"),
+            title: s(v, "title"),
+            created_at: n(v, "createdAt"),
+            expected_at: optional_i64(v, "expectedAt"),
+        }
+    }
+
+    fn explanation(&self) -> String {
+        match self.kind.as_str() {
+            "delivery-attempt" => "Cloudflare delivered the job to the executor; the attempt distinguishes a retry from new work.".into(),
+            "checkpoint-reused" => "Durable completed work was reused instead of spending or publishing it again.".into(),
+            "checkpoint-written" => "Progress was persisted so a later delivery can resume from this boundary.".into(),
+            "map-chunk" => "One bounded section of the change is being inspected by the named ship.".into(),
+            "reduce" => "Chunk observations are being consolidated into one ship verdict.".into(),
+            "ship-verdict" => "A ship finished its assigned review and persisted the verdict.".into(),
+            "check-completed" => "GitHub read-back confirmed the required check reached its intended terminal state.".into(),
+            "check-completion-retry" => "GitHub did not confirm completion; a rate-limited durable retry was scheduled.".into(),
+            "superseded" => "A newer head generation replaced this intent before stale work could publish.".into(),
+            _ if !self.ship.is_empty() => format!(
+                "{} recorded this {} step in the durable transcript.",
+                self.ship,
+                self.kind.replace('-', " ")
+            ),
+            _ => format!(
+                "The executor recorded this {} step in the durable transcript.",
+                self.kind.replace('-', " ")
+            ),
+        }
+    }
+}
+
+fn optional_i64(v: &Value, key: &str) -> Option<i64> {
+    match v.get(key) {
+        Some(Value::Number(value)) => value.as_i64(),
+        Some(Value::String(value)) => value.parse().ok(),
+        _ => None,
+    }
+}
+
+fn hhmmss_seconds(epoch_seconds: i64) -> String {
+    if epoch_seconds <= 0 {
+        return "—".into();
+    }
+    let day = epoch_seconds.rem_euclid(86_400);
+    format!("{:02}:{:02}:{:02}", day / 3600, (day % 3600) / 60, day % 60)
+}
+
+fn duration_short(milliseconds: i64) -> String {
+    let seconds = milliseconds.max(0) / 1000;
+    if seconds >= 3600 {
+        format!("{}h {:02}m", seconds / 3600, (seconds % 3600) / 60)
+    } else if seconds >= 60 {
+        format!("{}m {:02}s", seconds / 60, seconds % 60)
+    } else {
+        format!("{seconds}s")
     }
 }
 
@@ -92,31 +234,129 @@ fn conclusion_tone(conclusion: &str) -> Tone {
     }
 }
 
+fn run_tone(run: &FleetRun) -> Tone {
+    match run.state.as_str() {
+        "running" => Tone::Engaged,
+        "admitting" | "queued" | "retrying" => Tone::Gated,
+        "enqueue_failed" | "failed_admission" => Tone::Conflicted,
+        "superseded" => Tone::Resting,
+        _ => conclusion_tone(&run.conclusion),
+    }
+}
+
+fn step_tone(step: &FleetStep) -> Tone {
+    match step.kind.as_str() {
+        "check-completed" | "ship-verdict" | "checkpoint-written" => Tone::Landed,
+        "check-completion-retry" => Tone::Gated,
+        "superseded" => Tone::Resting,
+        _ => Tone::Engaged,
+    }
+}
+
+#[derive(Debug, Default, PartialEq)]
+struct RelayCredentials {
+    url: String,
+    token: String,
+    login: String,
+}
+
+fn resolve_relay_credentials(
+    env_url: Option<String>,
+    env_token: Option<String>,
+    account_json: Option<&str>,
+) -> RelayCredentials {
+    let account = account_json
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .unwrap_or(Value::Null);
+    let stored_token = s(&account, "token");
+    let stored_url = s(&account, "relayUrl");
+    let login = s(&account, "login");
+
+    let token = env_token
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(stored_token);
+    let url = env_url
+        .map(|value| value.trim().trim_end_matches('/').to_string())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            let value = stored_url.trim().trim_end_matches('/').to_string();
+            (!value.is_empty()).then_some(value)
+        })
+        .unwrap_or_else(|| {
+            if token.is_empty() {
+                String::new()
+            } else {
+                DEFAULT_RELAY_URL.into()
+            }
+        });
+
+    RelayCredentials { url, token, login }
+}
+
+fn load_relay_credentials() -> RelayCredentials {
+    let account_path: Option<PathBuf> =
+        dirs::home_dir().map(|home| home.join(".port-daddy").join("account.json"));
+    let account_json = account_path.and_then(|path| std::fs::read_to_string(path).ok());
+    resolve_relay_credentials(
+        std::env::var("PD_CONSOLE_RELAY_URL").ok(),
+        std::env::var("PD_CONSOLE_RELAY_TOKEN").ok(),
+        account_json.as_deref(),
+    )
+}
+
 pub struct CloudFleetPane {
     relay_url: String,
     relay_token: String,
+    account_login: String,
     ships: Vec<ShipPrompt>,
     activity: Vec<FleetRun>,
+    selected_run: Option<FleetRun>,
+    steps: Vec<FleetStep>,
+    loaded_detail_id: Option<String>,
+    loaded_detail_progress_at: Option<i64>,
+    detail_retry_at: Option<std::time::Instant>,
+    ship_config_attempted: bool,
     pending_proposals: Vec<FleetProposal>,
     paused: bool,
     last_run_age_sec: Option<i64>,
-    dlq_depth: Option<i64>,
+    queue_depth_estimate: Option<i64>,
+    running: i64,
+    retrying: i64,
+    superseded: i64,
+    failed_admission: i64,
+    known_intents: i64,
     last_error: Option<String>,
+    detail_error: Option<String>,
     proposal_error: Option<String>,
 }
 
 impl Default for CloudFleetPane {
     fn default() -> Self {
+        let credentials = load_relay_credentials();
         Self {
-            relay_url: std::env::var("PD_CONSOLE_RELAY_URL").unwrap_or_default(),
-            relay_token: std::env::var("PD_CONSOLE_RELAY_TOKEN").unwrap_or_default(),
+            relay_url: credentials.url,
+            relay_token: credentials.token,
+            account_login: credentials.login,
             ships: Vec::new(),
             activity: Vec::new(),
+            selected_run: None,
+            steps: Vec::new(),
+            loaded_detail_id: None,
+            loaded_detail_progress_at: None,
+            detail_retry_at: None,
+            ship_config_attempted: false,
             pending_proposals: Vec::new(),
             paused: false,
             last_run_age_sec: None,
-            dlq_depth: None,
+            queue_depth_estimate: None,
+            running: 0,
+            retrying: 0,
+            superseded: 0,
+            failed_admission: 0,
+            known_intents: 0,
             last_error: None,
+            detail_error: None,
             proposal_error: None,
         }
     }
@@ -128,13 +368,44 @@ impl CloudFleetPane {
     }
 
     fn is_configured(&self) -> bool {
-        !self.relay_url.trim().is_empty()
+        !self.relay_url.trim().is_empty() && !self.relay_token.trim().is_empty()
     }
 
-    /// Health is "alarmed" when the fleet is paused or the dead-letter queue has
-    /// anything in it — both warrant the operator's attention.
+    fn credentials_need_reload(&self) -> bool {
+        !self.is_configured()
+            || self
+                .last_error
+                .as_deref()
+                .is_some_and(|error| error.contains("session rejected"))
+            || self
+                .detail_error
+                .as_deref()
+                .is_some_and(|error| error.contains("session rejected"))
+    }
+
+    fn apply_credentials(&mut self, credentials: RelayCredentials) -> bool {
+        if self.relay_url == credentials.url
+            && self.relay_token == credentials.token
+            && self.account_login == credentials.login
+        {
+            return false;
+        }
+        self.relay_url = credentials.url;
+        self.relay_token = credentials.token;
+        self.account_login = credentials.login;
+        self.last_error = None;
+        self.detail_error = None;
+        self.loaded_detail_id = None;
+        self.loaded_detail_progress_at = None;
+        self.detail_retry_at = None;
+        self.ship_config_attempted = false;
+        true
+    }
+
+    /// A normal estimated queue is informative, not an alarm. Pause and failed
+    /// admission are the states that require operator remediation.
     fn alarmed(&self) -> bool {
-        self.paused || self.dlq_depth.map(|d| d > 0).unwrap_or(false)
+        self.paused || self.failed_admission > 0
     }
 
     fn push_pending_proposals(&self, blocks: &mut Vec<Block>) {
@@ -145,14 +416,20 @@ impl CloudFleetPane {
             return;
         }
         if self.pending_proposals.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no ship proposals awaiting approval".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no ship proposals awaiting approval".into(),
+            ));
             return;
         }
         for proposal in self.pending_proposals.iter().take(10) {
             let source = if proposal.repo.is_empty() {
                 proposal.source_ship.clone()
             } else if proposal.pr_number > 0 {
-                format!("{} · {} PR #{}", proposal.source_ship, proposal.repo, proposal.pr_number)
+                format!(
+                    "{} · {} PR #{}",
+                    proposal.source_ship, proposal.repo, proposal.pr_number
+                )
             } else {
                 format!("{} · {}", proposal.source_ship, proposal.repo)
             };
@@ -163,7 +440,10 @@ impl CloudFleetPane {
                 trunc(&proposal.target_specialist, 22),
             ]));
             blocks.push(Block::Chip {
-                label: format!("{} → approve/reject in FleetBar", trunc(&proposal.title, 72)),
+                label: format!(
+                    "{} → approve/reject in FleetBar",
+                    trunc(&proposal.title, 72)
+                ),
                 tone: Tone::Gated,
             });
         }
@@ -186,14 +466,38 @@ async fn fetch_json(
         Err(e) => Err(format!("relay unreachable: {e}")),
         Ok(resp) => {
             let status = resp.status();
+            if status.as_u16() == 401 || status.as_u16() == 403 {
+                return Err(
+                    "Cloud Fleet session rejected — renew it from FleetBar Credentials".into(),
+                );
+            }
             if !status.is_success() {
-                return Err(format!("GET {url} → {status}"));
+                return Err(format!("Cloud Fleet read failed ({status})"));
             }
             resp.json::<Value>()
                 .await
                 .map_err(|e| format!("bad response: {e}"))
         }
     }
+}
+
+fn run_detail_url(base: &str, run_id: &str) -> std::result::Result<String, String> {
+    let mut url = reqwest::Url::parse(&format!("{}/v1/fleet/runs/", base.trim_end_matches('/')))
+        .map_err(|_| "saved relay address is invalid".to_string())?;
+    url.path_segments_mut()
+        .map_err(|_| "saved relay address cannot address a run".to_string())?
+        .pop_if_empty()
+        .push(run_id);
+    Ok(url.into())
+}
+
+fn transcript_changed(
+    loaded_id: Option<&str>,
+    loaded_progress_at: Option<i64>,
+    steps_empty: bool,
+    run: &FleetRun,
+) -> bool {
+    loaded_id != Some(run.id.as_str()) || loaded_progress_at != run.last_progress_at || steps_empty
 }
 
 impl Pane for CloudFleetPane {
@@ -211,7 +515,7 @@ impl Pane for CloudFleetPane {
         if !self.is_configured() {
             blocks.push(Block::KeyVal(
                 "status".into(),
-                "not configured — set PD_CONSOLE_RELAY_URL / PD_CONSOLE_RELAY_TOKEN".into(),
+                "signed out — sign in from FleetBar Credentials".into(),
             ));
             self.push_pending_proposals(&mut blocks);
             return blocks;
@@ -220,7 +524,7 @@ impl Pane for CloudFleetPane {
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             blocks.push(Block::Chip {
-                label: "relay unreachable".into(),
+                label: "Cloud Fleet state is stale".into(),
                 tone: Tone::Gated,
             });
             self.push_pending_proposals(&mut blocks);
@@ -229,11 +533,20 @@ impl Pane for CloudFleetPane {
 
         // ── Health ───────────────────────────────────────────────────────────
         let alarmed = self.alarmed();
+        if !self.account_login.is_empty() {
+            blocks.push(Block::KeyVal(
+                "account".into(),
+                format!("@{} · read-only", self.account_login),
+            ));
+        }
         blocks.push(Block::Chip {
             label: if self.paused {
                 "PAUSED — kill switch engaged".into()
             } else {
-                "running".into()
+                format!(
+                    "{} running · {} retrying · {} known intents",
+                    self.running, self.retrying, self.known_intents
+                )
             },
             tone: if alarmed {
                 Tone::Conflicted
@@ -244,19 +557,28 @@ impl Pane for CloudFleetPane {
         if let Some(age) = self.last_run_age_sec {
             blocks.push(Block::KeyVal(
                 "last run".into(),
-                format!("{} ago", age_short(age * 1000)),
+                format!("{} ago", duration_short(age * 1000)),
             ));
         } else {
             blocks.push(Block::KeyVal("last run".into(), "—".into()));
         }
-        if let Some(dlq) = self.dlq_depth {
+        if let Some(depth) = self.queue_depth_estimate {
             blocks.push(Block::KeyVal(
-                "dead-letter queue".into(),
-                if dlq > 0 {
-                    format!("{dlq} — needs operator")
+                "queue depth (estimate)".into(),
+                if depth > 0 {
+                    format!("≈{depth} known queued or retrying")
                 } else {
                     "0".into()
                 },
+            ));
+        }
+        if self.superseded > 0 || self.failed_admission > 0 {
+            blocks.push(Block::KeyVal(
+                "admission outcomes".into(),
+                format!(
+                    "{} superseded · {} failed admission",
+                    self.superseded, self.failed_admission
+                ),
             ));
         }
 
@@ -270,30 +592,101 @@ impl Pane for CloudFleetPane {
             blocks.push(Block::KeyVal("status".into(), "no PR reviews yet".into()));
         } else {
             for run in self.activity.iter().take(20) {
-                // age · PR # · repo · conclusion · elapsed.
+                // age · PR # · repo · logical state · ETA/duration.
                 blocks.push(Block::Row(vec![
                     age_short(run.created_at * 1000),
                     format!("PR #{}", run.pr_number),
                     trunc(&run.repo, 24),
-                    trunc(&run.conclusion, 10),
-                    format!("{}ms", run.elapsed_ms),
+                    trunc(&run.state.replace('_', " "), 16),
+                    trunc(&run.timing(), 30),
                 ]));
-                // A conclusion chip carries the colored verdict for the run, plus
-                // which ships reviewed it (the at-a-glance exception cue).
+                let head = trunc(&run.head_sha, 7);
                 blocks.push(Block::Chip {
-                    label: if run.ships.is_empty() {
-                        format!("PR #{}: {}", run.pr_number, run.conclusion)
+                    label: if run.is_active() {
+                        format!(
+                            "PR #{} · {} · gen {} · delivery {} · {}",
+                            run.pr_number, run.state, run.generation, run.attempt_count, head
+                        )
                     } else {
                         format!(
-                            "PR #{}: {} · {}",
+                            "PR #{} · {} · {} · {}",
                             run.pr_number,
                             run.conclusion,
-                            run.ships.join(", ")
+                            duration_short(run.elapsed_ms),
+                            head
                         )
                     },
-                    tone: conclusion_tone(&run.conclusion),
+                    tone: run_tone(run),
                 });
+                if !run.last_error.is_empty() {
+                    blocks.push(Block::TranscriptLine {
+                        text: format!(
+                            "PR #{} error: {}",
+                            run.pr_number,
+                            trunc(&run.last_error, 120)
+                        ),
+                        tone: Tone::Conflicted,
+                    });
+                }
             }
+        }
+
+        // ── Selected live transcript ──────────────────────────────────────────
+        blocks.push(Block::Gap);
+        blocks.push(Block::Header("Live Transcript".into()));
+        if let Some(run) = &self.selected_run {
+            blocks.push(Block::KeyVal(
+                format!("{} PR #{}", run.repo, run.pr_number),
+                format!(
+                    "{} · gen {} · delivery {} · {}",
+                    run.state,
+                    run.generation,
+                    run.attempt_count,
+                    run.timing()
+                ),
+            ));
+            if let Some(err) = &self.detail_error {
+                blocks.push(Block::KeyVal("transcript".into(), err.clone()));
+            } else if self.steps.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "transcript".into(),
+                    if run.has_transcript {
+                        "durable steps are not readable yet".into()
+                    } else {
+                        "legacy receipt — no durable transcript".into()
+                    },
+                ));
+            } else {
+                blocks.push(Block::KeyVal(
+                    "timestamps".into(),
+                    "actual UTC; per-step ETA shown only when executor publishes one".into(),
+                ));
+                let start = self.steps.len().saturating_sub(12);
+                for step in &self.steps[start..] {
+                    let expected = step
+                        .expected_at
+                        .map(|at| format!(" · expected {}Z", hhmmss_seconds(at)))
+                        .unwrap_or_else(|| " · step ETA unavailable".into());
+                    blocks.push(Block::TranscriptLine {
+                        text: format!(
+                            "{}Z · {:02} · {} · {}{}\n{}",
+                            hhmmss_seconds(step.created_at),
+                            step.seq,
+                            if step.ship.is_empty() {
+                                &step.kind
+                            } else {
+                                &step.ship
+                            },
+                            step.title,
+                            expected,
+                            step.explanation()
+                        ),
+                        tone: step_tone(step),
+                    });
+                }
+            }
+        } else {
+            blocks.push(Block::KeyVal("status".into(), "no run selected".into()));
         }
 
         // ── Ship prompts (read-only) ───────────────────────────────────────────
@@ -330,7 +723,9 @@ impl Pane for CloudFleetPane {
                 daemon,
                 &format!("{}/fleet-proposals?status=pending&limit=10", daemon.base()),
                 "",
-            ).await {
+            )
+            .await
+            {
                 Err(e) => {
                     self.proposal_error = Some(e);
                     self.pending_proposals.clear();
@@ -342,6 +737,10 @@ impl Pane for CloudFleetPane {
                         .map(FleetProposal::from_value)
                         .collect();
                 }
+            }
+
+            if self.credentials_need_reload() {
+                self.apply_credentials(load_relay_credentials());
             }
 
             // Unconfigured → no-op; view() shows the actionable hint instead.
@@ -366,10 +765,15 @@ impl Pane for CloudFleetPane {
                         Some(Value::Number(x)) => x.as_i64(),
                         _ => None,
                     };
-                    self.dlq_depth = match data.get("queueDepthEstimate") {
+                    self.queue_depth_estimate = match data.get("queueDepthEstimate") {
                         Some(Value::Number(x)) => x.as_i64(),
                         _ => None,
                     };
+                    self.running = n(&data, "running");
+                    self.retrying = n(&data, "retrying");
+                    self.superseded = n(&data, "superseded");
+                    self.failed_admission = n(&data, "failedAdmission");
+                    self.known_intents = n(&data, "knownIntents");
                 }
             }
 
@@ -390,25 +794,92 @@ impl Pane for CloudFleetPane {
                 }
             }
 
+            // Follow the active run by default and refresh its durable transcript.
+            // If the operator's previously selected run still exists, retain it.
+            let selected_id = self.selected_run.as_ref().map(|run| run.id.as_str());
+            let selected = selected_id
+                .and_then(|id| self.activity.iter().find(|run| run.id == id))
+                .or_else(|| self.activity.iter().find(|run| run.is_active()))
+                .or_else(|| self.activity.first())
+                .cloned();
+            self.selected_run = selected.clone();
+            if let Some(run) = selected {
+                let selection_changed = self.loaded_detail_id.as_deref() != Some(run.id.as_str());
+                if selection_changed {
+                    self.detail_retry_at = None;
+                }
+                let needs_transcript_refresh = transcript_changed(
+                    self.loaded_detail_id.as_deref(),
+                    self.loaded_detail_progress_at,
+                    self.steps.is_empty(),
+                    &run,
+                );
+                let retry_ready = self
+                    .detail_retry_at
+                    .map(|at| std::time::Instant::now() >= at)
+                    .unwrap_or(true);
+                match (needs_transcript_refresh && retry_ready)
+                    .then(|| run_detail_url(&base, &run.id))
+                    .transpose()
+                {
+                    Err(error) => {
+                        self.detail_error = Some(error);
+                        self.steps.clear();
+                    }
+                    Ok(Some(url)) => match fetch_json(daemon, &url, &token).await {
+                        Err(error) => {
+                            self.detail_error = Some(error);
+                            self.detail_retry_at = Some(
+                                std::time::Instant::now() + std::time::Duration::from_secs(30),
+                            );
+                        }
+                        Ok(data) => {
+                            self.detail_error = None;
+                            self.detail_retry_at = None;
+                            if let Some(detail_run) = data.get("run") {
+                                self.selected_run = Some(FleetRun::from_value(detail_run));
+                            }
+                            self.steps = arr(&data, "steps")
+                                .iter()
+                                .map(FleetStep::from_value)
+                                .collect();
+                            self.steps.sort_by_key(|step| step.seq);
+                            self.loaded_detail_id = Some(run.id.clone());
+                            self.loaded_detail_progress_at = run.last_progress_at;
+                        }
+                    },
+                    Ok(None) => {}
+                }
+            } else {
+                self.detail_error = None;
+                self.steps.clear();
+                self.loaded_detail_id = None;
+                self.loaded_detail_progress_at = None;
+                self.detail_retry_at = None;
+            }
+
             // Ship config (read-only prompts/roles). Tolerate either {ships:[...]}
             // or {config:{ships:[...]}} drift; pull name + role defensively.
-            match fetch_json(daemon, &format!("{base}/v1/fleet/config"), &token).await {
-                Err(e) => self.last_error = Some(e),
-                Ok(data) => {
-                    let ships_val: &[Value] = if !arr(&data, "ships").is_empty() {
-                        arr(&data, "ships")
-                    } else if let Some(cfg) = data.get("config") {
-                        arr(cfg, "ships")
-                    } else {
-                        &[]
-                    };
-                    self.ships = ships_val
-                        .iter()
-                        .map(|v| ShipPrompt {
-                            name: s(v, "name"),
-                            role: s(v, "role"),
-                        })
-                        .collect();
+            if !self.ship_config_attempted {
+                self.ship_config_attempted = true;
+                match fetch_json(daemon, &format!("{base}/v1/fleet/config"), &token).await {
+                    Err(_) => self.ships.clear(),
+                    Ok(data) => {
+                        let ships_val: &[Value] = if !arr(&data, "ships").is_empty() {
+                            arr(&data, "ships")
+                        } else if let Some(cfg) = data.get("config") {
+                            arr(cfg, "ships")
+                        } else {
+                            &[]
+                        };
+                        self.ships = ships_val
+                            .iter()
+                            .map(|v| ShipPrompt {
+                                name: s(v, "name"),
+                                role: s(v, "role"),
+                            })
+                            .collect();
+                    }
                 }
             }
 
@@ -426,6 +897,8 @@ mod tests {
         let mut p = CloudFleetPane::default();
         p.relay_url = "https://relay.example.dev".into();
         p.relay_token = "tok".into();
+        p.account_login = "operator".into();
+        p.last_error = None;
         p
     }
 
@@ -433,10 +906,11 @@ mod tests {
     fn unconfigured_shows_hint_not_error() {
         let mut p = CloudFleetPane::default();
         p.relay_url = String::new();
+        p.relay_token = String::new();
         let blocks = p.view();
         assert!(matches!(&blocks[0], Block::Header(h) if h == "Cloud Fleet"));
         assert!(blocks.iter().any(|b| matches!(
-            b, Block::KeyVal(_, v) if v.contains("PD_CONSOLE_RELAY_URL")
+            b, Block::KeyVal(_, v) if v.contains("FleetBar Credentials")
         )));
         // No error chip — absence of config is not a failure.
         assert!(!blocks.iter().any(|b| matches!(
@@ -476,17 +950,31 @@ mod tests {
     }
 
     #[test]
-    fn dlq_backlog_alarms_even_when_running() {
+    fn estimated_queue_is_visible_but_not_mislabeled_as_an_alarm() {
         let mut p = configured();
-        p.dlq_depth = Some(3);
+        p.queue_depth_estimate = Some(3);
+        assert!(!p.alarmed());
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k == "queue depth (estimate)" && v.contains("≈3")
+        )));
+    }
+
+    #[test]
+    fn failed_admission_alarms_even_when_executor_is_not_paused() {
+        let mut p = configured();
+        p.failed_admission = 2;
         assert!(p.alarmed());
         let blocks = p.view();
-        // Running (not paused) but alarmed → the status chip is Conflicted.
         assert!(blocks.iter().any(|b| matches!(
-            b, Block::Chip { label, tone: Tone::Conflicted } if label == "running"
+            b,
+            Block::Chip {
+                tone: Tone::Conflicted,
+                ..
+            }
         )));
         assert!(blocks.iter().any(|b| matches!(
-            b, Block::KeyVal(k, v) if k == "dead-letter queue" && v.contains("needs operator")
+            b, Block::KeyVal(k, v) if k == "admission outcomes" && v.contains("2 failed")
         )));
     }
 
@@ -496,7 +984,11 @@ mod tests {
             "id": "uuid", "prNumber": 123, "repo": "owner/repo",
             "prUrl": "https://github.com/owner/repo/pull/123",
             "headSha": "abc123d", "conclusion": "success",
-            "ships": ["linter", "qa"], "elapsedMs": 45000, "createdAt": 1719432000i64
+            "ships": ["linter", "qa"], "elapsedMs": 45000, "createdAt": 1719432000i64,
+            "state": "retrying", "generation": 3, "attemptCount": 4,
+            "lastProgressAt": 1719432040i64,
+            "expectedStartAt": 1719432060i64, "queueAheadEstimate": 2,
+            "hasTranscript": true, "lastError": "completion pending"
         });
         let r = FleetRun::from_value(&v);
         assert_eq!(r.pr_number, 123);
@@ -504,6 +996,59 @@ mod tests {
         assert_eq!(r.conclusion, "success");
         assert_eq!(r.ships, vec!["linter".to_string(), "qa".to_string()]);
         assert_eq!(r.elapsed_ms, 45000);
+        assert_eq!(r.state, "retrying");
+        assert_eq!(r.generation, 3);
+        assert_eq!(r.attempt_count, 4);
+        assert_eq!(r.queue_ahead_estimate, Some(2));
+        assert!(r.has_transcript);
+    }
+
+    #[test]
+    fn admission_states_do_not_invent_a_delivery_and_failures_use_the_relay_name() {
+        let admitting = FleetRun::from_value(&json!({
+            "id": "intent:admitting", "state": "admitting", "generation": 0,
+            "attemptCount": -3, "queueAheadEstimate": -2
+        }));
+        assert!(admitting.is_active());
+        assert_eq!(admitting.generation, 1);
+        assert_eq!(admitting.attempt_count, 0);
+        assert_eq!(admitting.queue_ahead_estimate, None);
+        assert!(admitting.timing().contains("admission"));
+        assert!(matches!(run_tone(&admitting), Tone::Gated));
+
+        let failed = FleetRun::from_value(&json!({
+            "id": "intent:failed", "state": "enqueue_failed", "attemptCount": 0
+        }));
+        assert!(!failed.is_active());
+        assert!(matches!(run_tone(&failed), Tone::Conflicted));
+    }
+
+    #[test]
+    fn transcript_read_is_cumulative_until_progress_or_selection_changes() {
+        let run = FleetRun::from_value(&json!({
+            "id": "intent:delivery-live",
+            "state": "running",
+            "lastProgressAt": 1719432040i64
+        }));
+        assert!(transcript_changed(None, None, true, &run));
+        assert!(!transcript_changed(
+            Some("intent:delivery-live"),
+            Some(1719432040),
+            false,
+            &run
+        ));
+        assert!(transcript_changed(
+            Some("intent:delivery-live"),
+            Some(1719432030),
+            false,
+            &run
+        ));
+        assert!(transcript_changed(
+            Some("intent:another"),
+            Some(1719432040),
+            false,
+            &run
+        ));
     }
 
     #[test]
@@ -517,14 +1062,30 @@ mod tests {
     #[test]
     fn view_populated_renders_runs_and_ships() {
         let mut p = configured();
-        p.activity = vec![FleetRun {
-            pr_number: 7,
-            repo: "port-daddy/relay".into(),
-            conclusion: "failure".into(),
-            ships: vec!["linter".into()],
-            elapsed_ms: 12345,
-            created_at: 1719432000,
-        }];
+        let run = FleetRun::from_value(&json!({
+            "id": "intent:delivery-live",
+            "prNumber": 7,
+            "repo": "port-daddy/relay",
+            "headSha": "abcdef123456",
+            "conclusion": null,
+            "ships": ["linter"],
+            "elapsedMs": 12345,
+            "createdAt": 1719432000i64,
+            "state": "running",
+            "generation": 2,
+            "attemptCount": 4,
+            "expectedFinishAt": 1719432300i64,
+            "hasTranscript": true
+        }));
+        p.activity = vec![run.clone()];
+        p.selected_run = Some(run);
+        p.steps = vec![FleetStep::from_value(&json!({
+            "seq": 4,
+            "kind": "check-completion-retry",
+            "ship": null,
+            "title": "GitHub completion deferred",
+            "createdAt": 1719432100i64
+        }))];
         p.ships = vec![ShipPrompt {
             name: "linter".into(),
             role: "style + lint review".into(),
@@ -543,7 +1104,16 @@ mod tests {
             .iter()
             .any(|b| matches!(b, Block::Row(cells) if cells[1] == "PR #7")));
         assert!(blocks.iter().any(|b| matches!(
-            b, Block::Chip { tone: Tone::Conflicted, label } if label.contains("PR #7")
+            b, Block::Chip { tone: Tone::Engaged, label } if label.contains("delivery 4")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Header(h) if h == "Live Transcript"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::TranscriptLine { text, tone: Tone::Gated }
+                if text.contains("GitHub completion deferred")
+                    && text.contains("step ETA unavailable")
+                    && text.contains("rate-limited")
         )));
         // The ship prompt is listed read-only.
         assert!(blocks.iter().any(|b| matches!(
@@ -561,6 +1131,7 @@ mod tests {
     fn unconfigured_still_renders_local_proposals() {
         let mut p = CloudFleetPane::default();
         p.relay_url = String::new();
+        p.relay_token = String::new();
         p.pending_proposals = vec![FleetProposal {
             id: "proposal-1".into(),
             title: "Spider combines docs and SDK into a build".into(),
@@ -576,5 +1147,56 @@ mod tests {
         assert!(blocks.iter().any(|b| matches!(
             b, Block::Row(cells) if cells.iter().any(|c| c.contains("Spider"))
         )));
+    }
+
+    #[test]
+    fn credentials_default_to_signed_in_account_and_allow_explicit_overrides() {
+        let stored = r#"{
+            "token":"pdu_stored",
+            "login":"operator",
+            "relayUrl":"https://stored.example/"
+        }"#;
+        let stored_only = resolve_relay_credentials(None, None, Some(stored));
+        assert_eq!(stored_only.url, "https://stored.example");
+        assert_eq!(stored_only.token, "pdu_stored");
+        assert_eq!(stored_only.login, "operator");
+
+        let overridden = resolve_relay_credentials(
+            Some("https://dev.example/".into()),
+            Some("pdu_dev".into()),
+            Some(stored),
+        );
+        assert_eq!(overridden.url, "https://dev.example");
+        assert_eq!(overridden.token, "pdu_dev");
+    }
+
+    #[test]
+    fn rotated_account_recovers_without_relaunching_console() {
+        let mut pane = configured();
+        pane.last_error =
+            Some("Cloud Fleet session rejected — renew it from FleetBar Credentials".into());
+        pane.loaded_detail_id = Some("run-old".into());
+        pane.ship_config_attempted = true;
+        assert!(pane.credentials_need_reload());
+
+        assert!(pane.apply_credentials(RelayCredentials {
+            url: "https://relay.example.dev".into(),
+            token: "tok-rotated".into(),
+            login: "operator".into(),
+        }));
+        assert_eq!(pane.relay_token, "tok-rotated");
+        assert!(pane.last_error.is_none());
+        assert!(pane.loaded_detail_id.is_none());
+        assert!(!pane.ship_config_attempted);
+        assert!(!pane.credentials_need_reload());
+    }
+
+    #[test]
+    fn run_detail_url_encodes_colons_without_changing_the_run_id() {
+        let url = run_detail_url("https://relay.example", "intent:delivery-live").unwrap();
+        assert_eq!(
+            url,
+            "https://relay.example/v1/fleet/runs/intent:delivery-live"
+        );
     }
 }

@@ -665,6 +665,17 @@ values are explicitly D1-derived estimates, never a claim about Cloudflare's
 internal queue position. Intent-only receipts remain exportable/deletable and
 active receipts are never retention-pruned.
 
+FleetBar and the Cloud Fleet pane in `pd-console` read those same
+operator-gated receipts from the signed-in account; routine setup does not ask
+the operator for relay environment variables. Both surfaces show logical state,
+generation, delivery-attempt count, queue-ahead estimates, expected run timing,
+failures, and a timestamped durable transcript with a short explanation of each
+step. Active FleetBar runs refresh every five seconds, idle runs every twenty,
+and failures back off with jitter. The console loads static ship configuration
+once and re-reads transcript detail only when `lastProgressAt` changes; a failed
+detail read opens a bounded retry circuit instead of multiplying relay traffic.
+Per-step ETAs are shown only when the executor actually publishes one.
+
 ### Giant Squid — visible controls, invisible project-scoped hooks
 
 `pd squid on` arms the complete harness for the current project. It stages the
