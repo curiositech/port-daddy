@@ -228,6 +228,12 @@ describe('validateSnapshotPayload', () => {
       [snapshotBody({ items: [{ slug: 's', status: 'now' }, { slug: 's', status: 'done' }] }), 'DUPLICATE_SLUG'],
       [snapshotBody({ edges: [{ scope: 'r', sourceId: 'a', edgeType: 'blocks', targetId: 'b' }] }), 'BAD_EDGE_TYPE'],
       [snapshotBody({ activityTail: [{ slug: 'x', kind: 'touch' }] }), 'BAD_ACTIVITY'],
+      // `at` is the PK component and the tail/cap sort key — a non-positive or
+      // non-integer timestamp is refused at the door, not left to the CHECK.
+      [snapshotBody({ activityTail: [{ at: -1, slug: 'x', kind: 'touch' }] }), 'BAD_ACTIVITY'],
+      [snapshotBody({ activityTail: [{ at: 0, slug: 'x', kind: 'touch' }] }), 'BAD_ACTIVITY'],
+      [snapshotBody({ activityTail: [{ at: 1.5, slug: 'x', kind: 'touch' }] }), 'BAD_ACTIVITY'],
+      [snapshotBody({ activityTail: [{ at: 'yesterday', slug: 'x', kind: 'touch' }] }), 'BAD_ACTIVITY'],
     ];
     for (const [body, code] of cases) {
       const v = validateSnapshotPayload(body);
@@ -559,13 +565,33 @@ describe('ADR-0101 lifecycle (team tier)', () => {
     const { env, sql } = makeMirrorEnv();
     await handleRoadmapSnapshotPut(putReq(snapshotBody()), env);
     await handleRoadmapSnapshotPut(putReq(snapshotBody({ repoFullName: 'bob/private' }), BOB_TOKEN), env);
+    const count = (table: string, user: string): number =>
+      (sql.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = ?`).get(user) as { n: number }).n;
+    const TABLES = ['roadmap_mirrors', 'roadmap_mirror_items', 'roadmap_mirror_edges', 'roadmap_mirror_activity'];
+    // BEFORE: both accounts hold real rows in every table — so the zeros below
+    // prove a delete happened, not that the fixture was empty all along.
+    const aliceBefore = Object.fromEntries(TABLES.map((t) => [t, count(t, 'u_alice')]));
+    const bobBefore = Object.fromEntries(TABLES.map((t) => [t, count(t, 'u_bob')]));
+    expect(aliceBefore).toEqual({
+      roadmap_mirrors: 1, roadmap_mirror_items: 3, roadmap_mirror_edges: 2, roadmap_mirror_activity: 2,
+    });
+    expect(bobBefore).toEqual(aliceBefore); // bob pushed the same fixture under his own repo
+
     await eraseUser(env.DB, 'u_alice', 1_800_000_000);
-    for (const table of ['roadmap_mirrors', 'roadmap_mirror_items', 'roadmap_mirror_edges', 'roadmap_mirror_activity']) {
-      const mine = (sql.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = 'u_alice'`).get() as { n: number }).n;
-      expect(mine, `${table} must be empty for the erased user`).toBe(0);
+
+    // AFTER: alice's rows are gone from every table; bob's counts are byte-for-byte unchanged.
+    for (const table of TABLES) {
+      expect(count(table, 'u_alice'), `${table} must be empty for the erased user`).toBe(0);
+      expect(count(table, 'u_bob'), `${table} must be untouched for the other account`).toBe(
+        bobBefore[table] as number,
+      );
     }
-    // Bob's mirror is untouched by alice's erasure.
-    expect((sql.prepare("SELECT COUNT(*) AS n FROM roadmap_mirrors WHERE user_id = 'u_bob'").get() as { n: number }).n).toBe(1);
+    // And nothing leaked into a third account's namespace: the tables hold
+    // exactly bob's rows now, so the DELETEs were scoped, not global.
+    for (const table of TABLES) {
+      const total = (sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+      expect(total, `${table} total must equal bob's rows after erasure`).toBe(bobBefore[table] as number);
+    }
     // And the 30-day hard delete can now run without the MIRROR tables ever
     // blocking it on their users(id) FKs. (user_tokens rows also reference
     // users(id) and are only revoked, never deleted, by eraseUser — that is
@@ -575,6 +601,43 @@ describe('ADR-0101 lifecycle (team tier)', () => {
     const r = await runRetentionSweep(env, 1_800_000_000 + 31 * 24 * 60 * 60);
     expect(r.errors).toEqual([]);
     expect(r.usersHardDeleted).toBe(1);
+  });
+
+  it('the sweep leaves NO orphaned mirror rows behind a hard-deleted user', async () => {
+    // The defensive deletes in the sweep exist for rows a soft-deleted user
+    // still owns (a crash between eraseUser's statements, a future bug). Seed
+    // exactly that state — mirror rows present, user soft-deleted, eraseUser
+    // never run — and prove the sweep clears them AND the user, with zero rows
+    // left pointing at a users(id) that no longer exists.
+    const { env, sql } = makeMirrorEnv();
+    await handleRoadmapSnapshotPut(putReq(snapshotBody()), env);
+    await handleRoadmapSnapshotPut(putReq(snapshotBody({ repoFullName: 'bob/private' }), BOB_TOKEN), env);
+    const softDeletedAt = 1_800_000_000;
+    sql.prepare('UPDATE users SET deleted_at = ? WHERE id = ?').run(softDeletedAt, 'u_alice');
+    sql.exec("DELETE FROM user_tokens WHERE user_id = 'u_alice'"); // unrelated pre-existing FK debt
+    const TABLES = ['roadmap_mirrors', 'roadmap_mirror_items', 'roadmap_mirror_edges', 'roadmap_mirror_activity'];
+    // The orphan-to-be really exists before the sweep runs.
+    for (const table of TABLES) {
+      const n = (sql.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = 'u_alice'`).get() as { n: number }).n;
+      expect(n, `${table} must hold alice's rows before the sweep`).toBeGreaterThan(0);
+    }
+
+    const r = await runRetentionSweep(env, softDeletedAt + 31 * 24 * 60 * 60);
+    expect(r.errors).toEqual([]);
+    expect(r.usersHardDeleted).toBe(1);
+
+    // No row in any mirror table references a user that no longer exists.
+    for (const table of TABLES) {
+      const orphans = (
+        sql
+          .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id NOT IN (SELECT id FROM users)`)
+          .get() as { n: number }
+      ).n;
+      expect(orphans, `${table} must have no rows orphaned by the hard delete`).toBe(0);
+      // Bob is alive and keeps every row.
+      const bob = (sql.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = 'u_bob'`).get() as { n: number }).n;
+      expect(bob, `${table} must keep the surviving account's rows`).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -588,6 +651,13 @@ describe('storage-layer CHECK constraints', () => {
       "INSERT INTO roadmap_mirror_items (user_id, repo_full_name, slug, harbor, status, summary_md, last_touched_at, created_at, dependencies_json) VALUES ('u_alice', 'a/b', 's', 'h', 'now', 'x', 0, 0, 'not json')",
       "INSERT INTO roadmap_mirror_items (user_id, repo_full_name, slug, harbor, status, summary_md, last_touched_at, created_at, notes_json) VALUES ('u_alice', 'a/b', 's', 'h', 'now', 'x', 0, 0, 'not json')",
       "INSERT INTO roadmap_mirror_edges (user_id, repo_full_name, scope, source_id, edge_type, target_id) VALUES ('u_alice', 'a/b', 'r', 's1', 'blocks', 's2')",
+      // activity.at must be a positive INTEGER — SQLite affinity alone would
+      // admit all four of these, and a text `at` sorts ABOVE every integer,
+      // which would hijack the newest-first tail and the cap prune.
+      "INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug, kind) VALUES ('u_alice', 'a/b', -1, 's1', 'touch')",
+      "INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug, kind) VALUES ('u_alice', 'a/b', 0, 's1', 'touch')",
+      "INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug, kind) VALUES ('u_alice', 'a/b', 1.5, 's1', 'touch')",
+      "INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug, kind) VALUES ('u_alice', 'a/b', 'not-a-timestamp', 's1', 'touch')",
     ];
     for (const bad of bads) {
       expect(() => sql.exec(bad), bad).toThrow();

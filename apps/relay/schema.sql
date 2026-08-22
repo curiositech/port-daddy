@@ -633,7 +633,11 @@ CREATE TABLE IF NOT EXISTS roadmap_mirror_edges (
 CREATE TABLE IF NOT EXISTS roadmap_mirror_activity (
   user_id        TEXT    NOT NULL REFERENCES users(id),
   repo_full_name TEXT    NOT NULL,
-  at             INTEGER NOT NULL,               -- daemon clock, unix ms
+  -- `at` is the watermark, part of the PK, and the tail/cap sort key, so it
+  -- carries an explicit typeof() + positivity CHECK: column affinity alone
+  -- would admit text or negative values, and text sorts above integers.
+  at             INTEGER NOT NULL
+    CHECK (typeof(at) = 'integer' AND at > 0),   -- daemon clock, unix ms
   slug           TEXT    NOT NULL,
   kind           TEXT    NOT NULL,               -- e.g. 'touch' | 'promote' | 'status'
   by_id          TEXT,                            -- daemon-side actor id, when known

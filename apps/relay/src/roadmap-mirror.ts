@@ -421,8 +421,13 @@ export function validateSnapshotPayload(body: unknown): Validated {
     const at = numOrNull(raw.at);
     const slug = strOrNull(raw.slug, 200);
     const kind = strOrNull(raw.kind, 60);
-    if (at == null || !slug || !kind) {
-      return bad(400, 'BAD_ACTIVITY', `activityTail[${i}] needs at (unix ms), slug, kind`);
+    // `at` must be a POSITIVE INTEGER: it is the PK component and the sort key
+    // the tail and the retention cap order by, so a fractional, zero, or
+    // negative value would corrupt ordering. The storage CHECK is the
+    // backstop; refusing here turns it into an explicit 400 instead of a
+    // rolled-back batch.
+    if (at == null || !Number.isInteger(at) || at <= 0 || !slug || !kind) {
+      return bad(400, 'BAD_ACTIVITY', `activityTail[${i}] needs at (positive integer unix ms), slug, kind`);
     }
     activityByKey.set(`${at}\u0000${slug}\u0000${kind}`, {
       at, slug, kind, byId: strOrNull(raw.byId, 200), detail: raw.detail ?? null,
