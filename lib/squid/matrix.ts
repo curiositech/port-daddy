@@ -163,7 +163,7 @@ export function withLock<T>(fleet: string | undefined, fn: () => T, opts?: LockO
 
 // ─── Serialization (the POSIX-readable format) ────────────────────────────────
 
-const ENV_LINE = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/;
+const ENV_LINE = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;
 
 /** Escape a value for the `KEY="value"` POSIX line format. */
 export function escapeValue(v: string): string {
@@ -178,17 +178,24 @@ export function unescapeValue(v: string): string {
   return v.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
 }
 
-/** Parse raw matrix text into a key→value map (defensive: ignores junk lines). */
+/**
+ * Parse raw matrix text into a key→value map (defensive: ignores junk lines).
+ * Accept the POSIX-compatible forms supported by the former Ink Cloud reader:
+ * optional `export`, whitespace around `=`, and single-quoted values.
+ */
 export function parseMatrix(text: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
-    const m = ENV_LINE.exec(line);
+    const body = line.startsWith('export ') ? line.slice(7).trim() : line;
+    const m = ENV_LINE.exec(body);
     if (!m) continue;
     let val = m[2];
     if (val.length >= 2 && val.startsWith('"') && val.endsWith('"')) {
       val = unescapeValue(val.slice(1, -1));
+    } else if (val.length >= 2 && val.startsWith("'") && val.endsWith("'")) {
+      val = val.slice(1, -1);
     }
     out[m[1]] = val;
   }

@@ -5,9 +5,20 @@ import SwiftUI
 // Pinned at the very top of the FleetBar dropdown: a spawn the trust gate is
 // holding is the one thing the operator must not miss. Renders nothing when
 // the queue is empty — no dead chrome.
+//
+// While a CRITICAL operator interruption is open (docs/hitl-interruptions.md
+// §4 clause 3), Approve is disabled — approving would start NEW dependent
+// agent work — and the section says exactly why, with a deep-link to the
+// web answer page. Reject stays enabled: declining work is not new work.
 
 struct SpawnApprovalSection: View {
     @ObservedObject var store: SpawnApprovalStore
+
+    /// Title of the open critical interruption that blocks new spawns, or
+    /// nil when spawning is allowed. Supplied by InterruptionsStore.
+    var criticalBlockTitle: String? = nil
+    /// Deep-link to the session-gated answer page; nil hides the link.
+    var openAnswerPage: (() -> Void)? = nil
 
     var body: some View {
         if !store.approvals.isEmpty {
@@ -18,6 +29,10 @@ struct SpawnApprovalSection: View {
                     Text("Spawn approvals (\(store.approvals.count))")
                         .font(.callout.weight(.semibold))
                     Spacer()
+                }
+
+                if let blockedTitle = criticalBlockTitle {
+                    blockBanner(blockedTitle)
                 }
 
                 if let error = store.lastError {
@@ -38,6 +53,29 @@ struct SpawnApprovalSection: View {
     }
 
     @ViewBuilder
+    private func blockBanner(_ title: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.xs) {
+            Image(systemName: "nosign")
+                .foregroundStyle(Fleet.Color.failure)
+            Text("Approvals paused: critical operator ask \u{201C}\(title)\u{201D} is open.")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Fleet.Color.failure)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if let openAnswerPage {
+                Button {
+                    openAnswerPage()
+                } label: {
+                    Label("Answer on web", systemImage: "arrow.up.right.square")
+                        .font(.callout.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .tint(Fleet.Color.failure)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func approvalRow(_ approval: SpawnApproval) -> some View {
         HStack(alignment: .center, spacing: Fleet.Space.s) {
             VStack(alignment: .leading, spacing: 2) {
@@ -51,6 +89,7 @@ struct SpawnApprovalSection: View {
             }
             Spacer(minLength: Fleet.Space.s)
             let deciding = store.decidingIds.contains(approval.id)
+            let spawnsBlocked = criticalBlockTitle != nil
             Button {
                 Task { await store.decide(approval.id, decision: "approve") }
             } label: {
@@ -59,7 +98,12 @@ struct SpawnApprovalSection: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Fleet.Color.healthy)
-            .disabled(deciding)
+            .disabled(deciding || spawnsBlocked)
+            .help(
+                spawnsBlocked
+                    ? "Blocked: critical operator ask \u{201C}\(criticalBlockTitle ?? "")\u{201D} is open. Answer it on the web first."
+                    : "Approve this spawn"
+            )
             Button {
                 Task { await store.decide(approval.id, decision: "reject") }
             } label: {
