@@ -4,6 +4,7 @@ import handler from '../src/index.js';
 import {
   freshState,
   installGitHubFetch,
+  memoryD1,
   memoryKV,
   aiStub,
   makeEnv,
@@ -11,6 +12,12 @@ import {
   type GitHubState,
 } from './harness.js';
 import type { FleetRunJob } from '../src/env.js';
+import {
+  DELIVERY_CONTINUATION_KIND,
+  countDeliveryContinuations,
+  recordDeliveryContinuation,
+  runIdForDelivery,
+} from '../src/delivery-failure.js';
 
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
@@ -55,6 +62,108 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('slices a multi-ship run into visible cumulative continuations, then acks the verdict', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      blocking: true',
+        '      prompt: review',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: test',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'FLEET-VERDICT: PASS',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    }).ai;
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: db.db });
+
+    const first = fakeMessage(makeJob(), 1);
+    await handler.queue!(fakeBatch([first]), env, capturingCtx());
+
+    expect(first.retry).toHaveBeenCalledWith({ delaySeconds: 1 });
+    expect(first.ack).not.toHaveBeenCalled();
+    expect(state.completed).toHaveLength(0);
+    expect(db.steps.filter(step => step.kind === DELIVERY_CONTINUATION_KIND)).toHaveLength(1);
+    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
+
+    const deliveries = [first];
+    for (let attempt = 2; attempt <= 13 && deliveries.at(-1)?.ack.mock.calls.length === 0; attempt += 1) {
+      const next = fakeMessage(makeJob(), attempt);
+      await handler.queue!(fakeBatch([next]), env, capturingCtx());
+      deliveries.push(next);
+    }
+
+    const final = deliveries.at(-1)!;
+    expect(final.retry).not.toHaveBeenCalled();
+    expect(final.ack).toHaveBeenCalledTimes(1);
+    for (const slice of deliveries.slice(0, -1)) {
+      expect(slice.retry).toHaveBeenCalledWith({ delaySeconds: 1 });
+      expect(slice.ack).not.toHaveBeenCalled();
+    }
+    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc')))
+      .toBe(deliveries.length - 1);
+    expect(state.completed.at(-1)?.conclusion).toBe('success');
+  });
+
+  it('does not charge intentional slices against the provider retry circuit', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: test',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({
+      FLEET_TOKENS: kv,
+      DB: db.db,
+      AI: {
+        run: vi.fn(async () => {
+          throw Object.assign(new Error('no capacity'), { status: 429, code: 3040 });
+        }),
+      } as unknown as Ai,
+    });
+    await recordDeliveryContinuation(env, makeJob(), 1, 'prior-a', ['qa']);
+    await recordDeliveryContinuation(env, makeJob(), 2, 'prior-b', ['qa']);
+
+    const thirdQueueDelivery = fakeMessage(makeJob(), 3);
+    await handler.queue!(fakeBatch([thirdQueueDelivery]), env, capturingCtx());
+
+    // Raw queue attempt 3 minus two successful continuations = provider
+    // attempt 1, so the dependency gets its first bounded retry rather than an
+    // immediate fleet-wide adjudication.
+    expect(thirdQueueDelivery.retry).toHaveBeenCalledTimes(1);
+    expect(thirdQueueDelivery.ack).not.toHaveBeenCalled();
+    expect(state.completed).toHaveLength(0);
+  });
+
   it('acks a message on successful run', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();

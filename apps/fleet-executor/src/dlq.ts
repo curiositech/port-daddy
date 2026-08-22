@@ -27,6 +27,7 @@ import { emitCloudTelemetry } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import { CHECK_NAME, ensureRunRow } from './execute.js';
 import {
+  countDeliveryContinuations,
   countDeliveryAttemptStarts,
   deadLetterSummary,
   readLastDeliveryFailure,
@@ -93,6 +94,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       await readLastDeliveryFailure(env, runId),
       await countDeliveryAttemptStarts(env, runId),
       await countShipCheckpoints(env, runId),
+      await countDeliveryContinuations(env, runId),
     )}`;
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,

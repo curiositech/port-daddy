@@ -1131,6 +1131,36 @@ import {
 } from '../src/ship-checkpoint.js';
 
 describe('attempt checkpoints — retries resume, never re-spend', () => {
+  it('returns an intentional continuation after one newly checkpointed ship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    expect(disposition).toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND).map(step => step.ship))
+      .toEqual(['code-reviewer']);
+  });
+
   it('a completed run leaves one parseable checkpoint row per ship that ran', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();
@@ -1362,7 +1392,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       'run:delivery-abc',
       0,
       { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
-    )).resolves.toBeUndefined();
+    )).resolves.toBe(false);
     await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
   });
 
