@@ -213,6 +213,32 @@ describe('logical run projections', () => {
     expect(running?.expected_finish_at).toBe(1_040);
   });
 
+  it('leaves ETA fields unknown when no completed service-time witness exists', async () => {
+    const rows = await listFleetRunProjections(makeDb({ intents: [intent()] }), 10, 1_020);
+    expect(rows[0]).toMatchObject({
+      logical_state: 'queued',
+      expected_start_at: null,
+      expected_finish_at: null,
+      queue_ahead_estimate: null,
+    });
+    expect(Number.isNaN(rows[0]?.expected_finish_at)).toBe(false);
+  });
+
+  it('keeps the durable intent state authoritative over a pending transcript header', async () => {
+    const pendingRun = {
+      ...HISTORIC_RUN,
+      id: 'run:delivery-new',
+      delivery_id: 'delivery-new',
+      conclusion: 'pending',
+    };
+    const rows = await listFleetRunProjections(
+      makeDb({ intents: [intent({ state: 'superseded' })], runs: [pendingRun] }),
+      10,
+      1_020,
+    );
+    expect(rows[0]).toMatchObject({ logical_state: 'superseded', has_transcript: true });
+  });
+
   it('opens an intent-only transcript route without inventing transcript steps', async () => {
     const found = await getFleetRunProjectionWithSteps(
       makeDb({ intents: [intent()] }),

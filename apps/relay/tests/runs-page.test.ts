@@ -305,6 +305,55 @@ describe('GET /account/runs — live logical state', () => {
     expect(html).toContain('expected');
     expect(html).not.toContain('pd-—');
   });
+
+  it('renders corrupt active metadata as an explicit invariant breach, not a plausible value', () => {
+    const base = makeRun();
+    const projectionBase = {
+      ...base,
+      generation: 1,
+      queued_at: 1_700_000_000,
+      started_at: null,
+      last_progress_at: 1_700_000_000,
+      finished_at: null,
+      superseded_by: null,
+      expected_start_at: null,
+      expected_finish_at: null,
+      queue_ahead_estimate: null,
+      has_transcript: false,
+    };
+    const runs: FleetRunProjection[] = [
+      {
+        ...projectionBase,
+        logical_state: 'enqueue_failed',
+        conclusion: 'enqueue_failed',
+        ships_csv: '',
+        attempt_count: 0,
+        last_error: null,
+      } as FleetRunProjection,
+      {
+        ...projectionBase,
+        id: 'run:active',
+        delivery_id: 'active',
+        logical_state: 'running',
+        conclusion: 'pending',
+        ships_csv: '',
+        attempt_count: Number.NaN,
+      } as FleetRunProjection,
+    ];
+    const html = renderRunsPage(
+      {
+        id: 'u_1', github_user_id: 1, login: 'octocat', display_name: null,
+        avatar_url: null, primary_email: null, email_verified: 0,
+        created_at: 0, last_login_at: 0, deleted_at: null,
+      },
+      [{ repo: 'acme/widgets', runs }],
+      { truncated: false, nowSec: 1_700_000_010 },
+    );
+    expect(html).toContain('admission record incomplete');
+    expect(html).toContain('queue handoff failed without durable error detail');
+    expect(html).toContain('attempt 1 · transcript arriving');
+    expect(html).not.toContain('attempt NaN');
+  });
 });
 
 describe('GET /account/runs — empty state', () => {
