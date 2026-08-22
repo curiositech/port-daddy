@@ -1,3 +1,22 @@
+<!-- RETIRED-BY: ADR-0126 -->
+> ## ⚓ Retired — superseded, kept as history
+>
+> The peer mesh described here — leader election, multi-writer
+> replication, peer-to-peer state sync — is **superseded by the
+> authority-domain model**: one writer lease per harbor with authority
+> epochs and no election ([ADR-0122](adr/0122-harbor-authority.md)),
+> plus relay event federation ([ADR-0027](adr/0027-relay-harbor-mesh.md),
+> [ADR-0049](adr/0049-relay-architecture.md)).
+>
+> The V4 "Part XVII" trap this design belongs to stays closed.
+>
+> **Authority:** [ADR-0126 — Shared-Harbors Re-sequencing](adr/0126-shared-harbors-resequencing.md), § Formal supersessions.
+> This document is retained deliberately: the 2026-06-05 operator rule is
+> demote by default, delete only a merged twin. Read it for the reasoning
+> that was current when it was written, not for what to build now.
+
+---
+
 # Port Daddy Daemon Mesh Architecture
 
 **Author:** Erich Owens (with architecture by Claude)

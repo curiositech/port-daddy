@@ -1,3 +1,19 @@
+# RETIRED-BY: ADR-0126
+# ============================================================================
+# RETIRED — superseded, kept as history.
+#
+# The critical path this graph encodes is dead as a plan: it runs
+# XVIII -> I -> XVII -> II/III, and Part XVII (the daemon sync protocol) was
+# rejected by ADR-0049's non-goals. A critical path through a rejected node
+# orders nothing.
+#
+# The surviving fragment is ADR-0115 (replication classes, sync spine,
+# co-signed PairingReceipt), which absorbed what Part XVII got right.
+#
+# Authority: docs/adr/0126-shared-harbors-resequencing.md, Formal supersessions.
+# Retained deliberately (demote by default, delete only a merged twin).
+# ============================================================================
+
 # Port Daddy V4 Implementation DAG
 # Format: WinDAGs V3-compatible DAGDefinition
 #
