@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Operators can now record per-repo agent settings on their account.** The portdaddy.dev relay gains `/account/repos`, a session-gated, script-free screen where each repository the operator's GitHub identity can read carries its own agent settings — starting with the SITREP end-of-turn dial (off | suggest | enforce). Settings live in a new `repo_settings` D1 table, and paired devices converge through `GET /v1/repo-settings` (device token or session cookie). The page is honest about the enforcement point: each clone's local `agent.config.json` dial, with the exact snippet rendered per repository — the server never reaches into checkouts.
 - **portdaddy.dev harbors section (WS-E slices E1/E2).** The logged-in account gains a harbors list and per-harbor detail — members, device last-seen, and a reachability verdict (`possible | degraded | impossible | unknown`) derived from HarborChannel presence TTL — server-rendered on the relay origin in the house pattern. Degrades in place with stale chips rather than splash-blocking. Every query is scoped to the viewer's own memberships, and a harbor you are not a member of is indistinguishable from one that does not exist: no existence oracle, pinned by test.
 
 ### Fixed
