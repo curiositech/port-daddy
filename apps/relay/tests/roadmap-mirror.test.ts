@@ -39,7 +39,6 @@ import {
   replaceRoadmapMirror,
   readMirrorHeader,
   readBoard,
-  readItemDetail,
   readActivityTail,
   exportRoadmapMirrors,
   handleRoadmapSnapshotPut,
