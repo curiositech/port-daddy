@@ -107,10 +107,28 @@ export class AgentRunIdempotencyConflictError extends Error {
   }
 }
 
+/**
+ * Returns the SHA-256 hash of the input string as a lowercase hex digest.
+ * Purpose: deterministic idempotency key hashing and request fingerprinting.
+ *
+ * @param value - String to hash.
+ * @returns 64-character lowercase hex digest.
+ */
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * Validates and normalizes a required string field, rejecting empty/whitespace-only
+ * values, oversized inputs, and unsafe characters (null bytes, newlines). Purpose:
+ * prevent injection attacks and database corruption from malformed identifiers.
+ *
+ * @param value - String to validate.
+ * @param field - Field name (for error messages).
+ * @param maxBytes - Maximum allowed UTF-8 byte length (default 512).
+ * @returns Normalized string.
+ * @throws Error if empty after trimming, exceeds maxBytes, or contains null/CR/LF.
+ */
 function required(value: string, field: string, maxBytes = 512): string {
   const normalized = String(value ?? '').trim();
   if (!normalized) throw new Error(`${field} is required`);
@@ -149,7 +167,11 @@ function canonicalJson(value: unknown): string {
 
 /**
  * A corrupt or malformed optional JSON payload must never be promoted into
- * evidence about the receipt. Fail closed: return null, never invent a shape.
+ * evidence about the receipt. Purpose: fail closed — return null, never
+ * invent a shape.
+ *
+ * @param value - Raw JSON text from an optional column, or null.
+ * @returns Parsed plain object, or null for anything malformed or non-object.
  */
 function parseJsonObject<T>(value: string | null): T | null {
   if (!value) return null;
@@ -161,6 +183,13 @@ function parseJsonObject<T>(value: string | null): T | null {
   }
 }
 
+/**
+ * Converts a raw SQLite row into the public AgentRunReceipt shape. Purpose:
+ * parse optional JSON payloads safely and map snake_case columns to camelCase.
+ *
+ * @param row - Raw database row.
+ * @returns Public receipt object.
+ */
 function toReceipt(row: AgentRunReceiptRow): AgentRunReceipt {
   return {
     schema: AGENT_RUN_RECEIPT_SCHEMA,
@@ -183,6 +212,13 @@ function toReceipt(row: AgentRunReceiptRow): AgentRunReceipt {
   };
 }
 
+/**
+ * Clamps a caller-supplied limit to the safe range [1, AGENT_RUN_LIST_MAX_LIMIT].
+ * Purpose: prevent unbounded queries and ensure at least one result is requested.
+ *
+ * @param requested - Requested limit, or undefined.
+ * @returns Clamped limit in [1, AGENT_RUN_LIST_MAX_LIMIT], defaulting to AGENT_RUN_LIST_DEFAULT_LIMIT.
+ */
 function clampListLimit(requested: number | undefined): number {
   const parsed = Number.isFinite(requested) ? Math.trunc(requested as number) : AGENT_RUN_LIST_DEFAULT_LIMIT;
   return Math.min(Math.max(parsed, 1), AGENT_RUN_LIST_MAX_LIMIT);
@@ -192,15 +228,23 @@ function clampListLimit(requested: number | undefined): number {
  * Durable, restart-safe ledger for agent run receipts.
  *
  * Idempotency is enforced by the database itself: `idempotency_key_hash` is
- * UNIQUE and the insert is a single atomic `INSERT ... ON CONFLICT DO
- * NOTHING`, so two concurrent callers racing on the same key can never create
- * two rows — one wins the insert, the other observes it via the same SELECT.
+ * UNIQUE and acceptance is one atomic `INSERT ... ON CONFLICT DO UPDATE ...
+ * RETURNING` statement, so two concurrent callers racing on the same key can
+ * never create two rows or observe a gap between insertion and retrieval.
  *
  * A run that loses liveness (daemon restart while `accepted`/`starting`/
  * `live`) is marked `unknown` and can only ever be reconciled back to `live`
  * with fresh, direct evidence (a real PID plus a recent supervisor
  * heartbeat). `unknown` never transitions straight to a terminal status —
  * lost liveness is never silently treated as success.
+ *
+ * The design intent is that every guarantee lives in the database, not in
+ * this process: a crashed daemon, a concurrent caller, or a second store
+ * instance over the same file must all observe the same admission decisions.
+ *
+ * @param db - Portable database instance (better-sqlite3 or bun:sqlite).
+ * @param options - Optional configuration ({now} clock override, {recoverNonTerminal} restart-recovery flag).
+ * @returns Store object with methods {accept, get, markStarting, markStatus, list}.
  */
 export function createAgentRunReceiptStore(
   db: PortableDatabase,
@@ -251,10 +295,11 @@ export function createAgentRunReceiptStore(
       transcript_id, status, created_at, updated_at, started_at, completed_at,
       budget_usd, telemetry_json, error
     ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'accepted', ?, ?, NULL, NULL, ?, NULL, NULL)
-    ON CONFLICT(idempotency_key_hash) DO NOTHING
+    ON CONFLICT(idempotency_key_hash) DO UPDATE
+      SET idempotency_key_hash = excluded.idempotency_key_hash
+    RETURNING *
   `);
   const byId = db.prepare('SELECT * FROM agent_run_receipts WHERE id = ? LIMIT 1');
-  const byKey = db.prepare('SELECT * FROM agent_run_receipts WHERE idempotency_key_hash = ? LIMIT 1');
   const attach = db.prepare(`
     UPDATE agent_run_receipts
     SET successor_agent_id = ?, successor_session_id = COALESCE(?, successor_session_id),
@@ -279,11 +324,39 @@ export function createAgentRunReceiptStore(
       )
   `);
 
+  /**
+   * Retrieves a single agent run receipt by its ID. Purpose: public API for
+   * fetching receipts after accepting or marking status changes.
+   *
+   * @param id - Receipt ID.
+   * @returns Receipt object if found, null otherwise.
+   */
   function get(id: string): AgentRunReceipt | null {
     const row = byId.get(required(id, 'receiptId')) as AgentRunReceiptRow | undefined;
     return row ? toReceipt(row) : null;
   }
 
+  /**
+   * Atomically accepts a new agent run request or replays an existing one.
+   *
+   * Purpose: database-level idempotency. The UNIQUE `idempotency_key_hash`
+   * plus a single `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` statement
+   * means acceptance is one statement whose own result row answers
+   * inserted-vs-existing — there is no separate SELECT after the insert, so
+   * there is no window in which a concurrent accept, a rollback, or a crash
+   * can make the readback disagree with what the insert actually did. The
+   * design motivation is money safety: a duplicated or ghost-accepted run is
+   * a duplicated spend, so the ledger must never rely on read-after-write.
+   *
+   * The conflict arm is a deliberate no-op update (it rewrites the key to its
+   * own value) purely so the existing row flows out through `RETURNING`;
+   * `replayed` is derived from whether the returned row carries the id this
+   * call generated.
+   *
+   * @param input - Request with idempotencyKey, kind, request payload, optional predecessor and budget.
+   * @returns Object with {receipt, replayed} where replayed is true if the key already existed.
+   * @throws AgentRunIdempotencyConflictError when the key exists with a different request or kind.
+   */
   function accept(input: {
     idempotencyKey: string;
     kind: AgentRunKind;
@@ -296,7 +369,7 @@ export function createAgentRunReceiptStore(
     const requestHash = sha256(canonicalJson(input.request));
     const timestamp = now();
     const id = `run-${randomBytes(8).toString('hex')}`;
-    const result = insert.run(
+    const row = insert.get(
       id,
       required(input.kind, 'kind'),
       keyHash,
@@ -306,14 +379,28 @@ export function createAgentRunReceiptStore(
       timestamp,
       timestamp,
       input.budgetUsd ?? null,
-    );
-    const row = byKey.get(keyHash) as AgentRunReceiptRow;
+    ) as AgentRunReceiptRow | undefined;
+    if (!row) {
+      // Fail closed: RETURNING always yields the accepted row on a healthy
+      // driver, so a missing readback means the storage layer is broken and
+      // no admission decision can be trusted.
+      throw new Error(`agent run acceptance returned no row for key hash ${keyHash}`);
+    }
     if (row.request_hash !== requestHash || row.kind !== input.kind) {
       throw new AgentRunIdempotencyConflictError(row.id);
     }
-    return { receipt: toReceipt(row), replayed: result.changes === 0 };
+    return { receipt: toReceipt(row), replayed: row.id !== id };
   }
 
+  /**
+   * Transitions an 'accepted' receipt to 'starting' and attaches successor
+   * identifiers. Purpose: record when the agent actually begins execution.
+   *
+   * @param id - Receipt ID.
+   * @param input - Object with successorAgentId, optional successorSessionId, and transcriptId.
+   * @returns Updated receipt.
+   * @throws Error if the receipt is missing or not in a state that may start.
+   */
   function markStarting(
     id: string,
     input: { successorAgentId: string; successorSessionId?: string | null; transcriptId: string },
@@ -336,6 +423,19 @@ export function createAgentRunReceiptStore(
     return receipt;
   }
 
+  /**
+   * Updates the receipt status according to the status lattice. Purpose: enforce
+   * forward-only transitions (except `unknown` -> `live` with fresh evidence) and
+   * terminal-status stickiness, preventing lost liveness from being silently
+   * treated as success.
+   *
+   * @param id - Receipt ID.
+   * @param status - New status to set.
+   * @param input - Optional successorSessionId, error, telemetry, and liveEvidence (required for 'live').
+   * @returns Updated receipt.
+   * @throws Error if liveEvidence is invalid when status is 'live', the receipt
+   *   is missing, or the transition is not allowed by the lattice.
+   */
   function markStatus(
     id: string,
     status: AgentRunReceiptStatus,
@@ -386,6 +486,13 @@ export function createAgentRunReceiptStore(
     return receipt;
   }
 
+  /**
+   * Returns receipts matching the optional filters, ordered by updated_at DESC.
+   * Purpose: paginated query API with safe limits to prevent unbounded reads.
+   *
+   * @param filter - Optional status/kind/predecessorSessionId filters and limit.
+   * @returns Array of matching receipts (limit clamped to [1, AGENT_RUN_LIST_MAX_LIMIT]).
+   */
   function list(filter: AgentRunReceiptListFilter = {}): AgentRunReceipt[] {
     const clauses: string[] = [];
     const params: unknown[] = [];
