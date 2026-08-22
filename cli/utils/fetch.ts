@@ -16,7 +16,7 @@ const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 // Most legacy callers concatenate this with a relative path before handing it
 // back to pdFetch(), which resolves the actual transport independently. Keep
 // the compatibility prefix empty unless the operator selected an explicit URL;
-// manufacturing a preferred-port URL here would reintroduce a 9876 guess.
+// manufacturing a preferred-port URL here would reintroduce a port guess.
 const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL?.replace(/\/$/, '') ?? '';
 
 export { PORT_DADDY_URL, SOCK_PATH };
@@ -70,7 +70,7 @@ export function getDaemonUrl(): string {
     return resolvePublishedDaemonUrl(process.env.PORT_DADDY_URL).replace(/\/$/, '');
   } catch {
     // Display callers may be initialized before the daemon publishes an
-    // endpoint. Empty is fail-closed and avoids manufacturing port 9876.
+    // endpoint. Empty is fail-closed and avoids manufacturing a preferred port.
     return '';
   }
 }
