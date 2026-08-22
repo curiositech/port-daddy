@@ -13,6 +13,7 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   readSync,
   rmSync,
@@ -177,19 +178,33 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
     if (!existsSync(statePath)) return [];
     try {
       const fields = readFileSync(statePath, 'utf8').trim().split('\t');
-      if (fields.length !== 9 || fields[0] !== 'v1') return [];
+      const version = fields[0];
+      if ((version === 'v1' && fields.length !== 9) || (version === 'v2' && fields.length !== 10)) return [];
+      if (version !== 'v1' && version !== 'v2') return [];
       const [, rawState, failuresRaw, openedRaw, retryRaw, reason, durationRaw, exitRaw, updatedRaw] = fields;
+      const receiptSeenRaw = version === 'v2' ? fields[9] : '0';
       if (rawState !== 'closed' && rawState !== 'open') return [];
       if (!/^[a-z0-9_-]{1,48}$/.test(reason)) return [];
-      const values = [failuresRaw, openedRaw, retryRaw, durationRaw, updatedRaw];
+      const values = [failuresRaw, openedRaw, retryRaw, durationRaw, updatedRaw, receiptSeenRaw];
       if (values.some((value) => !/^[0-9]{1,16}$/.test(value))) return [];
       if (exitRaw !== '-' && !/^[0-9]{1,3}$/.test(exitRaw)) return [];
-      const failures = Number(failuresRaw);
+      const storedFailures = Number(failuresRaw);
+      const receiptSeen = Number(receiptSeenRaw);
       const openedAtMs = Number(openedRaw);
       const retryAtMs = Number(retryRaw);
       const durationMs = Number(durationRaw);
       const updatedAtMs = Number(updatedRaw);
-      if (![failures, openedAtMs, retryAtMs, durationMs, updatedAtMs].every(Number.isSafeInteger)) return [];
+      if (![storedFailures, receiptSeen, openedAtMs, retryAtMs, durationMs, updatedAtMs].every(Number.isSafeInteger)) return [];
+      const receiptDir = join(healthDir, `${hook}.failures`);
+      let receiptCount = 0;
+      try {
+        receiptCount = readdirSync(receiptDir, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && /^[0-9]+-[0-9]+\.failure$/.test(entry.name))
+          .length;
+      } catch {
+        // No receipt directory is the normal healthy/legacy case.
+      }
+      const failures = storedFailures + Math.max(0, receiptCount - receiptSeen);
       const halfOpen = rawState === 'open' && existsSync(join(healthDir, `${hook}.probe`));
       return [{
         hook,

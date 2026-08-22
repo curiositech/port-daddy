@@ -315,10 +315,11 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(prompt()).not.toContain('Open FleetBar > Giant Squid > Repair');
   });
 
-  test('concurrent failures serialize breaker accounting instead of losing increments', async () => {
+  test('concurrent failures account atomically without losing increments', async () => {
     const pdHome = join(SANDBOX, 'breaker-concurrent-home');
     const binDir = join(pdHome, 'bin');
     const count = join(pdHome, 'concurrent-child-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.03\nexit 127\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
@@ -338,19 +339,53 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       child.stdin.end('{}');
     });
 
-    await Promise.all(Array.from({ length: 6 }, run));
+    await Promise.all(Array.from({ length: 12 }, run));
 
     const circuit = readSquidHookHealth(pdHome).circuits[0];
     const executed = readFileSync(count, 'utf8').length;
     expect(executed).toBeGreaterThanOrEqual(3);
     expect(circuit).toMatchObject({ state: 'open', consecutiveFailures: executed, lastReason: 'exit_127' });
+    const receipts = join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.failures');
+    expect(existsSync(receipts)).toBe(true);
     expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.state.lock'))).toBe(false);
+  });
+
+  test('a lock-timeout receipt remains cumulative and is reconciled by the next failure', () => {
+    const pdHome = join(SANDBOX, 'breaker-receipt-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 127\n', { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '3',
+      PD_HOOK_SLOW_MS: '10000',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+
+    expect(execFileSync(wrapper, [], { cwd: REPO, env, input: '{}', encoding: 'utf8' })).toBe('');
+    const statePath = join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.state');
+    const fields = readFileSync(statePath, 'utf8').trim().split('\t');
+    expect(fields[0]).toBe('v2');
+    const receiptDir = join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.failures');
+    mkdirSync(join(receiptDir, '999999-999.failure'));
+
+    expect(readSquidHookHealth(pdHome).circuits[0].consecutiveFailures).toBe(2);
+    expect(execFileSync(wrapper, [], { cwd: REPO, env, input: '{}', encoding: 'utf8' })).toBe('');
+    expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({
+      state: 'open', consecutiveFailures: 3, lastReason: 'exit_127',
+    });
   });
 
   test('slow hooks open the breaker under POSIX dash and later calls are constant-time no-ops', () => {
     const pdHome = join(SANDBOX, 'breaker-slow-home');
     const binDir = join(pdHome, 'bin');
     const count = join(pdHome, 'slow-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.08\nexit 0\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
@@ -380,6 +415,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const pdHome = join(SANDBOX, 'breaker-timer-missing-home');
     const binDir = join(pdHome, 'bin');
     const count = join(pdHome, 'timer-missing-child-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nexit 0\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
@@ -406,6 +442,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
   test('intentional edit blocks never count as hook failures', () => {
     const pdHome = join(SANDBOX, 'breaker-block-home');
     const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
@@ -424,6 +461,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const binDir = join(pdHome, 'bin');
     const marker = join(pdHome, 'failed-once');
     const count = join(pdHome, 'probe-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), [
       '#!/bin/sh',
@@ -459,6 +497,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
 
     expect(readFileSync(count, 'utf8')).toBe('xx');
     expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
+    expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-prompt.failures'))).toBe(false);
   });
 
   test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
