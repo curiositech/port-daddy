@@ -10,13 +10,10 @@
 //! Mirrors `lane_live.rs`: include `agent.rs` directly via `#[path]` so this
 //! target links only reqwest/tokio (no gpui) and compiles light.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
-// agent.rs resolves the stable-berth default via crate::berths (daemon
-// discovery's final fallback), so every target hosting agent.rs must also
-// host the berths module.
-#[path = "../src/berths.rs"]
-mod berths;
 
 use agent::DaemonClient;
 use std::io::{Read, Write};

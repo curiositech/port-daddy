@@ -73,8 +73,21 @@ export default {
     // 'Port Daddy Fleet' check is stuck in_progress — complete it as failure so a
     // lost blocking job can never leave a green/absent gate. Always ack (the
     // message already exhausted retries; re-queuing it would loop).
+    // OBSERVABILITY (#7743 follow-up): one line per invocation, before any
+    // branch can return early. The OOM investigation cost two cycles partly
+    // because nothing recorded that the consumer had even been reached — an
+    // absent 'Port Daddy Fleet' check is ambiguous between "never dispatched",
+    // "skipped as superseded", and "died before creating the gate", and those
+    // have completely different fixes. This line collapses the first ambiguity.
+    console.log(
+      `[fleet-executor] queue=${batch.queue} batchSize=${batch.messages.length}`,
+    );
+
     if (batch.queue === DLQ_QUEUE_NAME) {
       for (const message of batch.messages) {
+        console.log(
+          `[fleet-executor] dlq delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber}`,
+        );
         await handleDlqJob(message.body, env);
         message.ack();
       }
@@ -87,11 +100,24 @@ export default {
         ? reportedAttempt as number
         : 1;
       try {
+        console.log(
+          `[fleet-executor] job delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} attempt=${attempt}`,
+        );
         const intentDecision = await beginFleetIntentAttempt(env, message.body, attempt);
         if (intentDecision === 'skip') {
           // A newer PR generation owns the required check.  The queue cannot
           // delete this stale message, so acknowledge it here before GitHub or
           // model work.  The superseded intent remains visible to operators.
+          //
+          // LOUD ON PURPOSE: this is the one exit that acks a job WITHOUT ever
+          // creating the 'Port Daddy Fleet' check, so a PR that takes it shows
+          // no gate at all — indistinguishable from "the fleet never ran" when
+          // read from GitHub. If this fires when it shouldn't, silence would
+          // make it invisible; a superseded skip is normal, a stream of them on
+          // current heads is a bug.
+          console.log(
+            `[fleet-executor] SKIPPED as superseded delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
+          );
           message.ack();
           continue;
         }

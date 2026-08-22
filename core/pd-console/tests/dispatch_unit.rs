@@ -4,13 +4,10 @@
 //! `#[cfg(test)] mod tests` (queue rendering, utf8-safe truncation, tolerant
 //! decode, and the head-of-queue gate plumbing) compiles and runs here.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
-// agent.rs resolves the stable-berth default via crate::berths (daemon
-// discovery's final fallback), so every target hosting agent.rs must also
-// host the berths module.
-#[path = "../src/berths.rs"]
-mod berths;
 #[path = "../src/dispatch_pane.rs"]
 mod dispatch_pane;
 #[path = "../src/pane.rs"]

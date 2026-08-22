@@ -204,14 +204,17 @@ impl SseParser {
     }
 }
 
-/// Thin client for the live daemon — discovers it the canonical way (PR #261):
-/// `PORT_DADDY_URL`, else the operator's selected `console-daemon.url`, else the
-/// TCP port the running daemon wrote to `~/.port-daddy/daemon.port`, else the
-/// canonical stable berth. The design intent of the final fallback: a fresh
-/// console must always open — pointing at the one port the stable daemon is
-/// contractually berthed on — and render "daemon unreachable" state in-pane,
-/// rather than panicking before the window exists and leaving the operator
-/// with a stack trace instead of an instruction.
+/// Thin client for the live daemon — discovers it the canonical way (PR #261,
+/// extended for ADR-0084): `PORT_DADDY_URL`, else `~/.port-daddy/console-daemon.url`,
+/// else the TCP port the running daemon wrote to `~/.port-daddy/daemon.port`. When
+/// none of those exist (a fresh machine, or the file hasn't landed yet) the console
+/// no longer refuses to open — it falls back to the canonical stable berth
+/// (`berths::STABLE_PORT`) if something is actually listening there, else the
+/// first berth the dev-daemons registry knows about. The design intent of the
+/// final fallback: a fresh console must always open and render "daemon
+/// unreachable" state in-pane, rather than panicking before the window exists
+/// and leaving the operator with a stack trace instead of an instruction. See
+/// [`DaemonClient::discover`].
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
@@ -423,11 +426,15 @@ impl DaemonClient {
         //      point it at a dev berth (e.g. http://127.0.0.1:9886) WITHOUT
         //      clobbering the canonical daemon.port. Delete the file to fall back
         //      to stable. The status bar shows which URL is live.
-        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon.
-        //   4. The stable berth itself — the daemon's contractual default port.
-        //      A console that cannot find any registration still opens against
-        //      the address the stable daemon will occupy, and the panes render
-        //      reachability truthfully instead of the process dying pre-window.
+        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon, if it
+        //      has registered by writing its port.
+        //   4. Nothing recorded anywhere: probe the canonical stable berth
+        //      (`berths::STABLE_PORT` — never hardcoded past this one named
+        //      constant) and use it if something answers; otherwise fall back to
+        //      the first berth the dev-daemons registry knows about. The console
+        //      must open with *some* selection — every pane already degrades to
+        //      "daemon unreachable" gracefully, and `u`/the picker let the
+        //      operator repoint it, so refusing to start here served no one.
         if let Ok(url) = std::env::var("PORT_DADDY_URL") {
             return Ok(Self::new(url));
         }
@@ -442,13 +449,14 @@ impl DaemonClient {
             return Ok(Self::new(url));
         }
         if let Some(port) = home
+            .as_ref()
             .map(|h| h.join(".port-daddy/daemon.port"))
             .and_then(|p| std::fs::read_to_string(p).ok())
             .and_then(|s| s.trim().parse::<u16>().ok())
         {
             return Ok(Self::new(format!("http://127.0.0.1:{port}")));
         }
-        Ok(Self::new(crate::berths::stable_url()))
+        Ok(Self::new(crate::berths::default_url()))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`GET /roadmap/board` schedules with real estimates** instead of the hardcoded `estimate: 1` — the board's Gantt is a duration chart now (`gantt-real-estimate-wiring`).
-- **pd-console daemon discovery defaults to the stable berth** (`http://127.0.0.1:9876`) when no `PORT_DADDY_URL`, `console-daemon.url`, or `daemon.port` is present, instead of failing before the window opens.
+- **pd-console daemon discovery never fails pre-window.** When no `PORT_DADDY_URL`, `console-daemon.url`, or `daemon.port` is present, discovery falls back to `berths::default_url()` — the canonical stable berth (`http://127.0.0.1:9876`) when it answers (or nothing else is known), else the first registered dev berth — instead of refusing to open.
 
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.

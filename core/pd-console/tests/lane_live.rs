@@ -10,13 +10,10 @@
 //! Uses only std for the server (no extra dev-deps); the crate's dev tokio
 //! provides the runtime `subscribe_agent` spawns onto.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
-// agent.rs resolves the stable-berth default via crate::berths (daemon
-// discovery's final fallback), so every target hosting agent.rs must also
-// host the berths module.
-#[path = "../src/berths.rs"]
-mod berths;
 
 use agent::{DaemonClient, StreamKind};
 use std::io::{Read, Write};

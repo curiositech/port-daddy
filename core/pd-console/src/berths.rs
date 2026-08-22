@@ -51,21 +51,6 @@ impl Berth {
     }
 }
 
-/// Base URL of the canonical stable daemon on this machine.
-///
-/// Why this exists: startup daemon discovery ([`crate::agent::DaemonClient::discover`])
-/// must never strand the operator at a panic when no `daemon.port` file exists —
-/// the design intent is that a fresh console always opens against the one port
-/// the stable daemon is contractually berthed on, and shows "unreachable" state
-/// in-pane if nothing is listening. Centralizing the URL here keeps the port
-/// literal in the single allowlisted berth module rather than scattering
-/// hardcoded daemon URLs (which the no-hardcoded-daemon-url guard forbids).
-///
-/// Returns the stable berth's `http://127.0.0.1:<STABLE_PORT>` base URL.
-pub fn stable_url() -> String {
-    format!("http://127.0.0.1:{STABLE_PORT}")
-}
-
 fn registry_path() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".port-daddy/dev-daemons.json"))
 }
@@ -132,6 +117,41 @@ pub fn resolve<'a>(berths: &'a [Berth], target: &str) -> Option<&'a Berth> {
     }
 }
 
+/// Whether something answers on `127.0.0.1:port` — a fast, best-effort liveness
+/// check (short timeout) used only to pick a sane *default* berth at startup,
+/// before the GPUI event loop (and this crate's async layer) exists. Not the
+/// live picker's reachability signal — see the module doc above.
+pub fn probe_reachable(port: u16) -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok()
+}
+
+/// Pure selection logic behind [`default_url`], split out so it's testable
+/// without touching the network or filesystem: stable wins if it answered,
+/// else the first non-canonical (dev) berth discovered, else stable anyway —
+/// the console must always have *some* URL selected, never none.
+fn choose_default(stable_reachable: bool, berths: &[Berth]) -> String {
+    if stable_reachable {
+        return format!("http://127.0.0.1:{STABLE_PORT}");
+    }
+    if let Some(berth) = berths.iter().find(|b| !b.canonical) {
+        return berth.url();
+    }
+    format!("http://127.0.0.1:{STABLE_PORT}")
+}
+
+/// The default daemon URL when the operator hasn't recorded an explicit choice
+/// anywhere (`DaemonClient::discover`'s first three sources are all silent —
+/// e.g. a fresh machine, or `~/.port-daddy/daemon.port` hasn't landed yet):
+/// the canonical stable lane if it's actually answering, else the first berth
+/// the dev-daemons registry knows about, else stable anyway (never refuse to
+/// pick — the picker/`u` command let the operator repoint it afterward).
+pub fn default_url() -> String {
+    choose_default(probe_reachable(STABLE_PORT), &discover())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,6 +203,30 @@ mod tests {
         let berths = berths_from_registry(parse_registry(SAMPLE));
         assert_eq!(berths[1].url(), "http://127.0.0.1:9886");
         assert_eq!(berths[1].display(), "dev-latest · :9886");
+    }
+
+    #[test]
+    fn default_url_picks_stable_when_it_answers() {
+        let berths = berths_from_registry(parse_registry(SAMPLE));
+        assert_eq!(
+            choose_default(true, &berths),
+            format!("http://127.0.0.1:{STABLE_PORT}")
+        );
+    }
+
+    #[test]
+    fn default_url_falls_back_to_first_dev_berth_when_stable_is_silent() {
+        let berths = berths_from_registry(parse_registry(SAMPLE));
+        assert_eq!(choose_default(false, &berths), "http://127.0.0.1:9886");
+    }
+
+    #[test]
+    fn default_url_still_picks_stable_when_nothing_is_known() {
+        let berths = berths_from_registry(parse_registry(""));
+        assert_eq!(
+            choose_default(false, &berths),
+            format!("http://127.0.0.1:{STABLE_PORT}")
+        );
     }
 
     #[test]
