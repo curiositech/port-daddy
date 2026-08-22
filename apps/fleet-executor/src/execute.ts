@@ -113,6 +113,7 @@ import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
 import { loadShipCheckpoints, saveShipCheckpoint } from './ship-checkpoint.js';
+import { countDeliveryContinuations } from './delivery-failure.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -930,11 +931,17 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
 export type FleetExecutionDisposition =
   | { kind: 'stale-head' }
   | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
-  | { kind: 'no-cloud-ships' };
+  | { kind: 'no-cloud-ships' }
+  | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
 
 export interface FleetExecutionOptions {
   /** Cloudflare Queue's 1-based delivery attempt. Direct callers default final. */
   queueAttempt?: number;
+  /**
+   * Maximum newly executed ships in this invocation. Resumed and deterministically
+   * gated ships do not count. Omit for direct/full-run callers.
+   */
+  maxNewShipsPerInvocation?: number;
 }
 
 /**
@@ -987,7 +994,21 @@ export async function executeFleet(
   const transcript = new Transcript(env.DB, runId, (failure) =>
     emitTranscriptWriteFailureTelemetry(env, job, failure)
   );
-  const queueAttempt = normalizeProviderQueueAttempt(options.queueAttempt);
+  // Intentional checkpoint continuations are successful slices, not Workers AI
+  // dependency failures. Subtract them from Cloudflare's raw delivery counter
+  // before enforcing the provider circuit so ship 5 does not begin on a fake
+  // "attempt 5/3" merely because four earlier ships completed normally.
+  const intentionalContinuations = await countDeliveryContinuations(env, runId);
+  const providerAttempt = normalizeProviderQueueAttempt(
+    typeof options.queueAttempt === 'number'
+      ? options.queueAttempt - intentionalContinuations
+      : options.queueAttempt,
+  );
+  const maxNewShipsPerInvocation =
+    Number.isInteger(options.maxNewShipsPerInvocation) &&
+    (options.maxNewShipsPerInvocation ?? 0) > 0
+      ? options.maxNewShipsPerInvocation as number
+      : Number.POSITIVE_INFINITY;
   const aiCircuit = new FleetAiCircuit();
 
   // --- KILL SWITCH ---------------------------------------------------------
@@ -1445,6 +1466,7 @@ export async function executeFleet(
   const resumedShips = await loadShipCheckpoints(env, runId);
 
   const results: ShipResult[] = [];
+  let newlyExecutedShips = 0;
   for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
@@ -1535,7 +1557,7 @@ export async function executeFleet(
           xoEnabled,
           mediatorOrders,
           aiCircuit,
-          queueAttempt,
+          providerAttempt,
         );
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
@@ -1557,7 +1579,8 @@ export async function executeFleet(
     // rows are durable, so a resumed attempt never skips a ship whose
     // accounting was lost with the kill. Gated-out ships are not checkpointed:
     // re-deciding a skip costs nothing.
-    await saveShipCheckpoint(env, runId, shipIndex, result);
+    const checkpointSaved = await saveShipCheckpoint(env, runId, shipIndex, result);
+    newlyExecutedShips += 1;
 
     // A retryable Workers AI fault exhausted its bounded delivery budget. The
     // current ship now carries a fleet-wide neutral adjudication; stop before
@@ -1568,11 +1591,11 @@ export async function executeFleet(
       await transcript.step(
         'provider-circuit-open',
         ship.name,
-        `Workers AI circuit OPEN after delivery attempt ${queueAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
+        `Workers AI circuit OPEN after provider attempt ${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
           `${skippedShips.length} remaining ship(s) skipped; fleet-wide dependency fault: ` +
           `${result.brokenAdjudicated?.reason ?? 'provider retry budget exhausted'}`,
         {
-          attempt: queueAttempt,
+          attempt: providerAttempt,
           maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
           skippedShips,
           status: failure?.status ?? null,
@@ -1582,6 +1605,27 @@ export async function executeFleet(
         },
       );
       break;
+    }
+
+    // A Workers AI invocation may retain provider-side allocations until the
+    // Worker invocation ends. The live ecf53590 delivery proved that running
+    // multiple ships in one isolate crosses the 128 MB ceiling after one or
+    // two ships, while every ship succeeds alone. End this successful slice
+    // only after its checkpoint is durable; the queue wrapper records an
+    // explicit continuation and retries the message without treating it as an
+    // infrastructure failure. If D1 is unavailable, keep running in this
+    // invocation rather than scheduling a continuation that cannot advance.
+    if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
+      const remainingShips = orderedShips
+        .slice(shipIndex + 1)
+        .filter(candidate =>
+          !resumedShips.has(candidate.name) &&
+          decideShipGate(candidate, changedPaths, docsOnly).run
+        )
+        .map(candidate => candidate.name);
+      if (remainingShips.length > 0) {
+        return { kind: 'continuation', completedShip: ship.name, remainingShips };
+      }
     }
   }
 
@@ -1810,7 +1854,7 @@ async function recordNoUsableOutput(
  * Permanent ship failures are captured as `errored: true`. A structurally
  * retryable Workers AI dependency failure is the one exception: it opens the
  * per-run circuit and throws to the queue boundary while its three-attempt
- * delivery budget remains. That avoids both silent failure and retry fan-out.
+ * provider budget remains. That avoids both silent failure and retry fan-out.
  */
 async function runShip(
   ship: ShipConfig,
@@ -1837,8 +1881,8 @@ async function runShip(
   mediatorOrders = '',
   /** One circuit shared by every analytical ship in this queue delivery. */
   aiCircuit = new FleetAiCircuit(),
-  /** Cloudflare Queue attempt, used to cap provider redeliveries. */
-  queueAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  /** Provider attempt after successful checkpoint continuations are excluded. */
+  providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -2246,7 +2290,7 @@ async function runShip(
         code: failure.code,
         retryable: error instanceof FleetAiDependencyError ? failure.retryable : false,
         providerCircuitOpen: aiCircuit.isOpen,
-        queueAttempt,
+        providerAttempt,
       },
     );
 
@@ -2258,7 +2302,7 @@ async function runShip(
     if (
       error instanceof FleetAiDependencyError &&
       failure.retryable &&
-      queueAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS
+      providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS
     ) {
       throw error;
     }
@@ -2285,7 +2329,7 @@ async function runShip(
               scope: 'fleet' as const,
               reason:
                 `Workers AI dependency circuit remained open through ` +
-                `${queueAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS} delivery attempts`,
+                `${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS} provider attempts`,
             },
           }
         : {}),
