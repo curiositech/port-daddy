@@ -11,6 +11,9 @@
 #[path = "../src/agent.rs"]
 mod agent;
 #[allow(dead_code)]
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
+#[allow(dead_code)]
 #[path = "../src/headless_capture.rs"]
 mod headless_capture;
 #[path = "../src/interruptions.rs"]

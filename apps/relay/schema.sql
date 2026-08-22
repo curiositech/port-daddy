@@ -296,6 +296,25 @@ CREATE TABLE IF NOT EXISTS user_tokens (
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
+-- Per-repo agent-behavior settings, account-scoped (the /account/repos screen).
+-- One row per (user, repo full name). sitrep_end_of_turn is the launch dial;
+-- settings_json is the forward-compatible bag for the settings the screen grows
+-- next. The account is the RECORD of cross-device intent; enforcement stays in
+-- each clone's local agent.config.json, converged via GET /v1/repo-settings.
+CREATE TABLE IF NOT EXISTS repo_settings (
+  user_id            TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name     TEXT    NOT NULL,
+  sitrep_end_of_turn TEXT    NOT NULL DEFAULT 'off'
+    CHECK (sitrep_end_of_turn IN ('off','suggest','enforce')),
+  settings_json      TEXT    NOT NULL DEFAULT '{}'
+    CHECK (json_valid(settings_json)),
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name)
+);
+CREATE INDEX IF NOT EXISTS idx_repo_settings_user
+  ON repo_settings(user_id, updated_at DESC);
+
 -- ──────────────────────────────────────────────────────────────────────────
 -- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
 --

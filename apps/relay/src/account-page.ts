@@ -371,6 +371,7 @@ export function renderAccountPage(
       <span class="eyebrow">Account</span>
       <a href="/account" aria-current="page">Overview</a>
       <a href="/account/interruptions">Interruptions</a>
+      <a href="/account/repos">Repo settings</a>
       <a href="/account/runs">Fleet runs</a>
       <a href="/account/seamanship">Seamanship</a>
       <a href="/account/billing">Billing &amp; credits</a>
