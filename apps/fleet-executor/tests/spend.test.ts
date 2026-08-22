@@ -26,9 +26,15 @@ describe('costUsdForModel', () => {
     expect(costUsdForModel('@cf/openai/gpt-oss-120b', 1, 1)).toBe(0.000001);
   });
 
-  it('the rate table only contains the two models the fleet routes to', () => {
+  it('the rate table contains exactly the known-good models the fleet routes to', () => {
+    // Admission contract: every id fleet.ts honors as a pin must be priced
+    // here (verified against the live pricing page, never guessed) — an
+    // honored-but-unpriced model meters $0, which is how the purser's
+    // gpt-oss-20b author calls rode invisibly for a week.
     expect(Object.keys(WORKERS_AI_RATES).sort()).toEqual([
+      '@cf/moonshotai/kimi-k2.7-code',
       '@cf/openai/gpt-oss-120b',
+      '@cf/openai/gpt-oss-20b',
       '@cf/qwen/qwen3-30b-a3b-fp8',
     ]);
   });
