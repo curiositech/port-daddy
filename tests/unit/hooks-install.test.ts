@@ -147,6 +147,9 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const wrapper = readFileSync(join(DEST, 'pd-hook-pre-tool'), 'utf-8');
     expect(wrapper).toContain('daemon.ready');
     expect(wrapper).toContain('[ "$ready_pid" = "$daemon_pid" ]');
+    expect(wrapper).toContain('PORT_DADDY_READY_FILE');
+    expect(wrapper).toContain('PORT_DADDY_PID_FILE');
+    expect(wrapper).toContain('PORT_DADDY_HEARTBEAT_FILE');
     expect(wrapper).toContain('heartbeat');
     expect(wrapper).toContain('stat -f %m');
     expect(wrapper).not.toContain('kill -0');
@@ -310,6 +313,36 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(run()).toContain('pd-hook-prompt');
     writeFileSync(join(pdHome, 'daemon.pid'), '5002');
     expect(run()).toBe(''); // successor is alive but not ready yet
+  });
+
+  test('honors isolated runtime lease overrides without assuming the canonical home layout', () => {
+    const pdHome = join(SANDBOX, 'override-gate-home');
+    const runtime = join(SANDBOX, 'override-runtime');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    mkdirSync(runtime, { recursive: true });
+    stageTentacles(SRC, binDir);
+    const heartbeat = join(runtime, 'custom.heartbeat');
+    const pidFile = join(runtime, 'custom.pid');
+    const readyFile = join(runtime, 'custom.ready');
+    writeFileSync(heartbeat, '{}');
+    writeFileSync(pidFile, '6001');
+    writeFileSync(readyFile, '6001\n');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        PD_HOME: pdHome,
+        PORT_DADDY_HEARTBEAT_FILE: heartbeat,
+        PORT_DADDY_PID_FILE: pidFile,
+        PORT_DADDY_READY_FILE: readyFile,
+      },
+      input: '{}',
+      encoding: 'utf8',
+    });
+    expect(out).toContain('pd-hook-prompt');
   });
 
   test('unexpected exits fail open, trip after three calls, and emit one FleetBar remediation', () => {
