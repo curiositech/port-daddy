@@ -103,3 +103,69 @@ export function parseVisibility(
   onWarning?.(`${path}: unknown visibility "${raw}", defaulting to private`);
   return 'private';
 }
+
+/**
+ * The frontmatter block, as a text span. Mirrors `splitSkillMarkdown`'s regex in
+ * apps/relay/src/seamanship.ts, but keeps the raw YAML text rather than a parsed
+ * object — the writer below edits lines in place and must not reserialize.
+ */
+const FRONTMATTER_SPAN_RE = /^(---\r?\n)([\s\S]*?)(\r?\n---)/;
+const VISIBILITY_LINE_RE = /^([ \t]*)visibility[ \t]*:[ \t]*.*$/m;
+
+/**
+ * Rewrites a SKILL.md's `visibility:` frontmatter to `target`, returning the new
+ * text — or `null` when the file has no frontmatter block to edit.
+ *
+ * WHY A TEXT EDIT AND NOT A YAML ROUND-TRIP
+ * -----------------------------------------
+ * Parsing to an object and reserializing would reformat every SKILL.md it
+ * touches: comment lines dropped, key order normalized, block scalars refolded,
+ * quoting style changed. Across a ~300-skill catalog that turns "set one skill
+ * to listed" into a diff nobody can review, which is how a visibility change
+ * gets waved through. This edits the one line and leaves every other byte
+ * alone, so the diff is the decision.
+ *
+ * `'private'` REMOVES the line rather than writing `visibility: private`.
+ * Private is the absence of a grant, not a grant of its own — `parseVisibility`
+ * already resolves a missing field to `'private'`, so the two states are
+ * identical to every reader, and the one that survives should be the one a
+ * fully-private catalog has always looked like. It also means flipping a skill
+ * public and back leaves no residue.
+ *
+ * Only the frontmatter span is searched, so a `visibility:` written inside a
+ * fenced example in the body is never touched.
+ *
+ * Idempotent: setting the tier a skill already has returns the text unchanged.
+ * The caller is still expected to read the result back through
+ * `parseVisibility` and confirm — this function returns text, not a promise
+ * that the catalog now agrees.
+ */
+export function withVisibility(text: string, target: SkillVisibility): string | null {
+  const m = FRONTMATTER_SPAN_RE.exec(text);
+  if (!m) return null;
+  const open = m[1] ?? '';
+  const yaml = m[2] ?? '';
+  const close = m[3] ?? '';
+  const eol = open.includes('\r\n') ? '\r\n' : '\n';
+
+  let nextYaml: string;
+  if (VISIBILITY_LINE_RE.test(yaml)) {
+    nextYaml =
+      target === 'private'
+        ? // Drop the line AND the newline that followed it, so removing a key
+          // does not leave a blank line where it used to be.
+          yaml.replace(/^[ \t]*visibility[ \t]*:[ \t]*.*(\r?\n|$)/m, '')
+        : yaml.replace(VISIBILITY_LINE_RE, `$1visibility: ${target}`);
+  } else if (target === 'private') {
+    return text; // already absent, which already means private
+  } else {
+    // Append rather than prepend: `name` and `description` are what a reader
+    // looks for first, and provenance belongs under them.
+    nextYaml = `${yaml}${eol}visibility: ${target}`;
+  }
+
+  // Trailing whitespace-only lines can accumulate after a removal; trim only
+  // the very end of the YAML span, never the body.
+  nextYaml = nextYaml.replace(/(\r?\n)+$/, '');
+  return `${open}${nextYaml}${close}${text.slice(m[0].length)}`;
+}

@@ -117,18 +117,28 @@ describe('GET /account/seamanship — session gate', () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-//  Visibility markers — private is the UNMARKED case
+//  Visibility markers — every tier renders, private included
 // ══════════════════════════════════════════════════════════════════════════
 
 describe('visibilityMarker', () => {
-  it('renders nothing at all for private', () => {
-    expect(visibilityMarker('private')).toBe('');
+  // Operator ruling 2026-08-22: "you should be showing me a render of these
+  // private skills." Private used to render as '' here; it now carries its own
+  // badge. Private is still the default and still the absence of a frontmatter
+  // line — it is no longer the absence of a rendering.
+  it('renders private explicitly rather than as an empty string', () => {
+    expect(visibilityMarker('private')).toContain('private');
+    expect(visibilityMarker('private')).toContain('vis-private');
   });
 
-  it('marks the two tiers somebody chose', () => {
-    expect(visibilityMarker('listed')).toContain('listed');
-    expect(visibilityMarker('public')).toContain('public');
+  it('marks all three tiers, each with its own class', () => {
+    expect(visibilityMarker('listed')).toContain('vis-listed');
     expect(visibilityMarker('public')).toContain('vis-public');
+    const classes = new Set(
+      (['private', 'listed', 'public'] as const).map(
+        (v) => /vis-(\w+)/.exec(visibilityMarker(v))?.[1],
+      ),
+    );
+    expect(classes.size).toBe(3);
   });
 });
 
@@ -143,15 +153,19 @@ describe('GET /account/seamanship — the catalog', () => {
     expect(html).toContain('4 skills');
   });
 
-  it('badges listed and public, and leaves private skills unmarked', async () => {
+  it('badges every skill with its tier, private included', async () => {
+    // Reversed by operator ruling 2026-08-22 ("you should be showing me a
+    // render of these private skills"). This test previously asserted exactly
+    // two badges for four skills and NO 'vis-private' anywhere. The count
+    // assertion is what makes the reversal real: badging all four is a
+    // different render, not a superset of the old one.
     const { env } = await makeSeamanshipFixture({ repos: [fullRepo()] }, vi.stubGlobal);
     const html = await (await handleSeamanshipPage(req('/account/seamanship'), env)).text();
     expect(html).toContain('vis vis-listed');
     expect(html).toContain('vis vis-public');
-    // Exactly two badges for four skills — the other two carry none.
-    expect(html.match(/class="vis /g) ?? []).toHaveLength(2);
-    // ...and no invented "private" badge anywhere in the catalog markup.
-    expect(html).not.toContain('vis-private');
+    expect(html).toContain('vis vis-private');
+    // One badge per skill in the fixture — nothing renders unmarked.
+    expect(html.match(/class="vis /g) ?? []).toHaveLength(4);
   });
 
   it('never renders a SKILL.md body on the account page', async () => {

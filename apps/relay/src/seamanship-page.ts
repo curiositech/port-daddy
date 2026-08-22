@@ -18,8 +18,15 @@
  *    distribute these 300 skills, they're Erich Owens' and they are particular
  *    to his repos."
  *
- * So the account page renders PRIVATE AS THE UNMARKED CASE. A private skill gets
- * no badge, no lock glyph, no "restricted" chip — because private is not a state
+ * SUPERSEDED (operator ruling, 2026-08-22): this page used to render PRIVATE AS
+ * THE UNMARKED CASE — no badge, no lock glyph — on the reasoning below. The
+ * operator overruled it: "you should be showing me a render of these private
+ * skills." Every tier now carries a badge, private included. Private remains
+ * the DEFAULT and remains the absence of a frontmatter line; it is no longer
+ * the absence of a rendering. The original reasoning, kept because it is still
+ * the right instinct about grants and the wrong one about gates:
+ *
+ * A private skill got no badge, no lock glyph, no "restricted" chip — because private is not a state
  * a skill is in, it is the absence of a decision to publish, and marking it would
  * imply the opposite default. Only `listed` and `public` are marked, because only
  * they are things someone chose. This mirrors the CLI's `formatVisibilityMarker`
@@ -183,6 +190,7 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .tag-cat{border-color:var(--violet);color:var(--violet)}
 /* visibility markers — PRIVATE IS DELIBERATELY ABSENT (see module header) */
 .vis{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border:2px solid var(--border-strong)}
+.vis-private{color:var(--muted);border-color:var(--border)}
 .vis-listed{box-shadow:inset var(--lw-stripe) 0 0 var(--amber);color:var(--amber)}
 .vis-public{background:var(--cobalt-slab);color:var(--cream);border-color:var(--border-strong)}
 .pairs{margin-top:11px;font-size:13.5px;color:var(--text-muted);line-height:1.6}
@@ -233,8 +241,8 @@ ${inner}
  * badges reads as a catalog of exceptions rather than a catalog of defaults.
  */
 export function visibilityMarker(visibility: SkillVisibility): string {
-  if (visibility === 'private') return '';
-  const cls = visibility === 'public' ? 'vis-public' : 'vis-listed';
+  const cls =
+    visibility === 'public' ? 'vis-public' : visibility === 'listed' ? 'vis-listed' : 'vis-private';
   return `<span class="vis ${cls}">${esc(visibility)}</span>`;
 }
 

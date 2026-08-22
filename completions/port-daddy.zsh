@@ -2370,7 +2370,7 @@ _port_daddy() {
     'cg:alias for coast-guard — the Coast Guard read path'
     'relay:Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
     'suggest:Tender suggestion queue — list, approve, dismiss operator suggestions'
-    'seamanship:Skill registry — search, show, sync, outcomes, index'
+    'seamanship:Skill registry — search, show, sync, outcomes, index, visibility'
     'skills:alias for seamanship — skill registry'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'

@@ -15,7 +15,8 @@ import { join } from 'node:path';
 const { loadSkillCatalog, isPublishableSkill } = await import('../../lib/shipwright/skill-index.js');
 const skillVisibility = await import('../../lib/shipwright/skill-visibility.js');
 const { extractPairsWithTargets } = await import('../../lib/skill-pairs-with.js');
-const { formatVisibilityMarker, formatOwnershipLine } = await import('../../cli/commands/seamanship.js');
+const { formatVisibilityMarker, formatOwnershipLine, tierCounts } = await import('../../cli/commands/seamanship.js');
+const { withVisibility, parseVisibility } = skillVisibility;
 
 let tmpRoot;
 
@@ -221,13 +222,23 @@ describe('isPublishableSkill: truth table across all 3 visibilities x 2 tiers', 
 // ─── pd seamanship list/show rendering ──────────────────────────────────────
 
 describe('formatVisibilityMarker (pd seamanship list)', () => {
-  test('private renders no marker at all — the unmarked, common-case default', () => {
-    expect(formatVisibilityMarker('private')).toBe('');
+  // Operator ruling 2026-08-22 reversed this: private used to render as '',
+  // on the theory that the absence of a grant should read as ordinary. That is
+  // right about grants and wrong about gates — an unmarked tier is one you
+  // cannot audit by looking. Every tier renders now.
+  test('private renders explicitly, not as an empty string', () => {
+    expect(formatVisibilityMarker('private')).toContain('private');
+    expect(formatVisibilityMarker('private').trim()).toBe('[private]');
   });
 
-  test('listed and public each render a compact bracket marker', () => {
-    expect(formatVisibilityMarker('listed')).toBe('  [listed]');
-    expect(formatVisibilityMarker('public')).toBe('  [public]');
+  test('every tier renders, and all three pad to one column width', () => {
+    const widths = new Set(
+      ['private', 'listed', 'public'].map((v) => formatVisibilityMarker(v).length),
+    );
+    expect(widths.size).toBe(1);
+    for (const v of ['private', 'listed', 'public']) {
+      expect(formatVisibilityMarker(v)).toContain(v);
+    }
   });
 });
 
@@ -273,6 +284,118 @@ describe('formatOwnershipLine (pd seamanship show)', () => {
 // These tests pin the arrangement itself, not just the behaviour: identity, so
 // a future edit cannot quietly fork the predicate into two look-alikes that
 // drift a tier apart.
+describe('withVisibility: the writer agrees with the parser it will be read by', () => {
+  // Operator directive (2026-08-22): "Null needs to be default private,
+  // obviously, it should be easy to change it in the tools obviously."
+  // These pin the "easy to change" half — a writer that says it set a tier
+  // while the parser reads back a different one is worse than no writer.
+
+  const SKILL = [
+    '---',
+    'name: example-skill',
+    'description: A skill used by these tests.',
+    'owner: erichowens',
+    '---',
+    '',
+    '# Example',
+    '',
+    'Frontmatter in a fenced block, which must never be edited:',
+    '',
+    '```yaml',
+    'visibility: public',
+    '```',
+    '',
+  ].join('\n');
+
+  /** Every assertion routes through the real parser, never a regex of its own. */
+  function tierOf(text) {
+    const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+    const line = m ? /^[ \t]*visibility[ \t]*:[ \t]*(.*)$/m.exec(m[1]) : null;
+    return parseVisibility(line ? line[1].trim() : undefined, 'test');
+  }
+
+  it('adds the line when absent, and the parser reads back what was asked for', () => {
+    for (const tier of ['listed', 'public']) {
+      const out = withVisibility(SKILL, tier);
+      expect(out).not.toBeNull();
+      expect(tierOf(out)).toBe(tier);
+    }
+  });
+
+  it('setting private REMOVES the line rather than writing visibility: private', () => {
+    const listed = withVisibility(SKILL, 'listed');
+    expect(listed).toContain('visibility: listed');
+    const back = withVisibility(listed, 'private');
+    // Only the fenced-block occurrence may remain.
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(back)[1];
+    expect(frontmatter).not.toMatch(/visibility/);
+    expect(tierOf(back)).toBe('private');
+  });
+
+  it('private -> listed -> private leaves no residue (byte-identical round trip)', () => {
+    // The reason private is an absence and not a value: flipping a skill out
+    // and back should leave the file as it was, or every experiment leaves a
+    // trace in the diff and reviewers stop reading them.
+    const round = withVisibility(withVisibility(SKILL, 'listed'), 'private');
+    expect(round).toBe(SKILL);
+  });
+
+  it('NEVER edits a visibility: line in the body, only in the frontmatter', () => {
+    // The account page ships an example `visibility: listed` snippet, and a
+    // SKILL.md documenting the feature would contain one too. A writer that
+    // rewrote a fenced example would silently corrupt documentation.
+    const out = withVisibility(SKILL, 'public');
+    const body = out.slice(out.indexOf('# Example'));
+    expect(body).toContain('```yaml\nvisibility: public\n```');
+    // and the fenced one is not what the parser picked up
+    const fmCount = (/^---\r?\n([\s\S]*?)\r?\n---/.exec(out)[1].match(/visibility/g) || []).length;
+    expect(fmCount).toBe(1);
+  });
+
+  it('is idempotent and preserves the body byte for byte', () => {
+    const once = withVisibility(SKILL, 'listed');
+    const twice = withVisibility(once, 'listed');
+    expect(twice).toBe(once);
+    const bodyOf = (t) => t.slice(t.indexOf('# Example'));
+    expect(bodyOf(once)).toBe(bodyOf(SKILL));
+  });
+
+  it('setting private on an already-private file changes nothing', () => {
+    expect(withVisibility(SKILL, 'private')).toBe(SKILL);
+  });
+
+  it('returns null when there is no frontmatter to edit, rather than guessing', () => {
+    expect(withVisibility('# Just a heading\n\nNo frontmatter here.\n', 'public')).toBeNull();
+  });
+
+  it('preserves CRLF line endings', () => {
+    const crlf = SKILL.replace(/\n/g, '\r\n');
+    const out = withVisibility(crlf, 'listed');
+    expect(out).toContain('\r\nvisibility: listed\r\n---');
+    expect(tierOf(out)).toBe('listed');
+  });
+
+  it('replaces an existing value rather than appending a second line', () => {
+    const listed = withVisibility(SKILL, 'listed');
+    const pub = withVisibility(listed, 'public');
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(pub)[1];
+    expect((frontmatter.match(/visibility/g) || []).length).toBe(1);
+    expect(tierOf(pub)).toBe('public');
+  });
+});
+
+describe('tierCounts (pd seamanship list footer)', () => {
+  it('counts an absent provenance entry as private, matching the parser default', () => {
+    const entries = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    const provenance = new Map([
+      ['a', { visibility: 'public', repos: [] }],
+      ['b', { visibility: 'listed', repos: [] }],
+      // 'c' deliberately absent
+    ]);
+    expect(tierCounts(entries, provenance)).toEqual({ private: 1, listed: 1, public: 1 });
+  });
+});
+
 describe('the visibility law has exactly one implementation', () => {
   test('skill-index re-exports the shared predicate — the same binding, not a copy', () => {
     expect(isPublishableSkill).toBe(skillVisibility.isPublishableSkill);
@@ -280,8 +403,25 @@ describe('the visibility law has exactly one implementation', () => {
 
   test('the shared module is importable with no Node or native dependency', () => {
     // It parsed and evaluated above without better-sqlite3, transformers.js or
-    // node:fs being reachable from it. Its whole exported surface is the law.
-    expect(Object.keys(skillVisibility).sort()).toEqual(['isPublishableSkill', 'parseVisibility']);
+    // node:fs being reachable from it. Its whole exported surface is the law:
+    // the gate (isPublishableSkill), the reader (parseVisibility), and the
+    // writer (withVisibility).
+    //
+    // withVisibility is here rather than in the CLI on purpose. It is a pure
+    // text transform with no fs — the caller does the reading and writing — so
+    // it keeps this module Worker-importable, and it sits beside the parser it
+    // has to agree with. A writer that lived somewhere else would be free to
+    // drift from the reader, which is the exact failure this module exists to
+    // prevent in the other direction.
+    //
+    // This list is asserted exactly, not with toContain: a new export here is a
+    // new piece of the law, and it should not be possible to add one without a
+    // reviewer seeing this test change.
+    expect(Object.keys(skillVisibility).sort()).toEqual([
+      'isPublishableSkill',
+      'parseVisibility',
+      'withVisibility',
+    ]);
   });
 
   test('the shared parseVisibility narrows the same way the catalog loader does', () => {
