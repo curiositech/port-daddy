@@ -18,7 +18,7 @@
 
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -741,6 +741,52 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(runPrompt().stdout).toBe('');
   });
 
+  test('SITREP dial: malformed config JSON fails toward the default (enforce), never off', () => {
+    // Doctrine fail-direction: an unreadable/unparseable dial must fall to the
+    // FULL contract, not silently land on quiet. The broken file yields no
+    // valid level, the walk finds nothing else, and the default (enforce) wins.
+    writeFileSync(join(WORKSPACE, 'agent.config.json'), '{not valid json — deliberately malformed');
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(promptCtx(r)).toContain('SITREP enforce');
+  });
+
+  test('SITREP dial: a malformed file cannot mask a valid dial deeper in the same walk', () => {
+    // The parse failure must skip to the NEXT candidate, so an explicit repo
+    // opt-out further down the precedence chain still holds.
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(join(WORKSPACE, 'agent.config.json'), '{not valid json — deliberately malformed');
+    writeFileSync(
+      join(WORKSPACE, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
+  // Permission bits do not bind root (some sandboxes run jest as uid 0), so the
+  // chmod-000 proof only asserts where EACCES is actually enforced; the
+  // dangling-symlink case below covers the unopenable-path seam everywhere.
+  const nonRootTest = typeof process.getuid === 'function' && process.getuid() !== 0 ? test : test.skip;
+  nonRootTest('SITREP dial: a permission-denied config fails toward the default (enforce)', () => {
+    // The unreadable file SAYS off — but a read failure must never be trusted
+    // as an opt-out. Fail direction is the default: enforce.
+    const cfg = join(WORKSPACE, 'agent.config.json');
+    writeFileSync(cfg, JSON.stringify({ sitrep: { endOfTurn: 'off' } }));
+    chmodSync(cfg, 0o000);
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(promptCtx(r)).toContain('SITREP enforce');
+  });
+
+  test('SITREP dial: an unresolvable config path (dangling symlink) fails toward enforce', () => {
+    symlinkSync(join(WORKSPACE, 'no-such-target.json'), join(WORKSPACE, 'agent.config.json'));
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(promptCtx(r)).toContain('SITREP enforce');
+  });
+
   test('SITREP dial: nested cwd inherits the parent repo dial via the parent walk', () => {
     writeFileSync(
       join(WORKSPACE, 'agent.config.json'),
@@ -756,27 +802,33 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(promptCtx(r)).toContain('SITREP suggest');
   });
 
-  test('SITREP block rides outside the #8059 coordination byte cap without loosening it', () => {
-    // Flood the matrix; the coordination segment must stay at 2 facts / 512
-    // bytes while the constant-size SITREP contract precedes it un-truncated.
-    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
-    const fresh = new Date().toISOString();
-    for (let i = 0; i < 14; i++) {
-      setKey(
-        `PD_PHEROMONE_SITREP_CAP_${i}`,
-        `${WORKSPACE}/src/cap-${i}.ts | cap-fact-${i} | ts:${fresh}`,
-      );
-    }
-    const r = runPrompt({ PD_SITREP: 'enforce' });
-    expect(r.status).toBe(0);
-    const ctx = promptCtx(r);
-    expect(ctx).toContain('SITREP enforce');
-    const coordStart = ctx.indexOf('[PORT DADDY — ACTIONABLE COORDINATION');
-    expect(coordStart).toBeGreaterThan(-1);
-    const coordination = ctx.slice(coordStart);
-    expect(Buffer.byteLength(coordination)).toBeLessThanOrEqual(512);
-    expect(coordination.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
-  });
+  test.each([3, 14, 41])(
+    'SITREP block rides outside the #8059 coordination byte cap without loosening it (%i pheromones)',
+    (floodCount) => {
+      // Flood the matrix at several magnitudes; the coordination segment must
+      // stay at 2 facts / 512 bytes regardless of how many candidates queue up,
+      // while the constant-size SITREP contract precedes it un-truncated. The
+      // cap logic is count-independent — 3, 14, or 41 fresh pheromones all
+      // squeeze through the same bound.
+      mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+      const fresh = new Date().toISOString();
+      for (let i = 0; i < floodCount; i++) {
+        setKey(
+          `PD_PHEROMONE_SITREP_CAP_${i}`,
+          `${WORKSPACE}/src/cap-${i}.ts | cap-fact-${i} | ts:${fresh}`,
+        );
+      }
+      const r = runPrompt({ PD_SITREP: 'enforce' });
+      expect(r.status).toBe(0);
+      const ctx = promptCtx(r);
+      expect(ctx).toContain('SITREP enforce');
+      const coordStart = ctx.indexOf('[PORT DADDY — ACTIONABLE COORDINATION');
+      expect(coordStart).toBeGreaterThan(-1);
+      const coordination = ctx.slice(coordStart);
+      expect(Buffer.byteLength(coordination)).toBeLessThanOrEqual(512);
+      expect(coordination.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
+    },
+  );
 
   test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
     // Regression for the fleet-scale hang: a long-lived, multi-project matrix
