@@ -144,9 +144,12 @@ export async function getInstallationTokenCached(
  * Resolve the installation id for a repo via the App JWT (cached in KV keyed by
  * `github_repo_inst_<owner>_<repo>`). Avoids requiring an explicit
  * GITHUB_APP_INSTALLATION_ID env var — the App already knows where it is
- * installed.
+ * installed. Exported for the Shipwright PR route, which uses this as the
+ * authoritative repo→installation binding check (GitHub's own answer, never the
+ * caller's claim): a PR can only be opened in a repo whose installation the
+ * signed-in user provably owns.
  */
-async function getRepoInstallationId(
+export async function getRepoInstallationId(
   appId: string,
   privateKeyPem: string,
   owner: string,
@@ -186,6 +189,27 @@ export async function getRepoToken(
 ): Promise<string> {
   const installationId = await getRepoInstallationId(appId, privateKeyPem, owner, repo, kv);
   return getInstallationTokenCached(appId, privateKeyPem, installationId, kv);
+}
+
+/**
+ * The repo's default branch (`main`, `master`, …) per GitHub. The Shipwright
+ * PR route targets THIS — the operator's own trusted ref — so the zero-trust
+ * shape (PR into the branch the fleet-executor reads from) holds for tenant
+ * repos exactly as it does for the operator repo's DEFAULT_BRANCH env.
+ */
+export async function getRepoDefaultBranch(
+  owner: string,
+  repo: string,
+  token: string,
+): Promise<string> {
+  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(token) });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`repo lookup failed ${res.status}: ${text}`);
+  }
+  const body = (await res.json()) as { default_branch?: string };
+  if (!body.default_branch) throw new Error('repo lookup response missing default_branch');
+  return body.default_branch;
 }
 
 // ---------------------------------------------------------------------------

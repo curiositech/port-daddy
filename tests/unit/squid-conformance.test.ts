@@ -9,7 +9,7 @@ import {
   type SquidConformanceFacts,
   type SquidProviderConformance,
 } from '../../lib/squid/conformance.js';
-import { CODEX_PD_MARKER, TENTACLES } from '../../lib/squid/hook-shape.js';
+import { CODEX_PD_MARKER, REGISTERED_TENTACLES, TENTACLES } from '../../lib/squid/hook-shape.js';
 
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-conformance-selftest', `jest-${process.pid}`);
 
@@ -82,7 +82,7 @@ describe('Giant Squid conformance', () => {
       capabilities: {
         suggestibility: true,
         editProtection: true,
-        trace: true,
+        trace: false,
         inbox: true,
         parleyDelivery: true,
         automatedParley: false,
@@ -143,13 +143,12 @@ describe('Giant Squid conformance', () => {
     mkdirSync(join(pdHome, 'bin', 'squid'), { recursive: true });
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
 
-    const hookCommands = TENTACLES.map((name) => ({ hooks: [{ type: 'command', command: `/gate/${name}` }] }));
+    const hookCommands = REGISTERED_TENTACLES.map((name) => ({ hooks: [{ type: 'command', command: `/gate/${name}` }] }));
     writeFileSync(join(workspace, '.claude', 'settings.json'), JSON.stringify({
       statusLine: { command: '/gate/pd-statusline' },
       hooks: {
         UserPromptSubmit: [hookCommands[0]],
         PreToolUse: [hookCommands[1]],
-        PostToolUse: [hookCommands[2]],
         SessionStart: [{ hooks: [
           { type: 'command', command: '/gate/sessionstart-pilot.mjs' },
           { type: 'command', command: 'pd attention --json' },
@@ -157,7 +156,7 @@ describe('Giant Squid conformance', () => {
       },
     }));
     writeFileSync(join(workspace, '.gemini', 'settings.json'), JSON.stringify({ hooks: hookCommands }));
-    writeFileSync(join(fakeHome, '.codex', 'config.toml'), `# ${CODEX_PD_MARKER}\n${TENTACLES.join('\n')}\n`);
+    writeFileSync(join(fakeHome, '.codex', 'config.toml'), `# ${CODEX_PD_MARKER}\n${REGISTERED_TENTACLES.join('\n')}\n`);
     writeFileSync(join(fakeHome, '.gemini', 'hooks.json'), JSON.stringify({ hooks: hookCommands }));
     writeFileSync(join(workspace, '.claude', 'commands', 'squid.md'), 'squid');
     writeFileSync(join(pdHome, 'heartbeat'), 'alive');
