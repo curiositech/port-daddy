@@ -86,6 +86,19 @@ describe('cli/utils/actor-credential', () => {
     expect(statSync(actorFile()).mode & 0o777).toBe(0o600);
   });
 
+  test('persist CLAMPS a pre-existing loose file back to 0o600 — mode:0o600 alone only applies at creation', () => {
+    // A file left by an older CLI version or loosened by hand: without the
+    // explicit chmod, writeFileSync would overwrite the CONTENT (fresh
+    // plaintext credential) while keeping the old 0o644 mode — exactly the
+    // world-readable-bearer state the ADR-0040 custody bar forbids.
+    mkdirSync(join(contextDir, 'actors'), { recursive: true });
+    writeFileSync(actorFile(), JSON.stringify({ agentId: null, credential: 'OLD.secret' }), { mode: 0o644 });
+    expect(statSync(actorFile()).mode & 0o777).toBe(0o644);
+    persistCliActorCredential('ACTOR06.fresh-secret', null);
+    expect(statSync(actorFile()).mode & 0o777).toBe(0o600);
+    expect(resolveCliActorCredential()).toBe('ACTOR06.fresh-secret');
+  });
+
   test('a persisted credential is WITHHELD when the command asserts a DIFFERENT agentId', () => {
     persistCliActorCredential('ACTOR01.secret-hex', 'soul-a');
     // Presenting soul A's credential while asserting agent B is the
