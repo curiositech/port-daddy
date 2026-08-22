@@ -12,6 +12,11 @@ const mockSpawnSync = jest.fn(() => ({
   stderr: '',
 }));
 const mockExecSync = jest.fn(() => '');
+const immediateExecFile = (_cmd, _args, options, callback) => {
+  const done = typeof options === 'function' ? options : callback;
+  if (typeof done === 'function') done(null, '', '');
+};
+const mockExecFile = jest.fn(immediateExecFile);
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
@@ -20,7 +25,7 @@ jest.unstable_mockModule('node:child_process', () => ({
   execFileSync: jest.fn(),
   // lib/fleet/outputs/notify-macos.ts (transitively imported via fleet-engine)
   // uses execFile for macOS notification delivery.
-  execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
+  execFile: mockExecFile,
 }));
 
 const { operatorPlugin, __resetGuardCachesForTest } = await import('../../routes/operator.js');
@@ -60,6 +65,7 @@ function expectedCommandFor(mode, filePath) {
 describe('operator routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockExecFile.mockImplementation(immediateExecFile);
     // The /operator/state guard status/check caches are module-level and keyed
     // by project dir (defaults to process.cwd()); reset them so each test's
     // stubbed guard CLI result isn't masked by a prior test's cached value.
@@ -681,6 +687,143 @@ describe('operator routes', () => {
     expect(payload.cockpitMissions).toBeUndefined();
     expect(payload.roadmap).toBeUndefined();
 
+    await app.close();
+  });
+
+  test('GET /operator/state never waits for slow Guard children and refreshes in the background', async () => {
+    const pending = [];
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+    mockExecFile.mockImplementation((command, args, options, callback) => {
+      pending.push({ command, args, options, callback });
+      return {};
+    });
+
+    const { app, register } = buildApp({
+      agents: { list: jest.fn(() => ({ agents: [] })) },
+      sessions: {
+        list: jest.fn(() => ({ sessions: [] })),
+        listAllActiveClaims: jest.fn(() => ({ claims: [] })),
+      },
+      resurrection: { list: jest.fn(() => ({ agents: [] })) },
+      spawner: { list: jest.fn(() => []) },
+      activityLog: { getRecent: jest.fn(() => ({ entries: [] })) },
+    });
+    await register();
+
+    // The child callback remains unresolved, proving the response cannot be
+    // waiting on Guard startup, output, timeout, or process exit.
+    const cold = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(cold.statusCode).toBe(200);
+    expect(cold.json().guard).toEqual(expect.objectContaining({
+      available: false,
+      refreshing: true,
+      stale: false,
+    }));
+    expect(pending).toHaveLength(1);
+    expect(pending[0].args.slice(0, 2)).toEqual(['guard', 'status']);
+    expect(mockSpawnSync.mock.calls.filter(([, args]) => args?.[0] === 'guard')).toHaveLength(0);
+
+    // Concurrent polling shares the same in-flight refresh instead of spawning
+    // another child for every FleetBar/console request.
+    const concurrentCold = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(concurrentCold.statusCode).toBe(200);
+    expect(pending).toHaveLength(1);
+
+    pending.shift().callback(null, JSON.stringify({
+      success: true,
+      name: 'Coordination Guard',
+      enabled: true,
+      mode: 'enforce',
+      requireSession: true,
+      requireClaims: true,
+      configPath: '/project/.portdaddy/coordination-guard.json',
+    }), '');
+    await new Promise((resolvePromise) => setImmediate(resolvePromise));
+
+    const statusReady = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(statusReady.statusCode).toBe(200);
+    expect(statusReady.json().guard).toEqual(expect.objectContaining({
+      available: true,
+      mode: 'enforce',
+      refreshing: false,
+    }));
+    expect(pending).toHaveLength(1);
+    expect(pending[0].args.slice(0, 3)).toEqual(['guard', 'check', '--staged']);
+
+    pending.shift().callback(Object.assign(new Error('guard violations'), {
+      code: 1,
+      killed: false,
+    }), JSON.stringify({
+      success: false,
+      passed: false,
+      shouldBlock: true,
+      mode: 'enforce',
+      enabled: true,
+      files: ['routes/operator.ts'],
+      agentId: 'agent-x',
+      sessionId: 'session-x',
+      violations: [{
+        code: 'unclaimed-file',
+        severity: 'critical',
+        file: 'routes/operator.ts',
+        message: 'routes/operator.ts is unclaimed',
+      }],
+    }), '');
+    await new Promise((resolvePromise) => setImmediate(resolvePromise));
+
+    const checkReady = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(checkReady.statusCode).toBe(200);
+    expect(checkReady.json().needsYou).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'guard_violation' }),
+    ]));
+
+    // Once the TTL expires, serve the known enforcing state and violation while
+    // one status + one check refresh happen in the background. A second poll
+    // still shares those same children.
+    nowSpy.mockReturnValue(7_001);
+    const stale = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(stale.statusCode).toBe(200);
+    expect(stale.json().guard).toEqual(expect.objectContaining({
+      available: true,
+      refreshing: true,
+      stale: true,
+    }));
+    expect(stale.json().needsYou).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'guard_violation' }),
+    ]));
+    expect(pending).toHaveLength(2);
+
+    const concurrentStale = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(concurrentStale.statusCode).toBe(200);
+    expect(pending).toHaveLength(2);
+
+    const statusRefresh = pending.find((entry) => entry.args[1] === 'status');
+    const checkRefresh = pending.find((entry) => entry.args[1] === 'check');
+    statusRefresh.callback(null, JSON.stringify({
+      success: true,
+      name: 'Coordination Guard',
+      enabled: false,
+      mode: 'off',
+      requireSession: false,
+      requireClaims: false,
+      configPath: '/project/.portdaddy/coordination-guard.json',
+    }), '');
+    checkRefresh.callback(null, '', '');
+    await new Promise((resolvePromise) => setImmediate(resolvePromise));
+
+    const converged = await app.inject({ method: 'GET', url: '/operator/state' });
+    expect(converged.statusCode).toBe(200);
+    expect(converged.json().guard).toEqual(expect.objectContaining({
+      available: true,
+      mode: 'off',
+      refreshing: false,
+      stale: false,
+    }));
+    expect(converged.json().needsYou).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'guard_violation' }),
+    ]));
+
+    nowSpy.mockRestore();
     await app.close();
   });
 
