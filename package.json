@@ -20,6 +20,7 @@
     "pd": "./bin/port-daddy-cli.js"
   },
   "scripts": {
+    "prepare": "node scripts/setup-git-merge-driver.mjs",
     "start": "tsx server.ts",
     "daemon:start": "tsx server.ts",
     "dev": "tsx bin/port-daddy-cli.ts dev",
@@ -107,6 +108,8 @@
     "scripts/build-daemon-binary.mjs",
     "scripts/build-public-samples.mjs",
     "scripts/build-single-binary.mjs",
+    "scripts/setup-git-merge-driver.mjs",
+    "scripts/merge-roadmap-snapshot.ts",
     "scripts/lib/onnx-runtime-native.mjs",
     "mcp/",
     "schemas/",
