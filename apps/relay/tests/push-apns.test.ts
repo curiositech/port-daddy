@@ -529,6 +529,11 @@ describe('sendApnsPush', () => {
     expect((calls[0]!.body.aps as Record<string, unknown>).sound).toBeUndefined();
   });
 
+  // What makes a dead token stay dead is the durable `dead_at` stamp asserted
+  // below — not the log line that accompanies it. Auditability of token-death
+  // events belongs in a telemetry event with a stable shape; asserting a
+  // console call here would pin the logging implementation instead of the
+  // behaviour, and break on a refactor that improves it.
   it('410 Unregistered ⇒ token-gone AND the token is marked dead in D1', async () => {
     stubFetch([{ status: 410, body: '{"reason":"Unregistered"}' }]);
     const f = makeDb();
@@ -811,6 +816,11 @@ describe('APNs device registry API', () => {
     expect(f.devices[0]!.dead_at).toBeNull();
   });
 
+  // The invariant under test is a schema property, not a behaviour of this
+  // handler: (user_id, device_id) is the primary key and the token column is
+  // uniquely indexed, so one physical device can hold exactly one live token.
+  // Re-registering it under a new id must therefore EVICT the stale row rather
+  // than leave a second address Apple would still accept deliveries for.
   it('a token re-registered under a different device evicts the stale claim (one token = one device)', async () => {
     const f = makeDb();
     const { kv } = makeKv();
@@ -844,6 +854,10 @@ describe('APNs device registry API', () => {
     expect(f.devices).toHaveLength(0);
   });
 
+  // TENANT ISOLATION BOUNDARY. The user_id filter this asserts is the whole
+  // control: another account's device tokens must never appear in this
+  // listing. Named explicitly because a boundary that reads as an incidental
+  // WHERE clause is one a later refactor "simplifies" away.
   it('lists only the account’s devices, suffix-only, live and dead flagged', async () => {
     const f = makeDb();
     const { kv } = makeKv();
