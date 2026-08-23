@@ -558,3 +558,171 @@ describe('createDeltaCoalescer — the anti-duplicate, anti-spinner rule', () =>
     expect(emitted).toEqual(['once']);
   });
 });
+
+describe('a reasoning model that runs out of budget mid-thought', () => {
+  // FOUND BY LIVE-PROBING ALL 23 ADMITTED WORKERS AI MODELS, 2026-08-23.
+  // More than half are reasoning models, and they stream their scratchpad
+  // first and their answer last out of ONE shared output budget. Measured on
+  // shipDefault (@cf/qwen/qwen3-30b-a3b-fp8), prompt "Say OK.":
+  //
+  //     max_tokens 2000 -> 113 frames, 105 reasoning, 3 content, stop
+  //     max_tokens  400 -> 0 content frames, HTTP 200, empty completion
+  //
+  // The second is not an error. It is a BLANK, which is the shape a parser
+  // reads as "clean" — the same silent-blank class that took the fleet down in
+  // #654, arriving by a different route: there the id did not exist, here the
+  // model never reached its answer.
+  const env = { CLOUDFLARE_ACCOUNT_ID: 'acct', CLOUDFLARE_API_TOKEN: 'tok' };
+
+  test('the failure names the budget, not "the model said nothing"', async () => {
+    // These two want opposite responses from whoever reads the log: one is
+    // "raise maxTokens", the other is "the model has a problem". A message that
+    // cannot tell them apart sends an operator to the wrong place.
+    const body = {
+      result: {
+        choices: [{
+          message: { content: null, reasoning_content: 'Okay, the user wants me to' },
+          finish_reason: 'length',
+        }],
+      },
+    };
+    const res = await withFetch(
+      async () => new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+      () => cloudflareAdapter({ prompt: 'p', model: '@cf/qwen/qwen3-30b-a3b-fp8', env }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/entire output budget/);
+    expect(res.error).toMatch(/finish_reason: length/);
+    expect(res.error).toMatch(/maxTokens/);
+  });
+
+  test('the reasoning text is never promoted into the answer', async () => {
+    // The tempting fix, and the wrong one. Gemini's reader already refuses to
+    // stream `thought` parts into the operator's output for the same reason: a
+    // scratchpad spliced into an answer is a different failure, not a repair.
+    const body = {
+      result: {
+        choices: [{
+          message: { content: null, reasoning_content: 'SECRET SCRATCHPAD REASONING' },
+          finish_reason: 'length',
+        }],
+      },
+    };
+    const res = await withFetch(
+      async () => new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+      () => cloudflareAdapter({ prompt: 'p', model: '@cf/qwen/qwen3-30b-a3b-fp8', env }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.text ?? '').not.toContain('SECRET SCRATCHPAD');
+    expect(res.error).not.toContain('SECRET SCRATCHPAD');
+  });
+
+  test('a blank for any OTHER reason still reports the finish_reason it had', async () => {
+    // The budget case is one branch, not the whole story. A model that stops
+    // for a content filter must not be reported as needing a bigger budget.
+    const body = {
+      result: { choices: [{ message: { content: '' }, finish_reason: 'content_filter' }] },
+    };
+    const res = await withFetch(
+      async () => new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+      () => cloudflareAdapter({ prompt: 'p', model: '@cf/qwen/qwen3-30b-a3b-fp8', env }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/finish_reason: content_filter/);
+    expect(res.error).not.toMatch(/output budget/);
+  });
+
+  test('a real answer after a long reasoning run is unaffected', async () => {
+    // The complement, and the one that makes the others mean something: the
+    // measured shape is 105 reasoning frames THEN content. If the reader only
+    // survived the blank case it would be a reader that never works.
+    const chunks = [
+      ...Array.from({ length: 5 }, () => frame({
+        choices: [{ delta: { reasoning_content: 'thinking...' } }],
+      })),
+      frame({ choices: [{ delta: { content: 'OK' } }] }),
+      frame({ choices: [{ delta: { content: '.' } }] }),
+      'data: [DONE]\n\n',
+    ];
+    const deltas = [];
+    const res = await withFetch(
+      async () => sseResponse(chunks),
+      () => cloudflareAdapter({
+        prompt: 'p', model: '@cf/qwen/qwen3-30b-a3b-fp8', env,
+        onTextDelta: (d) => deltas.push(d),
+      }),
+    );
+    expect(res.ok).toBe(true);
+    expect(res.text).toBe('OK.');
+    expect(deltas).toEqual(['OK', '.']);
+  });
+});
+
+describe('a Gemini stream that is all thinking and no answer', () => {
+  // FROM THE LIVE CAPTURE. The gemini lane failed with "Gemini returned no text
+  // response" while `gemini-3.7-flash` was intermittently 503 and its sibling
+  // rung was 429 quota-exhausted. That message was not wrong so much as
+  // unhelpfully general: frames DID arrive, they were `thought` parts, and the
+  // answer never came. "The model said nothing" and "the model was still
+  // thinking when the stream ended" send an operator to different places.
+  test('reports the reasoning it did stream instead of claiming silence', async () => {
+    const chunks = [
+      frame({ candidates: [{ content: { parts: [{ text: 'Let me consider', thought: true }] } }] }),
+      frame({ candidates: [{ content: { parts: [{ text: ' the tradeoffs.', thought: true }] } }] }),
+      'data: [DONE]\n\n',
+    ];
+    const res = await withFetch(
+      async () => sseResponse(chunks),
+      () => geminiAdapter({
+        prompt: 'p', model: 'gemini-3.7-flash',
+        env: { GOOGLE_API_KEY: 'k' }, onTextDelta: () => {},
+      }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/reasoning and no answer/);
+    expect(res.error).toMatch(/still thinking/);
+  });
+
+  test('the reasoning text itself is not leaked into the error', async () => {
+    // Same rule as everywhere else: a scratchpad is not an answer, and an error
+    // message is not a side door for one.
+    const chunks = [
+      frame({ candidates: [{ content: { parts: [{ text: 'SECRET PLAN', thought: true }] } }] }),
+      'data: [DONE]\n\n',
+    ];
+    const res = await withFetch(
+      async () => sseResponse(chunks),
+      () => geminiAdapter({
+        prompt: 'p', model: 'gemini-3.7-flash',
+        env: { GOOGLE_API_KEY: 'k' }, onTextDelta: () => {},
+      }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error).not.toContain('SECRET PLAN');
+    expect(res.error).toMatch(/11 characters of reasoning/);
+  });
+
+  test('a stream that closes with no frames at all says THAT instead', async () => {
+    // The neighbouring case, and it must stay distinguishable: nothing arrived,
+    // versus something arrived that was not the answer.
+    const res = await withFetch(
+      async () => sseResponse([]),
+      () => geminiAdapter({
+        prompt: 'p', model: 'gemini-3.7-flash',
+        env: { GOOGLE_API_KEY: 'k' }, onTextDelta: () => {},
+      }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/without sending a single frame/);
+    expect(res.error).not.toMatch(/reasoning and no answer/);
+  });
+});

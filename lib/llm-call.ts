@@ -204,7 +204,17 @@ async function readEventStream(
  */
 function errorFromNonStreamBody(raw: string, fallback: string): string {
   const text = raw.trim();
-  if (!text) return fallback;
+  // An EMPTY body is its own outcome and used to collapse into the generic
+  // fallback, which reads as "the model had nothing to say". It is not that:
+  // the connection opened, the provider committed to an event stream, and then
+  // closed it without ever sending a frame. Seen live from Gemini while its
+  // sibling rung was returning 429 and the model itself was intermittently
+  // 503 — load-shedding after the response had already begun. Naming it is the
+  // difference between an operator retrying and an operator debugging a prompt.
+  if (!text) {
+    return `${fallback} — the stream closed without sending a single frame `
+      + '(provider accepted the request, then produced nothing; usually transient load-shedding)';
+  }
   try {
     const parsed = JSON.parse(text) as Record<string, any>;
     const message = parsed?.error?.message ?? parsed?.message;
@@ -310,11 +320,32 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
       // Workers AI streams OpenAI-shaped chunks: choices[].delta.content, with
       // some models using `response` for the same fragment.
       let text = '';
+      let streamUsage: Record<string, any> | undefined;
       const stream = await readEventStream(
         res.body,
         (payload) => {
           try {
             const chunk = JSON.parse(payload) as Record<string, any>;
+            // CORRECTION, measured against the live API on 2026-08-23. This
+            // used to return `{ ok: true, text }` under a comment asserting
+            // that "streamed Workers AI responses carry no usage block". They
+            // do. Every frame carries one, and the final frame carries the
+            // totals — captured from @cf/qwen/qwen3-30b-a3b-fp8 over 112
+            // frames: prompt_tokens 11, completion_tokens 111.
+            //
+            // The claim was not merely wrong, it was load-bearing in the wrong
+            // direction: telemetry is fail-closed, so a body with no token
+            // counts is refused as unbillable. Streaming therefore turned a
+            // backend that WORKS into one whose runs die after producing a
+            // perfect answer — "Exact telemetry required, but cloudflare did
+            // not return token counts", which is what the live capture showed
+            // in the cloudflare lane while the answer sat right above it.
+            //
+            // Zero-valued frames are ignored rather than assigned: early frames
+            // legitimately report 0, and letting one land last would assert a
+            // free call to a fail-closed meter.
+            const u = chunk?.usage;
+            if (u && Number(u.total_tokens) > 0) streamUsage = u;
             const delta =
               chunk?.choices?.[0]?.delta?.content
               ?? chunk?.response
@@ -342,9 +373,16 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
               : 'Cloudflare Workers AI returned no text response',
         };
       }
-      // Streamed Workers AI responses carry no usage block; undefined means
-      // "unknown", which the cost tracker must not read as zero.
-      return { ok: true, text };
+      // Usage read from the stream where the provider sent it. Still undefined
+      // when it did not, because undefined means "unknown" and zero would
+      // assert a free call — the one distinction the telemetry policy is
+      // fail-closed on.
+      return {
+        ok: true,
+        text,
+        inputTokens: normalizeTokenCount(streamUsage?.prompt_tokens),
+        outputTokens: normalizeTokenCount(streamUsage?.completion_tokens),
+      };
     }
 
     const data = await res.json() as Record<string, any>;
@@ -357,7 +395,39 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
         || result?.output_text
         || result?.choices?.[0]?.message?.content
         || '';
-    if (!text) return { ok: false, error: 'Cloudflare Workers AI returned no text response' };
+    if (!text) {
+      // THE BLANK THIS NAMES, found by live-probing all 23 admitted models.
+      // More than half of them are reasoning models, and a reasoning model
+      // whose output budget runs out mid-thought answers HTTP 200 with
+      // `content: null`, its whole answer stranded in `reasoning_content` and
+      // `finish_reason: "length"`. Measured on the current roster at
+      // max_tokens=32: shipDefault (qwen3-30b-a3b-fp8), shipMid (gpt-oss-20b),
+      // glm-4.7-flash, glm-5.2 and kimi-k2.7-code all came back empty this way.
+      //
+      // The reasoning text is deliberately NOT used as the answer. That is the
+      // same rule the Gemini reader follows for `thought` parts: a scratchpad
+      // spliced into the operator's output is a different failure, not a fix.
+      // What was missing is that the cause was unsayable — "returned no text
+      // response" reads as "the model had nothing to say" when the truth is
+      // "the model was still thinking when the budget ran out", and those two
+      // want opposite responses from whoever reads the log.
+      const choice = result?.choices?.[0];
+      const finish = typeof choice?.finish_reason === 'string' ? choice.finish_reason : undefined;
+      const thoughtOnly = typeof choice?.message?.reasoning_content === 'string'
+        && choice.message.reasoning_content.length > 0;
+      if (thoughtOnly && finish === 'length') {
+        return {
+          ok: false,
+          error:
+            'Cloudflare Workers AI returned no text: the model spent its entire output budget '
+            + 'on reasoning (finish_reason: length). Raise maxTokens for this model.',
+        };
+      }
+      return {
+        ok: false,
+        error: `Cloudflare Workers AI returned no text response${finish ? ` (finish_reason: ${finish})` : ''}`,
+      };
+    }
     return {
       ok: true,
       text,
@@ -532,6 +602,24 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
           };
         }
         const finish = (lastChunk as Record<string, any> | undefined)?.candidates?.[0]?.finishReason;
+        // FRAMES ARRIVED AND NONE OF THEM WERE THE ANSWER. Seen live in the
+        // committed capture's gemini lane: the model streamed `thought` parts
+        // and then stopped, so the answer accumulator stayed empty while the
+        // thinking accumulator did not. The generic message made that
+        // indistinguishable from a model that said nothing at all, and the two
+        // are not the same event — this one means the model was still thinking
+        // when the stream ended, which on a loaded endpoint is where its budget
+        // went. Reported alongside `finishReason` because when Gemini does send
+        // one it is the difference between MAX_TOKENS and SAFETY.
+        if (thoughts) {
+          return {
+            ok: false,
+            error:
+              `Gemini streamed ${thoughts.length} characters of reasoning and no answer`
+              + `${finish ? ` (finishReason: ${finish})` : ' (no finishReason sent)'}`
+              + ' — the model was still thinking when the stream ended.',
+          };
+        }
         return {
           ok: false,
           error: `Gemini returned no text response${finish ? ` (finishReason: ${finish})` : ''}`,

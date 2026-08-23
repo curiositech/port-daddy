@@ -52,6 +52,12 @@ export interface ModelRegistryData {
   /** Transport-level model nicknames (e.g. the claude CLI's haiku/sonnet/opus). */
   cliAliases: Record<string, Record<string, string>>;
   /**
+   * Human-typed family nicknames resolved on the `explicit` input — sonnet,
+   * opus, sol, terra, luna. Every vendor with public nicknames gets a row, so
+   * one vendor's CLI quirk does not read as a feature only that family has.
+   */
+  modelAliases: Record<string, string>;
+  /**
    * Backend-name aliases resolved in exactly one place: canonicalBackend() in
    * lib/model-registry.ts. Aliased backends share a model family and differ only
    * in transport; a backend with a genuinely different lineup (codex) keeps its
@@ -87,6 +93,15 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "max-thinking": "opus",
       "code": "sonnet"
     }
+  },
+  "modelAliases": {
+    "haiku": "claude-haiku-4-5",
+    "sonnet": "claude-sonnet-5",
+    "opus": "claude-opus-5",
+    "fable": "claude-fable-5",
+    "sol": "gpt-5.6-sol",
+    "terra": "gpt-5.6-terra",
+    "luna": "gpt-5.6-luna"
   },
   "backendAliases": {
     "anthropic": "claude",
@@ -336,11 +351,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.335,
       "contextWindow": 32768,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/openai/gpt-oss-20b": {
@@ -350,11 +366,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.3,
       "contextWindow": 128000,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/openai/gpt-oss-120b": {
@@ -364,11 +381,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.75,
       "contextWindow": 128000,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/moonshotai/kimi-k2.7-code": {
@@ -378,11 +396,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 4,
       "contextWindow": 262144,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/zai-org/glm-4.7-flash": {
@@ -392,11 +411,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.4,
       "contextWindow": 131072,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/zai-org/glm-5.2": {
@@ -406,11 +426,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 4.4,
       "contextWindow": 262144,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/deepseek-ai/deepseek-v4-flash-0731": {
@@ -420,11 +441,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 1.32,
       "contextWindow": 1048576,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/deepseek-ai/deepseek-v4-pro-0813": {
@@ -434,11 +456,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 3.96,
       "contextWindow": 1048576,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/google/gemma-4-26b-a4b-it": {
@@ -448,11 +471,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.3,
       "contextWindow": 256000,
       "capabilities": [
-        "text-generation"
+        "text-generation",
+        "reasoning"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/nvidia/nemotron-3-120b-a12b": {
@@ -465,8 +489,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
@@ -479,8 +503,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/meta/llama-3.1-8b-instruct-fp8": {
@@ -493,8 +517,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/meta/llama-3.2-1b-instruct": {
@@ -507,8 +531,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/meta/llama-3.2-3b-instruct": {
@@ -521,8 +545,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/meta/llama-3.2-11b-vision-instruct": {
@@ -532,11 +556,11 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.676,
       "contextWindow": 128000,
       "capabilities": [
-        "text-generation"
+        "vision"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/meta/llama-4-scout-17b-16e-instruct": {
@@ -549,8 +573,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/mistralai/mistral-small-3.1-24b-instruct": {
@@ -563,8 +587,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/qwen/qwen2.5-coder-32b-instruct": {
@@ -577,8 +601,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/qwen/qwq-32b": {
@@ -591,8 +615,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/qwen/qwen3.8-27b": {
@@ -605,8 +629,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {
@@ -619,8 +643,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/ibm-granite/granite-4.0-h-micro": {
@@ -633,8 +657,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/aisingapore/gemma-sea-lion-v4-27b-it": {
@@ -647,8 +671,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "@cf/baai/bge-base-en-v1.5": {
@@ -661,8 +685,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "embedding"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-22",
-      "verifiedBy": "cf-catalog",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
       "priceBasis": "vendor-docs"
     },
     "gemini-3.7-flash": {

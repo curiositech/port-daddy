@@ -195,4 +195,40 @@ describe('a catalogued model cannot be silently unreachable', () => {
       expect(`${id}:${deliberate ? 'ok' : 'ACCIDENTAL'}`).toBe(`${id}:ok`);
     }
   });
+
+  test('every family nickname resolves to a catalogued id', () => {
+    // A nickname that names nothing survives a ladder move looking correct, and
+    // the first person to type it gets their literal word posted to a provider.
+    // That is not hypothetical: `sol` did exactly this before the table existed.
+    const aliases = source.vocabularies.modelAliases;
+    expect(Object.keys(aliases).length).toBeGreaterThan(0);
+    for (const [nickname, target] of Object.entries(aliases)) {
+      expect(`${nickname} -> ${target in source.models ? target : 'NOT-IN-CATALOG'}`)
+        .toBe(`${nickname} -> ${target}`);
+    }
+  });
+
+  test('nicknames are offered to more than one vendor', () => {
+    // The point of the table. `sonnet` worked before it existed, but only as an
+    // accident of transport — the claude-code CLI accepts that word on its own
+    // --model flag. No other vendor's names got the same courtesy, so one
+    // vendor's CLI quirk read as a feature only that family had. If this ever
+    // narrows back to a single provider, the asymmetry has returned.
+    const providers = new Set(
+      Object.values(source.vocabularies.modelAliases).map((id) => source.models[id].provider),
+    );
+    expect(providers.size).toBeGreaterThan(1);
+  });
+
+  test('a nickname never names a capability rung', () => {
+    // `opus` names a model; `high` names a job. A nickname that collided with a
+    // rung would make `--model high` ambiguous between "the strong rung" and
+    // "some model literally called high", which is the confusion the capability
+    // ladder exists to remove.
+    for (const nickname of Object.keys(source.vocabularies.modelAliases)) {
+      expect(source.vocabularies.capabilities).not.toContain(nickname);
+      expect(Object.keys(source.vocabularies.tierAliases)).not.toContain(nickname);
+      expect(Object.keys(source.vocabularies.harborTiers)).not.toContain(nickname);
+    }
+  });
 });

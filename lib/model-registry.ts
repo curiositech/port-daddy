@@ -140,10 +140,44 @@ const BACKEND_NAME_PLACEHOLDERS = new Set([
  * @returns The concrete model id.
  * @throws When the backend is unknown or the capability has no mapping.
  */
+/**
+ * Resolve a human-typed family nickname to the concrete id it names.
+ *
+ * Case-insensitive, because the vendor materials these words come from are not
+ * consistent about it ("Sol" in prose, `gpt-5.6-sol` in the id) and an operator
+ * copying either should land in the same place.
+ *
+ * @param name A nickname or a concrete model id.
+ * @returns The catalogued id for a known nickname, else `name` unchanged.
+ */
+export function resolveModelAlias(name: string): string {
+  const aliases = load().modelAliases ?? {};
+  return aliases[name.trim().toLowerCase()] ?? name;
+}
+
+/**
+ * Every family nickname the registry understands, for surfaces that list them.
+ *
+ * @returns Nickname → concrete id, a copy the caller may not mutate into drift.
+ */
+export function modelAliases(): Record<string, string> {
+  return { ...(load().modelAliases ?? {}) };
+}
+
 export function resolveModel(opts: ResolveModelOptions): string {
   const explicit = opts.explicit?.trim();
   if (explicit && !BACKEND_NAME_PLACEHOLDERS.has(explicit)) {
-    return explicit;
+    // A family nickname a human typed resolves to the id it names; anything
+    // else passes through untouched, because an explicit pin the registry has
+    // never seen is still the operator's call to make.
+    //
+    // The asymmetry this closes: `sonnet` already worked, but only as an
+    // accident of transport — the claude-code CLI accepts that word on its own
+    // --model flag, so it never had to be translated here. No other vendor's
+    // names got the same courtesy, so `sol` reached the provider as the literal
+    // string `sol`. One vendor's CLI quirk was reading as a feature only that
+    // family had.
+    return resolveModelAlias(explicit);
   }
 
   const reg = load();

@@ -136,3 +136,34 @@ describe('every declared tier vocabulary actually resolves', () => {
     expect(CAPABILITIES).toContain(capabilityForTier(null));
   });
 });
+
+describe('family nicknames on the explicit input', () => {
+  test('a nickname resolves to its id, for every vendor that has one', () => {
+    // `sonnet` worked before this existed and `sol` did not, purely because the
+    // claude-code CLI accepts its own family words on --model and OpenAI's API
+    // does not. That made a transport quirk look like a capability one family
+    // had. Both now resolve here, before anything reaches a provider.
+    expect(resolveModel({ backend: 'claude', explicit: 'opus' })).toBe('claude-opus-5');
+    expect(resolveModel({ backend: 'openai', explicit: 'sol' })).toBe('gpt-5.6-sol');
+    expect(resolveModel({ backend: 'openai', explicit: 'terra' })).toBe('gpt-5.6-terra');
+    expect(resolveModel({ backend: 'openai', explicit: 'luna' })).toBe('gpt-5.6-luna');
+  });
+
+  test('case does not decide whether a nickname works', () => {
+    // The vendor writes "Sol" in prose and `gpt-5.6-sol` in the id; an operator
+    // copying either should land in the same place.
+    expect(resolveModel({ backend: 'openai', explicit: 'Sol' })).toBe('gpt-5.6-sol');
+    expect(resolveModel({ backend: 'openai', explicit: '  LUNA  ' })).toBe('gpt-5.6-luna');
+  });
+
+  test('an id the registry has never seen still passes through untouched', () => {
+    // An explicit pin is the operator's call. The alias table translates names
+    // it knows; it does not become a gate on names it does not.
+    expect(resolveModel({ backend: 'openai', explicit: 'ft:my-own-tune-2026' }))
+      .toBe('ft:my-own-tune-2026');
+  });
+
+  test('a concrete id is not rewritten by the table', () => {
+    expect(resolveModel({ backend: 'openai', explicit: 'gpt-5.6-sol' })).toBe('gpt-5.6-sol');
+  });
+});

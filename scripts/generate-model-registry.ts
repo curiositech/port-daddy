@@ -79,6 +79,7 @@ export interface ModelSource {
     tierAliases: Record<string, string>;
     harborTiers: Record<string, string>;
     cliAliases: Record<string, Record<string, string>>;
+    modelAliases: Record<string, string>;
   };
   backendAliases: Record<string, string>;
   models: Record<string, ModelCatalogEntry>;
@@ -131,6 +132,22 @@ export function loadSource(): ModelSource {
     throw new Error(
       `config/models.yaml: ${orphans.length} catalog row(s) are referenced by no backend: ` +
         `${orphans.join(', ')}. Remove them, or map them — an unreferenced row rots unnoticed.`,
+    );
+  }
+
+  // A family nickname that names nothing is worse than no nickname: it survives
+  // a ladder move looking correct, and the first person to type it gets their
+  // literal word posted to a provider. `sol` did exactly that before this table
+  // existed. Resolving to a catalogued id is the whole contract, so it is
+  // enforced at generation rather than discovered at a 404.
+  const danglingAliases = Object.entries(doc.vocabularies.modelAliases ?? {})
+    .filter(([, target]) => !(target in doc.models))
+    .map(([nickname, target]) => `${nickname} -> ${target}`);
+  if (danglingAliases.length) {
+    throw new Error(
+      `config/models.yaml: ${danglingAliases.length} modelAliases entr(ies) name no catalog row: ` +
+        `${danglingAliases.join(', ')}. A nickname must resolve to a real id, or it is a model ` +
+        `name invented in a second place — the exact drift this file exists to end.`,
     );
   }
 
@@ -256,6 +273,12 @@ export interface ModelRegistryData {
   /** Transport-level model nicknames (e.g. the claude CLI's haiku/sonnet/opus). */
   cliAliases: Record<string, Record<string, string>>;
   /**
+   * Human-typed family nicknames resolved on the \`explicit\` input — sonnet,
+   * opus, sol, terra, luna. Every vendor with public nicknames gets a row, so
+   * one vendor's CLI quirk does not read as a feature only that family has.
+   */
+  modelAliases: Record<string, string>;
+  /**
    * Backend-name aliases resolved in exactly one place: canonicalBackend() in
    * lib/model-registry.ts. Aliased backends share a model family and differ only
    * in transport; a backend with a genuinely different lineup (codex) keeps its
@@ -275,6 +298,7 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = ${JSON.stringify(
       tierAliases: doc.vocabularies.tierAliases,
       harborTiers: doc.vocabularies.harborTiers,
       cliAliases: doc.vocabularies.cliAliases,
+      modelAliases: doc.vocabularies.modelAliases,
       backendAliases: doc.backendAliases,
       models: doc.models,
       backends: doc.backends,

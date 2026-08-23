@@ -66,9 +66,24 @@ describe('costUsdForModel', () => {
     // catalog membership while checking a prefix. What must actually hold: a
     // priced id is either admitted, or is one of the deliberately-unadmitted
     // rows, named here so adding another is a visible decision rather than a
-    // silent one. The embedding index is the only such row: real billable spend
-    // on a model no ship may be pinned to.
-    const DELIBERATELY_UNADMITTED = ['@cf/baai/bge-base-en-v1.5'];
+    // silent one. There are exactly two, for opposite reasons, and this list is
+    // where that costs a diff:
+    //
+    //   bge-base-en-v1.5      the ideas-store embedding index. Real billable
+    //                         spend on a model no ship may be pinned to, since
+    //                         it would produce vectors where a review belongs.
+    //   llama-3.2-11b-vision  live-probed 2026-08-23 as HTTP 403. Cloudflare
+    //                         gates it behind a per-account Model Agreement and
+    //                         an EU-domicile representation, so it is a phantom
+    //                         from this deployment however real the vendor list
+    //                         says it is. It stays priced because the rate is
+    //                         published and a future account may clear the
+    //                         gate; it stays out of admission because THIS one
+    //                         has not.
+    const DELIBERATELY_UNADMITTED = [
+      '@cf/baai/bge-base-en-v1.5',
+      '@cf/meta/llama-3.2-11b-vision-instruct',
+    ];
     const unexplained = priced.filter(
       (model) => !CF_ADMITTED_MODELS.includes(model) && !DELIBERATELY_UNADMITTED.includes(model),
     );

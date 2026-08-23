@@ -1,107 +1,120 @@
 {
-  "branchCommit": "c115b5410912c862c28e86218aa0feddd3bc78e4",
+  "branchCommit": "b88d326bdc1d0f5132f4e2defe574555c7c2eb7a",
   "isControlPanelPr": false,
   "statesCovered": [
     "active"
   ],
-  "capturedAt": "2026-08-23T12:22:27.061Z",
+  "capturedAt": "2026-08-23T18:20:32.564Z",
   "mode": "live",
-  "perRowBudgetUsd": 0.3,
-  "skipped": [
-    {
-      "label": "cloudflare",
-      "reason": "no CLOUDFLARE_API_TOKEN / CF_API_TOKEN"
-    }
-  ],
+  "perRowBudgetUsd": 0.6,
+  "skipped": [],
   "artifacts": [
     {
-      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/live/lanes-light.png",
+      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/lanes-light.png",
       "manifest": {
-        "daemonPort": 9541,
-        "runId": "spawned-23a91205da14,spawned-25e4cfa094ac,spawned-0245bb7ee227",
+        "daemonPort": 9508,
+        "runId": "spawned-17ba4d8b288f,spawned-3acc7f066062,spawned-03a2eb3ecfb5,spawned-19a9ab4b10ca",
         "transcriptHeadHash": null,
-        "agentNodeId": "spawned-23a91205da14",
-        "commit": "c115b5410912c862c28e86218aa0feddd3bc78e4",
+        "agentNodeId": "spawned-17ba4d8b288f",
+        "commit": "b88d326bdc1d0f5132f4e2defe574555c7c2eb7a",
         "sourceLabel": "real",
         "lanes": [
           {
             "label": "claude-code",
-            "agentId": "spawned-23a91205da14",
+            "agentId": "spawned-17ba4d8b288f",
             "backend": "cli:claude-code",
             "sourceLabel": "real"
           },
           {
             "label": "openai",
-            "agentId": "spawned-25e4cfa094ac",
+            "agentId": "spawned-3acc7f066062",
             "backend": "openai",
             "sourceLabel": "real"
           },
           {
             "label": "gemini",
-            "agentId": "spawned-0245bb7ee227",
+            "agentId": "spawned-03a2eb3ecfb5",
             "backend": "gemini",
+            "sourceLabel": "real"
+          },
+          {
+            "label": "cloudflare",
+            "agentId": "spawned-19a9ab4b10ca",
+            "backend": "cloudflare",
             "sourceLabel": "real"
           }
         ]
       }
     },
     {
-      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/live/lanes-stream.webm",
+      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/lanes-stream.webm",
       "manifest": {
-        "daemonPort": 9541,
-        "runId": "spawned-23a91205da14,spawned-25e4cfa094ac,spawned-0245bb7ee227",
+        "daemonPort": 9508,
+        "runId": "spawned-17ba4d8b288f,spawned-3acc7f066062,spawned-03a2eb3ecfb5,spawned-19a9ab4b10ca",
         "transcriptHeadHash": null,
-        "agentNodeId": "spawned-23a91205da14",
-        "commit": "c115b5410912c862c28e86218aa0feddd3bc78e4",
+        "agentNodeId": "spawned-17ba4d8b288f",
+        "commit": "b88d326bdc1d0f5132f4e2defe574555c7c2eb7a",
         "sourceLabel": "real",
         "lanes": [
           {
             "label": "claude-code",
-            "agentId": "spawned-23a91205da14",
+            "agentId": "spawned-17ba4d8b288f",
             "backend": "cli:claude-code",
             "sourceLabel": "real"
           },
           {
             "label": "openai",
-            "agentId": "spawned-25e4cfa094ac",
+            "agentId": "spawned-3acc7f066062",
             "backend": "openai",
             "sourceLabel": "real"
           },
           {
             "label": "gemini",
-            "agentId": "spawned-0245bb7ee227",
+            "agentId": "spawned-03a2eb3ecfb5",
             "backend": "gemini",
+            "sourceLabel": "real"
+          },
+          {
+            "label": "cloudflare",
+            "agentId": "spawned-19a9ab4b10ca",
+            "backend": "cloudflare",
             "sourceLabel": "real"
           }
         ]
       }
     },
     {
-      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/live/lanes-dark.png",
+      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/lanes-dark.png",
       "manifest": {
-        "daemonPort": 9541,
-        "runId": "spawned-23a91205da14,spawned-25e4cfa094ac,spawned-0245bb7ee227",
+        "daemonPort": 9508,
+        "runId": "spawned-17ba4d8b288f,spawned-3acc7f066062,spawned-03a2eb3ecfb5,spawned-19a9ab4b10ca",
         "transcriptHeadHash": null,
-        "agentNodeId": "spawned-23a91205da14",
-        "commit": "c115b5410912c862c28e86218aa0feddd3bc78e4",
+        "agentNodeId": "spawned-17ba4d8b288f",
+        "commit": "b88d326bdc1d0f5132f4e2defe574555c7c2eb7a",
         "sourceLabel": "real",
         "lanes": [
           {
             "label": "claude-code",
-            "agentId": "spawned-23a91205da14",
+            "agentId": "spawned-17ba4d8b288f",
             "backend": "cli:claude-code",
             "sourceLabel": "real"
           },
           {
             "label": "openai",
-            "agentId": "spawned-25e4cfa094ac",
+            "agentId": "spawned-3acc7f066062",
             "backend": "openai",
             "sourceLabel": "real"
           },
           {
             "label": "gemini",
-            "agentId": "spawned-0245bb7ee227",
+            "agentId": "spawned-03a2eb3ecfb5",
             "backend": "gemini",
+            "sourceLabel": "real"
+          },
+          {
+            "label": "cloudflare",
+            "agentId": "spawned-19a9ab4b10ca",
+            "backend": "cloudflare",
             "sourceLabel": "real"
           }
         ]

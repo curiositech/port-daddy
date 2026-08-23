@@ -71,6 +71,38 @@ vocabularies:
       max-thinking: opus
       code: sonnet
 
+  # Family nicknames a HUMAN types, resolved on the `explicit` input.
+  #
+  # WHY THIS EXISTS, AND WHY IT IS SYMMETRIC. `cliAliases` above let an operator
+  # write `sonnet` and have it work, because the claude-code CLI itself accepts
+  # that word. Nothing equivalent existed for any other vendor, so `sol` — the
+  # name OpenAI's own documentation uses for the frontier 5.6 model — resolved
+  # to the literal string `sol`, went to the provider verbatim, and 404'd. The
+  # asymmetry was not a decision anybody made; it was a transport quirk of one
+  # vendor's CLI leaking out and looking like a feature only that family had.
+  #
+  # So this is an INPUT vocabulary, not a transport one, and every family that
+  # ships human-facing nicknames gets a row. The rule for adding one: the vendor
+  # itself must use the nickname in its own materials. That keeps this a
+  # translation table for names people are already reading rather than a second
+  # place where model names get invented — which is the whole failure this file
+  # exists to end. A nickname must resolve to a catalogued id, and the generator
+  # refuses to emit if it does not, so this table cannot outlive a ladder move.
+  #
+  # Deliberately absent: a nickname for whichever id currently fills a RUNG.
+  # `opus` names a model; `high` names a job. Collapsing them would resurrect
+  # the confusion the capability ladder exists to remove.
+  modelAliases:
+    # Anthropic
+    haiku: claude-haiku-4-5
+    sonnet: claude-sonnet-5
+    opus: claude-opus-5
+    fable: claude-fable-5
+    # OpenAI — the 5.6 family the vendor names Sol / Terra / Luna
+    sol: gpt-5.6-sol
+    terra: gpt-5.6-terra
+    luna: gpt-5.6-luna
+
 # Backend-name aliases → canonical family key. Resolved in exactly one place:
 # canonicalBackend() in lib/model-registry.ts.
 backendAliases:
@@ -341,16 +373,38 @@ models:
   # a budget: an unknown Workers AI id does not 404, it returns a blank the
   # parser reads as "clean", which is how two phantom kimi ids silenced this
   # fleet in #654 and how the reviewer went dark on 2026-07-03.
+  # ---- Workers AI (the admitted universe) ----
+  #
+  # NINE OF THESE ROWS CARRY `reasoning`, AND THE BUDGET IS THE REASON.
+  # Live-probed 2026-08-23 against every admitted id. A reasoning model streams
+  # its scratchpad first and its answer last, and the two share one output
+  # budget. Measured on shipDefault (qwen3-30b-a3b-fp8), "Say OK." at
+  # max_tokens 2000:
+  #
+  #     113 frames   105 reasoning   3 content   finish_reason: stop
+  #
+  # The same call at max_tokens 400 produced 0 content frames and returned
+  # HTTP 200 with an empty completion. Not an error — a BLANK, the shape the
+  # parser reads as "clean", which is how two phantom ids silenced this fleet in
+  # #654 and how the reviewer went dark on 2026-07-03. Same failure, different
+  # cause: there the id did not exist, here the model never got to the answer.
+  #
+  # So the capability is not decoration. A caller sizing `maxTokens` for a
+  # non-reasoning model and pointing it at one of these rows gets silence back.
+  # `lib/shipwright/survey.ts` asks for 600 today. The end-to-end adapter run
+  # that produced the committed live capture failed at 400 and succeeded at
+  # 4000, on the same model, same prompt, same code.
+  #
   '@cf/qwen/qwen3-30b-a3b-fp8':
     provider: qwen
     plane: workers-ai
     priceIn: 0.051
     priceOut: 0.335
     contextWindow: 32768
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/openai/gpt-oss-20b':
     provider: openai
@@ -358,10 +412,10 @@ models:
     priceIn: 0.2
     priceOut: 0.3
     contextWindow: 128000
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/openai/gpt-oss-120b':
     provider: openai
@@ -369,10 +423,10 @@ models:
     priceIn: 0.35
     priceOut: 0.75
     contextWindow: 128000
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/moonshotai/kimi-k2.7-code':
     provider: moonshotai
@@ -380,10 +434,10 @@ models:
     priceIn: 0.95
     priceOut: 4
     contextWindow: 262144
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/zai-org/glm-4.7-flash':
     provider: zai-org
@@ -391,10 +445,10 @@ models:
     priceIn: 0.06
     priceOut: 0.4
     contextWindow: 131072
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/zai-org/glm-5.2':
     provider: zai-org
@@ -402,10 +456,10 @@ models:
     priceIn: 1.4
     priceOut: 4.4
     contextWindow: 262144
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/deepseek-ai/deepseek-v4-flash-0731':
     provider: deepseek-ai
@@ -413,10 +467,10 @@ models:
     priceIn: 0.44
     priceOut: 1.32
     contextWindow: 1048576
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/deepseek-ai/deepseek-v4-pro-0813':
     provider: deepseek-ai
@@ -424,10 +478,10 @@ models:
     priceIn: 1.32
     priceOut: 3.96
     contextWindow: 1048576
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/google/gemma-4-26b-a4b-it':
     provider: google
@@ -435,10 +489,10 @@ models:
     priceIn: 0.1
     priceOut: 0.3
     contextWindow: 256000
-    capabilities: [text-generation]
+    capabilities: [text-generation, reasoning]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/nvidia/nemotron-3-120b-a12b':
     provider: nvidia
@@ -448,8 +502,8 @@ models:
     contextWindow: 256000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast':
     provider: meta
@@ -459,8 +513,8 @@ models:
     contextWindow: 24000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/meta/llama-3.1-8b-instruct-fp8':
     provider: meta
@@ -470,8 +524,8 @@ models:
     contextWindow: 32000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/meta/llama-3.2-1b-instruct':
     provider: meta
@@ -481,8 +535,8 @@ models:
     contextWindow: 60000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/meta/llama-3.2-3b-instruct':
     provider: meta
@@ -492,8 +546,8 @@ models:
     contextWindow: 80000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/meta/llama-3.2-11b-vision-instruct':
     provider: meta
@@ -501,10 +555,26 @@ models:
     priceIn: 0.049
     priceOut: 0.676
     contextWindow: 128000
-    capabilities: [text-generation]
+    # NOT ADMITTED, and the live probe is why. This row was catalogued from the
+    # vendor list as `[text-generation]`, which admitted it — and admission is a
+    # promise that a ship pinned here will actually run. It will not. Calling it
+    # with this account's credential returns HTTP 403:
+    #
+    #     AiError: Model Agreement: Prior to using this model, you must submit
+    #     the prompt 'agree' ... Community License ... and you represent that
+    #     you are not an individual domiciled in the European Union.
+    #
+    # That is a per-account licensing gate, not a transient error and not
+    # something a retry or a failover hop can clear. A model this deployment
+    # cannot call is a phantom from here, which is the same ruling the gpt-5.6
+    # sibling got for `model_not_found`. It stays in the catalogue rather than
+    # being deleted so the next person who reads the vendor list finds the
+    # answer instead of re-admitting it; `[vision]` keeps it out of admission,
+    # since admission requires `text-generation`.
+    capabilities: [vision]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/meta/llama-4-scout-17b-16e-instruct':
     provider: meta
@@ -514,8 +584,8 @@ models:
     contextWindow: 131000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/mistralai/mistral-small-3.1-24b-instruct':
     provider: mistralai
@@ -525,8 +595,8 @@ models:
     contextWindow: 128000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/qwen/qwen2.5-coder-32b-instruct':
     provider: qwen
@@ -536,8 +606,8 @@ models:
     contextWindow: 32768
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/qwen/qwq-32b':
     provider: qwen
@@ -547,8 +617,8 @@ models:
     contextWindow: 24000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/qwen/qwen3.8-27b':
     provider: qwen
@@ -558,8 +628,8 @@ models:
     contextWindow: 262144
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b':
     provider: deepseek-ai
@@ -569,8 +639,8 @@ models:
     contextWindow: 80000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/ibm-granite/granite-4.0-h-micro':
     provider: ibm-granite
@@ -580,8 +650,8 @@ models:
     contextWindow: 131000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
   '@cf/aisingapore/gemma-sea-lion-v4-27b-it':
     provider: aisingapore
@@ -591,8 +661,8 @@ models:
     contextWindow: 128000
     capabilities: [text-generation]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
 
   # ---- Cloudflare Workers AI: embeddings ----
@@ -608,8 +678,8 @@ models:
     contextWindow: 512
     capabilities: [embedding]
     status: ga
-    verifiedAt: '2026-08-22'
-    verifiedBy: cf-catalog
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
     priceBasis: vendor-docs
 
   # ---- Google Gemini ----
