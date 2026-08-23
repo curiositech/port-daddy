@@ -91,7 +91,9 @@ import {
   FleetAiDependencyError,
   normalizeProviderQueueAttempt,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  type ShipAiCallStats,
 } from './ai-resilience.js';
+import { resolveAiCallDeadlineMs } from '../../shared/repo-ai-settings.js';
 import {
   classifyShipOutput,
   describeNoUsableOutput,
@@ -928,6 +930,71 @@ async function recordShipSpend(
   }
 }
 
+/**
+ * Record ONE `fleet_ai_call_stats` row for a completed ship's Workers AI
+ * calls (best-effort, same contract as {@link recordShipSpend}). Called with
+ * whatever {@link FleetAiCircuit.snapshotShipStats} has accumulated for this
+ * ship by the time it finishes — a no-op when the ship made no AI calls
+ * through `runForShip` (e.g. it errored before reaching one, or ideation-only
+ * ships that route differently).
+ *
+ * Design rationale: one row per ship, not one per call, is the whole point —
+ * see the design note on the migration this table came from
+ * (`apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql`) for why raw
+ * per-call logging was rejected.
+ *
+ * @param env - Worker bindings (D1).
+ * @param runId - This queue delivery's run id.
+ * @param ship - The ship whose aggregate is being flushed.
+ * @param stats - The accumulated per-ship totals, or null when the ship made
+ *   no tracked AI calls.
+ * @param deadlineMs - The deadline this run's circuit was configured with,
+ *   stamped onto the row so a later reader can tell "3 timeouts at 60000ms"
+ *   apart from "3 timeouts at 300000ms" without a separate join.
+ * @returns Nothing; failures are logged and swallowed, never thrown.
+ */
+async function recordShipAiCallStats(
+  env: ExecutorEnv,
+  runId: string,
+  ship: ShipConfig,
+  stats: ShipAiCallStats | null,
+  deadlineMs: number,
+): Promise<void> {
+  if (!env.DB || !stats || stats.calls === 0) return;
+  try {
+    await env.DB.prepare(
+      `INSERT INTO fleet_ai_call_stats
+         (run_id, ship, calls, ok_calls, timeout_calls, error_calls, total_elapsed_ms, max_elapsed_ms, deadline_ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(run_id, ship) DO UPDATE SET
+         calls = excluded.calls,
+         ok_calls = excluded.ok_calls,
+         timeout_calls = excluded.timeout_calls,
+         error_calls = excluded.error_calls,
+         total_elapsed_ms = excluded.total_elapsed_ms,
+         max_elapsed_ms = excluded.max_elapsed_ms,
+         deadline_ms = excluded.deadline_ms`,
+    )
+      .bind(
+        runId,
+        ship.name,
+        stats.calls,
+        stats.okCalls,
+        stats.timeoutCalls,
+        stats.errorCalls,
+        stats.totalElapsedMs,
+        stats.maxElapsedMs,
+        deadlineMs,
+        nowSec(),
+      )
+      .run();
+  } catch (err) {
+    console.error(
+      `[fleet-executor] fleet_ai_call_stats insert failed run=${runId} ship=${ship.name}: ${String(err)}`,
+    );
+  }
+}
+
 const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
 /** The fleet trigger used by reviewable pull_request deliveries. */
@@ -1087,7 +1154,8 @@ export async function executeFleet(
     (options.maxNewShipsPerInvocation ?? 0) > 0
       ? options.maxNewShipsPerInvocation as number
       : Number.POSITIVE_INFINITY;
-  const aiCircuit = new FleetAiCircuit();
+  const aiCallDeadlineMs = await resolveAiCallDeadlineMs(env.DB, job.repoFullName);
+  const aiCircuit = new FleetAiCircuit(aiCallDeadlineMs);
 
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
@@ -1753,6 +1821,9 @@ export async function executeFleet(
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
     // relay can bill per installation. Best-effort — never changes the run.
     await recordShipSpend(env, runId, ship, job.installationId, metrics);
+    // Aggregate (not per-call) Workers AI stats for this ship — see
+    // FleetAiCircuit.runForShip for why per-call D1 rows were rejected.
+    await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
     // …and the same numbers into the transcript, which is what the human-facing
     // run page actually reads for its token tiles.
     await recordShipTokensInTranscript(transcript, ship, metrics);
@@ -2175,7 +2246,7 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await aiCircuit.run(() =>
+      const res = await aiCircuit.runForShip(ship.name, () =>
         env.AI.run(
           mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
           request,
@@ -2992,7 +3063,7 @@ async function reduceFindings(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await aiCircuit.run(() =>
+  const res = await aiCircuit.runForShip(ship.name, () =>
     env.AI.run(
       ship.cfModel as Parameters<typeof env.AI.run>[0],
       request,
@@ -3044,7 +3115,7 @@ async function shipRepairCall(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await aiCircuit.run(() =>
+  const res = await aiCircuit.runForShip(ship.name, () =>
     env.AI.run(
       model as Parameters<typeof env.AI.run>[0],
       request,

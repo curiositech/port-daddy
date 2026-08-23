@@ -360,6 +360,11 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
           if (sql.includes('FROM users WHERE id')) {
             return args[0] === baseUser.id ? baseUser : null;
           }
+          if (sql.startsWith('SELECT settings_json FROM repo_settings')) {
+            const [userId, repo] = args as [string, string];
+            const existing = settings.get(`${userId}\u0000${repo}`);
+            return existing ? { settings_json: existing.settings_json } : null;
+          }
           return null;
         },
         async all() {
@@ -380,20 +385,23 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
         },
         async run() {
           if (sql.includes('INSERT INTO repo_settings')) {
-            const [userId, repo, level, createdAt, updatedAt] = args as [string, string, SitrepLevel, number, number];
+            const [userId, repo, level, settingsJson, createdAt, updatedAt] = args as [
+              string, string, SitrepLevel, string, number, number,
+            ];
             const key = `${userId}\u0000${repo}`;
             const existing = settings.get(key);
             seq += 1;
             if (existing) {
-              // ON CONFLICT: only the dial and updated_at move; created_at stays.
+              // ON CONFLICT: dial, settings_json, and updated_at move; created_at stays.
               existing.sitrep_end_of_turn = level;
+              existing.settings_json = settingsJson;
               existing.updated_at = updatedAt + seq;
             } else {
               settings.set(key, {
                 user_id: userId,
                 repo_full_name: repo,
                 sitrep_end_of_turn: level,
-                settings_json: '{}',
+                settings_json: settingsJson,
                 created_at: createdAt,
                 updated_at: updatedAt + seq,
               });

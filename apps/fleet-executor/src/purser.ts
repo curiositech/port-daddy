@@ -598,7 +598,7 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   await assertCurrentHead(`before pd-${ship.name} Purser model call`);
-  const res = await aiCircuit.run(() =>
+  const res = await aiCircuit.runForShip(ship.name, () =>
     env.AI.run(
       (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
       request,

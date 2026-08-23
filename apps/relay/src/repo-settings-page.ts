@@ -30,6 +30,13 @@ import type { UserRow } from './db.js';
 import { resolveSession, userCanReadRepo } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
 import { HEAD, TOKENS } from './account-page.js';
+import {
+  aiCallDeadlineMsFromSettingsJson,
+  DEFAULT_AI_CALL_DEADLINE_MS,
+  MAX_AI_CALL_DEADLINE_MS,
+  MIN_AI_CALL_DEADLINE_MS,
+  parseAiCallDeadlineMs,
+} from '../../shared/repo-ai-settings.js';
 
 /** The closed enum of SITREP dial levels the screen (and the DB CHECK) accept. */
 export type SitrepLevel = 'off' | 'suggest' | 'enforce';
@@ -262,6 +269,11 @@ function repoCard(row: RepoSettingRow): string {
         row.sitrep_end_of_turn === level ? ' checked' : ''
       }>${level}</label>`,
   ).join('');
+  const aiCallDeadlineMinutes = Math.round(
+    aiCallDeadlineMsFromSettingsJson(row.settings_json) / 60_000,
+  );
+  const minMinutes = Math.round(MIN_AI_CALL_DEADLINE_MS / 60_000) || 1;
+  const maxMinutes = Math.round(MAX_AI_CALL_DEADLINE_MS / 60_000);
   return `<article class="repo-card" aria-label="Settings for ${repo}">
   <header class="rc-head"><h2>${repo}</h2><span class="when">updated ${when} UTC</span></header>
   <div class="rc-body">
@@ -273,6 +285,15 @@ function repoCard(row: RepoSettingRow): string {
       with progress per turn. Rows that have code being written must link a roadmap item at creation.
       <strong>suggest</strong> asks; <strong>enforce</strong> makes an unclosed turn incomplete.</p>
       <div class="dial" role="radiogroup" aria-label="Sitrep level for ${repo}">${radios}</div>
+      <div class="setting-name" style="margin-top:22px">Fleet AI call timeout</div>
+      <p class="setting-desc">How long one Fleet Workers AI call may run before Fleet treats it as
+      hung, opens the run's circuit, and lets the next queue delivery retry. Cloudflare's binding
+      has no cancel signal, so this is a client-side wall clock, not a provider-side limit.</p>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:13.5px">
+        <input type="number" name="aiCallDeadlineMinutes" min="${minMinutes}" max="${maxMinutes}"
+          step="1" value="${aiCallDeadlineMinutes}" style="width:64px;border:1.5px solid var(--hair-strong);background:var(--surface-raised);padding:6px 8px;font-family:inherit;font-size:inherit">
+        minutes (${minMinutes}–${maxMinutes}, default ${Math.round(DEFAULT_AI_CALL_DEADLINE_MS / 60_000)})
+      </label>
       <div class="rc-actions"><button class="btn-save" type="submit">Save</button></div>
     </form>
     <div class="snippet"><div class="s-label">What each device enforces locally</div><code>${esc(
@@ -413,21 +434,55 @@ export async function handleRepoSettingsSet(request: Request, env: Env): Promise
   const level = normalizeSitrepLevel(form?.get('sitrep'));
   if (!repo) return backToRepos('That does not look like an owner/name repository.', true);
   if (!level) return backToRepos('Pick a sitrep level: off, suggest, or enforce.', true);
+  // Blank/absent (e.g. the "Add a repository" form, which has no timeout
+  // field yet) means "use the default", not "reject the save" — only a value
+  // that cannot possibly be a duration is an error.
+  const deadlineMinutesRaw = form?.get('aiCallDeadlineMinutes');
+  const deadlineMinutesText = typeof deadlineMinutesRaw === 'string' ? deadlineMinutesRaw.trim() : '';
+  const aiCallDeadlineMs =
+    deadlineMinutesText === ''
+      ? DEFAULT_AI_CALL_DEADLINE_MS
+      : parseAiCallDeadlineMs(Number(deadlineMinutesText) * 60_000);
+  if (aiCallDeadlineMs == null) {
+    return backToRepos(
+      `Pick an AI call timeout between ${Math.round(MIN_AI_CALL_DEADLINE_MS / 60_000) || 1} and ` +
+        `${Math.round(MAX_AI_CALL_DEADLINE_MS / 60_000)} minutes.`,
+      true,
+    );
+  }
   const [owner = '', name = ''] = repo.split('/');
   const readable = await userCanReadRepo(env, session, owner, name);
   if (!readable) {
     return backToRepos(`GitHub says ${repo} is not readable by ${session.user.login}.`, true);
   }
+  // Read-modify-write settings_json: it is the forward-compatible bag for
+  // every setting this screen grows, so a write here must preserve any other
+  // key already stored there rather than clobbering the bag with `'{}'`.
+  const existing = await env.DB.prepare(
+    `SELECT settings_json FROM repo_settings WHERE user_id = ? AND repo_full_name = ?`,
+  )
+    .bind(session.user.id, repo)
+    .first<{ settings_json: string }>();
+  let bag: Record<string, unknown> = {};
+  try {
+    if (existing?.settings_json) bag = JSON.parse(existing.settings_json) as Record<string, unknown>;
+  } catch {
+    bag = {};
+  }
+  bag.aiCallDeadlineMs = aiCallDeadlineMs;
+  const settingsJson = JSON.stringify(bag);
   const now = Math.floor(Date.now() / 1000);
   await env.DB.prepare(
     `INSERT INTO repo_settings (user_id, repo_full_name, sitrep_end_of_turn, settings_json, created_at, updated_at)
-     VALUES (?, ?, ?, '{}', ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id, repo_full_name)
-     DO UPDATE SET sitrep_end_of_turn = excluded.sitrep_end_of_turn, updated_at = excluded.updated_at`,
+     DO UPDATE SET sitrep_end_of_turn = excluded.sitrep_end_of_turn,
+                   settings_json = excluded.settings_json,
+                   updated_at = excluded.updated_at`,
   )
-    .bind(session.user.id, repo, level, now, now)
+    .bind(session.user.id, repo, level, settingsJson, now, now)
     .run();
-  return backToRepos(`${repo}: sitrep ${level}.`);
+  return backToRepos(`${repo}: sitrep ${level}, AI call timeout ${Math.round(aiCallDeadlineMs / 60_000)}m.`);
 }
 
 /**
@@ -484,6 +539,7 @@ export async function handleRepoSettingsApi(request: Request, env: Env): Promise
     settings: rows.map((r) => ({
       repo: r.repo_full_name,
       sitrep: { endOfTurn: r.sitrep_end_of_turn },
+      aiCallDeadlineMs: aiCallDeadlineMsFromSettingsJson(r.settings_json),
       updatedAt: r.updated_at,
     })),
   });

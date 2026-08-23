@@ -354,6 +354,26 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
 
+-- Aggregate, per-ship Workers AI call stats (ADR none; see
+-- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
+-- notes). ONE row per (run_id, ship), flushed once when the ship finishes —
+-- not per Workers AI call — accumulated in memory by FleetAiCircuit.runForShip.
+CREATE TABLE IF NOT EXISTS fleet_ai_call_stats (
+  run_id          TEXT    NOT NULL,
+  ship            TEXT    NOT NULL,
+  calls           INTEGER NOT NULL DEFAULT 0,
+  ok_calls        INTEGER NOT NULL DEFAULT 0,
+  timeout_calls   INTEGER NOT NULL DEFAULT 0,
+  error_calls     INTEGER NOT NULL DEFAULT 0,
+  total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+  max_elapsed_ms  INTEGER NOT NULL DEFAULT 0,
+  deadline_ms     INTEGER NOT NULL,
+  created_at      INTEGER NOT NULL,
+  PRIMARY KEY (run_id, ship)
+);
+CREATE INDEX IF NOT EXISTS idx_fleet_ai_call_stats_ship
+  ON fleet_ai_call_stats(ship, created_at DESC);
+
 -- One Stripe customer per installation (created lazily at first checkout/portal).
 CREATE TABLE IF NOT EXISTS stripe_customers (
   installation_id    INTEGER PRIMARY KEY,
