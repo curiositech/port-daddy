@@ -129,6 +129,11 @@ import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { repairContractOutput, REPAIR_ESCALATION_MODEL } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
+import {
+  FleetAiCircuit,
+  FleetAiDependencyError,
+  PROVIDER_MAX_DELIVERY_ATTEMPTS,
+} from './ai-resilience.js';
 
 // ---------------------------------------------------------------------------
 
@@ -574,6 +579,7 @@ async function purserAiCall(
   user: string,
   maxTokens: number,
   metrics: PurserMetrics,
+  aiCircuit: FleetAiCircuit,
   /**
    * Model for THIS step, when it differs from the ship's own. Already guarded
    * by fleet.ts against unknown ids, so an unusable pin arrives here as
@@ -591,10 +597,12 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   await assertCurrentHead(`before pd-${ship.name} Purser model call`);
-  const res = await env.AI.run(
-    (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
-    request,
-    aiOptions(env, ship.name),
+  const res = await aiCircuit.run(() =>
+    env.AI.run(
+      (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
+      request,
+      aiOptions(env, ship.name),
+    ),
   );
   await assertCurrentHead(`after pd-${ship.name} Purser model call`);
   const { text } = extractAiText(res);
@@ -949,9 +957,11 @@ async function rerunExistingTests(
 }
 
 /**
- * Run the purser against one PR. Ordinary failures resolve to an honest
- * ShipResult + transcript trail; current-head validation errors propagate so
- * the orchestrator can cancel an obsolete run. See the module doc for phases.
+ * Run the purser against one PR. Product and permanent dependency failures
+ * resolve to an honest ShipResult + transcript trail. A retryable Workers AI
+ * dependency fault is deliberately rethrown while queue budget remains; the
+ * queue is the single retry layer for every Fleet ship. Current-head validation
+ * errors also propagate so the orchestrator can cancel an obsolete run.
  */
 export async function runPurser(
   ship: ShipConfig,
@@ -966,6 +976,10 @@ export async function runPurser(
   runId = '',
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
+  /** One circuit shared by every AI call in this queue delivery. */
+  aiCircuit = new FleetAiCircuit(),
+  /** Provider attempt after successful checkpoint continuations are excluded. */
+  providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
   /** Fail-closed live-head proof around model work and publication. */
   assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<ShipResult> {
@@ -1098,16 +1112,19 @@ export async function runPurser(
         priorOutput,
         reason,
         call: async (model, system, user) =>
-          (await purserAiCall(
-            ship,
-            env,
-            system,
-            user,
-            maxTokens,
-            metrics,
-            model,
-            assertCurrentHead,
-          )).text,
+          (
+            await purserAiCall(
+              ship,
+              env,
+              system,
+              user,
+              maxTokens,
+              metrics,
+              aiCircuit,
+              model,
+              assertCurrentHead,
+            )
+          ).text,
         validate,
         abortOnError: error => error instanceof PullRequestHeadValidationError,
       });
@@ -1130,6 +1147,7 @@ export async function runPurser(
       prBlock(prCtx),
       STEELMAN_MAX_TOKENS,
       metrics,
+      aiCircuit,
       undefined,
       assertCurrentHead,
     );
@@ -1209,6 +1227,7 @@ export async function runPurser(
       prBlock(prCtx),
       PLAN_MAX_TOKENS,
       metrics,
+      aiCircuit,
       ship.cfPlanModel,
       assertCurrentHead,
     );
@@ -1322,6 +1341,7 @@ export async function runPurser(
           prBlock(prCtx),
           TESTS_MAX_TOKENS,
           metrics,
+          aiCircuit,
           ship.cfAuthorModel,
           assertCurrentHead,
         );
@@ -1513,6 +1533,7 @@ export async function runPurser(
             prBlock(prCtx),
             TESTS_MAX_TOKENS,
             metrics,
+            aiCircuit,
             // The rewrite runs on the ESCALATION tier, never the author tier:
             // a model that just authored a non-executable file is the worst
             // candidate to fix it (14-day D1 record: 83 of 110 same-model
@@ -1826,6 +1847,47 @@ export async function runPurser(
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
   } catch (err) {
     if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetAiDependencyError) {
+      const failure = err.failure;
+      await transcript.step(
+        'ship-error',
+        ship.name,
+        `pd-${ship.name}: ERROR — ${failure.summary}`,
+        {
+          error: failure.summary,
+          status: failure.status,
+          code: failure.code,
+          retryable: failure.retryable,
+          providerCircuitOpen: aiCircuit.isOpen,
+          providerAttempt,
+        },
+      );
+
+      if (failure.retryable && providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS) {
+        throw err;
+      }
+
+      await transcript.step(
+        'ship-verdict',
+        ship.name,
+        `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored)`,
+        { errored: true },
+      );
+      return {
+        ...brokenShip,
+        failureReason: failure.summary,
+        ...(failure.retryable
+          ? {
+              brokenAdjudicated: {
+                scope: 'fleet' as const,
+                reason:
+                  `Workers AI dependency circuit remained open through ` +
+                  `${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS} provider attempts`,
+              },
+            }
+          : {}),
+      };
+    }
     // An unexpected crash is the definition of a broken ship: it surfaces as
     // an errored result under the ship's real blocking flag, which fails the
     // run (broken-ship doctrine, 2026-08-19). The verdict word is never a
