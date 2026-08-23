@@ -86,6 +86,19 @@ async function loadPlaywright() {
   return null;
 }
 
+/**
+ * ffmpeg, for turning the recording into a PR-renderable GIF.
+ *
+ * Playwright ships one, which is why this looks in its browser directory before
+ * the PATH: a capture host that has Playwright has ffmpeg, and depending on a
+ * separate system install would make the GIF step fail on exactly the machines
+ * best equipped to do it.
+ */
+const FFMPEG = (() => {
+  const bundled = '/opt/pw-browsers/ffmpeg-1011/ffmpeg-linux';
+  return existsSync(bundled) ? bundled : 'ffmpeg';
+})();
+
 /** The commit this capture is bound to. An artifact that cannot name one is unauditable. */
 function headCommit() {
   return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -485,11 +498,18 @@ async function main() {
     });
 
     const shots = [];
+    let recording = null;
     for (const scheme of ['light', 'dark']) {
+      // The LIGHT pass also records video. A still frame cannot show streaming —
+      // it shows text that might have arrived all at once — so a recording is
+      // the only artifact that actually evidences the claim this PR makes.
       const context = await browser.newContext({
         viewport: { width: 1280, height: 820 },
         colorScheme: scheme,
         deviceScaleFactor: 2,
+        ...(scheme === 'light'
+          ? { recordVideo: { dir: OUT_DIR, size: { width: 1280, height: 820 } } }
+          : {}),
       });
       const page = await context.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -500,9 +520,41 @@ async function main() {
       await page.screenshot({ path: file, fullPage: true });
       shots.push(file);
       console.log(`demo-lanes: captured ${file}`);
-      await context.close();
+      const video = scheme === 'light' ? page.video() : null;
+      await context.close(); // Video is only finalized on context close.
+      if (video) {
+        recording = join(OUT_DIR, 'lanes-stream.webm');
+        try {
+          await video.saveAs(recording);
+          console.log(`demo-lanes: recorded ${recording}`);
+          shots.push(recording);
+        } catch (err) {
+          console.log(`demo-lanes: video not saved — ${err.message ?? err}`);
+          recording = null;
+        }
+      }
     }
     await browser.close();
+
+    // A GIF alongside the webm, because GitHub renders a GIF inline in a PR body
+    // and will not play a webm — an artifact a reviewer has to download is an
+    // artifact most reviewers will not watch.
+    if (recording) {
+      const gif = join(OUT_DIR, 'lanes-stream.gif');
+      try {
+        execFileSync(
+          FFMPEG,
+          ['-y', '-i', recording, '-vf', 'fps=6,scale=980:-1:flags=lanczos', '-loop', '0', gif],
+          { stdio: 'pipe' },
+        );
+        console.log(`demo-lanes: rendered ${gif}`);
+        shots.push(gif);
+      } catch (err) {
+        // No ffmpeg is a missing convenience, not a failed capture. The webm
+        // still exists and still proves the same thing.
+        console.log(`demo-lanes: gif not rendered (${String(err.message ?? err).slice(0, 80)})`);
+      }
+    }
 
     // The manifest is the artifact's passport. Every field is mandatory, and
     // `sourceLabel` is the one that makes the whole set auditable: an artifact
@@ -543,8 +595,14 @@ async function main() {
     if (skipped.length) console.table(skipped);
 
     // Let the in-flight spawns settle before tearing the daemon down, so the
-    // process exits on a finished run rather than on a killed one.
-    await Promise.allSettled(inFlight.map((f) => f.promise));
+    // process exits on a finished run rather than on a killed one — but BOUND
+    // that wait. The capture is already on disk by this point, and a provider
+    // that never returns must not hold a finished capture hostage; a harness
+    // that hangs after succeeding is indistinguishable from one that failed.
+    await Promise.race([
+      Promise.allSettled(inFlight.map((f) => f.promise)),
+      wait(20_000),
+    ]);
   } finally {
     daemon?.cleanup();
     worktree?.cleanup();
@@ -553,7 +611,14 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(`demo-lanes: ${err.message ?? err}`);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // Explicit exit: the daemon child and the fake server are torn down in
+    // `finally`, but a lingering socket handle would otherwise keep the event
+    // loop alive after the work is done.
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(`demo-lanes: ${err.message ?? err}`);
+    process.exit(1);
+  });
