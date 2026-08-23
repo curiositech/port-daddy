@@ -70,6 +70,9 @@ mod editor_wedge;
 #[allow(dead_code)]
 #[path = "../work_plan.rs"]
 mod work_plan;
+#[allow(dead_code)]
+#[path = "../mission_view.rs"]
+mod mission_view;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]

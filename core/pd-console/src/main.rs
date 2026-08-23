@@ -44,6 +44,7 @@ mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod maritime;
+mod mission_view;
 mod mux;
 mod notes_pane;
 mod palette;
@@ -596,7 +597,7 @@ fn main() {
                 )> = None;
 
                 // Rehydrate Work truth only when its durable identity/state changes.
-                let mut latest_work_projection: Option<(String, String)> = None;
+                let mut latest_work_projection: Option<(String, String, String)> = None;
                 let mut latest_work_query_error: Option<String> = None;
 
                 loop {
@@ -624,8 +625,11 @@ fn main() {
                                         let correlation = receipt.correlation_id.clone();
                                         let duplicate = receipt.duplicate;
                                         let snapshot = receipt.snapshot.clone();
-                                        latest_work_projection =
-                                            Some((intent_id.clone(), state.clone()));
+                                        latest_work_projection = Some((
+                                            intent_id.clone(),
+                                            state.clone(),
+                                            snapshot.execution_fingerprint(),
+                                        ));
                                         let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
                                         match client.start_work_intent(&snapshot).await {
                                             Ok(execution) => {
@@ -709,7 +713,11 @@ fn main() {
                                         let intent_id = receipt.snapshot.intent_id().to_string();
                                         let state = receipt.snapshot.plan_state().to_string();
                                         let snapshot = receipt.snapshot.clone();
-                                        latest_work_projection = Some((intent_id.clone(), state));
+                                        latest_work_projection = Some((
+                                            intent_id.clone(),
+                                            state,
+                                            snapshot.execution_fingerprint(),
+                                        ));
                                         let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
                                         match client.start_work_intent(&snapshot).await {
                                             Ok(execution) => {
@@ -1117,7 +1125,9 @@ fn main() {
                                 let fingerprint = (
                                     snapshot.intent_id().to_string(),
                                     snapshot.plan_state().to_string(),
+                                    snapshot.execution_fingerprint(),
                                 );
+                                lane.follow_agent(snapshot.execution_agent_id());
                                 if latest_work_projection.as_ref() != Some(&fingerprint) {
                                     latest_work_projection = Some(fingerprint);
                                     let _ = work_tx.send(app::WorkUpdate::Snapshot(snapshot));

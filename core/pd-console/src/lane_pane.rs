@@ -93,6 +93,9 @@ struct ParsedArtifactRef {
 
 /// The live agent LANE surface.
 pub struct LanePane {
+    /// Mission-selected body. When present, the lane follows this exact agent
+    /// instead of whichever unrelated process most recently heartbeated.
+    pinned_agent_id: Option<String>,
     /// The agent we're watching (chosen on refresh). `None` until one is found.
     agent_id: Option<String>,
     /// Last known lifecycle status from `agent.status` frames.
@@ -125,6 +128,7 @@ pub struct LanePane {
 impl LanePane {
     pub fn new() -> Self {
         Self {
+            pinned_agent_id: None,
             agent_id: None,
             status: "—".into(),
             agent_active: false,
@@ -140,6 +144,37 @@ impl LanePane {
 
     pub fn has_agent(&self) -> bool {
         self.agent_id.is_some() && self.agent_active
+    }
+
+    /// Attach the lane to the body recorded on the current mission receipt.
+    /// Passing `None` restores roster-based selection for standalone use.
+    pub fn follow_agent(&mut self, agent_id: Option<&str>) {
+        let selected = agent_id
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        if self.pinned_agent_id == selected {
+            return;
+        }
+        self.pinned_agent_id = selected.clone();
+        if selected.is_some() {
+            self.select_agent(selected);
+        }
+    }
+
+    fn select_agent(&mut self, selected: Option<String>) {
+        if self.agent_id == selected {
+            return;
+        }
+        self.agent_id = selected;
+        self.agent_active = false;
+        self.streamed = false;
+        self.lines.clear();
+        self.seen_transcript_items.clear();
+        self.channel_cursor = 0;
+        self.tools.clear();
+        self.pending_chat_replies.clear();
+        self.status = "—".into();
     }
 
     pub fn take_chat_replies(&mut self) -> Vec<String> {
@@ -1259,22 +1294,17 @@ impl Pane for LanePane {
                 Ok(resp) => match resp.json::<serde_json::Value>().await {
                     Ok(v) => {
                         self.error = None;
-                        if let Some(id) = Self::pick_agent(&v) {
+                        let selected = self
+                            .pinned_agent_id
+                            .clone()
+                            .or_else(|| Self::pick_agent(&v));
+                        if let Some(id) = selected {
                             let active = util::arr(&v, "agents")
                                 .iter()
                                 .find(|agent| util::s(agent, "id") == id)
                                 .is_some_and(|agent| util::b(agent, "isActive"));
                             // If the target changed, reset the live view for the new agent.
-                            if self.agent_id.as_deref() != Some(id.as_str()) {
-                                self.agent_id = Some(id);
-                                self.streamed = false;
-                                self.lines.clear();
-                                self.seen_transcript_items.clear();
-                                self.channel_cursor = 0;
-                                self.tools.clear();
-                                self.pending_chat_replies.clear();
-                                self.status = "—".into();
-                            }
+                            self.select_agent(Some(id));
                             self.agent_active = active;
                         } else if self.agent_id.is_some() {
                             // Preserve the completed transcript and receipt, but
@@ -1435,6 +1465,25 @@ mod tests {
     fn pick_agent_handles_empty() {
         assert!(LanePane::pick_agent(&json!({"agents": []})).is_none());
         assert!(LanePane::pick_agent(&json!({})).is_none());
+    }
+
+    #[test]
+    fn mission_receipt_pins_the_exact_agent_and_resets_unrelated_scrollback() {
+        let mut lane = LanePane::new();
+        lane.agent_id = Some("unrelated-newest".into());
+        lane.agent_active = true;
+        lane.lines.push(LaneLine::Chat {
+            speaker: "other".into(),
+            text: "not this mission".into(),
+            tone: Tone::Default,
+        });
+
+        lane.follow_agent(Some("mission-agent-7"));
+
+        assert_eq!(lane.pinned_agent_id.as_deref(), Some("mission-agent-7"));
+        assert_eq!(lane.agent_id.as_deref(), Some("mission-agent-7"));
+        assert!(!lane.agent_active);
+        assert!(lane.lines.is_empty());
     }
 
     #[test]
