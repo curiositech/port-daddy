@@ -38,7 +38,11 @@ import {
   GEMINI_EVENTS,
   upsertJsonHookMap,
 } from '../../lib/squid/hook-shape.js';
-import { readSquidHookHealth } from '../../lib/squid/debug.js';
+import {
+  readSquidHookHealth,
+  SQUID_HOOK_DEBUG_MAX_BYTES,
+  SQUID_HOOK_DEBUG_TRIM_BYTES,
+} from '../../lib/squid/debug.js';
 
 const SANDBOX = join(process.cwd(), '.scratch', `hooks-test-${process.pid}`);
 const SRC = join(SANDBOX, 'src-bin');
@@ -269,6 +273,83 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(lines.filter((line) => line.startsWith('v1\tfinish\t'))).toHaveLength(12);
     expect(lines.every((line) => line.includes('\tcodex:concurrent-session\t'))).toBe(true);
     expect(existsSync(join(pdHome, 'squid', 'debug-write.lock'))).toBe(false);
+  });
+
+  test('compacts oversized debug logs with whitespace-padded wc output on complete record boundaries', () => {
+    const pdHome = join(SANDBOX, 'portable-debug-compaction-home');
+    const binDir = join(pdHome, 'bin');
+    const fakeBin = join(pdHome, 'fake-bin');
+    const squidDir = join(pdHome, 'squid');
+    const eventsPath = join(squidDir, 'hook-events.log');
+    stageTentacles(SRC, binDir);
+    mkdirSync(fakeBin, { recursive: true });
+    mkdirSync(squidDir, { recursive: true });
+    writeFileSync(join(squidDir, 'debug.enabled'), new Date().toISOString());
+    markDaemonReady(pdHome);
+    writeFileSync(join(fakeBin, 'wc'), [
+      '#!/bin/sh',
+      'bytes=$(/usr/bin/wc -c | /usr/bin/tr -d "[:space:]")',
+      'printf "   %s\\n" "$bytes"',
+      '',
+    ].join('\n'), { mode: 0o755 });
+
+    const seedLine = [
+      'v1', 'start', 'seed-run', 'codex:seed', 'codex', 'edit',
+      'pd-hook-pre-tool', '1000', '1000', '-', '-', Buffer.from(REPO).toString('base64'),
+    ].join('\t') + '\n';
+    const seedCount = Math.ceil((SQUID_HOOK_DEBUG_MAX_BYTES + 8_192) / Buffer.byteLength(seedLine));
+    writeFileSync(eventsPath, seedLine.repeat(seedCount));
+
+    const out = execFileSync(join(binDir, 'pd-hook-pre-tool'), [], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+        PD_HOME: pdHome,
+        PD_HOOK_PROVIDER: 'codex',
+      },
+      input: '{"session_id":"compact-session"}',
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+    expect(statSync(eventsPath).size).toBeLessThanOrEqual(SQUID_HOOK_DEBUG_TRIM_BYTES + 1_024);
+    const retained = readFileSync(eventsPath, 'utf8');
+    expect(retained.startsWith('v1\t')).toBe(true);
+    expect(retained).toContain('\tcodex:compact-session\t');
+    expect(retained.trim().split('\n').every((line) => line.split('\t').length === 12)).toBe(true);
+    expect(existsSync(join(squidDir, 'hook-events.log.trim'))).toBe(false);
+    expect(existsSync(join(squidDir, 'debug-write.lock'))).toBe(false);
+  });
+
+  test('keeps stale interactive post-tool registrations as zero-work tombstones', () => {
+    const pdHome = join(SANDBOX, 'retired-post-tool-home');
+    const binDir = join(pdHome, 'bin');
+    const marker = join(pdHome, 'post-tool-ran');
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-post-tool'), [
+      '#!/bin/sh',
+      `touch '${marker}'`,
+      'exit 0',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    markDaemonReady(pdHome);
+
+    const result = spawnSync(join(binDir, 'pd-hook-post-tool'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'codex' },
+      input: '{"session_id":"stale-session"}',
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+    expect(existsSync(marker)).toBe(false);
+    expect(existsSync(join(pdHome, 'squid', 'hook-events.log'))).toBe(false);
+    expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
   });
 
   test('delegates with a fresh heartbeat and fails open when it becomes stale', () => {
