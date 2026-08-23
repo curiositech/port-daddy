@@ -40,6 +40,21 @@ export interface SandboxRunOutcome {
    * {@link passed} and treat this as detail.
    */
   failures: string[];
+  /**
+   * Structured interpretation of the runner result. `assertion-failure` is
+   * reserved for a Jest JSON result that reports failed test cases; setup,
+   * module-load, discovery, and zero-test failures are `harness-failure` and
+   * must never be presented as product-code evidence.
+   *
+   * Optional during the staged rollout so persisted/fixture outcomes from the
+   * previous executor remain readable. Fresh sandbox runs always set it.
+   */
+  outcomeKind?:
+    | 'not-executed'
+    | 'passed'
+    | 'assertion-failure'
+    | 'harness-failure'
+    | 'unclassified-failure';
   /** Why execution did not happen (binding absent, sandbox error). Null on success. */
   reason: string | null;
 }
@@ -188,6 +203,75 @@ export interface SandboxRunParams {
 const DEFAULT_INSTALL_COMMAND =
   'npm ci --no-audit --no-fund --onnxruntime-node-install=skip';
 
+const TEST_STARTED_MARKER = '__PD_PURSER_TEST_STARTED__';
+const JEST_SUMMARY_MARKER = '__PD_PURSER_JEST_SUMMARY__:';
+const JEST_RESULT_PATH = '/work/pd-purser-jest-result.json';
+
+interface JestRunSummary {
+  numFailedTests: number;
+  numFailedTestSuites: number;
+  numPassedTests: number;
+  numRuntimeErrorTestSuites: number;
+  numTotalTests: number;
+  success: boolean;
+}
+
+function buildDefaultJestInvocation(
+  files: ReadonlyArray<Pick<StackedFile, 'path'>>,
+): string {
+  const authoredPaths = files.map(file => shq(file.path)).join(' ');
+  return (
+    `npm test -- --runTestsByPath ${authoredPaths} ` +
+    `--json --outputFile=${shq(JEST_RESULT_PATH)}`
+  );
+}
+
+function parseJestSummary(output: string): JestRunSummary | null {
+  for (const line of output.split(/\r?\n/)) {
+    if (!line.startsWith(JEST_SUMMARY_MARKER)) continue;
+    try {
+      const encoded = line.slice(JEST_SUMMARY_MARKER.length);
+      const binary = atob(encoded);
+      const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+      const value = JSON.parse(new TextDecoder().decode(bytes)) as Partial<JestRunSummary>;
+      const numericKeys: Array<keyof JestRunSummary> = [
+        'numFailedTests',
+        'numFailedTestSuites',
+        'numPassedTests',
+        'numRuntimeErrorTestSuites',
+        'numTotalTests',
+      ];
+      if (
+        numericKeys.every(key => Number.isInteger(value[key]) && Number(value[key]) >= 0) &&
+        typeof value.success === 'boolean'
+      ) {
+        return value as JestRunSummary;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function withoutProtocolMarkers(output: string): string {
+  return output
+    .split(/\r?\n/)
+    .filter(line => line !== TEST_STARTED_MARKER && !line.startsWith(JEST_SUMMARY_MARKER))
+    .join('\n');
+}
+
+function summarizeJestResultCommand(): string {
+  const program =
+    "const fs=require('node:fs');" +
+    `const r=JSON.parse(fs.readFileSync('${JEST_RESULT_PATH}','utf8'));` +
+    "const s={numFailedTests:r.numFailedTests,numFailedTestSuites:r.numFailedTestSuites," +
+    "numPassedTests:r.numPassedTests,numRuntimeErrorTestSuites:r.numRuntimeErrorTestSuites," +
+    "numTotalTests:r.numTotalTests,success:r.success};" +
+    `process.stdout.write('${JEST_SUMMARY_MARKER}'+Buffer.from(JSON.stringify(s)).toString('base64')+'\\n');`;
+  return `node -e ${shq(program)}`;
+}
+
 /**
  * Build the default sandbox command around only the contract files the purser
  * authored.
@@ -206,8 +290,7 @@ export function buildDefaultSandboxTestCommand(
   if (files.length === 0) {
     throw new Error('cannot build a Purser test command without authored files');
   }
-  const authoredPaths = files.map(file => shq(file.path)).join(' ');
-  return `${DEFAULT_INSTALL_COMMAND} && npm test -- ${authoredPaths}`;
+  return `${DEFAULT_INSTALL_COMMAND} && ${buildDefaultJestInvocation(files)}`;
 }
 
 /**
@@ -223,6 +306,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       passed: null,
       outputTail: '',
       failures: [],
+      outcomeKind: 'not-executed',
       reason: 'no Purser-authored test files were supplied — nothing was executed',
     };
   }
@@ -236,6 +320,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       passed: null,
       outputTail: '',
       failures: [],
+      outcomeKind: 'not-executed',
       reason: 'SANDBOX binding absent — tests were NOT executed (no fabricated results)',
     };
   }
@@ -244,8 +329,8 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
   // TensorRT provider binaries unconditionally on linux-x64 (platform-gated, not
   // GPU-detected) — this sandbox has no GPU and OOMs unpacking a library it can
   // never use. The purser's tests never need real embedding inference.
-  const testCommand =
-    params.testCommand ?? buildDefaultSandboxTestCommand(params.files);
+  const usesDefaultJestRunner = params.testCommand === undefined;
+  const testCommand = params.testCommand ?? buildDefaultJestInvocation(params.files);
   const cloneUrl = `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
 
   // Compose ONE script: shallow-fetch the head SHA, graft the test files in
@@ -268,7 +353,17 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     lines.push(`mkdir -p ${shq(dir)}`);
     lines.push(`printf '%s' ${shq(toBase64(f.contents))} | base64 -d > ${shq(f.path)}`);
   }
+  if (usesDefaultJestRunner) lines.push(DEFAULT_INSTALL_COMMAND);
+  lines.push(`printf '%s\\n' ${shq(TEST_STARTED_MARKER)}`);
+  lines.push('set +e');
   lines.push(testCommand);
+  lines.push('pd_purser_test_exit=$?');
+  if (usesDefaultJestRunner) {
+    lines.push(
+      `if [ -f ${shq(JEST_RESULT_PATH)} ]; then ${summarizeJestResultCommand()}; fi`,
+    );
+  }
+  lines.push('exit "$pd_purser_test_exit"');
   const script = lines.join('\n');
 
   try {
@@ -276,14 +371,38 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     const stdout = typeof res.stdout === 'string' ? res.stdout : '';
     const stderr = typeof res.stderr === 'string' ? res.stderr : '';
     const combined = `${stdout}${stderr ? `\n${stderr}` : ''}`;
-    const passed =
+    const runnerStarted = combined.split(/\r?\n/).includes(TEST_STARTED_MARKER);
+    const exitPassed =
       typeof res.exitCode === 'number' ? res.exitCode === 0 : res.success === true;
+    const visibleOutput = withoutProtocolMarkers(combined);
+    if (!runnerStarted) {
+      return {
+        executed: false,
+        passed: null,
+        outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
+        failures: [],
+        outcomeKind: 'not-executed',
+        reason: 'sandbox setup failed before the test runner started',
+      };
+    }
+
+    const jestSummary = usesDefaultJestRunner ? parseJestSummary(combined) : null;
+    const outcomeKind: SandboxRunOutcome['outcomeKind'] = exitPassed
+      ? 'passed'
+      : jestSummary?.numFailedTests
+        ? 'assertion-failure'
+        : jestSummary
+          ? 'harness-failure'
+          : 'unclassified-failure';
+    const failures =
+      outcomeKind === 'assertion-failure' ? parseTestFailures(visibleOutput) : [];
     return {
       executed: true,
-      passed,
-      outputTail: combined.slice(-OUTPUT_TAIL_BYTES),
+      passed: exitPassed,
+      outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
       // Parsed from the COMPLETE output, before the tail truncation above.
-      failures: passed ? [] : parseTestFailures(combined),
+      failures,
+      outcomeKind,
       reason: null,
     };
   } catch (err) {
@@ -292,6 +411,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       passed: null,
       outputTail: '',
       failures: [],
+      outcomeKind: 'not-executed',
       reason: `sandbox exec failed: ${String(err).slice(0, 300)}`,
     };
   }
