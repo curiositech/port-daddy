@@ -792,6 +792,55 @@ export async function revokeUserToken(db: D1Database, userId: string, tokenHash:
   return (r.meta?.changes ?? 0) > 0;
 }
 
+// ── user_roles: relay operator authorization (ADR-0101 Phase 1) ─────────────
+
+export type UserRole = 'operator';
+
+/**
+ * Check one account role without trusting a client-supplied claim.
+ *
+ * @param db Relay D1 binding that owns the authoritative role ledger.
+ * @param userId Internal user id resolved from a live cookie or pdu_ token.
+ * @param role Closed role name; only operator exists in Phase 1.
+ * @returns True only when the durable role row exists.
+ */
+export async function hasUserRole(db: D1Database, userId: string, role: UserRole): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT 1 AS allowed FROM user_roles WHERE user_id = ? AND role = ?')
+    .bind(userId, role)
+    .first<{ allowed: number }>();
+  return row?.allowed === 1;
+}
+
+/**
+ * Materialize a server-configured role idempotently.
+ *
+ * The caller must first prove the account matches trusted server configuration;
+ * this helper intentionally accepts an internal user id, never a request field.
+ *
+ * @param db Relay D1 binding that owns the authoritative role ledger.
+ * @param userId Internal user id to grant.
+ * @param role Closed role name; only operator exists in Phase 1.
+ * @param source Durable provenance for operator diagnostics.
+ * @param grantedAt Relay-clock unix seconds.
+ */
+export async function grantUserRole(
+  db: D1Database,
+  userId: string,
+  role: UserRole,
+  source: string,
+  grantedAt: number,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO user_roles (user_id, role, source, granted_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, role) DO NOTHING`,
+    )
+    .bind(userId, role, source, grantedAt)
+    .run();
+}
+
 /** Count a user's live sessions (metadata for the self-service account export). */
 export async function countUserSessions(db: D1Database, userId: string): Promise<number> {
   const r = await db
@@ -811,6 +860,9 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
   // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
   await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
+  // Roles are account metadata and must not survive erasure or block the later
+  // hard delete through their users(id) foreign key.
+  await db.prepare('DELETE FROM user_roles WHERE user_id = ?').bind(userId).run();
   // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
   await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
   // Roadmap mirrors are the account's own pushed roadmap replicas (ADR-0101

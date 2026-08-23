@@ -57,6 +57,8 @@ GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 GITHUB_OWNER = "REPLACE_WITH_YOUR_GITHUB_OWNER"
 GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO"
 DEFAULT_BRANCH = "main"
+# Durable numeric GitHub id for the initial account-backed Cloud Fleet operator.
+RELAY_OPERATOR_GITHUB_USER_ID = "REPLACE_WITH_YOUR_GITHUB_USER_ID"
 
 # ---------------------------------------------------------------------------
 # Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.

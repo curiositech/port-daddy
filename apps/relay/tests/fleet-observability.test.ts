@@ -2,7 +2,7 @@
  * Tests for the fleet observability + kill-switch API (src/fleet-observability.ts).
  *
  * Coverage:
- *   - operatorOnly gate: every endpoint rejects a missing/wrong token (401).
+ *   - fleet operator gate: every endpoint rejects a missing/wrong token (401).
  *   - activity: returns rows newest-first, each carrying pr_url, short headSha,
  *     and a ships array; honours + clamps the ?limit param.
  *   - runs/:id: returns the run + its ordered transcript steps (detail JSON
@@ -64,12 +64,18 @@ function makeMockD1(handlers: {
   } as unknown as D1Database;
 }
 
-function makeEnv(o: { db?: D1Database; kv?: KVNamespace; operatorToken?: string } = {}): Env {
+function makeEnv(o: {
+  db?: D1Database;
+  kv?: KVNamespace;
+  operatorToken?: string;
+  operatorGithubUserId?: string;
+} = {}): Env {
   return {
     DB: o.db ?? makeMockD1({}),
     HARBOR_CHANNEL: {} as unknown as DurableObjectNamespace,
     KV: o.kv ?? makeKV(),
     RELAY_OPERATOR_TOKEN: o.operatorToken ?? OPERATOR,
+    RELAY_OPERATOR_GITHUB_USER_ID: o.operatorGithubUserId,
     RELAY_ED25519_PRIVATE_KEY_HEX: '00'.repeat(32),
     RELAY_VERSION: '0.0.0-test',
     EVENT_RETENTION_DAYS: '7',
@@ -119,7 +125,7 @@ const RUN_OLD = {
   created_at: 1719431000,
 };
 
-// ── operatorOnly gate (all endpoints) ─────────────────────────────────────────
+// ── break-glass operator gate (all endpoints) ────────────────────────────────
 
 describe('fleet observability — operator gate', () => {
   it('every endpoint returns 401 without an operator token', async () => {
@@ -141,6 +147,45 @@ describe('fleet observability — operator gate', () => {
     const env = makeEnv();
     const res = await handleFleetActivity(req('/v1/fleet/activity', 'GET', 'nope'), env);
     expect(res.status).toBe(401);
+  });
+
+  it('lets the configured signed-in owner read activity with an existing pdu token', async () => {
+    const token = `pdu_${'a'.repeat(64)}`;
+    let roleGranted = false;
+    const db = makeMockD1({
+      onFirst: (q) => {
+        if (q.includes('FROM user_tokens')) {
+          return { user_id: 'u_owner', expires_at: null, revoked_at: null };
+        }
+        if (q.includes('FROM users WHERE id')) {
+          return {
+            id: 'u_owner',
+            github_user_id: 2_093_678,
+            login: 'erichowens',
+            display_name: null,
+            avatar_url: null,
+            primary_email: null,
+            email_verified: 0,
+            created_at: 1,
+            last_login_at: 1,
+            deleted_at: null,
+          };
+        }
+        if (q.includes('FROM user_roles')) return roleGranted ? { allowed: 1 } : null;
+        return null;
+      },
+      onAll: () => [],
+      onRun: (q) => {
+        if (q.includes('INSERT INTO user_roles')) roleGranted = true;
+      },
+    });
+    const response = await handleFleetActivity(
+      req('/v1/fleet/activity', 'GET', token),
+      makeEnv({ db, operatorGithubUserId: '2093678' }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ code: 'OK', runs: [] });
+    expect(roleGranted).toBe(true);
   });
 });
 

@@ -17,11 +17,12 @@
  * Shared envelope: every response is JSON `{ code, error, ... }`. `code` starts
  * with OK on success (HTTP 200); BAD_* → 400; UNAUTHORIZED → 401;
  * *_NOT_FOUND / NOT_FOUND → 404 (config ref rejection is 400 per its contract);
- * *_ERROR → 500. Operator gate is shared with the rest of the relay via
- * {@link operatorOnly} (timing-safe token compare).
+ * *_ERROR → 500. The read-only config route accepts an account-backed Cloud
+ * Fleet operator; mutation and AI-spend routes retain the break-glass secret.
  */
 
 import { operatorOnly } from './handlers.js';
+import { fleetOperatorOnly } from './fleet-access.js';
 import { validateFleetYaml, parseAllShips } from './fleet-parser.js';
 import {
   getRepoToken,
@@ -74,7 +75,7 @@ async function readJson<T>(request: Request): Promise<T | null> {
  * Reads only — never mutates. Resolves a repo-scoped GitHub App token.
  */
 export async function handleFleetConfig(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
+  const denied = await fleetOperatorOnly(request, env);
   if (denied) return denied;
 
   const url = new URL(request.url);

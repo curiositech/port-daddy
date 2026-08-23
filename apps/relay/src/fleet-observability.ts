@@ -13,11 +13,12 @@
  *                                     at job START, before any AI spend.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
- * fleet control-plane contract. Operator gate is the shared {@link operatorOnly}
- * (timing-safe token compare). Reads NEVER mutate; pause writes only KV + audit.
+ * fleet control-plane contract. The gate accepts either the break-glass secret
+ * or an account-backed operator role. Reads NEVER mutate fleet state; pause
+ * writes only KV + audit.
  */
 
-import { operatorOnly } from './handlers.js';
+import { fleetOperatorOnly } from './fleet-access.js';
 import {
   lastFleetRunAt,
   getFleetPaused,
@@ -91,7 +92,7 @@ function runForList(r: FleetRunProjection): Record<string, unknown> {
 
 /** Recent fleet runs, newest first. Each carries pr_url for hyperlinking. */
 export async function handleFleetActivity(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
+  const denied = await fleetOperatorOnly(request, env);
   if (denied) return denied;
 
   const url = new URL(request.url);
@@ -114,7 +115,7 @@ export async function handleFleetRun(
   env: Env,
   runId: string,
 ): Promise<Response> {
-  const denied = operatorOnly(request, env);
+  const denied = await fleetOperatorOnly(request, env);
   if (denied) return denied;
 
   if (!runId || !isSafeRunId(runId)) {
@@ -177,7 +178,7 @@ export async function handleFleetRun(
  * (Cloudflare Queues does not yet expose depth via API) and returns null.
  */
 export async function handleFleetHealth(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
+  const denied = await fleetOperatorOnly(request, env);
   if (denied) return denied;
 
   try {
@@ -222,7 +223,7 @@ interface PauseBody {
  * Audited.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
+  const denied = await fleetOperatorOnly(request, env);
   if (denied) return denied;
 
   const body = await readJson<PauseBody>(request);
@@ -257,7 +258,7 @@ export async function handleDeleteFleetRun(
   env: Env,
   runId: string,
 ): Promise<Response> {
-  const denied = operatorOnly(request, env);
+  const denied = await fleetOperatorOnly(request, env);
   if (denied) return denied;
   if (!runId || !isSafeRunId(runId)) {
     return fleetErr('BAD_REQUEST', 'run id required', 400);
