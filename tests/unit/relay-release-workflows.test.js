@@ -5,6 +5,7 @@ import {
   parseLegacyDurableObjectMigrations,
   validateFullSha,
   validateMigrationSequence,
+  validateRepositoryBoundary,
 } from '../../scripts/check-relay-do-migration-boundary.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -12,6 +13,46 @@ const readWorkflow = (name) => readFileSync(join(ROOT, '.github', 'workflows', n
 
 const config = (blocks) => `${blocks.join('\n')}\n[vars]\nRELAY_VERSION = "test"\n`;
 const block = (tag, operation = 'new_classes = ["Example"]') => `[[migrations]]\ntag = "${tag}"\n${operation}`;
+const BASELINE_SHA = 'a'.repeat(40);
+const MIGRATION_SHA = 'b'.repeat(40);
+const CONFIG_PATH = 'apps/relay/wrangler.deploy.toml';
+const D1_MIGRATIONS_PATH = 'apps/relay/migrations';
+
+const workflowConcurrency = (source) => {
+  const match = source.match(
+    /^concurrency:\s*\n\s*group:\s*([^\s#]+)\s*\n\s*cancel-in-progress:\s*(true|false)\s*$/m,
+  );
+  if (!match) throw new Error('workflow lacks a static concurrency policy');
+  return { group: match[1], cancelInProgress: match[2] === 'true' };
+};
+
+const repositoryGit = ({ d1Changes = '', failCommand = null } = {}) => {
+  const baselineSource = config([block('v0001')]);
+  const candidateSource = config([block('v0001'), block('v0002')]);
+  return (args, options = {}) => {
+    const command = args.join(' ');
+    if (command === failCommand) {
+      if (options.allowFailure) return { status: 1, stdout: '', stderr: 'forced failure' };
+      throw new Error(`git ${command} failed: forced failure`);
+    }
+    if (command.startsWith('merge-base --is-ancestor ')) {
+      return { status: 0, stdout: '', stderr: '' };
+    }
+    if (command === `show ${BASELINE_SHA}:${CONFIG_PATH}`) {
+      return { status: 0, stdout: baselineSource, stderr: '' };
+    }
+    if (command === `show ${MIGRATION_SHA}:${CONFIG_PATH}`) {
+      return { status: 0, stdout: candidateSource, stderr: '' };
+    }
+    if (command === `diff --name-only ${BASELINE_SHA}..${MIGRATION_SHA} -- ${D1_MIGRATIONS_PATH}`) {
+      return { status: 0, stdout: d1Changes, stderr: '' };
+    }
+    if (command === `diff --name-only ${BASELINE_SHA}..${MIGRATION_SHA} -- apps/relay`) {
+      return { status: 0, stdout: `${CONFIG_PATH}\n`, stderr: '' };
+    }
+    throw new Error(`unexpected fake Git command: ${command}`);
+  };
+};
 
 describe('Relay Durable Object migration boundary', () => {
   test('accepts only immutable full lower-case SHAs', () => {
@@ -60,6 +101,53 @@ describe('Relay Durable Object migration boundary', () => {
       expectedTag: 'v0002',
     })).toThrow('no Durable Object lifecycle');
   });
+
+  test('rejects hostile migration tags instead of accepting regex lookalikes', () => {
+    const baselineSource = config([block('v0001')]);
+    const candidateSource = config([block('v0001'), block('v0002')]);
+    for (const expectedTag of ['v 0002', 'v🔥', 'v/0002', 'v0002\nextra']) {
+      expect(() => validateMigrationSequence({
+        baselineSource,
+        candidateSource,
+        expectedTag,
+      })).toThrow('expected migration tag');
+    }
+  });
+
+  test('fails closed on Git ancestry and command errors', () => {
+    const input = {
+      baselineSha: BASELINE_SHA,
+      migrationSha: MIGRATION_SHA,
+      expectedTag: 'v0002',
+    };
+    expect(() => validateRepositoryBoundary(
+      input,
+      repositoryGit({
+        failCommand: `merge-base --is-ancestor ${BASELINE_SHA} origin/main`,
+      }),
+    )).toThrow(`${BASELINE_SHA} is not an ancestor of origin/main`);
+    expect(() => validateRepositoryBoundary(
+      input,
+      repositoryGit({ failCommand: `show ${MIGRATION_SHA}:${CONFIG_PATH}` }),
+    )).toThrow('git show');
+    expect(() => validateRepositoryBoundary(
+      input,
+      repositoryGit({
+        failCommand: `diff --name-only ${BASELINE_SHA}..${MIGRATION_SHA} -- ${D1_MIGRATIONS_PATH}`,
+      }),
+    )).toThrow('git diff');
+  });
+
+  test('rejects a D1 migration in the atomic Durable Object interval', () => {
+    expect(() => validateRepositoryBoundary(
+      {
+        baselineSha: BASELINE_SHA,
+        migrationSha: MIGRATION_SHA,
+        expectedTag: 'v0002',
+      },
+      repositoryGit({ d1Changes: 'apps/relay/migrations/0002_forbidden.sql\n' }),
+    )).toThrow('D1 migrations belong to the staging-first lane');
+  });
 });
 
 describe('Relay production workflow topology', () => {
@@ -107,5 +195,12 @@ describe('Relay production workflow topology', () => {
     expect(workflow).toContain('wrangler versions upload');
     expect(workflow).toContain('wrangler versions deploy');
     expect(workflow).toContain('group: deploy-relay-prod');
+  });
+
+  test('serializes atomic and ordinary production deploys under one policy', () => {
+    const atomic = workflowConcurrency(readWorkflow('deploy-relay-do-migration.yml'));
+    const ordinary = workflowConcurrency(readWorkflow('deploy-relay-prod.yml'));
+    expect(atomic).toEqual({ group: 'deploy-relay-prod', cancelInProgress: false });
+    expect(atomic).toEqual(ordinary);
   });
 });
