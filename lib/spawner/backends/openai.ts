@@ -6,24 +6,33 @@
  * spawner's outer wrapper handles cost recording, telemetry policy,
  * coordination, and bond escrow — this module is HTTP-only.
  *
- * Supported model families:
- *   - GPT-5: gpt-5, gpt-5-mini, gpt-5-nano
- *   - GPT-4.1: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano
- *   - GPT-4o: gpt-4o, gpt-4o-mini
- *   - Reasoning: o4-mini, o3, o1
+ * Which models are supported is NOT listed here — it is whatever
+ * `config/models.yaml` catalogues, reachable through resolveModel(). A list in a
+ * comment is a list that goes stale: this one still stopped at gpt-5/mini/nano
+ * long after the registry had moved the ladder to the 5.4/5.5/5.6 generation.
  *
  * Auth: `OPENAI_API_KEY` from getSecret() or env. `OPENAI_BASE_URL` lets
  * tests / proxies / Azure deployments redirect without code changes
  * (default `https://api.openai.com/v1`).
  *
- * Native OpenAI reasoning models (o-series, gpt-5) use the Responses API
- * (`/responses`) with `max_output_tokens`. OpenAI-compatible providers and
- * explicit base URL redirects (tests, proxies, Azure, Groq, DeepSeek, LM Studio,
- * etc.) keep the Chat Completions path because that is the compatibility
- * contract they serve.
+ * TWO API SHAPES, AND WHY EACH IS USED. Native OpenAI reasoning models (o-series,
+ * every gpt-5 generation) take the Responses API (`/responses`): one typed
+ * `output[]` array of items rather than `choices[]`, `max_output_tokens` rather
+ * than `max_tokens`, NAMED streaming events (`response.output_text.delta`)
+ * rather than unnamed data frames, and — the reason it is not merely a newer
+ * spelling — a `reasoning.effort` knob and typed reasoning items that Chat
+ * Completions has no field for. The current models serve BOTH shapes, so this is
+ * a choice rather than a constraint, and it is made in favour of the shape that
+ * can express what these models actually do.
+ *
+ * OpenAI-compatible providers and explicit base URL redirects (tests, proxies,
+ * Azure, Groq, DeepSeek, LM Studio) keep the Chat Completions path, because
+ * compatibility with THAT shape is the contract they serve — `/responses` is
+ * OpenAI's own endpoint, not a standard those providers implement.
  */
 
 import { getSecret } from '../../secret-env.js';
+import { resolveReasoningEffort } from '../../model-registry.js';
 import type { LLMCompletionRequest, LLMCompletionResult } from '../../llm-call.js';
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
@@ -461,14 +470,22 @@ export const openaiAdapter = async (
 
   const hasExplicitBaseUrl = Boolean(override.baseUrl || e.OPENAI_BASE_URL);
   const useResponsesApi = isReasoningModel(req.model) && !hasExplicitBaseUrl;
+  const responsesEffort = useResponsesApi
+    ? resolveReasoningEffort(req.model, req.reasoningEffort)
+    : undefined;
   const body: Record<string, unknown> = useResponsesApi
     ? {
       model: req.model,
       input: [{ role: 'user', content: req.prompt }],
-      // Port Daddy's live transcript smokes use tiny caps for cost control.
-      // Responses API caps include reasoning tokens, so keep default effort
-      // minimal unless a future request shape exposes an explicit knob.
-      reasoning: { effort: 'minimal' },
+      // Responses API caps count reasoning tokens against max_output_tokens, so
+      // the effort rung is a real cost lever and Port Daddy's live smokes run on
+      // tiny caps. It is resolved from the registry rather than hardcoded: the
+      // accepted values differ PER MODEL, and the constant that used to sit here
+      // ('minimal') is accepted by exactly one model in the current lineup. An
+      // id this adapter has never seen resolves to undefined and the field is
+      // omitted entirely — the API's own default is correct, and inventing a
+      // value for an unknown model is a second guess on top of the first.
+      ...(responsesEffort ? { reasoning: { effort: responsesEffort } } : {}),
       store: false,
       stream: Boolean(req.onTextDelta),
     }

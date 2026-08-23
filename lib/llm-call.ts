@@ -60,6 +60,20 @@ export interface LLMCompletionRequest {
    * every turn twice.
    */
   onTextDelta?: (delta: string) => void;
+
+  /**
+   * How hard a reasoning-capable model should think, by name.
+   *
+   * Advisory, not a demand: the adapter clamps it to what the chosen model
+   * actually accepts (resolveReasoningEffort, lib/model-registry.ts), because the
+   * accepted set differs per model and an unsupported value is an HTTP 400
+   * before a single token is spent. Omit it to get the model's own cheapest
+   * supported rung, which is what cost-capped smokes want.
+   *
+   * Ignored by backends with no such concept — the field is a request for
+   * thinking depth, not a provider-specific parameter passthrough.
+   */
+  reasoningEffort?: string;
 }
 
 export interface LLMCompletionResult {

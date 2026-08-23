@@ -248,6 +248,82 @@ export function allRegisteredModelIds(): string[] {
 }
 
 /**
+ * Reasoning-effort rungs, weakest to strongest.
+ *
+ * Ordered so an unsupported request can be CLAMPED rather than refused. The
+ * order is the vendor's own — it is the sequence OpenAI lists in the 400 it
+ * returns for an unsupported value — not an opinion about how hard each rung
+ * thinks.
+ */
+const EFFORT_LADDER = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+/**
+ * The reasoning effort to send for a model, clamped to what that model accepts.
+ *
+ * WHY THIS IS NOT A CONSTANT AT THE CALL SITE. It used to be: the OpenAI adapter
+ * hardcoded `effort: 'minimal'`, correct for the original gpt-5 generation and
+ * rejected by everything after it. The registry pinned the model id, so the id
+ * was always right — and four of the five OpenAI rungs still returned HTTP 400
+ * on every call, because the id is only half of what a request has to get right.
+ * `cheap` kept working purely because gpt-5-mini is the last model that still
+ * accepts `minimal`, which is why the outage was invisible to a smoke that only
+ * exercised the cheap rung.
+ *
+ * CLAMPING RATHER THAN THROWING is the deliberate choice. A caller asking for
+ * `max` on a model that stops at `xhigh` wants the most thinking available, not
+ * an error; a caller asking for `none` on a model whose floor is `medium` (one
+ * whose thinking cannot be switched off) gets that floor. Refusing would turn a
+ * survivable mismatch into a dead backend — precisely what the failover work in
+ * this slice exists to prevent.
+ *
+ * @param model Concrete model id.
+ * @param requested Effort the caller asked for, if any.
+ * @returns The effort to send, or undefined when this model takes no effort
+ *          parameter at all — in which case the caller must OMIT the field
+ *          rather than send a default, because an unknown id plus an invented
+ *          parameter is two guesses instead of one.
+ */
+export function resolveReasoningEffort(
+  model: string,
+  requested?: string | null,
+): string | undefined {
+  const row = load().models[model];
+  const supported = row?.reasoningEfforts;
+  if (!supported || supported.length === 0) return undefined;
+
+  if (!requested) return row.defaultEffort ?? supported[0];
+  if (supported.includes(requested)) return requested;
+
+  const wantedRung = EFFORT_LADDER.indexOf(requested as (typeof EFFORT_LADDER)[number]);
+  // An effort we have never heard of is not clampable against a ladder it is not
+  // on; fall back to the row's own default rather than guessing a position.
+  if (wantedRung < 0) return row.defaultEffort ?? supported[0];
+
+  const ranked = supported
+    .map((effort) => ({ effort, rung: EFFORT_LADDER.indexOf(effort as (typeof EFFORT_LADDER)[number]) }))
+    .filter((entry) => entry.rung >= 0)
+    .sort((a, b) => a.rung - b.rung);
+  if (ranked.length === 0) return row.defaultEffort ?? supported[0];
+
+  const atOrBelow = ranked.filter((entry) => entry.rung <= wantedRung);
+  return atOrBelow.length ? atOrBelow[atOrBelow.length - 1].effort : ranked[0].effort;
+}
+
+/**
+ * Every reasoning-effort value a model accepts, weakest first.
+ *
+ * Exposed so a picker or a policy can show the real range instead of the union
+ * of every model's range — the union is what the vendor's request schema
+ * validates against, and it is wrong for every individual model.
+ *
+ * @param model Concrete model id.
+ * @returns The accepted values, or an empty array when the model takes none.
+ */
+export function reasoningEffortsFor(model: string): string[] {
+  return [...(load().models[model]?.reasoningEfforts ?? [])];
+}
+
+/**
  * Test-only: drop the memoized registry so a rewritten data module is re-read.
  *
  * The intent is to keep tests honest about generation: a suite that regenerates

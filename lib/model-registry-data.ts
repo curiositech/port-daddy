@@ -27,6 +27,18 @@ export interface ModelCatalogEntry {
   verifiedAt: string;
   verifiedBy: 'live-probe' | 'vendor-docs' | 'cf-catalog' | 'carried';
   priceBasis: 'vendor-docs' | 'estimate';
+  /**
+   * The reasoning-effort values this exact id accepts, live-probed.
+   *
+   * Not decoration: the values are model-specific and the API rejects an
+   * unsupported one with a 400 before any token is spent. Pinning the id
+   * without pinning its accepted parameter values is what let a hardcoded
+   * `effort: 'minimal'` kill four of five OpenAI rungs while the registry
+   * looked correct. Absent for models that take no effort parameter at all.
+   */
+  reasoningEfforts?: string[];
+  /** The effort used when a caller names none — the cheapest supported rung. */
+  defaultEffort?: string;
   notes?: string;
 }
 
@@ -160,7 +172,15 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "status": "ga",
       "verifiedAt": "2026-08-23",
       "verifiedBy": "live-probe",
-      "priceBasis": "estimate"
+      "priceBasis": "estimate",
+      "reasoningEfforts": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultEffort": "minimal",
+      "notes": "The only model in this lineup that still accepts `minimal`; it is also the only one that rejects `none` and `xhigh`. Retained as the `cheap` rung."
     },
     "gpt-5.4": {
       "provider": "openai",
@@ -175,22 +195,15 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "status": "ga",
       "verifiedAt": "2026-08-23",
       "verifiedBy": "live-probe",
-      "priceBasis": "estimate"
-    },
-    "gpt-5.5": {
-      "provider": "openai",
-      "plane": "direct-api",
-      "priceIn": 1.25,
-      "priceOut": 10,
-      "contextWindow": 400000,
-      "capabilities": [
-        "function-calling",
-        "reasoning"
+      "priceBasis": "estimate",
+      "reasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
       ],
-      "status": "ga",
-      "verifiedAt": "2026-08-23",
-      "verifiedBy": "live-probe",
-      "priceBasis": "estimate"
+      "defaultEffort": "low"
     },
     "gpt-5.5-pro": {
       "provider": "openai",
@@ -205,7 +218,14 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "status": "ga",
       "verifiedAt": "2026-08-23",
       "verifiedBy": "live-probe",
-      "priceBasis": "estimate"
+      "priceBasis": "estimate",
+      "reasoningEfforts": [
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultEffort": "medium",
+      "notes": "Thinking is always on and cannot be disabled — the live probe confirms the doc: it is the one model here that rejects `none`, `minimal` AND `low`, so `medium` is its floor rather than a choice."
     },
     "gpt-5.3-codex": {
       "provider": "openai",
@@ -221,7 +241,40 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "status": "ga",
       "verifiedAt": "2026-08-23",
       "verifiedBy": "live-probe",
-      "priceBasis": "estimate"
+      "priceBasis": "estimate",
+      "reasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultEffort": "low"
+    },
+    "gpt-5.6-sol": {
+      "provider": "openai",
+      "plane": "direct-api",
+      "priceIn": 1.25,
+      "priceOut": 10,
+      "contextWindow": 400000,
+      "capabilities": [
+        "function-calling",
+        "reasoning"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
+      "priceBasis": "estimate",
+      "reasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "low",
+      "notes": "Price and context window are UNVERIFIED — carried from the gpt-5.5 row because the vendor exposes neither via the API and no doc names these variants. Existence, serving, both API shapes and the effort set are live-probed."
     },
     "gpt-5.4-mini": {
       "provider": "openai",
@@ -235,7 +288,15 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "status": "ga",
       "verifiedAt": "2026-08-23",
       "verifiedBy": "live-probe",
-      "priceBasis": "estimate"
+      "priceBasis": "estimate",
+      "reasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultEffort": "low"
     },
     "@cf/zai-org/glm-4.7-flash": {
       "provider": "zhipu",
@@ -554,7 +615,7 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
     "openai": {
       "cheap": "gpt-5-mini",
       "balanced": "gpt-5.4",
-      "high": "gpt-5.5",
+      "high": "gpt-5.6-sol",
       "max-thinking": "gpt-5.5-pro",
       "code": "gpt-5.3-codex"
     },

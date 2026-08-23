@@ -156,9 +156,20 @@ models:
       max-thinking so routine work never silently lands on the priciest model.
 
   # ---- OpenAI (direct API; also the aider transport) ----
-  # All five live-probed against GET /v1/models on 2026-08-23. The gpt-5.6-*
-  # family (sol/terra/luna) is deliberately NOT used: Cloudflare's catalog records
-  # it as Responses-API, and this repo's openai adapter speaks chat-completions.
+  # Every id below was live-probed against GET /v1/models on 2026-08-23, and every
+  # `reasoningEfforts` list was live-probed by sending each effort value to
+  # POST /v1/responses and recording which ones the model actually accepts.
+  #
+  # WHY THAT SECOND PROBE EXISTS. The adapter used to hardcode
+  # `reasoning: { effort: 'minimal' }`, which was correct for the original gpt-5
+  # generation and is rejected by every model after it. The result was an HTTP 400
+  # on FOUR of the five rungs this backend resolves — balanced, high, max-thinking
+  # and code were all dead, and only `cheap` (gpt-5-mini, the one model that still
+  # takes `minimal`) worked. A registry that pins the id but not the parameter
+  # values that id accepts leaves exactly this gap, so the accepted set is a row
+  # field like price and context window: declared once, resolved, never guessed.
+  # `defaultEffort` is the cheapest supported rung, because Responses API caps
+  # count reasoning tokens against max_output_tokens.
   gpt-5-mini:
     provider: openai
     plane: direct-api
@@ -170,6 +181,11 @@ models:
     verifiedAt: '2026-08-23'
     verifiedBy: live-probe
     priceBasis: estimate
+    reasoningEfforts: [minimal, low, medium, high]
+    defaultEffort: minimal
+    notes: >-
+      The only model in this lineup that still accepts `minimal`; it is also the
+      only one that rejects `none` and `xhigh`. Retained as the `cheap` rung.
   gpt-5.4:
     provider: openai
     plane: direct-api
@@ -181,17 +197,8 @@ models:
     verifiedAt: '2026-08-23'
     verifiedBy: live-probe
     priceBasis: estimate
-  gpt-5.5:
-    provider: openai
-    plane: direct-api
-    priceIn: 1.25
-    priceOut: 10.00
-    contextWindow: 400000
-    capabilities: [function-calling, reasoning]
-    status: ga
-    verifiedAt: '2026-08-23'
-    verifiedBy: live-probe
-    priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh]
+    defaultEffort: low
   gpt-5.5-pro:
     provider: openai
     plane: direct-api
@@ -203,6 +210,12 @@ models:
     verifiedAt: '2026-08-23'
     verifiedBy: live-probe
     priceBasis: estimate
+    reasoningEfforts: [medium, high, xhigh]
+    defaultEffort: medium
+    notes: >-
+      Thinking is always on and cannot be disabled — the live probe confirms the
+      doc: it is the one model here that rejects `none`, `minimal` AND `low`, so
+      `medium` is its floor rather than a choice.
   gpt-5.3-codex:
     provider: openai
     plane: direct-api
@@ -214,6 +227,50 @@ models:
     verifiedAt: '2026-08-23'
     verifiedBy: live-probe
     priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh]
+    defaultEffort: low
+
+  # ---- OpenAI gpt-5.6 (direct API) ----
+  # Operator request, 2026-08-23. The family ships as three sibling ids rather
+  # than a tiered ladder, and the ONE difference this repo can actually source is
+  # that all three accept a `max` reasoning effort that no earlier model does —
+  # live-probed, not inferred. Nothing else separates them that a black-box probe
+  # can see: all three serve, all three reason, all three answered three
+  # checkable reasoning problems correctly, and GET /v1/models exposes neither
+  # price nor context window. So they are catalogued as PEERS. `max-thinking`
+  # points at one of them at effort `max` — the rung is earned by a capability
+  # this family uniquely has, not by a ranking nobody has published.
+  #
+  # Both API shapes serve this family: POST /v1/responses AND
+  # POST /v1/chat/completions were both live-probed at 200. The adapter takes the
+  # Responses path (isReasoningModel matches the `gpt-5` prefix), which is the
+  # right one — it is where reasoning effort and typed reasoning items live.
+  #
+  # `gpt-5.6-terra` and `gpt-5.6-luna` were probed alongside `sol` and behave
+  # identically on every axis measurable here — same effort set, same correctness
+  # on three checkable reasoning problems, same absent price/context metadata.
+  # They are deliberately NOT catalogued: a row that no rung references trips the
+  # orphan check, and inventing a ladder position for a peer would be exactly the
+  # unsourced ranking this file exists to prevent. Adding one is a two-line change
+  # the moment there is a rung, a benchmark, or a vendor doc to justify it.
+  gpt-5.6-sol:
+    provider: openai
+    plane: direct-api
+    priceIn: 1.25
+    priceOut: 10.00
+    contextWindow: 400000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh, max]
+    defaultEffort: low
+    notes: >-
+      Price and context window are UNVERIFIED — carried from the gpt-5.5 row
+      because the vendor exposes neither via the API and no doc names these
+      variants. Existence, serving, both API shapes and the effort set are
+      live-probed.
 
   # ---- codex CLI's own lineup (transport owns these; not aliased to openai) ----
   gpt-5.4-mini:
@@ -227,6 +284,8 @@ models:
     verifiedAt: '2026-08-23'
     verifiedBy: live-probe
     priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh]
+    defaultEffort: low
 
   # ---- Cloudflare Workers AI ----
   # NOTE ON THE PHANTOM: the registry previously mapped cloudflare high AND
@@ -529,7 +588,10 @@ backends:
   openai:
     cheap: gpt-5-mini
     balanced: gpt-5.4
-    high: gpt-5.5
+    # gpt-5.6 lands on `high` — the rung most real work resolves to — rather than
+    # on max-thinking, which stays reserved for the always-thinking premium model
+    # so routine work never silently lands on the priciest id.
+    high: gpt-5.6-sol
     max-thinking: gpt-5.5-pro
     code: gpt-5.3-codex
   codex:

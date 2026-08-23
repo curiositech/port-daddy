@@ -8,9 +8,9 @@
   "model": {
     "claude_local": "opus",
     "claude_cloud": { "capability": "max-thinking", "speed": "standard" },
-    "codex": "gpt-5.5",
-    "gemini": "Gemini 3.1 Pro (High)",
-    "antigravity": "Claude Opus 4.6 (Thinking)"
+    "codex": { "capability": "high" },
+    "gemini": { "capability": "high" },
+    "antigravity": { "capability": "high" }
   },
   "mcpServers": [
     {

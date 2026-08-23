@@ -56,6 +56,18 @@ export interface ModelCatalogEntry {
   verifiedAt: string;
   verifiedBy: 'live-probe' | 'vendor-docs' | 'cf-catalog' | 'carried';
   priceBasis: 'vendor-docs' | 'estimate';
+  /**
+   * The reasoning-effort values this exact id accepts, live-probed.
+   *
+   * Not decoration: the values are model-specific and the API rejects an
+   * unsupported one with a 400 before any token is spent. Pinning the id
+   * without pinning its accepted parameter values is what let a hardcoded
+   * `effort: 'minimal'` kill four of five OpenAI rungs while the registry
+   * looked correct. Absent for models that take no effort parameter at all.
+   */
+  reasoningEfforts?: string[];
+  /** The effort used when a caller names none — the cheapest supported rung. */
+  defaultEffort?: string;
   notes?: string;
 }
 
@@ -112,6 +124,20 @@ export function loadSource(): ModelSource {
     throw new Error(
       `config/models.yaml: ${orphans.length} catalog row(s) are referenced by no backend: ` +
         `${orphans.join(', ')}. Remove them, or map them — an unreferenced row rots unnoticed.`,
+    );
+  }
+
+  // A `defaultEffort` outside its own `reasoningEfforts` is a 400 waiting to
+  // happen on the very first call — the same shape as a phantom id, one level
+  // down. Catch it here rather than in production.
+  const badDefaults = Object.entries(doc.models)
+    .filter(([, row]) => row.defaultEffort !== undefined)
+    .filter(([, row]) => !(row.reasoningEfforts ?? []).includes(row.defaultEffort as string))
+    .map(([id, row]) => `${id} (default '${row.defaultEffort}')`);
+  if (badDefaults.length) {
+    throw new Error(
+      `config/models.yaml: ${badDefaults.length} row(s) declare a defaultEffort the model does not ` +
+        `accept: ${badDefaults.join(', ')}. The default must be one of that row's reasoningEfforts.`,
     );
   }
 
@@ -187,6 +213,18 @@ export interface ModelCatalogEntry {
   verifiedAt: string;
   verifiedBy: 'live-probe' | 'vendor-docs' | 'cf-catalog' | 'carried';
   priceBasis: 'vendor-docs' | 'estimate';
+  /**
+   * The reasoning-effort values this exact id accepts, live-probed.
+   *
+   * Not decoration: the values are model-specific and the API rejects an
+   * unsupported one with a 400 before any token is spent. Pinning the id
+   * without pinning its accepted parameter values is what let a hardcoded
+   * \`effort: 'minimal'\` kill four of five OpenAI rungs while the registry
+   * looked correct. Absent for models that take no effort parameter at all.
+   */
+  reasoningEfforts?: string[];
+  /** The effort used when a caller names none — the cheapest supported rung. */
+  defaultEffort?: string;
   notes?: string;
 }
 

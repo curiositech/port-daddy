@@ -17,7 +17,14 @@ const {
 describe('resolveModel — declarative (backend, capability) → concrete id', () => {
   test('maps a backend + capability to a concrete id', () => {
     expect(resolveModel({ backend: 'anthropic', capability: 'cheap' })).toBe('claude-haiku-4-5');
-    expect(resolveModel({ backend: 'openai', capability: 'high' })).toBe('gpt-5.5');
+    // Asserted by SHAPE rather than by literal: which OpenAI id sits on `high`
+    // is a product decision that moves whenever the vendor ships (it moved twice
+    // in one week), and a test that pins the literal fails on every such move
+    // while proving nothing about the resolver. What must hold is that the rung
+    // resolves to a catalogued id from the right provider.
+    const high = resolveModel({ backend: 'openai', capability: 'high' });
+    expect(allRegisteredModelIds()).toContain(high);
+    expect(high.startsWith('gpt-')).toBe(true);
   });
 
   test('legacy model_tier (low/mid/high) maps through to a capability', () => {
@@ -87,9 +94,13 @@ describe('registry data integrity', () => {
   test('allRegisteredModelIds returns the de-duped id set', () => {
     const ids = allRegisteredModelIds();
     expect(ids).toContain('claude-haiku-4-5');
-    // Bare `gpt-5` was superseded by the live-verified gpt-5.4/5.5 ladder in the
-    // 2026-08-23 canonical-registry supplant; assert a currently-mapped id.
-    expect(ids).toContain('gpt-5.5');
+    // Every OpenAI rung must appear in the id set — the property this function
+    // exists for — without naming any one of them, so a ladder change is not a
+    // test change. Pinning `gpt-5.5` here broke the moment 5.6 took the `high`
+    // rung, which is a false alarm rather than a caught regression.
+    for (const capability of CAPABILITIES) {
+      expect(ids).toContain(resolveModel({ backend: 'openai', capability }));
+    }
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
