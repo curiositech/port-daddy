@@ -5,14 +5,10 @@
 //! merge byte-conflict-free with per-line authorship preserved.
 //!
 //! ## Honest scope (read before extending)
-//! This is the **substrate**, not a finished editor. It deliberately does NOT
-//! implement:
-//!   - live keystroke editing (GPUI 0.2.x ships no text-input widget; that is a
-//!     ~300-LOC custom `Element` and is the explicitly-named NEXT step), and
-//!   - P3 claims / `/conflicts/predict` / claim-before-edit (the actual wedge).
-//! What it DOES prove: open a file as a Loro `LoroText`, mint a stable PeerID from
-//! a PD identity, merge a second replica's ops in (the M×N proof), and read back
-//! per-line authorship. See `docs/strategy/harbor-editor-P1-implementation.md`.
+//! This remains the renderer-free substrate. Live selection, IME, clipboard and
+//! grapheme navigation live in `editor_input.rs`; `EditorPane` translates those
+//! accepted UTF-8 replacements into the authored incremental deltas implemented
+//! here. Claims and `/conflicts/predict` remain policy above this buffer.
 //!
 //! ## Renderer-agnostic on purpose
 //! Nothing here touches gpui. The buffer compiles and unit-tests on Linux with the
@@ -27,6 +23,7 @@
 //! survive reconnect"). We mask off `u64::MAX` because Loro reserves it.
 
 use loro::{ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap};
+use std::ops::Range;
 
 /// Loro container name for the file's text. One file = one `LoroDoc` holding one
 /// `LoroText` under this key (battle-plan §3).
@@ -158,20 +155,49 @@ impl HarborBuffer {
     }
 
     /// Insert `s` at Unicode position `pos`, authored to this replica, and mark
-    /// the inserted span with this replica's PeerId. This is the programmatic
-    /// edit primitive (NOT live keystroke input — that GPUI Element is the next
-    /// step). Appending a full line should include its trailing `\n`.
+    /// the inserted span with this replica's PeerId. Appending a full line should
+    /// include its trailing `\n`.
     pub fn insert_authored(&self, pos: usize, s: &str) {
-        self.text.insert(pos, s).expect("insert authored span");
-        let inserted_len = s.chars().count();
-        self.text
-            .mark(
-                pos..(pos + inserted_len),
-                AUTHOR_MARK,
-                self.local_peer as i64,
-            )
-            .expect("mark authored span");
+        let _ = self.replace_authored(pos..pos, s);
+    }
+
+    /// Replace a Unicode-scalar range with locally-authored text and return only
+    /// the newly-created Loro update bytes. The returned delta is the exact op
+    /// the live editor broadcasts; it does not resend the file's full history on
+    /// every keystroke.
+    pub fn replace_authored(&self, range: Range<usize>, s: &str) -> Vec<u8> {
+        let len = self.text.len_unicode();
+        assert!(
+            range.start <= range.end && range.end <= len,
+            "authored replacement range {range:?} must fit Unicode length {len}"
+        );
+        if range.is_empty() && s.is_empty() {
+            return Vec::new();
+        }
+
+        let before = self.doc.oplog_vv();
+        if !range.is_empty() {
+            self.text
+                .delete(range.start, range.end - range.start)
+                .expect("delete authored span");
+        }
+        if !s.is_empty() {
+            self.text
+                .insert(range.start, s)
+                .expect("insert authored span");
+            let inserted_len = s.chars().count();
+            self.text
+                .mark(
+                    range.start..(range.start + inserted_len),
+                    AUTHOR_MARK,
+                    self.local_peer as i64,
+                )
+                .expect("mark authored span");
+        }
         self.doc.commit();
+        self.doc
+            .export(ExportMode::updates(&before))
+            .expect("export authored replacement delta")
     }
 
     /// Append `line` (a single logical line WITHOUT a trailing newline) at the end
@@ -369,6 +395,26 @@ mod tests {
                 "line {i} must be attributed to the opener replica"
             );
         }
+    }
+
+    #[test]
+    fn authored_replacement_deletes_unicode_and_exports_only_the_delta() {
+        let human = HarborBuffer::empty("port-daddy:console:human");
+        human.insert_authored(0, "a😀z\n");
+        let agent = HarborBuffer::empty("port-daddy:editor:agent");
+        agent.apply_remote_ops(&human.export_ops()).unwrap();
+
+        // Loro positions are Unicode scalar offsets: the emoji occupies one.
+        let delta = human.replace_authored(1..2, "é");
+        assert_eq!(human.to_string(), "aéz\n");
+        agent.apply_remote_ops(&delta).unwrap();
+        assert_eq!(agent.to_string(), human.to_string());
+
+        // The replacement span keeps local authorship after a remote import.
+        let spans = human.richtext_spans();
+        assert!(spans
+            .iter()
+            .any(|(text, author)| { text.contains('é') && *author == Some(human.local_peer()) }));
     }
 
     /// THE P1 DELIVERABLE — the co-equal-replica proof.
