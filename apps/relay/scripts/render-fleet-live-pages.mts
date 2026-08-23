@@ -99,7 +99,7 @@ const retrying: FleetRunProjection = {
   last_progress_at: NOW - 25,
   expected_finish_at: NOW + 30,
   queue_ahead_estimate: 0,
-  last_error: 'Consumer lease expired after the latest checkpoint; resuming safely.',
+  last_error: 'Workers AI circuit open on attempt 3/3; queue retry scheduled in 31s',
 };
 
 const superseded: FleetRunProjection = {
@@ -200,6 +200,27 @@ const finishedSteps: FleetRunStepRow[] = [
   },
 ];
 
+const retrySteps: FleetRunStepRow[] = [
+  {
+    run_id: retrying.id,
+    seq: 0,
+    kind: 'provider-circuit-open',
+    ship: 'qa',
+    title: 'Workers AI circuit opened',
+    detail: JSON.stringify({ attempt: 3, maxAttempts: 3, status: 429, code: 3040, retryable: true }),
+    created_at: NOW - 25,
+  },
+  {
+    run_id: retrying.id,
+    seq: 1,
+    kind: 'ship-adjudicated',
+    ship: 'qa',
+    title: 'pd-qa: adjudicated FLEET-WIDE fault — not gating this PR',
+    detail: JSON.stringify({ verdict: 'fleet', reason: 'Workers AI dependency circuit remained open through 3/3 delivery attempts' }),
+    created_at: NOW - 24,
+  },
+];
+
 const completed: FleetRunProjection = {
   ...running,
   conclusion: 'success',
@@ -215,6 +236,7 @@ const completed: FleetRunProjection = {
 writeFileSync(`${OUT}fleet-account.html`, renderRunsPage(operator, groups, { truncated: false, nowSec: NOW }));
 writeFileSync(`${OUT}fleet-receipt-queued.html`, renderFleetRunReceiptPage(queued, []));
 writeFileSync(`${OUT}fleet-receipt-running.html`, renderFleetRunReceiptPage(running, progressSteps));
+writeFileSync(`${OUT}fleet-receipt-retrying.html`, renderFleetRunReceiptPage(retrying, retrySteps));
 writeFileSync(`${OUT}fleet-receipt-success.html`, renderFleetRunReceiptPage(completed, finishedSteps));
 
 console.log(`rendered Cloud Fleet evidence HTML under ${OUT}`);
