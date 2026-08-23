@@ -1199,7 +1199,7 @@ export async function runPurser(
     const plannedPaths = files.length === 0 ? plannedResponsePaths(planText) : null;
     const hasRepairEligiblePath =
       plannedPaths?.some(path => discoveryRepairEligible(path, ship)) ?? false;
-    if (files.length === 0 && hasRepairEligiblePath) {
+    if (files.length === 0 && (plannedPaths === null || hasRepairEligiblePath)) {
       evidence = await gatherExecutabilityEvidence(prCtx, token);
     }
     const undiscoverable =

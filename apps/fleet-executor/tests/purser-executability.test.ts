@@ -392,6 +392,20 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
     });
   });
 
+  it('rejects TypeScript-only syntax in a .js test instead of parsing it as TypeScript', () => {
+    const path = 'tests/unit/typed-javascript.test.js';
+    const result = checkGeneratedTestsExecutable(
+      [{ path, contents: "type Value = string;\nconst value: Value = 'ready';\ntest('x', () => expect(value).toBe('ready'));" }],
+      { testMatchPatterns: realJestPatterns, repoTreePaths: new Set() },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'syntax-error',
+      path,
+    });
+  });
+
   it.each([
     {
       path: 'tests/unit/typed.contract.test.ts',
