@@ -18,7 +18,7 @@
 
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -61,6 +61,7 @@ const savedEnv = {
   PD_MATRIX_FILE: process.env.PD_MATRIX_FILE,
   PD_HOME: process.env.PD_HOME,
   PD_SUGGESTIBILITY: process.env.PD_SUGGESTIBILITY,
+  PD_SITREP: process.env.PD_SITREP,
 };
 
 beforeEach(() => {
@@ -70,6 +71,7 @@ beforeEach(() => {
   process.env.PD_MATRIX_FILE = MATRIX;
   process.env.PD_HOME = SCRATCH;
   delete process.env.PD_SUGGESTIBILITY;
+  delete process.env.PD_SITREP;
 });
 
 afterEach(() => {
@@ -79,6 +81,8 @@ afterEach(() => {
   else process.env.PD_HOME = savedEnv.PD_HOME;
   if (savedEnv.PD_SUGGESTIBILITY === undefined) delete process.env.PD_SUGGESTIBILITY;
   else process.env.PD_SUGGESTIBILITY = savedEnv.PD_SUGGESTIBILITY;
+  if (savedEnv.PD_SITREP === undefined) delete process.env.PD_SITREP;
+  else process.env.PD_SITREP = savedEnv.PD_SITREP;
   rmSync(SCRATCH, { recursive: true, force: true });
 });
 
@@ -492,6 +496,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         // Spell out the documented defaults so this test proves the ordinary path.
         PD_SQUID_PROMPT_MAX_ENTRIES: '2',
         PD_SQUID_PROMPT_MAX_BYTES: '512',
+        // Isolate the #8059 coordination bound from the dial-governed SITREP
+        // block (its own tests live below): this test measures coordination only.
+        PD_SITREP: 'off',
       },
       encoding: 'utf8',
     });
@@ -533,6 +540,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         // Adversarial override: the product clamp must win over caller input.
         PD_SQUID_PROMPT_MAX_ENTRIES: '12',
         PD_SQUID_PROMPT_MAX_BYTES: '4096',
+        // Coordination bound only — the SITREP block is dial-governed and
+        // deliberately rides outside this cap (tested separately).
+        PD_SITREP: 'off',
       },
       encoding: 'utf8',
     });
@@ -564,6 +574,8 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         PD_HOME: dirname(MATRIX),
         PD_SQUID_PROMPT_MAX_ENTRIES: 'not-a-number',
         PD_SQUID_PROMPT_MAX_BYTES: 'NaN',
+        // Coordination bound only — SITREP is dial-governed, tested separately.
+        PD_SITREP: 'off',
       },
       encoding: 'utf8',
     });
@@ -587,7 +599,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
 
     const r = spawnSync(bin('pd-hook-prompt'), [], {
       input: JSON.stringify({ cwd: WORKSPACE }),
-      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      // PD_SITREP off: these are coordination-bound proofs; the dial-governed
+      // SITREP block has its own dedicated tests below.
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX), PD_SITREP: 'off' },
       encoding: 'utf8',
     });
 
@@ -602,7 +616,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
 
     const r = spawnSync(bin('pd-hook-prompt'), [], {
       input: JSON.stringify({ cwd: WORKSPACE }),
-      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      // PD_SITREP off: these are coordination-bound proofs; the dial-governed
+      // SITREP block has its own dedicated tests below.
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX), PD_SITREP: 'off' },
       encoding: 'utf8',
     });
 
@@ -612,6 +628,250 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(Buffer.byteLength(r.stdout)).toBe(0);
     expect(Buffer.byteLength(r.stderr)).toBe(0);
   });
+
+  // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──
+  // The end-of-turn SITREP table is the harness's visible value surface. The
+  // dial resolves PD_SITREP env override → agent.config.json →
+  // .portdaddy/sitrep.json → .portdaddy/project.json (parent walk), and an
+  // absent/unreadable config fails toward the FULL contract: default enforce.
+
+  const runPrompt = (extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX), ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  const promptCtx = (r: ReturnType<typeof spawnSync>) =>
+    (JSON.parse(String(r.stdout)) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+
+  test('SITREP dial defaults to enforce: a bare repo gets the full end-of-turn contract', () => {
+    // No config anywhere on the walk, no env override → enforce. No users, no
+    // half-assed defaults: the compulsion is on unless a repo dials it off.
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    const ctx = promptCtx(r);
+    expect(ctx).toContain('SITREP enforce');
+    expect(ctx).toContain('| Idea / Suggestion / Remediation |');
+    expect(ctx).toContain('Docs / Roadmap Link');
+    expect(ctx).toContain('MUST carry a roadmap link');
+    expect(ctx).toContain('incomplete turn');
+  });
+
+  test('SITREP dial: repo agent.config.json can dial the compulsion off', () => {
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    // Dial off + nothing actionable in the matrix → the turn stays zero-byte.
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('SITREP dial: suggest injects the contract without the enforce closer', () => {
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'suggest' } }),
+    );
+    const r = runPrompt();
+    const ctx = promptCtx(r);
+    expect(ctx).toContain('SITREP suggest');
+    expect(ctx).toContain('| Idea / Suggestion / Remediation |');
+    expect(ctx).not.toContain('incomplete turn');
+  });
+
+  test('SITREP dial: PD_SITREP env override wins over repo config in both directions', () => {
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const off = runPrompt({ PD_SITREP: 'off' });
+    expect(off.stdout).toBe('');
+
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const suggested = runPrompt({ PD_SITREP: ' Suggest ' }); // trim/case normalized
+    const suggestedCtx = promptCtx(suggested);
+    expect(suggestedCtx).toContain('SITREP suggest');
+    expect(suggestedCtx).not.toContain('incomplete turn');
+  });
+
+  test('SITREP dial: garbage env value falls back to the config walk, garbage config to enforce', () => {
+    // Garbage env + explicit repo off → the repo's opt-out still holds.
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const respectsRepo = runPrompt({ PD_SITREP: 'loudly' });
+    expect(respectsRepo.stdout).toBe('');
+
+    // Garbage everywhere → closed enum rejects both → default enforce, and
+    // neither garbage token may pass through into the injected envelope.
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'quietly' } }),
+    );
+    const fallsToDefault = runPrompt({ PD_SITREP: 'loudly' });
+    const defaultCtx = promptCtx(fallsToDefault);
+    expect(defaultCtx).toContain('SITREP enforce');
+    expect(defaultCtx).not.toContain('loudly');
+    expect(defaultCtx).not.toContain('quietly');
+  });
+
+  test('SITREP dial: bogus env value alone resolves enforce and never leaks into the envelope', () => {
+    // No config anywhere; PD_SITREP carries garbage. The closed enum must
+    // reject it, resolve the DEFAULT (enforce), and the garbage token must
+    // not be echoed into the injected contract.
+    const r = runPrompt({ PD_SITREP: 'banana' });
+    expect(r.status).toBe(0);
+    const ctx = promptCtx(r);
+    expect(ctx).toContain('SITREP enforce');
+    expect(ctx).not.toContain('banana');
+  });
+
+  test('SITREP dial precedence: agent.config.json → .portdaddy/sitrep.json → .portdaddy/project.json', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(WORKSPACE, '.portdaddy', 'project.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    writeFileSync(
+      join(WORKSPACE, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'suggest' } }),
+    );
+    // sitrep.json beats project.json…
+    expect(promptCtx(runPrompt())).toContain('SITREP suggest');
+
+    // …and agent.config.json beats both.
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    expect(runPrompt().stdout).toBe('');
+  });
+
+  test('SITREP dial: malformed config JSON fails toward the default (enforce), never off', () => {
+    // Doctrine fail-direction: an unreadable/unparseable dial must fall to the
+    // FULL contract, not silently land on quiet. The broken file yields no
+    // valid level, the walk finds nothing else, and the default (enforce) wins.
+    writeFileSync(join(WORKSPACE, 'agent.config.json'), '{not valid json — deliberately malformed');
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(promptCtx(r)).toContain('SITREP enforce');
+  });
+
+  test('SITREP dial: a malformed file cannot mask a valid dial deeper in the same walk', () => {
+    // The parse failure must skip to the NEXT candidate, so an explicit repo
+    // opt-out further down the precedence chain still holds.
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(join(WORKSPACE, 'agent.config.json'), '{not valid json — deliberately malformed');
+    writeFileSync(
+      join(WORKSPACE, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
+  // Permission bits do not bind root (some sandboxes run jest as uid 0), so the
+  // chmod-000 proof only asserts where EACCES is actually enforced; the
+  // dangling-symlink case below covers the unopenable-path seam everywhere.
+  const nonRootTest = typeof process.getuid === 'function' && process.getuid() !== 0 ? test : test.skip;
+  nonRootTest('SITREP dial: a permission-denied config fails toward the default (enforce)', () => {
+    // The unreadable file SAYS off — but a read failure must never be trusted
+    // as an opt-out. Fail direction is the default: enforce.
+    const cfg = join(WORKSPACE, 'agent.config.json');
+    writeFileSync(cfg, JSON.stringify({ sitrep: { endOfTurn: 'off' } }));
+    chmodSync(cfg, 0o000);
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(promptCtx(r)).toContain('SITREP enforce');
+  });
+
+  test('SITREP dial: an unresolvable config path (dangling symlink) fails toward enforce', () => {
+    symlinkSync(join(WORKSPACE, 'no-such-target.json'), join(WORKSPACE, 'agent.config.json'));
+    const r = runPrompt();
+    expect(r.status).toBe(0);
+    expect(promptCtx(r)).toContain('SITREP enforce');
+  });
+
+  test('SITREP dial: nested cwd inherits the parent repo dial via the parent walk', () => {
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'suggest' } }),
+    );
+    const nested = join(WORKSPACE, 'src', 'deep');
+    mkdirSync(nested, { recursive: true });
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: nested }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(promptCtx(r)).toContain('SITREP suggest');
+  });
+
+  test('SITREP dial conflict: the nearest directory wins over an ancestor, regardless of file rank', () => {
+    // The contract is nearest-wins: the walk exhausts ALL three candidate
+    // files in each directory before ascending, so a child repo's opt-out in
+    // a LOWER-ranked file beats an ancestor's enforce in the HIGHEST-ranked
+    // file — while the ancestor itself keeps its own dial.
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const child = join(WORKSPACE, 'pkg');
+    mkdirSync(join(child, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(child, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+
+    const fromChild = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: child }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(fromChild.status).toBe(0);
+    expect(fromChild.stdout).toBe('');
+
+    const fromParent = runPrompt();
+    expect(promptCtx(fromParent)).toContain('SITREP enforce');
+  });
+
+  test.each([3, 14, 41])(
+    'SITREP block rides outside the #8059 coordination byte cap without loosening it (%i pheromones)',
+    (floodCount) => {
+      // Flood the matrix at several magnitudes; the coordination segment must
+      // stay at 2 facts / 512 bytes regardless of how many candidates queue up,
+      // while the constant-size SITREP contract precedes it un-truncated. The
+      // cap logic is count-independent — 3, 14, or 41 fresh pheromones all
+      // squeeze through the same bound.
+      mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+      const fresh = new Date().toISOString();
+      for (let i = 0; i < floodCount; i++) {
+        setKey(
+          `PD_PHEROMONE_SITREP_CAP_${i}`,
+          `${WORKSPACE}/src/cap-${i}.ts | cap-fact-${i} | ts:${fresh}`,
+        );
+      }
+      const r = runPrompt({ PD_SITREP: 'enforce' });
+      expect(r.status).toBe(0);
+      const ctx = promptCtx(r);
+      expect(ctx).toContain('SITREP enforce');
+      const coordStart = ctx.indexOf('[PORT DADDY — ACTIONABLE COORDINATION');
+      expect(coordStart).toBeGreaterThan(-1);
+      const coordination = ctx.slice(coordStart);
+      expect(Buffer.byteLength(coordination)).toBeLessThanOrEqual(512);
+      expect(coordination.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
+    },
+  );
 
   test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
     // Regression for the fleet-scale hang: a long-lived, multi-project matrix
@@ -647,7 +907,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const start = Date.now();
     const r = spawnSync(bin('pd-hook-prompt'), [], {
       input: JSON.stringify({ cwd: WORKSPACE }),
-      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      // PD_SITREP off: these are coordination-bound proofs; the dial-governed
+      // SITREP block has its own dedicated tests below.
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX), PD_SITREP: 'off' },
       encoding: 'utf8',
       timeout: 10_000,
     });
