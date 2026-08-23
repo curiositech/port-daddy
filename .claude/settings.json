@@ -65,6 +65,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/stop-sitrep.sh",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

@@ -8,6 +8,7 @@ node_modules/
 
 # Logs
 *.log
+.claude/.sitrep-log/
 
 # OS
 .DS_Store
