@@ -188,7 +188,39 @@ export function extractCodeFence(output: string): string | null {
   if (sawFence) return null;
 
   const bare = text.trim();
-  return looksLikeCode(bare) ? bare : null;
+  return looksLikeCode(bare) && startsLikeSource(bare) ? bare : null;
+}
+
+/**
+ * Does an UNFENCED response begin the way a source file begins?
+ *
+ * looksLikeCode() scans the whole body for syntax signals, and a model's raw
+ * chain-of-thought defeats it from the inside: reasoning prose quotes real
+ * `import` lines and `expect(...)` calls while it drafts, so a response that
+ * opens "We need to write a test file that verifies..." still carries every
+ * signal the body scan looks for. Two live #9370 runs committed exactly that —
+ * multi-kilobyte deliberation transcripts — as .test.ts files, which then
+ * blocked the reviewed PR when the runner choked on them.
+ *
+ * A real source file declares, imports, comments, or shebangs on its FIRST
+ * non-empty line; deliberation narrates. So the bare fallback (and only the
+ * fallback — fenced blocks are the model explicitly marking "this is the
+ * file") additionally requires the first non-empty line to look like the top
+ * of a file. Rejection is contained by design: authorTestFiles names this
+ * file as a failure and the other planned files still land.
+ */
+export function startsLikeSource(text: string): boolean {
+  const first = text.split('\n').find(line => line.trim().length > 0)?.trim() ?? '';
+  return (
+    /^(?:import|export|from|const|let|var|function|async|class|def|package|public|private|use|mod|struct|enum|trait|impl|interface|type|namespace|module|describe|it|test)\b/.test(first) ||
+    /^(?:\/\/|\/\*|#|<!--|---$|@)/.test(first) ||
+    /^#!\//.test(first) ||
+    // A first line that TERMINATES like a statement is code even without a
+    // declaration keyword (`foo.bar();`). Deliberation narrates in sentences,
+    // and sentences end with periods — not `;`, `{`, or an arrow.
+    /[;{]\s*$/.test(first) ||
+    /=>\s*[{(]?\s*$/.test(first)
+  );
 }
 
 // ---------------------------------------------------------------------------

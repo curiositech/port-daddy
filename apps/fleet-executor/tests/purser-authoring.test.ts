@@ -5,6 +5,7 @@ import {
   parseTestPlan,
   authorTestFiles,
   MAX_PLANNED_FILES,
+  startsLikeSource,
   type AuthorCall,
 } from '../src/purser-authoring.js';
 
@@ -319,5 +320,49 @@ describe('purser step model tiering', () => {
     )!;
     expect(ships[0].cfPlanModel).toBeUndefined();
     expect(ships[0].cfAuthorModel).toBeUndefined();
+  });
+});
+
+// ── Chain-of-thought must never become a test file ───────────────────────────
+//
+// Two #9370 authoring calls returned raw deliberation ("We need to write a
+// test file that verifies...") with no fence. The body scan in looksLikeCode
+// was defeated from the inside — reasoning prose QUOTES real import lines and
+// expect() calls while drafting — so multi-kilobyte transcripts were committed
+// as .test.ts files. The bare fallback now also requires the response to BEGIN
+// the way a source file begins.
+
+describe('startsLikeSource', () => {
+  it('rejects deliberation that quotes code from the inside', () => {
+    const cot =
+      'We need to write a test file that verifies isPublishableSkill is single source of truth.\n' +
+      "import { spawnSync } from 'node:child_process';\n" +
+      'We need to import buildSkillPullRequest from src/snipe-builder.ts.\n' +
+      'expect(first.allowed).toBe(true);\n';
+    expect(startsLikeSource(cot)).toBe(false);
+    // ...and the full extraction path agrees: no fence + prose opening = null.
+    expect(extractCodeFence(cot)).toBeNull();
+  });
+
+  it('accepts a file that forgot its fence but starts like source', () => {
+    const bare =
+      "import { describe, it, expect } from 'vitest';\n" +
+      "describe('x', () => { it('y', () => { expect(1).toBe(1); }); });\n";
+    expect(startsLikeSource(bare)).toBe(true);
+    expect(extractCodeFence(bare)).toBe(bare.trim());
+  });
+
+  it('accepts a leading comment, shebang, or decorator opening', () => {
+    expect(startsLikeSource('// tests for the widget\nconst a = 1;')).toBe(true);
+    expect(startsLikeSource('#!/usr/bin/env node\nconsole.log(1);')).toBe(true);
+    expect(startsLikeSource('# pytest suite\nimport os')).toBe(true);
+  });
+
+  it('fenced responses are unaffected — the model marked the file itself', () => {
+    const fenced =
+      'Some narration first.\n\n```ts\n' +
+      "import { it } from 'vitest';\nit('a', () => {});\n" +
+      '```\n';
+    expect(extractCodeFence(fenced)).toContain("import { it } from 'vitest';");
   });
 });

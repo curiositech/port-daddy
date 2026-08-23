@@ -485,6 +485,26 @@ function undiscoverablePlannedPaths(
  * carrying a whole source file is the most fragile thing a model can be asked
  * for, and it cost a 2026-08-09 run its entire 6KB of authored tests.
  */
+/**
+ * Spell out the '..'-arithmetic for a planned path instead of asking the model
+ * to do it. Both live authored-suite failures on 2026-08-23 (#9741, #9744) were
+ * the SAME off-by-one: from tests/unit/purser/ the model wrote two '..'
+ * segments to reach the repo root when three are required, so every repo file
+ * the tests touched resolved to a directory that exists on no ref. Arithmetic
+ * is ours to state, not the model's to rediscover per file.
+ */
+function depthNote(path: string): string {
+  const depth = path.split('/').length - 1;
+  if (depth === 0) return '';
+  const dots = Array.from({ length: depth }, () => "'..'").join(' + ');
+  return (
+    `This file sits ${depth} director${depth === 1 ? 'y' : 'ies'} below the repo root, ` +
+    `so the path from its directory to the repo root is EXACTLY ${depth} ` +
+    `segment${depth === 1 ? '' : 's'}: ${dots}. Build every repo-root-relative ` +
+    `path from that count.\n`
+  );
+}
+
 function fileAuthorSystemPrompt(
   ship: ShipConfig,
   steel: SteelManContract,
@@ -522,6 +542,12 @@ function fileAuthorSystemPrompt(
     `elisions like "... rest unchanged". Relative imports resolve from the ` +
     `directory containing ${planned.path}; count every required '..' segment ` +
     `from that directory and never invent a module — imports must name real repository files.\n` +
+    depthNote(planned.path) +
+    `Tests run on a LINUX CI runner. Never spawn a platform-specific binary ` +
+    `(xcodebuild, swift, launchctl, osascript, powershell) without first ` +
+    `probing for it and skipping the dependent cases when it is absent — a ` +
+    `hard failure on a missing toolchain reads as a failure of the PR, which ` +
+    `it is not.\n` +
     runnerNote +
     repairNote +
     `\n` +
@@ -691,6 +717,15 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
     return (
       `**Execution: RAN — PASSED.** The PR head satisfies these tests today. ` +
       `Keep it that way.`
+    );
+  }
+  if (!sandbox.ranTests) {
+    return (
+      `**Execution: RAN — ZERO TESTS EXECUTED.** The authored suite failed to ` +
+      `LOAD (the runner's own output records no test executing), so this run ` +
+      `is evidence about the authored test files, not about the PR. The ` +
+      `verdict is NOT a block on that basis; the purser's authoring defect is ` +
+      `the thing to fix.`
     );
   }
   // Name the failures individually when the runner's format allowed it. This
@@ -924,6 +959,22 @@ async function rerunExistingTests(
   );
 
   let verdict: Verdict;
+  if (sandbox.executed && !sandbox.ranTests) {
+    // The suite loaded ZERO tests — an instrument failure, not the PR's. A
+    // BLOCK here gates real work on the purser's own broken file (the #9224
+    // 13-line sketch: "Your test suite must contain at least one test"), so
+    // the ship reports itself broken instead. `errored` routes this through
+    // the broken-ship doctrine: the run fails until the authored file is
+    // fixed, but the PR under review is not the one on the hook.
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: 'PASS',
+      errored: true,
+      failureReason: 'authored suite executed zero tests — instrument failure, not PR evidence',
+      findings: [],
+    };
+  }
   if (sandbox.executed) {
     verdict = sandbox.passed ? 'PASS' : 'BLOCK';
   } else {
@@ -1527,6 +1578,7 @@ export async function runPurser(
         passed: null,
         outputTail: '',
         failures: [],
+        ranTests: true,
         reason: `not executed: ${executability.reason}`,
       };
       // Preserve the contract + authored tests as ADVISORY EVIDENCE (same
@@ -1718,11 +1770,25 @@ export async function runPurser(
     // FAILURE observed before the degradation still reads as BLOCK.
     if (degradedReason && !stackedPr) {
       const verdict: Verdict =
-        sandbox.executed && sandbox.passed === false ? 'BLOCK' : brokenShip.verdict;
+        sandbox.executed && sandbox.passed === false && sandbox.ranTests
+          ? 'BLOCK'
+          : brokenShip.verdict;
       return { ...brokenShip, verdict };
     }
 
     let verdict: Verdict;
+    if (sandbox.executed && !sandbox.ranTests) {
+      // Zero tests executed ⇒ the authored suite failed to load. Same rule as
+      // the re-run path: the ship is broken, the PR is not blocked on it.
+      return {
+        ship: ship.name,
+        blocking: ship.blocking,
+        verdict: 'PASS',
+        errored: true,
+        failureReason: 'authored suite executed zero tests — instrument failure, not PR evidence',
+        findings: [],
+      };
+    }
     if (sandbox.executed) {
       // BLOCK while sandbox-executed tests fail on the PR head.
       verdict = sandbox.passed ? 'PASS' : 'BLOCK';
