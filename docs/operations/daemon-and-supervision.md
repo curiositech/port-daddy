@@ -36,7 +36,7 @@ one component owns process lifecycle:
 | Component | Authority | Must never do |
 |---|---|---|
 | **launchd** (`homebrew.mxcl.port-daddy`) | Sole canonical process parent, start, stop, replacement, and resurrection | Compete with a detached CLI-spawned canonical daemon |
-| **daemon** | Publish readiness and one generation lease: health PID, listener port, PID file, port file, and heartbeat | Silently walk the canonical listener from `:9876` to a fallback port |
+| **daemon** | Publish one generation across health PID, listener port, PID file, port file, heartbeat, and the post-boot readiness lease | Silently walk the canonical listener from `:9876` to a fallback port |
 | **Bosun** | Detect a dead/stale/wedged generation and request replacement through launchd | Spawn a daemon itself or substitute an old heartbeat PID for launchd truth |
 | **status / Doctor / FleetBar / pd-console** | Observe and explain the same generation snapshot | Become another supervisor or report isolated facts as overall health |
 
@@ -50,8 +50,16 @@ an isolated non-canonical runtime explicitly sets `PD_ALLOW_TCP_FALLBACK=1`.
 The daemon writes its PID and atomic heartbeat before opening the production
 registry. The full SQLite `integrity_check` remains a boot gate, but a packaged
 binary performs that read-only scan in a child process so the parent heartbeat
-continues while a large registry is checked. The HTTP wedge probe is armed only
-after the Unix listener exists. `pd status` and Doctor call the runtime
+continues while a large registry is checked. That early heartbeat proves
+liveness, not readiness. Only `onReady` atomically publishes `daemon.ready`,
+whose PID must exactly match `daemon.pid`; every generated Claude, Codex,
+Gemini, and agy hook wrapper remains an immediate no-op until that match. The
+marker is cleared only after duplicate-owner detection during boot and by an
+owned generation during shutdown, so a deferring or displaced daemon cannot
+erase its successor's lease. The HTTP wedge probe is armed only after the Unix
+listener exists. `pd squid status` exposes heartbeat liveness and exact-PID
+readiness separately, and labels the harness `READY` rather than `LIVE` while
+boot checks are still running. `pd status` and Doctor call the runtime
 **converged** only when launchd, `/health`, `daemon.pid`, `daemon.port`, the
 canonical port, the running/on-disk binary hash, and Bosun heartbeat describe
 the same generation.

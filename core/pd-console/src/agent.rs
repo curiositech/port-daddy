@@ -210,7 +210,11 @@ impl SseParser {
 /// none of those exist (a fresh machine, or the file hasn't landed yet) the console
 /// no longer refuses to open — it falls back to the canonical stable berth
 /// (`berths::STABLE_PORT`) if something is actually listening there, else the
-/// first berth the dev-daemons registry knows about. See [`DaemonClient::discover`].
+/// first berth the dev-daemons registry knows about. The design intent of the
+/// final fallback: a fresh console must always open and render "daemon
+/// unreachable" state in-pane, rather than panicking before the window exists
+/// and leaving the operator with a stack trace instead of an instruction. See
+/// [`DaemonClient::discover`].
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,

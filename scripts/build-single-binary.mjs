@@ -6,7 +6,10 @@ import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { packageOnnxRuntimeNative } from './lib/onnx-runtime-native.mjs';
+import {
+  packageOnnxRuntimeNative,
+  prepareOnnxRuntimeNativeBinding,
+} from './lib/onnx-runtime-native.mjs';
 
 const ROOT_DIR = resolve(new URL('..', import.meta.url).pathname);
 const DIST_DIR = join(ROOT_DIR, 'dist');
@@ -48,11 +51,10 @@ function sha256(path) {
 function launcherSource(binaryName, target) {
   const requestedPlatform = targetPlatform(target);
   const requestedArch = targetArch(target);
-  const loaderVariable = requestedPlatform === 'darwin'
-    ? 'DYLD_FALLBACK_LIBRARY_PATH'
-    : requestedPlatform === 'linux'
-      ? 'LD_LIBRARY_PATH'
-      : null;
+  // The macOS N-API binding carries an @executable_path rpath. A hardened
+  // child strips DYLD_* unless an injection-enabling entitlement is granted,
+  // so the launcher must never pretend that environment contract is usable.
+  const loaderVariable = requestedPlatform === 'linux' ? 'LD_LIBRARY_PATH' : null;
   const nativeSubdir = loaderVariable && requestedArch
     ? `native/onnxruntime-node/${requestedPlatform}-${requestedArch}`
     : null;
@@ -483,16 +485,23 @@ const launcherOutfile = needsPdLauncher ? requestedOutfile : null;
 const entrypointOutfile = launcherOutfile ?? binaryOutfile;
 const companionFiles = launcherOutfile ? [binaryOutfile] : [];
 const releaseDir = dirname(binaryOutfile);
+const requestedPlatform = targetPlatform(target);
+const requestedArch = targetArch(target);
 
 run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' });
 const squidAssets = stageSquidReleaseAssets(releaseDir);
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
+const onnxRuntimeBinding = prepareOnnxRuntimeNativeBinding({
+  repoRoot: ROOT_DIR,
+  platform: requestedPlatform,
+  arch: requestedArch,
+});
 const onnxRuntimeNative = packageOnnxRuntimeNative({
   repoRoot: ROOT_DIR,
   outputRoot: DIST_DIR,
-  platform: targetPlatform(target),
-  arch: targetArch(target),
+  platform: requestedPlatform,
+  arch: requestedArch,
 });
 
 if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
@@ -557,6 +566,7 @@ const manifest = {
   bunVersion: run('bun', ['--version']).stdout.trim(),
   embeddedPublicAssets: embeddedAssets.length,
   embeddedNativeCore,
+  onnxRuntimeBinding,
   onnxRuntimeNative,
   squidAssets: squidAssets.map(path => relative(releaseDir, path)),
   surfaces: {
