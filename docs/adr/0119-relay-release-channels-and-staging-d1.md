@@ -30,6 +30,13 @@ Cloudflare gives us the primitives for a real chain:
 - **`wrangler versions deploy`** — point traffic at an uploaded version, with
   gradual rollout percentages and instant rollback to any prior version.
 
+Cloudflare also imposes one important boundary on that chain: a Worker version
+that contains a pending Durable Object class lifecycle change cannot be
+uploaded through `wrangler versions upload`. The lifecycle change is atomic and
+must first be applied with `wrangler deploy`; Cloudflare recommends isolating it
+from unrelated Worker changes. See [Gradual deployments with Durable
+Objects](https://developers.cloudflare.com/workers/versions-and-deployments/gradual-deployments/with-durable-objects/).
+
 ## Decision
 
 The relay adopts three release channels, in ascending stability, driven by two
@@ -89,6 +96,34 @@ D1 migrations are **forward-only** and must be additive/backward-compatible
 for at least one release, so that a rolled-back Worker version still runs
 against the migrated schema (see `apps/relay/migrations/README.md`).
 
+### Durable Object lifecycle changes — atomic exception lane
+
+Durable Object class creation, rename, transfer, or deletion is not an ordinary
+versioned release. Before the normal production workflow can upload a version
+that depends on a new lifecycle tag, run
+`.github/workflows/deploy-relay-do-migration.yml` with:
+
+- the full 40-character SHA represented by production's current migration
+  prefix;
+- the full 40-character SHA of the isolated lifecycle commit on `main`;
+- the exact new Wrangler migration tag; and
+- explicit confirmation that this is an atomic 100% cutover.
+
+The workflow fails closed unless both SHAs are ancestors of `origin/main`, the
+baseline is an ancestor of the migration SHA, the candidate preserves the
+baseline migration prefix and adds exactly one lifecycle tag, and the interval
+contains no D1 migration files. It checks out that exact commit, runs the Relay
+typecheck and complete unit suite, then uses `wrangler deploy` and reads back
+production health plus Cloudflare's serving deployment. It shares the
+`deploy-relay-prod` concurrency group, so it cannot race an ordinary release.
+
+After the atomic lifecycle deployment succeeds, resume
+`deploy-relay-prod.yml` from the intended release tag. The ordinary code release
+still uses `versions upload` followed by `versions deploy`; the exception lane
+does not become a general-purpose historical deployment mechanism. A lifecycle
+change also moves the rollback floor: do not route traffic to a Worker version
+from before that lifecycle tag.
+
 ### 3. Named feature builds — preview channel (manual, per-branch)
 
 A feature branch that needs a live URL uploads a **non-deployed version**:
@@ -133,6 +168,9 @@ staging D1, never prod.
   (`migrations/README.md`) and any hand edit must be treated as an incident.
 - Rollback of the Worker is one command; rollback of a migration is not —
   hence the forward-only, one-release-compatibility rule for schema changes.
+- Durable Object lifecycle commits are the deliberate exception to gradual
+  rollout. They use the exact-SHA atomic workflow, establish a new rollback
+  floor, and then hand control back to the ordinary versioned release lane.
 - Secrets are unchanged: `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`
   repository secrets drive both workflows; runtime secrets stay out-of-band
   via `wrangler secret put` (per-environment: `--env latest` for staging).

@@ -288,6 +288,72 @@ export async function listFleetRunIntents(
   }
 }
 
+/** One earlier or later review generation of the same PR — a compact cross-reference, not a full projection. */
+export interface FleetRunGenerationSummary {
+  deliveryId: string;
+  generation: number;
+  state: FleetIntentState;
+  queuedAt: number;
+  finishedAt: number | null;
+  /** The materialized `fleet_runs` id to link to, when this generation executed far enough to have one. */
+  runId: string | null;
+}
+
+/**
+ * Every review generation admitted for one `(repo, PR)` pair, newest first —
+ * the answer to "show every session/attempt across this PR", which nothing
+ * previously queried (a PR's full history is spread across one
+ * `fleet_run_intents` row per push, by design; see this module's header
+ * comment). Bounded and best-effort like every other read here: a pre-
+ * migration relay without `fleet_run_intents` returns an empty list rather
+ * than throwing, since the run page must still render without this strip.
+ *
+ * @param db - Relay D1 binding.
+ * @param repoFullName - `owner/repo`, exactly as stored on the ledger.
+ * @param prNumber - The pull request number.
+ * @param limit - Maximum generations returned (newest first).
+ * @returns Every known generation for this PR, most recent push first.
+ */
+export async function listFleetRunGenerationsForPr(
+  db: D1Database,
+  repoFullName: string,
+  prNumber: number,
+  limit = 25,
+): Promise<FleetRunGenerationSummary[]> {
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT i.delivery_id AS delivery_id, i.generation AS generation, i.state AS state,
+                i.queued_at AS queued_at, i.finished_at AS finished_at, r.id AS run_id
+         FROM fleet_run_intents i
+         LEFT JOIN fleet_runs r ON r.delivery_id = i.delivery_id
+         WHERE i.repo_full_name = ? AND i.pr_number = ?
+         ORDER BY i.generation DESC
+         LIMIT ?`,
+      )
+      .bind(repoFullName, prNumber, limit)
+      .all<{
+        delivery_id: string;
+        generation: number;
+        state: FleetIntentState;
+        queued_at: number;
+        finished_at: number | null;
+        run_id: string | null;
+      }>();
+    return (rows.results ?? []).map(r => ({
+      deliveryId: r.delivery_id,
+      generation: r.generation,
+      state: r.state,
+      queuedAt: r.queued_at,
+      finishedAt: r.finished_at,
+      runId: r.run_id,
+    }));
+  } catch (error) {
+    if (isMissingIntentTable(error)) return [];
+    throw error;
+  }
+}
+
 /**
  * Select a bounded nearest-rank percentile for ETA projection. This design uses
  * recorded service time rather than inventing a fixed queue duration.

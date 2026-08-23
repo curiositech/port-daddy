@@ -62,4 +62,6 @@ an **optional** dependency: the window bin carries `required-features = ["gpui"]
 the default `cargo check`/`cargo test` and the `pd-console-repl` build everywhere
 without it (that's the Linux CI gate). The window is built and verified on macOS by
 the `rust-console-gpui` CI job. Daemon discovery is canonical (`PORT_DADDY_URL` →
-`~/.port-daddy/daemon.port`); no hardcoded port.
+`~/.port-daddy/console-daemon.url` → `~/.port-daddy/daemon.port` → the stable
+berth default), so a fresh console always opens against the canonical daemon
+address and renders reachability honestly instead of failing pre-window.

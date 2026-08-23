@@ -714,12 +714,12 @@ export function createLocalEmbedder(
  * daemon boot fails semantic resolution with "Library not loaded:
  * @rpath/libonnxruntime.*.dylib".
  *
- * The loader path must be present when the process starts. Why this guard
- * exists: it verifies
- * that the shared daemon launch contract did so and fails with an actionable
- * error before the opaque native `dlopen()` failure. Source runs need no loader
- * override because the binding and shared library remain siblings in
- * node_modules.
+ * On macOS the release builder adds an executable-relative LC_RPATH to that
+ * binding before Bun embeds it. This is intentionally not a DYLD_* contract:
+ * hardened runtime strips those variables unless the executable grants a
+ * code-injection entitlement. Linux retains its pre-start LD_LIBRARY_PATH
+ * contract. Source runs need neither override because the binding and shared
+ * library remain siblings in node_modules.
  */
 export function ensureOnnxRuntimeNativeLibFindable(): void {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return;
@@ -742,7 +742,9 @@ export function ensureOnnxRuntimeNativeLibFindable(): void {
   const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, process.execPath);
   if (!nativeDir) return;
 
-  const envVar = process.platform === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
+  if (process.platform === 'darwin') return;
+
+  const envVar = 'LD_LIBRARY_PATH';
   const configured = process.env[envVar]?.split(':').filter(Boolean) ?? [];
   if (!configured.some(entry => isOnnxRuntimeNativeLibraryDir(entry))) {
     throw new Error(
