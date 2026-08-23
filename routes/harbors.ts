@@ -85,8 +85,15 @@ function isEnvelopeAction(value: unknown): value is EnvelopeAction {
   return typeof value === 'object' && value !== null && typeof (value as { kind?: unknown }).kind === 'string';
 }
 
-function decodedName(request: FastifyRequest<{ Params: NameParam }>): string {
-  return decodeURIComponent(request.params.name);
+// Returns null on malformed percent-encoding (e.g. a lone "%0") instead of
+// letting decodeURIComponent's URIError fall through to the handler's outer
+// catch, which would misreport a bad client input as a 500 internal error.
+function decodedName(request: FastifyRequest<{ Params: NameParam }>): string | null {
+  try {
+    return decodeURIComponent(request.params.name);
+  } catch {
+    return null;
+  }
 }
 
 // ==========================================================================
@@ -148,6 +155,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.get<{ Params: NameParam }>('/harbors/:name', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const harbor = harbors.get(name);
       if (!harbor) { reply.code(404); return { error: `harbor '${name}' not found` }; }
       return { success: true, harbor };
@@ -161,6 +169,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.delete<{ Params: NameParam }>('/harbors/:name', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const result = harbors.destroy(name);
       if (!result.success) { reply.code(404); return { error: result.error }; }
       logger.info('harbor_destroyed', { name });
@@ -175,6 +184,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.post<{ Params: NameParam; Body: EnterHarborBody }>('/harbors/:name/enter', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const { agentId, identity, capabilities } = request.body;
       if (!agentId || typeof agentId !== 'string') {
         reply.code(400); return { error: 'agentId required', code: 'VALIDATION_ERROR' };
@@ -196,6 +206,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.post<{ Params: NameParam; Body: LeaveHarborBody }>('/harbors/:name/leave', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const { agentId } = request.body;
       if (!agentId || typeof agentId !== 'string') {
         reply.code(400); return { error: 'agentId required', code: 'VALIDATION_ERROR' };
@@ -214,6 +225,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.get<{ Params: NameParam }>('/harbors/:name/members', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const harbor = harbors.get(name);
       if (!harbor) { reply.code(404); return { error: `harbor '${name}' not found` }; }
       return { success: true, members: harbor.members, count: harbor.members.length };
@@ -227,6 +239,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.get<{ Params: NameParam }>('/harbors/:name/envelope', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       if (!harbors.get(name)) { reply.code(404); return { error: `harbor '${name}' not found` }; }
       const envelope = harbors.getEnvelope(name);
       // envelope === null means none is set, which enforces as deny-all.
@@ -241,6 +254,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.put<{ Params: NameParam; Body: SetEnvelopeBody }>('/harbors/:name/envelope', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const body = request.body;
       const envelope = body && typeof body === 'object' && body.envelope !== undefined ? body.envelope : body;
       const result = harbors.setEnvelope(name, envelope);
@@ -259,6 +273,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   fastify.post<{ Params: NameParam; Body: CheckActionBody }>('/harbors/:name/check', async (request, reply) => {
     try {
       const name = decodedName(request);
+      if (name === null) { reply.code(400); return { error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' }; }
       const { agentId, action } = request.body;
       if (!agentId || typeof agentId !== 'string') {
         reply.code(400); return { error: 'agentId required', code: 'VALIDATION_ERROR' };
