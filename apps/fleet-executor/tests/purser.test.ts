@@ -17,6 +17,7 @@ import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executability.js';
 import { encodeFingerprint, fingerprintDiff, withAuthoredTests } from '../src/purser-rerun.js';
+import { FleetAiCircuit, FleetAiDependencyError } from '../src/ai-resilience.js';
 import {
   freshState,
   installGitHubFetch,
@@ -242,6 +243,97 @@ describe('parseSteelMan — extraction tolerance (2026-08-04: 1416 chars discard
 });
 
 describe('runPurser — steel-man failure modes', () => {
+  it('propagates a silent AI deadline to the queue while provider budget remains', async () => {
+    const run = vi.fn(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    await expect(runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:deadline',
+      false,
+      new FleetAiCircuit(10),
+      1,
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({
+        status: 408,
+        code: 3007,
+        retryable: true,
+        providerCircuitOpen: true,
+        providerAttempt: 1,
+      }),
+    }));
+    expect(rec.steps.some(step => step.kind === 'ship-verdict')).toBe(false);
+  });
+
+  it('fails the Purser honestly after the final provider deadline instead of retrying forever', async () => {
+    const run = vi.fn(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:deadline',
+      false,
+      new FleetAiCircuit(10),
+      3,
+    );
+
+    expect(result).toMatchObject({
+      ship: 'purser',
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: expect.stringContaining('10ms deadline'),
+      brokenAdjudicated: {
+        scope: 'fleet',
+        reason: expect.stringContaining('3/3 provider attempts'),
+      },
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let contract repair swallow a retryable provider deadline', async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce({ response: 'I refuse to emit JSON.' })
+      .mockImplementationOnce(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    await expect(runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:repair-deadline',
+      false,
+      new FleetAiCircuit(10),
+      1,
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(rec.steps.some(step => step.kind === 'ship-repair')).toBe(false);
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({ retryable: true, providerCircuitOpen: true }),
+    }));
+  });
+
   it('malformed steel-man ⇒ transcript error step, BROKEN-SHIP result, and a hard stop (no second AI call, no git writes)', async () => {
     const { ai } = seqAi(['I refuse to emit JSON.', TESTS_JSON]);
     const rec = recorder();
@@ -327,7 +419,7 @@ describe('runPurser — steel-man failure modes', () => {
     expect(section).toContain('Maintained by pd-purser');
   });
 
-  it('a well-formed steel-man records purpose + obligation count in the transcript', async () => {
+  it('a well-formed steel-man records purpose + the full obligations text (not just the count) in the transcript', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
@@ -338,6 +430,10 @@ describe('runPurser — steel-man failure modes', () => {
     expect(step.detail).toMatchObject({
       purpose: 'Guarantee the widget frobs deterministically.',
       obligationCount: 2,
+      // The run page renders these verbatim (fleet-run-page.ts's
+      // purser-steelman case) — only the count used to survive to D1, which
+      // meant the operator had to open the PR to read what was actually held.
+      obligations: ['frobs on empty input without throwing', 'rejects negative ids with a typed error'],
     });
   });
 });
@@ -668,6 +764,71 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
+  it('#9761 live shape: a malformed plan repair cannot heal to undiscoverable paths without runner evidence', async () => {
+    seedRealJestConfig();
+    const malformedPlan = 'I cannot provide the requested JSON file plan.';
+    const undiscoverableRepair = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/invalid-syntax.ts',
+          intent: 'reject malformed generated source before side effects',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const discoverableRepair = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/invalid-syntax.test.ts',
+          intent: 'reject malformed generated source before side effects',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const authoredFile = [
+      '```ts',
+      "it('rejects malformed source', () => expect('complete source').not.toContain('...'));",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      malformedPlan,
+      undiscoverableRepair,
+      discoverableRepair,
+      authoredFile,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(5);
+    const firstRepairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[2][1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(firstRepairRequest.messages[0].content).toContain(
+      '<rootDir>/tests/unit/**/*.test.{js,ts}',
+    );
+    expect(rec.steps.find(s => s.kind === 'purser-plan')?.detail).toMatchObject({
+      files: [{ path: 'tests/unit/purser/invalid-syntax.test.ts' }],
+    });
+    expect(rec.steps.some(step => JSON.stringify(step.detail).includes('invalid-syntax.ts'))).toBe(false);
+    expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
+      executed: true,
+      passed: true,
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('#8335 exact shape: one nested import is repaired deterministically without touching a valid sibling, then stacks', async () => {
     seedRealJestConfig();
     state.treeFiles.set('BASESHA', ['scripts/check-pr-comments-answered.mjs']);
@@ -857,6 +1018,52 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(0);
     // No retarget PATCH — the only PR PATCH allowed here is the steel-man
     // contract being written into the PR summary (carries `body`, never `base`).
+    expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
+  });
+
+  it('#9760: malformed authored source fails before sandbox, stacking, or retarget side effects', async () => {
+    seedRealJestConfig();
+    const malformedTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/release-token-fallback.test.js',
+          contents: 'export function parseStableVersion(value) { ... }',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const malformedRepair = [
+      '```js',
+      'if (parse',
+      '… (diff truncated...)',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair]);
+    const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'should not run', stderr: '' }));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: { exec: sandboxExec } as unknown }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining('FAILED'),
+      detail: expect.objectContaining({
+        originalError: expect.stringContaining('not a complete syntactically valid test program'),
+        attempts: 1,
+      }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
+      .toBeDefined();
+    expect(sandboxExec).not.toHaveBeenCalled();
+    expect(state.stackedPrs).toHaveLength(0);
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
@@ -1455,7 +1662,7 @@ describe('runPurser — multi-step authoring', () => {
       messages: Array<{ role: string; content: string }>;
     };
     expect(repairRequest.messages[0].content).toContain(
-      'No trusted test-discovery patterns were available for this repair',
+      '<rootDir>/tests/**/*.test.{js,ts}',
     );
   });
 });

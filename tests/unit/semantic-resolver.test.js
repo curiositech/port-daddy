@@ -264,7 +264,7 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     expect(process.env[fallbackVar]).toBeUndefined();
   });
 
-  test('fails loudly when a packaged runtime was not configured before process start', () => {
+  test('requires a pre-start loader path only on Linux', () => {
     const platformArch = `${process.platform}-${process.arch}`;
     const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
     mkdirSync(nativeDir, { recursive: true });
@@ -274,9 +274,13 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     );
     process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
 
-    expect(() => ensureOnnxRuntimeNativeLibFindable()).toThrow(
-      new RegExp(`launched without ${fallbackVar}`),
-    );
+    if (process.platform === 'darwin') {
+      expect(() => ensureOnnxRuntimeNativeLibFindable()).not.toThrow();
+    } else {
+      expect(() => ensureOnnxRuntimeNativeLibFindable()).toThrow(
+        new RegExp(`launched without ${fallbackVar}`),
+      );
+    }
     expect(process.env[fallbackVar]).toBeUndefined();
   });
 
