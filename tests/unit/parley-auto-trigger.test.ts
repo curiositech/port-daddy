@@ -322,11 +322,12 @@ describe('durable automatic Parley trigger', () => {
     const faultingTuples = {
       ...tuples,
       outOnce(fields: unknown[], options: Parameters<typeof tuples.outOnce>[1]) {
+        const reserved = tuples.outOnce(fields, options);
         if (!injected && failsAt(options.idempotencyKey)) {
           injected = true;
           throw new Error(`injected ${_stage} reservation failure`);
         }
-        return tuples.outOnce(fields, options);
+        return reserved;
       },
     };
 

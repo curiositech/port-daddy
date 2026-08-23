@@ -331,6 +331,8 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
     acquired: AcquiredReservations,
     signalId: string,
     harbor: string,
+    lineageKey: string | null,
+    surface: string | null,
   ): void {
     let durableParleyExists = false;
     try {
@@ -341,6 +343,15 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
       return;
     }
     if (durableParleyExists) return;
+    if (surface) {
+      try {
+        // Also recovers reservations written by an outOnce implementation that
+        // committed successfully and then threw before returning its tuple ID.
+        releaseOwnedCapSlots(surface, signalId, harbor);
+      } catch {
+        // Ambiguous cleanup stays fail closed; the durable slot remains owned.
+      }
+    }
     for (const cap of [...acquired.caps].reverse()) {
       try {
         deps.tuples.takeByIdempotencyKey(`parley:auto:cap:${cap.dimension}:${cap.slot}`, {
@@ -357,6 +368,19 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
       } catch {
         // Best-effort compensation remains inside the nonthrowing boundary.
       }
+    } else if (lineageKey) {
+      try {
+        const key = `parley:auto:lineage:${lineageKey}`;
+        const tuple = deps.tuples.getByIdempotencyKey(key, { harbor });
+        if (tuple?.fields[2] === signalId) {
+          deps.tuples.takeByIdempotencyKey(key, {
+            harbor,
+            expectedTupleId: tuple.id,
+          });
+        }
+      } catch {
+        // Ambiguous cleanup stays fail closed; the durable owner remains.
+      }
     }
   }
 
@@ -368,6 +392,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
     let candidateSignalId = 'invalid:unreadable-signal';
     let decision = invalidDecision(candidateSignalId, 'automatic evaluation failed before validation');
     let lineageKey: string | null = null;
+    let surfaceForCompensation: string | null = null;
     const acquired: AcquiredReservations = { lineage: null, caps: [] };
 
     try {
@@ -383,6 +408,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
       }
 
       let effective = canonicalSignal(candidate);
+      surfaceForCompensation = effective.surface;
       lineageKey = parleySignalLineageKey(effective);
       const reservation = deps.tuples.outOnce(
         ['parley:auto:reservation', effective.signalId, {
@@ -570,7 +596,13 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
         harbor,
       );
       if (!surfaceCap.ok) {
-        compensateBeforeParley(acquired, effective.signalId, harbor);
+        compensateBeforeParley(
+          acquired,
+          effective.signalId,
+          harbor,
+          lineageKey,
+          effective.surface,
+        );
         return emit(
           'suppressed',
           effective.signalId,
@@ -599,7 +631,13 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
         harbor,
       );
       if (!globalCap.ok) {
-        compensateBeforeParley(acquired, effective.signalId, harbor);
+        compensateBeforeParley(
+          acquired,
+          effective.signalId,
+          harbor,
+          lineageKey,
+          effective.surface,
+        );
         return emit(
           'suppressed',
           effective.signalId,
@@ -660,7 +698,13 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
         automatic.parley.parleyId,
       );
     } catch (error) {
-      compensateBeforeParley(acquired, candidateSignalId, harbor);
+      compensateBeforeParley(
+        acquired,
+        candidateSignalId,
+        harbor,
+        lineageKey,
+        surfaceForCompensation,
+      );
       const reason = error instanceof Error ? error.message : 'unknown automatic Parley failure';
       return emit('failed', candidateSignalId, lineageKey, decision, reason, harbor);
     }
