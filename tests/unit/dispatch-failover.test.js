@@ -428,4 +428,33 @@ describe('dispatch rows carry the succession edge', () => {
     db.prepare('UPDATE dispatches SET failover_chain_json = ? WHERE id = ?').run('{not json', d.id);
     expect(queue.get(d.id).failoverChain).toBeNull();
   });
+
+  test.each([
+    ['well-formed JSON that is not an array', '{"cli:gemini": true}'],
+    ['a JSON scalar', '3'],
+    ['an empty array', '[]'],
+    ['an array of only non-strings', '[3, null, {}]'],
+    ['an array of only empty strings', '["", ""]'],
+  ])('a chain column holding %s reads as no chain at all', (_label, stored) => {
+    // Every one of these is a column that PARSES. The corrupt-JSON case above
+    // fails loudly enough to be obvious; these do not, and they all have to
+    // land on the same answer, because the caller's question is "is there a
+    // chain to continue on" and a chain of zero usable backends is not one.
+    // The empty array is the case worth stating outright: `[]` is a deliberate
+    // null here, not an empty list handed onward, so a successor is never
+    // minted against a chain that can name no backend.
+    const d = queue.propose({ goal: 'chain that parses but says nothing' });
+    db.prepare('UPDATE dispatches SET failover_chain_json = ? WHERE id = ?').run(stored, d.id);
+    expect(queue.get(d.id).failoverChain).toBeNull();
+  });
+
+  test('a mixed chain keeps the usable backends and drops the rest', () => {
+    // The complement of the cases above, and the one that makes them mean
+    // something: filtering must not be all-or-nothing, or the tests above would
+    // pass just as well against a parser that rejected any imperfect array.
+    const d = queue.propose({ goal: 'partly usable chain' });
+    db.prepare('UPDATE dispatches SET failover_chain_json = ? WHERE id = ?')
+      .run(JSON.stringify(['cli:gemini', '', 7, null, 'cli:agy']), d.id);
+    expect(queue.get(d.id).failoverChain).toEqual(['cli:gemini', 'cli:agy']);
+  });
 });

@@ -760,6 +760,16 @@ models:
     priceIn: 0
     priceOut: 0
     contextWindow: 32768
+    # EMPTY BECAUSE UNKNOWABLE, not because nobody filled it in. This row names
+    # no model — LM Studio serves whatever the operator loaded, so the concrete
+    # id and its capabilities are both discovered at runtime. Contrast the
+    # Workers AI embedding row, which declares `[embedding]` rather than `[]`
+    # for the opposite reason: there, admission REQUIRES `text-generation`, so
+    # an empty list would be a row that is priced and catalogued yet admitted by
+    # nothing, indistinguishable from an omission. That is why the generator's
+    # must-declare-capabilities check is scoped to the `workers-ai` plane. On
+    # this plane nothing reads the field, and an empty list is the honest
+    # statement that the file does not know.
     capabilities: []
     status: ga
     verifiedAt: '2026-07-14'
