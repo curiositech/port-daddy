@@ -32,7 +32,7 @@
 #   wrangler dev --local   (uses local D1 sqlite, local DO)
 
 name = "port-daddy-relay"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
