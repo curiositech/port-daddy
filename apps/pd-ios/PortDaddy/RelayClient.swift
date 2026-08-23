@@ -134,8 +134,16 @@ public enum RelayRoute {
     /// Ships with the relay's push module.
     public static let apnsDevices = "/v1/push/apns/devices"
 
+    /// The RFC 3986 path grammar is `path = *( pchar / "/" )`, so `/` is a MEMBER
+    /// of `.urlPathAllowed` — encoding a path COMPONENT with that set leaves a
+    /// slash in the name untouched and silently splits it into another segment.
+    /// A harbor named `fleet/presence` would otherwise address the presence
+    /// route rather than a harbor. Subtracting `/` is the whole point of this
+    /// function: it encodes one component, not a path.
+    static let componentAllowed: CharacterSet = .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
+
     static func encode(_ component: String) -> String {
-        component.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? component
+        component.addingPercentEncoding(withAllowedCharacters: componentAllowed) ?? component
     }
 }
 
@@ -176,7 +184,11 @@ public struct RelayClient {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw RelayError.transport("malformed relay base URL")
         }
-        components.path = path
+        // percentEncodedPath, NOT path: the `path` setter takes a DECODED value and
+        // re-encodes it, which turns the `%2F` that `RelayRoute.encode` just wrote
+        // back into a `/` and undoes the split-segment fix above. The routes are
+        // built by RelayRoute, so what arrives here is already encoded.
+        components.percentEncodedPath = path
         components.queryItems = query.isEmpty ? nil : query
         guard let url = components.url else {
             throw RelayError.transport("could not build a URL for \(path)")

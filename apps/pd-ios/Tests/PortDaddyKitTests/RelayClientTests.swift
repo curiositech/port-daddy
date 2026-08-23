@@ -34,6 +34,36 @@ final class RelayClientTests: XCTestCase {
         )
     }
 
+    // A slash inside a NAME must not become another path segment. `.urlPathAllowed`
+    // is the RFC 3986 path grammar, `path = *( pchar / "/" )`, so `/` is a member
+    // of it — encoding a component with that set is a no-op for exactly the
+    // character that decides where a segment ends.
+    func testASlashInsideAHarborNameIsEncodedRatherThanSplittingTheRoute() {
+        XCTAssertEqual(
+            RelayRoute.harbor(namespace: "erichowens", name: "a/b"),
+            "/v1/harbors/erichowens/a%2Fb"
+        )
+        // The case that names the defect: the relay routes on a hand-rolled
+        // pathname chain, so an unencoded slash here addresses the PRESENCE
+        // route of harbor "fleet" instead of a harbor named "fleet/presence".
+        XCTAssertNotEqual(
+            RelayRoute.harbor(namespace: "erichowens", name: "fleet/presence"),
+            RelayRoute.harborPresence(namespace: "erichowens", name: "fleet")
+        )
+        // ...and a namespace with a slash cannot climb into another account's.
+        XCTAssertEqual(
+            RelayRoute.harbor(namespace: "alice/../bob", name: "fleet"),
+            "/v1/harbors/alice%2F..%2Fbob/fleet"
+        )
+    }
+
+    func testQueryAndFragmentDelimitersStayEncodedInAName() {
+        // These are excluded from pchar, so they were already handled; the
+        // assertion exists so narrowing the set later cannot widen them.
+        XCTAssertEqual(RelayRoute.harbor(namespace: "n", name: "a?b"), "/v1/harbors/n/a%3Fb")
+        XCTAssertEqual(RelayRoute.harbor(namespace: "n", name: "a#b"), "/v1/harbors/n/a%23b")
+    }
+
     // MARK: - Request shape
 
     func testRequestsCarryTheBearerTokenAndNoOriginHeader() throws {
@@ -45,6 +75,21 @@ final class RelayClientTests: XCTestCase {
         // into 403 CROSS_ORIGIN on every route that checks.
         XCTAssertNil(request.value(forHTTPHeaderField: "Origin"))
         XCTAssertNil(request.value(forHTTPHeaderField: "Referer"))
+    }
+
+    // The encoding above survives URL construction only because makeRequest
+    // assigns through `percentEncodedPath`. `URLComponents.path` takes a DECODED
+    // value, so assigning the already-encoded route through it turns `%2F` back
+    // into `/` and reinstates the extra segment — the fix needs both halves,
+    // and this is the half a route-level assertion alone would not catch.
+    func testTheEncodedSlashSurvivesIntoTheRequestURL() throws {
+        let request = try client().makeRequest(
+            path: RelayRoute.harbor(namespace: "erichowens", name: "fleet/presence")
+        )
+        XCTAssertEqual(
+            request.url?.absoluteString,
+            "https://relay.portdaddy.dev/v1/harbors/erichowens/fleet%2Fpresence"
+        )
     }
 
     func testInterruptionStateBecomesAValidatedQueryParameter() throws {
