@@ -851,6 +851,14 @@ export interface HarborRow {
   pubkey: string;
   created_by: string;
   created_at: number;
+  /**
+   * ADR-0122 §4's membership-change clock on the X2 registry row: ticks on
+   * every membership write (join, operator add-member). A change COUNTER of
+   * the phone book, not an authority grant — the relay signs nothing and
+   * holds no writer lease; the signed authority record stays with the owning
+   * daemon (ADR-0122 §2–3). Starts at 1 (creation with the founding owner).
+   */
+  authority_epoch: number;
 }
 
 export type HarborRole = 'owner' | 'member';
@@ -901,7 +909,7 @@ export async function getHarborByName(
   name: string,
 ): Promise<HarborRow | null> {
   const row = await db
-    .prepare('SELECT id, namespace, name, pubkey, created_by, created_at FROM harbors WHERE namespace = ? AND name = ?')
+    .prepare('SELECT id, namespace, name, pubkey, created_by, created_at, authority_epoch FROM harbors WHERE namespace = ? AND name = ?')
     .bind(namespace, name)
     .first<HarborRow>();
   return row ?? null;
@@ -921,18 +929,29 @@ export async function getHarborRole(
   return row?.role ?? null;
 }
 
-/** Returns 'duplicate' when the (harbor, kind, member) row already exists. */
+/**
+ * Record a membership AND tick the harbor's authority-epoch clock in one
+ * atomic D1 batch (ADR-0122 §4: every membership change bumps the epoch —
+ * this is the single membership-write path, so the clock cannot miss a
+ * change). A duplicate INSERT aborts the whole batch, so an already-member
+ * write never bumps the epoch: the clock counts CHANGES, not attempts.
+ * Returns 'duplicate' when the (harbor, kind, member) row already exists.
+ */
 export async function addHarborMembership(
   db: D1Database,
   m: { harborId: string; kind: HarborMemberKind; memberId: string; role: HarborRole; addedAt: number; addedBy: string },
 ): Promise<'ok' | 'duplicate'> {
   try {
-    await db
-      .prepare(
-        'INSERT INTO harbor_memberships (harbor_id, member_kind, member_id, role, added_at, added_by) VALUES (?, ?, ?, ?, ?, ?)',
-      )
-      .bind(m.harborId, m.kind, m.memberId, m.role, m.addedAt, m.addedBy)
-      .run();
+    await db.batch([
+      db
+        .prepare(
+          'INSERT INTO harbor_memberships (harbor_id, member_kind, member_id, role, added_at, added_by) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .bind(m.harborId, m.kind, m.memberId, m.role, m.addedAt, m.addedBy),
+      db
+        .prepare('UPDATE harbors SET authority_epoch = authority_epoch + 1 WHERE id = ?')
+        .bind(m.harborId),
+    ]);
     return 'ok';
   } catch (e) {
     if (isUniqueViolation(e)) return 'duplicate';
@@ -962,7 +981,7 @@ export async function listHarborsForUser(
 ): Promise<Array<HarborRow & { role: HarborRole }>> {
   const r = await db
     .prepare(
-      `SELECT h.id, h.namespace, h.name, h.pubkey, h.created_by, h.created_at, m.role
+      `SELECT h.id, h.namespace, h.name, h.pubkey, h.created_by, h.created_at, h.authority_epoch, m.role
        FROM harbors h
        JOIN harbor_memberships m ON m.harbor_id = h.id
        WHERE m.member_kind = 'user' AND m.member_id = ?
@@ -971,6 +990,134 @@ export async function listHarborsForUser(
     .bind(userId)
     .all<HarborRow & { role: HarborRole }>();
   return r.results ?? [];
+}
+
+// ── Harbor invites (single-use JTI + /join; migrations/2026-08-23) ────────────
+//
+// An invite row stores ONLY the SHA-256 hash of its bearer token (user_tokens
+// discipline) and never any key material. Single-use is enforced by
+// compare-and-swap on consumed_at IS NULL — never read-then-write.
+
+export interface HarborInviteRow {
+  jti: string;
+  harbor_id: string;
+  token_hash: string;
+  invited_by: string;
+  role: HarborRole; // CHECK-pinned to 'member' in v1 (invariant I4)
+  created_at: number;
+  expires_at: number;
+  consumed_at: number | null;
+  consumed_by: string | null;
+  revoked_at: number | null;
+  revoked_by: string | null;
+}
+
+export interface HarborInviteListRow {
+  jti: string;
+  invited_by: string;
+  /** GitHub login of the inviter (joined); null for erased accounts. */
+  inviter_login: string | null;
+  role: HarborRole;
+  created_at: number;
+  expires_at: number;
+  consumed_at: number | null;
+  revoked_at: number | null;
+}
+
+export async function createHarborInvite(
+  db: D1Database,
+  i: { jti: string; harborId: string; tokenHash: string; invitedBy: string; createdAt: number; expiresAt: number },
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, role, created_at, expires_at) VALUES (?, ?, ?, ?, 'member', ?, ?)",
+    )
+    .bind(i.jti, i.harborId, i.tokenHash, i.invitedBy, i.createdAt, i.expiresAt)
+    .run();
+}
+
+/** Invite by presented-token hash, scoped to the harbor in the URL. */
+export async function getHarborInviteByTokenHash(
+  db: D1Database,
+  harborId: string,
+  tokenHash: string,
+): Promise<HarborInviteRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM harbor_invites WHERE harbor_id = ? AND token_hash = ?')
+    .bind(harborId, tokenHash)
+    .first<HarborInviteRow>();
+  return row ?? null;
+}
+
+/** Invite by its JTI handle, scoped to the harbor in the URL. */
+export async function getHarborInviteByJti(
+  db: D1Database,
+  harborId: string,
+  jti: string,
+): Promise<HarborInviteRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM harbor_invites WHERE harbor_id = ? AND jti = ?')
+    .bind(harborId, jti)
+    .first<HarborInviteRow>();
+  return row ?? null;
+}
+
+/** Every invite of a harbor, newest first, inviter logins joined in. Never token hashes. */
+export async function listHarborInvites(db: D1Database, harborId: string): Promise<HarborInviteListRow[]> {
+  const r = await db
+    .prepare(
+      `SELECT i.jti, i.invited_by, u.login AS inviter_login, i.role, i.created_at, i.expires_at, i.consumed_at, i.revoked_at
+       FROM harbor_invites i
+       LEFT JOIN users u ON u.id = i.invited_by
+       WHERE i.harbor_id = ?
+       ORDER BY i.created_at DESC, i.jti ASC`,
+    )
+    .bind(harborId)
+    .all<HarborInviteListRow>();
+  return r.results ?? [];
+}
+
+/**
+ * Single-use consume: the compare-and-swap. One UPDATE whose WHERE clause is
+ * the entire validity check — unconsumed, unrevoked, unexpired, bound to THIS
+ * harbor. Under any interleaving exactly one caller sees changes=1; there is
+ * no read-then-write window. Returns whether THIS caller won the consume.
+ */
+export async function consumeHarborInvite(
+  db: D1Database,
+  c: { harborId: string; tokenHash: string; userId: string; now: number },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE harbor_invites SET consumed_at = ?, consumed_by = ?
+       WHERE harbor_id = ? AND token_hash = ?
+         AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?`,
+    )
+    .bind(c.now, c.userId, c.harborId, c.tokenHash, c.now)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Revoke an invite (invariant I3): CAS on the same live predicate as consume,
+ * so revoke and consume race to the row and exactly one wins. A consumed
+ * invite cannot be revoked (the membership already exists — remove the member
+ * instead); an already-revoked one is a no-op. Returns whether THIS call
+ * performed the revocation.
+ */
+export async function revokeHarborInvite(
+  db: D1Database,
+  v: { harborId: string; jti: string; revokedBy: string; now: number },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE harbor_invites SET revoked_at = ?, revoked_by = ?
+       WHERE harbor_id = ? AND jti = ?
+         AND consumed_at IS NULL AND revoked_at IS NULL`,
+    )
+    .bind(v.now, v.revokedBy, v.harborId, v.jti)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
 }
 
 // ── Helm (grand-plan X3 v1: explicit authority record per harbor) ─────────────
