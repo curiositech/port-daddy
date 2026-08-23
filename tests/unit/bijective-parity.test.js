@@ -402,7 +402,11 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // fleetwebhooks: inbound fleet webhook receiver (POST /webhooks/fleet/:channel),
   // driven by external senders / the email-ingress Worker, never by a `pd`
   // command — API-only by design. See routes/fleet-webhooks.ts.
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks']);
+  // roadmapactivity: live-work join for the roadmap command center (GET /roadmap/activity +
+  // GET /roadmap/items/:slug/activity, routes/roadmap-activity.ts). A read-only projection the
+  // FleetBar/dashboard board surfaces consume (follow-up PR) — the CLI story stays with
+  // `pd roadmap` / `pd sitrep`; no dedicated `pd` command by design.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks', 'roadmapactivity']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

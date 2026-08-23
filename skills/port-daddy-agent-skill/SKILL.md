@@ -104,14 +104,26 @@ reason, timestamps, and retry time. FleetBar's **Repair** button atomically
 restages the shims, rewires providers, and clears the latch only after success.
 An intentional direct-edit block (`exit 2`) is enforcement, not a hook failure.
 
-The normal hook path is invisible: no status message, no standing reminder,
-and zero stdout when there is no fresh actionable project fact or fleet-wide
-control alert. Its topology is deliberately bounded to one turn briefing plus a
-gate only for direct file-edit tools. Broad shell/exec tools and observational
-PostToolUse hooks are excluded; claims and notes carry cumulative outcomes.
-When coordination is genuinely useful, the prompt hook is capped at one heading
-plus two facts (512 bytes of context). A no-op turn that prints a plan/SITREP
-lecture, waits on the daemon, or scans an unbounded matrix is a product bug.
+Coordination content in the hook path stays bounded: no status message and
+zero coordination stdout when there is no fresh actionable project fact or
+fleet-wide control alert. Its topology is deliberately bounded to one turn
+briefing plus a gate only for direct file-edit tools. Broad shell/exec tools
+and observational PostToolUse hooks are excluded; claims and notes carry
+cumulative outcomes. When coordination is genuinely useful, the prompt hook's
+coordination block is capped at one heading plus two facts (512 bytes of
+context). A hook that waits on the daemon or scans an unbounded matrix is
+still a product bug — but the end-of-turn SITREP is not: it is the harness's
+visible value surface (operator doctrine, 2026-08-22), governed by the
+per-repo `sitrep.endOfTurn` dial (`off` | `suggest` | `enforce`, default
+`enforce`; `PD_SITREP` env override wins, then `agent.config.json` →
+`.portdaddy/sitrep.json` → `.portdaddy/project.json`). At suggest/enforce
+every turn carries the end-of-turn SITREP table contract —
+`| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status |
+Related PR/Issue | Docs / Roadmap Link |` — update Status each turn, carry
+unresolved rows forward, and mint a roadmap link (`pd roadmap upsert`) before
+writing code for a row. `enforce` makes a turn that ends without the table an
+incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
+quiet turns dial it off explicitly.
 `pd attention` is also safe before `pd begin`: without a bound identity its
 default read succeeds as an explicit empty/unbound result; subscription changes
 still require an identity.
