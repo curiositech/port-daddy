@@ -22,6 +22,7 @@ const shots = [
   { input: 'fleet-account.html', output: 'account-runs-dark-390.png', scheme: 'dark', width: 390, height: 900 },
   { input: 'fleet-receipt-running.html', output: 'receipt-running-dark-1440.png', scheme: 'dark', width: 1440, height: 1000 },
   { input: 'fleet-receipt-retrying.html', output: 'receipt-provider-retry-dark-1440.png', scheme: 'dark', width: 1440, height: 1000 },
+  { input: 'fleet-receipt-provider-neutral.html', output: 'receipt-provider-outage-neutral-dark-1440.png', scheme: 'dark', width: 1440, height: 1000 },
   { input: 'fleet-receipt-queued.html', output: 'receipt-queued-light-390.png', scheme: 'light', width: 390, height: 900 },
 ];
 
