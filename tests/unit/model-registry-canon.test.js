@@ -163,3 +163,36 @@ describe('canonical model registry', () => {
     expect(price('high')).toBeLessThanOrEqual(price('max-thinking'));
   });
 });
+
+describe('a catalogued model cannot be silently unreachable', () => {
+  test('every Workers AI row declares what it is for', () => {
+    // THE TRAP THIS CLOSES: admission to CF_ADMITTED_MODELS requires the
+    // `text-generation` capability. A Workers AI row that declares NO
+    // capabilities is therefore priced, catalogued, exempt from the orphan check
+    // (that exemption is what makes the plane an admission universe) — and
+    // admitted by nothing. A ship pinning it is not refused, it is silently
+    // remapped to the default, which is the same silent-downgrade shape as a
+    // tier name the resolver never reads. Declaring `[embedding]`, as the
+    // ideas-store index does, is a fine answer. Declaring nothing is not.
+    const workersAi = Object.entries(source.models).filter(
+      ([, row]) => row.plane === 'workers-ai',
+    );
+    expect(workersAi.length).toBeGreaterThan(0);
+    for (const [id, row] of workersAi) {
+      const declared = Array.isArray(row.capabilities) && row.capabilities.length > 0;
+      expect(`${id}:${declared ? 'declared' : 'NOTHING-DECLARED'}`).toBe(`${id}:declared`);
+    }
+  });
+
+  test('a Workers AI row is either admitted or deliberately something else', () => {
+    // The embedding index is the one row on this plane that is intentionally not
+    // admitted; it must say so by declaring a non-text capability rather than by
+    // omission, so "not admitted" is a decision in the file and not an accident.
+    for (const [id, row] of Object.entries(source.models)) {
+      if (row.plane !== 'workers-ai') continue;
+      const admitted = row.capabilities.includes('text-generation');
+      const deliberate = admitted || row.capabilities.length > 0;
+      expect(`${id}:${deliberate ? 'ok' : 'ACCIDENTAL'}`).toBe(`${id}:ok`);
+    }
+  });
+});

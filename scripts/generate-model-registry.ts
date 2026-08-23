@@ -134,6 +134,24 @@ export function loadSource(): ModelSource {
     );
   }
 
+  // A Workers AI row with no declared capabilities is priced, catalogued, exempt
+  // from the orphan check — and absent from CF_ADMITTED_MODELS, because
+  // admission requires `text-generation`. A ship pinning it would be silently
+  // remapped to the default: the row looks supported from every angle except
+  // the one that decides. Declaring `[embedding]` (as the ideas-store index
+  // does) is a fine answer; declaring nothing is not an answer at all.
+  const uncapable = Object.entries(doc.models)
+    .filter(([, row]) => row.plane === 'workers-ai')
+    .filter(([, row]) => !Array.isArray(row.capabilities) || row.capabilities.length === 0)
+    .map(([id]) => id);
+  if (uncapable.length) {
+    throw new Error(
+      `config/models.yaml: ${uncapable.length} Workers AI row(s) declare no capabilities: ` +
+        `${uncapable.join(', ')}. Say what the model is FOR — a row that declares nothing is ` +
+        `admitted by nothing, and a pin to it is silently downgraded rather than refused.`,
+    );
+  }
+
   // A `defaultEffort` outside its own `reasoningEfforts` is a 400 waiting to
   // happen on the very first call — the same shape as a phantom id, one level
   // down. Catch it here rather than in production.
