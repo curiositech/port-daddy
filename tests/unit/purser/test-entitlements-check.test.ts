@@ -1,36 +1,35 @@
-// tests/unit/purser/test-entitlements-check.test.ts
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const artifactPath = resolve(__dirname, '..', '..', 'dist', 'port-daddy');
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const entitlementName = 'com.apple.security.cs.allow-dyld-environment-variables';
 
-describe('macOS artifact entitlements', () => {
-  it('does not contain DYLD environment variable entitlement', () => {
-    // Only meaningful on macOS with a built binary
-    if (process.platform !== 'darwin') {
-      console.warn('Skipping entitlement check: not running on macOS');
-      return;
-    }
-    if (!existsSync(artifactPath)) {
-      console.warn(`Artifact not found at ${artifactPath}, skipping`);
-      return;
-    }
+test('release signing input and workflow keep the DYLD injection entitlement absent', () => {
+  const entitlements = readFileSync(
+    resolve(repoRoot, 'scripts', 'entitlements', 'port-daddy.plist'),
+    'utf8',
+  );
+  const signingScript = readFileSync(resolve(repoRoot, 'scripts', 'sign-and-notarize.mjs'), 'utf8');
+  const releaseWorkflow = readFileSync(resolve(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8');
 
-    const result = spawnSync('codesign', ['-d', '-r-', artifactPath], {
-      encoding: 'utf8',
-    });
+  expect(entitlements).not.toContain(entitlementName);
+  expect(signingScript).toContain("scripts', 'entitlements', 'port-daddy.plist");
+  expect(releaseWorkflow).toContain('Smoke exact release semantic runtime (post-sign on macOS)');
+  expect(releaseWorkflow).toContain('dist/pd __semantic-runtime-check');
+});
 
-    if (result.error) {
-      console.warn('codesign command failed', result.error);
-      return;
-    }
+const artifactPath = resolve(repoRoot, 'dist', 'port-daddy');
+const signedArtifactTest = process.platform === 'darwin' && existsSync(artifactPath)
+  ? test
+  : test.skip;
 
-    const stdout = result.stdout;
-    expect(stdout).not.toMatch(
-      /com\.apple\.security\.cs\.allow-dyld-environment-variables/
-    );
+signedArtifactTest('a locally built signed artifact omits the DYLD injection entitlement', () => {
+  const result = spawnSync('codesign', ['-d', '--entitlements', ':-', artifactPath], {
+    encoding: 'utf8',
   });
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(0);
+  expect(`${result.stdout}${result.stderr}`).not.toContain(entitlementName);
 });

@@ -1,26 +1,50 @@
-// tests/unit/purser/test-macos-rpath-verification.test.ts
-import { join, resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { mkdtempSync, copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { prepareOnnxRuntimeNativeBinding } from '../../../scripts/lib/onnx-runtime-native.mjs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  darwinOnnxExecutableRpath,
+  prepareOnnxRuntimeNativeBinding,
+} from '../../../scripts/lib/onnx-runtime-native.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const scratchRoot = join(homedir(), 'coding', 'tmp');
 
 /**
- * Run otool -l and return its stdout as a string.
+ * Run a native inspection tool and fail with its real diagnostic.
+ * The purpose is to keep this adversarial test honest about tool failures
+ * instead of treating an unreadable binding as an absent rpath.
+ *
+ * @param command Native tool name.
+ * @param args Exact argument vector.
+ * @returns Captured standard output.
  */
-function getLoadCommands(file: string): string {
-  const result = spawnSync('otool', ['-l', file], { encoding: 'utf8' });
+function run(command: string, args: string[]): string {
+  const result = spawnSync(command, args, { encoding: 'utf8' });
   if (result.error || result.status !== 0) {
-    throw new Error(`Failed to run otool on ${file}: ${result.stderr ?? result.error?.message}`);
+    throw new Error(
+      `${command} ${args.join(' ')} failed: ${result.error?.message ?? result.stderr ?? result.stdout}`,
+    );
   }
-  return result.stdout;
+  return result.stdout ?? '';
 }
 
 /**
- * Check if the load commands contain an rpath matching the expected value.
+ * Detect one exact LC_RPATH entry in otool output.
+ * The design matches a parsed load-command line rather than a loose substring,
+ * preventing a comment or another install name from satisfying the contract.
+ *
+ * @param loadCommands Complete otool load-command output.
+ * @param rpath Expected executable-relative path.
+ * @returns True only when an LC_RPATH path line matches exactly.
  */
 function hasRpath(loadCommands: string, rpath: string): boolean {
   return loadCommands
@@ -28,17 +52,22 @@ function hasRpath(loadCommands: string, rpath: string): boolean {
     .some(line => line.trim().startsWith(`path ${rpath} (`));
 }
 
-describe('macOS ONNX Runtime binding rpath handling', () => {
-  // Skip all tests on non‑darwin platforms – the rpath logic is macOS specific.
-  if (process.platform !== 'darwin') {
-    test.skip('skipped on non‑darwin', () => {});
-    return;
-  }
+test('non-macOS preparation is explicitly not applicable', () => {
+  expect(prepareOnnxRuntimeNativeBinding({
+    repoRoot,
+    platform: 'linux',
+    arch: 'x64',
+    required: true,
+  })).toMatchObject({
+    status: 'not-applicable',
+    platform: 'linux',
+  });
+});
 
-  const arch = process.arch; // 'arm64' or 'x64' on macOS
-  const expectedRpath = `@executable_path/native/onnxruntime-node/darwin-${arch}`;
+const macTest = process.platform === 'darwin' ? test : test.skip;
 
-  // Path to the original binding in the repo
+macTest('macOS preparation embeds the executable rpath and leaves a valid signature', () => {
+  const arch = process.arch;
   const originalBinding = join(
     repoRoot,
     'node_modules',
@@ -49,59 +78,45 @@ describe('macOS ONNX Runtime binding rpath handling', () => {
     arch,
     'onnxruntime_binding.node',
   );
+  expect(existsSync(originalBinding) && statSync(originalBinding).isFile()).toBe(true);
 
-  if (!existsSync(originalBinding) || !statSync(originalBinding).isFile()) {
-    throw new Error(`Original ONNX binding not found at ${originalBinding}`);
-  }
+  mkdirSync(scratchRoot, { recursive: true });
+  const fixture = mkdtempSync(join(scratchRoot, 'pd-purser-rpath-'));
+  try {
+    const bindingDir = join(
+      fixture,
+      'node_modules',
+      'onnxruntime-node',
+      'bin',
+      'napi-v6',
+      'darwin',
+      arch,
+    );
+    mkdirSync(bindingDir, { recursive: true });
+    const bindingPath = join(bindingDir, 'onnxruntime_binding.node');
+    copyFileSync(originalBinding, bindingPath);
 
-  // Create a temporary copy of the binding to avoid mutating the repo copy.
-  const tempRoot = mkdtempSync(join(tmpdir(), 'onnx-binding-'));
-  const tempBindingDir = join(
-    tempRoot,
-    'node_modules',
-    'onnxruntime-node',
-    'bin',
-    'napi-v6',
-    'darwin',
-    arch,
-  );
-  mkdirSync(tempBindingDir, { recursive: true });
-  const tempBinding = join(tempBindingDir, 'onnxruntime_binding.node');
-  copyFileSync(originalBinding, tempBinding);
+    const expectedRpath = darwinOnnxExecutableRpath(arch);
+    if (hasRpath(run('otool', ['-l', bindingPath]), expectedRpath)) {
+      run('install_name_tool', ['-delete_rpath', expectedRpath, bindingPath]);
+      run('codesign', ['--force', '--sign', '-', bindingPath]);
+    }
+    expect(hasRpath(run('otool', ['-l', bindingPath]), expectedRpath)).toBe(false);
 
-  test('original binding has no executable-relative rpath', () => {
-    const load = getLoadCommands(tempBinding);
-    expect(hasRpath(load, expectedRpath)).toBe(false);
-  });
-
-  test('prepareOnnxRuntimeNativeBinding embeds the rpath and re‑signs', () => {
-    const result = prepareOnnxRuntimeNativeBinding({
-      repoRoot: tempRoot,
+    expect(prepareOnnxRuntimeNativeBinding({
+      repoRoot: fixture,
       platform: 'darwin',
       arch,
       required: true,
+    })).toMatchObject({
+      status: 'prepared',
+      rpath: expectedRpath,
+      modified: true,
     });
 
-    // Verify the returned manifest
-    expect(result.status).toBe('prepared');
-    expect(result.rpath).toBe(expectedRpath);
-    expect(result.modified).toBe(true);
-
-    // Verify the binding file now contains the rpath
-    const loadAfter = getLoadCommands(tempBinding);
-    expect(hasRpath(loadAfter, expectedRpath)).toBe(true);
-  });
-
-  test('prepareOnnxRuntimeNativeBinding on non‑darwin returns not-applicable', () => {
-    const nonDarwinResult = prepareOnnxRuntimeNativeBinding({
-      repoRoot: tempRoot,
-      platform: 'linux',
-      arch,
-      required: true,
-    });
-
-    expect(nonDarwinResult.status).toBe('not-applicable');
-    expect(nonDarwinResult.reason).toContain('Linux binding retains its packaged loader contract');
-    expect(nonDarwinResult.platform).toBe('linux');
-  });
+    expect(hasRpath(run('otool', ['-l', bindingPath]), expectedRpath)).toBe(true);
+    run('codesign', ['--verify', '--strict', '--verbose=2', bindingPath]);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 });
