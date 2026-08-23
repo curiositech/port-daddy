@@ -120,7 +120,7 @@ import {
   type PlannedFile,
 } from './purser-authoring.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
-import { repairContractOutput } from './repair.js';
+import { repairContractOutput, REPAIR_ESCALATION_MODEL } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
@@ -1063,7 +1063,8 @@ export async function runPurser(
       );
       if (
         !verifiedReuse.ok &&
-        (verifiedReuse.kind === 'incompatible-runner' ||
+        (verifiedReuse.kind === 'syntax-error' ||
+          verifiedReuse.kind === 'incompatible-runner' ||
           verifiedReuse.kind === 'unresolved-import' ||
           verifiedReuse.kind === 'undiscoverable-path')
       ) {
@@ -1181,6 +1182,11 @@ export async function runPurser(
       {
         purpose: steel.purpose,
         obligationCount: steel.obligations.length,
+        // The full obligations text, not just its count — this is the actual
+        // contract the PR is held to (posted verbatim into the PR body by
+        // upsertPrBodySection below); the run page renders it so the operator
+        // never has to open the PR to read what "steel-manned" concluded.
+        obligations: steel.obligations,
         testTargets: steel.testTargets,
       },
     );
@@ -1244,7 +1250,7 @@ export async function runPurser(
     const plannedPaths = files.length === 0 ? plannedResponsePaths(planText) : null;
     const hasRepairEligiblePath =
       plannedPaths?.some(path => discoveryRepairEligible(path, ship)) ?? false;
-    if (files.length === 0 && hasRepairEligiblePath) {
+    if (files.length === 0 && (plannedPaths === null || hasRepairEligiblePath)) {
       evidence = await gatherExecutabilityEvidence(prCtx, token);
     }
     const undiscoverable =
@@ -1482,7 +1488,8 @@ export async function runPurser(
     const authoredRepairPaths = new Set<string>();
     while (
       !executability.ok &&
-      (executability.kind === 'unresolved-import' ||
+      (executability.kind === 'syntax-error' ||
+        executability.kind === 'unresolved-import' ||
         executability.kind === 'incompatible-runner') &&
       executability.path &&
       authoredRepairPaths.size < MAX_PLANNED_FILES &&
@@ -1521,7 +1528,14 @@ export async function runPurser(
             prBlock(prCtx),
             TESTS_MAX_TOKENS,
             metrics,
-            ship.cfAuthorModel,
+            // The rewrite runs on the ESCALATION tier, never the author tier:
+            // a model that just authored a non-executable file is the worst
+            // candidate to fix it (14-day D1 record: 83 of 110 same-model
+            // rewrites FAILED). Same posture as repairContractOutput's second
+            // attempt — when the author tier already IS the escalation model
+            // this is a no-op, but an operator opt-down pin no longer drags
+            // the repair down with it.
+            REPAIR_ESCALATION_MODEL,
           );
           return call.text;
         },

@@ -528,6 +528,20 @@ See `references/git-discipline-internal.md` for port-daddy-specific
 extensions (release-tag immutability, the v-prefix convention, the brew
 formula update protocol).
 
+## Fleet Model Tiers (never choose from memory)
+
+Every Workers AI model decision — a ship's tier, a purser step model, a new
+admission — is made against `references/cloudflare-model-roster.md` (the
+verified catalog + pricing snapshot, the admission contract, and the standing
+decision record) and the live scoreboard
+(`node scripts/fleet-ship-stats.mjs --days 14`, which reads the relay D1's
+per-ship × per-model spend and broken/repair health). Two standing rules:
+an id is honored only after existence + rate + context are verified (phantom
+ids return silent blanks — #654), and a model-change PR carries its
+before-window stats and gets judged on its after-window. The gpt-oss-20b
+author tier (#8870: 75% repair failure, half the fleet's verdicts washed out)
+is the tombstone for choosing a tier off a price note without a scoreboard.
+
 ## Catalog-First Reflex (windags MCP, internal edition)
 
 Port Daddy contributors are not exempt from the catalog. The 600+ skills
@@ -734,6 +748,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** Brew formulas with frozen sha256 break for users; CI caches invalidate; users on the old tag see different code than users on the new one with the same tag string.
 **Fix:** Tags are immutable. If a release was wrong, ship `vX.Y.Z+1` with a CHANGELOG entry explaining the recall. Never `git push --force origin vX.Y.Z`.
 
+### Treating A Configured Release Token As A Working Token
+**Detection:** A workflow uses `${{ secrets.PREFERRED || secrets.FALLBACK }}` for a mutating checkout or `GH_TOKEN`, or validates only that a secret is non-empty.
+**Symptoms:** An expired or under-scoped preferred PAT masks a healthy fallback forever; retries fail at the same checkout before any release state changes.
+**Fix:** Probe the repository API with each candidate and require `.permissions.push == true`. Emit only a non-secret source identity, conditionally pass that source's literal secret to `actions/checkout`, select the same secret locally inside later mutation steps, and fail closed if neither probe passes. Never move a secret value through `GITHUB_OUTPUT`.
+**Why:** Presence is configuration evidence, not authorization evidence. The fallback decision must reflect the capability required by the exact mutation.
+
 ### Skipping `pd feedback` On Contributor Friction
 **Detection:** Internal contributor sessions end clean but the friction isn't recorded; the same friction visits the next contributor.
 **Symptoms:** "Why is this so hard" gets discovered repeatedly. The roadmap doesn't reflect the actual pain. Cartographer's priorities lag reality.
@@ -767,6 +787,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** A healthy implementation PR is marked `BLOCK` even though no authored assertion ran; an invalid stacked test PR becomes a second red PR; pushing again reuses the same broken files forever.
 **Fix:** Treat runner compatibility as trusted executability evidence before the sandbox and again before every reuse. Replace an incompatible reused suite in place through the normal bounded authoring path; give a newly authored mismatch one rewrite with the exact loader error. If the trusted gate still fails, classify Purser as broken machinery, do not stack or retarget the files, and say explicitly that the implementation contract was not tested. Only an executed test-case failure may become a contract `BLOCK`.
 **Why:** A runner rejecting Purser's file is evidence about Purser, not the reviewed change. Keeping those failure domains separate makes an adversarial gate strict without making it arbitrary.
+
+### Trusting Purser Output Before It Is A Complete Program
+**Detection:** A generated `.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, or `.cts` file reaches the sandbox, branch creation, or PR retargeting before a parser has accepted the whole file under its extension's source-type contract.
+**Symptoms:** Literal ellipses, truncated prose, or module/CommonJS mismatches become invalid stacked PRs; the parent PR is retargeted away from `main`; Jest reports a syntax or loader failure even though no contract assertion ran.
+**Fix:** After discovery and trusted-runner evidence are available, parse every authored file as a complete program with recovery disabled and the source type implied by its extension. Give the author one bounded repair containing the exact parser error, then re-run every executability gate. If any file still fails, classify Purser as broken machinery and stop before sandbox execution, branch/stack creation, or parent-PR retargeting.
+**Why:** Generated source is untrusted input. Syntax and loader acceptance are preconditions for adversarial evidence, not findings about the reviewed implementation.
 
 ## Worked Examples
 
