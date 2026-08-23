@@ -398,6 +398,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'roadmap render': 'notify',
   'roadmap import': 'notify',
   'roadmap import-markdown': 'notify',
+  'roadmap chomp': 'notify',
 
   // harbor subcommands
   'harbor create': 'notify',

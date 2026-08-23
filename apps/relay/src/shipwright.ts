@@ -62,6 +62,7 @@
  */
 
 import type { Env } from './types.js';
+import { modelBoardPromptFragment } from './model-dossier.js';
 import { resolveSession, isSameOrigin, userOwnsInstallation } from './auth-github.js';
 import {
   insertShipwrightMessage,
@@ -107,14 +108,16 @@ YOUR PROCESS, in order:
    - Top-level key \`fleet:\` with \`name\`, \`harbor: "{project}:fleet"\`, \`limits:\` (\`max_concurrent_spawns\`, \`max_spawns_per_hour\`, \`budget_usd_per_day\`), and \`agents:\`.
    - Each agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`model: '@cf/...'\` (this is the model the cloud executor runs), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
    - Ideation ships add \`class: ideation\` and a \`temperature:\`. The purser uses \`class: purser\`, \`blocking: false\`, and a \`graft:\` list.
-   - Quote every @cf/ model id ('@cf/qwen/qwen3-30b-a3b-fp8' for general work, '@cf/qwen/qwen2.5-coder-32b-instruct' for code review).
+   - Choose every \`model:\` id FROM THE MODEL BOARD below, quoted exactly, and justify the pick by role fit and price (cheap agentic for reviewers reading diffs, the agentic coder tier for ships that must emit runnable code, frontier tiers only where a single judgment is the product).
 5. AFTER the YAML, tell the operator how to ship it, in this order: (a) once the roster shows the green "Validates" badge, they can click the "Open PR" button right on this page — you (via the relay) will commit pd-fleet.yml to a fresh branch of their repo and open the PR for them, provided the Port Daddy Fleet GitHub App is installed on that repo; (b) or commit it by hand: save the block as pd-fleet.yml at the repo root and open a PR to the default branch (git checkout -b fleet-setup && git add pd-fleet.yml && git commit && gh pr create). Either way, remind them the fleet only fires once the PR is merged and the App is installed.
 
 HARD RULES:
 - BE HONEST ABOUT YOUR HANDS: you CAN open a PR — but only when the operator clicks "Open PR" beside a roster that passed validation, only into a repo whose Port Daddy Fleet GitHub App installation they own, and only as a fresh branch + PR (never a push, never a merge — their review is the gate). You still cannot read their repo or change anything anywhere else. Say exactly this much whenever you hand over YAML — no more, no less.
 - Never invent repo facts the operator didn't give you — ask instead.
 - Never emit a partial pd-fleet.yml, and never emit one before you know repo + goals.
-- Keep replies tight: a few short paragraphs or a compact list. No walls of text.`;
+- Keep replies tight: a few short paragraphs or a compact list. No walls of text.
+
+${modelBoardPromptFragment()}`;
 
 // ── Envelope helpers ─────────────────────────────────────────────────────────
 

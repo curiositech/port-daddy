@@ -381,7 +381,7 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
         async run() {
           if (sql.includes('INSERT INTO repo_settings')) {
             const [userId, repo, level, createdAt, updatedAt] = args as [string, string, SitrepLevel, number, number];
-            const key = `${userId} ${repo}`;
+            const key = `${userId}\u0000${repo}`;
             const existing = settings.get(key);
             seq += 1;
             if (existing) {
@@ -402,7 +402,7 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
           }
           if (sql.includes('DELETE FROM repo_settings')) {
             const [userId, repo] = args as [string, string];
-            settings.delete(`${userId} ${repo}`);
+            settings.delete(`${userId}\u0000${repo}`);
             return { success: true, meta: { changes: 1 } };
           }
           return { success: true, meta: { changes: 0 } }; // last_used_at bumps etc.

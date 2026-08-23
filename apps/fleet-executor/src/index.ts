@@ -159,11 +159,22 @@ export default {
           continue;
         }
         if (disposition?.kind === 'stale-head') {
+          const reason = disposition.stage === 'mid-flight'
+            ? (
+                `pull request head changed during Fleet execution at ` +
+                `${disposition.boundary ?? 'an unrecorded boundary'}; expected ` +
+                `${disposition.expectedHead ?? 'unknown'}, current ` +
+                `${disposition.currentHead ?? 'unknown'}. ` +
+                (disposition.modelSpendPossible
+                  ? 'Model work may already have occurred, but later GitHub side effects and the obsolete verdict were suppressed.'
+                  : 'No model spend occurred in this invocation; the obsolete check was neutralized before ship execution.')
+              )
+            : 'payload head is no longer current; acknowledged without model spend';
           await markFleetIntentTerminal(
             env,
             message.body.deliveryId,
             'cancelled',
-            'payload head is no longer current; acknowledged without model spend',
+            reason,
           );
         } else if (disposition?.kind === 'already-decided') {
           await markFleetIntentTerminal(
