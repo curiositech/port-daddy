@@ -193,38 +193,26 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
-          select_push_token() {
-            source_name="$1"
-            candidate="$2"
-            [ -n "$candidate" ] || return 1
-            can_push=$(GH_TOKEN="$candidate" gh api "repos/$GITHUB_REPOSITORY" \
-              --jq '.permissions.push // false' 2>/dev/null) || can_push=false
-            if [ "$can_push" = "true" ]; then
-              echo "source=$source_name" >> "$GITHUB_OUTPUT"
-              echo "Selected $source_name after a live repository push-permission probe."
-              return 0
-            fi
-            echo "::warning::$source_name is configured but invalid, expired, or lacks push permission."
-            return 1
+          token_source=$(node scripts/release-workflow-state.mjs \
+            select-live-token "$GITHUB_REPOSITORY") || {
+            echo "::error::No configured release credential proved it can push to $GITHUB_REPOSITORY. Inspect the sanitized probe warnings, then repair API availability or the repository Actions secrets before re-running the train."
+            exit 1
           }
-          select_push_token release "$RELEASE_TRAIN_TOKEN" || \
-            select_push_token tap "$HOMEBREW_TAP_TOKEN" || {
-              echo "::error::Neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push to $GITHUB_REPOSITORY. Repair the repository Actions secrets before re-running the train."
-              exit 1
-            }
+          echo "source=$token_source" >> "$GITHUB_OUTPUT"
+          echo "Selected $token_source after a live repository push-permission probe."
 
       # Re-checkout only for the mutating path. This replaces checkout's
       # read-only extraheader with the PAT-backed credential immediately
       # before the commit and push that require it.
       - name: Authenticate release mutation with the dedicated token
-        if: steps.version.outputs.next != '' && steps.release_token.outputs.source == 'release'
+        if: steps.version.outputs.next != '' && steps.release_token.outputs.source == 'RELEASE_TRAIN_TOKEN'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TRAIN_TOKEN }}
 
       - name: Authenticate release mutation with the fallback token
-        if: steps.version.outputs.next != '' && steps.release_token.outputs.source == 'tap'
+        if: steps.version.outputs.next != '' && steps.release_token.outputs.source == 'HOMEBREW_TAP_TOKEN'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -242,9 +230,9 @@ jobs:
           COMMITS: ${{ steps.measure.outputs.commits }}
         run: |
           set -euo pipefail
-          if [ "$TOKEN_SOURCE" = "release" ]; then
+          if [ "$TOKEN_SOURCE" = "RELEASE_TRAIN_TOKEN" ]; then
             export GH_TOKEN="$RELEASE_TRAIN_TOKEN"
-          elif [ "$TOKEN_SOURCE" = "tap" ]; then
+          elif [ "$TOKEN_SOURCE" = "HOMEBREW_TAP_TOKEN" ]; then
             export GH_TOKEN="$HOMEBREW_TAP_TOKEN"
           else
             echo "::error::Release token selection produced no recognized source."
@@ -369,30 +357,18 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
-          select_push_token() {
-            source_name="$1"
-            candidate="$2"
-            [ -n "$candidate" ] || return 1
-            can_push=$(GH_TOKEN="$candidate" gh api "repos/$GITHUB_REPOSITORY" \
-              --jq '.permissions.push // false' 2>/dev/null) || can_push=false
-            if [ "$can_push" = "true" ]; then
-              echo "source=$source_name" >> "$GITHUB_OUTPUT"
-              echo "Selected $source_name after a live repository push-permission probe."
-              return 0
-            fi
-            echo "::warning::$source_name is configured but invalid, expired, or lacks push permission."
-            return 1
+          token_source=$(node scripts/release-workflow-state.mjs \
+            select-live-token "$GITHUB_REPOSITORY") || {
+            echo "::error::No configured release credential proved it can push to $GITHUB_REPOSITORY. Inspect the sanitized probe warnings, then repair API availability or the repository Actions secrets before re-running publication."
+            exit 1
           }
-          select_push_token release "$RELEASE_TRAIN_TOKEN" || \
-            select_push_token tap "$HOMEBREW_TAP_TOKEN" || {
-              echo "::error::Neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push to $GITHUB_REPOSITORY. Repair the repository Actions secrets before re-running publication."
-              exit 1
-            }
+          echo "source=$token_source" >> "$GITHUB_OUTPUT"
+          echo "Selected $token_source after a live repository push-permission probe."
 
       # Re-checkout only for the mutating path. Ordinary main PRs must not
       # depend on PAT health merely to prove there is no new version to tag.
       - name: Authenticate release publication with the dedicated token
-        if: steps.release.outputs.should_publish == 'true' && steps.release_token.outputs.source == 'release'
+        if: steps.release.outputs.should_publish == 'true' && steps.release_token.outputs.source == 'RELEASE_TRAIN_TOKEN'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.release_sha }}
@@ -400,7 +376,7 @@ jobs:
           token: ${{ secrets.RELEASE_TRAIN_TOKEN }}
 
       - name: Authenticate release publication with the fallback token
-        if: steps.release.outputs.should_publish == 'true' && steps.release_token.outputs.source == 'tap'
+        if: steps.release.outputs.should_publish == 'true' && steps.release_token.outputs.source == 'HOMEBREW_TAP_TOKEN'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.release_sha }}
@@ -421,9 +397,9 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
-          if [ "$TOKEN_SOURCE" = "release" ]; then
+          if [ "$TOKEN_SOURCE" = "RELEASE_TRAIN_TOKEN" ]; then
             export GH_TOKEN="$RELEASE_TRAIN_TOKEN"
-          elif [ "$TOKEN_SOURCE" = "tap" ]; then
+          elif [ "$TOKEN_SOURCE" = "HOMEBREW_TAP_TOKEN" ]; then
             export GH_TOKEN="$HOMEBREW_TAP_TOKEN"
           else
             echo "::error::Release token selection produced no recognized source."
