@@ -148,4 +148,27 @@ describe('source stays text, greppable, and mergeable', () => {
     // AND the reason on the line.
     expect([...ALLOWED_BINARY_SOURCE]).toEqual([]);
   });
+
+  test('an allowlist entry actually removes a file from the scan', () => {
+    // The emptiness assertion above says the escape hatch is UNUSED. This one
+    // says it WORKS. Both matter: an allowlist that silently fails to exclude
+    // would send someone chasing a file the guard claims to have skipped, and
+    // the filter is a single `.has()` that nothing else covers.
+    //
+    // Mutates the shared Set, so the restore is in a finally — otherwise a
+    // failure here would leave the allowlist dirty and make the emptiness test
+    // above fail for the wrong reason, depending on execution order.
+    const victim = trackedSourceFiles(REPO_ROOT)[0];
+    expect(typeof victim).toBe('string');
+
+    ALLOWED_BINARY_SOURCE.add(victim);
+    try {
+      expect(trackedSourceFiles(REPO_ROOT)).not.toContain(victim);
+    } finally {
+      ALLOWED_BINARY_SOURCE.delete(victim);
+    }
+
+    expect(trackedSourceFiles(REPO_ROOT)).toContain(victim);
+    expect([...ALLOWED_BINARY_SOURCE]).toEqual([]);
+  });
 });
