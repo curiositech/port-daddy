@@ -1,6 +1,7 @@
 # ADR-0128: Should every project root have a harbor, and does that mean everything is encrypted?
 
-- **Status:** Proposed — Context and options only. **The decision is deliberately not made here.**
+- **Status:** Accepted — Option A, decided by the operator 2026-08-23. The
+  context and options below are unchanged from the Proposed draft.
 - **Date:** 2026-08-22
 - **Builds on:** ADR-0013 (unified harbor model — harbors key to the project
   root), ADR-0027/0049 (relay), ADR-0115 (database distribution and sync),
@@ -170,9 +171,24 @@ type a command to get one is friction without a corresponding guarantee.
 And **whatever is chosen, do not let it be described as an encryption change.**
 Question 1's answer is the one most likely to be lost in summary.
 
+## Decision
+
+**Option A — auto-create a harbor per project root, never refuse to start.**
+Decided by the operator on 2026-08-23, matching the recommendation above.
+`pd` resolves the project root and creates a harbor for it on first use if none
+exists; refusal (Option B) and optional-with-root-scoping (Option C) are
+rejected for the reasons recorded under each.
+
+Two boundaries the decision carries, so a summary cannot widen it:
+
+- **This is not an encryption change.** Question 1's answer stands: mandatory
+  harbors change where work is scoped, not what is encrypted. Any surface that
+  describes auto-created harbors as "encrypting your data" is misdescribing
+  this ADR.
+- **Local at-rest encryption stays a separate decision.** Whether it widens
+  beyond session notes was not decided here and does not follow from A.
+
 ## What this ADR deliberately does not decide
 
-The decision. The operator asked the three questions above; this records the
-answers and the options. Choosing A, B or C — and deciding separately whether
-local at-rest encryption should widen beyond session notes — is the operator's
-call, and neither follows from the other.
+Whether local at-rest encryption should widen beyond session notes — that is
+the operator's call and is untouched by choosing A.
