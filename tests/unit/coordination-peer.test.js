@@ -1,5 +1,9 @@
 import { createTestDb } from '../setup-unit.js';
-import { CoordinationLedger } from '../../lib/coordination-ledger.js';
+import {
+  CoordinationLedger,
+  COORDINATION_MAX_CLOCK_SKEW_MS,
+  COORDINATION_MAX_HLC_COUNTER,
+} from '../../lib/coordination-ledger.js';
 import { createCoordinationPeer } from '../../lib/coordination-peer.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -159,6 +163,40 @@ describe('ADR-0092 local coordination peer', () => {
     });
   });
 
+  test('separates the authorized actor from a unique replica and carries HLC overflow', async () => {
+    const room = new MemoryCoordinationRoom();
+    const local = replica('fleet-sandbox', room, 2_000);
+    const peer = createCoordinationPeer({
+      db: local.db,
+      sessions: local.sessions,
+      locks: local.locks,
+      config: {
+        url: 'https://relay.invalid',
+        project: 'port-daddy',
+        actorId: 'fleet-sandbox',
+        replicaId: 'fleet-peer-b643d928',
+        macaroon: 'macaroon-fleet-sandbox',
+      },
+      fetch: room.fetch,
+      now: () => 2_000,
+    });
+    local.db.prepare(`
+      UPDATE coordination_peer_state SET hlc_wall = ?, hlc_counter = ? WHERE project = ?
+    `).run(2_000, COORDINATION_MAX_HLC_COUNTER, 'port-daddy');
+    local.sessions.start('unique cloud replica', {
+      agentId: 'fleet-sandbox', project: 'port-daddy', worktreeId: 'cloud', durable: true,
+    });
+
+    await peer.syncOnce();
+
+    const operation = room.entries.find(entry => entry.operation.kind === 'session')?.operation;
+    expect(operation).toMatchObject({
+      actorId: 'fleet-sandbox',
+      replicaId: 'fleet-peer-b643d928',
+      clock: { wallTime: 2_001, counter: 0, replicaId: 'fleet-peer-b643d928' },
+    });
+  });
+
   test('rejects a cursor gap rather than silently losing a cloud operation', async () => {
     const room = new MemoryCoordinationRoom();
     const local = replica('local-daemon', room, 2_000);
@@ -234,5 +272,112 @@ describe('ADR-0092 local coordination peer', () => {
     expect(status.connected).toBe(false);
     expect(status.lastError).toMatch(/outside the submitted batch/);
     expect(status.outbox).toBeGreaterThan(0);
+  });
+
+  test('rejects a far-future cloud clock without advancing the durable cursor', async () => {
+    const room = new MemoryCoordinationRoom();
+    const local = replica('local-daemon', room, 2_000);
+    const wallTime = 3_000 + COORDINATION_MAX_CLOCK_SKEW_MS + 1;
+    const poisoned = createCoordinationPeer({
+      db: local.db,
+      sessions: local.sessions,
+      locks: local.locks,
+      config: {
+        url: 'https://relay.invalid',
+        project: 'port-daddy',
+        actorId: 'clock-guard-daemon',
+        macaroon: 'macaroon-clock-guard',
+      },
+      fetch: async () => Response.json({
+        cursor: 1,
+        operations: [{ cursor: 1, operation: {
+          version: 1,
+          opId: `cloud:session:future:${wallTime}:0`,
+          project: 'port-daddy',
+          actorId: 'cloud',
+          replicaId: 'cloud',
+          kind: 'session',
+          entityId: 'future',
+          mutation: 'upsert',
+          clock: { wallTime, counter: 0, replicaId: 'cloud' },
+          value: {
+            purpose: 'poison later updates', status: 'active', phase: 'in_progress',
+            agentId: 'cloud', worktreeId: null, createdAt: wallTime, updatedAt: wallTime,
+            completedAt: null, metadata: null, durable: true,
+          },
+        } }],
+        hasMore: false,
+        accepted: [],
+        pending: [],
+      }),
+      now: () => 3_000,
+    });
+
+    const status = await poisoned.syncOnce();
+    expect(status.connected).toBe(false);
+    expect(status.cursor).toBe(0);
+    expect(status.lastError).toMatch(/too far in the future/);
+    expect(local.sessions.get('future').success).toBe(false);
+  });
+
+  test('rolls back the whole pull page when a later operation cannot be applied', async () => {
+    const room = new MemoryCoordinationRoom();
+    const local = replica('local-daemon', room, 2_000);
+    const firstSession = {
+      version: 1,
+      opId: 'cloud:session:page-session:1000:0',
+      project: 'port-daddy',
+      actorId: 'cloud',
+      replicaId: 'cloud',
+      kind: 'session',
+      entityId: 'page-session',
+      mutation: 'upsert',
+      clock: { wallTime: 1_000, counter: 0, replicaId: 'cloud' },
+      value: {
+        purpose: 'must roll back', status: 'active', phase: 'in_progress',
+        agentId: 'cloud', worktreeId: null, createdAt: 1_000, updatedAt: 1_000,
+        completedAt: null, metadata: null, durable: true,
+      },
+    };
+    const missingSessionNote = {
+      version: 1,
+      opId: 'cloud:note:orphan-note:1000:1',
+      project: 'port-daddy',
+      actorId: 'cloud',
+      replicaId: 'cloud',
+      kind: 'note',
+      entityId: 'orphan-note',
+      mutation: 'upsert',
+      clock: { wallTime: 1_000, counter: 1, replicaId: 'cloud' },
+      value: { sessionId: 'missing-session', content: 'must not partially apply', type: 'note', createdAt: 1_000 },
+    };
+    const atomic = createCoordinationPeer({
+      db: local.db,
+      sessions: local.sessions,
+      locks: local.locks,
+      config: {
+        url: 'https://relay.invalid',
+        project: 'port-daddy',
+        actorId: 'atomic-daemon',
+        macaroon: 'macaroon-atomic',
+      },
+      fetch: async () => Response.json({
+        cursor: 2,
+        operations: [
+          { cursor: 1, operation: firstSession },
+          { cursor: 2, operation: missingSessionNote },
+        ],
+        hasMore: false,
+        accepted: [],
+        pending: [],
+      }),
+      now: () => 3_000,
+    });
+
+    const status = await atomic.syncOnce();
+    expect(status.connected).toBe(false);
+    expect(status.cursor).toBe(0);
+    expect(status.lastError).toMatch(/missing session/);
+    expect(local.sessions.get('page-session').success).toBe(false);
   });
 });

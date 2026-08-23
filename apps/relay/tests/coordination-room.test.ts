@@ -5,6 +5,7 @@ import {
   type CoordinationSyncResponse,
 } from '../src/coordination-room.js';
 import type { CoordinationOperation } from '../../../lib/coordination-ledger.js';
+import { COORDINATION_MAX_CLOCK_SKEW_MS } from '../../../lib/coordination-ledger.js';
 import type { Env } from '../src/types.js';
 
 interface FakeStorage {
@@ -180,5 +181,40 @@ describe('CoordinationRoom', () => {
       body: JSON.stringify({ replicaId: 'cloud', actorId: 'attacker', since: 0, operations: [forged] }),
     }));
     expect(response.status).toBe(403);
+  });
+
+  it('keeps actor authorization separate from the unique daemon replica id', async () => {
+    const { instance } = room();
+    const peerOperation = {
+      ...operation('fleet-peer-b643d928', 'cloud-claim', NOW),
+      actorId: 'fleet-sandbox',
+    };
+    const response = await instance.fetch(new Request('https://room.invalid/?action=sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        replicaId: 'fleet-peer-b643d928',
+        actorId: 'fleet-sandbox',
+        since: 0,
+        operations: [peerOperation],
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: [],
+      pending: [peerOperation.opId],
+    });
+  });
+
+  it('rejects a far-future clock before it can poison the LWW projection', async () => {
+    const { instance } = room();
+    const poisoned = operation('cloud', 'future-poison', NOW + COORDINATION_MAX_CLOCK_SKEW_MS + 1);
+    const response = await instance.fetch(new Request('https://room.invalid/?action=sync', {
+      method: 'POST',
+      body: JSON.stringify({ replicaId: 'cloud', actorId: 'cloud', since: 0, operations: [poisoned] }),
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: 'CLOCK_SKEW' });
   });
 });

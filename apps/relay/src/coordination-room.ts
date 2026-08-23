@@ -15,6 +15,7 @@ import {
   type CoordinationSyncRequest,
   type CoordinationSyncResponse,
   type CursorOperation,
+  validateCoordinationClockSkew,
   validateCoordinationOperation,
 } from '../../../lib/coordination-ledger.js';
 import type { Env } from './types.js';
@@ -91,6 +92,10 @@ export class CoordinationRoom implements DurableObject {
       const reason = validateCoordinationOperation(operation);
       if (reason) {
         return Response.json({ error: reason, code: 'VALIDATION_ERROR' }, { status: 400 });
+      }
+      const skewReason = validateCoordinationClockSkew(operation);
+      if (skewReason) {
+        return Response.json({ error: skewReason, code: 'CLOCK_SKEW' }, { status: 409 });
       }
       if (operation.replicaId !== body.replicaId || operation.actorId !== body.actorId) {
         return Response.json(

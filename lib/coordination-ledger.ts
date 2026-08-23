@@ -13,6 +13,14 @@
  */
 
 export const COORDINATION_WIRE_VERSION = 1 as const;
+/**
+ * Remote clocks may lead the receiver slightly, but not far enough to make
+ * later honest LWW updates lose indefinitely. Rejected outbox entries remain
+ * retryable, so a skewed peer can recover once wall time catches up.
+ */
+export const COORDINATION_MAX_CLOCK_SKEW_MS = 5 * 60 * 1_000;
+/** Prevent a same-millisecond logical counter from exhausting safe integers. */
+export const COORDINATION_MAX_HLC_COUNTER = 1_000_000;
 
 export type CoordinationKind = 'session' | 'note' | 'claim' | 'lock';
 export type CoordinationMutation = 'upsert' | 'remove';
@@ -132,6 +140,7 @@ function validClock(value: unknown): value is HybridLogicalClock {
   if (!isRecord(value)) return false;
   return Number.isSafeInteger(value.wallTime) && Number(value.wallTime) >= 0
     && Number.isSafeInteger(value.counter) && Number(value.counter) >= 0
+    && Number(value.counter) <= COORDINATION_MAX_HLC_COUNTER
     && isCoordinationScopeId(value.replicaId);
 }
 
@@ -242,6 +251,17 @@ export function validateCoordinationOperation(value: unknown): string | null {
   return null;
 }
 
+/** Runtime ingress check kept separate from deterministic historical replay. */
+export function validateCoordinationClockSkew(
+  operation: CoordinationOperation,
+  nowMs = Date.now(),
+): string | null {
+  if (operation.clock.wallTime > Math.floor(nowMs) + COORDINATION_MAX_CLOCK_SKEW_MS) {
+    return 'operation clock is too far in the future';
+  }
+  return null;
+}
+
 export function compareClocks(a: HybridLogicalClock, b: HybridLogicalClock): number {
   if (a.wallTime !== b.wallTime) return a.wallTime < b.wallTime ? -1 : 1;
   if (a.counter !== b.counter) return a.counter < b.counter ? -1 : 1;
@@ -334,6 +354,15 @@ export class HybridLogicalClockSource {
     if (!isCoordinationScopeId(replicaId)) throw new Error('invalid replicaId');
   }
 
+  #normalizeCounter(): void {
+    if (this.#counter <= COORDINATION_MAX_HLC_COUNTER) return;
+    // Carry logical overflow into the wall component. This keeps locally
+    // generated operations structurally valid even after observing a remote
+    // clock at the counter ceiling, without depending on wall time advancing.
+    this.#lastWallTime += 1;
+    this.#counter = 0;
+  }
+
   next(): HybridLogicalClock {
     const wallTime = Math.max(0, Math.floor(this.now()));
     if (wallTime > this.#lastWallTime) {
@@ -342,6 +371,7 @@ export class HybridLogicalClockSource {
     } else {
       this.#counter += 1;
     }
+    this.#normalizeCounter();
     return { wallTime: this.#lastWallTime, counter: this.#counter, replicaId: this.replicaId };
   }
 
@@ -358,6 +388,7 @@ export class HybridLogicalClockSource {
       this.#counter = 0;
     }
     this.#lastWallTime = maxWall;
+    this.#normalizeCounter();
     return { wallTime: this.#lastWallTime, counter: this.#counter, replicaId: this.replicaId };
   }
 }

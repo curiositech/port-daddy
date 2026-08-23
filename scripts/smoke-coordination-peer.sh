@@ -51,6 +51,7 @@ PORT_DADDY_BIN_OVERRIDE="$BIN" \
 PORT_DADDY_COORDINATION_URL="$RELAY_URL" \
 PORT_DADDY_COORDINATION_PROJECT="$PROJECT" \
 PORT_DADDY_COORDINATION_ACTOR="cloud-smoke" \
+PORT_DADDY_COORDINATION_REPLICA="cloud-smoke-peer" \
 PORT_DADDY_COORDINATION_MACAROON="smoke-cloud-macaroon" \
 PORT_DADDY_COORDINATION_INTERVAL_MS=500 \
 PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
@@ -65,6 +66,7 @@ PORT_DADDY_BIN_OVERRIDE="$BIN" \
 PORT_DADDY_COORDINATION_URL="$RELAY_URL" \
 PORT_DADDY_COORDINATION_PROJECT="$PROJECT" \
 PORT_DADDY_COORDINATION_ACTOR="local-smoke" \
+PORT_DADDY_COORDINATION_REPLICA="local-smoke-peer" \
 PORT_DADDY_COORDINATION_MACAROON="smoke-local-macaroon" \
 PORT_DADDY_COORDINATION_INTERVAL_MS=500 \
 PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
@@ -100,10 +102,10 @@ wait_for() {
   return 1
 }
 
-CLOUD_BEGIN="$(cloud_pd begin "Cloud smoke session" --identity "port-daddy:cloud-smoke" \
+cloud_pd begin "Cloud smoke session" --identity "port-daddy:cloud-smoke" \
   --agent cloud-smoke --lifecycle durable --sidequest "ADR-0092 cloud peer acceptance smoke" \
-  --allow-main-worktree --json)"
-CLOUD_SESSION="$(printf '%s' "$CLOUD_BEGIN" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).sessionId||JSON.parse(s).id))')"
+  --allow-main-worktree --json >/dev/null
+CLOUD_SESSION="$(node -e 'const fs=require("node:fs");const p=process.argv[1];process.stdout.write(JSON.parse(fs.readFileSync(p,"utf8")).sessionId)' "$SMOKE_ROOT/cloud/context/current.json")"
 cloud_pd session files add src/cloud-smoke.ts --session "$CLOUD_SESSION" --json >/dev/null
 cloud_pd note "cloud note crosses the room" --session "$CLOUD_SESSION" --json >/dev/null
 
@@ -111,10 +113,10 @@ wait_for "$CLOUD_SESSION" local_pd sessions --all-worktrees --json || { echo "FA
 wait_for 'cloud-smoke' local_pd who-owns src/cloud-smoke.ts --json || { echo "FAIL: cloud claim did not appear locally" >&2; exit 1; }
 wait_for 'cloud note crosses the room' local_pd notes "$CLOUD_SESSION" --json || { echo "FAIL: cloud note did not appear locally" >&2; exit 1; }
 
-LOCAL_BEGIN="$(local_pd begin "Local partition session" --identity "port-daddy:local-smoke" \
+local_pd begin "Local partition session" --identity "port-daddy:local-smoke" \
   --agent local-smoke --lifecycle durable --sidequest "ADR-0092 local peer acceptance smoke" \
-  --allow-main-worktree --json)"
-LOCAL_SESSION="$(printf '%s' "$LOCAL_BEGIN" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).sessionId||JSON.parse(s).id))')"
+  --allow-main-worktree --json >/dev/null
+LOCAL_SESSION="$(node -e 'const fs=require("node:fs");const p=process.argv[1];process.stdout.write(JSON.parse(fs.readFileSync(p,"utf8")).sessionId)' "$SMOKE_ROOT/local/context/current.json")"
 
 touch "$SMOKE_ROOT/relay/partition-all"
 cloud_pd session files add src/cloud-partition.ts --session "$CLOUD_SESSION" --json >/dev/null

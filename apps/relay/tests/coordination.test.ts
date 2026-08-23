@@ -98,6 +98,35 @@ describe('ADR-0092 coordination routes', () => {
     expect(forwarded).toMatchObject({ replicaId: ACTOR, actorId: ACTOR });
   });
 
+  it('allows one authorized actor to use a unique per-daemon replica id', async () => {
+    let forwarded: unknown;
+    const env = envWithRoom(async request => {
+      forwarded = await request.json();
+      return Response.json({ cursor: 0, operations: [], hasMore: false, accepted: [], pending: [] });
+    });
+    const macaroon = await grant(env);
+    const response = await handleCoordinationSync(
+      new Request('https://relay.example/sync', {
+        method: 'POST',
+        headers: { Authorization: `Macaroon ${macaroon}` },
+        body: JSON.stringify({
+          replicaId: 'fleet-peer-b643d928',
+          actorId: ACTOR,
+          since: 0,
+          operations: [],
+        }),
+      }),
+      env,
+      PROJECT,
+    );
+
+    expect(response.status).toBe(200);
+    expect(forwarded).toMatchObject({
+      replicaId: 'fleet-peer-b643d928',
+      actorId: ACTOR,
+    });
+  });
+
   it('rejects an unscoped actor and a cross-project operation before the room', async () => {
     let calls = 0;
     const env = envWithRoom(async () => {

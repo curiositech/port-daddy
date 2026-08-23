@@ -53,7 +53,9 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /**
    * ADR-0092 coordination peer configuration for cloud sandboxes. These four
    * values are all-or-nothing; the macaroon is a Worker secret and is scoped
-   * to this project, actor, and the coordination-sync operation.
+   * to this project, stable actor, and the coordination-sync operation. Each
+   * sandbox generates its own replica id at runtime so concurrent daemons do
+   * not share an HLC identity.
    */
   PORT_DADDY_COORDINATION_URL?: string;
   PORT_DADDY_COORDINATION_PROJECT?: string;
