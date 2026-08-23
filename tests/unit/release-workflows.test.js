@@ -32,13 +32,17 @@ describe('release workflow topology contracts', () => {
     expect(workflow).not.toContain("startsWith(github.event.pull_request.head.ref, 'release-train/')");
   });
 
-  test('release publication uses the train token while tap promotion needs no cross-repo credential', () => {
+  test('release mutation selects a live push-capable token while tap promotion needs no cross-repo credential', () => {
     const train = readWorkflow('release-train.yml');
     const release = readWorkflow('release.yml');
-    const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
+    const unsafePresenceFallback = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
 
-    expect(train).toContain(tokenExpression);
-    expect(train).toContain('release-workflow-state.mjs require-token');
+    expect(train).not.toContain(unsafePresenceFallback);
+    expect(train).toContain('Select a working release-mutation token');
+    expect(train).toContain('Select a working release-publication token');
+    expect(train.match(/\.permissions\.push \/\/ false/g)).toHaveLength(2);
+    expect(train.match(/echo "source=\$source_name" >> "\$GITHUB_OUTPUT"/g)).toHaveLength(2);
+    expect(train).toContain('configured but invalid, expired, or lacks push permission');
     expect(release).toContain('Wait for independently verified Homebrew promotion');
     expect(release).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
     expect(release).not.toContain('repository-dispatch');
@@ -123,18 +127,45 @@ describe('release workflow topology contracts', () => {
 
   test('release discovery stays independent from the publishing credential', () => {
     const workflow = readWorkflow('release-train.yml');
-    const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
     const firstCheckout = workflow.indexOf('- uses: actions/checkout@v4');
-    const tokenCheck = workflow.indexOf('- name: Verify a CI-triggering token exists');
-    const authenticatedCheckout = workflow.indexOf('- name: Authenticate release mutation');
+    const tokenCheck = workflow.indexOf('- name: Select a working release-mutation token');
+    const dedicatedCheckout = workflow.indexOf('- name: Authenticate release mutation with the dedicated token');
+    const fallbackCheckout = workflow.indexOf('- name: Authenticate release mutation with the fallback token');
     const openPr = workflow.indexOf('- name: Open the version-bump PR with auto-merge armed');
 
     expect(firstCheckout).toBeGreaterThan(-1);
     expect(tokenCheck).toBeGreaterThan(firstCheckout);
-    expect(authenticatedCheckout).toBeGreaterThan(tokenCheck);
-    expect(openPr).toBeGreaterThan(authenticatedCheckout);
+    expect(dedicatedCheckout).toBeGreaterThan(tokenCheck);
+    expect(fallbackCheckout).toBeGreaterThan(dedicatedCheckout);
+    expect(openPr).toBeGreaterThan(fallbackCheckout);
     expect(workflow.slice(firstCheckout, tokenCheck)).not.toContain('token:');
-    expect(workflow.slice(authenticatedCheckout, openPr)).toContain(`token: ${tokenExpression}`);
+    const authenticatedPath = workflow.slice(tokenCheck, openPr);
+    expect(authenticatedPath).toContain("steps.release_token.outputs.source == 'release'");
+    expect(authenticatedPath).toContain("steps.release_token.outputs.source == 'tap'");
+    expect(authenticatedPath).toContain('token: ${{ secrets.RELEASE_TRAIN_TOKEN }}');
+    expect(authenticatedPath).toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
+    expect(authenticatedPath).not.toContain('token: ${{ steps.release_token.outputs');
+  });
+
+  test('release publication uses the probed source without moving secret values through outputs', () => {
+    const workflow = readWorkflow('release-train.yml');
+    const select = workflow.indexOf('- name: Select a working release-publication token');
+    const dedicatedCheckout = workflow.indexOf('- name: Authenticate release publication with the dedicated token');
+    const fallbackCheckout = workflow.indexOf('- name: Authenticate release publication with the fallback token');
+    const publish = workflow.indexOf('- name: Tag the merged bump and publish the Release');
+
+    expect(select).toBeGreaterThan(-1);
+    expect(dedicatedCheckout).toBeGreaterThan(select);
+    expect(fallbackCheckout).toBeGreaterThan(dedicatedCheckout);
+    expect(publish).toBeGreaterThan(fallbackCheckout);
+    const publicationPath = workflow.slice(select, publish);
+    expect(publicationPath).toContain("steps.release_token.outputs.source == 'release'");
+    expect(publicationPath).toContain("steps.release_token.outputs.source == 'tap'");
+    expect(publicationPath).toContain('token: ${{ secrets.RELEASE_TRAIN_TOKEN }}');
+    expect(publicationPath).toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
+    expect(publicationPath).not.toContain('token: ${{ steps.release_token.outputs');
+    expect(workflow.slice(publish)).toContain('export GH_TOKEN="$RELEASE_TRAIN_TOKEN"');
+    expect(workflow.slice(publish)).toContain('export GH_TOKEN="$HOMEBREW_TAP_TOKEN"');
   });
 
   test('release-triggered brew smoke waits for and resolves the exact formula version', () => {

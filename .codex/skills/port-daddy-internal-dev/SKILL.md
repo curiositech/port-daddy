@@ -748,6 +748,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** Brew formulas with frozen sha256 break for users; CI caches invalidate; users on the old tag see different code than users on the new one with the same tag string.
 **Fix:** Tags are immutable. If a release was wrong, ship `vX.Y.Z+1` with a CHANGELOG entry explaining the recall. Never `git push --force origin vX.Y.Z`.
 
+### Treating A Configured Release Token As A Working Token
+**Detection:** A workflow uses `${{ secrets.PREFERRED || secrets.FALLBACK }}` for a mutating checkout or `GH_TOKEN`, or validates only that a secret is non-empty.
+**Symptoms:** An expired or under-scoped preferred PAT masks a healthy fallback forever; retries fail at the same checkout before any release state changes.
+**Fix:** Probe the repository API with each candidate and require `.permissions.push == true`. Emit only a non-secret source identity, conditionally pass that source's literal secret to `actions/checkout`, select the same secret locally inside later mutation steps, and fail closed if neither probe passes. Never move a secret value through `GITHUB_OUTPUT`.
+**Why:** Presence is configuration evidence, not authorization evidence. The fallback decision must reflect the capability required by the exact mutation.
+
 ### Skipping `pd feedback` On Contributor Friction
 **Detection:** Internal contributor sessions end clean but the friction isn't recorded; the same friction visits the next contributor.
 **Symptoms:** "Why is this so hard" gets discovered repeatedly. The roadmap doesn't reflect the actual pain. Cartographer's priorities lag reality.
