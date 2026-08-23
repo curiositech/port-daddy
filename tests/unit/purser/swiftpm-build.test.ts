@@ -7,10 +7,26 @@ import os from 'os';
 // Resolve the directory of this test file in a module‑friendly way
 const testDir = new URL('.', import.meta.url).pathname;
 
+// tests/unit/purser -> tests/unit -> tests -> repo root. Three levels, not two:
+// two lands on <repo>/tests/apps/pd-ios, which does not exist, so every path
+// below resolved to nothing and the suite failed for a reason unrelated to the
+// package it is meant to be checking.
+const REPO_ROOT = path.join(testDir, '..', '..', '..');
+const PD_IOS = path.join(REPO_ROOT, 'apps', 'pd-ios');
+
+// The three build cases below shell out to xcodebuild, which exists only on
+// macOS. This repo's own ci.yml runs the pd-ios job on macos-latest for that
+// reason. On a Linux runner spawnSync cannot start the binary, so it returns
+// `error` set and stdout/stderr UNDEFINED — which is why asserting on
+// result.stderr reported "received value must be a string" rather than
+// anything about the package. Skip honestly instead of failing dishonestly.
+const hasXcodebuild = spawnSync('xcodebuild', ['-version'], { stdio: 'ignore' }).status === 0;
+const testIfXcode = hasXcodebuild ? test : test.skip;
+
 // Helper to run xcodebuild inside the apps/pd-ios directory
 function runXcodebuild(args: string[], env: Record<string, string> = {}): { stdout: string; stderr: string; status: number | null } {
   const result = spawnSync('xcodebuild', args, {
-    cwd: path.join(testDir, '..', '..', 'apps', 'pd-ios'),
+    cwd: PD_IOS,
     env: { ...process.env, ...env },
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -20,7 +36,7 @@ function runXcodebuild(args: string[], env: Record<string, string> = {}): { stdo
 
 describe('SwiftPM build harness for apps/pd-ios', () => {
   test('Package.swift exists and is a SwiftPM package', async () => {
-    const pkgPath = path.join(testDir, '..', '..', 'apps', 'pd-ios', 'Package.swift');
+    const pkgPath = path.join(PD_IOS, 'Package.swift');
     const pkgExists = await fs.access(pkgPath).then(() => true).catch(() => false);
     expect(pkgExists).toBe(true);
 
@@ -33,13 +49,15 @@ describe('SwiftPM build harness for apps/pd-ios', () => {
   });
 
   test('No .xcodeproj present in the pd-ios directory', async () => {
-    const dir = path.join(testDir, '..', '..', 'apps', 'pd-ios');
+    const dir = PD_IOS;
     const entries = await fs.readdir(dir, { withFileTypes: true });
-    const projFiles = entries.filter((e) => e.isFile() && e.name.endsWith('.xcodeproj'));
+    // An .xcodeproj is a DIRECTORY, not a file: filtering on isFile() made this
+    // assertion vacuous — it passed with an .xcodeproj sitting right there.
+    const projFiles = entries.filter((e) => e.name.endsWith('.xcodeproj'));
     expect(projFiles.length).toBe(0);
   });
 
-  test('xcodebuild can build the library target for iOS Simulator', () => {
+  testIfXcode('xcodebuild can build the library target for iOS Simulator', () => {
     // Build the library scheme
     const { status, stdout, stderr } = runXcodebuild(
       [
@@ -58,10 +76,10 @@ describe('SwiftPM build harness for apps/pd-ios', () => {
     expect(stdout).toMatch(/Build succeeded/);
   });
 
-  test('Build fails when the target is changed to an executable', async () => {
+  testIfXcode('Build fails when the target is changed to an executable', async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pd-ios-test-'));
     // Copy the original Package.swift
-    const srcPkg = path.join(testDir, '..', '..', 'apps', 'pd-ios', 'Package.swift');
+    const srcPkg = path.join(PD_IOS, 'Package.swift');
     const dstPkg = path.join(tmpDir, 'Package.swift');
     let content = await fs.readFile(srcPkg, 'utf8');
     // Replace library target with executableTarget
@@ -82,7 +100,7 @@ describe('SwiftPM build harness for apps/pd-ios', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  test('Build fails with malformed Package.swift', async () => {
+  testIfXcode('Build fails with malformed Package.swift', async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pd-ios-test-'));
     // Create a malformed Package.swift (missing package declaration)
     const malformed = `import PackageDescription\nlet package = Package(name: "Bad")`;
