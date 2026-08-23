@@ -1295,7 +1295,7 @@
     <div class="hero">
       <div class="wrap hero-grid">
         <div>
-          <span class="eyebrow">Roadmap of record · verified 2026-08-04</span>
+          <span class="eyebrow">Roadmap of record · runtime audit refreshed 2026-08-23</span>
           <h1>The machinery is built. It was never plugged in.</h1>
           <p class="lede">Salvage, checkpoints, transcripts, compaction, briefings, context economics, and subagent splitting are one system. They are waiting on one missing signal.</p>
 
@@ -1661,15 +1661,16 @@
     <section id="decisions">
       <div class="wrap">
         <div class="section-head">
-          <span class="eyebrow">Decisions required before lock-in</span>
-          <h2>Four questions block the implementation contract</h2>
+          <span class="eyebrow">Proposals ready for ratification</span>
+          <h2>Four answers, each with a ship gate</h2>
+          <p>These are proposed decisions, not claims that every adapter has shipped them. O1 and O2 now have a spawner-path proof; O3 and O4 remain explicit next work.</p>
         </div>
 
         <div class="decisions">
-          <article class="decision"><span class="decision-id">O1</span><p><strong>One episodic store.</strong> Confirm Tier A’s <code>episodic_memory</code> table as the store of record and port Tier B’s logic onto it. Two stores remain rejected.</p></article>
-          <article class="decision"><span class="decision-id">O2</span><p><strong>Envelope producer.</strong> Choose hook or harness self-report versus daemon estimate as the default. Both can coexist behind source and confidence fields.</p></article>
-          <article class="decision"><span class="decision-id">O3</span><p><strong>Build trigger.</strong> Decide whether eager tool2vec reconciliation runs during setup, daemon startup, on a schedule, or all three. It must stay incremental and resumable.</p></article>
-          <article class="decision"><span class="decision-id">O4</span><p><strong>Buffering default.</strong> Choose on-by-default output spill for every agent or opt-in behavior by compliance level.</p></article>
+          <article class="decision"><span class="decision-id">O1</span><p><strong>Proposed · one episodic projection.</strong> <code>episodic_memory</code> is the sole episodic read/write model; append-only <code>harbor_events</code> is its primary evidence. Reject a second episode table. <strong>Gate:</strong> rebuild episodes from cited events and prove there is only one production episodic writer.</p></article>
+          <article class="decision"><span class="decision-id">O2</span><p><strong>Proposed · both producers, daemon authority.</strong> Adapters report provider-native usage; the daemon estimates from persisted evidence; enforcement uses the higher value and exposes source, mode, confidence, and drift. <strong>Gate:</strong> a forced disagreement must drive the higher threshold through packet and FleetBar. Spawner proof exists; interactive Squid remains open.</p></article>
+          <article class="decision"><span class="decision-id">O3</span><p><strong>Proposed · one resumable reconciler.</strong> Setup starts the initial warm; daemon startup and a quiet scheduled tick invoke the same checkpointed content-hash reconciler. Boot never waits for the full catalog. <strong>Gate:</strong> kill mid-build, resume row-for-row, create no duplicate vectors, and report current / cold / embedder-down in Doctor.</p></article>
+          <article class="decision"><span class="decision-id">O4</span><p><strong>Proposed · spill on by default.</strong> Every daemon-supervised output gets a bounded inline preview plus a capability-scoped pointer with session, agent, partition, range, hash, and TTL caveats. Compliance changes caps, not whether safety exists. <strong>Gate:</strong> page a multi-megabyte result byte-identically, deny foreign/expired reads, and show an explicit truncated receipt when storage fails.</p></article>
         </div>
       </div>
     </section>
@@ -1678,7 +1679,7 @@
   <footer class="page-footer">
     <div class="wrap">
       <p class="mono">Port Daddy · Agent Harbor technical binder · chapter 27</p>
-      <p>Grounded in the chapter’s code audit and verified against this branch on 2026-08-04. The recursive-synthesis pass contributes W11–W16, and the competitor patterns above link to primary vendor documentation.</p>
+      <p>Grounded in the chapter’s code audit, refreshed against the runtime on 2026-08-23, and paired with the first witnessed context-envelope → verified-packet → continuation-receipt proof. The recursive-synthesis pass contributes W11–W16, and the competitor patterns above link to primary vendor documentation.</p>
     </div>
   </footer>
 

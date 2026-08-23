@@ -11,6 +11,7 @@ import type { IncomingMessage, ClientRequest } from 'node:http';
 import { DEFAULT_SOCK } from '../../shared/paths.js';
 import { maybeWarnNonProdPlane, isMutatingMethod, PLANE_PROBE_TIMEOUT_MS } from './plane-banner.js';
 import { resolveCliActorCredential } from './actor-credential.js';
+import { configuredDaemonUrl } from './remote-daemon.js';
 import { resolveDaemonTarget, resolveDaemonTcpTarget, resolvePublishedDaemonUrl } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
@@ -18,7 +19,7 @@ const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 // back to pdFetch(), which resolves the actual transport independently. Keep
 // the compatibility prefix empty unless the operator selected an explicit URL;
 // manufacturing a preferred-port URL here would reintroduce a port guess.
-const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL?.replace(/\/$/, '') ?? '';
+const PORT_DADDY_URL: string = configuredDaemonUrl(process.env)?.replace(/\/$/, '') ?? '';
 
 export { PORT_DADDY_URL, SOCK_PATH };
 
@@ -68,7 +69,7 @@ export function resolveTarget(): ConnectionTarget {
  */
 export function getDaemonUrl(): string {
   try {
-    return resolvePublishedDaemonUrl(process.env.PORT_DADDY_URL).replace(/\/$/, '');
+    return resolvePublishedDaemonUrl(configuredDaemonUrl(process.env)).replace(/\/$/, '');
   } catch {
     // Display callers may be initialized before the daemon publishes an
     // endpoint. Empty is fail-closed and avoids manufacturing a preferred port.
@@ -155,14 +156,15 @@ function isDaemonDownError(error: unknown): boolean {
 const DAEMON_RECONNECT_DELAYS_MS: readonly number[] = [200, 400, 800, 1500];
 
 function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResponse> {
+  const explicitUrl = configuredDaemonUrl(process.env);
   const target: ConnectionTarget = options.transport === 'tcp'
-    ? resolveDaemonTcpTarget(process.env.PORT_DADDY_URL)
+    ? resolveDaemonTcpTarget(explicitUrl)
     : resolveTarget();
   return requestTarget(target, path, options).catch((error: unknown) => {
-    if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
+    if (!target.socketPath || explicitUrl || !shouldFallbackFromSocket(error)) {
       throw error;
     }
-    const fallbackTarget = resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
+    const fallbackTarget = resolveDaemonTcpTarget(explicitUrl);
     return requestTarget(fallbackTarget, path, options);
   });
 }

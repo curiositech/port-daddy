@@ -138,6 +138,74 @@ describe('spawner ↔ transcripts integration', () => {
     expect(tx.outputs[0].type).toBe('message');
   });
 
+  it('feeds the persisted transcript and terminal context sample through Agent Harbor', async () => {
+    const harborBridge = {
+      registerNode: jest.fn(),
+      appendTranscriptEvent: jest.fn(() => 'evt-test'),
+      syncTranscript: jest.fn(() => 1),
+      recordContext: jest.fn(() => null),
+      runProbeAndRecord: jest.fn(async () => {}),
+    };
+    const spawner = createSpawner({
+      transcripts,
+      harborBridge,
+      costTracker: exactCostTracker(0.001),
+      enforceTelemetryPolicy: true,
+      runnerOverrides: {
+        claude: async () => ({
+          output: 'Witnessed output.',
+          error: null,
+          inputTokens: 100,
+          outputTokens: 50,
+        }),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      identity: 'port-daddy:test:harbor-wiring',
+      task: 'Prove the production bridge is called.',
+      ship: 'harbor-wiring',
+      workdir: '/workspace',
+    });
+
+    expect(result.status).toBe('completed');
+    const [row] = transcripts.listTranscripts({ ship: 'harbor-wiring' });
+    expect(harborBridge.registerNode).toHaveBeenCalledWith(
+      result.agentId,
+      'port-daddy:test:harbor-wiring',
+      expect.any(Number),
+    );
+    expect(harborBridge.syncTranscript).toHaveBeenCalledWith(result.agentId, row.id);
+    expect(harborBridge.appendTranscriptEvent).toHaveBeenCalledWith(
+      result.agentId,
+      'session_started',
+      expect.any(Number),
+      expect.objectContaining({ transcriptId: row.id, sourceAdapter: 'claude' }),
+    );
+    expect(harborBridge.appendTranscriptEvent).toHaveBeenCalledWith(
+      result.agentId,
+      'session_end',
+      expect.any(Number),
+      expect.objectContaining({ transcriptId: row.id, status: 'completed' }),
+    );
+    expect(harborBridge.recordContext).toHaveBeenCalledWith(expect.objectContaining({
+      agentNodeId: result.agentId,
+      sessionId: result.agentId,
+      runId: row.id,
+      transcriptId: row.id,
+      sourceAdapter: 'claude',
+      model: 'claude-haiku-4-5',
+      daemonUsedTokensEstimate: 150,
+      adapterUsedTokensEstimate: 150,
+      project: 'port-daddy',
+      projectDir: '/workspace',
+      workdir: '/workspace',
+    }));
+    expect(harborBridge.runProbeAndRecord).toHaveBeenCalledWith(result.agentId);
+  });
+
   it('passes a completed backend when exact telemetry stays under budget', async () => {
     const costTracker = exactCostTracker(0.0125);
     const spawner = createSpawner({
