@@ -1012,7 +1012,8 @@ export async function runPurser(
       );
       if (
         !verifiedReuse.ok &&
-        (verifiedReuse.kind === 'incompatible-runner' ||
+        (verifiedReuse.kind === 'syntax-error' ||
+          verifiedReuse.kind === 'incompatible-runner' ||
           verifiedReuse.kind === 'unresolved-import' ||
           verifiedReuse.kind === 'undiscoverable-path')
       ) {
@@ -1436,7 +1437,8 @@ export async function runPurser(
     const authoredRepairPaths = new Set<string>();
     while (
       !executability.ok &&
-      (executability.kind === 'unresolved-import' ||
+      (executability.kind === 'syntax-error' ||
+        executability.kind === 'unresolved-import' ||
         executability.kind === 'incompatible-runner') &&
       executability.path &&
       authoredRepairPaths.size < MAX_PLANNED_FILES &&
