@@ -112,7 +112,8 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('smokeSelfHostedDaemon');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
-    expect(buildScript).toContain('DYLD_FALLBACK_LIBRARY_PATH');
+    expect(buildScript).toContain('prepareOnnxRuntimeNativeBinding');
+    expect(buildScript).not.toContain('DYLD_FALLBACK_LIBRARY_PATH');
     expect(buildScript).toContain('LD_LIBRARY_PATH');
     expect(buildScript).toContain("run('cc'");
     expect(buildScript).toContain('execv(target, child_argv)');
