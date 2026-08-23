@@ -4769,6 +4769,7 @@ dependencies = [
  "futures-util",
  "gpui",
  "loro",
+ "pd-anchor",
  "portable-pty",
  "proptest",
  "reqwest",

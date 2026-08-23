@@ -10,6 +10,7 @@ import {
   nativeLoaderEnvironment,
   packageOnnxRuntimeNative,
   parseSemanticRuntimeProof,
+  prepareOnnxRuntimeNativeBinding,
 } from './lib/onnx-runtime-native.mjs';
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -137,9 +138,17 @@ function smokeSemanticRuntime(nativeRuntime) {
 
 const bunVersion = run('bun', ['--version']).trim();
 mkdirSync(DIST_DIR, { recursive: true });
+const onnxRuntimeBinding = prepareOnnxRuntimeNativeBinding({
+  repoRoot: ROOT_DIR,
+  platform: platform(),
+  arch: arch(),
+});
 const onnxRuntimeNative = packageOnnxRuntimeNative({
   repoRoot: ROOT_DIR,
-  outputRoot: join(ROOT_DIR, 'dist'),
+  // The binding's macOS rpath is executable-relative. Keep the daemon-only
+  // build's cargo beside dist/daemon/port-daddy-daemon; the separately shipped
+  // single binary stages its own cargo beside dist/port-daddy.
+  outputRoot: DIST_DIR,
   platform: platform(),
   arch: arch(),
 });
@@ -166,6 +175,7 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   bunVersion,
   resourceRootEnv: 'PORT_DADDY_RESOURCE_DIR',
   sqliteBackend: 'bun:sqlite',
+  onnxRuntimeBinding,
   onnxRuntimeNative,
   smoke: smoke ? {
     status: smoke.daemon.health.status,

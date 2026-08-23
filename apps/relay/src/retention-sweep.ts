@@ -25,6 +25,7 @@
 
 import type { Env } from './types.js';
 import { DIRECTORY_SIGNAL_RETENTION_DAYS } from './directory.js';
+import { ROADMAP_ACTIVITY_CAP } from './roadmap-mirror.js';
 
 const DAY_SECONDS = 24 * 60 * 60;
 const ERASURE_HARD_DELETE_DAYS = 30;
@@ -68,6 +69,9 @@ export interface SweepResult {
   // operators, and every derived signal is retention-bounded.
   directoryDelistDropped: number;
   directorySignalsPruned: number;
+  // Roadmap mirror (operator mandate 2026-08-22): the activity TAIL is capped
+  // per (user, repo); the mirrors themselves persist (state, not history).
+  roadmapActivityPruned: number;
   errors: string[];
 }
 
@@ -228,6 +232,29 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     'capability_index(retention)',
   );
 
+  // R-RM — roadmap-mirror activity cap (operator mandate 2026-08-22): ingest
+  // already keeps only the newest ROADMAP_ACTIVITY_CAP rows per (user, repo);
+  // the sweep RE-ENFORCES that invariant so no code path (a crash between
+  // writes, a future bug) can leave an unbounded activity table behind. The
+  // mirror headers/items/edges are deliberately NOT retention-pruned: they are
+  // current state, replaced wholesale on the next push — never history.
+  const roadmapActivityPruned = await deleteWhere(
+    env.DB,
+    `DELETE FROM roadmap_mirror_activity
+      WHERE (user_id, repo_full_name, at, slug, kind) IN (
+        SELECT user_id, repo_full_name, at, slug, kind FROM (
+          SELECT user_id, repo_full_name, at, slug, kind,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY user_id, repo_full_name
+                   ORDER BY at DESC, slug DESC, kind DESC
+                 ) AS rn
+            FROM roadmap_mirror_activity)
+         WHERE rn > ?)`,
+    [ROADMAP_ACTIVITY_CAP],
+    errors,
+    'roadmap_mirror_activity(cap)',
+  );
+
   // R2 — reap expired web sessions (bounded growth; not a security fix).
   const sessionsReaped = await deleteOlderThan(
     env.DB,
@@ -286,6 +313,24 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
   ]) {
     await deleteOlderThan(env.DB, sql, erasureHorizon, errors, 'snipe(erased)');
   }
+  // Defensive, same shape as the shipwright guard above: eraseUser already
+  // purged the account's roadmap mirror at delete time; these catch rows a
+  // soft-deleted user somehow still owns so the FK-referencing hard delete
+  // below can never fail or orphan mirror content.
+  for (const table of [
+    'roadmap_mirror_items',
+    'roadmap_mirror_edges',
+    'roadmap_mirror_activity',
+    'roadmap_mirrors',
+  ]) {
+    await deleteOlderThan(
+      env.DB,
+      `DELETE FROM ${table} WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+      erasureHorizon,
+      errors,
+      `${table}(erased)`,
+    );
+  }
   const usersHardDeleted = await deleteOlderThan(
     env.DB,
     'DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?',
@@ -310,6 +355,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     suggestionJobsPruned,
     directoryDelistDropped,
     directorySignalsPruned,
+    roadmapActivityPruned,
     errors,
   };
 }

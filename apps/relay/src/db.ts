@@ -837,6 +837,13 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   // keep publishing a directory of its owner's skills for the next 30 days.
   // Keyed by login, not users.id: the namespace IS the login (seamanship.ts).
   if (login) await db.prepare('DELETE FROM skill_listings WHERE namespace = ?').bind(login).run();
+  // Roadmap mirrors are the account's own pushed roadmap replicas (ADR-0101
+  // Critical-2 delete control, team tier) — all four tables die NOW too. The
+  // daemon keeps its local source of record; only the cloud replica is erased.
+  await db.prepare('DELETE FROM roadmap_mirror_items WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM roadmap_mirror_edges WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM roadmap_mirror_activity WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM roadmap_mirrors WHERE user_id = ?').bind(userId).run();
   await db
     .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
     .bind(now, userId)

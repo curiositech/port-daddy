@@ -980,7 +980,10 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command secret secrets" -l json -d 'Output JSON'
 
     # roadmap
-    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims delete rm" -a "ack harvest promote upsert add touch render pop release claims delete rm" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims delete rm chomp import-markdown" -a "ack harvest promote upsert add touch render pop release claims delete rm chomp import-markdown" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from chomp" -l dry-run -d 'Explicit preview (the default without --emit-pr-plan)'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from chomp" -l emit-pr-plan -x -d 'Write via the daemon and emit snapshot + receipt + git-rm list + PR body'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from chomp" -l enrich -d 'Polish summaries through the configured LLM backend'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l write -d 'Write docs/ROADMAP.md to disk'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l rootDir -x -d 'Project directory whose docs/ROADMAP.md to update'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l status -x -a 'now backlog parked merge done all' -d 'Status filter'
