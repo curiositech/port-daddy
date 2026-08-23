@@ -8,7 +8,7 @@
  * supervise a local process.
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { DatabaseInstance } from './sqlite-runtime.js';
 import {
   COORDINATION_MAX_HLC_COUNTER,
@@ -35,6 +35,7 @@ const MIN_SYNC_INTERVAL_MS = 500;
 const MAX_SYNC_INTERVAL_MS = 60_000;
 const OUTBOX_BATCH_SIZE = 256;
 const MAX_SYNC_PAGES = 20;
+const MAX_SYNC_BODY_BYTES = 1024 * 1024;
 
 interface SessionsReplicaApi {
   list(options?: Record<string, unknown>): Record<string, unknown>;
@@ -59,7 +60,7 @@ export interface CoordinationPeerConfig {
   url: string;
   project: string;
   actorId: string;
-  /** Unique daemon/process replica. Defaults to actorId for compatibility. */
+  /** Unique daemon replica. Generated once and persisted with the local outbox when omitted. */
   replicaId?: string;
   macaroon: string;
   intervalMs?: number;
@@ -155,6 +156,22 @@ function lockEntityId(name: string): string {
   return `lock-${digest(name).slice(0, 40)}`;
 }
 
+function replicatedLockLocalKey(project: string, name: string): string {
+  return `coordination:${digest(project).slice(0, 16)}:${name}`;
+}
+
+function isReplicatedLockProjection(
+  metadata: Record<string, unknown> | null,
+  project: string,
+  name: string,
+  entityId: string,
+): boolean {
+  return metadata?.replicated === true &&
+    metadata.identityProject === project &&
+    metadata.coordinationLockName === name &&
+    metadata.coordinationEntityId === entityId;
+}
+
 function safeMetadata(value: unknown): Record<string, unknown> | null {
   return asRecord(value);
 }
@@ -225,7 +242,7 @@ export function coordinationPeerConfigFromEnv(
     url: parsed.toString().replace(/\/$/, ''),
     project,
     actorId,
-    replicaId: replicaId ?? actorId,
+    ...(replicaId ? { replicaId } : {}),
     macaroon,
     intervalMs,
   };
@@ -251,7 +268,7 @@ export class CoordinationPeer {
     this.locks = deps.locks;
     this.config = {
       ...deps.config,
-      replicaId: deps.config.replicaId ?? deps.config.actorId,
+      replicaId: deps.config.replicaId ?? '',
       intervalMs: deps.config.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS,
     };
     this.fetchImpl = deps.fetch ?? globalThis.fetch;
@@ -304,9 +321,40 @@ export class CoordinationPeer {
         // HLC order carries capture causality (session before its notes/claims),
         // including rows created in the same millisecond. SQL's op-id tie-break
         // is deterministic but not causal (`note` sorts before `session`).
-        const operations = outboxRows
+        const candidates = outboxRows
           .map((row) => JSON.parse(row.operation_json) as CoordinationOperation)
           .sort(compareOperations);
+        const envelopeReplicaId = candidates[0]?.replicaId ?? this.config.replicaId;
+        const envelopeActorId = candidates[0]?.actorId ?? this.config.actorId;
+        if (envelopeActorId !== this.config.actorId) {
+          throw new Error('persisted coordination outbox belongs to another authorized actor');
+        }
+        const operations: CoordinationOperation[] = [];
+        let requestBody = JSON.stringify({
+          replicaId: envelopeReplicaId,
+          actorId: envelopeActorId,
+          since: state.cursor,
+          operations,
+        });
+        for (const operation of candidates) {
+          // A legacy outbox may contain a prior replica envelope. Drain each
+          // contiguous replica independently instead of making the room reject
+          // the whole persisted batch after a restart/configuration repair.
+          if (operation.replicaId !== envelopeReplicaId || operation.actorId !== envelopeActorId) break;
+          const next = [...operations, operation];
+          const serialized = JSON.stringify({
+            replicaId: envelopeReplicaId,
+            actorId: envelopeActorId,
+            since: state.cursor,
+            operations: next,
+          });
+          if (new TextEncoder().encode(serialized).byteLength > MAX_SYNC_BODY_BYTES) break;
+          operations.push(operation);
+          requestBody = serialized;
+        }
+        if (candidates.length > 0 && operations.length === 0) {
+          throw new Error('oldest coordination operation cannot fit in the 1 MiB sync envelope');
+        }
         const endpoint = `${this.config.url}/v1/coordination/${encodeURIComponent(this.config.project)}/sync`;
         const response = await this.fetchImpl(endpoint, {
           method: 'POST',
@@ -314,12 +362,7 @@ export class CoordinationPeer {
             'Authorization': `Macaroon ${this.config.macaroon}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            replicaId: this.config.replicaId,
-            actorId: this.config.actorId,
-            since: state.cursor,
-            operations,
-          }),
+          body: requestBody,
         });
         if (!response.ok) {
           throw new Error(`coordination sync ${response.status}: ${(await response.text()).slice(0, 300)}`);
@@ -329,7 +372,7 @@ export class CoordinationPeer {
           result,
           new Set(operations.map((operation) => operation.opId)),
         );
-        if (!result.hasMore) break;
+        if (result.pending.length > 0 || (!result.hasMore && operations.length === 0)) break;
       }
       this.connected = true;
       this.lastSyncAt = this.now();
@@ -352,6 +395,7 @@ export class CoordinationPeer {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS coordination_peer_state (
         project TEXT PRIMARY KEY,
+        replica_id TEXT,
         cursor INTEGER NOT NULL DEFAULT 0,
         hlc_wall INTEGER NOT NULL DEFAULT 0,
         hlc_counter INTEGER NOT NULL DEFAULT 0,
@@ -387,11 +431,44 @@ export class CoordinationPeer {
         UNIQUE (project, kind, entity_id)
       );
     `);
+    const stateColumns = this.db.prepare('PRAGMA table_info(coordination_peer_state)').all() as Array<{ name: string }>;
+    if (!stateColumns.some((column) => column.name === 'replica_id')) {
+      this.db.exec('ALTER TABLE coordination_peer_state ADD COLUMN replica_id TEXT');
+    }
+    let persistedReplica = this.db.prepare(`
+      SELECT replica_id FROM coordination_peer_state WHERE project = ?
+    `).get(this.config.project) as { replica_id: string | null } | undefined;
+    let replicaId = persistedReplica?.replica_id ?? null;
+    if (!replicaId) {
+      const legacy = this.db.prepare(`
+        SELECT operation_json FROM coordination_peer_outbox
+        WHERE project = ? ORDER BY created_at ASC, op_id ASC LIMIT 1
+      `).get(this.config.project) as { operation_json: string } | undefined;
+      try {
+        const operation = legacy ? JSON.parse(legacy.operation_json) as CoordinationOperation : null;
+        if (operation && isCoordinationScopeId(operation.replicaId)) replicaId = operation.replicaId;
+      } catch {
+        // A malformed legacy row is handled by sync; it must not make schema
+        // initialization invent a second identity for otherwise valid rows.
+      }
+    }
+    replicaId ??= this.config.replicaId || `peer-${randomBytes(12).toString('hex')}`;
     this.db.prepare(`
       INSERT OR IGNORE INTO coordination_peer_state
-        (project, cursor, hlc_wall, hlc_counter, updated_at)
-      VALUES (?, 0, 0, 0, ?)
-    `).run(this.config.project, this.now());
+        (project, replica_id, cursor, hlc_wall, hlc_counter, updated_at)
+      VALUES (?, ?, 0, 0, 0, ?)
+    `).run(this.config.project, replicaId, this.now());
+    this.db.prepare(`
+      UPDATE coordination_peer_state SET replica_id = ?, updated_at = ?
+      WHERE project = ? AND replica_id IS NULL
+    `).run(replicaId, this.now(), this.config.project);
+    persistedReplica = this.db.prepare(`
+      SELECT replica_id FROM coordination_peer_state WHERE project = ?
+    `).get(this.config.project) as { replica_id: string | null };
+    if (!persistedReplica.replica_id || !isCoordinationScopeId(persistedReplica.replica_id)) {
+      throw new Error('coordination peer has an invalid persisted replica identity');
+    }
+    this.config.replicaId = persistedReplica.replica_id;
   }
 
   private state(): { cursor: number; hlc_wall: number; hlc_counter: number } {
@@ -442,6 +519,12 @@ export class CoordinationPeer {
       `).all(this.config.project, kind) as Array<{ local_key: string; entity_id: string }>;
       for (const row of rows) {
         if (seen.get(kind)?.has(row.local_key)) continue;
+        if (kind === 'lock') {
+          const projected = this.db.prepare('SELECT metadata FROM locks WHERE name = ?').get(row.local_key) as
+            | { metadata: string | null }
+            | undefined;
+          if (parseStoredMetadata(projected?.metadata ?? null)?.replicated === true) continue;
+        }
         const current = this.version(kind, row.entity_id);
         if (!current || current.mutation === 'remove') continue;
         this.appendLocalOperation(kind, row.entity_id, 'remove', null);
@@ -528,6 +611,9 @@ export class CoordinationPeer {
       const lock = asRecord(raw);
       if (!lock || typeof lock.name !== 'string' || typeof lock.owner !== 'string') continue;
       const metadata = safeMetadata(lock.metadata);
+      if (metadata?.replicated === true) continue;
+      const expiresAt = numberOrNull(lock.expiresAt);
+      if (expiresAt === null) continue;
       let lockProject = typeof metadata?.identityProject === 'string' ? metadata.identityProject : null;
       if (!lockProject) {
         const agent = this.db.prepare('SELECT identity_project FROM agents WHERE id = ?').get(lock.owner) as
@@ -540,7 +626,7 @@ export class CoordinationPeer {
         name: lock.name,
         owner: lock.owner,
         acquiredAt: numberOrNull(lock.acquiredAt) ?? this.now(),
-        expiresAt: numberOrNull(lock.expiresAt),
+        expiresAt,
         metadata,
       };
       entities.push({ kind: 'lock', localKey: lock.name, entityId: lockEntityId(lock.name), value });
@@ -816,7 +902,11 @@ export class CoordinationPeer {
       `).run(this.config.project, operation.entityId);
       return;
     }
-    if (session.status !== 'active') throw new Error(`replicated claim session ${claim.sessionId} is not active`);
+    // A session completion and an earlier claim can legally cross during a
+    // partition. The completed session is authoritative for local visibility;
+    // retain the CRDT version and advance the cursor so the later tombstone is
+    // still reachable instead of poisoning this page forever.
+    if (session.status !== 'active') return;
     const result = claim.symbolPath || (claim.startLine !== null && claim.endLine !== null)
       ? this.sessions.claimFiles(claim.sessionId, [], {
           regions: [{
@@ -842,30 +932,75 @@ export class CoordinationPeer {
   ): void {
     const lock = value ?? previous;
     if (!lock) return;
-    const existing = this.db.prepare('SELECT owner, metadata FROM locks WHERE name = ?').get(lock.name) as
-      | { owner: string; metadata: string | null }
-      | undefined;
-    if (existing) {
-      const metadata = parseStoredMetadata(existing.metadata);
-      let identityProject = typeof metadata?.identityProject === 'string' ? metadata.identityProject : null;
-      if (!identityProject) {
-        const owner = this.db.prepare('SELECT identity_project FROM agents WHERE id = ?').get(existing.owner) as
-          | { identity_project: string | null }
-          | undefined;
-        identityProject = owner?.identity_project ?? null;
-      }
-      if (identityProject !== null && identityProject !== this.config.project) {
-        throw new Error(`replicated lock ${lock.name} collides with another project`);
+    const storedBinding = this.db.prepare(`
+      SELECT local_key FROM coordination_peer_bindings
+      WHERE project = ? AND kind = 'lock' AND entity_id = ?
+    `).get(this.config.project, operation.entityId) as { local_key: string } | undefined;
+    const projectedKey = replicatedLockLocalKey(this.config.project, lock.name);
+    // Old prerelease builds bound replicated leases directly to their human
+    // lock names. Never trust that legacy mapping for mutation: it may now
+    // point at an unrelated machine-local exclusion row.
+    let binding = storedBinding &&
+      (storedBinding.local_key === projectedKey || storedBinding.local_key.startsWith(`${projectedKey}:`))
+      ? storedBinding
+      : undefined;
+    if (binding) {
+      const existing = this.db.prepare('SELECT metadata FROM locks WHERE name = ?').get(binding.local_key) as
+        | { metadata: string | null }
+        | undefined;
+      if (existing && !isReplicatedLockProjection(
+        parseStoredMetadata(existing.metadata),
+        this.config.project,
+        lock.name,
+        operation.entityId,
+      )) {
+        // A machine-local lock can deliberately or accidentally occupy a
+        // projection-shaped name. A stale binding is never proof of ownership.
+        binding = undefined;
       }
     }
-    if (operation.mutation === 'remove' || (lock.expiresAt !== null && lock.expiresAt <= this.now())) {
-      this.db.prepare('DELETE FROM locks WHERE name = ?').run(lock.name);
+    if (storedBinding && !binding) {
+      this.db.prepare(`
+        DELETE FROM coordination_peer_bindings
+        WHERE project = ? AND kind = 'lock' AND entity_id = ?
+      `).run(this.config.project, operation.entityId);
+    }
+    if (operation.mutation === 'remove' || lock.expiresAt <= this.now()) {
+      if (binding) this.db.prepare('DELETE FROM locks WHERE name = ?').run(binding.local_key);
       this.db.prepare(`
         DELETE FROM coordination_peer_bindings WHERE project = ? AND kind = 'lock' AND entity_id = ?
       `).run(this.config.project, operation.entityId);
       return;
     }
-    const metadata = { ...(lock.metadata ?? {}), identityProject: this.config.project, replicated: true };
+    let localKey = binding?.local_key;
+    if (!localKey) {
+      const entitySuffix = digest(operation.entityId).slice(0, 12);
+      for (let attempt = 0; attempt < 64; attempt += 1) {
+        const candidate = attempt === 0
+          ? projectedKey
+          : `${projectedKey}:${entitySuffix}${attempt === 1 ? '' : `:${attempt}`}`;
+        const existing = this.db.prepare('SELECT metadata FROM locks WHERE name = ?').get(candidate) as
+          | { metadata: string | null }
+          | undefined;
+        if (!existing || isReplicatedLockProjection(
+          parseStoredMetadata(existing.metadata),
+          this.config.project,
+          lock.name,
+          operation.entityId,
+        )) {
+          localKey = candidate;
+          break;
+        }
+      }
+      if (!localKey) throw new Error(`no safe local projection slot for replicated lock ${operation.entityId}`);
+    }
+    const metadata = {
+      ...(lock.metadata ?? {}),
+      identityProject: this.config.project,
+      replicated: true,
+      coordinationLockName: lock.name,
+      coordinationEntityId: operation.entityId,
+    };
     this.db.prepare(`
       INSERT INTO locks (name, owner, pid, acquired_at, expires_at, metadata)
       VALUES (?, ?, NULL, ?, ?, ?)
@@ -875,9 +1010,9 @@ export class CoordinationPeer {
         acquired_at = excluded.acquired_at,
         expires_at = excluded.expires_at,
         metadata = excluded.metadata
-    `).run(lock.name, lock.owner, lock.acquiredAt, lock.expiresAt, JSON.stringify(metadata));
+    `).run(localKey, lock.owner, lock.acquiredAt, lock.expiresAt, JSON.stringify(metadata));
     const localValue = { ...lock, metadata };
-    this.bind('lock', lock.name, operation.entityId, entityFingerprint('lock', localValue));
+    this.bind('lock', localKey, operation.entityId, entityFingerprint('lock', localValue));
   }
 }
 

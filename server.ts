@@ -1584,6 +1584,22 @@ await registerAllRoutes(
   { pheromones, sessions, db },
 );
 
+// Read-only local readiness proof for cloud sandboxes. The macaroon never
+// leaves the daemon process; bootstrap code can still verify that its `pd
+// begin` operation received a durable room acknowledgement (outbox drained)
+// and was observed back through the room cursor.
+app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
+  enabled: false,
+  connected: false,
+  project: null,
+  actorId: null,
+  replicaId: null,
+  cursor: 0,
+  outbox: 0,
+  lastSyncAt: null,
+  lastError: null,
+});
+
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
 // =============================================================================

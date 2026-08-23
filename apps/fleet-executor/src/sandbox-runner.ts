@@ -390,6 +390,24 @@ function cloudPeerClientEnv(): Record<string, string> {
   };
 }
 
+function cloudPeerConvergenceProbeCommand(): string {
+  const script = [
+    `const url = 'http://127.0.0.1:${CLOUD_PEER_PORT}/coordination/status';`,
+    'let attempts = 0;',
+    'const poll = async () => {',
+    '  try {',
+    '    const response = await fetch(url);',
+    '    const status = await response.json();',
+    '    if (response.ok && status.connected === true && status.outbox === 0 && status.cursor > 0) process.exit(0);',
+    '  } catch {}',
+    "  if (++attempts >= 60) { console.error('coordination peer did not durably converge'); process.exit(1); }",
+    '  setTimeout(poll, 250);',
+    '};',
+    'void poll();',
+  ].join('\n');
+  return `node -e ${shq(script)}`;
+}
+
 function buildRunnerScript(
   files: ReadonlyArray<Pick<StackedFile, 'path'>>,
   testCommand: string | undefined,
@@ -629,6 +647,16 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         return notExecuted(
           'cloud pd daemon started but its coordination session could not begin',
           combinedOutput(beginResult),
+        );
+      }
+      const convergenceResult = await sandbox.exec(cloudPeerConvergenceProbeCommand(), {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerClientEnv(),
+      });
+      if (!execPassed(convergenceResult)) {
+        return notExecuted(
+          'cloud pd daemon started but its coordination session was not durably acknowledged by the room',
+          combinedOutput(convergenceResult),
         );
       }
     }

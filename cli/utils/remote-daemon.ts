@@ -1,7 +1,12 @@
 /** Safety policy for daemon-unavailable recovery. */
 
+/** Resolve the explicit daemon URL aliases with the documented PD_URL precedence. */
+export function configuredDaemonUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.PD_URL?.trim() || env.PORT_DADDY_URL?.trim() || undefined;
+}
+
 export function hasExplicitDaemonEndpoint(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.PD_URL || env.PORT_DADDY_URL || env.PORT_DADDY_PROFILE);
+  return Boolean(configuredDaemonUrl(env) || env.PORT_DADDY_PROFILE?.trim());
 }
 
 export function isLoopbackDaemonUrl(targetUrl: string): boolean {

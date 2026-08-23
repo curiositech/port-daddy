@@ -1,4 +1,5 @@
 import {
+  configuredDaemonUrl,
   configuredDaemonUnavailableMessage,
   hasExplicitDaemonEndpoint,
   isLoopbackDaemonUrl,
@@ -24,6 +25,14 @@ describe('remote daemon recovery boundary', () => {
     expect(hasExplicitDaemonEndpoint({ PORT_DADDY_URL: 'https://pd.example' })).toBe(true);
     expect(hasExplicitDaemonEndpoint({ PORT_DADDY_PROFILE: 'cloud' })).toBe(true);
     expect(hasExplicitDaemonEndpoint({ PORT_DADDY_SKIP_FRESHNESS_CHECK: '1' })).toBe(false);
+  });
+
+  test('PD_URL is the transport alias of record and wins over PORT_DADDY_URL', () => {
+    expect(configuredDaemonUrl({ PD_URL: ' https://peer.example ', PORT_DADDY_URL: 'http://local.invalid' }))
+      .toBe('https://peer.example');
+    expect(configuredDaemonUrl({ PORT_DADDY_URL: ' http://127.0.0.1:9877 ' }))
+      .toBe('http://127.0.0.1:9877');
+    expect(configuredDaemonUrl({ PD_URL: '   ' })).toBeUndefined();
   });
 
   test('loopback recognition is strict and unavailable copy promises no local replacement', () => {

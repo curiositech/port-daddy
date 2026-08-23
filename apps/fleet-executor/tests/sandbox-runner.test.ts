@@ -208,7 +208,7 @@ describe('runTestsInSandbox', () => {
       sandboxBinding: {
         async exec(value: string, received?: Record<string, unknown>) {
           execCalls.push({ command: value, options: received });
-          return execCalls.length === 4
+          return execCalls.length === 5
             ? { exitCode: 0, stdout: `${TEST_STARTED_MARKER}\n${jestSummary()}`, stderr: '' }
             : { exitCode: 0, stdout: '', stderr: '' };
         },
@@ -242,6 +242,9 @@ describe('runTestsInSandbox', () => {
     expect(execCalls[1].command).toContain('npm run build:bin');
     expect(execCalls[2].command).toContain('./dist/port-daddy begin');
     expect(execCalls[2].command).toContain('--lifecycle durable');
+    expect(execCalls[3].command).toContain('/coordination/status');
+    expect(execCalls[3].command).toContain('status.outbox === 0');
+    expect(execCalls[3].command).toContain('status.cursor > 0');
     expect(execCalls.every(call => !call.command.includes('scoped-macaroon'))).toBe(true);
     expect(
       execCalls.every(call => !JSON.stringify(call.options ?? {}).includes('scoped-macaroon')),
@@ -297,7 +300,7 @@ describe('runTestsInSandbox', () => {
       sandboxBinding: {
         async exec() {
           calls += 1;
-          if (calls === 4) throw new Error('sandbox test transport lost');
+          if (calls === 5) throw new Error('sandbox test transport lost');
           return { exitCode: 0 };
         },
         async startProcess() {

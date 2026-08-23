@@ -750,6 +750,11 @@ exclusive machine-local locks never move to the cloud.
 Treat logical replicated leases as visibility, not proof of mutual exclusion.
 During a partition two peers can both make progress; after reconnect the HLC
 fold chooses the displayed lease while distinct claims union without loss.
+Remote leases use ownership-verified coordination projection names and choose a
+collision-safe fallback slot when a machine-local lock already occupies one, so
+they cannot overwrite or release machine-local exclusion locks. A replica id
+belongs to the durable local ledger/outbox rather than one process lifetime;
+never rotate it during a restart with pending operations.
 
 An explicitly selected `PORT_DADDY_URL`, `PD_URL`, or daemon profile is an
 operator-selected peer boundary. If that peer is unavailable, the CLI reports

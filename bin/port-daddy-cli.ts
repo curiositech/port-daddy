@@ -182,6 +182,7 @@ import {
 } from '../cli/utils/freshness.js';
 import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
 import {
+  configuredDaemonUrl,
   configuredDaemonUnavailableMessage,
   hasExplicitDaemonEndpoint,
   shouldAutoStartLocalDaemon,
@@ -196,7 +197,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destruc
 import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
-const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const PORT_DADDY_URL: string = getDaemonTcpUrl(configuredDaemonUrl(process.env));
 // Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
@@ -374,12 +375,12 @@ function printLaunchHints(hints: {
  * Resolve connection target: Unix socket or TCP.
  */
 function resolveTarget(): ConnectionTarget {
+  const explicitUrl = configuredDaemonUrl(process.env);
+  if (explicitUrl) {
+    return resolveDaemonTcpTarget(explicitUrl);
+  }
   if (process.env.PORT_DADDY_FORCE_TCP === '1') {
     return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
-  }
-  // Explicit TCP URL overrides socket
-  if (process.env.PORT_DADDY_URL) {
-    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   // Use socket if it exists
   if (existsSync(SOCK_PATH)) {
