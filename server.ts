@@ -61,6 +61,7 @@ import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
+import { DaemonRelayConnection } from './lib/relay-connection.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
@@ -641,6 +642,17 @@ const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedbac
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
+// Relay connection lifecycle (ADR-0049). Replaces the honest-disconnected
+// stub: the daemon now runs the real outbound handshake + SSE loop from
+// lib/relay-connection.ts when a relay_url is configured, and the status
+// surface reports the live state of that loop — connected only while the
+// relay has an accepted stream open. Signing stays inside harbor-tokens
+// (signHex): the connection holds a signing capability, never the key.
+const relayConnection = new DaemonRelayConnection({
+  db,
+  logger,
+  signer: (msgHex) => harborTokens.signHex(msgHex),
+});
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 
@@ -1513,22 +1525,24 @@ await registerAllRoutes(
     daemonBerth: DAEMON_BERTH,
     plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
-    // Relay (ADR-0049) connection status. The daemon does not yet start the
-    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
-    // reports "not connected" — `pd relay status` shows disconnected even when
-    // a relay_url is configured. When the SSE manager is wired, replace this
-    // with the manager's live status getter.
-    getRelayStatus: () => ({
-      connected: false,
-      session_id: null,
-      last_handshake: null as number | null,
-      accepted_channels: [] as string[],
-      relay_version: null as string | null,
-    }),
+    // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
+    // `connected` is true only while the relay has an accepted SSE stream
+    // open to this daemon (lib/relay-connection.ts flips it on the stream's
+    // open signal and off on any error/close), so `pd relay status` reports
+    // evidence, never intent.
+    getRelayStatus: () => relayConnection.getStatus(),
+    // Lets a runtime config write (POST /relay/config) or a fresh card
+    // (POST /relay/exchange) take effect without a daemon restart.
+    notifyRelayConfigChanged: () => relayConnection.restart(),
   },
   arbiter,
   { pheromones, sessions, db },
 );
+
+// Start the outbound relay lifecycle after routes exist: a no-op when
+// relay_url is unconfigured (state: disabled — no loop spins against
+// nothing), the real handshake + SSE + backoff loop when it is.
+relayConnection.start();
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
@@ -1633,6 +1647,9 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  // Drop the relay stream before closing the DB: a stopping daemon must not
+  // advertise (or hold) a live federation link.
+  try { relayConnection.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}

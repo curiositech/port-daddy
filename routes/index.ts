@@ -168,6 +168,9 @@ export async function registerAllRoutes(
           accepted_channels: [],
           relay_version: null,
         })),
+      // Optional: server.ts supplies this so a runtime relay config write or a
+      // freshly exchanged card restarts the live connection lifecycle.
+      onConfigChanged: (deps as { notifyRelayConfigChanged?: () => void }).notifyRelayConfigChanged,
     },
   } as any);
 

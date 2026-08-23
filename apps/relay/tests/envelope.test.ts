@@ -305,6 +305,26 @@ describe('envelope schema v1 — rejects the third state', () => {
       expect((e as EnvelopeClassificationError).code).toBe('BAD_SEALED');
     }
   });
+
+  it('accepts xchacha20-poly1305 — the daemon seal path revision — in schema AND classifier', () => {
+    // Premise: the fixture is aes-256-gcm, so this test actually exercises the
+    // OTHER member of the closed set rather than revalidating the fixture.
+    expect(sealedFixture.alg).toBe('aes-256-gcm');
+    const vaultSealed = { ...clone(sealedFixture), alg: 'xchacha20-poly1305' } as Record<string, unknown>;
+    expect(validate(vaultSealed)).toEqual([]);
+    expect(() => classifyEnvelope(vaultSealed)).not.toThrow();
+  });
+
+  it('still rejects any alg outside the closed set (the set widened, it did not open)', () => {
+    const unknownAlg = { ...clone(sealedFixture), alg: 'rot13' } as Record<string, unknown>;
+    expect(validate(unknownAlg)).not.toEqual([]);
+    try {
+      classifyEnvelope(unknownAlg);
+      expect.unreachable('classifyEnvelope must throw');
+    } catch (e) {
+      expect((e as EnvelopeClassificationError).code).toBe('BAD_SEALED');
+    }
+  });
 });
 
 describe('assertClassified — regression pin on the pre-N1 shape', () => {

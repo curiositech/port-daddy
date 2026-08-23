@@ -73,8 +73,15 @@ interface EnvelopeCommon {
 
 export interface SealedEnvelope extends EnvelopeCommon {
   classification: 'sealed';
-  /** AEAD algorithm — closed set in v1; additions are schema revisions, never silent. */
-  alg: 'aes-256-gcm';
+  /**
+   * AEAD algorithm — closed set in v1; additions are schema revisions, never
+   * silent. `xchacha20-poly1305` is the DELIBERATE addition of the daemon
+   * seal path slice (A3): it is what the pd-vault kernel implements and what
+   * the shared parity vectors (tests/fixtures/pd-vault-parity-vectors.json)
+   * pin, so the publisher's sealed envelopes name the algorithm that actually
+   * sealed them. `aes-256-gcm` remains from the schema's first revision.
+   */
+  alg: 'aes-256-gcm' | 'xchacha20-poly1305';
   /** Key epoch under the account-KMS hierarchy: rotation advances the epoch without re-keying history. */
   epoch: number;
   /** Base64URL AEAD nonce, unique per (key, epoch). */
@@ -182,8 +189,8 @@ export function classifyEnvelope(input: unknown): RelayEnvelopeV1 {
   }
 
   if (classification === 'sealed') {
-    if (e.alg !== 'aes-256-gcm') {
-      fail('BAD_SEALED', 'sealed envelope.alg must be aes-256-gcm (v1 closed set)');
+    if (e.alg !== 'aes-256-gcm' && e.alg !== 'xchacha20-poly1305') {
+      fail('BAD_SEALED', 'sealed envelope.alg must be aes-256-gcm or xchacha20-poly1305 (v1 closed set)');
     }
     if (typeof e.epoch !== 'number' || !Number.isInteger(e.epoch) || e.epoch < 0) {
       fail('BAD_SEALED', 'sealed envelope.epoch must be an integer >= 0');
@@ -255,7 +262,7 @@ export function tryDecodeTransitEnvelope(transit: string): RelayEnvelopeV1 | nul
 // ── Envelope signing ─────────────────────────────────────────────────────────
 //
 // Binding: sha256 over the LENGTH-PREFIXED join of the routing tuple and a
-// content hash. Two properties are load-bearing here, and both were found
+// content hash. Two properties keep this binding sound, and both were found
 // false in an earlier draft of this file by direct probe rather than by
 // reading:
 //
