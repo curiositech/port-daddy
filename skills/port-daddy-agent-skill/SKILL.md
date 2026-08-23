@@ -921,6 +921,21 @@ section in `references/cli-reference.md` for the full surface.
 When done with the popped item: `pd roadmap release <slug>`. Letting a
 `--begin`-linked session end naturally also releases the claim.
 
+### Ingesting planning docs: `pd roadmap chomp`
+
+When the operator hands you a markdown planning document, do not leave it
+as a doc — chomp it: `pd roadmap chomp <doc.md…>` parses headings into a
+project→epic→story→task hierarchy, checklists into tasks, and explicit
+"depends on / blocked by / requires" phrasing into dependencies. The
+default run is a preview of the exact item tree; the only write path is
+`pd roadmap chomp <doc.md…> --emit-pr-plan <dir>`, which upserts through
+the daemon (idempotent; never clobbers rows enriched since the first
+chomp) and emits the doc-removal PR artifacts: the regenerated roadmap
+snapshot, a `chomp-receipt.json` work receipt, a `git rm` list, and a
+ready PR body. Filing that PR — items in, source docs deleted — is your
+explicit act, never automatic. The legacy `pd roadmap import-markdown`
+is an alias that chomps the three canonical curated piles.
+
 ## Actor Roster (universal Port Daddy concepts)
 
 Port Daddy exposes a small set of durable actor inboxes. They are roles,

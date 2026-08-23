@@ -257,12 +257,21 @@ export function verifyCoreSchema(db: DatabaseInstance): void {
   }
   // Column sentinels: the ALTER blocks are warn-and-continue, so probe their
   // target columns directly (ADR-0086 planner columns via `kind`; soft-delete
-  // tombstones via `deleted_at`; Jira-grade item columns via `tags_json`).
+  // tombstones via `deleted_at`; Jira-grade item columns via `tags_json`;
+  // derived-item provenance via `source_refs_json`). Each ALTER block has its
+  // own sentinel, so each needs its own probe — `source_refs_json` landed
+  // after the seven planner columns and is added by a separate guarded ALTER,
+  // so `kind` being present proves nothing about it. Without this probe a DB
+  // whose provenance ALTER failed boots "verified" and then fails EVERY
+  // roadmap write with `no such column: source_refs_json`.
   if (!missing.includes('roadmap_items')) {
     const cols = db.prepare('PRAGMA table_info(roadmap_items)').all() as Array<{ name: string }>;
     if (!cols.some((c) => c.name === 'kind')) missing.push('roadmap_items.kind');
     if (!cols.some((c) => c.name === 'deleted_at')) missing.push('roadmap_items.deleted_at');
     if (!cols.some((c) => c.name === 'tags_json')) missing.push('roadmap_items.tags_json');
+    if (!cols.some((c) => c.name === 'source_refs_json')) {
+      missing.push('roadmap_items.source_refs_json');
+    }
   }
   if (missing.length > 0) {
     throw new Error(
@@ -463,6 +472,11 @@ export const CORE_SCHEMA_SQL = `
     tags_json TEXT NOT NULL DEFAULT '[]',
     actual INTEGER,
     completed_at INTEGER,
+    -- Provenance of derived items (JSON array). Populated by ingestion paths
+    -- (e.g. pd roadmap chomp) with the source documents + commit SHA a row
+    -- was derived from, so an item outlives the planning doc it came from.
+    -- Named to converge with the roadmap-item enrichment fields program.
+    source_refs_json TEXT,
     -- Soft-delete tombstone. The registry is a multi-replica system reconciled
     -- by union-merge (scripts/registry-reunify.ts); a hard DELETE in one
     -- replica silently resurrects from any replica still carrying the row.
@@ -797,6 +811,12 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     }
     db.prepare('CREATE INDEX IF NOT EXISTS idx_roadmap_items_kind_priority ON roadmap_items(kind, priority)').run();
     db.prepare('CREATE INDEX IF NOT EXISTS idx_roadmap_items_assignee ON roadmap_items(assignee_id)').run();
+    // source_refs_json landed after the seven planner columns, so it needs its
+    // own sentinel: a DB migrated by an older daemon has `kind` but not this.
+    const hasSourceRefs = roadmapColumns.some(column => column.name === 'source_refs_json');
+    if (!hasSourceRefs) {
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN source_refs_json TEXT').run();
+    }
   } catch (err) {
     console.warn(
       `[port-daddy] WARNING: Could not migrate roadmap_items planner columns: ${(err as Error).message}`
