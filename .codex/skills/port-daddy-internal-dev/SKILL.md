@@ -207,6 +207,7 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | Surface | ADR | Edit these together |
 |---|---|---|
 | **Relay** — cross-machine pub/sub | `docs/adr/0049-relay-architecture.md` | Worker `apps/relay/` (D1 schema `apps/relay/schema.sql`, `wrangler.toml`) · daemon routes `routes/relay.ts` · outbound SSE `lib/relay-client.ts` · CLI `cli/commands/relay.ts` · MCP `relay_status` in `mcp/server.ts` |
+| **Cloud coordination peer** — offline-first CRDT federation | `docs/adr/0092-suggestibility-ladder-and-cloud-coordination-federation.md` §4 | shared wire/fold `lib/coordination-ledger.ts` · local SQLite outbox/importer `lib/coordination-peer.ts` · relay DO/auth/routes `apps/relay/src/coordination-{room,auth}.ts`, `coordination.ts` · real sandbox daemon `apps/fleet-executor/src/sandbox-runner.ts` · compiled acceptance smoke `scripts/smoke-coordination-peer.sh` |
 | **Dispatch** — autonomous feature-dev queue | ADR-0035 | `cli/commands/dispatch.ts` (+ deprecated alias `cli/commands/nightshift.ts`) · `lib/dispatch/{runner,spawn-adapter,queue,state-machine}.ts` · `routes/dispatches.ts` · `pd review` · `docs/proposals/pd-nightshift.md` | <!-- cite-exempt: illustrative role/template path -->
 | **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) | <!-- cite-exempt: illustrative role/template path -->
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
@@ -240,6 +241,18 @@ Contributor gotchas specific to these:
   feature rows carry `_note` fields explaining intentionally-omitted routes
   (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
   those notes accurate when you add or remove a route.
+- **A coordination Durable Object is a peer, not the commit point for local
+  work.** Never put a network await on the local claim/note/session/lease write
+  path. Persist a local outbox first, acknowledge an operation only after the
+  DO alarm flush made it durable, require contiguous pull cursors, and keep the
+  sender retrying anything merely buffered. The DO hot path must not call
+  `storage.put` per operation; model it on HarborChannel/HarborQuota and prove
+  zero request-path writes plus one alarm-batch write.
+- **Remote-daemon selection forbids local substitution.** An explicit URL or
+  profile that refuses a connection must not enter direct-DB mode and must not
+  auto-start a local daemon. Squid's generated hook gate uses bounded remote
+  health for that explicit peer; only the implicit local daemon uses local
+  ready/PID/heartbeat files. Preserve both sides in tests.
 
 ### Rust surfaces — the kernel IS landed; ADR-0120 is the boundary rule
 
