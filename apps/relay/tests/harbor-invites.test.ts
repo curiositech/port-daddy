@@ -675,6 +675,53 @@ describe('POST /v1/harbors/:ns/:name/join', () => {
     expect(state.invites[0]!.consumed_by).toBe(winner);
   });
 
+  it('join vs revoke race: two concurrent operations on ONE live invite — exactly one wins', async () => {
+    const invite = await mintInvite(env); // minted by bob
+    // Premise: one live invite — unconsumed AND unrevoked — carol is not yet
+    // a member, and epoch is 2. Either racer's CAS is legal to win from here.
+    expect(state.invites).toHaveLength(1);
+    expect(state.invites[0]!.consumed_at).toBeNull();
+    expect(state.invites[0]!.revoked_at).toBeNull();
+    expect(state.memberships.some((m) => m.member_id === 'u_carol')).toBe(false);
+    expect(await epochOf(env)).toBe(2);
+
+    // The consume CAS (join) and the revoke CAS race the same row: both gate
+    // on `consumed_at IS NULL AND revoked_at IS NULL`, so at most one of the
+    // two UPDATEs can match once the other has landed.
+    const [joinRes, revokeRes] = await Promise.all([
+      handleJoinHarbor(
+        req('/v1/harbors/alice/dock/join', { method: 'POST', token: CAROL_TOKEN, body: { token: invite.token } }),
+        env, 'alice', 'dock',
+      ),
+      handleRevokeHarborInvite(
+        req(`/v1/harbors/alice/dock/invites/${invite.jti}/revoke`, { method: 'POST', token: BOB_TOKEN }),
+        env, 'alice', 'dock', invite.jti,
+      ),
+    ]);
+
+    if (joinRes.status === 201) {
+      // Join won the row: carol's membership landed, the epoch ticked once,
+      // and revoke's CAS found the invite already closed — 409, not 200.
+      expect(revokeRes.status).toBe(409);
+      expect(((await revokeRes.json()) as { code: string }).code).toBe('ALREADY_CONSUMED');
+      expect(state.memberships.filter((m) => m.member_id === 'u_carol')).toHaveLength(1);
+      expect(await epochOf(env)).toBe(3);
+      expect(state.invites[0]!.consumed_by).toBe('u_carol');
+      expect(state.invites[0]!.revoked_at).toBeNull(); // the revoke never landed
+    } else {
+      // Revoke won the row: the invite closed before join's CAS could claim
+      // it, so join gets the ordinary byte-identical 404 — no membership
+      // change, no epoch tick, nothing consumed.
+      expect(revokeRes.status).toBe(200);
+      expect(joinRes.status).toBe(404);
+      expect(((await joinRes.json()) as { code: string }).code).toBe('NOT_FOUND');
+      expect(state.memberships.some((m) => m.member_id === 'u_carol')).toBe(false);
+      expect(await epochOf(env)).toBe(2);
+      expect(state.invites[0]!.consumed_at).toBeNull(); // the join never landed
+      expect(state.invites[0]!.revoked_by).toBe('u_bob');
+    }
+  });
+
   it('an expired invite joins like no invite at all — premise-asserted live otherwise', async () => {
     const invite = await mintInvite(env);
     const row = state.invites.find((i) => i.jti === invite.jti)!;
