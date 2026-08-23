@@ -72,6 +72,7 @@ import {
 } from './proposals.js';
 import {
   createOrUpdateBranch,
+  fetchRepoTreePaths,
   openStackedPr,
   GitHubApiError,
 } from './stacked-pr.js';
@@ -92,6 +93,12 @@ import {
   type NoUsableOutputReason,
 } from './usable-output.js';
 import { renderFindingsComment } from './findings-render.js';
+import {
+  auditFindings,
+  auditProposals,
+  renderCitationAuditNote,
+  type CitationEvidence,
+} from './citation-audit.js';
 import {
   captureProposals,
   ensureIdeasTable,
@@ -2109,6 +2116,36 @@ async function runShip(
       // with valid files, the ship's own code is branched from the PR HEAD and
       // opened as a PR based on the PR's head branch. At most ONE stack PR per
       // ship per run; every failure mode degrades to a transcript note.
+      // Citation audit (2026-08-23): proposal evidence arrays were the one
+      // fleet output nothing validated, and the measured result was findings
+      // "grounded" in csp-validator.ts, path-validator.ts, cli/visibility.py —
+      // files that exist on no ref. Path-shaped evidence must resolve at the
+      // PR head; concepts pass untouched; a proposal with ONLY fabricated
+      // evidence is withheld, visibly.
+      let proposalAuditNote = '';
+      if (curated && curated.length > 0) {
+        const treePaths = await headTreePathsFor(prCtx.owner, prCtx.repo, prCtx.headSha, token);
+        const citationEvidence: CitationEvidence = {
+          treePaths,
+          changedPaths: new Set(prCtx.files.map(f => f.filename)),
+        };
+        const audit = auditProposals(curated, citationEvidence);
+        if (audit.audited && (audit.dropped.length > 0 || audit.strippedFrom.length > 0)) {
+          for (const d of [...audit.dropped, ...audit.strippedFrom]) {
+            console.warn(
+              `[fleet-executor] pd-${ship.name}: fabricated evidence path(s) ` +
+                `${d.missing.join(', ')} on proposal "${d.title}"`,
+            );
+          }
+          await transcript.step('ship-citation-audit', ship.name,
+            `pd-${ship.name}: withheld ${audit.dropped.length} proposal(s), stripped fabricated ` +
+              `evidence from ${audit.strippedFrom.length}`,
+            { dropped: audit.dropped, stripped: audit.strippedFrom },
+          );
+          proposalAuditNote = renderCitationAuditNote([], audit.dropped);
+          curated = audit.kept;
+        }
+      }
       const stackedPr =
         curated && curated.length > 0
           ? await maybeStackProposal(ship, prCtx, curated, env, token, transcript, runId, squidConsent)
@@ -2128,7 +2165,8 @@ async function runShip(
       // malformed (null) → post the raw output so the model's prose isn't lost,
       // and record the ship as BROKEN rather than laundering it into a PASS.
       const malformed = proposals === null;
-      const body = rendered || (malformed ? output : '');
+      const renderedWithAudit = rendered ? rendered + proposalAuditNote : proposalAuditNote.trim() ? proposalAuditNote.trimStart() : '';
+      const body = renderedWithAudit || (malformed ? output : '');
 
       await transcript.step(
         malformed ? 'ship-finding' : 'ship-verdict',
@@ -2211,7 +2249,7 @@ async function runShip(
     // backstop that can eat correct output is not worth having.
     const changedPaths = new Set(prCtx.files.map(f => f.filename));
     const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
-    const findings =
+    const scopeFiltered =
       parsedFindings === null || !fileListTrustworthy
         ? parsedFindings
         : parsedFindings.filter(f => {
@@ -2223,6 +2261,27 @@ async function runShip(
             );
             return false;
           });
+
+    // Citation audit (2026-08-23) — the second layer, for exactly the case the
+    // scope filter fails open on: a possibly-truncated /files list. A finding
+    // whose cited path exists neither in the diff NOR anywhere in the head
+    // tree is not about this repository; it is withheld and named as such in
+    // the posted comment, so the reviewer's defect stays legible instead of
+    // shipping with a one-click issue button pointing at a fabricated file.
+    let findings = scopeFiltered;
+    let findingsAuditNote = '';
+    if (scopeFiltered !== null && scopeFiltered.length > 0 && !fileListTrustworthy) {
+      const treePaths = await headTreePathsFor(prCtx.owner, prCtx.repo, prCtx.headSha, token);
+      const audit = auditFindings(scopeFiltered, { treePaths, changedPaths });
+      if (audit.audited && audit.rejected.length > 0) {
+        await transcript.step('ship-citation-audit', ship.name,
+          `pd-${ship.name}: withheld ${audit.rejected.length} finding(s) citing nonexistent paths`,
+          { rejected: audit.rejected.map(f => `${f.path}:${f.line}`) },
+        );
+        findingsAuditNote = renderCitationAuditNote(audit.rejected.map(f => f.path), []);
+        findings = audit.kept;
+      }
+    }
 
     // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
     // marker (the ship produced output we couldn't parse); a parsed block is a
@@ -2253,7 +2312,7 @@ async function runShip(
             repo: prCtx.repo,
             prNumber: prCtx.prNumber,
             shipName: ship.name,
-          });
+          }) + findingsAuditNote;
 
     await postShipComment(
       prCtx.owner,
@@ -2864,6 +2923,34 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText 
  * bind one to the other, and attributing a snippet to the wrong path is the
  * natural outcome rather than an unlucky one.
  */
+/**
+ * Head-tree paths for the citation audit, memoized per (owner/repo@sha).
+ *
+ * One recursive trees call serves every ship in a run — and, in a warm Worker
+ * isolate, every re-delivery for the same head. Bounded so a long-lived
+ * isolate cannot hoard trees; insertion order is eviction order, which is
+ * enough when the working set is "the PRs currently being reviewed".
+ */
+const headTreeMemo = new Map<string, Set<string> | null>();
+const HEAD_TREE_MEMO_CAP = 8;
+
+export async function headTreePathsFor(
+  owner: string,
+  repo: string,
+  sha: string,
+  token: string,
+): Promise<Set<string> | null> {
+  const key = `${owner}/${repo}@${sha}`;
+  if (headTreeMemo.has(key)) return headTreeMemo.get(key) ?? null;
+  const paths = await fetchRepoTreePaths(owner, repo, sha, token);
+  if (headTreeMemo.size >= HEAD_TREE_MEMO_CAP) {
+    const oldest = headTreeMemo.keys().next().value;
+    if (oldest !== undefined) headTreeMemo.delete(oldest);
+  }
+  headTreeMemo.set(key, paths);
+  return paths;
+}
+
 export function filesInChunk(diffChunk: string): string[] {
   const out = new Set<string>();
   // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
