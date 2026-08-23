@@ -22,6 +22,18 @@ import type { ThreadDigest } from '../../lib/discourse-lineage.js';
 
 const PRODUCED_AT = 1_800_000_000_000;
 
+function automaticProducer(checkpoint: ParleyCheckpoint) {
+  return {
+    conversation: CONFLICT_SIGNAL_PRODUCERS.conversationConflict,
+    claim: CONFLICT_SIGNAL_PRODUCERS.claimConflict,
+    session_begin: CONFLICT_SIGNAL_PRODUCERS.sessionBeginConvergence,
+    session_takeover: CONFLICT_SIGNAL_PRODUCERS.sessionTakeoverConflict,
+    continuation_accept: CONFLICT_SIGNAL_PRODUCERS.continuationConflict,
+    quorum_vote: CONFLICT_SIGNAL_PRODUCERS.quorumVoteConflict,
+    guard_receipt: CONFLICT_SIGNAL_PRODUCERS.guardReceiptConflict,
+  }[checkpoint];
+}
+
 function autoSignal(overrides: Partial<ConflictSignal> = {}): ConflictSignal {
   const signal: ConflictSignal = {
     schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
@@ -36,7 +48,7 @@ function autoSignal(overrides: Partial<ConflictSignal> = {}): ConflictSignal {
     reason: 'two live claims resolve to the same symbol',
     evidenceRefs: ['claim:a', 'claim:b'],
     provenance: {
-      producer: CONFLICT_SIGNAL_PRODUCERS.parleyAutoTrigger,
+      producer: CONFLICT_SIGNAL_PRODUCERS.claimConflict,
       trustTier: 'INTERNAL',
       producedAt: PRODUCED_AT,
     },
@@ -45,6 +57,11 @@ function autoSignal(overrides: Partial<ConflictSignal> = {}): ConflictSignal {
 
   return {
     ...signal,
+    provenance: overrides.provenance ?? {
+      producer: automaticProducer(signal.checkpoint),
+      trustTier: 'INTERNAL',
+      producedAt: PRODUCED_AT,
+    },
     signalId: overrides.signalId ?? conflictSignalId({
       checkpoint: signal.checkpoint,
       kind: signal.kind,
@@ -91,10 +108,11 @@ describe('ConflictSignal lifecycle contract', () => {
     expect(PARLEY_CHECKPOINTS).toEqual([
       'conversation',
       'claim',
-      'decision',
-      'wave',
-      'precommit',
-      'handoff',
+      'session_begin',
+      'session_takeover',
+      'continuation_accept',
+      'quorum_vote',
+      'guard_receipt',
     ]);
     expect(CONFLICT_SIGNAL_KINDS).toEqual([
       'conversational_contradiction',
@@ -121,7 +139,7 @@ describe('ConflictSignal lifecycle contract', () => {
       'surface',
     ]);
     expect(signal.provenance).toEqual({
-      producer: 'port-daddy:parley-auto-trigger',
+      producer: 'port-daddy:claim-conflict',
       trustTier: 'INTERNAL',
       producedAt: PRODUCED_AT,
     });
@@ -134,9 +152,9 @@ describe('ConflictSignal lifecycle contract', () => {
   }>([
     { kind: 'conversational_contradiction', checkpoint: 'conversation', shape: 'debate-with-judge' },
     { kind: 'claim_overlap', checkpoint: 'claim', shape: 'contract-net' },
-    { kind: 'decision_contradiction', checkpoint: 'decision', shape: 'debate-with-judge' },
-    { kind: 'task_convergence', checkpoint: 'wave', shape: 'contract-net' },
-    { kind: 'semantic_surface_conflict', checkpoint: 'precommit', shape: 'debate-with-judge' },
+    { kind: 'decision_contradiction', checkpoint: 'quorum_vote', shape: 'debate-with-judge' },
+    { kind: 'task_convergence', checkpoint: 'session_begin', shape: 'contract-net' },
+    { kind: 'semantic_surface_conflict', checkpoint: 'session_takeover', shape: 'debate-with-judge' },
   ])('admits $kind at the $checkpoint checkpoint as $shape', ({ kind, checkpoint, shape }) => {
     const decision = shouldConvene(
       autoSignal({ kind, checkpoint, shape }),
@@ -303,6 +321,21 @@ describe('immutable checkpoint policy', () => {
     expect(decision.policyCleared).toBe(true);
     expect(decision.convene).toBe(true);
   });
+
+  test('rejects an allowlisted internal producer at the wrong lifecycle checkpoint', () => {
+    const signal = autoSignal({
+      provenance: {
+        producer: CONFLICT_SIGNAL_PRODUCERS.quorumVoteConflict,
+        trustTier: 'INTERNAL',
+        producedAt: PRODUCED_AT,
+      },
+    });
+    const decision = shouldConvene(signal, { mode: 'automatic' });
+
+    expect(decision.policyCleared).toBe(false);
+    expect(decision.convene).toBe(false);
+    expect(decision.reason).toMatch(/not allowed for automatic claim evaluation/);
+  });
 });
 
 describe('evaluation mode boundary', () => {
@@ -318,21 +351,16 @@ describe('evaluation mode boundary', () => {
     expect(automatic.reason).toMatch(/not allowed for automatic/);
   });
 
-  test('automatic mode ignores caller costs and max-limit overrides', () => {
-    const decision = shouldConvene(autoSignal(), {
-      mode: 'automatic',
-      costs: { wastePerUnresolved: 0, parleyCost: 100 },
-      limits: {
-        priorRounds: 1,
-        maxRounds: 1,
-        delegationDepth: 4,
-        maxDelegationDepth: 0,
-      },
-    });
-    expect(decision.expectedWaste).toBe(1.9);
-    expect(decision.margin).toBeCloseTo(0.9);
-    expect(decision.terminated).toBeNull();
-    expect(decision.convene).toBe(true);
+  test.each([
+    ['costs', { mode: 'automatic', costs: { wastePerUnresolved: 0, parleyCost: 100 } }],
+    ['round counters', { mode: 'automatic', limits: { priorRounds: 2 } }],
+    ['delegation counters', { mode: 'automatic', limits: { delegationDepth: 5 } }],
+    ['undefined override fields', { mode: 'automatic', costs: undefined, limits: undefined }],
+  ])('automatic mode fails closed on caller-supplied %s', (_name, options) => {
+    const decision = shouldConvene(autoSignal(), options as ParleyEvaluationOptions);
+    expect(decision.policyCleared).toBe(false);
+    expect(decision.convene).toBe(false);
+    expect(decision.reason).toMatch(/automatic evaluation does not accept/);
   });
 
   test('diagnostic mode applies explicit cost and max-limit overrides', () => {
@@ -486,7 +514,7 @@ describe('fail-closed runtime validation', () => {
 });
 
 describe('economics and hard termination', () => {
-  test('uses signal confidence as pFail and magnitude as unresolved count', () => {
+  test('uses the uncalibrated confidence proxy and magnitude in the bootstrap heuristic', () => {
     const decision = shouldConvene(
       autoSignal({ magnitude: 3, confidence: 0.8 }),
       { mode: 'automatic' },
@@ -508,20 +536,20 @@ describe('economics and hard termination', () => {
     expect(decision.convene).toBe(false);
   });
 
-  test('hard-terminates at the automatic max rounds regardless of overrides', () => {
-    const decision = shouldConvene(autoSignal({ magnitude: 100, confidence: 1 }), {
-      mode: 'automatic',
-      limits: { priorRounds: 2, maxRounds: 99 },
+  test('hard-terminates diagnostic evaluation at the server max rounds', () => {
+    const decision = shouldConvene(diagnosticSignal(), {
+      mode: 'diagnostic',
+      limits: { priorRounds: 2 },
     });
     expect(decision.convene).toBe(false);
     expect(decision.terminated).toBe('max-rounds');
     expect(decision.reason).toMatch(/max 2/);
   });
 
-  test('hard-terminates excessive automatic delegation depth regardless of overrides', () => {
-    const decision = shouldConvene(autoSignal({ magnitude: 100, confidence: 1 }), {
-      mode: 'automatic',
-      limits: { delegationDepth: 5, maxDelegationDepth: 99 },
+  test('hard-terminates diagnostic evaluation at the server delegation depth', () => {
+    const decision = shouldConvene(diagnosticSignal(), {
+      mode: 'diagnostic',
+      limits: { delegationDepth: 5 },
     });
     expect(decision.convene).toBe(false);
     expect(decision.terminated).toBe('delegation-depth');

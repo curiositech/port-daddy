@@ -24,6 +24,7 @@ import type Database from 'better-sqlite3';
 export interface Tuple {
   id: number;
   harbor: string | null;
+  idempotencyKey: string | null;
   fields: unknown[];
   writtenBy: string | null;
   createdAt: number;
@@ -37,6 +38,29 @@ export interface TuplePollResult {
 
 type TupleSubscriberCallback = (tuple: Tuple) => void;
 
+export const MAX_TUPLE_IDEMPOTENCY_KEY_CHARS = 256;
+
+interface TupleWriteOptions {
+  harbor?: string;
+  writtenBy?: string;
+  ttlMs?: number;
+}
+
+interface TupleOutOnceOptions extends TupleWriteOptions {
+  idempotencyKey: string;
+}
+
+interface TupleKeyOptions {
+  harbor?: string;
+  /** Compare-and-delete guard for callers releasing an observed reservation. */
+  expectedTupleId?: number;
+}
+
+function canonicalHarbor(harbor: string | null | undefined): string | null {
+  const normalized = harbor?.trim();
+  return normalized ? normalized : null;
+}
+
 export function createTupleSpace(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS tuples (
@@ -45,28 +69,64 @@ export function createTupleSpace(db: Database.Database) {
       fields TEXT NOT NULL,
       written_by TEXT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      expires_at INTEGER
+      expires_at INTEGER,
+      idempotency_key TEXT
     )
   `);
 
+  const tupleColumns = db.prepare('PRAGMA table_info(tuples)').all() as Array<{ name: string }>;
+  if (!tupleColumns.some((column) => column.name === 'idempotency_key')) {
+    db.exec('ALTER TABLE tuples ADD COLUMN idempotency_key TEXT');
+  }
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_harbor ON tuples(harbor)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_expires ON tuples(expires_at)`);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_tuples_harbor_idempotency
+    ON tuples(COALESCE(harbor, ''), idempotency_key)
+    WHERE idempotency_key IS NOT NULL
+  `);
 
   const insertStmt = db.prepare(
-    'INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at, idempotency_key) VALUES (?, ?, ?, ?, ?, NULL)'
   );
+  const insertOnceStmt = db.prepare(`
+    INSERT OR IGNORE INTO tuples
+      (harbor, fields, written_by, created_at, expires_at, idempotency_key)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  const findOnceStmt = db.prepare(`
+    SELECT * FROM tuples
+    WHERE COALESCE(harbor, '') = ?
+      AND idempotency_key = ?
+      AND (expires_at IS NULL OR expires_at > ?)
+    LIMIT 1
+  `);
+  const deleteExpiredOnceStmt = db.prepare(`
+    DELETE FROM tuples
+    WHERE COALESCE(harbor, '') = ?
+      AND idempotency_key = ?
+      AND expires_at IS NOT NULL
+      AND expires_at <= ?
+  `);
+  const deleteOnceByIdStmt = db.prepare(`
+    DELETE FROM tuples
+    WHERE COALESCE(harbor, '') = ?
+      AND idempotency_key = ?
+      AND id = ?
+  `);
   const deleteStmt = db.prepare('DELETE FROM tuples WHERE id = ?');
-  const cleanupStmt = db.prepare('DELETE FROM tuples WHERE expires_at IS NOT NULL AND expires_at < ?');
+  const cleanupStmt = db.prepare('DELETE FROM tuples WHERE expires_at IS NOT NULL AND expires_at <= ?');
   const subscribers = new Map<number, {
     pattern: unknown[];
-    harbor?: string;
+    harbor?: string | null;
     callback: TupleSubscriberCallback;
   }>();
   let nextSubscriberId = 1;
 
   function notifySubscribers(tuple: Tuple): void {
     for (const sub of subscribers.values()) {
-      if (sub.harbor && sub.harbor !== tuple.harbor) continue;
+      if (sub.harbor !== undefined && sub.harbor !== tuple.harbor) continue;
       if (!matchesPattern(tuple.fields, sub.pattern)) continue;
       try {
         sub.callback(tuple);
@@ -79,13 +139,14 @@ export function createTupleSpace(db: Database.Database) {
   /** Write a tuple to the space. */
   function out(
     fields: unknown[],
-    options?: { harbor?: string; writtenBy?: string; ttlMs?: number }
+    options?: TupleWriteOptions,
   ): Tuple {
     const now = Date.now();
     const expiresAt = options?.ttlMs ? now + options.ttlMs : null;
+    const harbor = canonicalHarbor(options?.harbor);
 
     const result = insertStmt.run(
-      options?.harbor ?? null,
+      harbor,
       JSON.stringify(fields),
       options?.writtenBy ?? null,
       now,
@@ -94,7 +155,8 @@ export function createTupleSpace(db: Database.Database) {
 
     const tuple = {
       id: result.lastInsertRowid as number,
-      harbor: options?.harbor ?? null,
+      harbor,
+      idempotencyKey: null,
       fields,
       writtenBy: options?.writtenBy ?? null,
       createdAt: now,
@@ -102,6 +164,94 @@ export function createTupleSpace(db: Database.Database) {
     };
     notifySubscribers(tuple);
     return tuple;
+  }
+
+  /**
+   * Atomically reserve one durable tuple per canonical harbor + key.
+   * Expired rows are removed in the same SQLite write transaction before the
+   * reservation. Replays return the original tuple without replacing payload.
+   */
+  function outOnce(
+    fields: unknown[],
+    options: TupleOutOnceOptions,
+  ): { tuple: Tuple; inserted: boolean } {
+    const idempotencyKey = validatedIdempotencyKey(options?.idempotencyKey, 'outOnce');
+
+    const reserve = db.transaction(() => {
+      const now = Date.now();
+      const harbor = canonicalHarbor(options.harbor);
+      const harborKey = harbor ?? '';
+      deleteExpiredOnceStmt.run(harborKey, idempotencyKey, now);
+      const expiresAt = options.ttlMs ? now + options.ttlMs : null;
+      const insert = insertOnceStmt.run(
+        harbor,
+        JSON.stringify(fields),
+        options.writtenBy ?? null,
+        now,
+        expiresAt,
+        idempotencyKey,
+      );
+      const row = findOnceStmt.get(harborKey, idempotencyKey, now) as TupleRow | undefined;
+      if (!row) throw new Error('tuple.outOnce: reservation could not be read back');
+      return { tuple: rowToTuple(row), inserted: insert.changes === 1 };
+    });
+
+    const result = reserve.immediate();
+    if (result.inserted) notifySubscribers(result.tuple);
+    return result;
+  }
+
+  function validatedIdempotencyKey(value: unknown, operation: string): string {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`tuple.${operation}: idempotencyKey is required`);
+    }
+    const key = value.trim();
+    if (key.length > MAX_TUPLE_IDEMPOTENCY_KEY_CHARS) {
+      throw new Error(
+        `tuple.${operation}: idempotencyKey exceeds ${MAX_TUPLE_IDEMPOTENCY_KEY_CHARS} characters`,
+      );
+    }
+    return key;
+  }
+
+  /** Indexed O(1) lookup by the same canonical harbor + key used by outOnce. */
+  function getByIdempotencyKey(
+    value: string,
+    options: Pick<TupleKeyOptions, 'harbor'> = {},
+  ): Tuple | null {
+    const idempotencyKey = validatedIdempotencyKey(value, 'getByIdempotencyKey');
+    const harborKey = canonicalHarbor(options.harbor) ?? '';
+    const read = db.transaction(() => {
+      const now = Date.now();
+      deleteExpiredOnceStmt.run(harborKey, idempotencyKey, now);
+      const row = findOnceStmt.get(harborKey, idempotencyKey, now) as TupleRow | undefined;
+      return row ? rowToTuple(row) : null;
+    });
+    return read.immediate();
+  }
+
+  /** Indexed compare-and-delete used to release an observed durable owner. */
+  function takeByIdempotencyKey(
+    value: string,
+    options: TupleKeyOptions = {},
+  ): Tuple | null {
+    const idempotencyKey = validatedIdempotencyKey(value, 'takeByIdempotencyKey');
+    if (options.expectedTupleId !== undefined
+      && (!Number.isSafeInteger(options.expectedTupleId) || options.expectedTupleId < 1)) {
+      throw new Error('tuple.takeByIdempotencyKey: expectedTupleId must be a positive integer');
+    }
+    const harborKey = canonicalHarbor(options.harbor) ?? '';
+    const takeOnce = db.transaction(() => {
+      const now = Date.now();
+      deleteExpiredOnceStmt.run(harborKey, idempotencyKey, now);
+      const row = findOnceStmt.get(harborKey, idempotencyKey, now) as TupleRow | undefined;
+      if (!row || (options.expectedTupleId !== undefined && row.id !== options.expectedTupleId)) {
+        return null;
+      }
+      const deleted = deleteOnceByIdStmt.run(harborKey, idempotencyKey, row.id);
+      return deleted.changes === 1 ? rowToTuple(row) : null;
+    });
+    return takeOnce.immediate();
   }
 
   /**
@@ -165,12 +315,14 @@ export function createTupleSpace(db: Database.Database) {
     written_by: string | null;
     created_at: number;
     expires_at: number | null;
+    idempotency_key: string | null;
   }
 
   function rowToTuple(row: TupleRow): Tuple {
     return {
       id: row.id,
       harbor: row.harbor,
+      idempotencyKey: row.idempotency_key ?? null,
       fields: JSON.parse(row.fields),
       writtenBy: row.written_by,
       createdAt: row.created_at,
@@ -183,8 +335,15 @@ export function createTupleSpace(db: Database.Database) {
     cleanupStmt.run(Date.now());
 
     const now = Date.now();
-    const rows = options?.harbor
-      ? db.prepare('SELECT * FROM tuples WHERE harbor = ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at DESC').all(options.harbor, now) as TupleRow[]
+    const scoped = options?.harbor !== undefined;
+    const harbor = canonicalHarbor(options?.harbor);
+    const rows = scoped
+      ? db.prepare(`
+        SELECT * FROM tuples
+        WHERE COALESCE(harbor, '') = COALESCE(?, '')
+          AND (expires_at IS NULL OR expires_at > ?)
+        ORDER BY created_at DESC
+      `).all(harbor, now) as TupleRow[]
       : db.prepare('SELECT * FROM tuples WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC').all(now) as TupleRow[];
 
     const matches: Tuple[] = [];
@@ -223,10 +382,15 @@ export function createTupleSpace(db: Database.Database) {
     const afterId = Math.max(0, options?.afterId ?? 0);
     const limit = Math.min(Math.max(options?.limit ?? 200, 1), 1000);
     const now = Date.now();
-    const rows = options?.harbor
+    const scoped = options?.harbor !== undefined;
+    const harbor = canonicalHarbor(options?.harbor);
+    const rows = scoped
       ? db.prepare(
-        'SELECT * FROM tuples WHERE harbor = ? AND id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
-      ).all(options.harbor, afterId, now, limit) as TupleRow[]
+        `SELECT * FROM tuples
+         WHERE COALESCE(harbor, '') = COALESCE(?, '')
+           AND id > ? AND (expires_at IS NULL OR expires_at > ?)
+         ORDER BY id ASC LIMIT ?`
+      ).all(harbor, afterId, now, limit) as TupleRow[]
       : db.prepare(
         'SELECT * FROM tuples WHERE id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
       ).all(afterId, now, limit) as TupleRow[];
@@ -247,8 +411,15 @@ export function createTupleSpace(db: Database.Database) {
   function scan(harbor?: string): Tuple[] {
     cleanupStmt.run(Date.now());
     const now = Date.now();
-    const rows = harbor
-      ? db.prepare('SELECT * FROM tuples WHERE harbor = ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at DESC').all(harbor, now) as TupleRow[]
+    const scoped = harbor !== undefined;
+    const canonical = canonicalHarbor(harbor);
+    const rows = scoped
+      ? db.prepare(`
+        SELECT * FROM tuples
+        WHERE COALESCE(harbor, '') = COALESCE(?, '')
+          AND (expires_at IS NULL OR expires_at > ?)
+        ORDER BY created_at DESC
+      `).all(canonical, now) as TupleRow[]
       : db.prepare('SELECT * FROM tuples WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC').all(now) as TupleRow[];
     return rows.map(rowToTuple);
   }
@@ -256,8 +427,14 @@ export function createTupleSpace(db: Database.Database) {
   /** Count tuples, optionally matching a pattern. */
   function count(pattern?: unknown[], harbor?: string): number {
     if (!pattern) {
-      const row = harbor
-        ? db.prepare('SELECT COUNT(*) as c FROM tuples WHERE harbor = ? AND (expires_at IS NULL OR expires_at > ?)').get(harbor, Date.now()) as { c: number }
+      const scoped = harbor !== undefined;
+      const canonical = canonicalHarbor(harbor);
+      const row = scoped
+        ? db.prepare(`
+          SELECT COUNT(*) as c FROM tuples
+          WHERE COALESCE(harbor, '') = COALESCE(?, '')
+            AND (expires_at IS NULL OR expires_at > ?)
+        `).get(canonical, Date.now()) as { c: number }
         : db.prepare('SELECT COUNT(*) as c FROM tuples WHERE expires_at IS NULL OR expires_at > ?').get(Date.now()) as { c: number };
       return row.c;
     }
@@ -282,7 +459,7 @@ export function createTupleSpace(db: Database.Database) {
     const id = nextSubscriberId++;
     subscribers.set(id, {
       pattern,
-      harbor: options?.harbor,
+      harbor: options?.harbor === undefined ? undefined : canonicalHarbor(options.harbor),
       callback,
     });
     return () => {
@@ -294,7 +471,20 @@ export function createTupleSpace(db: Database.Database) {
     subscribers.clear();
   }
 
-  return { out, rd, take, poll, scan, count, cleanup, subscribe, destroy };
+  return {
+    out,
+    outOnce,
+    getByIdempotencyKey,
+    takeByIdempotencyKey,
+    rd,
+    take,
+    poll,
+    scan,
+    count,
+    cleanup,
+    subscribe,
+    destroy,
+  };
 }
 
 export type TupleSpace = ReturnType<typeof createTupleSpace>;

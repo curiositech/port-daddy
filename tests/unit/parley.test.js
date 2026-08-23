@@ -1,6 +1,11 @@
 import { createTestDb } from '../setup-unit.js';
 import { createTupleSpace } from '../../lib/tuples.js';
-import { createParley } from '../../lib/parley.js';
+import {
+  AUTOMATIC_PARLEY_DEFAULTS,
+  createParley,
+  MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS,
+} from '../../lib/parley.js';
+import { createAgentInbox } from '../../lib/agent-inbox.js';
 
 let db;
 let tuples;
@@ -30,6 +35,28 @@ function openParley() {
     calledBy: 'operator',
     harbor: 'port-daddy',
   });
+}
+
+function automaticInput(overrides = {}) {
+  return {
+    surface: 'lib/dispatch.ts#run',
+    reason: 'two live claims resolve to the same symbol',
+    parties: ['agent-b', 'agent-a'],
+    trigger: 'claim_overlap',
+    harbor: 'port-daddy',
+    automatic: {
+      idempotencyKey: 'parley-signal:v1:automatic-1',
+      signalId: 'parley-signal:v1:automatic-1',
+      lineageKey: 'parley-lineage:v1:claim-1',
+      checkpoint: 'claim',
+      kind: 'claim_overlap',
+      shape: 'contract-net',
+      evidenceRefs: ['claim:b', 'claim:a'],
+      confidence: 0.95,
+      magnitude: 2,
+    },
+    ...overrides,
+  };
 }
 
 describe('call', () => {
@@ -85,6 +112,137 @@ describe('call', () => {
       parties: ['agent-a'],
       calledBy: 'operator',
     })).toThrow(/at least two/);
+  });
+
+  test('keeps manual calls random and ignores caller-supplied automatic fields', () => {
+    const attemptedInternalFields = {
+      surface: 'x',
+      reason: 'y',
+      parties: ['a', 'b'],
+      calledBy: 'operator',
+      idempotencyKey: 'caller-key',
+      automatic: automaticInput().automatic,
+    };
+    const first = parley.call(attemptedInternalFields);
+    const second = parley.call(attemptedInternalFields);
+
+    expect(first.parleyId).not.toBe(second.parleyId);
+    expect(first.automatic).toBeNull();
+    expect(second.automatic).toBeNull();
+  });
+});
+
+describe('automatic call durability', () => {
+  test('uses frozen server lifecycle defaults and rejects forged lifecycle fields', () => {
+    const automatic = createParley({ tuples, now: () => clock });
+
+    expect(Object.isFrozen(AUTOMATIC_PARLEY_DEFAULTS)).toBe(true);
+    const accepted = automatic.callAutomatic(automaticInput());
+    expect(accepted.parley.responseDueAt).toBe(clock + AUTOMATIC_PARLEY_DEFAULTS.ttlMs);
+    expect(accepted.parley.roundLimit).toBe(AUTOMATIC_PARLEY_DEFAULTS.roundLimit);
+
+    expect(() => automatic.callAutomatic(automaticInput({ ttlMs: 1 })))
+      .toThrow(/lifecycle overrides are not accepted/);
+    expect(() => automatic.callAutomatic(automaticInput({ roundLimit: 99 })))
+      .toThrow(/lifecycle overrides are not accepted/);
+  });
+
+  test('rejects an automatic call whose durable key differs from its signal identity', () => {
+    const automatic = createParley({ tuples, now: () => clock });
+
+    expect(() => automatic.callAutomatic(automaticInput({
+      automatic: {
+        ...automaticInput().automatic,
+        idempotencyKey: 'parley-signal:v1:split-identity',
+      },
+    }))).toThrow(/idempotencyKey must equal signalId/);
+  });
+
+  test('uses deterministic identity and creates one durable summons per party across replay', () => {
+    const inbox = createAgentInbox(db);
+    const automatic = createParley({ tuples, agentInbox: inbox, now: () => clock });
+
+    const first = automatic.callAutomatic(automaticInput());
+    const replay = automatic.callAutomatic(automaticInput());
+
+    expect(first.replayed).toBe(false);
+    expect(replay.replayed).toBe(true);
+    expect(replay.parley).toEqual(first.parley);
+    expect(replay.parley.parleyId).toMatch(/^parley-auto:/);
+    expect(replay.parley.parties).toEqual(['agent-a', 'agent-b']);
+    expect(replay.parley.automatic).toMatchObject({
+      signalId: 'parley-signal:v1:automatic-1',
+      checkpoint: 'claim',
+      kind: 'claim_overlap',
+      shape: 'contract-net',
+      evidenceRefs: ['claim:a', 'claim:b'],
+      confidence: 0.95,
+      magnitude: 2,
+    });
+    expect(tuples.rd(['parley:opened', first.parley.parleyId, '*'], { harbor: 'port-daddy' })).toHaveLength(1);
+    expect(tuples.rd(['parley:summons', first.parley.parleyId, '*', '*'], { harbor: 'port-daddy' })).toHaveLength(2);
+    expect(inbox.list('agent-a').messages).toHaveLength(1);
+    expect(inbox.list('agent-b').messages).toHaveLength(1);
+    expect(inbox.list('agent-a').messages[0].deliveryKey).toBe(
+      `parley_summons:${first.parley.parleyId}:agent-a`,
+    );
+  });
+
+  test('reconciles a partial inbox delivery without duplicating prior writes', () => {
+    const inbox = createAgentInbox(db);
+    for (let i = 0; i < inbox.MAX_INBOX_MESSAGES; i++) {
+      inbox.send('agent-b', `blocking-${i}`);
+    }
+    const automatic = createParley({ tuples, agentInbox: inbox, now: () => clock });
+
+    const partial = automatic.callAutomatic(automaticInput());
+    expect(partial.notificationFailures).toEqual([expect.stringMatching(/^agent-b: Inbox full/)]);
+    expect(inbox.list('agent-a').messages).toHaveLength(1);
+    inbox.clear('agent-b');
+
+    const reconciled = automatic.callAutomatic(automaticInput());
+    expect(reconciled.replayed).toBe(true);
+    expect(reconciled.notificationFailures).toEqual([]);
+    expect(tuples.rd(['parley:opened', partial.parley.parleyId, '*'], { harbor: 'port-daddy' })).toHaveLength(1);
+    expect(tuples.rd(['parley:summons', partial.parley.parleyId, '*', '*'], { harbor: 'port-daddy' })).toHaveLength(2);
+    expect(inbox.list('agent-a').messages).toHaveLength(1);
+    expect(inbox.list('agent-b').messages).toHaveLength(1);
+  });
+
+  test('rejects reuse of an automatic key for a different canonical call', () => {
+    const automatic = createParley({ tuples, now: () => clock });
+    automatic.callAutomatic(automaticInput());
+
+    expect(() => automatic.callAutomatic(automaticInput({
+      surface: 'lib/other.ts#run',
+    }))).toThrow(/different canonical call/);
+    expect(tuples.rd(['parley:opened', '*', '*'], { harbor: 'port-daddy' })).toHaveLength(1);
+  });
+
+  test('aligns automatic key and longest-party bounds with tuple and inbox delivery keys', () => {
+    const automatic = createParley({ tuples, agentInbox: createAgentInbox(db), now: () => clock });
+    const longestKey = 'k'.repeat(MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS);
+    const longestParty = 'p'.repeat(128);
+    const accepted = automatic.callAutomatic(automaticInput({
+      parties: [longestParty, 'agent-b'],
+      automatic: {
+        ...automaticInput().automatic,
+        idempotencyKey: longestKey,
+        signalId: longestKey,
+      },
+    }));
+
+    expect(accepted.notificationFailures).toEqual([]);
+    expect(() => automatic.callAutomatic(automaticInput({
+      automatic: {
+        ...automaticInput().automatic,
+        idempotencyKey: `${longestKey}x`,
+        signalId: `${longestKey}x`,
+      },
+    }))).toThrow(/idempotencyKey exceeds/);
+    expect(() => automatic.callAutomatic(automaticInput({
+      parties: [`${longestParty}x`, 'agent-b'],
+    }))).toThrow(/party exceeds/);
   });
 });
 
