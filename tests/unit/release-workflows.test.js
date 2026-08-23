@@ -7,9 +7,12 @@ import {
   extractFormulaVersion,
   findVersionTransition,
   formulaMatchesRelease,
+  HOMEBREW_TAP_TOKEN_SOURCE,
   parseStableVersion,
+  RELEASE_TRAIN_TOKEN_SOURCE,
   selectTokenSource,
   selectVersionTransition,
+  selectWorkingTokenSource,
   stableVersionFromTag,
   waitForFormula,
 } from '../../scripts/release-workflow-state.mjs';
@@ -35,14 +38,17 @@ describe('release workflow topology contracts', () => {
   test('release mutation selects a live push-capable token while tap promotion needs no cross-repo credential', () => {
     const train = readWorkflow('release-train.yml');
     const release = readWorkflow('release.yml');
+    const helper = readFileSync(STATE_HELPER, 'utf8');
     const unsafePresenceFallback = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
 
     expect(train).not.toContain(unsafePresenceFallback);
     expect(train).toContain('Select a working release-mutation token');
     expect(train).toContain('Select a working release-publication token');
-    expect(train.match(/\.permissions\.push \/\/ false/g)).toHaveLength(2);
-    expect(train.match(/echo "source=\$source_name" >> "\$GITHUB_OUTPUT"/g)).toHaveLength(2);
-    expect(train).toContain('configured but invalid, expired, or lacks push permission');
+    expect(train.match(/release-workflow-state\.mjs \\\n\s+select-live-token/g)).toHaveLength(2);
+    expect(train.match(/echo "source=\$token_source" >> "\$GITHUB_OUTPUT"/g)).toHaveLength(2);
+    expect(helper).toContain("['api', `repos/${repository}`, '--jq', '.permissions.push // false']");
+    expect(helper).toContain('delete childEnv.RELEASE_TRAIN_TOKEN');
+    expect(helper).toContain('delete childEnv.HOMEBREW_TAP_TOKEN');
     expect(release).toContain('Wait for independently verified Homebrew promotion');
     expect(release).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
     expect(release).not.toContain('repository-dispatch');
@@ -140,8 +146,8 @@ describe('release workflow topology contracts', () => {
     expect(openPr).toBeGreaterThan(fallbackCheckout);
     expect(workflow.slice(firstCheckout, tokenCheck)).not.toContain('token:');
     const authenticatedPath = workflow.slice(tokenCheck, openPr);
-    expect(authenticatedPath).toContain("steps.release_token.outputs.source == 'release'");
-    expect(authenticatedPath).toContain("steps.release_token.outputs.source == 'tap'");
+    expect(authenticatedPath).toContain("steps.release_token.outputs.source == 'RELEASE_TRAIN_TOKEN'");
+    expect(authenticatedPath).toContain("steps.release_token.outputs.source == 'HOMEBREW_TAP_TOKEN'");
     expect(authenticatedPath).toContain('token: ${{ secrets.RELEASE_TRAIN_TOKEN }}');
     expect(authenticatedPath).toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
     expect(authenticatedPath).not.toContain('token: ${{ steps.release_token.outputs');
@@ -159,8 +165,8 @@ describe('release workflow topology contracts', () => {
     expect(fallbackCheckout).toBeGreaterThan(dedicatedCheckout);
     expect(publish).toBeGreaterThan(fallbackCheckout);
     const publicationPath = workflow.slice(select, publish);
-    expect(publicationPath).toContain("steps.release_token.outputs.source == 'release'");
-    expect(publicationPath).toContain("steps.release_token.outputs.source == 'tap'");
+    expect(publicationPath).toContain("steps.release_token.outputs.source == 'RELEASE_TRAIN_TOKEN'");
+    expect(publicationPath).toContain("steps.release_token.outputs.source == 'HOMEBREW_TAP_TOKEN'");
     expect(publicationPath).toContain('token: ${{ secrets.RELEASE_TRAIN_TOKEN }}');
     expect(publicationPath).toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
     expect(publicationPath).not.toContain('token: ${{ steps.release_token.outputs');
@@ -318,5 +324,42 @@ describe('release workflow state', () => {
     expect(selectTokenSource('false', 'true')).toBe('HOMEBREW_TAP_TOKEN');
     expect(() => selectTokenSource('false', 'false')).toThrow('neither RELEASE_TRAIN_TOKEN');
     expect(() => selectTokenSource('yes', 'false')).toThrow('must be true or false');
+  });
+
+  test('live token selection executes preferred, fallback, probe-error, and fail-closed paths', () => {
+    const calls = [];
+    const preferred = selectWorkingTokenSource('train-secret', 'tap-secret', (token, source) => {
+      calls.push([token, source]);
+      return true;
+    });
+    expect(preferred).toBe(RELEASE_TRAIN_TOKEN_SOURCE);
+    expect(calls).toEqual([['train-secret', RELEASE_TRAIN_TOKEN_SOURCE]]);
+
+    calls.length = 0;
+    const fallback = selectWorkingTokenSource('stale-secret', 'tap-secret', (token, source) => {
+      calls.push([token, source]);
+      return source === HOMEBREW_TAP_TOKEN_SOURCE;
+    });
+    expect(fallback).toBe(HOMEBREW_TAP_TOKEN_SOURCE);
+    expect(calls).toEqual([
+      ['stale-secret', RELEASE_TRAIN_TOKEN_SOURCE],
+      ['tap-secret', HOMEBREW_TAP_TOKEN_SOURCE],
+    ]);
+
+    const afterProbeError = selectWorkingTokenSource('broken-secret', 'tap-secret', (_token, source) => {
+      if (source === RELEASE_TRAIN_TOKEN_SOURCE) throw new Error('GitHub unavailable');
+      return true;
+    });
+    expect(afterProbeError).toBe(HOMEBREW_TAP_TOKEN_SOURCE);
+
+    expect(() => selectWorkingTokenSource('dead-a', 'dead-b', () => false)).toThrow(
+      'neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push',
+    );
+    expect(() => selectWorkingTokenSource('', '', () => true)).toThrow(
+      'neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push',
+    );
+    expect(() => selectWorkingTokenSource('train-secret', '', null)).toThrow(
+      'canPush probe must be a function',
+    );
   });
 });
