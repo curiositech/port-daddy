@@ -655,6 +655,43 @@ async function recordRunStart(
 }
 
 /**
+ * Record each triggered ship's CONFIGURATION into the transcript, once, before
+ * any ship runs — model, role, and its permission-shaped flags (whether it can
+ * block the merge, whether it needs bash/write execution, purser sandbox
+ * gating, the test-path scope it's confined to).
+ *
+ * WHY: `ShipConfig` is resolved fresh per run from the repo's own pd-fleet.yml
+ * and never persisted anywhere else — without this, the run page could show a
+ * ship's NAME (`ships_csv`) but nothing about what it actually is or is
+ * allowed to do, and an operator asking "what model is pd-purser using, and
+ * can it write files?" had no answer but reading the YAML themselves. One
+ * step per ship (best-effort, like every other transcript write here);
+ * `env.DB` may be absent in local/test runs, matching every sibling recorder.
+ */
+async function recordShipsConfigInTranscript(
+  transcript: Transcript,
+  ships: ShipConfig[],
+): Promise<void> {
+  for (const ship of ships) {
+    await transcript.step('fleet-ship-config', ship.name, `pd-${ship.name} configuration`, {
+      cfModel: ship.cfModel,
+      cfMapModel: ship.cfMapModel ?? null,
+      cfPlanModel: ship.cfPlanModel ?? null,
+      cfAuthorModel: ship.cfAuthorModel ?? null,
+      role: ship.role,
+      telos: ship.telos,
+      blocking: ship.blocking,
+      needsExecution: ship.needsExecution,
+      ideation: ship.ideation,
+      purser: ship.purser,
+      blockWithoutSandbox: ship.blockWithoutSandbox,
+      testPaths: ship.testPaths,
+      graft: ship.graft,
+    });
+  }
+}
+
+/**
  * Guarantee a `fleet_runs` row exists before a check run's completion is
  * published — an idempotent (INSERT OR IGNORE) backstop independent of
  * `recordRunStart`'s own best-effort write.
@@ -1304,6 +1341,9 @@ export async function executeFleet(
   // failed, so every completion path below can rely on details_url resolving
   // to a real run page (see ensureRunRow's docstring).
   await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  // Record what each ship IS (model, role, blocking/execution posture) once,
+  // before any of them run — see recordShipsConfigInTranscript's docstring.
+  await recordShipsConfigInTranscript(transcript, cloudShips);
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
