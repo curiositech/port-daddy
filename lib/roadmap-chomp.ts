@@ -56,7 +56,7 @@
  *     follow-up in the chomp PR, not silently papered over.
  */
 
-import { join, isAbsolute, resolve, basename } from 'node:path';
+import { join, isAbsolute, resolve, relative, basename } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 
 import {
@@ -582,20 +582,31 @@ export function collectChompDocs(input: ChompCollectInput): ChompCollection {
       docs.push({ path: rawPath, format: null, parsed: 0, missing: true });
       continue;
     }
+    // Normalize to a rootDir-relative path BEFORE it is persisted. `sourcePath`
+    // becomes `source_refs_json.path` on every derived row (and the provenance
+    // note, and the work receipt), and that field's contract is "repo-relative"
+    // — a caller who passes an absolute path (honored above as explicit intent)
+    // would otherwise commit their local filesystem layout into shared roadmap
+    // data, and the citation would not resolve on anyone else's checkout. It
+    // also makes this agree with `remove-docs.txt`, which already relativizes.
+    // A path genuinely outside rootDir has no honest repo-relative form, so it
+    // is preserved verbatim rather than emitted as a meaningless `../..` walk.
+    const rootAbs = resolve(root);
+    const relPath = abs.startsWith(rootAbs + '/') ? relative(rootAbs, abs) : rawPath;
     const markdown = readSafe(abs);
     if (markdown === null) {
       missingFiles.push(abs);
-      docs.push({ path: rawPath, format: null, parsed: 0, missing: true });
+      docs.push({ path: relPath, format: null, parsed: 0, missing: true });
       continue;
     }
     const doc = chompMarkdownDoc(markdown, {
-      sourcePath: rawPath,
+      sourcePath: relPath,
       defaultStatus: input.defaultStatus,
       format: input.formats?.[rawPath],
       tags: input.tagsByPath?.[rawPath],
     });
     warnings.push(...doc.warnings);
-    docs.push({ path: rawPath, format: doc.format, parsed: doc.items.length, missing: false });
+    docs.push({ path: relPath, format: doc.format, parsed: doc.items.length, missing: false });
     for (const item of doc.items) {
       if (bySlug.has(item.slug)) {
         warnings.push(`${rawPath}: slug '${item.slug}' already chomped from an earlier doc — first wins`);

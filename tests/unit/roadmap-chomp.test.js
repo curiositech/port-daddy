@@ -332,6 +332,26 @@ describe('chompRoadmap (write path)', () => {
     expect(collection.warnings.some((w) => w.includes('escapes rootDir'))).toBe(true);
   });
 
+  // An ABSOLUTE in-repo path is honored as explicit intent, but it must never
+  // reach persisted data: `sourcePath` becomes `source_refs_json.path`, whose
+  // contract is repo-relative. Committing '/Users/someone/.../PLAN.md' would
+  // leak the author's filesystem layout into shared roadmap rows AND produce a
+  // citation that resolves on exactly one machine.
+  test('an absolute in-repo doc path is stored repo-relative, not verbatim', async () => {
+    const result = await chompRoadmap(
+      { roadmapItems: roadmap, graphEdges },
+      { rootDir: root, paths: [join(root, 'PLAN.md')], harbor: 'fleet', by: 'chomp-test' },
+    );
+    expect(result.docs.map((d) => d.path)).toEqual(['PLAN.md']);
+    for (const item of result.items) {
+      expect(item.sourcePath).toBe('PLAN.md');
+    }
+    const stored = roadmap.get('storage-layer', 'fleet');
+    expect(stored.sourceRefs).toEqual([{ type: 'doc', path: 'PLAN.md' }]);
+    // The absolute prefix must appear nowhere in what was written.
+    expect(JSON.stringify(stored)).not.toContain(root);
+  });
+
   test('multi-doc chomp: first doc wins a duplicated slug, with a warning', async () => {
     writeFileSync(join(root, 'OTHER.md'), '# Phase 2: Rollout\n\nA competing definition.\n', 'utf-8');
     const result = await chompRoadmap(

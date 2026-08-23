@@ -257,12 +257,21 @@ export function verifyCoreSchema(db: DatabaseInstance): void {
   }
   // Column sentinels: the ALTER blocks are warn-and-continue, so probe their
   // target columns directly (ADR-0086 planner columns via `kind`; soft-delete
-  // tombstones via `deleted_at`; Jira-grade item columns via `tags_json`).
+  // tombstones via `deleted_at`; Jira-grade item columns via `tags_json`;
+  // derived-item provenance via `source_refs_json`). Each ALTER block has its
+  // own sentinel, so each needs its own probe — `source_refs_json` landed
+  // after the seven planner columns and is added by a separate guarded ALTER,
+  // so `kind` being present proves nothing about it. Without this probe a DB
+  // whose provenance ALTER failed boots "verified" and then fails EVERY
+  // roadmap write with `no such column: source_refs_json`.
   if (!missing.includes('roadmap_items')) {
     const cols = db.prepare('PRAGMA table_info(roadmap_items)').all() as Array<{ name: string }>;
     if (!cols.some((c) => c.name === 'kind')) missing.push('roadmap_items.kind');
     if (!cols.some((c) => c.name === 'deleted_at')) missing.push('roadmap_items.deleted_at');
     if (!cols.some((c) => c.name === 'tags_json')) missing.push('roadmap_items.tags_json');
+    if (!cols.some((c) => c.name === 'source_refs_json')) {
+      missing.push('roadmap_items.source_refs_json');
+    }
   }
   if (missing.length > 0) {
     throw new Error(
