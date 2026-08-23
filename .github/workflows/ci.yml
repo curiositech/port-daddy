@@ -173,7 +173,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
@@ -230,7 +230,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
@@ -277,7 +277,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
@@ -300,7 +300,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Run integration tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration
@@ -326,7 +326,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
@@ -465,7 +465,7 @@ jobs:
           cache-dependency-path: fleet-config-ui/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc -b — app + node + test projects)
         run: npm run typecheck
@@ -532,7 +532,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
@@ -782,7 +782,7 @@ jobs:
           cache-dependency-path: apps/relay/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc --noEmit)
         run: npx tsc --noEmit
@@ -813,7 +813,7 @@ jobs:
           cache-dependency-path: apps/steward/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc --noEmit)
         run: npx tsc --noEmit
