@@ -18,6 +18,18 @@
 -- terminal value; modelling it as an edge leaves the state machine untouched and
 -- makes the chain a plain recursive read.
 
+-- WHY predecessor_dispatch_id IS PLAIN TEXT AND NOT A REFERENCES CONSTRAINT.
+-- It is a foreign key in meaning, and this table stores every one of those as
+-- TEXT by an existing, documented decision: 083_dispatches.sql says its FK
+-- columns to actors / body_leases "are stored as plain TEXT here" and that "a
+-- follow-up migration (after 082) tightens them to REFERENCES". Constraining
+-- this ONE column would make it the only enforced FK on a table where every
+-- sibling defers, and it cannot be done here anyway — SQLite adds columns by
+-- ALTER TABLE, which is not where this table's constraints will be tightened.
+-- The tightening is table-wide follow-up work; this column joins the queue for
+-- it rather than jumping ahead of it alone. `foreign_keys` IS ON at runtime
+-- (lib/db.ts), so when that migration lands the constraint will actually bite.
+
 -- The dispatch this one succeeded. NULL for an original dispatch.
 ALTER TABLE dispatches ADD COLUMN predecessor_dispatch_id TEXT;
 
