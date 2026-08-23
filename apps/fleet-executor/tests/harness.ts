@@ -673,14 +673,19 @@ export function memoryD1(): D1Capture {
             createdAt: Number(args[6]),
           });
         } else if (/UPDATE fleet_runs/i.test(sql)) {
-          const usesDurableStart = /COALESCE\s*\(created_at\s*\*\s*1000/i.test(sql);
-          const row = runsById.get(String(args[usesDurableStart ? 3 : 2]));
+          const usesDurableStart = /created_at\s*\*\s*1000/i.test(sql);
+          const row = runsById.get(String(args[usesDurableStart ? 4 : 2]));
           if (row) {
             row.conclusion = String(args[0]);
             if (usesDurableStart) {
               const createdAtMs = Number(row.createdAt) * 1000;
-              const fallbackStartMs = Number(args[2]);
-              const durableStartMs = Number.isFinite(createdAtMs) ? createdAtMs : fallbackStartMs;
+              const endMs = Number(args[1]);
+              const fallbackStartMs = Number(args[3]);
+              const durableStartMs = Number.isFinite(createdAtMs)
+                && createdAtMs > 0
+                && createdAtMs <= endMs
+                ? createdAtMs
+                : fallbackStartMs;
               row.ms = Math.max(0, Number(args[1]) - durableStartMs);
             } else {
               row.ms = Number(args[1]);

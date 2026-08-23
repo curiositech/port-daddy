@@ -1256,6 +1256,41 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(d1.runs[0].ms).toBe(120_000);
   });
 
+  it.each([
+    ['zero', 0],
+    ['future', Math.floor(new Date('2026-08-23T03:00:00.000Z').getTime() / 1000)],
+  ])('falls back to the current attempt clock for a malformed %s durable start', async (_kind, malformedCreatedAt) => {
+    vi.useFakeTimers();
+    const logicalStart = new Date('2026-08-23T02:00:00.000Z');
+    vi.setSystemTime(logicalStart);
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    await executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    });
+    d1.runs[0].createdAt = malformedCreatedAt;
+
+    vi.setSystemTime(new Date(logicalStart.getTime() + 120_000));
+    await executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    });
+
+    expect(d1.runs[0].conclusion).toBe('success');
+    expect(d1.runs[0].ms).toBe(0);
+  });
+
   it('a completed run leaves one parseable checkpoint row per ship that ran', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();
