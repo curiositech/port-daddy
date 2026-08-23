@@ -131,6 +131,13 @@ repo-specific mechanics:
   user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
   machine-readable READY/LIVE state. A source-suite pass cannot substitute for
   this artifact-boundary proof.
+- **Prove native dependencies again after macOS signing.** Hardened runtime can
+  change dynamic-loader behavior after an unsigned build smoke has passed. Run
+  the native import through the exact signed `dist/pd` release pair, with
+  `DYLD_*` absent, before soak or archive sealing. Package dylibs behind a
+  verified executable-relative Mach-O rpath and keep
+  `com.apple.security.cs.allow-dyld-environment-variables` out of the release
+  entitlements; do not trade a packaging defect for an injection surface.
 - **Keep coordination content bounded; the SITREP is the visible value
   surface.** Coordination content (alerts/pheromones) stays invisible and
   bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and
