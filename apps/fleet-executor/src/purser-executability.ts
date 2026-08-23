@@ -38,6 +38,7 @@ export type ExecutabilityResult =
         | 'missing-tree-evidence'
         | 'unresolved-import'
         | 'incompatible-runner'
+        | 'missing-test-registration'
         | 'syntax-error';
       path?: string;
       specifier?: string;
@@ -615,6 +616,149 @@ export function validateGeneratedTestSyntax(
   }
 }
 
+type AstRecord = Record<string, unknown>;
+
+function astRecord(value: unknown): AstRecord | null {
+  return value !== null && typeof value === 'object'
+    ? value as AstRecord
+    : null;
+}
+
+function identifierName(value: unknown): string | null {
+  const node = astRecord(value);
+  return node?.type === 'Identifier' && typeof node.name === 'string'
+    ? node.name
+    : null;
+}
+
+function stringNodeValue(value: unknown): string | null {
+  const node = astRecord(value);
+  if (
+    (node?.type === 'StringLiteral' || node?.type === 'Literal') &&
+    typeof node.value === 'string'
+  ) {
+    return node.value;
+  }
+  return null;
+}
+
+function memberChain(value: unknown): { root: string; properties: string[] } | null {
+  const node = astRecord(value);
+  const direct = identifierName(node);
+  if (direct) return { root: direct, properties: [] };
+  if (node?.type !== 'MemberExpression' && node?.type !== 'OptionalMemberExpression') {
+    return null;
+  }
+  const parent = memberChain(node.object);
+  if (!parent) return null;
+  const property = node.computed === true
+    ? stringNodeValue(node.property)
+    : identifierName(node.property);
+  if (!property) return null;
+  return { root: parent.root, properties: [...parent.properties, property] };
+}
+
+function walkAst(value: unknown, visit: (node: AstRecord) => void): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) walkAst(entry, visit);
+    return;
+  }
+  const node = astRecord(value);
+  if (!node) return;
+  if (typeof node.type === 'string') visit(node);
+  for (const [key, child] of Object.entries(node)) {
+    if (key === 'loc' || key === 'start' || key === 'end') continue;
+    walkAst(child, visit);
+  }
+}
+
+function jestTestAliases(ast: unknown): Set<string> {
+  const aliases = new Set(['it', 'test']);
+  walkAst(ast, node => {
+    if (
+      node.type !== 'ImportDeclaration' ||
+      stringNodeValue(node.source) !== '@jest/globals' ||
+      !Array.isArray(node.specifiers)
+    ) {
+      return;
+    }
+    for (const value of node.specifiers) {
+      const specifier = astRecord(value);
+      if (specifier?.type !== 'ImportSpecifier') continue;
+      const imported = identifierName(specifier.imported) ?? stringNodeValue(specifier.imported);
+      const local = identifierName(specifier.local);
+      if ((imported === 'it' || imported === 'test') && local) aliases.add(local);
+    }
+  });
+  return aliases;
+}
+
+function isEachBuilder(value: unknown, aliases: ReadonlySet<string>): boolean {
+  const node = astRecord(value);
+  const target = node?.type === 'CallExpression' || node?.type === 'OptionalCallExpression'
+    ? node.callee
+    : node?.type === 'TaggedTemplateExpression'
+      ? node.tag
+      : null;
+  const chain = memberChain(target);
+  return chain !== null &&
+    aliases.has(chain.root) &&
+    chain.properties.length > 0 &&
+    chain.properties.at(-1) === 'each' &&
+    chain.properties.slice(0, -1).every(part =>
+      part === 'concurrent' || part === 'only' || part === 'skip'
+    );
+}
+
+function isJestTestRegistrationCallee(
+  value: unknown,
+  aliases: ReadonlySet<string>,
+): boolean {
+  const direct = identifierName(value);
+  if (direct) return aliases.has(direct);
+  if (isEachBuilder(value, aliases)) return true;
+
+  const chain = memberChain(value);
+  return chain !== null &&
+    aliases.has(chain.root) &&
+    chain.properties.length > 0 &&
+    chain.properties.every(part =>
+      part === 'concurrent' ||
+      part === 'failing' ||
+      part === 'only' ||
+      part === 'skip' ||
+      part === 'todo'
+    );
+}
+
+/**
+ * Prove that a generated Jest file registers at least one test case.
+ *
+ * A syntactically valid file is not necessarily a test. PR #9778 contained a
+ * valid exported function declaration under Jest's testMatch path; Jest then
+ * stopped with "Your test suite must contain at least one test" after Fleet
+ * had already classified the sandbox exit as a product failure and retargeted
+ * the reviewed PR. Parse the program and inspect call expressions so comments,
+ * strings, and helper names cannot satisfy the gate by accident.
+ */
+export function hasJestTestRegistration(file: StackedFile): boolean {
+  const ast = parse(file.contents, {
+    sourceFilename: file.path,
+    sourceType: generatedTestSourceType(file.path),
+    plugins: generatedTestParserPlugins(file.path),
+    errorRecovery: false,
+    attachComment: false,
+  });
+  const aliases = jestTestAliases(ast);
+  let found = false;
+  walkAst(ast, node => {
+    if (found) return;
+    if (node.type !== 'CallExpression' && node.type !== 'OptionalCallExpression') return;
+    if (isJestTestRegistrationCallee(node.callee, aliases)) found = true;
+  });
+  return found;
+}
+
 /**
  * The gate itself: do these authored files live where the real test runner
  * would discover them, parse as complete programs, and have relative imports
@@ -708,6 +852,23 @@ export function checkGeneratedTestsExecutable(
           reason: `${f.path} imports '${spec}', which does not resolve to any file in the repository or in this authored set`,
         };
       }
+    }
+  }
+  // Preserve the more actionable import/runner diagnostics above: a file can
+  // be both empty theater and unable to load, and the bounded repair loop
+  // already knows how to heal those concrete loader failures. Once loading is
+  // proven, require every authored testMatch file to register a real case.
+  for (const f of files) {
+    if (!hasJestTestRegistration(f)) {
+      return {
+        ok: false,
+        kind: 'missing-test-registration',
+        path: f.path,
+        reason:
+          `${f.path} is discoverable JavaScript but registers no Jest test or it case — ` +
+          'the generated harness would fail before exercising the reviewed code, so Purser ' +
+          'must repair its authored file before sandbox execution, branch creation, stacked PR, or PR retarget',
+      };
     }
   }
   return { ok: true };

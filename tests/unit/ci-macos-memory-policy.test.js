@@ -32,4 +32,22 @@ describe('required macOS unit-test memory policy', () => {
     expect(macosStep.run).toContain('--selectProjects unit');
     expect(ubuntuStep.env).toBeUndefined();
   });
+
+  test('applies the same step-local policy to macOS compatibility jobs only', () => {
+    const compatibility = workflow.jobs['unit-tests-compat'];
+    const nonMacosStep = namedStep(compatibility, 'Run unit tests');
+    const macosStep = namedStep(
+      compatibility,
+      'Run unit tests (macOS 4 GiB heap)',
+    );
+
+    expect(nonMacosStep.if).toBe("runner.os != 'macOS'");
+    expect(nonMacosStep.env).toBeUndefined();
+    expect(macosStep.if).toBe("runner.os == 'macOS'");
+    expect(macosStep.env).toEqual({
+      NODE_OPTIONS: '--max-old-space-size=4096',
+    });
+    expect(macosStep.run).toBe(nonMacosStep.run);
+    expect(macosStep.run).toContain('--selectProjects unit');
+  });
 });

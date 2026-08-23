@@ -21,6 +21,60 @@ private actor SquidResultQueue {
     }
 }
 
+private final class ContextContinuityURLProtocol: URLProtocol {
+    static let statusCode = 200
+    static let body = Data("""
+    {
+      "schemaVersion": 1,
+      "capturedAt": "2026-08-23T12:00:00.000Z",
+      "counts": {"observed":1,"packetReady":1,"successorRequired":0,"continuing":1,"completed":0,"verificationFailed":0},
+      "items": [{
+        "agentNodeId":"agent-context-1",
+        "sessionId":"session-context-1",
+        "runId":"run-context-1",
+        "transcriptId":"transcript-context-1",
+        "model":"gpt-5",
+        "sourceAdapter":"cli:codex",
+        "envelopeId":"ctx_1",
+        "measuredAt":"2026-08-23T12:00:00.000Z",
+        "pressure": {
+          "band":"critical","ratio":0.95,"action":"require_compaction_or_successor",
+          "windowTokens":1000,"usedTokensEstimate":950,"estimateMode":"exact",
+          "strategy":"max-daemon-and-adapter","selfReportDrift":[]
+        },
+        "packet": {
+          "packetId":"cpk_1","createdAt":"2026-08-23T12:00:00.000Z","validatorPassed":true,
+          "sourceHeadEventId":"evt_head","sourceHeadHash":"abc123","transcriptEventId":"evt_packet"
+        },
+        "handoffEpisodeId":42,
+        "continuation": {
+          "id":"continuation-1","status":"accepted","targetAdapter":"claude-code",
+          "successorRunId":null,"successorSessionId":null,"updatedAt":1787500000000
+        },
+        "readiness":"continuing"
+      }],
+      "failures": []
+    }
+    """.utf8)
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: Self.statusCode,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 @MainActor
 final class SquidHarnessStoreTests: XCTestCase {
     private let readyJSON = """
@@ -102,6 +156,24 @@ final class SquidHarnessStoreTests: XCTestCase {
         XCTAssertEqual(store.snapshot?.wiredProviderCount, 2)
         XCTAssertEqual(store.snapshot?.detectedProviderCount, 2)
         XCTAssertNil(store.message)
+    }
+
+    func testRefreshShowsVerifiedContextPacketAndContinuationReceipt() async {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ContextContinuityURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let ready = readyJSON
+        let store = SquidHarnessStore(baseURL: "https://continuity.test", session: session) { _ in
+            SquidCommandResult(status: 0, stdout: ready, stderr: "")
+        }
+
+        await store.refresh(projectDir: "/work/repo")
+
+        XCTAssertEqual(store.continuitySnapshot?.counts.packetReady, 1)
+        XCTAssertEqual(store.continuitySnapshot?.items.first?.packet?.validatorPassed, true)
+        XCTAssertEqual(store.continuitySnapshot?.items.first?.continuation?.id, "continuation-1")
+        XCTAssertEqual(store.continuitySnapshot?.items.first?.readiness, "continuing")
+        XCTAssertNil(store.continuityMessage)
     }
 
     func testRefreshSurfacesOpenHookCircuitWithFleetBarRepairLanguage() async {

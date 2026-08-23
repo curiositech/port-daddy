@@ -10,6 +10,10 @@ export interface Env {
   DB: D1Database;
   // Durable Object namespace — one DO per (harbor_fingerprint, channel)
   HARBOR_CHANNEL: DurableObjectNamespace;
+  // ADR-0092: one authority-free CRDT coordination replica per project.
+  // Optional until the v0003 Durable Object migration is deployed; routes
+  // fail closed with COORDINATION_UNCONFIGURED while absent.
+  COORDINATION_ROOM?: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
   // Queue producers — one FleetRunJob per GitHub delivery handed to the
@@ -28,6 +32,9 @@ export interface Env {
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
   GITHUB_WEBHOOK_SECRET: string;          // HMAC-SHA256 secret for GitHub webhook ingress
+  // 32-byte hex root for first-party coordination macaroons. Never exposed;
+  // operator provisioning returns only caveat-scoped grants.
+  COORDINATION_MACAROON_ROOT_KEY_HEX?: string;
   // HMAC secret (>=32 chars) gating the HTML fleet run page (ADR-0101 Phase 0).
   // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
   // only opens with the operator token.

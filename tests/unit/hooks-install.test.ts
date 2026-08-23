@@ -764,6 +764,49 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(run(`${fakeBin}:${process.env.PATH ?? ''}`)).toBe('');
   });
 
+  test('an explicit remote daemon uses a bounded health probe instead of local heartbeat files', () => {
+    const pdHome = join(SANDBOX, 'remote-daemon-home');
+    const binDir = join(pdHome, 'bin');
+    const fakeBin = join(pdHome, 'fake-bin');
+    const probeCapture = join(pdHome, 'remote-probe.args');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    stageTentacles(SRC, binDir);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    writeFileSync(join(fakeBin, 'curl'), [
+      '#!/bin/sh',
+      'printf "%s\\n" "$*" > "$PD_REMOTE_PROBE_CAPTURE"',
+      'exit "${PD_REMOTE_PROBE_EXIT:-0}"',
+      '',
+    ].join('\n'), { mode: 0o755 });
+
+    const run = (remote: Record<string, string>, probeExit: string): string => execFileSync(
+      join(binDir, 'pd-hook-prompt'),
+      [],
+      {
+        cwd: REPO,
+        env: {
+          ...process.env,
+          PD_HOME: pdHome,
+          PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+          PD_REMOTE_PROBE_CAPTURE: probeCapture,
+          PD_REMOTE_PROBE_EXIT: probeExit,
+          ...remote,
+        },
+        input: '{}',
+        encoding: 'utf8',
+      },
+    );
+
+    expect(run({ PD_URL: 'https://peer.example/' }, '0')).toContain('pd-hook-prompt');
+    expect(readFileSync(probeCapture, 'utf8')).toContain(
+      '--connect-timeout 1 --max-time 1 https://peer.example/health',
+    );
+    expect(run({ PORT_DADDY_URL: 'https://compat.example' }, '0')).toContain('pd-hook-prompt');
+    expect(readFileSync(probeCapture, 'utf8')).toContain('https://compat.example/health');
+    expect(run({ PD_URL: 'https://down.example' }, '7')).toBe('');
+  });
+
   test('reports missing tentacles when the source lacks them', () => {
     const empty = join(SANDBOX, 'empty');
     const dest = join(SANDBOX, 'pd-bin-2');
