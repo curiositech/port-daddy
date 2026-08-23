@@ -341,6 +341,11 @@ describe('chompRoadmap (write path)', () => {
     const rollout = roadmap.get('phase-2-rollout', 'fleet');
     expect(rollout.kind).toBe('epic'); // from PLAN.md, not OTHER.md's project root
     expect(result.warnings.some((w) => w.includes("slug 'phase-2-rollout' already chomped"))).toBe(true);
+    // First-wins must hold for PROVENANCE too, not just the parsed fields: the
+    // row is derived from PLAN.md, so source_refs_json must point back at
+    // PLAN.md. A dedupe that kept doc 1's item but stamped doc 2's path would
+    // pass every assertion above while pinning the wrong doc/revision.
+    expect(rollout.sourceRefs).toEqual([{ type: 'doc', path: 'PLAN.md' }]);
   });
 });
 
