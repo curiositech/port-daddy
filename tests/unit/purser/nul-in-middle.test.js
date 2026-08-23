@@ -106,4 +106,30 @@ describe('NUL detection beyond git 8000-byte threshold', () => {
     // this test exists to catch.
     expect(findNulOffenders([late, early, 'clean.txt'], TEMP_DIR)).toEqual([late, early]);
   });
+
+  test('the boundary is exact: byte 8000 is the first one git never reads', () => {
+    // 8500 above proves the guard beats git's window. This pins WHERE the
+    // window ends, because "somewhere past 8000" is not a boundary — a byte
+    // index is. Measured on git 2.43.0:
+    //
+    //   NUL at 7999 -> git diff --numstat says BINARY  (last byte git reads)
+    //   NUL at 8000 -> git diff --numstat says text    (first byte it skips)
+    //
+    // So 8000 is the worst case: the earliest possible NUL that git will wave
+    // through. A guard that is even one byte short of whole-buffer misses it.
+    //
+    // Credit where due — this case came from pd-purser on #9757. Its own
+    // fixture for it was broken (`Buffer.alloc(8001)` then `buf[8001] = 0`,
+    // which Node silently drops as an out-of-bounds write, leaving a file with
+    // no NUL at all), but the idea was right and this repo did not have it.
+    const lastRead = writeFixture('nul-at-7999.txt', { nulAt: 7999 });
+    const firstSkipped = writeFixture('nul-at-8000.txt', { nulAt: 8000 });
+
+    expect(gitCallsItBinary(lastRead)).toBe(true);
+    expect(gitCallsItBinary(firstSkipped)).toBe(false);
+
+    // Ours catches both. This is the assertion that matters; the two above are
+    // what make this offset the interesting one rather than an arbitrary number.
+    expect(findNulOffenders([lastRead, firstSkipped], TEMP_DIR)).toEqual([lastRead, firstSkipped]);
+  });
 });
