@@ -1,54 +1,109 @@
 // tests/unit/purser/nul-in-middle.test.js
 /**
- * This test validates that our source‑file guard logic detects a NUL byte
- * anywhere in a file, even when the byte is positioned beyond Git's
- * 8000‑byte binary threshold.  The guard itself uses `fs.readFileSync`
- * followed by `Buffer.includes(0)` which scans the entire file.
+ * The repo's NUL guard must catch a NUL byte ANYWHERE in a file, including
+ * past offset 8000 — the point of this file.
  *
- * The test creates a temporary file that is > 8000 bytes long, injects
- * a NUL byte near the end, and asserts that the detection succeeds.
- * It also checks that a file without a NUL is not falsely reported.
+ * WHY 8000 MATTERS: git sniffs only the first 8000 bytes of a blob to decide
+ * "binary". A NUL at offset 8500 therefore leaves git perfectly happy — it
+ * still diffs the file, still merges it, still calls it text — while ripgrep,
+ * which is NOT bound by that window, has already stopped printing matching
+ * lines and started printing `binary file matches`. That gap is the dangerous
+ * one: nothing in git's own behaviour signals the problem, and the only
+ * symptom is that search goes quiet, which reads like "this symbol is unused".
+ * So the guard is deliberately STRICTER than git's heuristic, and the third
+ * test below pins that difference by measuring both sides of it.
+ *
+ * HISTORY — do not reintroduce this shape. The first version of this file
+ * imported nothing from this repo (`@jest/globals`, `node:fs`, `node:path`,
+ * `node:os` only), wrote a 9000-byte buffer with a NUL at 8500 to a temp file,
+ * read it back and asserted `readBuf.includes(0) === true`. That is a test of
+ * a Node built-in: it PASSED with tests/unit/source-is-text.test.js deleted
+ * from the tree. It could not have been written any other way at the time,
+ * because the scanning logic was module-private to that test file. The fix was
+ * structural — scripts/lib/source-is-text.mjs now exports `findNulOffenders`
+ * with an arbitrary root — so this file drives the real guard over fixtures.
+ * If you ever find yourself re-implementing the check here, stop: that means
+ * the seam has gone away again, and the seam is the point.
  */
 
-import { describe, test, expect, afterAll } from '@jest/globals';
-import { writeFileSync, readFileSync, rmSync, mkdirSync } from 'node:fs';
+import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
+import { spawnSync } from 'node:child_process';
+import { writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
+import { findNulOffenders } from '../../../scripts/lib/source-is-text.mjs';
+
 const TEMP_DIR = resolve(tmpdir(), 'purser-nul-test-' + Date.now());
+
+const SIZE = 9000; // comfortably past git's 8000-byte sniff window
+const LATE_NUL_OFFSET = 8500; // outside the window: git says text, ripgrep does not
+const EARLY_NUL_OFFSET = 100; // inside the window: git says binary
+
+/** Write `size` bytes of filler into TEMP_DIR, optionally with one raw NUL. */
+function writeFixture(name, { size = SIZE, nulAt = null } = {}) {
+  const buf = Buffer.alloc(size, 'a');
+  if (nulAt !== null) buf[nulAt] = 0;
+  writeFileSync(join(TEMP_DIR, name), buf);
+  return name;
+}
+
+/**
+ * Ask git whether it considers `name` binary, using its own sniff.
+ * `git diff --numstat` prints `-\t-` for a binary blob and real line counts
+ * for a text one, so the answer comes from git rather than from our belief
+ * about git. Exits non-zero whenever the files differ, which is always here.
+ */
+function gitCallsItBinary(name) {
+  const { stdout, status } = spawnSync(
+    'git',
+    ['diff', '--no-index', '--numstat', '--', 'clean.txt', name],
+    { cwd: TEMP_DIR, encoding: 'utf8' },
+  );
+  // status 1 == "files differ", which is expected. Anything else is a broken
+  // probe, and a broken probe must not read as "not binary".
+  if (status !== 1) throw new Error(`git diff probe failed (status ${status}): ${stdout}`);
+  return stdout.startsWith('-\t-\t');
+}
+
+beforeAll(() => {
+  mkdirSync(TEMP_DIR, { recursive: true });
+  writeFixture('clean.txt');
+});
 
 afterAll(() => {
   // Clean up the temporary directory after all tests
   rmSync(TEMP_DIR, { recursive: true, force: true });
 });
 
-describe('NUL detection beyond Git 8000‑byte threshold', () => {
-  test('detects a NUL byte located after 8000 bytes', () => {
-    // Ensure the temp directory exists
-    mkdirSync(TEMP_DIR, { recursive: true });
+describe('NUL detection beyond git 8000-byte threshold', () => {
+  test('the guard reports a file whose only NUL is at offset 8500', () => {
+    const name = writeFixture('late.txt', { nulAt: LATE_NUL_OFFSET });
 
-    // Create a file 9000 bytes long (all 'a'), then inject a NUL at pos 8500
-    const filePath = join(TEMP_DIR, 'large.txt');
-    const buf = Buffer.alloc(9000, 'a'); // 9000 bytes of 'a'
-    const nulIndex = 8500;
-    buf[nulIndex] = 0; // inject raw NUL
-
-    writeFileSync(filePath, buf);
-
-    // Read back the file and check for the NUL
-    const readBuf = readFileSync(filePath);
-    const hasNul = readBuf.includes(0);
-
-    expect(hasNul).toBe(true);
+    expect(findNulOffenders([name], TEMP_DIR)).toEqual([name]);
   });
 
-  test('does not flag a file without a NUL byte', () => {
-    const filePath = join(TEMP_DIR, 'clean.txt');
-    writeFileSync(filePath, Buffer.alloc(9000, 'b')); // 9000 bytes of 'b'
+  test('the guard does not report a same-sized file with no NUL', () => {
+    expect(findNulOffenders(['clean.txt'], TEMP_DIR)).toEqual([]);
+  });
 
-    const readBuf = readFileSync(filePath);
-    const hasNul = readBuf.includes(0);
+  test('the guard catches what git deliberately does not: a NUL past its sniff window', () => {
+    const late = writeFixture('late-sharp.txt', { nulAt: LATE_NUL_OFFSET });
+    const early = writeFixture('early-sharp.txt', { nulAt: EARLY_NUL_OFFSET });
 
-    expect(hasNul).toBe(false);
+    // Control: git's sniff does work, and does fire on a NUL inside its window.
+    // Without this, "git says text" below could just mean the probe is broken.
+    expect(gitCallsItBinary(early)).toBe(true);
+
+    // The sharp point. Same file size, same single NUL, only the offset moved
+    // past 8000 — and git now calls it TEXT. Nothing in git's behaviour would
+    // ever tell you, but ripgrep still refuses to print the matching lines.
+    expect(gitCallsItBinary(late)).toBe(false);
+
+    // The guard is not fooled: it scans the whole buffer, so it catches the
+    // file git waved through. Truncating findNulOffenders to the first 8000
+    // bytes would make this assertion fail, which is exactly the regression
+    // this test exists to catch.
+    expect(findNulOffenders([late, early, 'clean.txt'], TEMP_DIR)).toEqual([late, early]);
   });
 });
