@@ -573,8 +573,9 @@ export interface D1Capture {
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
   /**
-   * When true, the NEXT `INSERT OR REPLACE INTO fleet_runs` (recordRunStart's
-   * write, specifically — not ensureRunRow's `OR IGNORE`) throws once, then
+   * When true, the NEXT logical-run upsert into `fleet_runs`
+   * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
+   * throws once, then
    * resets to false. Simulates a transient D1 hiccup at exactly the moment
    * recordRunStart writes, to test ensureRunRow's backstop closes the gap.
    */
@@ -585,7 +586,7 @@ export interface D1Capture {
 
 /**
  * Minimal in-memory D1 stub. Recognizes the three statements the executor uses
- * (INSERT OR REPLACE INTO fleet_runs / fleet_run_steps, UPDATE fleet_runs) by
+ * (fleet_runs upsert / fleet_run_steps insert / fleet_runs update) by
  * keyword and records the bound parameters. Everything else is a no-op that
  * returns an empty result, so a stray query never blows up a test.
  */
@@ -610,7 +611,11 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
-        if (cap.failNextRecordRunStartInsert && /INSERT OR REPLACE INTO fleet_runs/i.test(sql)) {
+        if (
+          cap.failNextRecordRunStartInsert
+          && /INSERT INTO fleet_runs/i.test(sql)
+          && /ON CONFLICT\s*\(id\)/i.test(sql)
+        ) {
           cap.failNextRecordRunStartInsert = false;
           throw new Error('D1 unavailable (simulated recordRunStart failure)');
         }
@@ -625,13 +630,24 @@ export function memoryD1(): D1Capture {
             costUsd: Number(args[6]),
           });
         } else if (/INTO fleet_runs/i.test(sql)) {
-          // Real SQLite/D1 honors OR IGNORE (no-op on an existing primary key)
-          // vs OR REPLACE (overwrite) differently — ensureRunRow's backstop
-          // relies on exactly that distinction to never clobber a row
-          // recordRunStart already wrote successfully.
+          // Real SQLite/D1 honors OR IGNORE, OR REPLACE, and recordRunStart's
+          // ON CONFLICT update differently. The logical-run upsert refreshes
+          // pending metadata but preserves the first timestamp and any terminal
+          // result, while ensureRunRow remains a true no-op on an existing row.
           const isIgnore = /INSERT OR IGNORE/i.test(sql);
+          const isLogicalRunUpsert = /ON CONFLICT\s*\(id\)/i.test(sql);
+          const existing = runsById.get(String(args[0]));
           if (isIgnore && runsById.has(String(args[0]))) {
             // no-op, matching real D1
+          } else if (isLogicalRunUpsert && existing) {
+            if (existing.conclusion === 'pending') {
+              existing.deliveryId = args[1];
+              existing.repo = args[2];
+              existing.prNumber = args[3];
+              existing.prUrl = args[4];
+              existing.headSha = args[5];
+              if (existing.shipsCsv === '') existing.shipsCsv = args[6];
+            }
           } else {
             runsById.set(String(args[0]), {
               id: args[0],
@@ -657,10 +673,18 @@ export function memoryD1(): D1Capture {
             createdAt: Number(args[6]),
           });
         } else if (/UPDATE fleet_runs/i.test(sql)) {
-          const row = runsById.get(String(args[2]));
+          const usesDurableStart = /COALESCE\s*\(created_at\s*\*\s*1000/i.test(sql);
+          const row = runsById.get(String(args[usesDurableStart ? 3 : 2]));
           if (row) {
             row.conclusion = String(args[0]);
-            row.ms = Number(args[1]);
+            if (usesDurableStart) {
+              const createdAtMs = Number(row.createdAt) * 1000;
+              const fallbackStartMs = Number(args[2]);
+              const durableStartMs = Number.isFinite(createdAtMs) ? createdAtMs : fallbackStartMs;
+              row.ms = Math.max(0, Number(args[1]) - durableStartMs);
+            } else {
+              row.ms = Number(args[1]);
+            }
           }
         }
         return { success: true, meta: {} };

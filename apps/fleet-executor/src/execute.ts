@@ -622,8 +622,11 @@ async function emitTranscriptWriteFailureTelemetry(
 
 /**
  * Write the fleet_runs audit header BEFORE any ship runs (conclusion 'pending').
- * Best-effort + idempotent (INSERT OR REPLACE on the deterministic id). A write
- * failure here NEVER aborts the run.
+ * Best-effort + idempotent on the deterministic delivery id. Checkpointed queue
+ * slices revisit this function, so the conflict path deliberately preserves the
+ * first `created_at`, terminal conclusion, and elapsed time: one delivery is one
+ * logical run even when Cloudflare resumes it through several queue attempts.
+ * A write failure here NEVER aborts the run.
  */
 async function recordRunStart(
   env: ExecutorEnv,
@@ -637,9 +640,20 @@ async function recordRunStart(
   const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
   try {
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO fleet_runs
+      `INSERT INTO fleet_runs
          (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         delivery_id = excluded.delivery_id,
+         repo_full_name = excluded.repo_full_name,
+         pr_number = excluded.pr_number,
+         pr_url = excluded.pr_url,
+         head_sha = excluded.head_sha,
+         ships_csv = CASE
+           WHEN fleet_runs.ships_csv = '' THEN excluded.ships_csv
+           ELSE fleet_runs.ships_csv
+         END
+       WHERE fleet_runs.conclusion = 'pending'`,
     )
       .bind(
         runId,
@@ -706,9 +720,9 @@ async function recordShipsConfigInTranscript(
  * `details_url` then points at a run id with no row, and the run page 404s
  * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
  * completion path has the same gap: it never calls `recordRunStart` at all.
- * Calling this once, right after `recordRunStart`, closes both: if the
- * INSERT OR REPLACE above already succeeded this is a guaranteed no-op (same
- * primary key); if it silently failed, this creates a minimal-but-truthful
+ * Calling this once, right after `recordRunStart`, closes both: if the logical
+ * upsert above already succeeded this is a guaranteed no-op (same primary key);
+ * if it silently failed, this creates a minimal-but-truthful
  * fallback row so the link a completed check publishes always resolves to
  * something real.
  */
@@ -744,9 +758,11 @@ export async function ensureRunRow(
 }
 
 /**
- * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
- * Best-effort: a write failure NEVER changes the gate (the check run is already
- * the authoritative surface on GitHub).
+ * Stamp the final conclusion + end-to-end wall-clock elapsed onto the run.
+ * The durable first `created_at` is authoritative across checkpoint retries;
+ * `startMs` is only a defensive fallback for a malformed legacy row. Best-effort:
+ * a write failure NEVER changes the gate (the check run is already authoritative
+ * on GitHub).
  */
 async function recordRunEnd(
   env: ExecutorEnv,
@@ -756,8 +772,13 @@ async function recordRunEnd(
 ): Promise<void> {
   if (!env.DB) return;
   try {
-    await env.DB.prepare(`UPDATE fleet_runs SET conclusion = ?, ms = ? WHERE id = ?`)
-      .bind(conclusion, Date.now() - startMs, runId)
+    await env.DB.prepare(
+      `UPDATE fleet_runs
+         SET conclusion = ?,
+             ms = MAX(0, ? - COALESCE(created_at * 1000, ?))
+       WHERE id = ?`,
+    )
+      .bind(conclusion, Date.now(), startMs, runId)
       .run();
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs update failed run=${runId}: ${String(err)}`);
