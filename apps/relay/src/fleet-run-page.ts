@@ -280,6 +280,8 @@ li.step.tone-info{border-left-color:var(--hair-strong)}
 .finding-head .sev{font-weight:700;font-family:"IBM Plex Mono",monospace}
 .floc{font-family:"IBM Plex Mono",monospace;color:var(--text-muted);background:var(--surface-strong);padding:1px 6px;border:1px solid var(--hair-strong);word-break:break-all}
 .finding-body{margin-top:6px;color:var(--text-secondary);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.operator-action{margin-top:12px;padding:10px 12px;border-left:var(--lw-stripe) solid var(--teal);background:var(--surface-card);font-size:14px;line-height:1.55;color:var(--text-secondary)}
+.operator-action strong{color:var(--text-primary)}
 ol.breakdown{list-style:none;margin-top:8px}
 ol.breakdown li{padding:2px 0;color:var(--text-muted);font-size:13px;font-family:"IBM Plex Mono",monospace}
 details.consolidated,details.raw{margin-top:10px}
@@ -611,8 +613,46 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
             : `${shipLabel}'s breakage is isolated to this PR — the failure stands.`),
         bodyHtml: `<p class="meta">${esc(
           fleetWide
-            ? 'The same ship is broken across other PRs, so the fault gates the fleet (who can fix it), not this author (who cannot). The run resolves neutral — visible, never green.'
-            : 'No evidence of this ship breaking on other PRs, so the breakage is plausibly caused by this diff and fails the run.',
+            ? 'This is a fleet-wide adjudication, not a PR-review failure. The run resolves neutral — visible, never green — because the fault gates the fleet, not this author, who must fix it.'
+            : 'This is an isolated PR-review failure, not a fleet-wide provider outage. The breakage fails the run and remains a failing gate for this PR.',
+        )}</p><p class="operator-action"><strong>Operator action:</strong> ${esc(
+          fleetWide
+            ? 'No change is requested from the PR author. Track the fleet fault and repair or pause the affected ship in FleetBar before asking for another review.'
+            : 'Inspect this ship’s transcript and configuration; the PR remains blocked until the isolated review failure is resolved.',
+        )}</p>`,
+      };
+    }
+
+    // A FleetAiCircuit opens only for a retryable Workers AI dependency fault.
+    // This is a provider availability event, deliberately distinct from a ship's
+    // review judgement or an isolated broken-ship failure.
+    case 'provider-circuit-open': {
+      const attempt = numField(obj, 'attempt');
+      const maxAttempts = numField(obj, 'maxAttempts');
+      const hasRetryRemaining = attempt != null && maxAttempts != null && attempt < maxAttempts;
+      const status = numField(obj, 'status');
+      const code = numField(obj, 'code');
+      const providerDetail = [
+        status != null ? `HTTP ${status}` : null,
+        code != null ? `provider code ${code}` : null,
+      ].filter((value): value is string => value !== null).join(' · ');
+      const attemptLabel = attempt != null && maxAttempts != null
+        ? `delivery attempt ${attempt}/${maxAttempts}`
+        : 'this delivery attempt';
+      return {
+        icon: '!',
+        tone: 'neutral',
+        headline: `Workers AI provider circuit opened on ${attemptLabel} — provider outage, not a PR-review failure.`,
+        bodyHtml: `<p class="meta">${esc(
+          `${providerDetail ? `${providerDetail}. ` : ''}${
+            hasRetryRemaining
+              ? 'The queue has scheduled the next bounded retry.'
+              : 'The bounded provider retry budget is exhausted.'
+          }`,
+        )}</p><p class="operator-action"><strong>Operator action:</strong> ${esc(
+          hasRetryRemaining
+            ? 'No change is requested from the PR author. Let the scheduled retry run and monitor the next attempt in Cloud Fleet.'
+            : 'No change is requested from the PR author. Check Workers AI availability and the Fleet provider configuration in FleetBar before requesting a fresh review.',
         )}</p>`,
       };
     }
@@ -1073,6 +1113,13 @@ function emptyTranscript(run: FleetRunProjection): string {
     return `<div class="empty"><div class="e-title">Queue admission needs repair.</div>
       <p>${esc(run.last_error ?? 'The relay could not hand this generation to a Fleet worker.')}</p></div>`;
   }
+  if (run.logical_state === 'retrying') {
+    const attempt = Number.isInteger(run.attempt_count) && run.attempt_count > 0 ? run.attempt_count : 1;
+    return `<div class="empty"><div class="e-title">Provider retry scheduled — attempt ${esc(attempt)} is complete.</div>
+      <p>A provider outage interrupted this Fleet delivery. This is not a PR-review failure, and no review conclusion has been made yet.</p>
+      ${run.last_error ? `<p class="meta">${esc(run.last_error)}</p>` : ''}
+      <p class="operator-action"><strong>Operator action:</strong> No change is requested from the PR author. Let the queue retry; if its bounded attempts exhaust, inspect Workers AI and the Fleet provider configuration in FleetBar before requesting a fresh review.</p></div>`;
+  }
   return `<div class="empty"><div class="e-title">No transcript steps recorded for this run.</div>
     <p>The run ended before per-ship deliberation was stored, or step recording was unavailable.
     The state above remains authoritative.</p></div>`;
@@ -1104,6 +1151,7 @@ export function renderFleetRunReceiptPage(
     ? `<a href="${esc(run.pr_url)}">${prLabel}</a>`
     : prLabel;
   const active = ['admitting', 'queued', 'running', 'retrying'].includes(run.logical_state);
+  const retrying = run.logical_state === 'retrying';
   const timingLabel = active ? 'admitted' : 'finished';
   const timingValue = active ? run.queued_at : (run.finished_at ?? run.created_at);
   const expected = run.expected_finish_at == null ? 'calculating' : fmtUtc(run.expected_finish_at);
@@ -1129,7 +1177,7 @@ export function renderFleetRunReceiptPage(
       <div class="rid-facts">
         <span class="fact"><span class="fk">head</span><code>${esc(run.head_sha.slice(0, 12))}</code></span>
         <span class="fact"><span class="fk">${esc(timingLabel)}</span><code>${esc(fmtUtc(timingValue))}</code></span>
-        <span class="fact"><span class="fk">attempts</span><code>${esc(run.attempt_count)}</code></span>
+        <span class="fact"><span class="fk">${retrying ? 'retry attempt' : 'attempts'}</span><code>${esc(run.attempt_count)}</code></span>
         ${active ? `<span class="fact"><span class="fk">expected by</span><code>${esc(expected)}</code></span>` : ''}
         <span class="fact"><span class="fk">ships</span><code>${esc(shipsLabel)}</code></span>
       </div>

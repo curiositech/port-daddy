@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { handleFleetRunPage, runPageToken } from '../src/fleet-run-page.js';
+import { handleFleetRunPage, renderFleetRunReceiptPage, runPageToken } from '../src/fleet-run-page.js';
 import type { Env } from '../src/types.js';
 import type { FleetRunRow, FleetRunStepRow } from '../src/db.js';
 
@@ -212,6 +212,32 @@ describe('fleet run page — live intent-only receipt', () => {
     expect(html).toContain('Waiting for a Fleet worker');
     expect(html).toContain('No ship has started yet');
     expect(html).not.toContain('Check concluded');
+  });
+
+  it('renders a scheduled provider retry as an outage, not a PR-review failure', () => {
+    const run = {
+      ...makeRun({ conclusion: 'retrying', ships_csv: '', ms: 0 }),
+      logical_state: 'retrying',
+      generation: 4,
+      attempt_count: 2,
+      queued_at: 1_700_000_000,
+      started_at: 1_700_000_001,
+      last_progress_at: 1_700_000_010,
+      finished_at: null,
+      expected_start_at: 1_700_000_030,
+      expected_finish_at: 1_700_000_090,
+      queue_ahead_estimate: 0,
+      has_transcript: false,
+      superseded_by: null,
+      last_error: 'Workers AI circuit open on attempt 2/3; queue retry scheduled in 31s',
+    };
+    const html = renderFleetRunReceiptPage(run, []);
+    expect(html).toContain('retry attempt');
+    expect(html).toContain('Provider retry scheduled — attempt 2 is complete');
+    expect(html).toContain('provider outage');
+    expect(html).toContain('not a PR-review failure');
+    expect(html).toContain('queue retry scheduled in 31s');
+    expect(html).toContain('Operator action:');
   });
 });
 
@@ -659,6 +685,42 @@ describe('fleet run page rendering', () => {
     expect(html).not.toContain('PASS · clean');
     expect(html).not.toContain('came back clean');
     expect(html).not.toContain('reviewed the diff and returned');
+  });
+
+  it('distinguishes a Workers AI circuit outage from an isolated PR-review failure', () => {
+    const providerOutage = renderFleetRunReceiptPage(
+      {
+        ...makeRun({ conclusion: 'neutral' }),
+        logical_state: 'neutral', generation: 1, attempt_count: 3,
+        queued_at: 1_700_000_000, started_at: 1_700_000_001, last_progress_at: 1_700_000_010,
+        finished_at: 1_700_000_030, expected_start_at: null, expected_finish_at: null,
+        queue_ahead_estimate: null, has_transcript: true, superseded_by: null, last_error: null,
+      },
+      [
+        step('provider-circuit-open', 'code-reviewer', 'internal title is not operator copy', {
+          attempt: 3, maxAttempts: 3, status: 429, code: 3040, retryable: true,
+        }),
+        step('ship-adjudicated', 'code-reviewer', 'internal title is not operator copy', { verdict: 'fleet' }, 2),
+      ],
+    );
+    expect(providerOutage).toContain('provider outage, not a PR-review failure');
+    expect(providerOutage).toContain('HTTP 429 · provider code 3040');
+    expect(providerOutage).toContain('bounded provider retry budget is exhausted');
+    expect(providerOutage).toContain('No change is requested from the PR author');
+    expect(providerOutage).toContain('This is a fleet-wide adjudication, not a PR-review failure');
+
+    const isolatedFailure = renderFleetRunReceiptPage(
+      {
+        ...makeRun({ conclusion: 'failure' }),
+        logical_state: 'failure', generation: 1, attempt_count: 1,
+        queued_at: 1_700_000_000, started_at: 1_700_000_001, last_progress_at: 1_700_000_010,
+        finished_at: 1_700_000_030, expected_start_at: null, expected_finish_at: null,
+        queue_ahead_estimate: null, has_transcript: true, superseded_by: null, last_error: null,
+      },
+      [step('ship-adjudicated', 'code-reviewer', 'internal title is not operator copy', { verdict: 'isolated' })],
+    );
+    expect(isolatedFailure).toContain('isolated PR-review failure, not a fleet-wide provider outage');
+    expect(isolatedFailure).toContain('PR remains blocked');
   });
 
   it('badges the ship outcome as "no usable output", not a verdict', async () => {
