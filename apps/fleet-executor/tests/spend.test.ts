@@ -12,6 +12,7 @@ import {
   MODEL_CONTEXT_TOKENS,
 } from '../src/spend.js';
 import { KNOWN_GOOD_CF_MODELS } from '../src/fleet.js';
+import { CF_ADMITTED_MODELS } from '../../shared/model-registry.generated.js';
 
 describe('costUsdForModel', () => {
   it('prices gpt-oss-120b at $0.35/$0.75 per M', () => {
@@ -59,9 +60,19 @@ describe('costUsdForModel', () => {
     for (const model of KNOWN_GOOD_CF_MODELS) {
       expect({ model, inRateTable: priced.includes(model) }).toEqual({ model, inRateTable: true });
     }
-    for (const model of priced) {
-      expect({ model, catalogued: model.startsWith('@cf/') }).toEqual({ model, catalogued: true });
-    }
+    // The reverse direction, stated as the invariant rather than as a shape.
+    // This asserted only that a priced id LOOKED like a Workers AI id, which
+    // `@cf/nobody/invented-this` also does — a test that reads as if it checks
+    // catalog membership while checking a prefix. What must actually hold: a
+    // priced id is either admitted, or is one of the deliberately-unadmitted
+    // rows, named here so adding another is a visible decision rather than a
+    // silent one. The embedding index is the only such row: real billable spend
+    // on a model no ship may be pinned to.
+    const DELIBERATELY_UNADMITTED = ['@cf/baai/bge-base-en-v1.5'];
+    const unexplained = priced.filter(
+      (model) => !CF_ADMITTED_MODELS.includes(model) && !DELIBERATELY_UNADMITTED.includes(model),
+    );
+    expect(unexplained).toEqual([]);
   });
 
   it('the rate table contains exactly the known-good models the fleet routes to', () => {
