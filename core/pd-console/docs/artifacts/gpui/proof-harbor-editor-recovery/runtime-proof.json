@@ -1,0 +1,55 @@
+{
+  "schema": "pd-console.harbor-editor-native-proof.v1",
+  "capturedAt": "2026-08-23",
+  "binary": "core/target/debug/pd-console --features gpui",
+  "nativeReceipts": [
+    {
+      "scenario": "physical typing reaches the focused Loro buffer",
+      "pane": "editor",
+      "marker": "// RELEASE_INPUT_OK",
+      "markerIndex": 22,
+      "markerCount": 1,
+      "syntax": "RUST"
+    },
+    {
+      "scenario": "normal failed open is transactional",
+      "attempt": ":edit core/pd-console/src",
+      "ok": false,
+      "error": "Is a directory (os error 21). Your current view was kept.",
+      "focusedAfter": "edit syntax.rs"
+    },
+    {
+      "scenario": "failed deep link has keyboard recovery",
+      "focusedBefore": "edit src",
+      "input": "Escape",
+      "focusedAfter": "files core/pd-console"
+    },
+    {
+      "scenario": "view controls and provenance stay separate from document text",
+      "stateAfterControls": {
+        "wrap": true,
+        "showBlame": true,
+        "blame": "ready",
+        "syntax": "RUST"
+      },
+      "stateAfterTyping": {
+        "wrap": true,
+        "showBlame": true,
+        "blame": "stale",
+        "syntax": "RUST"
+      }
+    }
+  ],
+  "tests": {
+    "editorView": "7 passed",
+    "gitBlame": "5 passed",
+    "syntax": "9 passed",
+    "gpuiBuild": "passed"
+  },
+  "pixelCapture": {
+    "before": "before-permission-denied.png",
+    "after": null,
+    "status": "blocked by macOS Screen Recording permission for the agent host",
+    "note": "The native receipts above are control-socket state from the real GPUI process, not a claimed framebuffer capture."
+  }
+}
