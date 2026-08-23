@@ -192,6 +192,16 @@ describe('harbors routes', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().harbor.name).toBe('proj:web/ui');
     });
+
+    it('400s on a double-encoded malformed UTF-8 sequence instead of throwing a 500', async () => {
+      // Fastify's router decodes the URL once ('%25ED%25A0%2580' -> '%ED%A0%80'), which is
+      // itself a valid single decode pass, so it reaches our handler. decodedName()'s own
+      // decodeURIComponent() call then throws on the invalid UTF-8 (lone surrogate) bytes —
+      // exactly the path pd-code-reviewer flagged as an uncaught-500 risk.
+      const res = await app.inject({ method: 'GET', url: '/harbors/%25ED%25A0%2580' });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' });
+    });
   });
 
   // ─── DELETE /harbors/:name ──────────────────────────────────────────────
