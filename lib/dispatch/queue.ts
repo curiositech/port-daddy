@@ -1159,30 +1159,11 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return get(id);
   }
 
-  /**
-   * Freeze the backend order a succession may walk, on the original dispatch.
-   *
-   * The rationale for writing it once, at the start of the FIRST attempt: a
-   * later profile edit must not redirect a succession already underway — a chain
-   * a lane renders has to be the chain that actually ran.
-   *
-   * @param id The dispatch id.
-   * @param chain Remaining backends in preference order.
-   * @returns The updated dispatch, or null when the id is unknown.
-   */
-  function recordFailoverChain(id: string, chain: string[]): Dispatch | null {
-    db.prepare('UPDATE dispatches SET failover_chain_json = ? WHERE id = ?').run(
-      chain.length ? JSON.stringify(chain) : null,
-      id,
-    );
-    return get(id);
-  }
 
   return {
     propose,
     materializeProjection,
     recordSpawnedAgent,
-    recordFailoverChain,
     get,
     getBySessionId,
     list,
