@@ -18,6 +18,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type {
   RoadmapItems,
+  RoadmapKind,
   RoadmapStatus,
   UpsertRoadmapItemInput,
 } from '../lib/roadmap-items.js';
@@ -51,6 +52,13 @@ interface UpsertBody {
   harbor?: unknown;
   project?: unknown;
   ttlMs?: unknown;
+  kind?: unknown;
+  priority?: unknown;
+  assigneeId?: unknown;
+  descriptionMd?: unknown;
+  startedAt?: unknown;
+  dueAt?: unknown;
+  estimate?: unknown;
 }
 
 interface PromoteBody {
@@ -125,6 +133,15 @@ function harborForProject(project: string | undefined): string | undefined {
 }
 
 const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge', 'done']);
+const KIND_VALUES = new Set<RoadmapKind>([
+  'project',
+  'epic',
+  'story',
+  'task',
+  'subtask',
+  'bug',
+  'chore',
+]);
 
 export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (fastify, opts) => {
   const { roadmapItems, roadmapPromote } = opts.deps;
@@ -164,8 +181,15 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         _request.log?.warn?.({ err }, 'roadmap_board_write_plan_edges_failed');
       }
     }
+    // Real ADR-0086 estimates drive the Gantt bars; an unsized item defaults to
+    // one effort unit so it still earns visible geometry (the board renders a
+    // duration chart now, not an unweighted topological-depth chart).
+    const estimateBySlug = new Map(rows.map((r) => [r.slug, r.estimate ?? 1]));
     const sched = schedule(
-      plan.tasks.map((t) => ({ id: t.slug as string, estimate: 1 })),
+      plan.tasks.map((t) => ({
+        id: t.slug as string,
+        estimate: estimateBySlug.get(t.slug as string) ?? 1,
+      })),
       plan.dependsOnEdges,
     );
     const adrs: Record<string, AdrMeta> = {};
@@ -229,6 +253,22 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     if (project) input.project = project;
     const ttlMs = asPosInt(body.ttlMs);
     if (ttlMs !== undefined) input.ttlMs = ttlMs;
+    // Planner columns (ADR-0086): omitted fields preserve the stored value in
+    // upsert; only explicitly-sent fields write through.
+    const kindRaw = asString(body.kind);
+    if (kindRaw && KIND_VALUES.has(kindRaw as RoadmapKind)) input.kind = kindRaw as RoadmapKind;
+    const priority = asNumber(body.priority);
+    if (priority !== undefined) input.priority = priority;
+    const assigneeId = asString(body.assigneeId);
+    if (assigneeId) input.assigneeId = assigneeId;
+    const descriptionMd = asString(body.descriptionMd);
+    if (descriptionMd) input.descriptionMd = descriptionMd;
+    const startedAt = asPosInt(body.startedAt);
+    if (startedAt !== undefined) input.startedAt = startedAt;
+    const dueAt = asPosInt(body.dueAt);
+    if (dueAt !== undefined) input.dueAt = dueAt;
+    const estimate = asPosInt(body.estimate);
+    if (estimate !== undefined) input.estimate = estimate;
 
     try {
       const item = roadmapItems.upsert(input);

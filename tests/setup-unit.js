@@ -269,6 +269,15 @@ export function createTestDb() {
       notes_json TEXT NOT NULL DEFAULT '[]',
       harbor TEXT NOT NULL,
       created_at INTEGER NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'task'
+        CHECK(kind IN ('project','epic','story','task','subtask','bug','chore')),
+      priority INTEGER NOT NULL DEFAULT 3
+        CHECK(priority BETWEEN 1 AND 5),
+      assignee_id TEXT,
+      description_md TEXT,
+      started_at INTEGER,
+      due_at INTEGER,
+      estimate INTEGER,
       deleted_at INTEGER,
       UNIQUE(slug, harbor)
     );
