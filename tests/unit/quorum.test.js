@@ -37,9 +37,12 @@ describe('propose', () => {
     expect(proposal.threshold).toBe(2);
     expect(proposal.harbor).toBe('port-daddy:fleet');
     expect(proposal.autoSpawn).toBe(false);
+    expect(proposal.tupleId).toEqual(expect.any(Number));
 
     const tuplesWritten = tuples.rd(['quorum:proposal', '*', '*'], { harbor: 'port-daddy:fleet' });
     expect(tuplesWritten).toHaveLength(1);
+    expect(proposal.tupleId).toBe(tuplesWritten[0].id);
+    expect(quorum.listProposals({ harbor: 'port-daddy:fleet' })[0].tupleId).toBe(tuplesWritten[0].id);
   });
 
   test('rejects invalid threshold', () => {
@@ -64,11 +67,13 @@ describe('vote', () => {
       proposedBy: 'spark',
     });
 
-    quorum.vote({ proposalId: p.proposalId, voterId: 'qa', stance: 'yes' });
+    const vote = quorum.vote({ proposalId: p.proposalId, voterId: 'qa', stance: 'yes' });
     const status = quorum.getStatusById(p.proposalId);
     expect(status.yesWeight).toBe(1);
     expect(status.passed).toBe(false);
     expect(status.remainingNeeded).toBe(1);
+    expect(vote.tupleId).toEqual(expect.any(Number));
+    expect(status.votes[0].tupleId).toBe(vote.tupleId);
   });
 
   test('passes when yes-weight crosses threshold and emits passed tuple', () => {
@@ -107,6 +112,28 @@ describe('vote', () => {
     expect(status.noWeight).toBe(1);
   });
 
+  test('durable tuple order breaks same-timestamp vote ties', () => {
+    const p = quorum.propose({
+      role: 'r',
+      reason: 'x',
+      threshold: 2,
+      proposedBy: 'spark',
+    });
+
+    const first = quorum.vote({ proposalId: p.proposalId, voterId: 'qa', stance: 'yes' });
+    const second = quorum.vote({ proposalId: p.proposalId, voterId: 'qa', stance: 'no' });
+
+    expect(first.at).toBe(second.at);
+    expect(second.tupleId).toBeGreaterThan(first.tupleId);
+    const status = quorum.getStatusById(p.proposalId);
+    expect(status.votes).toHaveLength(1);
+    expect(status.votes[0]).toEqual(expect.objectContaining({
+      tupleId: second.tupleId,
+      voterId: 'qa',
+      stance: 'no',
+    }));
+  });
+
   test('abstain counts toward participation, not yes-weight', () => {
     const p = quorum.propose({
       role: 'r',
@@ -120,6 +147,24 @@ describe('vote', () => {
     expect(status.passed).toBe(false);
     expect(status.abstainWeight).toBe(1);
     expect(status.yesWeight).toBe(0);
+  });
+
+  test('trusted direct-module callers retain explicit weighted votes', () => {
+    const p = quorum.propose({
+      role: 'r',
+      reason: 'trusted internal weighting',
+      threshold: 3,
+      proposedBy: 'spark',
+    });
+
+    const vote = quorum.vote({
+      proposalId: p.proposalId,
+      voterId: 'trusted-policy-engine',
+      stance: 'yes',
+      weight: 2.5,
+    });
+    expect(vote.weight).toBe(2.5);
+    expect(quorum.getStatusById(p.proposalId).yesWeight).toBe(2.5);
   });
 
   test('rejects vote on expired proposal', () => {

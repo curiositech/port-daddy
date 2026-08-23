@@ -128,6 +128,12 @@ interface SugarDeps {
 
 interface BeginOptions {
   purpose?: string;
+  /**
+   * Daemon-verified actor principal supplied by the HTTP identity boundary.
+   * When present it is the sole authoritative agent/session owner; `agentId`
+   * remains a display/request field for trusted direct-module callers only.
+   */
+  canonicalAgentId?: string;
   agentId?: string;
   name?: string;
   identity?: string;
@@ -238,6 +244,24 @@ function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'eph
     : 'ephemeral';
 }
 
+/** Read the durable semantic display identity without consulting auth metadata. */
+function semanticIdentityFromMetadata(raw: unknown): string | null {
+  let metadata: Record<string, unknown> | null = null;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    metadata = raw as Record<string, unknown>;
+  } else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        metadata = parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return typeof metadata?.semanticIdentity === 'string' ? metadata.semanticIdentity : null;
+}
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -292,6 +316,17 @@ export function createSugar(deps: SugarDeps) {
    */
   function begin(options: BeginOptions) {
     const { purpose, identity, type, files, force } = options;
+    const canonicalAgentId = typeof options.canonicalAgentId === 'string'
+      ? options.canonicalAgentId.trim()
+      : null;
+
+    if (options.canonicalAgentId !== undefined && !canonicalAgentId) {
+      return {
+        success: false,
+        error: 'canonicalAgentId must be a non-empty daemon-verified actor ID',
+        code: 'CANONICAL_AGENT_ID_INVALID',
+      };
+    }
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
@@ -413,7 +448,7 @@ export function createSugar(deps: SugarDeps) {
             code: 'ROADMAP_ITEMS_UNAVAILABLE',
           };
         }
-        const by = options.agentId || 'pd-begin';
+        const by = canonicalAgentId || options.agentId || 'pd-begin';
         if (deps.roadmapItems.slugExists(slug)) {
           // Slug collision: the item already exists (possibly in another
           // harbor). LINK to it instead of upserting — an upsert here would
@@ -452,10 +487,13 @@ export function createSugar(deps: SugarDeps) {
     // was the dual-session bug: the first session held the file claims, the
     // second could not re-claim, and the Coordination Guard then rejected the
     // commit. This mirrors the repo's claim/release idempotency discipline.
-    // Opt out with an explicit `agentId` or `force: true`.
+    // Trusted direct-module callers can opt out with an explicit `agentId`;
+    // an HTTP caller's raw agentId never reaches this point as authority.
+    // A canonical actor ID preserves resume while binding the search to that
+    // one daemon-minted principal.
     const resumeParsed = identity ? parseIdentity(identity) : null;
     const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
-    if (!force && !options.agentId && resumeProject) {
+    if (!force && (!options.agentId || canonicalAgentId) && resumeProject) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
@@ -473,22 +511,14 @@ export function createSugar(deps: SugarDeps) {
       let match: Record<string, unknown> | undefined;
       let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
       for (const s of activeRows) {
-        if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
-        
-        let storedIdentity: string | null = null;
-        if (s.metadata && typeof s.metadata === 'object') {
-          const metaObj = s.metadata as Record<string, unknown>;
-          if (typeof metaObj.identity === 'string') {
-            storedIdentity = metaObj.identity;
-          }
-        } else if (s.metadata && typeof s.metadata === 'string') {
-          try {
-            const parsed = JSON.parse(s.metadata);
-            if (parsed && typeof parsed.identity === 'string') {
-              storedIdentity = parsed.identity;
-            }
-          } catch (e) {}
-        }
+        if (
+          !s
+          || s.identityProject !== resumeProject
+          || typeof s.agentId !== 'string'
+          || (canonicalAgentId && s.agentId !== canonicalAgentId)
+        ) continue;
+
+        const storedIdentity = semanticIdentityFromMetadata(s.metadata);
 
         if (storedIdentity === identity) {
           match = s;
@@ -516,24 +546,17 @@ export function createSugar(deps: SugarDeps) {
             ? ((allSessions as { sessions: Array<Record<string, unknown>> }).sessions)
             : [];
         for (const s of allRows) {
-          if (!s || s.status === 'active' || s.identityProject !== resumeProject || typeof s.agentId !== 'string') {
+          if (
+            !s
+            || s.status === 'active'
+            || s.identityProject !== resumeProject
+            || typeof s.agentId !== 'string'
+            || (canonicalAgentId && s.agentId !== canonicalAgentId)
+          ) {
             continue;
           }
 
-          let storedIdentity: string | null = null;
-          if (s.metadata && typeof s.metadata === 'object') {
-            const metaObj = s.metadata as Record<string, unknown>;
-            if (typeof metaObj.identity === 'string') {
-              storedIdentity = metaObj.identity;
-            }
-          } else if (s.metadata && typeof s.metadata === 'string') {
-            try {
-              const parsed = JSON.parse(s.metadata);
-              if (parsed && typeof parsed.identity === 'string') {
-                storedIdentity = parsed.identity;
-              }
-            } catch (e) {}
-          }
+          const storedIdentity = semanticIdentityFromMetadata(s.metadata);
 
           if (storedIdentity === identity) {
             match = s;
@@ -555,7 +578,7 @@ export function createSugar(deps: SugarDeps) {
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
         if (match.status !== 'active' && sessions.takeover) {
           // Resumption / takeover of recently closed session
-          const finalAgentId = options.agentId || match.agentId;
+          const finalAgentId = canonicalAgentId || options.agentId || match.agentId;
           const takeoverRes = sessions.takeover(match.id, {
             agentId: finalAgentId,
             purpose: purpose.trim(),
@@ -564,6 +587,8 @@ export function createSugar(deps: SugarDeps) {
             durable: durable,
             claimFiles: true,
             metadata: {
+              ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+              semanticIdentity: identity || null,
               ...rentMetadata,
               takeoverReason: 'Idempotent resumption of recently closed session',
             }
@@ -609,7 +634,13 @@ export function createSugar(deps: SugarDeps) {
             activityLog.log('sugar_begin', {
               agentId: finalAgentId,
               details: 'sugar_begin_takeover_closed',
-              metadata: { sessionId: takeoverRes.successorId, predecessorSessionId: match.id, identity: identity || null },
+              metadata: {
+                ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+                sessionId: takeoverRes.successorId,
+                predecessorSessionId: match.id,
+                semanticIdentity: identity || null,
+                actorId: finalAgentId,
+              },
             });
             return resumed;
           }
@@ -630,7 +661,7 @@ export function createSugar(deps: SugarDeps) {
         const decision = decideBeginResume(liveness);
         if (decision.action === 'resume') {
           const resumedSessionId: string = match.id;
-          const resumedAgentId: string = match.agentId;
+          const resumedAgentId: string = canonicalAgentId || match.agentId;
           const displayName =
             (typeof match.agentName === 'string' && match.agentName)
             || (typeof match.name === 'string' && match.name)
@@ -662,13 +693,17 @@ export function createSugar(deps: SugarDeps) {
           // resumed session's record (the link is session state, not call state).
           // Switching rent MODE clears the other field — a session is either
           // roadmap-linked or a sidequest, never ambiguously both.
+          const resumeMetadataPatch: Record<string, unknown> = {
+            ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+            semanticIdentity: identity || null,
+          };
           if (Object.keys(rentMetadata).length > 0) {
             materializePendingRoadmapNew();
-            const rentPatch: Record<string, unknown> = { ...rentMetadata };
-            if (rent.roadmapLink) rentPatch.sidequestReason = undefined;
-            if (rent.sidequestReason) rentPatch.roadmapLink = undefined;
-            sessions.updateMetadata?.(resumedSessionId, rentPatch);
+            Object.assign(resumeMetadataPatch, rentMetadata);
+            if (rent.roadmapLink) resumeMetadataPatch.sidequestReason = undefined;
+            if (rent.sidequestReason) resumeMetadataPatch.roadmapLink = undefined;
           }
+          sessions.updateMetadata?.(resumedSessionId, resumeMetadataPatch);
           if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
           if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
           if (rent.roadmapCreated) resumed.roadmapCreated = true;
@@ -679,7 +714,12 @@ export function createSugar(deps: SugarDeps) {
           activityLog.log('sugar_begin', {
             agentId: resumedAgentId,
             details: 'sugar_begin_resumed',
-            metadata: { sessionId: resumedSessionId, identity: identity || null },
+            metadata: {
+              ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+              sessionId: resumedSessionId,
+              semanticIdentity: identity || null,
+              actorId: resumedAgentId,
+            },
           });
           return resumed;
         }
@@ -766,7 +806,9 @@ export function createSugar(deps: SugarDeps) {
     });
     // Generate or use provided agent ID. The suffix keeps the stable machine key
     // unique; the slug keeps `pd begin` output readable to humans.
-    const agentId = options.agentId || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
+    const agentId = canonicalAgentId
+      || options.agentId
+      || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
 
     // Step 1: Register the agent
     const registerOpts: Record<string, unknown> = {};
@@ -803,7 +845,9 @@ export function createSugar(deps: SugarDeps) {
     }
     const sessionMetadata = {
       ...(metadata && typeof metadata === 'object' ? metadata : {}),
-      identity: identity || null,
+      // `identity` is reserved for the daemon's verified identity stamp.
+      // The human semantic identity is durable but non-authoritative.
+      semanticIdentity: identity || null,
     };
     sessionOpts.metadata = sessionMetadata;
     if (durable) {
@@ -865,7 +909,8 @@ export function createSugar(deps: SugarDeps) {
         ...(metadata && typeof metadata === 'object' ? metadata : {}),
         agentId,
         sessionId: sessionResult.id as string,
-        identity: identity || null,
+        semanticIdentity: identity || null,
+        actorId: agentId,
         identityProject: identityProject || undefined,
         lifecycle,
       } as unknown as Record<string, unknown>,

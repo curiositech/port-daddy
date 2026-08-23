@@ -237,7 +237,7 @@ describe('Sugar Integration Tests', () => {
       if (agentId) await cleanupAgent(agentId);
     });
 
-    test('auto-generated agentId has expected format', async () => {
+    test('begin returns the daemon-minted actor as the canonical agentId', async () => {
       const res = await sugarBegin({
         purpose: 'Auto-ID test',
       });
@@ -247,7 +247,9 @@ describe('Sugar Integration Tests', () => {
 
       agentId = res.data.agentId;
       expect(agentId).toBeDefined();
-      expect(agentId).toMatch(/^agent-auto-id-test-[a-f0-9]{8}$/);
+      expect(agentId).toBe(res.data.actorId);
+      expect(agentId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+      expect(res.data.credential).toEqual(expect.any(String));
       expect(res.data.sessionId).toMatch(/^session-auto-id-test-[a-f0-9]{12}$/);
       expect(res.data.sessionName).toBe('Auto-ID test');
     });
@@ -463,7 +465,7 @@ describe('Sugar Integration Tests', () => {
       expect(res.data.code).toBe('NO_ACTIVE_SESSION');
     });
 
-    test('done returns 409 when explicit agentId does not own the explicit sessionId', async () => {
+    test('raw agentId cannot disown the canonical credential from its explicit sessionId', async () => {
       const beginRes = await sugarBegin({
         purpose: 'Ownership guard test',
         agentId: `owner-agent-${Date.now()}`,
@@ -477,12 +479,10 @@ describe('Sugar Integration Tests', () => {
         sessionId,
       });
 
-      expect(res.status).toBe(409);
-      expect(res.data.success).toBe(false);
-      expect(res.data.code).toBe('SESSION_OWNERSHIP_MISMATCH');
-
-      const cleanupRes = await sugarDone({ sessionId });
-      expect(cleanupRes.ok).toBe(true);
+      expect(res.ok).toBe(true);
+      expect(res.data.success).toBe(true);
+      expect(res.data.agentId).toBe(beginRes.data.actorId);
+      expect(res.data.sessionId).toBe(sessionId);
     });
 
     test('done with no body at all does not crash server', async () => {

@@ -243,7 +243,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     bodyAgentId: unknown,
     route: string,
   ):
-    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
+    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
     const verdict = resolveWriteIdentity({
       souls: actorSouls,
@@ -260,7 +260,11 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         result: { success: false, error: verdict.error, code: verdict.code },
       };
     }
-    return { success: true, verdict };
+    // requireIdentity guarantees the successful verdict is verified.
+    return {
+      success: true,
+      verdict: verdict as Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>,
+    };
   };
 
   // POST /sugar/begin
@@ -345,7 +349,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       const result = sugar.begin({
         purpose,
         identity,
-        agentId,
+        // The daemon-minted principal is the sole lifecycle owner. The raw
+        // body agentId was checked above only for cross-soul laundering and
+        // never crosses into lib/sugar as authority.
+        canonicalAgentId: beginIdentity.verdict.actorId,
         name,
         type,
         files,
@@ -460,7 +467,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       }
 
       const result = sugar.done({
-        agentId,
+        agentId: doneIdentity.verdict.actorId,
         sessionId,
         note,
         status,
@@ -516,7 +523,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return relinkIdentity.result;
       }
 
-      const result = sugar.relink({ agentId, sessionId, roadmapLink, sidequestReason });
+      const result = sugar.relink({
+        agentId: relinkIdentity.verdict.actorId,
+        sessionId,
+        roadmapLink,
+        sidequestReason,
+      });
 
       if (!result.success) {
         const status = result.code === 'NO_ACTIVE_SESSION'

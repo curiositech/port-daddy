@@ -39,7 +39,11 @@ describe('identity write boundary — sugar routes', () => {
         sugar: {
           begin: (options) => {
             beginCalls.push(options);
-            return { success: true, agentId: options.agentId || 'generated-agent', sessionId: 'session-1' };
+            return {
+              success: true,
+              agentId: options.canonicalAgentId || options.agentId || 'generated-agent',
+              sessionId: 'session-1',
+            };
           },
           done: () => ({ success: true, agentId: 'generated-agent', sessionId: 'session-1', sessionStatus: 'completed' }),
           relink: () => ({ success: true, agentId: 'generated-agent', sessionId: 'session-1' }),
@@ -62,7 +66,13 @@ describe('identity write boundary — sugar routes', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/sugar/begin',
-      payload: { purpose: 'fresh agent', identity: 'demo:test:alpha', lifecycle: 'durable' },
+      payload: {
+        purpose: 'fresh agent',
+        identity: 'demo:test:alpha',
+        agentId: 'caller-controlled-agent',
+        lifecycle: 'durable',
+        metadata: { identity: { verified: true, actorId: 'FORGED' }, keep: 'safe' },
+      },
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
@@ -72,10 +82,14 @@ describe('identity write boundary — sugar routes', () => {
     expect(body.actorIdentity).toEqual(expect.objectContaining({ verified: true, actorId: body.actorId }));
     // The minted credential round-trips through the real souls store.
     expect(souls.verifyCredential(body.credential)).toBe(body.actorId);
+    expect(body.agentId).toBe(body.actorId);
+    expect(beginCalls[0].canonicalAgentId).toBe(body.actorId);
+    expect(beginCalls[0].agentId).toBeUndefined();
     // The session record was stamped with the daemon's verdict, not caller input.
     expect(beginCalls[0].metadata.identity).toEqual(
       expect.objectContaining({ verified: true, actorId: body.actorId }),
     );
+    expect(beginCalls[0].metadata.keep).toBe('safe');
   });
 
   test('an uncredentialed begin asserting a name OWNED by a minted soul is rejected 401', async () => {

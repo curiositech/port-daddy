@@ -53,7 +53,7 @@ A short glossary, then the patterns.
 | Actor mailbox | `pd actor <id> --message`                                    | DB row per canonical actor                                | actor id                                                     |
 | Spawn         | `pd spawn --backend <b> --identity <id> --budget <usd> -- <task>` | Sub-process; agent registered                             | `--backend`, `--model`, `--tier`, `--budget`, `--purpose`    |
 | Watch         | `pd watch <channel> --exec <script>`                         | Long-running SSE subscriber                               | `--once`, `--max-concurrent`, `--timeout`, `--min-interval`  |
-| Quorum        | `pd quorum propose` / `pd quorum vote`                       | DB row, threshold-driven                                  | `--role`, `--threshold`, `--stance`, `--weight`, `--ttl-ms`  |
+| Quorum        | `pd quorum propose` / `pd quorum vote`                       | Durable tuple rows, threshold-driven                      | `--role`, `--threshold`, `--stance`, `--ttl-ms`              |
 | Salvage       | `pd salvage` / `pd salvage claim` / `pd salvage complete`    | Reads stale agents, transfers context                     | `--project`, `--bucket`, `--claim`                           |
 | Briefing      | `pd briefing` / `pd briefing --json`                         | Writes `.portdaddy/briefing.md`                           | `--full`, `--project`                                        |
 | Guard         | `pd guard check --staged`                                    | Pre-commit enforcement                                    | `--hook`, `--mode enforce`                                   |
@@ -699,14 +699,12 @@ pid=$(pd quorum propose \
   --role merge-pr-482 \
   --reason "PR-482 reviewed by 3 agents, requesting merge" \
   --threshold 2 \
-  --as claude:supervisor \
-  --harbor release \
   --ttl-ms 3600000 -q)
 
-# Voters
-pd quorum vote --proposal $pid --as claude:reviewer-1 --stance yes
-pd quorum vote --proposal $pid --as codex:reviewer-2  --stance yes --weight 2
-pd quorum vote --proposal $pid --as gemini:reviewer-3 --stance abstain
+# Voters — each command is attributed from that agent's stored actor credential
+pd quorum vote --proposal $pid --stance yes
+pd quorum vote --proposal $pid --stance yes
+pd quorum vote --proposal $pid --stance abstain
 
 # Check
 pd quorum show $pid    # passed: true/false, remainingNeeded: N
@@ -714,10 +712,13 @@ pd quorum show $pid    # passed: true/false, remainingNeeded: N
 
 **Primitive mapping.**
 
-- Proposal: `pd quorum propose` writes a DB row with role, reason, threshold,
-  harbor, optional TTL, optional auto-spawn-on-pass.
-- Vote: `pd quorum vote --stance yes|no|abstain --weight N` is idempotent per
-  voter; re-voting overwrites.
+- Proposal: `pd quorum propose` writes a durable tuple with role, reason,
+  threshold, verified actor authority scope, optional TTL, and optional
+  auto-spawn-on-pass. Authorship comes from the stored actor credential; there
+  is no `--as` identity override.
+- Vote: `pd quorum vote --stance yes|no|abstain` appends a unit-weight vote for
+  the credentialed canonical actor. Re-voting appends evidence and the latest
+  durable tuple from that same actor determines its ballot.
 - Verdict: `pd quorum show` returns `passed` once `yesWeight >= threshold`.
 
 **When to use.** Decisions where you want explicit, auditable group consent.
@@ -741,8 +742,6 @@ pid=$(pd quorum propose \
   --role merge-pr-482 \
   --reason "Auto-merge if 2 of 3 reviewers approve" \
   --threshold 2 \
-  --as ci:merger \
-  --harbor release \
   --ttl-ms 7200000 \
   --auto-spawn -q)
 
@@ -755,9 +754,9 @@ while sleep 60; do
   [ "$expired" = "true" ] && pd say "quorum expired on PR-482" --broadcast alerts && break
 done
 
-# Reviewers (any time before TTL)
-pd quorum vote --proposal $pid --as claude:reviewer-1 --stance yes
-pd quorum vote --proposal $pid --as codex:reviewer-2  --stance yes
+# Reviewers (any time before TTL, from each reviewer's own actor context)
+pd quorum vote --proposal $pid --stance yes
+pd quorum vote --proposal $pid --stance yes
 # Third reviewer optional — threshold already met after #2
 ```
 
@@ -933,11 +932,12 @@ close.
   there is no commit/abort. For protocols that need *exactly-once* semantics
   on a result write, pair the publish with a tuple `out` and dedupe on the
   reader side.
-- **No first-class "panel of judges."** Quorum is voter-flat — each voter is
-  one identity. For "three judges, each weighted by reputation," you assign
-  `--weight` manually; PD does not track reputation. Stack it on top with
-  pheromones (`pd pheromone spray agents <id> reputation 0.7`) if you want a
-  decaying score; the daemon will not consult it during a vote.
+- **No first-class "panel of judges."** Public quorum is voter-flat: each
+  credentialed canonical actor has one unit-weight ballot. Callers cannot
+  assert `--weight`; reputation-weighted voting would need a trusted internal
+  policy module that records how it derived each weight. PD does not ship that
+  policy today, and pheromone reputation signals are never treated as voting
+  authority.
 - **Blackboard read order is by createdAt only.** If you need a topic-sorted
   blackboard ("show me all `vuln` notes about files under `apps/auth/`"), you
   filter client-side. A `pd notes --files-match <glob>` flag would help.

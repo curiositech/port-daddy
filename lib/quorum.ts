@@ -16,15 +16,18 @@
  * normal spawn pipeline (telemetry policy, wallet, bond all apply).
  *
  * Storage: tuples are durable, harbor-scoped, and already have
- * pattern-match semantics. Using them for proposals/votes means:
+ * pattern-match semantics. Actor credentials have a separate durable
+ * authority harbor so a tuple's coordination namespace cannot silently
+ * become an identity namespace. Using tuples for proposals/votes means:
  * - subscribers can listen for `['quorum:proposal', '*', '*']` and react
  * - votes are append-only (no editing tuples)
- * - harbor scoping naturally limits "who can vote on what"
+ * - the proposal's authority harbor limits which canonical actors may vote
  * - TTL on proposals gives free expiry semantics
  *
  * Tuple shapes:
  *   ['quorum:proposal', proposalId, {role, reason, threshold,
- *                                    proposedBy, harbor, autoSpawn,
+ *                                    proposedBy, harbor, authorityHarbor,
+ *                                    autoSpawn,
  *                                    expiresAt}]
  *   ['quorum:vote',     proposalId, voterId, {stance, weight, at}]
  *   ['quorum:passed',   proposalId, {role, votes, harbor, at}]
@@ -51,12 +54,16 @@ interface TupleSpaceMin {
 export type QuorumStance = 'yes' | 'no' | 'abstain';
 
 export interface QuorumProposal {
+  /** Durable tuple-space row that witnesses this proposal. */
+  tupleId: number;
   proposalId: string;
   role: string;
   reason: string;
   /** Yes-votes required for the proposal to pass. Must be >= 1. */
   threshold: number;
   proposedBy: string;
+  /** Actor-soul tenant used to authenticate authors and voters. */
+  authorityHarbor: string;
   harbor: string;
   /** Whether a passing quorum should trigger an auto-spawn (Phase 2). */
   autoSpawn: boolean;
@@ -65,6 +72,8 @@ export interface QuorumProposal {
 }
 
 export interface QuorumVote {
+  /** Durable tuple-space row that witnesses this vote. */
+  tupleId: number;
   proposalId: string;
   voterId: string;
   stance: QuorumStance;
@@ -88,6 +97,8 @@ export interface ProposeInput {
   reason: string;
   threshold: number;
   proposedBy: string;
+  /** Trusted identity scope. HTTP routes derive this after credential proof. */
+  authorityHarbor?: string;
   harbor?: string;
   autoSpawn?: boolean;
   ttlMs?: number;
@@ -107,6 +118,7 @@ export interface QuorumDeps {
 }
 
 const DEFAULT_HARBOR = 'fleet';
+const DEFAULT_AUTHORITY_HARBOR = 'local';
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -130,38 +142,40 @@ export function createQuorum(deps: QuorumDeps) {
 
     const proposalId = randomUUID();
     const harbor = input.harbor ?? DEFAULT_HARBOR;
+    const authorityHarbor = input.authorityHarbor?.trim() || DEFAULT_AUTHORITY_HARBOR;
     const ttlMs = input.ttlMs ?? DEFAULT_TTL_MS;
     const createdAt = now();
     const expiresAt = ttlMs > 0 ? createdAt + ttlMs : null;
 
-    const proposal: QuorumProposal = {
+    const storedProposal: Omit<QuorumProposal, 'tupleId'> = {
       proposalId,
       role: input.role,
       reason: input.reason,
       threshold: Math.floor(input.threshold),
       proposedBy: input.proposedBy,
+      authorityHarbor,
       harbor,
       autoSpawn: input.autoSpawn === true,
       expiresAt,
       createdAt,
     };
 
-    tuples.out(['quorum:proposal', proposalId, proposal], {
+    const tuple = tuples.out(['quorum:proposal', proposalId, storedProposal], {
       harbor,
       writtenBy: input.proposedBy,
       ttlMs: ttlMs > 0 ? ttlMs : undefined,
     });
 
-    return proposal;
+    return { ...storedProposal, tupleId: tuple.id };
   }
 
   function findProposal(proposalId: string): QuorumProposal | null {
     const matches = tuples.rd(['quorum:proposal', proposalId, '*'], { limit: 1 });
     if (matches.length === 0) return null;
     const row = matches[0];
-    const data = row.fields[2] as QuorumProposal | undefined;
+    const data = row.fields[2] as Omit<QuorumProposal, 'tupleId'> | undefined;
     if (!data || typeof data !== 'object') return null;
-    return data;
+    return { ...data, tupleId: row.id };
   }
 
   function listProposals(options: { harbor?: string; limit?: number } = {}): QuorumProposal[] {
@@ -173,7 +187,7 @@ export function createQuorum(deps: QuorumDeps) {
     for (const row of matches) {
       const data = row.fields[2];
       if (data && typeof data === 'object') {
-        proposals.push(data as QuorumProposal);
+        proposals.push({ ...(data as Omit<QuorumProposal, 'tupleId'>), tupleId: row.id });
       }
     }
     return proposals;
@@ -203,7 +217,7 @@ export function createQuorum(deps: QuorumDeps) {
       throw new Error(`quorum.vote: proposal '${input.proposalId}' has expired`);
     }
 
-    const voteRecord: QuorumVote = {
+    const storedVote: Omit<QuorumVote, 'tupleId'> = {
       proposalId: input.proposalId,
       voterId: input.voterId,
       stance: input.stance,
@@ -211,10 +225,11 @@ export function createQuorum(deps: QuorumDeps) {
       at: t,
     };
 
-    tuples.out(
-      ['quorum:vote', input.proposalId, input.voterId, voteRecord],
+    const tuple = tuples.out(
+      ['quorum:vote', input.proposalId, input.voterId, storedVote],
       { harbor: proposal.harbor, writtenBy: input.voterId },
     );
+    const voteRecord: QuorumVote = { ...storedVote, tupleId: tuple.id };
 
     // If this vote pushes us over the threshold, write a 'quorum:passed'
     // tuple so subscribers (and Phase 2 auto-spawner) can react without
@@ -252,14 +267,17 @@ export function createQuorum(deps: QuorumDeps) {
     for (const row of matches) {
       const data = row.fields[3];
       if (!data || typeof data !== 'object') continue;
-      const v = data as QuorumVote;
+      const v = { ...(data as Omit<QuorumVote, 'tupleId'>), tupleId: row.id };
       const existing = byVoter.get(v.voterId);
-      if (!existing || v.at > existing.at) {
+      // Tuple IDs are the durable append order. They remain deterministic
+      // even when two votes share a millisecond timestamp or an injected
+      // clock moves backwards.
+      if (!existing || v.tupleId > existing.tupleId) {
         byVoter.set(v.voterId, v);
       }
     }
     for (const v of byVoter.values()) votes.push(v);
-    votes.sort((a, b) => a.at - b.at);
+    votes.sort((a, b) => a.at - b.at || a.tupleId - b.tupleId);
     return votes;
   }
 
