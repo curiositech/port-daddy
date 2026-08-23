@@ -115,7 +115,8 @@ misreading.**
 `git grep -niE "mandatory harbor" origin/main -- docs/ website-v2/` returns
 zero hits — "mandatory harbors" as a concept has not yet landed in any
 committed doc on `main`, so there is nothing to mischaracterize. ADR-0128
-(`docs/adr/0128-mandatory-harbors.md`, branch `claude/mandatory-harbors-adr`,
+(`docs/adr/0128-mandatory-harbors.md` — not yet shipped to `main`; it lives
+on branch `claude/mandatory-harbors-adr`,
 PR #9667, open, `mergeable_state: "clean"`, based on the also-unmerged
 `claude/port-daddy-ios-server-fna9dy`) is now `Status: Accepted — Option A,
 decided by the operator 2026-08-23`, and its Decision section states the
@@ -140,4 +141,4 @@ next Architect of Record run after that merge should check this specifically.
 - `docs/adr/adr-numbering-registry.json` on `origin/main` — `counts.live: 99`, max key `120`.
 - GitHub API `pull_request_read` on #7279, #9639, #9667, #9764 (`curiositech/port-daddy`) — full bodies and merge/base state read live at run time (2026-08-23T17:02Z), not recalled.
 - `git merge-base` / `git merge-base --is-ancestor` across `origin/main`, `origin/purser/pr-9639-tests`, `origin/claude/port-daddy-ios-server-fna9dy` — confirms the WS-H merge landed downstream of an unmerged PR, not on `main`.
-- `docs/adr/0128-mandatory-harbors.md` at `origin/claude/mandatory-harbors-adr` — full text read; Decision section quoted directly above.
+- `docs/adr/0128-mandatory-harbors.md` at `origin/claude/mandatory-harbors-adr` (not yet shipped to `main` — that is this finding's point) — full text read; Decision section quoted directly above.
