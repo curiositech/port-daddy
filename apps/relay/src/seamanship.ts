@@ -311,12 +311,29 @@ async function listInstallationRepos(
       `${GH_API}/user/installations/${inst.id}/repositories?per_page=100`,
       { headers: ghHeaders(session.ghToken) },
     );
-    if (!res.ok) continue;
+    // A read that FAILED is not an installation with no repos. Returning null
+    // here is what keeps `installationsKnown` false all the way up, which is
+    // what makes syncSkillListings refuse instead of publishing an empty
+    // catalog over the operator's directory.
+    //
+    // This used to be `continue`, and the consequence was not theoretical: a
+    // GitHub 429 on this endpoint — the one called once PER INSTALLATION, so
+    // the likeliest place to be rate-limited — produced `{ repos: [] }` rather
+    // than null, `installationsKnown` went true, and syncSkillListings' own
+    // `DELETE FROM skill_listings WHERE namespace = ?` un-published every skill
+    // the operator had listed. The doc on that function forbids exactly this:
+    // "a GitHub outage must not be able to silently empty a directory."
+    //
+    // Refusing on a partial read is deliberate. One unreadable installation
+    // means the catalog is incomplete, and publishing an incomplete catalog
+    // withdraws whatever lived in the part we could not see.
+    if (!res.ok) return null;
     let body: unknown;
     try {
       body = await res.json();
     } catch {
-      continue;
+      // An unparseable body is a failed read, not an empty one — same rule.
+      return null;
     }
     const list =
       body && typeof body === 'object' && Array.isArray((body as { repositories?: unknown }).repositories)

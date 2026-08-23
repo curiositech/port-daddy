@@ -229,6 +229,16 @@ export interface FixtureOptions {
   login?: string;
   /** Make GET /user/installations fail — the "degraded, not empty" path. */
   installationsUnavailable?: boolean;
+  /**
+   * `/user/installations/:id/repositories` answers 429 instead of 200.
+   *
+   * The sibling of `installationsUnavailable`, and the one that was missing:
+   * the repositories stub always answered 200, so no test could reach the
+   * degraded-repo-read path at all. A GitHub rate limit lands HERE far more
+   * often than on the installations list, because this endpoint is called once
+   * per installation.
+   */
+  reposUnavailable?: boolean;
   /** Leave the GitHub App creds unset. */
   appUnconfigured?: boolean;
 }
@@ -278,6 +288,12 @@ export async function makeSeamanshipFixture(
       });
     }
     if (path === `/user/installations/${INSTALLATION_ID}/repositories`) {
+      if (opts.reposUnavailable) {
+        return new Response('rate limited', {
+          status: 429,
+          headers: { 'x-ratelimit-remaining': '0' },
+        });
+      }
       return Response.json({
         repositories: repos.map((r) => ({
           full_name: r.fullName,

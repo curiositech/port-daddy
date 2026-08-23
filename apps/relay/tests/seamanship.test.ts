@@ -454,6 +454,74 @@ describe('syncSkillListings', () => {
     expect(store.listings.size).toBe(1);
   });
 
+  /**
+   * The sibling of the test above, and the one that was missing.
+   *
+   * That test proves the invariant for a 500 on `/user/installations`. The
+   * fixture's `/user/installations/:id/repositories` stub always answered 200,
+   * so nothing could reach the OTHER degraded read — and a GitHub rate limit
+   * lands there far more often, because it is called once per installation.
+   *
+   * `listInstallationRepos` swallowed a non-ok repositories response with a
+   * bare `continue` and returned `{ repos: [], truncated: false }` — an empty
+   * array, not null. `scanOperatorCatalog` only treats NULL as degraded, so
+   * `installationsKnown` went true, `syncSkillListings` sailed past its guard,
+   * and its unconditional `DELETE FROM skill_listings WHERE namespace = ?`
+   * un-published the operator's entire public directory because GitHub was
+   * briefly rate-limiting them.
+   *
+   * The module's own doc forbids exactly this: "A scan that could not read the
+   * repos publishes and un-publishes NOTHING: a GitHub outage must not be able
+   * to silently empty a directory."
+   */
+  it('a 429 on the repositories read is UNKNOWN, not an empty catalog', async () => {
+    const { env, store } = await makeSeamanshipFixture(
+      { repos: [repoWithEverything()], reposUnavailable: true },
+      vi.stubGlobal,
+    );
+    const scan = await scanOperatorCatalog(env, await session(env));
+
+    // Premise: the installations list read FINE and the repositories call was
+    // actually attempted. Without this the test would also pass for a failure
+    // one step earlier, which the neighbouring test already covers — and would
+    // prove nothing about this path.
+    const paths = store.ghCalls.map((u) => new URL(u).pathname);
+    expect(paths).toContain('/user/installations');
+    expect(paths.some((p) => /^\/user\/installations\/\d+\/repositories$/.test(p))).toBe(true);
+
+    expect(scan.installationsKnown).toBe(false);
+    expect(scan.repos).toEqual([]);
+  });
+
+  it('publishes and withdraws NOTHING when a 429 truncates the repo read', async () => {
+    const { env, store } = await makeSeamanshipFixture(
+      {
+        repos: [repoWithEverything()],
+        reposUnavailable: true,
+        listings: [
+          {
+            namespace: LOGIN,
+            skill_id: 'skill-architect',
+            name: 'skill-architect',
+            description: 'Author a new skill from a brief.',
+            repo_full_name: 'curiositech/port-daddy',
+            source_path: 'skills/skill-architect/SKILL.md',
+          },
+        ],
+      },
+      vi.stubGlobal,
+    );
+    // Premise: there is something to lose. Without this the survival assertion
+    // below passes against an empty table.
+    expect(store.listings.size).toBe(1);
+
+    const out = await syncSkillListings(env, await session(env));
+    expect(out.ok).toBe(false);
+    expect(out.ok === false ? out.code : null).toBe('CATALOG_UNAVAILABLE');
+    // The whole point: a rate limit must not silently unpublish a directory.
+    expect(store.listings.size).toBe(1);
+  });
+
   it('refuses a cross-origin POST and an anonymous POST', async () => {
     const { env } = await makeSeamanshipFixture({ repos: [repoWithEverything()] }, vi.stubGlobal);
     const anon = await handleSeamanshipPublish(
