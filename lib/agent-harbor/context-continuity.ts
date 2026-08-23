@@ -18,7 +18,7 @@ import {
   type CompactionPacket,
   type SuccessorBootstrap,
 } from './compaction.js';
-import { appendEvent, readEvents, type HarborPayload } from './event-ledger.js';
+import { appendEvent, readEvents, type HarborPayload, type LedgerRow } from './event-ledger.js';
 
 export const CONTEXT_CONTINUITY_SCHEMA = 'pd.agent-harbor.context-continuity.v0' as const;
 
@@ -130,8 +130,21 @@ function finiteNonNegative(value: number | null | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
-function transcriptRows(db: DatabaseInstance, sessionId: string) {
-  return readEvents(db, { streamType: 'transcript-event', sessionId, limit: 10_000 });
+function transcriptRows(db: DatabaseInstance, sessionId: string): LedgerRow[] {
+  const rows: LedgerRow[] = [];
+  const pageSize = 10_000;
+  let afterSeq = 0;
+  for (;;) {
+    const page = readEvents(db, {
+      streamType: 'transcript-event',
+      sessionId,
+      afterSeq,
+      limit: pageSize,
+    });
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+    afterSeq = page[page.length - 1].ledger_seq;
+  }
 }
 
 function estimatePersistedTranscriptTokens(db: DatabaseInstance, transcriptId: string): number {
@@ -140,7 +153,9 @@ function estimatePersistedTranscriptTokens(db: DatabaseInstance, transcriptId: s
   ).get() as { present: number } | undefined;
   if (!hasTable) return 0;
   const row = db.prepare(`
-    SELECT COALESCE(SUM(LENGTH(content)), 0) AS characters
+    SELECT COALESCE(SUM(
+      LENGTH(COALESCE(content, '')) + LENGTH(COALESCE(tool_calls_json, ''))
+    ), 0) AS characters
     FROM fleet_transcript_messages
     WHERE transcript_id = ?
   `).get(transcriptId) as { characters: number };
@@ -191,6 +206,34 @@ function packetForEnvelope(
   return null;
 }
 
+function transcriptEventDetails(row: LedgerRow): {
+  at: string | null;
+  content: string | null;
+  role: 'operator' | 'assistant' | 'tool' | 'system';
+} {
+  try {
+    const outer = JSON.parse(row.payload_json) as HarborPayload;
+    const payloadJson = (outer.payloadJson ?? {}) as Record<string, unknown>;
+    const rawRole = typeof payloadJson.role === 'string' ? payloadJson.role : null;
+    const role = row.kind === 'operator_message' || rawRole === 'user'
+      ? 'operator'
+      : row.kind === 'assistant_message' || rawRole === 'assistant' || rawRole === 'thinking'
+        ? 'assistant'
+        : row.kind === 'tool_result' || rawRole === 'tool'
+          ? 'tool'
+          : 'system';
+    return {
+      at: typeof outer.occurredAt === 'string' ? outer.occurredAt : null,
+      content: typeof payloadJson.content === 'string' && payloadJson.content.trim()
+        ? payloadJson.content.trim()
+        : null,
+      role,
+    };
+  } catch {
+    return { at: null, content: null, role: 'system' };
+  }
+}
+
 function handoffEpisodeId(db: DatabaseInstance, packetId: string): number | null {
   const hasTable = db.prepare(
     "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = 'episodic_memory'",
@@ -207,10 +250,27 @@ function handoffEpisodeId(db: DatabaseInstance, packetId: string): number | null
 }
 
 function capsuleFromPacket(
+  db: DatabaseInstance,
   packet: CompactionPacket,
   sample: ContextContinuitySample,
   gitleaksRunner?: GitleaksRunner,
 ): HandoffCapsuleV0 {
+  const citedRows = new Map(
+    transcriptRows(db, packet.sessionId)
+      .filter((row) => row.sequence === null || packet.sourceTranscript.throughSequence === undefined
+        || row.sequence <= packet.sourceTranscript.throughSequence)
+      .map((row) => [row.event_id, row] as const),
+  );
+  const operatorTurns = [...citedRows.values()]
+    .filter((row) => row.kind === 'operator_message')
+    .map((row) => ({ row, details: transcriptEventDetails(row) }))
+    .filter(({ details }) => details.content !== null)
+    .slice(-5_000)
+    .map(({ row, details }) => ({
+      id: row.event_id,
+      at: details.at,
+      text: details.content as string,
+    }));
   const raw = {
     capsuleId: packet.packetId,
     capturedAt: packet.createdAt,
@@ -236,7 +296,7 @@ function capsuleFromPacket(
       dirtyFiles: packet.workspace?.files ?? [],
     },
     telos: packet.identity.task,
-    operatorTurns: [],
+    operatorTurns,
     decisions: (packet.decisions ?? []).map((decision, index) => ({
       id: `packet-decision-${index + 1}`,
       at: packet.createdAt,
@@ -269,12 +329,19 @@ function capsuleFromPacket(
       summary: null,
       sourceBlockId: null,
     })),
-    tail: (packet.transcriptExcerpts ?? []).map((excerpt, index) => ({
-      id: excerpt.citation.transcriptEventId ?? `packet-tail-${index + 1}`,
-      at: packet.createdAt,
-      text: excerpt.excerpt || `Transcript event ${excerpt.citation.transcriptEventId ?? index + 1}`,
-      role: 'system',
-    })),
+    tail: (packet.transcriptExcerpts ?? []).map((excerpt, index) => {
+      const id = excerpt.citation.transcriptEventId ?? `packet-tail-${index + 1}`;
+      const details = citedRows.has(id) ? transcriptEventDetails(citedRows.get(id) as LedgerRow) : null;
+      return {
+        id,
+        at: details?.at ?? packet.createdAt,
+        // Prefer the typed, cited transcript payload. Compaction excerpts are
+        // deliberately self-contained JSON fragments, but the standard
+        // handoff capsule's tail is an operator-facing conversation surface.
+        text: details?.content || excerpt.excerpt || `Transcript event ${id}`,
+        role: details?.role ?? 'system',
+      };
+    }),
   };
   return sanitizeHandoffCapsule(raw, { gitleaksRunner });
 }
@@ -415,7 +482,7 @@ export function createContextContinuityCoordinator(
       bootstrap = resumeFromPacket(db, packet);
       if (deps.episodicMemory && episodeId === null) {
         try {
-          const capsule = capsuleFromPacket(packet, sample, deps.gitleaksRunner);
+          const capsule = capsuleFromPacket(db, packet, sample, deps.gitleaksRunner);
           episodeId = rememberHandoff(deps.episodicMemory, packet, sample, capsule);
         } catch (error) {
           deps.logger?.error('context_continuity_handoff_projection_failed', {

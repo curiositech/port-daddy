@@ -107,6 +107,13 @@ describe('Agent Harbor context continuity vertical slice', () => {
       packetId: first?.packet?.packetId,
       sourceHeadHash: first?.packet?.sourceTranscript.headHash,
     });
+    expect(episode?.metadata?.capsule?.operatorTurns).toEqual([expect.objectContaining({
+      text: 'Finish the bounded context-continuity slice.',
+    })]);
+    expect(episode?.metadata?.capsule?.tail).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'operator', text: 'Finish the bounded context-continuity slice.' }),
+      expect.objectContaining({ role: 'assistant', text: 'I preserved the cited packet and its source transcript.' }),
+    ]));
 
     const second = bridge.recordContext({
       agentNodeId: agentId,
@@ -192,6 +199,49 @@ describe('Agent Harbor context continuity vertical slice', () => {
     expect(result?.packet).toBeNull();
     expect(result?.handoffEpisodeId).toBeNull();
     expect(listContextContinuity(db).items[0].readiness).toBe('observed');
+  });
+
+  test('counts persisted tool-call evidence in the daemon estimate', () => {
+    const { transcripts, bridge } = state();
+    const agentId = 'spawn-context-tool-payload';
+    const transcriptId = transcripts.start({
+      id: 'transcript-context-tool-payload',
+      ship: 'test',
+      spawned_agent_id: agentId,
+      trigger: 'test',
+      backend: 'cli:codex',
+      model: 'gpt-5',
+      started_at: 3_000,
+    });
+    transcripts.appendMessage(transcriptId, {
+      role: 'tool',
+      content: 'bounded preview',
+      tool_calls: [{ name: 'large-result', result: { output: 'x'.repeat(4_000) } }],
+      timestamp: 3_001,
+    });
+    bridge.registerNode(agentId, null, 3_000);
+    bridge.syncTranscript(agentId, transcriptId);
+
+    const result = bridge.recordContext({
+      agentNodeId: agentId,
+      sessionId: agentId,
+      runId: transcriptId,
+      transcriptId,
+      sourceAdapter: 'cli:codex',
+      model: 'gpt-5',
+      windowTokens: 1_000,
+      daemonUsedTokensEstimate: 0,
+      adapterUsedTokensEstimate: 0,
+      estimateMode: 'estimated',
+    });
+
+    expect(result?.envelope.estimator).toMatchObject({
+      daemonUsedTokensEstimate: expect.any(Number),
+      adapterUsedTokensEstimate: 0,
+    });
+    expect((result?.envelope.estimator as { daemonUsedTokensEstimate: number }).daemonUsedTokensEstimate).toBeGreaterThan(1_000);
+    expect(result?.assessment.successorRequired).toBe(true);
+    expect(result?.packet?.validator.passed).toBe(true);
   });
 
   test('surfaces a malformed continuity proof instead of silently looking empty', () => {
