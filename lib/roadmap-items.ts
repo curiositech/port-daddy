@@ -226,10 +226,10 @@ type RoadmapNote = { at: number; by: string; text: string };
 
 /** Append-only note merge: existing notes first, new ones after, deduped on (at, by, text). */
 function mergeNotes(existing: RoadmapNote[], incoming: RoadmapNote[]): RoadmapNote[] {
-  const seen = new Set(existing.map((n) => `${n.at} ${n.by} ${n.text}`));
+  const seen = new Set(existing.map((n) => `${n.at}\x00${n.by}\x00${n.text}`));
   const merged = [...existing];
   for (const note of incoming) {
-    const key = `${note.at} ${note.by} ${note.text}`;
+    const key = `${note.at}\x00${note.by}\x00${note.text}`;
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(note);
