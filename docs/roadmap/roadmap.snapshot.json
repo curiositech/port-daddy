@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787500874760,
+  "generatedAt": 1787508523827,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 280,
+  "count": 283,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -368,6 +368,11 @@
       "slug": "adr-0091-0051-reconcile",
       "status": "now",
       "summaryMd": "Reconcile ADR-0091 (Giant Squid Harness) into ADR-0051 (Port Daddy Harness): ADR-0051 made Accepted/canonical, ADR-0091 reduced to a Superseded stub, all lib/squid + bin/pd-hook-* + test citations repointed to ADR-0051. Branch: claude/reconcile-adr-0091-0051."
+    },
+    {
+      "slug": "adr-0092-cloud-coordination-peer",
+      "status": "now",
+      "summaryMd": "Ship ADR-0092 section 4 as an offline-first, macaroon-gated cloud coordination peer: per-project Durable Object, bidirectional CRDT replica for sessions/claims/notes/logical locks, real cloud-sandbox pd daemon, and remote-daemon safety gates."
     },
     {
       "slug": "adr-0092-l2-local-edit-gate",
@@ -830,6 +835,11 @@
       "summaryMd": "fix(squid): retire stale interactive post hooks"
     },
     {
+      "slug": "fleet-ai-call-deadlines",
+      "status": "merge",
+      "summaryMd": "Bound every Fleet Workers AI dependency call with one delivery-scoped deadline and circuit, while preserving current-head supersession before all irreversible side effects."
+    },
+    {
       "slug": "fleet-ai-gateway-cost-observability",
       "status": "now",
       "summaryMd": "Route all fleet inference through Cloudflare AI Gateway for real per-request token/cost logging (ADR-0117 D1). Blocked-by: none. Blocks: fleet-spend-circuit-breaker, fleet-v2-sandbox-execution. IN PROGRESS (billing workflow)."
@@ -988,6 +998,11 @@
       "slug": "harbor-editor",
       "status": "now",
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+    },
+    {
+      "slug": "harbor-editor-local-text-input",
+      "status": "now",
+      "summaryMd": "Make the live Harbor Editor locally editable: GPUI text input and IME, grapheme-safe cursor and selection, CRDT-authored insert/delete, presence updates, virtualization-safe repainting, and visual proof."
     },
     {
       "slug": "harbor-replicaid-agent-branch-clock",
