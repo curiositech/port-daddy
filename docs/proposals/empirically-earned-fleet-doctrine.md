@@ -260,10 +260,18 @@ Candidate induction then clusters only structurally comparable decisions. Simila
 Expensive replay is reserved for candidates with high expected value of information:
 
 ```text
-priority = recurrence × decision_stakes × uncertainty × disagreement × replay_fidelity
-           -------------------------------------------------------------------------
-                              expected_experiment_cost
+value_score = recurrence × decision_stakes × uncertainty × disagreement × replay_fidelity
+
+cost_pressure = max(
+  operator_minutes / operator_budget_minutes,
+  compute_usd / compute_budget_usd,
+  elapsed_minutes / wall_clock_budget_minutes
+)
+
+priority = value_score / max(cost_pressure, epsilon)
 ```
+
+Every `value_score` factor is preregistered on a dimensionless `[0, 1]` scale. `cost_pressure` is also dimensionless: each resource is divided by its own positive, preregistered experiment budget, and the maximum prevents spare capacity in one unit from cancelling an overrun in another. Operator time, compute spend, and wall-clock time are never added directly. Hard spend, time, and safety caps remain independent admission gates; when scalar ranking would hide an important tradeoff, the Admiralty presents the Pareto frontier to the operator instead of manufacturing a total order.
 
 Each experiment records hypothesis, source checkpoint, eligibility, exclusions, treatments, models, temperatures, seeds when supported, outcome rubric, sample-size rule, stopping rule, and analysis code before execution.
 
@@ -313,6 +321,8 @@ Material disagreement: Evidence school predicts a lower burden when receipts alr
 ```
 
 Retrieval uses the repository's shared hybrid search policy: structured filters plus BM25 and the canonical local embedder, fused and reranked. Every returned ID is validated against the candidate set. Below the confidence floor, Port Daddy says it has no relevant doctrine.
+
+Retrieval is read-only with respect to doctrine lifecycle. It cannot invent a retirement flag or convert an offensive recommendation into a forced defensive change. A packet is withdrawn only when the canonical revision is already `Contested` or `Deprecated`, or when a source tombstone invalidates its minimum evidence; those transitions are ledger events emitted by the authority defined in Section 3.4. Deprecated material remains available as labeled history, never as an active recommendation.
 
 Every packet emits a `doctrine_retrieval` receipt linking doctrine revision, decision ID, rank, score components, disclosure depth, and agent-visible text. The agent may follow, adapt, reject, or ignore it. The choice is recorded without moral language.
 
