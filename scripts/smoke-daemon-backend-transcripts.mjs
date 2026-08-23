@@ -5,10 +5,10 @@ import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync 
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../tests/helpers/ephemeral-daemon.js';
-import { resolveModel, resolveCliModelAlias } from '../lib/model-registry.js';
+import { modelFor, cliAliasFor } from './lib/model-source.mjs';
 
 /**
- * The cheap rung for a backend, from the canonical registry.
+ * The cheap rung for a backend, read from the canonical model source.
  *
  * The live rows used to carry hardcoded per-backend defaults, and they had
  * rotted exactly as you would expect a list nobody re-reads to rot — the gemini
@@ -18,7 +18,7 @@ import { resolveModel, resolveCliModelAlias } from '../lib/model-registry.js';
  * @param {string} backend The backend key.
  * @returns {string} The concrete model id for that backend's cheap rung.
  */
-const cheapFor = (backend) => resolveModel({ backend, capability: 'cheap' });
+const cheapFor = (backend) => modelFor(backend, 'cheap');
 
 export const LAUNCHD_RESTRICTED_PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
 const DEFAULT_PERSISTED_CLI_BACKEND_PATH = join(homedir(), '.port-daddy-cli-backend');
@@ -363,7 +363,7 @@ async function runCiSafeSmoke() {
         daemon,
         requestedBackend: 'cli:claude-code',
         budgetUsd: 0.01,
-        body: { model: resolveCliModelAlias('claude-cli', 'balanced') },
+        body: { model: cliAliasFor('claude-cli', 'balanced') },
         env,
         workdir: spawnWorktree.workdir,
       }),
@@ -394,7 +394,7 @@ async function runCiSafeSmoke() {
 
 function liveRowsFromEnv() {
   const rows = [];
-  if (process.env.PD_LIVE_CLI_CLAUDE_CODE === '1') rows.push({ requestedBackend: 'cli:claude-code', body: { model: process.env.PD_LIVE_CLAUDE_MODEL || resolveCliModelAlias('claude-cli', 'balanced') } });
+  if (process.env.PD_LIVE_CLI_CLAUDE_CODE === '1') rows.push({ requestedBackend: 'cli:claude-code', body: { model: process.env.PD_LIVE_CLAUDE_MODEL || cliAliasFor('claude-cli', 'balanced') } });
   if (process.env.PD_LIVE_CLI_CODEX === '1') rows.push({ requestedBackend: 'cli:codex', body: { model: 'codex-cli' } });
   if (process.env.PD_LIVE_CLI_GEMINI === '1') rows.push({ requestedBackend: 'cli:gemini', body: {} });
   if (process.env.PD_LIVE_AGY === '1') rows.push({

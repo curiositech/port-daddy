@@ -7,7 +7,7 @@
  */
 
 import { readFileSync, realpathSync } from 'node:fs';
-import { resolveModel } from '../lib/model-registry.js';
+import { modelFor } from './lib/model-source.mjs';
 import { isAbsolute, relative, resolve } from 'node:path';
 
 const args = parseArgs(process.argv.slice(2));
@@ -32,7 +32,7 @@ const readTool = {
  * Resolved rather than written down: this is a live-API probe, so a stale id
  * here fails the probe and reads as "the squid bridge is broken".
  */
-const BRIDGE_MODEL = resolveModel({ backend: 'claude', capability: 'balanced' });
+const BRIDGE_MODEL = modelFor('claude', 'balanced');
 
 const initialUserMessage = 'Use the Read tool to read README.md, then tell me the first line. If no tool is needed, say SQUID_NO_TOOL_USE.';
 
