@@ -146,7 +146,20 @@
 </div>
 
 <script>
-  const DAEMON = 'http://127.0.0.1:9876';
+  const DEFAULT_DAEMON = 'http://127.0.0.1:9876';
+  const SAMPLE_PATH = '/samples/files/examples/pd-tube/mission-control.html';
+  const DAEMON_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', 'dashboard.pd.local']);
+  const servedByDaemon = ['http:', 'https:'].includes(window.location.protocol) &&
+    DAEMON_HOSTS.has(window.location.hostname);
+
+  // A file:// page has an opaque `null` origin. The daemon deliberately rejects
+  // that CORS origin, so enter through its bundled sample route instead of
+  // weakening the local control plane for every file on disk.
+  if (!servedByDaemon) {
+    window.location.replace(`${DEFAULT_DAEMON}${SAMPLE_PATH}${window.location.search}`);
+  }
+
+  const DAEMON = servedByDaemon ? window.location.origin : DEFAULT_DAEMON;
   const CHANNEL = 'ui:clicks';
   const KIND = 'tube.msg';
   const url = `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}`;
@@ -211,7 +224,7 @@
       setStatus('Posting to <b>ui:clicks</b>…');
       pulse();
       const id = await publish(humanText, 'web-page');
-      card('click', 'web page', id, `Asked the agent to <code>${label}</code>`);
+      card('click', 'web page', id, `Asked the agent to <code>${escapeHtml(label)}</code>`);
       await sleep(300);
       $('agentNode').classList.add('awake');
       setStatus('<span class="live">● agent awake</span> — working…');

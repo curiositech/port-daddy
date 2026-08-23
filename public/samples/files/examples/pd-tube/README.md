@@ -9,6 +9,12 @@ webhook into an event your running agent can answer in one shell call.
 JSON event to `/msg/ui:clicks` and polls the same channel for the
 agent's reply. No SDK, no MCP, no websocket — just `fetch()`.
 
+Open Mission Control through the daemon at
+`http://127.0.0.1:9876/samples/files/examples/pd-tube/mission-control.html`.
+Opening `mission-control.html` directly from disk redirects there automatically.
+That same-origin hop is intentional: the daemon does not trust the opaque `null`
+origin used by arbitrary `file://` pages.
+
 The agent side runs once:
 
 ```bash

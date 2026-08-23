@@ -97,4 +97,7 @@ def main():
             print(f"loop error: {e}", file=sys.stderr); time.sleep(1)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nresponder stopped", file=sys.stderr)
