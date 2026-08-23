@@ -17,6 +17,7 @@ import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executability.js';
 import { encodeFingerprint, fingerprintDiff, withAuthoredTests } from '../src/purser-rerun.js';
+import { FleetAiCircuit, FleetAiDependencyError } from '../src/ai-resilience.js';
 import {
   freshState,
   installGitHubFetch,
@@ -242,6 +243,69 @@ describe('parseSteelMan — extraction tolerance (2026-08-04: 1416 chars discard
 });
 
 describe('runPurser — steel-man failure modes', () => {
+  it('propagates a silent AI deadline to the queue while provider budget remains', async () => {
+    const run = vi.fn(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    await expect(runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:deadline',
+      false,
+      new FleetAiCircuit(10),
+      1,
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({
+        status: 408,
+        code: 3007,
+        retryable: true,
+        providerCircuitOpen: true,
+        providerAttempt: 1,
+      }),
+    }));
+    expect(rec.steps.some(step => step.kind === 'ship-verdict')).toBe(false);
+  });
+
+  it('fails the Purser honestly after the final provider deadline instead of retrying forever', async () => {
+    const run = vi.fn(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:deadline',
+      false,
+      new FleetAiCircuit(10),
+      3,
+    );
+
+    expect(result).toMatchObject({
+      ship: 'purser',
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: expect.stringContaining('10ms deadline'),
+      brokenAdjudicated: {
+        scope: 'fleet',
+        reason: expect.stringContaining('3/3 provider attempts'),
+      },
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it('malformed steel-man ⇒ transcript error step, BROKEN-SHIP result, and a hard stop (no second AI call, no git writes)', async () => {
     const { ai } = seqAi(['I refuse to emit JSON.', TESTS_JSON]);
     const rec = recorder();

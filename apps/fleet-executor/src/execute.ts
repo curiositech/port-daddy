@@ -1712,6 +1712,8 @@ export async function executeFleet(
             graftText,
             runId,
             squidConsent,
+            aiCircuit,
+            providerAttempt,
             assertCurrentHead,
           )
         : await runShip(
