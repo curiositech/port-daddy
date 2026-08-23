@@ -123,16 +123,32 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
     // mapping is exhaustive over the states the Conductor can return from
     // `launch()`; an unrecognized state is treated as a failure rather than
     // silently swallowed (defensive: a future LaunchState must be mapped here).
+    // Stamp the body's agent id onto the dispatch row as soon as the Conductor
+    // resolves it. This is the join key to `fleet_transcripts`, and it is
+    // recorded here — before the terminal mapping below — because the two things
+    // that need it (a live lane, and the handoff capsule built when a body dies)
+    // both need it while the run is unfinished or failing, not after.
+    const agentId = r.launch.agentId ?? null;
+    if (agentId && typeof input.queue.recordSpawnedAgent === 'function') {
+      try {
+        input.queue.recordSpawnedAgent(input.plan.dispatch.id, agentId);
+      } catch {
+        // Never let a bookkeeping write fail a run: an unrecorded agent id costs
+        // the lane a transcript link, an exception here costs the whole dispatch.
+      }
+    }
+
     const launchState = r.launch.state;
     switch (launchState) {
       case 'halted':
         // Operator halt landed on this launch → preserve the worktree/transcript
         // for the operator to salvage rather than discarding it as a failure.
-        return { state: 'salvage', errorMessage: r.launch.errorMessage ?? 'halted' };
+        return { state: 'salvage', agentId, errorMessage: r.launch.errorMessage ?? 'halted' };
 
       case 'failed':
         return {
           state: 'failed',
+          agentId,
           costUsd: r.launch.costUsd ?? undefined,
           errorMessage: r.launch.errorMessage,
         };
@@ -147,6 +163,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         if (!r.launch.resultArtifact) {
           return {
             state: 'salvage',
+            agentId,
             costUsd: r.launch.costUsd ?? undefined,
             errorMessage:
               r.launch.errorMessage
@@ -155,6 +172,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         }
         return {
           state: 'settled',
+          agentId,
           costUsd: r.launch.costUsd ?? undefined,
           resultArtifact: r.launch.resultArtifact,
         };
@@ -162,6 +180,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       default:
         return {
           state: 'failed',
+          agentId,
           errorMessage: `unexpected launch state: ${launchState}`,
         };
     }
