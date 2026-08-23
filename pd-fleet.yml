@@ -18,6 +18,24 @@
 # operator's auth. When the Port Daddy GitHub App lands, the helper
 # flips to App credentials transparently — ships don't change.
 #
+# MODEL SELECTION (supplant, 2026-08-23): this file no longer contains a single
+# model ID. A backend fallback declares a CAPABILITY rung —
+#
+#     - backend: cloudflare
+#       capability: cheap        # cheap | balanced | high | max-thinking | code
+#
+# — and a ship or step declares a cloud-plane ROLE (`cf_role:`, `plan_cf_role:`,
+# `author_cf_role:`, `map_cf_role:`) whose value is one of the roles declared in
+# config/models.yaml. Both vocabularies resolve to concrete ids in exactly one
+# place, and the resolution is guarded: an unknown token runs the default rather
+# than reaching `ai.run()`, because an unknown Workers AI id does not error — it
+# hangs, and the caller reads the blank as a clean result.
+#
+# The conversion made one thing visible worth recording: most of the
+# `model: '@cf/openai/gpt-oss-120b'` pins this file used to carry were already
+# INERT — the review model was never in the honored pin set, so those ships had
+# been running on the cheap model while the config said otherwise.
+#
 # Backend selection — runtime detection, not hard pins
 # ─────────────────────────────────────────────────────
 # Every LLM-powered ship below specifies `backend:` (primary) PLUS a
@@ -35,13 +53,14 @@
 #                            subscription and codex is on PATH.
 #                            Also routed via pd-tube.
 #   3. cloudflare          — cheapest cloud option that's competent
-#                            for the ship's task (qwen3-30b-a3b-fp8
-#                            for general; qwen2.5-coder for code work).
+#                            for the ship's task. Which concrete model
+#                            each `capability:` rung resolves to lives
+#                            in config/models.yaml, never here.
 #                            Requires CLOUDFLARE_ACCOUNT_ID +
 #                            CLOUDFLARE_API_TOKEN.
-#   4. openai (gpt-5-mini) — middle-tier; pattern recognition,
+#   4. openai              — middle-tier; pattern recognition,
 #                            tautology detection.
-#   5. anthropic (haiku)   — soft preference for voice-sensitive
+#   5. anthropic           — soft preference for voice-sensitive
 #                            ships (code-reviewer, tenderfoot,
 #                            red-team). NEVER a hard requirement.
 #                            If only cloudflare is available, the
@@ -87,8 +106,8 @@ fleet:
     max_spawns_per_hour: 12
     # Daily ceiling under the new config: $5.50 if every ship runs
     # on the cheapest cloud option for its tier (cloudflare for
-    # general, openai gpt-5-mini for code/tautology, anthropic only
-    # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
+    # general, openai for code/tautology, anthropic only for
+    # voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
     # is set and the operator is a Max subscriber, marginal cost
     # drops to ~$0 — the cap becomes a safety net, not a forecast.
     budget_usd_per_day: 8.50
@@ -107,7 +126,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -147,9 +166,9 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: openai
-          model: gpt-5-mini
+          capability: cheap
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -196,7 +215,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -233,7 +252,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -281,7 +300,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -308,7 +327,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -378,7 +397,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -445,7 +464,7 @@ fleet:
     purser:
       class: purser
       trigger: pull_request:opened
-      model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
+      cf_role: shipDefault  # guarded: an unpinnable role runs the ship default
       # PER-STEP TIERS. The purser is a pipeline, not one call, and its steps
       # have opposite cost shapes — so one model for all of them is wrong in one
       # direction whichever id is picked:
@@ -453,18 +472,19 @@ fleet:
       #   PLAN   reads the whole diff, emits a handful of paths  → INPUT-heavy
       #   AUTHOR reads the same diff, emits a whole test file     → OUTPUT-heavy
       #
-      # Per M tokens: qwen3-30b $0.051 in / $0.335 out; gpt-oss-20b $0.200 in /
-      # $0.300 out. So the mid tier is ~4x on input and slightly CHEAPER on
-      # output. Planning stays cheap; authoring — the step whose output has to
-      # be a runnable file, and whose failures now block a merge — gets the mid
-      # tier. Both are guarded by the same known-good set as `model:`: an
-      # unknown id falls back to the tier default rather than silently
-      # returning blank, and NEITHER can reach the review bot's gpt-oss-120b.
+      # The mid role costs several times the ship default on INPUT and slightly
+      # LESS on output (unit prices live in config/models.yaml, not here — that
+      # is the point of naming a role). Planning stays on the default; authoring
+      # — the step whose output has to be a runnable file, and whose failures
+      # now block a merge — gets the mid role. Both are guarded by the same
+      # pinnable set as `cf_role:`: an unknown role falls back to the step
+      # default rather than silently returning blank, and NEITHER can reach the
+      # review bot's model.
       #
-      # Omit both to accept these defaults. `planModel`/`authorModel` and
-      # `cfPlanModel`/`cfAuthorModel` are accepted spellings too.
-      plan_model: '@cf/qwen/qwen3-30b-a3b-fp8'    # default (cheap)
-      author_model: '@cf/openai/gpt-oss-20b'      # default (mid tier)
+      # Omit both to accept these defaults. `planCfRole`/`authorCfRole` are
+      # accepted spellings too.
+      plan_cf_role: shipDefault    # default
+      author_cf_role: shipMid      # default (mid tier)
       # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
       # the check run, so a PR cannot merge while it contradicts its own
       # best-interpretation contract. Until now the purser authored tests,
@@ -525,7 +545,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -581,7 +601,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
@@ -623,7 +643,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          capability: code
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
@@ -662,7 +682,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          capability: cheap
       singleton: true
       cooldown_ms: 1800000
       allowedTools: "Read,Bash(pd*),Bash(gh*),Bash(git log*)"
@@ -692,7 +712,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          capability: cheap
       singleton: true
       allowedTools: "Read,Grep,Glob,Write(fleet/ships/*),Bash(gh*),Bash(git log*),Bash(git diff*),Bash(git checkout*),Bash(git push*)"
       prompt: |
@@ -732,14 +752,14 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-haiku-4-5-20251001
+          capability: cheap
         - backend: openai
-          model: gpt-5-mini
+          capability: cheap
         - backend: cloudflare
           # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
           # 262k ctx, native structured outputs) — the right Workers AI tier for
           # a code reviewer that emits JSON findings.
-          model: '@cf/moonshotai/kimi-k2.7-code'
+          capability: code
       # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
       # diff on file boundaries and scans each chunk independently (MAP), then
       # makes ONE call to reconcile them (REDUCE). MAP runs N times and REDUCE
@@ -753,11 +773,12 @@ fleet:
       # tiering is roughly a 68% cut in this ship's spend.
       #
       # Guards live in deriveMapModel() (apps/fleet-executor/src/fleet.ts): an
-      # unrecognised id is DROPPED rather than honoured, because a nonexistent
+      # unrecognised role is DROPPED rather than honoured, because a nonexistent
       # Workers AI id returns a blank the parser reads as "clean" -- a typo here
       # would silence every chunk while REDUCE reported nothing found. Untiered
-      # costs more; mute costs the truth.
-      map_model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      # costs more; mute costs the truth. Naming a role rather than an id is why
+      # the typo that reaches ai.run() is no longer possible at all.
+      map_cf_role: shipDefault
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -799,11 +820,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-sonnet-4-5-20251001
+          capability: balanced
         - backend: openai
-          model: gpt-5
+          capability: high
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -839,11 +860,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-haiku-4-5-20251001
+          capability: cheap
         - backend: openai
-          model: gpt-5-mini
+          capability: cheap
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -888,16 +909,16 @@ fleet:
 
     tautology-sniffer:
       trigger: pull_request:opened
-      # Pattern recognition over test code — gpt-5-mini is the
-      # sweet spot. Anthropic dropped from the preference list
+      # Pattern recognition over test code — openai's cheap rung is
+      # the sweet spot. Anthropic dropped from the preference list
       # entirely: this isn't a voice-sensitive task.
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
         - backend: openai
-          model: gpt-5-mini
+          capability: cheap
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -946,11 +967,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-haiku-4-5-20251001
+          capability: cheap
         - backend: openai
-          model: gpt-5-mini
+          capability: cheap
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -1003,7 +1024,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -1094,9 +1115,9 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-sonnet-4-5-20251001
+          capability: balanced
         - backend: openai
-          model: gpt-5
+          capability: high
       cooldown_ms: 600000
       dedupe_window_ms: 600000
       singleton: true
@@ -1195,7 +1216,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          capability: balanced
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:

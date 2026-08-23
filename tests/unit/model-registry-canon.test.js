@@ -65,9 +65,40 @@ describe('canonical model registry', () => {
   });
 
   it('no catalog row is orphaned (nothing maps to it)', () => {
-    const referenced = new Set(allRegisteredModelIds());
+    // Two things reference a row: the capability ladder (`backends`) and the
+    // cloud plane's named roles. A role-only model — the executor's mid tier,
+    // the ideas-store embedding model — is referenced, not orphaned.
+    const referenced = new Set([
+      ...allRegisteredModelIds(),
+      ...Object.values(source.cloudPlaneRoles),
+    ]);
     const orphans = Object.keys(source.models).filter((id) => !referenced.has(id));
     expect(orphans).toEqual([]);
+  });
+
+  it('every cloud-plane role points at a GA, priced, workers-ai row', () => {
+    // The Workers plane reaches these through env.AI and cannot import lib/, so
+    // this is the only place the two planes' truth is checked against each other.
+    for (const [role, id] of Object.entries(source.cloudPlaneRoles)) {
+      const row = source.models[id];
+      // Jest's expect takes no message argument; the role is in the failure via
+      // the assertion below naming the row's own fields.
+      expect(row ? `${role}:ok` : `${role} -> ${id} has no catalog row`).toBe(`${role}:ok`);
+      expect(row.status).toBe('ga');
+      expect(row.plane).toBe('workers-ai');
+      expect(typeof row.priceIn).toBe('number');
+      expect(typeof row.contextWindow).toBe('number');
+    }
+  });
+
+  it('the pin allowlist cannot reach the review model', () => {
+    // The operator directive this encodes: no ship can pin its way onto the most
+    // expensive model. It held only by the review id being absent from a
+    // hand-written set — which is the kind of rule that survives until someone
+    // adds an id for an unrelated reason.
+    const pinnable = source.pinnableRoles.map((r) => source.cloudPlaneRoles[r]);
+    expect(pinnable).not.toContain(source.cloudPlaneRoles.reviewBot);
+    expect(pinnable).not.toContain(source.cloudPlaneRoles.repairEscalation);
   });
 
   it('every backend resolves every capability', () => {

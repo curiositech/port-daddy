@@ -42,7 +42,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { mapModelFor, reduceModelFor, chunkDiff, mapChunkCharLimit } from '../src/execute.js';
+import {
+  mapModelFor,
+  reduceModelFor,
+  chunkDiff,
+  mapChunkCharLimit,
+  MAP_CHUNK_CHARS_CEILING,
+} from '../src/execute.js';
 import {
   WORKERS_AI_RATES,
   costUsdForModel,
@@ -50,6 +56,7 @@ import {
   MODEL_CONTEXT_TOKENS,
 } from '../src/spend.js';
 import { defaultPRShips } from '../src/fleet.js';
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
 /** Blended per-million-token rate, weighted toward input (diffs are input-heavy). */
 function blendedRate(model: string): number {
@@ -88,7 +95,9 @@ describe('REASON 2 — the fan-out must be economically forward, not backward', 
     // MOST to gain from tiering — it is the only one whose per-chunk cost is
     // worth avoiding. A reviewer on the capable model with no cfMapModel is
     // the exact half-idea this file exists to catch.
-    const capable = reviewers.filter(s => isPricedModel(s.cfModel) && blendedRate(s.cfModel) > blendedRate('@cf/qwen/qwen3-30b-a3b-fp8'));
+    const capable = reviewers.filter(
+      s => isPricedModel(s.cfModel) && blendedRate(s.cfModel) > blendedRate(CF_ROLE_MODELS.shipDefault),
+    );
     expect(capable.length, 'expected at least one ship on the capable model').toBeGreaterThan(0);
     for (const ship of capable) {
       expect(
@@ -178,9 +187,19 @@ describe('REASON 1 — context, and the limits of what a split can preserve', ()
       const window = MODEL_CONTEXT_TOKENS[model];
       if (!window) continue; // unknown model: falls back, asserted separately
       const budget = mapChunkCharLimit(model);
-      // Must actually use the window — not a token of it, and not all of it.
-      expect(budget).toBeGreaterThan(window); // > 1 char/token is a low bar, met by any real derivation
+      // Must actually use the window — not a token of it, and not all of it —
+      // UNLESS the derivation hits the memory ceiling (#7743), which is a
+      // deliberate bound and the reason a large-window model does not turn into
+      // a 192KB chunk. Asserting `budget > window` unconditionally quietly
+      // assumed every MAP model had a small window; the ship default now has a
+      // 131k one, so the ceiling is the binding constraint and saying so is the
+      // honest invariant.
       expect(budget).toBeLessThan(window * 4); // room for prompt + output
+      if (budget < MAP_CHUNK_CHARS_CEILING) {
+        expect(budget).toBeGreaterThan(window); // > 1 char/token: any real derivation clears it
+      } else {
+        expect(budget).toBe(MAP_CHUNK_CHARS_CEILING);
+      }
     }
   });
 

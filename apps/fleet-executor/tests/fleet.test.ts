@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, defaultPRShips } from '../src/fleet.js';
+import {
+  CF_ROLE_MODELS,
+  resolveCfModel,
+} from '../../shared/model-registry.generated.js';
+
+// Assertions name the ROLE, not the id. The ids live in config/models.yaml and
+// are expected to change; the routing policy these tests pin is what must not.
+const REVIEW = CF_ROLE_MODELS.reviewBot;
+const DEFAULT = CF_ROLE_MODELS.shipDefault;
+const MID = CF_ROLE_MODELS.shipMid;
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -96,38 +106,40 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
   });
 
-  it('routes the expensive gpt-oss-120b to the CODE REVIEW BOT only; everything else cheap qwen3-30b', () => {
-    // Operator directive: gpt-oss-120b is pricey — review bot only, nothing else.
-    //   - code-reviewer (pins kimi, not honored) → CODER = gpt-oss-120b.
-    //   - qa / red-team (pin gpt-oss, not honored) → the cheap default qwen3-30b.
+  it('routes the expensive review model to the CODE REVIEW BOT only; everything else the ship default', () => {
+    // Operator directive: the review model is pricey — review bot only.
+    //   - code-reviewer (declares capability: code, not pinnable) → reviewBot.
+    //   - qa / red-team (declare capability: balanced, not pinnable) → default.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(reviewer!.cfModel).toBe(REVIEW);
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(qa!.cfModel).toBe(DEFAULT);
     const redTeam = ships!.find(s => s.name === 'red-team');
-    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(redTeam!.cfModel).toBe(DEFAULT);
   });
 });
 
 describe('resolveCfModel — the empty-model guard', () => {
-  it('passes through the honored cheap model', () => {
-    expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  it('passes through the two pinnable roles', () => {
+    expect(resolveCfModel(DEFAULT)).toBe(DEFAULT);
+    expect(resolveCfModel(MID)).toBe(MID);
   });
 
-  it('remaps any non-honored id (gpt-oss/kimi/qwen-coder/unknown) to the cheap fallback', () => {
-    // gpt-oss reaches the review bot by ROLE, never by pin — so a bare pin of it
-    // (or any other id) is remapped to the cheap model, never the pricey one.
-    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  it('remaps a non-pinnable or unknown id to the ship default', () => {
+    // The review model is reached by ROLE, never by pin — so a bare pin of it
+    // (or of anything else) is remapped to the default, never the pricey one.
+    expect(resolveCfModel(REVIEW)).toBe(DEFAULT);
+    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe(DEFAULT);
+    // The tombstone: the id that hung the fleet on 2026-07-03. It cannot be
+    // reached even by an explicit pin.
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2-instruct')).toBe(DEFAULT);
   });
 });
 
 describe('parseFleetShips — model derivation + blocking coercion', () => {
   const yaml = (body: string) => `fleet:\n  agents:\n${body}\n`;
 
-  it('routes reviewer-named ships (the review bot) to gpt-oss-120b when they have no honored @cf/ pin', () => {
+  it('routes reviewer-named ships to the review model when they have no honorable cloudflare pin', () => {
     const ships = parseFleetShips(
       yaml(
         [
@@ -135,17 +147,17 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
           '      trigger: pull_request:opened',
           '      fallbacks:',
           '        - backend: openai',
-          '          model: gpt-5-mini',
+          '          capability: cheap',
           '      prompt: |',
           '        review.',
         ].join('\n'),
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(ships![0].cfModel).toBe(REVIEW);
   });
 
-  it('falls back to the cheap general model (qwen3-30b) for non-reviewer ships with no @cf/ fallback', () => {
+  it('falls back to the ship default for non-reviewer ships with no cloudflare fallback', () => {
     const ships = parseFleetShips(
       yaml(
         ['    sniffer:', '      trigger: pull_request:opened', '      prompt: |', '        sniff.'].join(
@@ -154,7 +166,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(ships![0].cfModel).toBe(DEFAULT);
   });
 
   it('coerces blocking: only a real true / "true" opts into the gate', () => {

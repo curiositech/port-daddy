@@ -71,12 +71,14 @@ export interface ModelSource {
   backendAliases: Record<string, string>;
   models: Record<string, ModelCatalogEntry>;
   backends: Record<string, Record<string, string>>;
+  cloudPlaneRoles: Record<string, string>;
+  pinnableRoles: string[];
 }
 
 /**
  * Read and structurally validate the canonical source.
  *
- * The validation is deliberately fail-closed rather than best-effort: a model id
+ * The design is deliberately fail-closed rather than best-effort: a model id
  * referenced by the `backends` map with no catalog row is precisely the phantom
  * shape that caused the 2026-07-03 outage, so it must abort generation rather
  * than emit an artifact that looks plausible. Orphan rows abort too — a catalog
@@ -92,6 +94,9 @@ export function loadSource(): ModelSource {
   for (const table of Object.values(doc.backends)) {
     for (const id of Object.values(table)) referenced.add(id);
   }
+  // Cloud-plane roles are references too. Without this the Workers plane could
+  // name an uncatalogued id and reintroduce exactly the hang this file prevents.
+  for (const id of Object.values(doc.cloudPlaneRoles)) referenced.add(id);
   const rows = new Set(Object.keys(doc.models));
 
   const missing = [...referenced].filter((id) => !rows.has(id));
@@ -117,13 +122,32 @@ export function loadSource(): ModelSource {
         `A deprecated or retired id must not back a live capability.`,
     );
   }
+  const unknownPins = doc.pinnableRoles.filter((role) => !(role in doc.cloudPlaneRoles));
+  if (unknownPins.length) {
+    throw new Error(
+      `config/models.yaml: pinnableRoles names role(s) that do not exist: ${unknownPins.join(', ')}. ` +
+        `An allowlist entry that resolves to nothing silently widens what a ship may pin.`,
+    );
+  }
+
+  const nonWorkersRoles = Object.entries(doc.cloudPlaneRoles).filter(
+    ([, id]) => doc.models[id].plane !== 'workers-ai',
+  );
+  if (nonWorkersRoles.length) {
+    throw new Error(
+      `config/models.yaml: cloud-plane role(s) point outside the workers-ai plane: ` +
+        `${nonWorkersRoles.map(([r, id]) => `${r} -> ${id}`).join(', ')}. ` +
+        `The Workers runtime reaches these through env.AI; a direct-api id would fail at call time.`,
+    );
+  }
+
   return doc;
 }
 
 /**
  * Render the daemon-plane artifact.
  *
- * The emitted module keeps the historical `ModelRegistryData` field names so
+ * The design intent: the emitted module keeps the historical `ModelRegistryData` field names so
  * `resolveModel()` and its callers need no change — the supplant is about where
  * the truth is EDITED, not about churning the read API. It gains one field,
  * `models`, so that consumers which previously kept their own parallel id lists
@@ -208,7 +232,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = ${JSON.stringify(
 /**
  * Render the Workers-plane artifact.
  *
- * Cloudflare Workers cannot import from `lib/` — that hard boundary is the
+ * The rationale for a SECOND artifact rather than one shared module: Cloudflare
+ * Workers cannot import from `lib/` — that hard boundary is the
  * reason `apps/fleet-executor` and `apps/relay` each grew their own hardcoded
  * model constants, which then diverged from the daemon AND from each other
  * (the two workers disagreed about which model was "coder"). Rather than ask
@@ -221,6 +246,7 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = ${JSON.stringify(
  */
 export function renderWorkersArtifact(doc: ModelSource): string {
   const cf = doc.backends.cloudflare;
+  const roleNames = Object.keys(doc.cloudPlaneRoles);
   const workersAiIds = Object.entries(doc.models)
     .filter(([, row]) => row.plane === 'workers-ai' && row.status === 'ga')
     .map(([id]) => id);
@@ -262,6 +288,53 @@ export const CF_CONTEXT_WINDOWS: Record<string, number> = ${JSON.stringify(
     null,
     2,
   )};
+
+/** Workers AI unit prices in USD per MILLION tokens, for the spend meters. */
+export const CF_PRICES: Record<string, { input: number; output: number }> = ${JSON.stringify(
+    Object.fromEntries(
+      Object.entries(doc.models)
+        .filter(([, r]) => r.plane === 'workers-ai')
+        .map(([id, r]) => [id, { input: r.priceIn, output: r.priceOut }]),
+    ),
+    null,
+    2,
+  )};
+
+/** The named roles the cloud plane selects by. See config/models.yaml. */
+export type CloudPlaneRole = ${roleNames.map((r) => `'${r}'`).join(' | ')};
+
+/**
+ * (role → Workers AI model id). The Workers plane selects by role, not by
+ * capability rung, because the roles carry policy the ladder cannot express —
+ * most importantly that the review model is reachable by role ONLY.
+ */
+export const CF_ROLE_MODELS: Record<CloudPlaneRole, string> = ${JSON.stringify(doc.cloudPlaneRoles, null, 2)};
+
+/**
+ * Roles a ship's own model pin may select. The review/escalation model is
+ * deliberately absent: no ship can pin its way onto the most expensive model.
+ */
+export const CF_PINNABLE_MODELS: readonly string[] = ${JSON.stringify(
+    doc.pinnableRoles.map((r) => doc.cloudPlaneRoles[r]),
+    null,
+    2,
+  )};
+
+/**
+ * Guard a requested Workers AI model id.
+ *
+ * The rationale: an unknown id on Workers AI does not error — it hangs, and the
+ * caller reads the blank as a clean result. So a pin outside the allowlist is
+ * remapped to the default rather than dispatched.
+ *
+ * @param requested The id a ship asked for.
+ * @returns The requested id when it is pinnable, else the ship default.
+ */
+export function resolveCfModel(requested: string): string {
+  return CF_PINNABLE_MODELS.includes(requested)
+    ? requested
+    : CF_ROLE_MODELS.shipDefault;
+}
 `;
 }
 
@@ -286,9 +359,17 @@ export async function probeProviders(
   const skipped: string[] = [];
   const checked: string[] = [];
 
-  // Probe by SERVING backend, not by model author. `openai/gpt-oss-120b` is an
-  // OpenAI-authored model SERVED by Groq — checking it against OpenAI's own API
-  // reports a phantom that isn't one. The backends map is the serving truth.
+  /**
+   * Every id served by the given backends.
+   *
+   * The design point is which axis to group on: probe by SERVING backend, not by
+   * model author. `openai/gpt-oss-120b` is an OpenAI-authored model SERVED by
+   * Groq — checking it against OpenAI's own API reports a phantom that isn't
+   * one. The `backends` map is the serving truth.
+   *
+   * @param backends Backend keys whose tables to union.
+   * @returns The de-duped concrete ids those backends serve.
+   */
   const idsFor = (...backends: string[]) => {
     const ids = new Set<string>();
     for (const b of backends) {
@@ -375,6 +456,10 @@ export async function probeProviders(
 
 /**
  * CLI entry point.
+ *
+ * The intent of splitting write/check/probe into flags of ONE script (rather
+ * than three) is that they share the same load-and-validate front half, so a
+ * source that fails referential integrity fails all three the same way.
  *
  * @returns Process exit code — non-zero when artifacts are stale (`--check`) or
  *          a phantom id was found (`--probe`), so CI can gate on either.

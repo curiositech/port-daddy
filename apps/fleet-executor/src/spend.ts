@@ -4,16 +4,19 @@
  * Each `env.AI.run(...)` returns a `usage` block; the executor sums those tokens
  * per ship ({@link ShipMetrics}) and this module turns the token counts + the
  * model id into a USD figure so one `fleet_run_spend` row per ship carries real
- * spend. Rates mirror the two Workers AI models the fleet actually routes to
- * (the ROLE-based `deriveCfModel` in fleet.ts): the code-review bot on
- * gpt-oss-120b ($0.35/$0.75 per M tok) and every other ship on qwen3-30b
- * ($0.051/$0.335 per M tok). A model with no known rate contributes 0 — the
- * token counts are still recorded, so cost can be back-derived once a rate is
- * known (`cost_usd` is NOT NULL DEFAULT 0 in the D1 contract, never guessed up).
+ * spend. A model with no known rate contributes 0 — the token counts are still
+ * recorded, so cost can be back-derived once a rate is known (`cost_usd` is NOT
+ * NULL DEFAULT 0 in the D1 contract, never guessed up).
  *
- * Keep this table in sync with fleet.ts's REVIEW_BOT_CF_MODEL / CHEAP_CF_MODEL
- * rate comments if a Workers AI model id or its price changes.
+ * The rate and context tables below are DERIVED from config/models.yaml rather
+ * than hand-maintained here. This file used to end with "keep this table in
+ * sync with fleet.ts" — an instruction, which is what a repo writes down
+ * instead of an invariant, and which had already failed by the time it was
+ * read: price, context window, and selectability were three independent facts
+ * about one model, so any of them could be right while the others were not.
  */
+
+import { CF_PRICES, CF_CONTEXT_WINDOWS } from '../../shared/model-registry.generated.js';
 
 export interface WorkersAiRate {
   /** USD per 1M input (prompt) tokens. */
@@ -22,11 +25,17 @@ export interface WorkersAiRate {
   output: number;
 }
 
-/** Cloudflare Workers AI rates, keyed by exact `@cf/...` model id. */
-export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
-  '@cf/openai/gpt-oss-120b': { input: 0.35, output: 0.75 },
-  '@cf/qwen/qwen3-30b-a3b-fp8': { input: 0.051, output: 0.335 },
-};
+/**
+ * Cloudflare Workers AI rates, keyed by exact `@cf/...` model id.
+ *
+ * DERIVED (supplant, 2026-08-23) from config/models.yaml. This table used to be
+ * hand-maintained beside the model constants it priced, with a comment asking
+ * the next editor to keep the two in sync — and they diverged, which meant the
+ * spend meter could silently price a run at another model's rate. Now a model
+ * cannot be selectable without being priced, because both facts are the same
+ * catalog row.
+ */
+export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = CF_PRICES;
 
 /**
  * Context window per model, in TOKENS, as published by Cloudflare.
@@ -44,12 +53,14 @@ export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
  * budget from these means changing the MAP model changes the budget, and the
  * invariants suite fails if a model is used without an entry here.
  *
- * Source: developers.cloudflare.com/workers-ai/models/<id> (verified 2026-08-06).
+ * DERIVED (supplant, 2026-08-23) from config/models.yaml, for the same reason
+ * as the rate table above: a model the executor can select but has no window
+ * for degrades to a floor budget silently, which is how a stronger model with
+ * four times the context ended up chunked as if it were the old one.
+ *
+ * Source: developers.cloudflare.com/workers-ai/models/<id>, recorded per row.
  */
-export const MODEL_CONTEXT_TOKENS: Record<string, number> = {
-  '@cf/openai/gpt-oss-120b': 128_000,
-  '@cf/qwen/qwen3-30b-a3b-fp8': 32_768,
-};
+export const MODEL_CONTEXT_TOKENS: Record<string, number> = CF_CONTEXT_WINDOWS;
 
 /**
  * True when this model's context window is known, so a budget derived from it

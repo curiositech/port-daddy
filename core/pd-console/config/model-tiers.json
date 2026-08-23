@@ -28,7 +28,7 @@
       "low": "deepseek-chat"
     },
     "xai": {
-      "_comment": "xAI (Grok) OpenAI-compatible API. grok-2-latest = general high/mid, grok-code-fast-1 = fast coder/low. 'low' mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
+      "_comment": "xAI (Grok) OpenAI-compatible API. The general and code-specialised lines are separate; the 'low' rung mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
       "high": "grok-4.6",
       "mid": "grok-4.6",
       "low": "grok-code-fast-1"

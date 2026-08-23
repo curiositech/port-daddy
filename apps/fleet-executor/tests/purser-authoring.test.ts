@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseFleetShips, type ShipConfig } from '../src/fleet.js';
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import {
   extractCodeFence,
   parseTestPlan,
@@ -269,8 +270,10 @@ describe('purser step model tiering', () => {
   const planOf = (s: ShipConfig) => s.cfPlanModel ?? s.cfModel;
   const authorOf = (s: ShipConfig) => s.cfAuthorModel ?? s.cfModel;
 
-  const CHEAP = '@cf/qwen/qwen3-30b-a3b-fp8';
-  const MID = '@cf/openai/gpt-oss-20b';
+  // Named by ROLE, not id: the ids belong to config/models.yaml and are expected
+  // to change; the tiering policy asserted here is what must not.
+  const CHEAP = CF_ROLE_MODELS.shipDefault;
+  const MID = CF_ROLE_MODELS.shipMid;
 
   it('defaults PLAN to the cheap model and AUTHOR to the mid tier', () => {
     const ship = purserFrom();
@@ -279,28 +282,29 @@ describe('purser step model tiering', () => {
     expect(authorOf(ship)).toBe(MID);
   });
 
-  it('an explicit cheap author_model pin WINS over the mid-tier default', () => {
+  it('an explicit shipDefault author_cf_role pin WINS over the mid-tier default', () => {
     // The operator opting back down to save money must not be silently upgraded.
-    expect(authorOf(purserFrom(`author_model: '${CHEAP}'`))).toBe(CHEAP);
+    expect(authorOf(purserFrom('author_cf_role: shipDefault'))).toBe(CHEAP);
   });
 
   it('accepts the camelCase spellings operators actually write', () => {
-    expect(authorOf(purserFrom(`authorModel: '${CHEAP}'`))).toBe(CHEAP);
-    expect(planOf(purserFrom(`planModel: '${MID}'`))).toBe(MID);
+    expect(authorOf(purserFrom('authorCfRole: shipDefault'))).toBe(CHEAP);
+    expect(planOf(purserFrom('planCfRole: shipMid'))).toBe(MID);
   });
 
-  it('DROPS an unknown id back to the tier default rather than remapping it', () => {
+  it('DROPS an unknown role back to the tier default rather than remapping it', () => {
     // A nonexistent Workers AI id returns blank, not an error — the #654 outage.
-    expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(MID);
+    // Naming a role is what makes that id unreachable in the first place.
+    expect(authorOf(purserFrom('author_cf_role: no-such-role'))).toBe(MID);
   });
 
   it('warns, but still defaults, when the key is present and EMPTY', () => {
-    // Not the same as an absent key: someone typed `author_model:` and left it
+    // Not the same as an absent key: someone typed `author_cf_role:` and left it
     // blank, which is the most likely half-finished edit and used to be the one
     // mistake that produced no output at all. (pd-code-reviewer HIGH on #6813.)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(authorOf(purserFrom("author_model: ''"))).toBe(MID);
+      expect(authorOf(purserFrom("author_cf_role: ''"))).toBe(MID);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('present but empty'));
     } finally {
       warn.mockRestore();
@@ -309,7 +313,7 @@ describe('purser step model tiering', () => {
 
   it('cannot pin a step onto the review bot model', () => {
     // gpt-oss-120b is reached by ROLE, never by pin. The bound survives the tier.
-    expect(authorOf(purserFrom("author_model: '@cf/openai/gpt-oss-120b'"))).toBe(MID);
+    expect(authorOf(purserFrom("author_cf_role: '@cf/openai/gpt-oss-120b'"))).toBe(MID);
   });
 
   it('non-purser ships get no step-model keys at all', () => {

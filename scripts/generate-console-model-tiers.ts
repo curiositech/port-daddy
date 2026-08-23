@@ -68,7 +68,7 @@ const REGISTRY_DERIVED_PROVIDERS: Array<{ registryBackend: string; consoleKey: s
     registryBackend: 'xai',
     consoleKey: 'xai',
     comment:
-      "xAI (Grok) OpenAI-compatible API. grok-2-latest = general high/mid, grok-code-fast-1 = fast coder/low. 'low' mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
+      "xAI (Grok) OpenAI-compatible API. The general and code-specialised lines are separate; the 'low' rung mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
   },
   { registryBackend: 'openai', consoleKey: 'openai' },
   { registryBackend: 'cloudflare', consoleKey: 'cloudflare' },
@@ -81,7 +81,17 @@ export interface ConsoleModelTiers {
   providers: Record<string, Record<string, string> & { _comment?: string }>;
 }
 
-/** Pure builder — no filesystem I/O — so the drift test can call it directly. */
+/**
+ * Build the console's model-tiers table from the registry.
+ *
+ * The design intent is purity — no filesystem I/O — so the drift test can call
+ * it and compare against the checked-in JSON without staging a temp file. That
+ * is what makes "the console's copy matches the registry" a mechanical check
+ * rather than a habit: the Rust console cannot import the TS registry, so this
+ * generated JSON is its only view of the ladder, and it had already drifted once.
+ *
+ * @returns The tier table, ready to serialize.
+ */
 export function buildConsoleModelTiers(): ConsoleModelTiers {
   const providers: ConsoleModelTiers['providers'] = {};
 
@@ -111,6 +121,15 @@ export function buildConsoleModelTiers(): ConsoleModelTiers {
   };
 }
 
+/**
+ * CLI entry: report or rewrite the console's copy.
+ *
+ * The rationale for defaulting to REPORT rather than write: a generator that
+ * silently rewrites a committed artifact on every invocation makes the drift it
+ * exists to prevent invisible in review. `--write` is the deliberate act.
+ *
+ * @returns Process exit code — non-zero when the checked-in file is stale.
+ */
 function main(): void {
   const write = process.argv.includes('--write');
   const data = buildConsoleModelTiers();

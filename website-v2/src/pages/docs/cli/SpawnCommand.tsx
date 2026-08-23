@@ -25,7 +25,7 @@ export default function SpawnCommand() {
       usagePatterns={[
         'pd spawn --backend codex --tier low --identity myapp:docs:sync --budget 0.75 -- "Rewrite the API docs"',
         'pd spawn --backend aider --identity myapp:web:refactor --budget 1.25 --files src/App.tsx -- "Refactor the dashboard shell"',
-        'pd spawn --backend gemini --model gemini-2.5-flash --identity myapp:qa:review --budget 0.50 -- "Review the last commit for regressions"',
+        'pd spawn --backend gemini --model gemini-3.7-flash --identity myapp:qa:review --budget 0.50 -- "Review the last commit for regressions"',
       ]}
       examples={[
         {

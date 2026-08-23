@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parseFleetShips, defaultPRShips, type ShipConfig } from '../src/fleet.js';
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
 /**
  * Fields NOT settable from pd-fleet.yml, each with the reason. Adding to this
@@ -55,7 +56,7 @@ describe('the config type and the config parser do not drift', () => {
       '      telos: demo',
       '      blocking: true',
       '      temperature: 0.2',
-      '      map_model: "@cf/qwen/qwen3-30b-a3b-fp8"',
+      '      map_cf_role: shipDefault',
       '      graft: [some-skill]',
       '',
     ].join('\n');
@@ -77,16 +78,16 @@ describe('the config type and the config parser do not drift', () => {
       '      trigger: pull_request',
       '      blockWithoutSandbox: true',
       '      testPaths: [tests/purser]',
-      '      plan_model: "@cf/openai/gpt-oss-20b"',
-      '      author_model: "@cf/openai/gpt-oss-20b"',
+      '      plan_cf_role: shipMid',
+      '      author_cf_role: shipMid',
       '',
     ].join('\n');
     const parsedPurser = parseFleetShips(purserYaml, 'pull_request');
     expect(parsedPurser, 'the purser fixture must parse, or purser-only fields go unchecked').not.toBeNull();
     expect(
       [parsedPurser![0].cfPlanModel, parsedPurser![0].cfAuthorModel],
-      'the purser fixture must actually exercise plan_model/author_model, or it proves nothing',
-    ).toEqual(['@cf/openai/gpt-oss-20b', '@cf/openai/gpt-oss-20b']);
+      'the purser fixture must actually exercise plan_cf_role/author_cf_role, or it proves nothing',
+    ).toEqual([CF_ROLE_MODELS.shipMid, CF_ROLE_MODELS.shipMid]);
 
     // The type's field list, read from the source rather than from a value --
     // an optional field absent at runtime would otherwise vanish from the check
@@ -125,8 +126,8 @@ describe('the config type and the config parser do not drift', () => {
     ).toEqual([]);
   });
 
-  it('map_model actually tiers a ship declared in YAML', () => {
-    // The regression itself, end to end: an operator writes map_model and the
+  it('map_cf_role actually tiers a ship declared in YAML', () => {
+    // The regression itself, end to end: an operator writes map_cf_role and the
     // ship comes back tiered. Before this change the key was silently ignored.
     const yaml = [
       'fleet:',
@@ -134,15 +135,15 @@ describe('the config type and the config parser do not drift', () => {
       '    demo-reviewer:',
       '      trigger: pull_request',
       '      prompt: review this',
-      '      map_model: "@cf/qwen/qwen3-30b-a3b-fp8"',
+      '      map_cf_role: shipDefault',
       '',
     ].join('\n');
     const ship = parseFleetShips(yaml, 'pull_request')![0];
-    expect(ship.cfMapModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(ship.cfMapModel).toBe(CF_ROLE_MODELS.shipDefault);
     expect(ship.cfMapModel).not.toBe(ship.cfModel);
   });
 
-  it('a bogus map_model runs the ship UNTIERED rather than silently mute', () => {
+  it('a bogus map_cf_role runs the ship UNTIERED rather than silently mute', () => {
     // A nonexistent Workers AI id does not error -- it returns a blank the
     // parser reads as "clean". Honouring a typo would silence every chunk while
     // REDUCE reported nothing found. Untiered costs more; mute costs the truth.
@@ -152,14 +153,14 @@ describe('the config type and the config parser do not drift', () => {
       '    demo-reviewer:',
       '      trigger: pull_request',
       '      prompt: review this',
-      '      map_model: "@cf/typo/not-a-real-model"',
+      '      map_cf_role: not-a-real-role',
       '',
     ].join('\n');
     const ship = parseFleetShips(yaml, 'pull_request')![0];
     expect(ship.cfMapModel).toBeUndefined();
   });
 
-  it('map_model cannot pin a ship ONTO the expensive model', () => {
+  it('map_cf_role cannot pin a ship ONTO the expensive model', () => {
     // Only the cheap id is in the honored set, so tiering is one-directional by
     // construction: it can save money, never spend more.
     const yaml = [
@@ -168,14 +169,14 @@ describe('the config type and the config parser do not drift', () => {
       '    demo-reviewer:',
       '      trigger: pull_request',
       '      prompt: review this',
-      '      map_model: "@cf/openai/gpt-oss-120b"',
+      '      map_cf_role: reviewBot',
       '',
     ].join('\n');
     const ship = parseFleetShips(yaml, 'pull_request')![0];
     expect(ship.cfMapModel).toBeUndefined();
   });
 
-  it('a map_model equal to the ship model is dropped as a no-op', () => {
+  it('a map_cf_role equal to the ship model is dropped as a no-op', () => {
     // Otherwise `cfMapModel` would be set while changing nothing, and
     // "does this ship tier?" would stop being answerable by reading the field.
     const yaml = [
@@ -184,12 +185,12 @@ describe('the config type and the config parser do not drift', () => {
       '    demo:',
       '      trigger: pull_request',
       '      prompt: do a thing',
-      '      map_model: "@cf/qwen/qwen3-30b-a3b-fp8"',
+      '      map_cf_role: shipDefault',
       '',
     ].join('\n');
     const ship = parseFleetShips(yaml, 'pull_request')![0];
-    // pd-demo is not a review bot, so its cfModel IS the cheap model.
-    expect(ship.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    // pd-demo is not a review bot, so its cfModel IS the ship default.
+    expect(ship.cfModel).toBe(CF_ROLE_MODELS.shipDefault);
     expect(ship.cfMapModel).toBeUndefined();
   });
 

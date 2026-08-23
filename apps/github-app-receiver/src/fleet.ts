@@ -9,6 +9,7 @@
  * actually uses (block scalars, nested maps, sequences) without pulling in
  * a full YAML library. Cloud executor only needs the `fleet.agents` section.
  */
+import { CF_ROLE_MODELS, KNOWN_GOOD_CF_MODELS } from '../../shared/model-registry.generated.js';
 
 export interface IdeaCtx {
   owner: string;
@@ -33,22 +34,22 @@ export interface ShipConfig {
   postProcess?: (output: string, ctx: IdeaCtx) => string;
 }
 
-// Default Cloudflare AI model per ship if not declared in fallbacks
-const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
-const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct';
+// Default Cloudflare AI model per ship if not declared in fallbacks.
+//
+// SUPPLANTED (2026-08-23): these were literals, and the allowlist below still
+// carried `@cf/moonshotai/kimi-k2-instruct` — an id Cloudflare no longer serves.
+// That is the exact failure the comment beneath it describes: an unknown Workers
+// AI id does not fail fast, it HANGS, the waitUntil budget dies, and the check
+// run is stuck in_progress forever (the 2026-07-03 outage). An allowlist that
+// admits a phantom is worse than no allowlist, because it reads as verification.
+// Ids now come from config/models.yaml via the generated shared registry, where
+// referential integrity against the catalog is enforced at generation time.
+const DEFAULT_CF_MODEL = CF_ROLE_MODELS.shipDefault;
+const CODER_CF_MODEL = CF_ROLE_MODELS.reviewBot;
 
-// Models a ship is allowed to request. An id outside this list is remapped to a
-// default instead of being passed to ai.run: an unknown Workers AI id does not
-// fail fast — it hangs the request, the waitUntil budget dies, and the check
-// run is stuck in_progress forever (the 2026-07-03 outage: every reviewer ship
-// pinned to the nonexistent @cf/moonshotai/kimi-k2.7-code, zero reviews posted).
-const KNOWN_CF_MODELS = new Set<string>([
-  DEFAULT_CF_MODEL,
-  CODER_CF_MODEL,
-  '@cf/openai/gpt-oss-120b',
-  '@cf/zai-org/glm-4.7-flash',
-  '@cf/moonshotai/kimi-k2-instruct',
-]);
+// Every Workers AI id the registry knows to be real. A request outside this set
+// is remapped to a default rather than dispatched.
+const KNOWN_CF_MODELS = new Set<string>(KNOWN_GOOD_CF_MODELS);
 
 export function resolveCfModel(requested: string | null | undefined, shipName: string): string {
   const fallback = shipName.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
@@ -92,7 +93,7 @@ ${fleetYaml.slice(0, 12000)}
 \`\`\``;
 
   try {
-    const res = (await ai.run('@cf/qwen/qwen3-30b-a3b-fp8', {
+    const res = (await ai.run(CF_ROLE_MODELS.shipDefault, {
       messages: [{ role: 'user', content: prompt }],
     })) as { response?: string };
 

@@ -321,6 +321,52 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceBasis": "vendor-docs",
       "notes": "Direct successor to the phantom kimi-k2-instruct this row replaces. Cloudflare changelog 2026-06-12 documents the k2.6 → k2.7-code migration."
     },
+    "@cf/openai/gpt-oss-20b": {
+      "provider": "openai",
+      "plane": "workers-ai",
+      "priceIn": 0.2,
+      "priceOut": 0.3,
+      "contextWindow": 128000,
+      "capabilities": [
+        "function-calling",
+        "reasoning"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs",
+      "notes": "The fleet's MID tier. Note the shape: ~4x the cheap rung on INPUT but CHEAPER on OUTPUT, so it is the wrong choice for a step that reads a large diff and emits little, and the right one for a step that reads the same diff and emits a whole file."
+    },
+    "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {
+      "provider": "deepseek",
+      "plane": "workers-ai",
+      "priceIn": 0.5,
+      "priceOut": 4.88,
+      "contextWindow": 80000,
+      "capabilities": [
+        "reasoning"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs",
+      "notes": "Reasoning distill used by the two synthesis roles (executor XO, relay shipwright). Output-heavy pricing is why it is a ROLE and not a rung — nothing routes bulk ship traffic here."
+    },
+    "@cf/baai/bge-base-en-v1.5": {
+      "provider": "baai",
+      "plane": "workers-ai",
+      "priceIn": 0.02,
+      "priceOut": 0,
+      "contextWindow": 512,
+      "capabilities": [
+        "embedding"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs",
+      "notes": "768-dimensional text embedding. The ideas store's dedup index is built on these vectors, so changing this id silently invalidates every stored embedding — a migration, not a config edit."
+    },
     "gemini-3.7-flash": {
       "provider": "google",
       "plane": "direct-api",

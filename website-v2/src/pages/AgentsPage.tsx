@@ -280,7 +280,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'pull_request:opened',
     image: '/img/agents/red-team.webp',
     work: 'On PRs that touch auth, capabilities, secrets, bonds, or crypto, it constructs real attacks: capability escalation, replay, race, cost overrun, auth bypass.',
-    runtime: 'cli:claude-code, then codex, then anthropic sonnet (soft), OpenAI gpt-5, or Cloudflare qwen3',
+    runtime: 'cli:claude-code, then codex, then anthropic sonnet (soft), OpenAI, or Cloudflare',
     magic: 'It tries to break the diff and comments only when an attack actually lands. Silence means it could not.',
     icon: ShieldCheck,
   },

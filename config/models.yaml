@@ -300,6 +300,59 @@ models:
       Direct successor to the phantom kimi-k2-instruct this row replaces.
       Cloudflare changelog 2026-06-12 documents the k2.6 → k2.7-code migration.
 
+  # Cloud-plane role models (see `cloudPlaneRoles` below). These are NOT rungs on
+  # the capability ladder — they are the concrete ids the Workers plane's named
+  # roles resolve to, catalogued here so a Worker constant can never name an id
+  # the registry has not verified.
+  '@cf/openai/gpt-oss-20b':
+    provider: openai
+    plane: workers-ai
+    priceIn: 0.200
+    priceOut: 0.300
+    contextWindow: 128000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: cf-catalog
+    priceBasis: vendor-docs
+    notes: >-
+      The fleet's MID tier. Note the shape: ~4x the cheap rung on INPUT but
+      CHEAPER on OUTPUT, so it is the wrong choice for a step that reads a large
+      diff and emits little, and the right one for a step that reads the same
+      diff and emits a whole file.
+
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b':
+    provider: deepseek
+    plane: workers-ai
+    priceIn: 0.500
+    priceOut: 4.880
+    contextWindow: 80000
+    capabilities: [reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: cf-catalog
+    priceBasis: vendor-docs
+    notes: >-
+      Reasoning distill used by the two synthesis roles (executor XO, relay
+      shipwright). Output-heavy pricing is why it is a ROLE and not a rung —
+      nothing routes bulk ship traffic here.
+
+  '@cf/baai/bge-base-en-v1.5':
+    provider: baai
+    plane: workers-ai
+    priceIn: 0.020
+    priceOut: 0.000
+    contextWindow: 512
+    capabilities: [embedding]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: cf-catalog
+    priceBasis: vendor-docs
+    notes: >-
+      768-dimensional text embedding. The ideas store's dedup index is built on
+      these vectors, so changing this id silently invalidates every stored
+      embedding — a migration, not a config edit.
+
   # ---- Google Gemini ----
   gemini-3.7-flash:
     provider: google
@@ -527,3 +580,54 @@ backends:
     high: local-model
     max-thinking: local-model
     code: local-model
+
+# ---------------------------------------------------------------------------
+# Cloud-plane roles.
+#
+# The Workers plane (apps/fleet-executor, apps/relay) does not select a model by
+# capability rung — it selects by ROLE, and the roles carry policy the ladder
+# cannot express. Two rules in particular were load-bearing and are preserved
+# here rather than re-derived in each Worker:
+#
+#   1. The review model is reached by ROLE ONLY, never by a ship's own pin, so
+#      no ship can pin its way onto the most expensive model. `pinnable` is the
+#      allowlist that enforces it.
+#   2. An unknown Workers AI id does not error — it HANGS. Every role therefore
+#      resolves to a catalogued, verified id, and a pin outside `pinnable` is
+#      remapped to `shipDefault` rather than dispatched.
+#
+# Roles are validated exactly like the `backends` map: an id with no catalog row
+# aborts generation.
+# ---------------------------------------------------------------------------
+cloudPlaneRoles:
+  # Every fleet ship that does not name a role. Was the qwen3-30b MoE; the flash
+  # rung is a stronger model at a comparable unit price (+$0.009 in / +$0.065 out
+  # per M) with 4x the context.
+  shipDefault: '@cf/zai-org/glm-4.7-flash'
+
+  # For steps whose output on `shipDefault` was too weak to use. Output nobody
+  # can use is not a saving.
+  shipMid: '@cf/openai/gpt-oss-20b'
+
+  # The code review bot, and the repair escalation that follows a failed ship.
+  # Operator directive: expensive — this role and nothing else.
+  reviewBot: '@cf/openai/gpt-oss-120b'
+  repairEscalation: '@cf/openai/gpt-oss-120b'
+
+  # Synthesis: the executor's XO writes the fleet's run summary; the relay's
+  # shipwright designs ship blocks from an operator goal.
+  synthesisOfficer: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'
+  shipwright: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'
+
+  # Parley conflict prediction and fleet-config optimization: short prompts,
+  # short answers, high call volume — the cheapest verified rung.
+  mediator: '@cf/zai-org/glm-4.7-flash'
+  optimize: '@cf/zai-org/glm-4.7-flash'
+
+  # Ideas-store dedup index. Changing this id invalidates every stored vector.
+  embed: '@cf/baai/bge-base-en-v1.5'
+
+# Roles a ship's `fallbacks[].model` pin is allowed to select. Anything else is
+# remapped to `shipDefault` — including ids that exist but cost more than the
+# operator has authorized a ship to spend on itself.
+pinnableRoles: [shipDefault, shipMid]
