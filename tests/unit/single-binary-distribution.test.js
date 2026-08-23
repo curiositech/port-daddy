@@ -54,15 +54,27 @@ describe('single binary distribution path', () => {
 
   test('server publishes its PID and heartbeat before opening the registry', () => {
     const server = readFileSync(join(process.cwd(), 'server.ts'), 'utf8');
+    const duplicateCheck = server.indexOf("if (existsSync(SOCK_PATH)) {");
+    const readyClear = server.indexOf('clearDaemonReady(READY_FILE);');
     const leaseWrite = server.indexOf('const bosunHeartbeat = createBosunHeartbeat({');
     const databaseOpen = server.indexOf('const db: DatabaseInstance = initDatabase({');
     const listener = server.indexOf('sockServer.listen(SOCK_PATH');
+    const readyCallback = server.indexOf('function onReady(): void {');
+    const readyPublish = server.indexOf('publishDaemonReady(READY_FILE, process.pid);');
+    const daemonStart = server.indexOf('activityLog.log(ActivityType.DAEMON_START');
+    const readyCallAfterListener = server.indexOf('onReady();', listener);
 
     expect(leaseWrite).toBeGreaterThan(0);
+    expect(readyClear).toBeGreaterThan(duplicateCheck);
+    expect(readyClear).toBeLessThan(leaseWrite);
     expect(leaseWrite).toBeLessThan(databaseOpen);
     expect(server.indexOf('bosunHeartbeat.start();')).toBeLessThan(databaseOpen);
     expect(server.indexOf('await createDbIntegrityProofOutOfProcess(DB_PATH)')).toBeLessThan(databaseOpen);
     expect(server.indexOf('bosunHeartbeat.startProbing();')).toBeGreaterThan(listener);
+    expect(readyPublish).toBeGreaterThan(readyCallback);
+    expect(readyPublish).toBeLessThan(daemonStart);
+    expect(readyCallAfterListener).toBeGreaterThan(listener);
+    expect(server).toContain('clearDaemonReady(READY_FILE, process.pid);');
   });
 
   test('runs MCP in-process instead of shelling out through tsx', () => {
@@ -100,7 +112,8 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('smokeSelfHostedDaemon');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
-    expect(buildScript).toContain('DYLD_FALLBACK_LIBRARY_PATH');
+    expect(buildScript).toContain('prepareOnnxRuntimeNativeBinding');
+    expect(buildScript).not.toContain('DYLD_FALLBACK_LIBRARY_PATH');
     expect(buildScript).toContain('LD_LIBRARY_PATH');
     expect(buildScript).toContain("run('cc'");
     expect(buildScript).toContain('execv(target, child_argv)');

@@ -224,6 +224,24 @@ test('renders no-op outcomes and drops malformed or out-of-workspace records', (
   expect(snapshot.privacy).toMatch(/no argv/);
 });
 
+test('explains boot readiness, untrusted leases, and displaced-generation no-ops in plain language', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.events, [
+    event({ kind: 'start', run: 'booting', at: 1_000 }),
+    event({ kind: 'finish', run: 'booting', at: 1_001, outcome: 'daemon_booting', exit: '0' }),
+    event({ kind: 'start', run: 'displaced', at: 2_000 }),
+    event({ kind: 'finish', run: 'displaced', at: 2_001, outcome: 'generation_mismatch', exit: '0' }),
+    event({ kind: 'start', run: 'symlink', at: 2_500 }),
+    event({ kind: 'finish', run: 'symlink', at: 2_501, outcome: 'ready_symlink', exit: '0' }),
+  ].join('\n') + '\n');
+
+  const steps = readSquidHookDebugSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 3_000 }).sessions[0].steps;
+  expect(steps.find((step) => step.id === 'booting')?.description).toMatch(/not finished its boot checks/);
+  expect(steps.find((step) => step.id === 'displaced')?.description).toMatch(/another daemon generation/);
+  expect(steps.find((step) => step.id === 'symlink')?.description).toMatch(/symlink, not an authenticated runtime file/);
+});
+
 test('distinguishes contained failures, latency violations, intentional blocks, and open-circuit skips', () => {
   const paths = squidHookDebugPaths(PD_HOME);
   mkdirSync(join(PD_HOME, 'squid'), { recursive: true });

@@ -13,7 +13,8 @@
  *
  * Safety properties:
  *   - Only items explicitly opted-in via nightshift_eligible=1 are touched.
- *   - Items with unmet dependencies are skipped (dependencies_json is read).
+ *   - Items with unmet dependencies are skipped (planner:deps `depends_on`
+ *     graph edges ∪ legacy dependencies_json residue — see ADR-0086 §3).
  *   - Same item is never popped twice (dispatch_id IS NOT NULL gate).
  *   - daily_cap_usd lives on the dispatched ship, not the popper itself.
  *
@@ -23,6 +24,7 @@
  */
 
 import type { Database } from 'better-sqlite3';
+import { createGraphEdges } from './graph-edges.js';
 
 export interface RoadmapItemRow {
   id: string;
@@ -69,6 +71,16 @@ export function createRoadmapPopper(deps: PopperDeps) {
   const db = deps.db;
   const log = deps.log ?? ((msg: string, ...rest: unknown[]) => console.log(`[popper] ${msg}`, ...rest));
   const popperIdentity = deps.popperIdentity ?? 'roadmap-popper';
+  // Dependency truth lives in graph_edges (ADR-0086 §3). createGraphEdges is
+  // an idempotent CREATE IF NOT EXISTS, so fixtures that only seeded
+  // roadmap_items still get a readable (empty) edge store instead of a
+  // prepare-time crash.
+  createGraphEdges(db);
+  const selectEdgeDepsStmt = db.prepare(
+    `SELECT target_id FROM graph_edges
+      WHERE scope = 'planner:deps' AND edge_type = 'depends_on'
+        AND source_type = 'roadmap:item' AND source_id = ?`,
+  );
 
   /**
    * Return the next item the popper would pop, without actually popping.
@@ -166,13 +178,30 @@ export function createRoadmapPopper(deps: PopperDeps) {
     };
   }
 
-  /** Roadmap row's dependencies_json names other roadmap_items.slug values.
-   *  All must be status='done' for the item to be eligible. */
+  /**
+   * All of an item's dependencies must be status='done' for it to be eligible.
+   *
+   * Dependency truth is the planner:deps `depends_on` edges in graph_edges
+   * (ADR-0086 §3 — dependencies_json is retired as a write target), UNIONED
+   * with any legacy JSON still on the row. Why the union matters HERE more
+   * than anywhere: the popper autonomously dispatches work at night — reading
+   * only the retired column would treat a blocked item as unblocked the
+   * moment the write path stopped filling it, and popping blocked work is the
+   * exact failure this gate exists to prevent. Every retired-era write clears
+   * the JSON to '[]', so the union can never resurrect a removed dependency.
+   *
+   * @param row - The raw roadmap_items row under eligibility evaluation.
+   * @returns true when every named dependency in the row's harbor is done.
+   */
   function dependenciesSatisfied(row: RoadmapItemRow): boolean {
-    let deps: string[];
-    try { deps = JSON.parse(row.dependencies_json); }
-    catch { deps = []; }
-    if (!Array.isArray(deps) || deps.length === 0) return true;
+    let legacyDeps: string[];
+    try { legacyDeps = JSON.parse(row.dependencies_json); }
+    catch { legacyDeps = []; }
+    if (!Array.isArray(legacyDeps)) legacyDeps = [];
+    const edgeDeps = (selectEdgeDepsStmt.all(row.slug) as Array<{ target_id: string }>)
+      .map((r) => r.target_id);
+    const deps = [...new Set([...edgeDeps, ...legacyDeps])];
+    if (deps.length === 0) return true;
     const placeholders = deps.map(() => '?').join(',');
     const incomplete = db.prepare(
       `SELECT COUNT(*) AS n FROM roadmap_items

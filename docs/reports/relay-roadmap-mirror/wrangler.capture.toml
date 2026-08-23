@@ -1,0 +1,52 @@
+# Local-only wrangler config used by capture.mjs to boot the REAL relay Worker
+# (apps/relay/src/index.ts) under `wrangler dev --local` for evidence capture.
+#
+# It contains NO credentials and NO real Cloudflare resource ids: the D1 / KV
+# ids below are placeholders that miniflare only uses to name a local SQLite
+# file under --persist-to. This is not a deploy config — the committed deploy
+# config is apps/relay/wrangler.deploy.toml.
+#
+# Bindings are the same set as the real config so the Worker boots unchanged.
+# The [ai] binding is deliberately omitted: local dev proxies Workers AI to
+# Cloudflare (network + account auth), and no roadmap-mirror route touches it.
+
+name = "port-daddy-relay-capture"
+main = "../../../apps/relay/src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+RELAY_VERSION = "0.1.0"
+EVENT_RETENTION_DAYS = "7"
+PUBLIC_BASE_URL = "http://127.0.0.1:8799"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay-capture"
+database_id = "00000000-0000-0000-0000-000000000001"
+
+[durable_objects]
+bindings = [
+  { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+  { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+]
+
+[[migrations]]
+tag = "v0001"
+new_classes = ["HarborChannel"]
+
+[[migrations]]
+tag = "v0002"
+new_classes = ["HarborQuota"]
+
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000001"
+
+[[queues.producers]]
+binding = "FLEET_RUNS"
+queue = "fleet-runs"
+
+[[queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates"
