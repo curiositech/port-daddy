@@ -173,6 +173,29 @@ describe('decideFailover', () => {
     expect(d.reason).toMatch(/budget exhausted/);
   });
 
+  test('an OVERSPENT dispatch yields no successor and no negative budget', () => {
+    // A run can finish having spent MORE than its cap — a final call lands after
+    // the last check, or a provider bills more than the estimate. Subtracting
+    // then gives a negative number, and a negative budget handed to a successor
+    // is either a crash or, worse, a cap that compares as "plenty left" wherever
+    // the check is written `spent < budget`. Two independent guards hold here:
+    // remainingBudget() clamps at zero, and decideFailover refuses at <= 0. This
+    // pins BOTH, because either alone would be one refactor away from a
+    // successor that spends money it does not have.
+    const overspent = dispatchLike({ budgetUsd: 0.5, costUsd: 0.9 });
+    expect(remainingBudget(overspent)).toBe(0);
+    expect(remainingBudget(overspent, 0.4)).toBe(0);
+
+    const d = decideFailover(overspent, {
+      backend: 'cli:codex',
+      errorMessage: 'spawn codex ENOENT',
+      costUsd: 0.4,
+    });
+    expect(d.action).toBe('none');
+    expect(d.reason).toMatch(/budget exhausted/);
+    expect(d.remainingBudgetUsd ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
   test('an unbudgeted dispatch is not treated as broke', () => {
     // null budget and zero budget are different facts; collapsing them turns
     // "unbudgeted" into "out of money" and stops a succession that had no cap.
