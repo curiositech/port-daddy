@@ -71,7 +71,7 @@ export interface CoordinationLockValue {
   name: string;
   owner: string;
   acquiredAt: number;
-  expiresAt: number | null;
+  expiresAt: number;
   metadata: Record<string, unknown> | null;
 }
 
@@ -204,8 +204,8 @@ function validateOperationValue(
       if (!validString(value.name, 1024)) return 'invalid lock name';
       if (!validString(value.owner, 1024)) return 'invalid lock owner';
       if (!validTimestamp(value.acquiredAt)) return 'invalid lock acquiredAt';
-      if (!validNullableTimestamp(value.expiresAt)) return 'invalid lock expiresAt';
-      if (value.expiresAt !== null && Number(value.expiresAt) < Number(value.acquiredAt)) {
+      if (!validTimestamp(value.expiresAt)) return 'invalid lock expiresAt';
+      if (Number(value.expiresAt) < Number(value.acquiredAt)) {
         return 'lock expiresAt precedes acquiredAt';
       }
       if (!validMetadata(value.metadata)) return 'invalid lock metadata';

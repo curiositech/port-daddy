@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787508523827,
+  "generatedAt": 1787518060275,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 283,
+  "count": 290,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -372,7 +372,7 @@
     {
       "slug": "adr-0092-cloud-coordination-peer",
       "status": "now",
-      "summaryMd": "Ship ADR-0092 section 4 as an offline-first, macaroon-gated cloud coordination peer: per-project Durable Object, bidirectional CRDT replica for sessions/claims/notes/logical locks, real cloud-sandbox pd daemon, and remote-daemon safety gates."
+      "summaryMd": "Ship ADR-0092 section 4 as an offline-first cloud coordination peer with CRDT ledger replication and real sandbox daemons."
     },
     {
       "slug": "adr-0092-l2-local-edit-gate",
@@ -392,7 +392,7 @@
     {
       "slug": "adr-0097-phase-1-compaction-chain",
       "status": "now",
-      "summaryMd": "M6 phase 1: context-pressure tracking (ch04 thresholds over the F0 ContextEnvelope) + Longshoreman compactor emitting validated cited CompactionPackets; successor resume verifies sourceTranscript against the session hash chain (ADR-0097 Implementation Matrix)"
+      "summaryMd": "Witnessed context envelopes, cited compaction packets, and exactly-once successor continuation across Agent Harbor and Squid operator surfaces."
     },
     {
       "slug": "adr-0097-phase-2-transcript-search",
@@ -526,13 +526,13 @@
     },
     {
       "slug": "ast-a1-4-incremental-index-refresh",
-      "status": "backlog",
-      "summaryMd": "A1.4 Keep the symbol index current as files change (re-parse dirty files only). Done when editing one file updates only its rows and stale edges are gone."
+      "status": "now",
+      "summaryMd": "Incrementally refresh the AST symbol index for dirty files with atomic row replacement, stale symbol and dependency cleanup, and structured telemetry."
     },
     {
       "slug": "ast-a1-5-graph-integrity-auditor",
-      "status": "backlog",
-      "summaryMd": "A1.5 Check symbol_dependencies for dangling targets/orphans after deletes; counts reconcile. Done when a pd-doctor-style check flags a corrupted row."
+      "status": "now",
+      "summaryMd": "Add a read-only AST graph integrity auditor with focused corruption and clean-state tests."
     },
     {
       "slug": "ast-a2-1-symbol-claim-isolation-validator",
@@ -630,6 +630,11 @@
       "summaryMd": "drop_feedback IS working (24 feedback:dropped tuples in live DB, 13 in the last two weeks) — the write path is fine. But the only automated consumer, the Cartographer fleet agent (pd-fleet.yml, scheduled */30 * * * *, reads pd feedback list --status open --json and harvests into the roadmap), last committed .cartographer/status.md on 2026-05-19 — ~82 days offline. Its last status recorded its own blindness: EPERM on ~/.port-daddy/daemon.sock. Confirmed live: 'pd fleet status' reports 'Fleet port-daddy defined in pd-fleet.yml but not running'. roadmap_items.promoted_from_feedback_id is not null → 0 rows, ever. So feedback accumulates in an open queue (16+ entries as of 2026-08-09, several duplicates of the same live-reproduced MCP param-naming friction) that nothing reads. Fix is operational (pd fleet up + resolve the socket EPERM) plus a durability question: should cartographer's own liveness be monitored so a second silent-death doesn't recur unnoticed for another 3 months."
     },
     {
+      "slug": "ci-macos-node24-jest-memory-20260823",
+      "status": "now",
+      "summaryMd": "Stop repeated post-merge macOS Node 24 Jest heap exhaustion without broadening process limits"
+    },
+    {
       "slug": "claude-provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
@@ -668,6 +673,11 @@
       "slug": "codex-daemon-claude-bin-resolution",
       "status": "backlog",
       "summaryMd": "Fix daemon Claude CLI binary resolution"
+    },
+    {
+      "slug": "codex-doctrine-hypertree",
+      "status": "backlog",
+      "summaryMd": "RFC: empirically earned fleet doctrine"
     },
     {
       "slug": "codex-durable-agent-cross-harness-20260715",
@@ -720,6 +730,11 @@
       "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
     },
     {
+      "slug": "daemon-compiled-tree-sitter-wasm-crash-20260823",
+      "status": "now",
+      "summaryMd": "Package and locate web-tree-sitter WASM in compiled Port Daddy releases so symbol indexing cannot crash the supervised daemon with build-machine paths."
+    },
+    {
       "slug": "daemon-down-hard-stop-mandate",
       "status": "now",
       "summaryMd": "KEYSTONE (operator top mandate 2026-07-14: 'it is insane port-daddy does not grind to a halt when the daemon is down — it MUST, super loud'). Reconciliation confirms: every enforcement claim is theatrical while ~30 lib/*.ts modules open SQLite directly and only 4 command files call isDaemonRunning; guard.ts note-per-commit rent check FAILS OPEN (daemon/git failure => no rent owed); 6 quiet-degrade surfaces (dispatch.ts:270 silent direct-DB fallback, post-commit-hook curl discarded, MCP text-not-McpError server.ts:4995, FleetBar dot, brew Running:true lie with no watchdog). Build: (1) new ADR 'Daemon-Down Hard-Stop Mandate' generalizing guard structural-escalation to all write surfaces; (2) guard rent check fail CLOSED+loud; (3) a shared daemon-liveness precondition on direct-SQLite writes (loud refuse, not silent fallback); (4) supervision watchdog reconciling brew/launchd Running:true vs actual liveness. Owner: halt-mandate dispatch. Decision-type: HITL (the fail-closed policy is an operator call) + empirical (the wiring). Acceptance: with daemon killed, a pd write refuses loudly instead of hitting local SQLite; the rent check blocks; pd doctor is not the only thing that catches the brew lie."
@@ -733,6 +748,11 @@
       "slug": "dev-berth-daemon-registration",
       "status": "merge",
       "summaryMd": "Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds."
+    },
+    {
+      "slug": "dispatch-launcher-regression-hotfix-20260823",
+      "status": "done",
+      "summaryMd": "Record the scoped Dispatch Codex launcher and auto-claim lifecycle hotfix"
     },
     {
       "slug": "document-operator-raw-git-escape",
@@ -858,6 +878,16 @@
       "slug": "fleet-hitl-proposal-queue",
       "status": "backlog",
       "summaryMd": "Add fleet HITL proposal queue"
+    },
+    {
+      "slug": "fleet-poison-delivery-circuit-breaker-20260823",
+      "status": "now",
+      "summaryMd": "Stop poison Fleet deliveries from monopolizing the serialized cloud review queue: bound whole-delivery retries, surface admission/backlog state, and degrade broken ships fail-closed without starving newer heads."
+    },
+    {
+      "slug": "fleet-purser-harness-validity-20260823",
+      "status": "now",
+      "summaryMd": "Classify generated Purser harness failures before they can block or retarget an author PR"
     },
     {
       "slug": "fleet-respawn-breaker-durability",
@@ -1210,6 +1240,11 @@
       "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
     },
     {
+      "slug": "relay-staging-ledger-pr-automation-20260823",
+      "status": "now",
+      "summaryMd": "Make relay staging ledger updates PR-safe and unblock production Fleet deploys"
+    },
+    {
       "slug": "release-safety-pipeline",
       "status": "now",
       "summaryMd": "pd batten declarative release-artifact verify+imprint gate (generalizes #3496 test -s); NO gate reports failure as success"
@@ -1351,8 +1386,8 @@
     },
     {
       "slug": "suggest-b1-2-topical-classifier",
-      "status": "backlog",
-      "summaryMd": "B1.2 lib/agent-context-classifier.ts (ADR-0039 P1): periodic Haiku call over purpose+notes+claims+diff -> topic+embedding(MiniLM)+surface claims on agent:context tuple. Done when active session gets topic+embedding each tick; cost-bounded; unit test."
+      "status": "now",
+      "summaryMd": "Classify bounded agent context into semantic topics with local MiniLM evidence"
     },
     {
       "slug": "suggest-b2-1-suggestion-broker",

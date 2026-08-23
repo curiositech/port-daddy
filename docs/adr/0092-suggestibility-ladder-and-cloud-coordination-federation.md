@@ -160,7 +160,9 @@ The shipped peer is an append-only CRDT/oplog, not a remote database mount:
   and project-scoped logical-lease APIs into a durable SQLite outbox, pulls
   contiguous cloud pages, and applies them back through those same local APIs.
   Local mutations never wait for this loop, and network errors leave the outbox
-  intact for retry.
+  intact for retry. Push envelopes are bounded by encoded bytes as well as
+  operation count, so one large offline backlog cannot permanently block its
+  oldest operation at the Worker's 1 MiB request boundary.
 - Sessions, claims, and logical leases are deterministic HLC-ordered LWW
   registers; notes are immutable grow-only entries. Inbound clocks are bounded
   to five minutes of future skew and a finite logical counter, so one malformed
@@ -169,14 +171,18 @@ The shipped peer is an append-only CRDT/oplog, not a remote database mount:
   partial application rolls back before retry. Claims from different sessions
   have distinct entity identities, so a partitioned claim on either peer
   survives union on reconvergence.
-- Macaroons authorize a stable actor, while every daemon process uses a unique
-  replica id in its HLC and operation ids. Concurrent sandboxes therefore do
-  not collapse into one CRDT replica or reuse note identities merely because
-  they share the same fleet actor grant.
+- Macaroons authorize a stable actor, while every local ledger initializes a
+  unique replica id and persists it beside the cursor/outbox. Restarts therefore
+  drain already-persisted operations under the same envelope; concurrent
+  sandboxes with separate ledgers still cannot collapse into one CRDT replica
+  or reuse note identities merely because they share the same fleet actor grant.
 - Logical lock leases replicate for visibility and convergence only. They are
   not process locks, port locks, or proof of global mutual exclusion during a
   partition. Ports, PIDs, sockets, supervision, and exclusive machine-local
-  resources remain local authority.
+  resources remain local authority. Remote leases materialize under a
+  coordination-scoped projection key with explicit ownership metadata and a
+  collision-safe fallback slot, so neither upserts nor tombstones can overwrite
+  or release a machine-local lock, even if it occupies a projection-shaped name.
 - `apps/fleet-executor/src/sandbox-runner.ts` builds the compiled binary, boots
   a real isolated daemon with `PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and
   `PORT_DADDY_SOCK`, waits for health, and creates the cloud session with the
@@ -185,7 +191,10 @@ The shipped peer is an append-only CRDT/oplog, not a remote database mount:
   the repository token reaches only Git, and the coordination macaroon reaches
   only the daemon's `startProcess` environment. Install hooks, test code, and
   later `exec` calls never receive it; the returned process handle is killed in
-  `finally`. This follows Cloudflare's documented per-command environment and
+  `finally`. After `pd begin`, bootstrap polls the daemon's read-only
+  coordination status until its outbox is empty and the room cursor has
+  advanced, failing closed if the cloud session was not durably acknowledged.
+  This follows Cloudflare's documented per-command environment and
   background-process APIs ([Commands](https://developers.cloudflare.com/sandbox/api/commands/),
   [Environment variables](https://developers.cloudflare.com/sandbox/configuration/environment-variables/),
   [Background processes](https://developers.cloudflare.com/sandbox/guides/background-processes/)).

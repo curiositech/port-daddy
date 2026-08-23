@@ -31,17 +31,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-node "$REPO_ROOT/tests/helpers/coordination-peer-relay.mjs" "$SMOKE_ROOT/relay" \
+"$REPO_ROOT/node_modules/.bin/tsx" "$REPO_ROOT/tests/helpers/coordination-peer-relay.ts" "$SMOKE_ROOT/relay" \
   > "$SMOKE_ROOT/relay.log" 2>&1 &
 relay_pid=$!
 for _ in $(seq 1 50); do
-  [ -f "$SMOKE_ROOT/relay/relay.port" ] && break
+  [ -f "$SMOKE_ROOT/relay/relay.port" ] \
+    && [ -f "$SMOKE_ROOT/relay/cloud-smoke.macaroon" ] \
+    && [ -f "$SMOKE_ROOT/relay/local-smoke.macaroon" ] && break
   kill -0 "$relay_pid" 2>/dev/null || { sed -n '1,160p' "$SMOKE_ROOT/relay.log" >&2; exit 1; }
   sleep 0.1
 done
 [ -f "$SMOKE_ROOT/relay/relay.port" ] || { echo "FAIL: relay did not publish a port" >&2; exit 1; }
 RELAY_PORT="$(sed -n '1p' "$SMOKE_ROOT/relay/relay.port")"
 RELAY_URL="http://127.0.0.1:$RELAY_PORT"
+CLOUD_MACAROON="$(sed -n '1p' "$SMOKE_ROOT/relay/cloud-smoke.macaroon")"
+LOCAL_MACAROON="$(sed -n '1p' "$SMOKE_ROOT/relay/local-smoke.macaroon")"
 
 PORT_DADDY_PORT="$CLOUD_PORT" \
 PORT_DADDY_DB="$SMOKE_ROOT/cloud/registry.db" \
@@ -52,7 +56,7 @@ PORT_DADDY_COORDINATION_URL="$RELAY_URL" \
 PORT_DADDY_COORDINATION_PROJECT="$PROJECT" \
 PORT_DADDY_COORDINATION_ACTOR="cloud-smoke" \
 PORT_DADDY_COORDINATION_REPLICA="cloud-smoke-peer" \
-PORT_DADDY_COORDINATION_MACAROON="smoke-cloud-macaroon" \
+PORT_DADDY_COORDINATION_MACAROON="$CLOUD_MACAROON" \
 PORT_DADDY_COORDINATION_INTERVAL_MS=500 \
 PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
 "$BIN" __daemon > "$SMOKE_ROOT/cloud.log" 2>&1 &
@@ -67,7 +71,7 @@ PORT_DADDY_COORDINATION_URL="$RELAY_URL" \
 PORT_DADDY_COORDINATION_PROJECT="$PROJECT" \
 PORT_DADDY_COORDINATION_ACTOR="local-smoke" \
 PORT_DADDY_COORDINATION_REPLICA="local-smoke-peer" \
-PORT_DADDY_COORDINATION_MACAROON="smoke-local-macaroon" \
+PORT_DADDY_COORDINATION_MACAROON="$LOCAL_MACAROON" \
 PORT_DADDY_COORDINATION_INTERVAL_MS=500 \
 PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
 "$BIN" __daemon > "$SMOKE_ROOT/local.log" 2>&1 &
@@ -101,6 +105,17 @@ wait_for() {
   done
   return 1
 }
+wait_for_peer_durability() {
+  local port="$1"
+  for _ in $(seq 1 60); do
+    if curl -fsS "http://127.0.0.1:$port/coordination/status" 2>/dev/null \
+      | node -e 'let raw="";process.stdin.on("data",c=>raw+=c);process.stdin.on("end",()=>{try{const s=JSON.parse(raw);process.exit(s.connected===true&&s.outbox===0&&s.cursor>0?0:1)}catch{process.exit(1)}})'; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  return 1
+}
 
 cloud_pd begin "Cloud smoke session" --identity "port-daddy:cloud-smoke" \
   --agent cloud-smoke --lifecycle durable --sidequest "ADR-0092 cloud peer acceptance smoke" \
@@ -112,6 +127,7 @@ cloud_pd note "cloud note crosses the room" --session "$CLOUD_SESSION" --json >/
 wait_for "$CLOUD_SESSION" local_pd sessions --all-worktrees --json || { echo "FAIL: cloud pd begin did not appear locally" >&2; exit 1; }
 wait_for 'cloud-smoke' local_pd who-owns src/cloud-smoke.ts --json || { echo "FAIL: cloud claim did not appear locally" >&2; exit 1; }
 wait_for 'cloud note crosses the room' local_pd notes "$CLOUD_SESSION" --json || { echo "FAIL: cloud note did not appear locally" >&2; exit 1; }
+wait_for_peer_durability "$CLOUD_PORT" || { echo "FAIL: cloud peer never received durable room acknowledgement" >&2; exit 1; }
 
 local_pd begin "Local partition session" --identity "port-daddy:local-smoke" \
   --agent local-smoke --lifecycle durable --sidequest "ADR-0092 local peer acceptance smoke" \
