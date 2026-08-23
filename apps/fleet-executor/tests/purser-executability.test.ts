@@ -367,6 +367,56 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
     expect(result).toMatchObject({ ok: false, kind: 'missing-discovery-evidence' });
   });
 
+  it.each([
+    {
+      label: '#9760 literal placeholder body',
+      path: 'tests/unit/release-token-fallback.test.js',
+      contents: 'export function parseStableVersion(value) { ... }',
+    },
+    {
+      label: '#9760 truncated source excerpt',
+      path: 'tests/unit/release-token-fallback.test.js',
+      contents: 'if (parse\n… (diff truncated...)',
+    },
+  ])('rejects $label as syntax-error before sandbox evidence is considered', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: realJestPatterns,
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'syntax-error',
+      path,
+      reason: expect.stringContaining('before any sandbox execution'),
+    });
+  });
+
+  it.each([
+    {
+      path: 'tests/unit/typed.contract.test.ts',
+      contents: [
+        'type StableVersion = { major: number; minor: number; patch: number };',
+        'const parse = (value: string): StableVersion => ({ major: 1, minor: 2, patch: value.length });',
+        "test('parses', () => expect(parse('x').patch).toBe(1));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/view.contract.test.tsx',
+      contents: [
+        "const view = <span data-kind='receipt'>ready</span>;",
+        "test('renders', () => expect(view.props.children).toBe('ready'));",
+      ].join('\n'),
+    },
+  ])('accepts complete generated $path source with extension-appropriate syntax', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{ts,tsx}'],
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toEqual({ ok: true });
+  });
+
   it('fails closed when the repo tree is unknown (null), even for a discoverable path with no imports', () => {
     const result = checkGeneratedTestsExecutable(
       [{ path: 'tests/unit/widget.test.js', contents: 'it("x", () => {});' }],

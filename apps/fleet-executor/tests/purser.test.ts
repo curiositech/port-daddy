@@ -864,6 +864,52 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
+  it('#9760: malformed authored source fails before sandbox, stacking, or retarget side effects', async () => {
+    seedRealJestConfig();
+    const malformedTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/release-token-fallback.test.js',
+          contents: 'export function parseStableVersion(value) { ... }',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const malformedRepair = [
+      '```js',
+      'if (parse',
+      '… (diff truncated...)',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair]);
+    const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'should not run', stderr: '' }));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: { exec: sandboxExec } as unknown }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining('FAILED'),
+      detail: expect.objectContaining({
+        originalError: expect.stringContaining('not a complete syntactically valid test program'),
+        attempts: 1,
+      }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
+      .toBeDefined();
+    expect(sandboxExec).not.toHaveBeenCalled();
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
+  });
+
   it('repairs one mixed-runner draft, then fails as broken machinery instead of stacking incompatible tests', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');
