@@ -2,7 +2,7 @@
 
 **Status:** Proposed founding architecture
 
-**Roadmap item:** `empirically-earned-fleet-doctrine-architecture`
+**Roadmap item:** `codex-doctrine-hypertree`
 
 **Scope:** Port Daddy-wide institutional learning, including transcripts, agent-to-agent deliberation, skills, memory, experiments, dispatch, and decision-time guidance
 **Decision:** Build one evidence-bearing doctrine loop that absorbs the useful parts of ADR-0052 and the closed agent-downtime RFC, while retaining transcripts, notes, tuples, episodic memory, semantic graph, Parley, and skills as specialized projections rather than rival memories.
