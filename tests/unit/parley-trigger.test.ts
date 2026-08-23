@@ -1,19 +1,70 @@
-/**
- * Tests for `lib/parley-trigger.ts` (RCP-2a) — the parley entry gate. Pure.
- */
+/** Tests for the bounded structural Parley checkpoint gate. */
 
-import { describe, test, expect } from '@jest/globals';
-import { shouldConvene } from '../../lib/parley-trigger.js';
+import { describe, expect, test } from '@jest/globals';
+import {
+  buildConversationalDiagnosticSignal,
+  conflictSignalId,
+  CONFLICT_SIGNAL_KINDS,
+  CONFLICT_SIGNAL_LIMITS,
+  CONFLICT_SIGNAL_PRODUCERS,
+  CONFLICT_SIGNAL_SCHEMA_VERSION,
+  PARLEY_CHECKPOINT_POLICIES,
+  PARLEY_CHECKPOINTS,
+  PARLEY_SHAPES,
+  shouldConvene,
+  type ConflictSignal,
+  type ConflictSignalKind,
+  type ParleyCheckpoint,
+  type ParleyEvaluationOptions,
+  type ParleyShape,
+} from '../../lib/parley-trigger.js';
 import type { ThreadDigest } from '../../lib/discourse-lineage.js';
 
-/** Minimal ThreadDigest with `n` unresolved contradictions. */
-function digest(n: number): ThreadDigest {
+const PRODUCED_AT = 1_800_000_000_000;
+
+function autoSignal(overrides: Partial<ConflictSignal> = {}): ConflictSignal {
+  const signal: ConflictSignal = {
+    schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
+    signalId: '',
+    kind: 'claim_overlap',
+    checkpoint: 'claim',
+    shape: 'contract-net',
+    parties: ['agent-a', 'agent-b'],
+    surface: 'lib/example.ts#run',
+    magnitude: 1,
+    confidence: 0.95,
+    reason: 'two live claims resolve to the same symbol',
+    evidenceRefs: ['claim:a', 'claim:b'],
+    provenance: {
+      producer: CONFLICT_SIGNAL_PRODUCERS.parleyAutoTrigger,
+      trustTier: 'INTERNAL',
+      producedAt: PRODUCED_AT,
+    },
+    ...overrides,
+  };
+
+  return {
+    ...signal,
+    signalId: overrides.signalId ?? conflictSignalId({
+      checkpoint: signal.checkpoint,
+      kind: signal.kind,
+      surface: signal.surface,
+      parties: signal.parties,
+      evidenceRefs: signal.evidenceRefs,
+    }),
+  };
+}
+
+function digest(n = 1): ThreadDigest {
   const edges = Array.from({ length: n }, (_, i) => ({
-    from: 100 + i, to: i, sender: 'a', relationship: 'contradicts' as const,
+    from: 100 + i,
+    to: i,
+    sender: i % 2 === 0 ? 'agent-b' : 'agent-a',
+    relationship: 'contradicts' as const,
   }));
   return {
     total: n + 1,
-    participants: ['a', 'b'],
+    participants: ['agent-a', 'agent-b'],
     roots: [0],
     maxDepth: 1,
     byRelationship: { supports: 0, contradicts: n, extends: 0, narrows: 0, synthesizes: 0 },
@@ -24,72 +75,456 @@ function digest(n: number): ThreadDigest {
   };
 }
 
-describe('shouldConvene', () => {
-  test('convenes (debate-with-judge) when expected waste beats the parley cost', () => {
-    const d = shouldConvene(digest(2), { wastePerUnresolved: 10, parleyCost: 5 });
-    expect(d.convene).toBe(true);
-    expect(d.shape).toBe('debate-with-judge');
-    expect(d.expectedWaste).toBe(20);
-    expect(d.margin).toBe(15);
-    expect(d.terminated).toBeNull();
+function diagnosticSignal(): ConflictSignal {
+  return buildConversationalDiagnosticSignal({
+    channel: 'coordination',
+    conversationId: 'conversation-1',
+    digest: digest(),
+    producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+    producedAt: PRODUCED_AT,
+  });
+}
+
+describe('ConflictSignal lifecycle contract', () => {
+  test('publishes the ADR-0129 checkpoints, required kinds, and protocol shapes', () => {
+    expect(CONFLICT_SIGNAL_SCHEMA_VERSION).toBe(1);
+    expect(PARLEY_CHECKPOINTS).toEqual([
+      'conversation',
+      'claim',
+      'decision',
+      'wave',
+      'precommit',
+      'handoff',
+    ]);
+    expect(CONFLICT_SIGNAL_KINDS).toEqual([
+      'conversational_contradiction',
+      'claim_overlap',
+      'semantic_surface_conflict',
+      'decision_contradiction',
+      'task_convergence',
+    ]);
+    expect(PARLEY_SHAPES).toEqual(['debate-with-judge', 'contract-net']);
+
+    const signal = autoSignal();
+    expect(Object.keys(signal).sort()).toEqual([
+      'checkpoint',
+      'confidence',
+      'evidenceRefs',
+      'kind',
+      'magnitude',
+      'parties',
+      'provenance',
+      'reason',
+      'schemaVersion',
+      'shape',
+      'signalId',
+      'surface',
+    ]);
+    expect(signal.provenance).toEqual({
+      producer: 'port-daddy:parley-auto-trigger',
+      trustTier: 'INTERNAL',
+      producedAt: PRODUCED_AT,
+    });
   });
 
-  test('holds when the conflict costs less than coordinating', () => {
-    const d = shouldConvene(digest(1), { wastePerUnresolved: 1, parleyCost: 5 });
-    expect(d.convene).toBe(false);
-    expect(d.expectedWaste).toBe(1);
-    expect(d.reason).toMatch(/costs more than the conflict|≤/);
-  });
-
-  test('does not convene when there are no unresolved contradictions', () => {
-    const d = shouldConvene(digest(0), { wastePerUnresolved: 100, parleyCost: 1 });
-    expect(d.convene).toBe(false);
-    expect(d.unresolved).toBe(0);
-    expect(d.reason).toMatch(/no unresolved contradictions/);
-  });
-
-  test('pFail scales the expected waste', () => {
-    const d = shouldConvene(digest(2), { wastePerUnresolved: 10, parleyCost: 5, pFail: 0.1 });
-    expect(d.expectedWaste).toBeCloseTo(2); // 0.1 * 10 * 2
-    expect(d.convene).toBe(false);          // 2 ≤ 5
-  });
-
-  test('pFail is clamped to [0,1]', () => {
-    const hi = shouldConvene(digest(1), { wastePerUnresolved: 10, parleyCost: 1, pFail: 5 });
-    expect(hi.expectedWaste).toBe(10); // clamped to 1
-    const lo = shouldConvene(digest(1), { wastePerUnresolved: 10, parleyCost: 1, pFail: -3 });
-    expect(lo.expectedWaste).toBe(0);  // clamped to 0
-    expect(lo.convene).toBe(false);
-  });
-
-  test('hard-terminates at max rounds, regardless of economics', () => {
-    const d = shouldConvene(
-      digest(5),
-      { wastePerUnresolved: 1000, parleyCost: 1 }, // economics scream convene
-      { priorRounds: 2, maxRounds: 2 },
+  test.each<{
+    kind: ConflictSignalKind;
+    checkpoint: ParleyCheckpoint;
+    shape: ParleyShape;
+  }>([
+    { kind: 'conversational_contradiction', checkpoint: 'conversation', shape: 'debate-with-judge' },
+    { kind: 'claim_overlap', checkpoint: 'claim', shape: 'contract-net' },
+    { kind: 'decision_contradiction', checkpoint: 'decision', shape: 'debate-with-judge' },
+    { kind: 'task_convergence', checkpoint: 'wave', shape: 'contract-net' },
+    { kind: 'semantic_surface_conflict', checkpoint: 'precommit', shape: 'debate-with-judge' },
+  ])('admits $kind at the $checkpoint checkpoint as $shape', ({ kind, checkpoint, shape }) => {
+    const decision = shouldConvene(
+      autoSignal({ kind, checkpoint, shape }),
+      { mode: 'automatic' },
     );
-    expect(d.convene).toBe(false);
-    expect(d.terminated).toBe('max-rounds');
-    expect(d.reason).toMatch(/escalate to the operator/);
+    expect(decision.policyCleared).toBe(true);
+    expect(decision.convene).toBe(true);
+    expect(decision.shape).toBe(shape);
+    expect(decision.checkpoint).toBe(checkpoint);
   });
 
-  test('hard-terminates on excessive delegation depth (ping-pong guard)', () => {
-    const d = shouldConvene(
-      digest(3),
-      { wastePerUnresolved: 1000, parleyCost: 1 },
-      { delegationDepth: 9, maxDelegationDepth: 4 },
-    );
-    expect(d.convene).toBe(false);
-    expect(d.terminated).toBe('delegation-depth');
+  test('central adapter builds an INTERNAL conversation signal with production time', () => {
+    const signal = diagnosticSignal();
+    expect(signal.checkpoint).toBe('conversation');
+    expect(signal.kind).toBe('conversational_contradiction');
+    expect(signal.shape).toBe('debate-with-judge');
+    expect(signal.parties).toEqual(['agent-a', 'agent-b']);
+    expect(signal.magnitude).toBe(1);
+    expect(signal.evidenceRefs).toEqual(['tube-message:100:contradicts:0']);
+    expect(signal.signalId).toMatch(/^parley-signal:v1:[a-f0-9]{64}$/);
+    expect(signal.signalId).toBe(conflictSignalId({
+      checkpoint: signal.checkpoint,
+      kind: signal.kind,
+      surface: signal.surface,
+      parties: signal.parties,
+      evidenceRefs: signal.evidenceRefs,
+    }));
+    expect(signal.provenance).toEqual({
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      trustTier: 'INTERNAL',
+      producedAt: PRODUCED_AT,
+    });
   });
 
-  test('within limits, economics decide', () => {
-    const d = shouldConvene(
-      digest(3),
-      { wastePerUnresolved: 10, parleyCost: 5 },
-      { priorRounds: 1, maxRounds: 2, delegationDepth: 2, maxDelegationDepth: 4 },
+  test('keeps signal identity stable when only production time changes', () => {
+    const observation = {
+      channel: 'coordination',
+      conversationId: 'conversation-1',
+      digest: digest(2),
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+    } as const;
+    const first = buildConversationalDiagnosticSignal({
+      ...observation,
+      producedAt: PRODUCED_AT,
+    });
+    const replay = buildConversationalDiagnosticSignal({
+      ...observation,
+      producedAt: PRODUCED_AT + 60_000,
+    });
+
+    expect(replay.signalId).toBe(first.signalId);
+    expect(replay.provenance.producedAt).not.toBe(first.provenance.producedAt);
+  });
+
+  test('changes signal identity when a stable structural field changes', () => {
+    const first = diagnosticSignal();
+    const changedSurface = buildConversationalDiagnosticSignal({
+      channel: 'different-channel',
+      conversationId: 'conversation-1',
+      digest: digest(),
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      producedAt: PRODUCED_AT,
+    });
+    expect(changedSurface.signalId).not.toBe(first.signalId);
+  });
+
+  test('keeps signal identity stable across party and evidence ordering', () => {
+    const original = digest(2);
+    const reordered: ThreadDigest = {
+      ...original,
+      participants: [...original.participants].reverse(),
+      unresolvedContradictions: [...original.unresolvedContradictions].reverse(),
+    };
+    const first = buildConversationalDiagnosticSignal({
+      channel: 'coordination',
+      digest: original,
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      producedAt: PRODUCED_AT,
+    });
+    const replay = buildConversationalDiagnosticSignal({
+      channel: 'coordination',
+      digest: reordered,
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      producedAt: PRODUCED_AT,
+    });
+    expect(replay.signalId).toBe(first.signalId);
+    expect(replay.parties).toEqual(first.parties);
+    expect(replay.evidenceRefs).toEqual(first.evidenceRefs);
+  });
+
+  test('canonicalizes repeated evidence into the same structural body and economics', () => {
+    const original = digest();
+    const repeatedEvidence: ThreadDigest = {
+      ...original,
+      unresolvedContradictions: [
+        original.unresolvedContradictions[0],
+        original.unresolvedContradictions[0],
+      ],
+    };
+    const first = buildConversationalDiagnosticSignal({
+      channel: 'coordination',
+      digest: original,
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      producedAt: PRODUCED_AT,
+    });
+    const replay = buildConversationalDiagnosticSignal({
+      channel: 'coordination',
+      digest: repeatedEvidence,
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      producedAt: PRODUCED_AT,
+    });
+    expect(replay).toEqual(first);
+    expect(replay.evidenceRefs).toEqual(['tube-message:100:contradicts:0']);
+    expect(replay.magnitude).toBe(1);
+  });
+});
+
+describe('immutable checkpoint policy', () => {
+  test('deep-freezes every server-owned lifecycle policy', () => {
+    expect(Object.isFrozen(CONFLICT_SIGNAL_LIMITS)).toBe(true);
+    expect(CONFLICT_SIGNAL_LIMITS).toEqual({
+      maxParties: 32,
+      maxEvidenceRefs: 256,
+      maxSignalIdChars: 128,
+      maxSurfaceChars: 1024,
+      maxReasonChars: 2048,
+      maxPartyChars: 128,
+      maxEvidenceRefChars: 512,
+    });
+    expect(Object.isFrozen(PARLEY_CHECKPOINT_POLICIES)).toBe(true);
+    for (const checkpoint of PARLEY_CHECKPOINTS) {
+      const policy = PARLEY_CHECKPOINT_POLICIES[checkpoint];
+      expect(Object.isFrozen(policy)).toBe(true);
+      expect(Object.isFrozen(policy.costs)).toBe(true);
+      expect(Object.isFrozen(policy.limits)).toBe(true);
+      expect(Object.isFrozen(policy.automaticProducers)).toBe(true);
+      expect(Object.isFrozen(policy.diagnosticProducers)).toBe(true);
+      expect(Object.isFrozen(policy.kinds)).toBe(true);
+      for (const kind of Object.values(policy.kinds)) {
+        expect(Object.isFrozen(kind)).toBe(true);
+      }
+    }
+  });
+
+  test.each([
+    'lib/parley-auto-trigger.ts#observeClaim',
+    'lib/parley-auto-trigger.ts',
+  ])('a single high-confidence exact claim overlap clears claim policy for %s', (surface) => {
+    const decision = shouldConvene(
+      autoSignal({ surface, magnitude: 1, confidence: 0.95 }),
+      { mode: 'automatic' },
     );
-    expect(d.convene).toBe(true);
-    expect(d.terminated).toBeNull();
+    expect(decision.policyCleared).toBe(true);
+    expect(decision.convene).toBe(true);
+    expect(decision.shape).toBe('contract-net');
+    expect(decision.unresolved).toBe(1);
+  });
+
+  test('uses structure rather than reason text', () => {
+    const decision = shouldConvene(
+      autoSignal({ reason: 'everything is calm; no classifier terms are present' }),
+      { mode: 'automatic' },
+    );
+    expect(decision.policyCleared).toBe(true);
+    expect(decision.convene).toBe(true);
+  });
+});
+
+describe('evaluation mode boundary', () => {
+  test('accepts diagnostic conversation producers only in diagnostic mode', () => {
+    const signal = diagnosticSignal();
+    const diagnostic = shouldConvene(signal, { mode: 'diagnostic' });
+    const automatic = shouldConvene(signal, { mode: 'automatic' });
+
+    expect(diagnostic.policyCleared).toBe(true);
+    expect(diagnostic.convene).toBe(true);
+    expect(automatic.policyCleared).toBe(false);
+    expect(automatic.convene).toBe(false);
+    expect(automatic.reason).toMatch(/not allowed for automatic/);
+  });
+
+  test('automatic mode ignores caller costs and max-limit overrides', () => {
+    const decision = shouldConvene(autoSignal(), {
+      mode: 'automatic',
+      costs: { wastePerUnresolved: 0, parleyCost: 100 },
+      limits: {
+        priorRounds: 1,
+        maxRounds: 1,
+        delegationDepth: 4,
+        maxDelegationDepth: 0,
+      },
+    });
+    expect(decision.expectedWaste).toBe(1.9);
+    expect(decision.margin).toBeCloseTo(0.9);
+    expect(decision.terminated).toBeNull();
+    expect(decision.convene).toBe(true);
+  });
+
+  test('diagnostic mode applies explicit cost and max-limit overrides', () => {
+    const economic = shouldConvene(diagnosticSignal(), {
+      mode: 'diagnostic',
+      costs: { wastePerUnresolved: 10, parleyCost: 100 },
+    });
+    expect(economic.expectedWaste).toBe(10);
+    expect(economic.convene).toBe(false);
+
+    const terminated = shouldConvene(diagnosticSignal(), {
+      mode: 'diagnostic',
+      limits: { priorRounds: 1, maxRounds: 1 },
+    });
+    expect(terminated.terminated).toBe('max-rounds');
+    expect(terminated.reason).toMatch(/max 1/);
+  });
+});
+
+describe('fail-closed runtime validation', () => {
+  const base = autoSignal();
+  const hostileSignals: Array<[string, unknown]> = [
+    ['non-object signal', null],
+    ['unknown schema', { ...base, schemaVersion: 99 }],
+    ['unknown checkpoint', { ...base, checkpoint: 'gate-a' }],
+    ['unknown kind', { ...base, kind: 'free_text_conflict' }],
+    ['unknown shape', { ...base, shape: 'town-hall' }],
+    ['empty identity', { ...base, signalId: '  ' }],
+    ['over-limit identity', { ...base, signalId: 'i'.repeat(CONFLICT_SIGNAL_LIMITS.maxSignalIdChars + 1) }],
+    ['empty surface', { ...base, surface: '' }],
+    ['over-limit surface', { ...base, surface: 's'.repeat(CONFLICT_SIGNAL_LIMITS.maxSurfaceChars + 1) }],
+    ['empty reason', { ...base, reason: ' ' }],
+    ['over-limit reason', { ...base, reason: 'r'.repeat(CONFLICT_SIGNAL_LIMITS.maxReasonChars + 1) }],
+    ['empty evidence', { ...base, evidenceRefs: [] }],
+    ['malformed evidence', { ...base, evidenceRefs: [''] }],
+    ['duplicate evidence', { ...base, evidenceRefs: ['claim:a', 'claim:b', 'claim:b'] }],
+    ['whitespace-normalized duplicate evidence', {
+      ...base,
+      evidenceRefs: ['claim:a', 'claim:b', ' claim:b '],
+    }],
+    ['over-limit evidence count', {
+      ...base,
+      evidenceRefs: Array.from(
+        { length: CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs + 1 },
+        (_, i) => `evidence:${i}`,
+      ),
+    }],
+    ['over-limit evidence ref', {
+      ...base,
+      evidenceRefs: ['e'.repeat(CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars + 1)],
+    }],
+    ['one party', { ...base, parties: ['agent-a'] }],
+    ['duplicate parties', { ...base, parties: ['agent-a', 'agent-b', 'agent-b'] }],
+    ['whitespace-normalized duplicate parties', {
+      ...base,
+      parties: ['agent-a', 'agent-b', ' agent-b '],
+    }],
+    ['empty party', { ...base, parties: ['agent-a', ''] }],
+    ['over-limit party count', {
+      ...base,
+      parties: Array.from(
+        { length: CONFLICT_SIGNAL_LIMITS.maxParties + 1 },
+        (_, i) => `agent-${i}`,
+      ),
+    }],
+    ['over-limit party', {
+      ...base,
+      parties: ['agent-a', 'p'.repeat(CONFLICT_SIGNAL_LIMITS.maxPartyChars + 1)],
+    }],
+    ['NaN magnitude', { ...base, magnitude: Number.NaN }],
+    ['infinite magnitude', { ...base, magnitude: Number.POSITIVE_INFINITY }],
+    ['fractional magnitude', { ...base, magnitude: 1.5 }],
+    ['negative magnitude', { ...base, magnitude: -1 }],
+    ['NaN confidence', { ...base, confidence: Number.NaN }],
+    ['infinite confidence', { ...base, confidence: Number.POSITIVE_INFINITY }],
+    ['out-of-range confidence', { ...base, confidence: 1.1 }],
+    ['absent provenance', { ...base, provenance: undefined }],
+    ['forged producer', { ...base, provenance: { ...base.provenance, producer: 'forged' } }],
+    ['external trust tier', { ...base, provenance: { ...base.provenance, trustTier: 'ANONYMOUS_EXTERNAL' } }],
+    ['absent production time', { ...base, provenance: { producer: base.provenance.producer, trustTier: 'INTERNAL' } }],
+    ['zero production time', { ...base, provenance: { ...base.provenance, producedAt: 0 } }],
+    ['NaN production time', { ...base, provenance: { ...base.provenance, producedAt: Number.NaN } }],
+  ];
+
+  test.each(hostileSignals)('refuses %s without throwing', (_name, candidate) => {
+    let decision: ReturnType<typeof shouldConvene> | undefined;
+    expect(() => {
+      decision = shouldConvene(candidate as ConflictSignal, { mode: 'automatic' });
+    }).not.toThrow();
+    expect(decision?.convene).toBe(false);
+    expect(decision?.policyCleared).toBe(false);
+    expect(decision?.terminated).toBeNull();
+  });
+
+  test.each([
+    ['wrong identity for the same body', {
+      ...base,
+      signalId: `parley-signal:v1:${'0'.repeat(64)}`,
+    }],
+    ['reused identity after surface mutation', {
+      ...base,
+      surface: 'lib/other.ts#run',
+    }],
+    ['reused identity after evidence mutation', {
+      ...base,
+      evidenceRefs: ['claim:a', 'claim:c'],
+    }],
+  ])('refuses %s', (_name, candidate) => {
+    const decision = shouldConvene(candidate as ConflictSignal, { mode: 'automatic' });
+
+    expect(decision.convene).toBe(false);
+    expect(decision.policyCleared).toBe(false);
+    expect(decision.reason).toMatch(/identity does not match its structural fields/);
+  });
+
+  test('refuses malformed evaluation options without throwing', () => {
+    const hostileOptions: unknown[] = [
+      null,
+      {},
+      { mode: 'gate-a' },
+      { mode: 'diagnostic', costs: { wastePerUnresolved: Number.NaN, parleyCost: 1 } },
+      { mode: 'diagnostic', costs: { wastePerUnresolved: 1, parleyCost: -1 } },
+      { mode: 'diagnostic', limits: { priorRounds: -1 } },
+      { mode: 'diagnostic', limits: { delegationDepth: 1.5 } },
+      { mode: 'diagnostic', limits: { maxRounds: Number.POSITIVE_INFINITY } },
+    ];
+
+    for (const options of hostileOptions) {
+      expect(() => shouldConvene(
+        autoSignal(),
+        options as ParleyEvaluationOptions,
+      )).not.toThrow();
+      expect(shouldConvene(autoSignal(), options as ParleyEvaluationOptions).convene).toBe(false);
+    }
+  });
+
+  test('does not truncate an adapter observation that exceeds evidence policy', () => {
+    const signal = buildConversationalDiagnosticSignal({
+      channel: 'coordination',
+      digest: digest(CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs + 1),
+      producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      producedAt: PRODUCED_AT,
+    });
+    const decision = shouldConvene(signal, { mode: 'diagnostic' });
+
+    expect(signal.evidenceRefs).toHaveLength(CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs + 1);
+    expect(decision.convene).toBe(false);
+    expect(decision.policyCleared).toBe(false);
+    expect(decision.reason).toMatch(/evidence exceeds/);
+  });
+});
+
+describe('economics and hard termination', () => {
+  test('uses signal confidence as pFail and magnitude as unresolved count', () => {
+    const decision = shouldConvene(
+      autoSignal({ magnitude: 3, confidence: 0.8 }),
+      { mode: 'automatic' },
+    );
+    expect(decision.unresolved).toBe(3);
+    expect(decision.expectedWaste).toBeCloseTo(4.8);
+    expect(decision.margin).toBeCloseTo(3.8);
+    expect(decision.convene).toBe(true);
+  });
+
+  test('requires expected waste to strictly exceed parley cost', () => {
+    const decision = shouldConvene(diagnosticSignal(), {
+      mode: 'diagnostic',
+      costs: { wastePerUnresolved: 1, parleyCost: 1 },
+    });
+    expect(decision.expectedWaste).toBe(1);
+    expect(decision.margin).toBe(0);
+    expect(decision.policyCleared).toBe(true);
+    expect(decision.convene).toBe(false);
+  });
+
+  test('hard-terminates at the automatic max rounds regardless of overrides', () => {
+    const decision = shouldConvene(autoSignal({ magnitude: 100, confidence: 1 }), {
+      mode: 'automatic',
+      limits: { priorRounds: 2, maxRounds: 99 },
+    });
+    expect(decision.convene).toBe(false);
+    expect(decision.terminated).toBe('max-rounds');
+    expect(decision.reason).toMatch(/max 2/);
+  });
+
+  test('hard-terminates excessive automatic delegation depth regardless of overrides', () => {
+    const decision = shouldConvene(autoSignal({ magnitude: 100, confidence: 1 }), {
+      mode: 'automatic',
+      limits: { delegationDepth: 5, maxDelegationDepth: 99 },
+    });
+    expect(decision.convene).toBe(false);
+    expect(decision.terminated).toBe('delegation-depth');
+    expect(decision.reason).toMatch(/exceeds 4/);
   });
 });
