@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
 import worker from '../src/index.js';
 import type { Env } from '../src/types.js';
 import { syncSkillListings } from '../src/seamanship.js';
@@ -171,5 +172,85 @@ describe('router — the publish endpoints', () => {
     });
     expect(res.status).toBe(303);
     expect(res.headers.get('Location')).toBe('/account/seamanship?listed=1');
+  });
+});
+
+// ── Every route, discovered from the router ─────────────────────────────────
+//
+// The suites above name the routes they cover. Eleven Seamanship and Engineman
+// routes are wired; four were named. The eight the Snipe slice added — suggest,
+// approve, dismiss, the suggestions read, the chat page and the three
+// /v1/snipe/* endpoints — went in with the handlers tested directly and the
+// WIRING tested nowhere, so deleting an `else if` from the router left the
+// suite green while the feature 404'd in production.
+//
+// Naming them here would have the same shelf life, so both sides are read at
+// run time: the router's own branches, and the route inventory in the file's
+// header docblock. A route added tomorrow is covered the moment it is wired.
+
+const SRC = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
+// Exact-match routes only. The prefix routes (`/skills/…`, `/v1/skills/…`) are
+// covered by name above, and they legitimately 404 for a skill that is not
+// published — which is the one status this sweep uses as its failure signal.
+const MINE = /^\/(?:v1\/(?:snipe|seamanship)|account\/seamanship)/;
+
+/** `METHOD /path` pairs the router actually dispatches on. */
+function wiredRoutes(): string[] {
+  const re = /pathname === '(\/[^']*)' && method === '(GET|POST)'/g;
+  return [...SRC.matchAll(re)]
+    .filter((m) => MINE.test(m[1]))
+    .map((m) => `${m[2]} ${m[1]}`)
+    .sort();
+}
+
+/** `METHOD /path` pairs the header docblock advertises. */
+function advertisedRoutes(): string[] {
+  const re = /^\s*\*\s+(GET|POST)\s+(\/\S+)/gm;
+  return [...SRC.matchAll(re)]
+    .map((m) => ({ method: m[1], path: m[2].split('?')[0] }))
+    .filter((r) => MINE.test(r.path) && !r.path.includes(':'))
+    .map((r) => `${r.method} ${r.path}`)
+    .sort();
+}
+
+describe('router — every Seamanship and Engineman route', () => {
+  it('the header docblock and the router agree on which routes exist', async () => {
+    const wired = wiredRoutes();
+    const advertised = advertisedRoutes();
+
+    // Premise on the DOCBLOCK side only. It is the inventory: deleting a router
+    // branch must surface below as the route that went missing, not here as a
+    // count. Without this the comparison is two empty lists agreeing with each
+    // other, which is what a regex that has drifted from the source looks like.
+    expect(advertised.length).toBeGreaterThanOrEqual(11);
+    expect(wired.length).toBeGreaterThan(0);
+
+    // A route in the docblock but not the router is a promise the file makes
+    // and does not keep; one in the router but not the docblock is a surface
+    // nobody reading the header knows exists.
+    expect(advertised.filter((r) => !wired.includes(r))).toEqual([]);
+    expect(wired.filter((r) => !advertised.includes(r))).toEqual([]);
+  });
+
+  it('every wired route is reachable and gated — none falls through to 404', async () => {
+    const { env } = await published();
+    const wired = wiredRoutes();
+    // Premise: there is something to probe. A route DELETED from the router is
+    // the sibling test's finding, reported there by name; this one is about
+    // whether the routes that are wired actually answer.
+    expect(wired.length).toBeGreaterThan(0);
+
+    // Anonymous. A wired route that gates answers 401 (JSON surfaces) or
+    // 302 → /login (HTML ones). A route that is NOT wired falls through the
+    // router's chain and 404s, so 404 here means unreachable, not "not found".
+    const bad: string[] = [];
+    for (const entry of wired) {
+      const [method, path] = entry.split(' ');
+      const res = await hit(path, env, { method });
+      const gated =
+        res.status === 401 || (res.status === 302 && res.headers.get('Location') === '/login');
+      if (!gated) bad.push(`${entry} -> ${res.status}`);
+    }
+    expect(bad).toEqual([]);
   });
 });
