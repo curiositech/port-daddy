@@ -738,6 +738,36 @@ pd relay exchange --oidc-token <t>            # OIDC → PD card (CI; reads $ACT
 MCP equivalent: `relay_status()` (read-only) tells an agent whether
 cross-machine pub/sub is live before it relies on a remote channel.
 
+### Cloud coordination peer — offline-first federation (ADR-0092 §4)
+
+When the four `PORT_DADDY_COORDINATION_*` settings are present, a daemon keeps
+a durable outbox and CRDT-syncs sessions, notes, advisory file claims, and
+project-scoped logical lock leases with a per-project relay Durable Object.
+The relay is a peer, not an authority: local work remains writable during a
+partition and reconverges later. Ports, PIDs, sockets, process supervision, and
+exclusive machine-local locks never move to the cloud.
+
+Treat logical replicated leases as visibility, not proof of mutual exclusion.
+During a partition two peers can both make progress; after reconnect the HLC
+fold chooses the displayed lease while distinct claims union without loss.
+Remote leases use ownership-verified coordination projection names and choose a
+collision-safe fallback slot when a machine-local lock already occupies one, so
+they cannot overwrite or release machine-local exclusion locks. A replica id
+belongs to the durable local ledger/outbox rather than one process lifetime;
+never rotate it during a restart with pending operations.
+
+MCP equivalent: `coordination_status()` is read-only and reports whether the
+peer is enabled/connected, its project, actor, stable replica id, durable room
+cursor, pending outbox count, last sync, and last error. A disconnected result
+is a federation diagnostic, not evidence that the local ledger is unavailable.
+
+An explicitly selected `PORT_DADDY_URL`, `PD_URL`, or daemon profile is an
+operator-selected peer boundary. If that peer is unavailable, the CLI reports
+the outage and does not silently fall back to a local database or start a
+replacement local daemon. Do not work around that refusal: restore/select the
+intended peer through FleetBar or continue only through an already-running
+offline-first local replica.
+
 ### Dispatch — autonomous feature-dev queue (ADR-0035)
 
 **Dispatch** (`cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`) is the

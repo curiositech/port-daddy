@@ -115,6 +115,7 @@ import {
 } from './purser-rerun.js';
 import {
   runTestsInSandbox,
+  sandboxCoordinationPeerFromEnv,
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
@@ -710,6 +711,21 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
       `Keep it that way.`
     );
   }
+  if (
+    sandbox.outcomeKind === 'harness-failure' ||
+    sandbox.outcomeKind === 'unclassified-failure'
+  ) {
+    return (
+      `**Execution: RUNNER ERROR — NO AUTHOR FAILURE CLAIMED.** The test command ` +
+      `started, but it did not produce structured evidence of a failed test case. ` +
+      `This Purser result is disabled as broken machinery; the reviewed PR remains ` +
+      `unchanged while the generated suite or harness is repaired.` +
+      `\n\n<details>\n<summary>Runner output (tail)</summary>\n\n` +
+      '```\n' +
+      sandbox.outputTail.slice(-FAILURE_TAIL_BYTES) +
+      '\n```\n\n</details>'
+    );
+  }
   // Name the failures individually when the runner's format allowed it. This
   // is the difference between "your PR fails its contract, here is 1 KB of
   // scrollback" and "these four cases fail" — the second is actionable, the
@@ -734,6 +750,24 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
     sandbox.outputTail.slice(-FAILURE_TAIL_BYTES) +
     '\n```\n\n</details>'
   );
+}
+
+function sandboxFailureIsHarness(sandbox: SandboxRunOutcome): boolean {
+  return (
+    sandbox.executed &&
+    sandbox.passed === false &&
+    (sandbox.outcomeKind === 'harness-failure' ||
+      sandbox.outcomeKind === 'unclassified-failure')
+  );
+}
+
+function sandboxFailureIsAssertion(sandbox: SandboxRunOutcome): boolean {
+  if (!sandbox.executed || sandbox.passed !== false) return false;
+  // Outcomes persisted before the structured-classification rollout carry no
+  // outcomeKind. Preserve their historical fail-closed interpretation; fresh
+  // sandbox runs always set the field and only structured Jest failed-test
+  // counts enter the assertion path.
+  return sandbox.outcomeKind === undefined || sandbox.outcomeKind === 'assertion-failure';
 }
 
 function renderTestList(files: StackedFile[]): string {
@@ -902,6 +936,7 @@ async function rerunExistingTests(
     headSha: prCtx.headSha,
     files,
     token,
+    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
   });
   await assertCurrentHead(`after pd-${ship.name} reused-tests sandbox`);
 
@@ -1648,17 +1683,25 @@ export async function runPurser(
       headSha: prCtx.headSha,
       files,
       token,
+      coordinationPeer: sandboxCoordinationPeerFromEnv(env),
     });
     await assertCurrentHead(`after pd-${ship.name} authored-tests sandbox`);
     await transcript.step(
       'purser-sandbox',
       ship.name,
       sandbox.executed
-        ? `pd-${ship.name}: sandbox ${sandbox.passed ? 'PASSED' : 'FAILED'}`
+        ? `pd-${ship.name}: sandbox ${
+            sandbox.passed
+              ? 'PASSED'
+              : sandboxFailureIsHarness(sandbox)
+                ? 'RUNNER ERROR'
+                : 'FAILED'
+          }`
         : `pd-${ship.name}: sandbox NOT RUN`,
       {
         executed: sandbox.executed,
         passed: sandbox.passed,
+        ...(sandbox.outcomeKind ? { outcomeKind: sandbox.outcomeKind } : {}),
         failuresTail:
           sandbox.executed && sandbox.passed === false
             ? sandbox.outputTail.slice(-FAILURE_TAIL_BYTES)
@@ -1708,14 +1751,13 @@ export async function runPurser(
         ship: ship.name,
         url: stackedPr.url,
       }, squidConsent);
-      // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests, and
-      // ONLY when the exact generated tests were actually EXECUTED — sandbox
-      // absent (the default deploy, no SANDBOX binding) means the tests were
-      // authored but never run, exactly the #5860 failure mode ("the body
-      // admitted they were not run"). Retargeting a PR onto an unexecuted
-      // contract hides the true origin/main diff and shrinks normal CI for no
-      // verified benefit — the purser must not do that on faith.
-      if (!prCtx.isFork && sandbox.executed) {
+      // GUARD: only same-repo (non-fork) PRs are retargeted onto generated
+      // tests, and ONLY after the exact suite PASSED. Merely starting a runner
+      // is not evidence: PR #9778 started Jest, loaded zero valid tests, and the
+      // old `sandbox.executed` condition still retargeted #9767 onto the broken
+      // branch. Retargeting changes the reviewed diff and CI base, so failure,
+      // absence, and uncertainty all leave the author PR unchanged.
+      if (!prCtx.isFork && sandbox.executed && sandbox.passed === true) {
         try {
           await assertCurrentHead(`before pd-${ship.name} implementation PR retarget`);
           await retargetPrBase(
@@ -1732,10 +1774,13 @@ export async function runPurser(
             `[fleet-executor] pd-${ship.name} retarget #${prCtx.prNumber} failed: ${String(err)}`,
           );
         }
-      } else if (!prCtx.isFork && !sandbox.executed) {
-        retargetSkipReason =
-          'the adversarial tests were authored but not executed ' +
-          `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`;
+      } else if (!prCtx.isFork) {
+        retargetSkipReason = !sandbox.executed
+          ? 'the adversarial tests were authored but not executed ' +
+            `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`
+          : sandboxFailureIsHarness(sandbox)
+            ? 'the generated suite or runner failed without structured assertion evidence, so Purser is broken for this run and may not mutate the reviewed PR.'
+            : 'the generated tests did not pass, so the reviewed PR base remains unchanged while their findings are resolved.';
       }
     } catch (err) {
       if (err instanceof PullRequestHeadValidationError) throw err;
@@ -1810,16 +1855,21 @@ export async function runPurser(
     // tests (honest degradation), and the interruption escalated the human
     // ask — but the run must not stay green over it: `errored` fails the run
     // until the permission/failure is fixed (broken-ship doctrine). A sandbox
-    // FAILURE observed before the degradation still reads as BLOCK.
+    // structured assertion FAILURE observed before the degradation still reads
+    // as BLOCK. A runner/harness failure is broken machinery, never product
+    // evidence.
     if (degradedReason && !stackedPr) {
-      const verdict: Verdict =
-        sandbox.executed && sandbox.passed === false ? 'BLOCK' : brokenShip.verdict;
+      const verdict: Verdict = sandboxFailureIsAssertion(sandbox)
+        ? 'BLOCK'
+        : brokenShip.verdict;
       return { ...brokenShip, verdict };
     }
 
     let verdict: Verdict;
-    if (sandbox.executed) {
-      // BLOCK while sandbox-executed tests fail on the PR head.
+    if (sandboxFailureIsHarness(sandbox)) {
+      return brokenShip;
+    } else if (sandbox.executed) {
+      // BLOCK only when structured assertion evidence fails on the PR head.
       verdict = sandbox.passed ? 'PASS' : 'BLOCK';
     } else {
       // Never block on tests that were never run — unless the operator
