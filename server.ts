@@ -118,6 +118,7 @@ import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
+import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -551,6 +552,9 @@ const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
+// Live-work join for the roadmap command center (operator mandate 2026-08-22).
+// Read-only projection over roadmap_items/roadmap_claims/sessions/agents.
+const roadmapActivity = createRoadmapActivity({ db });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -1505,6 +1509,7 @@ await registerAllRoutes(
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,

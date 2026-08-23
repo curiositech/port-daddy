@@ -2090,6 +2090,22 @@
         "roadmap_promote"
       ]
     },
+    "roadmap_activity": {
+      "description": "Live-work join for the roadmap command center (operator mandate 2026-08-22): GET /roadmap/activity is the board-wide feed (stage counts stacked/executing/review/done + in-flight items) and GET /roadmap/items/:slug/activity joins one item to its active claims, rent-at-claim session links, and planner assignee with honest heartbeat-ladder liveness, cockpit stream/interrupt links, transcript URLs, and held HITL approvals",
+      "module": "lib/roadmap-activity.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /roadmap/activity",
+        "GET /roadmap/items/:slug/activity"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Data layer only in this slice — FleetBar/dashboard surfaces consume these routes in a follow-up PR; read-only projection, no CLI/MCP verbs yet"
+    },
     "commitments": {
       "description": "Durable commitments + obligation monitor (ADR-0041): the obligation dual of resurrection. Resurrection watches whether an agent is ALIVE; commitments watch whether it KEPT ITS PROMISE. `due_at` is daemon-derived from the commitment scope (Law 1); `close` refuses without an external oracle ref (Law 2); the monitor is a pure runtime SQLite sweep with no Rust-FFI dependency so it cannot silently degrade (Law 4). `pd commit` creates an obligation, `pd obligations [--overdue]` lists/sweeps, `pd commit close <id> --oracle <ref>` closes against an oracle",
       "module": "lib/commitments.ts",
