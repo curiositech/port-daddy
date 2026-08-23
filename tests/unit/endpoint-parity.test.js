@@ -322,6 +322,7 @@ const MCP_KNOWN_GENERIC_ROUTES = new Set([
   'GET /harbors',                     // routes/harbors.ts — Fastify generic syntax
   'GET /harbors/:param',              // routes/harbors.ts — Fastify generic syntax
   'POST /harbors/:param/check',       // routes/harbors.ts — Fastify generic syntax
+  'GET /harbors/agent/:param',        // routes/harbors.ts — Fastify generic syntax; no MCP tool calls this route yet, listed pre-emptively so adding one later doesn't silently regress this check
 ]);
 
 describe('Endpoint Parity: MCP calls server routes', () => {
