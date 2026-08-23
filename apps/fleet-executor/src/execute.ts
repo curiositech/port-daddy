@@ -2182,7 +2182,7 @@ async function runShip(
               `evidence from ${audit.strippedFrom.length}`,
             { dropped: audit.dropped, stripped: audit.strippedFrom },
           );
-          proposalAuditNote = renderCitationAuditNote([], audit.dropped);
+          proposalAuditNote = renderCitationAuditNote([], audit.dropped, audit.strippedFrom);
           curated = audit.kept;
         }
       }

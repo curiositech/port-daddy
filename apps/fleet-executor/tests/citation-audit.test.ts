@@ -52,6 +52,17 @@ describe('bareCitedPath', () => {
     expect(bareCitedPath('a/b.ts:12-40')).toBe('a/b.ts');
     expect(bareCitedPath('a/b.ts')).toBe('a/b.ts');
   });
+
+  it('strips a dangling bare colon (a line suffix the emitter forgot to fill in)', () => {
+    // Premise: the citation really ends in a bare colon that the numeric
+    // line-suffix pattern alone would NOT have matched.
+    const cited = 'src/file.ts:';
+    expect(cited.endsWith(':')).toBe(true);
+    expect(/:\d+(?:-\d+)?$/.test(cited)).toBe(false);
+    expect(bareCitedPath(cited)).toBe('src/file.ts');
+    // Interior colons are not suffixes and must survive.
+    expect(bareCitedPath('a/b:c.ts')).toBe('a/b:c.ts');
+  });
 });
 
 describe('auditCitation', () => {
@@ -65,6 +76,17 @@ describe('auditCitation', () => {
 
   it('fails OPEN as unknown when the tree could not be fetched', () => {
     expect(auditCitation('apps/relay/src/csp-validator.ts', evidence(null))).toBe('unknown');
+  });
+
+  it('a Windows-style citation is not-a-path — the git tree is POSIX, so it can never be tree-validated', () => {
+    // Premise: the citation contains backslashes, and no entry in the tree
+    // evidence does — a backslash path could only ever fail a tree lookup.
+    const cited = 'C:\\path\\file.ts:10';
+    expect(cited).toContain('\\');
+    expect([...TREE].some(p => p.includes('\\'))).toBe(false);
+    // So it is classified out of scope (kept), never flagged fabricated.
+    expect(isPathShaped(cited)).toBe(false);
+    expect(auditCitation(cited, evidence())).toBe('not-a-path');
   });
 });
 
@@ -127,6 +149,19 @@ describe('auditProposals', () => {
     expect(audit.kept[0].evidence).toEqual(['PR description']);
   });
 
+  it('keeps a Windows-style citation intact — never strips or drops on evidence it cannot check', () => {
+    // Premise: the citation is backslash-shaped and thus outside the POSIX
+    // tree's jurisdiction (not classified as a repo path at all).
+    const winCited = 'C:\\Users\\dev\\port-daddy\\apps\\relay\\src\\index.ts';
+    expect(winCited).toContain('\\');
+    expect(isPathShaped(winCited)).toBe(false);
+    const audit = auditProposals([proposal('win', [winCited])], evidence());
+    expect(audit.kept).toHaveLength(1);
+    expect(audit.kept[0].evidence).toEqual([winCited]);
+    expect(audit.dropped).toHaveLength(0);
+    expect(audit.strippedFrom).toHaveLength(0);
+  });
+
   it('audits nothing when the tree is unavailable', () => {
     const props = [proposal('p', ['cli/visibility.py'])];
     const audit = auditProposals(props, evidence(null));
@@ -145,5 +180,25 @@ describe('renderCitationAuditNote', () => {
     expect(note).toContain('csp-validator.ts');
     expect(note).toContain('phantom');
     expect(note).toContain('does not exist');
+  });
+
+  it('surfaces proposals whose fabricated evidence was stripped, not just fully-dropped ones', () => {
+    // Premise: a mixed-evidence proposal really lands in strippedFrom (kept,
+    // with the fabricated path recorded) rather than in dropped.
+    const audit = auditProposals(
+      [proposal('mixed', ['apps/relay/src/index.ts', 'apps/relay/src/csp-validator.ts'])],
+      evidence(),
+    );
+    expect(audit.strippedFrom).toEqual([
+      { title: 'mixed', missing: ['apps/relay/src/csp-validator.ts'] },
+    ]);
+    expect(audit.dropped).toHaveLength(0);
+    // The rendered note must name that proposal and its fabricated citation —
+    // this is the execute.ts integration shape: (findings=[], dropped, strippedFrom).
+    const note = renderCitationAuditNote([], audit.dropped, audit.strippedFrom);
+    expect(note).not.toBe('');
+    expect(note).toContain('mixed');
+    expect(note).toContain('csp-validator.ts');
+    expect(note).toContain('stripped');
   });
 });

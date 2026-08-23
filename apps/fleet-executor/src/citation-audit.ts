@@ -41,12 +41,19 @@ export function isPathShaped(cited: string): boolean {
   const c = cited.trim();
   if (!c || /\s/.test(c)) return false;
   if (c.includes('*') || c.includes('<') || c.includes('>')) return false; // globs/placeholders
+  // Backslash-containing citations (Windows-style paths like `C:\src\file.ts`)
+  // are out of scope BY CONSTRUCTION: the evidence this audit checks against is
+  // the git tree at the PR head, and git trees are POSIX — forward-slash
+  // separators only. A backslash path can never match that tree, so treating it
+  // as path-shaped could only ever flag it "missing". Classify it not-a-path:
+  // it is kept (like a concept), never flagged fabricated.
+  if (c.includes('\\')) return false;
   return c.includes('/') || /\.[A-Za-z0-9]{1,8}$/.test(c);
 }
 
-/** Strip the `:NN` / `:NN-MM` line suffix a citation may carry. */
+/** Strip the `:NN` / `:NN-MM` line suffix — or a dangling bare `:` — a citation may carry. */
 export function bareCitedPath(cited: string): string {
-  return cited.trim().replace(/:\d+(?:-\d+)?$/, '');
+  return cited.trim().replace(/:(?:\d+(?:-\d+)?)?$/, '');
 }
 
 export interface CitationEvidence {
@@ -143,8 +150,15 @@ export function auditProposals(proposals: Proposal[], evidence: CitationEvidence
 export function renderCitationAuditNote(
   rejectedPaths: string[],
   droppedProposals: Array<{ title: string; missing: string[] }>,
+  strippedProposals: Array<{ title: string; missing: string[] }> = [],
 ): string {
-  if (rejectedPaths.length === 0 && droppedProposals.length === 0) return '';
+  if (
+    rejectedPaths.length === 0 &&
+    droppedProposals.length === 0 &&
+    strippedProposals.length === 0
+  ) {
+    return '';
+  }
   const lines: string[] = ['', '---', ''];
   if (rejectedPaths.length > 0) {
     lines.push(
@@ -157,6 +171,13 @@ export function renderCitationAuditNote(
     lines.push(
       `⚠ **Proposal withheld — every cited file is fabricated:** "${d.title}" ` +
         `(cited ${d.missing.map(p => `\`${p}\``).join(', ')}).`,
+    );
+  }
+  for (const s of strippedProposals) {
+    lines.push(
+      `⚠ **Fabricated evidence stripped from proposal:** "${s.title}" cited ` +
+        s.missing.map(p => `\`${p}\``).join(', ') +
+        ` — no such file at this PR's head. The proposal stands on its remaining evidence.`,
     );
   }
   return lines.join('\n');
