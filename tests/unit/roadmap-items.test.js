@@ -417,6 +417,19 @@ describe('jira-grade fields: tags, actual, completed_at (2026-08-22 mandate)', (
     expect(roadmap.get('tagged', 'fleet').tags).toEqual(['infra', 'reliability']);
   });
 
+  test('the documented 64-tag cap is enforced, keeping the first 64 in order', () => {
+    // The cap is what bounds row growth for a column that is otherwise
+    // operator-free-form; without a test it is a comment, not a contract.
+    const many = Array.from({ length: 100 }, (_, i) => `t${i}`);
+    const item = roadmap.upsert({ slug: 'capped', summaryMd: 'x', harbor: 'fleet', tags: many });
+    expect(item.tags).toHaveLength(64);
+    expect(item.tags[0]).toBe('t0');
+    expect(item.tags[63]).toBe('t63');
+    expect(item.tags).not.toContain('t64');
+    // And it survives the round-trip, not just the in-memory return value.
+    expect(roadmap.get('capped', 'fleet').tags).toHaveLength(64);
+  });
+
   test('omitting tags preserves the stored set; [] clears it', () => {
     roadmap.upsert({ slug: 'tagkeep', summaryMd: 'v1', harbor: 'fleet', tags: ['a', 'b'] });
     const untouched = roadmap.upsert({ slug: 'tagkeep', summaryMd: 'v2', harbor: 'fleet' });

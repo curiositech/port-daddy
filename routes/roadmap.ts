@@ -241,7 +241,10 @@ function resolveAssignee(roster: DurableAgentRoster, value: string): string {
  * @param roster - The durable-agent roster module, when wired.
  * @returns A lookup from agentNodeId to OwnerInfo (empty when no roster).
  */
-function buildOwnerIndex(roster: DurableAgentRoster | undefined): Map<string, OwnerInfo> {
+function buildOwnerIndex(
+  roster: DurableAgentRoster | undefined,
+  log?: { warn: (msg: string) => void },
+): Map<string, OwnerInfo> {
   const index = new Map<string, OwnerInfo>();
   if (!roster) return index;
   try {
@@ -253,8 +256,15 @@ function buildOwnerIndex(roster: DurableAgentRoster | undefined): Map<string, Ow
         status: agent.status,
       });
     }
-  } catch {
-    // Roster read failure degrades to unjoined owners, never a failed item read.
+  } catch (error) {
+    // Roster read failure degrades to unjoined owners, never a failed item read
+    // — but it must leave a trace: a silently empty index looks identical to
+    // "no items have owners", which is the wrong thing to debug.
+    log?.warn(
+      `[roadmap] durable-agent roster read failed; owners will not be joined on this read: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
   }
   return index;
 }
@@ -456,7 +466,7 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     const rows = roadmapItems.list({ harbor, limit, status, tag });
     // Owner join: one roster snapshot per request, so every item's assignee
     // resolves to display info without per-row ledger replays.
-    const owners = buildOwnerIndex(durableAgentRoster);
+    const owners = buildOwnerIndex(durableAgentRoster, request.log);
     const items = rows.map((item) => ({
       ...item,
       owner: item.assigneeId ? owners.get(item.assigneeId) ?? null : null,
@@ -485,7 +495,7 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       reply.code(404);
       return { success: false, error: `roadmap item '${slug}' not found` };
     }
-    const owners = buildOwnerIndex(durableAgentRoster);
+    const owners = buildOwnerIndex(durableAgentRoster, request.log);
     const owner = item.assigneeId ? owners.get(item.assigneeId) ?? null : null;
     const links = graphEdges ? listItemLinks(graphEdges, slug) : [];
     const blockedBy = [...item.dependencies].sort();
@@ -573,8 +583,16 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     if (!target) {
       return { error: 'target is required (PR number for pr; path for doc/file; path or URL for media)' };
     }
-    if (type === 'pr' && !/^\d+$/.test(target)) {
-      return { error: `pr link target must be a PR number, got '${target}'` };
+    if (type === 'pr') {
+      if (!/^\d+$/.test(target)) {
+        return { error: `pr link target must be a PR number, got '${target}'` };
+      }
+      // Canonicalize leading zeros: the graph_edges unique index keys on the
+      // literal target_id, so '0123' and '123' would otherwise mint two edges
+      // for the same pull request — and `unlink --pr 123` would not remove the
+      // one added as `--pr 0123`. Strip textually (not via Number) so a target
+      // beyond Number.MAX_SAFE_INTEGER cannot be silently rounded.
+      return { kind: type, target: target.replace(/^0+(?=\d)/, '') };
     }
     return { kind: type as ItemLinkKind, target };
   };

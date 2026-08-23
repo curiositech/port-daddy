@@ -1291,6 +1291,7 @@ Commands:
     --limit <n>             Limit rows per section (default: 8)
     --status <s>            now|backlog|parked|merge|done|all
     --harbor <h>            Harbor scope
+    --project <name>        Logical project filter (derives the harbor when --harbor is absent)
     -q, --quiet             Print one slug per line
     -j, --json              Output raw roadmap_items rows
 
@@ -1311,6 +1312,7 @@ Commands:
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
     --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+    --project <name>        Logical project recorded on the item
 
   roadmap link <slug>       Pin a typed artifact link to an item's Jira card
     --pr <number>           Link a pull request (--url/--title optional)
