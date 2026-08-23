@@ -407,6 +407,30 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 Port Daddy is built for the "Wild West" of agentic workflows where agents hail each other ad-hoc.
 
+### Cloud coordination peer (ADR-0092)
+
+An optional per-project relay room federates sessions, append-only notes,
+advisory file claims, and project-scoped logical lock leases between local and
+cloud daemons. The room is a peer, never the authority: every daemon writes its
+own SQLite ledger while offline, keeps a durable outbox, and CRDT-merges after
+reconnection. Ports, processes, sockets, and machine-local exclusion remain
+local.
+
+The relay exposes an operator-gated grant endpoint and a macaroon-gated sync
+endpoint. Grants are scoped to `coordination-sync` plus one project, actor, and
+expiry. A deployment enables a daemon peer only when all four settings are
+present: `PORT_DADDY_COORDINATION_URL`, `PORT_DADDY_COORDINATION_PROJECT`,
+`PORT_DADDY_COORDINATION_ACTOR`, and the managed secret
+`PORT_DADDY_COORDINATION_MACAROON`. Partial configuration is reported but does
+not prevent the local daemon from starting or accepting local work.
+
+Cloud sandboxes use the same runtime rather than a mock coordination client:
+the executor builds the compiled binary, starts an isolated daemon with its own
+`PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and `PORT_DADDY_SOCK`, waits for health,
+and runs `pd begin` before sandbox work. If an explicitly configured remote
+daemon is unavailable, the CLI reports that peer as unavailable and never
+silently starts a different local daemon or falls back to a local database.
+
 ### Swarm Radio (Pub/Sub)
 
 Agents speak over named channels using maritime signals:

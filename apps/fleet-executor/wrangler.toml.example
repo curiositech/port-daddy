@@ -195,6 +195,16 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
+# ADR-0092 cloud coordination peer. When all three vars plus the scoped
+# PORT_DADDY_COORDINATION_MACAROON secret are set, every Cloudflare Sandbox
+# boots the real compiled pd daemon with an isolated /work prefix/database/
+# socket and registers it as a peer of this project room. Leave all unset to
+# preserve the prior sandbox behavior. The relay remains a peer, never the
+# authority: local daemon writes continue while it is unavailable.
+PORT_DADDY_COORDINATION_URL = ""
+PORT_DADDY_COORDINATION_PROJECT = ""
+PORT_DADDY_COORDINATION_ACTOR = ""
+
 # Cloud squid — fleet coordination events (src/squid-events.ts). When
 # RELAY_PUBLISH_URL (var) AND the FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX +
 # FLEET_EXECUTOR_HARBOR_CARD secrets are all set, the executor fire-and-forgets
@@ -253,3 +263,8 @@ RUN_DETAILS_BASE_URL = ""
 #                              `operator:fleet-executor@<deployment>`) and
 #                              re-provisioning with a fresh keypair. Optional:
 #                              unset ⇒ squid events are silently disabled.
+#   PORT_DADDY_COORDINATION_MACAROON
+#                              ADR-0092 grant scoped to coordination-sync,
+#                              PORT_DADDY_COORDINATION_PROJECT, and
+#                              PORT_DADDY_COORDINATION_ACTOR. Set only when all
+#                              three plaintext coordination vars above are set.

@@ -181,6 +181,11 @@ import {
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
 import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
+import {
+  configuredDaemonUnavailableMessage,
+  hasExplicitDaemonEndpoint,
+  shouldAutoStartLocalDaemon,
+} from '../cli/utils/remote-daemon.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -3452,6 +3457,14 @@ export async function main(): Promise<void> {
     await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
     const error = err as Error;
     if (isDaemonUnavailableError(error)) {
+      // An explicitly selected URL/profile is a peer, not a hint to fall back
+      // to this machine. Direct-DB fallback and local auto-start would both
+      // redirect writes into the wrong ledger while that peer is offline.
+      if (hasExplicitDaemonEndpoint(process.env)) {
+        ui.error(configuredDaemonUnavailableMessage(PORT_DADDY_URL));
+        process.exit(1);
+      }
+
       // Daemon unreachable — try direct-DB mode for Tier 1 commands
       if (TIER_1_COMMANDS.has(command)) {
         try {
@@ -3471,7 +3484,7 @@ export async function main(): Promise<void> {
         process.exit(1);
       }
 
-      if (!autoStartAttempted) {
+      if (!autoStartAttempted && shouldAutoStartLocalDaemon(PORT_DADDY_URL, process.env)) {
         // Auto-start daemon on first use
         autoStartAttempted = true;
         console.error('Port Daddy daemon is not running. Starting it...');

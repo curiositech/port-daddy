@@ -115,6 +115,7 @@ import {
 } from './purser-rerun.js';
 import {
   runTestsInSandbox,
+  sandboxCoordinationPeerFromEnv,
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
@@ -935,6 +936,7 @@ async function rerunExistingTests(
     headSha: prCtx.headSha,
     files,
     token,
+    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
   });
   await assertCurrentHead(`after pd-${ship.name} reused-tests sandbox`);
 
@@ -1681,6 +1683,7 @@ export async function runPurser(
       headSha: prCtx.headSha,
       files,
       token,
+      coordinationPeer: sandboxCoordinationPeerFromEnv(env),
     });
     await assertCurrentHead(`after pd-${ship.name} authored-tests sandbox`);
     await transcript.step(

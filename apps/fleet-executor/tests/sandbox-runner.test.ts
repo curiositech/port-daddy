@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDefaultSandboxTestCommand,
+  buildSandboxDaemonBootstrap,
   runTestsInSandbox,
+  sandboxCoordinationPeerFromEnv,
 } from '../src/sandbox-runner.js';
 
 const TEST_STARTED_MARKER = '__PD_PURSER_TEST_STARTED__';
@@ -198,5 +200,73 @@ describe('runTestsInSandbox', () => {
     });
     expect(command).toContain('custom-runner --contract-only');
     expect(command).not.toContain('npm test --');
+  });
+
+  it('boots the compiled pd daemon as a coordination peer before tests', async () => {
+    let command = '';
+    let options: Record<string, unknown> | undefined;
+    const outcome = await runTestsInSandbox({
+      sandboxBinding: {
+        async exec(value: string, received?: Record<string, unknown>) {
+          command = value;
+          options = received;
+          return { exitCode: 0, stdout: 'ok', stderr: '' };
+        },
+      },
+      owner: 'curiositech',
+      repo: 'port-daddy',
+      headSha: 'abc123',
+      files: [{ path: 'tests/unit/contract.test.ts', contents: 'test body' }],
+      token: 'test-token',
+      coordinationPeer: {
+        url: 'https://relay.portdaddy.dev',
+        project: 'curiositech/port-daddy',
+        actorId: 'fleet-sandbox',
+        macaroon: 'scoped-macaroon',
+      },
+    });
+
+    expect(outcome).toMatchObject({ executed: true, passed: true });
+    expect(command).toContain('npm run build:bin');
+    expect(command).toMatch(/PORT_DADDY_PREFIX=.*\/work\/pd-peer/);
+    expect(command).toMatch(/PORT_DADDY_DB=.*\/work\/pd-peer\/registry\.db/);
+    expect(command).toMatch(/PORT_DADDY_SOCK=.*\/work\/pd-peer\/port-daddy\.sock/);
+    expect(command).toContain('unset PORT_DADDY_COORDINATION_MACAROON');
+    expect(command).not.toContain('scoped-macaroon');
+    expect(options).toMatchObject({
+      env: { PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon' },
+    });
+    expect(command).toContain('./dist/port-daddy __daemon');
+    expect(command).toContain('./dist/port-daddy begin');
+    expect(command).not.toContain('/tmp');
+  });
+});
+
+describe('cloud coordination bootstrap', () => {
+  it('requires all peer settings together', () => {
+    expect(() => sandboxCoordinationPeerFromEnv({
+      PORT_DADDY_COORDINATION_URL: 'https://relay.example',
+    })).toThrow('URL, project, actor, and macaroon together');
+  });
+
+  it('is absent when the deployment has not opted in', () => {
+    expect(sandboxCoordinationPeerFromEnv({})).toBeUndefined();
+  });
+
+  it('uses the CI-proven isolated daemon recipe and never /tmp', () => {
+    const lines = buildSandboxDaemonBootstrap({
+      url: 'https://relay.example',
+      project: 'curiositech/port-daddy',
+      actorId: 'fleet-sandbox',
+      macaroon: "macaroon'with-quote",
+    });
+    const script = lines.join('\n');
+    expect(script).toContain('PORT_DADDY_PREFIX');
+    expect(script).toContain('PORT_DADDY_DB');
+    expect(script).toContain('PORT_DADDY_SOCK');
+    expect(script).toContain('curl -fsS');
+    expect(script).toContain('pd-peer/daemon.log');
+    expect(script).not.toContain("macaroon'with-quote");
+    expect(script).not.toContain('/tmp');
   });
 });

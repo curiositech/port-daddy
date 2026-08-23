@@ -7,7 +7,7 @@
 
 ## Status
 
-Proposed
+Accepted (phased; §4 implemented after the §5 gate merged)
 
 ## Context
 
@@ -124,9 +124,9 @@ uniformly, everywhere — installed by the same `pd setup` path.
 ### 4. Cloud coordination peer (federation, not authority)
 
 Stand up a **Durable Object per project** as a strongly-consistent,
-WebSocket-native **coordination room**. Each local daemon and the cloud hold a
-replica of the **coordination ledger** — claims, notes, sessions, locks,
-pub/sub — and sync through the **existing `cloud-fleet` plane** (no-tunnel relay
+batch-synchronized **coordination room**. Each local daemon and the cloud hold a
+replica of the **coordination ledger** — claims, notes, sessions, and logical
+lock leases — and sync through the **existing `cloud-fleet` plane** (no-tunnel relay
 + queue executor, Phase A merged #599, control-plane Phase B #601):
 `routes/relay.ts`, `lib/relay-client.ts`, `lib/dispatch/worker.ts`. This rides
 that substrate rather than forking a parallel one. **Ports and process
@@ -146,6 +146,43 @@ Consequences this directly unlocks:
 - The Coordination Guard can verify against the cloud replica when the local
   daemon is down — the flapping-daemon block becomes survivable.
 - `swarm_awareness` becomes genuinely cross-machine.
+
+#### §4 implementation (2026-08-23)
+
+The shipped peer is an append-only CRDT/oplog, not a remote database mount:
+
+- `apps/relay/src/coordination-room.ts` provides one Durable Object per project.
+  Its request path only buffers operations and arms an alarm; the alarm appends
+  the whole batch with one multi-key storage write. A daemon retains every
+  outbox operation until a later response says it is durable, so object eviction
+  before an alarm can delay acknowledgement but cannot lose the source fact.
+- `lib/coordination-peer.ts` snapshots the canonical local session, note, claim,
+  and project-scoped logical-lease APIs into a durable SQLite outbox, pulls
+  contiguous cloud pages, and applies them back through those same local APIs.
+  Local mutations never wait for this loop, and network errors leave the outbox
+  intact for retry.
+- Sessions, claims, and logical leases are deterministic HLC-ordered LWW
+  registers; notes are immutable grow-only entries. Claims from different
+  sessions have distinct entity identities, so a partitioned claim on either
+  peer survives union on reconvergence.
+- Logical lock leases replicate for visibility and convergence only. They are
+  not process locks, port locks, or proof of global mutual exclusion during a
+  partition. Ports, PIDs, sockets, supervision, and exclusive machine-local
+  resources remain local authority.
+- `apps/fleet-executor/src/sandbox-runner.ts` builds the compiled binary, boots
+  a real isolated daemon with `PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and
+  `PORT_DADDY_SOCK`, waits for health, and creates the cloud session with the
+  compiled `pd begin` path before sandbox work runs.
+- An explicit remote daemon URL/profile is never replaced by direct local-DB
+  fallback or local daemon auto-start after `ECONNREFUSED`. Squid hook gates use
+  remote health for an explicitly selected peer and retain the filesystem-only
+  readiness/heartbeat path for the implicit local daemon.
+
+The capability prerequisite is satisfied by merged PR #632: every sync is
+authorized by a first-party macaroon scoped to `coordination-sync`, project,
+actor, and expiry. The grant endpoint is independently operator-gated. The
+root key and per-actor macaroon are runtime secrets and never enter committed
+Worker configuration.
 
 ### 5. Precondition (non-negotiable): the capability/trust gate ships first
 
@@ -215,7 +252,9 @@ this ADR waits on, not new design.
    Claude/Codex/Gemini, installed by `pd setup` (mirrors the agent renderer).
 3. **L4 SubagentStop adversarial-pipeline + L5 PreCompact checkpoint.**
 4. **Cloud coordination peer (§4), gated behind the macaroon/trust-gate
-   precondition (§5).** Phase-0 read-mirror first; then the DO coordination room.
+   precondition (§5).** Implemented as a bidirectional DO/local CRDT peer after
+   PR #632 merged; the compiled two-daemon smoke proves begin, claims,
+   bidirectional notes, and partition reconvergence.
 
 ## Citations
 
@@ -234,5 +273,8 @@ this ADR waits on, not new design.
   supervision severity), PR #539 (`a79dcd81`, I/O-wiring Phase 1) + the
   uncommitted event-spawn trust substrate, branches
   `design/suggestibility-briefing-spec` and `adr/suggestibility-and-shell`.
-- Proposed: `lib/pilot-hooks-render.ts`, `agents/port-daddy-pilot/pilot.hooks.json`,
-  the per-project Durable Object coordination room.
+- Proposed: `lib/pilot-hooks-render.ts`, `agents/port-daddy-pilot/pilot.hooks.json`.
+- Implemented §4: `lib/coordination-ledger.ts`, `lib/coordination-peer.ts`,
+  `apps/relay/src/coordination-room.ts`, `apps/relay/src/coordination-auth.ts`,
+  `apps/relay/src/coordination.ts`, `apps/fleet-executor/src/sandbox-runner.ts`,
+  `scripts/smoke-coordination-peer.sh`; macaroon prerequisite PR #632.

@@ -76,6 +76,7 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'VOYAGE_API_KEY',
   'DEEPSEEK_API_KEY',
   'XAI_API_KEY',
+  'PORT_DADDY_COORDINATION_MACAROON',
 ]);
 
 /** Sealed in-module cache. The only way in is snapshotSensitiveEnv(). */
