@@ -72,6 +72,56 @@ function explicitNonDefaultAgent(payload) {
   return false;
 }
 
+/**
+ * Read the repo's per-repo SITREP dial (`sitrep.endOfTurn` in agent.config.json,
+ * `.portdaddy/sitrep.json`, or `.portdaddy/project.json`), walking up from the
+ * session cwd exactly like the pd-hook-prompt tentacle does.
+ *
+ * Why here too: SessionStart is the strongest steering surface — a session that
+ * learns the end-of-turn contract at birth complies from turn one, while the
+ * per-turn tentacle keeps re-compelling it. Both read the SAME dial so the
+ * operator has one switch. Default is 'enforce' (operator doctrine reversal,
+ * 2026-08-22: the end-of-turn SITREP is the harness's visible value surface;
+ * an absent or unreadable config fails toward the full contract, and repos
+ * that want quiet turns opt out explicitly with `sitrep.endOfTurn: "off"`).
+ *
+ * @param {string} startDir - Directory to start the parent walk from.
+ * @returns {'off'|'suggest'|'enforce'} The resolved dial level.
+ */
+function sitrepLevel(startDir) {
+  const env = (process.env.PD_SITREP || '').trim().toLowerCase();
+  if (env === 'off' || env === 'suggest' || env === 'enforce') return env;
+  let dir = startDir;
+  for (let i = 0; i < 12; i++) {
+    for (const name of ['agent.config.json', '.portdaddy/sitrep.json', '.portdaddy/project.json']) {
+      try {
+        const data = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+        let value = data && typeof data === 'object' ? data.sitrep : undefined;
+        if (value && typeof value === 'object') value = value.endOfTurn;
+        if (typeof value === 'string') {
+          const level = value.trim().toLowerCase();
+          if (level === 'off' || level === 'suggest' || level === 'enforce') return level;
+        }
+      } catch {
+        /* missing or malformed config file: keep walking, default stays enforce */
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return 'enforce';
+}
+
+const SITREP_DUTY = [
+  '',
+  'SITREP (end-of-turn, per-repo dial): end EVERY turn with a SITREP markdown table',
+  '(`pd sitrep --template` prints the scaffold) tracking each idea raised this session,',
+  'each roadmap claim, and work assigned by other agents, with the turn\'s progress in',
+  'Status. Carry unresolved rows forward each turn. Any row you write code for MUST link',
+  'a roadmap item from the moment the row is created — mint one first with `pd roadmap upsert`.',
+].join('\n');
+
 const STEERING = [
   'This repository is **Port Daddy-active**. Operate as the **Port Daddy Pilot** agent for the',
   'remainder of this session unless the user explicitly selected a different agent.',
@@ -107,10 +157,15 @@ function main() {
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
   if (!isPortDaddyActive(cwd)) return;
 
+  // The SITREP duty rides the same envelope unless the repo dialed it off —
+  // the end-of-turn table is the harness's visible value surface, and the
+  // session should learn the contract at birth, not at its first turn.
+  const steering = sitrepLevel(cwd) === 'off' ? STEERING : STEERING + SITREP_DUTY;
+
   const out = {
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: STEERING,
+      additionalContext: steering,
     },
   };
   process.stdout.write(JSON.stringify(out));

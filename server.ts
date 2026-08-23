@@ -119,6 +119,7 @@ import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
+import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -129,6 +130,7 @@ import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
+import { clearDaemonReady, publishDaemonReady } from './lib/daemon-ready.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
@@ -383,7 +385,7 @@ const DAEMON_BERTH: DaemonBerthIdentity = {
   plane: DAEMON_PLANE,
 };
 
-import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
+import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE, DEFAULT_READY_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
@@ -395,6 +397,7 @@ const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY
 const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
 const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'heartbeat') : undefined);
+const READY_FILE: string = process.env.PORT_DADDY_READY_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.ready') : DEFAULT_READY_FILE);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
@@ -454,6 +457,11 @@ if (existsSync(SOCK_PATH)) {
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
 }
+
+// Readiness is a separate generation lease from Bosun liveness. Clear any
+// predecessor only after duplicate-owner detection, so a duplicate process
+// that defers cannot make the healthy daemon's hooks disappear.
+clearDaemonReady(READY_FILE);
 
 // Publish the launchd-owned generation BEFORE opening the production-sized DB
 // or constructing the service graph. Bosun previously saw only the prior
@@ -549,9 +557,12 @@ const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticRe
 const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ db, tuples });
+const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
+// Live-work join for the roadmap command center (operator mandate 2026-08-22).
+// Read-only projection over roadmap_items/roadmap_claims/sessions/agents.
+const roadmapActivity = createRoadmapActivity({ db });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -1517,6 +1528,7 @@ await registerAllRoutes(
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
@@ -1658,6 +1670,7 @@ function shutdown(signal: string): void {
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
   try { unlinkSync(SOCK_PATH); } catch {}
+  clearDaemonReady(READY_FILE, process.pid);
   try { unlinkSync(PID_FILE); } catch {}
   try { unlinkSync(PORT_FILE); } catch {}
   process.exit(0);
@@ -1697,6 +1710,18 @@ process.on('uncaughtException', (err: Error) => {
 });
 
 function onReady(): void {
+  try {
+    publishDaemonReady(READY_FILE, process.pid);
+    logger.info('daemon_ready_published', { path: READY_FILE, pid: process.pid });
+  } catch (err) {
+    // Fail shut for hook delegation without taking down an otherwise healthy
+    // daemon. FleetBar can surface the log and repair the private runtime path.
+    logger.error('daemon_ready_publish_failed', {
+      path: READY_FILE,
+      pid: process.pid,
+      error: (err as Error).message,
+    });
+  }
   activityLog.log(ActivityType.DAEMON_START, {
     details: `Port Daddy v${VERSION} started (Fastify)`,
     metadata: { port: PORT, pid: process.pid, codeHash: CODE_HASH, socket: SOCK_PATH }

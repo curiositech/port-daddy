@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "generatedAt": 1787441891273,
+  "harbor": null,
+  "counts": {
+    "items": 0,
+    "byStage": {
+      "stacked": 0,
+      "executing": 0,
+      "review": 0,
+      "done": 0
+    },
+    "activeAgents": 0,
+    "staleAttachments": 0,
+    "openClaims": 0,
+    "attention": 0
+  },
+  "items": []
+}

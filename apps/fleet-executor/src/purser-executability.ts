@@ -16,13 +16,15 @@
  * admitted the tests were never executed.
  *
  * This module answers ONE question — "would the repo's configured test runner
- * ever execute this file, and does it load without a missing-module crash?" —
+ * ever execute this file, is it a complete syntactically valid program, and
+ * does it load without a missing-module crash?" —
  * from EVIDENCE (the repo's real jest config + its real file tree at the PR's
  * base sha), never from the ship's own testPaths declaration. Unknown or
  * unfetchable evidence is a FAILURE, not a pass: the purser never retargets on a
  * gate it could not actually verify.
  */
 
+import { parse, type ParserPlugin } from '@babel/parser';
 import type { StackedFile } from './stacked-pr.js';
 
 export type ExecutabilityResult =
@@ -35,7 +37,8 @@ export type ExecutabilityResult =
         | 'undiscoverable-path'
         | 'missing-tree-evidence'
         | 'unresolved-import'
-        | 'incompatible-runner';
+        | 'incompatible-runner'
+        | 'syntax-error';
       path?: string;
       specifier?: string;
     };
@@ -546,10 +549,76 @@ export interface ExecutabilityEvidence {
   packageTypeModule?: boolean | null;
 }
 
+function generatedTestParserPlugins(path: string): ParserPlugin[] {
+  const lower = path.toLowerCase();
+  const plugins: ParserPlugin[] = [];
+  if (/\.(?:ts|tsx|mts|cts)$/.test(lower)) {
+    plugins.push([
+      'typescript',
+      { disallowAmbiguousJSXLike: /\.(?:mts|cts)$/.test(lower) },
+    ]);
+  }
+  if (/\.(?:jsx|tsx)$/.test(lower)) plugins.push('jsx');
+  return plugins;
+}
+
+function generatedTestSourceType(path: string): 'module' | 'commonjs' | 'unambiguous' {
+  const lower = path.toLowerCase();
+  if (/\.(?:mjs|mts)$/.test(lower)) return 'module';
+  if (/\.(?:cjs|cts)$/.test(lower)) return 'commonjs';
+  return 'unambiguous';
+}
+
+/**
+ * Parse one generated test as a complete program without executing it.
+ *
+ * This deliberately uses an established JavaScript parser rather than trying
+ * to recognize invalid source with substrings. `errorRecovery` remains false,
+ * so placeholder bodies, truncated excerpts, and any other syntax error fail
+ * closed before sandbox or GitHub mutation code can observe the file.
+ */
+export function validateGeneratedTestSyntax(
+  file: StackedFile,
+): Extract<ExecutabilityResult, { ok: false }> | null {
+  try {
+    parse(file.contents, {
+      sourceFilename: file.path,
+      sourceType: generatedTestSourceType(file.path),
+      plugins: generatedTestParserPlugins(file.path),
+      errorRecovery: false,
+      // Validation discards the AST, so do not spend cold-start CPU attaching
+      // comments to nodes. Babel documents this as a material parse-speed win.
+      attachComment: false,
+    });
+    return null;
+  } catch (error) {
+    const parserError = error as {
+      reasonCode?: unknown;
+      loc?: { line?: unknown; column?: unknown };
+    };
+    const rawReason = typeof parserError.reasonCode === 'string'
+      ? parserError.reasonCode
+      : 'parse-error';
+    const reasonCode = rawReason.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || 'parse-error';
+    const line = typeof parserError.loc?.line === 'number' ? parserError.loc.line : null;
+    const column = typeof parserError.loc?.column === 'number' ? parserError.loc.column + 1 : null;
+    const location = line !== null && column !== null ? ` at ${line}:${column}` : '';
+    return {
+      ok: false,
+      kind: 'syntax-error',
+      path: file.path,
+      reason:
+        `${file.path} is not a complete syntactically valid test program ` +
+        `(${reasonCode}${location}) — Purser must repair its authored file before ` +
+        'any sandbox execution, branch creation, stacked PR, or PR retarget',
+    };
+  }
+}
+
 /**
  * The gate itself: do these authored files live where the real test runner
- * would discover them, and do their relative imports resolve to something
- * real? FAILS CLOSED on missing evidence — a jest config or tree the executor
+ * would discover them, parse as complete programs, and have relative imports
+ * that resolve to something real? FAILS CLOSED on missing evidence — a jest config or tree the executor
  * could not fetch/parse is a REJECTION, never a silent pass. The rationale for
  * that asymmetry: a gate whose evidence is missing has proven nothing, and the
  * purser must never spend a PR's base ref on a claim it did not verify.
@@ -586,6 +655,10 @@ export function checkGeneratedTestsExecutable(
           `(testMatch: ${evidence.testMatchPatterns.join(', ')}) — the test runner would never find it`,
       };
     }
+  }
+  for (const f of files) {
+    const syntaxFailure = validateGeneratedTestSyntax(f);
+    if (syntaxFailure) return syntaxFailure;
   }
   const foreignRunnerImports = new Set(['bun:test', 'node:test', 'vitest']);
   for (const f of files) {

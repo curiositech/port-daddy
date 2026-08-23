@@ -395,7 +395,7 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
-**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`
+**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles.
 
 **Daemon & host** — `start`, `stop`, `restart`, `install`, `uninstall`, `daemon`, `dev`, `use`, `doctor`, `diagnose`, `attest`, `health`, `metrics`, `bench`, `ci-gate`, `backup`, `restore`, `cut`, `upgrade`, `self-update`, `safe`, `secret`, `guard`, `config`, `init`, `setup`, `mcp`, `relay`, `tunnel`, `webhook`/`webhooks`, `version`
 
@@ -707,12 +707,21 @@ Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
 user-level entries are still project-scoped at runtime: the wrapper requires a
 fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
-project registry. Outside an armed root they no-op. A healthy no-op turn emits
-zero bytes and no status message; the hot path reads bounded local evidence and
-never waits on the daemon or launches the full CLI. When an exact-project trace
-or fleet-wide control alert is actionable, the prompt envelope is capped at one
-heading plus two facts and 512 bytes of context, with a one-second harness
-deadline. Reinstalling hooks is idempotent and migrates older duplicate
+project registry. Outside an armed root they no-op. Coordination content stays
+bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and no
+status message; the hot path reads bounded local evidence and never waits on
+the daemon or launches the full CLI. When an exact-project trace or fleet-wide
+control alert is actionable, the coordination envelope is capped at one heading
+plus two facts and 512 bytes of context, with a one-second harness deadline.
+The end-of-turn SITREP is the deliberate exception (operator doctrine,
+2026-08-22): governed by the per-repo `sitrep.endOfTurn` dial (`off` |
+`suggest` | `enforce`, default `enforce`; `PD_SITREP` env override wins, then
+`agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`),
+the prompt hook injects the end-of-turn SITREP table contract each turn — the
+harness's visible value surface, riding outside the coordination byte cap.
+`suggest` injects the contract as a suggestion; `enforce` marks a turn that
+ends without the table incomplete. Scaffold the table with `pd sitrep
+--template`. Reinstalling hooks is idempotent and migrates older duplicate
 registrations while preserving user-owned hooks. The installed graph is
 intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is

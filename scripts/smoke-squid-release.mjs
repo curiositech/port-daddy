@@ -206,11 +206,15 @@ try {
   }
 
   // Prove the staged user-level gate is scoped to the exact armed root. A
-  // sibling Port Daddy project must stay inert even while the heartbeat is
-  // fresh and the underlying prompt tentacle has context it could emit.
+  // sibling Port Daddy project must stay inert even while one exact daemon
+  // generation is ready and the underlying prompt tentacle has context it
+  // could emit. This fixture is the release artifact's complete filesystem
+  // lease contract: PID + matching readiness marker + fresh heartbeat.
   const sibling = join(root, 'sibling-project');
   const exactRootMarker = 'exact-root-only-release-smoke';
   mkdirSync(join(sibling, '.portdaddy'), { recursive: true });
+  writeFileSync(join(pdHome, 'daemon.pid'), `${process.pid}\n`);
+  writeFileSync(join(pdHome, 'daemon.ready'), `${process.pid}\n`);
   writeFileSync(join(pdHome, 'heartbeat'), '{}\n');
   writeFileSync(
     join(pdHome, 'matrix.env'),

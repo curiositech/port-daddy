@@ -5,10 +5,15 @@ import { homedir } from 'node:os';
 import { createTestDb } from '../setup-unit.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createRoadmapItems } from '../../lib/roadmap-items.js';
+// Legacy-source equivalence suite: the fixed 3-pile importer was supplanted by
+// the general chomper (lib/roadmap-chomp.ts), and these assertions prove the
+// three canonical sources still import IDENTICALLY through the new path —
+// same candidates, precedence, filters, idempotency, and enriched-row
+// protection the old lib/roadmap-import.ts promised.
 import {
   collectImportCandidates,
   importMarkdownRoadmap,
-} from '../../lib/roadmap-import.js';
+} from '../../lib/roadmap-chomp.js';
 
 // Scratch dir lives under ~/coding/tmp per repo policy (NEVER /tmp — the OS
 // purges it). Fixtures are cleaned in afterEach regardless.

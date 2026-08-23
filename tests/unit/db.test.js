@@ -217,6 +217,20 @@ describe('lib/db.ts', () => {
       db.close();
     });
 
+    // Each guarded ALTER block has its OWN sentinel, so each needs its own
+    // probe. `source_refs_json` is added by a separate ALTER from the seven
+    // ADR-0086 planner columns, so `kind` being present proves nothing about
+    // it. Without this probe a DB whose provenance ALTER failed (the block is
+    // warn-and-continue) boots "verified" and then fails every roadmap write
+    // with `no such column: source_refs_json`.
+    it('verifyCoreSchema catches a missing source_refs_json provenance column specifically', () => {
+      const db = initDatabase({ inMemory: true });
+      expect(() => verifyCoreSchema(db)).not.toThrow();
+      db.exec('ALTER TABLE roadmap_items DROP COLUMN source_refs_json');
+      expect(() => verifyCoreSchema(db)).toThrow(/roadmap_items\.source_refs_json/);
+      db.close();
+    });
+
     it('initDatabase runs the PRAGMA-guarded ALTER on a legacy (pre-tombstone) DB file', () => {
       // A DB created from the OLD schema — no deleted_at, no live index.
       const legacyPath = path.join(dir, 'legacy-schema.db');

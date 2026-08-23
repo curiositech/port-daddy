@@ -234,6 +234,80 @@ describe('queue consumer', () => {
     expect(intent.error).toContain('no longer current');
   });
 
+  it('closes a mid-flight supersession with an honest spend and publication receipt', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      blocking: true',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: review',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const intent = { state: 'queued', error: null as string | null };
+    const db = {
+      prepare(sql: string) {
+        let bound: unknown[] = [];
+        const stmt = {
+          bind(...values: unknown[]) { bound = values; return stmt; },
+          async first<T>() {
+            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+              return { state: intent.state } as T;
+            }
+            return null;
+          },
+          async all<T>() { return { results: [] as T[] }; },
+          async run() {
+            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
+              intent.state = String(bound[0]);
+              intent.error = bound[3] == null ? null : String(bound[3]);
+            }
+            return { success: true, meta: { changes: 1 } };
+          },
+        };
+        return stmt;
+      },
+      batch: async () => [],
+    } as unknown as D1Database;
+    let moved = false;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' },
+      onCall: () => {
+        if (!moved) {
+          moved = true;
+          state.prHeadSha = 'NEWER-DURING-AI';
+        }
+      },
+    }).ai;
+    const msg = fakeMessage(makeJob({ action: 'synchronize', deliveryId: 'delivery-midflight-stale' }));
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, DB: db, AI: ai }),
+      capturingCtx(),
+    );
+
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(intent.state).toBe('cancelled');
+    expect(intent.error).toContain('changed during Fleet execution');
+    expect(intent.error).toContain('Model work may already have occurred');
+    expect(intent.error).toContain('after pd-code-reviewer MAP');
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.commentPosts).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+  });
+
   it('closes an execution-only fleet as cancelled instead of looking for a missing run', async () => {
     state.files.set(
       'main:pd-fleet.yml',

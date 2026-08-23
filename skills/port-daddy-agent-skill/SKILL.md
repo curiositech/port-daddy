@@ -70,12 +70,22 @@ Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
 Read `pd squid status` before claiming the harness works. `LIVE` means complete
-wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
-daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
-surface needs the same truth and `pd squid tap` to inspect the exact bounded
-next-turn envelope. User-level Codex/agy entries do not make hooks global: the
-wrapper requires the exact project root in the arm registry. `pd squid off`
-removes that root while preserving other projects.
+wiring plus a fresh daemon heartbeat and an exact `daemon.ready` → `daemon.pid`
+generation match. `READY` means the wiring is complete but the daemon is down
+or still behind its boot checks; `PARTIAL` and `DEGRADED` require repair. Use
+`--json` when another surface needs the same truth and `pd squid tap` to inspect
+the exact bounded next-turn envelope. User-level Codex/agy entries do not make
+hooks global: the wrapper requires the exact project root in the arm registry.
+`pd squid off` removes that root while preserving other projects.
+
+Do not infer hook readiness from the Bosun heartbeat alone. The daemon starts
+that heartbeat before its database-integrity gate so its supervisor will not
+kill a legitimately slow boot. The shared Claude/Codex/Gemini/agy wrapper first
+requires the ready PID to match the live PID, then checks heartbeat freshness
+and exact project arming. A missing, malformed, stale, or displaced generation
+is an immediate successful no-op; `pd squid status --json` exposes
+`daemonAlive` and `daemonReady` separately, and debug mode explains the skipped
+boot/displacement step without retaining prompt or tool content.
 
 When hook behavior is slow or confusing, use `pd squid debug on` only for the
 diagnostic window, reproduce the turn, then read `pd squid status` or the
@@ -104,14 +114,26 @@ reason, timestamps, and retry time. FleetBar's **Repair** button atomically
 restages the shims, rewires providers, and clears the latch only after success.
 An intentional direct-edit block (`exit 2`) is enforcement, not a hook failure.
 
-The normal hook path is invisible: no status message, no standing reminder,
-and zero stdout when there is no fresh actionable project fact or fleet-wide
-control alert. Its topology is deliberately bounded to one turn briefing plus a
-gate only for direct file-edit tools. Broad shell/exec tools and observational
-PostToolUse hooks are excluded; claims and notes carry cumulative outcomes.
-When coordination is genuinely useful, the prompt hook is capped at one heading
-plus two facts (512 bytes of context). A no-op turn that prints a plan/SITREP
-lecture, waits on the daemon, or scans an unbounded matrix is a product bug.
+Coordination content in the hook path stays bounded: no status message and
+zero coordination stdout when there is no fresh actionable project fact or
+fleet-wide control alert. Its topology is deliberately bounded to one turn
+briefing plus a gate only for direct file-edit tools. Broad shell/exec tools
+and observational PostToolUse hooks are excluded; claims and notes carry
+cumulative outcomes. When coordination is genuinely useful, the prompt hook's
+coordination block is capped at one heading plus two facts (512 bytes of
+context). A hook that waits on the daemon or scans an unbounded matrix is
+still a product bug — but the end-of-turn SITREP is not: it is the harness's
+visible value surface (operator doctrine, 2026-08-22), governed by the
+per-repo `sitrep.endOfTurn` dial (`off` | `suggest` | `enforce`, default
+`enforce`; `PD_SITREP` env override wins, then `agent.config.json` →
+`.portdaddy/sitrep.json` → `.portdaddy/project.json`). At suggest/enforce
+every turn carries the end-of-turn SITREP table contract —
+`| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status |
+Related PR/Issue | Docs / Roadmap Link |` — update Status each turn, carry
+unresolved rows forward, and mint a roadmap link (`pd roadmap upsert`) before
+writing code for a row. `enforce` makes a turn that ends without the table an
+incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
+quiet turns dial it off explicitly.
 `pd attention` is also safe before `pd begin`: without a bound identity its
 default read succeeds as an explicit empty/unbound result; subscription changes
 still require an identity.
@@ -908,6 +930,21 @@ section in `references/cli-reference.md` for the full surface.
 
 When done with the popped item: `pd roadmap release <slug>`. Letting a
 `--begin`-linked session end naturally also releases the claim.
+
+### Ingesting planning docs: `pd roadmap chomp`
+
+When the operator hands you a markdown planning document, do not leave it
+as a doc — chomp it: `pd roadmap chomp <doc.md…>` parses headings into a
+project→epic→story→task hierarchy, checklists into tasks, and explicit
+"depends on / blocked by / requires" phrasing into dependencies. The
+default run is a preview of the exact item tree; the only write path is
+`pd roadmap chomp <doc.md…> --emit-pr-plan <dir>`, which upserts through
+the daemon (idempotent; never clobbers rows enriched since the first
+chomp) and emits the doc-removal PR artifacts: the regenerated roadmap
+snapshot, a `chomp-receipt.json` work receipt, a `git rm` list, and a
+ready PR body. Filing that PR — items in, source docs deleted — is your
+explicit act, never automatic. The legacy `pd roadmap import-markdown`
+is an alias that chomps the three canonical curated piles.
 
 ## Actor Roster (universal Port Daddy concepts)
 

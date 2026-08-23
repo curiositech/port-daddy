@@ -21,7 +21,14 @@ beforeAll(async () => {
     HELP_TOPIC_ALIASES,
     VERB_HELP,
   } = cli);
-});
+  // This one-time import transpiles the ENTIRE CLI dispatch graph (every
+  // cli/commands/* module) through the ESM transform. Its cost is machine-
+  // speed-dependent, not behavior-dependent: a cold macOS CI runner has blown
+  // the default 10s hook budget while the same commit's ubuntu job (and a
+  // rerun on the identical graph) sailed through. The generous explicit
+  // timeout below keeps the suite honest about WHAT it asserts (help-topic
+  // coverage) without letting a slow transform masquerade as a red product.
+}, 120_000);
 
 const GLOBAL_HELP_IS_CORRECT = ['help', 'version'];
 

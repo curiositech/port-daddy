@@ -77,6 +77,7 @@ import { galaxyPlugin } from './galaxy.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
+import { roadmapActivityPlugin } from './roadmap-activity.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
@@ -322,6 +323,15 @@ export async function registerAllRoutes(
   // atomic feedback→item links.
   if ((deps as any).roadmapItems && (deps as any).roadmapPromote) {
     await fastify.register(roadmapPlugin, { deps } as any);
+  }
+
+  // Roadmap Activity — the live-work join for the roadmap command center
+  // (operator mandate 2026-08-22): GET /roadmap/activity (board feed with
+  // stage counts) + GET /roadmap/items/:slug/activity (per-item attachments
+  // with honest liveness, cockpit links, HITL). Read-only; mounts when the
+  // roadmapActivity dep is present.
+  if ((deps as any).roadmapActivity) {
+    await fastify.register(roadmapActivityPlugin, { deps } as any);
   }
 
   // Durable commitments + obligation monitor (ADR-0041 first slice). Mounts

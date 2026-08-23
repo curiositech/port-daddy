@@ -4,16 +4,21 @@
 //! Calls `GET /roadmap/items?limit=2000` and derives Project → Epic(per ADR) →
 //! Task from the structured `adr-NNNN-phase-…` slug + `adr:NNNN` note/summary
 //! token (IDs we control — not fuzzy NLP), exactly like `lib/planner-migrate.ts`.
-//! Renders the tree + status/priority chips + a flags banner as render-agnostic
-//! Blocks (GPUI/ratatui paint them; per the gpui-rust-console contract the text is
-//! GPUI's, the bespoke critical-path Gantt is the Track-B Vello surface).
+//! Renders a critical-path Gantt (CPM via the kernel's canonical scheduler,
+//! ADR-0086) as the LEADING section, then the tree + status/priority chips + a
+//! flags banner — all as render-agnostic Blocks (GPUI/ratatui/PNG paint them;
+//! a bespoke Track-B Vello Gantt canvas can later supersede the Block bars
+//! without changing this pane's data derivation).
 //!
-//! Item shape (v3.2x): `{ slug, summaryMd, status, dependencies: [slug], harbor, notes:[{text}] }`.
+//! Item shape (v3.2x): `{ slug, summaryMd, status, dependencies: [slug], harbor,
+//! notes:[{text}], estimate? }` — `estimate` is the ADR-0086 planner column the
+//! daemon now serves; older daemons simply omit it and bars default to one unit.
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
 use crate::util::{arr, s, trunc};
 use anyhow::Result;
+use pd_anchor::schedule::{schedule, SchedEdge, SchedNode};
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
@@ -25,6 +30,10 @@ struct PlannerItem {
     harbor: String,
     /// Owning ADR number (4-digit) derived from slug/notes/summary, or None (unsorted).
     adr: Option<String>,
+    /// Effort estimate in abstract units (ADR-0086 planner column). None when
+    /// the daemon predates the field or the item was never sized; the Gantt
+    /// defaults such items to one unit so every task still earns a visible bar.
+    estimate: Option<i64>,
 }
 
 impl PlannerItem {
@@ -41,6 +50,7 @@ impl PlannerItem {
             .filter_map(|d| d.as_str().map(|x| x.to_string()))
             .collect();
         let adr = adr_number_of(&slug, &summary, &notes_text);
+        let estimate = v.get("estimate").and_then(|e| e.as_i64()).filter(|e| *e > 0);
         Self {
             slug,
             summary,
@@ -48,6 +58,7 @@ impl PlannerItem {
             deps,
             harbor: s(v, "harbor"),
             adr,
+            estimate,
         }
     }
 }
@@ -221,6 +232,270 @@ impl PlannerPane {
         v.sort_by(|a, b| b.1.cmp(&a.1));
         v
     }
+
+    /// Critical-path schedule over the remaining (not-done) work.
+    ///
+    /// Why forward-looking only: the Gantt answers "what is the plan from here" —
+    /// finished items are history, so they contribute no bars and any dependency
+    /// on a done item is treated as already satisfied (the edge is dropped).
+    /// Dedupes by slug (first occurrence wins, matching `epics()`), defaults an
+    /// unsized item to one effort unit so every task earns visible geometry, and
+    /// drops edges pointing outside the node set because the kernel scheduler
+    /// deliberately fails closed on unknown ids.
+    ///
+    /// Returns the CPM rows sorted for display (earliest start, critical first,
+    /// then slug) plus the makespan, or the scheduler's refusal reason (e.g. a
+    /// dependency cycle) so the pane can report it instead of hiding it.
+    fn gantt(&self) -> Result<(Vec<GanttRow>, i64), String> {
+        let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        let mut nodes: Vec<SchedNode> = Vec::new();
+        let mut est_by_slug: std::collections::HashMap<&str, i64> =
+            std::collections::HashMap::new();
+        for it in &self.items {
+            if it.status == "done" || !seen.insert(it.slug.as_str()) {
+                continue;
+            }
+            let est = it.estimate.unwrap_or(1).max(1);
+            est_by_slug.insert(it.slug.as_str(), est);
+            nodes.push(SchedNode {
+                id: it.slug.clone(),
+                estimate: Some(est),
+            });
+        }
+        if nodes.is_empty() {
+            return Ok((Vec::new(), 0));
+        }
+        let ids: std::collections::HashSet<&str> =
+            nodes.iter().map(|n| n.id.as_str()).collect();
+        let mut edges: Vec<SchedEdge> = Vec::new();
+        let mut edge_seen: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
+        for it in &self.items {
+            if it.status == "done" || !ids.contains(it.slug.as_str()) {
+                continue;
+            }
+            for dep in &it.deps {
+                if ids.contains(dep.as_str())
+                    && dep != &it.slug
+                    && edge_seen.insert((dep.clone(), it.slug.clone()))
+                {
+                    edges.push(SchedEdge {
+                        from: dep.clone(),
+                        to: it.slug.clone(),
+                    });
+                }
+            }
+        }
+        let sched = schedule(&nodes, &edges);
+        if !sched.ok {
+            return Err(sched.reason);
+        }
+        let mut rows: Vec<GanttRow> = sched
+            .nodes
+            .iter()
+            .map(|n| GanttRow {
+                slug: n.id.clone(),
+                start: n.earliest_start,
+                finish: n.earliest_finish,
+                critical: n.critical,
+                slack: n.slack,
+                estimate: *est_by_slug.get(n.id.as_str()).unwrap_or(&1),
+            })
+            .collect();
+        rows.sort_by(|a, b| {
+            a.start
+                .cmp(&b.start)
+                .then(b.critical.cmp(&a.critical))
+                .then(a.slug.cmp(&b.slug))
+        });
+        Ok((rows, sched.makespan))
+    }
+
+    /// Render the Gantt section: one bar row per remaining task, critical path
+    /// in solid fill, everything else hatched, capped so the pane's first screen
+    /// stays a chart rather than a scroll. The design intent is that this is the
+    /// FIRST thing an operator sees on launch (mux default workspace), so the
+    /// section leads with the makespan/critical-path summary the chart answers,
+    /// and the bars sit under a labeled time axis (see [`axis_rows`]) so the
+    /// chart reads in dates, not just relative geometry.
+    fn gantt_blocks(&self) -> Vec<Block> {
+        const MAX_ROWS: usize = 24;
+        let mut blocks = Vec::new();
+        match self.gantt() {
+            Err(reason) => {
+                blocks.push(Block::Header("Gantt — critical path".into()));
+                blocks.push(Block::Chip {
+                    label: format!("schedule unavailable: {}", trunc(&reason, 70)),
+                    tone: Tone::Conflicted,
+                });
+            }
+            Ok((rows, _)) if rows.is_empty() => {
+                blocks.push(Block::Header("Gantt — critical path".into()));
+                blocks.push(Block::KeyVal(
+                    "status".into(),
+                    "no remaining work to schedule".into(),
+                ));
+            }
+            Ok((rows, makespan)) => {
+                let crit_n = rows.iter().filter(|r| r.critical).count();
+                blocks.push(Block::Header(format!(
+                    "Gantt — critical path · {} task(s) · makespan {} day(s) · 1 est unit = 1 day · ticks {}d",
+                    rows.len(),
+                    makespan,
+                    axis_tick_step(makespan.max(1)),
+                )));
+                blocks.push(Block::Chip {
+                    label: format!("{crit_n} on the critical path"),
+                    tone: if crit_n > 0 {
+                        Tone::Engaged
+                    } else {
+                        Tone::Resting
+                    },
+                });
+                let span = makespan.max(1);
+                let today = time::OffsetDateTime::now_utc().date();
+                blocks.extend(axis_rows(span, today));
+                for r in rows.iter().take(MAX_ROWS) {
+                    let lead = (r.start * BAR_CELLS / span) as usize;
+                    let fill = (((r.finish - r.start) * BAR_CELLS + span - 1) / span).max(1) as usize;
+                    let glyph = if r.critical { '█' } else { '▓' };
+                    let bar = format!(
+                        "{}{}",
+                        " ".repeat(lead),
+                        glyph.to_string().repeat(fill)
+                    );
+                    let claim = self
+                        .claims
+                        .get(&r.slug)
+                        .map(|by| format!(" ◆ {}", trunc(by, 18)))
+                        .unwrap_or_default();
+                    let meta = if r.critical {
+                        format!("e{} CRIT{}", r.estimate, claim)
+                    } else {
+                        format!("e{} s{}{}", r.estimate, r.slack, claim)
+                    };
+                    blocks.push(Block::Row(vec![trunc(&r.slug, 30), bar, meta]));
+                }
+                if rows.len() > MAX_ROWS {
+                    blocks.push(Block::KeyVal(
+                        "…".into(),
+                        format!("+{} more scheduled task(s)", rows.len() - MAX_ROWS),
+                    ));
+                }
+            }
+        }
+        blocks
+    }
+}
+
+/// One bar of the Planner Gantt: a task's CPM window plus the fields the
+/// operator reads off the chart (estimate, slack, critical membership).
+#[derive(Debug)]
+struct GanttRow {
+    slug: String,
+    start: i64,
+    finish: i64,
+    critical: bool,
+    slack: i64,
+    estimate: i64,
+}
+
+/// Width of the Gantt bar lane in character cells — shared by the bars and the
+/// time axis so tick cells land exactly where bar starts land (both use the
+/// same `value * BAR_CELLS / span` integer mapping).
+const BAR_CELLS: i64 = 40;
+
+/// Pick the tick spacing (in schedule units ≈ days) for a Gantt time axis.
+///
+/// Why adaptive: the schedule's span varies from a couple of days to a year+,
+/// and a fixed cadence either crowds the lane with labels or leaves it bare.
+/// The ladder is calendar-shaped on purpose — day, 2-day, week, fortnight,
+/// 4-week, quarter, half-year, year — so the ticks the operator sees are the
+/// time units they plan in (days → weeks → months-ish), not arbitrary decimals.
+/// The chosen step is the smallest rung that keeps the lane at ≤ 8 ticks,
+/// which leaves room for a date label per tick in a 40-cell lane.
+///
+/// @param span - Schedule makespan in units (1 unit = 1 day by convention).
+/// @returns The tick step in units, always ≥ 1.
+fn axis_tick_step(span: i64) -> i64 {
+    const LADDER: [i64; 8] = [1, 2, 7, 14, 28, 91, 182, 364];
+    for step in LADDER {
+        // Ceiling division: count INTERVALS the span actually needs — plain
+        // integer division under-counts a partial trailing interval and lets
+        // one tick too many crowd the lane.
+        if (span + step - 1) / step <= 8 {
+            return step;
+        }
+    }
+    // Beyond the ladder: whole multiples of a year until ≤ 8 ticks fit.
+    let years = span / (364 * 8) + 1;
+    years * 364
+}
+
+/// Build the two time-axis rows that sit directly above the Gantt bars: a
+/// date-label row and a tick ruler row, both in the bar column so the
+/// consecutive-`Row` alignment of every renderer (terminal pad-to-column,
+/// raster fixed thirds, GPUI) lines the ticks up with the bars beneath.
+///
+/// Why the axis exists: bars without an x-axis are only relative geometry —
+/// the operator asked for actual time units. The CPM schedule is relative
+/// (ADR-0086: no absolute-date anchor), so the axis anchors unit 0 at TODAY
+/// under the declared planning convention 1 estimate unit = 1 day; tick 0 is
+/// labeled `today` (the today-marker) and later ticks carry real `MM-DD`
+/// dates at the adaptive cadence of [`axis_tick_step`]. The convention is
+/// stated in the meta column so the axis never pretends to more precision
+/// than the schedule has.
+///
+/// @param span - Schedule makespan in units (clamped ≥ 1 by the caller).
+/// @param today - The anchor date for unit 0 (injected so tests are stable).
+/// @returns Two `Block::Row`s (labels, then ruler) to push before the bars.
+fn axis_rows(span: i64, today: time::Date) -> Vec<Block> {
+    let step = axis_tick_step(span);
+    let lane = (BAR_CELLS + 1) as usize;
+    let mut ruler: Vec<char> = vec!['-'; lane];
+    let mut labels: Vec<char> = vec![' '; lane];
+    let mut last_label_end: Option<usize> = None;
+    let mut t = 0;
+    while t <= span {
+        let cell = (t * BAR_CELLS / span.max(1)) as usize;
+        ruler[cell] = '|';
+        let text = if t == 0 {
+            "today".to_string()
+        } else {
+            let d = today + time::Duration::days(t);
+            format!("{:02}-{:02}", u8::from(d.month()), d.day())
+        };
+        // Place the label at its tick cell unless it would collide with the
+        // previous label (≥1 space gap) or run past the lane — dropped labels
+        // keep their tick mark, so geometry stays exact even when text won't fit.
+        let start = cell;
+        let end = start + text.len();
+        let collides = last_label_end.is_some_and(|prev| start <= prev);
+        if end <= lane && !collides {
+            for (i, ch) in text.chars().enumerate() {
+                labels[start + i] = ch;
+            }
+            last_label_end = Some(end); // end index +1 gap is implied by `<=`
+        }
+        t += step;
+    }
+    // Close the frame: the schedule's end always gets a tick, even when the
+    // makespan is not a multiple of the step (its date label is often what
+    // the operator wants most — "when does the plan land").
+    ruler[BAR_CELLS as usize] = '|';
+    // The meta (third) column stays EMPTY on axis rows: the raster renderer
+    // lays Row columns out in fixed thirds, and a 41-cell lane overflows its
+    // column — over an empty meta cell that overflow is harmless (bars do the
+    // same), while meta text there would collide with the axis. The unit
+    // convention lives in the Gantt header instead.
+    vec![
+        Block::Row(vec![
+            String::new(),
+            labels.into_iter().collect::<String>().trim_end().to_string(),
+            String::new(),
+        ]),
+        Block::Row(vec![String::new(), ruler.into_iter().collect(), String::new()]),
+    ]
 }
 
 impl Pane for PlannerPane {
@@ -242,6 +517,11 @@ impl Pane for PlannerPane {
             blocks.push(Block::KeyVal("status".into(), "no roadmap items".into()));
             return blocks;
         }
+
+        // The Gantt leads — the console's first screen answers "what is the
+        // plan and where is the critical path" before any tree or roster.
+        blocks.extend(self.gantt_blocks());
+        blocks.push(Block::Gap);
 
         let epics = self.epics();
         let task_total: usize = epics.iter().map(|e| e.tasks.len()).sum();
@@ -564,6 +844,404 @@ mod tests {
             .filter(|blk| matches!(blk, Block::Chip { label, .. } if label.starts_with("working:")))
             .count();
         assert_eq!(working_chips, 1);
+    }
+
+    fn item_with(slug: &str, status: &str, deps: &[&str], estimate: Option<i64>) -> PlannerItem {
+        PlannerItem::from_value(&json!({
+            "slug": slug, "status": status, "summaryMd": slug,
+            "dependencies": deps, "harbor": "port-daddy", "notes": [],
+            "estimate": estimate,
+        }))
+    }
+
+    #[test]
+    fn gantt_chains_dependencies_and_marks_critical_path() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+            item_with("c", "backlog", &[], Some(1)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(makespan, 5); // a(2) then b(3) is the critical chain
+        let b = rows.iter().find(|r| r.slug == "b").unwrap();
+        assert_eq!(b.start, 2);
+        assert_eq!(b.finish, 5);
+        assert!(b.critical);
+        let c = rows.iter().find(|r| r.slug == "c").unwrap();
+        assert!(!c.critical);
+        assert_eq!(c.slack, 4);
+    }
+
+    #[test]
+    fn gantt_picks_the_longer_diamond_branch_as_the_critical_path() {
+        // A chain can only have one answer; a DIAMOND is where a CPM scheduler
+        // can be wrong and still look plausible. Fork into two branches of
+        // different duration, rejoin, and the join must wait on the LONGER one.
+        //
+        //   fork(2)  0..2
+        //     ├─ b-short(1)  2..3   → slack 4, hatched
+        //     └─ c-long(5)   2..7   → critical, solid
+        //   d-join(2)  7..9                 makespan 9
+        //
+        // The slugs are chosen so the SHORT branch sorts first: the scheduler
+        // walks predecessors id-ordered, so a join that took its first (or its
+        // last-written) predecessor instead of the MAXIMUM finish would start
+        // d-join at 3 and crown b-short critical. That is the wrong-branch bug
+        // this test exists to catch — see the negative assertions below.
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("fork", "now", &[], Some(2)),
+            item_with("b-short", "backlog", &["fork"], Some(1)),
+            item_with("c-long", "backlog", &["fork"], Some(5)),
+            item_with("d-join", "backlog", &["b-short", "c-long"], Some(2)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        let row = |slug: &str| {
+            rows.iter()
+                .find(|r| r.slug == slug)
+                .unwrap_or_else(|| panic!("no scheduled row for {slug}"))
+        };
+
+        // The join waits on the long branch: 2 + 5 + 2, not 2 + 1 + 2.
+        assert_eq!(makespan, 9, "makespan must follow the long branch");
+        assert_eq!(row("c-long").finish, 7);
+        assert_eq!(row("b-short").finish, 3);
+        assert_eq!(
+            row("d-join").start,
+            7,
+            "join must start at the LONGER predecessor's finish, not the first one's"
+        );
+
+        // The critical path is exactly fork → c-long → d-join.
+        for slug in ["fork", "c-long", "d-join"] {
+            let r = row(slug);
+            assert!(r.critical, "{slug} sits on the longer branch: must be critical");
+            assert_eq!(r.slack, 0, "{slug} is critical: slack must be 0");
+        }
+        // …and the short branch is off it, holding exactly the branch
+        // difference (5 − 1) as slack. Both halves matter: a scheduler that
+        // marked everything critical would pass the loop above alone.
+        let short = row("b-short");
+        assert!(!short.critical, "the shorter branch must NOT be critical");
+        assert_eq!(short.slack, 4, "slack is the branch difference");
+        assert_eq!(rows.iter().filter(|r| r.critical).count(), 3);
+
+        // What the operator actually sees: critical bars solid, slack hatched.
+        let blocks = p.gantt_blocks();
+        let bar = |slug: &str| -> String {
+            blocks
+                .iter()
+                .find_map(|b| match b {
+                    Block::Row(cells) if cells[0] == slug => Some(cells[1].clone()),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("no bar row for {slug}"))
+        };
+        let long_bar = bar("c-long");
+        assert!(
+            long_bar.contains('█') && !long_bar.contains('▓'),
+            "critical bar must render solid: {long_bar:?}"
+        );
+        let short_bar = bar("b-short");
+        assert!(
+            short_bar.contains('▓') && !short_bar.contains('█'),
+            "slack bar must render hatched, not solid: {short_bar:?}"
+        );
+    }
+
+    #[test]
+    fn gantt_join_waits_on_the_longest_path_not_the_direct_edge() {
+        // The other diamond shape: a → b, then b reaches c BOTH directly and
+        // the long way round through d. Only the detour has a node of its own,
+        // so nothing here can carry slack (every task is on the longest path) —
+        // what this pins is that the direct b → c edge does not let c start
+        // early once a longer route to the same join exists.
+        //
+        //   a(2) 0..2 → b(3) 2..5 ─┬─────────────→ c(2)
+        //                          └→ d(4) 5..9 ──┘  9..11   makespan 11
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+            item_with("c", "backlog", &["b", "d"], Some(2)),
+            item_with("d", "backlog", &["b"], Some(4)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        let row = |slug: &str| rows.iter().find(|r| r.slug == slug).unwrap();
+        assert_eq!(makespan, 11);
+        assert_eq!(
+            row("c").start,
+            9,
+            "c must wait for the detour through d, not the direct edge from b"
+        );
+        // Every task lies on the longest path, so all four are critical.
+        assert_eq!(rows.iter().filter(|r| r.critical).count(), 4);
+        assert!(rows.iter().all(|r| r.slack == 0));
+    }
+
+    #[test]
+    fn gantt_excludes_done_items_and_their_edges() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("shipped", "done", &[], Some(9)),
+            item_with("next", "now", &["shipped"], Some(1)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows.len(), 1); // done work casts no bar
+        assert_eq!(rows[0].slug, "next");
+        assert_eq!(rows[0].start, 0); // satisfied dep imposes no offset
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_defaults_unsized_items_to_one_unit() {
+        let mut p = PlannerPane::default();
+        p.items = vec![item("unsized", "backlog", "no estimate")];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows[0].estimate, 1);
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_reports_cycles_instead_of_hiding_them() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("x", "now", &["y"], Some(1)),
+            item_with("y", "now", &["x"], Some(1)),
+        ];
+        let err = p.gantt().expect_err("cycle must fail closed");
+        assert!(err.contains("cycle"), "reason should name the cycle: {err}");
+        let blocks = p.gantt_blocks();
+        assert!(blocks.iter().any(
+            |b| matches!(b, Block::Chip { label, .. } if label.contains("schedule unavailable"))
+        ));
+    }
+
+    #[test]
+    fn gantt_reports_multi_node_cycles() {
+        // A → B → C → A: the kernel scheduler must refuse the whole schedule,
+        // not silently drop an edge.
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &["c"], Some(1)),
+            item_with("b", "now", &["a"], Some(1)),
+            item_with("c", "now", &["b"], Some(1)),
+        ];
+        let err = p.gantt().expect_err("3-node cycle must fail closed");
+        assert!(err.contains("cycle"), "reason should name the cycle: {err}");
+    }
+
+    #[test]
+    fn gantt_clamps_explicit_zero_estimates_to_one_unit() {
+        // estimate: 0 is "unsized", not "instant" — the parser drops it and the
+        // Gantt sizes the bar at one unit so the task stays visible.
+        let mut p = PlannerPane::default();
+        p.items = vec![item_with("zero", "now", &[], Some(0))];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows[0].estimate, 1);
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_bars_stay_inside_the_cell_budget_and_slugs_truncate() {
+        // One giant estimate must not overflow the 40-cell bar lane, and a slug
+        // longer than the label column truncates instead of shoving the bar.
+        let long = "a-very-long-roadmap-slug-that-exceeds-thirty-characters-easily";
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with(long, "now", &[], Some(500)),
+            item_with("tiny", "now", &[], Some(1)),
+        ];
+        let blocks = p.gantt_blocks();
+        for b in &blocks {
+            if let Block::Row(cols) = b {
+                assert_eq!(cols.len(), 3);
+                assert!(
+                    cols[0].chars().count() <= 31, // 30 label chars + the ellipsis
+                    "label column must truncate: {}",
+                    cols[0]
+                );
+                assert!(
+                    cols[1].chars().count() <= 41,
+                    "bar must stay inside the 40-cell lane (+rounding): {} cells",
+                    cols[1].chars().count()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn axis_tick_step_adapts_from_days_to_weeks_to_quarters() {
+        assert_eq!(axis_tick_step(1), 1);
+        assert_eq!(axis_tick_step(8), 1); // 8 daily ticks still fit
+        assert_eq!(axis_tick_step(9), 2); // …9 don't: step up to 2-day
+        assert_eq!(axis_tick_step(16), 2);
+        assert_eq!(axis_tick_step(17), 7); // weeks
+        assert_eq!(axis_tick_step(56), 7);
+        assert_eq!(axis_tick_step(57), 14); // fortnights
+        assert_eq!(axis_tick_step(200), 28); // 4-week blocks
+        assert_eq!(axis_tick_step(700), 91); // quarters
+        assert_eq!(axis_tick_step(3000), 364 * 2); // beyond the ladder: whole years
+    }
+
+    #[test]
+    fn axis_rows_anchor_today_and_align_ticks_with_bar_cells() {
+        let today = time::Date::from_calendar_date(2026, time::Month::August, 22).unwrap();
+        let rows = axis_rows(9, today);
+        assert_eq!(rows.len(), 2);
+        let (labels, ruler) = match (&rows[0], &rows[1]) {
+            (Block::Row(a), Block::Row(b)) => (a.clone(), b.clone()),
+            other => panic!("axis must be two Rows, got {other:?}"),
+        };
+        // Today-marker: unit 0 is labeled `today`, and later ticks carry real
+        // MM-DD dates at the adaptive step (span 9 → 2-day ticks).
+        assert!(labels[1].starts_with("today"), "labels: {:?}", labels[1]);
+        assert!(labels[1].contains("08-24"), "labels: {:?}", labels[1]);
+        // Meta cells stay empty on axis rows — the raster renderer's fixed
+        // column thirds would collide meta text with the overflowing lane.
+        assert_eq!(labels[2], "");
+        assert_eq!(ruler[2], "");
+        // Tick cells use the same integer mapping as bar lead cells, so a bar
+        // starting at unit 2 begins exactly under the unit-2 tick.
+        let ruler_cells: Vec<char> = ruler[1].chars().collect();
+        assert_eq!(ruler_cells.len() as i64, BAR_CELLS + 1);
+        assert_eq!(ruler_cells[0], '|'); // today
+        assert_eq!(ruler_cells[(2 * BAR_CELLS / 9) as usize], '|');
+        assert_eq!(ruler_cells[BAR_CELLS as usize], '|'); // schedule end is always framed
+    }
+
+    #[test]
+    fn axis_drops_colliding_labels_but_never_their_ticks() {
+        let today = time::Date::from_calendar_date(2026, time::Month::August, 22).unwrap();
+        // span 364 → 91-day ticks: five labels of 5 chars across 41 cells fit
+        // only where they keep a gap; every tick must still be marked.
+        let rows = axis_rows(364, today);
+        let (labels, ruler) = match (&rows[0], &rows[1]) {
+            (Block::Row(a), Block::Row(b)) => (a.clone(), b.clone()),
+            other => panic!("axis must be two Rows, got {other:?}"),
+        };
+        assert!(labels[1].len() <= (BAR_CELLS + 1) as usize);
+        let ticks = ruler[1].chars().filter(|c| *c == '|').count();
+        assert!(ticks >= 5, "expected ≥5 ticks on a year span, got {ticks}");
+    }
+
+    #[test]
+    fn axis_stays_readable_at_the_tightest_spans() {
+        // Sub-day spans are not representable: estimates are whole units and
+        // `gantt_blocks` clamps with `.max(1)`, so ONE DAY is the tightest axis
+        // this pane can ever be asked to draw. Every span on the bottom ladder
+        // rung (step 1, up to 8 daily ticks) must still produce two well-formed
+        // rows whose labels never run into one another — at these spans the
+        // ticks are only 5 cells apart while a label is 5 chars wide, so the
+        // collision-dropping in `axis_rows` is doing real work here.
+        let today = time::Date::from_calendar_date(2026, time::Month::August, 22).unwrap();
+        let lane = (BAR_CELLS + 1) as usize;
+        for span in 1..=8 {
+            assert_eq!(axis_tick_step(span), 1, "span {span} is a 1-day-step span");
+            let rows = axis_rows(span, today);
+            let (labels, ruler) = match (&rows[0], &rows[1]) {
+                (Block::Row(a), Block::Row(b)) => (a[1].clone(), b[1].clone()),
+                other => panic!("axis must be two Rows, got {other:?}"),
+            };
+            // The axis still renders: a full-width ruler framed at both ends.
+            assert_eq!(
+                ruler.chars().count(),
+                lane,
+                "span {span}: ruler must fill the bar lane"
+            );
+            assert!(
+                ruler.starts_with('|') && ruler.ends_with('|'),
+                "span {span}: today and the landing day must both be ticked: {ruler:?}"
+            );
+            assert!(
+                labels.chars().count() <= lane,
+                "span {span}: labels must not overrun the lane: {labels:?}"
+            );
+            // No collisions: a label written over its neighbour would splice
+            // the two into a token that is neither `today` nor `MM-DD`.
+            for tok in labels.split_whitespace() {
+                let is_date = tok.len() == 5
+                    && tok.as_bytes()[2] == b'-'
+                    && tok.chars().filter(char::is_ascii_digit).count() == 4;
+                assert!(
+                    tok == "today" || is_date,
+                    "span {span}: spliced/overlapping label {tok:?} in {labels:?}"
+                );
+            }
+            // Labels are placed left to right with at least one space between
+            // them, so the printed order is the chronological order.
+            let printed: Vec<&str> = labels.split_whitespace().collect();
+            assert_eq!(
+                printed.first().copied(),
+                Some("today"),
+                "span {span}: unit 0 is always the today-marker: {labels:?}"
+            );
+            assert!(
+                printed.len() <= 8,
+                "span {span}: at most 8 labels fit the lane, got {}",
+                printed.len()
+            );
+        }
+
+        // The degenerate floor spelled out: a one-day plan is `today` at cell 0
+        // and the landing tick at cell 40. The landing label does not fit
+        // beside it (5 chars from cell 40 would overrun the 41-cell lane), so
+        // it is dropped — but its TICK survives, which is the invariant that
+        // keeps the geometry honest when the text will not fit.
+        let rows = axis_rows(1, today);
+        let (labels, ruler) = match (&rows[0], &rows[1]) {
+            (Block::Row(a), Block::Row(b)) => (a[1].clone(), b[1].clone()),
+            other => panic!("axis must be two Rows, got {other:?}"),
+        };
+        assert_eq!(labels, "today");
+        assert_eq!(ruler.matches('|').count(), 2, "ruler: {ruler:?}");
+        assert_eq!(ruler.chars().nth(BAR_CELLS as usize), Some('|'));
+    }
+
+    #[test]
+    fn gantt_blocks_lead_with_the_time_axis_above_the_bars() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+        ];
+        let blocks = p.gantt_blocks();
+        // Header, chip, then the axis label row, the ruler row, then bars —
+        // one consecutive Row run so every renderer column-aligns axis + bars.
+        let rows: Vec<&Vec<String>> = blocks
+            .iter()
+            .filter_map(|b| match b {
+                Block::Row(cells) => Some(cells),
+                _ => None,
+            })
+            .collect();
+        assert!(rows.len() >= 4, "axis rows + bar rows expected");
+        assert!(rows[0][1].starts_with("today"));
+        assert!(rows[1][1].starts_with('|'));
+        assert!(rows[2][1].contains('█') || rows[3][1].contains('█'));
+    }
+
+    #[test]
+    fn view_leads_with_the_gantt_section() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+        ];
+        let blocks = p.view();
+        // Block 0 is the pane header; block 1 opens the Gantt — before any
+        // epic tree or fleet roster (the chart is the first screen).
+        assert!(matches!(&blocks[0], Block::Header(h) if h == "Planner"));
+        assert!(
+            matches!(&blocks[1], Block::Header(h) if h.starts_with("Gantt — critical path")),
+            "gantt must lead the view, got {:?}",
+            blocks[1]
+        );
+        // Bar rows render with critical fill for the critical chain.
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Row(c) if c.len() == 3 && c[1].contains('█'))));
     }
 
     #[test]
