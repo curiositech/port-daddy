@@ -1130,6 +1130,11 @@ export async function runPurser(
       {
         purpose: steel.purpose,
         obligationCount: steel.obligations.length,
+        // The full obligations text, not just its count — this is the actual
+        // contract the PR is held to (posted verbatim into the PR body by
+        // upsertPrBodySection below); the run page renders it so the operator
+        // never has to open the PR to read what "steel-manned" concluded.
+        obligations: steel.obligations,
         testTargets: steel.testTargets,
       },
     );
