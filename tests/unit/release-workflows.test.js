@@ -7,8 +7,10 @@ import {
   extractFormulaVersion,
   findVersionTransition,
   formulaMatchesRelease,
+  GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
   HOMEBREW_TAP_TOKEN_SOURCE,
   parseStableVersion,
+  probeRepositoryPush,
   RELEASE_TRAIN_TOKEN_SOURCE,
   selectTokenSource,
   selectVersionTransition,
@@ -361,5 +363,35 @@ describe('release workflow state', () => {
     expect(() => selectWorkingTokenSource('train-secret', '', null)).toThrow(
       'canPush probe must be a function',
     );
+  });
+
+  test('live repository permission probe is bounded and isolates each candidate secret', () => {
+    let invocation;
+    const allowed = probeRepositoryPush(
+      'candidate-secret',
+      RELEASE_TRAIN_TOKEN_SOURCE,
+      'curiositech/port-daddy',
+      (...args) => {
+        invocation = args;
+        return 'true\n';
+      },
+    );
+
+    expect(allowed).toBe(true);
+    expect(invocation[0]).toBe('gh');
+    expect(invocation[1]).toEqual([
+      'api',
+      'repos/curiositech/port-daddy',
+      '--jq',
+      '.permissions.push // false',
+    ]);
+    expect(invocation[2]).toMatchObject({
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
+    });
+    expect(invocation[2].env.GH_TOKEN).toBe('candidate-secret');
+    expect(invocation[2].env.RELEASE_TRAIN_TOKEN).toBeUndefined();
+    expect(invocation[2].env.HOMEBREW_TAP_TOKEN).toBeUndefined();
   });
 });

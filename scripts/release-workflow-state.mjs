@@ -9,6 +9,7 @@ const STABLE_VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const STABLE_TAG = /^v([0-9]+\.[0-9]+\.[0-9]+)$/;
 export const RELEASE_TRAIN_TOKEN_SOURCE = 'RELEASE_TRAIN_TOKEN';
 export const HOMEBREW_TAP_TOKEN_SOURCE = 'HOMEBREW_TAP_TOKEN';
+export const GITHUB_PERMISSION_PROBE_TIMEOUT_MS = 10_000;
 
 export function parseStableVersion(value) {
   if (!STABLE_VERSION.test(value)) {
@@ -94,18 +95,19 @@ export function selectWorkingTokenSource(releaseToken, tapToken, canPush) {
  * @param {string} repository - GitHub owner/repository target.
  * @returns {boolean} Whether GitHub proved effective push permission.
  */
-function probeRepositoryPush(token, source, repository) {
+export function probeRepositoryPush(token, source, repository, execFile = execFileSync) {
   const childEnv = { ...process.env, GH_TOKEN: token };
   delete childEnv.RELEASE_TRAIN_TOKEN;
   delete childEnv.HOMEBREW_TAP_TOKEN;
   try {
-    const canPush = execFileSync(
+    const canPush = execFile(
       'gh',
       ['api', `repos/${repository}`, '--jq', '.permissions.push // false'],
       {
         encoding: 'utf8',
         env: childEnv,
         stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
       },
     ).trim();
     if (canPush === 'true') return true;
