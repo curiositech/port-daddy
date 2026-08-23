@@ -86,6 +86,38 @@ interface Trace {
   runs: Array<{ query: string; inBatch: boolean }>;
 }
 
+/**
+ * Translate a better-sqlite3 failure into an Error THIS module realm owns.
+ *
+ * Why this exists (do not "simplify" it away): better-sqlite3's `SqliteError`
+ * is a hand-rolled constructor — `Error.call(this, msg)` plus
+ * `Object.setPrototypeOf(SqliteError.prototype, Error.prototype)` — so the
+ * instances carry no [[ErrorData]] slot and `Object.prototype.toString` reports
+ * '[object Object]'. jest's `isError()` therefore falls through to
+ * `value instanceof Error`. The native addon is dlopen-cached once per PROCESS,
+ * so the `SqliteError` class every suite sees belongs to whichever jest module
+ * realm loaded better-sqlite3 FIRST; in any other realm `instanceof Error` is
+ * false, `isError()` returns false, and `expect(p).rejects.toThrow()` reports
+ * "Received function did not throw" for a promise that really did reject. Run
+ * this file alone and it is the first loader and everything passes; run it
+ * after any of the ~30 suites that also import better-sqlite3 (with
+ * maxWorkers: 1 they share one process) and six rollback assertions go red
+ * while the rollback itself is working perfectly. That is order-dependent
+ * nonsense, and it is a fixture defect, not a contract defect.
+ *
+ * Real D1 never hands a Worker a better-sqlite3 error either, so the adapter
+ * translates at its boundary and the tests below assert the SQLite message
+ * verbatim — a stronger assertion than a bare toThrow(), and one a silent
+ * no-op can never satisfy.
+ */
+function d1Error(e: unknown): Error {
+  const message = String((e as { message?: unknown } | null)?.message ?? e);
+  const err = new Error(message);
+  (err as { cause?: unknown }).cause = e;
+  (err as { code?: unknown }).code = (e as { code?: unknown } | null)?.code;
+  return err;
+}
+
 /** D1 adapter over a real SQLite db with the real migration chain applied. */
 function makeRealDb(): { d1: unknown; sql: SqlDb; trace: Trace } {
   const sql = new Database(':memory:');
@@ -110,15 +142,21 @@ function makeRealDb(): { d1: unknown; sql: SqlDb; trace: Trace } {
         return stmt;
       },
       async first<T>(): Promise<T | null> {
-        return (sql.prepare(query).get(...(params() as never[])) as T | undefined) ?? null;
+        try {
+          return (sql.prepare(query).get(...(params() as never[])) as T | undefined) ?? null;
+        } catch (e) { throw d1Error(e); }
       },
       async all<T>(): Promise<{ results: T[] }> {
-        return { results: sql.prepare(query).all(...(params() as never[])) as T[] };
+        try {
+          return { results: sql.prepare(query).all(...(params() as never[])) as T[] };
+        } catch (e) { throw d1Error(e); }
       },
       async run(): Promise<{ success: boolean; meta: { changes: number } }> {
         trace.runs.push({ query, inBatch });
-        const info = sql.prepare(query).run(...(params() as never[]));
-        return { success: true, meta: { changes: Number(info.changes) } };
+        try {
+          const info = sql.prepare(query).run(...(params() as never[]));
+          return { success: true, meta: { changes: Number(info.changes) } };
+        } catch (e) { throw d1Error(e); }
       },
     };
     return stmt;
@@ -137,7 +175,7 @@ function makeRealDb(): { d1: unknown; sql: SqlDb; trace: Trace } {
         return results;
       } catch (e) {
         sql.exec('ROLLBACK');
-        throw e;
+        throw d1Error(e);
       } finally {
         inBatch = false;
       }
@@ -280,7 +318,8 @@ describe('#9638 ingest — a poisoned snapshot rolls the whole replace back', ()
     const poisoned = normalize(snapshotBody({ generatedAt: GENERATED_AT + 60_000, daemonLabel: 'harbor-2' }));
     // Bypass the validator to reach the storage CHECK inside the batch.
     (poisoned.items[0] as unknown as { status: string }).status = 'someday';
-    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60)).rejects.toThrow();
+    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60))
+      .rejects.toThrow(/CHECK constraint failed: status/);
 
     // The DELETEs ran FIRST inside that batch. Without a real transaction these
     // tables would now be empty; with one, v1 is untouched.
@@ -296,14 +335,16 @@ describe('#9638 ingest — a poisoned snapshot rolls the whole replace back', ()
   it('the rollback holds for a poison in the EDGES table', async () => {
     const poisoned = normalize(snapshotBody());
     (poisoned.edges[0] as unknown as { edgeType: string }).edgeType = 'blocks';
-    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60)).rejects.toThrow();
+    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60))
+      .rejects.toThrow(/CHECK constraint failed/);
     expect(sliceOf(sql, 'u_alice')).toEqual(before);
   });
 
   it('the rollback holds for a poison in the ACTIVITY table', async () => {
     const poisoned = normalize(snapshotBody());
     (poisoned.activity[0] as unknown as { at: number }).at = -1;
-    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60)).rejects.toThrow();
+    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60))
+      .rejects.toThrow(/CHECK constraint failed/);
     expect(sliceOf(sql, 'u_alice')).toEqual(before);
   });
 
@@ -311,7 +352,8 @@ describe('#9638 ingest — a poisoned snapshot rolls the whole replace back', ()
     const poisoned = normalize(snapshotBody());
     // roadmap_mirrors.user_id REFERENCES users(id): a ghost owner must not be
     // able to leave the caller's slice deleted-but-not-replaced.
-    await expect(replaceRoadmapMirror(env, 'u_ghost', poisoned, RECEIVED_AT + 60)).rejects.toThrow();
+    await expect(replaceRoadmapMirror(env, 'u_ghost', poisoned, RECEIVED_AT + 60))
+      .rejects.toThrow(/FOREIGN KEY constraint failed/);
     expect(sliceOf(sql, 'u_alice')).toEqual(before);
     expect(sliceOf(sql, 'u_ghost')).toEqual({
       roadmap_mirrors: [], roadmap_mirror_items: [], roadmap_mirror_edges: [], roadmap_mirror_activity: [],
@@ -321,7 +363,8 @@ describe('#9638 ingest — a poisoned snapshot rolls the whole replace back', ()
   it('a rolled-back replace is invisible to the reader — GET still serves v1', async () => {
     const poisoned = normalize(snapshotBody({ generatedAt: GENERATED_AT + 60_000 }));
     (poisoned.items[0] as unknown as { status: string }).status = 'someday';
-    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60)).rejects.toThrow();
+    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60))
+      .rejects.toThrow(/CHECK constraint failed: status/);
 
     const res = await handleRoadmapMirrorGet(
       new Request(`${BASE}/v1/roadmap/mirror?repo=${REPO}`, { headers: { Authorization: `Bearer ${ALICE_TOKEN}` } }),
@@ -345,7 +388,8 @@ describe('#9638 ingest — a poisoned snapshot rolls the whole replace back', ()
     const bobBefore = sliceOf(sql, 'u_bob');
     const poisoned = normalize(snapshotBody());
     (poisoned.items[0] as unknown as { status: string }).status = 'someday';
-    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60)).rejects.toThrow();
+    await expect(replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60))
+      .rejects.toThrow(/CHECK constraint failed: status/);
     expect(sliceOf(sql, 'u_bob')).toEqual(bobBefore);
   });
 });
@@ -445,5 +489,62 @@ describe('#9638 ingest — a refused push never reaches storage at all', () => {
     }
     expect(sliceOf(sql, 'u_alice')).toEqual(before);
     expect(trace.batches).toBe(batchesAfterGoodPush);
+  });
+});
+
+// ── fixture integrity: the constraints and the rejection path are real ───────
+//
+// Every rollback assertion above is worthless if (a) the migrated schema never
+// had the constraint, or (b) a constraint fires but the failure never surfaces
+// as something jest can see as a throw. Both have bitten this file, so both are
+// pinned here rather than assumed.
+
+describe('#9638 fixture integrity', () => {
+  it('the migrated schema really enforces the item lane CHECK and the owner FK', () => {
+    const { sql } = makeEnv();
+    expect(() =>
+      sql.exec(
+        "INSERT INTO roadmap_mirror_items (user_id, repo_full_name, harbor, slug, status, summary_md, last_touched_at, created_at) VALUES ('u_alice','a/b','h','s','someday','x',1,1)",
+      ),
+    ).toThrow();
+    expect(() =>
+      sql.exec(
+        "INSERT INTO roadmap_mirror_edges (user_id, repo_full_name, scope, source_id, edge_type, target_id) VALUES ('u_alice','a/b','r','s1','blocks','s2')",
+      ),
+    ).toThrow();
+    expect(() =>
+      sql.exec(
+        "INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug, kind) VALUES ('u_alice','a/b',-1,'s','touch')",
+      ),
+    ).toThrow();
+    expect(() =>
+      sql.exec(
+        "INSERT INTO roadmap_mirrors (user_id, repo_full_name, harbor, generated_at, received_at, item_count, edge_count) VALUES ('u_ghost','a/b','h',1,1,0,0)",
+      ),
+    ).toThrow();
+    // The lane CHECK is in the DDL the migration chain produced, not inherited
+    // from some other CREATE TABLE that ran first.
+    const ddl = (sql.prepare("SELECT sql FROM sqlite_master WHERE name = 'roadmap_mirror_items'").get() as { sql: string }).sql;
+    expect(ddl).toContain("CHECK (status IN ('now','backlog','parked','merge','done'))");
+  });
+
+  it('a constraint failure reaches the caller as an Error THIS realm recognises', async () => {
+    // Regression guard for the order-dependent false failure described on
+    // d1Error(): better-sqlite3's SqliteError is realm-bound and process-cached,
+    // so without translation `expect(...).rejects.toThrow()` reports "did not
+    // throw" for a promise that rejected. If the translation is ever removed,
+    // this fails immediately instead of six rollback tests failing whenever
+    // another better-sqlite3 suite happens to be scheduled first.
+    const { env } = makeEnv();
+    await replaceRoadmapMirror(env, 'u_alice', normalize(snapshotBody()), RECEIVED_AT);
+    const poisoned = normalize(snapshotBody());
+    (poisoned.items[0] as unknown as { status: string }).status = 'someday';
+    const reason: unknown = await replaceRoadmapMirror(env, 'u_alice', poisoned, RECEIVED_AT + 60)
+      .then(() => null, (e: unknown) => e);
+    expect(reason).not.toBeNull();
+    expect(reason instanceof Error).toBe(true);
+    expect((reason as Error).message).toMatch(/CHECK constraint failed: status/);
+    // …and the original SQLite error is preserved, not discarded.
+    expect(((reason as { cause?: { code?: string } }).cause)?.code).toBe('SQLITE_CONSTRAINT_CHECK');
   });
 });

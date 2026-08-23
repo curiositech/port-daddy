@@ -59,6 +59,27 @@ type SqlDb = InstanceType<typeof Database>;
 /** The relay's Env, derived from the handler signature (no workers-types needed). */
 type RelayEnv = Parameters<typeof handleRoadmapSnapshotPut>[1];
 
+/**
+ * Translate a better-sqlite3 failure into an Error THIS module realm owns.
+ *
+ * better-sqlite3's `SqliteError` is a hand-rolled constructor with no
+ * [[ErrorData]] slot, and the native addon is dlopen-cached once per PROCESS —
+ * so the class every suite sees belongs to whichever jest module realm loaded
+ * better-sqlite3 FIRST, and in any other realm `instanceof Error` is false.
+ * jest's `isError()` then rejects it and `expect(p).rejects.toThrow()` reports
+ * "Received function did not throw" for a promise that really did reject (see
+ * the long note in edge-concurrency.test.ts, where that bit). Real D1 never
+ * hands a Worker a better-sqlite3 error, so the adapter translates at its
+ * boundary, preserving the message and the original as `cause`.
+ */
+function d1Error(e: unknown): Error {
+  const message = String((e as { message?: unknown } | null)?.message ?? e);
+  const err = new Error(message);
+  (err as { cause?: unknown }).cause = e;
+  (err as { code?: unknown }).code = (e as { code?: unknown } | null)?.code;
+  return err;
+}
+
 /** D1 adapter over a real SQLite db with the real migration chain applied. */
 function makeRealDb(): { d1: unknown; sql: SqlDb } {
   const sql = new Database(':memory:');
@@ -80,14 +101,20 @@ function makeRealDb(): { d1: unknown; sql: SqlDb } {
         return stmt;
       },
       async first<T>(): Promise<T | null> {
-        return (sql.prepare(query).get(...(params() as never[])) as T | undefined) ?? null;
+        try {
+          return (sql.prepare(query).get(...(params() as never[])) as T | undefined) ?? null;
+        } catch (e) { throw d1Error(e); }
       },
       async all<T>(): Promise<{ results: T[] }> {
-        return { results: sql.prepare(query).all(...(params() as never[])) as T[] };
+        try {
+          return { results: sql.prepare(query).all(...(params() as never[])) as T[] };
+        } catch (e) { throw d1Error(e); }
       },
       async run(): Promise<{ success: boolean; meta: { changes: number } }> {
-        const info = sql.prepare(query).run(...(params() as never[]));
-        return { success: true, meta: { changes: Number(info.changes) } };
+        try {
+          const info = sql.prepare(query).run(...(params() as never[]));
+          return { success: true, meta: { changes: Number(info.changes) } };
+        } catch (e) { throw d1Error(e); }
       },
     };
     return stmt;
@@ -104,7 +131,7 @@ function makeRealDb(): { d1: unknown; sql: SqlDb } {
         return results;
       } catch (e) {
         sql.exec('ROLLBACK');
-        throw e;
+        throw d1Error(e);
       }
     },
   };
