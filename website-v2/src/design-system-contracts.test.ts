@@ -110,7 +110,10 @@ describe('design system contracts', () => {
       ...collectSourceFiles('./components/layout'),
       ...collectSourceFiles('./components/docs'),
       ...collectSourceFiles('./lib'),
-    ].filter((file) => file !== './components/ui/SignalFlags.tsx')
+      // vt.ts decodes literal 24-bit/256-color SGR codes from recorded PTY
+      // output (real terminal color data, not a themeable UI choice) — same
+      // exemption rationale as SignalFlags.tsx's fixed maritime flag colors.
+    ].filter((file) => file !== './components/ui/SignalFlags.tsx' && file !== './lib/porthole/vt.ts')
 
     const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
 

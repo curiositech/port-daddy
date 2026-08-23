@@ -76,6 +76,31 @@ jobs:
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
 
+  porthole-cast-gate:
+    # Cheap, blocking companion to website-terminal-recordings' raw-text regex
+    # scan: replays every committed website-v2/public/casts/porthole/*.cast
+    # through the SAME VT interpreter the browser player uses
+    # (website-v2/src/lib/porthole/vt.ts) and scans the DECODED transcript.
+    # This closes the exact blind spot AUDIT-2026-08-18.md names for the old
+    # gate: a typed command is char-split across many separate asciicast "o"
+    # events, so a path/secret regex scanning raw file text can miss a leak
+    # that the same regex catches instantly once the bytes are reconstructed
+    # into the line a viewer would actually see. No daemon, no recorder
+    # toolchain — pure static replay of files already in the tree, so this
+    # runs in seconds and does not depend on website-terminal-recordings'
+    # multi-minute pipeline (it can be red or skipped without blocking this).
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recordings == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay every porthole cast and scan the decoded transcript
+        run: npx tsx website-v2/scripts/check-porthole-casts.mjs
+
   # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
   # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on
   # `edited` events (a body gutted after the last code push must be re-checked) — the
@@ -882,6 +907,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - porthole-cast-gate
       - rust-console
       - rust-console-gpui
       - rust-kernel
