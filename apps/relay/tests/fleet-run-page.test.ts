@@ -13,9 +13,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { handleFleetRunPage, runPageToken } from '../src/fleet-run-page.js';
+import { handleFleetRunPage, runPageToken, renderFleetRunReceiptPage, type FleetRunPrContext } from '../src/fleet-run-page.js';
 import type { Env } from '../src/types.js';
 import type { FleetRunRow, FleetRunStepRow } from '../src/db.js';
+import type { FleetRunProjection, FleetRunGenerationSummary } from '../src/fleet-run-intents.js';
 
 const OPERATOR = 'super-secret-operator-token-32bytes-min';
 const SECRET = 'run-page-secret-that-is-at-least-32-chars';
@@ -39,6 +40,28 @@ function makeRun(over: Partial<FleetRunRow> = {}): FleetRunRow {
     ...over,
   };
 }
+
+function makeProjection(over: Partial<FleetRunProjection> = {}): FleetRunProjection {
+  const run = makeRun(over);
+  return {
+    ...run,
+    logical_state: over.logical_state ?? run.conclusion,
+    generation: over.generation ?? 1,
+    attempt_count: over.attempt_count ?? 1,
+    queued_at: over.queued_at ?? run.created_at,
+    started_at: over.started_at ?? run.created_at,
+    last_progress_at: over.last_progress_at ?? run.created_at,
+    finished_at: over.finished_at ?? run.created_at,
+    superseded_by: over.superseded_by ?? null,
+    last_error: over.last_error ?? null,
+    expected_start_at: over.expected_start_at ?? null,
+    expected_finish_at: over.expected_finish_at ?? null,
+    queue_ahead_estimate: over.queue_ahead_estimate ?? null,
+    has_transcript: over.has_transcript ?? true,
+  };
+}
+
+const NO_PR_CONTEXT: FleetRunPrContext = { meta: null, diff: null, generations: [] };
 
 function makeSteps(): FleetRunStepRow[] {
   return [
@@ -730,5 +753,237 @@ describe('fleet run page rendering', () => {
       expect(r.headers.get('Cache-Control')).toBe('no-store');
       expect(r.headers.get('X-Robots-Tag')).toContain('noindex');
     }
+  });
+});
+
+// ── Legibility overhaul: config/spend badges, new step narratives, PR context ─
+
+describe('fleet run page — per-ship config, spend, and delivery-history consolidation', () => {
+  it('renders a ship-config panel (model, flags, prompt link) from the one-time fleet-ship-config step, and never as a raw timeline line', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'fleet-ship-config', ship: 'purser',
+        title: 'pd-purser configuration',
+        detail: JSON.stringify({
+          cfModel: '@cf/deepseek-ai/deepseek-v4-flash-0731',
+          cfAuthorModel: '@cf/openai/gpt-oss-120b',
+          role: 'adversarial gatekeeper', telos: 'steel-man the PR',
+          blocking: true, needsExecution: true, purser: true, ideation: false,
+          blockWithoutSandbox: false, testPaths: ['tests/unit/purser'],
+        }),
+        created_at: 1_700_000_001,
+      },
+      {
+        run_id: RUN_ID, seq: 2, kind: 'purser-steelman', ship: 'purser',
+        title: 'pd-purser: steel-manned contract (1 obligation(s))',
+        detail: JSON.stringify({ purpose: 'ship the fix', obligationCount: 1, obligations: ['tests must pass'] }),
+        created_at: 1_700_000_002,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
+    expect(html).toContain('class="ship-config"');
+    expect(html).toContain('@cf/deepseek-ai/deepseek-v4-flash-0731');
+    expect(html).toContain('@cf/openai/gpt-oss-120b');
+    expect(html).toContain('blocking');
+    expect(html).toContain('bash/write execution');
+    expect(html).toContain('purser · adversarial gatekeeper');
+    expect(html).toContain('tests/unit/purser');
+    expect(html).toContain('fleet/ships/purser.md');
+    // The config step itself never becomes a raw "pd-purser configuration" timeline row.
+    expect(html).not.toContain('pd-purser configuration');
+  });
+
+  it('renders the purser steel-man obligations list, not just the count', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'purser-steelman', ship: 'purser',
+        title: 'pd-purser: steel-manned contract (2 obligation(s))',
+        detail: JSON.stringify({
+          purpose: 'the strongest reading',
+          obligationCount: 2,
+          obligations: ['Console binaries only rebuild on real change', 'Steward deploys from CI'],
+        }),
+        created_at: 1_700_000_001,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
+    expect(html).toContain('Console binaries only rebuild on real change');
+    expect(html).toContain('Steward deploys from CI');
+  });
+
+  it('shows the model and cost a ship actually ran on from its ship-spend step', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'ship-spend', ship: 'qa',
+        title: 'pd-qa: 500 in / 120 out tokens over 1 call(s)',
+        detail: JSON.stringify({
+          model: '@cf/zai-org/glm-4.7-flash', calls: 1, usageReported: true,
+          inputTokens: 500, outputTokens: 120, costUsd: 0.000078,
+        }),
+        created_at: 1_700_000_001,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
+    expect(html).toContain('@cf/zai-org/glm-4.7-flash');
+    expect(html).toMatch(/\$0\.000078|Cost this run/);
+    // Per-ship spend badge in the ship-card header.
+    expect(html).toContain('class="spend-badge"');
+  });
+
+  it('replaces the dead Neurons tile with a real $ spend total summed across ship-spend steps', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'ship-spend', ship: 'qa', title: 'spend',
+        detail: JSON.stringify({ model: 'x', calls: 1, usageReported: true, inputTokens: 1, outputTokens: 1, costUsd: 0.05 }),
+        created_at: 1_700_000_001,
+      },
+      {
+        run_id: RUN_ID, seq: 2, kind: 'ship-spend', ship: 'red-team', title: 'spend',
+        detail: JSON.stringify({ model: 'y', calls: 1, usageReported: true, inputTokens: 1, outputTokens: 1, costUsd: 0.03 }),
+        created_at: 1_700_000_002,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
+    expect(html).not.toContain('>Neurons<');
+    expect(html).toContain('>Spend<');
+    expect(html).toContain('$0.08');
+  });
+
+  it('gives ship-error, ship-resumed, and ship-checkpoint their own narratives instead of falling to the raw default', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'ship-error', ship: 'snipe',
+        title: 'pd-snipe: ERROR — Workers AI request failed',
+        detail: JSON.stringify({ error: 'Workers AI request failed', status: 503, retryable: true }),
+        created_at: 1_700_000_001,
+      },
+      {
+        run_id: RUN_ID, seq: 2, kind: 'ship-resumed', ship: 'red-team',
+        title: "pd-red-team: resumed from a prior attempt's checkpoint — PASS reused, no re-run",
+        detail: JSON.stringify({ verdict: 'PASS', errored: false, findings: 0 }),
+        created_at: 1_700_000_002,
+      },
+      {
+        run_id: RUN_ID, seq: 3, kind: 'ship-checkpoint', ship: 'red-team',
+        title: 'pd-red-team: checkpointed — PASS; a retried delivery resumes past this ship',
+        detail: JSON.stringify({ ship: 'red-team', blocking: true, verdict: 'PASS', errored: false, findings: [] }),
+        created_at: 1_700_000_003,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
+    expect(html).toContain('retried automatically');
+    expect(html).toContain('Reused: PASS · 0 findings');
+    expect(html).toContain('checkpointed its PASS');
+    expect(html).toContain('tone-block'); // ship-error
+  });
+
+  it('consolidates repeated delivery-attempt/delivery-failed rows into one entry with a per-attempt breakdown', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'delivery-attempt', ship: null,
+        title: 'Delivery attempt 1 started', detail: JSON.stringify({ attempt: 1 }),
+        created_at: 1_700_000_001,
+      },
+      {
+        run_id: RUN_ID, seq: 2, kind: 'delivery-failed', ship: null,
+        title: 'Delivery attempt 1 failed: timeout', detail: JSON.stringify({ attempt: 1, error: 'timeout' }),
+        created_at: 1_700_000_002,
+      },
+      {
+        run_id: RUN_ID, seq: 3, kind: 'delivery-attempt', ship: null,
+        title: 'Delivery attempt 2 started', detail: JSON.stringify({ attempt: 2 }),
+        created_at: 1_700_000_003,
+      },
+      {
+        run_id: RUN_ID, seq: 4, kind: 'check-completed', ship: null,
+        title: 'Check concluded: success', detail: JSON.stringify({ conclusion: 'success' }),
+        created_at: 1_700_000_010,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
+    expect(html).toContain('Delivered across 2 attempts');
+    expect(html).toContain('1 of which failed');
+    expect(html).toContain('Per-attempt breakdown · 2 attempts');
+    expect(html).toContain('FAILED: timeout');
+    // Not one bare "Delivery attempt N started" line per attempt.
+    expect(html.match(/Delivered across/g)?.length).toBe(1);
+  });
+
+  it('shows an absolute UTC clock time per step, with the run-relative offset as the tooltip', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID, seq: 1, kind: 'check-completed', ship: null,
+        title: 'Check concluded: success', detail: JSON.stringify({ conclusion: 'success' }),
+        created_at: 1_700_000_042,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(makeProjection({ created_at: 1_700_000_000 }), steps, NO_PR_CONTEXT);
+    expect(html).toContain('UTC');
+    expect(html).toMatch(/title="\+42s into the run"/);
+  });
+});
+
+describe('fleet run page — live PR context (title, diff, other generations)', () => {
+  it('renders the PR title and changed-file counts when GitHub metadata is available', () => {
+    const ctx: FleetRunPrContext = {
+      meta: { title: 'Fix the purser hallucination bug', body: null, additions: 40, deletions: 5, changedFiles: 3, htmlUrl: 'https://github.com/erichowens/port-daddy/pull/7' },
+      diff: null,
+      generations: [],
+    };
+    const html = renderFleetRunReceiptPage(makeProjection(), makeSteps(), ctx);
+    expect(html).toContain('Fix the purser hallucination bug');
+    expect(html).toContain('3 files, +40/-5');
+  });
+
+  it('renders the diff as one expandable panel per changed file, escaped', () => {
+    const diffText =
+      'diff --git a/foo.ts b/foo.ts\nindex 111..222 100644\n--- a/foo.ts\n+++ b/foo.ts\n@@ -1,2 +1,2 @@\n-old<script>\n+new line\n' +
+      'diff --git a/bar.ts b/bar.ts\nindex 333..444 100644\n--- a/bar.ts\n+++ b/bar.ts\n@@ -1 +1 @@\n-a\n+b\n';
+    const ctx: FleetRunPrContext = { meta: null, diff: { text: diffText, truncated: false }, generations: [] };
+    const html = renderFleetRunReceiptPage(makeProjection(), makeSteps(), ctx);
+    expect(html).toContain('Diff — 2 files changed');
+    expect(html).toContain('<code>foo.ts</code>');
+    expect(html).toContain('<code>bar.ts</code>');
+    expect(html).toContain('class="df-add"');
+    expect(html).toContain('class="df-del"');
+    // The old file's content is escaped, never live markup.
+    expect(html).not.toContain('-old<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('degrades to an honest empty state with a GitHub link when the diff could not be fetched', () => {
+    const ctx: FleetRunPrContext = { meta: null, diff: null, generations: [] };
+    const html = renderFleetRunReceiptPage(makeProjection(), makeSteps(), ctx);
+    expect(html).toContain('could not be fetched');
+    expect(html).toContain('View the full diff on GitHub');
+  });
+
+  it('notes truncation with a link to the full diff on GitHub', () => {
+    const ctx: FleetRunPrContext = {
+      meta: null,
+      diff: { text: 'diff --git a/x b/x\nindex 1..2 100644\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n', truncated: true },
+      generations: [],
+    };
+    const html = renderFleetRunReceiptPage(makeProjection(), makeSteps(), ctx);
+    expect(html).toContain('truncated for this receipt');
+  });
+
+  it('lists other review generations of the same PR, excluding the current one', () => {
+    const generations: FleetRunGenerationSummary[] = [
+      { deliveryId: 'delivery-123', generation: 2, state: 'success', queuedAt: 1_700_000_100, finishedAt: 1_700_000_140, runId: RUN_ID },
+      { deliveryId: 'delivery-old', generation: 1, state: 'neutral', queuedAt: 1_700_000_000, finishedAt: 1_700_000_040, runId: 'run:delivery-old' },
+    ];
+    const ctx: FleetRunPrContext = { meta: null, diff: null, generations };
+    const html = renderFleetRunReceiptPage(makeProjection(), makeSteps(), ctx);
+    expect(html).toContain('1 other review of this PR');
+    expect(html).toContain('/fleet/runs/run%3Adelivery-old');
+    expect(html).toContain('generation 1');
+    // The current generation is never listed as an "other" review of itself.
+    expect(html).not.toContain('generation 2');
+  });
+
+  it('renders nothing for the generations strip when this is the only generation', () => {
+    const html = renderFleetRunReceiptPage(makeProjection(), makeSteps(), NO_PR_CONTEXT);
+    expect(html).not.toContain('other review');
   });
 });

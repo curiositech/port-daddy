@@ -655,6 +655,43 @@ async function recordRunStart(
 }
 
 /**
+ * Record each triggered ship's CONFIGURATION into the transcript, once, before
+ * any ship runs — model, role, and its permission-shaped flags (whether it can
+ * block the merge, whether it needs bash/write execution, purser sandbox
+ * gating, the test-path scope it's confined to).
+ *
+ * WHY: `ShipConfig` is resolved fresh per run from the repo's own pd-fleet.yml
+ * and never persisted anywhere else — without this, the run page could show a
+ * ship's NAME (`ships_csv`) but nothing about what it actually is or is
+ * allowed to do, and an operator asking "what model is pd-purser using, and
+ * can it write files?" had no answer but reading the YAML themselves. One
+ * step per ship (best-effort, like every other transcript write here);
+ * `env.DB` may be absent in local/test runs, matching every sibling recorder.
+ */
+async function recordShipsConfigInTranscript(
+  transcript: Transcript,
+  ships: ShipConfig[],
+): Promise<void> {
+  for (const ship of ships) {
+    await transcript.step('fleet-ship-config', ship.name, `pd-${ship.name} configuration`, {
+      cfModel: ship.cfModel,
+      cfMapModel: ship.cfMapModel ?? null,
+      cfPlanModel: ship.cfPlanModel ?? null,
+      cfAuthorModel: ship.cfAuthorModel ?? null,
+      role: ship.role,
+      telos: ship.telos,
+      blocking: ship.blocking,
+      needsExecution: ship.needsExecution,
+      ideation: ship.ideation,
+      purser: ship.purser,
+      blockWithoutSandbox: ship.blockWithoutSandbox,
+      testPaths: ship.testPaths,
+      graft: ship.graft,
+    });
+  }
+}
+
+/**
  * Guarantee a `fleet_runs` row exists before a check run's completion is
  * published — an idempotent (INSERT OR IGNORE) backstop independent of
  * `recordRunStart`'s own best-effort write.
@@ -1304,6 +1341,9 @@ export async function executeFleet(
   // failed, so every completion path below can rely on details_url resolving
   // to a real run page (see ensureRunRow's docstring).
   await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  // Record what each ship IS (model, role, blocking/execution posture) once,
+  // before any of them run — see recordShipsConfigInTranscript's docstring.
+  await recordShipsConfigInTranscript(transcript, cloudShips);
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -1339,6 +1379,19 @@ export async function executeFleet(
   // FAIL-OPEN: an absent or unrecognised state counts as open. See
   // src/pr-lifecycle.ts — wrongly skipping a live PR silently removes its
   // review gate, which is far worse than wrongly spending on a dead one.
+  // INPUT SIZE, RECORDED (#7743). The bounded reads in #8906 put diffBytes /
+  // diffTruncated on the context but nothing consumed them, which left the
+  // measurement as good as absent — the exact hole that made the OOM take two
+  // investigation cycles. Printing it here, before any ship spends a token,
+  // means every run states the size of what it was handed, and a future memory
+  // kill is attributable from the log line immediately preceding it rather than
+  // from a dashboard round-trip.
+  console.log(
+    `[fleet-executor] pr-context repo=${prCtx.owner}/${prCtx.repo} pr=${prCtx.prNumber} ` +
+      `diffBytes=${prCtx.diffBytes} diffTruncated=${prCtx.diffTruncated} ` +
+      `files=${prCtx.files.length} filesTruncated=${prCtx.filesTruncated}`,
+  );
+
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
     // HUMAN-FACING: this is the entire explanation an author gets for a neutral

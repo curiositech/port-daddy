@@ -1,6 +1,6 @@
 import { derivePlan } from '../../lib/planner-migrate.js';
 import { schedule } from '../../lib/planner-schedule.js';
-import { renderBoard } from '../../lib/planner-board.js';
+import { renderBoard, axisTickStep, axisTicks } from '../../lib/planner-board.js';
 
 function fixture() {
   const items = [
@@ -48,5 +48,42 @@ describe('renderBoard', () => {
 
   test('flags banner reports the harbor split (3 harbors → fleet+port-daddy)', () => {
     expect(html).toContain('harbor split');
+  });
+});
+
+describe('gantt time axis', () => {
+  test('tick step adapts from days to weeks to quarters (console parity ladder)', () => {
+    expect(axisTickStep(1)).toBe(1);
+    expect(axisTickStep(8)).toBe(1);
+    expect(axisTickStep(9)).toBe(2); // 9 daily intervals no longer fit
+    expect(axisTickStep(16)).toBe(2);
+    expect(axisTickStep(17)).toBe(7); // weeks
+    expect(axisTickStep(56)).toBe(7);
+    expect(axisTickStep(57)).toBe(14); // fortnights
+    expect(axisTickStep(200)).toBe(28); // 4-week blocks
+    expect(axisTickStep(700)).toBe(91); // quarters
+    expect(axisTickStep(3000)).toBe(364 * 2); // beyond the ladder: whole years
+  });
+
+  test('ticks anchor today at unit 0 and carry real UTC dates', () => {
+    const anchor = Date.UTC(2026, 7, 22); // 2026-08-22
+    const ticks = axisTicks(9, anchor);
+    expect(ticks[0]).toMatchObject({ unit: 0, pct: 0, label: 'today', isToday: true });
+    expect(ticks[1]).toMatchObject({ unit: 2, label: '08-24', isToday: false });
+    // Closing tick frames the schedule end even off the step grid (9 % 2 !== 0).
+    const last = ticks[ticks.length - 1];
+    expect(last.unit).toBe(9);
+    expect(last.pct).toBeCloseTo(100);
+    expect(last.label).toBe('08-31');
+  });
+
+  test('rendered board carries the axis, gridlines, and today-marker', () => {
+    const { plan, sched, items } = fixture();
+    const html = renderBoard({ plan, schedule: sched, items, generatedAt: Date.UTC(2026, 7, 22) });
+    expect(html).toContain('gaxis-track');
+    expect(html).toContain('1 est unit = 1 day');
+    expect(html).toContain('gtoday-line'); // the today gridline
+    expect(html).toContain('>today<'); // the today tick label
+    expect(html).toContain('ggridline');
   });
 });

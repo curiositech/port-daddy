@@ -1,0 +1,266 @@
+{
+  "verifiedAt": "2026-08-22",
+  "sources": "Prices: developers.cloudflare.com/workers-ai/platform/pricing. Context windows: each model's own Cloudflare page (served window). Evidence: independent benchmarks + the fleet's live D1 scoreboard; full review in the Fleet Model Board (PR #9249).",
+  "models": [
+    {
+      "id": "@cf/zai-org/glm-4.7-flash",
+      "name": "GLM-4.7-Flash",
+      "tier": "cheap agentic",
+      "verdict": "adopted",
+      "inputUsdPerM": 0.06,
+      "outputUsdPerM": 0.4,
+      "contextTokens": 131072,
+      "note": "The repo mechanic of the 30B class: 59.2% SWE-bench vs qwen3-30b's 22% at the same price. Default pick for reviewer-style ships.",
+      "assignments": ["qa", "lookout", "purser PLAN", "code-reviewer MAP"]
+    },
+    {
+      "id": "@cf/qwen/qwen3-30b-a3b-fp8",
+      "name": "Qwen3 30B A3B",
+      "tier": "cheap control",
+      "verdict": "adopted",
+      "inputUsdPerM": 0.051,
+      "outputUsdPerM": 0.335,
+      "contextTokens": 32768,
+      "note": "Cheapest tokens on the board; strong reasoning, weak agentic coding (22% SWE-bench). Good for ideation ships.",
+      "assignments": ["spark", "spider", "snipe", "fleet default"]
+    },
+    {
+      "id": "@cf/google/gemma-4-26b-a4b-it",
+      "name": "Gemma 4 26B A4B",
+      "tier": "cheap diversity",
+      "verdict": "adopted",
+      "inputUsdPerM": 0.1,
+      "outputUsdPerM": 0.3,
+      "contextTokens": 256000,
+      "note": "Best speed/reliability balance in its class; cheapest output rate on the board. Third cheap-class family for A/B diversity.",
+      "assignments": ["tautology-sniffer"]
+    },
+    {
+      "id": "@cf/deepseek-ai/deepseek-v4-flash-0731",
+      "name": "DeepSeek V4 Flash",
+      "tier": "agentic coder",
+      "verdict": "adopted",
+      "inputUsdPerM": 0.44,
+      "outputUsdPerM": 1.32,
+      "contextTokens": 1048576,
+      "note": "Strongest independent agentic-coding record in class (Terminal-Bench 2.1 82.7; beats its own Pro on nine agent benches). 1M context.",
+      "assignments": ["purser AUTHOR"]
+    },
+    {
+      "id": "@cf/openai/gpt-oss-120b",
+      "name": "gpt-oss-120B",
+      "tier": "strong utility",
+      "verdict": "adopted",
+      "inputUsdPerM": 0.35,
+      "outputUsdPerM": 0.75,
+      "contextTokens": 128000,
+      "note": "Proven tool-caller and the fleet's repair workhorse; independent code-domain record is mixed, so no longer an authoring default.",
+      "assignments": ["contract/author repair escalation", "*reviewer role default"]
+    },
+    {
+      "id": "@cf/deepseek-ai/deepseek-v4-pro-0813",
+      "name": "DeepSeek V4 Pro",
+      "tier": "reasoning flagship",
+      "verdict": "adopted",
+      "inputUsdPerM": 1.32,
+      "outputUsdPerM": 3.96,
+      "contextTokens": 1048576,
+      "note": "80.6% SWE-bench Verified, 1M context — whole-PR attack surfaces in one window. Cheap at low call volume.",
+      "assignments": ["red-team"]
+    },
+    {
+      "id": "@cf/zai-org/glm-5.2",
+      "name": "GLM-5.2",
+      "tier": "code frontier",
+      "verdict": "adopted",
+      "inputUsdPerM": 1.4,
+      "outputUsdPerM": 4.4,
+      "contextTokens": 262144,
+      "note": "Strongest open coding model with independent validation (62.1 SWE-bench Pro — beats GPT-5.5). Worth frontier rates only where one judgment is the product.",
+      "assignments": ["code-reviewer REDUCE"]
+    },
+    {
+      "id": "@cf/openai/gpt-oss-20b",
+      "name": "gpt-oss-20B",
+      "tier": "mid",
+      "verdict": "bench",
+      "inputUsdPerM": 0.2,
+      "outputUsdPerM": 0.3,
+      "contextTokens": 128000,
+      "note": "Refuted as an authoring tier at fleet scale (75% repair failure, #8870). Honored as an explicit opt-down pin only.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/moonshotai/kimi-k2.7-code",
+      "name": "Kimi K2.7 Code",
+      "tier": "code frontier",
+      "verdict": "bench",
+      "inputUsdPerM": 0.95,
+      "outputUsdPerM": 4.0,
+      "contextTokens": 262144,
+      "note": "1T MoE code specialist; gains are vendor-only benchmarks practitioners dispute. Re-competes when an independent eval lands.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/nvidia/nemotron-3-120b-a12b",
+      "name": "Nemotron 3 Super 120B",
+      "tier": "strong utility",
+      "verdict": "bench",
+      "inputUsdPerM": 0.5,
+      "outputUsdPerM": 1.5,
+      "contextTokens": 256000,
+      "note": "Strongest agentic tool-reliability profile in class; first candidate for a coordination-heavy ship.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/qwen/qwen2.5-coder-32b-instruct",
+      "name": "Qwen2.5 Coder 32B",
+      "tier": "coder",
+      "verdict": "bench",
+      "inputUsdPerM": 0.66,
+      "outputUsdPerM": 1.0,
+      "contextTokens": 32768,
+      "note": "Code-specialized dense 32B, pre-agentic generation; DeepSeek V4 Flash dominates it at similar blended cost.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/qwen/qwq-32b",
+      "name": "QwQ 32B",
+      "tier": "reasoning",
+      "verdict": "bench",
+      "inputUsdPerM": 0.66,
+      "outputUsdPerM": 1.0,
+      "contextTokens": 24000,
+      "note": "o1-mini-class reasoning specialist; 24k served window limits diff work.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/qwen/qwen3.8-27b",
+      "name": "Qwen 3.8 27B",
+      "tier": "mid",
+      "verdict": "bench",
+      "inputUsdPerM": 0.45,
+      "outputUsdPerM": 3.2,
+      "contextTokens": 262144,
+      "note": "Vision + agentic 27B with a big window; $3.20/M output is the class's worst value curve.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+      "name": "DeepSeek R1 Distill 32B",
+      "tier": "reasoning",
+      "verdict": "bench",
+      "inputUsdPerM": 0.497,
+      "outputUsdPerM": 4.881,
+      "contextTokens": 80000,
+      "note": "The XO synthesis default; $4.88/M output argues against widening it.",
+      "assignments": ["XO synthesis"]
+    },
+    {
+      "id": "@cf/meta/llama-4-scout-17b-16e-instruct",
+      "name": "Llama 4 Scout 17B",
+      "tier": "mid",
+      "verdict": "bench",
+      "inputUsdPerM": 0.27,
+      "outputUsdPerM": 0.85,
+      "contextTokens": 131000,
+      "note": "Multimodal MoE generalist; no distinguishing coding-agent evidence yet.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "name": "Llama 3.3 70B FP8 Fast",
+      "tier": "mid",
+      "verdict": "bench",
+      "inputUsdPerM": 0.293,
+      "outputUsdPerM": 2.253,
+      "contextTokens": 24000,
+      "note": "Fast 70B; the 24k served window is the constraint for review work.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/mistralai/mistral-small-3.1-24b-instruct",
+      "name": "Mistral Small 3.1 24B",
+      "tier": "mid",
+      "verdict": "bench",
+      "inputUsdPerM": 0.351,
+      "outputUsdPerM": 0.555,
+      "contextTokens": 128000,
+      "note": "Capable 24B generalist with vision; nothing it beats the adopted cheap class at.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/aisingapore/gemma-sea-lion-v4-27b-it",
+      "name": "Gemma SEA-LION v4 27B",
+      "tier": "mid",
+      "verdict": "bench",
+      "inputUsdPerM": 0.351,
+      "outputUsdPerM": 0.555,
+      "contextTokens": 128000,
+      "note": "Southeast-Asian-language specialist; the pick when a repo's docs or users live in SEA languages.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/meta/llama-3.1-8b-instruct-fp8",
+      "name": "Llama 3.1 8B FP8",
+      "tier": "small",
+      "verdict": "bench",
+      "inputUsdPerM": 0.152,
+      "outputUsdPerM": 0.287,
+      "contextTokens": 32000,
+      "note": "Small tier — below the review-quality floor for default duty; honored so cheap experiments meter honestly.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/meta/llama-3.2-1b-instruct",
+      "name": "Llama 3.2 1B",
+      "tier": "small",
+      "verdict": "bench",
+      "inputUsdPerM": 0.027,
+      "outputUsdPerM": 0.201,
+      "contextTokens": 60000,
+      "note": "Tiny; classification-grade only.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/meta/llama-3.2-3b-instruct",
+      "name": "Llama 3.2 3B",
+      "tier": "small",
+      "verdict": "bench",
+      "inputUsdPerM": 0.051,
+      "outputUsdPerM": 0.335,
+      "contextTokens": 80000,
+      "note": "Tiny; summarization/retrieval-grade only.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/meta/llama-3.2-11b-vision-instruct",
+      "name": "Llama 3.2 11B Vision",
+      "tier": "small",
+      "verdict": "bench",
+      "inputUsdPerM": 0.049,
+      "outputUsdPerM": 0.676,
+      "contextTokens": 128000,
+      "note": "The cheap vision option — screenshots and UI evidence, not code review.",
+      "assignments": []
+    },
+    {
+      "id": "@cf/ibm-granite/granite-4.0-h-micro",
+      "name": "Granite 4.0 H Micro",
+      "tier": "small",
+      "verdict": "bench",
+      "inputUsdPerM": 0.017,
+      "outputUsdPerM": 0.112,
+      "contextTokens": 131000,
+      "note": "Cheapest tokens on the platform with strong function calling for its size; candidate for trivial classification steps.",
+      "assignments": []
+    }
+  ],
+  "excluded": [
+    { "id": "catalog Deprecated tier", "reason": "Cloudflare can retire deprecated ids at any time — the silent-blank failure mode the honored set exists to prevent." },
+    { "id": "@cf/meta/llama-3.1-8b-instruct-fast", "reason": "No published price — an honored-but-unmeterable model rides invisibly." },
+    { "id": "@cf/meta/llama-guard-3-8b", "reason": "A content-safety classifier, not a generator; cannot review code." },
+    { "id": "@cf/moonshotai/kimi-k2.6", "reason": "The #654 phantom-id tombstone; needs one witnessed live call before admission. K2.7-Code covers the family." },
+    { "id": "LoRA-base variants", "reason": "Adapter scaffolds, not standalone reviewers." }
+  ]
+}

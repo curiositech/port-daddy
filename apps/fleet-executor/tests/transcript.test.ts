@@ -265,8 +265,11 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.completed[0].conclusion).toBe('neutral');
     expect(state.completed[0].summary).toContain('Fleet paused before pd-code-reviewer');
     expect(d1.runs[0].conclusion).toBe('neutral');
-    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
-    expect(d1.steps[0].detail).toContain('"pausedBeforeShip":"code-reviewer"');
+    // Ship configs are recorded once, right after the gating check is
+    // established — before the per-ship loop's own (second) pause check, so
+    // this run's pause-before-first-ship still carries that one config row.
+    expect(d1.steps.map(s => s.kind)).toEqual(['fleet-ship-config', 'check-completed']);
+    expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pausedBeforeShip":"code-reviewer"');
   });
 });
 
@@ -293,19 +296,39 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(run.conclusion).toBe('success'); // 'pending' was overwritten by the UPDATE
     expect(run.ms).toBeGreaterThanOrEqual(0);
 
-    // Single chunk ⇒ no reduce step. Order: map-chunk → ship-verdict →
-    // review-posted → ship-spend → ship-checkpoint → check-completed. The
-    // checkpoint row (ship-checkpoint.ts) is parked in its own seq band, so
-    // the Transcript recorder's own seqs stay monotonic from 0 around it.
+    // Single chunk ⇒ no reduce step. Order: fleet-ship-config (once, before any
+    // ship runs) → map-chunk → ship-verdict → review-posted → ship-spend →
+    // ship-checkpoint → check-completed. The checkpoint row (ship-checkpoint.ts)
+    // is parked in its own seq band, so the Transcript recorder's own seqs stay
+    // monotonic from 0 around it.
     const kinds = d1.steps.map(s => s.kind);
-    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'ship-spend', 'ship-checkpoint', 'check-completed']);
+    expect(kinds).toEqual([
+      'fleet-ship-config',
+      'map-chunk',
+      'ship-verdict',
+      'review-posted',
+      'ship-spend',
+      'ship-checkpoint',
+      'check-completed',
+    ]);
     // seq is monotonic from 0 for the recorder's own steps.
-    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4]);
+    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
     // check-completed is run-scoped (no ship).
     expect(d1.steps.find(s => s.kind === 'check-completed')?.ship).toBeNull();
+    // The ship-config row carries what the run page needs to show "what is
+    // this ship" without the operator reading pd-fleet.yml themselves.
+    const config = d1.steps.find(s => s.kind === 'fleet-ship-config');
+    expect(config?.ship).toBe('code-reviewer');
+    expect(JSON.parse(String(config?.detail ?? '{}'))).toMatchObject({
+      cfModel: '@cf/qwen/qwen2.5-coder-32b-instruct',
+      blocking: true,
+      needsExecution: false,
+      purser: false,
+      ideation: false,
+    });
   });
 
   it('a multi-chunk run records 2 map-chunk steps + exactly one reduce step', async () => {
@@ -341,6 +364,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(kinds.filter(k => k === 'reduce')).toHaveLength(1);
     // reduce comes after both map chunks, before the verdict.
     expect(kinds).toEqual([
+      'fleet-ship-config',
       'map-chunk',
       'map-chunk',
       'reduce',
