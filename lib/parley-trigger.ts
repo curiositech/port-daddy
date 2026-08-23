@@ -6,10 +6,12 @@
  * cost/limit what-if evaluations, while automatic callers always use immutable
  * server policy.
  *
- *     convene  ⇔  P(fail) · waste · |unresolved|  >  parleyCost
+ *     convene  ⇔  confidenceProxy · waste · |unresolved|  >  parleyCost
  *
- * During bootstrap, signal confidence is P(fail) and magnitude is
- * |unresolved|. No prose or keyword classifier participates in admission.
+ * During bootstrap, signal confidence is an uncalibrated structural proxy,
+ * not a failure probability; magnitude is |unresolved|. Durable signal and
+ * outcome telemetry supports later calibration. No prose or keyword classifier
+ * participates in admission.
  */
 
 import { createHash } from 'node:crypto';
@@ -38,10 +40,11 @@ export type ParleyShape = (typeof PARLEY_SHAPES)[number];
 export const PARLEY_CHECKPOINTS = Object.freeze([
   'conversation',
   'claim',
-  'decision',
-  'wave',
-  'precommit',
-  'handoff',
+  'session_begin',
+  'session_takeover',
+  'continuation_accept',
+  'quorum_vote',
+  'guard_receipt',
 ] as const);
 
 export type ParleyCheckpoint = (typeof PARLEY_CHECKPOINTS)[number];
@@ -49,7 +52,7 @@ export type ParleyEvaluationMode = 'diagnostic' | 'automatic';
 
 /**
  * Server-owned anti-griefing ceilings, measured in JavaScript string code
- * units. These admit normal multi-agent waves and full file/symbol references
+ * units. These admit normal multi-agent fan-in and full file/symbol references
  * while bounding policy work and the memory retained for one signal. Inputs
  * over a ceiling are refused; producers and the gate never truncate them.
  */
@@ -66,7 +69,13 @@ export const CONFLICT_SIGNAL_LIMITS = Object.freeze({
 export const CONFLICT_SIGNAL_PRODUCERS = Object.freeze({
   messagingDiagnostic: 'port-daddy:messaging-lineage-diagnostic',
   tubeDiagnostic: 'port-daddy:tube-lineage-diagnostic',
-  parleyAutoTrigger: 'port-daddy:parley-auto-trigger',
+  conversationConflict: 'port-daddy:conversation-conflict',
+  claimConflict: 'port-daddy:claim-conflict',
+  sessionBeginConvergence: 'port-daddy:session-begin-convergence',
+  sessionTakeoverConflict: 'port-daddy:session-takeover-conflict',
+  continuationConflict: 'port-daddy:continuation-conflict',
+  quorumVoteConflict: 'port-daddy:quorum-vote-conflict',
+  guardReceiptConflict: 'port-daddy:guard-receipt-conflict',
 } as const);
 
 export type ConflictSignalProducer =
@@ -97,7 +106,7 @@ export interface ConflictSignal {
   readonly surface: string;
   /** Structural unresolved count. A single exact claim overlap is magnitude 1. */
   readonly magnitude: number;
-  /** Structural confidence in [0,1]; used directly as bootstrap P(fail). */
+  /** Uncalibrated structural confidence proxy in [0,1] used by the bootstrap heuristic. */
   readonly confidence: number;
   readonly reason: string;
   readonly evidenceRefs: readonly string[];
@@ -122,14 +131,22 @@ export interface ParleyLimits {
   maxDelegationDepth?: number;
 }
 
-export interface ParleyEvaluationOptions {
-  /** Required so diagnostic behavior can never leak into an automatic caller. */
-  readonly mode: ParleyEvaluationMode;
-  /** Used only in diagnostic mode; automatic mode ignores caller costs. */
+export interface DiagnosticParleyEvaluationOptions {
+  readonly mode: 'diagnostic';
   readonly costs?: ParleyCosts;
-  /** Runtime counters always apply; max overrides are diagnostic-only. */
   readonly limits?: ParleyLimits;
 }
+
+export interface AutomaticParleyEvaluationOptions {
+  readonly mode: 'automatic';
+  /** Automatic lifecycle authority is durable server state, never caller input. */
+  readonly costs?: never;
+  readonly limits?: never;
+}
+
+export type ParleyEvaluationOptions =
+  | DiagnosticParleyEvaluationOptions
+  | AutomaticParleyEvaluationOptions;
 
 export type ParleyTermination = 'max-rounds' | 'delegation-depth';
 
@@ -144,9 +161,9 @@ export interface ParleyDecision {
   policyCleared: boolean;
   /** Signal magnitude used as the structural unresolved count. */
   unresolved: number;
-  /** signal.confidence · waste · signal.magnitude. */
+  /** Bootstrap heuristic: confidence proxy · waste · unresolved count. */
   expectedWaste: number;
-  /** expectedWaste − parleyCost. Positive means convening is worth it. */
+  /** Heuristic score minus parleyCost. Positive means convening is worth it. */
   margin: number;
   /** Set when a hard limit refused the parley regardless of economics. */
   terminated: ParleyTermination | null;
@@ -170,7 +187,6 @@ interface CheckpointPolicy {
 
 const DEFAULT_COSTS = Object.freeze({ wastePerUnresolved: 2, parleyCost: 1 });
 const DEFAULT_LIMITS = Object.freeze({ maxRounds: 2, maxDelegationDepth: 4 });
-const AUTOMATIC_PRODUCERS = Object.freeze([CONFLICT_SIGNAL_PRODUCERS.parleyAutoTrigger]);
 const NO_DIAGNOSTIC_PRODUCERS = Object.freeze([] as ConflictSignalProducer[]);
 const CONVERSATION_DIAGNOSTIC_PRODUCERS = Object.freeze([
   CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
@@ -183,13 +199,14 @@ function kindPolicy(shape: ParleyShape): Readonly<KindPolicy> {
 
 function checkpointPolicy(
   kinds: CheckpointPolicy['kinds'],
+  automaticProducers: readonly ConflictSignalProducer[],
   diagnosticProducers: readonly ConflictSignalProducer[] = NO_DIAGNOSTIC_PRODUCERS,
 ): Readonly<CheckpointPolicy> {
   return Object.freeze({
     costs: DEFAULT_COSTS,
     limits: DEFAULT_LIMITS,
-    automaticProducers: AUTOMATIC_PRODUCERS,
-    diagnosticProducers,
+    automaticProducers: Object.freeze([...automaticProducers]),
+    diagnosticProducers: Object.freeze([...diagnosticProducers]),
     kinds: Object.freeze(kinds),
   });
 }
@@ -198,23 +215,25 @@ function checkpointPolicy(
 export const PARLEY_CHECKPOINT_POLICIES: Readonly<Record<ParleyCheckpoint, Readonly<CheckpointPolicy>>> = Object.freeze({
   conversation: checkpointPolicy({
     conversational_contradiction: kindPolicy('debate-with-judge'),
-  }, CONVERSATION_DIAGNOSTIC_PRODUCERS),
+  }, [CONFLICT_SIGNAL_PRODUCERS.conversationConflict], CONVERSATION_DIAGNOSTIC_PRODUCERS),
   claim: checkpointPolicy({
     claim_overlap: kindPolicy('contract-net'),
-  }),
-  decision: checkpointPolicy({
-    decision_contradiction: kindPolicy('debate-with-judge'),
-  }),
-  wave: checkpointPolicy({
+  }, [CONFLICT_SIGNAL_PRODUCERS.claimConflict]),
+  session_begin: checkpointPolicy({
     task_convergence: kindPolicy('contract-net'),
-  }),
-  precommit: checkpointPolicy({
+  }, [CONFLICT_SIGNAL_PRODUCERS.sessionBeginConvergence]),
+  session_takeover: checkpointPolicy({
     semantic_surface_conflict: kindPolicy('debate-with-judge'),
-  }),
-  handoff: checkpointPolicy({
+  }, [CONFLICT_SIGNAL_PRODUCERS.sessionTakeoverConflict]),
+  continuation_accept: checkpointPolicy({
     semantic_surface_conflict: kindPolicy('debate-with-judge'),
+  }, [CONFLICT_SIGNAL_PRODUCERS.continuationConflict]),
+  quorum_vote: checkpointPolicy({
     decision_contradiction: kindPolicy('debate-with-judge'),
-  }),
+  }, [CONFLICT_SIGNAL_PRODUCERS.quorumVoteConflict]),
+  guard_receipt: checkpointPolicy({
+    semantic_surface_conflict: kindPolicy('debate-with-judge'),
+  }, [CONFLICT_SIGNAL_PRODUCERS.guardReceiptConflict]),
 });
 
 export interface ConversationalDiagnosticSignalInput {
@@ -458,11 +477,15 @@ function validateOptions(value: unknown): ParleyEvaluationOptions | string {
   if (value.mode !== 'diagnostic' && value.mode !== 'automatic') {
     return `unknown evaluation mode ${String(value.mode)}`;
   }
+  if (value.mode === 'automatic'
+    && (Object.prototype.hasOwnProperty.call(value, 'costs')
+      || Object.prototype.hasOwnProperty.call(value, 'limits'))) {
+    return 'automatic evaluation does not accept caller costs or lifecycle limits';
+  }
   if (value.costs !== undefined) {
     if (!isRecord(value.costs)) return 'diagnostic costs must be an object';
-    if (value.mode === 'diagnostic'
-      && (!isFiniteNonNegative(value.costs.wastePerUnresolved)
-        || !isFiniteNonNegative(value.costs.parleyCost))) {
+    if (!isFiniteNonNegative(value.costs.wastePerUnresolved)
+      || !isFiniteNonNegative(value.costs.parleyCost)) {
       return 'diagnostic costs must be finite and nonnegative';
     }
   }
@@ -474,14 +497,12 @@ function validateOptions(value: unknown): ParleyEvaluationOptions | string {
     if (value.limits.delegationDepth !== undefined && !isNonNegativeInteger(value.limits.delegationDepth)) {
       return 'delegation depth must be a nonnegative integer';
     }
-    if (value.mode === 'diagnostic') {
-      if (value.limits.maxRounds !== undefined && !isNonNegativeInteger(value.limits.maxRounds)) {
-        return 'diagnostic max rounds must be a nonnegative integer';
-      }
-      if (value.limits.maxDelegationDepth !== undefined
-        && !isNonNegativeInteger(value.limits.maxDelegationDepth)) {
-        return 'diagnostic max delegation depth must be a nonnegative integer';
-      }
+    if (value.limits.maxRounds !== undefined && !isNonNegativeInteger(value.limits.maxRounds)) {
+      return 'diagnostic max rounds must be a nonnegative integer';
+    }
+    if (value.limits.maxDelegationDepth !== undefined
+      && !isNonNegativeInteger(value.limits.maxDelegationDepth)) {
+      return 'diagnostic max delegation depth must be a nonnegative integer';
     }
   }
   return value as unknown as ParleyEvaluationOptions;
@@ -557,7 +578,7 @@ export function shouldConvene(
       shape: validatedSignal.signal.shape,
       policyCleared: true,
       terminated: null,
-      reason: `expected waste ${expectedWaste.toFixed(2)} > parley cost ${costs.parleyCost.toFixed(2)} across ${unresolved} unresolved conflict(s)`,
+      reason: `bootstrap waste score ${expectedWaste.toFixed(2)} > parley cost ${costs.parleyCost.toFixed(2)} across ${unresolved} unresolved conflict(s)`,
     };
   }
 
@@ -566,6 +587,6 @@ export function shouldConvene(
     convene: false,
     policyCleared: true,
     terminated: null,
-    reason: `expected waste ${expectedWaste.toFixed(2)} ≤ parley cost ${costs.parleyCost.toFixed(2)} — coordinating costs more than the conflict; proceed`,
+    reason: `bootstrap waste score ${expectedWaste.toFixed(2)} ≤ parley cost ${costs.parleyCost.toFixed(2)} — coordinating costs more than the conflict; proceed`,
   };
 }

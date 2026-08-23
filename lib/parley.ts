@@ -1,10 +1,30 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  CONFLICT_SIGNAL_LIMITS,
+  type ConflictSignalKind,
+  type ParleyCheckpoint,
+  type ParleyShape,
+} from './parley-trigger.js';
+import {
+  MAX_TUPLE_IDEMPOTENCY_KEY_CHARS,
+} from './tuples.js';
 
 interface TupleSpaceMin {
   out(
     fields: unknown[],
     options?: { harbor?: string; writtenBy?: string; ttlMs?: number },
   ): { id: number };
+  outOnce(
+    fields: unknown[],
+    options: { harbor?: string; writtenBy?: string; ttlMs?: number; idempotencyKey: string },
+  ): {
+    tuple: { id: number; fields: unknown[]; writtenBy: string | null; createdAt: number; expiresAt: number | null };
+    inserted: boolean;
+  };
+  getByIdempotencyKey(
+    idempotencyKey: string,
+    options?: { harbor?: string },
+  ): { id: number; fields: unknown[]; writtenBy: string | null; createdAt: number; expiresAt: number | null } | null;
   rd(
     pattern: unknown[],
     options?: { harbor?: string; limit?: number },
@@ -28,6 +48,20 @@ export interface ParleyRecord {
   responseDueAt: number | null;
   roundLimit: number;
   createdAt: number;
+  automatic: AutomaticParleyMetadata | null;
+}
+
+export interface AutomaticParleyMetadata {
+  idempotencyKey: string;
+  callFingerprint: string;
+  signalId: string;
+  lineageKey: string;
+  checkpoint: ParleyCheckpoint;
+  kind: ConflictSignalKind;
+  shape: ParleyShape;
+  evidenceRefs: string[];
+  confidence: number;
+  magnitude: number;
 }
 
 export interface ParleyTurn {
@@ -68,6 +102,11 @@ export interface ParleySummary {
   risks: string[];
 }
 
+export interface AutomaticParleyLifecycle {
+  parley: ParleyRecord;
+  status: ParleyStatus;
+}
+
 export interface CallParleyInput {
   surface: string;
   reason: string;
@@ -77,6 +116,22 @@ export interface CallParleyInput {
   harbor?: string;
   ttlMs?: number;
   roundLimit?: number;
+}
+
+export interface CallAutomaticParleyInput {
+  surface: string;
+  reason: string;
+  parties: string[];
+  trigger: Exclude<ParleyTrigger, 'operator'>;
+  harbor?: string;
+  automatic: Omit<AutomaticParleyMetadata, 'callFingerprint'>;
+}
+
+export interface CallAutomaticParleyResult {
+  parley: ParleyRecord;
+  replayed: boolean;
+  summonsInserted: number;
+  notificationFailures: string[];
 }
 
 export interface RespondParleyInput {
@@ -114,8 +169,15 @@ interface AgentInboxMin {
   send(
     agentId: string,
     content: unknown,
-    options?: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary'; signal?: string },
-  ): { success: boolean; error?: string };
+    options?: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary' },
+  ): { success: boolean; messageId?: number; error?: string };
+  internal?: {
+    sendOnce(
+      agentId: string,
+      content: unknown,
+      options: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary'; deliveryKey: string },
+    ): { success: boolean; messageId?: number; error?: string };
+  };
 }
 
 export interface ParleyDeps {
@@ -127,7 +189,27 @@ export interface ParleyDeps {
 const DEFAULT_HARBOR = 'fleet';
 const DEFAULT_TTL_MS = 60 * 60 * 1000;
 const DEFAULT_ROUND_LIMIT = 3;
+export const AUTOMATIC_PARLEY_DEFAULTS = Object.freeze({
+  ttlMs: DEFAULT_TTL_MS,
+  roundLimit: DEFAULT_ROUND_LIMIT,
+});
 const OUTCOME_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const AUTOMATIC_OPENED_KEY_PREFIX = 'parley:opened:';
+const AUTOMATIC_SUMMONS_KEY_PREFIX = 'parley:summons:';
+const AUTOMATIC_PARLEY_ID_PREFIX = 'parley-auto:';
+const AUTOMATIC_PARLEY_HASH_CHARS = 32;
+export const MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS =
+  MAX_TUPLE_IDEMPOTENCY_KEY_CHARS - AUTOMATIC_OPENED_KEY_PREFIX.length;
+const MAX_AUTOMATIC_SUMMONS_KEY_CHARS = AUTOMATIC_SUMMONS_KEY_PREFIX.length
+  + AUTOMATIC_PARLEY_ID_PREFIX.length
+  + AUTOMATIC_PARLEY_HASH_CHARS
+  + 1
+  + CONFLICT_SIGNAL_LIMITS.maxPartyChars;
+const AUTOMATIC_CALLER = 'port-daddy:parley-auto-trigger';
+
+if (MAX_AUTOMATIC_SUMMONS_KEY_CHARS > MAX_TUPLE_IDEMPOTENCY_KEY_CHARS) {
+  throw new Error('automatic Parley summons key bounds exceed tuple.outOnce capacity');
+}
 
 const TERMINAL: ReadonlySet<ParleyStatus> = new Set(['COLLAPSED', 'ESCALATED', 'VOIDED']);
 const BUDGETED_PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set(['propose', 'critique', 'revise', 'inform']);
@@ -142,6 +224,19 @@ function uniqueNonEmpty(values: string[]): string[] {
     out.push(value);
   }
   return out;
+}
+
+function canonicalSet(values: string[]): string[] {
+  return uniqueNonEmpty(values).sort();
+}
+
+function hash(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex');
+}
+
+export function automaticParleyId(harbor: string | undefined, idempotencyKey: string): string {
+  const canonicalHarbor = harbor?.trim() || DEFAULT_HARBOR;
+  return `${AUTOMATIC_PARLEY_ID_PREFIX}${hash([canonicalHarbor, idempotencyKey.trim()]).slice(0, AUTOMATIC_PARLEY_HASH_CHARS)}`;
 }
 
 function isPerformative(value: string): value is ParleyPerformative {
@@ -191,6 +286,7 @@ export function createParley(deps: ParleyDeps) {
       responseDueAt: ttlMs > 0 ? t + ttlMs : null,
       roundLimit,
       createdAt: t,
+      automatic: null,
     };
 
     tuples.out(['parley:opened', parleyId, parley], { harbor, writtenBy: calledBy });
@@ -215,7 +311,6 @@ export function createParley(deps: ParleyDeps) {
           from: calledBy,
           type: 'parley_summons',
           contentType: 'json',
-          signal: 'parley_summons',
         });
         if (!result.success) notificationFailures.push(`${party}: ${result.error ?? 'send failed'}`);
       }
@@ -224,6 +319,155 @@ export function createParley(deps: ParleyDeps) {
       throw new Error(`parley.call: failed to notify parties: ${notificationFailures.join('; ')}`);
     }
     return parley;
+  }
+
+  /**
+   * INTERNAL automatic path. It is intentionally separate from call(), so the
+   * manual HTTP route cannot populate idempotency or automatic metadata.
+   */
+  function callAutomatic(input: CallAutomaticParleyInput): CallAutomaticParleyResult {
+    if (Object.prototype.hasOwnProperty.call(input, 'ttlMs')
+      || Object.prototype.hasOwnProperty.call(input, 'roundLimit')) {
+      throw new Error('parley.callAutomatic: automatic lifecycle overrides are not accepted');
+    }
+    const surface = input.surface?.trim();
+    if (!surface) throw new Error('parley.callAutomatic: surface is required');
+    const reason = input.reason?.trim();
+    if (!reason) throw new Error('parley.callAutomatic: reason is required');
+    const parties = canonicalSet(input.parties ?? []);
+    if (parties.length < 2) throw new Error('parley.callAutomatic: at least two parties are required');
+    if (parties.some((party) => party.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars)) {
+      throw new Error(
+        `parley.callAutomatic: party exceeds ${CONFLICT_SIGNAL_LIMITS.maxPartyChars} characters`,
+      );
+    }
+    const idempotencyKey = input.automatic?.idempotencyKey;
+    const signalId = input.automatic?.signalId;
+    if (typeof idempotencyKey !== 'string' || !idempotencyKey.trim()) {
+      throw new Error('parley.callAutomatic: idempotencyKey is required');
+    }
+    if (idempotencyKey !== idempotencyKey.trim()) {
+      throw new Error('parley.callAutomatic: idempotencyKey must be canonical');
+    }
+    if (typeof signalId !== 'string' || !signalId.trim()) {
+      throw new Error('parley.callAutomatic: signalId is required');
+    }
+    if (idempotencyKey !== signalId) {
+      throw new Error('parley.callAutomatic: idempotencyKey must equal signalId');
+    }
+    if (idempotencyKey.length > MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS) {
+      throw new Error(
+        `parley.callAutomatic: idempotencyKey exceeds ${MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS} characters`,
+      );
+    }
+    const { ttlMs, roundLimit } = AUTOMATIC_PARLEY_DEFAULTS;
+    const harbor = input.harbor?.trim() || DEFAULT_HARBOR;
+    const evidenceRefs = canonicalSet(input.automatic.evidenceRefs ?? []);
+    const metadataWithoutFingerprint = {
+      idempotencyKey,
+      signalId,
+      lineageKey: input.automatic.lineageKey,
+      checkpoint: input.automatic.checkpoint,
+      kind: input.automatic.kind,
+      shape: input.automatic.shape,
+      evidenceRefs,
+      confidence: input.automatic.confidence,
+      magnitude: input.automatic.magnitude,
+    };
+    const callFingerprint = hash([
+      harbor,
+      surface,
+      reason,
+      parties,
+      input.trigger,
+      ttlMs,
+      roundLimit,
+      metadataWithoutFingerprint,
+    ]);
+    const parleyId = automaticParleyId(harbor, idempotencyKey);
+    const t = now();
+    const candidate: ParleyRecord = {
+      parleyId,
+      surface,
+      reason,
+      parties,
+      calledBy: AUTOMATIC_CALLER,
+      trigger: input.trigger,
+      channel: `parley:${parleyId}`,
+      status: 'SUMMONED',
+      harbor,
+      responseDueAt: ttlMs > 0 ? t + ttlMs : null,
+      roundLimit,
+      createdAt: t,
+      automatic: {
+        ...metadataWithoutFingerprint,
+        callFingerprint,
+      },
+    };
+
+    const opened = tuples.outOnce(['parley:opened', parleyId, candidate], {
+      harbor,
+      writtenBy: AUTOMATIC_CALLER,
+      idempotencyKey: `${AUTOMATIC_OPENED_KEY_PREFIX}${idempotencyKey}`,
+    });
+    const stored = opened.tuple.fields[2];
+    if (!stored || typeof stored !== 'object') {
+      throw new Error('parley.callAutomatic: opened reservation is malformed');
+    }
+    const parley = stored as ParleyRecord;
+    if (!parley.automatic
+      || parley.automatic.idempotencyKey !== idempotencyKey
+      || parley.automatic.callFingerprint !== callFingerprint) {
+      throw new Error('parley.callAutomatic: idempotency key was already used for a different canonical call');
+    }
+
+    let summonsInserted = 0;
+    const notificationFailures: string[] = [];
+    for (const party of parley.parties) {
+      const summons = {
+        surface: parley.surface,
+        reason: parley.reason,
+        channel: parley.channel,
+        calledBy: parley.calledBy,
+        responseDueAt: parley.responseDueAt,
+        roundLimit: parley.roundLimit,
+        at: parley.createdAt,
+      };
+      const remainingTtl = parley.responseDueAt === null
+        ? undefined
+        : Math.max(1, parley.responseDueAt - now());
+      const summonsResult = tuples.outOnce(
+        ['parley:summons', parley.parleyId, party, summons],
+        {
+          harbor: parley.harbor,
+          writtenBy: parley.calledBy,
+          ttlMs: remainingTtl,
+          idempotencyKey: `parley:summons:${parley.parleyId}:${party}`,
+        },
+      );
+      if (summonsResult.inserted) summonsInserted++;
+
+      if (agentInbox) {
+        const result = agentInbox.internal?.sendOnce(party, {
+          kind: 'parley_summons',
+          parleyId: parley.parleyId,
+          ...summons,
+        }, {
+          from: parley.calledBy,
+          type: 'parley_summons',
+          contentType: 'json',
+          deliveryKey: `parley_summons:${parley.parleyId}:${party}`,
+        }) ?? { success: false, error: 'internal idempotent inbox delivery unavailable' };
+        if (!result.success) notificationFailures.push(`${party}: ${result.error ?? 'send failed'}`);
+      }
+    }
+
+    return {
+      parley,
+      replayed: !opened.inserted,
+      summonsInserted,
+      notificationFailures,
+    };
   }
 
   function findOpened(parleyId: string): ParleyRecord | null {
@@ -279,12 +523,16 @@ export function createParley(deps: ParleyDeps) {
       dissenters: uniqueNonEmpty(input.dissenters ?? []),
       at: now(),
     };
-    tuples.out(['parley:outcome', parley.parleyId, outcome], {
+    const stored = tuples.outOnce(['parley:outcome', parley.parleyId, outcome], {
       harbor: parley.harbor,
       writtenBy: input.resolvedBy,
       ttlMs: OUTCOME_TTL_MS,
+      idempotencyKey: `parley:outcome:${parley.parleyId}`,
     });
-    return outcome;
+    const storedOutcome = stored.tuple.fields[2];
+    return storedOutcome && typeof storedOutcome === 'object'
+      ? storedOutcome as ParleyOutcome
+      : outcome;
   }
 
   function summarize(parley: ParleyRecord): ParleySummary {
@@ -335,6 +583,33 @@ export function createParley(deps: ParleyDeps) {
   function get(parleyId: string): ParleySummary | null {
     const parley = findOpened(parleyId);
     return parley ? summarize(parley) : null;
+  }
+
+  /** Indexed automatic lifecycle read; unrelated tuple history is never parsed. */
+  function getAutomatic(
+    idempotencyKey: string,
+    harbor = DEFAULT_HARBOR,
+  ): AutomaticParleyLifecycle | null {
+    const opened = tuples.getByIdempotencyKey(
+      `${AUTOMATIC_OPENED_KEY_PREFIX}${idempotencyKey.trim()}`,
+      { harbor },
+    );
+    const data = opened?.fields[2];
+    if (!data || typeof data !== 'object') return null;
+    const parley = data as ParleyRecord;
+    const outcomeRow = tuples.getByIdempotencyKey(
+      `parley:outcome:${parley.parleyId}`,
+      { harbor: parley.harbor },
+    );
+    const outcomeData = outcomeRow?.fields[2];
+    const outcome = outcomeData && typeof outcomeData === 'object'
+      ? outcomeData as ParleyOutcome
+      : null;
+    const expired = parley.responseDueAt !== null && now() > parley.responseDueAt;
+    return {
+      parley,
+      status: outcome?.status ?? (expired ? 'ESCALATED' : parley.status),
+    };
   }
 
   function list(options: { harbor?: string; status?: ParleyStatus; limit?: number } = {}): ParleySummary[] {
@@ -396,6 +671,14 @@ export function createParley(deps: ParleyDeps) {
       harbor: summary.parley.harbor,
       writtenBy: party,
     });
+    if (turn.performative === 'refuse' && summary.parley.automatic && !summary.outcome) {
+      writeOutcome(summary.parley, {
+        status: 'ESCALATED',
+        resolvedBy: 'port-daddy:parley',
+        reason: `${party} refused the automatic Parley`,
+        dissenters: [party],
+      });
+    }
 
     // Fan the turn out to every other participant (parties + the summoner) so
     // nobody has to poll `show` to learn a new turn exists. Unlike call(),
@@ -421,7 +704,6 @@ export function createParley(deps: ParleyDeps) {
           from: party,
           type: 'parley_turn',
           contentType: 'json',
-          signal: 'parley_turn',
         });
         if (result.success) notified.push(recipient);
         else notifyFailures.push(`${recipient}: ${result.error ?? 'send failed'}`);
@@ -492,10 +774,12 @@ export function createParley(deps: ParleyDeps) {
 
   return {
     call,
+    callAutomatic,
     respond,
     resolve,
     markSeen,
     get,
+    getAutomatic,
     list,
   };
 }
