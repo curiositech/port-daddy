@@ -120,22 +120,29 @@ function isEventStream(res: Response): boolean {
  * @param body The response body stream.
  * @param onFrame Called with each decoded `data:` payload, minus the sentinel.
  * @param signal Optional abort signal, checked between chunks.
- * @returns Resolves when the stream ends or the signal aborts.
+ * @returns How many frames were seen, and the raw text consumed. The caller
+ *          needs both: a stream that yielded ZERO frames is not an empty
+ *          completion, it is a body that was not an event stream after all, and
+ *          the raw text is the only place its real error is written.
  */
 async function readEventStream(
   body: ReadableStream<Uint8Array>,
   onFrame: (payload: string) => void,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ frames: number; raw: string }> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let raw = '';
+  let frames = 0;
   try {
     for (;;) {
       if (signal?.aborted) break;
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      raw += chunk;
+      buffer += chunk;
       // SSE events are separated by a blank line; anything after the last one is
       // a partial frame that must survive until the next chunk arrives.
       let sep: number;
@@ -146,6 +153,7 @@ async function readEventStream(
           if (!line.startsWith('data:')) continue;
           const payload = line.slice(5).trim();
           if (!payload || payload === '[DONE]') continue;
+          frames += 1;
           onFrame(payload);
         }
       }
@@ -154,11 +162,47 @@ async function readEventStream(
     const tail = buffer.trim();
     if (tail.startsWith('data:')) {
       const payload = tail.slice(5).trim();
-      if (payload && payload !== '[DONE]') onFrame(payload);
+      if (payload && payload !== '[DONE]') {
+        frames += 1;
+        onFrame(payload);
+      }
     }
   } finally {
     reader.releaseLock();
   }
+  return { frames, raw };
+}
+
+/**
+ * Pull a provider's error message out of a body that was NOT an event stream.
+ *
+ * WHY THIS IS NEEDED, with the case that produced it: Gemini answers a quota
+ * failure with HTTP **200**, `content-type: text/event-stream`, and a plain JSON
+ * error object as the body. Every honest check passes — the status is fine, the
+ * content type says SSE — and the SSE parser then finds zero frames. Reporting
+ * that as "returned no text response" is technically true and completely
+ * useless: it hides a 429 behind a message that reads like a model problem, and
+ * sends an operator hunting the wrong thing.
+ *
+ * @param raw The raw body text that yielded no frames.
+ * @param fallback The message to use when no provider error can be read.
+ * @returns The provider's own error message when there is one.
+ */
+function errorFromNonStreamBody(raw: string, fallback: string): string {
+  const text = raw.trim();
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as Record<string, any>;
+    const message = parsed?.error?.message ?? parsed?.message;
+    if (typeof message === 'string' && message) {
+      const code = parsed?.error?.code;
+      return code ? `${code}: ${message}` : message;
+    }
+  } catch {
+    // Not JSON either. Fall through to the truncated raw body, which is still
+    // more informative than a generic "no response".
+  }
+  return `${fallback} (body: ${text.slice(0, 200)})`;
 }
 
 /**
@@ -252,7 +296,7 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
       // Workers AI streams OpenAI-shaped chunks: choices[].delta.content, with
       // some models using `response` for the same fragment.
       let text = '';
-      await readEventStream(
+      const stream = await readEventStream(
         res.body,
         (payload) => {
           try {
@@ -273,7 +317,17 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
         },
         signal,
       );
-      if (!text) return { ok: false, error: 'Cloudflare Workers AI returned no text response' };
+      if (!text) {
+        // Zero frames means the body was never an event stream, whatever the
+        // content type claimed — so the provider's real error lives in it.
+        return {
+          ok: false,
+          error:
+            stream.frames === 0
+              ? errorFromNonStreamBody(stream.raw, 'Cloudflare Workers AI returned no text response')
+              : 'Cloudflare Workers AI returned no text response',
+        };
+      }
       // Streamed Workers AI responses carry no usage block; undefined means
       // "unknown", which the cost tracker must not read as zero.
       return { ok: true, text };
@@ -423,7 +477,7 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
       let text = '';
       let thoughts = '';
       let lastChunk: Record<string, any> | undefined;
-      await readEventStream(
+      const stream = await readEventStream(
         res.body,
         (payload) => {
           try {
@@ -453,6 +507,16 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
         signal,
       );
       if (!text) {
+        // A stream that yielded ZERO frames was not a stream. Gemini answers a
+        // quota failure with HTTP 200 + `text/event-stream` + a JSON error body,
+        // and reporting that as "no text response" hides a 429 behind a message
+        // that reads like a model problem.
+        if (stream.frames === 0) {
+          return {
+            ok: false,
+            error: errorFromNonStreamBody(stream.raw, 'Gemini returned no text response'),
+          };
+        }
         const finish = (lastChunk as Record<string, any> | undefined)?.candidates?.[0]?.finishReason;
         return {
           ok: false,

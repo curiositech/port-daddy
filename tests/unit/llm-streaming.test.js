@@ -380,6 +380,115 @@ describe('openaiAdapter streaming', () => {
   });
 });
 
+describe('a "stream" that is not a stream — the 200-with-a-JSON-error case', () => {
+  // FOUND LIVE, 2026-08-23. Gemini answers a quota failure with HTTP **200**,
+  // `content-type: text/event-stream`, and a plain JSON error object as the
+  // body. Every honest check passes — status fine, content type says SSE — and
+  // the SSE parser then finds zero frames. Reporting that as "returned no text
+  // response" is technically true and completely useless: it hides a 429 behind
+  // a message that reads like a model problem and sends an operator hunting the
+  // wrong thing. The lane in the first live capture said exactly that.
+  const quota = JSON.stringify({
+    error: { code: 429, message: 'You exceeded your current quota, please check your plan and billing details.' },
+  });
+
+  test('gemini surfaces the provider error instead of "no text response"', async () => {
+    const result = await withFetch(
+      async () =>
+        new Response(quota, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      () =>
+        geminiAdapter({
+          prompt: 'p',
+          model: 'gemini-3.7-flash',
+          env: { GEMINI_API_KEY: 'k' },
+          onTextDelta: () => {},
+        }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/429/);
+    expect(result.error).toMatch(/quota/i);
+  });
+
+  test('cloudflare does the same', async () => {
+    const result = await withFetch(
+      async () =>
+        new Response(JSON.stringify({ errors: [], error: { message: 'Account is over its limit' } }), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      () =>
+        cloudflareAdapter({
+          prompt: 'p',
+          model: '@cf/zai-org/glm-4.7-flash',
+          env: { CLOUDFLARE_ACCOUNT_ID: 'a', CLOUDFLARE_API_TOKEN: 't' },
+          onTextDelta: () => {},
+        }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/over its limit/);
+  });
+
+  test('openai does the same', async () => {
+    const result = await withFetch(
+      async () =>
+        new Response(JSON.stringify({ error: { type: 'insufficient_quota', message: 'You exceeded your quota' } }), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      () =>
+        openaiAdapter({
+          prompt: 'p',
+          model: 'gpt-4.1-mini',
+          env: { OPENAI_API_KEY: 'sk' },
+          onTextDelta: () => {},
+        }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/insufficient_quota/);
+  });
+
+  test('a non-JSON body is quoted rather than swallowed', async () => {
+    // Even an unparseable body beats a generic "no response": the reader needs
+    // SOMETHING to search for.
+    const result = await withFetch(
+      async () =>
+        new Response('<html>502 Bad Gateway</html>', {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+      () =>
+        geminiAdapter({
+          prompt: 'p',
+          model: 'gemini-3.7-flash',
+          env: { GEMINI_API_KEY: 'k' },
+          onTextDelta: () => {},
+        }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/502 Bad Gateway/);
+  });
+
+  test('a REAL stream that legitimately produced nothing keeps its own message', async () => {
+    // The distinction that makes the above safe: frames arrived, they just
+    // carried no text. That is a model outcome, not a transport failure, and it
+    // must not be reported as a provider error.
+    const result = await withFetch(
+      async () => sseResponse([frame({ candidates: [{ finishReason: 'SAFETY' }] })]),
+      () =>
+        geminiAdapter({
+          prompt: 'p',
+          model: 'gemini-3.7-flash',
+          env: { GEMINI_API_KEY: 'k' },
+          onTextDelta: () => {},
+        }),
+    );
+    expect(result.error).toMatch(/finishReason: SAFETY/);
+  });
+});
+
 describe('createDeltaCoalescer — the anti-duplicate, anti-spinner rule', () => {
   test('buffers small fragments instead of writing one transcript row per token', () => {
     // Appending one row per delta would write thousands of rows for one answer

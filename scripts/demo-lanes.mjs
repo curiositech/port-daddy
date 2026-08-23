@@ -33,7 +33,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -197,6 +197,88 @@ async function startFakeStreamingOpenAI(text) {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address();
   return { server, baseUrl: `http://127.0.0.1:${port}/v1` };
+}
+
+/**
+ * Turn the recording into a GIF, in two steps because neither tool can do both.
+ *
+ * Playwright bundles a MINIMAL ffmpeg — it can demux the webm and write a PNG
+ * sequence, but it carries no GIF encoder at all (`-muxers` lists image2 and
+ * nothing else). `sharp` is already a repo dependency and its libvips does write
+ * animated GIFs. So: ffmpeg extracts frames, sharp assembles them.
+ *
+ * The whole step is best-effort. A GIF is a convenience for the reader, not the
+ * evidence — the webm is the evidence, and it exists either way. Failing the
+ * capture over a missing encoder would throw away a good run for a nicety.
+ *
+ * @param webm The recorded video.
+ * @param outPath Where the GIF should land.
+ * @returns The GIF path, or null when it could not be rendered.
+ */
+async function renderGif(webm, outPath) {
+  const frameDir = mkdtempSync(join(tmpdir(), 'pd-lanes-frames-'));
+  try {
+    execFileSync(
+      FFMPEG,
+      // `scale` ONLY. Playwright's ffmpeg is built with --disable-everything
+      // and re-enables just pad/crop/scale, so an `fps=` filter fails to parse.
+      // Every frame is extracted and the decimation happens below, in JS.
+      ['-y', '-i', webm, '-vf', 'scale=900:-1', join(frameDir, 'f-%04d.png')],
+      { stdio: 'pipe' },
+    );
+    const frames = readdirSync(frameDir).filter((f) => f.endsWith('.png')).sort();
+    if (frames.length === 0) throw new Error('ffmpeg produced no frames');
+
+    // Cap the frame count. An unbounded GIF in a PR body is a page nobody
+    // waits for, and the decimation has to happen here because the bundled
+    // ffmpeg has no `fps` filter to do it during extraction.
+    const step = Math.max(1, Math.ceil(frames.length / 48));
+    const chosen = frames.filter((_, i) => i % step === 0);
+
+    const sharp = (await import('sharp')).default;
+    await buildAnimatedGif(sharp, frameDir, chosen, outPath);
+    console.log(`demo-lanes: rendered ${outPath}`);
+    return outPath;
+  } catch (err) {
+    console.log(`demo-lanes: gif not rendered (${String(err.message ?? err).slice(0, 120)})`);
+    return null;
+  } finally {
+    rmSync(frameDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Assemble PNG stills into one animated GIF.
+ *
+ * libvips builds an animation from a single tall image whose height is an exact
+ * multiple of the page height — the frames stacked vertically, with `pageHeight`
+ * telling it where to cut. That is unusual enough to be worth naming: it is not
+ * a list of images, it is one image the encoder slices.
+ *
+ * @param sharp The sharp module.
+ * @param dir Directory holding the frames.
+ * @param frames Frame filenames, in order.
+ * @param outPath Where the GIF should land.
+ */
+async function buildAnimatedGif(sharp, dir, frames, outPath) {
+  const { width, height: frameHeight } = await sharp(join(dir, frames[0])).metadata();
+  const strip = await sharp({
+    create: {
+      width,
+      height: frameHeight * frames.length,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
+    .composite(
+      frames.map((f, i) => ({ input: join(dir, f), top: i * frameHeight, left: 0 })),
+    )
+    .png()
+    .toBuffer();
+
+  await sharp(strip, { pages: frames.length, pageHeight: frameHeight })
+    .gif({ loop: 0, delay: 200 })
+    .toFile(outPath);
 }
 
 /**
@@ -526,6 +608,11 @@ async function main() {
         recording = join(OUT_DIR, 'lanes-stream.webm');
         try {
           await video.saveAs(recording);
+          // Playwright names the original by content hash; `saveAs` COPIES
+          // rather than moves, so without this the output directory collects a
+          // second, identically-sized file with an unreadable name — and a
+          // committed artifact nobody can identify is noise in a diff forever.
+          await video.delete().catch(() => {});
           console.log(`demo-lanes: recorded ${recording}`);
           shots.push(recording);
         } catch (err) {
@@ -540,20 +627,8 @@ async function main() {
     // and will not play a webm — an artifact a reviewer has to download is an
     // artifact most reviewers will not watch.
     if (recording) {
-      const gif = join(OUT_DIR, 'lanes-stream.gif');
-      try {
-        execFileSync(
-          FFMPEG,
-          ['-y', '-i', recording, '-vf', 'fps=6,scale=980:-1:flags=lanczos', '-loop', '0', gif],
-          { stdio: 'pipe' },
-        );
-        console.log(`demo-lanes: rendered ${gif}`);
-        shots.push(gif);
-      } catch (err) {
-        // No ffmpeg is a missing convenience, not a failed capture. The webm
-        // still exists and still proves the same thing.
-        console.log(`demo-lanes: gif not rendered (${String(err.message ?? err).slice(0, 80)})`);
-      }
+      const gif = await renderGif(recording, join(OUT_DIR, 'lanes-stream.gif'));
+      if (gif) shots.push(gif);
     }
 
     // The manifest is the artifact's passport. Every field is mandatory, and

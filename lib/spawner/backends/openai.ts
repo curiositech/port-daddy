@@ -177,6 +177,8 @@ async function readOpenAIStream(
   const decoder = new TextDecoder();
   let buffer = '';
   let text = '';
+  let raw = '';
+  let frames = 0;
   let usage: Record<string, any> | undefined;
 
   const handleFrame = (payload: string): void => {
@@ -202,7 +204,9 @@ async function readOpenAIStream(
       if (signal?.aborted) break;
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      raw += chunk;
+      buffer += chunk;
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
         const frame = buffer.slice(0, sep);
@@ -211,6 +215,7 @@ async function readOpenAIStream(
           if (!line.startsWith('data:')) continue;
           const payload = line.slice(5).trim();
           if (!payload || payload === '[DONE]') continue;
+          frames += 1;
           handleFrame(payload);
         }
       }
@@ -218,7 +223,10 @@ async function readOpenAIStream(
     const tail = buffer.trim();
     if (tail.startsWith('data:')) {
       const payload = tail.slice(5).trim();
-      if (payload && payload !== '[DONE]') handleFrame(payload);
+      if (payload && payload !== '[DONE]') {
+        frames += 1;
+        handleFrame(payload);
+      }
     }
   } catch (err) {
     return { ok: false, error: (err as Error).message };
@@ -226,7 +234,16 @@ async function readOpenAIStream(
     reader.releaseLock();
   }
 
-  if (!text) return { ok: false, error: 'OpenAI stream returned no text response' };
+  if (!text) {
+    // Zero frames means the body was never an event stream, whatever the
+    // content type claimed, so the provider's real error is written in it —
+    // reporting "no text response" for a quota or auth failure sends an
+    // operator hunting a model problem that does not exist.
+    return {
+      ok: false,
+      error: errorFromNonStreamBody(raw, 'OpenAI stream returned no text response'),
+    };
+  }
   return {
     ok: true,
     text,
@@ -234,6 +251,36 @@ async function readOpenAIStream(
     outputTokens: normalizeStreamTokens(usage?.completion_tokens),
     cachedInputTokens: normalizeStreamTokens(usage?.prompt_tokens_details?.cached_tokens),
   };
+}
+
+/**
+ * Pull a provider's error out of a body that was NOT an event stream.
+ *
+ * WHY: a provider can answer with HTTP 200 and `content-type: text/event-stream`
+ * and still send a plain JSON error object — Gemini does exactly this on a quota
+ * failure, and there is no reason to assume the OpenAI-compatible fleet never
+ * will. Every honest check passes, the SSE parser finds zero frames, and "no
+ * text response" then hides the real cause behind a message that reads like a
+ * model problem.
+ *
+ * @param raw The raw body text that yielded no frames.
+ * @param fallback The message to use when no provider error can be read.
+ * @returns The provider's own error message when there is one.
+ */
+function errorFromNonStreamBody(raw: string, fallback: string): string {
+  const text = raw.trim();
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as Record<string, any>;
+    const message = parsed?.error?.message ?? parsed?.message;
+    if (typeof message === 'string' && message) {
+      const code = parsed?.error?.code ?? parsed?.error?.type;
+      return code ? `${code}: ${message}` : message;
+    }
+  } catch {
+    // Not JSON either; the truncated body still beats a generic "no response".
+  }
+  return `${fallback} (body: ${text.slice(0, 200)})`;
 }
 
 /**
@@ -296,6 +343,8 @@ async function readResponsesStream(
   const decoder = new TextDecoder();
   let buffer = '';
   let text = '';
+  let raw = '';
+  let frames = 0;
   let usage: Record<string, any> | undefined;
   let errorMessage: string | null = null;
 
@@ -338,7 +387,9 @@ async function readResponsesStream(
       if (signal?.aborted) break;
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      raw += chunk;
+      buffer += chunk;
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
         const frame = buffer.slice(0, sep);
@@ -347,6 +398,7 @@ async function readResponsesStream(
           if (!line.startsWith('data:')) continue;
           const payload = line.slice(5).trim();
           if (!payload || payload === '[DONE]') continue;
+          frames += 1;
           handleFrame(payload);
         }
       }
@@ -354,7 +406,10 @@ async function readResponsesStream(
     const tail = buffer.trim();
     if (tail.startsWith('data:')) {
       const payload = tail.slice(5).trim();
-      if (payload && payload !== '[DONE]') handleFrame(payload);
+      if (payload && payload !== '[DONE]') {
+        frames += 1;
+        handleFrame(payload);
+      }
     }
   } catch (err) {
     return { ok: false, error: (err as Error).message };
@@ -363,7 +418,12 @@ async function readResponsesStream(
   }
 
   if (errorMessage) return { ok: false, error: errorMessage };
-  if (!text) return { ok: false, error: 'OpenAI Responses stream returned no text response' };
+  if (!text) {
+    return {
+      ok: false,
+      error: errorFromNonStreamBody(raw, 'OpenAI Responses stream returned no text response'),
+    };
+  }
   return {
     ok: true,
     text,
