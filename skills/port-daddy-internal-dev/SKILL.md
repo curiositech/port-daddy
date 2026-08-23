@@ -207,6 +207,7 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | Surface | ADR | Edit these together |
 |---|---|---|
 | **Relay** — cross-machine pub/sub | `docs/adr/0049-relay-architecture.md` | Worker `apps/relay/` (D1 schema `apps/relay/schema.sql`, `wrangler.toml`) · daemon routes `routes/relay.ts` · outbound SSE `lib/relay-client.ts` · CLI `cli/commands/relay.ts` · MCP `relay_status` in `mcp/server.ts` |
+| **Cloud coordination peer** — offline-first CRDT federation | `docs/adr/0092-suggestibility-ladder-and-cloud-coordination-federation.md` §4 | shared wire/fold `lib/coordination-ledger.ts` · local SQLite outbox/importer `lib/coordination-peer.ts` · relay DO/auth/routes `apps/relay/src/coordination-room.ts`, `apps/relay/src/coordination-auth.ts`, `apps/relay/src/coordination.ts` · real sandbox daemon `apps/fleet-executor/src/sandbox-runner.ts` · compiled acceptance smoke `scripts/smoke-coordination-peer.sh` |
 | **Dispatch** — autonomous feature-dev queue | ADR-0035 | `cli/commands/dispatch.ts` (+ deprecated alias `cli/commands/nightshift.ts`) · `lib/dispatch/{runner,spawn-adapter,queue,state-machine}.ts` · `routes/dispatches.ts` · `pd review` · `docs/proposals/pd-nightshift.md` | <!-- cite-exempt: illustrative role/template path -->
 | **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) | <!-- cite-exempt: illustrative role/template path -->
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
@@ -240,6 +241,18 @@ Contributor gotchas specific to these:
   feature rows carry `_note` fields explaining intentionally-omitted routes
   (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
   those notes accurate when you add or remove a route.
+- **A coordination Durable Object is a peer, not the commit point for local
+  work.** Never put a network await on the local claim/note/session/lease write
+  path. Persist a local outbox first, acknowledge an operation only after the
+  DO alarm flush made it durable, require contiguous pull cursors, and keep the
+  sender retrying anything merely buffered. The DO hot path must not call
+  `storage.put` per operation; model it on HarborChannel/HarborQuota and prove
+  zero request-path writes plus one alarm-batch write.
+- **Remote-daemon selection forbids local substitution.** An explicit URL or
+  profile that refuses a connection must not enter direct-DB mode and must not
+  auto-start a local daemon. Squid's generated hook gate uses bounded remote
+  health for that explicit peer; only the implicit local daemon uses local
+  ready/PID/heartbeat files. Preserve both sides in tests.
 
 ### Rust surfaces — the kernel IS landed; ADR-0120 is the boundary rule
 
@@ -448,6 +461,7 @@ The friction below costs every fresh session real time. Internalize it.
 - **A preferred port is not endpoint evidence**: startup may seed `9876`, but SDK/CLI connection resolvers must use an explicit URL, a real socket, or a strictly parsed published port. Keep forgiving seed helpers separate from strict connection helpers, including public display fields and socket-to-TCP fallback. Reject a protocol the returned connection target cannot carry: the current Node target is HTTP-only, so accepting `https:` and then calling `node:http` is a plaintext-to-TLS-port defect, not compatibility. Fixture-test absent, malformed, unreadable, environment-published, file-published, unsupported-protocol, and constructor-URL-over-socket cases without consulting the developer's live daemon. The compiled smoke must use AF_UNIX-safe paths under `~/coding/tmp` and prove Unix plus TCP health on both boots.
 - **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
 - **A Cloudflare Queue delivery is not a logical Fleet run**: persist an ingress intent before `queue.send()`, idempotently key it by webhook delivery id, and assign a monotonic generation per repo + PR. Only supersede older active generations after the newer queue send succeeds; otherwise a transient admission failure can erase the last valid review. The executor must compare-and-swap that intent before spend so duplicate deliveries, retries, and stale heads acknowledge without re-running ships. Project activity from the intent ledger plus `fleet_runs`; label D1-known queue depth and expected timestamps as estimates, never Cloudflare-internal position. Keep active rows out of retention deletion, delete intent-only receipts through the same operator contract, and test the webhook, executor race, rollback-without-table path, signed-in receipt, and terminal retention seams independently.
+- **Generated relay migration ledgers land through a PR, never a direct `main` push**: `deploy-relay.yml` first proves the staging D1 apply and deploys `relay-latest`, then updates the deterministic `automation/relay-staging-ledger` branch and arms auto-merge on its generated PR. Use `release-workflow-state.mjs select-live-token` to live-probe the dedicated PAT fallbacks and expose only the source name. Do not use `GITHUB_TOKEN` for this mutation (GitHub leaves its generated PR runs human-approval-gated; use a dedicated App/PAT for automatic runs), do not add `github-actions[bot]` to the ruleset bypass, and do not make staging availability depend on whether the generated ledger PR has merged. The production gate stays closed until that PR lands.
 
 ## Show-Me Runbook (operator demos)
 

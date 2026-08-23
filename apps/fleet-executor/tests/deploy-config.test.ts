@@ -1,10 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseFleetShips } from '../src/fleet.js';
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
 function readConfig(name: string): string {
   return readFileSync(`${APP_ROOT}/${name}`, 'utf8');
@@ -14,6 +12,15 @@ function consumerBlock(config: string, queue: string): string {
   const blocks = config.split('[[queues.consumers]]').slice(1);
   const block = blocks.find((candidate) => new RegExp(`^\\s*queue\\s*=\\s*"${queue}"`, 'm').test(candidate));
   expect(block, `missing ${queue} consumer`).toBeDefined();
+  return block!;
+}
+
+function producerBlock(config: string, binding: string): string {
+  const blocks = config.split('[[queues.producers]]').slice(1);
+  const block = blocks.find((candidate) =>
+    new RegExp(`^\\s*binding\\s*=\\s*"${binding}"`, 'm').test(candidate)
+  );
+  expect(block, `missing ${binding} producer`).toBeDefined();
   return block!;
 }
 
@@ -30,18 +37,20 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(dlq).toMatch(/^\s*max_retries\s*=\s*1\s*$/m);
   });
 
-  it('keeps bounded retry headroom in the deploy and operator example configs', () => {
+  it('uses explicit continuation messages instead of spending failure retries on progress', () => {
+    const continuation = producerBlock(readConfig(name), 'FLEET_CONTINUATIONS');
+    expect(continuation).toMatch(/^\s*queue\s*=\s*"fleet-runs"\s*$/m);
+  });
+
+  it('bounds true delivery failures independently of the ship roster', () => {
     const main = consumerBlock(readConfig(name), 'fleet-runs');
     const maxRetries = Number(/^\s*max_retries\s*=\s*(\d+)\s*$/m.exec(main)?.[1]);
-    const fleetYaml = readFileSync(`${REPO_ROOT}/pd-fleet.yml`, 'utf8');
-    const prShips = parseFleetShips(fleetYaml, 'pull_request:opened');
 
-    expect(prShips, 'repository PR fleet must parse').not.toBeNull();
-    // max_retries excludes the first delivery. The consumer intentionally
-    // returns the message after one durable ship checkpoint, so the retry
-    // budget must cover the current roster and two transient no-progress runs.
-    expect(maxRetries + 1).toBeGreaterThanOrEqual(prShips!.length + 2);
-    expect(maxRetries).toBe(12);
+    // Successful checkpoints are new messages, so this counter once again
+    // means only infrastructure failure. Three retries preserve the provider
+    // circuit's bounded probes without letting one poison delivery monopolize
+    // the serialized consumer through a roster-sized retry budget.
+    expect(maxRetries).toBe(3);
   });
 
   it('isolates deterministic merge-group gates from substantive review latency', () => {

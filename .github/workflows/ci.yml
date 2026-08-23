@@ -308,6 +308,18 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
+        if: runner.os != 'macOS'
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Run unit tests (macOS 4 GiB heap)
+        if: runner.os == 'macOS'
+        # Both recent main-branch Node 24 macOS runs reached V8's default
+        # ~2 GiB heap after more than five minutes of otherwise-passing tests.
+        # Keep the larger budget on the Jest process only, matching the
+        # required macOS Node 22 job above; setup, install, and typecheck retain
+        # their normal limits, and Linux keeps the original command unchanged.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
   integration-tests:
