@@ -2,7 +2,7 @@
   "generatedAt": 1787406790046,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 279,
+  "count": 280,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1168,6 +1168,11 @@
       "slug": "port-policy-registry",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
+    },
+    {
+      "slug": "porthole-player-website-component",
+      "status": "backlog",
+      "summaryMd": "feat(porthole): production terminal-replay player replaces landing-page GIFs"
     },
     {
       "slug": "pr2596-qa-gap-fixes",
