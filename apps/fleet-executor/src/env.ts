@@ -31,6 +31,14 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * so unit tests can omit it; absent ⇒ NOT paused (fail-safe: the gate runs).
    */
   CONTROL_KV?: KVNamespace;
+  /**
+   * Optional producer binding to the same `fleet-runs` queue this Worker
+   * consumes. A successful checkpoint sends a NEW continuation message and
+   * acknowledges the current delivery, so ordinary progress never consumes
+   * the queue's poison-message retry budget. Optional during rolling deploys;
+   * an absent binding preserves the legacy `message.retry()` continuation.
+   */
+  FLEET_CONTINUATIONS?: Queue<FleetRunJob>;
   /** Workers AI binding. */
   AI: Ai;
   /**
@@ -129,6 +137,13 @@ export interface FleetRunJob {
   repoFullName: string | null;
   installationId: number | null;
   prNumber: number | null;
+  /**
+   * Number of durable ship checkpoints that existed when this explicit
+   * continuation was produced. Relay-originated jobs omit it. The consumer
+   * uses it to keep platform retry attempts separate from successful workflow
+   * slices and to reject duplicate continuation messages after progress moves.
+   */
+  continuationSequence?: number;
   payloadMinimal: {
     sender?: Record<string, unknown>;
     repository?: Record<string, unknown>;

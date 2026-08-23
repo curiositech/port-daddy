@@ -153,6 +153,8 @@ export interface Dispatch {
    */
   failoverChain: string[] | null;
   createdAt: number;
+  /** Timestamp of an explicit `dispatch run <id>` request; cleared on claim. */
+  runRequestedAt?: number | null;
   claimedAt: number | null;
   startedAt: number | null;
   producedAt: number | null;
@@ -274,6 +276,7 @@ interface DispatchRow {
   spawned_agent_id: string | null;
   failover_chain_json: string | null;
   created_at: number;
+  run_requested_at: number | null;
   claimed_at: number | null;
   started_at: number | null;
   produced_at: number | null;
@@ -341,6 +344,7 @@ const SCHEMA_SQL = `
     -- redirect a succession already in progress.
     failover_chain_json TEXT,
     created_at INTEGER NOT NULL,
+    run_requested_at INTEGER,
     claimed_at INTEGER,
     started_at INTEGER,
     produced_at INTEGER,
@@ -443,6 +447,7 @@ function rowToDispatch(row: DispatchRow): Dispatch {
     spawnedAgentId: row.spawned_agent_id ?? null,
     failoverChain: parseFailoverChain(row.failover_chain_json),
     createdAt: row.created_at,
+    runRequestedAt: row.run_requested_at,
     claimedAt: row.claimed_at,
     startedAt: row.started_at,
     producedAt: row.produced_at,
@@ -619,6 +624,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
 
   db.exec(SCHEMA_SQL);
   migrateDispatchFailoverColumns(db);
+  const dispatchColumns = db.prepare(`PRAGMA table_info(dispatches)`).all() as Array<{ name: string }>;
+  if (!dispatchColumns.some((column) => column.name === 'run_requested_at')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN run_requested_at INTEGER`);
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_dispatches_run_request
+      ON dispatches(state, run_requested_at, created_at)
+  `);
   migrateNightshiftIntents(db, 'main');
 
   const insertStmt = db.prepare(`
@@ -683,8 +696,44 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
            worktree_path = ?,
            branch = ?,
            session_id = ?,
+           run_requested_at = NULL,
            claimed_at = COALESCE(claimed_at, ?)
      WHERE id = ? AND state = 'proposed'
+  `);
+
+  const releaseUnboundAutoClaimStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = 'proposed',
+           run_requested_at = COALESCE(run_requested_at, ?),
+           claimed_at = NULL
+     WHERE id = ?
+       AND state = 'claimed'
+       AND worker_actor_id IS NULL
+       AND worktree_path IS NULL
+       AND branch IS NULL
+       AND session_id IS NULL
+       AND started_at IS NULL
+  `);
+
+  const prioritizeProposedRunStmt = db.prepare(`
+    UPDATE dispatches
+       SET run_requested_at = COALESCE(run_requested_at, ?)
+     WHERE id = ? AND state = 'proposed'
+  `);
+
+  const restorePreparedRunStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = ?,
+           run_requested_at = ?,
+           claimed_at = ?
+     WHERE id = ?
+       AND state = 'proposed'
+       AND run_requested_at IS ?
+       AND worker_actor_id IS NULL
+       AND worktree_path IS NULL
+       AND branch IS NULL
+       AND session_id IS NULL
+       AND started_at IS NULL
   `);
 
   const startStmt = db.prepare(`
@@ -742,14 +791,18 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   const nextSelectStmt = db.prepare<[], DispatchRow>(
     `SELECT * FROM dispatches
      WHERE state = 'proposed'
-     ORDER BY created_at ASC
+     ORDER BY CASE WHEN run_requested_at IS NULL THEN 1 ELSE 0 END,
+              run_requested_at ASC,
+              created_at ASC
      LIMIT 1`,
   );
 
   const nextSelectByBaseStmt = db.prepare<[string], DispatchRow>(
     `SELECT * FROM dispatches
      WHERE state = 'proposed' AND base_branch = ?
-     ORDER BY created_at ASC
+     ORDER BY CASE WHEN run_requested_at IS NULL THEN 1 ELSE 0 END,
+              run_requested_at ASC,
+              created_at ASC
      LIMIT 1`,
   );
 
@@ -901,6 +954,80 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       ? nextSelectByBaseStmt.get(baseBranch)
       : nextSelectStmt.get();
     return row ? rowToDispatch(row) : null;
+  }
+
+  /**
+   * Prepare one explicitly selected dispatch for the daemon worker's atomic
+   * claim. The purpose of this narrow back-edge is to reconcile
+   * `propose --auto-claim` with `dispatch run`: auto-claim creates a claimed
+   * placeholder without a worker lease, while the daemon can only attach its
+   * real worktree/session lease by claiming a proposed row. The design never
+   * releases a row that already names any worker, worktree, branch, or session;
+   * such a row (or one already in progress) is returned unchanged as already
+   * queued. Review and merge-policy fields are untouched. The dedicated
+   * `run_requested_at` priority makes this exact id the canonical next claim
+   * without contaminating worker lease timestamps or teaching the daemon worker
+   * a second selector; the marker is cleared by the atomic real-worker claim.
+   *
+   * @param id - Dispatch selected by `pd dispatch run`.
+   * @returns The proposed row ready for daemon claim, or the unchanged row when
+   *          a real worker already owns it.
+   */
+  function prepareForRun(id: string): Dispatch {
+    const existing = selectByIdStmt.get(id);
+    if (!existing) throw new Error(`prepareForRun: dispatch ${id} not found`);
+    if (existing.state === 'proposed') {
+      prioritizeProposedRunStmt.run(now(), id);
+      const prioritized = selectByIdStmt.get(id);
+      if (!prioritized) throw new Error(`prepareForRun: dispatch ${id} vanished`);
+      return rowToDispatch(prioritized);
+    }
+    if (existing.state === 'in_progress') return rowToDispatch(existing);
+    if (existing.state !== 'claimed') {
+      throw new Error(`prepareForRun: cannot run dispatch in state ${existing.state}`);
+    }
+
+    const hasWorkerLease = existing.worker_actor_id !== null
+      || existing.worktree_path !== null
+      || existing.branch !== null
+      || existing.session_id !== null
+      || existing.started_at !== null;
+    if (hasWorkerLease) return rowToDispatch(existing);
+
+    releaseUnboundAutoClaimStmt.run(now(), id);
+    const updated = selectByIdStmt.get(id);
+    if (!updated) throw new Error(`prepareForRun: dispatch ${id} vanished`);
+    if (updated.state !== 'proposed' && updated.state !== 'claimed' && updated.state !== 'in_progress') {
+      throw new Error(`prepareForRun: dispatch ${id} changed to state ${updated.state}`);
+    }
+    return rowToDispatch(updated);
+  }
+
+  /**
+   * Undo only the reversible queue preparation performed for one failed daemon
+   * request. The compare-and-set on `run_requested_at` plus empty lease fields
+   * prevents rollback from stealing a row that the worker claimed meanwhile.
+   */
+  function restorePreparedRun(original: Dispatch, prepared: Dispatch): Dispatch {
+    if (original.id !== prepared.id) {
+      throw new Error('restorePreparedRun: snapshots must describe the same dispatch');
+    }
+    if (original.state !== 'proposed' && original.state !== 'claimed') {
+      const unchanged = selectByIdStmt.get(original.id);
+      if (!unchanged) throw new Error(`restorePreparedRun: dispatch ${original.id} not found`);
+      return rowToDispatch(unchanged);
+    }
+
+    restorePreparedRunStmt.run(
+      original.state,
+      original.runRequestedAt ?? null,
+      original.claimedAt,
+      original.id,
+      prepared.runRequestedAt ?? null,
+    );
+    const restored = selectByIdStmt.get(original.id);
+    if (!restored) throw new Error(`restorePreparedRun: dispatch ${original.id} vanished`);
+    return rowToDispatch(restored);
   }
 
   function claimProposed(input: ClaimDispatchInput): Dispatch | null {
@@ -1168,6 +1295,8 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     getBySessionId,
     list,
     peekNextProposed,
+    prepareForRun,
+    restorePreparedRun,
     claimProposed,
     claim,
     nextProposed,

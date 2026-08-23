@@ -32,6 +32,7 @@ import type { Dispatch, DispatchQueue, DispatchBackend } from './queue.js';
 import { decideFailover } from './failover.js';
 import { deriveBranchName } from './queue.js';
 import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
+import { buildCliTubeArgs } from '../spawner/backends/cli-tube-provider-specs.js';
 
 // Re-export the canonical DispatchBackend (defined in ./queue.js to avoid an
 // import cycle) so existing importers of `runner.js` keep working unchanged.
@@ -276,21 +277,13 @@ export function buildSpawnArgv(
     return { command: 'claude', args };
   }
   if (backend === 'cli:codex') {
-    // `codex exec` is non-interactive by construction. We pass `--sandbox
-    // workspace-write` for blast-radius (writes confined to the worktree) and
-    // NOT the legacy `--full-auto` flag, which recent codex deprecates in favor
-    // of `--sandbox` ("warning: `--full-auto` is deprecated; use `--sandbox
-    // workspace-write` instead"). The deprecation warning was polluting the
-    // captured transcript and the redundant flag bought nothing.
-    const args = [
-      'exec',
-      '--skip-git-repo-check',
-      '--sandbox', 'workspace-write',
-      '-C', worktreePath,
-      '--json',
-    ];
-    if (model) args.push('--model', model);
-    args.push(goal);
+    // The cli-tube provider registry is the canonical Codex policy contract.
+    // Its --approve-for-me mode already supplies auto-reviewed workspace-write;
+    // adding an explicit --sandbox beside it is a hard Codex parse error. Keep
+    // dispatch's runner-only -C argument, but derive every confinement/approval
+    // flag from the shared provider builder so the two launch paths cannot drift.
+    const args = [...buildCliTubeArgs('codex', { prompt: goal, model }).args];
+    args.splice(-1, 0, '-C', worktreePath);
     return { command: 'codex', args };
   }
   // gemini / groq / grok — all three share the claude-code-style headless
@@ -336,8 +329,8 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
     rationale.push('claude bypass = --dangerously-skip-permissions');
     rationale.push('blast-radius = wrapper deny-list (PR #161 destructive-op shim is the floor)');
   } else if (backend === 'cli:codex') {
-    rationale.push('codex sandbox = --sandbox workspace-write (self-confining; not double-wrapped)');
-    rationale.push('blast-radius = codex sandbox enforces workspace-write');
+    rationale.push('codex approval = --approve-for-me (auto-reviewed workspace-write; no explicit --sandbox)');
+    rationale.push('blast-radius = codex auto-reviewed workspace-write mode (self-confining; not double-wrapped)');
   } else {
     // gemini / groq / grok have no built-in OS sandbox; the isolated worktree
     // under ~/coding/tmp is the blast-radius boundary (same as claude-code).

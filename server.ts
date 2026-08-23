@@ -71,6 +71,7 @@ import { buildHandoffFromTranscript } from './lib/dispatch/handoff-from-transcri
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -742,6 +743,13 @@ const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 
+// Hash-chain the transcript facts the spawner already persists into Agent
+// Harbor. This is an evidence feeder, not a second transcript store.
+const spawnerHarborBridge = createSpawnerHarborBridge(db, {
+  episodicMemory,
+  logger,
+});
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -755,6 +763,7 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
+  harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
