@@ -10,6 +10,7 @@ import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
+import { createReaperSoulResolver, type SessionBindingLookup } from './agent-soul-binding.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
@@ -163,8 +164,21 @@ interface ResourceCheck {
 }
 
 interface LocksLike {
-  list(options: { owner: string }): { locks?: Array<{ name: string }> };
+  list(options: { owner: string }): { locks?: Array<{ name: string; metadata?: unknown }> };
   release(name: string, options: { force: boolean }): void;
+}
+
+/**
+ * How `cleanup()` decides whether a dying DISPLAY handle is allowed to take a
+ * lock with it.
+ *
+ * See the long note in cleanup() itself. Either supply `resolveAgentActorId`
+ * directly, or the `souls`/`sessions` pair and one is built for you via
+ * lib/agent-soul-binding.ts.
+ */
+export interface CleanupOptions {
+  resolveAgentActorId?: (agentId: string) => string | null;
+  sessions?: SessionBindingLookup | null;
 }
 
 interface AgentsOptions {
@@ -774,7 +788,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   /**
    * Cleanup stale agents and release their resources
    */
-  function cleanup(locks?: LocksLike) {
+  function cleanup(locks?: LocksLike, options: CleanupOptions = {}) {
     const now = Date.now();
     // Cleanup is an operational death decision, not a display concern.
     // Agents may be "inactive" after 2 minutes for UI purposes while still
@@ -785,14 +799,53 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
 
     let releasedLocks = 0;
 
+    // Resolve a dying display handle to the minted soul whose credentialed
+    // act created it — the daemon-written session stamp, NOT the alias table
+    // (see lib/agent-soul-binding.ts for why the alias is not evidence here).
+    // Null means "no ownership claim proved", which is NOT "unowned".
+    const resolveActorId = options.resolveAgentActorId
+      ?? (options.sessions ? createReaperSoulResolver({ sessions: options.sessions }) : () => null);
+
     for (const agent of cleanupCandidates) {
       // Release locks owned by this agent.
       // Note: services don't track agent ownership (no agent_id column),
       // so service cleanup relies on expires_at TTL and PID liveness checks
       // in services.cleanup() instead.
+      //
+      // ─── Why this consults the lock's soul stamp ───────────────────────
+      // `locks.owner` is a DISPLAY string and `agents.id` is a DISPLAY
+      // handle that anyone can create with one uncredentialed
+      // POST /agents/:id/heartbeat (it auto-registers). Matching those two
+      // strings and calling release(force: true) skipped the soul-level
+      // ownership check that makes the lock plane enforced
+      // (routes/locks.ts' LOCK_OWNER_MISMATCH) — so the potent primitive was
+      // not forging a heartbeat but WITHHOLDING one: register a handle equal
+      // to a lock's owner string, stop heartbeating, and the reaper destroys
+      // a lock held by a different, credentialed soul.
+      //
+      // The rule now: a lock carrying a stamped actorId is released only when
+      // the dying handle resolves to THAT soul. When it does not — including
+      // when nothing can prove the binding at all — the lock is left to its
+      // TTL, which is the correct fail-closed outcome: expiry loses a few
+      // minutes, force-release loses another agent's mutual exclusion.
+      // Unstamped locks have no ownership claim to honour and keep the
+      // historical owner-string behaviour.
+      // Regression test: tests/unit/heartbeat-lock-invariant.test.js.
       if (locks) {
         const lockResult = locks.list({ owner: agent.id });
-        for (const lock of lockResult.locks || []) {
+        const candidateLocks = lockResult.locks || [];
+        let agentActorId: string | null | undefined;
+        for (const lock of candidateLocks) {
+          const metadata = lock.metadata && typeof lock.metadata === 'object' && !Array.isArray(lock.metadata)
+            ? lock.metadata as Record<string, unknown>
+            : null;
+          const stampedActor = typeof metadata?.actorId === 'string' && metadata.actorId
+            ? metadata.actorId
+            : null;
+          if (stampedActor) {
+            if (agentActorId === undefined) agentActorId = resolveActorId(agent.id);
+            if (agentActorId !== stampedActor) continue;
+          }
           locks.release(lock.name, { force: true });
           releasedLocks++;
         }

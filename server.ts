@@ -1212,7 +1212,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
     }
 
-    const agentCleanup = agents.cleanup(locks);
+    // `sessions` is what lets the reaper tell whether a dying DISPLAY handle
+    // is actually the soul that holds a stamped lock. Without it the reaper
+    // fails closed and leaves stamped locks to their TTL — correct, but it
+    // means a genuinely dead agent's locks linger, so this must stay wired.
+    // See lib/agent-soul-binding.ts and
+    // tests/unit/heartbeat-lock-invariant.test.js.
+    const agentCleanup = agents.cleanup(locks, { sessions });
     if (agentCleanup.cleaned > 0) {
       logger.info('agent_cleanup', agentCleanup);
       activityLog.log(ActivityType.AGENT_CLEANUP, {

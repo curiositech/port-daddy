@@ -163,3 +163,23 @@ on every instruction. It is not authentication of the local host.
   acquire/release/extend (including `LOCK_OWNER_MISMATCH` and the deleted
   anonymous fallback), salvage claim/complete/abandon/dismiss (both route
   families), commitments create/close ownership.
+- `tests/unit/inbox-identity-boundary.test.js` — the inbox plane, both doors
+  (`POST /agents/:id/inbox` and `POST /actors/:id/message`): uncredentialed
+  401, forged 401, another soul's alias 403, **a NEVER-MINTED `from` string
+  403** (the case a locks-shaped gate admits — without it the slice would be
+  theater), `'system'` specifically refused, server-derived attribution when
+  `from` is omitted, both accepted bindings (bound alias; ACTIVE session
+  stamp), an unverified session stamp conferring nothing, verifier-down 503,
+  the caller unable to pre-fill `from_actor_id`/`from_soul_class`, and — the
+  instruction-channel proof — a rejected request never reaching `hailAgent`.
+  Plus the regression that `sugar.begin` must leave the daemon's identity
+  stamp intact, which the session binding depends on.
+- `tests/unit/heartbeat-lock-invariant.test.js` — the uncredentialed
+  heartbeat plane must not reach into the enforced lock plane. Pins the live
+  bug (`agents.cleanup` force-releasing a stamped lock on a display-string
+  match), the subtler variant where the attacker holds a real credential and
+  opens a session under the victim's display name, the fail-closed path when
+  no sessions store is wired, and the two cases that stop the fix from
+  degrading into "never release anything". Its closing note states plainly
+  what the suite does NOT enforce, and why a mechanical
+  "no projection keys on a display handle" test cannot exist here.

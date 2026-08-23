@@ -58,12 +58,13 @@ import {
   type IdentityVerifier,
   type IdentityWriteVerdict,
 } from './identity-write-boundary.js';
+import { resolveSessionSoul, type SessionBindingLookup } from './agent-soul-binding.js';
 
 /** The verified half of a write verdict — the only success shape this gate returns. */
 export type VerifiedWriteVerdict = Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
 
 /** The subset of the sessions manager the binding lookup needs. */
-export interface InboxSessionLookup {
+export interface InboxSessionLookup extends SessionBindingLookup {
   activeSessionIdsByAgent(agentId: string): string[];
   get(sessionId: string): { success: boolean; session?: unknown };
 }
@@ -117,29 +118,12 @@ export function resolveAgentSoul(
   sessions: InboxSessionLookup | null | undefined,
   agentId: string,
 ): string | null {
-  if (!sessions || !agentId) return null;
-  let sessionIds: string[];
-  try {
-    sessionIds = sessions.activeSessionIdsByAgent(agentId);
-  } catch {
-    return null;
-  }
-  for (const sessionId of sessionIds) {
-    let record: { success: boolean; session?: unknown };
-    try {
-      record = sessions.get(sessionId);
-    } catch {
-      continue;
-    }
-    if (!record?.success) continue;
-    const metadata = (record.session as { metadata?: unknown } | undefined)?.metadata;
-    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) continue;
-    const stamp = (metadata as { identity?: unknown }).identity;
-    if (!stamp || typeof stamp !== 'object' || Array.isArray(stamp)) continue;
-    const { verified, actorId } = stamp as { verified?: unknown; actorId?: unknown };
-    if (verified === true && typeof actorId === 'string' && actorId) return actorId;
-  }
-  return null;
+  // ACTIVE sessions only. This is a live authorization question ("may this
+  // caller send as this name right now?"), so a completed session must not
+  // leave its agentId behind as a permanent forging handle. The reaper asks
+  // the historical version of this question and passes includeClosed — see
+  // lib/agent-soul-binding.ts.
+  return resolveSessionSoul(sessions, agentId, { includeClosed: false });
 }
 
 export interface InboxIdentityDeps {
