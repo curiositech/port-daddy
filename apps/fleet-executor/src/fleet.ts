@@ -153,29 +153,13 @@ const WORKING_CF_MODEL = CHEAP_CF_MODEL; // guard fallback: cheap + verified wor
 const DEFAULT_CF_MODEL = CHEAP_CF_MODEL; // every ship except the review bot
 const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
 
-/**
- * MID TIER — for the steps where the cheap model's output is not good enough but
- * the review bot's model is more than the job needs.
- *
- * Note the shape: the mid tier is several times the ship default on INPUT but
- * cheaper on OUTPUT. So it is the wrong choice for a step that reads a large
- * diff and emits a little (planning), and a defensible one for a step that reads
- * the same diff and emits a whole file (authoring) — the difference between test
- * code that runs and test code that merely looks like it does.
- *
- * Unit prices are NOT repeated here. They used to be, as a comment block that
- * had to be kept true by hand; they now live on the model's one catalog row in
- * config/models.yaml, which is also where the rate and context window that make
- * the id admissible live. A price in a comment is a price that goes stale
- * silently.
- *
- * The tier was the purser AUTHOR default from #6813 until 2026-08-22, on the
- * theory that a dense 20B beats a 30B MoE with ~3B active parameters at writing
- * runnable code. The live D1 record refuted it at fleet scale (75% author-repair
- * failure); the `author` role now points elsewhere and this tier remains an
- * explicit operator opt-down, never again the default for a fleet-gating step.
- */
-const MID_CF_MODEL = CF_ROLE_MODELS.shipMid;
+// The mid tier has no constant here any more. It had one because the purser's
+// AUTHOR step defaulted to it; that default moved to the `author` role on live
+// evidence, leaving this binding unreferenced. The tier is still reachable —
+// `cf_role: shipMid` resolves through CF_ROLE_MODELS like any other role — and
+// everything the constant's docblock explained (the input-heavy/output-heavy
+// shape, and why #6813's theory was retired) now lives on the catalog rows in
+// config/models.yaml, next to the prices that make the argument.
 
 
 /**

@@ -35,6 +35,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+const { resolveModel } = await import('../../lib/model-registry.js');
 const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
 const TEST_WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
 if (!TEST_WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
@@ -1437,7 +1438,10 @@ describe('spawn — gemini backend', () => {
 
     expect(result.status).toBe('completed');
     expect(result.output).toBe('PONG');
-    expect(result.model).toBe('gemini-2.5-flash');
+    // The backend's DEFAULT is the contract, not a particular id: the spawn must
+    // land on whatever the registry's cheap rung for gemini resolves to. The
+    // literal here was two generations stale.
+    expect(result.model).toBe(resolveModel({ backend: 'gemini', capability: 'cheap' }));
     expect(result.telemetry).toMatchObject({ rateMode: 'exact', inputTokens: 7, outputTokens: 44 });
     // thoughtsTokenCount folded into output: 2 + 42 = 44.
     expect(costTracker.record).toHaveBeenCalledWith(

@@ -83,6 +83,7 @@ jest.unstable_mockModule('yaml', () => ({
 
 const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology } = await import('../../lib/fleet-engine.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
+const { resolveModel } = await import('../../lib/model-registry.js');
 const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
 
 const DAEMON_URL = getDaemonTcpUrl('http://127.0.0.1:4319');
@@ -573,12 +574,21 @@ test('maps model_tier to a backend-specific model', () => {
 });
 
 test('maps model_tier for every backend family with built-in tiers', () => {
+  // The tier MAPPING is what this test owns — that `mid` reaches the balanced
+  // rung for each family — not which id currently fills that rung. Pinning the
+  // id made this fail whenever a rung moved for a good reason, which is a false
+  // alarm dressed as a regression. Backends whose lineup lives outside the
+  // registry (ollama pulls from the running daemon, custom is operator-defined)
+  // keep their literals, because for those the literal IS the contract.
   const expectations = [
     [{ backend: 'ollama', modelTier: 'high' }, 'qwen2.5-coder:14b'],
-    [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
     [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
-    [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
-    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/openai/gpt-oss-120b'],
+    [{ backend: 'aider', modelTier: 'mid' }, resolveModel({ backend: 'aider', tier: 'mid' })],
+    [{ backend: 'codex', modelTier: 'low' }, resolveModel({ backend: 'codex', tier: 'low' })],
+    [
+      { backend: 'cloudflare', modelTier: 'mid' },
+      resolveModel({ backend: 'cloudflare', tier: 'mid' }),
+    ],
   ];
 
   for (const [agent, expectedModel] of expectations) {

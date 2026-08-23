@@ -34,14 +34,14 @@
       "low": "grok-code-fast-1"
     },
     "openai": {
-      "high": "gpt-5.5",
-      "mid": "gpt-5.4",
-      "low": "gpt-5-mini"
+      "high": "gpt-5.6-sol",
+      "mid": "gpt-5.6-terra",
+      "low": "gpt-5.6-luna"
     },
     "cloudflare": {
-      "high": "@cf/zai-org/glm-5.2",
-      "mid": "@cf/openai/gpt-oss-120b",
-      "low": "@cf/zai-org/glm-4.7-flash"
+      "high": "@cf/openai/gpt-oss-120b",
+      "mid": "@cf/openai/gpt-oss-20b",
+      "low": "@cf/qwen/qwen3-30b-a3b-fp8"
     },
     "ollama": {
       "high": "qwen2.5-coder:14b",

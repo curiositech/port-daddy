@@ -1,4 +1,5 @@
 import { assessBackendTelemetryPolicy } from '../../lib/backend-telemetry-policy.js';
+import { resolveModel } from '../../lib/model-registry.js';
 
 describe('backend telemetry policy', () => {
   test('allows Claude only when the model has an exact rate entry', () => {
@@ -85,9 +86,13 @@ describe('backend telemetry policy', () => {
   });
 
   test('allows Cloudflare when the model has an exact rate entry', () => {
+    // What must hold is that the policy's effective model is the SAME id the
+    // resolver picks — otherwise launch is permitted against a model the run
+    // will not use, and the rate check blessed the wrong row. Which id fills the
+    // cheap rung is a fleet decision that moves on measurement.
     const policy = assessBackendTelemetryPolicy('cloudflare');
     expect(policy.launchAllowed).toBe(true);
-    expect(policy.effectiveModel).toBe('@cf/zai-org/glm-4.7-flash');
+    expect(policy.effectiveModel).toBe(resolveModel({ backend: 'cloudflare', capability: 'cheap' }));
   });
 
   test('allows Gemini with the default (gemini-3.7-flash) when none is supplied', () => {
