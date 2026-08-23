@@ -127,33 +127,39 @@ function runGit(args, { allowFailure = false } = {}) {
  * evidence is printed by CI so a reviewer can reconstruct the cutover.
  *
  * @param {{baselineSha: string, migrationSha: string, expectedTag: string}} input Dispatch inputs.
+ * @param {(args: string[], options?: {allowFailure?: boolean}) =>
+ *   {status: number, stdout: string, stderr: string}} runGitCommand Git runner;
+ *   injectable only so failure boundaries are deterministic in tests.
  * @returns {{baselineSha: string, migrationSha: string, expectedTag: string, baselineMigrationTag: string | null, candidateMigrationTag: string, relayFilesChanged: string[], lifecycleKeys: string[]}} Auditable evidence.
  */
-export function validateRepositoryBoundary({ baselineSha, migrationSha, expectedTag }) {
+export function validateRepositoryBoundary(
+  { baselineSha, migrationSha, expectedTag },
+  runGitCommand = runGit,
+) {
   validateFullSha('baseline_sha', baselineSha);
   validateFullSha('migration_sha', migrationSha);
 
   for (const sha of [baselineSha, migrationSha]) {
-    if (runGit(['merge-base', '--is-ancestor', sha, 'origin/main'], { allowFailure: true }).status !== 0) {
+    if (runGitCommand(['merge-base', '--is-ancestor', sha, 'origin/main'], { allowFailure: true }).status !== 0) {
       throw new Error(`${sha} is not an ancestor of origin/main`);
     }
   }
-  if (runGit(['merge-base', '--is-ancestor', baselineSha, migrationSha], { allowFailure: true }).status !== 0) {
+  if (runGitCommand(['merge-base', '--is-ancestor', baselineSha, migrationSha], { allowFailure: true }).status !== 0) {
     throw new Error('baseline_sha must be an ancestor of migration_sha');
   }
 
-  const baselineSource = runGit(['show', `${baselineSha}:${CONFIG_PATH}`]).stdout;
-  const candidateSource = runGit(['show', `${migrationSha}:${CONFIG_PATH}`]).stdout;
+  const baselineSource = runGitCommand(['show', `${baselineSha}:${CONFIG_PATH}`]).stdout;
+  const candidateSource = runGitCommand(['show', `${migrationSha}:${CONFIG_PATH}`]).stdout;
   const sequence = validateMigrationSequence({ baselineSource, candidateSource, expectedTag });
 
-  const d1Changes = runGit([
+  const d1Changes = runGitCommand([
     'diff', '--name-only', `${baselineSha}..${migrationSha}`, '--', D1_MIGRATIONS_PATH,
   ]).stdout.trim();
   if (d1Changes) {
     throw new Error(`D1 migrations belong to the staging-first lane, not this atomic lane: ${d1Changes}`);
   }
 
-  const relayFilesChanged = runGit([
+  const relayFilesChanged = runGitCommand([
     'diff', '--name-only', `${baselineSha}..${migrationSha}`, '--', 'apps/relay',
   ]).stdout.trim().split('\n').filter(Boolean);
   if (relayFilesChanged.length === 0) {
