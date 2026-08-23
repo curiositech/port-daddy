@@ -722,6 +722,42 @@ describe('POST /v1/harbors/:ns/:name/join', () => {
     }
   });
 
+  it('same-invitee concurrent redemption: two joins by ONE user on ONE invite — one 201, one idempotent 200, one tick', async () => {
+    const invite = await mintInvite(env);
+    // Premise: one live invite, carol is not a member, epoch is 2.
+    expect(state.invites).toHaveLength(1);
+    expect(state.invites[0]!.consumed_at).toBeNull();
+    expect(state.memberships.some((m) => m.member_id === 'u_carol')).toBe(false);
+    expect(await epochOf(env)).toBe(2);
+
+    const [a, b] = await Promise.all([
+      handleJoinHarbor(
+        req('/v1/harbors/alice/dock/join', { method: 'POST', token: CAROL_TOKEN, body: { token: invite.token } }),
+        env, 'alice', 'dock',
+      ),
+      handleJoinHarbor(
+        req('/v1/harbors/alice/dock/join', { method: 'POST', token: CAROL_TOKEN, body: { token: invite.token } }),
+        env, 'alice', 'dock',
+      ),
+    ]);
+
+    // Unlike the two-user race, the CAS loser here IS the consume winner's
+    // identity, so it takes the consumed-by-me branch — standing-membership
+    // replay or crash-window repair, both 200 joined:false — never the
+    // byte-identical 404, which is reserved for everyone else.
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual([200, 201]);
+    const loser = a.status === 200 ? a : b;
+    expect(((await loser.json()) as { joined: boolean }).joined).toBe(false);
+
+    // One membership row and exactly one epoch tick, whichever interleaving
+    // ran: a duplicate INSERT in the repair window aborts its whole batch, so
+    // the clock cannot double-count the same membership change.
+    expect(state.memberships.filter((m) => m.member_id === 'u_carol')).toHaveLength(1);
+    expect(await epochOf(env)).toBe(3);
+    expect(state.invites[0]!.consumed_by).toBe('u_carol');
+  });
+
   it('an expired invite joins like no invite at all — premise-asserted live otherwise', async () => {
     const invite = await mintInvite(env);
     const row = state.invites.find((i) => i.jti === invite.jti)!;
