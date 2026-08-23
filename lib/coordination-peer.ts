@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseInstance } from './sqlite-runtime.js';
 import {
+  COORDINATION_MAX_HLC_COUNTER,
   COORDINATION_WIRE_VERSION,
   compareOperations,
   coordinationOpId,
@@ -25,6 +26,7 @@ import {
   type CoordinationSyncResponse,
   type CoordinationValue,
   type HybridLogicalClock,
+  validateCoordinationClockSkew,
   validateCoordinationOperation,
 } from './coordination-ledger.js';
 
@@ -57,6 +59,8 @@ export interface CoordinationPeerConfig {
   url: string;
   project: string;
   actorId: string;
+  /** Unique daemon/process replica. Defaults to actorId for compatibility. */
+  replicaId?: string;
   macaroon: string;
   intervalMs?: number;
 }
@@ -66,6 +70,7 @@ export interface CoordinationPeerStatus {
   connected: boolean;
   project: string | null;
   actorId: string | null;
+  replicaId: string | null;
   cursor: number;
   outbox: number;
   lastSyncAt: number | null;
@@ -154,6 +159,15 @@ function safeMetadata(value: unknown): Record<string, unknown> | null {
   return asRecord(value);
 }
 
+function parseStoredMetadata(value: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    return safeMetadata(JSON.parse(value));
+  } catch {
+    return null;
+  }
+}
+
 function numberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
@@ -183,8 +197,9 @@ export function coordinationPeerConfigFromEnv(
   const url = env.PORT_DADDY_COORDINATION_URL?.trim();
   const project = env.PORT_DADDY_COORDINATION_PROJECT?.trim();
   const actorId = env.PORT_DADDY_COORDINATION_ACTOR?.trim();
+  const replicaId = env.PORT_DADDY_COORDINATION_REPLICA?.trim();
   const macaroon = secret('PORT_DADDY_COORDINATION_MACAROON')?.trim();
-  if (!url && !project && !actorId && !macaroon) return null;
+  if (!url && !project && !actorId && !replicaId && !macaroon) return null;
   if (!url || !project || !actorId || !macaroon) {
     throw new Error(
       'coordination peer requires PORT_DADDY_COORDINATION_URL, _PROJECT, _ACTOR, and _MACAROON together',
@@ -194,7 +209,11 @@ export function coordinationPeerConfigFromEnv(
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
     throw new Error('PORT_DADDY_COORDINATION_URL must use http or https');
   }
-  if (!isCoordinationScopeId(project, 200) || !isCoordinationScopeId(actorId)) {
+  if (
+    !isCoordinationScopeId(project, 200)
+    || !isCoordinationScopeId(actorId)
+    || (replicaId !== undefined && !isCoordinationScopeId(replicaId))
+  ) {
     throw new Error('coordination project/actor contains unsupported characters');
   }
   const rawInterval = Number(env.PORT_DADDY_COORDINATION_INTERVAL_MS ?? DEFAULT_SYNC_INTERVAL_MS);
@@ -202,7 +221,14 @@ export function coordinationPeerConfigFromEnv(
     MIN_SYNC_INTERVAL_MS,
     Math.min(MAX_SYNC_INTERVAL_MS, Number.isFinite(rawInterval) ? Math.floor(rawInterval) : DEFAULT_SYNC_INTERVAL_MS),
   );
-  return { url: parsed.toString().replace(/\/$/, ''), project, actorId, macaroon, intervalMs };
+  return {
+    url: parsed.toString().replace(/\/$/, ''),
+    project,
+    actorId,
+    replicaId: replicaId ?? actorId,
+    macaroon,
+    intervalMs,
+  };
 }
 
 export class CoordinationPeer {
@@ -225,6 +251,7 @@ export class CoordinationPeer {
     this.locks = deps.locks;
     this.config = {
       ...deps.config,
+      replicaId: deps.config.replicaId ?? deps.config.actorId,
       intervalMs: deps.config.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS,
     };
     this.fetchImpl = deps.fetch ?? globalThis.fetch;
@@ -255,6 +282,7 @@ export class CoordinationPeer {
       connected: this.connected,
       project: this.config.project,
       actorId: this.config.actorId,
+      replicaId: this.config.replicaId,
       cursor: state.cursor,
       outbox: outbox.count,
       lastSyncAt: this.lastSyncAt,
@@ -287,7 +315,7 @@ export class CoordinationPeer {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            replicaId: this.config.actorId,
+            replicaId: this.config.replicaId,
             actorId: this.config.actorId,
             since: state.cursor,
             operations,
@@ -374,12 +402,16 @@ export class CoordinationPeer {
 
   private nextClock(): HybridLogicalClock {
     const state = this.state();
-    const wallTime = Math.max(Math.floor(this.now()), state.hlc_wall);
-    const counter = wallTime === state.hlc_wall ? state.hlc_counter + 1 : 0;
+    let wallTime = Math.max(Math.floor(this.now()), state.hlc_wall);
+    let counter = wallTime === state.hlc_wall ? state.hlc_counter + 1 : 0;
+    if (counter > COORDINATION_MAX_HLC_COUNTER) {
+      wallTime += 1;
+      counter = 0;
+    }
     this.db.prepare(`
       UPDATE coordination_peer_state SET hlc_wall = ?, hlc_counter = ?, updated_at = ? WHERE project = ?
     `).run(wallTime, counter, this.now(), this.config.project);
-    return { wallTime, counter, replicaId: this.config.actorId };
+    return { wallTime, counter, replicaId: this.config.replicaId };
   }
 
   private observeClock(clock: HybridLogicalClock): void {
@@ -485,7 +517,7 @@ export class CoordinationPeer {
       entities.push({
         kind: 'note',
         localKey,
-        entityId: mapped?.entity_id ?? `note-${digest(`${this.config.actorId}:${localKey}`).slice(0, 40)}`,
+        entityId: mapped?.entity_id ?? `note-${digest(`${this.config.replicaId}:${note.sessionId}:${localKey}`).slice(0, 40)}`,
         value,
       });
     }
@@ -542,10 +574,10 @@ export class CoordinationPeer {
     const clock = this.nextClock();
     const operation: CoordinationOperation = {
       version: COORDINATION_WIRE_VERSION,
-      opId: coordinationOpId(this.config.actorId, kind, entityId, clock),
+      opId: coordinationOpId(this.config.replicaId, kind, entityId, clock),
       project: this.config.project,
       actorId: this.config.actorId,
-      replicaId: this.config.actorId,
+      replicaId: this.config.replicaId,
       kind,
       entityId,
       mutation,
@@ -625,36 +657,43 @@ export class CoordinationPeer {
       throw new Error('coordination sync acknowledged an operation outside the submitted batch');
     }
     const ordered = [...result.operations].sort((a, b) => a.cursor - b.cursor);
-    let expectedCursor = this.state().cursor;
+    const currentCursor = this.state().cursor;
+    let expectedCursor = currentCursor;
     for (const entry of ordered) {
       if (!Number.isSafeInteger(entry?.cursor) || entry.cursor !== expectedCursor + 1) {
         throw new Error('non-contiguous coordination cursor');
       }
       const reason = validateCoordinationOperation(entry.operation);
+      const skewReason = reason ? null : validateCoordinationClockSkew(entry.operation, this.now());
       if (
         reason
+        || skewReason
         || entry.operation.project !== this.config.project
-        || entry.operation.actorId !== entry.operation.replicaId
       ) {
-        throw new Error(`invalid coordination operation: ${reason ?? 'scope mismatch'}`);
+        throw new Error(`invalid coordination operation: ${reason ?? skewReason ?? 'scope mismatch'}`);
       }
-      this.applyOperation(entry.operation);
-      this.observeClock(entry.operation.clock);
       expectedCursor = entry.cursor;
     }
     if (ordered.length > 0 && result.cursor !== expectedCursor) {
       throw new Error('coordination response cursor does not match operation page');
     }
-    if (ordered.length === 0 && result.cursor !== this.state().cursor) {
+    if (ordered.length === 0 && result.cursor !== currentCursor) {
       throw new Error('coordination response advanced cursor without operations');
     }
-    if (result.accepted.length > 0) {
-      const remove = this.db.prepare('DELETE FROM coordination_peer_outbox WHERE project = ? AND op_id = ?');
-      for (const opId of result.accepted) remove.run(this.config.project, opId);
-    }
-    this.db.prepare(`
-      UPDATE coordination_peer_state SET cursor = ?, updated_at = ? WHERE project = ?
-    `).run(result.cursor, this.now(), this.config.project);
+    const applyPage = this.db.transaction(() => {
+      for (const entry of ordered) {
+        this.applyOperation(entry.operation);
+        this.observeClock(entry.operation.clock);
+      }
+      if (result.accepted.length > 0) {
+        const remove = this.db.prepare('DELETE FROM coordination_peer_outbox WHERE project = ? AND op_id = ?');
+        for (const opId of result.accepted) remove.run(this.config.project, opId);
+      }
+      this.db.prepare(`
+        UPDATE coordination_peer_state SET cursor = ?, updated_at = ? WHERE project = ?
+      `).run(result.cursor, this.now(), this.config.project);
+    });
+    applyPage();
   }
 
   private applyOperation(operation: CoordinationOperation): void {
@@ -807,7 +846,7 @@ export class CoordinationPeer {
       | { owner: string; metadata: string | null }
       | undefined;
     if (existing) {
-      const metadata = existing.metadata ? safeMetadata(JSON.parse(existing.metadata)) : null;
+      const metadata = parseStoredMetadata(existing.metadata);
       let identityProject = typeof metadata?.identityProject === 'string' ? metadata.identityProject : null;
       if (!identityProject) {
         const owner = this.db.prepare('SELECT identity_project FROM agents WHERE id = ?').get(existing.owner) as

@@ -103,14 +103,11 @@ export async function handleCoordinationSync(
     return error('BAD_JSON', 'Request body must be JSON', 400);
   }
   if (
-    typeof body?.actorId !== 'string'
-    || typeof body?.replicaId !== 'string'
+    !isCoordinationScopeId(body?.actorId)
+    || !isCoordinationScopeId(body?.replicaId)
     || !Array.isArray(body?.operations)
   ) {
     return error('VALIDATION_ERROR', 'Malformed coordination sync envelope', 400);
-  }
-  if (body.actorId !== body.replicaId) {
-    return error('SCOPE_MISMATCH', 'actorId and replicaId must match for this peer grant', 403);
   }
   if (body.operations.some((operation) => operation?.project !== project)) {
     return error('SCOPE_MISMATCH', 'Every operation must match the room project', 403);

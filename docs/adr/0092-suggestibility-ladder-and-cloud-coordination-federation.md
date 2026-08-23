@@ -162,9 +162,17 @@ The shipped peer is an append-only CRDT/oplog, not a remote database mount:
   Local mutations never wait for this loop, and network errors leave the outbox
   intact for retry.
 - Sessions, claims, and logical leases are deterministic HLC-ordered LWW
-  registers; notes are immutable grow-only entries. Claims from different
-  sessions have distinct entity identities, so a partitioned claim on either
-  peer survives union on reconvergence.
+  registers; notes are immutable grow-only entries. Inbound clocks are bounded
+  to five minutes of future skew and a finite logical counter, so one malformed
+  peer cannot permanently dominate later honest writes. A pulled page is
+  validated and applied in one SQLite transaction with its cursor advance;
+  partial application rolls back before retry. Claims from different sessions
+  have distinct entity identities, so a partitioned claim on either peer
+  survives union on reconvergence.
+- Macaroons authorize a stable actor, while every daemon process uses a unique
+  replica id in its HLC and operation ids. Concurrent sandboxes therefore do
+  not collapse into one CRDT replica or reuse note identities merely because
+  they share the same fleet actor grant.
 - Logical lock leases replicate for visibility and convergence only. They are
   not process locks, port locks, or proof of global mutual exclusion during a
   partition. Ports, PIDs, sockets, supervision, and exclusive machine-local
@@ -172,7 +180,15 @@ The shipped peer is an append-only CRDT/oplog, not a remote database mount:
 - `apps/fleet-executor/src/sandbox-runner.ts` builds the compiled binary, boots
   a real isolated daemon with `PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and
   `PORT_DADDY_SOCK`, waits for health, and creates the cloud session with the
-  compiled `pd begin` path before sandbox work runs.
+  compiled `pd begin` path before sandbox work runs. Checkout, dependency
+  installation, daemon launch, and tests are separate Sandbox process scopes:
+  the repository token reaches only Git, and the coordination macaroon reaches
+  only the daemon's `startProcess` environment. Install hooks, test code, and
+  later `exec` calls never receive it; the returned process handle is killed in
+  `finally`. This follows Cloudflare's documented per-command environment and
+  background-process APIs ([Commands](https://developers.cloudflare.com/sandbox/api/commands/),
+  [Environment variables](https://developers.cloudflare.com/sandbox/configuration/environment-variables/),
+  [Background processes](https://developers.cloudflare.com/sandbox/guides/background-processes/)).
 - An explicit remote daemon URL/profile is never replaced by direct local-DB
   fallback or local daemon auto-start after `ECONNREFUSED`. Squid hook gates use
   remote health for an explicitly selected peer and retain the filesystem-only
@@ -278,3 +294,7 @@ this ADR waits on, not new design.
   `apps/relay/src/coordination-room.ts`, `apps/relay/src/coordination-auth.ts`,
   `apps/relay/src/coordination.ts`, `apps/fleet-executor/src/sandbox-runner.ts`,
   `scripts/smoke-coordination-peer.sh`; macaroon prerequisite PR #632.
+- Cloudflare Sandbox process/environment contract:
+  [Commands](https://developers.cloudflare.com/sandbox/api/commands/),
+  [Environment variables](https://developers.cloudflare.com/sandbox/configuration/environment-variables/),
+  [Background processes](https://developers.cloudflare.com/sandbox/guides/background-processes/).

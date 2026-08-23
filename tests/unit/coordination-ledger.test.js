@@ -1,8 +1,11 @@
 import {
   CoordinationLedger,
+  COORDINATION_MAX_CLOCK_SKEW_MS,
+  COORDINATION_MAX_HLC_COUNTER,
   HybridLogicalClockSource,
   compareOperations,
   coordinationOpId,
+  validateCoordinationClockSkew,
   validateCoordinationOperation,
 } from '../../lib/coordination-ledger.js';
 
@@ -141,6 +144,19 @@ describe('ADR-0092 coordination ledger', () => {
     expect(coordinationOpId('local', 'session', 's', observed)).toBe('local:session:s:120:5');
   });
 
+  test('HLC carries a logical counter overflow into the wall component', () => {
+    const clock = new HybridLogicalClockSource('local', () => 100);
+    const observed = clock.observe({
+      wallTime: 120,
+      counter: COORDINATION_MAX_HLC_COUNTER,
+      replicaId: 'remote',
+    });
+    const next = clock.next();
+
+    expect(observed).toEqual({ wallTime: 121, counter: 0, replicaId: 'local' });
+    expect(next).toEqual({ wallTime: 121, counter: 1, replicaId: 'local' });
+  });
+
   test('wire validation fails closed on actor/project/clock mismatches', () => {
     const good = op({ opId: 'a:session:s:10:0', replicaId: 'a', entityId: 's', wallTime: 10 });
     expect(validateCoordinationOperation(good)).toBeNull();
@@ -149,5 +165,18 @@ describe('ADR-0092 coordination ledger', () => {
     expect(validateCoordinationOperation({ ...good, opId: 'b:session:s:10:0' })).toMatch(/operation identity/);
     expect(validateCoordinationOperation({ ...good, mutation: 'remove', value: {} })).toMatch(/null value/);
     expect(validateCoordinationOperation({ ...good, value: { purpose: 'missing fields' } })).toMatch(/session status/);
+    expect(validateCoordinationOperation({
+      ...good,
+      opId: `a:session:s:10:${COORDINATION_MAX_HLC_COUNTER + 1}`,
+      clock: { ...good.clock, counter: COORDINATION_MAX_HLC_COUNTER + 1 },
+    })).toMatch(/clock/);
+    const future = op({
+      opId: `a:session:s:${1_000 + COORDINATION_MAX_CLOCK_SKEW_MS + 1}:0`,
+      replicaId: 'a',
+      entityId: 's',
+      wallTime: 1_000 + COORDINATION_MAX_CLOCK_SKEW_MS + 1,
+    });
+    expect(validateCoordinationClockSkew(future, 1_000)).toMatch(/future/);
+    expect(validateCoordinationClockSkew(future, future.clock.wallTime)).toBeNull();
   });
 });

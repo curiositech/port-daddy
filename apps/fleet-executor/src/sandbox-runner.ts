@@ -46,8 +46,8 @@ export interface SandboxRunOutcome {
    * module-load, discovery, and zero-test failures are `harness-failure` and
    * must never be presented as product-code evidence.
    *
-   * Optional during the staged rollout so persisted/fixture outcomes from the
-   * previous executor remain readable. Fresh sandbox runs always set it.
+   * Optional during the staged rollout so persisted outcomes from the prior
+   * executor remain readable. Fresh sandbox runs always set it.
    */
   outcomeKind?:
     | 'not-executed'
@@ -137,8 +137,17 @@ interface ExecResultLike {
   stderr?: string;
 }
 
+interface SandboxProcessLike {
+  waitForPort(port: number, options?: Record<string, unknown>): Promise<unknown>;
+  kill(): Promise<unknown>;
+}
+
 interface SandboxInstanceLike {
   exec(command: string, options?: Record<string, unknown>): Promise<ExecResultLike>;
+  startProcess?(
+    command: string,
+    options?: Record<string, unknown>,
+  ): Promise<SandboxProcessLike>;
 }
 
 /**
@@ -198,14 +207,48 @@ export interface SandboxRunParams {
    * later via config.
    */
   testCommand?: string;
+  /**
+   * Optional ADR-0092 cloud coordination room. When present, the sandbox
+   * builds and boots the repository's real compiled pd daemon before running
+   * tests, and that daemon joins the room as an ordinary offline-first peer.
+   */
+  coordinationPeer?: SandboxCoordinationPeer;
+}
+
+export interface SandboxCoordinationPeer {
+  /** Relay origin hosting /v1/coordination/:project/sync. */
+  url: string;
+  /** Stable project/repository scope carried by the macaroon. */
+  project: string;
+  /** Stable cloud actor id carried by the macaroon. */
+  actorId: string;
+  /** Unique daemon/process replica id; generated per sandbox when omitted. */
+  replicaId?: string;
+  /** Scoped ADR-0092 macaroon. Never written into the cloned checkout. */
+  macaroon: string;
+}
+
+interface SandboxCoordinationPeerEnv {
+  PORT_DADDY_COORDINATION_URL?: unknown;
+  PORT_DADDY_COORDINATION_PROJECT?: unknown;
+  PORT_DADDY_COORDINATION_ACTOR?: unknown;
+  PORT_DADDY_COORDINATION_MACAROON?: unknown;
 }
 
 const DEFAULT_INSTALL_COMMAND =
   'npm ci --no-audit --no-fund --onnxruntime-node-install=skip';
 
+const CLOUD_PEER_ROOT = '/work/pd-peer';
+const CLOUD_PEER_PORT = 9876;
+const REPOSITORY_ROOT = '/work/repo';
 const TEST_STARTED_MARKER = '__PD_PURSER_TEST_STARTED__';
 const JEST_SUMMARY_MARKER = '__PD_PURSER_JEST_SUMMARY__:';
 const JEST_RESULT_PATH = '/work/pd-purser-jest-result.json';
+
+function newSandboxReplicaId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return `fleet-peer-${[...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('')}`;
+}
 
 interface JestRunSummary {
   numFailedTests: number;
@@ -273,6 +316,102 @@ function summarizeJestResultCommand(): string {
 }
 
 /**
+ * Resolve the all-or-nothing cloud-peer configuration from an executor env.
+ * Partial configuration fails closed: silently booting an unregistered daemon
+ * would make the cloud sandbox look coordinated when it is not.
+ */
+export function sandboxCoordinationPeerFromEnv(
+  env: SandboxCoordinationPeerEnv,
+): SandboxCoordinationPeer | undefined {
+  const values = {
+    url: env.PORT_DADDY_COORDINATION_URL,
+    project: env.PORT_DADDY_COORDINATION_PROJECT,
+    actorId: env.PORT_DADDY_COORDINATION_ACTOR,
+    macaroon: env.PORT_DADDY_COORDINATION_MACAROON,
+  };
+  const present = Object.values(values).filter(
+    value => typeof value === 'string' && value.trim().length > 0,
+  ).length;
+  if (present === 0) return undefined;
+  if (present !== Object.keys(values).length) {
+    throw new Error(
+      'cloud coordination peer requires URL, project, actor, and macaroon together',
+    );
+  }
+  const peer = Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, (value as string).trim()]),
+  ) as unknown as SandboxCoordinationPeer;
+  peer.replicaId = newSandboxReplicaId();
+  return peer;
+}
+
+/**
+ * Non-secret repository preparation for the real pd peer. Process launch is
+ * deliberately separate: the scoped macaroon is supplied only to
+ * `startProcess`, never to an `exec` that runs npm lifecycle or test code.
+ */
+export function buildSandboxDaemonBootstrap(
+  peer: SandboxCoordinationPeer,
+): string[] {
+  void peer;
+  return [
+    'npm run build:bin',
+    `mkdir -p ${shq(CLOUD_PEER_ROOT)}`,
+  ];
+}
+
+function cloudPeerDaemonEnv(peer: SandboxCoordinationPeer): Record<string, string> {
+  return {
+    PORT_DADDY_PORT: String(CLOUD_PEER_PORT),
+    PORT_DADDY_DB: `${CLOUD_PEER_ROOT}/registry.db`,
+    PORT_DADDY_PREFIX: CLOUD_PEER_ROOT,
+    PORT_DADDY_SOCK: `${CLOUD_PEER_ROOT}/port-daddy.sock`,
+    PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
+    PORT_DADDY_NO_FLEET: '1',
+    PORT_DADDY_NO_FLEETBAR: '1',
+    PORT_DADDY_SILENT: '1',
+    PORT_DADDY_DISABLE_KEYCHAIN: '1',
+    PORT_DADDY_COORDINATION_INTERVAL_MS: '250',
+    PORT_DADDY_COORDINATION_URL: peer.url,
+    PORT_DADDY_COORDINATION_PROJECT: peer.project,
+    PORT_DADDY_COORDINATION_ACTOR: peer.actorId,
+    PORT_DADDY_COORDINATION_REPLICA: peer.replicaId ?? newSandboxReplicaId(),
+    PORT_DADDY_COORDINATION_MACAROON: peer.macaroon,
+  };
+}
+
+function cloudPeerClientEnv(): Record<string, string> {
+  return {
+    PORT_DADDY_PORT: String(CLOUD_PEER_PORT),
+    PORT_DADDY_DB: `${CLOUD_PEER_ROOT}/registry.db`,
+    PORT_DADDY_PREFIX: CLOUD_PEER_ROOT,
+    PORT_DADDY_SOCK: `${CLOUD_PEER_ROOT}/port-daddy.sock`,
+    PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
+  };
+}
+
+function buildRunnerScript(
+  files: ReadonlyArray<Pick<StackedFile, 'path'>>,
+  testCommand: string | undefined,
+): { script: string; usesDefaultJestRunner: boolean } {
+  const usesDefaultJestRunner = testCommand === undefined;
+  const invocation = testCommand ?? buildDefaultJestInvocation(files);
+  const lines = [
+    'set +e',
+    `printf '%s\\n' ${shq(TEST_STARTED_MARKER)}`,
+    invocation,
+    'pd_purser_test_exit=$?',
+  ];
+  if (usesDefaultJestRunner) {
+    lines.push(
+      `if [ -f ${shq(JEST_RESULT_PATH)} ]; then ${summarizeJestResultCommand()}; fi`,
+    );
+  }
+  lines.push('exit "$pd_purser_test_exit"');
+  return { script: lines.join('\n'), usesDefaultJestRunner };
+}
+
+/**
  * Build the default sandbox command around only the contract files the purser
  * authored.
  *
@@ -293,49 +432,101 @@ export function buildDefaultSandboxTestCommand(
   return `${DEFAULT_INSTALL_COMMAND} && ${buildDefaultJestInvocation(files)}`;
 }
 
-/**
- * Execute the repo's test runner with the purser's new tests grafted in,
- * against the PR head, inside a Cloudflare Sandbox. ONE composed script, one
- * `exec` call, exit code = verdict. Never throws: every failure mode returns an
- * honest `executed: false` outcome instead.
- */
-export async function runTestsInSandbox(params: SandboxRunParams): Promise<SandboxRunOutcome> {
-  if (params.testCommand === undefined && params.files.length === 0) {
+function execPassed(result: ExecResultLike): boolean {
+  return typeof result.exitCode === 'number'
+    ? result.exitCode === 0
+    : result.success === true;
+}
+
+function combinedOutput(result: ExecResultLike): string {
+  const stdout = typeof result.stdout === 'string' ? result.stdout : '';
+  const stderr = typeof result.stderr === 'string' ? result.stderr : '';
+  return `${stdout}${stderr ? `\n${stderr}` : ''}`;
+}
+
+function classifyRunnerResult(
+  result: ExecResultLike,
+  usesDefaultJestRunner: boolean,
+): SandboxRunOutcome {
+  const combined = combinedOutput(result);
+  const runnerStarted = combined.split(/\r?\n/).includes(TEST_STARTED_MARKER);
+  const visibleOutput = withoutProtocolMarkers(combined);
+  if (!runnerStarted) {
     return {
       executed: false,
       passed: null,
-      outputTail: '',
+      outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
       failures: [],
       outcomeKind: 'not-executed',
-      reason: 'no Purser-authored test files were supplied — nothing was executed',
+      reason: 'sandbox setup failed before the test runner started',
     };
+  }
+
+  const passed = execPassed(result);
+  const jestSummary = usesDefaultJestRunner ? parseJestSummary(combined) : null;
+  const outcomeKind: SandboxRunOutcome['outcomeKind'] = passed
+    ? 'passed'
+    : jestSummary?.numFailedTests
+      ? 'assertion-failure'
+      : jestSummary
+        ? 'harness-failure'
+        : 'unclassified-failure';
+  return {
+    executed: true,
+    passed,
+    outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
+    failures:
+      outcomeKind === 'assertion-failure' ? parseTestFailures(visibleOutput) : [],
+    outcomeKind,
+    reason: null,
+  };
+}
+
+function notExecuted(reason: string, output = ''): SandboxRunOutcome {
+  return {
+    executed: false,
+    passed: null,
+    outputTail: output.slice(-OUTPUT_TAIL_BYTES),
+    failures: [],
+    outcomeKind: 'not-executed',
+    reason,
+  };
+}
+
+/**
+ * Execute the repo's test runner with the purser's new tests grafted in,
+ * against the PR head, inside a Cloudflare Sandbox. Repository authentication,
+ * untrusted install/build code, the coordination daemon, and test execution
+ * are separate process scopes. The GitHub token reaches only the fetch; the
+ * scoped coordination macaroon reaches only the daemon `startProcess` call.
+ * Never throws: every failure mode returns an honest non-executed outcome.
+ */
+export async function runTestsInSandbox(params: SandboxRunParams): Promise<SandboxRunOutcome> {
+  if (params.testCommand === undefined && params.files.length === 0) {
+    return notExecuted(
+      'no Purser-authored test files were supplied — nothing was executed',
+    );
   }
   const sandbox = resolveSandbox(
     params.sandboxBinding,
     `purser-${params.owner}-${params.repo}-${params.headSha}`,
   );
   if (!sandbox) {
-    return {
-      executed: false,
-      passed: null,
-      outputTail: '',
-      failures: [],
-      outcomeKind: 'not-executed',
-      reason: 'SANDBOX binding absent — tests were NOT executed (no fabricated results)',
-    };
+    return notExecuted(
+      'SANDBOX binding absent — tests were NOT executed (no fabricated results)',
+    );
+  }
+  if (params.coordinationPeer && typeof sandbox.startProcess !== 'function') {
+    return notExecuted(
+      'SANDBOX binding lacks startProcess — refusing to expose the cloud-peer macaroon to repository code',
+    );
   }
 
-  // --onnxruntime-node-install=skip: onnxruntime-node's postinstall fetches CUDA/
-  // TensorRT provider binaries unconditionally on linux-x64 (platform-gated, not
-  // GPU-detected) — this sandbox has no GPU and OOMs unpacking a library it can
-  // never use. The purser's tests never need real embedding inference.
-  const usesDefaultJestRunner = params.testCommand === undefined;
-  const testCommand = params.testCommand ?? buildDefaultJestInvocation(params.files);
-  const cloneUrl = `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
-
-  // Compose ONE script: shallow-fetch the head SHA, graft the test files in
-  // (base64 so contents survive quoting), run the test command.
-  const lines: string[] = [
+  const publicCloneUrl = `https://github.com/${params.owner}/${params.repo}.git`;
+  const cloneUrl = params.coordinationPeer
+    ? publicCloneUrl
+    : `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
+  const cloneLines: string[] = [
     'set -e',
     // rm -rf first: a retried run (network flake, transient sandbox error)
     // can land in the SAME warm container as its failed predecessor, which
@@ -348,71 +539,114 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     `git fetch -q --depth 1 origin ${shq(params.headSha)}`,
     `git checkout -q ${shq(params.headSha)}`,
   ];
+  const setupLines: string[] = ['set -e'];
   for (const f of params.files) {
     const dir = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '.';
-    lines.push(`mkdir -p ${shq(dir)}`);
-    lines.push(`printf '%s' ${shq(toBase64(f.contents))} | base64 -d > ${shq(f.path)}`);
+    setupLines.push(`mkdir -p ${shq(dir)}`);
+    setupLines.push(`printf '%s' ${shq(toBase64(f.contents))} | base64 -d > ${shq(f.path)}`);
   }
-  if (usesDefaultJestRunner) lines.push(DEFAULT_INSTALL_COMMAND);
-  lines.push(`printf '%s\\n' ${shq(TEST_STARTED_MARKER)}`);
-  lines.push('set +e');
-  lines.push(testCommand);
-  lines.push('pd_purser_test_exit=$?');
-  if (usesDefaultJestRunner) {
-    lines.push(
-      `if [ -f ${shq(JEST_RESULT_PATH)} ]; then ${summarizeJestResultCommand()}; fi`,
-    );
+  // --onnxruntime-node-install=skip: onnxruntime-node's postinstall fetches
+  // CUDA/TensorRT binaries on linux-x64 even though this sandbox has no GPU.
+  if (params.testCommand === undefined || params.coordinationPeer) {
+    setupLines.push(DEFAULT_INSTALL_COMMAND);
   }
-  lines.push('exit "$pd_purser_test_exit"');
-  const script = lines.join('\n');
+  if (params.coordinationPeer) {
+    setupLines.push(...buildSandboxDaemonBootstrap(params.coordinationPeer));
+  }
+  const runner = buildRunnerScript(params.files, params.testCommand);
 
+  // Preserve the existing single-command Purser protocol when no cloud peer
+  // is configured. The multi-process split below is a security boundary for
+  // the daemon macaroon, not a compatibility-breaking runner rewrite.
+  if (!params.coordinationPeer) {
+    try {
+      const result = await sandbox.exec(
+        `bash -lc ${shq([...cloneLines, ...setupLines, runner.script].join('\n'))}`,
+      );
+      return classifyRunnerResult(result, runner.usesDefaultJestRunner);
+    } catch (err) {
+      return notExecuted(`sandbox execution failed: ${String(err).slice(0, 300)}`);
+    }
+  }
+
+  let daemonProcess: SandboxProcessLike | null = null;
   try {
-    const res = await sandbox.exec(`bash -lc ${shq(script)}`);
-    const stdout = typeof res.stdout === 'string' ? res.stdout : '';
-    const stderr = typeof res.stderr === 'string' ? res.stderr : '';
-    const combined = `${stdout}${stderr ? `\n${stderr}` : ''}`;
-    const runnerStarted = combined.split(/\r?\n/).includes(TEST_STARTED_MARKER);
-    const exitPassed =
-      typeof res.exitCode === 'number' ? res.exitCode === 0 : res.success === true;
-    const visibleOutput = withoutProtocolMarkers(combined);
-    if (!runnerStarted) {
-      return {
-        executed: false,
-        passed: null,
-        outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
-        failures: [],
-        outcomeKind: 'not-executed',
-        reason: 'sandbox setup failed before the test runner started',
-      };
+    // Scope the installation token to Git alone. npm lifecycle and authored
+    // repository code run in later exec calls without this environment.
+    const auth = btoa(`x-access-token:${params.token}`);
+    const cloneResult = await sandbox.exec(`bash -lc ${shq(cloneLines.join('\n'))}`, {
+      env: {
+        GIT_CONFIG_COUNT: '1',
+        GIT_CONFIG_KEY_0: 'http.extraHeader',
+        GIT_CONFIG_VALUE_0: `Authorization: Basic ${auth}`,
+      },
+    });
+    if (!execPassed(cloneResult)) {
+      return notExecuted('sandbox checkout failed before the test runner started', combinedOutput(cloneResult));
     }
 
-    const jestSummary = usesDefaultJestRunner ? parseJestSummary(combined) : null;
-    const outcomeKind: SandboxRunOutcome['outcomeKind'] = exitPassed
-      ? 'passed'
-      : jestSummary?.numFailedTests
-        ? 'assertion-failure'
-        : jestSummary
-          ? 'harness-failure'
-          : 'unclassified-failure';
-    const failures =
-      outcomeKind === 'assertion-failure' ? parseTestFailures(visibleOutput) : [];
-    return {
-      executed: true,
-      passed: exitPassed,
-      outputTail: visibleOutput.slice(-OUTPUT_TAIL_BYTES),
-      // Parsed from the COMPLETE output, before the tail truncation above.
-      failures,
-      outcomeKind,
-      reason: null,
-    };
+    const setupResult = await sandbox.exec(`bash -lc ${shq(setupLines.join('\n'))}`, {
+      cwd: REPOSITORY_ROOT,
+    });
+    if (!execPassed(setupResult)) {
+      return notExecuted('sandbox setup failed before the test runner started', combinedOutput(setupResult));
+    }
+
+    if (params.coordinationPeer) {
+      daemonProcess = await sandbox.startProcess!(
+        './dist/port-daddy __daemon',
+        {
+          cwd: REPOSITORY_ROOT,
+          env: cloudPeerDaemonEnv(params.coordinationPeer),
+        },
+      );
+      if (
+        !daemonProcess ||
+        typeof daemonProcess.waitForPort !== 'function' ||
+        typeof daemonProcess.kill !== 'function'
+      ) {
+        return notExecuted(
+          'SANDBOX startProcess returned no controllable daemon handle',
+        );
+      }
+      await daemonProcess.waitForPort(CLOUD_PEER_PORT, { path: '/health' });
+      const identity = `${params.coordinationPeer.project}:cloud-sandbox:${params.coordinationPeer.actorId}`;
+      const beginCommand = [
+        './dist/port-daddy begin',
+        shq('Cloud sandbox coordination peer'),
+        '--identity',
+        shq(identity),
+        '--lifecycle durable',
+        '--sidequest',
+        shq('ADR-0092 cloud coordination peer runtime'),
+        '--allow-main-worktree',
+      ].join(' ');
+      const beginResult = await sandbox.exec(beginCommand, {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerClientEnv(),
+      });
+      if (!execPassed(beginResult)) {
+        return notExecuted(
+          'cloud pd daemon started but its coordination session could not begin',
+          combinedOutput(beginResult),
+        );
+      }
+    }
+
+    const testResult = await sandbox.exec(`bash -lc ${shq(runner.script)}`, {
+      cwd: REPOSITORY_ROOT,
+    });
+    return classifyRunnerResult(testResult, runner.usesDefaultJestRunner);
   } catch (err) {
-    return {
-      executed: false,
-      passed: null,
-      outputTail: '',
-      failures: [],
-      outcomeKind: 'not-executed',
-      reason: `sandbox exec failed: ${String(err).slice(0, 300)}`,
-    };
+    return notExecuted(`sandbox execution failed: ${String(err).slice(0, 300)}`);
+  } finally {
+    if (daemonProcess && typeof daemonProcess.kill === 'function') {
+      try {
+        await daemonProcess.kill();
+      } catch {
+        // The sandbox may already have reaped a failed daemon. Cleanup failure
+        // cannot turn an honestly classified run into fabricated evidence.
+      }
+    }
   }
 }
