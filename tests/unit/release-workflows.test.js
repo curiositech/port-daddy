@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { jest } from '@jest/globals';
 import {
   compareStableVersions,
   extractFormulaVersion,
@@ -48,6 +49,9 @@ describe('release workflow topology contracts', () => {
     expect(train).toContain('Select a working release-publication token');
     expect(train.match(/release-workflow-state\.mjs \\\n\s+select-live-token/g)).toHaveLength(2);
     expect(train.match(/echo "source=\$token_source" >> "\$GITHUB_OUTPUT"/g)).toHaveLength(2);
+    expect(train.match(
+      /else\n\s+echo "::error::Release token selection produced no recognized source\."\n\s+exit 1/g,
+    )).toHaveLength(2);
     expect(helper).toContain("['api', `repos/${repository}`, '--jq', '.permissions.push // false']");
     expect(helper).toContain('delete childEnv.RELEASE_TRAIN_TOKEN');
     expect(helper).toContain('delete childEnv.HOMEBREW_TAP_TOKEN');
@@ -55,6 +59,17 @@ describe('release workflow topology contracts', () => {
     expect(release).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
     expect(release).not.toContain('repository-dispatch');
     expect(release).not.toContain('HOMEBREW_TAP_TOKEN');
+  });
+
+  test('release fallback documentation stays aligned with the workflow contract', () => {
+    const releasing = readFileSync(join(ROOT, 'docs', 'RELEASING.md'), 'utf8');
+    const changelog = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
+
+    for (const source of [releasing, changelog]) {
+      expect(source).toContain('RELEASE_TRAIN_TOKEN');
+      expect(source).toContain('HOMEBREW_TAP_TOKEN');
+      expect(source).toMatch(/live-probes? repository push permission/);
+    }
   });
 
   test('release archives carry provenance and do not rebuild retired Bosun', () => {
@@ -354,9 +369,17 @@ describe('release workflow state', () => {
     });
     expect(afterProbeError).toBe(HOMEBREW_TAP_TOKEN_SOURCE);
 
-    expect(() => selectWorkingTokenSource('dead-a', 'dead-b', () => false)).toThrow(
-      'neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push',
+    let deniedError;
+    try {
+      selectWorkingTokenSource('dead-a', 'dead-b', () => false);
+    } catch (error) {
+      deniedError = error;
+    }
+    expect(deniedError).toBeInstanceOf(Error);
+    expect(deniedError.message).toBe(
+      'neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push to the repository',
     );
+    expect(deniedError.stack).toContain('selectWorkingTokenSource');
     expect(() => selectWorkingTokenSource('', '', () => true)).toThrow(
       'neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push',
     );
@@ -393,5 +416,36 @@ describe('release workflow state', () => {
     expect(invocation[2].env.GH_TOKEN).toBe('candidate-secret');
     expect(invocation[2].env.RELEASE_TRAIN_TOKEN).toBeUndefined();
     expect(invocation[2].env.HOMEBREW_TAP_TOKEN).toBeUndefined();
+  });
+
+  test('a real child-process timeout fails the probe closed and emits a sanitized warning', () => {
+    const warning = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    let configuredTimeout;
+    try {
+      const allowed = probeRepositoryPush(
+        'candidate-secret',
+        RELEASE_TRAIN_TOKEN_SOURCE,
+        'curiositech/port-daddy',
+        (_file, _args, options) => {
+          configuredTimeout = options.timeout;
+          const child = spawnSync(
+            process.execPath,
+            ['-e', 'setInterval(() => {}, 1_000)'],
+            { ...options, env: {}, timeout: 25 },
+          );
+          if (child.error) throw child.error;
+          return child.stdout.toString();
+        },
+      );
+
+      expect(allowed).toBe(false);
+      expect(configuredTimeout).toBe(GITHUB_PERMISSION_PROBE_TIMEOUT_MS);
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(
+        '::warning::RELEASE_TRAIN_TOKEN probe failed',
+      ));
+      expect(warning.mock.calls.flat().join('')).not.toContain('candidate-secret');
+    } finally {
+      warning.mockRestore();
+    }
   });
 });
