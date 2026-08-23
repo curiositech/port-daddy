@@ -160,6 +160,26 @@ export function classifyEnvelope(input: unknown): RelayEnvelopeV1 {
   requireNonEmptyString(e, 'harbor');
   requireNonEmptyString(e, 'channel');
   requireNonEmptyString(e, 'sender');
+  // harbor is documented (here and in the schema) as the channel's prefix
+  // before the first ':' — the routing tenant. Enforce the derivation instead
+  // of trusting the duplicate: both fields sit under the envelope signature, so
+  // without this check a producer can sign harbor="X" over channel="Y:…" and
+  // hand every envelope-trusting consumer a different tenant than the one the
+  // channel routes under — the frame-mismatch problem one field over, and
+  // envelopeFrameMismatch cannot catch it because the frame has no harbor
+  // field. With this check, envelope.channel === frame.channel (which
+  // envelopeFrameMismatch does enforce) transitively pins the harbor too.
+  {
+    const channel = e.channel as string;
+    const colonIdx = channel.indexOf(':');
+    const channelHarbor = colonIdx >= 0 ? channel.slice(0, colonIdx) : channel;
+    if (e.harbor !== channelHarbor) {
+      fail(
+        'BAD_ENVELOPE',
+        'envelope.harbor must equal the channel prefix before the first ":" — a harbor the channel does not route under is a second signed answer to "whose event is this"'
+      );
+    }
+  }
   if (typeof e.seq !== 'number' || !Number.isInteger(e.seq) || e.seq < 1) {
     fail('BAD_ENVELOPE', 'envelope.seq must be an integer >= 1');
   }
@@ -332,6 +352,17 @@ function lengthPrefixed(value: string): string {
  */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  // Honor toJSON the way JSON.stringify does, BEFORE recursing. Without this a
+  // Date serializes as '{}' here (no own enumerable keys) while the transit
+  // codec's JSON.stringify turns it into its ISO string — so the producer signs
+  // one content hash and every consumer that decodes the transit bytes computes
+  // another, and a perfectly good signature fails verification after one round
+  // trip. Recursing into the toJSON result keeps the two serializations
+  // describing the same value.
+  const toJSON = (value as { toJSON?: unknown }).toJSON;
+  if (typeof toJSON === 'function') {
+    return canonicalJson((toJSON as (this: unknown) => unknown).call(value));
+  }
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   const entries = Object.entries(value as Record<string, unknown>)
     .filter(([, v]) => v !== undefined)
@@ -354,6 +385,15 @@ export function envelopeBindingMessage(
   envelope: UnsignedEnvelope | RelayEnvelopeV1,
   keyIdHex: string
 ): string {
+  // Defense in depth, not the primary gate: classifyEnvelope already rejects an
+  // empty sig.key_id on both variants, and the length-prefixed framing below is
+  // injective even over an empty component ('0:' cannot alias a non-empty
+  // value). But this function is exported and takes the key as a bare
+  // parameter, so it enforces its own precondition: a binding computed under no
+  // key is a signature that commits to no signer.
+  if (keyIdHex.length === 0) {
+    fail('EMPTY_SIG', 'binding key id must be non-empty — the signature has to commit to which key made it');
+  }
   const contentHash =
     envelope.classification === 'sealed'
       ? hashHex(envelope.ciphertext)

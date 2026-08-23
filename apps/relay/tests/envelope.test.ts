@@ -287,6 +287,80 @@ describe('envelope schema v1 — rejects the third state', () => {
     expect(() => classifyEnvelope(padded)).not.toThrow();
   });
 
+  it('rejects an empty sig.key_id on either variant', () => {
+    for (const fixture of [sealedFixture, readableFixture]) {
+      const emptyKeyId = clone(fixture) as { sig: { key_id: string } };
+      emptyKeyId.sig.key_id = '';
+      expect(validate(emptyKeyId)).not.toEqual([]);
+      try {
+        classifyEnvelope(emptyKeyId);
+        expect.unreachable('classifyEnvelope must throw');
+      } catch (e) {
+        expect((e as EnvelopeClassificationError).code).toBe('EMPTY_SIG');
+      }
+    }
+  });
+
+  it('SECURITY: rejects an envelope whose harbor is not the channel prefix', async () => {
+    // The harbor is documented as the channel's prefix before the first ':'.
+    // Both fields sit under the envelope signature, so a producer could sign
+    // harbor="X" over channel="Y:…" — the relay's chain routes the event under
+    // Y while every envelope-trusting consumer files it under tenant X. Same
+    // two-signed-answers hazard the frame-mismatch check closes, one field
+    // over — and envelopeFrameMismatch cannot see it, because the frame has no
+    // harbor field of its own.
+    const priv = '11'.repeat(32);
+    const unsigned = {
+      schema: ENVELOPE_SCHEMA_ID,
+      v: 1 as const,
+      classification: 'relay_readable' as const,
+      harbor: 'tenant-x',
+      channel: 'tenant-y:ops:deploys',
+      sender: 'f'.repeat(64),
+      seq: 3,
+      iat: 1755648000,
+      payload: { type: 'run-started' },
+      reason: 'test fixture: harbor disagrees with the channel prefix',
+    };
+    const envelope = { ...unsigned, sig: await signEnvelope(priv, unsigned as never) };
+
+    // Premise 1: the pair really is mismatched, and the same envelope with the
+    // coherent harbor classifies cleanly — so the rejection below is about the
+    // mismatch, not about some other malformation.
+    expect(envelope.channel.split(':')[0]).not.toBe(envelope.harbor);
+    const coherent = { ...envelope, harbor: 'tenant-y' };
+    expect(classifyEnvelope(coherent).classification).toBe('relay_readable');
+
+    // Premise 2: the frame-mismatch predicate passes this envelope against the
+    // frame it would travel in — the frame carries no harbor to compare — so
+    // the classifier is the only place the mismatch can be caught.
+    expect(
+      envelopeFrameMismatch(envelope as never, {
+        channel: unsigned.channel, sender: unsigned.sender, seq: unsigned.seq, iat: unsigned.iat,
+      }),
+    ).toBeNull();
+
+    // The classifier refuses it, on every path.
+    try {
+      classifyEnvelope(envelope);
+      expect.unreachable('classifyEnvelope must throw');
+    } catch (e) {
+      expect((e as EnvelopeClassificationError).code).toBe('BAD_ENVELOPE');
+    }
+    expect(() => encodeTransitEnvelope(envelope as never)).toThrow(EnvelopeClassificationError);
+    const transit = base64UrlEncode(new TextEncoder().encode(JSON.stringify(envelope)));
+    expect(() => decodeTransitEnvelope(transit)).toThrow(EnvelopeClassificationError);
+    expect(tryDecodeTransitEnvelope(transit)).toBeNull();
+  });
+
+  it('accepts a colonless channel equal to its harbor (the degenerate prefix)', () => {
+    // github-webhook.ts derives harbor = channel when the channel has no ':'.
+    const e = clone(readableFixture) as Record<string, unknown>;
+    e.harbor = 'lonechannel';
+    e.channel = 'lonechannel';
+    expect(classifyEnvelope(e).classification).toBe('relay_readable');
+  });
+
   it('rejects a missing sig object entirely', () => {
     const noSig = clone(readableFixture) as Record<string, unknown>;
     delete noSig.sig;
@@ -496,6 +570,32 @@ describe('envelope signing — real signature over the binding', () => {
     expect(await verifyEnvelopeSignedBy(relabelled, [PUB, ATTACKER_PUB])).toBe(false);
   });
 
+  it('a Date in the payload survives the transit round trip (toJSON honored in the binding)', async () => {
+    // Premise: a Date has no own enumerable keys, so an entries-based
+    // canonicalization would emit '{}' for it — while the transit codec's
+    // JSON.stringify emits its ISO string. Under that split the producer signs
+    // one content hash and every decoder computes another, and a good
+    // signature dies on its first round trip.
+    const at = new Date(1755648000000);
+    expect(Object.keys(at)).toEqual([]);
+    expect(JSON.parse(JSON.stringify({ at })).at).toBe(at.toISOString());
+
+    // canonicalJson must agree with JSON.stringify on what a Date IS.
+    expect(canonicalJson(at)).toBe(JSON.stringify(at));
+
+    const unsigned = { ...unsignedReadable(), payload: { type: 'run-started', at } };
+    const envelope: RelayReadableEnvelope = {
+      ...unsigned,
+      sig: await signEnvelope(PRIV, unsigned as never),
+    } as never;
+    const decoded = decodeTransitEnvelope(encodeTransitEnvelope(envelope));
+    // The decoded payload carries the ISO string, not a Date — and the
+    // signature still verifies, because both sides canonicalized to the same
+    // bytes.
+    expect((decoded as RelayReadableEnvelope).payload.at).toBe(at.toISOString());
+    expect(await verifyEnvelopeSignedBy(decoded, [PUB])).toBe(true);
+  });
+
   it('signs and verifies the sealed variant over the AEAD ciphertext', async () => {
     const unsigned: Omit<SealedEnvelope, 'sig'> = {
       schema: ENVELOPE_SCHEMA_ID,
@@ -683,6 +783,21 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     );
   });
 
+  it('refuses to compute a binding under an empty key id', () => {
+    // classifyEnvelope already rejects an empty sig.key_id on both variants,
+    // and the length-prefixed framing is injective even over an empty
+    // component — but envelopeBindingMessage is exported and takes the key as
+    // a bare parameter, so it enforces its own precondition: a binding under
+    // no key is a signature that commits to no signer.
+    try {
+      envelopeBindingMessage({ ...base, payload: {} } as never, '');
+      expect.unreachable('envelopeBindingMessage must throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(EnvelopeClassificationError);
+      expect((e as EnvelopeClassificationError).code).toBe('EMPTY_SIG');
+    }
+  });
+
   it('KNOWN ANSWER: the binding digest is the wire contract, schema tag and classification included', () => {
     // Two components cannot be reached by varying inputs: ENVELOPE_SCHEMA_ID is
     // a constant, and `classification` is fixed within each variant. Dropping
@@ -814,5 +929,16 @@ describe('canonicalJson', () => {
     expect(canonicalJson([3, 1, 2])).toBe('[3,1,2]');
     expect(canonicalJson(null)).toBe('null');
     expect(canonicalJson('s')).toBe('"s"');
+  });
+
+  it('honors toJSON like JSON.stringify — a Date is its ISO string, nested included', () => {
+    const d = new Date(1755648000000);
+    expect(canonicalJson(d)).toBe(JSON.stringify(d));
+    expect(canonicalJson({ b: d, a: 1 })).toBe(`{"a":1,"b":${JSON.stringify(d)}}`);
+    expect(canonicalJson([d])).toBe(`[${JSON.stringify(d)}]`);
+    // The toJSON result is itself canonicalized (keys sorted), so a custom
+    // toJSON cannot smuggle insertion-order dependence back in.
+    const custom = { toJSON: () => ({ z: 1, y: 2 }) };
+    expect(canonicalJson(custom)).toBe('{"y":2,"z":1}');
   });
 });
