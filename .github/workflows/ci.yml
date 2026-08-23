@@ -514,6 +514,87 @@ jobs:
           path: /tmp/skill-audit.json
           if-no-files-found: warn
 
+  generated-artifact-drift:
+    # website-v2 commits its own build output: public/llms.txt, sitemap.xml,
+    # robots.txt and skill-audit.json are produced by `npm run prebuild` and then
+    # checked in, so the static host serves them without a build step and the
+    # repo can be read as the site's source of truth. Nothing verified they were
+    # still fresh, so they rotted — the committed copies sat roughly a month
+    # behind the route table and the skill library until #5497 regenerated them
+    # by hand. That failure is silent by construction: a stale llms.txt or
+    # sitemap.xml is a site lying to crawlers and agents about which pages exist,
+    # and a stale skill-audit.json is a dashboard presenting last month's
+    # findings as today's. Both render perfectly. This job rebuilds all four from
+    # source and fails when the committed copies disagree.
+    #
+    # All four are gated, not just the two that were caught rotting.
+    # generate-seo-artifacts.mjs emits sitemap.xml and robots.txt from the same
+    # siteMetadataRoutes table that produces llms.txt, so they drift by the
+    # identical mechanism — gating two of three from one generator just elects
+    # which file rots next.
+    #
+    # What this job deliberately does NOT gate: the auditor's verdict.
+    # generate-skill-audit.mjs treats auditor exit 1 (findings present) as success
+    # on purpose — the website should ship truth, including bad news — so a red
+    # skill bundle must not turn into a red website build here. Failing the
+    # library audit is skill-hygiene's job, above. This job asserts only that the
+    # snapshot on disk matches the library as it currently stands, good or bad.
+    #
+    # What it emphatically DOES gate: that regeneration actually happened. A
+    # traceback also exits 1, so generate-skill-audit.mjs no longer trusts the
+    # exit code alone — it requires a freshly-written, well-formed snapshot on
+    # disk (advanced mtime + parseable expected shape) before reporting success,
+    # and reds otherwise. That is what stops this required check from going green
+    # off a frozen stale snapshot when the generator cannot run. This job never
+    # sets PD_ALLOW_MISSING_AUDITOR, so a missing auditor reds here, by design.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website-v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: website-v2/package-lock.json
+
+      - name: Use Python 3
+        # generate-skill-audit.mjs spawns python3 to run the skill-hygiene
+        # auditor. Without an interpreter on PATH the snapshot half of prebuild
+        # dies at spawn, so this job needs Python even though it builds a website.
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        # A full install, not --omit=dev: generate:seo runs through tsx (it
+        # imports the route table straight out of src/data/siteMetadata.ts), and
+        # tsx is a devDependency.
+        run: npm ci
+
+      - name: Regenerate the committed build artifacts
+        # Kept separate from the diff below so the log distinguishes "the
+        # generator crashed" from "the generator ran and the output moved".
+        run: npm run prebuild
+
+      - name: Fail if any generated artifact drifted from its source
+        # Delegates to website-v2's `check:generated-drift` so the gated file
+        # list lives in EXACTLY ONE place. It was duplicated here and in
+        # package.json, and a divergence would silently shrink the gate — which
+        # is this gate's own failure mode: the drift proof on this PR showed a
+        # route-table edit moving sitemap.xml while leaving llms.txt
+        # byte-identical, so a list missing one file reports green on real drift.
+        # The wrapper exists only to attach the ::error:: annotation; the script
+        # is the authority on what is checked.
+        run: |
+          if ! npm run --silent check:generated-drift; then
+            echo "::error::Generated artifacts are stale. Run 'cd website-v2 && npm run prebuild' and commit the result."
+            exit 1
+          fi
+
   website-terminal-recordings:
     # Path-gated via detect-changes: skipped on PRs that can't affect the
     # GIFs. "skipped" satisfies the required status check (branch protection
@@ -880,6 +961,7 @@ jobs:
       - doc-citation-guard
       - fleet-ui
       - fleetbar
+      - generated-artifact-drift
       - integration-tests
       - lint
       - rust-console
