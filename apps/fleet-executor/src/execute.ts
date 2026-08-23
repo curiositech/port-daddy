@@ -78,7 +78,10 @@ import {
   openStackedPr,
   GitHubApiError,
 } from './stacked-pr.js';
-import { runTestsInSandbox } from './sandbox-runner.js';
+import {
+  runTestsInSandbox,
+  sandboxCoordinationPeerFromEnv,
+} from './sandbox-runner.js';
 import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
@@ -2671,6 +2674,7 @@ async function maybeStackProposal(
     headSha: prCtx.headSha,
     files,
     token,
+    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
   });
   if (sandbox.executed && sandbox.passed === false) {
     return degrade(

@@ -9,13 +9,13 @@
 //! the visible proof that "agent vs human" is a first-class buffer concept from
 //! day one (battle-plan §7 step 7).
 //!
-//! ## Honest scope
-//! Still **read-only on screen**: there is NO live keystroke editing in this slice
-//! (GPUI 0.2.x ships no text-input widget — that custom Element is the named NEXT
-//! step). The buffer is editable programmatically (so a merged agent replica's
-//! lines show up), but the human cannot type into it yet. We did not fake an
-//! editable buffer. P3 claims (the wedge) are also not here; the `region` seam and
-//! the authorship gutter built here are where they land.
+//! ## Input boundary
+//! The renderer-agnostic pane accepts guarded UTF-8 replacements and emits the
+//! exact incremental Loro delta. `editor_input.rs` owns grapheme/selection/IME
+//! state; `app.rs` registers GPUI's platform input handler and paints caret and
+//! selection over the virtualized `CodeBuffer`. Claims and the wedge remain
+//! policy here, so a human keystroke is refused before mutation inside another
+//! live actor's claimed region.
 //!
 //! ## Authorship → gutter mapping
 //! Each line's `author_peer` is rendered as a short, stable author tag in the
@@ -295,6 +295,79 @@ impl EditorPane {
         self.buffer.as_ref()
     }
 
+    /// Current buffer text for the foreground input bridge. This is a snapshot
+    /// string, never retained by the input model, so the Loro document remains
+    /// the sole content authority.
+    pub fn text(&self) -> Option<String> {
+        self.buffer.as_ref().map(HarborBuffer::to_string)
+    }
+
+    /// Apply one human edit expressed as a UTF-8 byte replacement. Existing
+    /// live-claim policy is checked before any byte is written; accepted edits
+    /// become locally-authored Loro ops and return the incremental tube frame the
+    /// producer mirrors/broadcasts.
+    pub fn apply_local_text_edit(
+        &mut self,
+        range: std::ops::Range<usize>,
+        replacement: &str,
+    ) -> std::result::Result<String, String> {
+        let Some(buffer) = self.buffer.as_ref() else {
+            return Err("editor buffer is not loaded".into());
+        };
+        let before = buffer.to_string();
+        if range.start > range.end
+            || range.end > before.len()
+            || !before.is_char_boundary(range.start)
+            || !before.is_char_boundary(range.end)
+        {
+            return Err(format!(
+                "input range {range:?} is not a valid UTF-8 boundary for {} bytes",
+                before.len()
+            ));
+        }
+
+        let first_line = 1 + before[..range.start]
+            .bytes()
+            .filter(|b| *b == b'\n')
+            .count() as u32;
+        // Count newlines *inside* a non-empty replacement too: deleting a
+        // newline joins two lines and therefore touches both claim regions.
+        let last_line = 1 + before.as_bytes()[..range.end]
+            .iter()
+            .filter(|b| **b == b'\n')
+            .count() as u32;
+        for line in first_line..=last_line.max(first_line) {
+            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
+                return Err(gated.message());
+            }
+        }
+
+        let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
+        let delta = buffer.replace_authored(unicode, replacement);
+        Ok(crate::editor_sync::encode_frame(
+            buffer.local_peer(),
+            &delta,
+        ))
+    }
+
+    /// Fold the foreground authority's exact local delta into the producer's
+    /// mirror. Unlike `ingest_frame`, this deliberately accepts our own PeerId:
+    /// both panes receive the same authored op instead of independently minting
+    /// two operations for one keystroke.
+    pub fn ingest_local_frame(&mut self, text: &str) -> bool {
+        let Some(frame) = crate::editor_sync::decode_frame(text) else {
+            return false;
+        };
+        let Some(buffer) = self.buffer.as_ref() else {
+            return false;
+        };
+        let before = buffer.change_stamp();
+        if crate::editor_sync::apply_frame(buffer, &frame).is_err() {
+            return false;
+        }
+        buffer.change_stamp() != before
+    }
+
     /// The per-file tube channel this editor's op stream rides on. Callers open the
     /// live receiver with `DaemonClient::subscribe_channel(pane.channel())` and hand
     /// each `TubeMsg::text` back to [`ingest_frame`](Self::ingest_frame).
@@ -373,9 +446,8 @@ impl EditorPane {
     // `idle_screen_does_not_rerender_with_multiple_remote_cursors`.)
 
     /// Update where the LOCAL caret/selection/viewport is and queue it for a
-    /// debounced broadcast. This is the injection point for the (not-yet-built)
-    /// keystroke input layer, mirroring how `HarborBuffer::insert_authored` is the
-    /// injection point for edits. Recording is cheap and does not itself send or
+    /// debounced broadcast. The GPUI input layer calls this after every accepted
+    /// edit or caret move. Recording is cheap and does not itself send or
     /// repaint — [`take_presence_broadcast`](Self::take_presence_broadcast) does.
     pub fn set_local_presence(&mut self, state: PresenceState) {
         self.local_presence = state;
@@ -1187,6 +1259,77 @@ mod tests {
             Arc::ptr_eq(&a3, &a4),
             "and the rebuilt cache is reused thereafter"
         );
+    }
+
+    #[test]
+    fn keystroke_becomes_one_authored_delta_and_updates_code_buffer() {
+        let path = write_temp("local-input.rs", "let value = 1;\n");
+        let identity = "port-daddy:console:human-input";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = make_pane_as(&path, identity);
+        let (before_lines, _, _) = code_buffer(&foreground.view()).expect("code buffer");
+
+        let text = foreground.text().expect("loaded text");
+        let mut input = crate::editor_input::EditorInput::default();
+        for _ in 0..4 {
+            input.right(&text, false);
+        }
+        let edit = input.replace_bytes(&text, input.selection(), "mut ");
+        let frame = foreground
+            .apply_local_text_edit(edit.range, &edit.text)
+            .expect("claim-clear local edit");
+
+        assert_eq!(foreground.text().as_deref(), Some("let mut value = 1;\n"));
+        assert!(
+            producer_mirror.ingest_local_frame(&frame),
+            "the producer imports the foreground's exact authored delta"
+        );
+        assert_eq!(producer_mirror.text(), foreground.text());
+
+        let (after_lines, _, _) = code_buffer(&foreground.view()).expect("updated code buffer");
+        assert!(!Arc::ptr_eq(&before_lines, &after_lines));
+        assert_eq!(after_lines[0].text.as_ref(), "let mut value = 1;");
+        let (idle_lines, _, _) = code_buffer(&foreground.view()).expect("idle code buffer");
+        assert!(
+            Arc::ptr_eq(&after_lines, &idle_lines),
+            "the post-keystroke render cache is reused while idle"
+        );
+    }
+
+    #[test]
+    fn local_keystroke_is_refused_inside_another_live_claim() {
+        let path = write_temp("guarded-input.rs", "fn guarded() {}\nfn free() {}\n");
+        let mut human = make_pane_as(&path, "port-daddy:console:human");
+        let mut agent = make_pane_as(&path, "port-daddy:editor:agent");
+        let claim = agent.acquire_region_claim(1, 1, "guarded", 1_000);
+        assert!(human.ingest_claim(&claim));
+
+        let before = human.text().unwrap();
+        let refusal = human
+            .apply_local_text_edit(3..3, " blocked")
+            .expect_err("another live peer owns line 1");
+        assert!(refusal.contains("is held by"));
+        assert!(refusal.contains("live claim"));
+        assert_eq!(human.text().as_deref(), Some(before.as_str()));
+        for token in BYPASS {
+            assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+    }
+
+    #[test]
+    fn deleting_a_newline_checks_the_claim_on_both_joined_lines() {
+        let path = write_temp("guarded-newline.rs", "open\nclaimed\n");
+        let mut human = make_pane_as(&path, "port-daddy:console:human");
+        let mut agent = make_pane_as(&path, "port-daddy:editor:agent");
+        let claim = agent.acquire_region_claim(2, 2, "claimed", 1_000);
+        assert!(human.ingest_claim(&claim));
+
+        let before = human.text().unwrap();
+        let refusal = human
+            .apply_local_text_edit(4..5, "")
+            .expect_err("joining into a claimed line must be refused");
+        assert!(refusal.contains("is held by"));
+        assert_eq!(human.text().as_deref(), Some(before.as_str()));
     }
 
     /// A Rust file's lines carry syntax runs (keyword/type/string classified)

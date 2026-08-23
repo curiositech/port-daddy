@@ -204,3 +204,43 @@ describe('Relay production workflow topology', () => {
     expect(atomic).toEqual(ordinary);
   });
 });
+
+describe('Relay staging ledger workflow topology', () => {
+  test('deploys latest before publishing a protected-branch ledger PR', () => {
+    const workflow = readWorkflow('deploy-relay.yml');
+    const apply = workflow.indexOf('Apply D1 migrations to STAGING');
+    const record = workflow.indexOf('Record staging ledger');
+    const deploy = workflow.indexOf('Deploy relay-latest Worker');
+    const selectToken = workflow.indexOf('Select a working ledger-mutation token');
+    const publishPr = workflow.indexOf('Publish staging ledger PR (if changed)');
+
+    expect(apply).toBeGreaterThan(-1);
+    expect(record).toBeGreaterThan(apply);
+    expect(deploy).toBeGreaterThan(record);
+    expect(selectToken).toBeGreaterThan(deploy);
+    expect(publishPr).toBeGreaterThan(selectToken);
+    expect(workflow).toContain("if: steps.ledger_change.outputs.changed == 'true'");
+    expect(workflow).toContain('contents: read');
+    expect(workflow).not.toContain('contents: write');
+    expect(workflow).not.toContain('git push origin HEAD:main');
+  });
+
+  test('uses a live-probed dedicated token and an idempotent auto-merge PR', () => {
+    const workflow = readWorkflow('deploy-relay.yml');
+
+    expect(workflow).toContain('select-live-token "$GITHUB_REPOSITORY"');
+    expect(workflow).toContain('RELEASE_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN }}');
+    expect(workflow).toContain('HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
+    expect(workflow).toContain('git config --local --unset-all http.https://github.com/.extraheader');
+    expect(workflow).toContain('gh auth setup-git');
+    expect(workflow).toContain('ledger_branch="automation/relay-staging-ledger"');
+    expect(workflow).toContain('--force-with-lease="refs/heads/${ledger_branch}:${remote_sha}"');
+    expect(workflow).toContain('--head "$ledger_branch" --state open');
+    expect(workflow).toContain('gh pr create');
+    expect(workflow).toContain('gh pr edit');
+    expect(workflow).toContain('gh pr merge "$pr_number"');
+    expect(workflow).toContain('--auto --rebase');
+    expect(workflow).toContain('Roadmap-Item: none — generated staging migration ledger receipt');
+    expect(workflow).not.toContain('[skip ci]');
+  });
+});
