@@ -67,7 +67,7 @@ import {
 import type {
   RoadmapItems,
   RoadmapStatus,
-  RoadmapItemKind,
+  RoadmapKind,
   RoadmapSourceRef,
   UpsertRoadmapItemInput,
 } from './roadmap-items.js';
@@ -100,7 +100,7 @@ export type ImportSource = 'next-cut' | 'ideas-now' | 'dogfood';
 
 export interface ChompedItem {
   slug: string;
-  kind: RoadmapItemKind;
+  kind: RoadmapKind;
   summaryMd: string;
   /** Verbatim direct section body (text up to the next heading), or null. */
   descriptionMd: string | null;
@@ -188,7 +188,7 @@ function cleanHeadingText(text: string): string {
  * @param depth - Zero-based normalized nesting depth.
  * @returns The `roadmap_items.kind` value for that depth.
  */
-export function kindForDepth(depth: number): RoadmapItemKind {
+export function kindForDepth(depth: number): RoadmapKind {
   if (depth <= 0) return 'project';
   if (depth === 1) return 'epic';
   if (depth === 2) return 'story';
@@ -707,7 +707,7 @@ export interface ChompWriteInput {
 
 export interface ChompItemReport {
   slug: string;
-  kind: RoadmapItemKind;
+  kind: RoadmapKind;
   status: RoadmapStatus;
   summaryMd: string;
   descriptionMd: string | null;
@@ -1066,7 +1066,7 @@ export function importMarkdownRoadmap(
   };
   const items: ChompedItem[] = candidates.map((c) => ({
     slug: c.slug,
-    kind: 'task' as RoadmapItemKind,
+    kind: 'task' as RoadmapKind,
     summaryMd: c.summaryMd,
     descriptionMd: null,
     status: c.status,

@@ -47,8 +47,6 @@ interface UpsertBody {
   slug?: unknown;
   summaryMd?: unknown;
   status?: unknown;
-  kind?: unknown;
-  descriptionMd?: unknown;
   promotedFromFeedbackId?: unknown;
   promotedByAgentId?: unknown;
   promotedAt?: unknown;
