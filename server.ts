@@ -549,7 +549,7 @@ const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticRe
 const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ db, tuples });
+const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
 // Live-work join for the roadmap command center (operator mandate 2026-08-22).

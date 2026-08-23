@@ -155,6 +155,14 @@ describe('pd roadmap upsert — invalid --start/--due is reported, never default
     ['priority', '9'],
     ['priority', '0'],
     ['priority', '-1'],
+    // --actual is the newest flag on this path and rides the SAME
+    // positiveOrNull sanitizer as --estimate, so it inherits the identical
+    // NaN→null→CLEAR hazard. Pinned here so the new flag cannot regress to
+    // the pre-fix behaviour the two flags above were fixed for.
+    ['actual', 'abc'],
+    ['actual', '2.5'],
+    ['actual', '0'],
+    ['actual', '-5'],
   ]) {
     test(`--${key} '${value}' aborts with a non-zero exit and never reaches the daemon`, async () => {
       await expect(upsert(key, value)).rejects.toThrow('process.exit(1)');
