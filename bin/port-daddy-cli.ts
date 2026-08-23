@@ -1333,6 +1333,32 @@ Commands:
     --as <agentId>          Harvester id (default: operator-cli)
     --into <roadmap-slug>   Roadmap slug the feedback was folded into
 
+  roadmap chomp <doc.md...> Chomp ANY markdown planning doc into roadmap items
+                            (headings → project/epic/story/task hierarchy,
+                            checklists → tasks, explicit "depends on" → deps,
+                            filename → provenance tag). Idempotent; never
+                            clobbers rows enriched after the first chomp.
+                            Default is a PREVIEW — writing goes through a
+                            reviewed PR via --emit-pr-plan (single-writer
+                            doctrine: no silent roadmap writes).
+    --emit-pr-plan <dir>    THE write act: upsert via the daemon AND emit the
+                            doc-removal PR artifacts — regenerated
+                            roadmap.snapshot.json, a chomp-receipt.json work
+                            receipt, a git-rm list of chomped docs, and a
+                            ready PR body (does NOT open the PR itself)
+    --dry-run               Explicit preview (same as omitting --emit-pr-plan)
+    --status <s>            Default status for planning-doc items (default: backlog)
+    --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+    --as <agentId>          Actor stamped on freshly inserted rows
+    --enrich                Polish long-section summaries via the configured
+                            LLM backend (PD_CHOMP_BACKEND / fleet default);
+                            without a backend, extraction stays deterministic
+
+  roadmap import-markdown   Legacy alias: chomp the 3 canonical curated piles
+                            (docs/ROADMAP.md Next Cuts, IDEAS-TROVE now,
+                            DOGFOOD-FEEDBACK now) through the same path
+    --dry-run               Report without writing
+
 Examples:
   pd roadmap
   pd roadmap --limit 3 --status now
@@ -1343,6 +1369,8 @@ Examples:
   pd roadmap link relay-hardening --pr 9340 --title "retry backoff"
   pd roadmap links relay-hardening
   pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
+  pd roadmap chomp PLAN.md docs/proposals/v4.md --dry-run
+  pd roadmap chomp PLAN.md --emit-pr-plan /tmp/chomp-pr
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   'skill-graft': `Skill Graft — Native local skill guidance for fleet ships

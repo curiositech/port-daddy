@@ -281,6 +281,7 @@ export function createTestDb() {
       tags_json TEXT NOT NULL DEFAULT '[]',
       actual INTEGER,
       completed_at INTEGER,
+      source_refs_json TEXT,
       deleted_at INTEGER,
       UNIQUE(slug, harbor)
     );

@@ -57,7 +57,8 @@ export type RoadmapStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'done';
  * The fixed Jira-style hierarchy ladder (ADR-0086): project > epic >
  * story/bug/chore > task > subtask. Kept as a closed enum so the CHECK
  * constraint in `roadmap_items` and the planner scheduler's ladder validation
- * can never disagree with the TypeScript surface.
+ * can never disagree with the TypeScript surface. Migration 085 mirrors this
+ * set as a SQLite CHECK constraint.
  */
 export type RoadmapKind =
   | 'project'
@@ -67,6 +68,21 @@ export type RoadmapKind =
   | 'subtask'
   | 'bug'
   | 'chore';
+
+/**
+ * One provenance pointer in `source_refs_json`: where a derived roadmap item
+ * came from. `path` is repo-relative; `commit` (when known) pins the exact
+ * revision of the source document — the doc itself may be deleted by the
+ * very PR that lands the item, so the ref is the durable trail back.
+ */
+export interface RoadmapSourceRef {
+  /** Kind of source, e.g. 'doc' for a chomped planning document. */
+  type: string;
+  /** Repo-relative path of the source. */
+  path: string;
+  /** Commit SHA of the source at derivation time, when resolvable. */
+  commit?: string;
+}
 
 export interface RoadmapItem {
   id: string;
@@ -105,6 +121,12 @@ export interface RoadmapItem {
   actual: number | null;
   /** Stamped on the status transition into 'done'; cleared on reopen. */
   completedAt: number | null;
+  /**
+   * Provenance of a derived item: the source documents (+ commit SHA) an
+   * ingestion path (e.g. `pd roadmap chomp`) derived this row from, so the
+   * item outlives the planning doc that spawned it. Null for hand-made rows.
+   */
+  sourceRefs: RoadmapSourceRef[] | null;
   /** Soft-delete tombstone (ms). Non-null rows are dead to reads but merge. */
   deletedAt: number | null;
 }
@@ -131,6 +153,8 @@ export interface UpsertRoadmapItemInput {
   /** Replaces the stored tag set when provided (pass [] to clear). */
   tags?: string[];
   actual?: number | null;
+  /** Provenance refs for derived items. Omit to preserve the existing value. */
+  sourceRefs?: RoadmapSourceRef[];
 }
 
 export interface ListRoadmapItemsOptions {
@@ -185,10 +209,13 @@ interface RoadmapItemRow {
   tags_json: string | null;
   actual: number | null;
   completed_at: number | null;
+  source_refs_json: string | null;
   deleted_at: number | null;
 }
 
 const STATUSES: RoadmapStatus[] = ['now', 'backlog', 'parked', 'merge', 'done'];
+// Mirrors the CHECK(kind IN (…)) constraint in lib/db.ts CORE_SCHEMA_SQL;
+// enforced app-side because migrated DBs got the column via ALTER (no CHECK).
 const KINDS: RoadmapKind[] = ['project', 'epic', 'story', 'task', 'subtask', 'bug', 'chore'];
 // SQLite CASE expression used to ORDER BY status rank without app-side sort.
 const STATUS_RANK_SQL = `CASE status
@@ -319,6 +346,9 @@ function rowToItem(row: RoadmapItemRow): RoadmapItem {
     tags: normalizeTags(parseJsonArray<string>(row.tags_json, [])),
     actual: positiveOrNull(row.actual),
     completedAt: row.completed_at ?? null,
+    sourceRefs: row.source_refs_json
+      ? parseJsonArray<RoadmapSourceRef>(row.source_refs_json, [])
+      : null,
     deletedAt: row.deleted_at ?? null,
   };
 }
@@ -430,8 +460,8 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       promoted_from_feedback_id, promoted_by_agent_id, promoted_at,
       last_touched_at, notes_json, harbor, created_at,
       kind, priority, assignee_id, description_md, started_at, due_at, estimate,
-      tags_json, actual, completed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      tags_json, actual, completed_at, source_refs_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateStmt = db.prepare(`
     UPDATE roadmap_items SET
@@ -453,6 +483,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       tags_json = ?,
       actual = ?,
       completed_at = ?,
+      source_refs_json = ?,
       deleted_at = NULL
     WHERE id = ?
   `);
@@ -558,6 +589,12 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       // completed_at; any other status clears it (a reopened item holds no
       // completion date). updateStatus() applies the same rule.
       completedAt: null, // provisional; derived below once status is final
+      // Provenance is preserved on partial upserts for the same reason the
+      // planner columns are: a writer that never knew about `sourceRefs` must
+      // not erase the trail back to the doc this item was chomped from.
+      sourceRefs: Array.isArray(input.sourceRefs)
+        ? input.sourceRefs
+        : (existing?.sourceRefs ?? null),
       // An upsert asserts the item lives: it always clears any tombstone
       // (resurrection), mirrored by `deleted_at = NULL` in updateStmt.
       deletedAt: null,
@@ -566,14 +603,17 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
 
     const notesJson = JSON.stringify(item.notes);
     const tagsJson = JSON.stringify(item.tags);
+    const sourceRefsJson = item.sourceRefs ? JSON.stringify(item.sourceRefs) : null;
     const createdAt = existing ? existingRow!.created_at : at;
 
     if (existing) {
-      // UPDATE column order: summary_md, status, promoted_from_feedback_id,
-      // promoted_by_agent_id, promoted_at, last_touched_at,
-      // notes_json, kind, priority, assignee_id, description_md, started_at,
-      // due_at, estimate, tags_json, actual, completed_at, then id (WHERE).
-      // (dependencies_json is pinned to the retired '[]' sentinel in the SQL.)
+      // UPDATE column order (18 SET placeholders + id in the WHERE clause,
+      // 19 binds): summary_md, status, promoted_from_feedback_id,
+      // promoted_by_agent_id, promoted_at, last_touched_at, notes_json, kind,
+      // priority, assignee_id, description_md, started_at, due_at, estimate,
+      // tags_json, actual, completed_at, source_refs_json, then id.
+      // (dependencies_json is pinned to the retired '[]' sentinel and
+      // deleted_at to NULL in the SQL — literals, neither one bound.)
       updateStmt.run(
         item.summaryMd,
         item.status,
@@ -592,14 +632,15 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         tagsJson,
         item.actual,
         item.completedAt,
+        sourceRefsJson,
         item.id,
       );
     } else {
-      // INSERT column order: id, slug, summary_md, status,
-      // promoted_from_feedback_id, promoted_by_agent_id, promoted_at,
-      // last_touched_at, notes_json, harbor, created_at,
-      // kind, priority, assignee_id, description_md, started_at, due_at,
-      // estimate, tags_json, actual, completed_at.
+      // INSERT column order (22 columns, 22 placeholders, 22 binds): id, slug,
+      // summary_md, status, promoted_from_feedback_id, promoted_by_agent_id,
+      // promoted_at, last_touched_at, notes_json, harbor, created_at, kind,
+      // priority, assignee_id, description_md, started_at, due_at, estimate,
+      // tags_json, actual, completed_at, source_refs_json.
       // (dependencies_json rides its DEFAULT '[]' — the column is retired.)
       insertStmt.run(
         item.id,
@@ -623,6 +664,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         tagsJson,
         item.actual,
         item.completedAt,
+        sourceRefsJson,
       );
     }
 

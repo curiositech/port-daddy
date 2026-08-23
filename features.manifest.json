@@ -2074,6 +2074,7 @@
         "POST /roadmap/items/:slug/touch",
         "POST /roadmap/promote",
         "POST /roadmap/render",
+        "POST /roadmap/chomp",
         "POST /roadmap/import-markdown"
       ],
       "completions": [

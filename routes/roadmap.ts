@@ -21,6 +21,8 @@
  *                                          'done' transition stamps completed_at)
  *   POST   /roadmap/items/:slug/touch    — refresh last_touched_at
  *   POST   /roadmap/promote              — atomic feedback→item link
+ *   POST   /roadmap/chomp                — general planning-doc ingestion
+ *   POST   /roadmap/import-markdown      — legacy 3-pile alias over chomp
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
@@ -32,7 +34,8 @@ import type {
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
-import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
+import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
+import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
 import { schedule } from '../lib/planner-schedule.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
@@ -791,6 +794,82 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       }
     }
     return { success: true, markdown, count: items.length };
+  });
+
+  // POST /roadmap/chomp — general planning-doc ingestion (operator mandate
+  // 2026-08-22). Reads the named markdown docs from rootDir, extracts a
+  // project→epic→story→task tree (headings), checklist tasks, and explicit
+  // depends-on references, and upserts them into roadmap_items with the same
+  // never-clobber-enriched-rows discipline the legacy importer documented.
+  // `enrich: true` opts into one-line summary polish through the daemon's
+  // real request-shape LLM path (lib/llm-backend-resolver.ts, actor 'chomp');
+  // with no backend configured the result is deterministic extraction plus an
+  // honest `enrichment.backend: null` report — nothing is faked.
+  fastify.post('/roadmap/chomp', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const rootDir = asString(body.rootDir) ?? asString(body.root);
+    if (!rootDir) {
+      reply.code(400);
+      return { success: false, error: 'rootDir is required (repo root to read planning docs from)' };
+    }
+    const paths = asStringArray(body.paths);
+    if (!paths || paths.length === 0) {
+      reply.code(400);
+      return { success: false, error: 'paths is required (planning docs to chomp, relative to rootDir)' };
+    }
+    const statusRaw = asString(body.defaultStatus);
+    const defaultStatus =
+      statusRaw && STATUS_VALUES.has(statusRaw as RoadmapStatus)
+        ? (statusRaw as RoadmapStatus)
+        : undefined;
+    const dryRun = body.dryRun === true || body.dryRun === 'true';
+    const enrichRequested = body.enrich === true || body.enrich === 'true';
+
+    let enrich: ChompEnrichOptions | undefined;
+    let enrichmentUnavailable: { requested: true; attempted: 0; applied: 0; backend: null } | null = null;
+    if (enrichRequested) {
+      const resolved = resolveLLMBackend({ actor: 'chomp' });
+      if (resolved) {
+        enrich = {
+          transport: resolved.transport,
+          model: resolved.model,
+          label: `${resolved.backend}:${resolved.model}`,
+        };
+      } else {
+        // Honest degradation: no configured backend means deterministic-only.
+        enrichmentUnavailable = { requested: true, attempted: 0, applied: 0, backend: null };
+      }
+    }
+
+    try {
+      const result = await chompRoadmap(
+        { roadmapItems, graphEdges },
+        {
+          rootDir,
+          paths,
+          defaultStatus,
+          harbor: asString(body.harbor),
+          project: asString(body.project),
+          by: asString(body.by),
+          dryRun,
+          sourceCommit: asString(body.sourceCommit),
+          enrich,
+        },
+      );
+      if (enrichmentUnavailable) {
+        result.enrichment = enrichmentUnavailable;
+        result.warnings.push(
+          'enrich requested but no LLM backend is configured (set PD_CHOMP_BACKEND or PD_FLEET_DEFAULT_BACKEND); deterministic extraction only',
+        );
+      }
+      return { success: true, ...result };
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'chomp failed',
+      };
+    }
   });
 
   fastify.post('/roadmap/import-markdown', async (request: FastifyRequest, reply: FastifyReply) => {
