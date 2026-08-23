@@ -43,7 +43,21 @@ const EARLY_NUL_OFFSET = 100; // inside the window: git says binary
 /** Write `size` bytes of filler into TEMP_DIR, optionally with one raw NUL. */
 function writeFixture(name, { size = SIZE, nulAt = null } = {}) {
   const buf = Buffer.alloc(size, 'a');
-  if (nulAt !== null) buf[nulAt] = 0;
+  if (nulAt !== null) {
+    buf[nulAt] = 0;
+    // Node DROPS an out-of-bounds Buffer write silently. Without this check a
+    // fixture asked for a NUL at an offset past `size` would be written with no
+    // NUL at all, and the test would fail with "expected [a, b] got []" —
+    // pointing at the guard instead of at the fixture that lied to it.
+    //
+    // Not hypothetical: pd-purser's own version of this file did exactly that,
+    // `Buffer.alloc(8001)` then `buf[8001] = 0`, and asserted the result was an
+    // offender. Every offset in this file is a byte index near a boundary, so
+    // the fixture asserting it is what it claims costs one line and is worth it.
+    if (buf[nulAt] !== 0) {
+      throw new Error(`fixture ${name}: NUL at ${nulAt} did not land in a ${size}-byte buffer`);
+    }
+  }
   writeFileSync(join(TEMP_DIR, name), buf);
   return name;
 }
