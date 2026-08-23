@@ -84,7 +84,6 @@ export interface ModelSource {
   models: Record<string, ModelCatalogEntry>;
   backends: Record<string, Record<string, string>>;
   cloudPlaneRoles: Record<string, string>;
-  pinnableRoles: string[];
 }
 
 /**
@@ -119,7 +118,15 @@ export function loadSource(): ModelSource {
         `makes a phantom id impossible to introduce silently.`,
     );
   }
-  const orphans = [...rows].filter((id) => !referenced.has(id));
+  // A Workers AI row needs no rung or role to justify it: the set of such rows
+  // IS the executor's admission universe, and every member is reachable as a
+  // ship's declared pin. Requiring a role would recreate the price ratchet that
+  // main retired on live spend data — silently demoting pins an operator had
+  // deliberately tiered up. Rows on every OTHER plane still have to earn a
+  // reference, because there is nothing else to make them reachable.
+  const orphans = [...rows].filter(
+    (id) => !referenced.has(id) && doc.models[id].plane !== 'workers-ai',
+  );
   if (orphans.length) {
     throw new Error(
       `config/models.yaml: ${orphans.length} catalog row(s) are referenced by no backend: ` +
@@ -146,13 +153,6 @@ export function loadSource(): ModelSource {
     throw new Error(
       `config/models.yaml: backends map to non-GA model(s): ${retired.join(', ')}. ` +
         `A deprecated or retired id must not back a live capability.`,
-    );
-  }
-  const unknownPins = doc.pinnableRoles.filter((role) => !(role in doc.cloudPlaneRoles));
-  if (unknownPins.length) {
-    throw new Error(
-      `config/models.yaml: pinnableRoles names role(s) that do not exist: ${unknownPins.join(', ')}. ` +
-        `An allowlist entry that resolves to nothing silently widens what a ship may pin.`,
     );
   }
 
@@ -285,8 +285,13 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = ${JSON.stringify(
 export function renderWorkersArtifact(doc: ModelSource): string {
   const cf = doc.backends.cloudflare;
   const roleNames = Object.keys(doc.cloudPlaneRoles);
-  const workersAiIds = Object.entries(doc.models)
+  // The admitted universe: GA Workers AI rows that a ship can actually be
+  // pointed at. The embedding model is on the same plane and is deliberately
+  // NOT admitted — it is an index, not a body, and pinning a ship to it would
+  // produce vectors where a review should be.
+  const admittedIds = Object.entries(doc.models)
     .filter(([, row]) => row.plane === 'workers-ai' && row.status === 'ga')
+    .filter(([, row]) => row.capabilities.includes('text-generation'))
     .map(([id]) => id);
 
   return `/**
@@ -308,13 +313,6 @@ export type CloudflareCapability = ${doc.vocabularies.capabilities
 /** (capability → Workers AI model id) for the cloud plane. */
 export const CF_MODELS: Record<CloudflareCapability, string> = ${JSON.stringify(cf, null, 2)};
 
-/**
- * Every GA Workers AI id the registry knows. The executor uses this as its
- * fail-toward-a-working-model guard: an id outside this set is treated as
- * unknown and remapped rather than dispatched, because an unknown id does not
- * error on Workers AI — it hangs.
- */
-export const KNOWN_GOOD_CF_MODELS: readonly string[] = ${JSON.stringify(workersAiIds, null, 2)};
 
 /** Context windows, so a Worker can budget without a second table. */
 export const CF_CONTEXT_WINDOWS: Record<string, number> = ${JSON.stringify(
@@ -349,27 +347,29 @@ export type CloudPlaneRole = ${roleNames.map((r) => `'${r}'`).join(' | ')};
 export const CF_ROLE_MODELS: Record<CloudPlaneRole, string> = ${JSON.stringify(doc.cloudPlaneRoles, null, 2)};
 
 /**
- * Roles a ship's own model pin may select. The review/escalation model is
- * deliberately absent: no ship can pin its way onto the most expensive model.
+ * Every Workers AI id the executor admits as a ship's declared pin.
+ *
+ * This replaces an allowlist of PINNABLE ROLES that existed to stop a ship
+ * pinning its way onto the most expensive model. That ceiling is gone on
+ * purpose: over a live 14-day window the busiest ship's entire Workers AI spend
+ * was under $0.90, while the ceiling was quietly remapping two pins the
+ * operator had deliberately tiered up down to the cheap tier. Protecting
+ * pennies by degrading declared intent is a worse trade than the spend it saved.
+ *
+ * What remains is the guard that was always load-bearing: an id must be REAL.
+ * An unknown Workers AI id does not 404 — it returns a blank the parser reads
+ * as a clean result, which is how two phantom ids silenced this fleet.
  */
-export const CF_PINNABLE_MODELS: readonly string[] = ${JSON.stringify(
-    doc.pinnableRoles.map((r) => doc.cloudPlaneRoles[r]),
-    null,
-    2,
-  )};
+export const CF_ADMITTED_MODELS: readonly string[] = ${JSON.stringify(admittedIds, null, 2)};
 
 /**
  * Guard a requested Workers AI model id.
  *
- * The rationale: an unknown id on Workers AI does not error — it hangs, and the
- * caller reads the blank as a clean result. So a pin outside the allowlist is
- * remapped to the default rather than dispatched.
- *
  * @param requested The id a ship asked for.
- * @returns The requested id when it is pinnable, else the ship default.
+ * @returns The requested id when it is admitted, else the ship default.
  */
 export function resolveCfModel(requested: string): string {
-  return CF_PINNABLE_MODELS.includes(requested)
+  return CF_ADMITTED_MODELS.includes(requested)
     ? requested
     : CF_ROLE_MODELS.shipDefault;
 }

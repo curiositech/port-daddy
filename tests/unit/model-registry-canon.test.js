@@ -65,14 +65,18 @@ describe('canonical model registry', () => {
   });
 
   it('no catalog row is orphaned (nothing maps to it)', () => {
-    // Two things reference a row: the capability ladder (`backends`) and the
-    // cloud plane's named roles. A role-only model — the executor's mid tier,
-    // the ideas-store embedding model — is referenced, not orphaned.
+    // Three things make a row reachable: the capability ladder (`backends`), the
+    // cloud plane's named roles, and — for Workers AI only — simply BEING a
+    // Workers AI row, because that plane's rows are the executor's admission
+    // universe and every one of them is pinnable by a ship. Requiring a role
+    // there would rebuild the price ceiling that was retired on live spend data.
     const referenced = new Set([
       ...allRegisteredModelIds(),
       ...Object.values(source.cloudPlaneRoles),
     ]);
-    const orphans = Object.keys(source.models).filter((id) => !referenced.has(id));
+    const orphans = Object.keys(source.models).filter(
+      (id) => !referenced.has(id) && source.models[id].plane !== 'workers-ai',
+    );
     expect(orphans).toEqual([]);
   });
 
@@ -91,14 +95,31 @@ describe('canonical model registry', () => {
     }
   });
 
-  it('the pin allowlist cannot reach the review model', () => {
-    // The operator directive this encodes: no ship can pin its way onto the most
-    // expensive model. It held only by the review id being absent from a
-    // hand-written set — which is the kind of rule that survives until someone
-    // adds an id for an unrelated reason.
-    const pinnable = source.pinnableRoles.map((r) => source.cloudPlaneRoles[r]);
-    expect(pinnable).not.toContain(source.cloudPlaneRoles.reviewBot);
-    expect(pinnable).not.toContain(source.cloudPlaneRoles.repairEscalation);
+  it('every admitted Workers AI model is priced and context-known', () => {
+    // SUPPLANTS 'the pin allowlist cannot reach the review model'. That test
+    // encoded a price ceiling — no ship may pin its way onto the most expensive
+    // model — which was retired with production data: over a live 14-day window
+    // the busiest ship's whole Workers AI spend was under $0.90, while the
+    // ceiling was quietly demoting two pins an operator had deliberately tiered
+    // up. Protecting pennies by degrading declared intent is the worse trade.
+    //
+    // What replaces it is the guard that was always the load-bearing one. A pin
+    // is honored iff the id is REAL, because an unknown Workers AI id does not
+    // 404 — it returns a blank the parser reads as a clean result, which is how
+    // this fleet went silent twice. Admission therefore requires a price (an
+    // unpriced honored model meters $0 and rides invisibly) and a context window
+    // (chunk budgets are derived from it). Here those are the same row, so the
+    // contract cannot be half-satisfied.
+    const admitted = Object.entries(source.models)
+      .filter(([, row]) => row.plane === 'workers-ai')
+      .filter(([, row]) => (row.capabilities ?? []).includes('text-generation'));
+    expect(admitted.length).toBeGreaterThan(0);
+    for (const [id, row] of admitted) {
+      expect(`${id}:${typeof row.priceIn === 'number' && row.priceIn >= 0 ? 'priced' : 'UNPRICED'}`)
+        .toBe(`${id}:priced`);
+      expect(`${id}:${typeof row.contextWindow === 'number' && row.contextWindow > 0 ? 'ctx' : 'NO-CTX'}`)
+        .toBe(`${id}:ctx`);
+    }
   });
 
   it('every backend resolves every capability', () => {

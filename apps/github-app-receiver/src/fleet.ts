@@ -9,7 +9,7 @@
  * actually uses (block scalars, nested maps, sequences) without pulling in
  * a full YAML library. Cloud executor only needs the `fleet.agents` section.
  */
-import { CF_ROLE_MODELS, KNOWN_GOOD_CF_MODELS } from '../../shared/model-registry.generated.js';
+import { CF_ROLE_MODELS, CF_ADMITTED_MODELS } from '../../shared/model-registry.generated.js';
 
 export interface IdeaCtx {
   owner: string;
@@ -49,7 +49,7 @@ const CODER_CF_MODEL = CF_ROLE_MODELS.reviewBot;
 
 // Every Workers AI id the registry knows to be real. A request outside this set
 // is remapped to a default rather than dispatched.
-const KNOWN_CF_MODELS = new Set<string>(KNOWN_GOOD_CF_MODELS);
+const KNOWN_CF_MODELS = new Set<string>(CF_ADMITTED_MODELS);
 
 export function resolveCfModel(requested: string | null | undefined, shipName: string): string {
   const fallback = shipName.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;

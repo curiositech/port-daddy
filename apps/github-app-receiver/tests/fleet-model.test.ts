@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCfModel } from '../src/fleet';
-import { CF_ROLE_MODELS, KNOWN_GOOD_CF_MODELS } from '../../shared/model-registry.generated.js';
+import { CF_ROLE_MODELS, CF_ADMITTED_MODELS } from '../../shared/model-registry.generated.js';
 
 // An unknown Workers AI id does not fail fast — ai.run() hangs, the waitUntil
 // budget dies, and the check run sticks in_progress forever (the 2026-07-03
@@ -15,7 +15,7 @@ import { CF_ROLE_MODELS, KNOWN_GOOD_CF_MODELS } from '../../shared/model-registr
 // was written to prevent. Assertions are against the registry now.
 describe('resolveCfModel', () => {
   it('passes through every id the registry knows to be served', () => {
-    for (const id of KNOWN_GOOD_CF_MODELS) {
+    for (const id of CF_ADMITTED_MODELS) {
       expect(resolveCfModel(id, 'senior-dev')).toBe(id);
     }
   });

@@ -30,6 +30,7 @@ import { dirname } from 'node:path';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const { allRegisteredModelIds, _resetRegistryCache } = await import('../../lib/model-registry.js');
+const { MODEL_REGISTRY_DATA } = await import('../../lib/model-registry-data.js');
 
 /** Documentation surfaces scanned for stale ids. */
 const DOC_ROOTS = ['website-v2/src', 'README.md'];
@@ -90,7 +91,17 @@ function* walk(target) {
 describe('documentation names only model ids the registry still maps', () => {
   test('every model id shown in docs resolves in config/models.yaml', () => {
     _resetRegistryCache();
-    const live = new Set(allRegisteredModelIds().map((id) => id.toLowerCase()));
+    // "Still mapped by a capability rung" is the wrong question to ask of a
+    // doc. A doc names an id to SHOW the reader a real model — and the Workers
+    // AI universe is full of ids that are real, priced, and pinnable without
+    // filling a rung. The question that matters is whether the id still exists
+    // in the catalog at all; an id that has left the catalog is the one that
+    // will 404, or worse, hang.
+    const live = new Set(
+      [...allRegisteredModelIds(), ...Object.keys(MODEL_REGISTRY_DATA.models)].map((id) =>
+        id.toLowerCase(),
+      ),
+    );
     const stale = [];
 
     for (const target of DOC_ROOTS) {

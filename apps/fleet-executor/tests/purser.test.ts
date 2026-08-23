@@ -328,7 +328,7 @@ describe('runPurser — steel-man failure modes', () => {
     expect(section).toContain('Maintained by pd-purser');
   });
 
-  it('a well-formed steel-man records purpose + obligation count in the transcript', async () => {
+  it('a well-formed steel-man records purpose + the full obligations text (not just the count) in the transcript', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
@@ -339,6 +339,10 @@ describe('runPurser — steel-man failure modes', () => {
     expect(step.detail).toMatchObject({
       purpose: 'Guarantee the widget frobs deterministically.',
       obligationCount: 2,
+      // The run page renders these verbatim (fleet-run-page.ts's
+      // purser-steelman case) — only the count used to survive to D1, which
+      // meant the operator had to open the PR to read what was actually held.
+      obligations: ['frobs on empty input without throwing', 'rejects negative ids with a typed error'],
     });
   });
 });

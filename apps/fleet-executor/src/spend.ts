@@ -28,12 +28,19 @@ export interface WorkersAiRate {
 /**
  * Cloudflare Workers AI rates, keyed by exact `@cf/...` model id.
  *
- * DERIVED (supplant, 2026-08-23) from config/models.yaml. This table used to be
- * hand-maintained beside the model constants it priced, with a comment asking
- * the next editor to keep the two in sync — and they diverged, which meant the
- * spend meter could silently price a run at another model's rate. Now a model
- * cannot be selectable without being priced, because both facts are the same
- * catalog row.
+ * DERIVED from config/models.yaml, where each Workers AI model's rate sits on
+ * the same row as its admission and its context window.
+ *
+ * The contract main wrote here still holds, and now holds structurally: every id
+ * in fleet.ts's KNOWN_GOOD_CF_MODELS must have a rate, because an honored model
+ * without one meters $0 — which is how the purser's gpt-oss-20b author calls
+ * rode invisibly for a week. That used to be an admission contract enforced by
+ * map-reduce-invariants.test.ts across three hand-kept tables. Admission is now
+ * READ FROM the same rows these rates come from, so an admitted-but-unpriced id
+ * is not a test failure to fix but a state that cannot be expressed.
+ *
+ * Rates verified against developers.cloudflare.com/workers-ai/platform/pricing
+ * on 2026-08-22; the verification date travels on each row.
  */
 export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = CF_PRICES;
 

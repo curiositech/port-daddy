@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseFleetShips, parseFleetSquidEvents, defaultPRShips } from '../src/fleet.js';
-import {
-  CF_ROLE_MODELS,
-  resolveCfModel,
-} from '../../shared/model-registry.generated.js';
-
-// Assertions name the ROLE, not the id. The ids live in config/models.yaml and
-// are expected to change; the routing policy these tests pin is what must not.
-const REVIEW = CF_ROLE_MODELS.reviewBot;
-const DEFAULT = CF_ROLE_MODELS.shipDefault;
-const MID = CF_ROLE_MODELS.shipMid;
+import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -106,40 +96,54 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
   });
 
-  it('routes the expensive review model to the CODE REVIEW BOT only; everything else the ship default', () => {
-    // Operator directive: the review model is pricey — review bot only.
-    //   - code-reviewer (declares capability: code, not pinnable) → reviewBot.
-    //   - qa / red-team (declare capability: balanced, not pinnable) → default.
+  it('honors deliberate premium pins (code-reviewer kimi, red-team 120b); qa stays cheap', () => {
+    // Operator recalibration 2026-08-22: the known-good set guards against
+    // silent-blank ids, not price. A ship's DECLARED verified pin is honored —
+    // code-reviewer's kimi-k2.7-code and red-team's gpt-oss-120b used to be
+    // silently remapped down, which made pd-fleet.yml lie about what ran. The
+    // stale gpt-oss-120b pins on the cheap-tier ships (qa and friends) were
+    // truthed-up to the cheap id in the same change, so cheap ships stay cheap
+    // by CONFIG rather than by a guard overriding config.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe(REVIEW);
+    expect(reviewer!.cfModel).toBe('@cf/zai-org/glm-5.2');
+    // qa moved to the agentic 30B specialist (same cost class, 4x context,
+    // 59.2% vs 22% SWE-bench over qwen3-30b) in the 2026-08-22 repertoire
+    // expansion; spark stays on qwen3-30b as the A/B control population.
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe(DEFAULT);
+    expect(qa!.cfModel).toBe('@cf/zai-org/glm-4.7-flash');
+    const spark = ships!.find(s => s.name === 'spark');
+    expect(spark!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     const redTeam = ships!.find(s => s.name === 'red-team');
-    expect(redTeam!.cfModel).toBe(DEFAULT);
+    expect(redTeam!.cfModel).toBe('@cf/deepseek-ai/deepseek-v4-pro-0813');
   });
 });
 
 describe('resolveCfModel — the empty-model guard', () => {
-  it('passes through the two pinnable roles', () => {
-    expect(resolveCfModel(DEFAULT)).toBe(DEFAULT);
-    expect(resolveCfModel(MID)).toBe(MID);
+  it('passes through the honored cheap model', () => {
+    expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
-  it('remaps a non-pinnable or unknown id to the ship default', () => {
-    // The review model is reached by ROLE, never by pin — so a bare pin of it
-    // (or of anything else) is remapped to the default, never the pricey one.
-    expect(resolveCfModel(REVIEW)).toBe(DEFAULT);
-    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe(DEFAULT);
-    // The tombstone: the id that hung the fleet on 2026-07-03. It cannot be
-    // reached even by an explicit pin.
-    expect(resolveCfModel('@cf/moonshotai/kimi-k2-instruct')).toBe(DEFAULT);
+  it('passes through every verified id; remaps unverified ones to the cheap fallback', () => {
+    // The set guards existence, not price (2026-08-22): a verified premium id
+    // is honored, while an id with no verified catalog + rate + context entry
+    // is remapped — a nonexistent Workers AI id returns blank, not an error,
+    // and a blank reads as "clean" (#654).
+    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/openai/gpt-oss-120b');
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(resolveCfModel('@cf/openai/gpt-oss-20b')).toBe('@cf/openai/gpt-oss-20b');
+    // Full-universe admission: qwen2.5-coder is verified+priced, so it now
+    // passes through too. Only unverified ids remap.
+    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    // The #654 phantom tombstone stays OUT until a witnessed live call.
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.6')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 });
 
 describe('parseFleetShips — model derivation + blocking coercion', () => {
   const yaml = (body: string) => `fleet:\n  agents:\n${body}\n`;
 
-  it('routes reviewer-named ships to the review model when they have no honorable cloudflare pin', () => {
+  it('routes reviewer-named ships (the review bot) to gpt-oss-120b when they have no honored @cf/ pin', () => {
     const ships = parseFleetShips(
       yaml(
         [
@@ -147,17 +151,17 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
           '      trigger: pull_request:opened',
           '      fallbacks:',
           '        - backend: openai',
-          '          capability: cheap',
+          '          model: gpt-5-mini',
           '      prompt: |',
           '        review.',
         ].join('\n'),
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe(REVIEW);
+    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
 
-  it('falls back to the ship default for non-reviewer ships with no cloudflare fallback', () => {
+  it('falls back to the cheap general model (qwen3-30b) for non-reviewer ships with no @cf/ fallback', () => {
     const ships = parseFleetShips(
       yaml(
         ['    sniffer:', '      trigger: pull_request:opened', '      prompt: |', '        sniff.'].join(
@@ -166,7 +170,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe(DEFAULT);
+    expect(ships![0].cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
   it('coerces blocking: only a real true / "true" opts into the gate', () => {

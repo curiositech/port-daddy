@@ -77,6 +77,15 @@ const ALLOWED_FILES = new Set([
   // lockfile — while the INPUT (agents/port-daddy-pilot/agent.config.json)
   // declares intent via `capability` and resolves through resolveModel().
   'config/managed-agents.json',
+  // The Shipwright's model board (main, PR #9249): reviewed editorial data —
+  // per-model verdict, evidence note, live fleet assignments — that an operator
+  // reads while designing a fleet. The ids are the SUBJECT of the document, not
+  // a selection made in code, and the fleet-executor's parity suite asserts the
+  // board can never name a model the executor does not honor or meter. Its
+  // price and context fields still duplicate the catalog; folding those onto
+  // the catalog row while keeping the editorial fields is named follow-up, not
+  // something to do inside a merge that has to stay reviewable.
+  'apps/relay/src/model-dossier.json',
   // Rust console: presentational vendor-color-chip lookup against the
   // WorkPlan/predicted-DAG's own model_tier vocabulary (vendor nicknames —
   // "opus"/"sonnet"/"haiku"/"gemini"/"codex"/"gpt"/… — a DIFFERENT, human-
@@ -157,7 +166,20 @@ const ENFORCED_PATH_PREFIXES = [
 
 // Individually-tracked root-level files outside the prefixes above (walk()
 // only recurses into directories; a lone top-level file needs its own entry).
-const ENFORCED_FILES = ['v4.dag.yaml', 'pd-fleet.yml', 'README.md'];
+//
+// pd-fleet.yml is deliberately NOT here. A revision of this guard added it and
+// converted all 36 of its pins to capability/role tokens; that conversion is
+// reverted, because the pins are not boilerplate — they record which model was
+// MEASURED to do each ship's job (code review on glm-5.2, test authoring on
+// deepseek-v4-flash after a 75% repair-failure result on the previous pick).
+// A capability rung cannot express "this one, because we measured it".
+//
+// The distinction this guard is actually about: a model id in CODE is a fact
+// hardcoded where no one will look for it, while a model id in an operator's
+// fleet config is DATA — declared intent, validated at parse time against the
+// catalog, and unable to name a model that does not exist. Guarding the second
+// buys nothing and costs the fleet its evidence.
+const ENFORCED_FILES = ['v4.dag.yaml', 'README.md'];
 
 // Churning, provider-API model IDs, PLUS local-tag defaults (dash-less
 // `provider3.1:8b`-shaped ollama tags) and bare vendor nicknames used as a

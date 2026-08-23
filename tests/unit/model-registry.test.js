@@ -88,7 +88,12 @@ describe('registry data integrity', () => {
     // depends on it. Sentinel against an accidental registry edit that breaks launches.
     expect(resolveModel({ backend: 'claude', capability: 'cheap' })).toBe('claude-haiku-4-5');
     expect(resolveModel({ backend: 'codex', capability: 'cheap' })).toBe('gpt-5.4-mini');
-    expect(resolveModel({ backend: 'cloudflare', capability: 'cheap' })).toBe('@cf/zai-org/glm-4.7-flash');
+    // By shape, not literal: which id fills the cheap rung is a fleet decision
+    // that moves on measurement (it moved twice in two days), and pinning it
+    // here fails the test rather than catching a regression.
+    const cfCheap = resolveModel({ backend: 'cloudflare', capability: 'cheap' });
+    expect(cfCheap.startsWith('@cf/')).toBe(true);
+    expect(allRegisteredModelIds()).toContain(cfCheap);
   });
 
   test('allRegisteredModelIds returns the de-duped id set', () => {

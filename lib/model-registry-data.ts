@@ -298,18 +298,31 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       ],
       "defaultEffort": "low"
     },
-    "@cf/zai-org/glm-4.7-flash": {
-      "provider": "zhipu",
+    "@cf/qwen/qwen3-30b-a3b-fp8": {
+      "provider": "qwen",
       "plane": "workers-ai",
-      "priceIn": 0.06,
-      "priceOut": 0.4,
-      "contextWindow": 131072,
+      "priceIn": 0.051,
+      "priceOut": 0.335,
+      "contextWindow": 32768,
       "capabilities": [
-        "function-calling",
-        "reasoning"
+        "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-12",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/openai/gpt-oss-20b": {
+      "provider": "openai",
+      "plane": "workers-ai",
+      "priceIn": 0.2,
+      "priceOut": 0.3,
+      "contextWindow": 128000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
       "verifiedBy": "cf-catalog",
       "priceBasis": "vendor-docs"
     },
@@ -320,98 +333,292 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceOut": 0.75,
       "contextWindow": 128000,
       "capabilities": [
-        "function-calling",
-        "reasoning"
+        "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-12",
+      "verifiedAt": "2026-08-22",
       "verifiedBy": "cf-catalog",
       "priceBasis": "vendor-docs"
-    },
-    "@cf/zai-org/glm-5.2": {
-      "provider": "zhipu",
-      "plane": "workers-ai",
-      "priceIn": 1.4,
-      "priceOut": 4.4,
-      "priceCachedIn": 0.26,
-      "contextWindow": 262144,
-      "capabilities": [
-        "function-calling",
-        "reasoning"
-      ],
-      "status": "ga",
-      "verifiedAt": "2026-08-23",
-      "verifiedBy": "vendor-docs",
-      "priceBasis": "vendor-docs",
-      "notes": "Z.ai's flagship agentic coding model. Requires Workers PAID plan or prepaid AI Gateway credits."
-    },
-    "@cf/deepseek-ai/deepseek-v4-pro-0813": {
-      "provider": "deepseek",
-      "plane": "workers-ai",
-      "priceIn": 1.32,
-      "priceOut": 3.96,
-      "priceCachedIn": 0.044,
-      "contextWindow": 1048576,
-      "capabilities": [
-        "function-calling",
-        "reasoning",
-        "vision"
-      ],
-      "status": "ga",
-      "verifiedAt": "2026-08-23",
-      "verifiedBy": "vendor-docs",
-      "priceBasis": "vendor-docs",
-      "notes": "1M context. Requires Workers PAID plan or prepaid AI Gateway credits."
     },
     "@cf/moonshotai/kimi-k2.7-code": {
       "provider": "moonshotai",
       "plane": "workers-ai",
       "priceIn": 0.95,
       "priceOut": 4,
-      "priceCachedIn": 0.19,
       "contextWindow": 262144,
       "capabilities": [
-        "function-calling",
-        "reasoning",
-        "vision",
-        "code-specialized"
+        "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-23",
-      "verifiedBy": "vendor-docs",
-      "priceBasis": "vendor-docs",
-      "notes": "Direct successor to the phantom kimi-k2-instruct this row replaces. Cloudflare changelog 2026-06-12 documents the k2.6 → k2.7-code migration."
-    },
-    "@cf/openai/gpt-oss-20b": {
-      "provider": "openai",
-      "plane": "workers-ai",
-      "priceIn": 0.2,
-      "priceOut": 0.3,
-      "contextWindow": 128000,
-      "capabilities": [
-        "function-calling",
-        "reasoning"
-      ],
-      "status": "ga",
-      "verifiedAt": "2026-08-23",
+      "verifiedAt": "2026-08-22",
       "verifiedBy": "cf-catalog",
-      "priceBasis": "vendor-docs",
-      "notes": "The fleet's MID tier. Note the shape: ~4x the cheap rung on INPUT but CHEAPER on OUTPUT, so it is the wrong choice for a step that reads a large diff and emits little, and the right one for a step that reads the same diff and emits a whole file."
+      "priceBasis": "vendor-docs"
     },
-    "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {
-      "provider": "deepseek",
+    "@cf/zai-org/glm-4.7-flash": {
+      "provider": "zai-org",
+      "plane": "workers-ai",
+      "priceIn": 0.06,
+      "priceOut": 0.4,
+      "contextWindow": 131072,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/zai-org/glm-5.2": {
+      "provider": "zai-org",
+      "plane": "workers-ai",
+      "priceIn": 1.4,
+      "priceOut": 4.4,
+      "contextWindow": 262144,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/deepseek-ai/deepseek-v4-flash-0731": {
+      "provider": "deepseek-ai",
+      "plane": "workers-ai",
+      "priceIn": 0.44,
+      "priceOut": 1.32,
+      "contextWindow": 1048576,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/deepseek-ai/deepseek-v4-pro-0813": {
+      "provider": "deepseek-ai",
+      "plane": "workers-ai",
+      "priceIn": 1.32,
+      "priceOut": 3.96,
+      "contextWindow": 1048576,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/google/gemma-4-26b-a4b-it": {
+      "provider": "google",
+      "plane": "workers-ai",
+      "priceIn": 0.1,
+      "priceOut": 0.3,
+      "contextWindow": 256000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/nvidia/nemotron-3-120b-a12b": {
+      "provider": "nvidia",
       "plane": "workers-ai",
       "priceIn": 0.5,
-      "priceOut": 4.88,
-      "contextWindow": 80000,
+      "priceOut": 1.5,
+      "contextWindow": 256000,
       "capabilities": [
-        "reasoning"
+        "text-generation"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-23",
+      "verifiedAt": "2026-08-22",
       "verifiedBy": "cf-catalog",
-      "priceBasis": "vendor-docs",
-      "notes": "Reasoning distill used by the two synthesis roles (executor XO, relay shipwright). Output-heavy pricing is why it is a ROLE and not a rung — nothing routes bulk ship traffic here."
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+      "provider": "meta",
+      "plane": "workers-ai",
+      "priceIn": 0.293,
+      "priceOut": 2.253,
+      "contextWindow": 24000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/meta/llama-3.1-8b-instruct-fp8": {
+      "provider": "meta",
+      "plane": "workers-ai",
+      "priceIn": 0.152,
+      "priceOut": 0.287,
+      "contextWindow": 32000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/meta/llama-3.2-1b-instruct": {
+      "provider": "meta",
+      "plane": "workers-ai",
+      "priceIn": 0.027,
+      "priceOut": 0.201,
+      "contextWindow": 60000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/meta/llama-3.2-3b-instruct": {
+      "provider": "meta",
+      "plane": "workers-ai",
+      "priceIn": 0.051,
+      "priceOut": 0.335,
+      "contextWindow": 80000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/meta/llama-3.2-11b-vision-instruct": {
+      "provider": "meta",
+      "plane": "workers-ai",
+      "priceIn": 0.049,
+      "priceOut": 0.676,
+      "contextWindow": 128000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/meta/llama-4-scout-17b-16e-instruct": {
+      "provider": "meta",
+      "plane": "workers-ai",
+      "priceIn": 0.27,
+      "priceOut": 0.85,
+      "contextWindow": 131000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/mistralai/mistral-small-3.1-24b-instruct": {
+      "provider": "mistralai",
+      "plane": "workers-ai",
+      "priceIn": 0.351,
+      "priceOut": 0.555,
+      "contextWindow": 128000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/qwen/qwen2.5-coder-32b-instruct": {
+      "provider": "qwen",
+      "plane": "workers-ai",
+      "priceIn": 0.66,
+      "priceOut": 1,
+      "contextWindow": 32768,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/qwen/qwq-32b": {
+      "provider": "qwen",
+      "plane": "workers-ai",
+      "priceIn": 0.66,
+      "priceOut": 1,
+      "contextWindow": 24000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/qwen/qwen3.8-27b": {
+      "provider": "qwen",
+      "plane": "workers-ai",
+      "priceIn": 0.45,
+      "priceOut": 3.2,
+      "contextWindow": 262144,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {
+      "provider": "deepseek-ai",
+      "plane": "workers-ai",
+      "priceIn": 0.497,
+      "priceOut": 4.881,
+      "contextWindow": 80000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/ibm-granite/granite-4.0-h-micro": {
+      "provider": "ibm-granite",
+      "plane": "workers-ai",
+      "priceIn": 0.017,
+      "priceOut": 0.112,
+      "contextWindow": 131000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
+    },
+    "@cf/aisingapore/gemma-sea-lion-v4-27b-it": {
+      "provider": "aisingapore",
+      "plane": "workers-ai",
+      "priceIn": 0.351,
+      "priceOut": 0.555,
+      "contextWindow": 128000,
+      "capabilities": [
+        "text-generation"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-22",
+      "verifiedBy": "cf-catalog",
+      "priceBasis": "vendor-docs"
     },
     "@cf/baai/bge-base-en-v1.5": {
       "provider": "baai",
@@ -423,10 +630,9 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "embedding"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-23",
+      "verifiedAt": "2026-08-22",
       "verifiedBy": "cf-catalog",
-      "priceBasis": "vendor-docs",
-      "notes": "768-dimensional text embedding. The ideas store's dedup index is built on these vectors, so changing this id silently invalidates every stored embedding — a migration, not a config edit."
+      "priceBasis": "vendor-docs"
     },
     "gemini-3.7-flash": {
       "provider": "google",
@@ -627,11 +833,11 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "code": "gpt-5.3-codex"
     },
     "cloudflare": {
-      "cheap": "@cf/zai-org/glm-4.7-flash",
-      "balanced": "@cf/openai/gpt-oss-120b",
-      "high": "@cf/zai-org/glm-5.2",
+      "cheap": "@cf/qwen/qwen3-30b-a3b-fp8",
+      "balanced": "@cf/openai/gpt-oss-20b",
+      "high": "@cf/openai/gpt-oss-120b",
       "max-thinking": "@cf/deepseek-ai/deepseek-v4-pro-0813",
-      "code": "@cf/moonshotai/kimi-k2.7-code"
+      "code": "@cf/qwen/qwen2.5-coder-32b-instruct"
     },
     "gemini": {
       "cheap": "gemini-3.7-flash",
