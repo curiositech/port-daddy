@@ -41,7 +41,7 @@ Local `npm test` also triggers macOS Keychain GUI prompts (`harbor-signing-*`) f
 - **F1** user_version migration ledger (correction 7b) absent from §II tex.
 - **F2** build-whitepapers.sh FILTER matched 0 papers for exact roottex in a stock container — check filter semantics.
 - **F3** after CI's auto-regen commit, bump spawn contract sha if the floating `texlive:latest` dialect drifted (pin currently matches the committed artifact).
-- **F4** rescue the two remaining chat research artifacts verbatim into research/ (titles in HANDOFF §3.7).
+- **F4** rescue the two remaining chat research artifacts verbatim into research/ (titles in HANDOFF §3.7). *2026-08-23: the sheaf lit-review/assessment/prototyping plan is rescued as `pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (user-supplied render); the rigor review that fed doc1's adjudications is preserved as `pdf/The-Harbor-After-the-Harbor.pdf`. Only the theorem-proving-stack SotA report remains extract-only (HANDOFF §3.2).*
 - **F5** signing tests must stub the keychain or skip when unavailable; today they block local `npm test` behind GUI prompts.
 
 ## Coordination datum (worth keeping)
