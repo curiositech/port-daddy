@@ -1295,8 +1295,15 @@ Commands:
     -j, --json              Output raw roadmap_items rows
 
   roadmap upsert <slug>     Create/update a durable roadmap item receipt
-    --summary <md>          Roadmap summary markdown
+    --summary <md>          Roadmap summary markdown (one-line headline)
     --status <s>            now|backlog|parked|merge|done
+    --kind <k>              project|epic|story|task|subtask|bug|chore (default: task)
+    --priority <1-5>        1 highest .. 5 lowest (default: 3)
+    --estimate <units>      Effort units (positive whole number) — the Gantt/CPM node duration
+    --start <when>          Actual start: YYYY-MM-DD, +Nd, or epoch ms
+    --due <when>            Target finish: YYYY-MM-DD, +Nd, or epoch ms
+    --assignee <id>         Agent/person the item is assigned to
+    --description <md>      Long-form body markdown (summary stays the headline)
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
     --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
@@ -1343,6 +1350,7 @@ Examples:
   pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
   pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap upsert relay-hardening --summary "Relay retry storms" --kind epic --priority 2 --estimate 5 --due +14d
   pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap chomp PLAN.md docs/proposals/v4.md --dry-run
   pd roadmap chomp PLAN.md --emit-pr-plan /tmp/chomp-pr
