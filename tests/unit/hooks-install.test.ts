@@ -10,7 +10,7 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   stageTentacles,
@@ -45,6 +45,11 @@ const SRC = join(SANDBOX, 'src-bin');
 const DEST = join(SANDBOX, 'pd-bin'); // stand-in for ~/.port-daddy/bin
 const HOME = join(SANDBOX, 'home');
 const REPO = join(SANDBOX, 'repo');
+
+function markDaemonReady(pdHome: string, pid = 4242): void {
+  writeFileSync(join(pdHome, 'daemon.pid'), String(pid));
+  writeFileSync(join(pdHome, 'daemon.ready'), `${pid}\n`);
+}
 
 function writeTentacleSources(): void {
   mkdirSync(SRC, { recursive: true });
@@ -138,8 +143,16 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(statSync(join(SANDBOX, 'squid', 'health')).mode & 0o777).toBe(0o700);
   });
 
-  test('the gate wrapper checks a fresh heartbeat and a .portdaddy project marker', () => {
+  test('the gate wrapper checks an exact ready generation, fresh heartbeat, and project marker', () => {
     const wrapper = readFileSync(join(DEST, 'pd-hook-pre-tool'), 'utf-8');
+    expect(wrapper).toContain('daemon.ready');
+    expect(wrapper).toContain('[ "$ready_pid" = "$daemon_pid" ]');
+    expect(wrapper).toContain('PORT_DADDY_READY_FILE');
+    expect(wrapper).toContain('PORT_DADDY_PID_FILE');
+    expect(wrapper).toContain('PORT_DADDY_HEARTBEAT_FILE');
+    expect(wrapper).toContain('[ ! -L "$ready_file" ]');
+    expect(wrapper).toContain('[ ! -L "$pid_file" ]');
+    expect(wrapper).toContain('[ ! -L "$heartbeat" ]');
     expect(wrapper).toContain('heartbeat');
     expect(wrapper).toContain('stat -f %m');
     expect(wrapper).not.toContain('kill -0');
@@ -167,6 +180,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    markDaemonReady(pdHome);
 
     const secretInput = '{"session_id":"session-abc-123","tool_input":"prompt-secret-that-must-not-land"}';
     const secretArg = 'argv-secret-that-must-not-land';
@@ -197,6 +211,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    markDaemonReady(pdHome);
 
     const wrapper = join(binDir, 'pd-hook-pre-tool');
     writeFileSync(wrapper, readFileSync(wrapper, 'utf8').replaceAll('/usr/bin/perl', '/definitely/missing/perl'));
@@ -223,6 +238,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
     writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    markDaemonReady(pdHome);
     const wrapper = join(binDir, 'pd-hook-pre-tool');
 
     const run = () => new Promise<void>((resolve, reject) => {
@@ -262,6 +278,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     const heartbeat = join(pdHome, 'heartbeat');
     writeFileSync(heartbeat, '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
 
     const run = (): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
@@ -277,6 +294,105 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(run()).toBe('');
   });
 
+  test('stays inert through bootstrap and daemon generation changes', () => {
+    const pdHome = join(SANDBOX, 'ready-generation-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    writeFileSync(join(pdHome, 'daemon.pid'), '5001');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const run = (): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(run()).toBe(''); // process is alive but still behind its boot gate
+    writeFileSync(join(pdHome, 'daemon.ready'), '5000\n');
+    expect(run()).toBe(''); // stale predecessor generation
+    writeFileSync(join(pdHome, 'daemon.ready'), '5001\n');
+    expect(run()).toContain('pd-hook-prompt');
+    writeFileSync(join(pdHome, 'daemon.pid'), '5002');
+    expect(run()).toBe(''); // successor is alive but not ready yet
+  });
+
+  test('honors isolated runtime lease overrides without assuming the canonical home layout', () => {
+    const pdHome = join(SANDBOX, 'override-gate-home');
+    const runtime = join(SANDBOX, 'override-runtime');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    mkdirSync(runtime, { recursive: true });
+    stageTentacles(SRC, binDir);
+    const heartbeat = join(runtime, 'custom.heartbeat');
+    const pidFile = join(runtime, 'custom.pid');
+    const readyFile = join(runtime, 'custom.ready');
+    writeFileSync(heartbeat, '{}');
+    writeFileSync(pidFile, '6001');
+    writeFileSync(readyFile, '6001\n');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        PD_HOME: pdHome,
+        PORT_DADDY_HEARTBEAT_FILE: heartbeat,
+        PORT_DADDY_PID_FILE: pidFile,
+        PORT_DADDY_READY_FILE: readyFile,
+      },
+      input: '{}',
+      encoding: 'utf8',
+    });
+    expect(out).toContain('pd-hook-prompt');
+  });
+
+  test('does not delegate when the readiness lease belongs to another daemon generation', () => {
+    const pdHome = join(SANDBOX, 'generation-mismatch-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome, 7001);
+    writeFileSync(join(pdHome, 'daemon.pid'), '7002');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+  });
+
+  test.each(['daemon.ready', 'daemon.pid', 'heartbeat'])(
+    'fails open instead of trusting a symlinked %s lease with an otherwise matching generation',
+    (leaseName) => {
+      const pdHome = join(SANDBOX, `symlink-${leaseName.replace('.', '-')}-home`);
+      const binDir = join(pdHome, 'bin');
+      mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+      stageTentacles(SRC, binDir);
+      writeFileSync(join(pdHome, 'heartbeat'), '{}');
+      markDaemonReady(pdHome, 7001);
+      registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+      const lease = join(pdHome, leaseName);
+      const target = `${lease}.target`;
+      renameSync(lease, target);
+      symlinkSync(target, lease);
+
+      const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+        cwd: REPO,
+        env: { ...process.env, PD_HOME: pdHome },
+        input: '{}',
+        encoding: 'utf8',
+      });
+      expect(out).toBe('');
+    },
+  );
+
   test('unexpected exits fail open, trip after three calls, and emit one FleetBar remediation', () => {
     const pdHome = join(SANDBOX, 'breaker-exit-home');
     const binDir = join(pdHome, 'bin');
@@ -285,6 +401,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nexit 127\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = {
       ...process.env,
@@ -323,6 +440,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.03\nexit 127\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = {
       ...process.env,
@@ -357,6 +475,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 127\n', { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = {
       ...process.env,
@@ -389,6 +508,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.08\nexit 0\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = {
       ...process.env,
@@ -419,6 +539,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nexit 0\n`, { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = {
       ...process.env,
@@ -446,6 +567,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = { ...process.env, PD_HOME: pdHome, PD_HOOK_FAILURE_THRESHOLD: '1', PD_HOOK_SLOW_MS: '10000' };
 
@@ -472,6 +594,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       '',
     ].join('\n'), { mode: 0o755 });
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     const env = {
       ...process.env,
@@ -508,6 +631,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(fakeBin, { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     writeFileSync(join(fakeBin, 'stat'), [
       '#!/bin/sh',
@@ -544,6 +668,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
     mkdirSync(fakeBin, { recursive: true });
     stageTentacles(SRC, binDir);
+    markDaemonReady(pdHome);
 
     const run = (path = process.env.PATH ?? ''): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
