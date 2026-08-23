@@ -70,11 +70,11 @@ test('the board reflects current items on each request (no migration needed)', a
 });
 
 describe('GET /roadmap/board persists the derived plan into graph_edges', () => {
-  // ADR-0086 §3 designed graph_edges to hold this hierarchy/dependency structure, but
-  // writePlanEdges (lib/planner-edges.ts) had zero callers so the table stayed empty forever.
-  // The board route is the one place a PlannerPlan is already derived from live roadmap_items —
-  // these tests prove the wire-up actually lands real rows, and that it converges (no dupes) on
-  // repeat renders.
+  // ADR-0086 §3: graph_edges holds the hierarchy/dependency structure. Since the
+  // dependencies_json retirement, planner:deps edges are AUTHORED by roadmap-items upserts;
+  // the board render only converges the DERIVED planner:hierarchy scope via writePlanEdges.
+  // These tests prove hierarchy rows land, renders converge (no dupes), and the board never
+  // rewrites the authored deps scope.
   let edgesApp;
   let edgesDb;
   let graphEdges;
@@ -97,27 +97,28 @@ describe('GET /roadmap/board persists the derived plan into graph_edges', () => 
     if (edgesDb) edgesDb.close();
   });
 
-  test('rendering the board writes real hierarchy + dependency edges matching dependencies_json', async () => {
-    // Nothing persisted before the board has ever been rendered.
-    expect(graphEdges.list({ scope: 'planner:hierarchy', limit: 100 })).toHaveLength(0);
-    expect(graphEdges.list({ scope: 'planner:deps', limit: 100 })).toHaveLength(0);
-
-    const res = await edgesApp.inject({ method: 'GET', url: '/roadmap/board' });
-    expect(res.statusCode).toBe(200);
-
-    // depends_on edge: adr-0048-phase-1-proto depends on adr-0048-phase-0-ratify (its
-    // dependencies_json), stored dependent→dependency per dependsOnEdge()'s contract.
-    const deps = graphEdges.list({ scope: 'planner:deps', edgeType: 'depends_on', limit: 100 });
-    expect(deps).toHaveLength(1);
-    expect(deps[0]).toMatchObject({
+  test('deps edges are authored at upsert time; rendering the board writes the hierarchy', async () => {
+    // The upserts in seedHierarchy already authored the depends_on edge —
+    // dependencies_json is retired, edges are the write path's truth.
+    const authoredDeps = graphEdges.list({ scope: 'planner:deps', edgeType: 'depends_on', limit: 100 });
+    expect(authoredDeps).toHaveLength(1);
+    expect(authoredDeps[0]).toMatchObject({
       sourceType: 'roadmap:item',
       sourceId: 'adr-0048-phase-1-proto',
       edgeType: 'depends_on',
       targetType: 'roadmap:item',
       targetId: 'adr-0048-phase-0-ratify',
     });
+    // Hierarchy is a derived projection — nothing there before the first render.
+    expect(graphEdges.list({ scope: 'planner:hierarchy', limit: 100 })).toHaveLength(0);
 
-    // Hierarchy edges: project→epic and epic→task containment for every seeded item.
+    const res = await edgesApp.inject({ method: 'GET', url: '/roadmap/board' });
+    expect(res.statusCode).toBe(200);
+
+    // The render must NOT rewrite the authored deps scope…
+    expect(graphEdges.list({ scope: 'planner:deps', limit: 100 })).toHaveLength(1);
+
+    // …and must land the derived hierarchy: project→epic and epic→task containment.
     const hierarchy = graphEdges.list({ scope: 'planner:hierarchy', edgeType: 'parent_of', limit: 100 });
     expect(hierarchy.some((e) => e.sourceId === 'port-daddy' && e.targetId === 'adr-0048')).toBe(true);
     expect(hierarchy.some((e) => e.sourceId === 'port-daddy' && e.targetId === 'unsorted')).toBe(true);
@@ -143,11 +144,12 @@ describe('GET /roadmap/board persists the derived plan into graph_edges', () => 
     expect(hierarchyAfterFirst.length).toBeGreaterThan(0);
   });
 
-  test('a subsequent render reflects a removed dependency (replaceScope converges, not just appends)', async () => {
+  test('a dependency removed at upsert disappears from the edges immediately (author-time convergence)', async () => {
     await edgesApp.inject({ method: 'GET', url: '/roadmap/board' });
     expect(graphEdges.list({ scope: 'planner:deps', limit: 100 })).toHaveLength(1);
 
-    // Drop the dependency on the roadmap item, then re-render.
+    // Drop the dependency on the roadmap item — the UPSERT is the edge author
+    // now, so the edge disappears without needing a board render.
     const res = await edgesApp.inject({
       method: 'POST',
       url: '/roadmap/items',
@@ -160,7 +162,9 @@ describe('GET /roadmap/board persists the derived plan into graph_edges', () => 
       },
     });
     expect(res.statusCode).toBe(201);
+    expect(graphEdges.list({ scope: 'planner:deps', limit: 100 })).toHaveLength(0);
 
+    // A subsequent render leaves the authored scope alone (still empty, no resurrection).
     await edgesApp.inject({ method: 'GET', url: '/roadmap/board' });
     expect(graphEdges.list({ scope: 'planner:deps', limit: 100 })).toHaveLength(0);
   });

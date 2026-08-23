@@ -257,11 +257,12 @@ export function verifyCoreSchema(db: DatabaseInstance): void {
   }
   // Column sentinels: the ALTER blocks are warn-and-continue, so probe their
   // target columns directly (ADR-0086 planner columns via `kind`; soft-delete
-  // tombstones via `deleted_at`).
+  // tombstones via `deleted_at`; Jira-grade item columns via `tags_json`).
   if (!missing.includes('roadmap_items')) {
     const cols = db.prepare('PRAGMA table_info(roadmap_items)').all() as Array<{ name: string }>;
     if (!cols.some((c) => c.name === 'kind')) missing.push('roadmap_items.kind');
     if (!cols.some((c) => c.name === 'deleted_at')) missing.push('roadmap_items.deleted_at');
+    if (!cols.some((c) => c.name === 'tags_json')) missing.push('roadmap_items.tags_json');
   }
   if (missing.length > 0) {
     throw new Error(
@@ -452,6 +453,16 @@ export const CORE_SCHEMA_SQL = `
     started_at INTEGER,
     due_at INTEGER,
     estimate INTEGER,
+    -- Jira-grade item fields (operator-mandated roadmap command-center,
+    -- 2026-08-22). tags_json is a JSON array of free-form label strings
+    -- (filterable via json_each). actual mirrors estimate's abstract effort
+    -- units so planned-vs-actual is a same-unit subtraction. completed_at is
+    -- stamped by the status transition into 'done' (and cleared on reopen) so
+    -- cycle time is derivable without replaying the status-event audit trail.
+    -- Existing DBs get these via the PRAGMA-guarded ALTER in initDatabase.
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    actual INTEGER,
+    completed_at INTEGER,
     -- Soft-delete tombstone. The registry is a multi-replica system reconciled
     -- by union-merge (scripts/registry-reunify.ts); a hard DELETE in one
     -- replica silently resurrects from any replica still carrying the row.
@@ -809,6 +820,61 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   } catch (err) {
     console.warn(
       `[port-daddy] WARNING: Could not migrate roadmap_items deleted_at tombstone column: ${(err as Error).message}`
+    );
+  }
+
+  // Jira-grade roadmap items (operator-mandated roadmap command-center,
+  // 2026-08-22; migration 087): tags, actual effort, and the completion stamp.
+  // Same idempotent PRAGMA-guarded pattern as the ADR-0086 planner columns —
+  // `tags_json` is the sentinel: if it's missing, all three are. SQLite ALTER
+  // cannot add CHECKs, so the app layer (lib/roadmap-items.ts) normalizes tags
+  // and effort on write; fresh DBs get the defaults from CORE_SCHEMA_SQL.
+  try {
+    const roadmapColumns = db.prepare("PRAGMA table_info(roadmap_items)").all() as Array<{ name: string }>;
+    const hasTags = roadmapColumns.some(column => column.name === 'tags_json');
+    if (!hasTags) {
+      db.prepare("ALTER TABLE roadmap_items ADD COLUMN tags_json TEXT NOT NULL DEFAULT '[]'").run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN actual INTEGER').run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN completed_at INTEGER').run();
+    }
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate roadmap_items Jira-grade columns: ${(err as Error).message}`
+    );
+  }
+
+  // ADR-0086 §3 — dependencies_json retirement (data migration, idempotent).
+  // Blocking relations move into graph_edges (scope planner:deps, edge_type
+  // depends_on, roadmap:item → roadmap:item); the denormalized JSON column is
+  // retired as a source of truth. This backfill copies any remaining legacy
+  // JSON deps into edges (ON CONFLICT DO NOTHING — re-runs and old-replica
+  // row arrivals converge instead of duplicating) and then clears the JSON to
+  // the '[]' sentinel so the read-side bridge (edges ∪ JSON) can never
+  // resurrect a dependency later removed through the edge-authoring write
+  // path. The column itself stays for old-replica union-merge compatibility.
+  try {
+    const backfillAt = Date.now();
+    db.prepare(`
+      INSERT INTO graph_edges (
+        scope, project_dir, source_type, source_id, edge_type, target_type, target_id,
+        weight, metadata, created_at, updated_at
+      )
+      SELECT 'planner:deps', NULL, 'roadmap:item', r.slug, 'depends_on', 'roadmap:item', je.value,
+             1, NULL, ?, ?
+        FROM roadmap_items r, json_each(r.dependencies_json) je
+       WHERE r.dependencies_json != '[]'
+         AND json_valid(r.dependencies_json)
+         AND je.type = 'text'
+         AND je.value != ''
+      ON CONFLICT(scope, source_type, source_id, edge_type, target_type, target_id) DO NOTHING
+    `).run(backfillAt, backfillAt);
+    db.prepare(
+      `UPDATE roadmap_items SET dependencies_json = '[]'
+        WHERE dependencies_json != '[]' AND json_valid(dependencies_json)`
+    ).run();
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not backfill roadmap dependencies into graph_edges: ${(err as Error).message}`
     );
   }
 

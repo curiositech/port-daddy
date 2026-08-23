@@ -138,9 +138,13 @@ pd bond <command>
 pd graph edges
 pd memory episodes
 pd ideas list
-pd roadmap
+pd roadmap [--tag <t>]
 pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
 pd roadmap release <slug>
+pd roadmap upsert <slug> --summary <md> [--kind <k>] [--priority <1-5>] [--estimate <u>] [--actual <u>] [--assignee <roster-id>|--unassign] [--tag <t>]... [--clear-tags] [--due <when>]
+pd roadmap link <slug> --pr <n> | --doc <path> | --file <path> | --media <path-or-url>
+pd roadmap unlink <slug> <same selector flags>
+pd roadmap links <slug>
 pd feedback <command>
 pd pheromone <command>
 pd demo <name>
