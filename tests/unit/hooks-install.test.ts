@@ -87,21 +87,27 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     }
   });
 
-  test('gemini uses native turn/edit event names without shell or after-tool fan-out', () => {
+  test('gemini uses native turn/edit/stop event names without shell or after-tool fan-out', () => {
     const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
-    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool']);
+    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool', 'AfterAgent']);
     expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
+    expect(GEMINI_EVENTS.stop).toBe('AfterAgent');
     expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
     expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
+    expect(map.AfterAgent[0].matcher).toBeUndefined(); // closeout gate has no matcher
     expect(map.BeforeAgent[0].hooks[0].timeout).toBe(1000);
+    expect(map.AfterAgent[0].hooks[0].timeout).toBe(1000); // Gemini timeouts are ms
   });
 
-  test('claude/agy use only UserPromptSubmit and direct PreToolUse', () => {
+  test('claude/agy use only UserPromptSubmit, direct PreToolUse, and Stop', () => {
     for (const v of ['claude', 'agy'] as const) {
       const map = buildJsonHookMap(v, (n) => `/x/${n}`);
-      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse']);
+      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'Stop']);
       expect(JSON.stringify(map)).not.toContain('statusMessage');
       expect(map.UserPromptSubmit[0].hooks[0].timeout).toBe(1);
+      expect(map.Stop[0].matcher).toBeUndefined(); // fires on every turn end
+      expect(map.Stop[0].hooks[0].command).toBe('/x/pd-hook-stop');
+      expect(map.Stop[0].hooks[0].timeout).toBe(1); // Claude/agy timeouts are seconds
     }
   });
 
@@ -110,7 +116,7 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(JSON.stringify(map)).not.toContain('statusMessage');
   });
 
-  test('codex TOML budgets one turn hook plus direct edits and no per-tool trace', () => {
+  test('codex TOML budgets one turn hook, direct edits, and one closeout gate — no per-tool trace', () => {
     const toml = codexHooksTomlBlock((n) => `/abs/${n}`);
     expect(toml).toContain(CODEX_PD_MARKER);
     expect(toml).toContain(`matcher = "${CODEX_TOOL_MATCHER}"`);
@@ -119,15 +125,20 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(toml).not.toContain('async = true');
     const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'));
     expect(pre).toContain('async = false');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
+    expect(toml).toContain('[[hooks.Stop]]');
+    expect(toml).toContain('[[hooks.Stop.hooks]]');
+    expect(toml).toContain('command = "/abs/pd-hook-stop"');
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
     expect(toml).not.toContain('statusMessage');
+    // The end fence must stay LAST so removal never touches user tables below.
+    expect(toml.indexOf('[[hooks.Stop]]')).toBeLessThan(toml.indexOf('PD_SQUID_TENTACLES_END'));
   });
 
   test('a read-only six-tool Codex batch schedules zero PD tool hooks', () => {
     const readOnlyBatch = ['Bash', 'exec_command', 'shell', 'shell_command', 'unified_exec', 'run_shell_command'];
     const matcher = new RegExp(`^(?:${CODEX_TOOL_MATCHER})$`);
     expect(readOnlyBatch.filter((tool) => matcher.test(tool))).toEqual([]);
-    expect(REGISTERED_TENTACLES).toEqual(['pd-hook-prompt', 'pd-hook-pre-tool']);
+    expect(REGISTERED_TENTACLES).toEqual(['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-stop']);
   });
 });
 

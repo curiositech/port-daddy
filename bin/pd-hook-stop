@@ -1,0 +1,239 @@
+#!/bin/sh
+# pd-hook-stop — end-of-turn SITREP closeout tentacle (ADR-0092 L4, Giant Squid)
+# =============================================================================
+# Multi-vendor Stop-event gate. The harness compels an end-of-turn SITREP table
+# through pd-hook-prompt (the compulsion half); THIS tentacle is the
+# verification half: when the turn ends, it checks that the final assistant
+# message actually carries the SITREP table and — under the same per-repo
+# `sitrep.endOfTurn` dial — blocks ONCE with the directive as the reason so the
+# model emits the table before yielding. Compulsion and verification state the
+# same contract; the block reason IS the model's next prompt.
+#
+# VENDOR STOP-EVENT FORMATS + BLOCK CONTRACTS — verified 2026-08-23 against the
+# primary vendor docs (see skills/giant-squid-hooks/references/vendor-matrix.md):
+#   Claude Code : event `Stop`. snake_case { session_id, transcript_path, cwd,
+#                 hook_event_name, stop_hook_active, last_assistant_message }.
+#                 BLOCK = exit 2 + reason on stderr (also exit 0 + decision JSON;
+#                 we use exit 2). Loop guard: stop_hook_active + a hard cap of 8
+#                 consecutive blocks. Stop does NOT fire on user interrupts.
+#   Gemini CLI  : event `AfterAgent`. snake_case { session_id, transcript_path,
+#                 cwd, prompt, prompt_response, stop_hook_active }. BLOCK =
+#                 exit 2 + stderr (or decision:"deny" JSON). stop_hook_active
+#                 exists but NO documented consecutive-block cap.
+#   Codex CLI   : event `Stop`. snake_case { session_id, transcript_path (may be
+#                 null), cwd, turn_id, stop_hook_active, last_assistant_message
+#                 (string|null) }. BLOCK = exit 2 + NON-EMPTY stderr (codex
+#                 rejects exit 2 with empty stderr) or exit 0 + decision JSON.
+#                 Plain non-JSON stdout on exit 0 is INVALID — never emit it.
+#   Antigravity : event `Stop`, camelCase { conversationId, workspacePaths[],
+#                 transcriptPath, terminationReason, fullyIdle, executionNum }.
+#                 NO final-message field, NO stop_hook_active loop guard, and
+#                 field reports say its Stop hooks may not fire at all.
+#                 OBSERVE-ONLY: this tentacle never blocks agy.
+#
+# LOOP-GUARD DOCTRINE (why blocking is bounded twice over):
+#   1. stop_hook_active:true → exit 0 immediately, before anything else. This is
+#      each vendor's own "you already blocked this stop" signal.
+#   2. A one-shot marker under $PD_HOME keyed by session id (mkdir-atomic, the
+#      same lock style as matrix.env writers) allows AT MOST ONE block per
+#      session per TTL window. Gemini and Codex document no consecutive-block
+#      cap, so the harness brings its own — a wedged loop is a broken product.
+#
+# The universal block contract (exit 2 + reason on stderr) is the one all three
+# blockable vendors accept, and it sidesteps Codex's JSON-only stdout rule.
+#
+# Failure posture: on ANY parse error, missing tooling, or unverifiable final
+# text, fail OPEN (exit 0). A missed SITREP is degraded compulsion; a crashed
+# or wedged CLI loop is a broken product (ADR-0091 §Mitigation). Total budget
+# stays well under the 250 ms breaker (SQUID_HOOK_BREAKER_SLOW_MS,
+# lib/squid/debug.ts:33). NO daemon or `pd` calls — filesystem only.
+set -u
+
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+# One block per session per this many seconds (the one-shot marker TTL).
+BLOCK_TTL_SECONDS="${PD_SQUID_STOP_BLOCK_TTL_SECONDS:-300}"
+case "$BLOCK_TTL_SECONDS" in ''|*[!0-9]*) BLOCK_TTL_SECONDS=300 ;; esac
+
+# Drain stdin so the CLI's pipe write never blocks, capturing the Stop event.
+EVENT="$(cat 2>/dev/null || true)"
+[ -n "$EVENT" ] || exit 0
+
+# ── 1. Vendor loop guard: a stop we already blocked must pass unconditionally ─
+# First line of logic, before any dial or parsing work. Cheap raw-substring
+# check first (compact and single-space machine serializations), then the exact
+# field when jq is present — a jq failure must never un-guard the loop.
+case "$EVENT" in
+  *'"stop_hook_active":true'*|*'"stop_hook_active": true'*) exit 0 ;;
+esac
+if command -v jq >/dev/null 2>&1; then
+  ACTIVE="$(printf '%s' "$EVENT" | jq -r '.stop_hook_active // empty' 2>/dev/null || true)"
+  [ "$ACTIVE" = "true" ] && exit 0
+fi
+
+# ── 2. Antigravity (agy) camelCase Stop payload → OBSERVE-ONLY, never block ──
+# agy carries no final-message field (only transcriptPath, which the 250 ms
+# budget forbids full-parsing), no stop_hook_active guard, and a different
+# block dialect — and its Stop hooks are reported not to fire reliably at all
+# (IDE 1.107.0). The manager decision is observe-only: exit 0.
+case "$EVENT" in
+  *'"terminationReason"'*|*'"workspacePaths"'*|*'"fullyIdle"'*) exit 0 ;;
+esac
+
+# ── 3. Resolve cwd + the sitrep dial (identical shape to bin/pd-hook-prompt) ─
+CWD="$PWD"
+if command -v jq >/dev/null 2>&1; then
+  J="$(printf '%s' "$EVENT" | jq -r '.cwd // .workspace // empty' 2>/dev/null || true)"
+  [ -n "$J" ] && CWD="$J"
+fi
+
+normalize_sitrep() {
+  LEVEL="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  case "$LEVEL" in
+    off|suggest|enforce) printf '%s' "$LEVEL" ;;
+    *) printf '' ;;
+  esac
+}
+
+json_sitrep_level() {
+  CFG="$1"
+  [ -f "$CFG" ] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.sitrep.endOfTurn // .sitrep // empty' "$CFG" 2>/dev/null || true
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$CFG" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise SystemExit
+    value = data.get("sitrep")
+    if isinstance(value, dict):
+        value = value.get("endOfTurn")
+    if isinstance(value, str):
+        print(value)
+except Exception:
+    pass
+PY
+    return 0
+  fi
+  # No JSON parser available → no dial read. The caller's default (enforce)
+  # keeps the contract standing rather than letting missing tooling silence it.
+  return 0
+}
+
+config_sitrep_level() {
+  DIR="$CWD"
+  case "$DIR" in
+    /*) : ;;
+    *) DIR="$(pwd 2>/dev/null || printf '.')" ;;
+  esac
+  while [ -n "$DIR" ] && [ "$DIR" != "/" ]; do
+    for CFG in "$DIR/agent.config.json" "$DIR/.portdaddy/sitrep.json" "$DIR/.portdaddy/project.json"; do
+      RAW="$(json_sitrep_level "$CFG" | head -n1)"
+      LEVEL="$(normalize_sitrep "$RAW")"
+      [ -n "$LEVEL" ] && { printf '%s' "$LEVEL"; return 0; }
+    done
+    NEXT="$(dirname "$DIR" 2>/dev/null || printf '/')"
+    [ "$NEXT" = "$DIR" ] && break
+    DIR="$NEXT"
+  done
+  printf ''
+}
+
+SITREP="$(normalize_sitrep "${PD_SITREP:-}")"
+[ -n "$SITREP" ] || SITREP="$(config_sitrep_level)"
+[ -n "$SITREP" ] || SITREP="enforce"
+[ "$SITREP" = "off" ] && exit 0
+
+# ── 4. Extract the final assistant text (the ONLY reliable source) ───────────
+# Claude docs: the transcript "may lag" at Stop time, so the stdin field is the
+# single source of truth — never full-parse the transcript here. Claude/Codex
+# carry last_assistant_message (Codex may send null); Gemini carries
+# prompt_response. Without jq we fall back to python3; with neither parser the
+# final text is UNVERIFIABLE and the tentacle fails open rather than guessing
+# against raw event JSON (whose prompt fields quote the SITREP contract and
+# would always false-positive).
+FINAL=""
+if command -v jq >/dev/null 2>&1; then
+  FINAL="$(printf '%s' "$EVENT" | jq -r '.last_assistant_message // .prompt_response // empty' 2>/dev/null || true)"
+elif command -v python3 >/dev/null 2>&1; then
+  FINAL="$(printf '%s' "$EVENT" | python3 -c '
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+    value = data.get("last_assistant_message") or data.get("prompt_response")
+    if isinstance(value, str):
+        print(value)
+except Exception:
+    pass
+' 2>/dev/null || true)"
+else
+  exit 0
+fi
+# Empty / null final text (Codex null transcript-less stops, unexpected shapes)
+# is unverifiable → never block on it.
+[ -n "$FINAL" ] || exit 0
+
+# ── 5. Generous SITREP detection ─────────────────────────────────────────────
+# Present = the word "sitrep" (any case) AND at least one markdown table row
+# (|...|) in the final text. Deliberately loose: a false PASS merely skips one
+# reminder; a false BLOCK would burn a turn. Compliant turns stay zero-byte.
+if printf '%s' "$FINAL" | grep -qi 'sitrep' && printf '%s' "$FINAL" | grep -q '|.*|'; then
+  exit 0
+fi
+
+# ── 6. Absent: act per dial ──────────────────────────────────────────────────
+DIRECTIVE="[PORT DADDY — SITREP ${SITREP}] This turn ended without the required SITREP table.
+End EVERY turn with a SITREP markdown table (scaffold: pd sitrep --template):
+| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |
+Track every idea raised this session, every roadmap claim, and work assigned by other agents; update Status with the turn's progress and carry unresolved rows forward.
+A row you are writing code for MUST carry a roadmap link from the moment it is created — mint one first: pd roadmap upsert <slug> --summary \"...\" --estimate <units>.
+Emit the SITREP table now, then end the turn."
+
+if [ "$SITREP" = "suggest" ]; then
+  # Non-blocking nudge. Only Claude Code frames structured Stop stdout as
+  # trusted harness context, and only jq can emit it safely; every other
+  # provider stays SILENT (Codex treats raw stdout on exit 0 as invalid).
+  if [ "${PD_HOOK_PROVIDER:-}" = "claude" ] && command -v jq >/dev/null 2>&1; then
+    jq -cn --arg ctx "$DIRECTIVE" \
+      '{hookSpecificOutput:{hookEventName:"Stop",additionalContext:$ctx}}'
+  fi
+  exit 0
+fi
+
+# enforce: block AT MOST ONCE per session per TTL window (harness-owned cap —
+# Gemini/Codex document none of their own). The marker directory is the lock:
+# mkdir is atomic, so exactly one concurrent stop wins the right to block.
+SESSION="$PPID"
+if command -v jq >/dev/null 2>&1; then
+  SID="$(printf '%s' "$EVENT" | jq -r '.session_id // .sessionId // .thread_id // .conversationId // empty' 2>/dev/null || true)"
+  [ -n "$SID" ] && SESSION="$SID"
+fi
+SESSION="$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-96)"
+MARKER_ROOT="$PD_HOME/squid/stop-blocks"
+MARKER="$MARKER_ROOT/$SESSION.blocked"
+mkdir -p "$MARKER_ROOT" 2>/dev/null || exit 0
+
+if ! mkdir "$MARKER" 2>/dev/null; then
+  # Marker exists: only a STALE one (older than the TTL) may be recycled into
+  # a fresh block; a fresh marker means this session already spent its shot.
+  NOW="$(date +%s 2>/dev/null || printf 0)"
+  MODIFIED="$(stat -f %m "$MARKER" 2>/dev/null || true)"
+  case "$MODIFIED" in ''|*[!0-9]*) MODIFIED="$(stat -c %Y "$MARKER" 2>/dev/null || true)" ;; esac
+  case "$NOW:$MODIFIED" in *[!0-9:]*) exit 0 ;; esac
+  [ $((NOW - MODIFIED)) -gt "$BLOCK_TTL_SECONDS" ] 2>/dev/null || exit 0
+  rmdir "$MARKER" 2>/dev/null || exit 0
+  mkdir "$MARKER" 2>/dev/null || exit 0
+fi
+
+# The reason on stderr IS the model's next prompt — and Codex rejects exit 2
+# with an empty stderr, so the directive must always be written.
+printf '%s\n' "$DIRECTIVE" >&2
+exit 2

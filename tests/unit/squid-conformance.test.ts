@@ -174,6 +174,7 @@ describe('Giant Squid conformance', () => {
       hooks: {
         UserPromptSubmit: [hookCommands[0]],
         PreToolUse: [hookCommands[1]],
+        Stop: [hookCommands[2]],
         SessionStart: [{ hooks: [
           { type: 'command', command: '/gate/sessionstart-pilot.mjs' },
           { type: 'command', command: 'pd attention --json' },

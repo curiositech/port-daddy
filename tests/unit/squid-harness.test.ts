@@ -46,7 +46,7 @@ import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
-const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool') =>
+const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop') =>
   join(repoRoot, 'bin', n);
 
 // Isolated scratch under ~/coding/tmp (NEVER /tmp — macOS purges /tmp).
@@ -1098,6 +1098,122 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   });
 });
 
+describe('Giant Squid Harness — pd-hook-stop closeout gate (ADR-0092 L4)', () => {
+  // The Stop tentacle verifies the SITREP contract pd-hook-prompt compels. It
+  // reads the SAME sitrep dial (PD_SITREP env → agent.config.json →
+  // .portdaddy/sitrep.json → .portdaddy/project.json, default enforce), so the
+  // dial parent-walk proofs above cover resolution; these tests pin the STOP
+  // behaviors: loop guards, per-vendor payload shapes, and the block contract.
+  const TABLE_TURN = 'Work done.\n## SITREP\n| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |\n| shipped stop hook | Agent | done | #1 | none |';
+  const BARE_TURN = 'Work done, yielding without any table.';
+
+  const runStop = (event: Record<string, unknown>, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, ...event }),
+      env: { ...process.env, PD_HOME: SCRATCH, ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('enforce (default): a turn ending without the SITREP table blocks with exit 2 + the directive on stderr', () => {
+    const r = runStop({ session_id: 'stop-enforce-1', last_assistant_message: BARE_TURN });
+    expect(r.status).toBe(2);
+    // The reason IS the model's next prompt — it must state the same contract
+    // pd-hook-prompt compels, and must never be empty (Codex rejects that).
+    expect(r.stderr).toContain('SITREP enforce');
+    expect(r.stderr).toContain('| Idea / Suggestion / Remediation |');
+    expect(r.stderr).toContain('pd sitrep --template');
+    expect(r.stdout).toBe('');
+  });
+
+  test('one-shot marker: the SAME session never blocks twice inside the TTL window', () => {
+    const first = runStop({ session_id: 'stop-oneshot', last_assistant_message: BARE_TURN });
+    expect(first.status).toBe(2);
+    const second = runStop({ session_id: 'stop-oneshot', last_assistant_message: BARE_TURN });
+    expect(second.status).toBe(0);
+    expect(second.stderr).toBe('');
+    // A DIFFERENT session still owns its own one shot.
+    const other = runStop({ session_id: 'stop-other-session', last_assistant_message: BARE_TURN });
+    expect(other.status).toBe(2);
+  });
+
+  test('stop_hook_active:true short-circuits before any dial or marker work', () => {
+    const r = runStop({ session_id: 'stop-active', stop_hook_active: true, last_assistant_message: BARE_TURN });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('a SITREP-bearing final message passes silently (zero bytes, exit 0)', () => {
+    const r = runStop({ session_id: 'stop-compliant', last_assistant_message: TABLE_TURN });
+    expect(r.status).toBe(0);
+    expect(Buffer.byteLength(r.stdout)).toBe(0);
+    expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
+  test('gemini AfterAgent payload: prompt_response is the final-text source', () => {
+    const pass = runStop({ session_id: 'stop-gem-ok', prompt_response: TABLE_TURN, stop_hook_active: false });
+    expect(pass.status).toBe(0);
+    const block = runStop({ session_id: 'stop-gem-miss', prompt_response: BARE_TURN, stop_hook_active: false });
+    expect(block.status).toBe(2);
+  });
+
+  test('agy camelCase Stop payload NEVER blocks (observe-only vendor)', () => {
+    // agy carries no final-message field, no stop_hook_active guard, and a
+    // different block dialect — the tentacle must stay observe-only even when
+    // the dial is enforce and no SITREP is verifiable.
+    const r = runStop({
+      conversationId: 'agy-stop-1',
+      workspacePaths: [WORKSPACE],
+      transcriptPath: join(WORKSPACE, 'transcript.jsonl'),
+      terminationReason: 'completed',
+      fullyIdle: true,
+      executionNum: 4,
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('an empty/null final message is UNVERIFIABLE and never blocks (Codex null contract)', () => {
+    const r = runStop({ session_id: 'stop-null', last_assistant_message: null, transcript_path: null, turn_id: 't-1' });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe('');
+  });
+
+  test('dial off: the closeout gate stays silent even without a SITREP', () => {
+    const r = runStop({ session_id: 'stop-off', last_assistant_message: BARE_TURN }, { PD_SITREP: 'off' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('dial suggest: non-blocking; only the Claude provider gets structured stdout context', () => {
+    // Codex treats raw non-JSON stdout on exit 0 as invalid, so every
+    // non-Claude provider must stay byte-silent under suggest.
+    const codex = runStop({ session_id: 'stop-suggest-codex', last_assistant_message: BARE_TURN }, { PD_SITREP: 'suggest', PD_HOOK_PROVIDER: 'codex' });
+    expect(codex.status).toBe(0);
+    expect(codex.stdout).toBe('');
+
+    const claude = runStop({ session_id: 'stop-suggest-claude', last_assistant_message: BARE_TURN }, { PD_SITREP: 'suggest', PD_HOOK_PROVIDER: 'claude' });
+    expect(claude.status).toBe(0);
+    const parsed = JSON.parse(claude.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('Stop');
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('SITREP suggest');
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('| Idea / Suggestion / Remediation |');
+  });
+
+  test('garbage stdin fails open (exit 0, no output)', () => {
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: 'not json at all {{{',
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+});
+
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
   test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
@@ -1111,6 +1227,8 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
+    expect(settings.hooks.Stop[settings.hooks.Stop.length - 1].matcher).toBeUndefined();
     expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
@@ -1179,6 +1297,7 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('BeforeAgent')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('BeforeTool')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('AfterAgent')).toBe(hookCommandPath('pd-hook-stop'));
     expect(cfg.hooks.AfterTool).toBeUndefined();
     // The BeforeTool matcher covers direct edits but deliberately excludes shell.
     const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
@@ -1242,15 +1361,19 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/async = false/);
     expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
     expect(toml).not.toContain('/Cellar/');
-    // UserPromptSubmit is present; observational PostToolUse is deliberately absent.
+    // UserPromptSubmit and the Stop closeout gate are present; observational
+    // PostToolUse is deliberately absent.
     expect(toml).not.toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
+    expect(toml).toMatch(/\[\[hooks\.Stop\]\]/);
+    expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-stop')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
     expect(toml).not.toMatch(/async = true/);
     expect(toml).not.toContain('statusMessage');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
+    expect(toml).toContain(SQUID_HOOK_METADATA.stop.displayName);
     expect(toml).not.toContain(SQUID_HOOK_METADATA.postTool.displayName);
   });
 
@@ -1357,6 +1480,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
     expect(cfg.hooks.PostToolUse).toBeUndefined();
     // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
     const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;
