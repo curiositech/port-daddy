@@ -1860,6 +1860,9 @@
       "routes": [
         "GET /coordination/status"
       ],
+      "mcp": [
+        "coordination_status"
+      ],
       "completions": [],
       "docs": {
         "readme": true,

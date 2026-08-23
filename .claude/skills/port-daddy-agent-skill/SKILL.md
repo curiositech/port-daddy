@@ -756,6 +756,11 @@ they cannot overwrite or release machine-local exclusion locks. A replica id
 belongs to the durable local ledger/outbox rather than one process lifetime;
 never rotate it during a restart with pending operations.
 
+MCP equivalent: `coordination_status()` is read-only and reports whether the
+peer is enabled/connected, its project, actor, stable replica id, durable room
+cursor, pending outbox count, last sync, and last error. A disconnected result
+is a federation diagnostic, not evidence that the local ledger is unavailable.
+
 An explicitly selected `PORT_DADDY_URL`, `PD_URL`, or daemon profile is an
 operator-selected peer boundary. If that peer is unavailable, the CLI reports
 the outage and does not silently fall back to a local database or start a

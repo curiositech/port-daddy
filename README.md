@@ -428,6 +428,9 @@ present: `PORT_DADDY_COORDINATION_URL`, `PORT_DADDY_COORDINATION_PROJECT`,
 `PORT_DADDY_COORDINATION_ACTOR`, and the managed secret
 `PORT_DADDY_COORDINATION_MACAROON`. Partial configuration is reported but does
 not prevent the local daemon from starting or accepting local work.
+Agents can inspect `coordination_status()` over MCP to distinguish a healthy
+room connection from an offline peer with locally queued work; disconnected
+never means the local coordination ledger stopped accepting writes.
 
 Cloud sandboxes use the same runtime rather than a mock coordination client:
 the executor builds the compiled binary, starts an isolated daemon with its own
