@@ -186,13 +186,57 @@ describe('migrations — the schema-of-record mirrors them', () => {
     }
   });
 
-  it('NO TABLE HAS A BODY COLUMN — a built skill lives in the repo, not here', () => {
+  /**
+   * The privacy invariant of this whole feature: skill BODIES live in the
+   * operator's repo and are fetched on demand through the GitHub App. D1 holds
+   * the public projection — names, descriptions, and the coordinates needed to
+   * go and get a body — and never the text itself.
+   *
+   * The table list here is DISCOVERED, not written down, and that is the point.
+   * The previous version of this test hardcoded three suggestion-workflow
+   * tables. `skill_listings` and `seamanship_skill_cache` were added later —
+   * the two tables that actually hold skill metadata, and the two this
+   * invariant is most about — and nothing updated the list, so the assertion
+   * quietly stopped covering the tables that mattered while still passing. A
+   * hardcoded list of things to check is a list that goes stale the first time
+   * someone adds a table and does not think of this file.
+   *
+   * Discovering from sqlite_schema means a new seamanship table is covered the
+   * moment it exists, whether or not its author reads this test.
+   */
+  it('NO seamanship table has a body-shaped column — a skill lives in the repo, not here', () => {
     const t = makeTestD1();
     try {
-      for (const table of ['seamanship_suggestions', 'seamanship_build_grants', 'seamanship_suggestion_jobs']) {
-        const cols = (t.raw.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((r) => r.name);
-        expect(cols).not.toContain('body');
-        expect(cols).not.toContain('content');
+      const tables = (
+        t.raw
+          .prepare(
+            `SELECT name FROM sqlite_schema
+              WHERE type = 'table'
+                AND name NOT LIKE 'sqlite_%'
+                AND (name LIKE 'seamanship%' OR name = 'skill_listings')
+              ORDER BY name`,
+          )
+          .all() as { name: string }[]
+      ).map((r) => r.name);
+
+      // Premise: discovery actually found the tables. Without this the loop
+      // below is vacuously true if the LIKE pattern ever stops matching — the
+      // same silent-no-op this test exists to prevent, one level up.
+      expect(tables).toContain('skill_listings');
+      expect(tables).toContain('seamanship_skill_cache');
+      expect(tables).toContain('seamanship_suggestions');
+      expect(tables.length).toBeGreaterThanOrEqual(5);
+
+      // Anything that could hold a SKILL.md body. `description` is deliberately
+      // absent from this list: a one-line description IS the public projection.
+      const forbidden = ['body', 'content', 'markdown', 'full_text', 'text', 'source', 'raw'];
+      for (const table of tables) {
+        const cols = (
+          t.raw.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+        ).map((r) => r.name);
+        for (const bad of forbidden) {
+          expect(cols).not.toContain(bad);
+        }
       }
     } finally {
       t.close();
