@@ -10,6 +10,8 @@ import {
   packageOnnxRuntimeNative,
   prepareOnnxRuntimeNativeBinding,
 } from './lib/onnx-runtime-native.mjs';
+import { smokeTreeSitterRoute } from './lib/smoke-tree-sitter.mjs';
+import { packageTreeSitterRuntime } from './lib/tree-sitter-runtime.mjs';
 
 const ROOT_DIR = resolve(new URL('..', import.meta.url).pathname);
 const DIST_DIR = join(ROOT_DIR, 'dist');
@@ -380,7 +382,7 @@ async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
   throw new Error(`single binary static smoke failed for ${url}${stderr ? `\n${stderr}` : ''}`);
 }
 
-async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
+async function smokeSelfHostedDaemon(outfile, companionFiles = [], treeSitterRuntime = null) {
   const port = await reservePort();
   const prefix = join(DURABLE_SCRATCH_DIR, `pd-sb-${process.pid}`);
   const isolatedBinDir = join(prefix, 'isolated-bin');
@@ -395,6 +397,22 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
     const isolatedCompanion = join(isolatedBinDir, basename(companion));
     copyFileSync(companion, isolatedCompanion);
     chmodSync(isolatedCompanion, statSync(companion).mode | 0o755);
+  }
+  if (
+    treeSitterRuntime?.status !== 'packaged' ||
+    typeof treeSitterRuntime.dir !== 'string' ||
+    !Array.isArray(treeSitterRuntime.files)
+  ) {
+    throw new Error('single binary daemon smoke failed: Tree-sitter cargo receipt is missing');
+  }
+  const isolatedTreeSitterDir = join(isolatedBinDir, 'native', 'tree-sitter');
+  mkdirSync(isolatedTreeSitterDir, { recursive: true });
+  for (const file of treeSitterRuntime.files) {
+    const source = join(treeSitterRuntime.dir, file.name);
+    if (!existsSync(source)) {
+      throw new Error(`single binary daemon smoke failed: missing packaged Tree-sitter asset ${source}`);
+    }
+    copyFileSync(source, join(isolatedTreeSitterDir, file.name));
   }
 
   const stderrChunks = [];
@@ -427,6 +445,10 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
     if (!fleetHtml.includes('<!doctype html>') && !fleetHtml.includes('<!DOCTYPE html>')) {
       throw new Error('single binary daemon smoke failed: embedded Fleet UI index was not HTML');
     }
+    const treeSitter = await smokeTreeSitterRoute({
+      baseUrl: `http://127.0.0.1:${port}`,
+      scratchRoot: join(prefix, 'tree-sitter'),
+    });
     const cliAttention = run(isolatedOutfile, ['attention', '--agent', 'pd-single-binary-smoke-agent', '--json'], {
       timeout: 15_000,
       env: {
@@ -463,6 +485,7 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
       isolatedBinaryDir: isolatedBinDir,
       samples: { count: samples.count },
       fleetUi: { indexHtmlBytes: Buffer.byteLength(fleetHtml) },
+      treeSitter,
       cli: { attention: attention.success === true, bareAttention: bareAttention.success === true },
     };
   } finally {
@@ -503,6 +526,12 @@ const onnxRuntimeNative = packageOnnxRuntimeNative({
   platform: requestedPlatform,
   arch: requestedArch,
 });
+const treeSitterRuntime = packageTreeSitterRuntime({
+  repoRoot: ROOT_DIR,
+  // Custom outputs (FleetBar payloads and release archives) must carry their
+  // runtime beside the requested executable, not in this checkout's dist/.
+  outputRoot: releaseDir,
+});
 
 if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
   throw new Error(`Expected embedded native core for same-runner target ${target || 'host'}; got ${embeddedNativeCore.status}`);
@@ -541,7 +570,7 @@ if (canSmokeTarget) {
     command: 'help',
     target: target || null,
     stdout: result.stdout.trim(),
-    daemon: await smokeSelfHostedDaemon(entrypointOutfile, companionFiles),
+    daemon: await smokeSelfHostedDaemon(entrypointOutfile, companionFiles, treeSitterRuntime),
   };
   run(process.execPath, ['scripts/smoke-squid-release.mjs', entrypointOutfile, releaseDir], {
     stdio: 'inherit',
@@ -568,6 +597,7 @@ const manifest = {
   embeddedNativeCore,
   onnxRuntimeBinding,
   onnxRuntimeNative,
+  treeSitterRuntime,
   squidAssets: squidAssets.map(path => relative(releaseDir, path)),
   surfaces: {
     cli: 'bundled',

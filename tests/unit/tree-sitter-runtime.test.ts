@@ -1,0 +1,111 @@
+import { afterEach, describe, expect, test } from '@jest/globals';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  createTreeSitterLocateFile,
+  resolveTreeSitterRuntimeAssets,
+  TREE_SITTER_GRAMMAR_FILES,
+  TREE_SITTER_RUNTIME_FILE,
+} from '../../lib/tree-sitter-runtime.js';
+
+const scratchRoot = join(process.cwd(), '.scratch', 'tree-sitter-runtime-tests');
+const scratchDirs: string[] = [];
+
+function makeScratch(): string {
+  mkdirSync(scratchRoot, { recursive: true });
+  const root = mkdtempSync(join(scratchRoot, 'pd-tree-sitter-runtime-'));
+  scratchDirs.push(root);
+  return root;
+}
+
+function writeCargo(root: string, marker: string) {
+  mkdirSync(root, { recursive: true });
+  writeFileSync(join(root, TREE_SITTER_RUNTIME_FILE), `${marker}:runtime`);
+  for (const file of Object.values(TREE_SITTER_GRAMMAR_FILES)) {
+    writeFileSync(join(root, file), `${marker}:${file}`);
+  }
+}
+
+function sourceFiles(root: string) {
+  return {
+    runtimeWasm: join(root, TREE_SITTER_RUNTIME_FILE),
+    grammars: Object.fromEntries(
+      Object.entries(TREE_SITTER_GRAMMAR_FILES).map(([language, file]) => [
+        language,
+        join(root, file),
+      ]),
+    ) as Record<keyof typeof TREE_SITTER_GRAMMAR_FILES, string>,
+  };
+}
+
+afterEach(() => {
+  while (scratchDirs.length > 0) {
+    rmSync(scratchDirs.pop()!, { recursive: true, force: true });
+  }
+});
+
+describe('Tree-sitter runtime resolution', () => {
+  test('prefers one complete executable-relative cargo over source packages', () => {
+    const root = makeScratch();
+    const execDir = join(root, 'bin');
+    const packagedRoot = join(execDir, 'native', 'tree-sitter');
+    const sourceRoot = join(root, 'packages');
+    writeCargo(packagedRoot, 'packaged');
+    writeCargo(sourceRoot, 'source');
+
+    const resolved = resolveTreeSitterRuntimeAssets({
+      execDir,
+      resourceDir: null,
+      sourceFiles: sourceFiles(sourceRoot),
+    });
+
+    expect(resolved.source).toBe('packaged');
+    expect(resolved.root).toBe(packagedRoot);
+    expect(resolved.runtimeWasm).toBe(join(packagedRoot, TREE_SITTER_RUNTIME_FILE));
+    expect(resolved.grammars.typescript).toBe(
+      join(packagedRoot, TREE_SITTER_GRAMMAR_FILES.typescript),
+    );
+  });
+
+  test('uses the explicit package fallback for ordinary source execution', () => {
+    const root = makeScratch();
+    const sourceRoot = join(root, 'packages');
+    writeCargo(sourceRoot, 'source');
+
+    const resolved = resolveTreeSitterRuntimeAssets({
+      execDir: join(root, 'missing-bin'),
+      resourceDir: null,
+      sourceFiles: sourceFiles(sourceRoot),
+    });
+
+    expect(resolved.source).toBe('package');
+    expect(resolved.runtimeWasm).toBe(join(sourceRoot, TREE_SITTER_RUNTIME_FILE));
+    expect(Object.values(resolved.grammars)).toHaveLength(3);
+  });
+
+  test('rejects partial cargo before Emscripten receives a missing path', () => {
+    const root = makeScratch();
+    const execDir = join(root, 'bin');
+    const packagedRoot = join(execDir, 'native', 'tree-sitter');
+    writeCargo(packagedRoot, 'partial');
+    rmSync(join(packagedRoot, TREE_SITTER_GRAMMAR_FILES.python));
+
+    expect(() => resolveTreeSitterRuntimeAssets({
+      execDir,
+      resourceDir: null,
+      sourceFiles: null,
+    })).toThrow(/tree-sitter-python\.wasm/);
+  });
+
+  test('locateFile replaces only the Emscripten runtime request', () => {
+    const locateFile = createTreeSitterLocateFile('/release/native/tree-sitter/tree-sitter.wasm');
+
+    expect(locateFile('tree-sitter.wasm')).toBe(
+      '/release/native/tree-sitter/tree-sitter.wasm',
+    );
+    expect(locateFile('/build/machine/tree-sitter.wasm')).toBe(
+      '/release/native/tree-sitter/tree-sitter.wasm',
+    );
+    expect(locateFile('other-side-module.wasm')).toBe('other-side-module.wasm');
+  });
+});
