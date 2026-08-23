@@ -41,7 +41,7 @@
 # push to main by .github/workflows/deploy-relay.yml.
 
 name = "port-daddy-relay"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
