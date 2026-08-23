@@ -2,7 +2,7 @@
 
 - **Status:** Accepted — Option A, decided by the operator 2026-08-23. The
   context and options below are unchanged from the Proposed draft.
-- **Date:** 2026-08-22
+- **Date:** authored 2026-08-22; decided 2026-08-23
 - **Builds on:** ADR-0013 (unified harbor model — harbors key to the project
   root), ADR-0027/0049 (relay), ADR-0115 (database distribution and sync),
   ADR-0122 (harbor authority), ADR-0123 (cloud vault / account KMS)
@@ -18,7 +18,8 @@ option:
 
 They are three separate questions with three different answers, and the first
 one is the one most likely to be answered wrong by assumption. This ADR answers
-all three from the corpus and then lays out the options. It does not choose.
+all three from the corpus, lays out the options, and — since 2026-08-23 —
+records the operator's choice in the Decision section below.
 
 ## Question 1 — does mandatory harbors mean all data encrypted?
 
