@@ -76,6 +76,28 @@ jobs:
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
 
+  changelog-guard:
+    # CHANGELOG.md's [Unreleased] section is ASSEMBLED from one file per PR under
+    # changelog.d/ (see changelog.d/README.md). This guard validates that every
+    # fragment parses and is shaped correctly, so a malformed fragment is caught on
+    # the PR that adds it rather than at release time, where the release train would
+    # refuse to stamp and the release would stall.
+    #
+    # This is the FORMAT half only. The "did this PR add a fragment at all" half is
+    # rule (4) of scripts/check-pr-requirements.mjs, which lives in
+    # pr-requirements.yml because it needs the PR body (for the changelog-exempt
+    # marker) and the `edited` trigger. This job needs neither, so it also runs on
+    # merge-queue heads and pushes to main where there is no PR body.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Changelog fragment guard (every changelog.d/ fragment must parse)
+        run: node scripts/assemble-changelog.mjs --check
+
   # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
   # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on
   # `edited` events (a body gutted after the last code push must be re-checked) — the
@@ -876,6 +898,7 @@ jobs:
       pull-requests: read
     needs:
       - brand-color-guard
+      - changelog-guard
       - compiled-daemon-smoke
       - doc-citation-guard
       - fleet-ui

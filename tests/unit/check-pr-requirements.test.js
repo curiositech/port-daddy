@@ -4,6 +4,12 @@
  * UI diffs). Pins the structural gate against committed fixtures: a full body passes,
  * a thin body fails naming the weak sections, and a visual-surface diff fails unless
  * it ships a screenshot + a motion artifact (or is explicitly visual-exempt).
+ *
+ * Rule (4) — a user-visible diff must add a `changelog.d/` fragment — was added
+ * later. The cases below that are ABOUT rules 1-3 therefore carry a fragment path in
+ * their `--changed` list so rule (4) is satisfied for the right reason and cannot mask
+ * the behaviour under test. Rule (4)'s own RED/GREEN cases live in
+ * tests/unit/changelog-fragments.test.js.
  */
 import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
@@ -33,7 +39,7 @@ describe('check-pr-requirements guard', () => {
   });
 
   test('a full body with summary + test plan passes (non-visual diff)', () => {
-    const { code, stdout } = run('--body-file', fixture('good-body.md'), '--changed', 'lib/relay-client.ts');
+    const { code, stdout } = run('--body-file', fixture('good-body.md'), '--changed', 'lib/relay-client.ts,changelog.d/9900-relay.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -60,7 +66,7 @@ describe('check-pr-requirements guard', () => {
   });
 
   test('a visual-surface diff WITH screenshot + GIF passes', () => {
-    const { code, stdout } = run('--body-file', fixture('visual-with-artifacts.md'), '--changed', 'fleet-config-ui/src/HealthPane.tsx');
+    const { code, stdout } = run('--body-file', fixture('visual-with-artifacts.md'), '--changed', 'fleet-config-ui/src/HealthPane.tsx,changelog.d/9901-health-pane.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -68,13 +74,13 @@ describe('check-pr-requirements guard', () => {
   test('a committed image + committed gif in the diff satisfies the visual rule', () => {
     const { code } = run(
       '--body-file', fixture('visual-no-artifacts.md'),
-      '--changed', 'fleet-config-ui/src/HealthPane.tsx,fleet-config-ui/docs/pane.png,fleet-config-ui/docs/pane.gif',
+      '--changed', 'fleet-config-ui/src/HealthPane.tsx,fleet-config-ui/docs/pane.png,fleet-config-ui/docs/pane.gif,changelog.d/9902-pane.md',
     );
     expect(code).toBe(0);
   });
 
   test('visual-exempt marker bypasses only the visual rule', () => {
-    const { code, stdout } = run('--body-file', fixture('visual-exempt.md'), '--changed', 'fleet-config-ui/src/types.ts');
+    const { code, stdout } = run('--body-file', fixture('visual-exempt.md'), '--changed', 'fleet-config-ui/src/types.ts,changelog.d/9903-types.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });
@@ -111,6 +117,25 @@ describe('check-pr-requirements guard', () => {
     expect(stderr).toMatch(/Visual surface changed/);
   });
 
+  // Regression: hasMarker() matched `\S` against the RAW comment, and `\S` matched
+  // the `-` of the closing `-->`. So `<!-- visual-exempt: -->` — a marker with a
+  // completely empty reason — exempted the gate, defeating the "auditable, not
+  // blank" property the source comment claims. The colon-less `<!-- visual-exempt -->`
+  // form was already covered by the test above, which is how this one survived.
+  test('an exempt marker with a colon but an EMPTY reason does not count', () => {
+    const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many inputs here.\n<!-- visual-exempt: -->';
+    const { code, stderr } = run('--body', body, '--changed', 'website-v2/src/x.tsx');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/Visual surface changed/);
+  });
+
+  test('a real reason still exempts (the fix does not break the marker)', () => {
+    const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many different inputs here today.\n<!-- visual-exempt: type-only change, nothing renders differently -->';
+    const { code, stdout } = run('--body', body, '--changed', 'website-v2/src/x.tsx,changelog.d/9905-x.md');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
+  });
+
   test('a heading inside a fenced code block does not truncate the Test Plan', () => {
     const body = [
       '## Summary',
@@ -122,7 +147,7 @@ describe('check-pr-requirements guard', () => {
       '```',
       'All green; exercised the empty-input and oversize-input edges too.',
     ].join('\n');
-    const { code, stdout } = run('--body', body, '--changed', 'lib/x.ts');
+    const { code, stdout } = run('--body', body, '--changed', 'lib/x.ts,changelog.d/9904-x.md');
     expect(code).toBe(0);
     expect(stdout).toMatch(/meets the contract/);
   });

@@ -250,7 +250,11 @@ fleet:
         promotion candidate.
 
         Maintain ALL release-surface documentation:
-        - CLAUDE.md, AGENTS.md, README.md, CHANGELOG.md
+        - CLAUDE.md, AGENTS.md, README.md
+        - changelog.d/ (CHANGELOG.md's [Unreleased] section is
+          ASSEMBLED from these fragments at release time — maintain
+          the INPUT, never hand-edit [Unreleased]; see
+          changelog.d/README.md)
         - features.manifest.json
         - docs/sdk.md, docs/openapi.yaml
         - docs/DELEGATION-MODES.md and recovery docs

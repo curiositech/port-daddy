@@ -57,6 +57,13 @@ env:
   # package.json), which was blind to routes/, mcp/, bin/, hooks/, and the
   # packaging itself — it reported "0 unreleased daemon commits" while the
   # daemon's route/tooling code churned.
+  #
+  # This list is ALSO the changelog-fragment requirement's classifier. It is
+  # mirrored in scripts/lib/user-visible-surfaces.mjs, which is the source of
+  # truth for every JS consumer; the copy stays inline here because a shell
+  # `git diff` pathspec cannot import ESM. The two cannot drift silently:
+  # tests/unit/changelog-fragments.test.js parses this block and FAILS if it
+  # stops matching the module's DAEMON_PATHSPEC export. Edit both together.
   DAEMON_PATHSPEC: >-
     server.ts lib/ cli/ shared/ routes/ mcp/ bin/ hooks/
     skills/port-daddy-agent-skill/ agents/port-daddy-pilot/
@@ -233,8 +240,20 @@ jobs:
           npx tsx scripts/sync-version.ts
           npm run check:version-drift
           # Stamp the CHANGELOG: everything under [Unreleased] becomes this
-          # version's section; a fresh empty [Unreleased] stays on top.
-          perl -0pi -e "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$NEXT] - $(date -u +%F)/m" CHANGELOG.md
+          # version's section; a fresh empty [Unreleased] stays on top. The
+          # assembler additionally splices in every changelog.d/ fragment and
+          # deletes the fragments it consumed — `git add -A` below stages both the
+          # CHANGELOG edit and those deletions into this one bump commit.
+          #
+          # This replaced a `perl -0pi -e "s/^## \[Unreleased\]/…/m"` one-liner.
+          # With zero fragments the assembler's output is BYTE-IDENTICAL to that
+          # line against the real CHANGELOG.md — asserted in
+          # tests/unit/changelog-fragments.test.js ("with zero fragments, --release
+          # is byte-identical to the perl line it replaces"), which is the safety
+          # argument for the swap. It also refuses (exit 2) rather than stamping
+          # twice, or when any fragment is malformed, so `set -euo pipefail` stops
+          # the bump instead of shipping a silently-wrong section.
+          node scripts/assemble-changelog.mjs --release "$NEXT" --date "$(date -u +%F)"
           git config user.name "port-daddy-release-train"
           git config user.email "release-train@portdaddy.dev"
           git add -A
