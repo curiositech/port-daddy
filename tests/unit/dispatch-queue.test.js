@@ -206,6 +206,40 @@ describe('claim (proposed -> claimed)', () => {
   });
 });
 
+describe('prepareForRun', () => {
+  test('returns an unbound auto-claim to proposed so the daemon can attach a real worker lease', () => {
+    const d = queue.propose({
+      goal: 'run the auto-claimed dispatch',
+      autoClaim: true,
+      reviewerActorId: 'reviewer-bot',
+      mergePolicy: 'review',
+    });
+
+    const prepared = queue.prepareForRun(d.id);
+
+    expect(prepared).toMatchObject({
+      state: 'proposed',
+      claimedAt: null,
+      reviewerActorId: 'reviewer-bot',
+      mergePolicy: 'review',
+    });
+  });
+
+  test('does not release a claimed dispatch that already has a worker lease', () => {
+    const d = queue.propose({ goal: 'already owned' });
+    const claimed = queue.claim({
+      id: d.id,
+      worktreePath: '/work/already-owned',
+      branch: 'dispatch/already-owned-12345678',
+      sessionId: 'session-owned',
+      workerActorId: 'worker-owned',
+    });
+
+    expect(queue.prepareForRun(d.id)).toEqual(claimed);
+    expect(queue.get(d.id)).toEqual(claimed);
+  });
+});
+
 describe('getBySessionId', () => {
   test('finds the dispatch claimed under a given session id', () => {
     const d = queue.propose({ goal: 'foo' });

@@ -546,6 +546,19 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
      WHERE id = ? AND state = 'proposed'
   `);
 
+  const releaseUnboundAutoClaimStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = 'proposed',
+           claimed_at = NULL
+     WHERE id = ?
+       AND state = 'claimed'
+       AND worker_actor_id IS NULL
+       AND worktree_path IS NULL
+       AND branch IS NULL
+       AND session_id IS NULL
+       AND started_at IS NULL
+  `);
+
   const startStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'in_progress',
@@ -753,6 +766,47 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       ? nextSelectByBaseStmt.get(baseBranch)
       : nextSelectStmt.get();
     return row ? rowToDispatch(row) : null;
+  }
+
+  /**
+   * Prepare one explicitly selected dispatch for the daemon worker's atomic
+   * claim. The purpose of this narrow back-edge is to reconcile
+   * `propose --auto-claim` with `dispatch run`: auto-claim creates a claimed
+   * placeholder without a worker lease, while the daemon can only attach its
+   * real worktree/session lease by claiming a proposed row. The design never
+   * releases a row that already names any worker, worktree, branch, or session;
+   * such a row (or one already in progress) is returned unchanged as already
+   * queued. Review and merge-policy fields are untouched, and `claimed_at` is
+   * cleared only for the placeholder so the real worker claim records the
+   * authoritative lease time.
+   *
+   * @param id - Dispatch selected by `pd dispatch run`.
+   * @returns The proposed row ready for daemon claim, or the unchanged row when
+   *          a real worker already owns it.
+   */
+  function prepareForRun(id: string): Dispatch {
+    const existing = selectByIdStmt.get(id);
+    if (!existing) throw new Error(`prepareForRun: dispatch ${id} not found`);
+    if (existing.state === 'proposed') return rowToDispatch(existing);
+    if (existing.state === 'in_progress') return rowToDispatch(existing);
+    if (existing.state !== 'claimed') {
+      throw new Error(`prepareForRun: cannot run dispatch in state ${existing.state}`);
+    }
+
+    const hasWorkerLease = existing.worker_actor_id !== null
+      || existing.worktree_path !== null
+      || existing.branch !== null
+      || existing.session_id !== null
+      || existing.started_at !== null;
+    if (hasWorkerLease) return rowToDispatch(existing);
+
+    releaseUnboundAutoClaimStmt.run(id);
+    const updated = selectByIdStmt.get(id);
+    if (!updated) throw new Error(`prepareForRun: dispatch ${id} vanished`);
+    if (updated.state !== 'proposed' && updated.state !== 'claimed' && updated.state !== 'in_progress') {
+      throw new Error(`prepareForRun: dispatch ${id} changed to state ${updated.state}`);
+    }
+    return rowToDispatch(updated);
   }
 
   function claimProposed(input: ClaimDispatchInput): Dispatch | null {
@@ -999,6 +1053,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     getBySessionId,
     list,
     peekNextProposed,
+    prepareForRun,
     claimProposed,
     claim,
     nextProposed,

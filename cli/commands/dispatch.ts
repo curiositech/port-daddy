@@ -23,6 +23,7 @@ import { initDatabase } from '../../lib/db.js';
 import {
   createDispatchQueue,
   type Dispatch,
+  type DispatchQueue,
   type DispatchState,
   type MergePolicy,
 } from '../../lib/dispatch/queue.js';
@@ -254,16 +255,41 @@ async function readResponseJson(res: Awaited<ReturnType<typeof pdFetch>>): Promi
   }
 }
 
-async function runDispatchViaDaemon(id: string): Promise<Record<string, unknown>> {
+async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<Record<string, unknown>> {
   if (!(await isDaemonRunning())) {
     throw new Error(
       'daemon unavailable; refusing local dispatch --really-run fallback. ' +
       'Start the daemon from FleetBar or retry when Port Daddy is healthy.',
     );
   }
+  const prepared = queue.prepareForRun(id);
+  if (prepared.state === 'claimed' || prepared.state === 'in_progress') {
+    return {
+      ok: true,
+      queued: true,
+      launchedThisTick: 0,
+      dispatch: prepared,
+      message: 'Dispatch already holds a worker lease; the daemon-side run remains queued.',
+    };
+  }
   const res = await pdFetch(`/dispatches/${encodeURIComponent(id)}/run`, { method: 'POST' });
   const payload = await readResponseJson(res);
   if (!res.ok) {
+    const racedDispatch = payload.dispatch && typeof payload.dispatch === 'object'
+      ? payload.dispatch as Record<string, unknown>
+      : null;
+    if (
+      res.status === 409
+      && (racedDispatch?.state === 'claimed' || racedDispatch?.state === 'in_progress')
+    ) {
+      return {
+        ...payload,
+        ok: true,
+        queued: true,
+        launchedThisTick: 0,
+        message: 'Dispatch acquired a worker lease while the run request was being sent.',
+      };
+    }
     const error = typeof payload.error === 'string'
       ? payload.error
       : `daemon returned HTTP ${res.status ?? 'unknown'}`;
@@ -561,7 +587,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
           return;
         }
         try {
-          const result = await runDispatchViaDaemon(next.id);
+          const result = await runDispatchViaDaemon(next.id, queue);
           if (isJson(options)) {
             console.log(JSON.stringify(result, null, 2));
           } else {
@@ -618,12 +644,8 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     }
     if (!isJson(options)) printPlan(plan, dryRun, options);
     if (!dryRun) {
-      if (d.state !== 'proposed') {
-        ui.error(`Dispatch ${id} is in state '${d.state}'; only 'proposed' dispatches can be run.`);
-        process.exit(1);
-      }
       try {
-        const result = await runDispatchViaDaemon(id);
+        const result = await runDispatchViaDaemon(id, queue);
         if (isJson(options)) {
           console.log(JSON.stringify({ plan, dryRun, daemon: result }, null, 2));
         } else {
