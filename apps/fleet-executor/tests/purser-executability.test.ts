@@ -422,13 +422,46 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
         "test('renders', () => expect(view.props.children).toBe('ready'));",
       ].join('\n'),
     },
+    {
+      path: 'tests/unit/module.contract.test.mts',
+      contents: [
+        'export type StableVersion = { major: number };',
+        'export const stable: StableVersion = { major: 3 };',
+        "test('exports', () => expect(stable.major).toBe(3));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/commonjs.contract.test.cts',
+      contents: [
+        "const stable: { major: number } = require('./stable.cjs');",
+        "test('requires', () => expect(stable.major).toBe(3));",
+      ].join('\n'),
+    },
   ])('accepts complete generated $path source with extension-appropriate syntax', ({ path, contents }) => {
     const result = checkGeneratedTestsExecutable([{ path, contents }], {
-      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{ts,tsx}'],
-      repoTreePaths: new Set(),
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{ts,tsx,mts,cts}'],
+      repoTreePaths: new Set(['tests/unit/stable.cjs']),
     });
 
     expect(result).toEqual({ ok: true });
+  });
+
+  it.each([
+    {
+      path: 'tests/unit/commonjs.contract.test.cts',
+      contents: 'export const invalidForCommonJs = true;',
+    },
+    {
+      path: 'tests/unit/module.contract.test.mts',
+      contents: 'return;',
+    },
+  ])('enforces the source type implied by $path', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{mts,cts}'],
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({ ok: false, kind: 'syntax-error', path });
   });
 
   it('fails closed when the repo tree is unknown (null), even for a discoverable path with no imports', () => {
