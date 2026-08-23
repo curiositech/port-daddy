@@ -1,0 +1,179 @@
+{
+  "blocks": [
+    {
+      "cmd": "Nothing is registered yet. Assigning an owner that is not on the durable-agent roster:",
+      "kind": "note",
+      "out": ""
+    },
+    {
+      "cmd": "pd roadmap upsert relay-retry-storms --summary Bound relay retry storms behind a token bucket --assignee nobody-here --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[31mx\u001b[39m  assigneeId 'nobody-here' is not on the durable-agent roster. Register one first: pd roster create <slug> --remit <text> --instructions <text> (or POST /durable-agents), then assign by its agentNodeId or slug. Browse the roster: pd roster list.",
+      "exitCode": 1
+    },
+    {
+      "cmd": "pd roster create portdaddy-relay-steward --remit Own relay reliability end to end. --instructions Keep retry storms bounded; verify both ends after every write.",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Created durable agent portdaddy-relay-steward\nagent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roster create portdaddy-board-cartographer --remit Keep the planner board legible. --instructions Every roadmap item renders with owner, estimate and evidence.",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Created durable agent portdaddy-board-cartographer\nagent_node_ba83c6a7-3d39-49f0-8b66-89118f0319bd",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert relay-retry-storms --summary Bound relay retry storms behind a token bucket --status now --kind story --priority 2 --estimate 5 --due +14d --assignee portdaddy-relay-steward --tag reliability --tag relay --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'relay-retry-storms' upserted\n  status:  now\n  harbor:  fleet\n  kind:    story · P2 · est 5\n  owner:   agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\n  tags:    #reliability #relay\n  due:     2026-09-05",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert token-bucket-primitive --summary Shared token-bucket primitive the relay and the queue both use --status now --kind task --estimate 3 --assignee portdaddy-relay-steward --tag reliability --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'token-bucket-primitive' upserted\n  status:  now\n  harbor:  fleet\n  kind:    task · P3 · est 3\n  owner:   agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\n  tags:    #reliability",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert board-owner-column --summary Render the durable owner column on the planner board --status now --kind task --priority 4 --estimate 2 --assignee portdaddy-board-cartographer --tag board --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'board-owner-column' upserted\n  status:  now\n  harbor:  fleet\n  kind:    task · P4 · est 2\n  owner:   agent_node_ba83c6a7-3d39-49f0-8b66-89118f0319bd\n  tags:    #board",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert relay-backpressure-adr --summary ADR for relay backpressure semantics --status backlog --kind epic --priority 2 --estimate 8 --tag reliability --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'relay-backpressure-adr' upserted\n  status:  backlog\n  harbor:  fleet\n  kind:    epic · P2 · est 8\n  tags:    #reliability",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert unowned-inbox-triage --summary Triage the unrouted inbox pile (nobody owns this yet) --status now --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'unowned-inbox-triage' upserted\n  status:  now\n  harbor:  fleet\n  kind:    task · P3",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap --status all --limit 12 --harbor fleet",
+      "kind": "cli",
+      "out": "\nROADMAP · 5 item(s) · status=all · harbor=fleet\n--------------------------------------------------------------------------------\n\u001b[2msource: roadmap_items SQL table (docs/ROADMAP.md is a render of this)\u001b[0m\n\n  - board-owner-column [now · P4 · est 2 · @agent_node_ba83c6a7-3d39-49f0-8b66-89118f0319bd · #board]\n    Render the durable owner column on the planner board\n  - relay-retry-storms [now · story · P2 · est 5 · @agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d · due 2026-09-05 · #reliability #relay]\n    Bound relay retry storms behind a token bucket\n  - unowned-inbox-triage [now]\n    Triage the unrouted inbox pile (nobody owns this yet)\n  - token-bucket-primitive [now · est 3 · @agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d · #reliability]\n    Shared token-bucket primitive the relay and the queue both use\n  - relay-backpressure-adr [backlog · epic · P2 · est 8 · #reliability]\n    ADR for relay backpressure semantics",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap --status all --tag reliability --harbor fleet",
+      "kind": "cli",
+      "out": "\nROADMAP · 3 item(s) · status=all · harbor=fleet\n--------------------------------------------------------------------------------\n\u001b[2msource: roadmap_items SQL table (docs/ROADMAP.md is a render of this)\u001b[0m\n\n  - relay-retry-storms [now · story · P2 · est 5 · @agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d · due 2026-09-05 · #reliability #relay]\n    Bound relay retry storms behind a token bucket\n  - token-bucket-primitive [now · est 3 · @agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d · #reliability]\n    Shared token-bucket primitive the relay and the queue both use\n  - relay-backpressure-adr [backlog · epic · P2 · est 8 · #reliability]\n    ADR for relay backpressure semantics",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap link relay-retry-storms --pr 9641 --title Jira-grade roadmap items --url https://github.com/curiositech/port-daddy/pull/9641",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Linked pr '9641' to 'relay-retry-storms'",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap link relay-retry-storms --doc docs/adr/0086-planner-graph.md",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Linked doc 'docs/adr/0086-planner-graph.md' to 'relay-retry-storms'",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap link relay-retry-storms --file lib/planner-edges.ts",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Linked file 'lib/planner-edges.ts' to 'relay-retry-storms'",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap link relay-retry-storms --media docs/reports/roadmap-jira-items/detail-card.png --mime image/png --caption the detail card this PR ships",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Linked media 'docs/reports/roadmap-jira-items/detail-card.png' to 'relay-retry-storms'",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap links relay-retry-storms",
+      "kind": "cli",
+      "out": "\nLINKS · relay-retry-storms · 4 link(s)\n--------------------------------------------------------------------------------\n  - [media] docs/reports/roadmap-jira-items/detail-card.png (mime=image/png, caption=the detail card this PR ships)\n  - [file] lib/planner-edges.ts\n  - [doc] docs/adr/0086-planner-graph.md\n  - [pr] 9641 (title=Jira-grade roadmap items, url=https://github.com/curiositech/port-daddy/pull/9641)",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert token-bucket-primitive --summary Shared token-bucket primitive the relay and the queue both use --status done --actual 4 --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'token-bucket-primitive' upserted\n  status:  done\n  harbor:  fleet\n  kind:    task · P3 · est 3 · actual 4\n  owner:   agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\n  tags:    #reliability",
+      "exitCode": 0
+    },
+    {
+      "cmd": "GET /roadmap/items/token-bucket-primitive?harbor=fleet  →  200",
+      "kind": "http",
+      "out": "{\n  \"success\": true,\n  \"item\": {\n    \"id\": \"42855c35-9443-422c-a9fe-0de69a9f248e\",\n    \"slug\": \"token-bucket-primitive\",\n    \"summaryMd\": \"Shared token-bucket primitive the relay and the queue both use\",\n    \"status\": \"done\",\n    \"promotedFromFeedbackId\": null,\n    \"promotedByAgentId\": \"operator-cli\",\n    \"promotedAt\": 1787441973314,\n    \"lastTouchedAt\": 1787441973331,\n    \"dependencies\": [],\n    \"notes\": [\n      {\n        \"at\": 1787441953705,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      },\n      {\n        \"at\": 1787441973314,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      }\n    ],\n    \"harbor\": \"fleet\",\n    \"kind\": \"task\",\n    \"priority\": 3,\n    \"assigneeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n    \"descriptionMd\": null,\n    \"startedAt\": null,\n    \"dueAt\": null,\n    \"estimate\": 3,\n    \"tags\": [\n      \"reliability\"\n    ],\n    \"actual\": 4,\n    \"completedAt\": 1787441973331,\n    \"deletedAt\": null,\n    \"owner\": {\n      \"agentNodeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n      \"slug\": \"portdaddy-relay-steward\",\n      \"displayName\": \"Portdaddy Relay Steward\",\n      \"status\": \"paused\"\n    }\n  },\n  \"owner\": {\n    \"agentNodeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n    \"slug\": \"portdaddy-relay-steward\",\n    \"displayName\": \"Portdaddy Relay Steward\",\n    \"status\": \"paused\"\n  },\n  \"links\": [],\n  \"blocks\": [\n    \"relay-retry-storms\"\n  ],\n  \"blockedBy\": [],\n  \"parent\": \"relay-retry-storms\",\n  \"children\": [],\n  \"plannedVsActual\": {\n    \"estimate\": 3,\n    \"actual\": 4,\n    \"variance\": 1,\n    \"startedAt\": null,\n    \"dueAt\": null,\n    \"completedAt\": 1787441973331\n  }\n}",
+      "exitCode": 0
+    },
+    {
+      "cmd": "GET /roadmap/items/relay-retry-storms?harbor=fleet  →  200",
+      "kind": "http",
+      "out": "{\n  \"success\": true,\n  \"item\": {\n    \"id\": \"40e4e152-00ec-4f89-9774-1347ede4ea64\",\n    \"slug\": \"relay-retry-storms\",\n    \"summaryMd\": \"Bound relay retry storms behind a token bucket\",\n    \"status\": \"now\",\n    \"promotedFromFeedbackId\": null,\n    \"promotedByAgentId\": \"operator-cli\",\n    \"promotedAt\": 1787441952008,\n    \"lastTouchedAt\": 1787441959604,\n    \"dependencies\": [\n      \"token-bucket-primitive\"\n    ],\n    \"notes\": [\n      {\n        \"at\": 1787441952008,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      }\n    ],\n    \"harbor\": \"fleet\",\n    \"kind\": \"story\",\n    \"priority\": 2,\n    \"assigneeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n    \"descriptionMd\": null,\n    \"startedAt\": null,\n    \"dueAt\": 1788651552008,\n    \"estimate\": 5,\n    \"tags\": [\n      \"reliability\",\n      \"relay\"\n    ],\n    \"actual\": null,\n    \"completedAt\": null,\n    \"deletedAt\": null,\n    \"owner\": {\n      \"agentNodeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n      \"slug\": \"portdaddy-relay-steward\",\n      \"displayName\": \"Portdaddy Relay Steward\",\n      \"status\": \"paused\"\n    }\n  },\n  \"owner\": {\n    \"agentNodeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n    \"slug\": \"portdaddy-relay-steward\",\n    \"displayName\": \"Portdaddy Relay Steward\",\n    \"status\": \"paused\"\n  },\n  \"links\": [\n    {\n      \"kind\": \"media\",\n      \"targetId\": \"docs/reports/roadmap-jira-items/detail-card.png\",\n      \"metadata\": {\n        \"mime\": \"image/png\",\n        \"caption\": \"the detail card this PR ships\"\n      },\n      \"createdAt\": 1787441969804,\n      \"updatedAt\": 1787441969804\n    },\n    {\n      \"kind\": \"file\",\n      \"targetId\": \"lib/planner-edges.ts\",\n      \"metadata\": null,\n      \"createdAt\": 1787441968090,\n      \"updatedAt\": 1787441968090\n    },\n    {\n      \"kind\": \"doc\",\n      \"targetId\": \"docs/adr/0086-planner-graph.md\",\n      \"metadata\": null,\n      \"createdAt\": 1787441966285,\n      \"updatedAt\": 1787441966285\n    },\n    {\n      \"kind\": \"pr\",\n      \"targetId\": \"9641\",\n      \"metadata\": {\n        \"url\": \"https://github.com/curiositech/port-daddy/pull/9641\",\n        \"title\": \"Jira-grade roadmap items\"\n      },\n      \"createdAt\": 1787441964423,\n      \"updatedAt\": 1787441964423\n    }\n  ],\n  \"blocks\": [\n    \"board-owner-column\"\n  ],\n  \"blockedBy\": [\n    \"token-bucket-primitive\"\n  ],\n  \"parent\": \"relay-backpressure-adr\",\n  \"children\": [\n    \"token-bucket-primitive\"\n  ],\n  \"plannedVsActual\": {\n    \"estimate\": 5,\n    \"actual\": null,\n    \"variance\": null,\n    \"startedAt\": null,\n    \"dueAt\": 1788651552008,\n    \"completedAt\": null\n  }\n}",
+      "exitCode": 0
+    },
+    {
+      "cmd": "NULL STATE — an item with no owner, no tags, no links, no dependencies:",
+      "kind": "note",
+      "out": ""
+    },
+    {
+      "cmd": "GET /roadmap/items/unowned-inbox-triage?harbor=fleet  →  200",
+      "kind": "http",
+      "out": "{\n  \"success\": true,\n  \"item\": {\n    \"id\": \"0fe03b28-a8ab-40fc-a5d3-7de7785f2852\",\n    \"slug\": \"unowned-inbox-triage\",\n    \"summaryMd\": \"Triage the unrouted inbox pile (nobody owns this yet)\",\n    \"status\": \"now\",\n    \"promotedFromFeedbackId\": null,\n    \"promotedByAgentId\": \"operator-cli\",\n    \"promotedAt\": 1787441959012,\n    \"lastTouchedAt\": 1787441959023,\n    \"dependencies\": [],\n    \"notes\": [\n      {\n        \"at\": 1787441959012,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      }\n    ],\n    \"harbor\": \"fleet\",\n    \"kind\": \"task\",\n    \"priority\": 3,\n    \"assigneeId\": null,\n    \"descriptionMd\": null,\n    \"startedAt\": null,\n    \"dueAt\": null,\n    \"estimate\": null,\n    \"tags\": [],\n    \"actual\": null,\n    \"completedAt\": null,\n    \"deletedAt\": null,\n    \"owner\": null\n  },\n  \"owner\": null,\n  \"links\": [],\n  \"blocks\": [],\n  \"blockedBy\": [],\n  \"parent\": null,\n  \"children\": [],\n  \"plannedVsActual\": {\n    \"estimate\": null,\n    \"actual\": null,\n    \"variance\": null,\n    \"startedAt\": null,\n    \"dueAt\": null,\n    \"completedAt\": null\n  }\n}",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap links unowned-inbox-triage",
+      "kind": "cli",
+      "out": "\nLINKS · unowned-inbox-triage · 0 link(s)\n--------------------------------------------------------------------------------\n\u001b[2m  (no links — add one: pd roadmap link <slug> --pr <n> | --doc <path> | --file <path> | --media <path>)\u001b[0m",
+      "exitCode": 0
+    },
+    {
+      "cmd": "EMPTY STATE — a harbor with no roadmap items at all:",
+      "kind": "note",
+      "out": ""
+    },
+    {
+      "cmd": "pd roadmap --status all --harbor empty-harbor",
+      "kind": "cli",
+      "out": "\nROADMAP · 0 item(s) · status=all · harbor=empty-harbor\n--------------------------------------------------------------------------------\n\u001b[2msource: roadmap_items SQL table (docs/ROADMAP.md is a render of this)\u001b[0m\n\n\u001b[2m  (no roadmap items at this status)\u001b[0m\n\n\u001b[2m  Backfill from the curated markdown piles: pd roadmap import-markdown\u001b[0m\n\u001b[2m  Promote high-severity feedback:          pd roadmap promote <feedbackId>\u001b[0m",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap --status all --tag no-such-tag --harbor fleet",
+      "kind": "cli",
+      "out": "\nROADMAP · 0 item(s) · status=all · harbor=fleet\n--------------------------------------------------------------------------------\n\u001b[2msource: roadmap_items SQL table (docs/ROADMAP.md is a render of this)\u001b[0m\n\n\u001b[2m  (no roadmap items at this status)\u001b[0m\n\n\u001b[2m  Backfill from the curated markdown piles: pd roadmap import-markdown\u001b[0m\n\u001b[2m  Promote high-severity feedback:          pd roadmap promote <feedbackId>\u001b[0m",
+      "exitCode": 0
+    },
+    {
+      "cmd": "pd roadmap upsert token-bucket-primitive --summary Shared token-bucket primitive the relay and the queue both use --status now --harbor fleet",
+      "kind": "cli",
+      "out": "\u001b[90m|\u001b[39m\n\u001b[32m*\u001b[39m  Roadmap item 'token-bucket-primitive' upserted\n  status:  now\n  harbor:  fleet\n  kind:    task · P3 · est 3 · actual 4\n  owner:   agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\n  tags:    #reliability",
+      "exitCode": 0
+    },
+    {
+      "cmd": "GET /roadmap/items/token-bucket-primitive?harbor=fleet  →  200",
+      "kind": "http",
+      "out": "{\n  \"success\": true,\n  \"item\": {\n    \"id\": \"42855c35-9443-422c-a9fe-0de69a9f248e\",\n    \"slug\": \"token-bucket-primitive\",\n    \"summaryMd\": \"Shared token-bucket primitive the relay and the queue both use\",\n    \"status\": \"now\",\n    \"promotedFromFeedbackId\": null,\n    \"promotedByAgentId\": \"operator-cli\",\n    \"promotedAt\": 1787441980389,\n    \"lastTouchedAt\": 1787441980405,\n    \"dependencies\": [],\n    \"notes\": [\n      {\n        \"at\": 1787441953705,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      },\n      {\n        \"at\": 1787441973314,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      },\n      {\n        \"at\": 1787441980389,\n        \"by\": \"operator-cli\",\n        \"text\": \"roadmap touched for active work slice\"\n      }\n    ],\n    \"harbor\": \"fleet\",\n    \"kind\": \"task\",\n    \"priority\": 3,\n    \"assigneeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n    \"descriptionMd\": null,\n    \"startedAt\": null,\n    \"dueAt\": null,\n    \"estimate\": 3,\n    \"tags\": [\n      \"reliability\"\n    ],\n    \"actual\": 4,\n    \"completedAt\": null,\n    \"deletedAt\": null,\n    \"owner\": {\n      \"agentNodeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n      \"slug\": \"portdaddy-relay-steward\",\n      \"displayName\": \"Portdaddy Relay Steward\",\n      \"status\": \"paused\"\n    }\n  },\n  \"owner\": {\n    \"agentNodeId\": \"agent_node_58df3b7c-b1d6-4aaf-b0ce-f747676ff26d\",\n    \"slug\": \"portdaddy-relay-steward\",\n    \"displayName\": \"Portdaddy Relay Steward\",\n    \"status\": \"paused\"\n  },\n  \"links\": [],\n  \"blocks\": [\n    \"relay-retry-storms\"\n  ],\n  \"blockedBy\": [],\n  \"parent\": \"relay-retry-storms\",\n  \"children\": [],\n  \"plannedVsActual\": {\n    \"estimate\": 3,\n    \"actual\": 4,\n    \"variance\": 1,\n    \"startedAt\": null,\n    \"dueAt\": null,\n    \"completedAt\": null\n  }\n}",
+      "exitCode": 0
+    }
+  ],
+  "marks": {
+    "listBlock": 9,
+    "linksStart": 11,
+    "linksEnd": 16,
+    "doneStart": 16,
+    "doneEnd": 18,
+    "cardIdx": 18,
+    "nullStart": 19,
+    "nullEnd": 22,
+    "emptyStart": 22,
+    "emptyEnd": 25,
+    "reopenStart": 25,
+    "reopenEnd": 27
+  },
+  "sha": "7ca26b1fe6fe773c8722466760d77d109a01f83e",
+  "branch": "claude/roadmap-jira-grade-items"
+}

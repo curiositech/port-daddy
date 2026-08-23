@@ -107,7 +107,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -149,7 +149,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/zai-org/glm-4.7-flash'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -196,7 +196,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -233,7 +233,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -281,7 +281,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -308,7 +308,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -378,7 +378,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -446,25 +446,74 @@ fleet:
       class: purser
       trigger: pull_request:opened
       model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
+      # PER-STEP TIERS. The purser is a pipeline, not one call, and its steps
+      # have opposite cost shapes — so one model for all of them is wrong in one
+      # direction whichever id is picked:
+      #
+      #   PLAN   reads the whole diff, emits a handful of paths  → INPUT-heavy
+      #   AUTHOR reads the same diff, emits a whole test file     → OUTPUT-heavy
+      #
+      # Why not the gpt-oss-20b mid tier anymore (operator ruling 2026-08-22,
+      # from the live D1 record over 14 days): 121 authored sets ended
+      # NON-EXECUTABLE, 83 of 110 author-repairs FAILED, 124 purser
+      # BROKEN-SHIP runs adjudicated the fleet neutral on 249 of 584 runs
+      # (#8870). Total author output that window was ~2.5M tokens, so tier
+      # upgrades here cost single-digit dollars per two weeks against a fleet
+      # whose verdicts were half washed out.
+      #
+      # PLAN → GLM-4.7-Flash ($0.060/$0.400, 131k ctx): reads the whole diff,
+      # emits paths — the agentic 30B specialist at cheap-tier price, with 4x
+      # qwen3-30b's context so big diffs stop truncating.
+      # AUTHOR → DeepSeek V4-Flash-0731 ($0.44/$1.32, 1M ctx): authoring a
+      # runnable test file IS agentic coding, and this model's independent
+      # record on exactly that shape (Terminal-Bench 2.1 82.7, DeepSWE 54.4 —
+      # it beats DeepSeek's own Pro on nine agent benchmarks) beats
+      # gpt-oss-120b's mixed code-domain record at comparable blended cost.
+      # The one-shot author-repair rewrite stays on gpt-oss-120b (the
+      # escalation model) so the author and its repairer come from DIFFERENT
+      # model families — one family's blind spot can't both write and "fix"
+      # the same broken file.
+      #
+      # Both tiers are guarded by the same known-good set as `model:`: an
+      # unknown id falls back to the tier default rather than silently
+      # returning blank.
+      #
+      # Omit both to accept these defaults. `planModel`/`authorModel` and
+      # `cfPlanModel`/`cfAuthorModel` are accepted spellings too.
+      plan_model: '@cf/zai-org/glm-4.7-flash'
+      author_model: '@cf/deepseek-ai/deepseek-v4-flash-0731'
       # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
       # the check run, so a PR cannot merge while it contradicts its own
       # best-interpretation contract. Until now the purser authored tests,
       # demanded they be satisfied, and then passed the gate anyway — the demand
       # was advisory, which is another way of saying it was optional.
       #
-      # This is safe to switch on precisely BECAUSE of the line below it.
-      # `blocking` only ever fires on `executed && !passed` — tests that really
-      # ran and really failed. When no sandbox is provisioned the tests are not
-      # executed, and `blockWithoutSandbox: false` keeps the verdict advisory:
-      # the purser never blocks on tests it could not run. So the worst case of
-      # enabling this is the correct case — a red gate on a PR whose own tests
-      # fail against its own head.
+      # Two distinct ways the check goes red, deliberately kept apart:
+      #   1. JUDGMENT — `blocking` fires on `executed && !passed`: tests that
+      #      really ran and really failed. When no sandbox is provisioned the
+      #      tests are not executed, and `blockWithoutSandbox: false` keeps that
+      #      VERDICT advisory: the purser never rules on tests it could not run.
+      #   2. MACHINERY — broken-ship doctrine (2026-08-19, verdict.ts): a
+      #      malformed steel-man/plan, failed authoring, rejected or
+      #      non-executable tests, a 403 on the stack, or a crash is not a
+      #      verdict at all — the ship itself broke, and the run FAILS whatever
+      #      the flags say, so the breakage gets fixed instead of tolerated.
+      #      (The 2026-08-19 run: testPaths pointed outside jest's testMatch,
+      #      every authored test was rejected, nothing was stacked, run stayed
+      #      green. Never again.)
       blocking: true
       blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
                                  # be executed; default false: never block on tests
                                  # that were never run
       testPaths:                 # optional: authored tests must live under these
-        - tests/purser           # prefixes (also bounded by the global path whitelist)
+        # prefixes (also bounded by the global path whitelist). MUST sit inside
+        # the repo's own jest testMatch (tests/unit/**, tests/integration/**) or
+        # the executability gate rejects every authored file and the purser is a
+        # broken ship — which now FAILS the run. The old value `tests/purser`
+        # was outside testMatch, so every authored test was guaranteed-rejected
+        # ("the test runner would never find it. Nothing was stacked.",
+        # 2026-08-19 run).
+        - tests/unit/purser
       graft:                     # optional on ANY ship: repo skill ids whose
         - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
         - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
@@ -493,7 +542,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -549,7 +598,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/zai-org/glm-4.7-flash'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
@@ -591,7 +640,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
@@ -704,10 +753,15 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
-          # 262k ctx, native structured outputs) — the right Workers AI tier for
-          # a code reviewer that emits JSON findings.
-          model: '@cf/moonshotai/kimi-k2.7-code'
+          # GLM-5.2 (Z.ai, 262k ctx): the strongest open coding model with
+          # INDEPENDENT benchmark validation — 62.1 SWE-bench Pro (beats
+          # GPT-5.5), 74.4% FrontierSWE, 81.0 Terminal-Bench 2.1. Chosen over
+          # the previous Kimi K2.7-Code pin (2026-08-22): kimi's numbers are
+          # vendor-only benchmarks that practitioners publicly dispute, at a
+          # comparable price ($1.40/$4.40 vs $0.95/$4.00 per M). Roughly
+          # $8/2wk at this ship's live volume; MAP below stays on the cheap
+          # agentic tier so chunk fan-out doesn't pay this rate.
+          model: '@cf/zai-org/glm-5.2'
       # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
       # diff on file boundaries and scans each chunk independently (MAP), then
       # makes ONE call to reconcile them (REDUCE). MAP runs N times and REDUCE
@@ -725,7 +779,11 @@ fleet:
       # Workers AI id returns a blank the parser reads as "clean" -- a typo here
       # would silence every chunk while REDUCE reported nothing found. Untiered
       # costs more; mute costs the truth.
-      map_model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      # MAP on GLM-4.7-Flash rather than qwen3-30b (2026-08-22): same cost
+      # class ($0.060 vs $0.051/M in) but the agentic-coding specialist of the
+      # 30B class — 59.2% SWE-bench vs qwen3-30b's 22% — and chunk scanning
+      # IS agentic code reading. 131k ctx also quadruples the chunk budget.
+      map_model: '@cf/zai-org/glm-4.7-flash'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -760,9 +818,11 @@ fleet:
     red-team:
       trigger: pull_request:opened
       # Novel attack construction benefits from headroom. anthropic
-      # sonnet is a soft preference here, NOT a pin — if only
-      # cloudflare's biggest model is available, red-team runs on
-      # it and accepts the quality trade.
+      # sonnet is a soft preference here, NOT a pin. On Cloudflare,
+      # red-team runs DeepSeek V4-Pro (2026-08-22): 80.6% SWE-bench
+      # Verified, a genuine reasoning flagship with a 1M-token window
+      # for whole-PR attack surfaces — at red-team's tiny live volume
+      # (21 calls per two weeks) it costs well under a dollar.
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -771,7 +831,7 @@ fleet:
         - backend: openai
           model: gpt-5
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/deepseek-ai/deepseek-v4-pro-0813'
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -811,7 +871,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -865,7 +925,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/google/gemma-4-26b-a4b-it'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -918,7 +978,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -971,7 +1031,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -1163,7 +1223,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:

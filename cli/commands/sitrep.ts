@@ -30,7 +30,9 @@
  *     ...
  */
 
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { homedir } from 'node:os';
+
+import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
@@ -80,11 +82,39 @@ interface SitrepResponse {
   approvals?: Array<{ id: string; agent: string; trigger: string; tier: string; project: string; timestamp: number }>;
 }
 
+export const SITREP_HELP: string = [
+  'Usage: pd sitrep [--since MINUTES] [--project NAME] [--stack NAME]',
+  '                 [--limit-activity N] [--limit-notes N] [--limit-salvage N]',
+  '                 [--template] [--quiet] [--json]',
+  '',
+  'Synthesize recent activity, notes, salvage, and spawned-agent state.',
+  'Uses the shared daemon resolver, so socket, local TCP, and explicit remote targets behave consistently.',
+].join('\n');
+
+/**
+ * Truncate an agent/session identifier for column-aligned terminal output.
+ *
+ * Why: sitrep lines are radio traffic, not archives — a 14-character prefix
+ * is enough to disambiguate live IDs while keeping every row on one line.
+ *
+ * @param id - The full identifier, or undefined when the record lacks one.
+ * @returns The identifier trimmed to 14 characters (with an ellipsis), or `-`.
+ */
 function shortId(id: string | undefined): string {
   if (!id) return '-';
   return id.length > 14 ? `${id.slice(0, 14)}…` : id;
 }
 
+/**
+ * Render a timestamp as a fixed-width `HH:MM:SS` UTC clock for sitrep rows.
+ *
+ * Design intent: fixed width keeps the activity/notes columns aligned even
+ * when a record carries no timestamp (blank pad) or a malformed one (the
+ * tail of the raw string, still 8 chars).
+ *
+ * @param ts - ISO string, epoch millis, or undefined.
+ * @returns An 8-character clock string.
+ */
 function fmtClock(ts: string | number | undefined): string {
   if (!ts) return '        ';
   const d = typeof ts === 'string' ? new Date(ts) : new Date(ts);
@@ -95,8 +125,16 @@ function fmtClock(ts: string | number | undefined): string {
 /**
  * Handle `pd sitrep` command.
  *
+ * Purpose: one synthesis call replacing the four-read catch-up dance, plus
+ * `--template`, which prints the end-of-turn SITREP scaffold the harness
+ * compels via the `sitrep.endOfTurn` dial — pre-filled from active
+ * roadmap-pop claims so rows arrive roadmap-linked rather than blank.
+ *
  * Exits non-zero only if the HTTP call fails. Empty sitreps (nothing
  * happened in the window) are valid states, not errors.
+ *
+ * @param options - Parsed CLI options (window, scoping, limits, output mode).
+ * @returns Resolves once the report (or template) has been printed.
  */
 export async function handleSitrep(options: CLIOptions): Promise<void> {
   const params = new URLSearchParams();
@@ -104,11 +142,20 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
   if (since !== undefined) params.append('since_minutes', String(since));
   if (options.project) params.append('project', options.project as string);
   if (options.stack) params.append('stack', options.stack as string);
-  if (options.limitActivity) params.append('limit_activity', String(options.limitActivity));
-  if (options.limitNotes) params.append('limit_notes', String(options.limitNotes));
+  const limitActivity = options.limitActivity ?? options['limit-activity'];
+  const limitNotes = options.limitNotes ?? options['limit-notes'];
+  const limitSalvage = options.limitSalvage ?? options['limit-salvage'];
+  const limitSalvageNotes = options.limitSalvageNotes ?? options['limit-salvage-notes'];
+  const limitSpawned = options.limitSpawned ?? options['limit-spawned'];
+  if (limitActivity) params.append('limit_activity', String(limitActivity));
+  if (limitNotes) params.append('limit_notes', String(limitNotes));
+  if (limitSalvage) params.append('limit_salvage', String(limitSalvage));
+  if (limitSalvageNotes) params.append('limit_salvage_notes', String(limitSalvageNotes));
+  if (limitSpawned) params.append('limit_spawned', String(limitSpawned));
+  if (isQuiet(options)) params.append('summary_only', '1');
 
   const qs = params.toString() ? `?${params}` : '';
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sitrep${qs}`);
+  const res: PdFetchResponse = await pdFetch(`/sitrep${qs}`);
   const data = (await res.json()) as unknown as SitrepResponse & { error?: string };
 
   if (!res.ok) {
@@ -129,10 +176,12 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
     if (current?.sessionId) {
       sessionId = current.sessionId;
       agentId = current.agentId || 'unknown';
-      transcriptPath = `file:///Users/erichowens/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
+      // Best-effort transcript pointer for Antigravity-brained sessions —
+      // built from the real homedir, never a hardcoded operator path.
+      transcriptPath = `file://${homedir()}/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
 
       try {
-        const sRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}`);
+        const sRes = await pdFetch(`/sessions/${sessionId}`);
         if (sRes.ok) {
           const sData = (await sRes.json()) as any;
           if (sData.success && sData.session) {
@@ -146,7 +195,7 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
       }
 
       try {
-        const pRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes?type=todo_list`);
+        const pRes = await pdFetch(`/sessions/${sessionId}/notes?type=todo_list`);
         if (pRes.ok) {
           const pData = (await pRes.json()) as any;
           if (pData.success && pData.notes && pData.notes.length > 0) {
@@ -156,6 +205,37 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
       } catch {
         // fail-silent
       }
+    }
+
+    // Live rows for the ideas table: this session's (or agent's) ACTIVE
+    // roadmap-pop claims, so the scaffold arrives pre-linked to the roadmap
+    // instead of as an empty placeholder the agent may never fill. Fail-silent:
+    // a daemon without the cartographer routes still yields the empty scaffold.
+    const claimRows: string[] = [];
+    try {
+      const cRes = await pdFetch('/cartographer/roadmap-claims');
+      if (cRes.ok) {
+        const cData = (await cRes.json()) as any;
+        const claims: any[] = Array.isArray(cData?.claims) ? cData.claims : [];
+        // A row is only pre-fillable when it can actually link the roadmap: an
+        // entry without a string slug (malformed or partial daemon payload)
+        // must be skipped, never rendered as a literal "undefined" link.
+        const active = claims.filter(
+          (c) => c && typeof c.slug === 'string' && c.slug && c.releasedAt == null,
+        );
+        const mine = active.filter(
+          (c) =>
+            (sessionId !== 'unknown' && c.sessionId === sessionId) ||
+            (agentId !== 'unknown' && (c.agentId === agentId || c.claimedBy === agentId)),
+        );
+        for (const c of (mine.length > 0 ? mine : active).slice(0, 8)) {
+          const label = String(c.summary || c.slug || '').replace(/\|/g, '/').slice(0, 60);
+          const by = String(c.claimedBy || 'unknown').slice(0, 30);
+          claimRows.push(`| ${label} | ${by} | claimed | | ${c.slug} |`);
+        }
+      }
+    } catch {
+      // fail-silent
     }
 
     console.log(`
@@ -175,7 +255,12 @@ ${latestPlan ? latestPlan : '- [ ] (No plan set yet; run "pd plan set" to define
 ## Ideas, Suggestions & Remediations
 | Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |
 | --- | --- | --- | --- | --- |
-| | | | | |
+${claimRows.length > 0 ? claimRows.join('\n') : '| | | | | |'}
+
+Rules: track every idea raised this session, every roadmap claim, and work assigned
+by other agents. Update Status with this turn's progress; carry unresolved rows
+forward. Any row you write code for MUST carry a roadmap link from the moment the
+row is created — mint one first: pd roadmap upsert <slug> --summary "..." --estimate <units>.
 
 ## Recent Activity Summary
 ${data.summary}

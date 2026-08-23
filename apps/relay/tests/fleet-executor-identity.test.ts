@@ -38,6 +38,10 @@ import {
 } from '../src/crypto.js';
 import worker from '../src/index.js';
 import type { Env, RelayEvent } from '../src/types.js';
+// The provisioning script is intentionally plain ESM so an agent can invoke
+// it directly after installing relay dependencies.
+// @ts-expect-error JavaScript module has no declaration file.
+import { installExecutorSecrets } from '../scripts/provision-fleet-executor.mjs';
 
 // ── Stateful in-memory D1 mock ───────────────────────────────────────────────
 // Implements exactly the tables/queries the provisioning + publish + revoke
@@ -169,7 +173,7 @@ const OPERATOR_TOKEN = 'operator-token-0123456789abcdef-0123456789abcdef';
 const RELAY_PRIV = '42'.repeat(32);
 const RELAY_FP = toHex(sha256(fromHex(pubKeyFromPrivKey(RELAY_PRIV))));
 
-function makeEnv(db: MockD1): Env {
+function makeEnv(db: MockD1, quotaFetch?: () => Promise<Response>): Env {
   return {
     DB: db as unknown as D1Database,
     HARBOR_CHANNEL: {
@@ -181,6 +185,12 @@ function makeEnv(db: MockD1): Env {
             : new Response('{}', { status: 200 }),
       }),
     } as unknown as DurableObjectNamespace,
+    ...(quotaFetch ? {
+      HARBOR_QUOTA: {
+        idFromName: () => ({}),
+        get: () => ({ fetch: quotaFetch }),
+      } as unknown as DurableObjectNamespace,
+    } : {}),
     KV: {} as KVNamespace,
     RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN,
     RELAY_ED25519_PRIVATE_KEY_HEX: RELAY_PRIV,
@@ -257,6 +267,51 @@ const SEED_B = '22'.repeat(32);
 const RUN_CHANNEL = () => `${RELAY_FP}:fleet-cloud:run:d-1`;
 
 describe('provisioning — POST /v1/fleet/executor-identity', () => {
+  it('passes the private seed and card only through Wrangler stdin', () => {
+    const seedHex = 'private-seed-must-never-be-logged';
+    const card = 'hv2-card-must-never-be-logged';
+    const calls: Array<{
+      command: string;
+      args: string[];
+      input: string;
+      shell: boolean;
+      stdio: string[];
+    }> = [];
+    const logs: string[] = [];
+    const run = (
+      command: string,
+      args: string[],
+      options: { input: string; shell: boolean; stdio: string[] },
+    ) => {
+      calls.push({ command, args, input: options.input, shell: options.shell, stdio: options.stdio });
+      return { status: 0 };
+    };
+
+    installExecutorSecrets(
+      { seedHex, card },
+      {
+        run,
+        wranglerBin: '/safe/wrangler',
+        configPath: '/safe/wrangler.deploy.toml',
+        log: (message: string) => logs.push(message),
+      },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.args[2])).toEqual([
+      'FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX',
+      'FLEET_EXECUTOR_HARBOR_CARD',
+    ]);
+    expect(calls.map((call) => call.input)).toEqual([`${seedHex}\n`, `${card}\n`]);
+    expect(calls.every((call) => call.shell === false)).toBe(true);
+    expect(calls.every((call) => call.stdio.join(',') === 'pipe,pipe,pipe')).toBe(true);
+    const processMetadata = JSON.stringify(calls.map(({ command, args }) => ({ command, args })));
+    expect(processMetadata).not.toContain(seedHex);
+    expect(processMetadata).not.toContain(card);
+    expect(logs.join('\n')).not.toContain(seedHex);
+    expect(logs.join('\n')).not.toContain(card);
+  });
+
   it('requires the operator token', async () => {
     const env = makeEnv(new MockD1());
     const res = await handleProvisionFleetExecutor(
@@ -383,6 +438,28 @@ describe('GATE 1 — squid/1 envelope end-to-end against the relay chain verific
       }),
     ).toBe('276464292b650ab5985097ccdbef76bb4e3eb8842500dd5a05027890b5efa957');
   });
+
+  for (const [failure, quotaFetch] of [
+    ['a non-2xx response', async () => new Response('upstream failed', { status: 500 })],
+    ['invalid JSON', async () => new Response('not json', { status: 200 })],
+    ['an invalid verdict shape', async () => Response.json({ allowed: 'yes' })],
+    ['a thrown fetch', async () => { throw new Error('quota DO unavailable'); }],
+  ] as const) {
+    it(`fails closed with 503 QUOTA_ERROR when the quota gate returns ${failure}`, async () => {
+      const db = new MockD1();
+      const env = makeEnv(db, quotaFetch);
+      const { card, fingerprint } = await provision(env, SEED_A, 'staging');
+      const chain: LocalChain = { seq: 0, prev: ZERO_HASH };
+      const event = await signedEnvelope(SEED_A, fingerprint, RUN_CHANNEL(), chain, { type: 'run-started' });
+
+      const res = await publish(env, card, event);
+
+      expect(res.status).toBe(503);
+      expect((await res.json()) as { code: string }).toMatchObject({ code: 'QUOTA_ERROR' });
+      expect(db.eventInserts).toBe(0);
+      expect(db.events).toHaveLength(0);
+    });
+  }
 });
 
 describe('GATE 2 — a second writer on a concluded run channel is detected', () => {
@@ -390,6 +467,11 @@ describe('GATE 2 — a second writer on a concluded run channel is detected', ()
     const db = new MockD1();
     const env = makeEnv(db);
     const channel = RUN_CHANNEL();
+
+    // The raw query is bound, not interpolated: empty and hostile-looking
+    // channel values return an empty set before any writer exists.
+    expect(await listChainHeadsForChannel(env.DB, channel)).toEqual([]);
+    expect(await listChainHeadsForChannel(env.DB, "' OR 1=1 --")).toEqual([]);
 
     // Writer A runs the run to conclusion (tip_seq = 2).
     const a = await provision(env, SEED_A, 'staging');
@@ -477,6 +559,11 @@ describe('GATE 3 — revoke-by-issuer rotation', () => {
     const revoked = await revokeRes.json() as { ok: boolean; revoked_count: number; revoked_jtis: string[] };
     expect(revoked.ok).toBe(true);
     expect(revoked.revoked_jtis).toContain(a.jti);
+    expect(db.revocations.get(a.jti)).toEqual(expect.objectContaining({
+      jti: a.jti,
+      revoking_daemon: 'relay-operator',
+      reason: 'issuer-bulk-revoke',
+    }));
 
     // The old card no longer verifies: the jti check inside verifyCard fires.
     const afterRevoke = await publish(env, a.card, await signedEnvelope(SEED_A, a.fingerprint, channel, chainA, { type: 'ship-verdict' }));

@@ -70,16 +70,83 @@ Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
 Read `pd squid status` before claiming the harness works. `LIVE` means complete
-wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
-daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
-surface needs the same truth and `pd squid tap` to inspect the exact bounded
-next-turn envelope. User-level Codex/agy entries do not make hooks global: the
-wrapper requires the exact project root in the arm registry. `pd squid off`
-removes that root while preserving other projects.
+wiring plus a fresh daemon heartbeat and an exact `daemon.ready` → `daemon.pid`
+generation match. `READY` means the wiring is complete but the daemon is down
+or still behind its boot checks; `PARTIAL` and `DEGRADED` require repair. Use
+`--json` when another surface needs the same truth and `pd squid tap` to inspect
+the exact bounded next-turn envelope. User-level Codex/agy entries do not make
+hooks global: the wrapper requires the exact project root in the arm registry.
+`pd squid off` removes that root while preserving other projects.
+
+Do not infer hook readiness from the Bosun heartbeat alone. The daemon starts
+that heartbeat before its database-integrity gate so its supervisor will not
+kill a legitimately slow boot. The shared Claude/Codex/Gemini/agy wrapper first
+requires the ready PID to match the live PID, then checks heartbeat freshness
+and exact project arming. A missing, malformed, stale, or displaced generation
+is an immediate successful no-op; `pd squid status --json` exposes
+`daemonAlive` and `daemonReady` separately, and debug mode explains the skipped
+boot/displacement step without retaining prompt or tool content.
+
+When hook behavior is slow or confusing, use `pd squid debug on` only for the
+diagnostic window, reproduce the turn, then read `pd squid status` or the
+focused `pd squid debug status` (`--json` works on either). They share one
+diagnostic source. Status returns at most 25 recent hook steps and 20 recent
+matrix values per kind, with total/returned/truncated metadata, so retained
+history cannot cut JSON in half or turn introspection into more hook work. Each
+step shows actual start/finish, the one-second expected-by timestamp, duration,
+gate outcome, and a short explanation. A start with no completion by its
+deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving the
+bounded local timeline; `clear` removes it. The format cannot retain argv,
+environment snapshots, prompts, tool inputs/results, stdout, or stderr.
+Routine `pd squid status` hides retained session identifiers and absolute paths
+while capture is off; use the explicit debug-status surface to inspect them.
+Operators use the FleetBar Squid strip's Inspect button for this same surface.
+Retained PD TRACE rows are legacy history; current installs do not schedule a
+PostToolUse process.
+
+Every staged hook command is a stable `~/.port-daddy/bin/pd-hook-*` shim; a
+provider config that names a Homebrew Cellar version is stale and must be
+repaired. Hooks never retry in the agent's critical path. Three consecutive
+unexpected exits or executions over the 250 ms health budget open a five-minute
+circuit breaker: later calls immediately fail open, one next-turn notice points
+the operator to FleetBar, and the Inspect sheet shows the affected hook, last
+reason, timestamps, and retry time. FleetBar's **Repair** button atomically
+restages the shims, rewires providers, and clears the latch only after success.
+An intentional direct-edit block (`exit 2`) is enforcement, not a hook failure.
+
+Coordination content in the hook path stays bounded: no status message and
+zero coordination stdout when there is no fresh actionable project fact or
+fleet-wide control alert. Its topology is deliberately bounded to one turn
+briefing plus a gate only for direct file-edit tools. Broad shell/exec tools
+and observational PostToolUse hooks are excluded; claims and notes carry
+cumulative outcomes. When coordination is genuinely useful, the prompt hook's
+coordination block is capped at one heading plus two facts (512 bytes of
+context). A hook that waits on the daemon or scans an unbounded matrix is
+still a product bug — but the end-of-turn SITREP is not: it is the harness's
+visible value surface (operator doctrine, 2026-08-22), governed by the
+per-repo `sitrep.endOfTurn` dial (`off` | `suggest` | `enforce`, default
+`enforce`; `PD_SITREP` env override wins, then `agent.config.json` →
+`.portdaddy/sitrep.json` → `.portdaddy/project.json`). At suggest/enforce
+every turn carries the end-of-turn SITREP table contract —
+`| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status |
+Related PR/Issue | Docs / Roadmap Link |` — update Status each turn, carry
+unresolved rows forward, and mint a roadmap link (`pd roadmap upsert`) before
+writing code for a row. `enforce` makes a turn that ends without the table an
+incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
+quiet turns dial it off explicitly.
+`pd attention` is also safe before `pd begin`: without a bound identity its
+default read succeeds as an explicit empty/unbound result; subscription changes
+still require an identity.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
-strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
-operator to run these agent-facing commands.
+strip. It exposes state, provider count, Arm/Repair/Disarm, and the hook timeline
+without asking the operator to run these agent-facing commands.
+
+Daemon connection code follows published truth. Port `9876` is an allocator
+preference, not a liveness witness: clients use an explicit URL, an existing
+Unix socket, or the selected daemon's published port file. Missing, malformed,
+or unreadable publication fails closed instead of guessing a listener, and the
+SDK's public URL field stays empty rather than publishing a made-up endpoint.
 
 ## Default Agent Happy Path
 
@@ -87,6 +154,7 @@ Use this path before you reach for advanced coordination. It is the normal
 agent loop for repo work on this machine.
 
 ```bash
+pd attention
 pd status
 pd sitrep --template
 pd briefing
@@ -103,13 +171,24 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+After admission, `pd begin` may show at most three semantically matched live
+peers. That optional hint has a 75 ms total budget, disables reconnect retries,
+aborts its request, excludes the new agent, never falls back to lexical matching,
+and fails open without output. A long list of
+salvage, roadmap, docs, files, or sessions during begin is a regression, not an
+arrival brief.
+
+`pd sitrep` is similarly a bounded projection: collections expose limits,
+returned counts, and truncation; nested salvage histories and strings are
+capped. Use `pd sitrep --quiet` when only the summary is needed.
+
 ## Plan & Todo List Tracking
 
 Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred.
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
 ## Session Continuity
 
@@ -544,6 +623,14 @@ readiness, launches, Shipwright, resources, spawned runs, or operator-visible
 coordination. Deeper guidance lives in `references/fleetbar-and-console.md`
 (loaded via the bundled assets map below).
 
+For Cloud Fleet, route the operator to the signed-in FleetBar Cloud Fleet
+section or the `pd-console` Cloud Fleet pane. Those surfaces show logical
+PR-head generations, delivery attempts, queue-ahead estimates, expected run
+timing, failures, and the durable transcript. Do not infer four logical runs
+from four queue deliveries, describe a D1-derived queue estimate as Cloudflare's
+exact queue position, or invent per-step ETAs when the executor has published
+only a run-level estimate.
+
 ## Bundled Assets — Load On Demand
 
 Everything else in this skill is progressive disclosure: each subdirectory has
@@ -843,6 +930,21 @@ section in `references/cli-reference.md` for the full surface.
 
 When done with the popped item: `pd roadmap release <slug>`. Letting a
 `--begin`-linked session end naturally also releases the claim.
+
+### Ingesting planning docs: `pd roadmap chomp`
+
+When the operator hands you a markdown planning document, do not leave it
+as a doc — chomp it: `pd roadmap chomp <doc.md…>` parses headings into a
+project→epic→story→task hierarchy, checklists into tasks, and explicit
+"depends on / blocked by / requires" phrasing into dependencies. The
+default run is a preview of the exact item tree; the only write path is
+`pd roadmap chomp <doc.md…> --emit-pr-plan <dir>`, which upserts through
+the daemon (idempotent; never clobbers rows enriched since the first
+chomp) and emits the doc-removal PR artifacts: the regenerated roadmap
+snapshot, a `chomp-receipt.json` work receipt, a `git rm` list, and a
+ready PR body. Filing that PR — items in, source docs deleted — is your
+explicit act, never automatic. The legacy `pd roadmap import-markdown`
+is an alias that chomps the three canonical curated piles.
 
 ## Actor Roster (universal Port Daddy concepts)
 

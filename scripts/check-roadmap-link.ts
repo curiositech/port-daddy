@@ -102,6 +102,12 @@ function buildComment(r: LinkResult): string {
     case 'linked':
       lines.push(`✅ Linked to roadmap item **\`${r.slug}\`**. Good to land.`);
       break;
+    case 'self-spawned':
+      lines.push(
+        `✅ Linked to **\`${r.slug}\`**, declared by this PR's own \`Roadmap-Spawns:\` trailer.`,
+      );
+      lines.push('', 'The item is introduced by this PR; the snapshot catches up at the next `export-roadmap-snapshot` run.');
+      break;
     case 'opt-out':
       lines.push(`✅ Explicit opt-out accepted — _${r.optOutReason}_.`);
       lines.push('', 'No roadmap item required for this change.');

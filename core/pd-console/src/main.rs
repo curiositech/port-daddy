@@ -37,6 +37,8 @@ mod harbor_pane;
 mod headless_capture;
 mod health_pane;
 mod inbox_pane;
+mod interruptions;
+mod interruptions_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
@@ -80,6 +82,7 @@ use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
+use interruptions_pane::InterruptionsPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
@@ -309,10 +312,13 @@ fn main() {
     app::init_theme_from_env();
     app::init_motion_from_env();
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
-    // All fallback logic lives in DaemonClient::discover(); no literals here.
+    // Canonical daemon discovery: PORT_DADDY_URL env var → console-daemon.url →
+    // daemon.port file → the stable berth default. All fallback logic lives in
+    // DaemonClient::discover(); no literals here. Discovery is infallible now —
+    // with nothing registered the console opens against the stable berth and the
+    // panes render reachability honestly instead of panicking pre-window.
     let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery failed")
+        .expect("daemon discovery is infallible")
         .base()
         .to_string();
 
@@ -456,7 +462,7 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
         //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
-        //  24=Active Agents  25=Harbor  26=Sextant
+        //  24=Active Agents  25=Harbor  26=Sextant  27=Interruptions (HITL)
         //
         // The tuple also carries Sextant's typed snapshot (points + clusters)
         // alongside the render-agnostic blocks, so the bespoke canvas draws the
@@ -466,6 +472,7 @@ fn main() {
             Option<dispatch_pane::DispatchHead>,
             galaxy_pane::GalaxySnapshot,
             bool,
+            interruptions::HitlGate,
         )>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
         // operator action and pushes it here instead of swallowing it (`let _ =`).
@@ -540,6 +547,7 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
+                let mut hitl        = InterruptionsPane::new(); // 27 — HITL operator interruptions
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -555,6 +563,7 @@ fn main() {
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
                         galaxy.id(),
+                        hitl.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -1115,6 +1124,7 @@ fn main() {
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
+                    let _ = hitl.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1254,6 +1264,7 @@ fn main() {
                         (24, live_agents.view()),
                         (25, harbor.view()),
                         (26, galaxy.view()),
+                        (27, hitl.view()),
                     ];
 
                     if tx
@@ -1262,6 +1273,7 @@ fn main() {
                             dispatch.head(),
                             galaxy.snapshot(),
                             health.is_connected(),
+                            hitl.gate(),
                         ))
                         .is_err()
                     {
@@ -1279,7 +1291,7 @@ fn main() {
                 let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected)) =
+                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected, hitl_gate)) =
                         rx.try_recv()
                     {
                         let _ = async_cx.update(|app| {
@@ -1291,6 +1303,7 @@ fn main() {
                                     dispatch_head.clone(),
                                     galaxy_snapshot.clone(),
                                     daemon_connected,
+                                    hitl_gate.clone(),
                                 ) {
                                     present_changed_frame(window, cx, &mut size_nudged);
                                 }

@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents, handleRoster,
+  handleAgent, handleAgents, handleRoster, ROSTER_HELP,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -58,7 +58,7 @@ import {
   handleBooty,
   // Inbox
   handleInbox,
-  handleSent,
+  handleSent, SENT_HELP,
   // Tunnel
   handleTunnel,
   // Activity
@@ -83,7 +83,7 @@ import {
   // Sugar commands
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
-  handleAttention,
+  handleAttention, ATTENTION_HELP,
   // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
   handleNudge,
   // Tutorial
@@ -120,7 +120,7 @@ import {
   handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
-  handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
+  handleSitrep, SITREP_HELP, handleSay, handleLook, handlePheromone, handlePlan,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -180,6 +180,7 @@ import {
   shouldAutoRestartDaemonForFreshness,
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
+import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -653,9 +654,40 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
+  claim: 'ports', c: 'ports', release: 'ports', r: 'ports',
+  find: 'ports', f: 'ports', list: 'ports', l: 'ports', ps: 'ports', services: 'ports',
+  url: 'ports', env: 'ports',
+  lock: 'locks', unlock: 'locks',
+  begin: 'sugar', done: 'sugar', whoami: 'sugar', 'with-lock': 'sugar',
+  n: 'sugar', u: 'sugar', d: 'sugar',
+  session: 'sessions', takeover: 'sessions', note: 'sessions', notes: 'sessions',
+  feedback: 'sessions',
+  agent: 'agents', agents: 'agents', swarm: 'agents', salvage: 'agents', resurrection: 'agents',
+  actor: 'actors', actors: 'actors',
+  up: 'orchestration', down: 'orchestration', scan: 'orchestration', s: 'orchestration',
+  projects: 'orchestration', p: 'orchestration', health: 'orchestration',
+  hooks: 'setup', init: 'setup',
+  memory: 'semantic', graph: 'semantic',
+  advise: 'advisor', preflight: 'advisor', compass: 'advisor',
+  secrets: 'secret',
+  learn: 'tutorial',
   skillgraft: 'skill-graft',
-  done: 'sessions', begin: 'sessions',
 };
+
+/** Precise per-verb help whose source lives beside the flags it documents. */
+export const VERB_HELP: Record<string, string> = {
+  attention: ATTENTION_HELP,
+  sitrep: SITREP_HELP,
+  roster: ROSTER_HELP,
+  sent: SENT_HELP,
+};
+
+/** Heavy lazy-loaded commands whose own handler remains the help authority. */
+export const HANDLER_OWNED_HELP_COMMANDS = new Set(['squid']);
+
+export function shouldDispatchHelpToHandler(command: string): boolean {
+  return HANDLER_OWNED_HELP_COMMANDS.has(command);
+}
 
 /**
  * Build the compact main help output.
@@ -739,7 +771,7 @@ function buildHelp(): string {
  * Topic-specific detailed help maps.
  * Each topic shows relevant commands with flags and examples.
  */
-const TOPIC_HELP: Record<string, string> = {
+export const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
@@ -1259,15 +1291,36 @@ Commands:
     --limit <n>             Limit rows per section (default: 8)
     --status <s>            now|backlog|parked|merge|done|all
     --harbor <h>            Harbor scope
+    --project <name>        Logical project filter (derives the harbor when --harbor is absent)
     -q, --quiet             Print one slug per line
     -j, --json              Output raw roadmap_items rows
 
   roadmap upsert <slug>     Create/update a durable roadmap item receipt
-    --summary <md>          Roadmap summary markdown
+    --summary <md>          Roadmap summary markdown (one-line headline)
     --status <s>            now|backlog|parked|merge|done
+    --kind <k>              project|epic|story|task|subtask|bug|chore (default: task)
+    --priority <1-5>        1 highest .. 5 lowest (default: 3)
+    --estimate <units>      Effort units (positive whole number) — the Gantt/CPM node duration
+    --start <when>          Actual start: YYYY-MM-DD, +Nd, or epoch ms
+    --due <when>            Target finish: YYYY-MM-DD, +Nd, or epoch ms
+    --assignee <id>         Durable owner — a roster agentNodeId or slug (validated
+                            against pd roster; unknown owners are rejected)
+    --unassign              Clear the owner (sends explicit null)
+    --actual <units>        Effort actually spent (positive whole number, same units as --estimate)
+    --tag <t>               Add a tag (repeatable); --clear-tags empties the set
+    --description <md>      Long-form body markdown (summary stays the headline)
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
     --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+    --project <name>        Logical project recorded on the item
+
+  roadmap link <slug>       Pin a typed artifact link to an item's Jira card
+    --pr <number>           Link a pull request (--url/--title optional)
+    --doc <path>            Link a repo doc path
+    --file <path>           Link a file path
+    --media <path-or-url>   Link media (--mime/--caption optional)
+  roadmap unlink <slug>     Remove a typed link (same selector flags)
+  roadmap links <slug>      List an item's typed links
 
   roadmap delete <slug>     Remove a roadmap item (and its status-event audit rows)
     --harbor <h>            Harbor to delete from (default: repo/project name)
@@ -1280,12 +1333,44 @@ Commands:
     --as <agentId>          Harvester id (default: operator-cli)
     --into <roadmap-slug>   Roadmap slug the feedback was folded into
 
+  roadmap chomp <doc.md...> Chomp ANY markdown planning doc into roadmap items
+                            (headings → project/epic/story/task hierarchy,
+                            checklists → tasks, explicit "depends on" → deps,
+                            filename → provenance tag). Idempotent; never
+                            clobbers rows enriched after the first chomp.
+                            Default is a PREVIEW — writing goes through a
+                            reviewed PR via --emit-pr-plan (single-writer
+                            doctrine: no silent roadmap writes).
+    --emit-pr-plan <dir>    THE write act: upsert via the daemon AND emit the
+                            doc-removal PR artifacts — regenerated
+                            roadmap.snapshot.json, a chomp-receipt.json work
+                            receipt, a git-rm list of chomped docs, and a
+                            ready PR body (does NOT open the PR itself)
+    --dry-run               Explicit preview (same as omitting --emit-pr-plan)
+    --status <s>            Default status for planning-doc items (default: backlog)
+    --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+    --as <agentId>          Actor stamped on freshly inserted rows
+    --enrich                Polish long-section summaries via the configured
+                            LLM backend (PD_CHOMP_BACKEND / fleet default);
+                            without a backend, extraction stays deterministic
+
+  roadmap import-markdown   Legacy alias: chomp the 3 canonical curated piles
+                            (docs/ROADMAP.md Next Cuts, IDEAS-TROVE now,
+                            DOGFOOD-FEEDBACK now) through the same path
+    --dry-run               Report without writing
+
 Examples:
   pd roadmap
   pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
   pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap upsert relay-hardening --summary "Relay retry storms" --kind epic --priority 2 --estimate 5 --due +14d
+  pd roadmap upsert relay-hardening --assignee portdaddy-relay-steward --tag infra --tag reliability
+  pd roadmap link relay-hardening --pr 9340 --title "retry backoff"
+  pd roadmap links relay-hardening
   pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
+  pd roadmap chomp PLAN.md docs/proposals/v4.md --dry-run
+  pd roadmap chomp PLAN.md --emit-pr-plan /tmp/chomp-pr
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   'skill-graft': `Skill Graft — Native local skill guidance for fleet ships
@@ -1373,13 +1458,18 @@ The tutorial walks you through:
 Run: pd learn`,
 };
 
+/** The exact resolver used by `pd <verb> --help`; null means honest global help. */
+export function resolveVerbHelp(command: string): string | null {
+  return TOPIC_HELP[command] ?? VERB_HELP[command] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command]] ?? null;
+}
+
 // HELP is built lazily via getHelp() for context-aware output
 
 // =============================================================================
 // Command Suggestion (fuzzy "did you mean?")
 // =============================================================================
 
-const ALL_COMMANDS: string[] = [
+export const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'batten', 'scan', 's', 'projects', 'p',
@@ -2443,7 +2533,12 @@ export async function main(): Promise<void> {
   // Flags whose repeated occurrences should accumulate into an array
   // instead of last-write-wins. Add a key here when a consumer is array-aware
   // (e.g. `--files A --files B`).
-  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config', 'tag']);
+
+  // Greedily consume every following non-option token. This makes the
+  // documented `--files a b c` form equivalent to repeating the flag without
+  // leaking b/c into positional arguments.
+  const VARIADIC_FLAGS: Set<string> = new Set(['files']);
 
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {
@@ -2463,6 +2558,18 @@ export async function main(): Promise<void> {
   for (let i = 1; i < args.length; i++) {
     const arg: string = args[i];
 
+    // `pd plan set` documents a quoted Markdown checklist whose first line is
+    // normally `- [ ] ...`. Preserve that one argv payload as data instead of
+    // interpreting every character after the leading dash as a short flag.
+    const isPlanChecklistPayload = command === 'plan'
+      && args[1] === 'set'
+      && positional.length === 1
+      && /^- \[(?: |x|X|-)\](?:\s|$)/.test(arg);
+    if (isPlanChecklistPayload) {
+      positional.push(arg);
+      continue;
+    }
+
     if (arg === '--') {
       positional.push(...args.slice(i + 1));
       break;
@@ -2479,8 +2586,15 @@ export async function main(): Promise<void> {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
         if (next && !next.startsWith('-')) {
-          assignOption(key, next);
-          i++;
+          if (VARIADIC_FLAGS.has(key)) {
+            while (args[i + 1] !== undefined && args[i + 1] !== '--' && !args[i + 1].startsWith('-')) {
+              assignOption(key, args[i + 1]);
+              i++;
+            }
+          } else {
+            assignOption(key, next);
+            i++;
+          }
         } else {
           assignOption(key, true);
         }
@@ -2556,9 +2670,8 @@ export async function main(): Promise<void> {
   // printed "ERROR: pd done refused …", which also poisoned recorded terminal
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
-  if (options.help) {
-    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
-    console.log(topicHelp || buildHelp());
+  if (options.help && !shouldDispatchHelpToHandler(command as string)) {
+    console.log(resolveVerbHelp(command as string) ?? buildHelp());
     process.exit(0);
   }
 
@@ -3337,9 +3450,8 @@ export async function main(): Promise<void> {
     await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
   } catch (err: unknown) {
     await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
-    const error = err as Error & { code?: string; cause?: { code?: string } };
-    const errCode = error.code || error.cause?.code;
-    if (errCode === 'ECONNREFUSED' || errCode === 'ENOENT') {
+    const error = err as Error;
+    if (isDaemonUnavailableError(error)) {
       // Daemon unreachable — try direct-DB mode for Tier 1 commands
       if (TIER_1_COMMANDS.has(command)) {
         try {

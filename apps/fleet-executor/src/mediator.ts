@@ -517,7 +517,7 @@ export function buildMediatorScanIo(deps: {
     conclusion: 'success' | 'failure' | 'neutral',
     summary: string,
     token: string,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 }): MediatorScanIo {
   const conveneUrl = (deps.env.RELAY_PUBLISH_URL ?? '').replace(
     /\/v1\/publish$/,

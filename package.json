@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.27.0",
+  "version": "3.30.2",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -29,6 +29,7 @@
     "test:watch": "npm test -- --watch",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
+    "test:purser": "node scripts/run-purser-tests.mjs",
     "test:bun": "bun test tests/bun/",
     "typecheck": "tsc --noEmit",
     "generate:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts --write",
@@ -106,6 +107,7 @@
     "scripts/build-daemon-binary.mjs",
     "scripts/build-public-samples.mjs",
     "scripts/build-single-binary.mjs",
+    "scripts/lib/onnx-runtime-native.mjs",
     "mcp/",
     "schemas/",
     "config.json",
@@ -147,6 +149,8 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "@noble/hashes": "^1.7.1",
     "@swc/core": "^1.15.11",
     "@swc/jest": "^0.2.39",
     "@types/better-sqlite3": "^7.6.13",
