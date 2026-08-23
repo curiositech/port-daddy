@@ -251,7 +251,16 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
   } else {
     for (const item of items) {
       const head = item.summaryMd.trim().split('\n')[0] ?? '';
-      console.log(`  - ${item.slug} [${item.status}]`);
+      // Planner columns render inline when set: kind (non-task), priority
+      // (non-default), estimate, owner, due date — so the flat list reads as
+      // a plan, not just a pile of slugs.
+      const meta: string[] = [item.status];
+      if (item.kind && item.kind !== 'task') meta.push(item.kind);
+      if (item.priority && item.priority !== 3) meta.push(`P${item.priority}`);
+      if (item.estimate) meta.push(`est ${item.estimate}`);
+      if (item.assigneeId) meta.push(`@${item.assigneeId}`);
+      if (item.dueAt) meta.push(`due ${new Date(item.dueAt).toISOString().slice(0, 10)}`);
+      console.log(`  - ${item.slug} [${meta.join(' · ')}]`);
       if (head) console.log(`    ${head}`);
     }
   }
@@ -625,11 +634,93 @@ function roadmapNote(actor: string, text: string | undefined): { at: number; by:
   };
 }
 
+/**
+ * Parse a whole-number planner flag (`--priority`, `--estimate`) inside an
+ * inclusive band. Returns undefined when the operator's value is not a whole
+ * number in that band, so the caller can reject it the way it rejects a bad
+ * date.
+ *
+ * Why the CLI rejects rather than leaning on the server's sanitizers: the
+ * daemon's `clampPriority` / `positiveOrNull` pass (lib/roadmap-items.ts) does
+ * keep garbage out of the table — nothing invalid is ever persisted — but it
+ * cannot tell a typo from an intent, and on this write path the two coincide
+ * destructively. `Number.parseInt('abc', 10)` is NaN, `JSON.stringify` puts
+ * NaN on the wire as `null`, and an explicit `null` is this API's CLEAR
+ * sentinel. So `--estimate abc` does not "do nothing": it WIPES an estimate a
+ * board or import already recorded, and `--priority xyz` resets a stored 1 to
+ * the default 3 — silently, from the same command whose contract is that
+ * fields it was not asked to change are preserved. Out-of-band numbers
+ * saturate the same silent way (`--priority 99` → 5, `--estimate -5` → null).
+ *
+ * Non-interactive callers (HTTP bodies, markdown import, older rows) keep that
+ * documented saturating behaviour, which is deliberate for them. The CLI is
+ * the one surface where a human typed the value and can retype it, so here the
+ * value is checked before it can clear anything.
+ *
+ * @param raw - The flag value as typed by the operator.
+ * @param min - Smallest accepted value, inclusive.
+ * @param max - Largest accepted value, inclusive.
+ * @returns The integer, or undefined when it is not a whole number in band.
+ */
+function parseBandedIntFlag(raw: string, min: number, max: number): number | undefined {
+  const trimmed = raw.trim();
+  if (!/^[+-]?\d+$/.test(trimmed)) return undefined;
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isSafeInteger(n) || n < min || n > max) return undefined;
+  return n;
+}
+
+/**
+ * Parse a human-friendly point-in-time flag into epoch milliseconds.
+ *
+ * Why three shapes: roadmap authoring must be a one-liner, and the three ways
+ * an operator naturally states a date are "a timestamp I copied" (epoch ms),
+ * "a calendar day" (ISO `YYYY-MM-DD`, read as UTC midnight — the same instant
+ * `Date.parse` gives a date-only ISO string, and the anchor the Gantt reads),
+ * and "N days from now" (`+Nd`). Anything else returns undefined so the caller
+ * can reject loudly instead of silently scheduling for 1970.
+ *
+ * Why the shape is matched EXACTLY rather than handed to `Date.parse`:
+ * `Date.parse` is lenient in ways that are indistinguishable from a typo once
+ * they reach the database. It rolls calendar overflow forward instead of
+ * failing (`2023-02-30` → 2023-03-02, `2026-02-29` → 2026-03-01), and it
+ * accepts partial dates (`2026` → 2026-01-01). Every one of those silently
+ * stores a DIFFERENT day than the operator typed and schedules the Gantt bar
+ * against it, with no error to notice. So: match `YYYY-MM-DD`, build the
+ * instant, then round-trip the Y/M/D back out and reject if the calendar
+ * moved. A wrong date the operator can see beats a wrong date they cannot.
+ *
+ * @param raw - The flag value as typed by the operator.
+ * @returns Epoch milliseconds, or undefined when the shape is unrecognized.
+ */
+export function parseWhenFlag(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  const relative = /^\+(\d+)d$/.exec(trimmed);
+  if (relative) return Date.now() + Number.parseInt(relative[1], 10) * 86_400_000;
+  if (/^\d{13}$/.test(trimmed)) return Number.parseInt(trimmed, 10);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!iso) return undefined;
+  const year = Number.parseInt(iso[1], 10);
+  const month = Number.parseInt(iso[2], 10);
+  const day = Number.parseInt(iso[3], 10);
+  const ms = Date.UTC(year, month - 1, day);
+  if (!Number.isFinite(ms)) return undefined;
+  const back = new Date(ms);
+  const roundTrips =
+    back.getUTCFullYear() === year && back.getUTCMonth() + 1 === month && back.getUTCDate() === day;
+  return roundTrips ? ms : undefined;
+}
+
 async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise<void> {
   const slug = readRoadmapSlug(args, options);
   const summaryMd = readRoadmapSummary(args, options);
   if (!slug || !summaryMd) {
-    ui.error('Usage: pd roadmap upsert <slug> --summary <md> [--status <now|backlog|parked|merge|done>] [--as <agentId>]');
+    ui.error(
+      'Usage: pd roadmap upsert <slug> --summary <md> [--status <now|backlog|parked|merge|done>] ' +
+        '[--kind <project|epic|story|task|subtask|bug|chore>] [--priority <1-5>] [--estimate <units>] ' +
+        '[--start <YYYY-MM-DD|+Nd>] [--due <YYYY-MM-DD|+Nd>] [--assignee <id>] [--description <md>] [--as <agentId>]',
+    );
     process.exit(1);
   }
 
@@ -649,6 +740,50 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
   if (project) body.project = project;
   const dependencies = readOption(options, 'dependencies', 'deps');
   if (dependencies) body.dependencies = dependencies.split(',').map((s) => s.trim()).filter(Boolean);
+  // Planner columns (ADR-0086) — the fields that make an item readable on a
+  // board and schedulable on a Gantt, writable from the same one-liner.
+  const kind = readOption(options, 'kind');
+  if (kind) body.kind = kind;
+  const priority = readOption(options, 'priority');
+  if (priority) {
+    const parsed = parseBandedIntFlag(priority, 1, 5);
+    if (parsed === undefined) {
+      ui.error(`--priority '${priority}' is not a whole number in 1..5 (1 highest .. 5 lowest)`);
+      process.exit(1);
+    }
+    body.priority = parsed;
+  }
+  const estimate = readOption(options, 'estimate', 'est');
+  if (estimate) {
+    const parsed = parseBandedIntFlag(estimate, 1, Number.MAX_SAFE_INTEGER);
+    if (parsed === undefined) {
+      ui.error(`--estimate '${estimate}' is not a positive whole number of effort units`);
+      process.exit(1);
+    }
+    body.estimate = parsed;
+  }
+  const assignee = readOption(options, 'assignee', 'assigneeId');
+  if (assignee) body.assigneeId = assignee;
+  const description = readOption(options, 'description', 'descriptionMd', 'body');
+  if (description) body.descriptionMd = description;
+  const startRaw = readOption(options, 'start', 'startedAt');
+  if (startRaw) {
+    const startedAt = parseWhenFlag(startRaw);
+    if (startedAt === undefined) {
+      ui.error(`--start '${startRaw}' is not a date (use YYYY-MM-DD, +Nd, or epoch ms)`);
+      process.exit(1);
+    }
+    body.startedAt = startedAt;
+  }
+  const dueRaw = readOption(options, 'due', 'dueAt');
+  if (dueRaw) {
+    const dueAt = parseWhenFlag(dueRaw);
+    if (dueAt === undefined) {
+      ui.error(`--due '${dueRaw}' is not a date (use YYYY-MM-DD, +Nd, or epoch ms)`);
+      process.exit(1);
+    }
+    body.dueAt = dueAt;
+  }
 
   try {
     const item = await postRoadmapItem(body);
@@ -659,6 +794,9 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
     ui.success(`Roadmap item '${item.slug}' upserted`);
     console.log(`  status:  ${item.status}`);
     console.log(`  harbor:  ${item.harbor}`);
+    console.log(`  kind:    ${item.kind} · P${item.priority}${item.estimate ? ` · est ${item.estimate}` : ''}`);
+    if (item.assigneeId) console.log(`  owner:   ${item.assigneeId}`);
+    if (item.dueAt) console.log(`  due:     ${new Date(item.dueAt).toISOString().slice(0, 10)}`);
   } catch (error) {
     ui.error(error instanceof Error ? error.message : 'roadmap upsert failed');
     process.exit(1);
