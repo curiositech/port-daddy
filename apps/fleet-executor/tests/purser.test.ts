@@ -1206,9 +1206,22 @@ describe('pd-fleet.yml purser parsing', () => {
   });
 
   it('an unknown role pin on a purser is remapped to a known-good model', () => {
-    const yaml = YAML.replace('cf_role: shipDefault', 'cf_role: bogus-role');
-    const p = parseFleetShips(yaml, 'pull_request:opened')!.find(s => s.name === 'purser')!;
-    expect(p.cfModel).toBe(CF_ROLE_MODELS.shipDefault);
+    // The fixture pins a NON-DEFAULT role first, then breaks it. The earlier
+    // version of this test started from `shipDefault` and asserted the result
+    // was `shipDefault`, which is what the fallback produces anyway — so it
+    // passed whether the remap happened, whether the string replace matched, or
+    // whether the pin was read at all. An assertion that cannot fail is not a
+    // test. Starting from `reviewBot` makes the two outcomes distinguishable.
+    expect(CF_ROLE_MODELS.reviewBot).not.toBe(CF_ROLE_MODELS.shipDefault);
+    const honored = YAML.replace('cf_role: shipDefault', 'cf_role: reviewBot');
+    expect(
+      parseFleetShips(honored, 'pull_request:opened')!.find(s => s.name === 'purser')!.cfModel,
+    ).toBe(CF_ROLE_MODELS.reviewBot);
+
+    const broken = YAML.replace('cf_role: shipDefault', 'cf_role: bogus-role');
+    expect(
+      parseFleetShips(broken, 'pull_request:opened')!.find(s => s.name === 'purser')!.cfModel,
+    ).toBe(CF_ROLE_MODELS.shipDefault);
   });
 });
 
