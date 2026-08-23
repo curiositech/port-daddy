@@ -43,6 +43,23 @@ export interface LLMCompletionRequest {
    *  fall back to `process.env`. Used by tests to inject creds without
    *  mutating real env. */
   env?: NodeJS.ProcessEnv;
+  /**
+   * Optional live-token sink. When present, an adapter that can stream WILL,
+   * calling this with each text fragment as it arrives.
+   *
+   * The rationale for making it optional rather than a separate `streamX`
+   * function per provider: streaming and non-streaming differ only in how the
+   * response body is read, and every caller wants the same final
+   * `LLMCompletionResult` either way. Splitting the API would have doubled the
+   * adapter surface and guaranteed the two halves drift — the exact shape the
+   * canonical registry work exists to stop elsewhere in this repo.
+   *
+   * The final result is UNCHANGED by streaming: `text` is still the whole
+   * completion. A caller that ignores deltas gets identical behavior, and a
+   * caller that consumes them must not also append `text`, or the operator sees
+   * every turn twice.
+   */
+  onTextDelta?: (delta: string) => void;
 }
 
 export interface LLMCompletionResult {
@@ -65,6 +82,104 @@ export interface LLMCompletionResult {
 
 export type LLMAdapter = (req: LLMCompletionRequest) => Promise<LLMCompletionResult>;
 
+/**
+ * Is this response actually an event stream?
+ *
+ * The design rule this encodes: `stream: true` is a REQUEST, not a guarantee.
+ * A gateway, a proxy, or a model that does not support streaming can answer
+ * with ordinary JSON, and parsing that as SSE finds zero frames — which reads as
+ * an empty completion and fails a run that in fact succeeded. Checking the
+ * content type makes the degradation honest: no deltas, same answer.
+ *
+ * @param res The provider response.
+ * @returns True when the body should be read as SSE.
+ */
+function isEventStream(res: Response): boolean {
+  // Defensive about `headers` itself being absent, not only about the header:
+  // every test that exercises an API backend mocks `fetch` with a hand-built
+  // object, and reading through a missing property would turn a behavioural
+  // improvement into a crash in code that has nothing to do with it.
+  try {
+    return (res.headers?.get('content-type') ?? '').toLowerCase().includes('text/event-stream');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read a `text/event-stream` body, handing each `data:` payload to a parser.
+ *
+ * The rationale for writing it once and sharing it: the three providers that
+ * stream here differ ONLY in the shape inside `data:` — the framing, the `[DONE]` sentinel, the
+ * partial-line buffering across chunk boundaries, and the "flush whatever is
+ * left at EOF" rule are identical, and are exactly the parts that are subtly
+ * wrong when each provider gets its own copy. A frame split across two network
+ * chunks is the classic version of that bug: it drops a token silently, which
+ * reads to an operator as the model having said less than it did.
+ *
+ * @param body The response body stream.
+ * @param onFrame Called with each decoded `data:` payload, minus the sentinel.
+ * @param signal Optional abort signal, checked between chunks.
+ * @returns Resolves when the stream ends or the signal aborts.
+ */
+async function readEventStream(
+  body: ReadableStream<Uint8Array>,
+  onFrame: (payload: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      if (signal?.aborted) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // SSE events are separated by a blank line; anything after the last one is
+      // a partial frame that must survive until the next chunk arrives.
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          onFrame(payload);
+        }
+      }
+    }
+    // EOF without a trailing blank line still carries a final frame.
+    const tail = buffer.trim();
+    if (tail.startsWith('data:')) {
+      const payload = tail.slice(5).trim();
+      if (payload && payload !== '[DONE]') onFrame(payload);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Emit a text fragment to a caller's delta sink without letting it break the run.
+ *
+ * The sink belongs to the caller — a transcript appender, an SSE writer — and a
+ * throw from it is a UI problem, not a completion problem. The design rule is
+ * that observing a response can never fail producing it.
+ *
+ * @param onTextDelta The caller's sink, if any.
+ * @param delta The fragment.
+ */
+function emitDelta(onTextDelta: ((d: string) => void) | undefined, delta: string): void {
+  if (!onTextDelta || !delta) return;
+  try {
+    onTextDelta(delta);
+  } catch {
+    // Deliberately swallowed: see above.
+  }
+}
+
 function cloudflareModelPath(model: string): string {
   const normalized = model
     .trim()
@@ -83,7 +198,7 @@ function cloudflareModelPath(model: string): string {
  * (encrypted managed store), falls back to `process.env`. Returns
  * `ok: false` with explanatory error when creds are missing — no throw.
  */
-export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env }) => {
+export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env, onTextDelta }) => {
   const e = env ?? process.env;
   const accountId = getSecret('CLOUDFLARE_ACCOUNT_ID')
     || e.CLOUDFLARE_ACCOUNT_ID
@@ -106,7 +221,10 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
       body: JSON.stringify({
         messages: [{ role: 'user', content: prompt }],
         max_tokens: maxTokens,
-        stream: false,
+        // Stream only when someone is listening. A streamed response costs an
+        // extra parse and gives up the usage block on some models, so it is not
+        // the free default it looks like.
+        stream: Boolean(onTextDelta),
       }),
       signal,
     });
@@ -124,6 +242,43 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
         : '';
       return { ok: false, error: `Cloudflare Workers AI HTTP ${res.status}: ${txt}${diag}` };
     }
+    // Take the streaming path only when the response ACTUALLY is an event
+    // stream. Asking for `stream: true` is a request, not a guarantee — a
+    // gateway, a proxy, or a model that does not support it can answer with
+    // ordinary JSON, and parsing that as SSE finds no frames and reports an
+    // empty completion. A run must not fail because an optimisation was
+    // declined.
+    if (onTextDelta && res.body && isEventStream(res)) {
+      // Workers AI streams OpenAI-shaped chunks: choices[].delta.content, with
+      // some models using `response` for the same fragment.
+      let text = '';
+      await readEventStream(
+        res.body,
+        (payload) => {
+          try {
+            const chunk = JSON.parse(payload) as Record<string, any>;
+            const delta =
+              chunk?.choices?.[0]?.delta?.content
+              ?? chunk?.response
+              ?? chunk?.delta
+              ?? '';
+            if (typeof delta === 'string' && delta) {
+              text += delta;
+              emitDelta(onTextDelta, delta);
+            }
+          } catch {
+            // A malformed frame is skipped rather than failing the stream: the
+            // rest of the completion is still worth having.
+          }
+        },
+        signal,
+      );
+      if (!text) return { ok: false, error: 'Cloudflare Workers AI returned no text response' };
+      // Streamed Workers AI responses carry no usage block; undefined means
+      // "unknown", which the cost tracker must not read as zero.
+      return { ok: true, text };
+    }
+
     const data = await res.json() as Record<string, any>;
     const result = data.result ?? data;
     const usage = extractCloudflareUsage(result, data);
@@ -210,7 +365,7 @@ function geminiApiBase(env: NodeJS.ProcessEnv): string {
     || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
 }
 
-export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env }) => {
+export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env, onTextDelta }) => {
   const e = env ?? process.env;
   const apiKey = getSecret('GEMINI_API_KEY')
     || e.GEMINI_API_KEY
@@ -242,9 +397,14 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
     generationConfig,
   };
 
+  // Gemini's streaming endpoint is a DIFFERENT method plus `alt=sse`; without
+  // that query param it returns a JSON array rather than an event stream, which
+  // parses as one enormous frame and defeats the point.
+  const method = onTextDelta ? 'streamGenerateContent?alt=sse' : 'generateContent';
+
   try {
     const res = await fetch(
-      `${geminiApiBase(e)}/models/${encodeURIComponent(modelId)}:generateContent`,
+      `${geminiApiBase(e)}/models/${encodeURIComponent(modelId)}:${method}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -256,6 +416,83 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
       const txt = await res.text().catch(() => 'unknown error');
       return { ok: false, error: `Gemini HTTP ${res.status}: ${txt}` };
     }
+
+    // Same rule as Cloudflare above: a response that is not an event stream is
+    // read as JSON rather than parsed for frames that are not there.
+    if (onTextDelta && res.body && isEventStream(res)) {
+      let text = '';
+      let thoughts = '';
+      let lastChunk: Record<string, any> | undefined;
+      await readEventStream(
+        res.body,
+        (payload) => {
+          try {
+            const chunk = JSON.parse(payload) as Record<string, any>;
+            lastChunk = chunk;
+            const parts = chunk?.candidates?.[0]?.content?.parts;
+            if (!Array.isArray(parts)) return;
+            for (const part of parts) {
+              const fragment = typeof part?.text === 'string' ? part.text : '';
+              if (!fragment) continue;
+              // Thought parts are reasoning, not answer. They are ACCUMULATED
+              // rather than dropped — the transcript records thinking as its own
+              // turn — but they never reach the text sink, because streaming
+              // them into the answer would splice the model's scratchpad into
+              // what the operator reads.
+              if (part?.thought === true) {
+                thoughts += fragment;
+                continue;
+              }
+              text += fragment;
+              emitDelta(onTextDelta, fragment);
+            }
+          } catch {
+            // Skip a malformed frame rather than losing the rest.
+          }
+        },
+        signal,
+      );
+      if (!text) {
+        const finish = (lastChunk as Record<string, any> | undefined)?.candidates?.[0]?.finishReason;
+        return {
+          ok: false,
+          error: `Gemini returned no text response${finish ? ` (finishReason: ${finish})` : ''}`,
+        };
+      }
+      // Gemini repeats cumulative usage on every chunk, so the LAST one carries
+      // the totals — this is one of the few streaming APIs where usage survives.
+      const streamUsage = (lastChunk as Record<string, any> | undefined)?.usageMetadata ?? {};
+      const inTok = normalizeTokenCount(streamUsage.promptTokenCount);
+      const cand = normalizeTokenCount(streamUsage.candidatesTokenCount) ?? 0;
+      const thought = normalizeTokenCount(streamUsage.thoughtsTokenCount) ?? 0;
+      const outTok =
+        streamUsage.candidatesTokenCount === undefined
+        && streamUsage.thoughtsTokenCount === undefined
+          ? undefined
+          : cand + thought;
+      // Rebuild a generateContent-shaped `raw` from what streamed, so the
+      // transcript parser downstream sees the same structure it does on the
+      // batch path. Without this, a streamed Gemini run would silently lose the
+      // separate thinking turn that the non-streamed one records — a capability
+      // regression hidden behind an optimisation.
+      const raw = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                ...(thoughts ? [{ text: thoughts, thought: true }] : []),
+                ...(text ? [{ text }] : []),
+              ],
+            },
+            finishReason: (lastChunk as Record<string, any> | undefined)?.candidates?.[0]
+              ?.finishReason,
+          },
+        ],
+        usageMetadata: streamUsage,
+      };
+      return { ok: true, text, inputTokens: inTok, outputTokens: outTok, raw };
+    }
+
     const data = await res.json() as Record<string, any>;
     if (data.error) {
       return { ok: false, error: `Gemini API error: ${data.error.message || JSON.stringify(data.error)}` };

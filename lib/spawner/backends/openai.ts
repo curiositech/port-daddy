@@ -152,6 +152,227 @@ export interface OpenAICompatibleOverride {
   missingKeyError?: string;
 }
 
+/**
+ * Consume an OpenAI-shaped chat-completion event stream.
+ *
+ * The rationale for sharing it across every OpenAI-compatible backend (OpenAI,
+ * Groq, DeepSeek, xAI, LM Studio): they emit the identical wire shape — which is the whole
+ * reason those adapters delegate here rather than each carrying a copy. The
+ * per-frame concerns that go subtly wrong when duplicated are the ones handled
+ * here: frames split across network chunks, the `[DONE]` sentinel, and the
+ * usage-only final chunk that `stream_options.include_usage` appends after the
+ * content is finished.
+ *
+ * @param body The response body stream.
+ * @param onTextDelta The caller's live sink.
+ * @param signal Optional abort signal, checked between chunks.
+ * @returns The same completion result shape a non-streamed call returns.
+ */
+async function readOpenAIStream(
+  body: ReadableStream<Uint8Array>,
+  onTextDelta: (delta: string) => void,
+  signal?: AbortSignal,
+): Promise<LLMCompletionResult> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+  let usage: Record<string, any> | undefined;
+
+  const handleFrame = (payload: string): void => {
+    try {
+      const chunk = JSON.parse(payload) as Record<string, any>;
+      if (chunk?.usage) usage = chunk.usage;
+      const delta = chunk?.choices?.[0]?.delta?.content;
+      if (typeof delta === 'string' && delta) {
+        text += delta;
+        try {
+          onTextDelta(delta);
+        } catch {
+          // A caller's sink throwing is a UI problem, never a completion one.
+        }
+      }
+    } catch {
+      // Skip a malformed frame rather than losing the rest of the completion.
+    }
+  };
+
+  try {
+    for (;;) {
+      if (signal?.aborted) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          handleFrame(payload);
+        }
+      }
+    }
+    const tail = buffer.trim();
+    if (tail.startsWith('data:')) {
+      const payload = tail.slice(5).trim();
+      if (payload && payload !== '[DONE]') handleFrame(payload);
+    }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (!text) return { ok: false, error: 'OpenAI stream returned no text response' };
+  return {
+    ok: true,
+    text,
+    inputTokens: normalizeStreamTokens(usage?.prompt_tokens),
+    outputTokens: normalizeStreamTokens(usage?.completion_tokens),
+    cachedInputTokens: normalizeStreamTokens(usage?.prompt_tokens_details?.cached_tokens),
+  };
+}
+
+/**
+ * Coerce a streamed usage number, keeping "absent" distinct from "zero".
+ *
+ * The distinction is load-bearing: the telemetry policy treats undefined as
+ * unknown and refuses to invent a cost, while zero would assert a free call.
+ *
+ * @param value The raw usage field.
+ * @returns The count, or undefined when the provider did not report one.
+ */
+function normalizeStreamTokens(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/**
+ * Is this response actually an event stream?
+ *
+ * The design rule this encodes: `stream: true` is a REQUEST, not a guarantee —
+ * a gateway or a model that declines it answers with ordinary JSON, and parsing
+ * that as SSE finds no frames and reports an empty completion for a run that in
+ * fact succeeded.
+ *
+ * Deliberately defensive about `headers` itself being absent, not only about the
+ * header: every test in this repo that exercises an API backend mocks `fetch`
+ * with a hand-built object, and reading through a missing property would turn a
+ * behavioural improvement into a crash in code that has nothing to do with it.
+ *
+ * @param res The provider response (possibly a test double).
+ * @returns True when the body should be read as SSE.
+ */
+function isEventStreamResponse(res: Response): boolean {
+  try {
+    return (res.headers?.get('content-type') ?? '').toLowerCase().includes('text/event-stream');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Consume a Responses-API event stream (the GPT-5 / o-series shape).
+ *
+ * A different event vocabulary from chat completions, and the design difference
+ * matters for one reason worth stating: the Responses stream interleaves REASONING
+ * events with output-text events. Only `response.output_text.delta` is the
+ * answer; streaming the reasoning events too would splice the model's
+ * scratchpad into what the operator reads.
+ *
+ * @param body The response body stream.
+ * @param onTextDelta The caller's live sink.
+ * @param signal Optional abort signal, checked between chunks.
+ * @returns The same completion result shape a non-streamed call returns.
+ */
+async function readResponsesStream(
+  body: ReadableStream<Uint8Array>,
+  onTextDelta: (delta: string) => void,
+  signal?: AbortSignal,
+): Promise<LLMCompletionResult> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+  let usage: Record<string, any> | undefined;
+  let errorMessage: string | null = null;
+
+  const handleFrame = (payload: string): void => {
+    try {
+      const evt = JSON.parse(payload) as Record<string, any>;
+      const type = evt?.type;
+      if (type === 'response.output_text.delta') {
+        const delta = evt?.delta;
+        if (typeof delta === 'string' && delta) {
+          text += delta;
+          try {
+            onTextDelta(delta);
+          } catch {
+            // A caller's sink throwing is a UI problem, never a completion one.
+          }
+        }
+        return;
+      }
+      // The terminal event carries the totals; a failed/incomplete response
+      // carries the reason, which must not be reported as an empty success.
+      if (type === 'response.completed' || type === 'response.incomplete') {
+        usage = evt?.response?.usage ?? usage;
+        return;
+      }
+      if (type === 'response.failed' || type === 'error') {
+        errorMessage =
+          evt?.response?.error?.message
+          ?? evt?.error?.message
+          ?? evt?.message
+          ?? 'OpenAI Responses stream failed';
+      }
+    } catch {
+      // Skip a malformed frame rather than losing the rest of the completion.
+    }
+  };
+
+  try {
+    for (;;) {
+      if (signal?.aborted) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          handleFrame(payload);
+        }
+      }
+    }
+    const tail = buffer.trim();
+    if (tail.startsWith('data:')) {
+      const payload = tail.slice(5).trim();
+      if (payload && payload !== '[DONE]') handleFrame(payload);
+    }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (errorMessage) return { ok: false, error: errorMessage };
+  if (!text) return { ok: false, error: 'OpenAI Responses stream returned no text response' };
+  return {
+    ok: true,
+    text,
+    inputTokens: normalizeStreamTokens(usage?.input_tokens),
+    outputTokens: normalizeStreamTokens(usage?.output_tokens),
+    cachedInputTokens: normalizeStreamTokens(usage?.input_tokens_details?.cached_tokens),
+  };
+}
+
 export const openaiAdapter = async (
   req: LLMCompletionRequest,
   override: OpenAICompatibleOverride = {},
@@ -189,11 +410,16 @@ export const openaiAdapter = async (
       // minimal unless a future request shape exposes an explicit knob.
       reasoning: { effort: 'minimal' },
       store: false,
+      stream: Boolean(req.onTextDelta),
     }
     : {
       model: req.model,
       messages: [{ role: 'user', content: req.prompt }],
-      stream: false,
+      // Stream only when a caller is listening: a streamed chat completion needs
+      // `stream_options` to return usage at all, and usage is what the
+      // fail-closed telemetry policy requires, so streaming is a real trade.
+      stream: Boolean(req.onTextDelta),
+      ...(req.onTextDelta ? { stream_options: { include_usage: true } } : {}),
     };
   if (typeof req.maxTokens === 'number' && req.maxTokens > 0) {
     if (useResponsesApi) {
@@ -220,6 +446,19 @@ export const openaiAdapter = async (
   if (!res.ok) {
     const txt = await res.text().catch(() => 'unknown error');
     return { ok: false, error: `OpenAI HTTP ${res.status}: ${txt}` };
+  }
+
+  // Two streaming shapes, because OpenAI has two APIs and the whole GPT-5 family
+  // routes through the Responses one — degrading THAT to batch would mean the
+  // registry's entire openai ladder never streams, which is the opposite of the
+  // point.
+  // Only when the response ACTUALLY is an event stream: `stream: true` is a
+  // request, not a guarantee, and parsing plain JSON as SSE finds no frames and
+  // reports an empty completion for a run that succeeded.
+  if (req.onTextDelta && res.body && isEventStreamResponse(res)) {
+    return useResponsesApi
+      ? await readResponsesStream(res.body, req.onTextDelta, req.signal)
+      : await readOpenAIStream(res.body, req.onTextDelta, req.signal);
   }
 
   let data: Record<string, unknown>;
