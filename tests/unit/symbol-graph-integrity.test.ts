@@ -137,6 +137,45 @@ describe('auditSymbolGraphIntegrity', () => {
     ]);
   });
 
+  test('keeps null and empty symbols distinct when grouping absolute duplicate edges', () => {
+    const sourceFile = resolve('fixtures/source.ts');
+    const targetFile = resolve('fixtures/target.ts');
+    seedParsedFile(sourceFile, 1, 4);
+    seedParsedFile(targetFile, 1, 0);
+    seedSymbol(sourceFile, '');
+    seedSymbol(targetFile, '');
+
+    const nullSymbolIds = [
+      seedDependency({ sourceFile, sourceSymbol: null, targetFile, targetSymbol: null }),
+      seedDependency({ sourceFile, sourceSymbol: null, targetFile, targetSymbol: null }),
+    ];
+    const emptySymbolIds = [
+      seedDependency({ sourceFile, sourceSymbol: '', targetFile, targetSymbol: '' }),
+      seedDependency({ sourceFile, sourceSymbol: '', targetFile, targetSymbol: '' }),
+    ];
+
+    const report = auditSymbolGraphIntegrity(db);
+
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        code: 'duplicate_edge',
+        dependencyIds: nullSymbolIds,
+        sourceFile,
+        sourceSymbol: null,
+        targetFile,
+        targetSymbol: null,
+      }),
+      expect.objectContaining({
+        code: 'duplicate_edge',
+        dependencyIds: emptySymbolIds,
+        sourceFile,
+        sourceSymbol: '',
+        targetFile,
+        targetSymbol: '',
+      }),
+    ]);
+  });
+
   test('reconciles stored symbol and dependency counts against seeded rows', () => {
     const sourceFile = resolve('fixtures/source.ts');
     seedParsedFile(sourceFile, 2, 3);
@@ -157,6 +196,24 @@ describe('auditSymbolGraphIntegrity', () => {
         filePath: sourceFile,
         recordedCount: 3,
         actualCount: 1,
+      }),
+    ]);
+  });
+
+  test('reports a symbol count mismatch when actual symbols exceed the stored count', () => {
+    const sourceFile = resolve('fixtures/source.ts');
+    seedParsedFile(sourceFile, 1, 0);
+    seedSymbol(sourceFile, 'first');
+    seedSymbol(sourceFile, 'second');
+
+    const report = auditSymbolGraphIntegrity(db);
+
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        code: 'symbol_count_mismatch',
+        filePath: sourceFile,
+        recordedCount: 1,
+        actualCount: 2,
       }),
     ]);
   });
