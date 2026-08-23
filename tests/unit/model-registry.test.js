@@ -13,6 +13,7 @@ const {
   registryProvenance,
   allRegisteredModelIds,
 } = await import('../../lib/model-registry.js');
+const { MODEL_REGISTRY_DATA } = await import('../../lib/model-registry-data.js');
 
 describe('resolveModel — declarative (backend, capability) → concrete id', () => {
   test('maps a backend + capability to a concrete id', () => {
@@ -107,5 +108,31 @@ describe('registry data integrity', () => {
       expect(ids).toContain(resolveModel({ backend: 'openai', capability }));
     }
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('every declared tier vocabulary actually resolves', () => {
+  test('harbor tier names map to their declared capability, not the default', () => {
+    // THE BUG THIS PINS: `harborTiers` was declared in the canonical source and
+    // emitted into the artifact, but capabilityForTier only consulted
+    // `tierAliases`. Four of the five harbor tiers had no resolution path, so
+    // `strong` — the name for the strongest rung — resolved to the DEFAULT,
+    // which is `cheap`. A caller asking for the best model silently got the
+    // weakest one, with no error anywhere. `mid` masked it by colliding with a
+    // legacy alias, which is why nothing noticed.
+    for (const [tier, expected] of Object.entries(MODEL_REGISTRY_DATA.harborTiers)) {
+      expect(`${tier}->${capabilityForTier(tier)}`).toBe(`${tier}->${expected}`);
+    }
+  });
+
+  test('legacy tier names still map to their declared capability', () => {
+    for (const [tier, expected] of Object.entries(MODEL_REGISTRY_DATA.tierAliases)) {
+      expect(`${tier}->${capabilityForTier(tier)}`).toBe(`${tier}->${expected}`);
+    }
+  });
+
+  test('an unknown tier still falls back rather than throwing', () => {
+    expect(CAPABILITIES).toContain(capabilityForTier('not-a-tier'));
+    expect(CAPABILITIES).toContain(capabilityForTier(null));
   });
 });

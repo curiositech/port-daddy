@@ -66,7 +66,17 @@ function load(): ModelRegistryData {
  */
 export function capabilityForTier(tier: string | null | undefined): Capability {
   if (!tier) return DEFAULT_CAPABILITY;
-  const alias = load().tierAliases[tier.trim().toLowerCase()];
+  const key = tier.trim().toLowerCase();
+  const reg = load();
+  // BOTH declared vocabularies resolve here, and the second one is not optional
+  // politeness. `harborTiers` (fast / mid / strong / local / custom) is a
+  // persisted schema vocabulary; before it was consulted, only `mid` resolved —
+  // by coincidence, because it collides with a legacy alias. `strong` fell
+  // through to the DEFAULT, which is the CHEAPEST rung: a caller asking for the
+  // strongest model silently got the weakest one, and nothing errored. A
+  // declared mapping that the resolver does not read is worse than no mapping,
+  // because it reads as support.
+  const alias = reg.tierAliases[key] ?? reg.harborTiers[key];
   return (alias as Capability) || DEFAULT_CAPABILITY;
 }
 
