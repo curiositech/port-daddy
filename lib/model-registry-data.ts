@@ -160,28 +160,6 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceBasis": "vendor-docs",
       "notes": "Thinking is always on and cannot be disabled; requires 30-day data retention (unavailable under zero-data-retention orgs). Reserved for max-thinking so routine work never silently lands on the priciest model."
     },
-    "gpt-5-mini": {
-      "provider": "openai",
-      "plane": "direct-api",
-      "priceIn": 0.25,
-      "priceOut": 2,
-      "contextWindow": 400000,
-      "capabilities": [
-        "function-calling"
-      ],
-      "status": "ga",
-      "verifiedAt": "2026-08-23",
-      "verifiedBy": "live-probe",
-      "priceBasis": "estimate",
-      "reasoningEfforts": [
-        "minimal",
-        "low",
-        "medium",
-        "high"
-      ],
-      "defaultEffort": "minimal",
-      "notes": "The only model in this lineup that still accepts `minimal`; it is also the only one that rejects `none` and `xhigh`. Retained as the `cheap` rung."
-    },
     "gpt-5.4": {
       "provider": "openai",
       "plane": "direct-api",
@@ -254,9 +232,10 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
     "gpt-5.6-sol": {
       "provider": "openai",
       "plane": "direct-api",
-      "priceIn": 1.25,
-      "priceOut": 10,
-      "contextWindow": 400000,
+      "priceIn": 4,
+      "priceOut": 20,
+      "priceCachedIn": 0.4,
+      "contextWindow": 1050000,
       "capabilities": [
         "function-calling",
         "reasoning"
@@ -264,7 +243,7 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "status": "ga",
       "verifiedAt": "2026-08-23",
       "verifiedBy": "live-probe",
-      "priceBasis": "estimate",
+      "priceBasis": "vendor-docs",
       "reasoningEfforts": [
         "none",
         "low",
@@ -274,7 +253,59 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
         "max"
       ],
       "defaultEffort": "low",
-      "notes": "Price and context window are UNVERIFIED — carried from the gpt-5.5 row because the vendor exposes neither via the API and no doc names these variants. Existence, serving, both API shapes and the effort set are live-probed."
+      "notes": "\"Frontier model for complex professional work.\" The vendor default effort is `medium`; this registry defaults to `low` deliberately, because Responses API caps count reasoning tokens against max_output_tokens and a cost-capped run should not spend its answer budget on thinking it was not asked for. Callers wanting more ask for it by name."
+    },
+    "gpt-5.6-terra": {
+      "provider": "openai",
+      "plane": "direct-api",
+      "priceIn": 2,
+      "priceOut": 12,
+      "priceCachedIn": 0.2,
+      "contextWindow": 1050000,
+      "capabilities": [
+        "function-calling",
+        "reasoning"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
+      "priceBasis": "vendor-docs",
+      "reasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "low",
+      "notes": "\"GPT-5.6 model that balances intelligence and cost.\""
+    },
+    "gpt-5.6-luna": {
+      "provider": "openai",
+      "plane": "direct-api",
+      "priceIn": 0.2,
+      "priceOut": 1.2,
+      "priceCachedIn": 0.02,
+      "contextWindow": 1050000,
+      "capabilities": [
+        "function-calling",
+        "reasoning"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-23",
+      "verifiedBy": "live-probe",
+      "priceBasis": "vendor-docs",
+      "reasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "low",
+      "notes": "\"GPT-5.6 model optimized for cost-sensitive workloads.\" Cheaper per token than the gpt-5-mini it replaces on the cheap rung ($0.20/$1.20 against $0.25/$2.00) with 2.6x the context, which is why that rung moved."
     },
     "gpt-5.4-mini": {
       "provider": "openai",
@@ -819,8 +850,8 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "code": "claude-sonnet-5"
     },
     "openai": {
-      "cheap": "gpt-5-mini",
-      "balanced": "gpt-5.4",
+      "cheap": "gpt-5.6-luna",
+      "balanced": "gpt-5.6-terra",
       "high": "gpt-5.6-sol",
       "max-thinking": "gpt-5.5-pro",
       "code": "gpt-5.3-codex"

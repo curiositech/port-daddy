@@ -170,22 +170,6 @@ models:
   # field like price and context window: declared once, resolved, never guessed.
   # `defaultEffort` is the cheapest supported rung, because Responses API caps
   # count reasoning tokens against max_output_tokens.
-  gpt-5-mini:
-    provider: openai
-    plane: direct-api
-    priceIn: 0.25
-    priceOut: 2.00
-    contextWindow: 400000
-    capabilities: [function-calling]
-    status: ga
-    verifiedAt: '2026-08-23'
-    verifiedBy: live-probe
-    priceBasis: estimate
-    reasoningEfforts: [minimal, low, medium, high]
-    defaultEffort: minimal
-    notes: >-
-      The only model in this lineup that still accepts `minimal`; it is also the
-      only one that rejects `none` and `xhigh`. Retained as the `cheap` rung.
   gpt-5.4:
     provider: openai
     plane: direct-api
@@ -231,46 +215,92 @@ models:
     defaultEffort: low
 
   # ---- OpenAI gpt-5.6 (direct API) ----
-  # Operator request, 2026-08-23. The family ships as three sibling ids rather
-  # than a tiered ladder, and the ONE difference this repo can actually source is
-  # that all three accept a `max` reasoning effort that no earlier model does —
-  # live-probed, not inferred. Nothing else separates them that a black-box probe
-  # can see: all three serve, all three reason, all three answered three
-  # checkable reasoning problems correctly, and GET /v1/models exposes neither
-  # price nor context window. So they are catalogued as PEERS. `max-thinking`
-  # points at one of them at effort `max` — the rung is earned by a capability
-  # this family uniquely has, not by a ranking nobody has published.
+  # Operator request, 2026-08-23. CORRECTION to this file's first attempt at
+  # this family, recorded because the mistake is instructive: the rows were
+  # added as unranked PEERS carrying gpt-5.5's price and a 400k context window,
+  # on the reasoning that a black-box probe could not separate them and that
+  # inventing a ranking was worse than admitting ignorance. The probe genuinely
+  # could not — all three answered three checkable reasoning problems correctly,
+  # with comparable reasoning budgets, and GET /v1/models exposes neither price
+  # nor context. But the vendor documents all of it, and not reading the docs is
+  # not the same as the docs not existing. Every figure below is from
+  # developers.openai.com; the effort sets are the live probe, which agrees with
+  # the docs exactly.
   #
-  # Both API shapes serve this family: POST /v1/responses AND
-  # POST /v1/chat/completions were both live-probed at 200. The adapter takes the
-  # Responses path (isReasoningModel matches the `gpt-5` prefix), which is the
-  # right one — it is where reasoning effort and typed reasoning items live.
+  # OpenAI states the ordering itself — "Start with GPT-5.6 Sol for complex
+  # reasoning and coding, choose GPT-5.6 Terra to balance intelligence and cost,
+  # or use GPT-5.6 Luna for cost-sensitive, high-volume workloads" — so the rungs
+  # below are quoted positioning, not a benchmark this repo ran.
   #
-  # `gpt-5.6-terra` and `gpt-5.6-luna` were probed alongside `sol` and behave
-  # identically on every axis measurable here — same effort set, same correctness
-  # on three checkable reasoning problems, same absent price/context metadata.
-  # They are deliberately NOT catalogued: a row that no rung references trips the
-  # orphan check, and inventing a ladder position for a peer would be exactly the
-  # unsourced ranking this file exists to prevent. Adding one is a two-line change
-  # the moment there is a rung, a benchmark, or a vendor doc to justify it.
+  # What does NOT differentiate them: context window (1,050,000 on all three),
+  # max output (128,000), and reasoning depth (identical effort ladders). Price
+  # and stated positioning are the whole difference.
+  #
+  # A fourth sibling, gpt-5.6-cyber, is documented and deliberately absent: it
+  # live-probed as `model_not_found` for this account. A documented model this
+  # deployment cannot call is a phantom from here, and cataloguing it would
+  # reintroduce exactly the class of row this file exists to prevent.
+  #
+  # PRICE CAVEAT: the vendor's table qualifies every figure as "short context",
+  # implying a long-context band this repo has not resolved. Cost estimates on
+  # very large prompts may therefore run low.
+  #
+  # Both API shapes serve this family (Responses AND Chat Completions, both
+  # live-probed at 200). The adapter takes Responses — it is where reasoning
+  # effort and typed reasoning items live.
   gpt-5.6-sol:
     provider: openai
     plane: direct-api
-    priceIn: 1.25
-    priceOut: 10.00
-    contextWindow: 400000
+    priceIn: 4.00
+    priceOut: 20.00
+    priceCachedIn: 0.40
+    contextWindow: 1050000
     capabilities: [function-calling, reasoning]
     status: ga
     verifiedAt: '2026-08-23'
     verifiedBy: live-probe
-    priceBasis: estimate
+    priceBasis: vendor-docs
     reasoningEfforts: [none, low, medium, high, xhigh, max]
     defaultEffort: low
     notes: >-
-      Price and context window are UNVERIFIED — carried from the gpt-5.5 row
-      because the vendor exposes neither via the API and no doc names these
-      variants. Existence, serving, both API shapes and the effort set are
-      live-probed.
+      "Frontier model for complex professional work." The vendor default effort
+      is `medium`; this registry defaults to `low` deliberately, because
+      Responses API caps count reasoning tokens against max_output_tokens and a
+      cost-capped run should not spend its answer budget on thinking it was not
+      asked for. Callers wanting more ask for it by name.
+  gpt-5.6-terra:
+    provider: openai
+    plane: direct-api
+    priceIn: 2.00
+    priceOut: 12.00
+    priceCachedIn: 0.20
+    contextWindow: 1050000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+    reasoningEfforts: [none, low, medium, high, xhigh, max]
+    defaultEffort: low
+    notes: '"GPT-5.6 model that balances intelligence and cost."'
+  gpt-5.6-luna:
+    provider: openai
+    plane: direct-api
+    priceIn: 0.20
+    priceOut: 1.20
+    priceCachedIn: 0.02
+    contextWindow: 1050000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+    reasoningEfforts: [none, low, medium, high, xhigh, max]
+    defaultEffort: low
+    notes: >-
+      "GPT-5.6 model optimized for cost-sensitive workloads." Cheaper per token
+      than the gpt-5-mini it replaces on the cheap rung ($0.20/$1.20 against
+      $0.25/$2.00) with 2.6x the context, which is why that rung moved.
 
   # ---- codex CLI's own lineup (transport owns these; not aliased to openai) ----
   gpt-5.4-mini:
@@ -756,11 +786,12 @@ backends:
     max-thinking: claude-fable-5
     code: claude-sonnet-5
   openai:
-    cheap: gpt-5-mini
-    balanced: gpt-5.4
-    # gpt-5.6 lands on `high` — the rung most real work resolves to — rather than
-    # on max-thinking, which stays reserved for the always-thinking premium model
-    # so routine work never silently lands on the priciest id.
+    # The gpt-5.6 family fills three rungs by its documented positioning: Luna
+    # for cost-sensitive volume, Terra to balance intelligence and cost, Sol for
+    # complex work. max-thinking stays with the always-thinking premium model so
+    # routine work never silently lands on the priciest id.
+    cheap: gpt-5.6-luna
+    balanced: gpt-5.6-terra
     high: gpt-5.6-sol
     max-thinking: gpt-5.5-pro
     code: gpt-5.3-codex

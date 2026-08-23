@@ -309,6 +309,14 @@ describe('backend-catalog', () => {
     const openai = getBackendCatalogEntry('openai');
     expect(openai).toBeDefined();
     expect(openai.costModel).toBe('metered');
-    expect(openai.models).toContain('gpt-5-mini');
+    // The PROPERTY, not a literal: the catalog advertises exactly what the
+    // resolver picks, so a picker can never offer a model the resolver would
+    // never return. Naming one id here made this test fail on a ladder move
+    // that was correct — the model it pinned was superseded by a cheaper one
+    // with more context — which is a false alarm, not a caught regression.
+    expect(openai.models.length).toBeGreaterThan(0);
+    for (const capability of CAPABILITIES) {
+      expect(openai.models).toContain(resolveModel({ backend: 'openai', capability }));
+    }
   });
 });
