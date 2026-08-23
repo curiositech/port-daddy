@@ -319,6 +319,9 @@ function extractMcpEndpoints() {
 const MCP_KNOWN_GENERIC_ROUTES = new Set([
   'POST /harvest/session/:param',     // routes/harvest.ts — Fastify generic syntax
   'POST /custodian/approvals/:param', // routes/custodian.ts — Fastify generic syntax
+  'GET /harbors',                     // routes/harbors.ts — Fastify generic syntax
+  'GET /harbors/:param',              // routes/harbors.ts — Fastify generic syntax
+  'POST /harbors/:param/check',       // routes/harbors.ts — Fastify generic syntax
 ]);
 
 describe('Endpoint Parity: MCP calls server routes', () => {
