@@ -293,6 +293,57 @@ describe('pull_request action routing', () => {
     expect(ai.calls).toHaveLength(0);
   });
 
+  it('cancels a run whose head changes during inference before publishing or checkpointing', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    // Eight file-sized chunks require two waves at MAP_CONCURRENCY=4. Moving
+    // the head during wave one must prevent wave two from ever spending.
+    state.prDiff = Array.from(
+      { length: 8 },
+      (_, i) =>
+        `diff --git a/src/chunk-${i}.ts b/src/chunk-${i}.ts\n` +
+        `--- a/src/chunk-${i}.ts\n` +
+        `+++ b/src/chunk-${i}.ts\n` +
+        `@@ -1 +1 @@\n-${'a'.repeat(30_000)}\n+${'b'.repeat(30_000)}\n`,
+    ).join('');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    let moved = false;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('BLOCK', 'obsolete finding') },
+      onCall: () => {
+        if (!moved) {
+          moved = true;
+          state.prHeadSha = 'NEWER-DURING-AI';
+        }
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob({ action: 'synchronize', deliveryId: 'delivery-midflight-stale' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(ai.calls.length).toBeLessThanOrEqual(4);
+    expect(disposition).toMatchObject({
+      kind: 'stale-head',
+      stage: 'mid-flight',
+      expectedHead: 'HEADSHA',
+      currentHead: 'NEWER-DURING-AI',
+      modelSpendPossible: true,
+    });
+    expect((disposition as { boundary?: string }).boundary).toContain('after pd-code-reviewer MAP');
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Output computed for the superseded head was discarded');
+    expect(state.commentPosts).toBe(0);
+    expect(state.commentPatches).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.issuesCreated).toHaveLength(0);
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches).toHaveLength(0);
+  });
+
   it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
     'runs the fleet for %s deliveries',
     async action => {
