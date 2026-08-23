@@ -34,11 +34,16 @@ import {
   createReview,
   createCheckRun,
   completeCheckRun,
+  completeCheckRunDetailed,
+  CheckRunCompletionError,
   findFleetCheckRun,
   findFleetCheckRunState,
   createIssue,
   resolveFleetAppLogin,
+  requireCurrentPullRequestHead,
+  PullRequestHeadValidationError,
   type PRContext,
+  type PullRequestHeadGuard,
   type ReviewComment,
   PR_FILES_PAGE_SIZE,
 } from './github.js';
@@ -78,6 +83,13 @@ import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import {
+  describeAiFailure,
+  FleetAiCircuit,
+  FleetAiDependencyError,
+  normalizeProviderQueueAttempt,
+  PROVIDER_MAX_DELIVERY_ATTEMPTS,
+} from './ai-resilience.js';
+import {
   classifyShipOutput,
   describeNoUsableOutput,
   type NoUsableOutputReason,
@@ -104,6 +116,7 @@ import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
 import { loadShipCheckpoints, saveShipCheckpoint } from './ship-checkpoint.js';
+import { countDeliveryContinuations } from './delivery-failure.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -609,8 +622,11 @@ async function emitTranscriptWriteFailureTelemetry(
 
 /**
  * Write the fleet_runs audit header BEFORE any ship runs (conclusion 'pending').
- * Best-effort + idempotent (INSERT OR REPLACE on the deterministic id). A write
- * failure here NEVER aborts the run.
+ * Best-effort + idempotent on the deterministic delivery id. Checkpointed queue
+ * slices revisit this function, so the conflict path deliberately preserves the
+ * first `created_at`, terminal conclusion, and elapsed time: one delivery is one
+ * logical run even when Cloudflare resumes it through several queue attempts.
+ * A write failure here NEVER aborts the run.
  */
 async function recordRunStart(
   env: ExecutorEnv,
@@ -624,9 +640,20 @@ async function recordRunStart(
   const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
   try {
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO fleet_runs
+      `INSERT INTO fleet_runs
          (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         delivery_id = excluded.delivery_id,
+         repo_full_name = excluded.repo_full_name,
+         pr_number = excluded.pr_number,
+         pr_url = excluded.pr_url,
+         head_sha = excluded.head_sha,
+         ships_csv = CASE
+           WHEN fleet_runs.ships_csv = '' THEN excluded.ships_csv
+           ELSE fleet_runs.ships_csv
+         END
+       WHERE fleet_runs.conclusion = 'pending'`,
     )
       .bind(
         runId,
@@ -645,6 +672,43 @@ async function recordRunStart(
 }
 
 /**
+ * Record each triggered ship's CONFIGURATION into the transcript, once, before
+ * any ship runs — model, role, and its permission-shaped flags (whether it can
+ * block the merge, whether it needs bash/write execution, purser sandbox
+ * gating, the test-path scope it's confined to).
+ *
+ * WHY: `ShipConfig` is resolved fresh per run from the repo's own pd-fleet.yml
+ * and never persisted anywhere else — without this, the run page could show a
+ * ship's NAME (`ships_csv`) but nothing about what it actually is or is
+ * allowed to do, and an operator asking "what model is pd-purser using, and
+ * can it write files?" had no answer but reading the YAML themselves. One
+ * step per ship (best-effort, like every other transcript write here);
+ * `env.DB` may be absent in local/test runs, matching every sibling recorder.
+ */
+async function recordShipsConfigInTranscript(
+  transcript: Transcript,
+  ships: ShipConfig[],
+): Promise<void> {
+  for (const ship of ships) {
+    await transcript.step('fleet-ship-config', ship.name, `pd-${ship.name} configuration`, {
+      cfModel: ship.cfModel,
+      cfMapModel: ship.cfMapModel ?? null,
+      cfPlanModel: ship.cfPlanModel ?? null,
+      cfAuthorModel: ship.cfAuthorModel ?? null,
+      role: ship.role,
+      telos: ship.telos,
+      blocking: ship.blocking,
+      needsExecution: ship.needsExecution,
+      ideation: ship.ideation,
+      purser: ship.purser,
+      blockWithoutSandbox: ship.blockWithoutSandbox,
+      testPaths: ship.testPaths,
+      graft: ship.graft,
+    });
+  }
+}
+
+/**
  * Guarantee a `fleet_runs` row exists before a check run's completion is
  * published — an idempotent (INSERT OR IGNORE) backstop independent of
  * `recordRunStart`'s own best-effort write.
@@ -656,9 +720,9 @@ async function recordRunStart(
  * `details_url` then points at a run id with no row, and the run page 404s
  * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
  * completion path has the same gap: it never calls `recordRunStart` at all.
- * Calling this once, right after `recordRunStart`, closes both: if the
- * INSERT OR REPLACE above already succeeded this is a guaranteed no-op (same
- * primary key); if it silently failed, this creates a minimal-but-truthful
+ * Calling this once, right after `recordRunStart`, closes both: if the logical
+ * upsert above already succeeded this is a guaranteed no-op (same primary key);
+ * if it silently failed, this creates a minimal-but-truthful
  * fallback row so the link a completed check publishes always resolves to
  * something real.
  */
@@ -694,9 +758,11 @@ export async function ensureRunRow(
 }
 
 /**
- * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
- * Best-effort: a write failure NEVER changes the gate (the check run is already
- * the authoritative surface on GitHub).
+ * Stamp the final conclusion + end-to-end wall-clock elapsed onto the run.
+ * The durable first `created_at` is authoritative across checkpoint retries;
+ * `startMs` is only a defensive fallback for a malformed legacy row. Best-effort:
+ * a write failure NEVER changes the gate (the check run is already authoritative
+ * on GitHub).
  */
 async function recordRunEnd(
   env: ExecutorEnv,
@@ -706,8 +772,20 @@ async function recordRunEnd(
 ): Promise<void> {
   if (!env.DB) return;
   try {
-    await env.DB.prepare(`UPDATE fleet_runs SET conclusion = ?, ms = ? WHERE id = ?`)
-      .bind(conclusion, Date.now() - startMs, runId)
+    const endMs = Date.now();
+    await env.DB.prepare(
+      `UPDATE fleet_runs
+         SET conclusion = ?,
+             ms = MAX(0, ? - CASE
+               WHEN created_at IS NOT NULL
+                AND created_at > 0
+                AND created_at * 1000 <= ?
+               THEN created_at * 1000
+               ELSE ?
+             END)
+       WHERE id = ?`,
+    )
+      .bind(conclusion, endMs, endMs, startMs, runId)
       .run();
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs update failed run=${runId}: ${String(err)}`);
@@ -918,7 +996,44 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
   }
 }
 
-export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+export type FleetExecutionDisposition =
+  | {
+      kind: 'stale-head';
+      stage?: 'mid-flight';
+      boundary?: string;
+      expectedHead?: string;
+      currentHead?: string;
+      modelSpendPossible?: boolean;
+    }
+  | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
+  | { kind: 'no-cloud-ships' }
+  | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
+
+export interface FleetExecutionOptions {
+  /** Cloudflare Queue's 1-based delivery attempt. Direct callers default final. */
+  queueAttempt?: number;
+  /**
+   * Maximum newly executed ships in this invocation. Resumed and deterministically
+   * gated ships do not count. Omit for direct/full-run callers.
+   */
+  maxNewShipsPerInvocation?: number;
+}
+
+/**
+ * Execute one verified Fleet delivery against the current pull-request head.
+ * The design returns an explicit disposition only when the immutable webhook
+ * head is stale, allowing the queue wrapper to close admission truth without
+ * misrepresenting that acknowledgement as a model-backed verdict.
+ *
+ * @param job - Queue delivery normalized by the signed webhook ingress.
+ * @param env - Executor bindings for GitHub, D1, KV, Queues, and Workers AI.
+ * @returns A stale-head acknowledgement marker, or void for ordinary paths.
+ */
+export async function executeFleet(
+  job: FleetRunJob,
+  env: ExecutorEnv,
+  options: FleetExecutionOptions = {},
+): Promise<FleetExecutionDisposition | void> {
   if (!env.AI) return;
 
   // MERGE QUEUE: handled before every guard below, all of which assume a PR.
@@ -954,6 +1069,22 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const transcript = new Transcript(env.DB, runId, (failure) =>
     emitTranscriptWriteFailureTelemetry(env, job, failure)
   );
+  // Intentional checkpoint continuations are successful slices, not Workers AI
+  // dependency failures. Subtract them from Cloudflare's raw delivery counter
+  // before enforcing the provider circuit so ship 5 does not begin on a fake
+  // "attempt 5/3" merely because four earlier ships completed normally.
+  const intentionalContinuations = await countDeliveryContinuations(env, runId);
+  const providerAttempt = normalizeProviderQueueAttempt(
+    typeof options.queueAttempt === 'number'
+      ? options.queueAttempt - intentionalContinuations
+      : options.queueAttempt,
+  );
+  const maxNewShipsPerInvocation =
+    Number.isInteger(options.maxNewShipsPerInvocation) &&
+    (options.maxNewShipsPerInvocation ?? 0) > 0
+      ? options.maxNewShipsPerInvocation as number
+      : Number.POSITIVE_INFINITY;
+  const aiCircuit = new FleetAiCircuit();
 
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
@@ -1031,6 +1162,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         installationId: job.installationId,
         files: [],
         diff: '',
+        // Nothing was fetched on a short-circuited run, so zero is the honest
+        // measurement rather than a placeholder.
+        diffBytes: 0,
+        diffTruncated: false,
+        filesTruncated: false,
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
       await recordRunEnd(env, runId, 'neutral', startMs);
@@ -1098,7 +1234,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
     );
-    return;
+    return { kind: 'stale-head' };
   }
 
   // --- Resolve ships -------------------------------------------------------
@@ -1145,7 +1281,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
-  if (cloudShips.length === 0) return;
+  if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
   //
@@ -1202,7 +1338,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
         `A redelivery cannot reopen a finished check, so running them would spend and change nothing.`,
     );
-    return;
+    return {
+      kind: 'already-decided',
+      conclusion: existing.conclusion as 'success' | 'failure',
+    };
   }
   if (deadLettered) {
     console.log(
@@ -1240,6 +1379,71 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // failed, so every completion path below can rely on details_url resolving
   // to a real run page (see ensureRunRow's docstring).
   await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  // Record what each ship IS (model, role, blocking/execution posture) once,
+  // before any of them run — see recordShipsConfigInTranscript's docstring.
+  await recordShipsConfigInTranscript(transcript, cloudShips);
+
+  const assertCurrentHead: PullRequestHeadGuard = boundary =>
+    requireCurrentPullRequestHead(
+      owner,
+      repo,
+      prNumber,
+      prCtx.headSha,
+      token,
+      boundary,
+    );
+
+  const stopSupersededRun = async (
+    error: unknown,
+    modelSpendPossible: boolean,
+  ): Promise<FleetExecutionDisposition> => {
+    if (!(error instanceof PullRequestHeadValidationError) || error.kind !== 'changed') {
+      throw error;
+    }
+    const currentHead = error.currentHead ?? 'unknown';
+    const summary =
+      `Fleet cancelled because pull request #${prNumber} moved from ` +
+      `${error.expectedHead.slice(0, 12)} to ${currentHead.slice(0, 12)} at ` +
+      `${error.boundary}. Output computed for the superseded head was discarded; ` +
+      `no later review, issue, branch, retarget, checkpoint, or aggregate verdict was published.`;
+    const checkNeutralized = await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'neutral',
+      summary,
+      token,
+      detailsUrl,
+    );
+    await transcript.step(
+      'head-superseded',
+      null,
+      `Fleet cancelled at ${error.boundary}: PR head changed`,
+      {
+        expectedHead: error.expectedHead,
+        currentHead,
+        boundary: error.boundary,
+        modelSpendPossible,
+        checkRunId,
+        checkNeutralized,
+      },
+    );
+    await recordRunEnd(env, runId, 'cancelled', startMs);
+    return {
+      kind: 'stale-head',
+      stage: 'mid-flight',
+      boundary: error.boundary,
+      expectedHead: error.expectedHead,
+      currentHead,
+      modelSpendPossible,
+    };
+  };
+
+  try {
+    await assertCurrentHead('before Fleet ship execution');
+  } catch (error) {
+    return stopSupersededRun(error, intentionalContinuations > 0);
+  }
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -1275,6 +1479,19 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // FAIL-OPEN: an absent or unrecognised state counts as open. See
   // src/pr-lifecycle.ts — wrongly skipping a live PR silently removes its
   // review gate, which is far worse than wrongly spending on a dead one.
+  // INPUT SIZE, RECORDED (#7743). The bounded reads in #8906 put diffBytes /
+  // diffTruncated on the context but nothing consumed them, which left the
+  // measurement as good as absent — the exact hole that made the OOM take two
+  // investigation cycles. Printing it here, before any ship spends a token,
+  // means every run states the size of what it was handed, and a future memory
+  // kill is attributable from the log line immediately preceding it rather than
+  // from a dashboard round-trip.
+  console.log(
+    `[fleet-executor] pr-context repo=${prCtx.owner}/${prCtx.repo} pr=${prCtx.prNumber} ` +
+      `diffBytes=${prCtx.diffBytes} diffTruncated=${prCtx.diffTruncated} ` +
+      `files=${prCtx.files.length} filesTruncated=${prCtx.filesTruncated}`,
+  );
+
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
     // HUMAN-FACING: this is the entire explanation an author gets for a neutral
@@ -1402,11 +1619,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const resumedShips = await loadShipCheckpoints(env, runId);
 
   const results: ShipResult[] = [];
+  let newlyExecutedShips = 0;
   for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
     const shipStartMs = Date.now();
+    try {
+      await assertCurrentHead(`before pd-${ship.name} model work`);
+    } catch (error) {
+      return stopSupersededRun(error, results.length > 0);
+    }
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
@@ -1476,9 +1699,44 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     }
 
     const metrics = newShipMetrics();
-    const result = ship.purser
-      ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId, squidConsent)
-      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent, xoEnabled, mediatorOrders);
+    let result: ShipResult;
+    try {
+      result = ship.purser
+        ? await runPurser(
+            ship,
+            prCtx,
+            env,
+            token,
+            transcript,
+            metrics,
+            graftText,
+            runId,
+            squidConsent,
+            aiCircuit,
+            providerAttempt,
+            assertCurrentHead,
+          )
+        : await runShip(
+            ship,
+            prCtx,
+            token,
+            env,
+            branch,
+            transcript,
+            metrics,
+            graftText,
+            runId,
+            squidConsent,
+            xoEnabled,
+            mediatorOrders,
+            aiCircuit,
+            providerAttempt,
+            assertCurrentHead,
+          );
+      await assertCurrentHead(`after pd-${ship.name} model work, before checkpoint`);
+    } catch (error) {
+      return stopSupersededRun(error, true);
+    }
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -1499,7 +1757,54 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     // rows are durable, so a resumed attempt never skips a ship whose
     // accounting was lost with the kill. Gated-out ships are not checkpointed:
     // re-deciding a skip costs nothing.
-    await saveShipCheckpoint(env, runId, shipIndex, result);
+    const checkpointSaved = await saveShipCheckpoint(env, runId, shipIndex, result);
+    newlyExecutedShips += 1;
+
+    // A retryable Workers AI fault exhausted its bounded delivery budget. The
+    // current ship now carries a fleet-wide neutral adjudication; stop before
+    // any remaining ship can add load or spend against the open dependency.
+    if (aiCircuit.isOpen) {
+      const skippedShips = orderedShips.slice(shipIndex + 1).map(candidate => candidate.name);
+      const failure = aiCircuit.failure;
+      await transcript.step(
+        'provider-circuit-open',
+        ship.name,
+        `Workers AI circuit OPEN after provider attempt ${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
+          `${skippedShips.length} remaining ship(s) skipped; fleet-wide dependency fault: ` +
+          `${result.brokenAdjudicated?.reason ?? 'provider retry budget exhausted'}`,
+        {
+          attempt: providerAttempt,
+          maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
+          skippedShips,
+          status: failure?.status ?? null,
+          code: failure?.code ?? null,
+          retryable: failure?.retryable ?? false,
+          brokenAdjudicated: result.brokenAdjudicated ?? null,
+        },
+      );
+      break;
+    }
+
+    // A Workers AI invocation may retain provider-side allocations until the
+    // Worker invocation ends. The live ecf53590 delivery proved that running
+    // multiple ships in one isolate crosses the 128 MB ceiling after one or
+    // two ships, while every ship succeeds alone. End this successful slice
+    // only after its checkpoint is durable; the queue wrapper records an
+    // explicit continuation and retries the message without treating it as an
+    // infrastructure failure. If D1 is unavailable, keep running in this
+    // invocation rather than scheduling a continuation that cannot advance.
+    if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
+      const remainingShips = orderedShips
+        .slice(shipIndex + 1)
+        .filter(candidate =>
+          !resumedShips.has(candidate.name) &&
+          decideShipGate(candidate, changedPaths, docsOnly).run
+        )
+        .map(candidate => candidate.name);
+      if (remainingShips.length > 0) {
+        return { kind: 'continuation', completedShip: ship.name, remainingShips };
+      }
+    }
   }
 
   // --- BROKEN-SHIP ADJUDICATION (src/adjudicator.ts) ------------------------
@@ -1509,17 +1814,23 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // issue + a HITL page on first declaration. Best-effort by construction —
   // any adjudication failure leaves results untouched and the doctrine's
   // fail-closed default applies.
-  await adjudicateBrokenShips(results, {
-    env,
-    owner,
-    repo,
-    prNumber,
-    runId,
-    token,
-    transcript,
-    nowEpochSec: nowSec(),
-    ...(job.installationId != null ? { installationId: job.installationId } : {}),
-  });
+  try {
+    await assertCurrentHead('before broken-ship adjudication');
+    await adjudicateBrokenShips(results, {
+      env,
+      owner,
+      repo,
+      prNumber,
+      runId,
+      token,
+      transcript,
+      nowEpochSec: nowSec(),
+      assertCurrentHead,
+      ...(job.installationId != null ? { installationId: job.installationId } : {}),
+    });
+  } catch (error) {
+    return stopSupersededRun(error, true);
+  }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
   const conclusion = aggregateConclusion(results);
@@ -1531,20 +1842,50 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 
   // --- XO TRIAGE (advisory-findings curation; src/xo.ts) --------------------
   // The XO ranks which ADVISORY findings are worth doing for THIS PR and the
-  // review comment gains an "XO's orders" section. Strictly fail-open: on any
-  // XO failure the section is '' and the comment renders EXACTLY as today. The
-  // check conclusion (and its summary) is computed above and NEVER touched.
+  // review comment gains an "XO's orders" section. XO judgment/format failures
+  // stay fail-open. A retryable provider fault is queue-owned until its bounded
+  // budget is exhausted, then this optional section disables itself and the
+  // already-computed check conclusion remains untouched.
   let reviewBody = summary;
   if (xoEnabled) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
-      const section = await xoOrdersSection({
-        ai: env.AI,
-        model: resolveXoModel(env.XO_MODEL),
-        advisories,
-        changedPaths,
-        gatewayId: env.AI_GATEWAY_ID,
-      });
+      let section: string;
+      try {
+        await assertCurrentHead('before XO triage model work');
+        section = await xoOrdersSection({
+          ai: env.AI,
+          model: resolveXoModel(env.XO_MODEL),
+          advisories,
+          changedPaths,
+          gatewayId: env.AI_GATEWAY_ID,
+          aiCircuit,
+        });
+        await assertCurrentHead('after XO triage model work');
+      } catch (error) {
+        if (error instanceof FleetAiDependencyError) {
+          const failure = error.failure;
+          await transcript.step(
+            'xo-triage',
+            null,
+            `XO triage disabled after Workers AI dependency failure: ${failure.summary}`,
+            {
+              error: failure.summary,
+              status: failure.status,
+              code: failure.code,
+              retryable: failure.retryable,
+              providerAttempt,
+              maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
+            },
+          );
+          if (failure.retryable && providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS) {
+            throw error;
+          }
+          section = '';
+        } else {
+          return stopSupersededRun(error, true);
+        }
+      }
       if (section) reviewBody = `${summary}\n\n${section}`;
       await transcript.step(
         'xo-triage',
@@ -1569,7 +1910,12 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // ghost in-progress check. Ship checkpoints make that retry no-spend. Keep
   // the non-idempotent aggregate review after this boundary so a completion
   // retry cannot post duplicate reviews.
-  const checkCompleted = await completeCheckRun(
+  try {
+    await assertCurrentHead('before aggregate check completion');
+  } catch (error) {
+    return stopSupersededRun(error, true);
+  }
+  const checkCompletion = await completeCheckRunDetailed(
     owner,
     repo,
     checkRunId,
@@ -1578,10 +1924,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     token,
     detailsUrl,
   );
-  if (!checkCompleted) {
-    throw new Error(
+  if (!checkCompletion.ok) {
+    throw new CheckRunCompletionError(
       `Port Daddy Fleet check completion failed after bounded retries for ${owner}/${repo}#${prNumber} ` +
-        `(check ${checkRunId})`,
+        `(check ${checkRunId}): ${checkCompletion.diagnostic ?? 'unknown GitHub response'}`,
+      checkCompletion.retryAfterSeconds,
     );
   }
 
@@ -1591,6 +1938,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     // A blocking ship with HIGH findings REJECTS the PR rather than commenting
     // beside it -- see reviewEventFor(). Anything else stays COMMENT.
     const reviewEvent = reviewEventFor(results);
+    try {
+      await assertCurrentHead('before aggregate GitHub review');
+    } catch (error) {
+      return stopSupersededRun(error, true);
+    }
     await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
   }
 
@@ -1723,9 +2075,10 @@ async function recordNoUsableOutput(
  * Then it parses the structured findings + verdict, posts the per-ship issue
  * comment (edit-in-place => idempotent on retry), and returns the result.
  *
- * Never throws — a ship failure (AI/transport crash OR malformed findings JSON)
- * is captured as `errored: true` so a blocking ship's failure fails the gate
- * (fail-closed) without aborting the rest of the fleet.
+ * Permanent ship failures are captured as `errored: true`. A structurally
+ * retryable Workers AI dependency failure is the one exception: it opens the
+ * per-run circuit and throws to the queue boundary while its three-attempt
+ * provider budget remains. That avoids both silent failure and retry fan-out.
  */
 async function runShip(
   ship: ShipConfig,
@@ -1750,6 +2103,12 @@ async function runShip(
    * whole re-run sees the human's instructions verbatim.
    */
   mediatorOrders = '',
+  /** One circuit shared by every analytical ship in this queue delivery. */
+  aiCircuit = new FleetAiCircuit(),
+  /** Provider attempt after successful checkpoint continuations are excluded. */
+  providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  /** Fail-closed live-head proof around model work and publication. */
+  assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -1801,7 +2160,9 @@ async function runShip(
     }
 
     // --- MAP: one ship call per diff chunk ---------------------------------
+    await assertCurrentHead(`before pd-${ship.name} MAP`);
     const partials = await mapWithConcurrency(chunks, MAP_CONCURRENCY, async (chunk, i) => {
+      await assertCurrentHead(`before pd-${ship.name} MAP chunk ${i + 1}/${chunks.length}`);
       const userMessage = buildUserMessage(prCtx, chunk, i, chunks.length, fleetContext);
       const request = {
         messages: [
@@ -1811,10 +2172,12 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await env.AI.run(
-        mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
-        request,
-        aiOptions(env, ship.name),
+      const res = await aiCircuit.run(() =>
+        env.AI.run(
+          mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
+          request,
+          aiOptions(env, ship.name),
+        ),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, mapModelFor(ship), res, text);
@@ -1840,12 +2203,15 @@ async function runShip(
         shape,
         ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
+      await assertCurrentHead(`after pd-${ship.name} MAP chunk ${i + 1}/${chunks.length}`);
       return text;
     });
+    await assertCurrentHead(`after pd-${ship.name} MAP`);
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
-    let output =
-      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics);
+    if (chunks.length > 1) await assertCurrentHead(`before pd-${ship.name} REDUCE`);
+    let output = chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics, aiCircuit);
+    if (chunks.length > 1) await assertCurrentHead(`after pd-${ship.name} REDUCE`);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
     if (chunks.length > 1) {
@@ -1858,15 +2224,25 @@ async function runShip(
     // One bounded repair pass (src/repair.ts) shared by every broken-contract
     // site below. The caller's own parser is the only judge of healing.
     const tryRepair = async (reason: string, validate: (text: string) => boolean) => {
+      await assertCurrentHead(`before pd-${ship.name} contract repair`);
       const repair = await repairContractOutput({
         shipLabel: `pd-${ship.name}`,
         model: reduceModelFor(ship),
         contract: ship.ideation ? ideationOutputContract() : buildOutputContract(),
         priorOutput: output,
         reason,
-        call: (model, system, user) => shipRepairCall(ship, env, metrics, model, system, user),
+        call: async (model, system, user) => {
+          await assertCurrentHead(`before pd-${ship.name} contract-repair model call`);
+          const text = await shipRepairCall(ship, env, metrics, model, system, user, aiCircuit);
+          await assertCurrentHead(`after pd-${ship.name} contract-repair model call`);
+          return text;
+        },
         validate,
+        abortOnError: error =>
+          error instanceof PullRequestHeadValidationError ||
+          error instanceof FleetAiDependencyError,
       });
+      await assertCurrentHead(`after pd-${ship.name} contract repair`);
       await transcript.step(
         'ship-repair',
         ship.name,
@@ -1926,11 +2302,12 @@ async function runShip(
       // --- XO EDITOR PASS (src/xo.ts) --------------------------------------
       // Before the batch is finalized (rendered / stacked / captured), the XO
       // curates it against the most recent tracked ideas: merge near-dupes,
-      // sharpen titles, drop what's already tracked. Strictly fail-open: any
-      // XO failure keeps `proposals` untouched, and the cosine dedup inside
-      // captureProposals remains the pre-filter/fallback either way.
+      // sharpen titles, drop what's already tracked. XO judgment/format
+      // failures keep `proposals` untouched. A provider-circuit fault instead
+      // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
       if (xoEnabled && proposals && proposals.length > 0) {
+        await assertCurrentHead(`before pd-${ship.name} XO editor`);
         const recentIdeas = env.DB
           ? await listRecentIdeas(env.DB, XO_RECENT_IDEAS_LIMIT)
           : [];
@@ -1940,7 +2317,9 @@ async function runShip(
           proposals,
           recentIdeas,
           gatewayId: env.AI_GATEWAY_ID,
+          aiCircuit,
         });
+        await assertCurrentHead(`after pd-${ship.name} XO editor`);
         curated = editor.proposals;
         await transcript.step(
           'xo-editor',
@@ -1963,7 +2342,17 @@ async function runShip(
       // ship per run; every failure mode degrades to a transcript note.
       const stackedPr =
         curated && curated.length > 0
-          ? await maybeStackProposal(ship, prCtx, curated, env, token, transcript, runId, squidConsent)
+          ? await maybeStackProposal(
+              ship,
+              prCtx,
+              curated,
+              env,
+              token,
+              transcript,
+              runId,
+              squidConsent,
+              assertCurrentHead,
+            )
           : null;
       const rendered =
         curated && curated.length > 0
@@ -1993,6 +2382,7 @@ async function runShip(
           : { proposals: curated, posted: !!body.trim() },
       );
 
+      await assertCurrentHead(`before pd-${ship.name} proposal comment`);
       await postShipComment(
         prCtx.owner,
         prCtx.repo,
@@ -2001,18 +2391,24 @@ async function runShip(
         ship.role,
         body,
         token,
+        assertCurrentHead,
       );
 
       // Durably capture the (XO-curated) proposals (D1 + semantic dedup +
       // auto-issue) so a Spark/Spider idea doesn't evaporate when the PR scrolls
-      // away. Best-effort: it NEVER throws or changes the advisory PASS.
+      // away. Product/storage failures remain best-effort. A retryable embedding
+      // dependency fault returns to the queue so later ships never load an open
+      // provider circuit; the final provider attempt adjudicates it fleet-wide.
       if (curated && curated.length > 0) {
+        await assertCurrentHead(`before pd-${ship.name} idea capture`);
         await captureIdeas(
           curated,
           { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name },
           env,
           token,
           transcript,
+          aiCircuit,
+          assertCurrentHead,
         );
       }
 
@@ -2107,6 +2503,7 @@ async function runShip(
             shipName: ship.name,
           });
 
+    await assertCurrentHead(`before pd-${ship.name} review comment`);
     await postShipComment(
       prCtx.owner,
       prCtx.repo,
@@ -2115,6 +2512,7 @@ async function runShip(
       ship.role,
       reviewerBody,
       token,
+      assertCurrentHead,
     );
 
     // Transcript: the per-ship issue comment was posted (or intentionally
@@ -2140,7 +2538,39 @@ async function runShip(
 
     const verdict: Verdict = verdictForTranscript ?? resolveVerdict(output, ship.blocking);
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings };
-  } catch {
+  } catch (error) {
+    if (error instanceof PullRequestHeadValidationError) throw error;
+    const failure = error instanceof FleetAiDependencyError
+      ? error.failure
+      : describeAiFailure(error);
+
+    await transcript.step(
+      'ship-error',
+      ship.name,
+      `pd-${ship.name}: ERROR — ${failure.summary}`,
+      {
+        error: failure.summary,
+        status: failure.status,
+        code: failure.code,
+        retryable: error instanceof FleetAiDependencyError ? failure.retryable : false,
+        providerCircuitOpen: aiCircuit.isOpen,
+        providerAttempt,
+      },
+    );
+
+    // Retryable provider faults belong to the queue boundary, not a local loop
+    // per MAP chunk. Throw while budget remains: successful earlier ships are
+    // checkpointed, this failed ship is not, and the consumer schedules one
+    // jittered redelivery. On the last allowed attempt, complete NEUTRAL as a
+    // fleet dependency fault and let the outer loop skip remaining ships.
+    if (
+      error instanceof FleetAiDependencyError &&
+      failure.retryable &&
+      providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS
+    ) {
+      throw error;
+    }
+
     // A blocking ship that errors fails the gate (fail-closed). Verdict is
     // forced to BLOCK for blocking ships, PASS for advisory ones; `errored`
     // is the authoritative signal the aggregator keys on.
@@ -2156,6 +2586,17 @@ async function runShip(
       blocking: ship.blocking,
       verdict: ship.blocking ? 'BLOCK' : 'PASS',
       errored: true,
+      failureReason: failure.summary,
+      ...(error instanceof FleetAiDependencyError && failure.retryable
+        ? {
+            brokenAdjudicated: {
+              scope: 'fleet' as const,
+              reason:
+                `Workers AI dependency circuit remained open through ` +
+                `${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS} provider attempts`,
+            },
+          }
+        : {}),
       findings: [],
     };
   }
@@ -2197,6 +2638,7 @@ async function maybeStackProposal(
   runId: string,
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
+  assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<StackOutcome | null> {
   const proposalIndex = proposals.findIndex(p => p.action === 'stack');
   if (proposalIndex === -1) return null;
@@ -2221,6 +2663,7 @@ async function maybeStackProposal(
   const validation = validateStackProposalFiles(files);
   if (!validation.ok) return degrade(validation.reason);
 
+  await assertCurrentHead(`before pd-${ship.name} stack sandbox`);
   const sandbox = await runTestsInSandbox({
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
@@ -2237,6 +2680,7 @@ async function maybeStackProposal(
 
   const branchName = `fleet/${ship.name}-pr-${prCtx.prNumber}-${slugify(proposal.title)}`;
   try {
+    await assertCurrentHead(`before pd-${ship.name} stack branch mutation`);
     await createOrUpdateBranch(
       prCtx.owner,
       prCtx.repo,
@@ -2245,7 +2689,9 @@ async function maybeStackProposal(
       files,
       `pd-${ship.name}: ${proposal.title} (stacked on #${prCtx.prNumber})`,
       token,
+      assertCurrentHead,
     );
+    await assertCurrentHead(`before pd-${ship.name} stacked PR mutation`);
     const pr = await openStackedPr(
       prCtx.owner,
       prCtx.repo,
@@ -2255,6 +2701,7 @@ async function maybeStackProposal(
       buildStackPrBody(ship, prCtx, proposal, sandbox.executed === true && sandbox.passed === true),
       ['fleet-stack', `pd-${ship.name}`],
       token,
+      assertCurrentHead,
     );
     await transcript.step(
       'stack-posted',
@@ -2278,6 +2725,7 @@ async function maybeStackProposal(
     }, squidConsent);
     return { proposalIndex, number: pr.number, url: pr.url };
   } catch (err) {
+    if (err instanceof PullRequestHeadValidationError) throw err;
     const reason =
       err instanceof GitHubApiError && err.status === 403
         ? 'the GitHub App lacks the `contents: write` permission'
@@ -2334,8 +2782,10 @@ function buildStackPrBody(
  * envelope so the caller (best-effort capture) degrades to "no dedup" rather
  * than throwing.
  */
-async function embedText(ai: Ai, text: string): Promise<number[]> {
-  const res = await ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] });
+async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promise<number[]> {
+  const res = await aiCircuit.run(() =>
+    ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+  );
   const data = (res as { data?: unknown }).data;
   if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
   return [];
@@ -2345,7 +2795,9 @@ async function embedText(ai: Ai, text: string): Promise<number[]> {
  * Durably capture an ideation ship's proposals into the relay D1 idea store,
  * semantic-deduped, opening a `fleet-idea` GitHub issue for each novel one.
  * Best-effort: a missing DB binding (unit tests / unconfigured) skips capture
- * entirely, and any failure is swallowed — it can NEVER change the advisory PASS.
+ * entirely, and product/storage/permanent dependency failures are swallowed.
+ * Retryable Workers AI circuit failures propagate so one optional embedding
+ * cannot strand the invocation or let later ships load a failing provider.
  */
 async function captureIdeas(
   proposals: Proposal[],
@@ -2353,6 +2805,8 @@ async function captureIdeas(
   env: ExecutorEnv,
   token: string,
   transcript: Transcript,
+  aiCircuit: FleetAiCircuit,
+  assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<void> {
   if (!env.DB) return; // no store bound → comment-only fallback (still posted above)
   try {
@@ -2361,11 +2815,26 @@ async function captureIdeas(
       db: env.DB,
       proposals,
       ctx,
-      embed: text => embedText(env.AI, text),
-      openIssue: (title, body, labels) =>
-        createIssue(ctx.owner, ctx.repo, title, body, labels, token),
+      embed: async text => {
+        await assertCurrentHead(`before pd-${ctx.shipName} idea embedding`);
+        const vector = await embedText(env.AI, text, aiCircuit);
+        await assertCurrentHead(`after pd-${ctx.shipName} idea embedding`);
+        return vector;
+      },
+      openIssue: async (title, body, labels) => {
+        await assertCurrentHead(`before pd-${ctx.shipName} idea issue mutation`);
+        return createIssue(ctx.owner, ctx.repo, title, body, labels, token);
+      },
       now: nowSec(),
     });
+    // captureProposals isolates one bad idea so a storage/issue failure does
+    // not discard its siblings. That per-item catcher also sees embedding
+    // errors, so re-surface the shared circuit state here: only the first
+    // provider call ran; later proposals were rejected locally by the open
+    // circuit, and the queue remains the single retry owner.
+    if (aiCircuit.failure) {
+      throw new FleetAiDependencyError(aiCircuit.failure);
+    }
     const created = results.filter(r => r.outcome === 'tracked-new').length;
     const dupes = results.filter(r => r.outcome === 'duplicate' || r.outcome === 'already-tracked').length;
     await transcript.step(
@@ -2375,6 +2844,8 @@ async function captureIdeas(
       { results },
     );
   } catch (err) {
+    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
 }
@@ -2464,13 +2935,23 @@ export async function mapWithConcurrency<T, R>(
   if (!Number.isInteger(limit) || limit < 1) throw new Error('concurrency limit must be a positive integer');
   const results = new Array<R>(items.length);
   let nextIndex = 0;
+  let firstError: unknown;
   const worker = async (): Promise<void> => {
-    while (nextIndex < items.length) {
+    while (firstError === undefined && nextIndex < items.length) {
       const index = nextIndex++;
-      results[index] = await work(items[index], index);
+      try {
+        results[index] = await work(items[index], index);
+      } catch (error) {
+        // Stop this lane, but let the other already-in-flight lanes settle.
+        // Promise.all's ordinary fail-fast behavior used to leave those calls
+        // running after executeFleet had already entered its error path.
+        if (firstError === undefined) firstError = error;
+        return;
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  if (firstError !== undefined) throw firstError;
   return results;
 }
 
@@ -2483,6 +2964,7 @@ async function reduceFindings(
   partials: string[],
   env: ExecutorEnv,
   metrics: ShipMetrics,
+  aiCircuit: FleetAiCircuit,
 ): Promise<string> {
   const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
@@ -2506,10 +2988,12 @@ async function reduceFindings(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
-    request,
-    aiOptions(env, ship.name),
+  const res = await aiCircuit.run(() =>
+    env.AI.run(
+      ship.cfModel as Parameters<typeof env.AI.run>[0],
+      request,
+      aiOptions(env, ship.name),
+    ),
   );
   const { text } = extractAiText(res);
   accumulateUsage(metrics, reduceModelFor(ship), res, text);
@@ -2546,6 +3030,7 @@ async function shipRepairCall(
   model: string,
   system: string,
   user: string,
+  aiCircuit: FleetAiCircuit,
 ): Promise<string> {
   const request = {
     messages: [
@@ -2555,10 +3040,12 @@ async function shipRepairCall(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await env.AI.run(
-    model as Parameters<typeof env.AI.run>[0],
-    request,
-    aiOptions(env, ship.name),
+  const res = await aiCircuit.run(() =>
+    env.AI.run(
+      model as Parameters<typeof env.AI.run>[0],
+      request,
+      aiOptions(env, ship.name),
+    ),
   );
   const { text } = extractAiText(res);
   accumulateUsage(metrics, model, res, text);
@@ -2575,12 +3062,14 @@ function buildSummary(results: ShipResult[], conclusion: string): string {
     // the fault fleet-wide, in which case the check says exactly that instead
     // of blaming this PR. See aggregateConclusion + src/adjudicator.ts.
     const adjudication = r.brokenAdjudicated
-      ? ` — adjudicated FLEET-WIDE fault${r.brokenAdjudicated.issueNumber != null ? ` (#${r.brokenAdjudicated.issueNumber})` : ''}: not gating this PR; the fleet is on the hook`
+      ? ` — adjudicated FLEET-WIDE fault${r.brokenAdjudicated.issueNumber != null ? ` (#${r.brokenAdjudicated.issueNumber})` : ''}: ` +
+        `${r.brokenAdjudicated.reason}; not gating this PR; the fleet is on the hook`
       : ' (broken ship ⇒ run FAILED)';
+    const cause = r.failureReason ? ` — ${r.failureReason}` : '';
     const state = r.noUsableOutput
       ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored
-        ? `error${adjudication}`
+        ? `error${cause}${adjudication}`
         : r.verdict;
     const advisory =
       !r.blocking && r.verdict === 'BLOCK' && !r.errored && !r.noUsableOutput ? ' (advisory)' : '';

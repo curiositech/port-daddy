@@ -11,6 +11,7 @@ import {
   assessSupervisionIntegrity,
   isPidAlive,
   resolveBosunBinary,
+  assessBosunWatchdog,
   scanRegistryDbFiles,
   countBunCrashSignatures,
   assessCrashSignature,
@@ -774,6 +775,42 @@ describe('resolveBosunBinary', () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+describe('assessBosunWatchdog', () => {
+  test('missing optional Bosun is visible but never critical', () => {
+    const assessment = assessBosunWatchdog({
+      present: false,
+      binaryPath: '/opt/homebrew/bin/pd-bosun',
+      running: null,
+    });
+    expect(assessment.severity).toBe('warn');
+    expect(assessment.detail).toContain('optional since v3.28');
+    expect(assessment.hint).toContain('No repair is required');
+  });
+
+  test('inactive installed Bosun warns about stale optional wiring', () => {
+    const assessment = assessBosunWatchdog({
+      present: true,
+      binaryPath: '/opt/homebrew/bin/pd-bosun',
+      running: false,
+      reason: 'disabled',
+    });
+    expect(assessment.severity).toBe('warn');
+    expect(assessment.detail).toContain('optional pd-bosun');
+    expect(assessment.detail).toContain('disabled');
+  });
+
+  test('active opt-in Bosun remains healthy context', () => {
+    const assessment = assessBosunWatchdog({
+      present: true,
+      binaryPath: '/opt/homebrew/bin/pd-bosun',
+      running: true,
+      reason: 'healthy',
+    });
+    expect(assessment.severity).toBe('ok');
+    expect(assessment.detail).toContain('optional pd-bosun present');
   });
 });
 

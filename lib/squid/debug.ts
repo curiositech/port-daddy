@@ -35,6 +35,8 @@ export const SQUID_HOOK_BREAKER_COOLDOWN_MS = 5 * 60 * 1_000;
 const SQUID_HOOK_DEBUG_MAX_READ_BYTES = SQUID_HOOK_DEBUG_MAX_BYTES * 2;
 const SQUID_HOOK_DEBUG_MAX_STEPS = 2_000;
 export const SQUID_HOOK_STATUS_MAX_STEPS = 25;
+/** Leave headroom below the compiled launcher's 64 KiB stdout boundary. */
+export const SQUID_HOOK_DEBUG_CLI_MAX_BYTES = 60 * 1024;
 
 export type SquidHookProvider = 'claude' | 'codex' | 'gemini' | 'agy' | 'unknown';
 export type SquidHookPhase = 'turn' | 'edit' | 'trace';
@@ -356,6 +358,79 @@ export function readSquidHookDebugSnapshot(options: {
 }
 
 /**
+ * Read the explicit CLI debug projection without ever handing the compiled
+ * launcher an oversized JSON document. The retained event log stays at the
+ * full local budget; only this read projection is narrowed, and `window`
+ * makes that narrowing explicit to callers.
+ *
+ * The design measures the real serialized shape rather than assuming a
+ * fixed byte cost per step. This matters because a step can belong to its own
+ * provider session and repeat a long (but valid) workspace path. Subsequent
+ * passes scale the step window from the observed byte density, normally
+ * converging after one retry.
+ *
+ * @param options - Workspace/clock filters plus an optional test-only byte ceiling.
+ * @returns A valid, size-bounded snapshot that preserves the newest steps.
+ */
+export function readSquidHookCliDebugSnapshot(options: {
+  pdHome?: string;
+  cwd?: string;
+  nowMs?: number;
+  maxSteps?: number;
+  maxSerializedBytes?: number;
+} = {}): SquidHookDebugSnapshot {
+  const maxSerializedBytes = Math.max(1, Math.floor(
+    options.maxSerializedBytes ?? SQUID_HOOK_DEBUG_CLI_MAX_BYTES,
+  ));
+  let maxSteps = Math.max(1, Math.min(
+    SQUID_HOOK_DEBUG_MAX_STEPS,
+    Math.floor(options.maxSteps ?? SQUID_HOOK_DEBUG_MAX_STEPS),
+  ));
+  const readOptions = {
+    pdHome: options.pdHome,
+    cwd: options.cwd,
+    nowMs: options.nowMs,
+  };
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const snapshot = readSquidHookDebugSnapshot({ ...readOptions, maxSteps });
+    const serializedBytes = Buffer.byteLength(JSON.stringify(snapshot, null, 2));
+    if (serializedBytes <= maxSerializedBytes) return snapshot;
+
+    const returnedSteps = snapshot.window.returnedSteps;
+    if (returnedSteps <= 1) return metadataOnlySnapshot(snapshot);
+
+    const proportional = Math.floor(
+      returnedSteps * (maxSerializedBytes / serializedBytes) * 0.9,
+    );
+    maxSteps = Math.max(1, Math.min(returnedSteps - 1, proportional));
+  }
+
+  return metadataOnlySnapshot(readSquidHookDebugSnapshot({ ...readOptions, maxSteps: 1 }));
+}
+
+/**
+ * Preserve diagnostic health and retention counts when even one expanded
+ * step would exceed the output contract. The design prefers an honest empty
+ * window over a partial JSON document that automation cannot parse.
+ *
+ * @param snapshot - The single-step projection whose metadata remains useful.
+ * @returns The same snapshot contract with no expanded session rows.
+ */
+function metadataOnlySnapshot(snapshot: SquidHookDebugSnapshot): SquidHookDebugSnapshot {
+  return {
+    ...snapshot,
+    retention: { ...snapshot.retention, maxSteps: 0 },
+    window: {
+      totalSteps: snapshot.window.totalSteps,
+      returnedSteps: 0,
+      truncated: snapshot.window.totalSteps > 0,
+    },
+    sessions: [],
+  };
+}
+
+/**
  * Read the routine `pd squid status` projection. Retained timelines remain on
  * disk after debug is disabled so an explicit `pd squid debug status` can
  * diagnose the last failure, but ordinary status must not disclose runtime
@@ -527,6 +602,15 @@ function failureDescription(outcome: string | null, exitCode: number | null): st
 
 function outcomeLabel(outcome: string | null): string {
   switch (outcome) {
+    case 'daemon_booting': return 'daemon has not finished its boot checks';
+    case 'ready_symlink': return 'daemon readiness lease is a symlink, not an authenticated runtime file';
+    case 'pid_symlink': return 'daemon PID lease is a symlink, not an authenticated runtime file';
+    case 'pid_missing': return 'daemon PID lease missing';
+    case 'ready_unreadable': return 'daemon readiness lease unreadable';
+    case 'pid_unreadable': return 'daemon PID lease unreadable';
+    case 'generation_invalid': return 'daemon readiness generation malformed';
+    case 'generation_mismatch': return 'readiness lease belongs to another daemon generation';
+    case 'heartbeat_symlink': return 'daemon heartbeat is a symlink, not an authenticated runtime file';
     case 'heartbeat_missing': return 'Port Daddy daemon heartbeat missing';
     case 'heartbeat_unreadable': return 'daemon heartbeat unreadable';
     case 'daemon_stale': return 'daemon heartbeat stale';

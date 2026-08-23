@@ -367,6 +367,103 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
     expect(result).toMatchObject({ ok: false, kind: 'missing-discovery-evidence' });
   });
 
+  it.each([
+    {
+      label: '#9760 literal placeholder body',
+      path: 'tests/unit/release-token-fallback.test.js',
+      contents: 'export function parseStableVersion(value) { ... }',
+    },
+    {
+      label: '#9760 truncated source excerpt',
+      path: 'tests/unit/release-token-fallback.test.js',
+      contents: 'if (parse\n… (diff truncated...)',
+    },
+  ])('rejects $label as syntax-error before sandbox evidence is considered', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: realJestPatterns,
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'syntax-error',
+      path,
+      reason: expect.stringContaining('before any sandbox execution'),
+    });
+  });
+
+  it('rejects TypeScript-only syntax in a .js test instead of parsing it as TypeScript', () => {
+    const path = 'tests/unit/typed-javascript.test.js';
+    const result = checkGeneratedTestsExecutable(
+      [{ path, contents: "type Value = string;\nconst value: Value = 'ready';\ntest('x', () => expect(value).toBe('ready'));" }],
+      { testMatchPatterns: realJestPatterns, repoTreePaths: new Set() },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'syntax-error',
+      path,
+    });
+  });
+
+  it.each([
+    {
+      path: 'tests/unit/typed.contract.test.ts',
+      contents: [
+        'type StableVersion = { major: number; minor: number; patch: number };',
+        'const parse = (value: string): StableVersion => ({ major: 1, minor: 2, patch: value.length });',
+        "test('parses', () => expect(parse('x').patch).toBe(1));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/view.contract.test.tsx',
+      contents: [
+        "const view = <span data-kind='receipt'>ready</span>;",
+        "test('renders', () => expect(view.props.children).toBe('ready'));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/module.contract.test.mts',
+      contents: [
+        'export type StableVersion = { major: number };',
+        'export const stable: StableVersion = { major: 3 };',
+        "test('exports', () => expect(stable.major).toBe(3));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/commonjs.contract.test.cts',
+      contents: [
+        "const stable: { major: number } = require('./stable.cjs');",
+        "test('requires', () => expect(stable.major).toBe(3));",
+      ].join('\n'),
+    },
+  ])('accepts complete generated $path source with extension-appropriate syntax', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{ts,tsx,mts,cts}'],
+      repoTreePaths: new Set(['tests/unit/stable.cjs']),
+    });
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  it.each([
+    {
+      path: 'tests/unit/commonjs.contract.test.cts',
+      contents: 'export const invalidForCommonJs = true;',
+    },
+    {
+      path: 'tests/unit/module.contract.test.mts',
+      contents: 'return;',
+    },
+  ])('enforces the source type implied by $path', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{mts,cts}'],
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({ ok: false, kind: 'syntax-error', path });
+  });
+
   it('fails closed when the repo tree is unknown (null), even for a discoverable path with no imports', () => {
     const result = checkGeneratedTestsExecutable(
       [{ path: 'tests/unit/widget.test.js', contents: 'it("x", () => {});' }],

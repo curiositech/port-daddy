@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787209306579,
+  "generatedAt": 1787500874760,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 277,
+  "count": 280,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -810,9 +810,24 @@
       "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
     },
     {
+      "slug": "fix-fleet-live-introspection-20260822",
+      "status": "backlog",
+      "summaryMd": "Native signed-in Cloud Fleet introspection across FleetBar and pd-console"
+    },
+    {
+      "slug": "fix-fleet-ship-resilience-20260822",
+      "status": "backlog",
+      "summaryMd": "fix(fleet): circuit-break provider failures"
+    },
+    {
       "slug": "fix-skill-graft-tool2vec-vocabulary-gap",
       "status": "merge",
       "summaryMd": "PR #723 skill-graft.ts shipped with a vocabulary-mismatch bug: ranking compared task embeddings to a skill's OWN description embedding (cosine(task, description)), which fails when a task is phrased in user language different from the skill's own description wording. Fix: real Tool2Vec synthetic-query-centroid generation (lib/skill-graft-tool2vec.ts) + BM25/Porter-stemming lexical signal (lib/skill-graft-bm25.ts), fused via reciprocal rank fusion (k=60) in lib/skill-graft.ts. lib/coordination-judge.ts's transportToAdapter helper exported (no behavior change) for reuse by lib/fleet-engine.ts's new skill-graft LLM-backend wiring."
+    },
+    {
+      "slug": "fix-squid-debug-bounds-20260823",
+      "status": "backlog",
+      "summaryMd": "fix(squid): retire stale interactive post hooks"
     },
     {
       "slug": "fleet-ai-gateway-cost-observability",
@@ -891,8 +906,8 @@
     },
     {
       "slug": "frictionless-invisible-port-daddy-agent-experience",
-      "status": "backlog",
-      "summaryMd": "Make Port Daddy agent coordination hooks fast, silent by default, fail-safe, context-relevant, and easy to repair; reconcile and land overlapping open work."
+      "status": "now",
+      "summaryMd": "Make Port Daddy coordination hooks fast, silent, generation-safe, self-disabling, and transparently introspectable across Claude, Codex, Gemini, and agy."
     },
     {
       "slug": "gantt-real-estimate-wiring",

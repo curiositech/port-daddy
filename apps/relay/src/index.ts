@@ -28,6 +28,13 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/repos                         (HTML per-repo settings screen;
+ *                                                session; sitrep dial)
+ *   POST /account/repos/set                     (plain form upsert; session +
+ *                                                GitHub repo ACL)
+ *   POST /account/repos/remove                  (plain form delete; session)
+ *   GET  /v1/repo-settings                      (device read path; pdu_ bearer
+ *                                                or session cookie)
  *   GET  /account/parleys                       (HTML; session; → a harbor's list)
  *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
  *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
@@ -49,6 +56,12 @@
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   GET  /auth/status                          (session cookie → {login, avatarUrl};
  *                                               credentialed CORS for portdaddy.dev)
+ *   PUT  /v1/roadmap/snapshot                  (session/pdu; daemon pushes one
+ *                                               repo's roadmap mirror — full
+ *                                               replace; operator mandate
+ *                                               2026-08-22, PR 1)
+ *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
+ *                                               board / item detail / activity)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -61,6 +74,10 @@
  *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
  *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
  *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
+ *   PUT  /v1/harbor/card                     (signed self-report of declared capabilities; X5)
+ *   GET  /v1/harbor/directory                (public; listed/consented harbors only; X5)
+ *   GET  /v1/harbor/whois?q=                 (public; TF-IDF + demonstrated ranking; X5)
+ *   PUT  /v1/harbor/directory/weights        (operator; ranking weights — audit-logged; X5)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -143,6 +160,12 @@ import {
   handleMediatorToggle,
 } from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
+import {
+  handleRepoSettingsPage,
+  handleRepoSettingsSet,
+  handleRepoSettingsRemove,
+  handleRepoSettingsApi,
+} from './repo-settings-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
@@ -172,11 +195,18 @@ import {
   handleGetHelm,
 } from './presence.js';
 import {
+  handlePutHarborCard,
+  handleDirectory,
+  handleWhois,
+  handleSetDirectoryWeights,
+} from './directory.js';
+import {
   handleCreateParley,
   handleListParleys,
   handleGetParley,
   handleRespondParley,
 } from './parleys.js';
+import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
 
 // Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
@@ -402,6 +432,21 @@ export default {
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
     }
+    // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
+    // dial lives here; src/repo-settings-page.ts).
+    else if (pathname === '/account/repos' && method === 'GET') {
+      response = await handleRepoSettingsPage(request, env);
+    }
+    else if (pathname === '/account/repos/set' && method === 'POST') {
+      response = await handleRepoSettingsSet(request, env);
+    }
+    else if (pathname === '/account/repos/remove' && method === 'POST') {
+      response = await handleRepoSettingsRemove(request, env);
+    }
+    // Device-facing read path for per-repo settings (pdu_ bearer or cookie).
+    else if (pathname === '/v1/repo-settings' && method === 'GET') {
+      response = await handleRepoSettingsApi(request, env);
+    }
     // Billing storefront (session + GitHub installation ownership; ADR-0116).
     else if (pathname === '/account/billing' && method === 'GET') {
       response = await handleBillingPage(request, env);
@@ -523,6 +568,29 @@ export default {
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── X5 directory + whois (consent-first, D3; src/directory.ts) ───────────
+    else if (pathname === '/v1/harbor/card' && method === 'PUT') {
+      response = await handlePutHarborCard(request, env);
+    }
+    else if (pathname === '/v1/harbor/directory' && method === 'GET') {
+      response = await handleDirectory(env);
+    }
+    else if (pathname === '/v1/harbor/directory/weights' && method === 'PUT') {
+      response = await handleSetDirectoryWeights(request, env);
+    }
+    else if (pathname === '/v1/harbor/whois' && method === 'GET') {
+      response = await handleWhois(request, env);
+    }
+
+    // ── Roadmap command-center mirror (operator mandate 2026-08-22, PR 1;
+    // src/roadmap-mirror.ts). The daemon pushes; the account reads its own. ──
+    else if (pathname === '/v1/roadmap/snapshot' && method === 'PUT') {
+      response = await handleRoadmapSnapshotPut(request, env);
+    }
+    else if (pathname === '/v1/roadmap/mirror' && method === 'GET') {
+      response = await handleRoadmapMirrorGet(request, env);
     }
 
     // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────

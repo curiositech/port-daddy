@@ -33,6 +33,12 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for operator-grade delivery forensics. Console diagnostics include
+# bounded GitHub response status/request-id/rate-limit evidence; request
+# headers, request bodies, and the GitHub token are never recorded.
+[observability]
+enabled = true
+
 # ---------------------------------------------------------------------------
 # CPU budget per invocation.
 #
@@ -131,10 +137,10 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
-# Resumed attempts skip durable ship checkpoints. Keep this example aligned
-# with the deploy config: thirteen total attempts cover this repository's
-# eleven-ship PR roster even at one newly checkpointed ship per attempt, with two
-# attempts of bounded headroom for transient failures.
+# Each successful invocation runs at most one new provider-heavy ship, records
+# a delivery-continuation step, then schedules the next checkpointed slice.
+# Thirteen total attempts cover this repository's eleven-ship PR roster with
+# two attempts of bounded transient-failure headroom.
 max_retries = 12
 dead_letter_queue = "fleet-runs-dlq"
 

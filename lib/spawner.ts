@@ -60,44 +60,53 @@ const _dotenvCache: Record<string, string> = {};
 function loadDotenvOnce(): Record<string, string> {
   if (Object.keys(_dotenvCache).length > 0) return _dotenvCache;
   // Only two trusted locations: project root and home directory
-  const searchDirs = [
-    join(__spawner_dirname, '..'),  // project root (parent of lib/)
-    process.env.HOME || '',         // home directory
+  const projectRoot = join(__spawner_dirname, '..');
+  const operatorHome = process.env.HOME || '';
+  const searchFiles = [
+    join(projectRoot, '.env.local'),
+    join(projectRoot, '.env'),
+    ...(operatorHome
+      ? [
+          join(operatorHome, '.env.local'),
+          join(operatorHome, '.env'),
+          // Portable fallback loaded into the daemon environment by
+          // secret-env.ts. Coast Guard already denies the file on disk; its
+          // keys must also be inventoried here so inherited values are scrubbed
+          // from every subprocess child.
+          join(operatorHome, '.port-daddy-env'),
+        ]
+      : []),
   ];
   const currentUid = process.getuid?.();
-  for (const dir of searchDirs) {
-    if (!dir) continue;
-    for (const name of ['.env.local', '.env']) {
-      const p = join(dir, name);
-      if (!existsSync(p)) continue;
-      // Verify file ownership — skip files not owned by current user
-      if (currentUid !== undefined) {
-        try {
-          const st = statSync(p);
-          if (st.uid !== currentUid) {
-            console.warn(`[spawner] Skipping ${p}: owned by uid ${st.uid}, expected ${currentUid}`);
-            continue;
-          }
-        } catch {
-          continue; // stat failed — skip
-        }
-      }
+  for (const p of searchFiles) {
+    if (!existsSync(p)) continue;
+    // Verify file ownership — skip files not owned by current user
+    if (currentUid !== undefined) {
       try {
-        const lines = readFileSync(p, 'utf-8').split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) continue;
-          const eq = trimmed.indexOf('=');
-          if (eq < 1) continue;
-          const key = trimmed.slice(0, eq).trim();
-          let val = trimmed.slice(eq + 1).trim();
-          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-            val = val.slice(1, -1);
-          }
-          _dotenvCache[key] = val;
+        const st = statSync(p);
+        if (st.uid !== currentUid) {
+          console.warn(`[spawner] Skipping ${p}: owned by uid ${st.uid}, expected ${currentUid}`);
+          continue;
         }
-      } catch { /* ignore read errors */ }
+      } catch {
+        continue; // stat failed — skip
+      }
     }
+    try {
+      const lines = readFileSync(p, 'utf-8').split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eq = trimmed.indexOf('=');
+        if (eq < 1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        let val = trimmed.slice(eq + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        _dotenvCache[key] = val;
+      }
+    } catch { /* ignore read errors */ }
   }
   return _dotenvCache;
 }
@@ -287,6 +296,13 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+  /**
+   * ADR-0040 daemon-minted actor credential returned by this agent's
+   * `/sugar/begin` (#8877 / ADR-0122). `/sugar/done` (both the normal
+   * completion path and kill()) must present it — attributed session writes
+   * are rejected 401 without a verified credential.
+   */
+  actorCredential?: string | null;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -367,6 +383,8 @@ function warnTelemetryBypass(approval: TelemetryBypassApproval): void {
 
 interface PdCoordinateOptions {
   pid?: number | null;
+  /** ADR-0040 actor credential to present as `x-actor-credential` (#8877). */
+  credential?: string | null;
 }
 
 function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
@@ -379,19 +397,44 @@ function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
   return normalizeCoordinationPid(record.childProcess?.pid) ?? 0;
 }
 
-async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<void> {
+/**
+ * Fire a coordination write at the daemon's own HTTP surface.
+ *
+ * Purpose: the spawner coordinates its child agents through the SAME public
+ * routes external agents use (register, begin, heartbeat, done) so spawned
+ * agents are first-class citizens of the coordination plane, not a side
+ * channel. Failures stay silent by design — coordination must never block a
+ * spawn — but the parsed response body is now RETURNED so the caller can
+ * capture what `/sugar/begin` minted: the ADR-0040 actor credential that
+ * every later attributed write (#8877 / ADR-0122) must present via
+ * `options.credential`.
+ *
+ * @param path - Daemon route path (e.g. '/sugar/begin').
+ * @param body - JSON body to POST.
+ * @param options - Optional child pid (X-Pid) and actor credential
+ *        (x-actor-credential) headers.
+ * @returns The parsed JSON response body, or null on any failure.
+ */
+async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<Record<string, unknown> | null> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const pid = normalizeCoordinationPid(options.pid);
     if (pid !== undefined) headers['X-Pid'] = String(pid);
+    if (options.credential) headers['x-actor-credential'] = options.credential;
 
-    await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
+    const res = await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
+    try {
+      return await res.json() as Record<string, unknown>;
+    } catch {
+      return null;
+    }
   } catch {
     // Silent — coordination failures never block spawning
+    return null;
   }
 }
 
@@ -586,6 +629,8 @@ interface BackendRunResult {
 }
 
 interface BackendRunContext {
+  /** Durable outer spawn identity threaded into subprocess receipts. */
+  agentId?: string;
   onChildProcess?: (child: ChildProcess) => void;
   /**
    * Live transcript-delta sink. A backend that streams events (the cli-tube
@@ -834,6 +879,27 @@ async function runCliTube(
     // spawns. The publish is best-effort inside spawnViaCliTube and never blocks.
     tube: context?.tubeChannel,
     tubeClient: context?.tubeClient,
+    // ADR-0050 Coast Guard: cli-tube children are subprocesses with a real
+    // shell, so they carry the SAME confinement posture as the other
+    // subprocess backends (see runConfinedChild). The wrap itself happens
+    // inside spawnViaCliTube and is default-on; this block only threads the
+    // receipt identity, per-spec cap overrides, the dotenv scrub inventory,
+    // and the priced scope-tier write policy.
+    coastGuard: {
+      agentId: context?.agentId || spec.identity || spec.name || 'spawned',
+      backend: spec.backend,
+      spec: {
+        coastGuard: spec.coastGuard,
+        maxRequests: spec.maxRequests,
+        maxBytes: spec.maxBytes,
+      },
+      dotenvKeys: Object.keys(loadDotenvOnce()),
+      writePolicy: scopeTierWritePolicy(classifyScope(
+        spec.capabilities && spec.capabilities.length > 0
+          ? spec.capabilities
+          : ['spawn:agent', `backend:${spec.backend}`],
+      )),
+    },
   });
 
   if (cli === 'codex') {
@@ -861,6 +927,7 @@ async function runCliTube(
             outputTokens: estimateTokensFromText(result.output || ''),
             estimatedTelemetry: true,
           }),
+      coastGuardReceipt: result.coastGuardReceipt,
     };
   }
   if (cli === 'claude-code') {
@@ -888,6 +955,7 @@ async function runCliTube(
             outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
             estimatedTelemetry: true,
           }),
+      coastGuardReceipt: result.coastGuardReceipt,
     };
   }
 
@@ -901,6 +969,7 @@ async function runCliTube(
     inputTokens: estimateTokensFromText(spec.task),
     outputTokens: estimateTokensFromText(result.output || ''),
     estimatedTelemetry: true,
+    coastGuardReceipt: result.coastGuardReceipt,
   };
 }
 
@@ -2056,8 +2125,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
-    // PD coordination: start session
-    await pdCoordinate('/sugar/begin', {
+    // PD coordination: start session. Begin is the ADR-0040 mint door: an
+    // uncredentialed begin mints this agent's soul and returns its credential
+    // ONCE — capture it, because `/sugar/done` (and every other attributed
+    // write) rejects without it (#8877 / ADR-0122).
+    const beginResponse = await pdCoordinate('/sugar/begin', {
       agentId,
       name: displayName,
       type: 'spawned',
@@ -2067,6 +2139,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       lifecycle: 'ephemeral',
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
+    record.actorCredential = typeof beginResponse?.credential === 'string'
+      ? beginResponse.credential
+      : null;
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
@@ -2114,6 +2189,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         result = await override(executionSpec, runtime.effectiveModel);
       } else {
         const childContext: BackendRunContext = {
+          agentId,
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
@@ -2271,7 +2347,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         note: doneNote,
         skipOriginCheck: true,
         skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
-      });
+      }, { credential: record.actorCredential });
     }
 
     // Record the conversation + finalize transcript. Order matters: we append
@@ -2459,7 +2535,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status: 'abandoned',
       skipOriginCheck: true,
       skipOriginCheckReason: 'spawner-managed agent killed by operator',
-    }).catch(() => {});
+    }, { credential: record.actorCredential }).catch(() => {});
 
     // Finalize any open transcript for this agent. We don't keep the
     // transcriptId on the AgentRecord (to avoid a circular type dep on the
