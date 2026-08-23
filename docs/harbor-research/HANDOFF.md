@@ -152,3 +152,11 @@ Floor B*(N=60,k=2,m=8)=5.98 bits [V]; disjoint-readers floor 12.77 [V]; ratio 2.
 
 ### 3.9 Unscheduled backlog one-liners (proof paths in Portfolio PDF)
 B7 escalation signaling (single-crossing threshold; tuning band from measured validation rates). B8 specialization boundary (Erlang-C; breakdowns corner prices succession). B9 context paging (Landlord import + linear φ-degradation; φ shared with R1's forgeable-feature budget).
+
+---
+## 4. DELTA v3 (2026-08-19) — PR #7698 reconciled in-session
+- The treatise is now **in-repo and canonical**: sources at `whitepaper/` (legible-swarm, single-writer-kernel) and `website-v2/public/whitepaper/` (five papers + mega volume); the PAPERS table in `scripts/build-whitepapers.sh` is authoritative. W4-style edits target these files; the mega-volume PDF attachment instruction is obsolete.
+- **W4: done-pending-verification** (verification ledger: `pr7698-reconciliation.md`, same directory — corrections table, adjudications, follow-ups F1–F4).
+- **W14: executed in-session** (merge + adjudications + One Spine appendix). The One Spine appendix in the mega volume is now the admission test for any new mechanism: name your theorem family, your developer obligation, your boundary — no row, no feature.
+- **Proof debt is now blocking**: A3/A4 (asserted in the volume's cleanroom theorem), B5, B7, B8, B9; B6 discharged-as-sketch. **Revised wave order: W5 → W6 → W13 → W1–W3 → W8 → W9/W10.**
+- New tacit datum for the results skill: the duplicate-generator collision (#6368 vs #7698) — an unfiled exact-key claim conflict inside the project's own repo.

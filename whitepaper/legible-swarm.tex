@@ -219,7 +219,7 @@ objective spined on Signal Detection Theory rather than raw throughput. We work
 each claim through an end-to-end scenario with a named operator and a real swarm,
 prove a legibility lower bound and the formal distinction between the two rankers a
 swarm needs, give numbered protocols for the digest-with-zoom loop and the
-attention queue, and hand the companion papers a legible, checkpointed,
+attention queue, and hand the accompanying chapters a legible, checkpointed,
 outcome-bearing identity --- the precondition for reputation and, eventually, the
 market. We name the system this design realizes \emph{Port Daddy}; the engineering
 status of each mechanism (built, designed, or proposed) is recorded in
@@ -397,7 +397,7 @@ backed by a write-ahead-logged embedded database, that every agent and every
 command talks to and that holds coordination state no agent can edit} --- is the
 kernel and the realm: your machine, your swarm, no network, no cryptography
 required. Cryptography enters only when another operator's fleet touches your
-repository, the cross-operator setting the companion economy paper (\emph{The Harbor
+repository, the cross-operator setting Chapter~IV (\emph{The Harbor
 Economy}) takes up. The single-operator Leviathan is the \emph{wedge} --- the thing
 a solo developer pays for today --- and the federation of Leviathans is the
 platform, deferred behind the wedge by design. This paper is entirely about the
@@ -495,7 +495,7 @@ in order to be comprehensible and correctly implementable}): a strong leader who
 decides the common case unilaterally is simpler and more reliable than democratic
 consensus among peers, provided the common case dominates. A solo operator's swarm
 is overwhelmingly common-case; the strong-leader daemon is the right shape. We are
-precise about what shape that is: the single-machine system is honestly a
+precise about what shape that is: the single-machine system is formally a
 \emph{consistency-favoring design with a central coordinator and distributed
 clients}, not a leaderless consensus protocol. The leaderless distributed-systems
 canon bites only at the edges where the daemon is not the sole observer --- an agent
@@ -569,9 +569,9 @@ its active grants.
 
 Consent so defined gives the design something Hume's critique cannot reach: a
 discrete authorization event, a bounded scope, and an exit. It also hands the
-companion papers a concrete object. A grant is precisely what a \emph{hosted-trust}
+accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
 offering transfers --- ``we make this fleet legible to you, under this scope'' is
-the sale of a consent grant to a third party, which the companion economy paper
+the sale of a consent grant to a third party, which Chapter~IV (\emph{The Harbor Economy})
 prices --- which is why \S\ref{sec:bridge} lists consent among the things this layer
 provides upward.
 
@@ -847,9 +847,30 @@ By Prop.~\ref{prop:verifiable-zoom}, a swarm reviewing its own work is two langu
 models agreeing --- one error twice. The quality organ must therefore be
 \emph{adversarial and conflict-free}: a reviewer with no stake in the work, running a
 bounded critique--refine protocol. This is the wedge's local analog of the
-\emph{neutral evaluators} --- the independent rating agencies --- that the companion
-papers federate across operators: the same conflict-free-judge discipline, scoped
+\emph{neutral evaluators} --- the independent rating agencies --- that Chapters~III and~IV
+federate across operators: the same conflict-free-judge discipline, scoped
 first to one operator and then opened to a market.
+
+\subsection{Sole-responsibility roles and the specialization boundary}\label{sec:sole-roles}
+
+The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \textbf{sole-responsibility role} (an avatar holding exclusive write capability over an invariant):
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \emph{Roadmap Owner:} The single avatar authorized to commit mutations to the phase plan.
+\item \emph{Test Suite Curator:} The sole agent authorized to land modifications to regression suites.
+\item \emph{Release Avatar:} The sole gatekeeper authorized to execute deployment tags.
+\end{itemize}
+
+\begin{theorem}[Queueing Specialization Boundary]\label{thm:specialization}
+Let requests for an invariant-critical function $F$ arrive as a Poisson stream at rate $\lambda_F$. A sole specialist operates as an $M/M/1$ queue with service rate $\mu_{\mathrm{spec}}$, while a pooled generalist swarm operates as an $M/M/c$ queue with total service rate $c \mu_{\mathrm{pool}}$.
+
+Sole ownership strictly dominates pooled generalist service in mean response time if and only if the specialist efficiency ratio exceeds the queueing congestion threshold:
+\begin{equation}
+\frac{\mu_{\mathrm{spec}}}{\mu_{\mathrm{pool}}} \;>\; 1 + \frac{(c-1)\lambda_F}{c\mu_{\mathrm{pool}} - \lambda_F}.
+\end{equation}
+Below this threshold, sole ownership buys strict single-writer accountability at an explicit latency price that must be budgeted rather than obscured.
+\end{theorem}
+
+\noindent\emph{Status: proposed.} The threshold form follows the standard $M/M/1$ vs.\ $M/M/c$ response-time comparison; the full derivation (including the succession corner where the sole specialist fails, an $M/M/1$ queue with breakdowns) is carried as item B8 of the research ledger.
 
 \subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
 
@@ -894,7 +915,7 @@ A coordination state is \textbf{physically unreachable} --- prevented --- \emph{
 when a constraint forbids it \emph{inline}, before the act commits: a database
 uniqueness constraint that makes a double-claim impossible, or a fail-closed startup
 gate that refuses to run against the wrong target. A monitor that \emph{subscribes to
-the log of actions already taken} is something weaker and must be named honestly:
+the log of actions already taken} is something weaker and must be named formally:
 \textbf{detect-and-compensate}. It observes a violation \emph{after} the fact and
 then halts or repairs within a bounded window. By the reference-monitor result below,
 such a downstream monitor enforces no safety property at all. The phrase ``physically
@@ -1081,14 +1102,22 @@ intervene at exactly the moment intervention is needed}) and Scott are the
 digest erases the \emph{operator's} m\^etis. As the supervising automation gains
 autonomy --- executing longer plans end-to-end --- the operator's role slides
 $\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
-\emph{abdication gradient}. The design's only defense is a deliberate
-\emph{skill-retention tax}: periodic forced manual action, borrowed from aviation's
-manual-flight-hours mandates (the regulatory response to automation-dependency
-accidents). We flag it honestly: the analog is \emph{contested} --- poorly-designed
-``do one thing manually'' interruptions cause attention residue and degrade the
-primary task (\textbf{Leroy 2009}~\cite{leroy2009}). It is framed as
-m\^etis-preservation, not annoyance-management, and it is the most speculative
-mechanism in the paper.
+\emph{abdication gradient}. The design's primary active defense is the \textbf{Inception Canary} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\cite{leroy2009}).
+
+\begin{protocol}{The Inception Canary protocol}\label{prot:canary}
+To continuously measure and maintain operator situation awareness without synthetic busywork. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Blinded holdout replay.} An out-of-band Compaction Sidecar (\S\ref{sec:tokens-digest}) draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is ever injected into a live pull request or pending action: probes are replays with known ground truth, so a missed canary costs vigilance points, never production correctness.
+\item \textbf{Attention queue surfacing.} The item is placed in the Attention Queue with standard high-regret scoring.
+\item \textbf{Dual adjudication:}
+\begin{itemize}[leftmargin=1.2em,nosep]
+\item \emph{Rubber-stamp failure:} If the operator approves without expanding the forced-zoom diff, the daemon halts execution pre-commit, logs an \textsc{Inception Canary Failed} event, and tightens the operator's autonomous policy lease (lowering the threshold at which future agent actions require manual confirmation).
+\item \emph{Vigilant detection:} If the operator zooms, identifies the flaw, and rejects it, the daemon logs \textsc{Canary Defeated} and increases the \emph{Operator Trust Score}, unlocking extended autonomous execution grants (e.g., unattended batch merges).
+\end{itemize}
+\end{enumerate}
+\end{protocol}
+
+This transforms supervisory vigilance from a punitive chore into a closed verification loop that rigorously measures human situation awareness --- with the operator's informed consent, on ground truth the system already knows, and with provenance every probe carries so post-hoc audit can distinguish canaries from live items in one lookup.
 
 \begin{exercises}
 \exhead{Check your understanding.}
@@ -1160,7 +1189,7 @@ off immediately --- and \emph{gracefully grow} into the read-poverty regime
 (Figure~\ref{fig:readpoverty}, right panel). Discovery is free at $n{=}2$, the
 bottleneck at $n{=}50$, the whole system at $n{=}500$. This value curve \emph{is} the
 three-layer cure of the next section: existence (the registry), relevance (ranked
-routing), and trust (reputation, deferred to the companion papers). The layers are
+routing), and trust (reputation, deferred to the accompanying chapters). The layers are
 strictly ordered: relevance over a stale registry returns confident garbage;
 reputation over an unranked registry has nothing to attach a score to.
 
@@ -1317,6 +1346,17 @@ reader. \qed
 The consequence is a design rule: the operator wants the \emph{most dangerous} item
 surfaced, the agent wants the \emph{most capable} collaborator. Collapsing them into
 one ranker silently serves one reader and starves the other.
+
+\paragraph{Decision-theoretic derivation of the regret head.} The product form of $\mathrm{regret}(x)$ is not an ad-hoc heuristic; it follows directly from expected-cost minimization under asymmetric error costs. Let $x$ be an unreviewed candidate event, and let true state $S \in \{\text{harmful}, \text{benign}\}$. Suppressing $x$ when harmful incurs a miss cost $C_{\text{miss}}(x) = \mathrm{stakes}(x) \cdot \mathrm{irreversibility}(x)$ (unrecoverable damage). Surfacing $x$ when benign incurs an operator interruption cost $C_{\text{fa}} + c_{\text{att}}$. Surfacing $x$ is Bayes-optimal if and only if:
+\begin{equation}
+\mathbb{E}[\text{Cost} \mid \text{surface}] \;\le\; \mathbb{E}[\text{Cost} \mid \text{suppress}]
+\iff C_{\text{fa}} \Pr(\text{benign} \mid x) + c_{\text{att}} \;\le\; C_{\text{miss}}(x) \Pr(\text{harmful} \mid x).
+\end{equation}
+Rearranging yields the likelihood-ratio decision rule:
+\begin{equation}\label{eq:bayes-regret}
+\frac{\Pr(\text{harmful} \mid x)}{\Pr(\text{benign} \mid x)} \;\ge\; \frac{C_{\text{fa}} + c_{\text{att}}}{\mathrm{stakes}(x) \cdot \mathrm{irreversibility}(x)}.
+\end{equation}
+By setting the anomaly score $\mathrm{anomaly}(x) \propto \frac{\Pr(\text{harmful} \mid x)}{\Pr(\text{benign} \mid x)}$, the decision threshold is equivalent to gating on the product $\mathrm{regret}(x) = \mathrm{stakes}(x) \times \mathrm{irreversibility}(x) \times \mathrm{anomaly}(x) \ge \tau_{\text{intervene}}$, which formalizes the Signal Detection criterion (Def.~\ref{def:sdt}).
 
 \input{figures/legible-swarm-split-ranker}
 
@@ -1475,7 +1515,38 @@ So compaction is the legibility mechanism of the \emph{entire swarm}: the same a
 that keeps the bill down produces the very digest a human or successor agent reads
 (Figure~\ref{fig:read-surfaces}).
 
+\begin{theorem}[The Split-Digest Theorem]\label{thm:split-digest}
+Let $E = (e_1, e_2, \dots, e_N)$ be an agent's raw execution trace. A compaction policy $D: E \to \Sigma^{\le B}$ compresses $E$ into a token budget $B < |E|$. Let $R_1$ be the \textbf{successor agent} with continuation loss $L_{\mathrm{succ}}(D) = \mathrm{KL}\bigl(P_{\mathrm{next}}(\cdot \mid E) \,\|\, P_{\mathrm{next}}(\cdot \mid D)\bigr)$ (penalizing loss of AST trajectory and task state), and let $R_2$ be the \textbf{human operator} with oversight loss $L_{\mathrm{op}}(D) = \sum_{e \in E \setminus D} \mathrm{regret}(e)$ (penalizing unreviewed high-stakes anomalies and policy breaches).
+
+If the trace contains both benign working details (high continuation value, zero regret) and dead-end anomalous excursions (zero continuation value, maximal regret), then \textbf{no single compaction $D^*(E)$ minimizes both $L_{\mathrm{succ}}$ and $L_{\mathrm{op}}$}. A single-pipeline compaction necessarily starves either task continuation or human oversight.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Construct a trace $E = E_{\mathrm{work}} \cup E_{\mathrm{breach}}$, where $E_{\mathrm{work}}$ consists of $k$ safe, valid AST transformations ($L_{\mathrm{succ}}$ increases by $\Theta(k)$ if omitted; $\mathrm{regret}(e) = 0$), and $E_{\mathrm{breach}}$ consists of an attempted irreversible socket connection that was blocked and rolled back ($L_{\mathrm{succ}}$ increases by $0$ if omitted since the branch is dead; $\mathrm{regret}(e) = \mathrm{stakes} \times \mathrm{anomaly} = \text{maximal}$). Under budget $B < |E_{\mathrm{work}}| + |E_{\mathrm{breach}}|$, any compaction prioritizing $E_{\mathrm{work}}$ has $L_{\mathrm{op}} = \text{maximal}$ (the operator is blind to the breach attempt), while any compaction prioritizing $E_{\mathrm{breach}}$ has $L_{\mathrm{succ}} \gg 0$ (the successor loses necessary variable bindings). Hence $R_1$ and $R_2$ have strictly non-comonotone preferences, requiring distinct compaction heads. \qed
+\end{proof}
+
+\paragraph{Architectural Corollary: The SLM Sidecar.}
+Theorem~\ref{thm:split-digest} dictates that the system must never ask the worker agent to author its own operator-facing summary (which invites self-attestation bias and Potemkin digests~\S\ref{sec:verifiable}). Instead, the architecture establishes two separate pipelines:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Task-Continuation Head ($R_1$):} Authored by the worker agent or structured state-checkpoints, optimized for continuation fidelity.
+\item \textbf{Oversight Head ($R_2$):} Authored out-of-band by an embedded, air-gapped \textbf{Small Language Model (SLM) Sidecar} (e.g., a local 8B model running via \texttt{llama.cpp}) that reads raw kernel events and disk diffs as data, computing $\mathrm{regret}(x)$ and surfacing truthful digests without worker collusion.
+\end{enumerate}
+
 \input{figures/legible-swarm-read-surfaces}
+
+\subsection{Context paging: virtual memory for the context window}\label{sec:context-paging}
+
+Context compaction can be formalized as \textbf{virtual memory for language models}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
+
+\begin{theorem}[Context Paging Competitiveness]\label{thm:paging}
+Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to load-bearing spans verified by deterministic structural features), the online paging cost satisfies the resource-augmented competitive bound of Sleator--Tarjan~\cite{sleatortarjan1985}; for the weighted case (pages of nonuniform size and refetch cost, which context spans are), the same guarantee is carried by Young's \textsc{Landlord} algorithm~\cite{young2002landlord}:
+\begin{equation}
+\mathrm{Cost}_{\mathrm{online}} \;\le\; \frac{k}{k - h + 1} \cdot \mathrm{OPT} \;+\; \phi N c_{\mathrm{refetch}},
+\end{equation}
+where $h \le k$ is the size of the verifiable pinned set, and $\phi \in [0, 1]$ represents the fraction of forgeable/unverified features subject to adversarial eviction. Under marking with randomized eviction, competitiveness against oblivious adversaries improves to $O(\log k)$.
+\end{theorem}
+
+\noindent\emph{Status: proposed.} The unweighted bound is classical; the weighted transfer and the adversarial $\phi$-degradation term are stated here as design targets, with the formal proof carried as item B9 of the research ledger (\emph{the $\phi$ budget is shared with the digest floor's forgeable-feature budget --- one number, two mechanisms}).
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
 \textbf{Pheromone decay} --- multiplying every stored coordination trace by a decay
@@ -1618,7 +1689,7 @@ real leverage over the actor.
 
 \subsection{M\^etis is Hayek, and some of it cannot be made legible}\label{sec:hayek}
 
-The honest admission of \S\ref{sec:flatten} --- that a read-path to the diff is more
+The formal constraint of \S\ref{sec:flatten} --- that a read-path to the diff is more
 legibility, not m\^etis --- has a 1945 economics name. \textbf{Hayek}, \emph{The Use
 of Knowledge in Society} (1945~\cite{hayek1945} --- \emph{the knowledge that matters
 is dispersed, particular to time and place, and not aggregable by any central
@@ -1768,7 +1839,7 @@ inspectable present (digest-with-zoom), and the projected future (freeze-probe S
 
 The wedge is the single-player product. But the same legibility discipline applied to
 \emph{continuity} is the load-bearing wall of everything above it. The through-line
-the companion papers depend on is one sentence:
+the accompanying chapters depend on is one sentence:
 
 \pullquote{The economy rests on three continuity organs --- memory, checkpoint
 (today, notes rather than true execution state), and a witnessed-outcome ledger
@@ -1837,7 +1908,7 @@ The ranker-as-political-organ regress (Ex.~9.4) & $\star\star$ & Prop.~\ref{prop
 \end{tabular}
 \caption{The paper's open problems, consolidated from the starred exercises, with
 difficulty and the mechanism each couples to. Several couple this layer forward to the
-identity-and-reputation layer, which is the seam the companion papers carry.}
+identity-and-reputation layer, which is the seam the accompanying chapters carry.}
 \label{tab:open}
 \end{table}
 
@@ -2060,6 +2131,16 @@ John R.\ Douceur.
 Elinor Ostrom.
 \newblock \textit{Governing the Commons: The Evolution of Institutions for Collective Action}. Cambridge University Press, 1990.
 
+\bibitem{sleatortarjan1985}
+Daniel D.\ Sleator and Robert E.\ Tarjan.
+\newblock Amortized efficiency of list update and paging rules.
+\newblock \textit{Communications of the ACM}, 28(2):202--208, 1985.
+
+\bibitem{young2002landlord}
+Neal E.\ Young.
+\newblock On-line file caching.
+\newblock \emph{Algorithmica}, 33(3):371--383, 2002.
+
 \end{thebibliography}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -2150,7 +2231,7 @@ used) has to stay expressible, or the system cannot reason about a capability it
 possesses but is not permitted to exercise.
 \item \textbf{Two distinct delegation objects.} The \emph{authorization chain} is a
 cryptographic, hop-bound, attenuation-monotonic delegation chain (a security object,
-developed in the companion protocol paper). The \emph{delegation trace} is the
+developed in Chapter~V). The \emph{delegation trace} is the
 coordination object over which loop-detection runs (a liveness object, in this paper's
 protocol layer). They are different artifacts with different invariants; ``delegation
 chain'' unqualified conflates a security claim with a coordination claim and must be
@@ -2159,5 +2240,20 @@ avoided.
 boot-gate-enforced states only (Prop.~\ref{prop:regiment}); a detect-and-compensate
 monitor never earns the phrase.
 \end{itemize}
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Limitations \& Boundaries}\label{sec:limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+
+\begin{itemize}
+    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+\end{itemize}
+
+These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}

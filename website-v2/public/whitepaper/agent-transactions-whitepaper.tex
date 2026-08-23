@@ -54,13 +54,34 @@
     \node[draw=none,fill=hhsand!40,line width=0pt,
           inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
           align=left] (q) {%
-      \sffamily\itshape\large #1%
+      \itshape\large #1%
     };
     \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
 % ─── Listings Setup ──────────────────────────────────────────────────────────
+\lstdefinestyle{pdcode}{
+  language=C,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=15pt,
+  xrightmargin=5pt,
+  framexleftmargin=15pt,
+  captionpos=b
+}
+
 \lstdefinestyle{tlaplus}{
   backgroundcolor=\color{codebg},
   frame=single,
@@ -199,7 +220,7 @@ The paper builds in four layers; each layer carries a load-bearing formal claim 
 \toprule
 \textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
 \midrule
-\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; companion Anchor paper \\
+\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; Chapter~V (\emph{The Anchor Protocol}) \\
 \textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
 \textbf{(3) Economic alignment} & Competitive-insurance auction; conditional Monte Carlo comparison & \S\ref{sec:youle}; \S\ref{sec:youle:welfare} \\
 \textbf{(4) Governance} & Sen-inspired design warning; advisory-conflict completeness & \S\ref{sec:sen}--\S\ref{sec:advisory} \\
@@ -212,13 +233,13 @@ The paper builds in four layers; each layer carries a load-bearing formal claim 
 \item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Formal Verification Status). The artifact registry is the most concentrated signal of what is and is not proved.
 \item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
 \item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
-\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then the companion Anchor Protocol paper for the cryptographic-token protocol detail.
+\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then Chapter~V (\emph{The Anchor Protocol}) for the cryptographic-token protocol detail.
 \item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
 \item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{Companion paper.} \emph{The Anchor Protocol: A Mechanically Analyzed Control Plane for Local Agent Swarms} (Owens 2026) is the cryptographic-token half of this work --- self-contained ProVerif models of the three Harbor Card phases, cuckoo-filter revocation, and bounded multi-hop delegation. Either paper can be read first; this one carries the economic and governance argument, the companion paper carries the cryptographic protocol detail.
+\noindent\textbf{Volume Context.} Chapter~V (\emph{The Anchor Protocol}) provides the cryptographic-token foundation for this work: self-contained ProVerif models of the Harbor Card phases, cuckoo-filter revocation, and bounded multi-hop delegation. This chapter carries the economic and governance argument, while Chapter~V carries the cryptographic protocol detail.
 
 \newpage
 \tableofcontents
@@ -259,7 +280,7 @@ We present:
   \item The design of a \textbf{collateralized work contract} system (Float Plans) that prices agent risk and settles outcomes mechanically, transforming the moral question of agent trustworthiness into the economic question of adequate bonding (Section~\ref{sec:economic}).
 \end{enumerate}
 
-The security layer (agent authentication and capability delegation) is provided by the Anchor Protocol~\cite{owens2026anchor}, a companion paper. This paper builds the trust, governance, and economic layers on top of that cryptographic foundation.
+The security layer (agent authentication and capability delegation) is provided by the Anchor Protocol~\cite{owens2026anchor}, a accompanying chapter. This paper builds the trust, governance, and economic layers on top of that cryptographic foundation.
 
 \subsection{Related Work in Crypto-Economic Bonding}\label{sec:related-bonding}
 
@@ -398,6 +419,9 @@ The choice between $I_1$ and $I_2$ is not a security decision---it is an economi
 \subsection{Runtime Invariant Enforcement}
 
 Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
+
+\paragraph{Regimentation vs. Enforcement (OP-2).}
+This design formalizes \textbf{Synchronous State Decidability} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 2: Immutable Attribution}\label{sec:attribution}
@@ -554,19 +578,34 @@ The commons authority's role under advisory claims is that of \emph{town crier},
 
 \subsection{Governance, Disputes, and Appeals}\label{sec:governance}
 
-Advisory coordination produces consistent allocation when agents share information honestly. It can still produce \emph{disputes}: two agents legitimately need overlapping files; one agent's claim turned out to be precautionary and is now blocking real work; a third agent observed evidence that a claimed task has been abandoned. These disputes do not threaten the commons' integrity---attribution, capability bounds, and settlement records remain intact---but they do require a resolution path. Without one, advisory claims silently degrade into squatter rule (whoever claimed first holds indefinitely) and the Pareto benefit of \S\ref{sec:sen} evaporates.
+Advisory coordination produces consistent allocation when agents share information formally. It can still produce \emph{disputes}: two agents legitimately need overlapping files; one agent's claim turned out to be precautionary and is now blocking real work; a third agent observed evidence that a claimed task has been abandoned. These disputes do not threaten the commons' integrity---attribution, capability bounds, and settlement records remain intact---but they do require a resolution path. Without one, advisory claims silently degrade into squatter rule (whoever claimed first holds indefinitely) and the Pareto benefit of \S\ref{sec:sen} evaporates.
 
 \paragraph{Resolution path.} The commons authority provides four mechanisms, in order of increasing escalation (Figure~\ref{fig:governance-flow}):
 \begin{enumerate}[nosep]
   \item \textbf{Direct release.} The original claimant releases the claim. This is the equilibrium when the conflict-graph signal reaches them and the claim was precautionary.
   \item \textbf{Time-out release.} Claims carry TTLs. A claim whose holder has not heartbeated within the TTL window is released automatically; downstream agents observe the release in their next poll. This is the equilibrium for crashed or abandoned claimants.
   \item \textbf{Bonded preemption.} A blocked agent may post an additional bond---bounded by the cleanup cost of \S\ref{sec:cleanup-bound}---to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is rare by design: the bond is large enough that an agent prefers waiting to preempting unless the wait cost dominates.
+
+\paragraph{The Advisory Claims Paradox and Deterministic Hard-Lock Fallback.}
+Advisory claims risk an endless retry/thrashing loop if two LLM-backed agents mutually ignore advisory warnings. To break this paradox, the daemon implements a \textbf{Deterministic Hard-Lock Fallback}: if advisory conflicts on a resource exceed $k$ turns without resolution, the daemon escalates the advisory claim into an enforced POSIX file-level lock, rejecting all subsequent writes from un-holding agents until release.
+
+\paragraph{Stigmergic Ticket-Lock (OP-1: Fair Exclusion).}
+To prevent starvation during high contention, the daemon replaces chaotic retries with a \textbf{Stigmergic Ticket-Lock}. The lock is managed via a strict SQLite schema:
+\begin{lstlisting}[style=pdcode]
+CREATE TABLE claim_tickets (
+  resource_id TEXT,
+  agent_id TEXT,
+  ticket_number INTEGER PRIMARY KEY AUTOINCREMENT,
+  status TEXT DEFAULT 'waiting' -- 'waiting', 'active', 'released'
+);
+\end{lstlisting}
+Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. This guarantees fair exclusion without central scheduling.
   \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
 \end{enumerate}
 
 \input{figures/fig-governance-flow}
 
-\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of vibe time, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
+\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of semantic cadence, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
 \begin{property}[Appeal Soundness]\label{prop:appeal-sound}
 The appeals path does not weaken the immutability of the evidence chain (\S\ref{sec:attribution}): no record is rewritten. Reversal appends a counter-record signed by the daemon, with a Merkle-Forest proof of the original settlement's position and the appellant's evidence. The chain grows monotonically.
@@ -642,17 +681,17 @@ The moral relativism problem---that a bad actor may view information destruction
 A Float Plan $\mathcal{F}$ is a collateralized work contract consisting of:
 \begin{enumerate}[nosep]
   \item \textbf{Manifest}: A declaration of intent---which files will be touched, expected duration, acceptance criteria (e.g., ``tests pass,'' ``code review approved'').
-  \item \textbf{Escrow}: Credits posted by the principal, locked in the commons authority's ledger for the duration of the work. The escrow amount reflects the risk to the commons.
+  \item \textbf{Escrow}: Credits posted by the principal, locked in a \textbf{2-of-3 Multisig Clearinghouse} (Harbor A, Harbor B, Federation Arbiter) for the duration of the work. The escrow amount reflects the risk to the commons.
   \item \textbf{Signatures}: The principal signs the Float Plan (Ed25519). The commons authority countersigns, certifying that the escrow is locked and the manifest is registered.
 \end{enumerate}
 \end{definition}
 
-The Float Plan is a \emph{futures contract on agent labor}. The principal sells a promise of work. The commons authority is the clearinghouse---it holds escrow, registers the manifest, and will settle the outcome using the evidence chain.
+The Float Plan is a \emph{futures contract on agent labor}. The principal sells a promise of work. A 2-of-3 Multisig Clearinghouse manages the contract. Under the non-custodial happy path, both Harbors sign off on completion and the Arbiter is unnecessary. Under dispute, the Federation Arbiter steps in to provide cryptographic judicial arbitration, settling the outcome using the immutable evidence chain.
 
 \subsection{Settlement}
 
 \begin{definition}[Settlement]\label{def:settlement}
-When a Float Plan's session reaches a terminal state, the commons authority settles the escrow:
+When a Float Plan's session reaches a terminal state, the Multisig Clearinghouse settles the escrow:
 \begin{description}[nosep]
   \item[Success:] The evidence trail demonstrates that acceptance criteria are met (tests pass, file diffs match manifest scope, code review approved). Escrow is released to the agent or its principal.
   \item[Partial completion:] The agent completed some work before crashing or aborting. The Merkle-chained evidence trail enables pro-rata assessment: the fraction of acceptance criteria met determines the fraction of escrow released. The remainder is available to fund the successor's completion via salvage.
@@ -701,15 +740,15 @@ The stage-game payoffs, in expected-utility units calibrated to the cleanup cost
 \toprule
  & $B$: T & $B$: F \\
 \midrule
-$A$: T & $(3,\,3)$ & $(1,\,4)$ \\
-$A$: F & $(4,\,1)$ & $(0,\,0)$ \\
+$A$: T & $(3,\,3)$ & $(0,\,4)$ \\
+$A$: F & $(4,\,0)$ & $(1,\,1)$ \\
 \bottomrule
 \end{tabular}
-\caption{One-shot file-claim signaling: a prisoner's dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player. The unique one-shot Nash equilibrium is $(F,F)$, which destroys the coordination signal.}
+\caption{One-shot file-claim signaling: a classical Prisoner's Dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player ($4>3$ and $1>0$). The unique one-shot Nash equilibrium is $(F,F)$ yielding $(1,1)$, destroying the coordination signal.}
 \label{tab:claim-stage-game}
 \end{table}
 
-The stage game is a prisoner's dilemma: $F$ strictly dominates $T$ for each player, and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
+The stage game is a strict Prisoner's Dilemma: $F$ strictly dominates $T$ for each player ($4 > 3$ against $T$, $1 > 0$ against $F$), and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
 
 \paragraph{Move to the repeated game.}
 What rescues truthful signaling is that the agents are not playing the stage game once. The substrate provides:
@@ -731,35 +770,35 @@ Each agent plays the following strategy on each file:
 Graduated trigger, not grim trigger. The cartel analysis of \S\ref{sec:youle:a6} uses grim trigger because that gives the cleanest folk-theorem bound, and the analysis below uses grim trigger for the same reason where the calculation is short enough to be exact. The \emph{production} strategy is graduated for the reason given in \S\ref{sec:crash-recovery}: crashes and deliberate defection are operationally indistinguishable from any third-party observer's vantage. Permanent punishment for a transient infrastructure event would destroy cooperation faster than any saboteur could.
 
 \paragraph{Deviation analysis.}
-Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $d - c = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $p = 0$ instead of the cooperative $c = 3$. Discounted at $\delta$:
+Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $d - c = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $p = 1$ instead of the cooperative $c = 3$ (a net loss of $c - p = 2$ per round). Discounted at $\delta$:
 \[
-\text{PV of lost cooperative payoff} \;=\; (c - p) \cdot (\delta + \delta^2 + \delta^3) \;=\; 3 \cdot (\delta + \delta^2 + \delta^3).
+\text{PV of lost cooperative payoff} \;=\; (c - p) \cdot (\delta + \delta^2 + \delta^3) \;=\; 2 \cdot (\delta + \delta^2 + \delta^3).
 \]
-At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviator's net payoff is $1 - 3 \cdot 2.439 = 1 - 7.317 = -6.317$, strictly negative. Deviation is strictly unprofitable.
+At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviator's net payoff is $1 - 2 \cdot 2.439 = 1 - 4.878 = -3.878$, strictly negative. Deviation is strictly unprofitable.
 
 \paragraph{Critical $\delta$.}
-The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(c, d, p) = (3, 4, 0)$ is
+The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(c, d, p) = (3, 4, 1)$ is
 \[
 \underbrace{d - c}_{\text{one-shot gain}} \;<\; \underbrace{(c - p) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
 \]
-Substituting $d - c = 1,\; c - p = 3$ and $k = 3$ gives $1 < 3\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.253$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/4 = 0.25$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.003$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys.
+Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.342$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/3 \approx 0.333$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.009$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys.
 
 \begin{proposition}[Claim Signaling Incentive Compatibility]\label{prop:claim-signaling-ic}
-Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-resistant identity regime of the Anchor Protocol~\cite{owens2026anchor}, truthful file-claim signaling is a Nash equilibrium of the repeated coordination game with stage-game payoffs as in Table~\ref{tab:claim-stage-game} for any discount factor $\delta > \delta^\star_{k=3} \approx 0.253$, when both players adopt the three-round graduated-trigger strategy described above. The bound is tight: for $\delta \leq \delta^\star_{k=3}$ at least one player has a strictly profitable one-shot deviation under the three-round trigger, and for $\delta \leq 1/4$ no trigger of finite or infinite duration sustains $(T,T)$.
+Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-resistant identity regime of the Anchor Protocol~\cite{owens2026anchor}, truthful file-claim signaling is a Nash equilibrium of the repeated coordination game with stage-game payoffs as in Table~\ref{tab:claim-stage-game} for any discount factor $\delta > \delta^\star_{k=3} \approx 0.342$, when both players adopt the three-round graduated-trigger strategy described above. Under grim trigger, the critical bound is $\delta \ge 1/3$.
 \end{proposition}
 
 \paragraph{What each condition buys, and what breaks when it is removed.}
 The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
 \begin{itemize}[nosep]
   \item \emph{Remove observable history (\S\ref{sec:attribution}).} The repeated game collapses to repeated one-shot play: with no public record of prior actions, no trigger can fire, and both players play $F$ in every round. This is why the Merkle forest of \S\ref{sec:merkle-forest} is load-bearing for the claim signal, not just for post-hoc audit.
-  \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible. The Anchor protocol is therefore a precondition of this proposition, not an unrelated artifact; the audit caught that this dependency had been implicit.
-  \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.253$.} The three-round graduated trigger is insufficient. Either lengthen the punishment window (each additional round buys further headroom, asymptoting to the grim-trigger bound of $1/4$) or accept that the equilibrium does not bind for very short-lived principals. The latter is the regime where one-shot defectors (\S\ref{sec:crash-recovery}, the first adversary) live; \S\ref{sec:economic} prices them out rather than relying on equilibrium discipline.
-  \item \emph{Drop $\delta$ below $1/4$.} No trigger of any duration sustains $(T, T)$. The repeated game has the same equilibrium structure as the stage game, and only the bond mechanism of this section, not the signal itself, deters defection.
+  \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible.
+  \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.342$.} The three-round graduated trigger is insufficient. Either lengthen the punishment window or accept that the equilibrium does not bind for very short-lived principals.
+  \item \emph{Drop $\delta$ below $1/3$.} No trigger of any duration sustains $(T, T)$. The repeated game has the same equilibrium structure as the stage game, and only the bond mechanism of this section, not the signal itself, deters defection.
 \end{itemize}
 
 The forward reference is direct. Section~\ref{sec:youle:a6} reuses the same analytical pattern---stage game, repeated-game lift via observable history, deviation calculation, and a $\delta$ threshold---at the insurer pricing layer. The analogy is structural, not a transfer theorem: the payoff functions, monitoring signal, detection timing, and punishment regimes differ and must be derived separately.
 
-\paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $3\delta^3 + 3\delta^2 + 3\delta - 1 = 0$, numerically $\delta^\star \approx 0.2531$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.25,\,0.26]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.26$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
+\paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star \approx 0.342$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.34,\,0.35]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.35$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
 \subsection{Pricing the Bond}\label{sec:pricing}
 
@@ -784,6 +823,9 @@ For any Float Plan $\mathcal{F}$, $\pi(\mathcal{F}) \geq c$.
 
 \begin{proof}[Rationale]
 If $\pi(\mathcal{F}) < c$, breach is cheap: the bond is forfeit for less than the cleanup cost. If the commons pool funds cleanup, $\pi < c$ drains the commons per breach---the system bankrupts itself through enforcement. \qed
+
+\paragraph{The Cleanup Cost $c$ Fantasy.}
+The linear bond multiplier assumes $c$ is a bounded, predictable quantity. This is a fantasy for tasks with non-linear tail-risk ruin (e.g., dropping a production database or leaking a private key). Such tasks are fundamentally \emph{un-bondable}. Defense of these tasks is explicitly moved to Layer 1 capability confinement (isolation domains, zero-egress policies); economic deterrence at Layer 3 is only mathematically sound when $c$ is finite and observable.
 \end{proof}
 
 This is a floor, not a tight bound. It is observable from operations and trackable as a project health metric.
@@ -942,6 +984,8 @@ Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the
 
 A pure deposit-based Sybil deterrence policy is \emph{provably insufficient}, and the structure of the protocol explains why. An adversary spawns $K$ Sybil insurer identities, each posting the protocol-mandated deposit $B_{\mathrm{dep}}$, then undercuts honest bids by an arbitrarily small $\varepsilon$ and defaults on loss (Figure~\ref{fig:sybil-inline}).
 
+\textbf{Total Capital Forfeiture.} The arbitrary $\min(B_{\mathrm{dep}}, B_T)$ slash cap fails because it bounds the attacker's risk. To mathematically destroy the profitability of Sybil cartel undercutting, the protocol mandates \textbf{total capital forfeiture}: upon default, the \emph{entire} posted deposit $B_{\mathrm{dep}}$ is slashed, regardless of how small the coverage $B_T$ was. This converts a capped-risk arbitrage into a total-loss event.
+
 \input{figures/fig-sybil-inline}
 
 The naive expected-value calculation suggests breakeven at
@@ -1019,22 +1063,24 @@ Each expressive class has a different relationship to the cleanup cost of \S\ref
 Treating all coordination as one uniform ``bonded action'' misses the price-discovery differences. The Bonded Advisor (\S\ref{sec:bonded-advisor}) and the Competitive-Insurance market (\S\ref{sec:youle}) must price each class separately, or the market will collapse to its highest-stakes class and freeze out the rest.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Vibe Time and Observability}\label{sec:vibe}
+\section{Semantic Cadence, Agentic Psychosis, and Observability}\label{sec:vibe}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We introduce \emph{vibe time} as a causal-density temporal axis:
+Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We formally introduce \textbf{Semantic Cadence} (the Causal-Density Ratio) as the primary temporal axis:
 \[
-t_{\text{vibe}} \;=\; \int_{0}^{t} \mathrm{vibe\_rate}(\tau)\,d\tau
+t_{\text{cadence}} \;=\; \int_{0}^{t} \mathrm{causal\_density}(\tau)\,d\tau
 \]
-where $\mathrm{vibe\_rate}$ aggregates token-emission rate across active agents, weighted by surface area of effect (file claims, evidence trail growth, settlement events).
+where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weighted by verified evidence-trail growth (AST changes, test executions, or committed logic).
 
-\paragraph{Token-rate telemetry as first-class signal.} The daemon already records token usage per agent for billing. Promoted to a streaming signal, token rate becomes the substrate for: detecting stalled agents (rate $\to 0$), detecting runaway loops (rate without evidence-trail growth), and aligning visualizations to causal cadence rather than wall-clock cadence.
+\paragraph{Agentic Psychosis \& The Asylum Protocol.} Unbounded LLMs inevitably enter \emph{Agentic Psychosis}: hallucination loops characterized by extremely high token-generation rates but zero functional AST change. When the daemon detects a causal-density ratio approaching zero alongside high token-burn, it initiates \textbf{The Asylum Protocol}. The daemon sends \texttt{SIGSTOP} to the agent process, routes its context window through a secondary SLM (Small Language Model) sidecar for semantic compaction and Situation-in-the-Loop (SITF) prompt injection (``\emph{You are looping. Re-evaluate your last 3 steps against the active plan.}''), and then issues \texttt{SIGCONT}. This cures the hallucination loop without sacrificing session context.
+
+\paragraph{Inception Canaries (Gamified Chaos Engineering).} The daemon replaces traditional, UX-hostile skill-retention taxes with \textbf{Gamified Chaos Engineering}. The SLM sidecar routinely injects synthetic bugs (``Inception Canaries'') into the Attention Queue of loaded agents. If the agent successfully catches and resolves the injected bug, it is granted an Elo rating boost to its \texttt{skill\_hash} and higher subsequent autonomy limits (``God Mode''). If it fails or hallucinates around the bug, its blast radius is throttled.
 
 \paragraph{Replay JSONL as artifact.} Every settled session emits a JSONL replay log: events, notes, claims, settlements, in causal order. This is simultaneously: an audit artifact, a debugging tool, and---redacted---training data for downstream DPO/SFT.
 
 \paragraph{Privacy contract.} Replay is opt-in. Redaction strips secrets and PII. Encryption-at-rest applies the harbor session key (\S\ref{sec:federated-sovereign}). Eviction is LRU-bounded.
 
-We position vibe-time and replay not as a Port Daddy feature but as a category claim: \emph{multi-agent coding requires its own observability primitives}, and they are not the wall-clock metrics that single-process systems get away with.
+We position Semantic Cadence and its resultant protocols not as Port Daddy features but as a category claim: \emph{multi-agent coding requires its own observability primitives}, and they are not the wall-clock metrics that single-process systems get away with.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Formal Model}\label{sec:tlaplus}
@@ -1212,6 +1258,9 @@ By induction on $|\sigma|$, $S_P$ equals $S_P^{0}$ plus the sum of $\mathrm{topU
 Given two concurrent invocations $\mathrm{escrow}(b_1)$ and $\mathrm{escrow}(b_2)$ on the same project with $b_i \leq W_P^{\text{pre}}$ but $b_1 + b_2 > W_P^{\text{pre}}$, at most one invocation succeeds.
 \end{lemma}
 
+\paragraph{Implementation: Atomic RETURNING Clauses.}
+To enforce overdraft prevention atomically and avoid Node.js/TypeScript event-loop async yield vulnerabilities, the escrow state transition is written as a single SQLite statement with a \texttt{RETURNING} clause. This guarantees that balance checks and deductions occur within a synchronous, uninterruptible database step, preventing race conditions from interleaved async microtasks.
+
 \begin{proof}
 Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes them. Suppose $T_1$ wins. After commit, $W_P = W_P^{\text{pre}} - b_1$. $T_2$ now reads the updated balance and rejects iff $b_2 > W_P^{\text{pre}} - b_1$, which by assumption is true. \qed
 \end{proof}
@@ -1287,7 +1336,7 @@ Assuming Ed25519 and SHA-256 are secure, Argon2id parameters meet the 2026 secur
 
 The theorem deliberately excludes the same-user adversary (an unsandboxed agent, a malicious postinstall, a compromised editor extension). Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The \texttt{macOS Keychain} integration ships now; native keyring and hardware-backed keystore extend the theorem's reach to the same-user case.
 
-\paragraph{Recovery and its honest limits.} Recovery is email magic link. The honest limit: \emph{if the user loses both passphrase and old machine}, harbor session keys wrapped only for that pubkey cannot be recovered. This is the price of zero-knowledge at-rest encryption. An opt-in Shamir escrow mode~\cite{shamir1979share} ($t$-of-$n$ secret sharing across $\mathcal{K}$, email, and recovery contacts) trades some zero-knowledge for stronger recovery.
+\paragraph{Recovery and its structural limits.} Recovery is email magic link. The structural limit: \emph{if the user loses both passphrase and old machine}, harbor session keys wrapped only for that pubkey cannot be recovered. This is the price of zero-knowledge at-rest encryption. An opt-in Shamir escrow mode~\cite{shamir1979share} ($t$-of-$n$ secret sharing across $\mathcal{K}$, email, and recovery contacts) trades some zero-knowledge for stronger recovery.
 
 \paragraph{Passkeys, not passwords.} Identity is anchored in WebAuthn-backed device keypairs---no phishable secrets, no passphrase on the critical path of every action. New devices enroll by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. Mobile devices act as \emph{viewers}, not peers: they sign low-stakes actions (approve an ask, bump budget) over a WebSocket viewer channel, but they do not run the full daemon. Each account's harbors gossip Merkle roots among its own devices; cross-account gossip requires explicit signed consent.
 
@@ -1311,7 +1360,7 @@ We have argued that multi-agent collaboration at scale requires a commons author
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. Vibe time and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
+Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. semantic cadence and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
 
 The advisory design of the resource claim system is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
 
@@ -1324,7 +1373,7 @@ The infrastructure is running. The forest is building. The covenants are auditab
 
 \section{Formal Verification Status}\label{app:mech}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (companion paper~\cite{owens2026anchor}, \S5).
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (accompanying chapters, \S5).
 
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
@@ -1383,7 +1432,7 @@ $P$ estimates the cleanup cost of $\alpha$'s defection or sabotage at \$5---one 
 
 Before $\alpha$ writes a single byte, two artifacts must exist: a capability that bounds what $\alpha$ can touch, and a bond that prices what $\alpha$ might break.
 
-\paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, companion paper~\cite{owens2026anchor}) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
+\paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, accompanying chapters) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
 
 \paragraph{Step 2: Bond posting (Layer 3).} With the capability in place, the Bonded Advisor (\S\ref{sec:pricing}) quotes a bond proportional to the cleanup cost: $B_\alpha = \$5 \cdot (1 + s) = \$6$ at slope $s = 0.2$. $P$ posts \$6 into escrow. The settlement preconditions are now fixed up front: (1) acceptance criteria met $\Rightarrow$ \$6 returned, (2) partial completion $\Rightarrow$ pro-rata, (3) sabotage $\Rightarrow$ \$6 liquidated to the commons treasury. The bond is the conversion of $\alpha$'s ``character'' into a settled amount; once it is posted, the question of whether $\alpha$ is trustworthy is no longer load-bearing.
 
@@ -1428,7 +1477,7 @@ These exercises are for instructors using this paper in a systems, mechanism-des
 
 \paragraph{E2 (Mechanism design).} A reader proposes: ``Eliminate bonds. Use post-hoc reputation slashing instead---an agent that defects loses reputation points and is excluded from future work.'' Identify two specific failure modes of this proposal that the bonded design avoids. Hint: consider the first-mover problem and Sybil identities.
 
-\paragraph{E3 (Formal verification).} Sketch the ProVerif process for the magic-link recovery protocol (companion paper~\cite{owens2026anchor}, Phase~2). What is the secrecy property you would prove? What is the authentication property? Identify one attacker capability ProVerif would need to model that is not present in the Phase~1 Harbor Card model.
+\paragraph{E3 (Formal verification).} Sketch the ProVerif process for the magic-link recovery protocol (accompanying chapters, Phase~2). What is the secrecy property you would prove? What is the authentication property? Identify one attacker capability ProVerif would need to model that is not present in the Phase~1 Harbor Card model.
 
 \paragraph{E4 (Coverage-bound A5).} The A5 finding (\S\ref{sec:youle:a5}) shows that pure deposit deterrence is bounded by the auction coverage $B_T = \mu(1+s)$. Construct an attacker who exploits this bound directly. Then construct a defense---other than ``raise the deposit''---that defeats the attacker. Hint: see the composite mechanism $C_{kyc} + \text{reputation gating} + B_{dep}^{\text{per-class}}$.
 
@@ -1639,5 +1688,20 @@ DataDome.
 \newblock \texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \end{thebibliography}
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Limitations \& Boundaries}\label{sec:limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+
+\begin{itemize}
+    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+\end{itemize}
+
+These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}
