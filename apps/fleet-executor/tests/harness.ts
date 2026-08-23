@@ -783,6 +783,8 @@ export function aiStub(opts: {
    * and heals on the repair retry (src/repair.ts).
    */
   perShipQueue?: Record<string, string[]>;
+  /** Hook fired after each AI call is recorded but before its response returns. */
+  onCall?: (call: AiStub['calls'][number]) => void | Promise<void>;
 }): AiStub {
   const calls: AiStub['calls'] = [];
   const withUsage = (response: string): Record<string, unknown> =>
@@ -810,7 +812,9 @@ export function aiStub(opts: {
 
     // --- REDUCE manager call ---
     if (/REDUCE manager/.test(sys)) {
-      calls.push({ model, phase: 'reduce', ship, temperature: args.temperature });
+      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature };
+      calls.push(call);
+      await opts.onCall?.(call);
       if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
       const mgr = opts.managerOutput;
       const out =
@@ -819,7 +823,9 @@ export function aiStub(opts: {
     }
 
     // --- MAP call ---
-    calls.push({ model, phase: 'map', ship, temperature: args.temperature });
+    const call = { model, phase: 'map' as const, ship, temperature: args.temperature };
+    calls.push(call);
+    await opts.onCall?.(call);
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
       return withUsage(shipResponse(ship));
