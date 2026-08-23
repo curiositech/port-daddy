@@ -212,8 +212,31 @@ describe('session-link join path', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('assignee join path', () => {
+  function hasAssigneeColumn() {
+    return db
+      .prepare('PRAGMA table_info(roadmap_items)')
+      .all()
+      .some((column) => column.name === 'assignee_id');
+  }
+
+  // The shared test schema (tests/setup-unit.js) grew `assignee_id` when the
+  // ADR-0086 planner columns landed, so this is now usually a no-op. It stays
+  // because these tests must also pass against a mirror that predates the
+  // column — adding it unconditionally is what made them fail once the mirror
+  // caught up.
   function addAssigneeColumn() {
-    db.exec('ALTER TABLE roadmap_items ADD COLUMN assignee_id TEXT');
+    if (!hasAssigneeColumn()) {
+      db.exec('ALTER TABLE roadmap_items ADD COLUMN assignee_id TEXT');
+    }
+  }
+
+  // The legacy case has to be constructed now that the shared schema provides
+  // the column; without this the test passes for the wrong reason and stops
+  // exercising the missing-column path at all.
+  function dropAssigneeColumn() {
+    if (hasAssigneeColumn()) {
+      db.exec('ALTER TABLE roadmap_items DROP COLUMN assignee_id');
+    }
   }
 
   test('assignee resolving to a registered live agent appears', () => {
@@ -270,8 +293,12 @@ describe('assignee join path', () => {
   });
 
   test('legacy schema without assignee_id column degrades gracefully', () => {
-    // The default test schema has no assignee_id — must not throw.
+    // Seed first: the current roadmapItems.upsert writes assignee_id
+    // unconditionally, so a table lacking the column cannot be written to at
+    // all. What lib/roadmap-activity.ts degrades gracefully about is the READ,
+    // so drop the column after the row exists and read through it.
     upsertItem('legacy-slice');
+    dropAssigneeColumn();
     const view = activity.itemActivity('legacy-slice');
     expect(view.assigneeId).toBeNull();
     expect(view.attachments).toHaveLength(0);
