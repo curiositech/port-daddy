@@ -98,12 +98,14 @@ export async function fetchRoadmapItems(options: {
   harbor?: string;
   project?: string;
   limit?: number;
+  tag?: string;
 } = {}): Promise<RoadmapItem[]> {
   const params = new URLSearchParams();
   if (options.status) params.set('status', options.status);
   if (options.harbor) params.set('harbor', options.harbor);
   if (options.project) params.set('project', options.project);
   if (options.limit) params.set('limit', String(options.limit));
+  if (options.tag) params.set('tag', options.tag);
   const raw = params.toString();
   // Build the query suffix with the `?` already attached so the call site is a
   // flat `${PORT_DADDY_URL}/roadmap/items${qs}` — a nested-backtick ternary
@@ -213,7 +215,31 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
   }
 
   if (sub === 'claim-link' || sub === 'link') {
+    // `pd roadmap link <slug> --pr N | --doc <path> | --file <path> | --media <path>`
+    // is the Jira-card artifact-link verb (2026-08-22 mandate). Without one of
+    // those flags, bare `link` keeps its legacy claim-link meaning so existing
+    // muscle memory (`pd roadmap link <slug> --session <id>`) is unbroken.
+    const wantsArtifactLink =
+      sub === 'link'
+      && (options.pr !== undefined
+        || options.doc !== undefined
+        || options.file !== undefined
+        || options.media !== undefined);
+    if (wantsArtifactLink) {
+      await handleRoadmapItemLink(args.slice(1), options, 'link');
+      return;
+    }
     await handleRoadmapClaimLink(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'unlink') {
+    await handleRoadmapItemLink(args.slice(1), options, 'unlink');
+    return;
+  }
+
+  if (sub === 'links') {
+    await handleRoadmapLinksList(args.slice(1), options);
     return;
   }
 
@@ -222,6 +248,7 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
   const project = readOption(options, 'project');
   const statusRaw = readOption(options, 'status') as RoadmapStatus | 'all' | undefined;
   const status = statusRaw ?? 'now';
+  const tagFilter = firstTagOption(options);
 
   // ADR-0033: the `roadmap_items` SQL table is the single source of truth.
   // `pd roadmap` lists from the table via the daemon, NOT by re-parsing
@@ -229,7 +256,13 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
   // get folded into the table via `pd roadmap import-markdown` / `promote`).
   let items: RoadmapItem[];
   try {
-    items = await fetchRoadmapItems({ status, harbor, project, limit: limit > 0 ? limit : undefined });
+    items = await fetchRoadmapItems({
+      status,
+      harbor,
+      project,
+      limit: limit > 0 ? limit : undefined,
+      tag: tagFilter,
+    });
   } catch (error) {
     ui.error(error instanceof Error ? error.message : 'Failed to read roadmap_items from the daemon');
     process.exit(1);
@@ -268,6 +301,7 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
       if (item.estimate) meta.push(`est ${item.estimate}`);
       if (item.assigneeId) meta.push(`@${item.assigneeId}`);
       if (item.dueAt) meta.push(`due ${new Date(item.dueAt).toISOString().slice(0, 10)}`);
+      if (item.tags?.length) meta.push(item.tags.map((t) => `#${t}`).join(' '));
       console.log(`  - ${item.slug} [${meta.join(' · ')}]`);
       if (head) console.log(`    ${head}`);
     }
@@ -643,10 +677,10 @@ function roadmapNote(actor: string, text: string | undefined): { at: number; by:
 }
 
 /**
- * Parse a whole-number planner flag (`--priority`, `--estimate`) inside an
- * inclusive band. Returns undefined when the operator's value is not a whole
- * number in that band, so the caller can reject it the way it rejects a bad
- * date.
+ * Parse a whole-number planner flag (`--priority`, `--estimate`, `--actual`)
+ * inside an inclusive band. Returns undefined when the operator's value is not
+ * a whole number in that band, so the caller can reject it the way it rejects
+ * a bad date.
  *
  * Why the CLI rejects rather than leaning on the server's sanitizers: the
  * daemon's `clampPriority` / `positiveOrNull` pass (lib/roadmap-items.ts) does
@@ -720,14 +754,50 @@ export function parseWhenFlag(raw: string | undefined): number | undefined {
   return roundTrips ? ms : undefined;
 }
 
+/**
+ * Collect every `--tag` occurrence into a string list.
+ *
+ * Why a dedicated reader: `--tag` is registered as a REPEATABLE flag, so the
+ * parser hands us a string for one occurrence and an array for several — and
+ * `true` when someone types a bare `--tag`. The design intent is that tag
+ * authoring is order-preserving and forgiving: non-string noise is dropped
+ * here so the daemon-side normalizer only ever sees candidate strings.
+ *
+ * @param options - Parsed CLI options.
+ * @returns The tags in flag order, or undefined when none were passed.
+ */
+function collectTagOptions(options: CLIOptions): string[] | undefined {
+  const raw = options.tag;
+  if (raw === undefined) return undefined;
+  const list = Array.isArray(raw) ? raw : [raw];
+  const tags = list.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+  return tags.length > 0 ? tags : undefined;
+}
+
+/**
+ * The single `--tag` value used as a LIST FILTER (`pd roadmap --tag x`).
+ *
+ * Why first-only: the list route's `?tag=` contract is one exact tag; passing
+ * several to a filter would silently OR or AND depending on reader intuition,
+ * so the CLI keeps the filter unambiguous by using the first and ignoring the
+ * rest (authoring, by contrast, consumes all of them via collectTagOptions).
+ *
+ * @param options - Parsed CLI options.
+ * @returns The first tag string, or undefined.
+ */
+function firstTagOption(options: CLIOptions): string | undefined {
+  return collectTagOptions(options)?.[0];
+}
+
 async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise<void> {
   const slug = readRoadmapSlug(args, options);
   const summaryMd = readRoadmapSummary(args, options);
   if (!slug || !summaryMd) {
     ui.error(
       'Usage: pd roadmap upsert <slug> --summary <md> [--status <now|backlog|parked|merge|done>] ' +
-        '[--kind <project|epic|story|task|subtask|bug|chore>] [--priority <1-5>] [--estimate <units>] ' +
-        '[--start <YYYY-MM-DD|+Nd>] [--due <YYYY-MM-DD|+Nd>] [--assignee <id>] [--description <md>] [--as <agentId>]',
+        '[--kind <project|epic|story|task|subtask|bug|chore>] [--priority <1-5>] [--estimate <units>] [--actual <units>] ' +
+        '[--start <YYYY-MM-DD|+Nd>] [--due <YYYY-MM-DD|+Nd>] [--assignee <roster-id>] [--unassign] ' +
+        '[--tag <t>]... [--clear-tags] [--description <md>] [--as <agentId>]',
     );
     process.exit(1);
   }
@@ -770,8 +840,29 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
     }
     body.estimate = parsed;
   }
+  // --actual carries the SAME NaN-clears-the-field hazard as --estimate (both
+  // ride positiveOrNull, and NaN serializes to the null CLEAR sentinel), so it
+  // gets the same in-band CLI check rather than inheriting the silent wipe.
+  const actual = readOption(options, 'actual');
+  if (actual) {
+    const parsed = parseBandedIntFlag(actual, 1, Number.MAX_SAFE_INTEGER);
+    if (parsed === undefined) {
+      ui.error(`--actual '${actual}' is not a positive whole number of effort units`);
+      process.exit(1);
+    }
+    body.actual = parsed;
+  }
+  // Durable owner: --assignee takes a roster agentNodeId or slug (the daemon
+  // validates against the durable-agent roster and 400s unknown owners);
+  // --unassign sends the explicit null that clears ownership.
   const assignee = readOption(options, 'assignee', 'assigneeId');
-  if (assignee) body.assigneeId = assignee;
+  if (options.unassign) body.assigneeId = null;
+  else if (assignee) body.assigneeId = assignee;
+  // Tags: repeatable --tag sets the tag list; --clear-tags sends [] (the
+  // explicit empty set), which wins over any --tag on the same invocation.
+  const tags = collectTagOptions(options);
+  if (options['clear-tags']) body.tags = [];
+  else if (tags) body.tags = tags;
   const description = readOption(options, 'description', 'descriptionMd', 'body');
   if (description) body.descriptionMd = description;
   const startRaw = readOption(options, 'start', 'startedAt');
@@ -802,8 +893,9 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
     ui.success(`Roadmap item '${item.slug}' upserted`);
     console.log(`  status:  ${item.status}`);
     console.log(`  harbor:  ${item.harbor}`);
-    console.log(`  kind:    ${item.kind} · P${item.priority}${item.estimate ? ` · est ${item.estimate}` : ''}`);
+    console.log(`  kind:    ${item.kind} · P${item.priority}${item.estimate ? ` · est ${item.estimate}` : ''}${item.actual ? ` · actual ${item.actual}` : ''}`);
     if (item.assigneeId) console.log(`  owner:   ${item.assigneeId}`);
+    if (item.tags?.length) console.log(`  tags:    ${item.tags.map((t) => `#${t}`).join(' ')}`);
     if (item.dueAt) console.log(`  due:     ${new Date(item.dueAt).toISOString().slice(0, 10)}`);
   } catch (error) {
     ui.error(error instanceof Error ? error.message : 'roadmap upsert failed');
@@ -1282,6 +1374,172 @@ async function emitChompPrPlan(
   console.log(ui.dim(`  xargs git rm < ${join(dir, 'remove-docs.txt')}`));
   console.log(ui.dim('  git add docs/roadmap/roadmap.snapshot.json docs/roadmap/receipts'));
   console.log(ui.dim(`  git commit; open the PR with ${join(dir, 'pr-body.md')} as the body`));
+  console.log('');
+}
+
+type RoadmapLinkKind = 'pr' | 'doc' | 'file' | 'media';
+
+interface RoadmapItemLinkRow {
+  kind: RoadmapLinkKind;
+  targetId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Read the one link selector flag (`--pr N | --doc p | --file p | --media p`)
+ * the artifact link/unlink verbs operate on.
+ *
+ * Why exactly-one: a link is a single typed fact; accepting several selectors
+ * in one invocation would force the CLI to guess batching semantics (all-or-
+ * nothing? per-link errors?). The design keeps the verb atomic — one flag,
+ * one edge — and rejects zero or multiple selectors with the usage line.
+ *
+ * @param options - Parsed CLI options.
+ * @returns The selected kind+target, or an error string for the usage path.
+ */
+function readLinkSelector(options: CLIOptions): { kind: RoadmapLinkKind; target: string } | { error: string } {
+  const candidates: Array<{ kind: RoadmapLinkKind; value: unknown }> = [
+    { kind: 'pr', value: options.pr },
+    { kind: 'doc', value: options.doc },
+    { kind: 'file', value: options.file },
+    { kind: 'media', value: options.media },
+  ];
+  const picks = candidates.filter((p) => p.value !== undefined);
+  if (picks.length !== 1) {
+    return { error: 'Pass exactly one of --pr <number>, --doc <path>, --file <path>, --media <path-or-url>' };
+  }
+  const pick = picks[0];
+  if (typeof pick.value !== 'string' || !pick.value.trim()) {
+    return { error: `--${pick.kind} needs a value (PR number for --pr; a path for --doc/--file; a path or URL for --media)` };
+  }
+  return { kind: pick.kind, target: pick.value.trim() };
+}
+
+/**
+ * `pd roadmap link <slug> --pr N | --doc p | --file p | --media p` and its
+ * inverse `pd roadmap unlink ...` — the CLI face of the typed item-link edges
+ * (graph_edges planner:links, lib/planner-edges.ts).
+ *
+ * The motivation is receipts-at-the-source: the agent that just opened PR N
+ * or produced a screenshot should be able to pin it to the roadmap item in
+ * one line, so the Jira-card detail read carries evidence instead of prose
+ * claims. Link metadata flags: --url/--title (pr), --mime/--caption (media).
+ *
+ * @param args - Positional args; args[0] is the item slug.
+ * @param options - Parsed CLI options.
+ * @param mode - 'link' adds (POST), 'unlink' removes (DELETE).
+ * @returns Resolves after printing the outcome; exits non-zero on failure.
+ */
+async function handleRoadmapItemLink(args: string[], options: CLIOptions, mode: 'link' | 'unlink'): Promise<void> {
+  const slug = readRoadmapSlug(args, options);
+  if (!slug) {
+    ui.error(`Usage: pd roadmap ${mode} <slug> --pr <number> | --doc <path> | --file <path> | --media <path-or-url>`);
+    process.exit(1);
+  }
+  const selector = readLinkSelector(options);
+  if ('error' in selector) {
+    ui.error(selector.error);
+    process.exit(1);
+  }
+
+  if (mode === 'link') {
+    const body: Record<string, unknown> = { type: selector.kind, target: selector.target };
+    const url = readOption(options, 'url');
+    if (url) body.url = url;
+    const title = readOption(options, 'title');
+    if (title) body.title = title;
+    const mime = readOption(options, 'mime');
+    if (mime) body.mime = mime;
+    const caption = readOption(options, 'caption');
+    if (caption) body.caption = caption;
+    const res = await pdFetch(`/roadmap/items/${encodeURIComponent(slug)}/links`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; link?: RoadmapItemLinkRow; error?: string };
+    if (!res.ok || data.success !== true) {
+      ui.error(data.error || `roadmap link failed: HTTP ${res.status}`);
+      process.exit(1);
+    }
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+    ui.success(`Linked ${selector.kind} '${selector.target}' to '${slug}'`);
+    return;
+  }
+
+  const qs = new URLSearchParams({ type: selector.kind, target: selector.target });
+  const res = await pdFetch(`/roadmap/items/${encodeURIComponent(slug)}/links?${qs.toString()}`, {
+    method: 'DELETE',
+  });
+  const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+  if (!res.ok || data.success !== true) {
+    ui.error(data.error || `roadmap unlink failed: HTTP ${res.status}`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Unlinked ${selector.kind} '${selector.target}' from '${slug}'`);
+}
+
+/**
+ * `pd roadmap links <slug>` — list the typed links pinned to one item.
+ *
+ * The design intent is evidence auditability: an agent (or the operator in a
+ * terminal pinch) can inspect a card's evidence trail without pulling the
+ * whole detail read; the same rows render on the board/detail surfaces.
+ *
+ * @param args - Positional args; args[0] is the item slug.
+ * @param options - Parsed CLI options (--json for raw rows).
+ * @returns Resolves after printing the link table (or JSON) to stdout.
+ */
+async function handleRoadmapLinksList(args: string[], options: CLIOptions): Promise<void> {
+  const slug = readRoadmapSlug(args, options);
+  if (!slug) {
+    ui.error('Usage: pd roadmap links <slug>');
+    process.exit(1);
+  }
+  const res = await pdFetch(`/roadmap/items/${encodeURIComponent(slug)}/links`);
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    links?: RoadmapItemLinkRow[];
+    error?: string;
+  };
+  if (!res.ok || data.success !== true) {
+    ui.error(data.error || `roadmap links failed: HTTP ${res.status}`);
+    process.exit(1);
+  }
+  const links = data.links ?? [];
+  if (isJson(options)) {
+    console.log(JSON.stringify(links, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    for (const link of links) console.log(`${link.kind}:${link.targetId}`);
+    return;
+  }
+  console.log('');
+  console.log(`LINKS · ${slug} · ${links.length} link(s)`);
+  console.log('-'.repeat(80));
+  if (links.length === 0) {
+    console.log(ui.dim('  (no links — add one: pd roadmap link <slug> --pr <n> | --doc <path> | --file <path> | --media <path>)'));
+  } else {
+    for (const link of links) {
+      const extras: string[] = [];
+      const meta = link.metadata ?? {};
+      for (const key of ['title', 'url', 'mime', 'caption'] as const) {
+        const value = meta[key];
+        if (typeof value === 'string' && value) extras.push(`${key}=${value}`);
+      }
+      console.log(`  - [${link.kind}] ${link.targetId}${extras.length ? ` (${extras.join(', ')})` : ''}`);
+    }
+  }
   console.log('');
 }
 

@@ -27,10 +27,22 @@
  * the table and writes the file. The file is never the source of truth.
  *
  * Status enum: now < merge < backlog < parked < done.
+ *
+ * Dependencies (ADR-0086 §3, retirement of `dependencies_json`): blocking
+ * relations live as `depends_on` edges in `graph_edges` (scope planner:deps,
+ * roadmap:item → roadmap:item). The write path here authors those edges and
+ * no longer writes the denormalized JSON column; reads derive
+ * `item.dependencies` from the edges, UNIONED with any legacy JSON still on
+ * the row — the bridge that keeps rows from old replicas correct until the
+ * boot backfill in lib/db.ts migrates them (json → edges, column cleared to
+ * the '[]' sentinel). The column physically remains for old-replica
+ * union-merge compatibility, but it is dead as a source of truth.
  */
 
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { createGraphEdges, type GraphEdges } from './graph-edges.js';
+import { DEPS_SCOPE, ITEM_TYPE, dependsOnEdge } from './planner-edges.js';
 
 interface TupleSpaceMin {
   out(
@@ -81,6 +93,11 @@ export interface RoadmapItem {
   promotedByAgentId: string | null;
   promotedAt: number | null;
   lastTouchedAt: number;
+  /**
+   * Slugs this item is blocked by. Derived from planner:deps `depends_on`
+   * graph edges (∪ any legacy dependencies_json not yet backfilled) —
+   * the JSON column is retired as a source of truth (ADR-0086 §3).
+   */
   dependencies: string[];
   notes: Array<{ at: number; by: string; text: string }>;
   harbor: string;
@@ -98,6 +115,12 @@ export interface RoadmapItem {
   dueAt: number | null;
   /** Effort estimate in abstract units — the CPM scheduler's node duration. */
   estimate: number | null;
+  /** Free-form label strings (Jira-grade tags). Deduped, order-preserving. */
+  tags: string[];
+  /** Effort actually spent, in the SAME abstract units as `estimate`. */
+  actual: number | null;
+  /** Stamped on the status transition into 'done'; cleared on reopen. */
+  completedAt: number | null;
   /**
    * Provenance of a derived item: the source documents (+ commit SHA) an
    * ingestion path (e.g. `pd roadmap chomp`) derived this row from, so the
@@ -127,6 +150,9 @@ export interface UpsertRoadmapItemInput {
   startedAt?: number | null;
   dueAt?: number | null;
   estimate?: number | null;
+  /** Replaces the stored tag set when provided (pass [] to clear). */
+  tags?: string[];
+  actual?: number | null;
   /** Provenance refs for derived items. Omit to preserve the existing value. */
   sourceRefs?: RoadmapSourceRef[];
 }
@@ -135,6 +161,8 @@ export interface ListRoadmapItemsOptions {
   harbor?: string;
   status?: RoadmapStatus | 'all';
   limit?: number;
+  /** Only items whose tag set contains this exact tag (json_each match). */
+  tag?: string;
 }
 
 export interface UpdateStatusInput {
@@ -149,6 +177,13 @@ export interface RoadmapItemsDeps {
   tuples: TupleSpaceMin;
   /** Optional clock injection for tests. Defaults to Date.now(). */
   now?: () => number;
+  /**
+   * The graph_edges module the depends_on edges are authored into. Optional
+   * because both handles operate on the same SQLite table: when omitted (unit
+   * fixtures, the bun smoke), a local instance is created on the same db so
+   * dependency truth is NEVER conditional on wiring.
+   */
+  graphEdges?: GraphEdges;
 }
 
 interface RoadmapItemRow {
@@ -171,6 +206,9 @@ interface RoadmapItemRow {
   started_at: number | null;
   due_at: number | null;
   estimate: number | null;
+  tags_json: string | null;
+  actual: number | null;
+  completed_at: number | null;
   source_refs_json: string | null;
   deleted_at: number | null;
 }
@@ -256,6 +294,35 @@ function positiveOrNull(value: unknown): number | null {
   return Math.round(value);
 }
 
+/**
+ * Normalize a tag list into the canonical stored shape: trimmed, non-empty,
+ * order-preserving, and deduped case-sensitively.
+ *
+ * Why normalize here instead of at each caller: tags arrive from repeatable
+ * CLI flags, HTTP arrays, and re-upserts of previously stored rows. One
+ * canonical shape at the write boundary is what makes the `?tag=` filter an
+ * exact json_each match rather than a fuzzy LIKE — the design intent is that
+ * a tag is an identifier, not prose. The 64-tag ceiling bounds row growth so
+ * a runaway writer cannot bloat a coordination row into a document store.
+ *
+ * @param value - Candidate tags from any caller surface.
+ * @returns Deduped, trimmed tags (max 64); [] when input is not an array.
+ */
+function normalizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const tag of value) {
+    if (typeof tag !== 'string') continue;
+    const trimmed = tag.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+    if (out.length >= 64) break;
+  }
+  return out;
+}
+
 function rowToItem(row: RoadmapItemRow): RoadmapItem {
   return {
     id: row.id,
@@ -276,6 +343,9 @@ function rowToItem(row: RoadmapItemRow): RoadmapItem {
     startedAt: row.started_at ?? null,
     dueAt: row.due_at ?? null,
     estimate: positiveOrNull(row.estimate),
+    tags: normalizeTags(parseJsonArray<string>(row.tags_json, [])),
+    actual: positiveOrNull(row.actual),
+    completedAt: row.completed_at ?? null,
     sourceRefs: row.source_refs_json
       ? parseJsonArray<RoadmapSourceRef>(row.source_refs_json, [])
       : null,
@@ -286,10 +356,92 @@ function rowToItem(row: RoadmapItemRow): RoadmapItem {
 export function createRoadmapItems(deps: RoadmapItemsDeps) {
   const { db, tuples } = deps;
   const now = deps.now ?? (() => Date.now());
+  // Dependency edges are authored into graph_edges (ADR-0086 §3). Falling back
+  // to a local instance is safe because graph_edges is one shared table — the
+  // handle is a convenience, not a partition — and createGraphEdges is an
+  // idempotent CREATE IF NOT EXISTS.
+  const graphEdges = deps.graphEdges ?? createGraphEdges(db);
 
   const selectBySlugStmt = db.prepare<[string, string], RoadmapItemRow>(
     `SELECT * FROM roadmap_items WHERE slug = ? AND harbor = ?`,
   );
+  // depends_on edge reads. Prepared directly (not via graphEdges.list) so the
+  // hot list() path can hydrate every item's dependencies in ONE scan instead
+  // of an N+1 of per-item list() calls, and so ORDER BY makes reads
+  // deterministic.
+  const selectDepsForSlugStmt = db.prepare<[string, string, string], { target_id: string }>(
+    `SELECT target_id FROM graph_edges
+      WHERE scope = ? AND edge_type = 'depends_on' AND source_type = ? AND source_id = ?
+      ORDER BY target_id ASC`,
+  );
+  const selectAllDepsStmt = db.prepare<[string, string], { source_id: string; target_id: string }>(
+    `SELECT source_id, target_id FROM graph_edges
+      WHERE scope = ? AND edge_type = 'depends_on' AND source_type = ?
+      ORDER BY source_id ASC, target_id ASC`,
+  );
+
+  /**
+   * Merge edge-derived dependencies with any legacy JSON residue into one
+   * sorted, deduped list.
+   *
+   * Why a union: after retirement the edges are the truth, but a row written
+   * by an OLD replica (or seeded raw in a fixture) still carries its deps in
+   * dependencies_json until the boot backfill clears it. Reading only edges
+   * would silently unblock such an item; reading only JSON would ignore the
+   * new truth. The union is correct in both regimes because every retired-era
+   * write clears the JSON to '[]' — a stale mix cannot occur.
+   *
+   * @param edgeDeps - target slugs from planner:deps depends_on edges.
+   * @param legacyDeps - slugs parsed from the row's dependencies_json.
+   * @returns Sorted unique dependency slugs.
+   */
+  function unionDependencies(edgeDeps: string[], legacyDeps: string[]): string[] {
+    return [...new Set([...edgeDeps, ...legacyDeps])].sort();
+  }
+
+  /**
+   * Hydrate one item's `dependencies` from the edge store (∪ legacy JSON).
+   *
+   * The design intent is that every read surface returns the SAME dependency
+   * truth regardless of which write era produced the row — callers never see
+   * the raw JSON column again.
+   *
+   * @param item - The row-mapped item (dependencies = legacy JSON residue).
+   * @returns The item with dependencies replaced by the derived union.
+   */
+  function hydrateDependencies(item: RoadmapItem): RoadmapItem {
+    const edgeDeps = selectDepsForSlugStmt
+      .all(DEPS_SCOPE, ITEM_TYPE, item.slug)
+      .map((r) => r.target_id);
+    return { ...item, dependencies: unionDependencies(edgeDeps, item.dependencies) };
+  }
+
+  /**
+   * Converge the item's outgoing depends_on edges to `nextDeps` — remember the
+   * missing ones, forget the removed ones. The design intent is edge-by-edge
+   * authorship (never replaceScope): planner:deps is an authored scope shared
+   * by every item, so a wholesale replace from one item's write would destroy
+   * every other item's edges. That is exactly WHY the board's derived
+   * writePlanEdges no longer touches this scope.
+   *
+   * @param slug - The dependent item's slug (edge source).
+   * @param nextDeps - The complete new dependency set for this item.
+   */
+  function writeDependencyEdges(slug: string, nextDeps: string[]): void {
+    const current = new Set(
+      selectDepsForSlugStmt.all(DEPS_SCOPE, ITEM_TYPE, slug).map((r) => r.target_id),
+    );
+    const next = new Set(nextDeps);
+    for (const dep of next) {
+      if (!current.has(dep)) graphEdges.remember(dependsOnEdge(slug, dep));
+    }
+    for (const dep of current) {
+      if (!next.has(dep)) {
+        const edge = dependsOnEdge(slug, dep);
+        graphEdges.forget(edge);
+      }
+    }
+  }
   // NOTE: All statements use positional `?` placeholders bound with ordered
   // arrays, NOT `@named` object binding. `@named` object binding works under
   // better-sqlite3 (dev/tsx) but SILENTLY BINDS NULL under bun:sqlite (the
@@ -297,14 +449,19 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   // "NOT NULL constraint failed" / "SQLITE_MISMATCH" failures invisible in
   // dev. Positional `?` is portable across both engines. Keep column order in
   // sync with the bound arrays below.
+  // dependencies_json is RETIRED as a write target (ADR-0086 §3): the INSERT
+  // leans on the column's DEFAULT '[]' and the UPDATE pins the '[]' sentinel,
+  // which doubles as the per-row migration — the first retired-era write of a
+  // legacy row moves its deps into graph_edges (writeDependencyEdges) and
+  // clears the JSON so the read-bridge union can never resurrect removed deps.
   const insertStmt = db.prepare(`
     INSERT INTO roadmap_items (
       id, slug, summary_md, status,
       promoted_from_feedback_id, promoted_by_agent_id, promoted_at,
-      last_touched_at, dependencies_json, notes_json, harbor, created_at,
+      last_touched_at, notes_json, harbor, created_at,
       kind, priority, assignee_id, description_md, started_at, due_at, estimate,
-      source_refs_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      tags_json, actual, completed_at, source_refs_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateStmt = db.prepare(`
     UPDATE roadmap_items SET
@@ -314,7 +471,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       promoted_by_agent_id = ?,
       promoted_at = ?,
       last_touched_at = ?,
-      dependencies_json = ?,
+      dependencies_json = '[]',
       notes_json = ?,
       kind = ?,
       priority = ?,
@@ -323,13 +480,20 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       started_at = ?,
       due_at = ?,
       estimate = ?,
+      tags_json = ?,
+      actual = ?,
+      completed_at = ?,
       source_refs_json = ?,
       deleted_at = NULL
     WHERE id = ?
   `);
+  // Status transitions own the completion stamp: entering 'done' stamps
+  // completed_at (idempotently — a done→done re-assert keeps the original
+  // stamp), leaving 'done' clears it so a reopened item never claims a
+  // completion date it no longer holds.
   const updateStatusStmt = db.prepare(`
     UPDATE roadmap_items
-       SET status = ?, last_touched_at = ?
+       SET status = ?, last_touched_at = ?, completed_at = ?
      WHERE id = ?
   `);
   const updateTouchStmt = db.prepare(`
@@ -358,7 +522,9 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     }
     const harbor = input.harbor ?? harborForProject(input.project) ?? DEFAULT_HARBOR;
     const existingRow = selectBySlugStmt.get(slug, harbor);
-    const existing = existingRow ? rowToItem(existingRow) : null;
+    // Hydrate so "preserve when omitted" preserves the EDGE truth (∪ legacy
+    // JSON), not just whatever JSON residue the row carries.
+    const existing = existingRow ? hydrateDependencies(rowToItem(existingRow)) : null;
     const at = now();
 
     const item: RoadmapItem = {
@@ -374,8 +540,11 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
           ? input.promotedAt
           : (existing?.promotedAt ?? null),
       lastTouchedAt: at,
+      // Dependencies land in graph_edges (writeDependencyEdges below), not in
+      // the retired JSON column. Provided input REPLACES the set ([] clears);
+      // omission preserves the hydrated edge truth.
       dependencies: Array.isArray(input.dependencies)
-        ? input.dependencies
+        ? [...new Set(input.dependencies.map((d) => (typeof d === 'string' ? d.trim() : '')).filter(Boolean))].sort()
         : existing?.dependencies ?? [],
       // Notes are APPEND-ONLY across upserts: an upsert that hits an existing
       // row merges its notes onto the existing list instead of replacing it.
@@ -410,6 +579,16 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       dueAt: input.dueAt !== undefined ? positiveOrNull(input.dueAt) : existing?.dueAt ?? null,
       estimate:
         input.estimate !== undefined ? positiveOrNull(input.estimate) : existing?.estimate ?? null,
+      // Jira-grade fields (2026-08-22 mandate): tags replace-when-provided
+      // (like dependencies — [] clears); actual follows the estimate rules so
+      // planned-vs-actual stays a same-unit comparison.
+      tags: input.tags !== undefined ? normalizeTags(input.tags) : existing?.tags ?? [],
+      actual: input.actual !== undefined ? positiveOrNull(input.actual) : existing?.actual ?? null,
+      // The completion stamp tracks the effective status of THIS write: an
+      // upsert that lands (or keeps) the item in 'done' stamps/keeps
+      // completed_at; any other status clears it (a reopened item holds no
+      // completion date). updateStatus() applies the same rule.
+      completedAt: null, // provisional; derived below once status is final
       // Provenance is preserved on partial upserts for the same reason the
       // planner columns are: a writer that never knew about `sourceRefs` must
       // not erase the trail back to the doc this item was chomped from.
@@ -420,18 +599,21 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       // (resurrection), mirrored by `deleted_at = NULL` in updateStmt.
       deletedAt: null,
     };
+    item.completedAt = item.status === 'done' ? existing?.completedAt ?? at : null;
 
-    const dependenciesJson = JSON.stringify(item.dependencies);
     const notesJson = JSON.stringify(item.notes);
+    const tagsJson = JSON.stringify(item.tags);
     const sourceRefsJson = item.sourceRefs ? JSON.stringify(item.sourceRefs) : null;
     const createdAt = existing ? existingRow!.created_at : at;
 
     if (existing) {
-      // UPDATE column order (16 SET placeholders + id in the WHERE clause):
-      // summary_md, status, promoted_from_feedback_id, promoted_by_agent_id,
-      // promoted_at, last_touched_at, dependencies_json, notes_json, kind,
+      // UPDATE column order (18 SET placeholders + id in the WHERE clause,
+      // 19 binds): summary_md, status, promoted_from_feedback_id,
+      // promoted_by_agent_id, promoted_at, last_touched_at, notes_json, kind,
       // priority, assignee_id, description_md, started_at, due_at, estimate,
-      // source_refs_json, then id. `deleted_at = NULL` is literal, not bound.
+      // tags_json, actual, completed_at, source_refs_json, then id.
+      // (dependencies_json is pinned to the retired '[]' sentinel and
+      // deleted_at to NULL in the SQL — literals, neither one bound.)
       updateStmt.run(
         item.summaryMd,
         item.status,
@@ -439,7 +621,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         item.promotedByAgentId,
         item.promotedAt,
         item.lastTouchedAt,
-        dependenciesJson,
         notesJson,
         item.kind,
         item.priority,
@@ -448,15 +629,19 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         item.startedAt,
         item.dueAt,
         item.estimate,
+        tagsJson,
+        item.actual,
+        item.completedAt,
         sourceRefsJson,
         item.id,
       );
     } else {
-      // INSERT column order (20 columns, 20 placeholders): id, slug,
+      // INSERT column order (22 columns, 22 placeholders, 22 binds): id, slug,
       // summary_md, status, promoted_from_feedback_id, promoted_by_agent_id,
-      // promoted_at, last_touched_at, dependencies_json, notes_json, harbor,
-      // created_at, kind, priority, assignee_id, description_md, started_at,
-      // due_at, estimate, source_refs_json.
+      // promoted_at, last_touched_at, notes_json, harbor, created_at, kind,
+      // priority, assignee_id, description_md, started_at, due_at, estimate,
+      // tags_json, actual, completed_at, source_refs_json.
+      // (dependencies_json rides its DEFAULT '[]' — the column is retired.)
       insertStmt.run(
         item.id,
         item.slug,
@@ -466,7 +651,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         item.promotedByAgentId,
         item.promotedAt,
         item.lastTouchedAt,
-        dependenciesJson,
         notesJson,
         item.harbor,
         createdAt,
@@ -477,9 +661,17 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         item.startedAt,
         item.dueAt,
         item.estimate,
+        tagsJson,
+        item.actual,
+        item.completedAt,
         sourceRefsJson,
       );
     }
+
+    // Converge this item's outgoing depends_on edges to the effective set.
+    // After the row write, so a constraint failure above never half-applies
+    // the relation change.
+    writeDependencyEdges(item.slug, item.dependencies);
 
     // Emit the change-event tuple for subscribers. Notification only —
     // the row is the durable record.
@@ -496,7 +688,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     const h = harbor ?? DEFAULT_HARBOR;
     const row = selectBySlugStmt.get(slug, h);
     if (!row || row.deleted_at != null) return null;
-    return rowToItem(row);
+    return hydrateDependencies(rowToItem(row));
   }
 
   const slugExistsStmt = db.prepare<[string], { one: number }>(
@@ -529,6 +721,15 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       where.push('status = ?');
       args.push(options.status);
     }
+    if (options.tag !== undefined && options.tag.trim()) {
+      // Exact-match tag filter via json_each over the stored JSON array —
+      // tags are identifiers, so `?tag=relay` must not match 'relay-v2'
+      // (which a LIKE '%relay%' shortcut would).
+      where.push(`EXISTS (
+        SELECT 1 FROM json_each(roadmap_items.tags_json) WHERE json_each.value = ?
+      )`);
+      args.push(options.tag.trim());
+    }
     args.push(limit);
     const whereSql = `WHERE ${where.join(' AND ')}`;
     const sql = `SELECT * FROM roadmap_items
@@ -536,7 +737,21 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       ORDER BY ${STATUS_RANK_SQL} ASC, last_touched_at DESC
       LIMIT ?`;
     const rows = db.prepare<unknown[], RoadmapItemRow>(sql).all(...args);
-    return rows.map(rowToItem);
+    // Batched dependency hydration: ONE scan of the planner:deps scope keyed
+    // by source slug, instead of a per-item edge query (N+1) on the hot path.
+    const edgesBySlug = new Map<string, string[]>();
+    for (const edge of selectAllDepsStmt.all(DEPS_SCOPE, ITEM_TYPE)) {
+      const arr = edgesBySlug.get(edge.source_id) ?? [];
+      arr.push(edge.target_id);
+      edgesBySlug.set(edge.source_id, arr);
+    }
+    return rows.map((row) => {
+      const item = rowToItem(row);
+      return {
+        ...item,
+        dependencies: unionDependencies(edgesBySlug.get(item.slug) ?? [], item.dependencies),
+      };
+    });
   }
 
   function updateStatus(input: UpdateStatusInput): RoadmapItem {
@@ -557,15 +772,58 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     }
     const at = now();
     const lastTouchedAt = Math.max(row.last_touched_at, at);
-    // updateStatusStmt order: status, last_touched_at, then id (WHERE).
-    updateStatusStmt.run(status, lastTouchedAt, row.id);
+    // Completion stamp (Jira-grade time tracking): entering 'done' stamps
+    // completed_at once (a done→done re-assert keeps the first stamp);
+    // any transition out of 'done' clears it.
+    const completedAt = status === 'done' ? row.completed_at ?? at : null;
+    // updateStatusStmt order: status, last_touched_at, completed_at, then id (WHERE).
+    updateStatusStmt.run(status, lastTouchedAt, completedAt, row.id);
     // insertStatusEventStmt order: item_id, slug, status, by_agent_id, at, harbor.
     insertStatusEventStmt.run(row.id, row.slug, status, input.by, at, harbor);
     tuples.out(
       ['roadmap:status', input.slug, { status, by: input.by, at }],
       { harbor, writtenBy: input.by },
     );
-    return { ...rowToItem(row), status, lastTouchedAt };
+    return { ...hydrateDependencies(rowToItem(row)), status, lastTouchedAt, completedAt };
+  }
+
+  const listDependentsStmt = db.prepare(
+    `SELECT * FROM roadmap_items r
+      WHERE r.deleted_at IS NULL AND r.harbor = ?
+        AND (
+          EXISTS (
+            SELECT 1 FROM graph_edges e
+            WHERE e.scope = ? AND e.edge_type = 'depends_on'
+              AND e.source_type = ? AND e.source_id = r.slug AND e.target_id = ?
+          )
+          OR EXISTS (
+            SELECT 1 FROM json_each(r.dependencies_json)
+            WHERE json_each.value = ?
+          )
+        )
+      ORDER BY r.slug ASC`,
+  );
+
+  /**
+   * List the LIVE items that depend on `slug` — the reverse of the
+   * `dependencies` array — within one harbor.
+   *
+   * Why this exists: the Jira-card detail read must answer both directions of
+   * the blocking relation. `dependencies` (the planner:deps `depends_on`
+   * edges) answers "what blocks me"; this query answers "what do I block" by
+   * walking the same edges in reverse, UNIONED with any legacy
+   * dependencies_json residue not yet backfilled — the same bridge every
+   * other read uses, so both directions agree in every write era. Exact
+   * matches only (a dependency on 'relay' never matches 'relay-v2').
+   *
+   * @param slug - The dependency slug being blocked on.
+   * @param harbor - Harbor scope (defaults to the fleet harbor).
+   * @returns Live dependent items, slug-ordered for deterministic reads.
+   */
+  function listDependents(slug: string, harbor?: string): RoadmapItem[] {
+    const h = harbor ?? DEFAULT_HARBOR;
+    const rows = listDependentsStmt.all(h, DEPS_SCOPE, ITEM_TYPE, slug, slug) as RoadmapItemRow[];
+    return rows.map((row) => hydrateDependencies(rowToItem(row)));
   }
 
   function touch(slug: string, harbor?: string): RoadmapItem | null {
@@ -576,7 +834,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     // updateTouchStmt order: last_touched_at (= at), then id (WHERE).
     updateTouchStmt.run(at, row.id);
     tuples.out(['roadmap:touched', slug, { at }], { harbor: h });
-    return { ...rowToItem(row), lastTouchedAt: at };
+    return { ...hydrateDependencies(rowToItem(row)), lastTouchedAt: at };
   }
 
   const tombstoneItemStmt = db.prepare(`
@@ -608,7 +866,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     const at = now();
     const lastTouchedAt = Math.max(row.last_touched_at + 1, at);
     tombstoneItemStmt.run(at, lastTouchedAt, row.id);
-    const item = { ...rowToItem(row), deletedAt: at, lastTouchedAt };
+    const item = { ...hydrateDependencies(rowToItem(row)), deletedAt: at, lastTouchedAt };
     tuples.out(['roadmap:removed', slug, { harbor: h, id: row.id }], { harbor: h });
     return { removed: true, item };
   }
@@ -618,6 +876,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     get,
     slugExists,
     list,
+    listDependents,
     updateStatus,
     touch,
     remove,
