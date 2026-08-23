@@ -333,16 +333,21 @@ impl Workspace {
 
 /// The console's first-screen workspace. Deep-linked panes are user experiences,
 /// so an explicit initial surface opens as a single full workspace; the no-arg
-/// launch keeps the overview layout.
+/// launch opens the Planner's roadmap Gantt as the primary surface.
+///
+/// Why the Gantt leads: the operator's standing directive is that opening the
+/// console answers "what is the plan and where is it" before anything else —
+/// the roadmap schedule (critical path, claims, in-flight work) is the first
+/// screen, with the live fleet and lane as the supporting right-hand column.
 pub fn default_operator_workspace(initial: Option<SurfaceKind>) -> Workspace {
     if let Some(surface) = initial {
         return Workspace::new(surface);
     }
 
-    let mut ws = Workspace::new(SurfaceKind::Fleet);
-    ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
-    ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
-    ws.focus(1); // start on the fleet pane (first leaf id)
+    let mut ws = Workspace::new(SurfaceKind::Roadmap);
+    ws.split(Dir::Row, SurfaceKind::Fleet); // roadmap | fleet
+    ws.split(Dir::Col, SurfaceKind::AgentTranscript { agent_id: None }); // fleet / lane
+    ws.focus(1); // start on the roadmap Gantt (first leaf id)
     ws
 }
 
@@ -626,7 +631,9 @@ mod tests {
     fn default_operator_workspace_without_initial_opens_overview() {
         let ws = default_operator_workspace(None);
         assert_eq!(ws.pane_count(), 3);
-        assert!(matches!(ws.focused_surface(), SurfaceKind::Fleet));
+        // The roadmap Gantt is the first screen — the operator's standing
+        // directive is plan-first, fleet/lane as the supporting column.
+        assert!(matches!(ws.focused_surface(), SurfaceKind::Roadmap));
     }
 
     #[test]

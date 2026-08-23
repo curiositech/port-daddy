@@ -135,6 +135,15 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
           security delete-keychain "$KEYCHAIN" || true
 
+      # This must run after the macOS signing step. Hardened runtime strips
+      # DYLD_* without an injection entitlement, so a pre-sign native smoke can
+      # pass while the exact release binary fails. The hidden command imports
+      # onnxruntime-node but does not download or open an embedding model.
+      - name: Smoke exact release semantic runtime (post-sign on macOS)
+        env:
+          PORT_DADDY_RESOURCE_DIR: ${{ github.workspace }}
+        run: dist/pd __semantic-runtime-check
+
       # Soak the EXACT binary that ships (post-signing on macOS). v3.24.0
       # segfaulted ~68s after boot (Bun null-deref on a ~60s timer) and
       # nothing in CI had ever run the packaged binary — unit tests run from

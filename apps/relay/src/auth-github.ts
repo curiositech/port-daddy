@@ -36,6 +36,12 @@ import {
   type UserRow,
 } from './db.js';
 import type { Env } from './types.js';
+// Import cycle note: roadmap-mirror.ts imports isSameOrigin from this module
+// and this module imports exportRoadmapMirrors back. Both bindings are hoisted
+// function declarations used only at request time, so the ESM cycle is inert
+// by design — flagged here so a refactor does not accidentally make either
+// side a top-level evaluation.
+import { exportRoadmapMirrors } from './roadmap-mirror.js';
 
 // External GitHub JSON shapes (OAuth token endpoint + REST). These are a trust
 // boundary: rather than `as`-casting `unknown` JSON into a type and hoping,
@@ -387,6 +393,9 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
     content: m.content,
     createdAt: m.created_at,
   }));
+  // Roadmap mirrors are the user's own pushed roadmaps (ADR-0101 Critical-2
+  // export/delete matrix, team tier) — all four mirror tables leave with them.
+  const roadmapMirrors = await exportRoadmapMirrors(env, user.id);
   const body = {
     code: 'OK',
     error: null,
@@ -404,6 +413,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
     },
     sessions: { active: sessionCount },
     shipwrightChats,
+    roadmapMirrors,
   };
   return new Response(JSON.stringify(body, null, 2), {
     status: 200,

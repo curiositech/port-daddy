@@ -1,0 +1,89 @@
+$ sh -c echo '── remove-docs.txt ──'; cat '/home/user/port-daddy/.claude/worktrees/agent-a06ff91ffa58cb0c1/.scratch/evidence/pr-plan/remove-docs.txt';    echo; echo '── chomp-receipt.json (head) ──'; head -60 '/home/user/port-daddy/.claude/worktrees/agent-a06ff91ffa58cb0c1/.scratch/evidence/pr-plan/chomp-receipt.json';    echo; echo '── roadmap.snapshot.json (head) ──'; head -20 '/home/user/port-daddy/.claude/worktrees/agent-a06ff91ffa58cb0c1/.scratch/evidence/pr-plan/roadmap.snapshot.json' 2>/dev/null || echo '(snapshot skipped — see receipt)'
+
+── remove-docs.txt ──
+V4-DAG.md
+port-daddy-asciinema-skills-plan.md
+
+── chomp-receipt.json (head) ──
+{
+  "receipt": "roadmap-chomp",
+  "generatedAt": 1787442982818,
+  "rootDir": "/home/user/port-daddy/.claude/worktrees/agent-a06ff91ffa58cb0c1",
+  "sourceCommit": "9821dc45465a670ff1fd73730fd3a39af7cebbcd",
+  "harbor": "port-daddy",
+  "docs": [
+    {
+      "path": "V4-DAG.md",
+      "format": "planning-doc",
+      "parsed": 48,
+      "missing": false
+    },
+    {
+      "path": "port-daddy-asciinema-skills-plan.md",
+      "format": "planning-doc",
+      "parsed": 73,
+      "missing": false
+    }
+  ],
+  "items": [
+    {
+      "slug": "port-daddy-v4-implementation-dag",
+      "kind": "project",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": null,
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "notation",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-0-foundations-no-v4-dependencies",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+
+── roadmap.snapshot.json (head) ──
+{
+  "generatedAt": 1787442982828,
+  "harbor": "port-daddy",
+  "source": "http://127.0.0.1:9899",
+  "count": 121,
+  "items": [
+    {
+      "slug": "1-port-conflict-hell-90s-problem-hook",
+      "status": "backlog",
+      "summaryMd": "1. Port Conflict Hell (90s) — Problem hook"
+    },
+    {
+      "slug": "2-enter-port-daddy-60s-solution",
+      "status": "backlog",
+      "summaryMd": "2. Enter Port Daddy (60s) — Solution"
+    },
+    {
+      "slug": "3-multi-agent-coordination-120s-coordination-demo",
+      "status": "backlog",
+      "summaryMd": "3. Multi-Agent Coordination (120s) — Coordination demo"

@@ -1,0 +1,34 @@
+$ sh -c curl -s "http://127.0.0.1:9899/roadmap/items/port-daddy-v4-implementation-dag?harbor=port-daddy" | python3 -m json.tool
+
+{
+    "success": true,
+    "item": {
+        "id": "17fce185-8c38-44ea-9a1d-235421fc34d0",
+        "slug": "port-daddy-v4-implementation-dag",
+        "summaryMd": "Port Daddy V4: Implementation DAG",
+        "status": "backlog",
+        "kind": "project",
+        "descriptionMd": "This document defines the dependency graph and implementation order for all 27 parts\nof the V4 plan. Each node lists its hard prerequisites (must be complete before starting)\nand soft prerequisites (should exist but can be stubbed). The critical path is highlighted.\n\n---",
+        "sourceRefs": [
+            {
+                "type": "doc",
+                "path": "V4-DAG.md",
+                "commit": "9821dc45465a670ff1fd73730fd3a39af7cebbcd"
+            }
+        ],
+        "promotedFromFeedbackId": null,
+        "promotedByAgentId": "chomp-evidence",
+        "promotedAt": null,
+        "lastTouchedAt": 1787442984839,
+        "dependencies": [],
+        "notes": [
+            {
+                "at": 1787442982753,
+                "by": "chomp-evidence",
+                "text": "chomped from V4-DAG.md (tags: v4-dag)"
+            }
+        ],
+        "harbor": "port-daddy",
+        "deletedAt": null
+    }
+}

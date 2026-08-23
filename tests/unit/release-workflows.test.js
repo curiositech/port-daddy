@@ -60,6 +60,29 @@ describe('release workflow topology contracts', () => {
     expect(binaryJob).not.toContain('dtolnay/rust-toolchain');
   });
 
+  test('the exact release binary loads ONNX again after macOS signing', () => {
+    const release = readWorkflow('release.yml');
+    const sign = release.indexOf('- name: Sign macOS binary (Developer ID)');
+    const semanticSmoke = release.indexOf('- name: Smoke exact release semantic runtime (post-sign on macOS)');
+    const soak = release.indexOf('- name: Soak the packaged binary (crash/wedge gate)');
+    const bundle = readFileSync(join(ROOT, 'bin', 'port-daddy-bundle.ts'), 'utf8');
+    const singleBuilder = readFileSync(join(ROOT, 'scripts', 'build-single-binary.mjs'), 'utf8');
+    const daemonBuilder = readFileSync(join(ROOT, 'scripts', 'build-daemon-binary.mjs'), 'utf8');
+    const entitlements = readFileSync(join(ROOT, 'scripts', 'entitlements', 'port-daddy.plist'), 'utf8');
+
+    expect(sign).toBeGreaterThan(-1);
+    expect(semanticSmoke).toBeGreaterThan(sign);
+    expect(soak).toBeGreaterThan(semanticSmoke);
+    expect(release.slice(semanticSmoke, soak)).toContain('PORT_DADDY_RESOURCE_DIR: ${{ github.workspace }}');
+    expect(release.slice(semanticSmoke, soak)).toContain('dist/pd __semantic-runtime-check');
+    expect(bundle).toContain("process.argv[2] === '__semantic-runtime-check'");
+    expect(bundle).toContain("await import('onnxruntime-node')");
+    expect(singleBuilder).toContain('prepareOnnxRuntimeNativeBinding');
+    expect(daemonBuilder).toContain('prepareOnnxRuntimeNativeBinding');
+    expect(daemonBuilder).toContain('outputRoot: DIST_DIR');
+    expect(entitlements).not.toContain('com.apple.security.cs.allow-dyld-environment-variables');
+  });
+
   test('doctor gate shortens Unix socket paths for deeply named worktrees', () => {
     const script = join(ROOT, 'scripts', 'ci-doctor-gate.sh');
     const shortRoot = '/Users/test/coding/tmp/pd-doctor-sockets';

@@ -148,8 +148,9 @@ use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
+use pane::{OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
+use planner_pane::PlannerPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
@@ -175,7 +176,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":work <goal> · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
+            ":work <goal> · :planner · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
@@ -263,6 +264,25 @@ async fn main() -> Result<()> {
             return Ok(());
         }
     };
+
+    // `--capture-planner <path.png>`: refresh the Planner pane against the live
+    // daemon and rasterize its Block view to a PNG, then exit. The purpose is
+    // CI-grade visual evidence on Linux — the Block rasterizer is one of the
+    // console's real renderers, so this PNG is the pane as the console draws
+    // it, not a mock. Same design as the gpui bin's `--headless-capture`.
+    let argv: Vec<String> = std::env::args().collect();
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-planner") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-planner requires a <path.png>"))?;
+        let mut pane = PlannerPane::new();
+        pane.refresh(&daemon).await?;
+        let png = headless_capture::render_blocks(&pane.view(), &theme::DARK, 1180).to_png();
+        std::fs::write(path, &png)?;
+        println!("planner capture written: {path}");
+        return Ok(());
+    }
+
     banner(&style, daemon.base());
 
     // Build the pane registry — register all panes once at startup.
@@ -277,6 +297,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(HarborPane::new()));
     reg.register(Box::new(GalaxyPane::new()));
     reg.register(Box::new(interruptions_pane::InterruptionsPane::new()));
+    reg.register(Box::new(PlannerPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -536,6 +557,21 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":planner" || line == ":gantt" || line == ":roadmap" {
+            // The roadmap's critical-path Gantt — the same PlannerPane the GPUI
+            // window leads with, rendered headlessly so Linux CI and operators
+            // without a window can read the schedule (and capture evidence).
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "planner")
+                .unwrap_or(0);
+            if let Err(e) = reg.refresh_active(&daemon).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":fleet" {
             // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
             // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
@@ -601,7 +637,7 @@ async fn main() -> Result<()> {
         } else {
             err(
                 &style,
-                "unknown command; use :work <goal>, :roster, :lane, :harbor, or :quit",
+                "unknown command; use :work <goal>, :planner, :roster, :lane, :harbor, or :quit",
             );
         }
     }

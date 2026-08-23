@@ -131,16 +131,32 @@ repo-specific mechanics:
   user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
   machine-readable READY/LIVE state. A source-suite pass cannot substitute for
   this artifact-boundary proof.
-- **Prove the hook hot path stays invisible and bounded.** A healthy no-op turn
-  emits zero bytes and no status message, never starts the daemon or shells
-  through the full `pd` CLI, and filters file traces to the exact project root
-  before rendering them. Keep the prompt hook to one heading plus at
-  most two facts, clamp its context budget, and keep harness deadlines at one
-  second. The regression proof must include thousands of irrelevant matrix
-  entries while still surfacing one fresh exact-root fact. Installer tests must
-  also prove atomic, idempotent config writes and migration of duplicate legacy
-  Codex registrations without disturbing user hooks. Do not merge standing
-  every-turn reminders or SITREP compulsion back into the hook path.
+- **Prove native dependencies again after macOS signing.** Hardened runtime can
+  change dynamic-loader behavior after an unsigned build smoke has passed. Run
+  the native import through the exact signed `dist/pd` release pair, with
+  `DYLD_*` absent, before soak or archive sealing. Package dylibs behind a
+  verified executable-relative Mach-O rpath and keep
+  `com.apple.security.cs.allow-dyld-environment-variables` out of the release
+  entitlements; do not trade a packaging defect for an injection surface.
+- **Keep coordination content bounded; the SITREP is the visible value
+  surface.** Coordination content (alerts/pheromones) stays invisible and
+  bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and
+  no status message, never starts the daemon or shells through the full `pd`
+  CLI, and filters file traces to the exact project root before rendering them.
+  Keep that coordination block to one heading plus at most two facts, clamp its
+  context budget, and keep harness deadlines at one second. The regression
+  proof must include thousands of irrelevant matrix entries while still
+  surfacing one fresh exact-root fact. Installer tests must also prove atomic,
+  idempotent config writes and migration of duplicate legacy Codex
+  registrations without disturbing user hooks. The end-of-turn SITREP
+  compulsion is the deliberate exception (operator doctrine reversal,
+  2026-08-22): governed by the per-repo `sitrep.endOfTurn` dial
+  (off|suggest|enforce, default enforce; `PD_SITREP` env override wins, then
+  `agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`),
+  the pd-hook-prompt tentacle and the SessionStart Pilot inject the end-of-turn
+  SITREP table contract — a constant-size standing block that rides outside the
+  coordination byte cap. Do not re-bound or silently strip it; repos that want
+  quiet turns dial it off explicitly.
 
 ## Core Decision Tree
 
