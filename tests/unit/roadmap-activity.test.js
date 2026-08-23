@@ -293,8 +293,12 @@ describe('assignee join path', () => {
   });
 
   test('legacy schema without assignee_id column degrades gracefully', () => {
-    dropAssigneeColumn();
+    // Seed first: the current roadmapItems.upsert writes assignee_id
+    // unconditionally, so a table lacking the column cannot be written to at
+    // all. What lib/roadmap-activity.ts degrades gracefully about is the READ,
+    // so drop the column after the row exists and read through it.
     upsertItem('legacy-slice');
+    dropAssigneeColumn();
     const view = activity.itemActivity('legacy-slice');
     expect(view.assigneeId).toBeNull();
     expect(view.attachments).toHaveLength(0);
