@@ -788,6 +788,12 @@ daemon-witnessed runtime receipt.
 **Fix:** Treat runner compatibility as trusted executability evidence before the sandbox and again before every reuse. Replace an incompatible reused suite in place through the normal bounded authoring path; give a newly authored mismatch one rewrite with the exact loader error. If the trusted gate still fails, classify Purser as broken machinery, do not stack or retarget the files, and say explicitly that the implementation contract was not tested. Only an executed test-case failure may become a contract `BLOCK`.
 **Why:** A runner rejecting Purser's file is evidence about Purser, not the reviewed change. Keeping those failure domains separate makes an adversarial gate strict without making it arbitrary.
 
+### Trusting Purser Output Before It Is A Complete Program
+**Detection:** A generated `.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, or `.cts` file reaches the sandbox, branch creation, or PR retargeting before a parser has accepted the whole file under its extension's source-type contract.
+**Symptoms:** Literal ellipses, truncated prose, or module/CommonJS mismatches become invalid stacked PRs; the parent PR is retargeted away from `main`; Jest reports a syntax or loader failure even though no contract assertion ran.
+**Fix:** After discovery and trusted-runner evidence are available, parse every authored file as a complete program with recovery disabled and the source type implied by its extension. Give the author one bounded repair containing the exact parser error, then re-run every executability gate. If any file still fails, classify Purser as broken machinery and stop before sandbox execution, branch/stack creation, or parent-PR retargeting.
+**Why:** Generated source is untrusted input. Syntax and loader acceptance are preconditions for adversarial evidence, not findings about the reviewed implementation.
+
 ## Worked Examples
 
 ### Example 1: Adding a new MCP tool
