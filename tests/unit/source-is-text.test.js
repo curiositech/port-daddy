@@ -44,9 +44,12 @@ import { resolve } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 
-// Kept in lockstep with the pattern list in .gitattributes. A mismatch is
-// caught by the attribute test below, which asserts every extension here is
-// actually declared text/diff/merge.
+// Kept in lockstep with the pattern list in .gitattributes, and that lockstep
+// is asserted BOTH ways by the third test below: every extension here must be
+// declared text/diff/merge, and every extension declared there must appear
+// here. One direction alone is not enough — it would let a new `*.mts` line in
+// .gitattributes sit unguarded, which is the same blind-spot shape that let
+// the old per-workspace guard miss every offender it was written to catch.
 const TEXT_EXTENSIONS = ['ts', 'tsx', 'js', 'mjs', 'cjs', 'rs', 'json'];
 
 /**
@@ -173,5 +176,52 @@ describe('source stays text, greppable, and mergeable', () => {
       );
     }
     expect(broken).toEqual([]);
+  });
+
+  test('.gitattributes declares no source extension the guard does not cover', () => {
+    // The other direction of the lockstep. `TEXT_EXTENSIONS` drives which files
+    // get scanned for NULs, so an extension declared in .gitattributes but
+    // absent here is a file type git is told to treat as text while nothing
+    // checks whether it actually is.
+    const declared = new Set();
+    const unparsed = [];
+    for (const raw of readFileSync(resolve(REPO_ROOT, '.gitattributes'), 'utf8').split('\n')) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      const pattern = line.split(/\s+/)[0];
+      const simple = /^\*\.([A-Za-z0-9]+)$/.exec(pattern);
+      if (simple) declared.add(simple[1]);
+      // A path-scoped or non-extension pattern is not covered by the probe
+      // logic above, which builds `__attribute_probe__/probe.<ext>`. Surface it
+      // rather than silently ignoring it.
+      else unparsed.push(pattern);
+    }
+
+    const guarded = new Set(TEXT_EXTENSIONS);
+    const declaredNotGuarded = [...declared].filter((e) => !guarded.has(e)).sort();
+    const guardedNotDeclared = [...guarded].filter((e) => !declared.has(e)).sort();
+
+    if (declaredNotGuarded.length > 0 || guardedNotDeclared.length > 0 || unparsed.length > 0) {
+      throw new Error(
+        `.gitattributes and TEXT_EXTENSIONS have drifted apart.\n` +
+          (declaredNotGuarded.length
+            ? `  Declared in .gitattributes but NOT scanned for NULs: ${declaredNotGuarded.join(', ')}\n` +
+              `    -> add them to TEXT_EXTENSIONS, or stop declaring them text.\n`
+            : '') +
+          (guardedNotDeclared.length
+            ? `  In TEXT_EXTENSIONS but NOT declared in .gitattributes: ${guardedNotDeclared.join(', ')}\n` +
+              `    -> add the pattern line, or drop them from TEXT_EXTENSIONS.\n`
+            : '') +
+          (unparsed.length
+            ? `  Pattern(s) this test cannot map to an extension: ${unparsed.join(', ')}\n` +
+              `    -> the synthetic probe path above assumes bare *.ext patterns; a\n` +
+              `       path-scoped rule needs a real file in that path to probe honestly.\n`
+            : ''),
+      );
+    }
+
+    expect({ declaredNotGuarded, guardedNotDeclared, unparsed }).toEqual({
+      declaredNotGuarded: [], guardedNotDeclared: [], unparsed: [],
+    });
   });
 });
