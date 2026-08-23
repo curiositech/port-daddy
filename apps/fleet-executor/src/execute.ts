@@ -772,13 +772,20 @@ async function recordRunEnd(
 ): Promise<void> {
   if (!env.DB) return;
   try {
+    const endMs = Date.now();
     await env.DB.prepare(
       `UPDATE fleet_runs
          SET conclusion = ?,
-             ms = MAX(0, ? - COALESCE(created_at * 1000, ?))
+             ms = MAX(0, ? - CASE
+               WHEN created_at IS NOT NULL
+                AND created_at > 0
+                AND created_at * 1000 <= ?
+               THEN created_at * 1000
+               ELSE ?
+             END)
        WHERE id = ?`,
     )
-      .bind(conclusion, Date.now(), startMs, runId)
+      .bind(conclusion, endMs, endMs, startMs, runId)
       .run();
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs update failed run=${runId}: ${String(err)}`);
