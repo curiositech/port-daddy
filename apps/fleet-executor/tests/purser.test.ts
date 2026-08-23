@@ -306,6 +306,34 @@ describe('runPurser — steel-man failure modes', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  it('does not let contract repair swallow a retryable provider deadline', async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce({ response: 'I refuse to emit JSON.' })
+      .mockImplementationOnce(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    await expect(runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:repair-deadline',
+      false,
+      new FleetAiCircuit(10),
+      1,
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(rec.steps.some(step => step.kind === 'ship-repair')).toBe(false);
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({ retryable: true, providerCircuitOpen: true }),
+    }));
+  });
+
   it('malformed steel-man ⇒ transcript error step, BROKEN-SHIP result, and a hard stop (no second AI call, no git writes)', async () => {
     const { ai } = seqAi(['I refuse to emit JSON.', TESTS_JSON]);
     const rec = recorder();

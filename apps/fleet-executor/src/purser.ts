@@ -1126,7 +1126,9 @@ export async function runPurser(
             )
           ).text,
         validate,
-        abortOnError: error => error instanceof PullRequestHeadValidationError,
+        abortOnError: error =>
+          error instanceof PullRequestHeadValidationError ||
+          error instanceof FleetAiDependencyError,
       });
       await transcript.step(
         'ship-repair',
