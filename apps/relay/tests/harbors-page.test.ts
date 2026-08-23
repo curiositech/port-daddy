@@ -604,10 +604,53 @@ describe('route wiring (worker.fetch)', () => {
 
     // …and identical to the 404 a well-formed but nonexistent harbor gets, so
     // the malformed case does not become its own oracle.
+    //
+    // That sentence used to be the whole of it: the code below fetched `ghost`
+    // and asserted only that it was ALSO 404. Two 404s with different bodies
+    // are still two distinguishable answers — the existence-oracle property is
+    // about the BYTES, and it was stated in this comment and checked nowhere.
+    // `notFoundPage()` (harbors-page.ts:221-236) takes no arguments and
+    // interpolates nothing, so byte-identity is not merely desirable here, it
+    // is what the implementation already guarantees and what a future edit
+    // threading the requested name into the page would silently break.
     const ghost = await worker.fetch(
       req('/account/harbors/alice/ghost', { session: ALICE_SESSION }), env, {} as ExecutionContext,
     );
     expect(ghost.status).toBe(404);
+    const ghostBody = await ghost.text();
+
+    // Premise: both bodies are real pages. Without this, `toBe` passes for two
+    // empty strings and the assertion below proves nothing.
+    expect(body.length).toBeGreaterThan(200);
+    expect(body).toContain('Not found');
+    expect(body).toBe(ghostBody);
+  });
+
+  // Obligation 4 applies to EVERY response on this surface, and the transport
+  // test above reaches the list and detail pages through their handlers —
+  // never through the router. The malformed-path 404 is produced by the
+  // router's own URIError branch (index.ts:505-520), which is a different
+  // construction path, so nothing asserted that it carries the same headers.
+  // A 404 that is cacheable or indexable leaks the same fact the body is
+  // careful not to state.
+  it('the router-built 404 carries the same no-store, noindex, script-free headers', async () => {
+    const env = makeEnv(makeParleyDb().db);
+    await seedDock(env);
+
+    for (const path of ['/account/harbors/%ZZ/dock', '/account/harbors/alice/ghost']) {
+      const res = await worker.fetch(
+        req(path, { session: ALICE_SESSION }), env, {} as ExecutionContext,
+      );
+      expect(res.status).toBe(404);
+      expect(res.headers.get('Cache-Control')).toBe('no-store');
+      expect(res.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      const csp = res.headers.get('Content-Security-Policy')!;
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).not.toContain('script-src');
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(await res.text()).not.toMatch(/<script[\s>]/i);
+    }
   });
 
   it('dispatches list and detail to the right handlers', async () => {

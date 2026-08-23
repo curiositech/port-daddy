@@ -151,7 +151,7 @@ import {
   handleParleySignForm,
   handleParleyVerdictForm,
 } from './parleys-page.js';
-import { handleHarborsPage, handleHarborDetailPage } from './harbors-page.js';
+import { handleHarborsPage, handleHarborDetailPage, harborNotFoundPage } from './harbors-page.js';
 import {
   handleMediatorConvene,
   handleMediatorSummonsRespond,
@@ -517,7 +517,18 @@ export default {
       if (seg && hns && hname && seg.length === 2 && method === 'GET') {
         response = await handleHarborDetailPage(request, env, hns, hname);
       } else {
-        response = new Response('Not Found', { status: 404 });
+        // The SAME page a nonexistent harbor gets, byte for byte — not a bare
+        // `new Response('Not Found')`. That plaintext 9-byte answer was
+        // distinguishable on sight from the real 404, which made "your escape
+        // sequence was bad" and "no such harbor" two different replies: the
+        // existence oracle the page's own text refuses to be. It also carried
+        // none of this surface's headers — no no-store, no noindex, no CSP.
+        //
+        // NOTE: the parleys branch above (the `else` at the end of the
+        // /account/parleys/ dispatch) still has the bare form and the same
+        // doctrine in parleys-page.ts. Same defect, different surface; it needs
+        // its own change and its own tests rather than a drive-by here.
+        response = harborNotFoundPage();
       }
     }
 

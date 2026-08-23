@@ -218,7 +218,19 @@ ${inner}
  * session holder could enumerate which namespaces and names exist by reading
  * the difference. Same rule, same copy shape, as the parley surface's 404.
  */
-function notFoundPage(): Response {
+/**
+ * The single 404 this surface serves.
+ *
+ * Exported because the ROUTER needs it too. index.ts's `/account/harbors/`
+ * branch answers 404 for an undecodable segment and for an unknown path shape,
+ * and it used to do that with `new Response('Not Found', { status: 404 })` — a
+ * 9-byte plaintext body with no headers, next to a comment claiming the
+ * undecodable case "joins them rather than standing out". It stood out: a
+ * nonexistent harbor got this full page, a malformed escape got nine bytes, and
+ * telling those apart is the existence oracle the page's own text refuses to be.
+ * Same function, same bytes, or it is not one response.
+ */
+export function harborNotFoundPage(): Response {
   return htmlResponse(
     shellPage(
       'Port Daddy — Harbor not found',
@@ -628,7 +640,7 @@ export async function handleHarborDetailPage(
   const session = await resolveSession(request, env);
   if (!session) return toLogin();
   const gate = await resolveHarborMembership(env, session.user, namespace, name);
-  if (!gate) return notFoundPage();
+  if (!gate) return harborNotFoundPage();
 
   const nowSec = Math.floor(Date.now() / 1000);
   let members: HarborMemberListRow[] | null;
