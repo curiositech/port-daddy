@@ -16,8 +16,8 @@ const {
 
 describe('resolveModel — declarative (backend, capability) → concrete id', () => {
   test('maps a backend + capability to a concrete id', () => {
-    expect(resolveModel({ backend: 'anthropic', capability: 'cheap' })).toBe('claude-haiku-4-5-20251001');
-    expect(resolveModel({ backend: 'openai', capability: 'high' })).toBe('gpt-5');
+    expect(resolveModel({ backend: 'anthropic', capability: 'cheap' })).toBe('claude-haiku-4-5');
+    expect(resolveModel({ backend: 'openai', capability: 'high' })).toBe('gpt-5.5');
   });
 
   test('legacy model_tier (low/mid/high) maps through to a capability', () => {
@@ -33,7 +33,7 @@ describe('resolveModel — declarative (backend, capability) → concrete id', (
     // 'claude-code' is the bare backend name leaking in as a model — ignore it,
     // fall through to the registry default.
     expect(resolveModel({ backend: 'anthropic', capability: 'cheap', explicit: 'claude-code' }))
-      .toBe('claude-haiku-4-5-20251001');
+      .toBe('claude-haiku-4-5');
   });
 
   test('defaults to the cheap capability when none is given', () => {
@@ -79,15 +79,17 @@ describe('registry data integrity', () => {
   test('the cheap tier still equals the operator defaults (no telemetry drift)', () => {
     // These must stay cost-priced; the backend-telemetry-policy fail-closed gate
     // depends on it. Sentinel against an accidental registry edit that breaks launches.
-    expect(resolveModel({ backend: 'claude', capability: 'cheap' })).toBe('claude-haiku-4-5-20251001');
+    expect(resolveModel({ backend: 'claude', capability: 'cheap' })).toBe('claude-haiku-4-5');
     expect(resolveModel({ backend: 'codex', capability: 'cheap' })).toBe('gpt-5.4-mini');
     expect(resolveModel({ backend: 'cloudflare', capability: 'cheap' })).toBe('@cf/zai-org/glm-4.7-flash');
   });
 
   test('allRegisteredModelIds returns the de-duped id set', () => {
     const ids = allRegisteredModelIds();
-    expect(ids).toContain('claude-haiku-4-5-20251001');
-    expect(ids).toContain('gpt-5');
+    expect(ids).toContain('claude-haiku-4-5');
+    // Bare `gpt-5` was superseded by the live-verified gpt-5.4/5.5 ladder in the
+    // 2026-08-23 canonical-registry supplant; assert a currently-mapped id.
+    expect(ids).toContain('gpt-5.5');
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

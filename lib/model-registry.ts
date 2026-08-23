@@ -8,7 +8,8 @@
  * declare INTENT — a backend plus a capability like `cheap` / `high` /
  * `max-thinking` — and call `resolveModel()` to splice in the real ID at the last
  * second. The concrete IDs live in ONE data file, `lib/model-registry-data.ts`,
- * refreshed per version build by `scripts/refresh-model-registry.ts`.
+ * generated from `config/models.yaml` by `scripts/generate-model-registry.ts`
+ * (which also carries the live phantom-id probe: `--probe`).
  *
  * This module is the model analogue of `lib/llm-backend-resolver.ts` (the single
  * backend resolver): one reader, no parallel lookup paths. The
