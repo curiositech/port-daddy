@@ -646,11 +646,28 @@ async function lesson13Inbox(): Promise<void> {
   }).catch(() => {});
   process.stderr.write(`  Registered agents: ${aliceId} and ${bobId}\n\n`);
 
+  // An inbox send is a credentialed write (#8877 / ADR-0122): the daemon will
+  // only attribute a message to a name the presenting soul owns. Registering
+  // in the agent registry is NOT identity — mint Alice a real soul through
+  // the public door and bind her display name to it, then send with HER
+  // credential rather than whatever this shell's context happens to hold.
+  const aliceMint = await pdFetch('/actors/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alias: aliceId, project: 'tutorial' }),
+  }).catch(() => null);
+  const aliceCredential = aliceMint?.ok
+    ? ((await aliceMint.json().catch(() => ({}))) as { credential?: string }).credential
+    : undefined;
+
   // Alice sends Bob a message
   process.stderr.write(`  ${ANSI.fgCyan}Alice → Bob:${ANSI.reset} "Migrations complete, ready for review"\n`);
   await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(aliceCredential ? { 'x-actor-credential': aliceCredential } : {}),
+    },
     body: JSON.stringify({ content: 'Migrations complete, ready for review', from: aliceId, type: 'handoff' }),
   }).catch(() => {});
 

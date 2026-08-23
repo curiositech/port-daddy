@@ -457,12 +457,22 @@ Parley decisions render in pd-console's Parley pane, including CONVENE/hold econ
 
 ```bash
 pd inbox watch --agent CAPTAIN                     # stream your inbox live (SSE)
-pd inbox send CAPTAIN "Course corrected." --sender "PILOT"
+pd inbox send CAPTAIN "Course corrected."          # sent as YOUR session's agent
 pd integration ready myapp:api                     # signal the API is up
 pd wait myapp:api                                  # block until a service is healthy
 pd attention                                       # session-start mailbox aggregator
 pd nudge                                           # list pending suggestibility nudges
 ```
+
+An inbox send is a **credentialed** write (#8877 / ADR-0122). The inbox is an
+instruction plane, not a display one: with `wake`, a DM becomes the `- sender:`
+line in a spawned agent's prompt. So the daemon verifies who is sending —
+`pd begin` captures the credential and `pd` presents it automatically, and a
+`from` you did not earn is refused (`403 INBOX_FROM_MISMATCH`) rather than
+written down as fact. There was no `--sender` flag on `pd inbox send`; the
+sender is your session. Reads, clears and mark-read on another agent's inbox
+are still unauthenticated — see the deferral in
+[`docs/security/identity-write-boundary-audit.md`](docs/security/identity-write-boundary-audit.md).
 
 ### Durable Commitments
 

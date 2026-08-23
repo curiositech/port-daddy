@@ -1681,10 +1681,6 @@ const TOOLS = [
           type: 'string',
           description: 'Message content to queue.',
         },
-        from: {
-          type: 'string',
-          description: 'Sender agent id or operator label.',
-        },
         type: {
           type: 'string',
           description: 'Optional message type.',
@@ -1844,10 +1840,6 @@ const TOOLS = [
         content: {
           type: 'string',
           description: 'Message content',
-        },
-        from: {
-          type: 'string',
-          description: 'Sender agent ID (optional)',
         },
         type: {
           type: 'string',
@@ -4185,7 +4177,14 @@ async function handleTool(
       const body: Record<string, unknown> = {
         content: args.content,
       };
-      if (args.from) body.from = args.from;
+      // #8877 / ADR-0122: `from` is no longer model-supplied. The inbox is an
+      // instruction plane — a model-chosen sender name is a forged authority
+      // label the daemon would have to take on faith. Send under this
+      // process's own session agentId (which the daemon can verify against
+      // the session binding), or send nothing and let it derive the minted
+      // actorId from the credential.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       if (typeof args.wake === 'boolean') body.wake = args.wake;
       if (args.project) body.project = args.project;
@@ -4242,7 +4241,10 @@ async function handleTool(
     // ── Agent Inbox ─────────────────────────────────────────────────────
     case 'inbox_send': {
       const body: Record<string, unknown> = { content: args.content };
-      if (args.from) body.from = args.from;
+      // See message_actor: the sender is this process's verified session, not
+      // a string the model picked.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox`, body);
       break;
@@ -4883,6 +4885,7 @@ async function handleTool(
       const message = args.message as string;
       const type = (args.type as string) || 'request';
       const project = args.project as string | undefined;
+      const talkSenderAgentId = resolveAgentId({});
       const candidates = agent.includes(':')
         ? [agent]
         : [
@@ -4893,14 +4896,20 @@ async function handleTool(
       for (const target of candidates) {
         try {
           const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {
-            type, content: message, from: 'mcp-user',
+            // 'mcp-user' was a hardcoded, un-minted sender name — exactly the
+            // forged attribution the inbox gate now rejects. Send under this
+            // process's verified session agentId, or omit and let the daemon
+            // attribute the message to the credential's minted actor.
+            type, content: message, ...(talkSenderAgentId ? { from: talkSenderAgentId } : {}),
           });
           if (r.status >= 200 && r.status < 300) {
             return JSON.stringify({ success: true, delivered_to: target, type, message });
           }
         } catch { /* try next candidate */ }
       }
-      await POST(`/msg/${encodeURIComponent(agent)}`, { payload: { type, message, from: 'mcp-user' } });
+      await POST(`/msg/${encodeURIComponent(agent)}`, {
+        payload: { type, message, from: talkSenderAgentId ?? 'mcp-user' },
+      });
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 

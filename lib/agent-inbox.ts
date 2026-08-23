@@ -4,9 +4,19 @@
  * Per-agent message inbox for direct messaging between agents.
  * Registration is the cost of being addressable.
  *
- * - Any caller can send to any registered agent's inbox
- * - Only the owning agent can read/clear its own inbox
+ * - Any caller can send to any registered agent's inbox, but every send over
+ *   HTTP must present a daemon-minted credential and may only be attributed
+ *   to a name that credential is entitled to (lib/inbox-identity.ts). This
+ *   module is the storage layer and enforces NOTHING itself — the gate lives
+ *   in the routes, because in-process senders (parley, visual-task intake,
+ *   suggestion-broker, surface-scan, the claim watcher) legitimately call
+ *   send() without crossing an HTTP boundary.
  * - Unregistered agents can broadcast via pub/sub but cannot receive DMs
+ *
+ * NOT TRUE (and previously claimed here): "only the owning agent can
+ * read/clear its own inbox". The read, mark-read and clear verbs are still
+ * unauthenticated at the route layer. See the "Deferred" row for the inbox
+ * plane in docs/security/identity-write-boundary-audit.md.
  */
 
 import type Database from 'better-sqlite3';
@@ -15,6 +25,17 @@ export interface InboxMessage {
   id: number;
   agentId: string;
   from: string | null;
+  /**
+   * The daemon-verified minted actorId behind `from` (#8877 / ADR-0122).
+   * Written ONLY by the credentialed route gate (lib/inbox-identity.ts) —
+   * never from a request body. null means "daemon-internal sender": one of
+   * the in-process writers (parley, visual-task intake, suggestion-broker,
+   * surface-scan, the claim watcher) that never crossed the HTTP boundary.
+   * It does NOT mean "system", and consumers must not render it as one.
+   */
+  fromActorId: string | null;
+  /** The verified sender's soul class ('newcomer' | 'graduated' | 'operator'). */
+  fromSoulClass: string | null;
   content: unknown;
   contentType: string;
   type: string;
@@ -27,6 +48,8 @@ interface InboxRow {
   id: number;
   agent_id: string;
   from_agent: string | null;
+  from_actor_id: string | null;
+  from_soul_class: string | null;
   content: string;
   content_type: string;
   type: string;
@@ -37,6 +60,13 @@ interface InboxRow {
 
 interface SendOptions {
   from?: string;
+  /**
+   * The daemon's verified verdict for this send. Reserved for the route gate
+   * (lib/inbox-identity.ts): a caller cannot reach it, because every HTTP
+   * door overwrites it with the gate's verdict before calling send().
+   */
+  fromActorId?: string | null;
+  fromSoulClass?: string | null;
   type?: string;
   contentType?: 'text' | 'json' | 'binary';
   signal?: string;
@@ -76,14 +106,26 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     db.exec('ALTER TABLE agent_inbox ADD COLUMN read_at INTEGER');
   } catch { /* already exists */ }
 
+  // from_actor_id / from_soul_class: the daemon's verified verdict for the
+  // sender (#8877 / ADR-0122). `from_agent` is a display string the sender
+  // chose; these two are what the daemon PROVED, and only the credentialed
+  // route gate writes them. A null pair means a daemon-internal in-process
+  // send, which must never be rendered as though a principal wrote it.
+  try {
+    db.exec('ALTER TABLE agent_inbox ADD COLUMN from_actor_id TEXT');
+  } catch { /* already exists */ }
+  try {
+    db.exec('ALTER TABLE agent_inbox ADD COLUMN from_soul_class TEXT');
+  } catch { /* already exists */ }
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_agent ON agent_inbox(agent_id, created_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_unread ON agent_inbox(agent_id) WHERE read = 0`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_from ON agent_inbox(from_agent, created_at)`);
 
   const stmts = {
     send: db.prepare(`
-      INSERT INTO agent_inbox (agent_id, from_agent, content, content_type, type, read, created_at)
-      VALUES (?, ?, ?, ?, ?, 0, ?)
+      INSERT INTO agent_inbox (agent_id, from_agent, from_actor_id, from_soul_class, content, content_type, type, read, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
     `),
     list: db.prepare(`
       SELECT * FROM agent_inbox WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?
@@ -115,6 +157,8 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
       id: row.id,
       agentId: row.agent_id,
       from: row.from_agent,
+      fromActorId: row.from_actor_id ?? null,
+      fromSoulClass: row.from_soul_class ?? null,
       content: row.content_type === 'json' ? safeJsonParse(row.content) : row.content,
       contentType: row.content_type,
       type: row.type,
@@ -154,6 +198,12 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
       }
 
       const { from = null, type = 'message' } = options;
+      const fromActorId = typeof options.fromActorId === 'string' && options.fromActorId
+        ? options.fromActorId
+        : null;
+      const fromSoulClass = typeof options.fromSoulClass === 'string' && options.fromSoulClass
+        ? options.fromSoulClass
+        : null;
       let { contentType } = options;
       const now = Date.now();
 
@@ -174,13 +224,15 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
       }
 
       try {
-        const result = stmts.send.run(agentId, from, contentStr, contentType, type, now);
+        const result = stmts.send.run(agentId, from, fromActorId, fromSoulClass, contentStr, contentType, type, now);
         const messageId = Number(result.lastInsertRowid);
 
         const msg: InboxMessage = {
           id: messageId,
           agentId,
           from,
+          fromActorId,
+          fromSoulClass,
           content: contentType === 'json' ? safeJsonParse(contentStr) : contentStr,
           contentType: contentType,
           type,
