@@ -1,79 +1,93 @@
-// tests/unit/purser/test-dyld-environment-stripping.test.ts
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { resolveOnnxRuntimeNativeLaunchEnv } from '../../../shared/daemon-binary';
 import { prepareOnnxRuntimeNativeBinding } from '../../../scripts/lib/onnx-runtime-native.mjs';
-import { mkdtempSync, join, tmpdir } from 'node:fs';
-import { join as pathJoin } from 'node:path';
 
-describe('DYLD environment handling in hardened runtime', () => {
-  test('macOS launch env does not include DYLD_* variables even if supplied', () => {
-    const root = mkdtempSync(pathJoin(tmpdir(), 'pd-darwin-env-'));
-    const binaryPath = pathJoin(root, 'dist', 'daemon', 'daemon');
-    const env = {
+const SCRATCH_ROOT = join(homedir(), 'coding', 'tmp');
+const scratch: string[] = [];
+
+/**
+ * Create a durable test fixture under the operator-approved scratch root.
+ * The design keeps a supposedly missing binding independent of process.cwd,
+ * because a real PR checkout necessarily contains its installed dependencies.
+ *
+ * @param prefix Human-readable fixture prefix.
+ * @returns A unique empty directory tracked for cleanup.
+ */
+function fixtureRoot(prefix: string): string {
+  mkdirSync(SCRATCH_ROOT, { recursive: true });
+  const root = mkdtempSync(join(SCRATCH_ROOT, prefix));
+  scratch.push(root);
+  return root;
+}
+
+afterEach(() => {
+  for (const root of scratch.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+describe('platform-honest native loader admission', () => {
+  test('macOS publishes no DYLD variables even when the parent supplied them', () => {
+    const root = fixtureRoot('pd-purser-darwin-env-');
+    const binaryPath = join(root, 'dist', 'daemon', 'daemon');
+    const nativeDir = join(root, 'dist', 'native', 'onnxruntime-node', 'darwin-arm64');
+    mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(join(nativeDir, 'libonnxruntime.1.dylib'), 'runtime');
+
+    expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {
       DYLD_FALLBACK_LIBRARY_PATH: '/operator/lib',
       DYLD_LIBRARY_PATH: '/other/paths',
-    };
-
-    const launchEnv = resolveOnnxRuntimeNativeLaunchEnv(
-      root,
-      binaryPath,
-      env,
-      'darwin',
-      'arm64',
-    );
-
-    // Hardened runtime strips DYLD_*; the launch env should be empty for macOS
-    expect(launchEnv).toEqual({});
+    }, 'darwin', 'arm64')).toEqual({});
   });
 
-  test('linux launch env includes LD_LIBRARY_PATH with native dir', () => {
-    const root = mkdtempSync(pathJoin(tmpdir(), 'pd-linux-env-'));
-    const binaryPath = pathJoin(root, 'dist', 'daemon', 'daemon');
-    const nativeDir = pathJoin(root, 'dist', 'native', 'onnxruntime-node', 'linux-x64');
-    const env = {
+  test('Linux prepends packaged cargo without discarding the parent loader path', () => {
+    const root = fixtureRoot('pd-purser-linux-env-');
+    const binaryPath = join(root, 'dist', 'daemon', 'daemon');
+    const nativeDir = join(root, 'dist', 'native', 'onnxruntime-node', 'linux-x64');
+    mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(join(nativeDir, 'libonnxruntime.so.1'), 'runtime');
+
+    expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {
       LD_LIBRARY_PATH: '/operator/lib',
-    };
-
-    const launchEnv = resolveOnnxRuntimeNativeLaunchEnv(
-      root,
-      binaryPath,
-      env,
-      'linux',
-      'x64',
-    );
-
-    // The native dir should be prepended to the existing LD_LIBRARY_PATH
-    expect(launchEnv).toEqual({
+    }, 'linux', 'x64')).toEqual({
       LD_LIBRARY_PATH: `${nativeDir}:/operator/lib`,
     });
   });
 });
 
-describe('prepareOnnxRuntimeNativeBinding on macOS', () => {
-  test('skips when the native binding is missing and required=false', () => {
-    // Use the current working directory as a dummy repo root; the binding
-    // will not exist in this test environment.
+describe('missing binding admission', () => {
+  test('returns a truthful skipped receipt when an isolated optional binding is absent', () => {
+    const repoRoot = fixtureRoot('pd-purser-binding-optional-');
     const result = prepareOnnxRuntimeNativeBinding({
-      repoRoot: process.cwd(),
+      repoRoot,
       platform: 'darwin',
       arch: 'arm64',
       required: false,
     });
 
-    expect(result.status).toBe('skipped');
-    expect(result.reason).toMatch(/native binding is missing/);
-    expect(result.platform).toBe('darwin');
-    expect(result.arch).toBe('arm64');
+    expect(result).toMatchObject({
+      status: 'skipped',
+      platform: 'darwin',
+      arch: 'arm64',
+    });
+    expect(result.reason).toContain(join(repoRoot, 'node_modules'));
   });
 
-  test('throws when required=true and binding is missing', () => {
-    const fn = () =>
-      prepareOnnxRuntimeNativeBinding({
-        repoRoot: process.cwd(),
-        platform: 'darwin',
-        arch: 'arm64',
-        required: true,
-      });
+  test('fails closed when the same isolated binding is required', () => {
+    const repoRoot = fixtureRoot('pd-purser-binding-required-');
 
-    expect(fn).toThrowError(/Cannot prepare ONNX Runtime binding/);
+    expect(() => prepareOnnxRuntimeNativeBinding({
+      repoRoot,
+      platform: 'darwin',
+      arch: 'arm64',
+      required: true,
+    })).toThrow(/Cannot prepare ONNX Runtime binding: native binding is missing/);
   });
 });

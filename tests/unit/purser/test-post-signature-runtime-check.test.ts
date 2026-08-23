@@ -1,62 +1,50 @@
-// the complete contents of tests/unit/purser/test-post-signature-runtime-check.test.ts
-import { join } from 'node:path';
-import { existsSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseSemanticRuntimeProof } from '../../../scripts/lib/onnx-runtime-native.mjs';
 
-describe('post-signature semantic runtime check', () => {
-  const isDarwin = process.platform === 'darwin';
-  const binaryPath = join(process.cwd(), 'dist', 'pd');
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-  if (!isDarwin) {
-    test('skipped on non-macOS platforms', () => {
-      // The semantic runtime check is only relevant for macOS hardened runtime.
-      expect(true).toBe(true);
-    });
-    return;
-  }
+test('release workflow performs the semantic import after the signing step', () => {
+  const workflow = readFileSync(resolve(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8');
+  const signIndex = workflow.indexOf('node scripts/sign-and-notarize.mjs dist/pd');
+  const smokeIndex = workflow.indexOf('Smoke exact release semantic runtime (post-sign on macOS)');
 
-  if (!existsSync(binaryPath)) {
-    test('skipped because dist/pd not found', () => {
-      // The build step must produce dist/pd before running this test.
-      expect(true).toBe(true);
-    });
-    return;
-  }
+  expect(signIndex).toBeGreaterThan(-1);
+  expect(smokeIndex).toBeGreaterThan(signIndex);
+  expect(workflow.slice(smokeIndex)).toContain('PORT_DADDY_RESOURCE_DIR: ${{ github.workspace }}');
+  expect(workflow.slice(smokeIndex)).toContain('dist/pd __semantic-runtime-check');
+});
 
-  test('passes semantic runtime check with no DYLD_* env vars', () => {
-    // Ensure no DYLD_* variables are present in the environment.
-    const env: Record<string, string> = {
-      PATH: process.env.PATH ?? '',
-    };
+test('semantic proof parser accepts the runtime backend receipt shape', () => {
+  expect(parseSemanticRuntimeProof(JSON.stringify({
+    success: true,
+    backends: [
+      { name: 'cpu', bundled: true },
+      { name: 'webgpu', bundled: true },
+      { name: 'coreml', bundled: true },
+    ],
+  }))).toMatchObject({ success: true });
+});
 
-    let output: string;
-    try {
-      output = execSync(`${binaryPath} __semantic-runtime-check`, {
-        env,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    } catch (err: any) {
-      const stderr = err.stderr || err.message;
-      throw new Error(`dist/pd failed to run semantic-runtime-check: ${stderr}`);
-    }
+const binaryPath = resolve(repoRoot, 'dist', 'pd');
+const exactArtifactTest = process.platform === 'darwin' && existsSync(binaryPath)
+  ? test
+  : test.skip;
 
-    let result: unknown;
-    try {
-      result = JSON.parse(output.trim());
-    } catch {
-      throw new Error(`dist/pd output is not valid JSON: ${output}`);
-    }
+exactArtifactTest('exact built artifact imports ONNX with both DYLD variables absent', () => {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  delete env.DYLD_FALLBACK_LIBRARY_PATH;
+  delete env.DYLD_LIBRARY_PATH;
+  env.PORT_DADDY_RESOURCE_DIR = repoRoot;
 
-    expect(result).toBeInstanceOf(Object);
-    const obj = result as Record<string, unknown>;
+  const proof = parseSemanticRuntimeProof(execFileSync(
+    binaryPath,
+    ['__semantic-runtime-check'],
+    { env, encoding: 'utf8' },
+  ));
+  const backendNames = proof.backends.map((backend: { name?: string }) => backend.name);
 
-    expect(obj.success).toBe(true);
-    const backends = obj.backends;
-    expect(Array.isArray(backends)).toBe(true);
-    expect(backends.length).toBeGreaterThan(0);
-
-    // The backends list should contain at least the CPU backend.
-    expect(backends).toEqual(expect.arrayContaining(['CPU']));
-  });
+  expect(backendNames).toEqual(expect.arrayContaining(['cpu', 'webgpu', 'coreml']));
 });
