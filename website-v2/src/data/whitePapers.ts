@@ -155,6 +155,30 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
+/** The bound edition is a collection of the seven chapters, not an eighth paper. */
+export interface CollectedVolume {
+  id: string
+  title: string
+  subtitle: string
+  pdfPath: string
+  date: string
+  pages: number
+  sizeKb: number
+  references: number
+}
+
+export const COLLECTED_VOLUME: CollectedVolume = {
+  id: 'coordination-papers-mega-volume',
+  title: 'The Port Daddy Coordination Papers',
+  subtitle:
+    'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
+  pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  date: 'August 2026',
+  pages: 247,
+  sizeKb: 2349,
+  references: 202,
+}
+
 /**
  * A readonly mirror of `WhitePaper` used only as the inference constraint on
  * `defineWhitePapers`. The runtime / consumer-facing type is still
@@ -1100,6 +1124,14 @@ export interface LibraryChangelogEntry {
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-08-05',
+    date: 'August 5, 2026',
+    title: 'The seven papers publish as one audited collected volume',
+    summary:
+      'The seven chapters now publish together as a 247-page collected volume with a global introduction, coherent table of contents, implementation ledger, research roadmap, notation concordance, and 202 collated references. The companion-paper rigor pass repairs figure legibility, rechecks mathematical assumptions and cross-paper notation, and records implementation claims against repository evidence. Versions: I 1.2, II 1.2, III 1.4, IV 1.3, V 1.4, VI 2.7, VII 1.0.',
+    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+  },
   {
     dateIso: '2026-08-05',
     date: 'August 5, 2026',

@@ -1,0 +1,118 @@
+\documentclass[11pt,a4paper]{article}
+\input{coordination-papers-mega-volume-preamble.tex}
+\hypersetup{
+  pdftitle={The Harbor, the Person, and the Economy: The Collected Coordination Papers},
+  pdfauthor={Erich Owens},
+  pdfsubject={Port Daddy coordination architecture, protocols, implementation status, and research roadmap},
+  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
+}
+\newcommand{\pdgeneratedinput}[2]{%
+  \IfFileExists{#1}{\input{#1}}{%
+    \PackageError{coordination-papers-mega-volume}{Generated #2 is missing}{%
+      From the repository root, run: node scripts/generate-mega-whitepaper.mjs
+      .cache/whitepaper-build/coordination-papers-mega-volume}%
+  }%
+}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\pagecolor{hhpaper}\color{hhink}
+\vspace*{1.2cm}
+{\Large\scshape Port Daddy Coordination Papers}\par
+\par\vspace{0.4cm}\noindent\color{hhcobalt}\rule{\textwidth}{2.2pt}\color{hhink}\par
+\vspace{1.3cm}
+{\Huge\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
+\vspace{0.5cm}
+{\LARGE The Collected Coordination Papers}\par
+\vspace{0.9cm}
+{\large Seven cross-referenced chapters on local authority, legibility,
+continuity, capability security, bonded cooperation, and federation}\par
+\vfill
+\noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
+\textbf{Erich Owens} & Version 1.0\\
+Curiositech LLC & August 2026\\
+\texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
+\end{tabularx}
+\par\vspace{0.5cm}\noindent\color{hhcobalt}\rule{\textwidth}{2.2pt}\par
+\end{titlepage}
+\nopagecolor\color{hhink}
+
+\pagenumbering{roman}
+\begin{abstract}\noindent
+Autonomous coding agents are useful alone and institutionally fragile together.
+This volume develops one continuous answer across seven independently readable
+papers: a single local writer decides what is true; a legibility layer lets the
+operator see and revoke what the swarm is doing; continuity turns an ephemeral
+spawn into an accountable participant; capability attenuation bounds what that
+participant may do; commitments, evidence, and bonds price failures; and a
+federation boundary states what two mutually sovereign harbors may safely owe one
+another. The collection separates running mechanisms from partial integrations,
+precise specifications, and research proposals. Its final appendices consolidate
+that implementation ledger and turn every important open claim into a proof,
+experiment, or engineering obligation.
+\end{abstract}
+
+\section*{How to use this volume}
+\addcontentsline{toc}{section}{How to use this volume}
+Read Chapters I--IV for the product argument, Chapters V--VII for the protocol
+and assurance case, or use the chapter abstracts and reader maps as independent
+entry points. The status vocabulary is deliberately strict: \Built{} means
+running code exercised by tests; \BuiltWeak{} means a running slice that does not
+yet satisfy the full contract; \Designed{} means a concrete design without a
+shipping realization; \Vision{} is a research direction. A closed model result
+is never silently promoted to a whole-runtime guarantee.
+
+\begingroup\small\sloppy\tableofcontents\endgroup\clearpage
+\begingroup\small\sloppy\listoffigures\endgroup\clearpage
+\begingroup\small\sloppy\listoftables\endgroup\clearpage
+
+\section{Introduction: one institution, seven views}
+The papers form a dependency ladder rather than a pile. The single-writer kernel
+provides local truth. The legibility layer turns that truth into an operator's
+usable picture. Continuity binds actions and outcomes to something that survives
+a process. The harbor economy prices cooperation over that identity. Anchor and
+Bonded Commons discharge the cryptographic and incentive obligations; the
+Federated Harbor identifies the boundary that remains when authority crosses a
+machine and an operator.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=7mm and 8mm,
+  rung/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=0.43\textwidth,minimum height=12mm,align=left,inner sep=7pt},
+  proof/.style={rung,draw=hhcobalt,line width=0.9pt,fill=hhpaper},
+  arr/.style={-{Stealth[length=2.4mm]},line width=0.7pt,draw=hhink},
+  parr/.style={arr,draw=hhcobalt,dashed},
+]
+\node[rung] (kernel) {\textbf{II. Single-Writer Kernel}\\local transactional truth};
+\node[rung,above=of kernel] (legible) {\textbf{I. Legible Swarm}\\operator sight, consent, attention};
+\node[rung,above=of legible] (person) {\textbf{III. Spawn to Person}\\continuity and witnessed outcomes};
+\node[rung,above=of person] (economy) {\textbf{IV. Harbor Economy}\\bonded exchange between principals};
+\node[proof,right=of kernel] (anchor) {\textbf{V. Anchor Protocol}\\authentication and attenuation};
+\node[proof,above=of anchor] (bonded) {\textbf{VI. Bonded Commons}\\evidence, incentives, conservation};
+\node[proof,above=of bonded] (federated) {\textbf{VII. Federated Harbor}\\cross-realm transfer and settlement};
+\draw[arr] (kernel) -- (legible); \draw[arr] (legible) -- (person); \draw[arr] (person) -- (economy);
+\draw[parr] (anchor) -- (kernel); \draw[parr] (bonded) -- (economy); \draw[parr] (federated) -- (economy);
+\end{tikzpicture}
+\caption{The volume's argument and assurance spine. Solid arrows build upward;
+dashed cobalt arrows discharge or delimit a load-bearing obligation.}
+\label{fig:volume-spine}
+\end{figure}
+
+\subsection{The claim discipline}
+The central editorial rule is the same as the system's operational rule: every
+summary must remain a lens onto inspectable evidence. The chapters therefore
+scope theorems to their assumptions, distinguish finite model checks from
+unbounded proofs, and state when a runtime path is merely available in a library
+rather than enforced at the write boundary. Appendix~\ref{app:volume-status}
+consolidates those grades; Appendix~\ref{app:volume-roadmap} names the work needed
+to move them.
+
+\clearpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
+\input{coordination-papers-mega-volume-appendices.tex}
+\end{document}
