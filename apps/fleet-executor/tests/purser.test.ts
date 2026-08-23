@@ -137,7 +137,37 @@ function freshMetrics(): PurserMetrics {
 
 /** A fake Cloudflare Sandbox instance stub (structural: just `exec`). */
 function sandboxStub(exitCode: number, output = 'test run output'): unknown {
-  return { exec: async () => ({ exitCode, stdout: output, stderr: '' }) };
+  const summary = {
+    numFailedTests: exitCode === 0 ? 0 : 1,
+    numFailedTestSuites: exitCode === 0 ? 0 : 1,
+    numPassedTests: exitCode === 0 ? 1 : 0,
+    numRuntimeErrorTestSuites: 0,
+    numTotalTests: 1,
+    success: exitCode === 0,
+  };
+  const stdout = [
+    '__PD_PURSER_TEST_STARTED__',
+    output,
+    `__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`,
+  ].join('\n');
+  return { exec: async () => ({ exitCode, stdout, stderr: '' }) };
+}
+
+function sandboxHarnessFailure(output = 'Test suite failed to run'): unknown {
+  const summary = {
+    numFailedTests: 0,
+    numFailedTestSuites: 1,
+    numPassedTests: 0,
+    numRuntimeErrorTestSuites: 1,
+    numTotalTests: 0,
+    success: false,
+  };
+  const stdout = [
+    '__PD_PURSER_TEST_STARTED__',
+    output,
+    `__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`,
+  ].join('\n');
+  return { exec: async () => ({ exitCode: 1, stdout, stderr: '' }) };
 }
 
 function purserCommentBodies(state: GitHubState): string[] {
@@ -567,6 +597,55 @@ describe('runPurser — stacking', () => {
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain('NOT been retargeted');
     expect(bodies[0]).toContain('not executed');
+  });
+
+  it('same-repo PR, generated assertions FAIL: the reviewed PR is blocked but never retargeted', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip(),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(1, '  ✕ rejects a placeholder mismatch') }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK' });
+    expect(result.errored).not.toBe(true);
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+    const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
+    expect((step.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(
+      /did not pass/,
+    );
+  });
+
+  it('same-repo PR, generated suite loads zero tests: disables Purser as broken machinery and never retargets', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxHarnessFailure('zero tests registered') }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+    const sandboxStep = rec.steps.find(s => s.kind === 'purser-sandbox')!;
+    expect(sandboxStep.title).toContain('RUNNER ERROR');
+    expect(sandboxStep.detail).toMatchObject({ outcomeKind: 'harness-failure' });
+    const stackedStep = rec.steps.find(s => s.kind === 'purser-stacked')!;
+    expect((stackedStep.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(
+      /broken for this run/,
+    );
+    expect(purserCommentBodies(state)[0]).toContain('NO AUTHOR FAILURE CLAIMED');
   });
 
   it('fork PR: the test PR is opened + comment posted, but NO retarget', async () => {
