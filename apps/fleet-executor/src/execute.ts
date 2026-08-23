@@ -1842,9 +1842,10 @@ export async function executeFleet(
 
   // --- XO TRIAGE (advisory-findings curation; src/xo.ts) --------------------
   // The XO ranks which ADVISORY findings are worth doing for THIS PR and the
-  // review comment gains an "XO's orders" section. Strictly fail-open: on any
-  // XO failure the section is '' and the comment renders EXACTLY as today. The
-  // check conclusion (and its summary) is computed above and NEVER touched.
+  // review comment gains an "XO's orders" section. XO judgment/format failures
+  // stay fail-open. A retryable provider fault is queue-owned until its bounded
+  // budget is exhausted, then this optional section disables itself and the
+  // already-computed check conclusion remains untouched.
   let reviewBody = summary;
   if (xoEnabled) {
     const advisories = collectAdvisoryFindings(results);
@@ -1858,10 +1859,32 @@ export async function executeFleet(
           advisories,
           changedPaths,
           gatewayId: env.AI_GATEWAY_ID,
+          aiCircuit,
         });
         await assertCurrentHead('after XO triage model work');
       } catch (error) {
-        return stopSupersededRun(error, true);
+        if (error instanceof FleetAiDependencyError) {
+          const failure = error.failure;
+          await transcript.step(
+            'xo-triage',
+            null,
+            `XO triage disabled after Workers AI dependency failure: ${failure.summary}`,
+            {
+              error: failure.summary,
+              status: failure.status,
+              code: failure.code,
+              retryable: failure.retryable,
+              providerAttempt,
+              maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
+            },
+          );
+          if (failure.retryable && providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS) {
+            throw error;
+          }
+          section = '';
+        } else {
+          return stopSupersededRun(error, true);
+        }
       }
       if (section) reviewBody = `${summary}\n\n${section}`;
       await transcript.step(
@@ -2215,7 +2238,9 @@ async function runShip(
           return text;
         },
         validate,
-        abortOnError: error => error instanceof PullRequestHeadValidationError,
+        abortOnError: error =>
+          error instanceof PullRequestHeadValidationError ||
+          error instanceof FleetAiDependencyError,
       });
       await assertCurrentHead(`after pd-${ship.name} contract repair`);
       await transcript.step(
@@ -2277,9 +2302,9 @@ async function runShip(
       // --- XO EDITOR PASS (src/xo.ts) --------------------------------------
       // Before the batch is finalized (rendered / stacked / captured), the XO
       // curates it against the most recent tracked ideas: merge near-dupes,
-      // sharpen titles, drop what's already tracked. Strictly fail-open: any
-      // XO failure keeps `proposals` untouched, and the cosine dedup inside
-      // captureProposals remains the pre-filter/fallback either way.
+      // sharpen titles, drop what's already tracked. XO judgment/format
+      // failures keep `proposals` untouched. A provider-circuit fault instead
+      // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
       if (xoEnabled && proposals && proposals.length > 0) {
         await assertCurrentHead(`before pd-${ship.name} XO editor`);
@@ -2292,6 +2317,7 @@ async function runShip(
           proposals,
           recentIdeas,
           gatewayId: env.AI_GATEWAY_ID,
+          aiCircuit,
         });
         await assertCurrentHead(`after pd-${ship.name} XO editor`);
         curated = editor.proposals;
@@ -2370,7 +2396,9 @@ async function runShip(
 
       // Durably capture the (XO-curated) proposals (D1 + semantic dedup +
       // auto-issue) so a Spark/Spider idea doesn't evaporate when the PR scrolls
-      // away. Best-effort: it NEVER throws or changes the advisory PASS.
+      // away. Product/storage failures remain best-effort. A retryable embedding
+      // dependency fault returns to the queue so later ships never load an open
+      // provider circuit; the final provider attempt adjudicates it fleet-wide.
       if (curated && curated.length > 0) {
         await assertCurrentHead(`before pd-${ship.name} idea capture`);
         await captureIdeas(
@@ -2379,6 +2407,7 @@ async function runShip(
           env,
           token,
           transcript,
+          aiCircuit,
           assertCurrentHead,
         );
       }
@@ -2753,8 +2782,10 @@ function buildStackPrBody(
  * envelope so the caller (best-effort capture) degrades to "no dedup" rather
  * than throwing.
  */
-async function embedText(ai: Ai, text: string): Promise<number[]> {
-  const res = await ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] });
+async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promise<number[]> {
+  const res = await aiCircuit.run(() =>
+    ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+  );
   const data = (res as { data?: unknown }).data;
   if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
   return [];
@@ -2764,7 +2795,9 @@ async function embedText(ai: Ai, text: string): Promise<number[]> {
  * Durably capture an ideation ship's proposals into the relay D1 idea store,
  * semantic-deduped, opening a `fleet-idea` GitHub issue for each novel one.
  * Best-effort: a missing DB binding (unit tests / unconfigured) skips capture
- * entirely, and any failure is swallowed — it can NEVER change the advisory PASS.
+ * entirely, and product/storage/permanent dependency failures are swallowed.
+ * Retryable Workers AI circuit failures propagate so one optional embedding
+ * cannot strand the invocation or let later ships load a failing provider.
  */
 async function captureIdeas(
   proposals: Proposal[],
@@ -2772,6 +2805,7 @@ async function captureIdeas(
   env: ExecutorEnv,
   token: string,
   transcript: Transcript,
+  aiCircuit: FleetAiCircuit,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<void> {
   if (!env.DB) return; // no store bound → comment-only fallback (still posted above)
@@ -2783,7 +2817,7 @@ async function captureIdeas(
       ctx,
       embed: async text => {
         await assertCurrentHead(`before pd-${ctx.shipName} idea embedding`);
-        const vector = await embedText(env.AI, text);
+        const vector = await embedText(env.AI, text, aiCircuit);
         await assertCurrentHead(`after pd-${ctx.shipName} idea embedding`);
         return vector;
       },
@@ -2793,6 +2827,14 @@ async function captureIdeas(
       },
       now: nowSec(),
     });
+    // captureProposals isolates one bad idea so a storage/issue failure does
+    // not discard its siblings. That per-item catcher also sees embedding
+    // errors, so re-surface the shared circuit state here: only the first
+    // provider call ran; later proposals were rejected locally by the open
+    // circuit, and the queue remains the single retry owner.
+    if (aiCircuit.failure) {
+      throw new FleetAiDependencyError(aiCircuit.failure);
+    }
     const created = results.filter(r => r.outcome === 'tracked-new').length;
     const dupes = results.filter(r => r.outcome === 'duplicate' || r.outcome === 'already-tracked').length;
     await transcript.step(
@@ -2803,6 +2845,7 @@ async function captureIdeas(
     );
   } catch (err) {
     if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
 }
