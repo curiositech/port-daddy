@@ -37,6 +37,7 @@ import { randomHex } from './crypto.js';
 import { HEAD, TOKENS } from './account-page.js';
 import { SHIPWRIGHT_RETENTION_DAYS } from './retention-sweep.js';
 import { shipwrightDailyCaps, SHIPWRIGHT_DAILY_MESSAGES_DEFAULT } from './shipwright.js';
+import { MODEL_DOSSIER, type DossierModel } from './model-dossier.js';
 
 /** Minimal HTML-escape for interpolated user data (XSS guard). */
 function esc(s: string | null | undefined): string {
@@ -64,6 +65,26 @@ body{display:flex;flex-direction:column}
 .masthead h1 .accent{color:var(--cobalt)}
 /* the honesty strip — teal inset stripe, same voice as the login page */
 .honesty{margin-top:12px;background:var(--surface-card);border:1px solid var(--hair);padding:10px 16px;box-shadow:inset 3px 0 0 var(--teal)}
+/* the model board — the reviewed Workers AI menu operators pick model: ids from */
+.board{margin-top:12px;background:var(--surface-card);border:1px solid var(--hair)}
+.board>summary{cursor:pointer;padding:10px 16px;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--cobalt);list-style:none}
+.board>summary::-webkit-details-marker{display:none}
+.board>summary::before{content:"▸ "}
+.board[open]>summary::before{content:"▾ "}
+.board-body{padding:0 16px 12px;overflow-x:auto}
+.board-note{font-size:12.5px;color:var(--text-secondary);margin:0 0 8px}
+.board-rulings{margin-top:8px}
+.board ul.board-note{margin:0;padding-left:18px}
+.board table{border-collapse:collapse;width:100%;font-size:12.5px}
+.board th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);padding:6px 10px 6px 0;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+.board td{padding:6px 10px 6px 0;border-bottom:1px solid var(--hair);vertical-align:top}
+.board tr:last-child td{border-bottom:none}
+.board code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--cobalt);word-break:break-all}
+.board .num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.board .why{color:var(--text-secondary);max-width:44ch}
+.board .chip{font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;white-space:nowrap}
+.board .chip.adopted{background:var(--teal);color:var(--surface-base)}
+.board .chip.bench{border:1px solid var(--hair);color:var(--text-secondary)}
 .honesty p{font-size:13.5px;line-height:1.5;color:var(--text-secondary)}
 .honesty b{color:var(--text-primary)}
 .chat{flex:1;min-height:0;max-width:980px;width:100%;margin:0 auto;padding:0 24px;display:flex;flex-direction:column}
@@ -460,6 +481,56 @@ export function renderPrTemplate(installations: UserInstallation[] | null): stri
   </form></template>`;
 }
 
+/**
+ * The Model Board — the fleet's reviewed Workers AI menu, rendered from the
+ * canonical dossier (model-dossier.json) so the page can never disagree with
+ * what the Shipwright's own prompt recommends or what the executor honors
+ * (the fleet-executor admission suite asserts parity on the same JSON).
+ * Collapsed by default: the chat is the page's job; the board is the
+ * reference an operator opens when the Shipwright proposes a `model:` id and
+ * they want to see the price and the evidence before saying yes.
+ *
+ * All dossier fields pass through esc() even though the JSON is repo-authored
+ * today — the board renders data, and data's provenance can change.
+ */
+export function renderModelBoard(): string {
+  const rows = MODEL_DOSSIER.models
+    .map((m: DossierModel) => {
+      const ctx =
+        m.contextTokens >= 1_000_000
+          ? `${Math.round(m.contextTokens / 1_000_000)}M`
+          : `${Math.round(m.contextTokens / 1000)}k`;
+      const fit = m.assignments.length
+        ? `${esc(m.note)} <b>Fleet duty:</b> ${esc(m.assignments.join(', '))}.`
+        : esc(m.note);
+      return `<tr>
+      <td><code>${esc(m.id)}</code></td>
+      <td class="num">$${esc(String(m.inputUsdPerM))} / $${esc(String(m.outputUsdPerM))}</td>
+      <td class="num">${esc(ctx)}</td>
+      <td><span class="chip ${m.verdict === 'adopted' ? 'adopted' : 'bench'}">${esc(m.verdict)}</span> ${esc(m.tier)}</td>
+      <td class="why">${fit}</td>
+    </tr>`;
+    })
+    .join('\n');
+  const excluded = MODEL_DOSSIER.excluded
+    .map((x) => `<li><code>${esc(x.id)}</code> — ${esc(x.reason)}</li>`)
+    .join('\n');
+  return `<details class="board">
+    <summary>Model board — ${MODEL_DOSSIER.models.length} reviewed Workers AI models (verified ${esc(MODEL_DOSSIER.verifiedAt)})</summary>
+    <div class="board-body">
+      <p class="board-note">Every \`model:\` id in a pd-fleet.yml must come from this board — anything else is
+      silently remapped or blank on the executor. Prices are per million tokens (in / out) from
+      Cloudflare's live pricing page; context is the served window. ${esc(MODEL_DOSSIER.sources)}</p>
+      <table>
+        <thead><tr><th>Model id</th><th>$ in / out per M</th><th>Ctx</th><th>Verdict</th><th>Why</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p class="board-note board-rulings"><b>Ruled out, by name</b> (documented exclusions, never silent omissions):</p>
+      <ul class="board-note">${excluded}</ul>
+    </div>
+  </details>`;
+}
+
 /** Render the page shell. `nonce` admits the one inline script under CSP. */
 export function renderShipwrightPage(user: UserRow, nonce: string, view: ShipwrightPageView): string {
   const noticeText = view.notice ? SHIPWRIGHT_NOTICES[view.notice] : undefined;
@@ -489,6 +560,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
     spend bounded — when it runs dry the Shipwright says so in the conversation and rests until UTC
     midnight; a refused message is never stored.</p>
   </div>
+  ${renderModelBoard()}
   ${noticeHtml}
 </section>
 <main class="chat">

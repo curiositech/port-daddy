@@ -69,6 +69,11 @@ repo-specific mechanics:
   When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
   (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
   history are append-only evidence.
+- **Supplant, don't migrate.** No users yet (operator directive, 2026-08-22):
+  a new mechanism that overlaps an old one replaces it exhaustively in the same
+  slice — delete the legacy path, fix every caller, no compat shims, no
+  "legacy mode" flags, no downgrade fallbacks, no deprecation windows.
+  Backwards compatibility only when the operator explicitly asks, per surface.
 - **Assume broken; verify both ends.** After any write, read it back from the
   surface that should serve it, and prove cold start (daemon down → elegant
   operator instruction, never a stack trace), worktrees, a second user, and the
@@ -126,16 +131,32 @@ repo-specific mechanics:
   user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
   machine-readable READY/LIVE state. A source-suite pass cannot substitute for
   this artifact-boundary proof.
-- **Prove the hook hot path stays invisible and bounded.** A healthy no-op turn
-  emits zero bytes and no status message, never starts the daemon or shells
-  through the full `pd` CLI, and filters file traces to the exact project root
-  before rendering them. Keep the prompt hook to one heading plus at
-  most two facts, clamp its context budget, and keep harness deadlines at one
-  second. The regression proof must include thousands of irrelevant matrix
-  entries while still surfacing one fresh exact-root fact. Installer tests must
-  also prove atomic, idempotent config writes and migration of duplicate legacy
-  Codex registrations without disturbing user hooks. Do not merge standing
-  every-turn reminders or SITREP compulsion back into the hook path.
+- **Prove native dependencies again after macOS signing.** Hardened runtime can
+  change dynamic-loader behavior after an unsigned build smoke has passed. Run
+  the native import through the exact signed `dist/pd` release pair, with
+  `DYLD_*` absent, before soak or archive sealing. Package dylibs behind a
+  verified executable-relative Mach-O rpath and keep
+  `com.apple.security.cs.allow-dyld-environment-variables` out of the release
+  entitlements; do not trade a packaging defect for an injection surface.
+- **Keep coordination content bounded; the SITREP is the visible value
+  surface.** Coordination content (alerts/pheromones) stays invisible and
+  bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and
+  no status message, never starts the daemon or shells through the full `pd`
+  CLI, and filters file traces to the exact project root before rendering them.
+  Keep that coordination block to one heading plus at most two facts, clamp its
+  context budget, and keep harness deadlines at one second. The regression
+  proof must include thousands of irrelevant matrix entries while still
+  surfacing one fresh exact-root fact. Installer tests must also prove atomic,
+  idempotent config writes and migration of duplicate legacy Codex
+  registrations without disturbing user hooks. The end-of-turn SITREP
+  compulsion is the deliberate exception (operator doctrine reversal,
+  2026-08-22): governed by the per-repo `sitrep.endOfTurn` dial
+  (off|suggest|enforce, default enforce; `PD_SITREP` env override wins, then
+  `agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`),
+  the pd-hook-prompt tentacle and the SessionStart Pilot inject the end-of-turn
+  SITREP table contract — a constant-size standing block that rides outside the
+  coordination byte cap. Do not re-bound or silently strip it; repos that want
+  quiet turns dial it off explicitly.
 
 ## Core Decision Tree
 
@@ -426,6 +447,7 @@ The friction below costs every fresh session real time. Internalize it.
 - **Arrival and sitrep are on the critical path**: optional `pd begin` peer guidance is semantic-only, capped to three, fail-open, and budgeted at 75 ms total — disable reconnect retries, abort the active request, and test a transport that never settles. Sitrep must project and cap every top-level collection, nested salvage notes, and text field; preserve exact note totals separately from the DB-bounded preview. `--quiet` must request a summary-only route rather than fetching a full payload and discarding it locally. A fast database query that serializes 200 KB of histories is still a failed launcher interface.
 - **A preferred port is not endpoint evidence**: startup may seed `9876`, but SDK/CLI connection resolvers must use an explicit URL, a real socket, or a strictly parsed published port. Keep forgiving seed helpers separate from strict connection helpers, including public display fields and socket-to-TCP fallback. Reject a protocol the returned connection target cannot carry: the current Node target is HTTP-only, so accepting `https:` and then calling `node:http` is a plaintext-to-TLS-port defect, not compatibility. Fixture-test absent, malformed, unreadable, environment-published, file-published, unsupported-protocol, and constructor-URL-over-socket cases without consulting the developer's live daemon. The compiled smoke must use AF_UNIX-safe paths under `~/coding/tmp` and prove Unix plus TCP health on both boots.
 - **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
+- **A Cloudflare Queue delivery is not a logical Fleet run**: persist an ingress intent before `queue.send()`, idempotently key it by webhook delivery id, and assign a monotonic generation per repo + PR. Only supersede older active generations after the newer queue send succeeds; otherwise a transient admission failure can erase the last valid review. The executor must compare-and-swap that intent before spend so duplicate deliveries, retries, and stale heads acknowledge without re-running ships. Project activity from the intent ledger plus `fleet_runs`; label D1-known queue depth and expected timestamps as estimates, never Cloudflare-internal position. Keep active rows out of retention deletion, delete intent-only receipts through the same operator contract, and test the webhook, executor race, rollback-without-table path, signed-in receipt, and terminal retention seams independently.
 
 ## Show-Me Runbook (operator demos)
 
@@ -505,6 +527,20 @@ because this repo has the highest agent density on the user's machine.
 See `references/git-discipline-internal.md` for port-daddy-specific
 extensions (release-tag immutability, the v-prefix convention, the brew
 formula update protocol).
+
+## Fleet Model Tiers (never choose from memory)
+
+Every Workers AI model decision — a ship's tier, a purser step model, a new
+admission — is made against `references/cloudflare-model-roster.md` (the
+verified catalog + pricing snapshot, the admission contract, and the standing
+decision record) and the live scoreboard
+(`node scripts/fleet-ship-stats.mjs --days 14`, which reads the relay D1's
+per-ship × per-model spend and broken/repair health). Two standing rules:
+an id is honored only after existence + rate + context are verified (phantom
+ids return silent blanks — #654), and a model-change PR carries its
+before-window stats and gets judged on its after-window. The gpt-oss-20b
+author tier (#8870: 75% repair failure, half the fleet's verdicts washed out)
+is the tombstone for choosing a tier off a price note without a scoreboard.
 
 ## Catalog-First Reflex (windags MCP, internal edition)
 
@@ -712,6 +748,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** Brew formulas with frozen sha256 break for users; CI caches invalidate; users on the old tag see different code than users on the new one with the same tag string.
 **Fix:** Tags are immutable. If a release was wrong, ship `vX.Y.Z+1` with a CHANGELOG entry explaining the recall. Never `git push --force origin vX.Y.Z`.
 
+### Treating A Configured Release Token As A Working Token
+**Detection:** A workflow uses `${{ secrets.PREFERRED || secrets.FALLBACK }}` for a mutating checkout or `GH_TOKEN`, or validates only that a secret is non-empty.
+**Symptoms:** An expired or under-scoped preferred PAT masks a healthy fallback forever; retries fail at the same checkout before any release state changes.
+**Fix:** Probe the repository API with each candidate and require `.permissions.push == true`. Emit only a non-secret source identity, conditionally pass that source's literal secret to `actions/checkout`, select the same secret locally inside later mutation steps, and fail closed if neither probe passes. Never move a secret value through `GITHUB_OUTPUT`.
+**Why:** Presence is configuration evidence, not authorization evidence. The fallback decision must reflect the capability required by the exact mutation.
+
 ### Skipping `pd feedback` On Contributor Friction
 **Detection:** Internal contributor sessions end clean but the friction isn't recorded; the same friction visits the next contributor.
 **Symptoms:** "Why is this so hard" gets discovered repeatedly. The roadmap doesn't reflect the actual pain. Cartographer's priorities lag reality.
@@ -745,6 +787,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** A healthy implementation PR is marked `BLOCK` even though no authored assertion ran; an invalid stacked test PR becomes a second red PR; pushing again reuses the same broken files forever.
 **Fix:** Treat runner compatibility as trusted executability evidence before the sandbox and again before every reuse. Replace an incompatible reused suite in place through the normal bounded authoring path; give a newly authored mismatch one rewrite with the exact loader error. If the trusted gate still fails, classify Purser as broken machinery, do not stack or retarget the files, and say explicitly that the implementation contract was not tested. Only an executed test-case failure may become a contract `BLOCK`.
 **Why:** A runner rejecting Purser's file is evidence about Purser, not the reviewed change. Keeping those failure domains separate makes an adversarial gate strict without making it arbitrary.
+
+### Trusting Purser Output Before It Is A Complete Program
+**Detection:** A generated `.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, or `.cts` file reaches the sandbox, branch creation, or PR retargeting before a parser has accepted the whole file under its extension's source-type contract.
+**Symptoms:** Literal ellipses, truncated prose, or module/CommonJS mismatches become invalid stacked PRs; the parent PR is retargeted away from `main`; Jest reports a syntax or loader failure even though no contract assertion ran.
+**Fix:** After discovery and trusted-runner evidence are available, parse every authored file as a complete program with recovery disabled and the source type implied by its extension. Give the author one bounded repair containing the exact parser error, then re-run every executability gate. If any file still fails, classify Purser as broken machinery and stop before sandbox execution, branch/stack creation, or parent-PR retargeting.
+**Why:** Generated source is untrusted input. Syntax and loader acceptance are preconditions for adversarial evidence, not findings about the reviewed implementation.
 
 ## Worked Examples
 

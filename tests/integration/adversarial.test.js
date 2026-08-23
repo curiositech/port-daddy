@@ -13,7 +13,16 @@
  */
 
 import { request, runCli, getDaemonState } from '../helpers/integration-setup.js';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import http from 'node:http';
+
+// #8877 / ADR-0122: lock mutations require a daemon-minted actor credential.
+// Mint one locker actor for this suite through the public mint door.
+let locker = null;
+async function lockerHeaders() {
+  if (!locker) locker = await registerTestActorVia(request, { alias: 'adversarial-locker' });
+  return locker.headers;
+}
 
 /**
  * Make a raw HTTP request over the Unix socket (for testing malformed bodies, wrong content types, etc.)
@@ -343,6 +352,7 @@ describe('Adversarial Testing - Locks', () => {
       for (let i = 0; i < 5; i++) {
         promises.push(
           request(`/locks/${lockName}`, {
+            headers: await lockerHeaders(),
             method: 'POST',
             body: { ttl: 60000 }
           })
@@ -356,7 +366,7 @@ describe('Adversarial Testing - Locks', () => {
       expect(successful.length).toBe(1);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
   });
 
@@ -364,6 +374,7 @@ describe('Adversarial Testing - Locks', () => {
     test('lock with TTL of 0 normalizes to default', async () => {
       const lockName = `ttl-zero-${Date.now()}`;
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: 0 }
       });
@@ -371,12 +382,13 @@ describe('Adversarial Testing - Locks', () => {
       expect([200, 201]).toContain(res.status);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
 
     test('lock with negative TTL normalizes to default', async () => {
       const lockName = `ttl-negative-${Date.now()}`;
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: -60 }
       });
@@ -384,19 +396,20 @@ describe('Adversarial Testing - Locks', () => {
       expect([200, 201]).toContain(res.status);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
 
     test('lock with very large TTL is accepted', async () => {
       const lockName = `ttl-large-${Date.now()}`;
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: 999999999 }
       });
       expect([200, 201]).toContain(res.status);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
 
     test('extending expired lock fails', async () => {
@@ -404,6 +417,7 @@ describe('Adversarial Testing - Locks', () => {
 
       // Create with short TTL (50ms — TTL > 0 so it won't normalize)
       await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: 50 }
       });
@@ -413,6 +427,7 @@ describe('Adversarial Testing - Locks', () => {
 
       // Try to extend — expired locks are cleaned before extend checks
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'PUT',
         body: { ttl: 60000 }
       });
@@ -425,6 +440,7 @@ describe('Adversarial Testing - Locks', () => {
   describe('Lock Release', () => {
     test('release non-existent lock returns success with released=false', async () => {
       const res = await request(`/locks/nonexistent-lock-${Date.now()}`, {
+        headers: await lockerHeaders(),
         method: 'DELETE'
       });
       // Server returns 200 with { success: true, released: false } for idempotent release

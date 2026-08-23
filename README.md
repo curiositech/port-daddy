@@ -395,7 +395,7 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
-**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`
+**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles.
 
 **Daemon & host** — `start`, `stop`, `restart`, `install`, `uninstall`, `daemon`, `dev`, `use`, `doctor`, `diagnose`, `attest`, `health`, `metrics`, `bench`, `ci-gate`, `backup`, `restore`, `cut`, `upgrade`, `self-update`, `safe`, `secret`, `guard`, `config`, `init`, `setup`, `mcp`, `relay`, `tunnel`, `webhook`/`webhooks`, `version`
 
@@ -647,6 +647,35 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
+### Cloud Fleet — live run receipts
+
+The signed-in website at `/account/runs` is the operator's durable Cloud Fleet
+activity surface. It shows a PR review from webhook admission onward, before a
+queue consumer or transcript exists, and links into the live receipt at
+`/fleet/runs/:id`. Receipts distinguish one logical PR-head generation from its
+at-least-once queue delivery attempts and ship transcript steps. They expose
+queued, running, retrying, superseded, failed-admission, and terminal states,
+plus actual and estimated timestamps; active pages refresh on a bounded cadence
+and preserve reduced-motion preferences.
+
+Repeated delivery IDs are idempotent. A successfully enqueued newer head marks
+strictly older active generations superseded, and the executor checks that
+durable admission row before expensive work. Queue-ahead and expected-time
+values are explicitly D1-derived estimates, never a claim about Cloudflare's
+internal queue position. Intent-only receipts remain exportable/deletable and
+active receipts are never retention-pruned.
+
+FleetBar and the Cloud Fleet pane in `pd-console` read those same
+operator-gated receipts from the signed-in account; routine setup does not ask
+the operator for relay environment variables. Both surfaces show logical state,
+generation, delivery-attempt count, queue-ahead estimates, expected run timing,
+failures, and a timestamped durable transcript with a short explanation of each
+step. Active FleetBar runs refresh every five seconds, idle runs every twenty,
+and failures back off with jitter. The console loads static ship configuration
+once and re-reads transcript detail only when `lastProgressAt` changes; a failed
+detail read opens a bounded retry circuit instead of multiplying relay traffic.
+Per-step ETAs are shown only when the executor actually publishes one.
+
 ### Giant Squid — visible controls, invisible project-scoped hooks
 
 `pd squid on` arms the complete harness for the current project. It stages the
@@ -678,12 +707,21 @@ Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
 user-level entries are still project-scoped at runtime: the wrapper requires a
 fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
-project registry. Outside an armed root they no-op. A healthy no-op turn emits
-zero bytes and no status message; the hot path reads bounded local evidence and
-never waits on the daemon or launches the full CLI. When an exact-project trace
-or fleet-wide control alert is actionable, the prompt envelope is capped at one
-heading plus two facts and 512 bytes of context, with a one-second harness
-deadline. Reinstalling hooks is idempotent and migrates older duplicate
+project registry. Outside an armed root they no-op. Coordination content stays
+bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and no
+status message; the hot path reads bounded local evidence and never waits on
+the daemon or launches the full CLI. When an exact-project trace or fleet-wide
+control alert is actionable, the coordination envelope is capped at one heading
+plus two facts and 512 bytes of context, with a one-second harness deadline.
+The end-of-turn SITREP is the deliberate exception (operator doctrine,
+2026-08-22): governed by the per-repo `sitrep.endOfTurn` dial (`off` |
+`suggest` | `enforce`, default `enforce`; `PD_SITREP` env override wins, then
+`agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`),
+the prompt hook injects the end-of-turn SITREP table contract each turn — the
+harness's visible value surface, riding outside the coordination byte cap.
+`suggest` injects the contract as a suggestion; `enforce` marks a turn that
+ends without the table incomplete. Scaffold the table with `pd sitrep
+--template`. Reinstalling hooks is idempotent and migrates older duplicate
 registrations while preserving user-owned hooks. The installed graph is
 intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
@@ -1033,6 +1071,7 @@ Commit this so every developer gets the same deterministic port mapping:
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
 - `PD_FLEET_*` — Conductor cost gates (see Bonds & Budgets)
 - `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` — permit a source-backed dev daemon
+- `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` — opt in to downloading the local embedding model (`Xenova/all-MiniLM-L6-v2`) from huggingface.co at runtime; by default the daemon never phones huggingface.co and, without a cached model, semantic retrieval degrades to the lexical (BM25) path labeled `degraded`. `TRANSFORMERS_OFFLINE=1` always wins and forces offline.
 
 ---
 

@@ -23,6 +23,8 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
 #[path = "../src/buffer.rs"]

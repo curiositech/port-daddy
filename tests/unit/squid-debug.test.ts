@@ -4,10 +4,12 @@ import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
+  readSquidHookCliDebugSnapshot,
   readSquidHookHealth,
   readSquidHookDebugSnapshot,
   readSquidHookStatusSnapshot,
   resetSquidHookHealth,
+  SQUID_HOOK_DEBUG_CLI_MAX_BYTES,
   SQUID_HOOK_STATUS_MAX_STEPS,
   squidHookHealthDir,
   squidHookDebugPaths,
@@ -164,6 +166,43 @@ test('serializes a valid bounded unified status response from multi-thousand eve
   expect(Buffer.byteLength(serialized)).toBeLessThan(64 * 1024);
 });
 
+test('bounds explicit debug JSON below the compiled launcher ceiling while preserving newest timestamps', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.enabled, '2026-08-21T20:00:00.000Z\n');
+  const nestedWorkspace = join(WORKSPACE, 'nested', 'x'.repeat(180));
+  const records = Array.from({ length: 3_500 }, (_, index) =>
+    event({
+      kind: 'start',
+      run: `large-debug-${index}`,
+      session: `codex:${index}`,
+      at: 1_000 + index,
+      workspace: join(nestedWorkspace, String(index)),
+    }),
+  );
+  writeFileSync(paths.events, `${records.join('\n')}\n`);
+
+  const snapshot = readSquidHookCliDebugSnapshot({
+    pdHome: PD_HOME,
+    cwd: WORKSPACE,
+    nowMs: 10_000,
+  });
+  const serialized = JSON.stringify(snapshot, null, 2);
+
+  expect(() => JSON.parse(serialized)).not.toThrow();
+  expect(Buffer.byteLength(serialized)).toBeLessThanOrEqual(SQUID_HOOK_DEBUG_CLI_MAX_BYTES);
+  expect(snapshot.window.totalSteps).toBe(3_500);
+  expect(snapshot.window.truncated).toBe(true);
+  expect(snapshot.window.returnedSteps).toBeGreaterThan(0);
+  expect(snapshot.window.returnedSteps).toBeLessThan(snapshot.window.totalSteps);
+  const newest = snapshot.sessions.flatMap((session) => session.steps)
+    .find((step) => step.id === 'large-debug-3499');
+  expect(newest).toMatchObject({
+    startedAt: '1970-01-01T00:00:04.499Z',
+    expectedBy: '1970-01-01T00:00:05.499Z',
+  });
+});
+
 test('renders no-op outcomes and drops malformed or out-of-workspace records', () => {
   const paths = squidHookDebugPaths(PD_HOME);
   mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
@@ -183,6 +222,24 @@ test('renders no-op outcomes and drops malformed or out-of-workspace records', (
   expect(snapshot.sessions[0].steps[0].description).toMatch(/project is not armed/);
   expect(JSON.stringify(snapshot)).not.toContain('tool_input=secret');
   expect(snapshot.privacy).toMatch(/no argv/);
+});
+
+test('explains boot readiness, untrusted leases, and displaced-generation no-ops in plain language', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.events, [
+    event({ kind: 'start', run: 'booting', at: 1_000 }),
+    event({ kind: 'finish', run: 'booting', at: 1_001, outcome: 'daemon_booting', exit: '0' }),
+    event({ kind: 'start', run: 'displaced', at: 2_000 }),
+    event({ kind: 'finish', run: 'displaced', at: 2_001, outcome: 'generation_mismatch', exit: '0' }),
+    event({ kind: 'start', run: 'symlink', at: 2_500 }),
+    event({ kind: 'finish', run: 'symlink', at: 2_501, outcome: 'ready_symlink', exit: '0' }),
+  ].join('\n') + '\n');
+
+  const steps = readSquidHookDebugSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 3_000 }).sessions[0].steps;
+  expect(steps.find((step) => step.id === 'booting')?.description).toMatch(/not finished its boot checks/);
+  expect(steps.find((step) => step.id === 'displaced')?.description).toMatch(/another daemon generation/);
+  expect(steps.find((step) => step.id === 'symlink')?.description).toMatch(/symlink, not an authenticated runtime file/);
 });
 
 test('distinguishes contained failures, latency violations, intentional blocks, and open-circuit skips', () => {

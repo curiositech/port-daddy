@@ -73,6 +73,7 @@ interface TranscriptLike {
 
 /** A broken result's human-legible reason, derived from its flags. */
 export function brokenReason(r: ShipResult): string {
+  if (r.failureReason) return `errored — ${r.failureReason}`;
   return r.noUsableOutput === true
     ? 'no usable output — the model answered nothing its contract asked for'
     : 'errored — crashed, or emitted a malformed block the fleet could not parse';
@@ -153,6 +154,22 @@ export async function adjudicateBrokenShips(
       blocking: r.blocking,
       noUsableOutput: r.noUsableOutput === true,
     });
+
+    // A provider circuit exhausted its bounded queue-attempt budget. That is
+    // direct run-local evidence that the dependency failed, not a hypothesis
+    // inferred from this PR's contents. Preserve the caller's fleet-wide
+    // adjudication and do not demand two unrelated authors reproduce the same
+    // outage before this author is unblocked.
+    if (r.brokenAdjudicated?.scope === 'fleet') {
+      adjudicated += 1;
+      await opts.transcript.step(
+        'ship-adjudicated',
+        r.ship,
+        `pd-${r.ship}: adjudicated FLEET-WIDE fault — ${r.brokenAdjudicated.reason} — not gating this PR`,
+        { verdict: 'fleet', reason: r.brokenAdjudicated.reason, directProviderEvidence: true },
+      );
+      continue;
+    }
 
     const otherPrs = await countOtherBrokenPrs(
       opts.env.DB,

@@ -147,8 +147,8 @@ export async function saveShipCheckpoint(
   runId: string,
   shipIndex: number,
   result: ShipResult,
-): Promise<void> {
-  if (!env.DB) return;
+): Promise<boolean> {
+  if (!env.DB) return false;
   const safeIndex = Number.isInteger(shipIndex) && shipIndex >= 0 ? shipIndex : 0;
   try {
     await env.DB.prepare(
@@ -165,10 +165,12 @@ export async function saveShipCheckpoint(
         Math.floor(Date.now() / 1000),
       )
       .run();
+    return true;
   } catch (err) {
     console.error(
       `[fleet-executor] checkpoint write failed run=${runId} ship=${result.ship}: ${String(err)}`,
     );
+    return false;
   }
 }
 

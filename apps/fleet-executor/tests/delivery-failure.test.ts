@@ -6,13 +6,17 @@ import { DEAD_LETTER_MARKER, isDeadLetteredSummary } from '../src/dead-letter-ma
 import {
   DELIVERY_ATTEMPT_KIND,
   DELIVERY_ATTEMPT_SEQ_BASE,
+  DELIVERY_CONTINUATION_KIND,
+  DELIVERY_CONTINUATION_SEQ_BASE,
   DELIVERY_FAILURE_KIND,
   DELIVERY_FAILURE_SEQ_BASE,
+  countDeliveryContinuations,
   countDeliveryAttemptStarts,
   deadLetterSummary,
   describeDeliveryError,
   readLastDeliveryFailure,
   recordDeliveryAttemptStart,
+  recordDeliveryContinuation,
   recordDeliveryFailure,
   runIdForDelivery,
 } from '../src/delivery-failure.js';
@@ -128,6 +132,20 @@ describe('a lost delivery records why it died', () => {
 });
 
 describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
+  it('records successful checkpoint continuations in their own durable band', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryAttemptStart(env, makeJob(), 2);
+    await expect(
+      recordDeliveryContinuation(env, makeJob(), 2, 'qa', ['spark', 'spider']),
+    ).resolves.toBe(true);
+
+    const continuation = db.steps.find(step => step.kind === DELIVERY_CONTINUATION_KIND);
+    expect(Number(continuation?.seq)).toBe(DELIVERY_CONTINUATION_SEQ_BASE + 2);
+    expect(String(continuation?.title)).toContain('progress, not a failure');
+    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
+  });
+
   it('the consumer records a start marker BEFORE executing, so a platform kill still leaves evidence', async () => {
     const db = memoryD1();
     const msg = fakeMessage(makeJob(), 2);
@@ -198,6 +216,24 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     const summary = String(state.completed[0].summary);
     expect(summary).toContain('token mint failed');
     expect(summary).not.toContain('terminated without a catchable error');
+  });
+
+  it('subtracts intentional continuations before diagnosing platform kills', async () => {
+    state.existingCheckRuns.push({ id: 78, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+
+    for (const attempt of [1, 2, 3]) await recordDeliveryAttemptStart(env, makeJob(), attempt);
+    await recordDeliveryContinuation(env, makeJob(), 1, 'qa', ['spark', 'spider']);
+    await recordDeliveryContinuation(env, makeJob(), 2, 'spark', ['spider']);
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('1 delivery attempt(s) recorded a start marker but no failure or intentional continuation');
+    expect(summary).toContain('2 delivery attempt(s) completed as intentional checkpoint continuations');
+    expect(summary).not.toContain('3 delivery attempt(s) recorded a start marker');
   });
 });
 

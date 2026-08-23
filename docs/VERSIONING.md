@@ -36,7 +36,7 @@ The kernel library crates (`core/kernel/*`, `core/Cargo.toml` `[workspace.packag
 `package.json` is the sole authority; `sync-version.ts` stamps it everywhere; **`scripts/check-version-drift.mjs` is the gate that fails the build when any surface drifts.** Run it locally with `npm run check:version-drift`. CI runs it two ways (ADR-0057 phase `dist-version-authority`):
 
 - **`ci.yml` → `version-drift-guard`** runs it in *source mode* on every PR/push/merge-queue: every version literal in the repo must equal `package.json`. This is the regression that catches "bumped the version but forgot a surface" or a hand-edit.
-- **`release.yml`** runs it `--deep --require-artifacts` after the `pd-console.app` is built: it reads the version *embedded* in the built artifact (the `.app`'s `CFBundleShortVersionString` and the binary's build stamp), not just the source literal — closing the Goodhart hole where someone bumps the string without rebuilding (ADR-0057 §Consequences).
+- **`release.yml`** runs it `--deep --require-artifacts` after the `pd-console.app` is built: it reads the version *embedded* in the built artifact (the `.app`'s `CFBundleShortVersionString` and the binary's build stamp), not just the source literal — closing the Goodhart hole where someone bumps the string without rebuilding (ADR-0057 §Consequences). This deep check runs only on releases that actually rebuild the console: since 2026-08-22 a release where `core/pd-console` is unchanged since the previous tag (version-string churn aside) skips the console build entirely, ships no new console `.zip`, and the last-built console legitimately keeps *its own* release's embedded version — that is the point of not re-cutting it, not drift.
 
 ### Known gaps in `sync-version.ts`
 
