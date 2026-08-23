@@ -349,7 +349,13 @@ on another.
   enabled. Injection-or-refuse applies only when the selected backend claims
   a verified adapter and injection fails.
 - **Failover = resume, never restart** (slug `helmsman-backend-failover`,
-  P2). On failure or stall on backend A: one retry on A for a transient
+  sequenced P2, **implemented ahead of it**). The operator directive of
+  2026-08-22 — that a body failing on one backend must resume seamlessly on
+  another — pulled this forward, so the mechanism described below is built and
+  tested rather than planned. It ships OFF (`PD_DISPATCH_FAILOVER=true` to
+  enable), because it mints a second body and spends a second time with nobody
+  in the loop; the trust-ladder rung that turns it on is still P2 work.
+  On failure or stall on backend A: one retry on A for a transient
   cause, then a **successor dispatch on the next backend in preference
   order** under the ADR-0118 continuation contract — same-family: witnessed
   native session resume; cross-family: the sanitized handoff successor
@@ -423,7 +429,7 @@ the fourth — Helmsman must be selector-driven before it dispatches anything.
 | P1 | `backend-preferences-wiring` | new | `helmsman-charter` |
 | P2 | `control-command-ingress` | new | `approval-stream-four-state` |
 | P2 | `helmsman-h1-dispatch` | new | `helmsman-h0-sortie-plan`, `control-command-ingress`, `backend-preferences-wiring` |
-| P2 | `helmsman-backend-failover` | new | `backend-preferences-wiring` |
+| P2 | `helmsman-backend-failover` | **shipped ahead of sequence** | `backend-preferences-wiring` |
 | P2 | `codex-squid-verification` | new | — |
 | P2 | `squid-timeline-route` | new | — |
 | P2 | `review-retry-contract` | new | — |

@@ -184,8 +184,20 @@ function resolveModelToken(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const token = raw.trim();
   if (!token) return undefined;
-  if (token in CF_ROLE_MODELS) return CF_ROLE_MODELS[token as keyof typeof CF_ROLE_MODELS];
-  if (token in CF_MODELS) return CF_MODELS[token as keyof typeof CF_MODELS];
+  // Resolve, then ADMIT. Resolution alone is not safety: `cf_role: embed`
+  // resolves to the ideas-store embedding index, which is a real catalogued
+  // model that no ship may run — it would return vectors where a review should
+  // be. Every caller re-checks admission today, so this is not currently
+  // reachable; filtering here means the safety does not depend on three
+  // separate call sites remembering, and on a fourth one added later
+  // remembering too.
+  const resolved =
+    token in CF_ROLE_MODELS
+      ? CF_ROLE_MODELS[token as keyof typeof CF_ROLE_MODELS]
+      : token in CF_MODELS
+        ? CF_MODELS[token as keyof typeof CF_MODELS]
+        : undefined;
+  if (resolved) return CF_ADMITTED_MODELS.includes(resolved) ? resolved : undefined;
   // A literal admitted id. Config may name one directly — that is how
   // pd-fleet.yml records the fleet's measured per-ship assignments, and what
   // the Shipwright's model board hands an operator to paste. A declared pin is
@@ -243,6 +255,8 @@ interface RawAgent {
   class?: unknown;
   /** Any ship: cloud-plane ROLE pin (`cf_role:`), guarded by CF_ADMITTED_MODELS. */
   cf_role?: unknown;
+  /** The same ship-level pin as a literal admitted id — pd-fleet.yml's spelling. */
+  model?: unknown;
   /** Purser: block when tests could not be executed (default false). */
   blockWithoutSandbox?: unknown;
   /** Purser: path prefixes authored tests must live under. */
@@ -589,9 +603,19 @@ const PURSER_DEFAULT_PROMPT =
   'PR satisfy that interpretation — not its laziest reading. Firm, adversarial, ' +
   'professional. Demands come with reasons; never abuse.';
 
-/** Purser model: honor a direct `cf_role:` pin when pinnable, else the usual derivation. */
+/**
+ * Purser model: honor a direct ship-level pin when admitted, else derive.
+ *
+ * BOTH spellings are read, and the second one is not politeness. This function
+ * briefly accepted only `cf_role:` while the live pd-fleet.yml pinned the purser
+ * with `model:` — so the declared pin was silently dropped and the ship ran the
+ * default. It was invisible because the purser's declared model happened to
+ * EQUAL the default; re-tiering it would have been ignored without a word. A
+ * fixture whose pin differs from the default is what catches that, which is why
+ * the test for it pins something else on purpose.
+ */
 function derivePurserModel(agent: RawAgent, name: string): string {
-  const pinned = resolveModelToken(agent.cf_role);
+  const pinned = resolveModelToken(agent.cf_role) ?? resolveModelToken(agent.model);
   if (pinned && KNOWN_GOOD_CF_MODELS.has(pinned)) return pinned;
   return deriveCfModel(agent, name);
 }
