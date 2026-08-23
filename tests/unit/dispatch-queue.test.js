@@ -219,10 +219,60 @@ describe('prepareForRun', () => {
 
     expect(prepared).toMatchObject({
       state: 'proposed',
+      runRequestedAt: clock,
       claimedAt: null,
       reviewerActorId: 'reviewer-bot',
       mergePolicy: 'review',
     });
+  });
+
+  test('prioritizes the explicitly requested id ahead of older proposed work', () => {
+    const older = queue.propose({ goal: 'older background work' });
+    advance(1000);
+    const requested = queue.propose({ goal: 'run this exact dispatch' });
+
+    const prepared = queue.prepareForRun(requested.id);
+
+    expect(prepared.runRequestedAt).toBe(clock);
+    expect(prepared.claimedAt).toBeNull();
+    expect(queue.peekNextProposed()?.id).toBe(requested.id);
+    expect(queue.get(older.id)?.state).toBe('proposed');
+
+    advance(500);
+    const claimed = queue.claimProposed({
+      id: requested.id,
+      worktreePath: '/work/exact-request',
+      branch: 'dispatch/exact-request-12345678',
+      sessionId: 'session-exact-request',
+      workerActorId: 'daemon:dispatch-worker',
+    });
+    expect(claimed?.runRequestedAt).toBeNull();
+    expect(claimed?.claimedAt).toBe(clock);
+  });
+
+  test('restores the auto-claim placeholder when daemon acknowledgement fails', () => {
+    const original = queue.propose({ goal: 'restore failed request', autoClaim: true });
+    const prepared = queue.prepareForRun(original.id);
+
+    const restored = queue.restorePreparedRun(original, prepared);
+
+    expect(restored).toEqual(original);
+    expect(queue.get(original.id)).toEqual(original);
+  });
+
+  test('rollback cannot steal a dispatch that obtained a real worker lease', () => {
+    const original = queue.propose({ goal: 'worker wins after preparation', autoClaim: true });
+    const prepared = queue.prepareForRun(original.id);
+    const claimed = queue.claimProposed({
+      id: original.id,
+      worktreePath: '/work/worker-won',
+      branch: 'dispatch/worker-won-12345678',
+      sessionId: 'session-worker-won',
+      workerActorId: 'daemon:dispatch-worker',
+    });
+
+    expect(queue.restorePreparedRun(original, prepared)).toEqual(claimed);
+    expect(queue.get(original.id)).toEqual(claimed);
   });
 
   test('does not release a claimed dispatch that already has a worker lease', () => {

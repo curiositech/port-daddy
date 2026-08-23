@@ -262,6 +262,8 @@ async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<R
       'Start the daemon from FleetBar or retry when Port Daddy is healthy.',
     );
   }
+  const original = queue.get(id);
+  if (!original) throw new Error(`dispatch ${id} not found`);
   const prepared = queue.prepareForRun(id);
   if (prepared.state === 'claimed' || prepared.state === 'in_progress') {
     return {
@@ -272,16 +274,30 @@ async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<R
       message: 'Dispatch already holds a worker lease; the daemon-side run remains queued.',
     };
   }
-  const res = await pdFetch(`/dispatches/${encodeURIComponent(id)}/run`, { method: 'POST' });
+  let res: Awaited<ReturnType<typeof pdFetch>>;
+  try {
+    res = await pdFetch(`/dispatches/${encodeURIComponent(id)}/run`, { method: 'POST' });
+  } catch (error) {
+    queue.restorePreparedRun(original, prepared);
+    throw error;
+  }
   const payload = await readResponseJson(res);
   if (!res.ok) {
     const racedDispatch = payload.dispatch && typeof payload.dispatch === 'object'
       ? payload.dispatch as Record<string, unknown>
       : null;
-    if (
-      res.status === 409
-      && (racedDispatch?.state === 'claimed' || racedDispatch?.state === 'in_progress')
-    ) {
+    const racedHasLease = racedDispatch?.state === 'in_progress'
+      || (
+        racedDispatch?.state === 'claimed'
+        && [
+          racedDispatch.workerActorId,
+          racedDispatch.worktreePath,
+          racedDispatch.branch,
+          racedDispatch.sessionId,
+          racedDispatch.startedAt,
+        ].some((value) => value !== null && value !== undefined)
+      );
+    if (res.status === 409 && racedHasLease) {
       return {
         ...payload,
         ok: true,
@@ -290,6 +306,7 @@ async function runDispatchViaDaemon(id: string, queue: DispatchQueue): Promise<R
         message: 'Dispatch acquired a worker lease while the run request was being sent.',
       };
     }
+    queue.restorePreparedRun(original, prepared);
     const error = typeof payload.error === 'string'
       ? payload.error
       : `daemon returned HTTP ${res.status ?? 'unknown'}`;
