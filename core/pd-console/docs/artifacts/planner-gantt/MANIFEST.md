@@ -74,15 +74,17 @@ faces, which render the same Blocks with a full font.
 No window, no display, no Screen-Recording (TCC) permission — agent-safe by
 construction; the raster never touches the window server.
 
-## Known gap: no motion artifact for this slice's capture
+## Motion artifact
 
-`console-planner-gantt-date-anchored.png` is a still image only. The repo
-convention for a TUI pane's motion artifact is a `vhs` tape
-(AGENTS.md § Visual artifacts for UI diffs), but the sandbox this capture
-was produced in has no `vhs` binary, no `ffmpeg` (package mirrors returned
-404s for the transitive `apt-get install ffmpeg` dependencies — genuinely
-unreachable, not skipped), and no display — so no GIF or screen recording
-could be produced here. The still PNG above is real, live-daemon evidence
-(not a mock/fixture), but the PR that introduces this artifact is missing
-the motion half of the Visual Proof requirement; producing it needs a
-follow-up from an environment with `vhs`/`ffmpeg` available.
+- [planner-gantt-before-after.gif](./planner-gantt-before-after.gif) — a
+  two-frame flip between the two rasters above: the relative-CPM baseline
+  (`console-planner-gantt.png`, every bar packed against `today`) and the
+  date-anchored capture (`console-planner-gantt-date-anchored.png`, the
+  `DATED` row's bar displaced to its real `startedAt`, axis widened to its
+  real `dueAt`). Assembled from the committed PNGs with a pure-JS GIF
+  encoder (gifenc + pngjs; frames padded to a common canvas) because this
+  sandbox has no `vhs` binary and no `ffmpeg` (package mirrors 404 on its
+  transitive deps) — so a `vhs` tape of the live TUI remains the better
+  artifact for a follow-up from an environment that has those tools. Both
+  source frames are real, live-daemon block-model rasters, not mocks; the
+  GIF adds no new evidence beyond juxtaposing them in time.
