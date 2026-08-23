@@ -109,6 +109,9 @@ export function buildRepairSystemPrompt(shipLabel: string, contract: string, rea
  * @param opts.call The caller's model-call function (carries env/metrics).
  * @param opts.validate The caller's OWN parser/classifier — the only judge of
  *   whether an attempt healed. Repair never self-certifies.
+ * @param opts.abortOnError Optional fail-fast classifier for errors that are
+ *   not model/transport failures (for example, a superseded PR head). Matching
+ *   errors propagate immediately and never trigger another repair call.
  * @param opts.escalationModel Override for tests; defaults to
  *   {@link REPAIR_ESCALATION_MODEL}.
  * @returns The outcome; `healed: false` means the broken-ship doctrine applies.
@@ -121,6 +124,7 @@ export async function repairContractOutput(opts: {
   reason: string;
   call: RepairModelCall;
   validate: (text: string) => boolean;
+  abortOnError?: (error: unknown) => boolean;
   escalationModel?: string;
 }): Promise<RepairOutcome> {
   const escalation = opts.escalationModel ?? REPAIR_ESCALATION_MODEL;
@@ -138,7 +142,8 @@ export async function repairContractOutput(opts: {
     let text = '';
     try {
       text = await opts.call(model, system, user);
-    } catch {
+    } catch (error) {
+      if (opts.abortOnError?.(error)) throw error;
       // A transport error during repair is just a failed attempt — the run's
       // own error handling (broken-ship doctrine) is the caller's job.
       text = '';
