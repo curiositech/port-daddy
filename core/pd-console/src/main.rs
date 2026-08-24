@@ -937,8 +937,8 @@ fn main() {
                                 match client.interrupt(&agent_id, Some("operator stop")).await {
                                     Ok(()) => {
                                         let _ = alert_tx.send(pane::Alert::info(
-                                            format!("interrupted {agent_id}"),
-                                            "operator stop sent",
+                                            format!("stop requested for {agent_id}"),
+                                            "runtime acknowledgement pending",
                                         ));
                                     }
                                     Err(e) => {

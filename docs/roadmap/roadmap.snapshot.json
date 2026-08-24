@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787518060275,
+  "generatedAt": 1787533542550,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 290,
+  "count": 297,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -380,6 +380,11 @@
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
     },
     {
+      "slug": "adr-0092-production-fleet-enrollment",
+      "status": "now",
+      "summaryMd": "Activate ADR-0092 cloud coordination as an offline-first Fleet peer"
+    },
+    {
       "slug": "adr-0096-signed-guidance-envelope",
       "status": "backlog",
       "summaryMd": "feat(agent-harbor): M5 turn-start suggestibility — signed guidance channel, fail-closed verifier, ProVerif-gated C3 (ADR-0096)"
@@ -531,8 +536,8 @@
     },
     {
       "slug": "ast-a1-5-graph-integrity-auditor",
-      "status": "now",
-      "summaryMd": "Add a read-only AST graph integrity auditor with focused corruption and clean-state tests."
+      "status": "done",
+      "summaryMd": "AST A1.5 graph integrity auditor"
     },
     {
       "slug": "ast-a2-1-symbol-claim-isolation-validator",
@@ -620,6 +625,11 @@
       "summaryMd": "com.portdaddy.bosun.plist pins a versioned Cellar path (e.g. 3.25.2_2/bin/pd-bosun) and goes stale on every brew upgrade, causing EX_CONFIG exit-78 and zero auto-restart on daemon crash until port-daddy install is manually re-run. pd doctor also falsely reports the binary as MISSING when it's actually a stale-path config error. Fix belongs in the brew upgrade post-install hook: regenerate the plist against the currently-linked Cellar path automatically."
     },
     {
+      "slug": "budget-terminal-timer-cancellation",
+      "status": "now",
+      "summaryMd": "Restore the lost terminal-state disarm contract so a delayed budget grace timer cannot kill or rewrite an agent after its run has already completed."
+    },
+    {
       "slug": "build-integrity-spine-drift-checks",
       "status": "backlog",
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
@@ -631,8 +641,8 @@
     },
     {
       "slug": "ci-macos-node24-jest-memory-20260823",
-      "status": "now",
-      "summaryMd": "Stop repeated post-merge macOS Node 24 Jest heap exhaustion without broadening process limits"
+      "status": "done",
+      "summaryMd": "Prevent recurring macOS Node 24 Jest out-of-memory failures by scoping a 4 GiB V8 old-space limit to the macOS compatibility test step while preserving Linux command parity. PR #9783 merged at main d1f30731ffc01b13b48f808df72ad13e87e77e96; main CI run 32668945088 proved macOS Node 24, macOS Node 20, and both Linux comparison lanes successful."
     },
     {
       "slug": "claude-provenance-gated-git-guard",
@@ -676,8 +686,8 @@
     },
     {
       "slug": "codex-doctrine-hypertree",
-      "status": "backlog",
-      "summaryMd": "RFC: empirically earned fleet doctrine"
+      "status": "done",
+      "summaryMd": "Empirically earned Fleet doctrine architecture and machine-readable hypertree"
     },
     {
       "slug": "codex-durable-agent-cross-harness-20260715",
@@ -748,6 +758,11 @@
       "slug": "dev-berth-daemon-registration",
       "status": "merge",
       "summaryMd": "Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds."
+    },
+    {
+      "slug": "dispatch-codex-launch-claim-lifecycle-20260823",
+      "status": "now",
+      "summaryMd": "Repair PD-spawned Codex review launches and exact dispatch run ownership: canonical provider argv, requested-id priority, lease-safe preparation, and rollback after failed daemon acknowledgement."
     },
     {
       "slug": "dispatch-launcher-regression-hotfix-20260823",
@@ -836,7 +851,7 @@
     },
     {
       "slug": "fix-fleet-live-introspection-20260822",
-      "status": "backlog",
+      "status": "now",
       "summaryMd": "Native signed-in Cloud Fleet introspection across FleetBar and pd-console"
     },
     {
@@ -881,7 +896,7 @@
     },
     {
       "slug": "fleet-poison-delivery-circuit-breaker-20260823",
-      "status": "now",
+      "status": "done",
       "summaryMd": "Stop poison Fleet deliveries from monopolizing the serialized cloud review queue: bound whole-delivery retries, surface admission/backlog state, and degrade broken ships fail-closed without starving newer heads."
     },
     {
@@ -1030,6 +1045,11 @@
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
+      "slug": "harbor-editor-failed-open-recovery",
+      "status": "merge",
+      "summaryMd": "Repair Harbor Editor failed-open recovery and editor basics: typing, optional line wrapping, git blame, and syntax highlighting."
+    },
+    {
       "slug": "harbor-editor-local-text-input",
       "status": "now",
       "summaryMd": "Make the live Harbor Editor locally editable: GPUI text input and IME, grapheme-safe cursor and selection, CRDT-authored insert/delete, presence updates, virtualization-safe repainting, and visual proof."
@@ -1128,6 +1148,11 @@
       "slug": "migration-fixture-rehearsal-ci",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): CI keeps fixture DBs of the last 3 released schema epochs + a scrubbed real-registry copy; boots the migrator over each asserting counts-never-shrink, verify probes green, user_version at max; wire into the PR #681 release soak. Acceptance: a migration lacking a verify probe or shrinking a count fails CI."
+    },
+    {
+      "slug": "mission-first-pd-console-prompt-launch-live-work-artifacts-a",
+      "status": "now",
+      "summaryMd": "Make pd-console open on one mission screen: plain-language prompt, governed launch, exact agent and transcript, live work, PR checks, and clickable delivery artifact."
     },
     {
       "slug": "model-abstraction-audit",
@@ -1240,6 +1265,11 @@
       "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
     },
     {
+      "slug": "relay-sqlite-placeholder-portability-20260823",
+      "status": "done",
+      "summaryMd": "Land the narrowly scoped Relay roadmap-mirror portability repair that replaces SQLite numbered placeholders with anonymous positional placeholders accepted consistently by Cloudflare D1 and Node SQLite. PR #9767 merged at main c5c2debfa0e5133138c8684a6f9c2748b02f9f35; exact-head CI passed; relay-latest deploy run 32670458914 succeeded; live Worker version 560bcf2a-787b-488c-8b12-560789630b73 returns HTTP 200 from /health."
+    },
+    {
       "slug": "relay-staging-ledger-pr-automation-20260823",
       "status": "now",
       "summaryMd": "Make relay staging ledger updates PR-safe and unblock production Fleet deploys"
@@ -1308,6 +1338,11 @@
       "slug": "roadmap-schema-wiring",
       "status": "now",
       "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
+    },
+    {
+      "slug": "runtime-session-accounting-release",
+      "status": "backlog",
+      "summaryMd": "Ship post-3.30.2 runtime truth: published endpoint discovery, durable spawn receipts, named-daemon Squid conformance, complete session accounting, Beacon continuation visibility, and a new Homebrew daemon build."
     },
     {
       "slug": "rust-kernel-bugfix-sweep",

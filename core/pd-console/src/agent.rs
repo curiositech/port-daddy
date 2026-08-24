@@ -503,21 +503,26 @@ async fn wait_for_sse_retry<T>(
     }
 }
 
-fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> String {
+fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> Result<String> {
     if let Some(url) = explicit_url
         .map(str::trim)
         .filter(|value| !value.is_empty())
     {
-        return url.trim_end_matches('/').to_string();
+        return Ok(url.trim_end_matches('/').to_string());
     }
-    if let Some(port) = published_port
+    let port = published_port
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .and_then(|value| value.parse::<u16>().ok())
-    {
-        return format!("http://127.0.0.1:{port}");
+        .ok_or_else(|| {
+            anyhow!("cannot locate the Port Daddy daemon: start it or set PORT_DADDY_URL")
+        })?;
+    if port == 0 {
+        return Err(anyhow!(
+            "invalid zero port in the published daemon endpoint"
+        ));
     }
-    crate::berths::default_url()
+    Ok(format!("http://127.0.0.1:{port}"))
 }
 
 impl DaemonClient {
@@ -535,7 +540,7 @@ impl DaemonClient {
         Ok(Self::new(discovery_base(
             explicit.as_deref(),
             published_port.as_deref(),
-        )))
+        )?))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value
@@ -1533,20 +1538,28 @@ mod tests {
     #[test]
     fn startup_discovery_prefers_explicit_then_published_stable_port() {
         assert_eq!(
-            discovery_base(Some("  http://127.0.0.1:4123/  "), Some("9876\n")),
+            discovery_base(Some("  http://127.0.0.1:4123/  "), Some("4567\n"))
+                .expect("explicit endpoint"),
             "http://127.0.0.1:4123"
         );
         assert_eq!(
-            discovery_base(None, Some("9876\n")),
-            "http://127.0.0.1:9876"
+            discovery_base(None, Some("4567\n")).expect("published endpoint"),
+            "http://127.0.0.1:4567"
         );
     }
 
     #[test]
-    fn startup_discovery_ignores_empty_or_invalid_authority() {
+    fn startup_discovery_rejects_missing_invalid_and_zero_published_ports() {
+        assert!(discovery_base(None, None).is_err());
+        assert!(discovery_base(None, Some("not-a-port")).is_err());
+        assert!(discovery_base(None, Some("0")).is_err());
+    }
+
+    #[test]
+    fn startup_discovery_ignores_an_empty_explicit_override() {
         assert_eq!(
-            discovery_base(Some("  "), Some("not-a-port")),
-            crate::berths::default_url()
+            discovery_base(Some("  "), Some("4567")).expect("published endpoint"),
+            "http://127.0.0.1:4567"
         );
     }
 

@@ -1938,7 +1938,7 @@ pub struct ConsoleView {
     /// Channel to the background thread for operator mutations (Interrupt etc.).
     /// `None` when running without a control plane (e.g. an isolated test view).
     control_tx: Option<mpsc::Sender<ControlMsg>>,
-    /// Transient confirmation shown after a control action ("interrupt sent").
+    /// Transient confirmation shown after a control action (for example, a stop request).
     control_flash: Option<String>,
     /// The accumulated alert log (the HITL dead-letter queue): every captured
     /// action failure/outcome, newest first, bounded so an all-day session can't
@@ -4536,8 +4536,10 @@ impl ConsoleView {
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     if let Some(tx) = &this.control_tx {
                                         let _ = tx.send(ControlMsg::InterruptLane);
-                                        this.control_flash =
-                                            Some("interrupt sent — watch the stream".into());
+                                        this.control_flash = Some(
+                                            "Interrupt requested. Runtime acknowledgement pending."
+                                                .into(),
+                                        );
                                         cx.notify();
                                     }
                                 })),
@@ -4806,7 +4808,7 @@ impl ConsoleView {
                             div()
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(14.0))
-                                .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
+                                .child("kill = unregister an agent \u{00b7} interrupt = request a run stop"),
                         )
                         .child(
                             div()

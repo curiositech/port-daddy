@@ -241,7 +241,7 @@ mod tests {
             state: "in_progress".into(),
             agent_id: Some("spawned-codex-7".into()),
             backend: Some("cli:codex".into()),
-            model: Some("gpt-5.3-codex".into()),
+            model: Some("receipt-model-v1".into()),
             ..MissionViewModel::default()
         };
         let rendered = blocks(
@@ -309,7 +309,7 @@ mod tests {
             agent_id: Some("agent-3".into()),
             transcript_id: Some("transcript-3".into()),
             backend: Some("cli:codex".into()),
-            model: Some("gpt-5.3-codex".into()),
+            model: Some("receipt-model-v1".into()),
             result_artifact: None,
             error_message: None,
             launched_this_tick: 1,
@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(model.agent_id.as_deref(), Some("agent-3"));
         assert_eq!(model.transcript_id.as_deref(), Some("transcript-3"));
         assert_eq!(model.backend.as_deref(), Some("cli:codex"));
-        assert_eq!(model.model.as_deref(), Some("gpt-5.3-codex"));
+        assert_eq!(model.model.as_deref(), Some("receipt-model-v1"));
         assert_eq!(model.branch.as_deref(), Some("codex/mission-3"));
     }
 }

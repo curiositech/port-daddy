@@ -936,7 +936,7 @@ pub fn sample_mission_blocks(state: &str) -> Vec<Block> {
             tone: stage_tone,
         },
         Block::KeyVal("agent".into(), "spawned-codex-7".into()),
-        Block::KeyVal("runtime".into(), "cli:codex · gpt-5.3-codex".into()),
+        Block::KeyVal("runtime".into(), "cli:codex · receipt-model-v1".into()),
         Block::KeyVal("branch".into(), "codex/mission-console".into()),
     ];
     if state == "failed" {

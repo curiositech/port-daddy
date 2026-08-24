@@ -68,11 +68,11 @@ mod editor_sync;
 #[path = "../editor_wedge.rs"]
 mod editor_wedge;
 #[allow(dead_code)]
-#[path = "../work_plan.rs"]
-mod work_plan;
-#[allow(dead_code)]
 #[path = "../mission_view.rs"]
 mod mission_view;
+#[allow(dead_code)]
+#[path = "../work_plan.rs"]
+mod work_plan;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]
@@ -407,7 +407,7 @@ async fn main() -> Result<()> {
                 {
                     Ok(()) => ok(
                         &style,
-                        "interrupt sent — watch the stream for control.interrupt",
+                        "interrupt requested — runtime acknowledgement pending",
                     ),
                     Err(e) => err(&style, &format!("interrupt failed: {e}")),
                 }
