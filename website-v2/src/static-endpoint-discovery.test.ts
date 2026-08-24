@@ -46,5 +46,14 @@ describe('static endpoint discovery', () => {
     const getStarted = read('./docs-content/getStarted.ts')
     expect(getStarted, 'getStarted.ts should teach endpoint discovery').toContain('Discover the daemon endpoint')
     expect(getStarted, 'getStarted.ts should mention port file path').toContain('~/.port-daddy/daemon.port')
+    expect(getStarted, 'getStarted.ts should name the canonical Homebrew supervisor').toContain(
+      'homebrew.mxcl.port-daddy',
+    )
+    expect(getStarted, 'getStarted.ts should reject silent stable-port fallback').toContain(
+      'fails closed on port contention',
+    )
+    expect(getStarted, 'getStarted.ts should not revive the removed launchd label').not.toContain(
+      'com.portdaddy.daemon',
+    )
   })
 })
