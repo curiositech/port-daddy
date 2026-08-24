@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDefaultSandboxTestCommand,
   buildSandboxDaemonBootstrap,
+  parseSandboxCoordinationCursor,
+  parseSandboxDaemonPublication,
   runTestsInSandbox,
   sandboxCoordinationEnrollmentFromEnv,
 } from '../src/sandbox-runner.js';
@@ -52,6 +54,10 @@ function jestSummary(
     ...overrides,
   };
   return `${JEST_SUMMARY_MARKER}${btoa(JSON.stringify(value))}`;
+}
+
+function daemonPublication(port: number, pid: number): string {
+  return `${JSON.stringify({ port, pid })}\n`;
 }
 
 describe('buildDefaultSandboxTestCommand', () => {
@@ -238,7 +244,18 @@ describe('runTestsInSandbox', () => {
         async exec(value: string, received?: Record<string, unknown>) {
           lifecycle.push(`exec:${execCalls.length + 1}`);
           execCalls.push({ command: value, options: received });
-          return execCalls.length === 7
+          if (execCalls.length === 3) {
+            return { exitCode: 0, stdout: daemonPublication(43123, 7101), stderr: '' };
+          }
+          if (execCalls.length === 5) return { exitCode: 0, stdout: '17\n', stderr: '' };
+          if (execCalls.length === 6) {
+            return { exitCode: 0, stdout: daemonPublication(43124, 7102), stderr: '' };
+          }
+          if (execCalls.length === 7) return { exitCode: 0, stdout: '17\n', stderr: '' };
+          if (execCalls.length === 8) {
+            return { exitCode: 0, stdout: 'CLOUD_PEER_WITNESS_OK session-cloud-peer\n', stderr: '' };
+          }
+          return execCalls.length === 9
             ? { exitCode: 0, stdout: `${TEST_STARTED_MARKER}\n${jestSummary()}`, stderr: '' }
             : { exitCode: 0, stdout: '', stderr: '' };
         },
@@ -271,7 +288,7 @@ describe('runTestsInSandbox', () => {
             lifecycle.push('grant');
             grantCalls.push(input);
             return {
-              macaroon: 'scoped-macaroon',
+              macaroon: `scoped-macaroon-${grantCalls.length}`,
               project: input.project,
               actorId: input.actorId,
               verb: 'coordination-sync' as const,
@@ -284,59 +301,87 @@ describe('runTestsInSandbox', () => {
 
     expect(outcome).toMatchObject({ executed: true, passed: true, outcomeKind: 'passed' });
     expect(execCalls[1].command).toContain('npm run build:bin');
-    expect(execCalls[2].command).toContain('./dist/port-daddy begin');
-    expect(execCalls[2].command).toContain('--lifecycle durable');
-    expect(execCalls[2].command).toContain('--files');
-    expect(execCalls[2].command).toMatch(/\.portdaddy\/cloud-peers\/fleet-peer-[0-9a-f]{24}\.peer/);
-    expect(execCalls[2].command).toContain('./dist/port-daddy note');
-    expect(execCalls[2].command).toContain('Fleet cloud coordination peer enrolled');
-    expect(execCalls[3].command).toContain('/coordination/status');
-    expect(execCalls[3].command).toContain('status.outbox === 0');
-    expect(execCalls[3].command).toContain('status.cursor > 0');
-    expect(execCalls[4].command).toContain('/coordination/status');
-    expect(execCalls[5].command).toContain('sessions');
-    expect(execCalls[5].command).toContain('--all-worktrees');
-    expect(execCalls[5].command).toContain('who-owns');
-    expect(execCalls[5].command).toContain('markerPath');
-    expect(execCalls[5].command).toContain('notes');
-    expect(execCalls[5].command).toContain('--limit');
-    expect(execCalls[5].command).toContain('CLOUD_PEER_WITNESS_OK');
-    expect(execCalls.every(call => !call.command.includes('scoped-macaroon'))).toBe(true);
+    expect(execCalls[2].command).toContain('/work/pd-peer/daemon.port');
+    expect(execCalls[2].command).toContain('/work/pd-peer/daemon.pid');
+    expect(execCalls[2].command).toContain("'/health'");
+    expect(execCalls[2].command).toContain('health.status ===');
+    expect(execCalls[2].command).toContain('health.pid === pidBefore.value');
+    expect(execCalls[2].command).toContain('health.daemon.port === portBefore.value');
+    expect(execCalls[2].command).toContain('portAfter.text === portBefore.text');
+    expect(execCalls[2].command).toContain('pidAfter.text === pidBefore.text');
+    expect(execCalls[3].command).toContain('./dist/port-daddy begin');
+    expect(execCalls[3].command).toContain('--lifecycle durable');
+    expect(execCalls[3].command).toContain('--files');
+    expect(execCalls[3].command).toMatch(/\.portdaddy\/cloud-peers\/fleet-peer-[0-9a-f]{24}\.peer/);
+    expect(execCalls[3].command).toContain('./dist/port-daddy note');
+    expect(execCalls[3].command).toContain('Fleet cloud coordination peer enrolled');
+    expect(execCalls[3].options?.env).toMatchObject({
+      PORT_DADDY_URL: 'http://127.0.0.1:43123',
+      PORT_DADDY_PORT_FILE: '/work/pd-peer/daemon.port',
+    });
+    expect(execCalls[4].command).toContain('http://127.0.0.1:43123/coordination/status');
+    expect(execCalls[4].command).toContain('status.outbox === 0');
+    expect(execCalls[4].command).toContain('status.cursor >= minimumCursor');
+    expect(execCalls[5].command).toContain('/work/pd-peer-witness/daemon.port');
+    expect(execCalls[5].command).toContain('/work/pd-peer-witness/daemon.pid');
+    expect(execCalls[6].command).toContain('http://127.0.0.1:43124/coordination/status');
+    expect(execCalls[6].command).toContain('const minimumCursor = 17');
+    expect(execCalls[7].command).toContain('sessions');
+    expect(execCalls[7].command).toContain('--all-worktrees');
+    expect(execCalls[7].command).toContain('who-owns');
+    expect(execCalls[7].command).toContain('markerPath');
+    expect(execCalls[7].command).toContain('notes');
+    expect(execCalls[7].command).toContain('--limit');
+    expect(execCalls[7].command).toContain('CLOUD_PEER_WITNESS_OK');
+    expect(execCalls.every(call => !call.command.includes('scoped-macaroon-'))).toBe(true);
     expect(
-      execCalls.every(call => !JSON.stringify(call.options ?? {}).includes('scoped-macaroon')),
+      execCalls.every(call => !JSON.stringify(call.options ?? {}).includes('scoped-macaroon-')),
     ).toBe(true);
     expect(processCommands).toEqual([
       './dist/port-daddy __daemon',
       './dist/port-daddy __daemon',
     ]);
-    expect(processCommands.every(command => !command.includes('scoped-macaroon'))).toBe(true);
+    expect(processCommands.every(command => !command.includes('scoped-macaroon-'))).toBe(true);
     expect(processOptions[0]).toMatchObject({
       cwd: '/work/repo',
       env: {
-        PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon',
+        PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon-1',
         PORT_DADDY_COORDINATION_REPLICA: expect.stringMatching(/^fleet-peer-[0-9a-f]{24}$/),
         PORT_DADDY_PREFIX: '/work/pd-peer',
+        PORT_DADDY_PID_FILE: '/work/pd-peer/daemon.pid',
+        PORT_DADDY_PORT_FILE: '/work/pd-peer/daemon.port',
       },
     });
     expect(processOptions[1]).toMatchObject({
       cwd: '/work/repo',
       env: {
-        PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon',
+        PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon-2',
         PORT_DADDY_COORDINATION_REPLICA: expect.stringMatching(/^fleet-peer-[0-9a-f]{24}$/),
         PORT_DADDY_PREFIX: '/work/pd-peer-witness',
+        PORT_DADDY_PID_FILE: '/work/pd-peer-witness/daemon.pid',
+        PORT_DADDY_PORT_FILE: '/work/pd-peer-witness/daemon.port',
       },
     });
     const writerReplica = (processOptions[0]?.env as Record<string, string>).PORT_DADDY_COORDINATION_REPLICA;
     const witnessReplica = (processOptions[1]?.env as Record<string, string>).PORT_DADDY_COORDINATION_REPLICA;
+    expect(processOptions[0]?.env).not.toHaveProperty('PORT_DADDY_PORT');
+    expect(processOptions[1]?.env).not.toHaveProperty('PORT_DADDY_PORT');
     expect(witnessReplica).not.toBe(writerReplica);
-    expect(waitedForPorts).toEqual([9876, 9876]);
+    expect(waitedForPorts).toEqual([43123, 43124]);
     expect(kills).toBe(2);
     expect(execCalls.every(call => !call.command.includes('/tmp'))).toBe(true);
-    expect(grantCalls).toEqual([{
-      project: 'curiositech/port-daddy',
-      actorId: 'fleet:run:delivery-123',
-      ttlSeconds: 3600,
-    }]);
+    expect(grantCalls).toEqual([
+      {
+        project: 'curiositech/port-daddy',
+        actorId: 'fleet:run:delivery-123',
+        ttlSeconds: 3600,
+      },
+      {
+        project: 'curiositech/port-daddy',
+        actorId: 'fleet:run:delivery-123',
+        ttlSeconds: 3600,
+      },
+    ]);
     expect(lifecycle.slice(0, 4)).toEqual(['exec:1', 'exec:2', 'grant', 'start']);
   });
 
@@ -421,7 +466,12 @@ describe('runTestsInSandbox', () => {
         sandboxBinding: {
           async exec() {
             calls += 1;
-            return calls === 7
+            if (calls === 3) return { exitCode: 0, stdout: daemonPublication(43123, 7201) };
+            if (calls === 5) return { exitCode: 0, stdout: '17\n' };
+            if (calls === 6) return { exitCode: 0, stdout: daemonPublication(43124, 7202) };
+            if (calls === 7) return { exitCode: 0, stdout: '17\n' };
+            if (calls === 8) return { exitCode: 0, stdout: 'CLOUD_PEER_WITNESS_OK session-cloud-peer\n' };
+            return calls === 9
               ? { exitCode: 0, stdout: `${TEST_STARTED_MARKER}\n${jestSummary()}` }
               : { exitCode: 0 };
           },
@@ -497,7 +547,12 @@ describe('runTestsInSandbox', () => {
       sandboxBinding: {
         async exec() {
           calls += 1;
-          if (calls === 7) throw new Error('sandbox test transport lost');
+          if (calls === 3) return { exitCode: 0, stdout: daemonPublication(43123, 7301) };
+          if (calls === 5) return { exitCode: 0, stdout: '17\n' };
+          if (calls === 6) return { exitCode: 0, stdout: daemonPublication(43124, 7302) };
+          if (calls === 7) return { exitCode: 0, stdout: '17\n' };
+          if (calls === 8) return { exitCode: 0, stdout: 'CLOUD_PEER_WITNESS_OK session-cloud-peer\n' };
+          if (calls === 9) throw new Error('sandbox test transport lost');
           return { exitCode: 0 };
         },
         async startProcess() {
@@ -527,6 +582,47 @@ describe('runTestsInSandbox', () => {
     });
     expect(kills).toBe(2);
   });
+
+  it('rejects a mock-echo witness that exits zero without exact read proof', async () => {
+    let calls = 0;
+    let kills = 0;
+    const outcome = await runTestsInSandbox({
+      sandboxBinding: {
+        async exec() {
+          calls += 1;
+          if (calls === 3) return { exitCode: 0, stdout: daemonPublication(43123, 7401) };
+          if (calls === 5) return { exitCode: 0, stdout: '17\n' };
+          if (calls === 6) return { exitCode: 0, stdout: daemonPublication(43124, 7402) };
+          if (calls === 7) return { exitCode: 0, stdout: '17\n' };
+          return { exitCode: 0, stdout: '' };
+        },
+        async startProcess() {
+          return {
+            async waitForPort() {},
+            async kill() { kills += 1; },
+          };
+        },
+      },
+      owner: 'curiositech',
+      repo: 'port-daddy',
+      headSha: 'abc123',
+      files: [{ path: 'tests/unit/contract.test.ts', contents: 'test body' }],
+      token: 'test-token',
+      coordinationEnrollment: {
+        url: 'https://relay.portdaddy.dev',
+        project: 'curiositech/port-daddy',
+        actorId: 'fleet:run:delivery-123',
+        grants: grantService(),
+      },
+    });
+
+    expect(outcome).toMatchObject({
+      executed: false,
+      outcomeKind: 'not-executed',
+      reason: expect.stringContaining('could not read the exact session'),
+    });
+    expect(kills).toBe(2);
+  });
 });
 
 describe('cloud coordination bootstrap', () => {
@@ -534,6 +630,22 @@ describe('cloud coordination bootstrap', () => {
     project: 'curiositech/port-daddy',
     runId: 'run:delivery-123',
   };
+
+  it('accepts only strict runtime identities and positive room cursors', () => {
+    expect(parseSandboxDaemonPublication(daemonPublication(43123, 7501))).toEqual({
+      port: 43123,
+      pid: 7501,
+    });
+    expect(parseSandboxDaemonPublication('43123\n')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":43123}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":0,"pid":7501}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":65536,"pid":7501}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":43123,"pid":0}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":43123,"pid":7501,"extra":true}')).toBeNull();
+    expect(parseSandboxCoordinationCursor('17\n')).toBe(17);
+    expect(parseSandboxCoordinationCursor('0')).toBeNull();
+    expect(parseSandboxCoordinationCursor('17 stale')).toBeNull();
+  });
 
   it('requires the transport origin and grant capability together', () => {
     expect(() => sandboxCoordinationEnrollmentFromEnv({
@@ -557,6 +669,16 @@ describe('cloud coordination bootstrap', () => {
       project: 'curiositech/port-daddy',
       actorId: 'fleet:run:delivery-123',
     });
+  });
+
+  it('fails closed when an opted-in caller omits the durable run id', () => {
+    expect(() => sandboxCoordinationEnrollmentFromEnv({
+      PORT_DADDY_COORDINATION_URL: 'https://relay.example',
+      COORDINATION_GRANTS: grantService(),
+    }, {
+      project: 'curiositech/port-daddy',
+      runId: '',
+    })).toThrow('run id must be a valid durable scope');
   });
 
   it('rejects a non-HTTPS URL or anything broader than an origin', () => {
