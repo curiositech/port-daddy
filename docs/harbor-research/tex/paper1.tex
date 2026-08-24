@@ -1,0 +1,244 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{graphicx}
+\graphicspath{{../figures/}}
+\usepackage{mdframed}
+\newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
+\newmdenv[backgroundcolor=red!4,linecolor=shipred,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{boundary}
+\newcommand{\onebreath}[1]{\begin{center}\emph{#1}\end{center}}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem*{remark}{Remark}
+
+\title{\textbf{The Price of a Summary:}\\[4pt]
+\large Information-Theoretic Limits of Agent Oversight}
+\author{Erich Owens\\ \normalsize The Harbor Research Program \quad \texttt{erich.owens@gmail.com}}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent A human overseeing a fleet of software agents reads digests, not transcripts. We show that this practice obeys exact information-theoretic limits, and we price them. Four results: (i) any digest that \emph{guarantees} the overseer catches all $k$ load-bearing artifacts among $N$ while opening only $m$ must carry at least $\log_2\binom{N}{k}-\log_2\binom{m}{k}$ bits --- a floor that survived a pre-registered falsification experiment (0/16 violations, including an oracle encoder); (ii) one scalar summary head serves two readers if and only if their preference orders are comonotone --- and the overseer and the successor agent provably are not, with the joint floor \emph{super}-additive ($\approx 2.13\times$, not $2\times$); (iii) the folklore ranking key $\mathrm{stakes}\times\mathrm{irreversibility}\times\mathrm{anomaly}$ is the Bayes-optimal surfacing rule iff anomaly is a calibrated posterior; (iv) a two-constraint rate--distortion program $R(\delta,f)$ --- false-negative rate priced separately from flag rate --- has a closed form for Bernoulli sources, with the covering floor as its zero-miss corner, and a new zoom-advantage theorem: adaptive halving identifies the $k$ criticals inside $F$ flagged items in at most $2k\lceil\log_2(F/k)\rceil+6k$ group opens, a bound whose leading constant is achieved. Every number is tagged as externally recomputable or as regenerating from a named script at a fixed seed.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+\textbf{The scene.} An operator supervises forty coding agents overnight. By morning the fleet has produced hundreds of artifacts --- branches, migration scripts, config edits, deleted test suites. Two of them are load-bearing: if the operator does not open exactly those two before the morning merge, an irreversible mistake ships. The operator will read one screen of digest and open perhaps eight items. The question this paper answers with theorems rather than taste: \emph{what must that screen carry, what can it never do, and what does each relaxation buy?}
+
+\textbf{Express lane.} One sentence per result, formal statements in the boxes. A zero-miss digest is a message that must single out a covering $m$-subset, so it costs $\log_2\binom{N}{k}-\log_2\binom{m}{k}$ bits (box in \S\ref{sec:floor}); one scalar head serves two readers iff their orders are comonotone, and oversight's two readers are not (box in \S\ref{sec:split}); the inspect-or-pass rule is a likelihood-ratio test, making ``anomaly'' a calibration obligation (box in \S\ref{sec:regret}); and pricing misses and flags separately yields a closed-form frontier $R(\delta,f)$ whose flagged set is then searched in $2k\lceil\log_2(F/k)\rceil+6k$ adaptive opens --- the one theorem newly proved in this paper (boxes in \S\ref{sec:frontier}).
+
+\onebreath{The idea in one breath: a summary is a channel, an overseer is a decoder with an open budget, and every oversight guarantee therefore has an exact price in bits, opens, and misses --- prices we compute, and one of which we bound with a new, constant-explicit group-testing theorem.}
+
+\textbf{Contributions.}
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{The information floor, falsified-against} (\S\ref{sec:floor}): the covering bound $B^\star=\log_2\binom{N}{k}-\log_2\binom{m}{k}$, plus a pre-registered experiment in which no encoder --- oracle, noisy, or random --- beat it (0/16 violations at $N{=}60,k{=}2,m{=}8$ [internal, \texttt{a7\_experiment.py}]). We also report the instructive failure: a first meter charged bits only for tie-breaking and produced 8/16 spurious ``violations,'' a worked example of the unpriced-side-channel trap.
+\item \textbf{The split-digest characterization} (\S\ref{sec:split}): a scalar head serves two readers iff their induced orders are comonotone; the operator (regret-shaped) and successor (fit-shaped) readers order constructible pairs oppositely, so no shared head exists --- and the joint zero-miss floor is super-additive: $\mathrm{Floor}(N,2k,m)\approx 2.13\times\mathrm{Floor}(N,k,m)$, with ratio-over-double $1.05$--$1.08$ across regimes [verified].
+\item \textbf{The derived regret head} (\S\ref{sec:regret}): $\mathrm{stakes}\times\mathrm{irreversibility}\times\mathrm{anomaly}$ is exactly expected unrecoverable loss iff anomaly is the calibrated posterior $\Pr(\mathsf{bad}\mid\text{evidence})$; the optimal surfacing rule is a likelihood-ratio threshold, and raising the miss-to-false-alarm cost ratio \emph{lowers} the bar to inspect.
+\item \textbf{The two-constraint frontier and the zoom theorem} (\S\ref{sec:frontier}): a custom rate--distortion program $R(\delta,f)$ with false negatives priced separately from flag rate, solved in closed form for Bernoulli sources (the optimizing joint is fully pinned); and a new worst-case bound for the second stage --- adaptive halving finds all $k$ positives among $F$ flagged items in at most $2k\lceil\log_2(F/k)\rceil+6k$ group opens versus $F$ flat, proved by a charging argument, shown tight in its leading constant, and consistent with the measured $15.3\times$ advantage at $(F,k)=(2500,10)$ [internal, \texttt{b1\_frontier.py}].
+\end{enumerate}
+Results 1--3 were derived and verified in the program's execution reports; result 4's frontier was computed there but its zoom bound existed only as a simulation regularity --- the theorem and proof in \S\ref{sec:zoom} are new to this paper. Throughout, numbers are tagged \textbf{[verified]} (externally recomputable from the closed form) or \textbf{[internal]} (regenerates from the named script at seed 20260816).
+
+\section{The information floor, and its falsification test}\label{sec:floor}
+\textbf{The analogy, mapped by relations.} A digest is not a description of the night's work; it is a \emph{message} that selects, from a codebook shared with the overseer, which $m$ items to open (Figure~\ref{fig:r1rel}). The relation that transfers: a $B$-bit message distinguishes at most $2^B$ codewords, and each codeword --- an $m$-subset --- covers only $\binom{m}{k}$ of the $\binom{N}{k}$ ways the $k$ critical items could be placed. The predictable misread, preempted: the floor does \emph{not} say a digest needs $B^\star$ bits to be useful --- it prices the \emph{zero-miss guarantee} only; cheaper digests are fine the moment misses are tolerated (\S\ref{sec:frontier} prices exactly that).
+
+\begin{thebox}
+\textbf{Theorem 1 (information floor).} Fix $N$ items containing an arbitrary unknown $k$-subset $T$ of load-bearing items, and an open budget $m$. Any digest scheme --- an encoder $e$ mapping the corpus to $B$ bits and a data-independent decoder $d$ mapping $B$ bits to an $m$-subset to open --- that guarantees $T\subseteq d(e(\cdot))$ for \emph{every} placement of $T$ must have
+\[
+B \;\ge\; B^\star(N,k,m) \;=\; \log_2\binom{N}{k}-\log_2\binom{m}{k}.
+\]
+\emph{Proof.} The decoder realizes at most $2^B$ distinct $m$-subsets; an $m$-subset contains $\binom{m}{k}$ of the $\binom{N}{k}$ possible $k$-subsets; zero miss requires the realized $m$-subsets to jointly cover all placements, so $2^B\binom{m}{k}\ge\binom{N}{k}$. $\square$
+\end{thebox}
+
+\textbf{Numbers by hand.} At $N{=}60$, $k{=}2$, $m{=}8$: $\log_2\binom{60}{2}=\log_2 1770=10.79$, $\log_2\binom{8}{2}=\log_2 28=4.81$, so $B^\star=5.98$ bits [verified]. Now you try: $N{=}100$, $k{=}2$, $m{=}10$ --- compute $\log_2 4950$ and $\log_2 45$ and check you get a floor just under $6.8$ bits.
+
+\textbf{The falsification experiment.} Theorem 1 makes a sharp prediction: a $B$-bit digest's best zero-miss probability is $\min(1,\,2^B\binom{m}{k}/\binom{N}{k})$, so \emph{any} scheme dipping below the implied miss curve refutes the formalization. We implemented three encoders --- an \emph{oracle} that sees the true set and addresses the best codeword its $B$ bits can reach, a \emph{noisy} encoder (feature SNR $\approx 1$), and a \emph{random} one --- against a shared randomized-cover codebook, 4000 placements per budget point, sweeping $B$ through the floor at $N{=}60,k{=}2,m{=}8$. Result: \textbf{0/16 violations}; the oracle hugs the floor from above, the others pay a premium [internal, \texttt{a7\_experiment.py}]. The floor's regime behavior is Figure~\ref{fig:r1reg}: it falls as the open budget grows and reaches zero only at $m=N$.
+
+\textbf{A wrong turn, reported.} A first implementation handed the oracle a perfect per-item score vector and charged $B$ bits only for resolving rank ties: 8/16 apparent violations. That was not a refutation but an unpriced side channel --- identity of the load-bearing set leaked outside the metered message. Rebuilding the model so $B$ is a literal message length gating an encoder/decoder pair restored agreement. The transferable rule: a simulation that appears to beat an information bound is leaking through an unpriced channel; audit the meter before doubting the theorem --- and before trusting the ``refutation.''
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{r1_relation.png}
+\caption{The relation-map for Theorem 1. A digest is a $B$-bit message selecting one of the decoder's covering $m$-subsets (base domain: a shared codebook); each covering accounts for $\binom{m}{k}$ of $\binom{N}{k}$ placements, which is the whole proof. The map is of \emph{relations}, not surface features: from it the reader can re-derive the floor without the text.}
+\label{fig:r1rel}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{r1_regime.png}
+\caption{Regime diagram for the floor: required digest bits $B^\star$ against the open-budget fraction $m/N$ (here $N{=}60$, $k{=}2$; the marked point is the experiment's $m{=}8$, $B^\star{=}5.98$ bits [verified]). The floor is steep where budgets are tight and vanishes only when the overseer opens everything --- the price of the guarantee, not of usefulness.}
+\label{fig:r1reg}
+\end{figure}
+
+\section{One summary cannot serve two readers}\label{sec:split}
+Every compaction in an agent system is read twice: by the \emph{successor} --- the next agent instance, which wants what is worth continuing (fit-shaped, forgone continuation value) --- and by the \emph{operator}, who wants what is dangerous to ignore (risk-shaped, regret-if-ignored). Standard practice stores one summary for both.
+
+\begin{thebox}
+\textbf{Theorem 2 (comonotone characterization).} A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by $h$ realizes $r$'s optimal selection at every budget. A single head serves two readers iff their induced preference orders are comonotone (agree on every pair). The successor and operator orders are not comonotone: a routine-but-essential working state (high continuation value, negligible regret) and an anomalously abandoned dead-end with irreversible side effects (zero continuation value, maximal regret) order oppositely. Hence no shared head serves both.
+
+\emph{Proof.} ($\Leftarrow$) Comonotone total preorders admit a common refinement; any utility representing the refinement serves both. ($\Rightarrow$) A shared head induces one order; each reader's optimum at every budget is a top-$m$ set of that order, so both readers' orders equal the $h$-order and hence agree pairwise. The displayed pair --- constructible in any real fleet --- disagrees, so no shared head exists. $\square$
+\end{thebox}
+
+\begin{claim}[Super-additive split penalty]
+Let $\mathrm{Floor}(N,k,m)=B^\star(N,k,m)$ from Theorem 1. A joint zero-miss digest serving two readers with \emph{disjoint} load-bearing $k$-sets must catch their union and so needs $\mathrm{Floor}(N,2k,m)$ bits, and
+\[
+\frac{\mathrm{Floor}(N,2k,m)}{2\,\mathrm{Floor}(N,k,m)}\;\approx\;1.05\text{--}1.08
+\quad\text{across regimes,}
+\]
+because $\log_2\binom{N}{2k}$ grows faster than $2\log_2\binom{N}{k}$. At $N{=}60,k{=}2,m{=}8$: joint floor $12.77$ bits versus $2\times 5.98=11.96$; ratio $2.13\times$, super-additivity $1.07$ [verified]. One stored compaction under-provisions divergent readers by \emph{more} than a factor of two (Figure~\ref{fig:r2reg}).
+\end{claim}
+
+\textbf{What it buys.} Two compaction heads --- one per reader class, compacted from durable artifacts --- are a necessity of the loss structure, not an architectural taste. The misread to preempt: comonotone readers \emph{can} share a head; the theorem forbids sharing only when the crossing pair actually occurs in the domain, and in agent oversight it does.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{r2_regime.png}
+\caption{Regime diagram for the split penalty: joint zero-miss floor against the number of items caught. The joint ($2k$) floor sits above \emph{twice} the single-reader floor --- super-additivity $1.05$--$1.08$ across the swept regimes [verified] --- so budgeting ``two summaries'' by doubling one summary's budget still under-provisions.}
+\label{fig:r2reg}
+\end{figure}
+
+\section{The regret head is derived, not designed}\label{sec:regret}
+Which flagged items should actually interrupt a human? Fleet dashboards rank by $\mathrm{stakes}\times\mathrm{irreversibility}\times\mathrm{anomaly}$ --- three tuned knobs. We show the product form is a theorem under one commitment, which converts ``anomaly'' from a vibe into a measured obligation.
+
+\begin{thebox}
+\textbf{Theorem 3 (regret head).} For item $x$ let $C_{\mathrm{miss}}(x)=\mathrm{stakes}(x)\cdot\mathrm{irrev}(x)$ be the unrecoverable loss of passing a bad $x$, let $a(x)=\Pr(\mathsf{bad}\mid\text{evidence}(x))$ be a \emph{calibrated} posterior, $c_{\mathrm{att}}$ the marginal attention cost, and $C_{\mathrm{fa}}$ the non-attention cost of inspecting a good item. The expected unrecoverable loss of passing is exactly $C_{\mathrm{miss}}(x)\,a(x)$, and the Bayes-optimal policy inspects iff
+\[
+C_{\mathrm{miss}}(x)\,a(x)\;\ge\;c_{\mathrm{att}}+C_{\mathrm{fa}}\bigl(1-a(x)\bigr),
+\qquad\text{equivalently}\qquad
+\frac{a(x)}{1-a(x)}\;\ge\;\frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}{C_{\mathrm{miss}}(x)},
+\]
+the classical likelihood-ratio criterion. The product form $\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$ is the exact ranking key iff $\mathrm{anomaly}=a$; any other anomaly scalar $s$ requires the correction $C_{\mathrm{miss}}\cdot g(s)$ with $g$ the empirical calibration map fit from the audit log.
+
+\emph{Proof.} Expected loss of passing: $C_{\mathrm{miss}}(x)a(x)$. Expected cost of inspecting: $c_{\mathrm{att}}+C_{\mathrm{fa}}(1-a(x))$. Compare; rearrange into the odds form. $\square$
+\end{thebox}
+
+\textbf{Numbers by hand.} $C_{\mathrm{miss}}{=}100$, $c_{\mathrm{att}}{=}1$, $C_{\mathrm{fa}}{=}5$: inspect when $a\ge 6/105\approx 0.057$ [verified]. Raising $C_{\mathrm{miss}}$ to $1000$ drops the bar to $6/1005\approx 0.006$ --- the direction that matters: as the miss-to-false-alarm ratio grows the threshold \emph{falls}, driving the operator toward inspecting everything ambiguous (Figure~\ref{fig:r3reg}). (The source volume's original signal-detection figure had this reversed; the likelihood-ratio statement leaves no room for the error.)
+
+\begin{claim}[Reputation enters only through the posterior]
+If agent reputation $r$ is admitted, it enters as $a(x)=\Pr(\mathsf{bad}\mid\text{evidence},r)$ --- never as a free multiplier on the score. High reputation lowers surfacing frequency only where the calibrated posterior actually falls, and cannot zero a term: with $\mathrm{irrev}(x)=1$ and catastrophic stakes, $C_{\mathrm{miss}}(x)a(x)$ stays above threshold for any $a(x)$ bounded away from zero. This is the formal content of ``reputation must not defeat hard stakes gates.''
+\end{claim}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{r3_regime.png}
+\caption{Regime diagram for the surfacing rule: expected loss of pass versus inspect as a function of the calibrated posterior $a(x)$. Inspection pays exactly where the curves cross, $a^\star=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(c_{\mathrm{att}}+C_{\mathrm{fa}}+C_{\mathrm{miss}})$ --- at the shown costs, $a^\star\approx0.057$ [verified].}
+\label{fig:r3reg}
+\end{figure}
+
+\section{The digest--zoom frontier, and the zoom theorem}\label{sec:frontier}
+Theorem 1 prices one corner: zero misses at a fixed open budget. The operator's real dial has three settings --- digest bits, expected opens, tolerated misses --- and the exchange rates among them are this section's subject. Its second half proves the theorem that was, until now, the program's one missing piece.
+
+\subsection{The two-constraint program and its pinned closed form}\label{sec:rdf}
+Model each artifact's load-bearing status as i.i.d.\ $X\sim\mathrm{Bern}(p)$; a digest emits a per-item flag $\hat X\in\{0,1\}$. Price the two failure modes separately:
+\[
+R(\delta,f)\;=\;\min_{P_{\hat X\mid X}}\; I(X;\hat X)
+\quad\text{s.t.}\quad
+\Pr(X{=}1,\hat X{=}0)\le\delta,
+\qquad
+\Pr(\hat X{=}1)\le f .
+\]
+This is a \emph{custom formulation}, deliberately: classical rate--distortion charges one scalar distortion, which cannot express that oversight prices a missed critical differently from a wasted open. An August-2026 literature sweep found no prior false-negative-constrained lossy compression for binary sources under this framing; the nearest neighbors are expansion coding with one-sided error for continuous sources \cite{expansion} and the rate--distortion--classification line for Bernoulli sources \cite{rdc}. We position $R(\delta,f)$ against that literature as a formulation, not as a textbook import --- and ``not found'' is not ``proven nonexistent.''
+
+\begin{thebox}
+\textbf{Proposition (pinned joint).} For $X\sim\mathrm{Bern}(p)$ with $0\le\delta<p$ and $p-\delta\le f<1-\delta$, if $f$ is below the flag rate at which an $X$-independent flagger meets the miss constraint (i.e.\ $f<1-\delta/p$), both constraints bind at the optimum and the minimizing joint is fully pinned:
+\[
+q_{11}=p-\delta,\qquad q_{10}=\delta,\qquad q_{01}=f-(p-\delta),\qquad q_{00}=1-f-\delta,
+\]
+feasible iff all four are nonnegative, and $R(\delta,f)=I(X;\hat X)$ evaluated at this joint. At the zero-miss tightest-flag corner, $R(0,f{\to}p)=H(p)$: the digest must spend the source's full entropy.
+
+\emph{Proof.} $I(X;\hat X)$ is convex in $P_{\hat X\mid X}$ and decreases along the feasible ray toward the independent coupling ($I=0$ iff independent). An independent flagger $\hat X\sim\mathrm{Bern}(\phi)$ has miss mass $p(1-\phi)$, so it meets the constraint only when $\phi\ge 1-\delta/p$; when $f<1-\delta/p$ that coupling is outside the flag budget, so the minimum sits on the boundary where any remaining slack in either constraint could otherwise be spent moving further along the ray --- both constraints bind. Binding constraints fix $q_{10}=\delta$ and $q_{11}+q_{01}=f$; with the source margin $q_{10}+q_{11}=p$ this pins all four cells. At $(\delta,f)=(0,p)$ the joint is diagonal, $\hat X=X$, and $I=H(p)$. $\square$
+\end{thebox}
+
+\textbf{Numbers} ($p=0.05$): $R(0,0.05)=H(0.05)=0.286$ bits/symbol [verified, Cover--Thomas \cite{coverthomas}]; $R(0,0.10)=0.186$; $R(0.01,0.10)=0.110$; $R(0.04,0.06)=0.009$ [internal, \texttt{b1\_frontier.py}]. Reading: loosening the open budget cheapens the digest; tolerating misses cheapens it dramatically --- two orders of magnitude between the guarantee corner and $(\delta,f)=(0.04,0.06)$. Consistency with Theorem 1: at $N{=}1000$, $R\cdot N\approx 186$ bits at $(0,2p)$, below the worst-case covering floor $\log_2\binom{1000}{50}\approx 282$ bits --- average-case rate under the worst-case floor, as it must be. One geometric honesty note: near $\delta/p\to 1$ the frontier shows a slight uptick in rate as $\delta$ grows at fixed small $f$; this is real constraint geometry ($q_{11}\to 0$ forces $q_{01}$ up, re-correlating $\hat X$ with $X$), not simulation noise.
+
+\subsection{The zoom-advantage theorem}\label{sec:zoom}
+A conservative digest over-flags to be safe: it emits a flagged set of size $F$ containing the $k$ true criticals with $k\ll F$. The naive second stage opens all $F$. The adaptive second stage plays twenty questions with group queries (Figure~\ref{fig:r4rel}): open a \emph{group} of flagged items at once --- an aggregate check cheap at group level, such as a combined diff scan or batched test run --- learn whether the group contains any critical, and split only the groups that do. The analogy transfers because its load-bearing relation transfers: halving a set costs one question and eliminates half the candidates \emph{only when positives are rare in the set}. The misread to preempt: twenty questions finds \emph{one} answer in $\log_2 F$ queries; with $k$ answers the tree forks, and the accounting below is precisely the price of the forking.
+
+\begin{thebox}
+\textbf{Theorem 4 (zoom advantage; new).} Let a flagged set of $F$ items contain an unknown set $P$ of $k\ge1$ positives, and let a group query on $S$ report whether $S\cap P=\emptyset$. Adaptive halving --- query the flagged set; discard any group that tests negative; report any positive singleton; otherwise split the group into halves of sizes $\lfloor|S|/2\rfloor,\lceil|S|/2\rceil$ and recurse on both --- identifies $P$ exactly, using a total number of group queries
+\[
+Q \;\le\; 2k\left\lceil\log_2(F/k)\right\rceil + 6k
+\qquad\text{(and always } Q\le 2F-1\text{)},
+\]
+for every placement of the $k$ positives, versus $F$ opens for flat inspection. The leading constant is tight: evenly spread positives with $k\mid F$ powers of two force $Q=2k\log_2(F/k)+2k-1$.
+\end{thebox}
+
+\begin{proof}
+Every group the algorithm ever queries is a node of the \emph{halving tree} $T$ of $[F]$: the root is the full flagged set, each internal node's children are its two halves, leaves are singletons. Since a node of size $s$ has children of size at most $\lceil s/2\rceil$, every node at depth $d$ has size at most $\lceil F/2^d\rceil$, so $T$ has depth $D\le\lceil\log_2 F\rceil$, and $T$ has exactly $2F-1$ nodes (a binary tree with $F$ leaves), giving the unconditional bound.
+
+Call a node \emph{positive} if its group meets $P$. The algorithm splits exactly the positive non-singleton nodes it visits, and every queried node is either the root or a child of a split node. Hence, writing $S^{+}$ for the number of positive non-singleton nodes of $T$,
+\[
+Q\;\le\;1+2S^{+}.
+\]
+It remains to bound $S^{+}$ by a charging argument. The nodes at any fixed depth $d$ of $T$ are pairwise disjoint subsets of $[F]$, so each positive item lies in at most one of them; therefore at most $\min(k,2^d)$ nodes at depth $d$ are positive. Charge the positive nodes in two regimes:
+\begin{itemize}[leftmargin=1.6em]
+\item \emph{Top of the tree} ($d\le\lfloor\log_2 k\rfloor$): charge each positive node to its level. The total over these levels is at most $\sum_{d=0}^{\lfloor\log_2 k\rfloor}2^d\le 2k-1$.
+\item \emph{Below the fan-out} ($d>\lfloor\log_2 k\rfloor$): charge each positive node to one positive item it contains. By disjointness within a level, each of the $k$ positives absorbs at most one charge per level. Non-singleton nodes exist only at depths $d\le D-1$, so the number of charging levels is at most
+\[
+D-1-\lfloor\log_2 k\rfloor \;<\; (\log_2 F+1)-1-(\log_2 k-1)\;=\;\log_2(F/k)+1 \;\le\; \left\lceil\log_2(F/k)\right\rceil+1,
+\]
+and since both sides of the strict inequality's left end are integers, the count is at most $\lceil\log_2(F/k)\rceil+1$. These levels contribute at most $k(\lceil\log_2(F/k)\rceil+1)$ charges.
+\end{itemize}
+Summing, $S^{+}\le k\lceil\log_2(F/k)\rceil+3k-1$, so $Q\le 1+2S^{+}\le 2k\lceil\log_2(F/k)\rceil+6k-1$, which gives the bound. Correctness is immediate: a discarded group is certified free of positives, and every positive survives discarding at every level, so each is eventually isolated and reported as a positive singleton.
+
+For tightness, take $F=2^a$, $k=2^b$, $b\le a$, positives at positions $\{iF/k:0\le i<k\}$. Every node at depth $d\le b$ contains a positive ($2^{b-d}$ of them), so all $2^{b+1}-1=2k-1$ nodes down to depth $b$ are queried and split (or, at depth $b$, split further); below depth $b$, exactly $k$ nodes per level are positive, each is split at levels $b,\dots,a-1$, and each split queries two children. Counting queried nodes: all $2k-1$ nodes at depths $0..b$, plus $2k$ children per level for levels $b{+}1,\dots,a$, of which per level $k$ are positive; total queried $=(2k-1)+2k(a-b)=2k\log_2(F/k)+2k-1$. This configuration is realized numerically below. $\qedhere$
+\end{proof}
+
+\begin{corollary}[The advantage, priced]
+Flat inspection opens $F$; adaptive halving opens at most $2k\lceil\log_2(F/k)\rceil+6k$, so the guaranteed advantage is at least $F/(2k\lceil\log_2(F/k)\rceil+6k)$ --- at $(F,k)=(2500,10)$, at least $2500/220\approx 11.4\times$, against a measured mean of $15.3\times$ [internal, \texttt{b1\_frontier.py}].
+\end{corollary}
+
+\textbf{Positioning against group testing.} None of the group-testing machinery here is new mathematics: Dorfman introduced pooled testing in 1943 \cite{dorfman}, and Hwang's generalized binary splitting \cite{hwang} finds $k$ defectives in $\log_2\binom{F}{k}+O(k)$ tests --- essentially matching the counting lower bound $\lceil\log_2\binom{F}{k}\rceil\ge k\log_2(F/k)$ that any adaptive strategy with binary outcomes must pay, with the full theory in Du and Hwang \cite{duhwang}. Plain halving pays a factor $2+o(1)$ over Hwang because it re-queries both children of every split rather than inferring one subgroup and binary-searching within the other. Theorem 4's contribution is therefore \emph{not} a better group-testing algorithm; it is the explicit worst-case constant for the exact procedure the digest architecture runs, proved tight --- which converts the simulation's observed $\approx 2\times$ gap over the ideal $k\log_2(F/k)$ from an empirical curiosity into the algorithm's provable constant, and makes the frontier's second-stage cost a theorem rather than a fit.
+
+\textbf{Numbers, verified.} A dedicated check (seed 20260816) re-runs the exact halving procedure of \texttt{b1\_frontier.py}: at $F{=}2500,k{=}10$, mean $162.6$ opens over 150 random placements ($15.4\times$ advantage, reproducing the compendium's $15.3\times$; ideal $k\log_2(F/k)=79.7$; empirical overhead $2.04\times$), maximum observed $183$, all under the bound $2\cdot10\cdot8+60=220$; random sweeps over $F\in[16,5000]$, $k\in[1,50]$ and adversarial evenly-spread and clustered placements never exceed the bound; and the tightness configuration $F{=}4096,k{=}32$ lands exactly on $2k\log_2(F/k)+2k-1=511$ [internal, \texttt{zoom\_bound\_check.py}]. Now you try the $k=1$ sanity case by hand: $F=1024$, one positive --- halving queries two children per level for ten levels plus the root, $21$ opens, under the bound $2\cdot10+6=26$, versus $1024$ flat.
+
+\textbf{The dense-flag boundary, stated.} The advantage is not universal. When the flagged set is already dense in positives ($k/F$ large --- e.g.\ a tight flag budget $f\approx1.5p$, most flags real), group overhead dominates and adaptive halving can open \emph{more} than $F$: at $F{=}100,k{=}90$ the run costs $199$ opens against $100$ flat [internal]. The regime where zoom pays is exactly the sparse-flagged corner (Figure~\ref{fig:r4reg}) --- which is the corner a miss-averse, over-flagging digest inhabits, so the theorem supports the safety-relevant operating point and honestly does not support the other.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{r4_relation.png}
+\caption{The relation-map for zoom: twenty questions (base) against group-split inspection of the flagged set (target). The correspondence that does the work is ``one question halves the candidate set \emph{when answers are rare}''; the misread it invites --- that $\log_2 F$ questions suffice --- is exactly what Theorem 4's $2k\lceil\log_2(F/k)\rceil+6k$ accounting corrects for $k>1$.}
+\label{fig:r4rel}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{r4_regime.png}
+\caption{Regime diagram for the zoom advantage: open-count advantage against flagged-set density $k/F$. The advantage lives in the sparse-flagged corner ($k\ll F$, the conservative-digest regime) and inverts in the dense corner, where flat inspection wins --- both halves of the claim are load-bearing.}
+\label{fig:r4reg}
+\end{figure}
+
+\section{Related work}\label{sec:related}
+\textbf{Group testing.} Dorfman \cite{dorfman}, Hwang's generalized binary splitting \cite{hwang}, and the Du--Hwang monograph \cite{duhwang} supply the second stage's mathematical substrate; \S\ref{sec:zoom} states precisely what is imported (the algorithmic idea and the counting lower bound) and what is contributed (the constant-explicit worst-case bound for plain halving, its tightness, and its role as the frontier's second-stage cost).
+\textbf{Rate--distortion.} The single-constraint theory is classical \cite{shannon,coverthomas}. The two-constraint $R(\delta,f)$ is a custom formulation for oversight; the nearest published lines are expansion coding with one-sided error for continuous sources \cite{expansion} and rate--distortion--classification theory for Bernoulli sources \cite{rdc}, neither of which prices false negatives as a separate constraint for binary sources. We claim the formulation and its pinned closed form as this paper's framing contribution, subject to the standard caveat that a survey's ``not found'' is defeasible.
+\textbf{Attention and oversight.} That attention is the scarce resource an information-rich environment consumes is Simon's observation \cite{simon}; competitive analysis of paging \cite{sleatortarjan} inspires the budgeted-opens framing. On the AI-oversight side, debate and related protocols \cite{irving} and delegated-computation results \cite{gkr} ask how a weak verifier can check strong provers; this paper is complementary --- it prices the \emph{interface} (the digest) rather than the protocol, and its floors apply to any oversight scheme whose human reads a bounded summary.
+\textbf{Signal detection.} Theorem 3 is a Bayes-risk likelihood-ratio test, textbook decision theory; the contribution is the exact identification of the folklore product form with it and the resulting calibration obligation, which also corrected a reversed-direction figure in the source volume.
+
+\section{Limitations and honest boundaries}\label{sec:limits}
+\begin{boundary}
+\textbf{Honest boundary} --- stated at the same prominence as the claims.
+\begin{itemize}[leftmargin=1.6em]
+\item \emph{Theorem 1} lower-bounds the \emph{zero-miss guarantee} in a worst-case combinatorial model with a data-independent decoder; it says nothing against cheaper digests at nonzero miss (that is \S\ref{sec:rdf}'s job) and nothing average-case.
+\item \emph{Theorem 2} forbids a shared head only for non-comonotone readers; comonotone readers can share. The impossibility bites because the crossing pair (routine-essential state vs.\ abandoned irreversible experiment) actually occurs in fleets.
+\item \emph{Theorem 3} is exactly as good as its calibration: with an uncalibrated anomaly score the product form is wrong by precisely the miscalibration, and fitting $g$ from the audit log is a measured obligation, not a footnote.
+\item \emph{The frontier} $R(\delta,f)$ is an i.i.d.\ Bernoulli model of load-bearing status --- a modeling commitment, not a law; and the formulation is custom, positioned against \cite{expansion,rdc}, not a textbook theorem.
+\item \emph{Theorem 4} assumes a reliable group query at unit cost; correlated or noisy group checks, and group costs growing with $|S|$, change the accounting. The advantage inverts in the dense-flag regime, as stated and measured. Plain halving is a factor $\approx2$ from Hwang's optimum by design --- we bound the deployed algorithm, not the best one.
+\item \emph{Falsification scope:} the 0/16 result tests the floor's encoder/decoder formalization at one swept regime ($N{=}60,k{=}2,m{=}8$); the noisy-encoder curve in that experiment barely beats random at SNR $\approx1$ and must not be read as evidence noisy digests are near-optimal. The feature-corruption panel of the same experiment is visually compressed at $m{=}8$ (the budget is generous enough that corruption barely moves in-range miss) and would need a tighter-$m$ rerun for a publication-grade figure.
+\end{itemize}
+\end{boundary}
+
+\section{Reproducibility}\label{sec:repro}
+Every [internal] number regenerates deterministically at seed \texttt{20260816} from self-contained scripts bundled with the research program: \texttt{a7\_experiment.py} (the falsification experiment; 0/16, and the wrong-turn v1 with 8/16 spurious violations is retained under \texttt{wrong-turns/}), \texttt{b1\_frontier.py} (the $R(\delta,f)$ table and the zoom simulation), and \texttt{zoom\_bound\_check.py} (Theorem 4's bound against random and adversarial placements, the tightness configuration, and the dense-flag boundary). Every [verified] number is recomputable from the stated closed forms with a hand calculator. Figures regenerate from \texttt{figures/src/} at the same seed.
+
+\begin{thebibliography}{9}
+\bibitem{dorfman} R.~Dorfman. The detection of defective members of large populations. \emph{Annals of Mathematical Statistics}, 14(4):436--440, 1943.
+\bibitem{hwang} F.~K.~Hwang. A method for detecting all defective members in a population by group testing. \emph{Journal of the American Statistical Association}, 67(339):605--608, 1972.
+\bibitem{duhwang} D.-Z.~Du and F.~K.~Hwang. \emph{Combinatorial Group Testing and Its Applications}, 2nd ed. World Scientific, 2000.
+\bibitem{shannon} C.~E.~Shannon. Coding theorems for a discrete source with a fidelity criterion. \emph{IRE National Convention Record}, part 4, 142--163, 1959.
+\bibitem{coverthomas} T.~M.~Cover and J.~A.~Thomas. \emph{Elements of Information Theory}, 2nd ed. Wiley, 2006.
+\bibitem{expansion} H.~Si, O.~O.~Koyluoglu, and S.~Vishwanath. Lossy compression of exponential and Laplacian sources using expansion coding. arXiv:1308.2338, 2013.
+\bibitem{rdc} Rate-distortion-classification representation theory for Bernoulli sources. arXiv:2601.11919, 2026; see also the universal rate-distortion-classification line, IEEE ITW 2025.
+\bibitem{simon} H.~A.~Simon. Designing organizations for an information-rich world. In M.~Greenberger, ed., \emph{Computers, Communications, and the Public Interest}. Johns Hopkins Press, 1971.
+\bibitem{sleatortarjan} D.~D.~Sleator and R.~E.~Tarjan. Amortized efficiency of list update and paging rules. \emph{Communications of the ACM}, 28(2):202--208, 1985.
+\bibitem{irving} G.~Irving, P.~Christiano, and D.~Amodei. AI safety via debate. arXiv:1805.00899, 2018.
+\bibitem{gkr} S.~Goldwasser, Y.~T.~Kalai, and G.~N.~Rothblum. Delegating computation: interactive proofs for muggles. In \emph{STOC 2008}, 113--122.
+\end{thebibliography}
+\end{document}
