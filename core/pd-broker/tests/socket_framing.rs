@@ -1,26 +1,33 @@
 //! Socket-level transport tests: real Unix-domain-socket framing of a partial
 //! message, 0600 permissions, and stale-socket cleanup on bind.
 
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
-use std::sync::Mutex;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use pd_broker::broker::{Broker, BrokerConfig};
-use pd_broker::transport::{bind_listener, serve_connection, SOCKET_MODE};
+use pd_broker::capability::ActionIntent;
+use pd_broker::protocol::{BootstrapRequirement, MintAuthority, Request, Response};
+use pd_broker::transport::{
+    bind_listener, serve_connection, CloneStream, MAX_REQUESTS_PER_CONNECTION, MAX_REQUEST_BYTES,
+    SOCKET_MODE,
+};
 
 const SECRET: &str = "ghp_SUPERSECRET_token_that_must_never_leak_0xdeadbeef";
 
-fn test_broker() -> Broker {
+fn test_broker(state_dir: &Path) -> Broker {
+    std::fs::set_permissions(state_dir, std::fs::Permissions::from_mode(0o700)).unwrap();
     Broker::new(BrokerConfig {
         secret: SECRET.as_bytes().to_vec(),
-        macaroon_root_key: b"root-key-32-bytes-padding-padxxx".to_vec(),
-        ticket_signing_key: b"ticket-signing-key-32-bytes-pad!".to_vec(),
-        caveat_keys: HashMap::new(),
-        ticket_ttl_ms: 60_000,
+        capability_signing_key: b"action-capability-signing-key-pad!".to_vec(),
+        capability_ttl_ms: 60_000,
+        issuer: "port-daddy:broker".into(),
+        allowed_audiences: vec!["port-daddy:broker".into(), "port-daddy:git-egress".into()],
+        redemption_db_path: state_dir.join("redemptions.sqlite3"),
     })
     .unwrap()
 }
@@ -31,6 +38,64 @@ fn test_broker() -> Broker {
 /// deterministically and never under /tmp by us by hand.)
 fn temp_socket() -> tempfile::TempDir {
     tempfile::tempdir().expect("tempdir")
+}
+
+struct ScriptedStream {
+    input: Cursor<Vec<u8>>,
+    output: Arc<Mutex<Vec<u8>>>,
+}
+
+struct SharedWriter(Arc<Mutex<Vec<u8>>>);
+
+impl Read for ScriptedStream {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.input.read(buf)
+    }
+}
+
+impl Write for ScriptedStream {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        SharedWriter(Arc::clone(&self.output)).write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Write for SharedWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl CloneStream for ScriptedStream {
+    type Writer = SharedWriter;
+
+    fn clone_stream(&self) -> Option<Self::Writer> {
+        Some(SharedWriter(Arc::clone(&self.output)))
+    }
+}
+
+fn serve_scripted(input: Vec<u8>) -> String {
+    let state = temp_socket();
+    let broker = Mutex::new(test_broker(state.path()));
+    let output = Arc::new(Mutex::new(Vec::new()));
+    serve_connection(
+        ScriptedStream {
+            input: Cursor::new(input),
+            output: Arc::clone(&output),
+        },
+        &broker,
+        || 1_000_000,
+    );
+    let bytes = output.lock().unwrap().clone();
+    String::from_utf8(bytes).unwrap()
 }
 
 #[test]
@@ -127,7 +192,8 @@ fn partial_message_is_reassembled_across_writes() {
 
     // Server thread: accept one connection, serve it with a fixed clock.
     let server = thread::spawn(move || {
-        let broker = Mutex::new(test_broker());
+        let state = temp_socket();
+        let broker = Mutex::new(test_broker(state.path()));
         let (stream, _) = listener.accept().expect("accept");
         serve_connection(stream, &broker, || 1_000_000);
     });
@@ -156,29 +222,30 @@ fn partial_message_is_reassembled_across_writes() {
 }
 
 #[test]
-fn raw_secret_never_crosses_socket_on_bad_request() {
+fn malformed_request_closes_without_secret_or_suffix_execution() {
     let dir = temp_socket();
     let path = dir.path().join("broker.sock");
     let listener = bind_listener(&path).expect("bind");
 
     let server = thread::spawn(move || {
-        let broker = Mutex::new(test_broker());
+        let state = temp_socket();
+        let broker = Mutex::new(test_broker(state.path()));
         let (stream, _) = listener.accept().expect("accept");
         serve_connection(stream, &broker, || 1_000_000);
     });
 
     let mut client = UnixStream::connect(&path).expect("connect");
-    // Garbage line -> BadRequest; then a valid ping -> Pong. Neither may carry
-    // the secret. (One bad line must NOT poison the connection.)
+    // A malformed frame gets one bounded BadRequest and closes. The valid Ping
+    // already queued behind it must never become a second request.
     client.write_all(b"{not valid json}\n").unwrap();
     client.write_all(b"{\"type\":\"ping\"}\n").unwrap();
     client.flush().unwrap();
 
     let mut buf = String::new();
     let mut reader = BufReader::new(client.try_clone().unwrap());
-    reader.read_line(&mut buf).unwrap(); // bad-request line
+    reader.read_line(&mut buf).unwrap();
     let mut second = String::new();
-    reader.read_line(&mut second).unwrap(); // pong line
+    let second_len = reader.read_line(&mut second).unwrap();
     drop(reader);
     drop(client);
     server.join().unwrap();
@@ -187,11 +254,85 @@ fn raw_secret_never_crosses_socket_on_bad_request() {
         buf.contains("bad-request"),
         "first line should be bad-request: {buf}"
     );
-    assert_eq!(second.trim_end(), "{\"type\":\"pong\"}");
+    assert_eq!(second_len, 0, "connection must close after bad-request");
+    assert!(second.is_empty());
     for line in [&buf, &second] {
         assert!(!line.contains(SECRET), "secret leaked over socket: {line}");
         assert!(!line.contains("ghp_"), "credential prefix leaked: {line}");
     }
+}
+
+#[test]
+fn valid_request_after_oversized_prefix_is_never_executed() {
+    let mut payload = vec![b'a'; MAX_REQUEST_BYTES as usize];
+    payload.extend_from_slice(b"{\"type\":\"ping\"}\n");
+
+    let output = serve_scripted(payload);
+    let lines: Vec<_> = output.lines().collect();
+    assert_eq!(lines.len(), 1, "at most one bounded refusal is written");
+    assert!(lines[0].contains("bad-request"));
+    assert!(
+        !output.contains("pong"),
+        "suffix request was executed: {output}"
+    );
+    assert!(!output.contains(SECRET));
+}
+
+#[test]
+fn one_valid_request_exhausts_the_connection_budget() {
+    assert_eq!(MAX_REQUESTS_PER_CONNECTION, 1);
+    let output = serve_scripted(b"{\"type\":\"ping\"}\n{\"type\":\"ping\"}\n".to_vec());
+    assert_eq!(output, "{\"type\":\"pong\"}\n");
+}
+
+#[test]
+fn owner_socket_possession_cannot_mint_native_operator_authority() {
+    let dir = temp_socket();
+    let path = dir.path().join("broker.sock");
+    let listener = bind_listener(&path).expect("bind");
+
+    let server = thread::spawn(move || {
+        let state = temp_socket();
+        let broker = Mutex::new(test_broker(state.path()));
+        let (stream, _) = listener.accept().expect("accept");
+        serve_connection(stream, &broker, || 1_000_000);
+    });
+
+    let request = Request::MintActionCapability {
+        authority: Box::new(MintAuthority::NativeOperatorBootstrap),
+        intent: Box::new(ActionIntent {
+            audience: "port-daddy:git-egress".into(),
+            operation: "parley.resolve".into(),
+            resource_digest: pd_broker::resource_digest(
+                "test/parley-action/v1",
+                &["parley-1", "resolve"],
+            )
+            .unwrap(),
+        }),
+    };
+    let mut client = UnixStream::connect(&path).expect("connect over owner-only socket");
+    client
+        .write_all(format!("{}\n", serde_json::to_string(&request).unwrap()).as_bytes())
+        .unwrap();
+    client.flush().unwrap();
+
+    let mut line = String::new();
+    BufReader::new(client.try_clone().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    drop(client);
+    server.join().unwrap();
+    let response: Response = serde_json::from_str(&line).unwrap();
+    assert!(matches!(
+        response,
+        Response::BootstrapRequired {
+            requirement: BootstrapRequirement::CodeSignedKeychainOperatorCredential,
+            ..
+        }
+    ));
+    assert!(!line.contains(SECRET));
+    assert!(!line.contains("tag_hex"));
+    assert!(!line.contains("\"type\":\"capability\""));
 }
 
 /// Sanity that a too-short read returning before the newline does not parse.

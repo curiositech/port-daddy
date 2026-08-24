@@ -12,6 +12,7 @@ import { createMacaroonStore, InMemorySecretStore } from '../../lib/macaroon/sto
 import { prepareForRequest } from '../../lib/macaroon/macaroon.js';
 
 const T = 1_700_000_000_000;
+const ACTOR = '01K3YR6M1WPZB8Q6V1J8K7D4MC';
 
 const paidFacts = () => ({
   commitsSinceLastNote: 0,
@@ -29,6 +30,7 @@ function setup() {
   const store = createMacaroonStore(db, secrets);
   const minted = store.mintGrant({
     repoId: 'curiositech/port-daddy',
+    actor: ACTOR,
     session: 'session-abc',
     expiresMs: T + 60 * 60 * 1000,
     nowMs: T,
@@ -48,13 +50,17 @@ const pushCtx = (over = {}) => ({
 describe('mintGrant — keys in the secret store, metadata in SQLite', () => {
   test('persists grant metadata but never a key column', () => {
     const { db, minted } = setup();
-    const row = db.prepare('SELECT * FROM macaroon_grants WHERE grant_id = ?').get(minted.grantId);
+    const row = db
+      .prepare('SELECT * FROM actor_bound_push_grants WHERE grant_id = ?')
+      .get(minted.grantId);
     expect(row.session).toBe('session-abc');
     expect(row.repo).toBe('curiositech/port-daddy');
+    expect(row.actor).toBe(ACTOR);
     expect(row.rent_caveat_id).toBe(minted.rentCaveatId);
-    // No secret material anywhere in the row.
-    const serialized = JSON.stringify(row);
-    expect(serialized).not.toMatch(/[0-9a-f]{64}/i); // no 32-byte hex key leaked
+    // The identifier deliberately carries a public SHA-256 commitment, so test
+    // the schema rather than mistaking any 64 hex characters for secret bytes.
+    expect(Object.keys(row)).not.toContain('root_key');
+    expect(Object.keys(row)).not.toContain('caveat_key');
   });
 
   test('the returned macaroon carries no key, only caveats + a signature', () => {
@@ -80,12 +86,13 @@ describe('mintGrant — fail closed when the secret store is unavailable', () =>
     expect(() =>
       store.mintGrant({
         repoId: 'a/b',
+        actor: ACTOR,
         session: 's',
         expiresMs: T + 1000,
         nowMs: T,
       }),
     ).toThrow(/secret store unavailable/);
-    const count = db.prepare('SELECT COUNT(*) AS n FROM macaroon_grants').get();
+    const count = db.prepare('SELECT COUNT(*) AS n FROM actor_bound_push_grants').get();
     expect(count.n).toBe(0);
   });
 
@@ -111,9 +118,15 @@ describe('mintGrant — fail closed when the secret store is unavailable', () =>
     };
     const store = createMacaroonStore(db, secrets);
     // Force the INSERT to throw by removing the table out from under it.
-    db.prepare('DROP TABLE macaroon_grants').run();
+    db.prepare('DROP TABLE actor_bound_push_grants').run();
     expect(() =>
-      store.mintGrant({ repoId: 'a/b', session: 's', expiresMs: T + 1000, nowMs: T }),
+      store.mintGrant({
+        repoId: 'a/b',
+        actor: ACTOR,
+        session: 's',
+        expiresMs: T + 1000,
+        nowMs: T,
+      }),
     ).toThrow();
     // Both secrets were written, both were rolled back — nothing left behind.
     expect(puts).toHaveLength(2);

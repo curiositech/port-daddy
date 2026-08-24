@@ -3,7 +3,8 @@
 //! Listens on a Unix domain socket, frames newline-delimited JSON, and routes
 //! each request through `Broker::handle`. The raw secret is loaded once at
 //! startup (env var or `0600` file) into the in-process vault and NEVER crosses
-//! the socket — the only success payload is a scoped `CapabilityTicket`.
+//! the socket. Mint and redemption both require cryptographic authority; socket
+//! locality is never an authorization input.
 //!
 //! Operational discipline (ipc-communication-patterns idioms):
 //!   * stale socket file removed on startup (a crashed predecessor leaves one);
@@ -12,20 +13,19 @@
 //!   * SIGTERM/SIGINT flip an atomic shutdown flag; the accept loop unlinks the
 //!     socket and exits cleanly.
 
-use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use pd_broker::broker::{Broker, BrokerConfig};
+use pd_broker::capability::MAX_CAPABILITY_TTL_MS;
 use pd_broker::transport::{bind_listener, serve_connection, READ_TIMEOUT};
 use pd_core::now_ms;
 
-/// 20-minute default ticket lifetime — matches the rent/discharge TTL window
-/// (pd_anchor::macaroon::DISCHARGE_TTL_MS) so a ticket never outlives the
-/// discharge that earned it.
-const DEFAULT_TICKET_TTL_MS: i64 = 20 * 60 * 1000;
+/// 20-minute default capability lifetime. Minting additionally clamps the
+/// expiry to the authenticating credential's own deadline.
+const DEFAULT_CAPABILITY_TTL_MS: i64 = 20 * 60 * 1000;
 
 /// Hard ceiling on concurrently-served connections. Each connection gets its own
 /// handler thread (so a stalled client cannot pin the acceptor); this bounds the
@@ -89,7 +89,7 @@ fn trim_trailing_newline(mut bytes: Vec<u8>) -> Vec<u8> {
 /// `PD_BROKER_DEV=1` AND this is a debug build. In production (release build) the
 /// keys must be supplied: the hardcoded dev defaults are gated behind
 /// `cfg!(debug_assertions)` so a release binary started with `PD_BROKER_DEV=1`
-/// still refuses and requires real keys — the dev keys can never sign tickets or
+/// still refuses and requires real keys — the dev keys can never sign capabilities or
 /// verify macaroons in a shipped binary.
 fn load_key(var: &str, dev_default: &[u8]) -> Result<Vec<u8>, String> {
     match std::env::var(var) {
@@ -127,36 +127,73 @@ fn socket_path() -> PathBuf {
     PathBuf::from(base).join(".port-daddy").join("broker.sock")
 }
 
+/// Public server identity settings are required in release builds. Debug-only
+/// development defaults are explicit and cannot create production authority.
+fn load_identity(var: &str, dev_default: &str) -> Result<String, String> {
+    match std::env::var(var) {
+        Ok(value) if !value.trim().is_empty() => Ok(value),
+        _ if std::env::var("PD_BROKER_DEV").as_deref() == Ok("1") && cfg!(debug_assertions) => {
+            Ok(dev_default.to_owned())
+        }
+        _ => Err(format!("set {var}")),
+    }
+}
+
+/// Parse the server-owned audience allowlist. The broker constructor enforces
+/// canonical values, uniqueness, count bounds, and inclusion of its own issuer.
+fn load_allowed_audiences(issuer: &str) -> Result<Vec<String>, String> {
+    match std::env::var("PD_BROKER_ALLOWED_AUDIENCES") {
+        Ok(value) => Ok(value.split(',').map(str::to_owned).collect()),
+        Err(_)
+            if std::env::var("PD_BROKER_DEV").as_deref() == Ok("1") && cfg!(debug_assertions) =>
+        {
+            Ok(vec![issuer.to_owned(), "port-daddy:git-egress".into()])
+        }
+        Err(_) => Err("set PD_BROKER_ALLOWED_AUDIENCES".into()),
+    }
+}
+
+/// Durable replay ledger path. It defaults beside the socket, not to process
+/// memory, so a broker restart preserves one-use truth.
+fn redemption_db_path(socket: &Path) -> PathBuf {
+    std::env::var("PD_BROKER_STATE_DB")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| socket.with_extension("redemptions.sqlite3"))
+}
+
 fn run() -> Result<(), String> {
     install_signal_handlers();
 
     let secret = load_secret()?;
-    let macaroon_root_key = load_key(
-        "PD_BROKER_MACAROON_ROOT_KEY",
-        b"dev-macaroon-root-key-32-bytes!!",
+    let capability_signing_key = load_key(
+        "PD_BROKER_CAPABILITY_KEY",
+        b"dev-action-capability-key-32-bytes!",
     )?;
-    let ticket_signing_key = load_key("PD_BROKER_TICKET_KEY", b"dev-ticket-signing-key-32-bytes!")?;
-
-    let ticket_ttl_ms = std::env::var("PD_BROKER_TICKET_TTL_MS")
-        .ok()
-        .and_then(|s| s.parse::<i64>().ok())
-        .filter(|&v| v > 0)
-        .unwrap_or(DEFAULT_TICKET_TTL_MS);
+    let issuer = load_identity("PD_BROKER_ISSUER", "port-daddy:broker")?;
+    let allowed_audiences = load_allowed_audiences(&issuer)?;
+    let capability_ttl_ms = match std::env::var("PD_BROKER_CAPABILITY_TTL_MS") {
+        Ok(value) => value
+            .parse::<i64>()
+            .ok()
+            .filter(|ttl| (1..=MAX_CAPABILITY_TTL_MS).contains(ttl))
+            .ok_or_else(|| {
+                format!("PD_BROKER_CAPABILITY_TTL_MS must be between 1 and {MAX_CAPABILITY_TTL_MS}")
+            })?,
+        Err(_) => DEFAULT_CAPABILITY_TTL_MS,
+    };
+    let path = socket_path();
+    let state_db = redemption_db_path(&path);
 
     let broker = Broker::new(BrokerConfig {
         secret,
-        macaroon_root_key,
-        ticket_signing_key,
-        // The discharge-key store is empty here: the daemon will populate it
-        // (rent caveat id -> discharge key) in the wiring phase. Grants with a
-        // third-party rent caveat therefore refuse with "no discharge key" until
-        // that store is wired, which is the correct fail-closed default.
-        caveat_keys: HashMap::new(),
-        ticket_ttl_ms,
+        capability_signing_key,
+        capability_ttl_ms,
+        issuer,
+        allowed_audiences,
+        redemption_db_path: state_db,
     })
     .map_err(|e| format!("broker init failed: {e}"))?;
 
-    let path = socket_path();
     let listener = bind_listener(&path).map_err(|e| format!("bind {path:?} failed: {e}"))?;
     // Non-blocking accept so the loop can poll the shutdown flag.
     listener
@@ -164,16 +201,15 @@ fn run() -> Result<(), String> {
         .map_err(|e| format!("set_nonblocking failed: {e}"))?;
 
     eprintln!(
-        "pd-broker: listening on {} (secret {} bytes held internally, ticket TTL {}ms)",
+        "pd-broker: listening on {} (secret {} bytes held internally, capability TTL {}ms)",
         path.display(),
         broker.secret_len(),
-        ticket_ttl_ms
+        capability_ttl_ms
     );
 
     // Shared so each connection's handler thread can lock the broker. The broker
-    // mutates internal state (the ticket nonce counter), so all handlers
-    // serialize on this mutex — correct and cheap, since `handle` is fast and
-    // the contention point is only the brief mint, not the socket I/O.
+    // mutates one SQLite connection, so handlers serialize on this mutex. Cross-
+    // process redemption races are still resolved by SQLite's unique reservation.
     let broker = Arc::new(Mutex::new(broker));
     // Live connection count, decremented by an RAII guard on each handler thread.
     let conn_count = Arc::new(AtomicUsize::new(0));

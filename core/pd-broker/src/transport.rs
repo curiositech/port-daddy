@@ -1,11 +1,15 @@
 //! Unix-domain-socket transport for the broker: framing, stale-socket cleanup,
 //! and 0600 permissions. Split out from `main.rs` so the framing and lifecycle
 //! are unit-testable without the full signal/daemon harness.
+//! Socket mode limits accidental reachability but grants no action authority;
+//! every mutating request is credential-gated by the broker protocol.
 //!
-//! Framing is newline-delimited JSON. `read_one_request` buffers bytes until it
-//! sees a `\n`, so a request split across multiple `read()` calls (a "partial
-//! message") is reassembled before parsing — the stream-socket framing idiom
-//! from `ipc-communication-patterns`.
+//! Framing is one newline-delimited JSON request/response exchange per
+//! connection. `read_one_request` buffers bytes until it sees a `\n`, so a
+//! request split across multiple `read()` calls (a "partial message") is
+//! reassembled before parsing. Any malformed or oversized frame gets at most
+//! one bounded `BadRequest` response and closes the connection; bytes after the
+//! rejected frame can never be reinterpreted as a fresh request.
 
 use std::io::{BufRead, Read, Write};
 use std::os::unix::fs::PermissionsExt;
@@ -15,7 +19,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use crate::broker::Broker;
-use crate::protocol::{Request, Response};
+use crate::protocol::{RefusalCode, Request, Response};
 
 /// Hard cap on the bytes read for a single NDJSON request line. A request is one
 /// macaroon grant + a handful of discharges + a small context object; even a
@@ -26,9 +30,16 @@ use crate::protocol::{Request, Response};
 ///   * **slowloris** — a client dribbling bytes with no terminator can no longer
 ///     hold the read buffer open indefinitely once the cap is hit.
 ///
-/// 256 KiB is ~8x the largest plausible grant+discharge payload, so it never
-/// trips a real request but stops an abusive one cold.
+/// 256 KiB is ~8x the largest plausible grant+discharge payload. The cap counts
+/// the terminating newline: an otherwise valid frame of exactly this size is
+/// accepted, while a frame that reaches the cap without a newline is rejected.
 pub const MAX_REQUEST_BYTES: u64 = 256 * 1024;
+
+/// One request/response exchange per connection. Broker clients have no
+/// protocol need for persistent sessions; closing after one exchange prevents
+/// a same-UID peer from retaining a scarce connection slot by streaming an
+/// unbounded sequence of individually valid frames.
+pub const MAX_REQUESTS_PER_CONNECTION: usize = 1;
 
 /// Per-connection read timeout. A client that opens a connection and then stalls
 /// (half-open, or dribbling sub-buffer bytes) blocks only its own handler thread
@@ -120,48 +131,44 @@ pub const SOCKET_MODE: u32 = 0o600;
 /// This caps both the memory-exhaustion and slowloris DoS vectors at the framing
 /// layer.
 pub fn read_one_request<R: BufRead>(reader: &mut R) -> std::io::Result<Option<Request>> {
-    loop {
-        let mut line = String::new();
-        // Cap the read: `take` yields at most MAX_REQUEST_BYTES before reporting
-        // EOF, so `read_line` cannot grow `line` past the cap. We then check
-        // whether the line was actually newline-terminated to distinguish a real
-        // request from a truncated/oversized one.
-        let n = reader
-            .by_ref()
-            .take(MAX_REQUEST_BYTES)
-            .read_line(&mut line)?;
-        if n == 0 {
-            return Ok(None); // EOF
-        }
-        // If we hit the cap without a terminating newline, this is an oversized /
-        // unterminated request: reject it rather than buffering more. (A line at
-        // exactly the cap WITH a newline is still rejected — a legitimate request
-        // is far smaller, and treating a cap-length line as valid would let a
-        // crafted payload sit right at the boundary.)
-        if !line.ends_with('\n') {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("request exceeded {MAX_REQUEST_BYTES} bytes without a newline terminator"),
-            ));
-        }
-        if line.trim().is_empty() {
-            continue; // skip blank framing lines
-        }
-        return match serde_json::from_str::<Request>(line.trim_end()) {
-            Ok(req) => Ok(Some(req)),
-            // Surface a parse error as a typed sentinel the caller turns into a
-            // BadRequest response, rather than dropping the connection.
-            Err(e) => Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                e.to_string(),
-            )),
-        };
+    let mut line = String::new();
+    // Cap the read: `take` yields at most MAX_REQUEST_BYTES before reporting
+    // EOF, so `read_line` cannot grow `line` past the cap. We then check
+    // whether the line was actually newline-terminated to distinguish a real
+    // request from a truncated/oversized one.
+    let n = reader
+        .by_ref()
+        .take(MAX_REQUEST_BYTES)
+        .read_line(&mut line)?;
+    if n == 0 {
+        return Ok(None); // EOF
+    }
+    // Exactly MAX_REQUEST_BYTES including the newline is a valid frame size.
+    // Reaching the cap without the terminator proves the frame is truncated or
+    // oversized; the caller closes rather than interpreting its remainder.
+    if !line.ends_with('\n') {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("request exceeded {MAX_REQUEST_BYTES} bytes without a newline terminator"),
+        ));
+    }
+    if line.trim().is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "blank request frame",
+        ));
+    }
+    match serde_json::from_str::<Request>(line.trim_end()) {
+        Ok(req) => Ok(Some(req)),
+        Err(e) => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            e.to_string(),
+        )),
     }
 }
 
-/// Serve one connection: read NDJSON requests, route each through the broker,
-/// write one NDJSON response per request. `now_ms` is a clock fn so tests can
-/// inject a deterministic clock.
+/// Serve one bounded request/response exchange. `now_ms` is a clock fn so tests
+/// can inject a deterministic clock.
 pub fn serve_connection<S, F>(stream: S, broker: &Mutex<Broker>, now_ms: F)
 where
     S: Read + Write + CloneStream,
@@ -174,12 +181,14 @@ where
     let mut writer = std::io::BufWriter::new(write_half);
     let mut reader = std::io::BufReader::new(stream);
 
-    loop {
+    for _ in 0..MAX_REQUESTS_PER_CONNECTION {
         match read_one_request(&mut reader) {
             Ok(Some(req)) => {
-                let resp = {
-                    let mut guard = broker.lock().expect("broker mutex poisoned");
-                    guard.handle(req, now_ms())
+                let resp = match broker.lock() {
+                    Ok(mut guard) => guard.handle(req, now_ms()),
+                    Err(_) => {
+                        Response::refused(RefusalCode::Internal, "broker state is unavailable")
+                    }
                 };
                 if writer.write_all(resp.to_ndjson_line().as_bytes()).is_err() {
                     break;
@@ -191,11 +200,13 @@ where
             Ok(None) => break, // clean EOF
             Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
                 let resp = Response::BadRequest {
-                    reason: format!("invalid request json: {e}"),
+                    // Keep the response independent of attacker-controlled
+                    // input and bounded. Details remain local to the parser.
+                    reason: "invalid or oversized request frame".into(),
                 };
                 let _ = writer.write_all(resp.to_ndjson_line().as_bytes());
                 let _ = writer.flush();
-                // continue: one bad line does not poison the whole connection
+                break;
             }
             // A read timeout (set via `set_read_timeout` on accept) surfaces as
             // WouldBlock/TimedOut on a blocking socket. Treat it as a clean
@@ -248,10 +259,12 @@ mod tests {
     }
 
     #[test]
-    fn blank_lines_are_skipped() {
-        let json = "\n\n{\"type\":\"ping\"}\n";
+    fn blank_frame_is_rejected() {
+        let json = "\n{\"type\":\"ping\"}\n";
         let mut reader = Cursor::new(json.as_bytes());
-        assert_eq!(read_one_request(&mut reader).unwrap(), Some(Request::Ping));
+        let err = read_one_request(&mut reader).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("blank request frame"));
     }
 
     #[test]
@@ -287,5 +300,16 @@ mod tests {
         let mut reader = Cursor::new(payload);
         let err = read_one_request(&mut reader).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn valid_line_exactly_at_cap_including_newline_is_accepted() {
+        let mut payload = b"{\"type\":\"ping\"}".to_vec();
+        payload.resize((MAX_REQUEST_BYTES as usize) - 1, b' ');
+        payload.push(b'\n');
+        assert_eq!(payload.len(), MAX_REQUEST_BYTES as usize);
+
+        let mut reader = Cursor::new(payload);
+        assert_eq!(read_one_request(&mut reader).unwrap(), Some(Request::Ping));
     }
 }
