@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -59,7 +60,9 @@ describe('immutable JSONL transcript archive — durable retention', () => {
   let dir;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'pd-tx-archive-'));
+    // macOS exposes TMPDIR through /var -> /private/var. Use the canonical
+    // anchored path so the fixtures do not depend on that system symlink.
+    dir = realpathSync(mkdtempSync(join(tmpdir(), 'pd-tx-archive-')));
   });
 
   afterEach(() => {
@@ -246,6 +249,37 @@ describe('immutable JSONL transcript archive — durable retention', () => {
     expect(result).toEqual(expect.objectContaining({ ok: false }));
     expect(readFileSync(victim, 'utf8')).toBe('do not overwrite\n');
     expect(statSync(victim).mode & 0o777).toBe(0o600);
+  });
+
+  test('rejects a configured archive root beneath a static symlinked parent', () => {
+    const actualParent = join(dir, 'actual-root-parent');
+    const aliasParent = join(dir, 'alias-root-parent');
+    mkdirSync(actualParent, { mode: 0o700 });
+    symlinkSync(actualParent, aliasParent, 'dir');
+
+    const result = createJsonlTranscriptArchive({
+      dir: join(aliasParent, 'archive'),
+      onError: () => {},
+    }).archive(entry());
+
+    expect(result).toEqual(expect.objectContaining({ ok: false }));
+    expect(readdirSync(actualParent)).toEqual([]);
+  });
+
+  test('rejects a static symlink in place of the day partition', () => {
+    const archiveDir = join(dir, 'archive-root');
+    const outsidePartition = join(dir, 'outside-partition');
+    mkdirSync(archiveDir, { mode: 0o700 });
+    mkdirSync(outsidePartition, { mode: 0o700 });
+    symlinkSync(outsidePartition, join(archiveDir, '2026-06-15'), 'dir');
+
+    const result = createJsonlTranscriptArchive({
+      dir: archiveDir,
+      onError: () => {},
+    }).archive(entry());
+
+    expect(result).toEqual(expect.objectContaining({ ok: false }));
+    expect(readdirSync(outsidePartition)).toEqual([]);
   });
 
   test('the archive is independent of any DB — the artifact is the retained copy', () => {

@@ -6,7 +6,6 @@
  *   pd transcripts show <id>            Render a single transcript as a conversation
  *   pd transcripts watch                Live-tail new transcripts (SSE)
  *   pd transcripts cost [--since <dur>] Cost rollup by ship and day
- *   pd transcripts delete <id>          Delete a transcript (destructive — confirmed)
  */
 
 import { pdFetch } from '../utils/fetch.js';
@@ -14,7 +13,6 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { promptConfirm } from '../utils/prompt.js';
 import { resolvePublishedDaemonUrl } from '../../shared/daemon-discovery.js';
 import type { DaemonPortDiscoveryOptions } from '../../shared/daemon-discovery.js';
 
@@ -100,12 +98,9 @@ export async function handleTranscripts(args: string[], options: CLIOptions): Pr
       return handleTranscriptsWatch(rest, options);
     case 'cost':
       return handleTranscriptsCost(rest, options);
-    case 'delete':
-    case 'rm':
-      return handleTranscriptsDelete(rest, options);
     default:
       console.error(`Unknown subcommand: ${sub}`);
-      console.error('Usage: pd transcripts <list|show|watch|cost|delete>');
+      console.error('Usage: pd transcripts <list|show|watch|cost>');
       process.exit(1);
   }
 }
@@ -476,42 +471,4 @@ export async function handleTranscriptsCost(_args: string[], options: CLIOptions
     }
   }
   console.error('');
-}
-
-// =============================================================================
-// delete
-// =============================================================================
-
-export async function handleTranscriptsDelete(args: string[], options: CLIOptions): Promise<void> {
-  const id = args[0];
-  if (!id) {
-    console.error('Usage: pd transcripts delete <id>');
-    process.exit(1);
-  }
-
-  const forced = !!options.yes || !!options.force;
-  if (!forced) {
-    if (!IS_TTY) {
-      ui.error('pd transcripts delete is destructive. Pass --yes to confirm in non-TTY mode.');
-      process.exit(1);
-    }
-    const ok = await promptConfirm(`Delete transcript ${id}? This cannot be undone.`, false);
-    if (!ok) {
-      if (!isQuiet(options)) ui.warn('Aborted');
-      return;
-    }
-  }
-
-  const res: PdFetchResponse = await pdFetch(`/transcripts/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  const data = await res.json();
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to delete transcript');
-    process.exit(1);
-  }
-
-  if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
-    return;
-  }
-  if (!isQuiet(options)) ui.success(`Deleted transcript ${id}`);
 }

@@ -9,11 +9,10 @@ read the conversation back via:
 - `pd transcripts show <id>` — full conversation rendered to the terminal
 - `pd transcripts watch` — live tail of new transcripts (SSE)
 - `pd transcripts cost --since 1d` — cost rollup by ship + day
-- `pd transcripts delete <id>` — destructive CLI bridge (confirmation is not
-  server-side authority)
 - The "Fleet Transcripts" panel in the Port Daddy dashboard
 
-The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
+The read-only HTTP surface lives at `/transcripts*`. See
+`routes/transcripts.ts`.
 
 ## What this MVP ships
 
@@ -82,42 +81,46 @@ The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
   partition/root directories. A failed writer removes only its own temp, so it
   cannot truncate or erase a concurrent writer's retained record.
 - Archive roots and partitions are created or clamped to `0700`; temp and final
-  files are `0600`. Symlink, non-regular, wrong-owner, and multiply-linked
-  targets fail closed.
+  files are `0600`. Every existing component from the filesystem anchor through
+  the configured root and partition is checked; static symlink ancestors,
+  non-regular files, wrong-owner paths, and multiply-linked targets fail closed.
 - `fleet_transcript_archive_receipts` records exact snapshot and artifact
   digests, locator, byte count, format, attempts, and success/failure. A generic
   success bit or mismatched evidence is failure. Replays skip only an exact
-  matching success.
+  matching success. The first exact success is immutable: an interleaved late
+  failure or different-digest success cannot replace it.
 - Message/output appends are status-conditional writes. Once a transcript is
   terminal, its header and child content are immutable, so the receipt digest
   cannot be invalidated by a late append.
 - The first terminal `finalize()` transition wins. An asynchronous backend
   completion cannot rewrite a prior kill or produce a second archive receipt.
 - `recordTranscript()` emits an `end` event and archives only when its imported
-  snapshot is terminal. Its header and children commit atomically and it cannot
-  reopen a terminal row, but it remains the CAP0/BOOT0-blocked legacy full-entry
-  bridge rather than trusted producer authority.
-- The current manual backfill examines only the 50 newest terminal rows and has
-  no automatic failed-receipt retry. Older failures are not self-healing until a
-  cursor-driven repair action lands.
+  snapshot is terminal. It is a trusted in-process full-snapshot importer: each
+  retry atomically replaces the complete child sets while the row is running,
+  and it cannot reopen a terminal row. Archive reads the committed private DB
+  snapshot before synchronous listeners receive the terminal event.
+- The current in-process backfill helper examines only the 50 newest terminal
+  rows and has no automatic failed-receipt retry. It has no public route or CLI
+  action. Older failures are not self-healing until a cursor-driven repair
+  action lands.
 - Archive publication still uses Node pathname operations rather than an
   `openat`/dirfd-bound chain. Existing no-follow, mode, owner, link-count, and
   descriptor checks do not fully stop a hostile same-UID parent/name swap; a
   native dirfd-relative publisher is required for that stronger threat model.
 
-### Write-authority blocker
+### Write-authority boundary
 
-The current `POST`/`DELETE` routes in `routes/transcripts.ts` are a legacy,
-self-asserted bridge. They are not authenticated operator authority, including
-on real loopback or Unix transport. Do not treat CLI confirmation, peer/process
-metadata, `Host`, forwarding headers, reusable actor credentials, or a
-caller-supplied redemption receipt as permission to mutate transcripts.
+The transcript HTTP plugin and `pd transcripts` CLI are read-only. Full-entry
+upsert, message/output append, delete, and archive-backfill routes are not
+registered; there is no loopback, Unix-socket, header, reusable-credential, or
+other compatibility fallback, and the transcript module exports no delete
+primitive. Trusted daemon producers call the in-process API.
 
-CAP0/BOOT0 must land before Q1 can supplant these endpoints. Delete/backfill
-must redeem a one-use action/resource/actor-scoped capability directly in the
-route/action service, and delete must also prove an exact durable archive
-receipt for the current terminal snapshot. The storage slice does not activate
-automatic Parley or make these mutation routes final.
+A future delete/backfill action must redeem a one-use
+action/resource/actor-scoped capability directly in the action service. A
+caller-supplied redemption receipt is never authority, and delete must also
+prove an exact durable archive receipt for the current terminal snapshot. This
+storage slice does not activate automatic Parley.
 
 ## Schema (DDL)
 
@@ -184,7 +187,7 @@ CREATE TABLE fleet_transcript_archive_receipts (
 ## Hooking a fleet ship into transcripts
 
 Spawner-owned in-process calls are the canonical producer path. The current
-`POST /transcripts/:id/outputs` bridge can still append an output, but it is
-unauthenticated and therefore cannot establish trusted producer provenance.
-Do not add callers to that bridge while Q1 is blocked on CAP0/BOOT0; the
-authority lane must supplant it rather than preserve a downgrade.
+HTTP and CLI surfaces cannot append or import evidence. New producer adapters
+must enter through a daemon-owned in-process boundary and preserve canonical
+spawn identity, lifecycle ordering, terminal immutability, and archive receipt
+provenance.

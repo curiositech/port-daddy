@@ -209,7 +209,7 @@ for prog in port-daddy pd
     complete -c $prog -n '__pd_using_command work; and __fish_seen_subcommand_from probe' -l profile -d 'Fixture profile (compliant weak broken malicious)'
     complete -c $prog -n '__pd_using_command work' -l json -d 'JSON output'
     complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
-    complete -c $prog -n __pd_needs_command -a transcripts -d 'Browse fleet ship-run transcripts (list/show/cost/delete)'
+    complete -c $prog -n __pd_needs_command -a transcripts -d 'Browse fleet ship-run transcripts (list/show/watch/cost)'
     complete -c $prog -n __pd_needs_command -a transcript -d 'Alias for transcripts — view a single ship-run record'
     complete -c $prog -n __pd_needs_command -a relay -d 'Cloud relay management — configure, exchange, status (ADR-0049)'
     complete -c $prog -n "__pd_using_command relay" -x -a 'url status exchange' -d 'Relay subcommand'

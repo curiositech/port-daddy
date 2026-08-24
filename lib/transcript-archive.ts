@@ -29,7 +29,7 @@ import {
 } from 'node:fs';
 import type { Stats } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, parse, resolve } from 'node:path';
+import { join, parse, relative, resolve, sep } from 'node:path';
 import {
   TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT,
   serializeTranscriptArchiveArtifact,
@@ -110,6 +110,38 @@ function lstatIfPresent(path: string): Stats | null {
   }
 }
 
+/**
+ * Reject every static symlink/non-directory component from the filesystem root
+ * to the requested directory. This anchors lexical containment for configured
+ * roots without pretending that name-based Node APIs close a concurrent
+ * ancestor rename/symlink race; that stronger boundary still needs dirfd/openat.
+ *
+ * Design rationale: validating only the final path would let a static ancestor
+ * symlink redirect publication outside the approved archive root.
+ *
+ * @param path Absolute archive root or partition path to validate.
+ * @param label Human-readable path role used in fail-closed errors.
+ */
+function assertAnchoredDirectoryChain(path: string, label: string): void {
+  const absolute = resolve(path);
+  const anchor = parse(absolute).root;
+  const anchorStats = lstatSync(anchor);
+  if (anchorStats.isSymbolicLink() || !anchorStats.isDirectory()) {
+    throw new Error(`${label} filesystem anchor is not a safe directory`);
+  }
+
+  let current = anchor;
+  const suffix = relative(anchor, absolute);
+  for (const component of suffix.split(sep).filter(Boolean)) {
+    current = join(current, component);
+    const stats = lstatIfPresent(current);
+    if (!stats) break;
+    if (stats.isSymbolicLink() || !stats.isDirectory()) {
+      throw new Error(`${label} contains an unsafe ancestor: ${current}`);
+    }
+  }
+}
+
 function assertPathIdentity(path: string, expected: Stats, label: string): void {
   const current = lstatSync(path);
   assertPrivateDirectory(current, label);
@@ -123,6 +155,7 @@ function openPrivateDirectory(
   label: string,
   create: 'recursive' | 'single',
 ): { fd: number; identity: Stats } {
+  assertAnchoredDirectoryChain(path, label);
   if (create === 'recursive') {
     mkdirSync(path, { recursive: true, mode: 0o700 });
   } else {
@@ -132,6 +165,7 @@ function openPrivateDirectory(
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     }
   }
+  assertAnchoredDirectoryChain(path, label);
 
   const before = lstatSync(path);
   assertPrivateDirectory(before, label);
@@ -383,8 +417,8 @@ export function createJsonlTranscriptArchive(
 
         // rename(2) atomically publishes the complete temp. If a final symlink
         // appears after the precheck, rename replaces that directory entry and
-        // never follows it; subsequent identity and byte verification still
-        // fails closed on any parent/target swap.
+        // never follows it. Final directory/file identities are rechecked; the
+        // documented name-based ancestor race remains until dirfd/openat exists.
         renameSync(tempPath, artifactPath);
         tempPath = null;
         tempIdentity = null;

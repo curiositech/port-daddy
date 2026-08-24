@@ -7,7 +7,6 @@
  *   - recordTranscript() upsert path
  *   - filter coverage on listTranscripts (ship/pr/agentId/status/since/limit)
  *   - getTranscript returns full conversation (messages + outputs)
- *   - deleteTranscript cascades to messages + outputs
  *   - costRollup aggregates correctly across ships and days
  *   - subscribe/emit lifecycle events (start, update, end)
  *   - redactSecrets scrubs API keys / bearer tokens / OpenAI/Anthropic/Stripe/AWS
@@ -181,6 +180,189 @@ describe('transcripts module', () => {
       `).get(id);
       expect(receipt.artifact_sha256).toBe(receipt.content_sha256);
       expect(receipt.attempts).toBe(2);
+    });
+
+    it('keeps exact success monotonic when another store reports a late failure', () => {
+      const seed = createTranscripts(db, { now });
+      const id = seed.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      seed.finalize(id, { status: 'completed' });
+
+      const winner = createTranscripts(db, {
+        now,
+        archiveSink: { archive: (entry) => archiveSuccess(entry) },
+      });
+      const lateFailure = createTranscripts(db, {
+        now,
+        archiveSink: {
+          archive() {
+            expect(winner.backfillArchive()).toEqual({ archived: 1 });
+            return { ok: false, error: 'late warehouse failure' };
+          },
+        },
+      });
+
+      // The losing attempt observes the winner after its stale preflight read.
+      // It counts the exact concurrent success instead of replacing it.
+      expect(lateFailure.backfillArchive()).toEqual({ archived: 1 });
+      const fresh = winner.getTranscript(id);
+      const expected = describeTranscriptArchiveArtifact(fresh, 'receipt-validation');
+      expect(db.prepare(`
+        SELECT content_sha256, status, succeeded_at, last_error,
+               artifact_sha256, artifact_bytes, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual({
+        content_sha256: expected.sha256,
+        status: 'succeeded',
+        succeeded_at: clock,
+        last_error: null,
+        artifact_sha256: expected.sha256,
+        artifact_bytes: expected.bytes,
+        attempts: 1,
+      });
+    });
+
+    it('preserves the first exact success and loudly rejects a different digest', () => {
+      const seed = createTranscripts(db, { now });
+      const id = seed.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      seed.finalize(id, { status: 'completed' });
+
+      const firstDigest = 'a'.repeat(64);
+      const firstReceipt = {
+        content_sha256: firstDigest,
+        status: 'succeeded',
+        attempted_at: clock - 10,
+        succeeded_at: clock - 10,
+        last_error: null,
+        artifact_locator: `test://first-success/${id}`,
+        artifact_sha256: firstDigest,
+        artifact_bytes: 123,
+        artifact_format: 'port-daddy.transcript-jsonl.v1',
+        attempts: 1,
+      };
+      db.prepare(`
+        INSERT INTO fleet_transcript_archive_receipts (
+          transcript_id, content_sha256, status, attempted_at, succeeded_at,
+          last_error, artifact_locator, artifact_sha256, artifact_bytes,
+          artifact_format, attempts
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, ...Object.values(firstReceipt));
+
+      const archive = jest.fn((entry) => archiveSuccess(entry, `test://challenger/${entry.id}`));
+      const challenger = createTranscripts(db, { now, archiveSink: { archive } });
+
+      expect(() => challenger.backfillArchive()).toThrow(/immutable archive success conflict/);
+      expect(archive).not.toHaveBeenCalled();
+      expect(db.prepare(`
+        SELECT content_sha256, status, attempted_at, succeeded_at, last_error,
+               artifact_locator, artifact_sha256, artifact_bytes,
+               artifact_format, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual(firstReceipt);
+    });
+
+    it.each([
+      ['newline', 'test://archive/poison\nlocator'],
+      ['NUL', 'test://archive/poison\u0000locator'],
+      ['URL userinfo', 'https://user:secret@example.com/archive'],
+    ])('repairs a pseudo-success with a hostile %s locator', (_kind, hostileLocator) => {
+      const seed = createTranscripts(db, { now });
+      const id = seed.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      seed.finalize(id, { status: 'completed' });
+      const entry = seed.getTranscript(id);
+      const poisoned = describeTranscriptArchiveArtifact(entry, hostileLocator);
+      db.prepare(`
+        INSERT INTO fleet_transcript_archive_receipts (
+          transcript_id, content_sha256, status, attempted_at, succeeded_at,
+          last_error, artifact_locator, artifact_sha256, artifact_bytes,
+          artifact_format, attempts
+        ) VALUES (?, ?, 'succeeded', ?, ?, NULL, ?, ?, ?, ?, 1)
+      `).run(
+        id,
+        poisoned.sha256,
+        clock - 10,
+        clock - 10,
+        hostileLocator,
+        poisoned.sha256,
+        poisoned.bytes,
+        poisoned.format,
+      );
+
+      let calls = 0;
+      const repair = createTranscripts(db, {
+        now,
+        archiveSink: {
+          archive(current) {
+            calls += 1;
+            return archiveSuccess(current, `test://repaired/${current.id}`);
+          },
+        },
+      });
+
+      expect(repair.backfillArchive()).toEqual({ archived: 1 });
+      expect(calls).toBe(1);
+      expect(db.prepare(`
+        SELECT content_sha256, status, succeeded_at, last_error,
+               artifact_locator, artifact_sha256, artifact_bytes,
+               artifact_format, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual({
+        content_sha256: poisoned.sha256,
+        status: 'succeeded',
+        succeeded_at: clock,
+        last_error: null,
+        artifact_locator: `test://repaired/${id}`,
+        artifact_sha256: poisoned.sha256,
+        artifact_bytes: poisoned.bytes,
+        artifact_format: 'port-daddy.transcript-jsonl.v1',
+        attempts: 2,
+      });
+    });
+
+    it('archives the canonical DB snapshot before a terminal listener can mutate its event', () => {
+      store = createTranscripts(db, {
+        now,
+        archiveSink: { archive: (entry) => archiveSuccess(entry) },
+      });
+      const id = store.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      store.appendMessage(id, { role: 'assistant', content: 'canonical', timestamp: clock });
+      store.subscribe((event) => {
+        if (event.type !== 'end') return;
+        event.entry.status = 'failed';
+        event.entry.messages.push({
+          role: 'assistant', content: 'listener-forged', timestamp: clock + 1,
+        });
+        event.entry.outputs.push({ type: 'other', summary: 'listener-forged' });
+      });
+
+      store.finalize(id, { status: 'completed' });
+
+      const fresh = store.getTranscript(id);
+      expect(fresh).toEqual(expect.objectContaining({
+        status: 'completed',
+        messages: [{ role: 'assistant', content: 'canonical', timestamp: clock }],
+        outputs: [],
+      }));
+      const expected = describeTranscriptArchiveArtifact(fresh, 'receipt-validation');
+      expect(db.prepare(`
+        SELECT content_sha256, artifact_sha256, artifact_bytes
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual({
+        content_sha256: expected.sha256,
+        artifact_sha256: expected.sha256,
+        artifact_bytes: expected.bytes,
+      });
     });
   });
 
@@ -465,6 +647,98 @@ describe('transcripts module', () => {
       expect(tx.ended_at).toBe(clock + 100);
     });
 
+    it('replaces a retried running snapshot instead of duplicating its children', () => {
+      const running = {
+        id: 'tx_running_retry',
+        ship: 'qa',
+        session_id: null,
+        spawned_agent_id: 'a',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'm',
+        status: 'running',
+        started_at: clock,
+        messages: [
+          { role: 'user', content: 'question', timestamp: clock },
+          { role: 'assistant', content: 'partial', timestamp: clock + 1 },
+        ],
+        outputs: [{ type: 'noop', summary: 'still running' }],
+      };
+
+      store.recordTranscript(running);
+      store.recordTranscript(running);
+
+      expect(store.getTranscript(running.id)).toEqual(expect.objectContaining({
+        status: 'running',
+        messages: running.messages,
+        outputs: running.outputs,
+      }));
+      expect(db.prepare(`
+        SELECT COUNT(*) AS count FROM fleet_transcript_messages WHERE transcript_id = ?
+      `).get(running.id).count).toBe(2);
+      expect(db.prepare(`
+        SELECT COUNT(*) AS count FROM fleet_transcript_outputs WHERE transcript_id = ?
+      `).get(running.id).count).toBe(1);
+    });
+
+    it('atomically replaces running children with the terminal snapshot before archive and events', () => {
+      store = createTranscripts(db, {
+        now,
+        archiveSink: { archive: (entry) => archiveSuccess(entry) },
+      });
+      const running = {
+        id: 'tx_running_to_terminal',
+        ship: 'qa',
+        session_id: null,
+        spawned_agent_id: 'a',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'm',
+        status: 'running',
+        started_at: clock,
+        messages: [{ role: 'assistant', content: 'partial', timestamp: clock }],
+        outputs: [{ type: 'noop', summary: 'partial output' }],
+      };
+      store.recordTranscript(running);
+      store.subscribe((event) => {
+        if (event.type !== 'end') return;
+        event.entry.messages.push({
+          role: 'assistant', content: 'listener-forged', timestamp: clock + 99,
+        });
+      });
+
+      store.recordTranscript({
+        ...running,
+        status: 'completed',
+        ended_at: clock + 100,
+        messages: [
+          { role: 'assistant', content: 'partial', timestamp: clock },
+          { role: 'assistant', content: 'final', timestamp: clock + 50 },
+        ],
+        outputs: [{ type: 'commit', summary: 'final output' }],
+      });
+
+      const fresh = store.getTranscript(running.id);
+      expect(fresh).toEqual(expect.objectContaining({
+        status: 'completed',
+        messages: [
+          { role: 'assistant', content: 'partial', timestamp: clock },
+          { role: 'assistant', content: 'final', timestamp: clock + 50 },
+        ],
+        outputs: [{ type: 'commit', summary: 'final output' }],
+      }));
+      const expected = describeTranscriptArchiveArtifact(fresh, 'receipt-validation');
+      expect(db.prepare(`
+        SELECT content_sha256, artifact_sha256, artifact_bytes
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(running.id)).toEqual({
+        content_sha256: expected.sha256,
+        artifact_sha256: expected.sha256,
+        artifact_bytes: expected.bytes,
+      });
+    });
+
     it('does not reopen or append to an already terminal imported transcript', () => {
       const terminal = {
         id: 'tx_import_frozen',
@@ -601,28 +875,6 @@ describe('transcripts module', () => {
       store.appendMessage(id, { role: 'user', content: 'hello', timestamp: clock });
       const rows = store.listTranscripts({});
       expect(rows[0].messages).toEqual([]);
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // deleteTranscript
-  // ───────────────────────────────────────────────────────────────────────────
-
-  describe('deleteTranscript', () => {
-    it('cascades to messages and outputs', () => {
-      const id = store.start({ ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'c', model: 'm' });
-      store.appendMessage(id, { role: 'user', content: 'x', timestamp: clock });
-      store.appendOutput(id, { type: 'noop', summary: 'x' });
-      expect(store.deleteTranscript(id)).toBe(true);
-      expect(store.getTranscript(id)).toBeNull();
-      const msgs = db.prepare('SELECT COUNT(*) AS n FROM fleet_transcript_messages').get();
-      const outs = db.prepare('SELECT COUNT(*) AS n FROM fleet_transcript_outputs').get();
-      expect(msgs.n).toBe(0);
-      expect(outs.n).toBe(0);
-    });
-
-    it('returns false for unknown id', () => {
-      expect(store.deleteTranscript('tx_does_not_exist')).toBe(false);
     });
   });
 

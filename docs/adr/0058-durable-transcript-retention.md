@@ -43,8 +43,11 @@ external warehouse.
   concurrent writer removes only its own unpublished temp; it never truncates
   or unlinks another writer's retained artifact. Roots and day partitions are
   created or clamped to `0700`; temps and final artifacts are `0600`.
-  Symlink, non-regular, owner-mismatched, and multiply-linked targets fail
-  closed. The approved archive root remains configurable.
+  Every existing component from the filesystem anchor through the configured
+  root and partition is checked with `lstat`; static symlink ancestors,
+  non-regular files, owner mismatches, and multiply-linked targets fail closed.
+  The approved archive root remains configurable but must resolve to that
+  symlink-free anchored directory chain.
 - **The hook and lifecycle race.** `lib/transcripts.ts` accepts an
   `archiveSink`, called from terminal `finalize()` and from `recordTranscript()`
   only when the imported snapshot is terminal. Message and output appends are
@@ -52,25 +55,32 @@ external warehouse.
   its header and child content are immutable. The first `finalize()`/spawner
   terminal transition wins, so a late backend completion cannot rewrite an
   operator kill, emit a second terminal event, or archive that transition twice.
-  `recordTranscript()` remains the CAP0/BOOT0-blocked legacy full-entry bridge,
-  but commits its imported header and children atomically and cannot reopen an
-  already terminal row. A sink/receipt failure never rewrites a completed spawn
-  into failure, but is logged loudly and remains manually retryable.
+  Finalize/import archive the canonical snapshot freshly read from the private
+  DB before any synchronous listener receives a mutable event object.
+  `recordTranscript()` is a trusted in-process full-snapshot importer: while a
+  row is running it atomically replaces the complete message/output child sets,
+  making retries and running-to-terminal import idempotent; it cannot reopen or
+  rewrite an already terminal row and has no HTTP route. A sink/receipt failure
+  never rewrites a completed spawn into failure, but is logged loudly and
+  remains internally retryable.
 - **Exact artifact receipts.** `fleet_transcript_archive_receipts` binds the
   canonical snapshot digest to the exact artifact locator, SHA-256, byte length,
   format, attempt count, and success/failure timestamps. A generic success bit,
   malformed locator, stale snapshot digest, or mismatched artifact evidence is
-  persisted as failure, never as retained content.
+  persisted as failure, never as retained content. Receipt writes are
+  conditional: the first exact success is immutable. Same-digest races skip or
+  increment attempt accounting; an interleaved late failure or
+  different-digest success cannot replace the retained receipt.
 - **Default on.** `server.ts` wires the JSONL archive by default. Opt out only via
   `PD_TRANSCRIPT_ARCHIVE=off`. Retention is no longer something an operator can
   forget to enable.
-- **Backfill.** `transcripts.backfillArchive()` (exposed at
-  `POST /transcripts/archive/backfill`) currently retries up to the 50 most
-  recent terminal snapshots. Exact successes skip without another sink write;
+- **Backfill.** The trusted in-process `transcripts.backfillArchive()` helper
+  currently retries up to the 50 most recent terminal snapshots. It has no
+  public HTTP or CLI action. Exact successes skip without another sink write;
   failures and incomplete legacy receipts retry; `archived` counts only exact
   durable successes. There is no automatic failed-receipt retry, and failures
-  older than that newest-first window are not self-healing. This bounded legacy
-  bridge is not yet the complete cursor-driven operator repair action.
+  older than that newest-first window are not self-healing. This bounded helper
+  is not yet the complete cursor-driven operator repair action.
 - **Residual pathname race.** The Node implementation uses pathname operations
   plus `O_NOFOLLOW`, ownership/link-count checks, exact file-descriptor identity,
   and private modes, but it does not use an `openat`/dirfd-bound publication
@@ -83,23 +93,23 @@ external warehouse.
   JSONL archive. Replacement sinks must return the same exact-artifact evidence;
   `{ ok: true }` alone is not retention.
 
-### Mutation-authority gate (not implemented by this storage decision)
+### Mutation-authority boundary
 
-The current HTTP write bridge in `routes/transcripts.ts` remains
-self-asserted: full upsert, message/output append, archive backfill, and delete
-are not authenticated operator actions. CLI confirmation, loopback/Unix socket
+`routes/transcripts.ts` is read-only. The credentialless full upsert,
+message/output append, delete, and archive-backfill handlers are not registered,
+the transcript module exports no delete primitive, and the public CLI exposes
+only list/show/watch/cost. Loopback or Unix socket
 possession, actual-peer metadata, process identity, `Host`, `X-Forwarded-For`,
-or omission of an automation marker cannot supply authority.
+automation-marker omission, reusable actor credentials, and caller-supplied
+redemption receipts therefore cannot reach transcript mutation through this
+surface. Daemon-owned spawner/import code uses the in-process API directly.
 
-Q1 mutation authority is therefore blocked on CAP0/BOOT0. Delete and backfill
-must present a one-use, actor/action/resource-scoped capability that the
-route/action service redeems directly with the broker. Reusable actor
-credentials are not a downgrade path, and a caller-supplied redemption receipt
-is never authority. Delete must additionally fail closed unless the exact
+Any future delete or operator backfill is a new action surface, not a legacy
+downgrade. It must redeem a one-use actor/action/resource-scoped capability
+directly with the broker. Delete must additionally fail closed unless the exact
 current terminal snapshot already has, or synchronously obtains, a matching
 durable success receipt. That future delete is live-DB pruning, not privacy
-erasure. Until that lane lands, the current mutation endpoints are not the final
-ADR-0058 authority boundary.
+erasure.
 
 ## Consequences
 
