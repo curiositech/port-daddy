@@ -40,6 +40,7 @@
     "export:public": "tsx scripts/export-public-repo.ts",
     "check:public-export": "tsx scripts/export-public-repo.ts --check",
     "diagnose:node-builtin-imports": "node scripts/check-builtin-named-imports.mjs",
+    "check:changelog": "node scripts/assemble-changelog.mjs --check",
     "check:doc-citations": "node scripts/check-doc-citations.mjs",
     "check:pr-requirements": "node scripts/check-pr-requirements.mjs",
     "check:pr-comments": "node scripts/check-pr-comments-answered.mjs",

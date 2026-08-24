@@ -272,8 +272,9 @@ bounced (it cannot enter the merge queue):**
 
 1. **`pr-requirements-guard`** — the body needs a real `## Summary` (≥10 words of
    prose) and `## Test Plan` (≥12 words: commands + their output), plus a
-   screenshot + a GIF/recording for any visual-surface change. Self-check before
-   pushing: `npm run check:pr-requirements -- --body-file <draft.md>`.
+   screenshot + a GIF/recording for any visual-surface change, plus a **changelog
+   fragment** for any user-visible change. Self-check before pushing:
+   `npm run check:pr-requirements -- --body-file <draft.md>`.
 2. **`roadmap-link`** — the body needs exactly one `Roadmap-Item: <slug>` trailer
    (or `Roadmap-Item: none — <reason>` for a chore/docs/hotfix). No slug yet?
    `npx tsx scripts/roadmap-link.ts <pr-number>` creates the item and stamps it.
@@ -281,6 +282,17 @@ bounced (it cannot enter the merge queue):**
 The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
 headings and the trailer line, fill in the prose. Both report on `merge_group`
 as pass-throughs, so a PR that is green at PR time never hangs the queue.
+
+**Never hand-edit `CHANGELOG.md`'s `[Unreleased]` section.** It is ASSEMBLED at
+release time from one file per PR under `changelog.d/`. Write
+`changelog.d/<pr>-<slug>.md` (or `draft-<slug>.md` before you have a number) —
+format and rationale in `changelog.d/README.md`, validate with
+`npm run check:changelog`. This exists because every PR used to insert its bullet
+at the same line 11 of the same file: two branches cut from the same base conflict
+on nearly every pair, and a resolver taking "ours" silently drops the other PR's
+entry with nothing failing. One file per PR removes the conflict entirely. If a
+change genuinely ships nothing a user would notice, put
+`<!-- changelog-exempt: <reason> -->` in the body; the reason is required.
 
 **Branch protection on `main` is a ruleset** (`main merge queue`, id `17604542`),
 not classic protection — 18 required checks with `strict` off, merge queue
