@@ -29,10 +29,13 @@ export const PROVIDER_MAX_DELIVERY_ATTEMPTS = 3;
  *
  * Raised from 60s to 5 minutes (2026-08-23): 60s was an arbitrary defensive
  * value, not derived from any Workers AI-side limit, and it was tripping on
- * ordinary latency for larger prompts. Operators can now configure this
- * per-repository; this is just the floor when they haven't. See
- * {@link RUN_ABSOLUTE_DEADLINE_MS} for the compensating run-level bound this
- * raise required.
+ * ordinary latency for larger prompts. Raised again to 10 minutes
+ * (2026-08-24) after production kept tripping at 5: `fleet_run_steps` held
+ * 429 deadline kills across 126 runs in 18 unbroken hours while other runs in
+ * the same window finished normally. Operators can still configure this
+ * per-repository — now only downward, since the default sits at the ceiling.
+ * See {@link RUN_ABSOLUTE_DEADLINE_MS} for the compensating run-level bound
+ * both raises depend on.
  */
 export const FLEET_AI_CALL_DEADLINE_MS = DEFAULT_AI_CALL_DEADLINE_MS;
 
@@ -97,6 +100,18 @@ export interface ShipAiCallStats {
   maxElapsedMs: number;
 }
 
+/**
+ * Zeroed per-ship call aggregate.
+ *
+ * PURPOSE — a ship that made no AI calls must still be able to say so. The
+ * accumulator is created eagerly rather than lazily on first call so the
+ * absence of provider work reads as an explicit `calls: 0` row instead of a
+ * missing one, and "this ship never called the model" stays distinguishable
+ * from "this ship's stats were lost".
+ *
+ * @param ship - Ship name the aggregate belongs to.
+ * @returns A fresh all-zero {@link ShipAiCallStats} for that ship.
+ */
 function emptyShipAiCallStats(ship: string): ShipAiCallStats {
   return { ship, calls: 0, okCalls: 0, timeoutCalls: 0, errorCalls: 0, totalElapsedMs: 0, maxElapsedMs: 0 };
 }
@@ -131,6 +146,25 @@ class FleetAiCallDeadlineError extends Error {
     super(`Workers AI call exceeded its ${deadlineMs}ms deadline`);
     this.name = 'FleetAiCallDeadlineError';
   }
+}
+
+/**
+ * Wall-clock milliseconds since a start stamp, never negative.
+ *
+ * WHY CLAMP AT ALL: this value is not just logged — it accumulates into
+ * {@link ShipAiCallStats}'s `totalElapsedMs` and `maxElapsedMs`, which are
+ * durable, operator-facing answers to "how long did this agent take". A
+ * single negative sample would silently understate a total or, via
+ * `Math.max`, be swallowed entirely — either way corrupting a statistic
+ * nobody would think to distrust. Workers pin `Date.now()` to the last I/O
+ * rather than a free-running clock, so a backwards step is not expected; the
+ * clamp costs one comparison and removes the need to be right about that.
+ *
+ * @param startedAt - Epoch ms captured before the call.
+ * @returns Non-negative elapsed milliseconds.
+ */
+function elapsedSince(startedAt: number): number {
+  return Math.max(0, Date.now() - startedAt);
 }
 
 /**
@@ -194,7 +228,7 @@ export class FleetAiCircuit {
       });
       return await Promise.race([call(), timedOut]);
     } catch (error) {
-      const wrapped = new FleetAiDependencyError(describeAiFailure(error, Date.now() - startedAt));
+      const wrapped = new FleetAiDependencyError(describeAiFailure(error, elapsedSince(startedAt)));
       if (wrapped.failure.retryable) this.openedBy = wrapped;
       throw wrapped;
     } finally {
@@ -226,7 +260,7 @@ export class FleetAiCircuit {
       const result = await this.run(call);
       stats.calls += 1;
       stats.okCalls += 1;
-      const elapsed = Date.now() - startedAt;
+      const elapsed = elapsedSince(startedAt);
       stats.totalElapsedMs += elapsed;
       stats.maxElapsedMs = Math.max(stats.maxElapsedMs, elapsed);
       return result;
@@ -234,7 +268,7 @@ export class FleetAiCircuit {
       stats.calls += 1;
       stats.errorCalls += 1;
       const elapsedMs =
-        error instanceof FleetAiDependencyError ? error.failure.elapsedMs : Date.now() - startedAt;
+        error instanceof FleetAiDependencyError ? error.failure.elapsedMs : elapsedSince(startedAt);
       if (error instanceof FleetAiDependencyError && error.failure.name === 'FleetAiCallDeadlineError') {
         stats.timeoutCalls += 1;
       }
