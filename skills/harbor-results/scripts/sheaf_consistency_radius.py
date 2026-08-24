@@ -612,11 +612,13 @@ def section1():
         status = {e: "C" for e in edges}
         status[e0] = "R"
         r, _, _, _ = completion_residual(delta, slices, edges, status, g)
-        pred = abs(s) * np.sqrt(max(0.0, 1.0 - eff_resistance(n, edges, e0)))
-        if abs(r - pred) > 1e-8:
+        # compare SQUARED quantities: sqrt amplifies the ~1e-15 pinv error
+        # of R_eff to ~1e-8 on bridges (1 - R_eff = 0 up to float)
+        pred2 = s * s * max(0.0, 1.0 - eff_resistance(n, edges, e0))
+        if abs(r * r - pred2) > 1e-9:
             bad += 1
     check(bad == 0, f"random G(10,.35), random edge (bridges included): "
-                    f"|r - pred| < 1e-8 in {TRIALS}/{TRIALS}")
+                    f"|r^2 - s^2(1-R_eff)| < 1e-9 in {TRIALS}/{TRIALS}")
 
     # -- 1c sigma_min+ bound (vector stalks, single equivocator)
     print("\n  1c. sigma_min+(Pi_K A_q) * ||o_perp|| <= r <= ||o_perp||  "
@@ -696,7 +698,7 @@ def section1():
     max_joint, min_solo = 0.0, np.inf
     for t in range(TRIALS):
         rng = np.random.default_rng([SEED, 14, t])
-        s = float(rng.normal(0, SIGMA_EQ)) + 3.0  # bounded away from 0
+        s = float(rng.choice([-1, 1]) * rng.uniform(1.0, 5.0))  # |s| >= 1
         x = honest_states(n, rng, 1)
         # each liar alone: detectable at exactly |s|/sqrt(8)
         g1, _ = gen_cochain(edges, P, x, {1: {2: np.array([s])}})
@@ -710,7 +712,7 @@ def section1():
     print(f"      each liar alone: min r = {min_solo:.4f} "
           f"(= |s|/sqrt(8), detectable);  coalition: max r = "
           f"{max_joint:.2e} with ||eps|| ~ |s|*sqrt(2)")
-    check(max_joint < TOL_SILENT and min_solo > 0.5,
+    check(max_joint < TOL_SILENT and min_solo >= 1.0 / np.sqrt(8) - 1e-9,
           "cancellation CONFIRMED: two coordinated liars on a common cycle "
           "drive r to 0 — CR-1(iii) detection bound is SINGLE-EQUIVOCATOR; "
           "CR-1(ii) survives (r never overstates)")
@@ -1023,11 +1025,12 @@ def section4():
     o = rng.normal(0, SIGMA_EQ, D)
     gA, _ = gen_cochain(edges, P, x, {0: {6: o}})     # q=0 lies toward 6
     gB, _ = gen_cochain(edges, P, x, {6: {0: -o}})    # 6 lies toward 0
-    same = all(np.array_equal(gA[e], gB[e]) for e in edges)
+    same = all(np.allclose(gA[e], gB[e], atol=1e-12) for e in edges)
     check(same, "attribution: liar q=0 (+o toward 6) and liar 6 (-o toward "
-                "0) produce BIT-IDENTICAL observed data — r cannot name "
-                "the signer (Sheng et al. CCS'21 forensic gap; signatures "
-                "attribute, cohomology localizes)")
+                "0) produce IDENTICAL observed data (same observation map; "
+                "equal to machine precision) — r cannot name the signer "
+                "(Sheng et al. CCS'21 forensic gap; signatures attribute, "
+                "cohomology localizes)")
     delta, slices = coboundary(n, edges, P, D)
     status = {e: "C" for e in edges}
     status[(0, 6)] = "S"
