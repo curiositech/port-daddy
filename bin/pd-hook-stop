@@ -287,6 +287,61 @@ MARKER_ROOT="$PD_HOME/squid/stop-blocks"
 MARKER="$MARKER_ROOT/$SESSION.blocked"
 mkdir -p "$MARKER_ROOT" 2>/dev/null || exit 0
 
+# ── Marker directory garbage collection (review finding 3, 2026-08-24) ──────
+# The per-session marker is bounded (one per session id, recycled only when
+# THAT session id returns), but the directory as a whole is not: a session
+# that simply ends, or a buggy/adversarial caller spamming distinct session
+# ids, leaves markers behind forever. Two independent bounds close that:
+#   1. age  — anything older than MARKER_MAX_AGE_SECONDS (default 10x the
+#      block TTL, comfortably past any legitimate TTL-recycle window) is
+#      pruned outright.
+#   2. count — a hard cap (MARKER_MAX_ENTRIES); beyond it, oldest-by-mtime is
+#      evicted first.
+# Kept cheap: one BULK `stat` call covers every marker (a single subprocess
+# fork regardless of directory size, versus one fork per entry), and the pass
+# itself only runs 1-in-MARKER_GC_EVERY invocations (a pid-modulo probabilistic
+# gate — POSIX sh has no $RANDOM) so the common call pays nothing for it.
+MARKER_MAX_AGE_SECONDS="${PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS:-$((BLOCK_TTL_SECONDS * 10))}"
+case "$MARKER_MAX_AGE_SECONDS" in ''|*[!0-9]*) MARKER_MAX_AGE_SECONDS=$((BLOCK_TTL_SECONDS * 10)) ;; esac
+MARKER_MAX_ENTRIES="${PD_SQUID_STOP_MARKER_MAX_ENTRIES:-500}"
+case "$MARKER_MAX_ENTRIES" in ''|*[!0-9]*) MARKER_MAX_ENTRIES=500 ;; esac
+MARKER_GC_EVERY="${PD_SQUID_STOP_MARKER_GC_EVERY:-16}"
+case "$MARKER_GC_EVERY" in ''|*[!0-9]*|0) MARKER_GC_EVERY=16 ;; esac
+
+gc_stop_markers() {
+  [ -d "$MARKER_ROOT" ] || return 0
+  NOW_GC="$(date +%s 2>/dev/null || printf 0)"
+  case "$NOW_GC" in ''|*[!0-9]*) return 0 ;; esac
+  set -- "$MARKER_ROOT"/*.blocked
+  [ -d "$1" ] || return 0
+  GC_RAW="$MARKER_ROOT/.gc-scan.$$"
+  GC_SURVIVORS="$MARKER_ROOT/.gc-survivors.$$"
+  { stat -f '%m %N' "$@" 2>/dev/null || stat -c '%Y %n' "$@" 2>/dev/null; } > "$GC_RAW" 2>/dev/null
+  : > "$GC_SURVIVORS" 2>/dev/null
+  if [ -s "$GC_RAW" ]; then
+    while IFS=' ' read -r MTIME ENTRY; do
+      case "$MTIME" in ''|*[!0-9]*) continue ;; esac
+      [ -n "$ENTRY" ] || continue
+      AGE=$((NOW_GC - MTIME))
+      if [ "$AGE" -gt "$MARKER_MAX_AGE_SECONDS" ] 2>/dev/null; then
+        rmdir "$ENTRY" 2>/dev/null || true
+      else
+        printf '%s %s\n' "$MTIME" "$ENTRY" >> "$GC_SURVIVORS" 2>/dev/null || true
+      fi
+    done < "$GC_RAW"
+    SURVIVOR_COUNT="$(wc -l < "$GC_SURVIVORS" 2>/dev/null | tr -d '[:space:]')"
+    case "$SURVIVOR_COUNT" in ''|*[!0-9]*) SURVIVOR_COUNT=0 ;; esac
+    if [ "$SURVIVOR_COUNT" -gt "$MARKER_MAX_ENTRIES" ] 2>/dev/null; then
+      EXCESS=$((SURVIVOR_COUNT - MARKER_MAX_ENTRIES))
+      sort -n "$GC_SURVIVORS" 2>/dev/null | head -n "$EXCESS" | while IFS=' ' read -r _ OLD_ENTRY; do
+        [ -n "$OLD_ENTRY" ] && rmdir "$OLD_ENTRY" 2>/dev/null || true
+      done
+    fi
+  fi
+  rm -f "$GC_RAW" "$GC_SURVIVORS" 2>/dev/null || true
+}
+[ $(( $$ % MARKER_GC_EVERY )) -eq 0 ] 2>/dev/null && gc_stop_markers
+
 if ! mkdir "$MARKER" 2>/dev/null; then
   # Marker exists: only a STALE one (older than the TTL) may be recycled into
   # a fresh block; a fresh marker means this session already spent its shot.

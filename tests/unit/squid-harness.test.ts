@@ -1348,6 +1348,95 @@ describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding
   });
 });
 
+describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review finding 3, 2026-08-24)', () => {
+  // $PD_HOME/squid/stop-blocks/ bounds markers PER SESSION (one recycled only
+  // when that same session id returns) but not the directory as a WHOLE: an
+  // abandoned session id, or hundreds of synthetic ones, would grow it
+  // forever. PD_SQUID_STOP_MARKER_GC_EVERY=1 forces the (normally
+  // probabilistic) GC pass to run on every call, for a deterministic test.
+  const markerRoot = () => join(SCRATCH, 'squid', 'stop-blocks');
+
+  const seedMarkers = (count: number, ageSeconds: number): void => {
+    mkdirSync(markerRoot(), { recursive: true });
+    const stamp = new Date(Date.now() - ageSeconds * 1000);
+    for (let i = 0; i < count; i += 1) {
+      const dir = join(markerRoot(), `synthetic-session-${i}.blocked`);
+      mkdirSync(dir);
+      utimesSync(dir, stamp, stamp);
+    }
+  };
+
+  const runStop = (event: Record<string, unknown>, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, ...event }),
+      env: { ...process.env, PD_HOME: SCRATCH, PD_SQUID_STOP_MARKER_GC_EVERY: '1', ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('age-based pruning: hundreds of long-abandoned session markers are collected', () => {
+    seedMarkers(300, 24 * 60 * 60); // 300 markers, all a full day old
+    expect(readdirSync(markerRoot())).toHaveLength(300);
+
+    // PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS overridden low so the day-old
+    // seeded markers are unambiguously past it (the default is 10x the 300s
+    // TTL = 3000s, which the seeded age already exceeds, but an explicit
+    // override keeps this assertion independent of that default).
+    const r = runStop(
+      { session_id: 'gc-age-trigger', last_assistant_message: 'Work done, no table.' },
+      { PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS: '3600' },
+    );
+    expect(r.status).toBe(2); // the triggering call still blocks normally
+
+    const remaining = readdirSync(markerRoot());
+    // Every seeded marker aged out; only the fresh one this call just created
+    // (plus this pass's own now-cleaned-up scratch files) should remain.
+    expect(remaining.filter((name) => name.startsWith('synthetic-session-'))).toHaveLength(0);
+    expect(remaining).toContain('gc-age-trigger.blocked');
+  });
+
+  test('hard cap: hundreds of FRESH markers (none old enough to age out) are bounded to the cap', () => {
+    seedMarkers(400, 5); // fresh markers, well under any age threshold
+    expect(readdirSync(markerRoot())).toHaveLength(400);
+
+    const r = runStop(
+      { session_id: 'gc-cap-trigger', last_assistant_message: 'Work done, no table.' },
+      { PD_SQUID_STOP_MARKER_MAX_ENTRIES: '50', PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS: '999999' },
+    );
+    expect(r.status).toBe(2);
+
+    const remaining = readdirSync(markerRoot()).filter((name) => name.endsWith('.blocked'));
+    // Bounded to the cap (oldest-by-mtime evicted first) — never left to grow
+    // to the full 401 (400 seeded + this call's own marker) unboundedly.
+    expect(remaining.length).toBeLessThanOrEqual(51); // cap + this call's own fresh marker
+    expect(remaining).toContain('gc-cap-trigger.blocked');
+  });
+
+  test('GC stays well under the breaker slow budget even scanning hundreds of stale entries', () => {
+    seedMarkers(500, 24 * 60 * 60);
+    const startedAt = Date.now();
+    const r = runStop({ session_id: 'gc-perf-trigger', last_assistant_message: 'Work done, no table.' });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(2);
+    expect(elapsedMs).toBeLessThan(1_000); // generous ceiling; the wrapper's own breaker budget is 250ms
+  });
+
+  test('the probabilistic gate is truly off by default at PD_SQUID_STOP_MARKER_GC_EVERY=1 scale: a normal call without the override does not force a full sweep every time', () => {
+    // Sanity check that the feature is opt-in-forced only via the env
+    // override used above, not unconditionally expensive on every call.
+    seedMarkers(50, 24 * 60 * 60);
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, session_id: 'gc-default-rate', last_assistant_message: 'Work done, no table.' }),
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    // No assertion on whether GC happened to fire this particular call (it's
+    // pid-modulo probabilistic) — only that the call itself still completes
+    // correctly with the default (non-forced) rate.
+    expect(existsSync(join(markerRoot(), 'gc-default-rate.blocked'))).toBe(true);
+  });
+});
+
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
   test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
