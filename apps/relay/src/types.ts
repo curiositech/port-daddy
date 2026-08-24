@@ -77,6 +77,16 @@ export interface Env {
   // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
   // not a secret. Optional: unset ⇒ the module's committed default is used.
   SHIPWRIGHT_MODEL?: string;
+  // Model id for the Engineman's chat (src/snipe-chat.ts). A var, not a
+  // secret. Optional: unset ⇒ the relay's one committed chat default is used,
+  // resolved through the existing resolver rather than restated here.
+  SNIPE_MODEL?: string;
+  // Daily per-user chat budget (src/chat-spend.ts), shared by every
+  // conversational surface. Vars, not secrets, and NEVER caller input: nothing
+  // in a request body can reach these. Unset or unparsable values fall back to
+  // the committed defaults — never to "unlimited", and never to zero.
+  CHAT_DAILY_MESSAGES?: string;
+  CHAT_DAILY_TOKENS?: string;
   // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
   // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
   // secret. ONLY the exact string 'on' enables the pd-mediator seat's
