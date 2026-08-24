@@ -67,6 +67,42 @@ export interface ParseResult {
   error?: string;
 }
 
+export type SymbolIndexRefreshStatus =
+  | 'reparsed'
+  | 'unchanged'
+  | 'deleted'
+  | 'unsupported'
+  | 'failed';
+
+export interface SymbolIndexRefreshFileTelemetry {
+  filePath: string;
+  status: SymbolIndexRefreshStatus;
+  symbolsBefore: number;
+  symbolsAfter: number;
+  dependenciesBefore: number;
+  dependenciesAfter: number;
+  durationMs: number;
+  error?: string;
+}
+
+export interface SymbolIndexRefreshTelemetry {
+  startedAt: number;
+  completedAt: number;
+  durationMs: number;
+  requestedFiles: number;
+  uniqueFiles: number;
+  reparsedFiles: number;
+  unchangedFiles: number;
+  deletedFiles: number;
+  unsupportedFiles: number;
+  failedFiles: number;
+  symbolsRemoved: number;
+  symbolsInserted: number;
+  dependenciesRemoved: number;
+  dependenciesInserted: number;
+  files: SymbolIndexRefreshFileTelemetry[];
+}
+
 export interface SymbolClaim {
   filePath: string;
   symbolPath: string;
@@ -302,6 +338,11 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
 
     getParsedFile: db.prepare(`SELECT * FROM parsed_files WHERE file_path = ?`),
     getSymbols: db.prepare(`SELECT * FROM symbols WHERE file_path = ? ORDER BY start_line`),
+    getFileCounts: db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM symbols WHERE file_path = ?) AS symbols,
+        (SELECT COUNT(*) FROM symbol_dependencies WHERE source_file = ?) AS dependencies
+    `),
     deleteSymbols: db.prepare(`DELETE FROM symbols WHERE file_path = ?`),
     deleteDeps: db.prepare(`DELETE FROM symbol_dependencies WHERE source_file = ?`),
     deleteParsedFile: db.prepare(`DELETE FROM parsed_files WHERE file_path = ?`),
@@ -1239,74 +1280,77 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       );
     });
 
-    insertAll();
+    try {
+      insertAll();
 
-    if (graphEdges) {
-      const edges: GraphEdgeInput[] = [];
+      if (graphEdges) {
+        const edges: GraphEdgeInput[] = [];
 
-      for (const sym of extractedSymbols) {
-        edges.push({
-          scope: graphScope,
-          projectDir,
-          sourceType: 'file',
-          sourceId: absPath,
-          edgeType: 'defines',
-          targetType: 'symbol',
-          targetId: sym.path,
-          metadata: {
-            name: sym.name,
-            symbolType: sym.type,
-            exported: sym.exported,
-            startLine: sym.startLine,
-            endLine: sym.endLine,
-          },
-        });
-
-        if (sym.parentPath) {
+        for (const sym of extractedSymbols) {
           edges.push({
             scope: graphScope,
             projectDir,
-            sourceType: 'symbol',
-            sourceId: sym.parentPath,
-            edgeType: 'contains',
+            sourceType: 'file',
+            sourceId: absPath,
+            edgeType: 'defines',
             targetType: 'symbol',
             targetId: sym.path,
             metadata: {
+              name: sym.name,
+              symbolType: sym.type,
+              exported: sym.exported,
+              startLine: sym.startLine,
+              endLine: sym.endLine,
+            },
+          });
+
+          if (sym.parentPath) {
+            edges.push({
+              scope: graphScope,
+              projectDir,
+              sourceType: 'symbol',
+              sourceId: sym.parentPath,
+              edgeType: 'contains',
+              targetType: 'symbol',
+              targetId: sym.path,
+              metadata: {
+                filePath: absPath,
+              },
+            });
+          }
+        }
+
+        for (const dep of extractedDeps) {
+          edges.push({
+            scope: graphScope,
+            projectDir,
+            sourceType: dep.sourceSymbol ? 'symbol' : 'file',
+            sourceId: dep.sourceSymbol || absPath,
+            edgeType: dep.type,
+            targetType: dep.targetSymbol ? 'symbol' : 'file',
+            targetId: dep.targetSymbol || dep.targetFile,
+            metadata: {
               filePath: absPath,
+              targetFile: dep.targetFile,
             },
           });
         }
+
+        graphEdges.replaceScope(graphScope, edges);
       }
 
-      for (const dep of extractedDeps) {
-        edges.push({
-          scope: graphScope,
-          projectDir,
-          sourceType: dep.sourceSymbol ? 'symbol' : 'file',
-          sourceId: dep.sourceSymbol || absPath,
-          edgeType: dep.type,
-          targetType: dep.targetSymbol ? 'symbol' : 'file',
-          targetId: dep.targetSymbol || dep.targetFile,
-          metadata: {
-            filePath: absPath,
-            targetFile: dep.targetFile,
-          },
-        });
-      }
-
-      graphEdges.replaceScope(graphScope, edges);
+      return {
+        filePath: absPath,
+        symbols: extractedSymbols.length,
+        dependencies: extractedDeps.length,
+        skipped: false,
+      };
+    } finally {
+      // Tree-sitter allocations must be released even when SQLite rolls back a
+      // failed atomic replacement or graph-edge projection throws.
+      tree.delete();
+      parser.delete();
     }
-
-    // Clean up tree-sitter resources
-    tree.delete();
-    parser.delete();
-
-    return {
-      filePath: absPath,
-      symbols: extractedSymbols.length,
-      dependencies: extractedDeps.length,
-      skipped: false,
-    };
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1361,6 +1405,166 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
     }
 
     return results;
+  }
+
+  /**
+   * Refresh an explicit set of paths supplied by a watcher or other dirty-file
+   * event source.
+   *
+   * Design intent: the symbol index must not turn one editor save into a
+   * project-wide parse. Each unique path is hash-checked through `parseFile`,
+   * so false-positive/coalesced events stay cheap, while missing paths remove
+   * their indexed rows in the same per-file transaction used by `invalidate`.
+   * Failures are isolated to one path and reported without discarding the old
+   * rows that `parseFile` transactionally preserves on an unsuccessful edit.
+   *
+   * @param filePaths - File paths from the dirty-file event batch. Duplicate
+   *   paths are coalesced after absolute-path normalization.
+   * @returns Structured batch and per-file telemetry describing reparses,
+   *   hash skips, deletions, unsupported paths, failures, and row churn.
+   */
+  async function refresh(filePaths: readonly string[]): Promise<SymbolIndexRefreshTelemetry> {
+    const startedAt = Date.now();
+    const uniquePaths: string[] = [];
+    const seen = new Set<string>();
+
+    for (const filePath of filePaths) {
+      const absPath = resolve(filePath);
+      if (seen.has(absPath)) continue;
+      seen.add(absPath);
+      uniquePaths.push(absPath);
+    }
+
+    const files: SymbolIndexRefreshFileTelemetry[] = [];
+
+    for (const absPath of uniquePaths) {
+      const fileStartedAt = Date.now();
+      const before = getIndexedRowCounts(absPath);
+
+      if (!isFileSafe(absPath)) {
+        try {
+          removeIndexedFileRows(absPath);
+          graphEdges?.replaceScope(`symbols:file:${absPath}`, []);
+          files.push({
+            filePath: absPath,
+            status: 'deleted',
+            symbolsBefore: before.symbols,
+            symbolsAfter: 0,
+            dependenciesBefore: before.dependencies,
+            dependenciesAfter: 0,
+            durationMs: Date.now() - fileStartedAt,
+          });
+        } catch (error) {
+          const after = getIndexedRowCounts(absPath);
+          files.push({
+            filePath: absPath,
+            status: 'failed',
+            symbolsBefore: before.symbols,
+            symbolsAfter: after.symbols,
+            dependenciesBefore: before.dependencies,
+            dependenciesAfter: after.dependencies,
+            durationMs: Date.now() - fileStartedAt,
+            error: (error as Error).message,
+          });
+        }
+        continue;
+      }
+
+      if (!detectLanguage(absPath)) {
+        files.push({
+          filePath: absPath,
+          status: 'unsupported',
+          symbolsBefore: before.symbols,
+          symbolsAfter: before.symbols,
+          dependenciesBefore: before.dependencies,
+          dependenciesAfter: before.dependencies,
+          durationMs: Date.now() - fileStartedAt,
+          error: `Unsupported language for ${absPath}`,
+        });
+        continue;
+      }
+
+      try {
+        const result = await parseFile(absPath);
+        const after = getIndexedRowCounts(absPath);
+        const status: SymbolIndexRefreshStatus = result.error
+          ? 'failed'
+          : result.skipped
+            ? 'unchanged'
+            : 'reparsed';
+        files.push({
+          filePath: absPath,
+          status,
+          symbolsBefore: before.symbols,
+          symbolsAfter: after.symbols,
+          dependenciesBefore: before.dependencies,
+          dependenciesAfter: after.dependencies,
+          durationMs: Date.now() - fileStartedAt,
+          ...(result.error ? { error: result.error } : {}),
+        });
+      } catch (error) {
+        const after = getIndexedRowCounts(absPath);
+        files.push({
+          filePath: absPath,
+          status: 'failed',
+          symbolsBefore: before.symbols,
+          symbolsAfter: after.symbols,
+          dependenciesBefore: before.dependencies,
+          dependenciesAfter: after.dependencies,
+          durationMs: Date.now() - fileStartedAt,
+          error: (error as Error).message,
+        });
+      }
+    }
+
+    let reparsedFiles = 0;
+    let unchangedFiles = 0;
+    let deletedFiles = 0;
+    let unsupportedFiles = 0;
+    let failedFiles = 0;
+    let symbolsRemoved = 0;
+    let symbolsInserted = 0;
+    let dependenciesRemoved = 0;
+    let dependenciesInserted = 0;
+
+    for (const file of files) {
+      if (file.status === 'reparsed') {
+        reparsedFiles++;
+        symbolsRemoved += file.symbolsBefore;
+        symbolsInserted += file.symbolsAfter;
+        dependenciesRemoved += file.dependenciesBefore;
+        dependenciesInserted += file.dependenciesAfter;
+      } else if (file.status === 'unchanged') {
+        unchangedFiles++;
+      } else if (file.status === 'deleted') {
+        deletedFiles++;
+        symbolsRemoved += file.symbolsBefore;
+        dependenciesRemoved += file.dependenciesBefore;
+      } else if (file.status === 'unsupported') {
+        unsupportedFiles++;
+      } else {
+        failedFiles++;
+      }
+    }
+
+    const completedAt = Date.now();
+    return {
+      startedAt,
+      completedAt,
+      durationMs: completedAt - startedAt,
+      requestedFiles: filePaths.length,
+      uniqueFiles: uniquePaths.length,
+      reparsedFiles,
+      unchangedFiles,
+      deletedFiles,
+      unsupportedFiles,
+      failedFiles,
+      symbolsRemoved,
+      symbolsInserted,
+      dependenciesRemoved,
+      dependenciesInserted,
+      files,
+    };
   }
 
   function matchGlob(filePath: string, pattern: string): boolean {
@@ -1585,6 +1789,41 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
   // Utility methods
   // ───────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Read the actual per-file row counts instead of trusting cached aggregate
+   * columns in `parsed_files`.
+   *
+   * Purpose: refresh telemetry is operational evidence about rows replaced in
+   * SQLite. Reading the source tables keeps that evidence honest even when an
+   * older index is partially corrupt or its aggregate counters have drifted.
+   *
+   * @param absPath - Absolute file path used as the symbol/dependency owner.
+   * @returns Current symbol and outgoing-dependency row counts for the file.
+   */
+  function getIndexedRowCounts(absPath: string): { symbols: number; dependencies: number } {
+    return stmts.getFileCounts.get(absPath, absPath) as { symbols: number; dependencies: number };
+  }
+
+  /**
+   * Remove every row owned by one file as a single SQLite transaction.
+   *
+   * Design intent: edits and deletes must never expose a half-invalidated
+   * index where symbols are gone but outgoing dependencies or the cached file
+   * hash survive. Incoming edges remain owned by their source files and will
+   * be reconciled when those sources become dirty.
+   *
+   * @param absPath - Absolute path whose owned rows should be invalidated.
+   * @returns Nothing; the transaction either removes all owned rows or throws.
+   */
+  function removeIndexedFileRows(absPath: string): void {
+    const deleteAll = db.transaction(() => {
+      stmts.deleteSymbols.run(absPath);
+      stmts.deleteDeps.run(absPath);
+      stmts.deleteParsedFile.run(absPath);
+    });
+    deleteAll();
+  }
+
   function isStale(filePath: string): boolean {
     const absPath = resolve(filePath);
     const existing = stmts.getParsedFile.get(absPath) as ParsedFileRow | undefined;
@@ -1601,12 +1840,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
 
   function invalidate(filePath: string): void {
     const absPath = resolve(filePath);
-    const deleteAll = db.transaction(() => {
-      stmts.deleteSymbols.run(absPath);
-      stmts.deleteDeps.run(absPath);
-      stmts.deleteParsedFile.run(absPath);
-    });
-    deleteAll();
+    removeIndexedFileRows(absPath);
     graphEdges?.replaceScope(`symbols:file:${absPath}`, []);
   }
 
@@ -1632,6 +1866,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
   return {
     parseFile,
     parseDirectory,
+    refresh,
     getSymbols,
     findSymbol,
     getDependencies,
