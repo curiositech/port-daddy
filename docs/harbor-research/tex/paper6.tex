@@ -141,9 +141,9 @@ satisfying assignment extracted from each conflict-free selection. Mutation: del
 stated statuses) misses 100 of the 885 sweep conflicts --- propagation is load-bearing at scale, not a formality [internal].
 
 \paragraph{Numbers by hand.} The mutant's canonical miss is a four-line policy a reviewer can check aloud: fact
-\texttt{deploy}; Horn rule $\texttt{deploy} \to \texttt{prod\_access}$; deontic rule $\texttt{prod\_access} \to
-\Ob(\texttt{write\_prod}, s, [5,10])$; standing $\Fb(\texttt{write\_prod}, s, [0,20])$. Propagation forces
-\texttt{prod\_access}, the obligation fires, and the sweep-line reports the $\Ob$/$\Fb$ overlap on $[5,10]\cap[0,20]=[5,10]$ ---
+\texttt{agent\_deployed}; Horn rule $\texttt{agent\_deployed} \to \texttt{prod\_access}$; deontic rule $\texttt{prod\_access} \to
+\Ob(\texttt{write\_prod}, s, [0,10])$; standing $\Fb(\texttt{write\_prod}, s, [5,15])$. Propagation forces
+\texttt{prod\_access}, the obligation fires, and the sweep-line reports the $\Ob$/$\Fb$ overlap on $[0,10]\cap[5,15]=[5,10]$ ---
 while a pairwise scanner that never propagates sees no directly stated clash and stays silent [internal, the printed witness].
 For the frontier, run the reduction on the smallest unsatisfiable formula $(x)\wedge(\neg x)$: two disjunctive obligations force
 both $\mathrm{sel}_x^{+}$ and $\mathrm{sel}_x^{-}$, firing $\Ob(\mathrm{assert}_x)$ and $\Fb(\mathrm{assert}_x)$ on identical
@@ -175,8 +175,12 @@ list --- keep the language in $\mathcal{L}_c$ and detection is a regimentable su
 disjunction and you have hired a judge, with a queue.
 
 \section{Part II. The sole owner: an inequality, not a principle}\label{sec:queue}
-The whitepaper's sole-responsibility roles (roadmap owner, test-suite curator, release avatar) trade pooled capacity for
-accountability and skill. Model the trade honestly. Requests for the invariant-critical function arrive Poisson at rate
+Part I located the one place inside conflict management where a mind is genuinely required: not to notice a contradiction but to
+choose a discharge among disjuncts the fragment cannot rank on its own. Part II asks the harbor's other standing authority
+question, about a different kind of decision entirely --- not \emph{which} candidate resolution to pick, but \emph{whether one
+designated person should be doing the picking at all} --- and it gets the same kind of answer: not a principle to invoke but a
+number to compute. The whitepaper's sole-responsibility roles (roadmap owner, test-suite curator, release avatar) trade pooled
+capacity for accountability and skill. Model the trade honestly. Requests for the invariant-critical function arrive Poisson at rate
 $\lambda$; a sole specialist serves them as an $M/M/1$ queue at rate $\mu_s$; the pooled alternative is an $M/M/c$ queue of
 generalists at rate $\mu_g$ each, utilization $\rho=\lambda/(c\mu_g)$; the skill premium is $r=\mu_s/\mu_g$. Sole ownership also
 carries an \emph{accountability value} $A$ (the worth of single-writer attribution per unit time of demand) against a waiting
