@@ -1,0 +1,159 @@
+% A7: the information-floor falsification experiment. Three pgfplots panels,
+% all real Monte Carlo output -- not a raster image. Regime N=60, k=2, m=8;
+% seed 20260816, 4000 (oracle/noisy), 2000 (random), 3000 (panel2/panel3)
+% trials per swept point. Data recomputed directly from
+% skills/harbor-results/scripts/a7_experiment.py's Bgrid/opt, Bsched/oracle/
+% noisy/randb, panel2, panel3 arrays and floor_full/floor_none.
+% [verified: script a7_experiment.py, seed 20260816]
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=3.6cm,
+  xlabel={digest budget $B$ (bits)},
+  ylabel={$P(\text{miss}\ge 1)$},
+  title={\textbf{Panel 1}\\the floor bounds every encoder},
+  xmin=0,xmax=11,ymin=0,ymax=1,
+  legend pos=south west,
+]
+\addplot[black,very thick] coordinates {
+  (0.0,0.9842) (0.1861,0.982) (0.3723,0.9795) (0.5584,0.9767) (0.7446,0.9735)
+  (0.9307,0.9698) (1.1168,0.9657) (1.303,0.961) (1.4891,0.9556) (1.6752,0.9495)
+  (1.8614,0.9425) (2.0475,0.9346) (2.2337,0.9256) (2.4198,0.9154) (2.6059,0.9037)
+  (2.7921,0.8904) (2.9782,0.8753) (3.1644,0.8582) (3.3505,0.8386) (3.5366,0.8164)
+  (3.7228,0.7911) (3.9089,0.7624) (4.095,0.7297) (4.2812,0.6924) (4.4673,0.6501)
+  (4.6535,0.6019) (4.8396,0.547) (5.0257,0.4847) (5.2119,0.4137) (5.398,0.333)
+  (5.5842,0.2411) (5.7703,0.1366) (5.9564,0.0177) (6.1426,0.0) (6.3287,0.0)
+  (6.5149,0.0) (6.701,0.0) (6.8871,0.0) (7.0733,0.0) (7.2594,0.0) (7.4455,0.0)
+  (7.6317,0.0) (7.8178,0.0) (8.004,0.0) (8.1901,0.0) (8.3762,0.0) (8.5624,0.0)
+  (8.7485,0.0) (8.9347,0.0) (9.1208,0.0) (9.3069,0.0) (9.4931,0.0) (9.6792,0.0)
+  (9.8653,0.0) (10.0515,0.0) (10.2376,0.0) (10.4238,0.0) (10.6099,0.0) (10.796,0.0)
+  (10.9822,0.0)
+};
+\addlegendentry{floor}
+\addplot[seagreen,mark=*,mark size=1pt] coordinates {
+  (1.0,0.974) (1.6655,0.9543) (2.331,0.9267) (2.9964,0.8955) (3.6619,0.8265)
+  (4.3274,0.7378) (4.9929,0.6018) (5.6584,0.4635) (6.3238,0.2762) (6.9893,0.1388)
+  (7.6548,0.037) (8.3203,0.0053) (8.9857,0.0) (9.6512,0.0) (10.3167,0.0) (10.9822,0.0)
+};
+\addlegendentry{oracle}
+\addplot[harborblue,mark=square*,mark size=1pt] coordinates {
+  (1.0,0.9795) (1.6655,0.9732) (2.331,0.971) (2.9964,0.967) (3.6619,0.9577)
+  (4.3274,0.952) (4.9929,0.9487) (5.6584,0.9477) (6.3238,0.9413) (6.9893,0.9393)
+  (7.6548,0.927) (8.3203,0.9297) (8.9857,0.927) (9.6512,0.9127) (10.3167,0.91) (10.9822,0.905)
+};
+\addlegendentry{noisy}
+\addplot[shipred,mark=triangle*,mark size=1.3pt] coordinates {
+  (1.0,0.986) (1.6655,0.9745) (2.331,0.9845) (2.9964,0.9805) (3.6619,0.9855)
+  (4.3274,0.986) (4.9929,0.984) (5.6584,0.9855) (6.3238,0.9805) (6.9893,0.989)
+  (7.6548,0.985) (8.3203,0.9855) (8.9857,0.9755) (9.6512,0.9885) (10.3167,0.984) (10.9822,0.9845)
+};
+\addlegendentry{random}
+\addplot[gray,dashed,forget plot] coordinates { (5.9822,0) (5.9822,1) };
+% Short, unrotated label placed in the visible gap between the collapsed
+% floor/oracle curves (near 0 for x>6.5) and the noisy/random curves
+% (which stay above ~0.9 across this x-range) -- clear of both the curves
+% and the south-west legend box (which tops out well below y=0.8). The
+% original rotated, full-value label ($B^\star{=}5.98$, rotate=90) swept
+% far enough vertically to run into the legend plate and horizontally
+% enough (given this axis's compressed x-scale) to sit on the noisy
+% curve -- illegible. The exact value is already in the caption/table, so
+% the in-plot tag only needs to name the quantity, not restate it.
+\node[gray,font=\scriptsize,anchor=west,fill=white,fill opacity=0.85,
+      text opacity=1,inner sep=1.5pt] at (axis cs:6.3,0.8) {$B^\star$};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=3.6cm,
+  xlabel={digest budget $B$ (bits)},
+  ylabel={$P(\text{miss}\ge 1)$},
+  title={\textbf{Panel 2}\\feature corruption $\phi$ inflates the floor},
+  xmin=0,xmax=11,ymin=0,ymax=1,
+  legend pos=south west,
+]
+\addplot[harborblue,mark=*,mark size=1pt] coordinates {
+  (1.0,0.976) (1.6655,0.9723) (2.331,0.974) (2.9964,0.9653) (3.6619,0.9593)
+  (4.3274,0.9593) (4.9929,0.9507) (5.6584,0.9507) (6.3238,0.9323) (6.9893,0.935)
+  (7.6548,0.929) (8.3203,0.9233) (8.9857,0.9283) (9.6512,0.9203) (10.3167,0.9063) (10.9822,0.9007)
+};
+\addlegendentry{$\phi=0$}
+\addplot[seagreen,mark=square*,mark size=1pt] coordinates {
+  (1.0,0.9733) (1.6655,0.968) (2.331,0.9707) (2.9964,0.9697) (3.6619,0.9683)
+  (4.3274,0.9613) (4.9929,0.9623) (5.6584,0.9523) (6.3238,0.9487) (6.9893,0.948)
+  (7.6548,0.9413) (8.3203,0.9403) (8.9857,0.9343) (9.6512,0.9353) (10.3167,0.926) (10.9822,0.925)
+};
+\addlegendentry{$\phi=0.15$}
+\addplot[orange,mark=triangle*,mark size=1.3pt] coordinates {
+  (1.0,0.979) (1.6655,0.9773) (2.331,0.9733) (2.9964,0.9683) (3.6619,0.9693)
+  (4.3274,0.972) (4.9929,0.9653) (5.6584,0.9623) (6.3238,0.9663) (6.9893,0.9617)
+  (7.6548,0.9593) (8.3203,0.952) (8.9857,0.9497) (9.6512,0.9583) (10.3167,0.9487) (10.9822,0.9447)
+};
+\addlegendentry{$\phi=0.35$}
+\addplot[shipred,mark=diamond*,mark size=1.3pt] coordinates {
+  (1.0,0.9807) (1.6655,0.9783) (2.331,0.9813) (2.9964,0.9813) (3.6619,0.9737)
+  (4.3274,0.976) (4.9929,0.9717) (5.6584,0.9687) (6.3238,0.9667) (6.9893,0.9693)
+  (7.6548,0.9713) (8.3203,0.9667) (8.9857,0.964) (9.6512,0.9623) (10.3167,0.9613) (10.9822,0.957)
+};
+\addlegendentry{$\phi=0.6$}
+\addplot[gray,dashed,forget plot] coordinates { (5.9822,0) (5.9822,1) };
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=3.6cm,
+  xlabel={joint digest budget $B$ (bits)},
+  ylabel={$P(\text{joint miss}\ge 1)$},
+  title={\textbf{Panel 3}\\split-digest joint miss},
+  xmin=0,xmax=13.5,ymin=0,ymax=1,
+  legend pos=south west,
+]
+\addplot[seagreen,mark=*,mark size=1pt] coordinates {
+  (1.0,0.9703) (1.6655,0.9507) (2.331,0.9127) (2.9964,0.891) (3.6619,0.8187)
+  (4.3274,0.7447) (4.9929,0.614) (5.6584,0.4563) (6.3238,0.2947) (6.9893,0.1353)
+  (7.6548,0.041) (8.3203,0.0037) (8.9857,0.0003) (9.6512,0.0) (10.3167,0.0) (10.9822,0.0)
+};
+\addlegendentry{full overlap}
+\addplot[orange,mark=square*,mark size=1pt] coordinates {
+  (1.0,0.997) (1.6655,0.996) (2.331,0.993) (2.9964,0.9887) (3.6619,0.982)
+  (4.3274,0.967) (4.9929,0.954) (5.6584,0.925) (6.3238,0.8767) (6.9893,0.8107)
+  (7.6548,0.718) (8.3203,0.585) (8.9857,0.448) (9.6512,0.2757) (10.3167,0.1213) (10.9822,0.037)
+};
+\addlegendentry{half overlap}
+\addplot[shipred,mark=triangle*,mark size=1.3pt] coordinates {
+  (1.0,0.9997) (1.6655,0.999) (2.331,0.9993) (2.9964,0.9993) (3.6619,1.0)
+  (4.3274,0.9987) (4.9929,0.9967) (5.6584,0.9903) (6.3238,0.9897) (6.9893,0.9847)
+  (7.6548,0.9733) (8.3203,0.9527) (8.9857,0.917) (9.6512,0.8937) (10.3167,0.846) (10.9822,0.7587)
+};
+\addlegendentry{disjoint}
+\addplot[seagreen,dashed,forget plot] coordinates { (5.9822,0) (5.9822,1) };
+\addplot[shipred,dashed,forget plot] coordinates { (12.7662,0) (12.7662,1) };
+% No in-plot text tag on these two dashed reference lines: this axis's
+% x-scale is so compressed (xmax=13.5 inside a third-width panel) that
+% even a short rotated label sweeps several data-units both vertically
+% (running into the south-west legend) and horizontally (drifting onto
+% the disjoint/half-overlap curves) -- the previous floor_k/floor_{2k}
+% node labels landed squarely on top of the curve markers, illegible.
+% The lines are already color-coded to their series (seagreen = full
+% overlap = single-reader floor, shipred = disjoint = 2k floor) and the
+% caption spells out both values (6.0 and 12.8 bits) in prose, so the
+% dashed lines alone carry the information without a colliding label.
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{\textbf{Panel 1:} every encoder sits on or above the information floor (black); the oracle hugs it from above, the noisy and random encoders pay a premium --- the floor bounds all of them, as predicted. \textbf{Panel 2:} corrupting a fraction $\phi$ of features (the mimicry attack, Solution 6.5$^\star$) inflates the effective floor. \textbf{Panel 3:} two readers --- when their load-bearing sets are disjoint (red), the joint miss curve shifts toward the $2k$ floor at $12.8$ bits, versus the single-reader floor at $6.0$; the visual confirmation of A1's super-additive penalty.}
+\label{fig:a7-floor}
+\end{figure}

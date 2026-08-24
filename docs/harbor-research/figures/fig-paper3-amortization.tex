@@ -1,0 +1,70 @@
+% Paper 3 amortization ladder: cumulative audit spend vs. verified-
+% history length t under the three schedules of Theorem~\ref{thm:amort}
+% (flat, Model A, Model B), at G=10, d=0.8, B=50, a=1, v=0.6, r=0.05,
+% horizon T=200. Curve values recomputed directly from
+% spend_flat/spend_A/spend_B = a*cumsum(rho_flat/rho_A/rho_B) in
+% docs/harbor-research/figures/src/paper3_amortization_figures.py,
+% lines 43-53 (sampled every 10 periods plus the t=199 endpoint; a
+% temporary print was added, the script re-run, the exact printed
+% values transcribed below, and the print statement then removed --
+% the script's committed logic is unmodified). Endpoint values at
+% t=199: flat=50.00, Model A=25.583785 (rounds to the paper's 25.58),
+% Model B=35.075000 (rounds to the paper's 35.08); closed-form Model B
+% limit aG^2/(2dBrv)=41.666667 (41.67); t*=G/(rv)=333.33 (333) --
+% all match the numbers cited in paper3.tex's Sec.~\ref{sec:amort} and
+% its caption; no discrepancy found on cross-check.
+% [verified: script paper3_amortization_figures.py, seed 20260816]
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.92\textwidth,height=6.4cm,
+  xlabel={verified-history length $t$},
+  ylabel={cumulative audit spend},
+  title={The amortization ladder: lifetime audit spend by schedule\\
+    {\scriptsize [internal, \texttt{b2\_tower.py}]}},
+  xmin=0,xmax=200,ymin=0,ymax=55,
+  xtick={0,25,...,200},
+  ytick={0,10,...,50},
+  legend pos=north west,
+]
+\addplot[shipred,thick] coordinates {
+  (0,0.250000) (10,2.750000) (20,5.250000) (30,7.750000) (40,10.250000)
+  (50,12.750000) (60,15.250000) (70,17.750000) (80,20.250000) (90,22.750000)
+  (100,25.250000) (110,27.750000) (120,30.250000) (130,32.750000) (140,35.250000)
+  (150,37.750000) (160,40.250000) (170,42.750000) (180,45.250000) (190,47.750000)
+  (199,50.000000)
+};
+\addlegendentry{flat $\rho_t\equiv\rho^\star$: $\Theta(T)$}
+\addplot[harborblue,thick] coordinates {
+  (0,0.250000) (10,2.597672) (20,4.707381) (30,6.622958) (40,8.377139)
+  (50,9.995020) (60,11.496263) (70,12.896560) (80,14.208637) (90,15.442953)
+  (100,16.608212) (110,17.711733) (120,18.759730) (130,19.757525) (140,20.709707)
+  (150,21.620265) (160,22.492688) (170,23.330040) (180,24.135032) (190,24.910074)
+  (199,25.583785)
+};
+\addlegendentry{Model A (loss only if audited): $\Theta(\log T)$}
+\addplot[seagreen,thick] coordinates {
+  (0,0.250000) (10,2.708750) (20,5.092500) (30,7.401250) (40,9.635000)
+  (50,11.793750) (60,13.877500) (70,15.886250) (80,17.820000) (90,19.678750)
+  (100,21.462500) (110,23.171250) (120,24.805000) (130,26.363750) (140,27.847500)
+  (150,29.256250) (160,30.590000) (170,31.848750) (180,33.032500) (190,34.141250)
+  (199,35.075000)
+};
+\addlegendentry{Model B (independent revelation $r$): $O(1)$}
+\addplot[only marks,mark=*,mark size=1.6pt,shipred,forget plot] coordinates {(199,50.000000)};
+\addplot[only marks,mark=*,mark size=1.6pt,harborblue,forget plot] coordinates {(199,25.583785)};
+\addplot[only marks,mark=*,mark size=1.6pt,seagreen,forget plot] coordinates {(199,35.075000)};
+\addplot[seagreen,dashed,thin,forget plot] coordinates {(0,41.666667) (200,41.666667)};
+\node[regimebox,anchor=west,align=left,font=\scriptsize,draw=seagreen,fill=white]
+  at (axis cs:4,26)
+  {Model B limit $aG^2/(2dBrv)=41.67$,\\ reached only at $t^\star{=}G/(rv){=}333$\\ (off this range)};
+\node[regimebox,anchor=south west,align=left,font=\scriptsize,draw=seagreen,fill=white]
+  (satnote) at (axis cs:90,3)
+  {measured at $T{=}200$: spend $35.08$\\ $T{=}200 < t^\star{=}333$, so this is the\\ partial triangle, not yet the $41.67$ limit\\ --- pre-saturation, not error};
+\draw[-{Stealth[length=2mm]},seagreen,thin] (axis cs:199,35.075) -- (satnote.east);
+\end{axis}
+\end{tikzpicture}
+\caption{Cumulative audit spend against verified-history length $t$ under the three incentive-compatible schedules of Theorem~\ref{thm:amort}, at the running parameters. Flat auditing (shipred) grows linearly; Model A (harborblue) grows logarithmically; Model B (seagreen) approaches the closed-form limit $aG^2/(2dBrv) = 41.67$ but has not reached it by the measured horizon $T{=}200$, since saturation requires $t^\star = G/(rv) = 333$ --- the gap between the measured $35.08$ and the limit is pre-asymptotic, not error [internal, \texttt{b2\_tower.py}].}
+\label{fig:amort}
+\end{figure}

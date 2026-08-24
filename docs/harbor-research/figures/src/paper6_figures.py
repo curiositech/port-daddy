@@ -14,6 +14,7 @@ import matplotlib
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import FancyArrowPatch, Rectangle
 
 HARBORBLUE = (30 / 255, 70 / 255, 110 / 255)

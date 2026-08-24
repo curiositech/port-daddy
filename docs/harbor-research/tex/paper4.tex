@@ -128,6 +128,18 @@ IV (\S\ref{sec:p4}) & canary power $+$ SPRT clock & analytic vs.\ simulation agr
 \end{tabular}
 \end{center}
 
+The four rows are not four independent guarantees stacked for redundancy; they are four links in one pipeline, each closing a gap
+the others leave open, in exactly the order Figure~\ref{fig:pillars} draws it. Enforceability (II) fixes \emph{where} a boundary
+can exist at all --- gate the channel, or nothing about the design is provably enforceable. Noninterference (I) then proves that
+boundary, once installed, is silent except through its declared release. Conservation (III) meters the cumulative cost of
+everything that legitimately crosses it, because a gate honest on every single release can still bankrupt the contract over many
+releases --- an individually-sound decision rule is not a portfolio-sound one. And detection (IV) polices for what tries to cross
+without going through the meter at all: a compromised worker, a bug, an adversary who found an unmediated path. Drop any one link
+and a concrete gap reopens, named inside its box in the figure below; the composed result --- an honestly bounded leakage account,
+not an eliminated one --- is \S\ref{sec:budget}.
+
+\input{fig-paper4-pillars.tex}
+
 \section{Pillar I: silence except through the slot}\label{sec:p1}
 
 \onebreath{Run the whole world twice --- identical except for Derek's secret --- under every
@@ -141,20 +153,11 @@ every interleaving of loads, reads, submissions, releases, and reports. The anal
 clicks once per voter and the tally board shows only party totals; a poll-watcher outside learns exactly the declared aggregate
 and nothing about any ballot, \emph{no matter how long she watches or in what order voters arrive}. That is noninterference
 \emph{modulo declassification} in the Goguen--Meseguer lineage \cite{goguen-meseguer-82,goguen-meseguer-84}: silence except
-through the slot, and through the slot, only what the contract says. The misread to preempt: the theorem does not say the slot is
-safe --- it says the slot is the \emph{only} opening; whether the declared function $g$ releases too much is a contract question
-the next two pillars price.
+through the slot, and through the slot, only what the contract says. Figure~\ref{fig:r9rel} draws the mapping by relations, not
+surface features. The misread to preempt: the theorem does not say the slot is safe --- it says the slot is the \emph{only}
+opening; whether the declared function $g$ releases too much is a contract question the next two pillars price.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{r9_relation.png}
-\caption{Relation-map for Pillar I. The voting booth maps to the sealed workroom by
-\emph{relations}, not surface features: booth walls $\to$ attested isolation (no observation of the work); the tally board $\to$
-the declassification gate (the sole declared release); ``watching all day reveals no ballot'' $\to$ two-run observational
-equivalence under every interleaving. The analogy predicts, correctly, that the residual risk is a too-revealing tally --- a
-per-precinct board with one voter is a leaky $g$.}
-\label{fig:r9rel}
-\end{figure}
+\input{fig-r9-relation.tex}
 
 \begin{thebox}
 \textbf{Theorem 1 (noninterference modulo declassification; finite model, exhaustive).} Fix the clean-room transition system with
@@ -174,7 +177,8 @@ property [internal, \texttt{c1\_noninterference.py}].
 
 \textbf{Numbers by hand.} Four secrets give $\binom{4}{2}=6$ unordered pairs; two of them --- $(0,2)$ and $(1,3)$ --- are
 equal-parity, and it is exactly those two on which the honest gate must keep Erin's worlds identical forever, and did. The m1
-witness is a four-step, human-readable proof that a particular gate breaks its contract; a CISO can read it aloud. 
+witness is a four-step, human-readable proof that a particular gate breaks its contract; a CISO can read it aloud. The full mutant
+grid, honest gate against both breaks, is Figure~\ref{fig:r9reg}.
 \emph{Now you try:} with $g(s)=s\bmod 2$ over secrets $\{0,\dots,7\}$, how many unordered secret pairs must a sound room keep
 Erin-indistinguishable? (Both parity classes have four members: $2\binom{4}{2}=12$ pairs.)
 
@@ -191,15 +195,7 @@ match $g$; choosing a $g$ that leaks too much is a contract failure no theorem p
 by Pillars III--IV. And a human who reads a released parity may still remember it: the system bounds channels, not minds.
 \end{boundary}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{r9_regime.png}
-\caption{Regime diagram for Pillar I: what the gate promises, and the mutants that prove the checker
-sees. The property holds on the shaded region (equal declassified value, any interleaving); the two mutation witnesses (leaky
-gate; gate bypass) sit provably outside it, each with a concrete trace
-[internal, \texttt{c1\_noninterference.py}].}
-\label{fig:r9reg}
-\end{figure}
+\input{fig-r9-regime.tex}
 
 \section{Pillar II: the channel, never the token}\label{sec:p2}
 
@@ -286,19 +282,12 @@ over-spend, so atomicity is what makes the budget promise auditable [internal].
 \textbf{Numbers by hand.} At $\delta'=10^{-6}$: for $k{=}32$ releases at $\varepsilon{=}0.1$, basic composition gives $32\times
 0.1=3.20$ while advanced gives $3.31$ --- not yet paying; at $k{=}128$, $\varepsilon{=}0.05$, basic gives $6.40$ but advanced
 gives $3.30$ --- paying [verified]. The crossover tells the contract writer exactly which accounting to quote at which engagement
-length: below it, quote the exact, $\delta$-free sequential bound; above it, the $\sqrt{k}$-scaled advanced bound. 
+length: below it, quote the exact, $\delta$-free sequential bound; above it, the $\sqrt{k}$-scaled advanced bound
+(Figure~\ref{fig:r10reg}).
 \emph{Now you try:} at $k{=}8$, $\varepsilon{=}0.5$, which bound is smaller? (Basic: $4.00$; advanced: $10.03$ --- quote sequential, and by a
 wide margin [verified].)
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.88\textwidth]{r10_regime.png}
-\caption{Regime diagram for Pillar III: which DP accounting to quote at which engagement length
-($\delta'=10^{-6}$). Below the crossover in $k$ the sequential bound $k\varepsilon$ is exact, $\delta$-free, and smaller; past it,
-advanced composition's $\sqrt{k}$ scaling wins. The session's two measured points ($k{=}32,\varepsilon{=}0.1$ and
-$k{=}128,\varepsilon{=}0.05$) are marked [verified; regenerated by \texttt{a3\_epsilon\_ledger.py}].}
-\label{fig:r10reg}
-\end{figure}
+\input{fig-r10-regime.tex}
 
 \textbf{What it buys.} The clean-room contract's budget line becomes an auditable invariant with the same proof shape as the
 harbor's bond-conservation result, and the mutation suite shows the invariant has teeth: both canonical atomicity breaks are
@@ -346,19 +335,11 @@ $\approx 30\times$
 [internal].
 \end{thebox}
 
-\textbf{Numbers by hand.} At $\beta=0.2$, two smuggled canaries are caught with probability $1-0.04=0.96$ [verified].
+\textbf{Numbers by hand.} At $\beta=0.2$, two smuggled canaries are caught with probability $1-0.04=0.96$ [verified]; the full
+operating curve against leak size is Figure~\ref{fig:r11reg}.
 \emph{Now you try:} at the same $\beta$, what does a five-canary leak survive with? ($\beta^5=0.00032$ --- detection $0.9997$ [verified].)
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{r11_regime.png}
-\caption{Regime diagram for Pillar IV: the operating curve a CISO can buy, and the boundary that
-voids it. Left: $\Pr(\text{detect})$ against leak size $m$ at density 1\%, $\beta=0.2$ --- exact, approximate, and simulated agree
-[internal, \texttt{a4\_canary\_sprt.py}]. The guarantee's load-bearing regime is secret, uniform planting: an adversary who
-obtains the canary list with probability $0.3$ and strips all of them drops measured power from $0.9997$ to $0.698$ at $k{=}5$
-[internal].}
-\label{fig:r11reg}
-\end{figure}
+\input{fig-r11-regime.tex}
 
 \textbf{What it buys.} The clean-room contract can \emph{quote} $\Pr(\text{detect})=f(\text{leak size})$ and expected alarm
 latency per leak intensity --- so the exfiltration bond is re-scoped to its honest job, funding detection and response rather than
