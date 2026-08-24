@@ -121,10 +121,14 @@ Both sides move to `<utf8ByteLength>:<value>` per component, matching what
 
 ### Option C — version it, migrate nothing
 Chain hash v1 stays exactly as TS computes it today, forever, for events
-already written. v2 is the length-prefixed construction, used from a cutover
-`seq`/date. Verifiers pick the rule by event version.
+already written. v2 is the length-prefixed construction. Every newly written
+event carries an authenticated `hash_version`; the signed cutover event pins
+both `hash_version = 2` and the final v1 chain head it succeeds. Legacy events
+without a marker are v1 only. After cutover, a missing or unknown marker is an
+error — verifiers never infer the rule from a date, sequence threshold, or a
+failed first attempt.
 - **Cost:** two rules to maintain and two to implement in every language;
-  a cutover marker on every chain.
+  an authenticated cutover marker on every chain.
 - **Buys:** Option B's injectivity with no history rewrite and no re-signing.
 
 ### Option D — retire the Python verifier

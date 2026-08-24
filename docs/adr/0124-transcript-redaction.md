@@ -76,10 +76,13 @@ carries a first-class `redaction_state` from a closed enum:
   which rules" is answerable forever.
 - **`redacted`** — a targeted redaction event was applied on top:
   retroactive removal of a known leak, or a stricter per-harbor policy
-  pass. The payload is replaced; the event hash and an audit marker
-  survive (binder ch06: tombstones, "redact a secret leak retroactively
-  while preserving an audit marker"). Deletion never silently rewrites
-  shared history.
+  pass. Before egress, the payload is replaced locally. After egress, the
+  authority appends a signed tombstone naming the affected event; stores Port
+  Daddy controls delete the ciphertext payload and retain only the chain
+  commitment and audit marker (binder ch06: "redact a secret leak
+  retroactively while preserving an audit marker"). This blocks future reads
+  through Port Daddy but cannot make an already-authorized recipient forget a
+  payload or key it copied. Deletion never silently rewrites shared history.
 - **`unknown`** — the absence of any stamp. Unknown is a real state, not
   a missing value, and it is **never assumed clean**.
 
@@ -105,11 +108,15 @@ path checks the predicate at the machine's edge:
 - **cloud sync** (ADR-0115 change-event journal and `from_seq` replay) —
   non-exportable events are withheld from the outbox, not filtered by the
   reader;
-- **R2 snapshot** (ADR-0115 `VACUUM INTO` → encrypt → upload) — the
-  snapshot builder strips non-exportable transcript payloads before
-  sealing, leaving the header, state, and integrity hash as an honest
-  stub, so a bootstrapping device renders "withheld: redaction state
-  unknown" instead of a silent hole;
+- **R2 snapshot** (ADR-0115 `VACUUM INTO` → sanitize → encrypt → upload) —
+  the builder operates on a separate private staging copy and never mutates
+  the live database. It removes non-exportable transcript payloads from that
+  copy before sealing, leaving event id, sequence, redaction state, and a
+  signed audit marker as an honest stub. It does not include a hash of the
+  withheld plaintext, which would give recipients a dictionary oracle. If
+  sanitization cannot be proved complete, snapshot upload aborts and the
+  staging copy is destroyed. A bootstrapping device renders "withheld:
+  redaction state unknown" instead of a silent hole;
 - **iOS transcript tail** (ADR-0125) — the tail streams exportable events
   only; a withheld segment renders as withheld;
 - **export flows** (binder ch06 "export before delete", `pd transcripts`
@@ -138,20 +145,23 @@ read-side filter over an always-on pipeline leaves the dangerous copy in
 existence — a breach, insider, and subpoena target no API gate protects.
 Applied here: if unredacted payloads were sealed and shipped, the relay's
 D1 journal and R2 archive would durably hold ciphertext whose plaintext
-still contains the leak, and every future key disclosure — a removed
-member inside the ADR-0123 lazy-rekey window, a recovered device, a
+still contains the leak, and every future key disclosure — a removed member
+who retained a prior epoch key, a recovered device, a
 subpoenaed snapshot plus a compelled key — would disclose secrets the
 product had promised were gone. The gate must sit at the write side of
 the pipeline, not the read side of the API. Encryption is not redaction;
 sealing a secret preserves it.
 
-The relay itself can never redact: it sees only ciphertext (ADR-0115 I1,
-ADR-0123 §3) and holds no keys. There is exactly one place the plaintext
-and the authority to change it coexist — the owning daemon (ADR-0122) —
-so that is where redaction lives. Retroactive redaction of an
-already-published event is a new, exportable `redacted` event ordered by
-the harbor authority; receivers replace the payload and keep the audit
-marker. History gets corrected forward, never silently rewritten.
+The relay itself can never inspect or scrub: it sees only ciphertext
+(ADR-0115 I1, ADR-0123 §3) and holds no keys. There is exactly one place the
+plaintext and the authority to change it coexist — the owning daemon
+(ADR-0122) — so that is where redaction lives. Retroactive redaction of an
+already-published event is a new, exportable `redacted` tombstone ordered by
+the harbor authority. The relay and receivers can authenticate that tombstone
+without decrypting the old event, delete ciphertext they still control, and
+keep the minimal chain marker. History gets corrected forward, never silently
+rewritten; copies already taken outside those stores remain outside the
+system's power to revoke.
 
 ### 4. The archive and the delete flows carry the state; backfill says unknown
 
@@ -248,11 +258,16 @@ ADR closes both by doctrine from `skills/responsible-logging`:
 - **`raw` retention is permanently local.** Operators who want raw
   payloads off-machine do not get it from Port Daddy; that is a product
   boundary, priced in, stated at opt-in.
-- **The R2 snapshot loses "byte-identical DB copy" status.** Stripping
-  non-exportable payloads means bootstrap snapshots are honest subsets
-  plus stubs. The stub-plus-hash design keeps integrity checkable and
-  makes the gap renderable ("no transcript because…" is already the
-  binder's Milestone 1 honesty rule).
+- **Retroactive redaction has an honest limit.** It removes future Port Daddy
+  access and propagates deletion through stores and derived indexes the system
+  controls. It cannot revoke plaintext, ciphertext, or keys an authorized
+  recipient already copied; the redaction UI states that boundary before the
+  operator confirms it.
+- **The R2 snapshot loses "byte-identical DB copy" status.** Sanitizing a
+  derived staging copy makes bootstrap snapshots honest subsets plus signed
+  stubs. The manifest authenticates which rows were withheld without exposing
+  a plaintext digest, and the gap remains renderable ("no transcript
+  because…" is already the binder's Milestone 1 honesty rule).
 - **A quiet failure mode is converted into a loud one.** Before this ADR,
   a scrubber regression leaked silently; after it, a scrubber regression
   fails the §5 fixture, and a stamping regression stalls sync visibly.
@@ -307,8 +322,8 @@ ADR closes both by doctrine from `skills/responsible-logging`:
   retroactive redaction events (§3), and retention-conflict resolution
   for shared artifacts.
 - `docs/adr/0123-cloud-vault-account-kms.md` — the seal this ADR composes
-  under (`seal(redact(event))`), the lazy-rekey disclosure window §3
-  defends against, and the honest-backfill precedent §4 follows.
+  under (`seal(redact(event))`), the retained-prior-key disclosure boundary
+  §3 defends against, and the honest-backfill precedent §4 follows.
 - ADR-0125 (iOS Operator Surface) — the transcript tail as a gated
   egress path; ADR-0126 (Shared-Harbors Re-sequencing) — where this
   ADR's prerequisites land in the build order.

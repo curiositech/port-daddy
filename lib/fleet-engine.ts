@@ -1192,6 +1192,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     if (pausedAgents.has(agent.name)) return;
     if (running.has(agent.name)) return; // already running
 
+    if (
+      agent.schedule
+      && !isAbsoluteCronSchedule(agent.schedule)
+      && !isIntervalCronSchedule(agent.schedule)
+    ) {
+      const error =
+        `unsupported cron schedule "${agent.schedule}"; supported shapes are ` +
+        '*/N * * * *, 0 */N * * *, M * * * *, and M H * * *';
+      console.error(`[Fleet] ${agent.name} not scheduled: ${error}`);
+      emit({
+        type: 'agent_failed',
+        agent: agent.name,
+        identity: agent.identity || `${project}:fleet:${agent.name}`,
+        project,
+        timestamp: Date.now(),
+        details: { error },
+      });
+      return;
+    }
+
     const record: RunningAgent = {
       name: agent.name,
       type: agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'triggered' : 'manual',
@@ -1225,7 +1245,8 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         // only ever runs later, well after this record is registered), not
         // around the initial arm.
         const scheduleNext = () => {
-          const delay = computeNextAbsoluteFireDelayMs(schedule) ?? DEFAULT_INTERVAL;
+          const delay = computeNextAbsoluteFireDelayMs(schedule);
+          if (delay === null) return; // pre-validation above makes this unreachable
           record.interval = setTimeout(() => {
             if (stopped || !running.has(agent.name)) return; // torn down while pending
             void requestAgentRun(agent, { source: 'schedule' });
@@ -1234,8 +1255,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         };
         scheduleNext();
       } else {
-        // */N step schedules (and anything parseCronInterval can't parse)
-        // keep the fixed-interval fast path — kept exactly as it was.
+        // Strictly validated */N step schedules keep the fixed-interval fast
+        // path. Unsupported shapes were refused above; they never inherit a
+        // plausible-looking fallback interval.
         const intervalMs = parseCronInterval(schedule);
         record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
       }
@@ -2637,9 +2659,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
 
-// Hoisted out of parseCronInterval (unchanged values, unchanged fast paths)
-// so computeNextAbsoluteFireDelayMs below can share the same DEFAULT_INTERVAL
-// as an honest last-resort fallback.
+// parseCronInterval retains its historical default for direct callers. Fleet
+// scheduling never uses that default as an admission decision: startAgent
+// validates one of the explicitly supported shapes first and fails closed on
+// everything else.
 const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
 const DEFAULT_INTERVAL = 600000;  // 10 minutes
 
@@ -2667,6 +2690,27 @@ export function parseCronInterval(cron: string): number {
 }
 
 /**
+ * True for the fixed-interval cron subset Fleet can implement without a
+ * calendar walker: every N minutes or every N hours. All three calendar
+ * fields must be wildcards and step values must fit the field they step.
+ * Anything else is unsupported and startAgent refuses to arm it.
+ */
+export function isIntervalCronSchedule(cron: string): boolean {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (dayOfMonth !== '*' || month !== '*' || dayOfWeek !== '*') return false;
+
+  const minuteStep = /^\*\/([1-9]\d*)$/.exec(minute);
+  if (minuteStep && hour === '*') return Number(minuteStep[1]) <= 59;
+
+  const hourStep = /^\*\/([1-9]\d*)$/.exec(hour);
+  if (minute === '0' && hourStep) return Number(hourStep[1]) <= 23;
+
+  return false;
+}
+
+/**
  * True when `cron` is a fixed-clock schedule this module can honor with an
  * exact next-fire computation: "M H * * *" (once a day at H:M) or
  * "M * * * *" (once an hour at minute M), where M and H are literal
@@ -2674,10 +2718,8 @@ export function parseCronInterval(cron: string): number {
  * parseCronInterval already fast-paths above). Day-of-month, month, and
  * day-of-week must all be `*`; a constrained day field (a weekday list,
  * "1,15", an "L"/"W" modifier, …) would need real calendar walking this
- * module doesn't implement, so such schedules fall back to
- * parseCronInterval's coarser interval semantics rather than risk firing on
- * the wrong day. Honest limitation, not a silent one: see startAgent's
- * scheduling branch.
+ * module doesn't implement, so startAgent refuses such schedules rather than
+ * firing on the wrong day.
  */
 export function isAbsoluteCronSchedule(cron: string): boolean {
   const parts = cron.trim().split(/\s+/);
@@ -2692,9 +2734,8 @@ export function isAbsoluteCronSchedule(cron: string): boolean {
 /**
  * Delay in ms from `now` to the next fire time of an isAbsoluteCronSchedule
  * cron ("0 1 * * *" -> next 01:00; "15 * * * *" -> next :15). Returns null
- * when `cron` isn't such a schedule — callers should treat null as "not
- * applicable" (parseCronInterval's DEFAULT_INTERVAL is the honest fallback,
- * same as every other unparsed pattern).
+ * when `cron` isn't such a schedule — callers must treat null as unsupported,
+ * never as permission to arm a fallback timer.
  *
  * `now` defaults to Date.now() and exists as a parameter purely so tests can
  * pin it; production callers always omit it.

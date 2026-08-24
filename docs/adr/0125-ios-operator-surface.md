@@ -31,31 +31,36 @@ ADR-0105's open question 6 punted on form factor: "Mobile-first surfaces
 if the PWA is friction. Out of scope here."
 
 Three things have shifted since ADR-0105 was written, and together they
-make the PWA answer wrong rather than merely deferred:
+settle native iOS as the canonical mobile control surface:
 
 1. **The HITL interruption contract shipped and binds every operator
    surface.** `docs/hitl-interruptions.md` §4 requires that an open
    interruption be visible to the operator at most 60 seconds after
-   creation, on "any future operator surface." Away from an open browser
-   tab, iOS web push cannot honor that: it requires Home-Screen install,
-   grants no reliable background delivery, and gives the relay's decaying
-   nag engine no dependable channel to a phone in a pocket. APNs does. The
-   whole point of a phone surface is the moment the operator is *not* at
-   the Mac; a surface that can miss that moment is theater.
+   creation, on "any future operator surface." Web Push is technically
+   viable on iOS for Home Screen web apps and uses APNs; Apple says those
+   notifications appear like native notifications, including on the Lock
+   Screen. It therefore is not honest to reject a PWA as incapable of
+   background delivery. It does require the user to add the app to the Home
+   Screen and grant permission after direct interaction. Native iOS is the
+   chosen canonical product surface; the browser remains a fallback, not a
+   second mobile control authority. Primary platform reference:
+   <https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/>.
 2. **Binder ch15 C17 hardened phone control into a gated path.** Mobile
    pause/interrupt and push approvals are control authority, and the
    whitehat closure demands WebAuthn/passkey device cards, per-command
    `jti`, short command expiry, and fail-closed revocation fixtures.
-   Passkey ceremonies and hardware-backed key custody are first-class in a
-   native app; in an installed web clip they are brittle at exactly the
-   layer the threat model cares about.
-3. **The shared-harbors siblings supply the primitives a phone needs to be
+   Passkeys exist on both native and web surfaces. Native is chosen so the
+   device-card lifecycle, separate wrapping-key custody, command receipts,
+   and revocation UX have one canonical mobile implementation rather than
+   two security-sensitive clients drifting apart.
+3. **The shared-harbors siblings specify the primitives a phone needs to be
    safe.** ADR-0122 puts an authority epoch on every control command and
    makes stale or revoked commands fail visibly; ADR-0123 gives devices
    key custody that keeps plaintext off the relay and the hosted tier;
    ADR-0124 gates what a transcript may contain before it is persisted or
    synced. A phone rendering transcripts off-Mac was blocked on precisely
-   those three, and they now exist.
+   those three. The accepted ADRs now settle the contracts; implementations
+   and adversarial fixtures remain launch gates.
 
 Operator decision 2026-08-16: build it native, SwiftUI, HITL-first v1.
 This ADR makes that surface legal in the operator-surface authority model
@@ -116,8 +121,8 @@ The first shippable app is the human-in-the-loop surface, nothing more:
 4. **Live transcript tail.** Redaction-gated per ADR-0124: the tail
    streams exportable events only, and a withheld segment renders as
    withheld — never a silent hole, never a raw secret payload on the
-   phone. Decryption is on-device per ADR-0123, so the relay and hosted
-   tier never hold plaintext the phone can read.
+   phone. Decryption is on-device per ADR-0123, so the relay and hosted tier
+   never hold plaintext the phone can read.
 5. **Pairing** (§3 below).
 
 Deferred, not denied: intent composition, fleet spawning, budget
@@ -132,8 +137,9 @@ normative mocks binder ch20 adopts): the 4-digit ritual under the Quebec
 masthead — pratique, requesting permission to enter — with the co-op
 mockups' QR invite flow as the harbor-invite path. The ceremony
 mints an ADR-0027 device membership record (`deviceKind: 'phone'`) backed
-by a WebAuthn/passkey credential, per the ch15 C17 whitehat closure. No
-email-only recovery path exists for control authority.
+by a WebAuthn/passkey credential for authorization and a distinct X25519
+wrapping key for encrypted key delivery, per ADR-0123 and the ch15 C17
+whitehat closure. No email-only recovery path exists for control authority.
 
 Every remote command the app submits carries a per-command `jti` and the
 harbor authority epoch it was authorized under (ADR-0122 §4). A command
@@ -222,9 +228,9 @@ against its spec.
 - The HITL interruption contract is finally honorable off-Mac: an open
   `critical` ask reaches the operator's pocket within its 60-second
   window, through the same nag engine the other surfaces already poll.
-- ADR-0105's phone story lands without the PWA's push, background, and key
-  custody caveats — and with C17's fail-closed fixtures as a ship gate
-  rather than a hope.
+- ADR-0105's phone story lands with one canonical mobile control client and
+  C17's fail-closed fixtures as a ship gate rather than a hope. Web Push
+  remains a technically capable browser fallback, not a competing authority.
 - The ambient distance gains an owner where FleetBar cannot exist, without
   breaking the one-owner cardinality rule or letting a fourth surface own
   runtime state.

@@ -120,8 +120,10 @@ The semantics remain ADR-0118's semantics:
 - `GET /durable-agents/search` performs hybrid expertise retrieval.
 - `GET /durable-agents/:id` joins the current profile, revisions, continuation
   affordance, and receipts.
-- loopback-only create, promote, patch, handoff-attach, and retire routes append
-  facts rather than rewriting history.
+- create, promote, patch, handoff-attach, and retire routes require a
+  daemon-minted, operation-scoped capability and append facts rather than
+  rewriting history. Loopback location, socket access, UID, `Host`, and
+  forwarded headers are transport facts, never authority.
 - `pd roster` exposes the same operations to agents and emergencies.
 - MCP exposes discovery, creation, promotion, handoff attachment, and runtime
   continuation so Port Daddy can delegate to a suitable named expert.

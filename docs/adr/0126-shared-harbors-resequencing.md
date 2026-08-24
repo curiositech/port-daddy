@@ -127,8 +127,8 @@ invited into, or billed for until all of the following hold:
   ciphertext and real signatures, not plaintext-as-base64
   (`docs/proposals/relay-grand-plan.md` §N1, "make I1 honest");
 - **per-harbor keys** — no shared master key across harbors (ADR-0123 §1);
-- **join-time key distribution** — the channel seed sealed to each
-  member's device keys, daemon-to-daemon, the relay never holding it
+- **join-time key distribution** — granted epoch keys HPKE-wrapped to each
+  member device's X25519 key, daemon-to-daemon, the relay never holding them
   (ADR-0123);
 - **encrypted R2 snapshots** — ADR-0115's snapshot blobs opaque to the
   storage tier (ADR-0123 §3);

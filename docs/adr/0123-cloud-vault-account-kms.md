@@ -43,42 +43,67 @@ side." This ADR is the key-custody design that decision requires.
 
 ## Decision
 
-### 1. The key hierarchy — four tiers, one derivation direction
+### 1. Signing and encryption roots are distinct
 
 ```
-account root    Ed25519 account keypair, OS keychain
-    │           signs device enrollment + harbor membership
-    ▼
-harbor root     Ed25519 per-harbor keypair, generated client-side
-    │           (the X2 shape: relay stores the pubkey, never the seed)
-    ├─ HKDF ──► content key    pd-vault/content/v1        (notes at rest)
-    └─ HKDF ──► channel keys   pd-vault/channel/v1/<epoch>  (relay E2E)
+account signing root   Ed25519, OS keychain
+    └─ signs device enrollment + harbor membership
 
-device cards    WebAuthn/passkey-backed, one per device, revocable
+harbor signing key     Ed25519, generated client-side
+    └─ signs authority records + ordered events
+
+harbor KDF root        random 256-bit secret, independent of signing seeds
+    ├─ HKDF ──► content keys    pd-vault/content/v1/<epoch>
+    ├─ HKDF ──► channel keys    pd-vault/channel/v1/<epoch>
+    └─ HKDF ──► snapshot keys   pd-vault/snapshot/v1/<epoch>
+
+device card
+    ├─ WebAuthn credential      authorizes enrollment and control
+    └─ X25519 wrapping key      receives granted keys through HPKE
 ```
 
-- **Account root.** An Ed25519 account keypair in the OS keychain, anchored
+- **Account signing root.** An Ed25519 account keypair in the OS keychain, anchored
   to the shipped `pd account login` flow (ADR-0101 Phase 1). Honest
   inventory: what login stores *today* is a `pdu_` bearer token at
   `~/.port-daddy/account.json` (`cli/commands/account.ts`) — the
-  keypair-in-keychain upgrade via `lib/keychain.ts` is the first work item
+  signing-key-in-keychain upgrade via `lib/keychain.ts` is the first work item
   of this ADR, per the ADR-0115 §4 wiring plan, not a thing to claim early.
-- **Harbor root.** Each harbor gets its own Ed25519 keypair, generated
-  client-side on the creating operator's machine — exactly the remote-harbor
-  shape already specified (relay grand plan X2): the relay learns the public
-  key and routes ciphertext; the seed never leaves member custody.
-- **Derived keys.** Per-harbor content and channel keys are HKDF-SHA256
-  derivations from the harbor root seed with domain-separation labels. This
+- **Harbor signing key.** Each harbor gets its own Ed25519 keypair, generated
+  client-side on the creating operator's machine — the remote-harbor identity
+  shape already specified by relay grand plan X2. It authenticates authority
+  records and ordered events; it never supplies symmetric key material.
+- **Harbor KDF root.** Each harbor independently generates a random 256-bit
+  KDF root. It is never derived from the account or harbor Ed25519 seed. The
+  authority's kernel vault holds it; the relay learns neither it nor any
+  derived key. A writer-lease handoff wraps it directly to the successor
+  vault only after the signed handoff is valid.
+- **Derived keys.** Per-harbor content, channel, and snapshot keys are
+  HKDF-SHA256 derivations from the KDF root with purpose-and-epoch domain
+  separation. This
   closes NOTE_ENCRYPTION gap 3: compromise of one harbor's keys reads that
-  harbor and nothing else. Members never hold the harbor root — they receive
-  the current epoch's channel key sealed to their device keys,
-  daemon-to-daemon at join. The legacy shared master key survives only as a
-  wrap target for pre-existing local notes (`maybeDecrypt()` compatibility);
-  new material is keyed per-harbor from day one.
-- **Device cards.** Per-device keys are WebAuthn/passkey-backed device
-  cards (ch15 C17): the device's operational keypair is enrolled under a
-  passkey ceremony signed by the account root, and card renewal or recovery
-  requires a fresh passkey assertion — never an emailed link.
+  harbor and nothing else. Members never hold the KDF root — they receive only
+  keys permitted by their grant, HPKE-wrapped to the device's X25519 public
+  key, daemon-to-daemon at join. Existing local notes cross the boundary by a
+  verified one-shot rewrap migration; after verification the legacy reader
+  and shared master key are deleted, not retained as a compatibility mode.
+- **Versioned envelopes.** The v1 device-wrap suite is
+  [RFC 9180](https://www.rfc-editor.org/rfc/rfc9180.html) HPKE base
+  mode with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, and AES-256-GCM. The
+  authority signs the complete envelope before a recipient opens it. Its
+  canonical associated data binds the protocol version, account, harbor,
+  authority epoch, recipient device, grant, key purpose, and key id; none of
+  those fields may be swapped without authentication failure. Unknown suites,
+  missing context fields, and version downgrade are hard failures. The Rust,
+  Swift, and fixture implementations share byte-exact known-answer vectors.
+  Payload sealing is likewise versioned AEAD; nonce allocation belongs to the
+  kernel and must be unique per derived key, never supplied by an agent or
+  inferred from wall-clock time.
+- **Device cards.** A card binds two distinct public credentials: a WebAuthn
+  credential for operator authentication/control authorization, and an
+  X25519 key for HPKE key wrapping. The passkey assertion authorizes card
+  enrollment, renewal, or recovery; the passkey key is never treated as a
+  decryption key. The account and harbor authority sign the binding, and the
+  X25519 private key remains in that device's OS keychain.
 
 ### 2. Custody doctrine — a secret a process can use, that process can copy
 
@@ -87,13 +112,13 @@ gate can be unforgeable, but the holder is not confined. Applied to keys:
 **any key material mapped into an agent body's address space is key
 material the agent can exfiltrate.** So keys never enter agent bodies.
 
-- Seal/open/derive/rewrap operations live in a new kernel crate,
+- Seal/open/derive/rewrap operations will live in a new kernel crate,
   **`core/kernel/pd-vault`** — Plane 1 under ADR-0120 rule 1 (sign / verify
   / compare / derive / wrap belongs in the Rust kernel, once). The daemon
   reaches it over FFI, like `lib/macaroon-ffi.ts` reaches `pd-anchor`. No new
   ad-hoc TS crypto: `lib/note-encryption.ts` is the last of its line, and
   extending it for the hosted tier is explicitly rejected below.
-- Kernel-held keys are zeroized on drop (closing NOTE_ENCRYPTION gap 2 for
+- Kernel-held keys must be zeroized on drop (closing NOTE_ENCRYPTION gap 2 for
   everything the kernel holds; the TS daemon still caches decrypted content,
   which is the next bullet's point).
 - What the vault confines is **keys, not content**. An agent holding a valid
@@ -133,23 +158,27 @@ material the agent can exfiltrate.** So keys never enter agent bodies.
   named threat — "cloud relay sees plaintext when user expected
   local-only" — is structurally impossible, not policy-prevented.
 
-### 4. Rotation — lazy, epoch-tagged, paired with harbor authority epochs
+### 4. Rotation — forward-immediate, epoch-tagged, paired with authority epochs
 
 Membership change is key change. Removing a member or revoking a device
-bumps the harbor's authority epoch (ADR-0122); the vault side of that bump:
+atomically bumps the harbor's authority epoch (ADR-0122); the vault side of
+that bump:
 
-- the next epoch's channel key is derived
-  (`pd-vault/channel/v1/<epoch+1>`) and sealed to each remaining member's
-  device keys;
-- rekey is **lazy** — it happens at the next publish into the affected
-  harbor, not as an eager fan-out storm;
+- derives the next epoch's content, channel, and snapshot keys and HPKE-wraps
+  them to each remaining authorized device;
+- blocks the first publish in the new epoch until that key set exists and its
+  required wraps are durable — a removed device can never receive ciphertext
+  under a key it still holds;
+- does **not** re-encrypt historical ciphertext. Rotation is immediate for
+  future writes and deliberately non-retroactive for already-disclosed data;
 - every sealed envelope carries its epoch, so readers select the right key
   and auditors can see exactly which epoch a ciphertext belongs to;
-- honest window, stated plainly (as X2 already does): a removed member can
-  read material sealed under epochs they held until the bump lands. They
-  can never read past it. This closes NOTE_ENCRYPTION gap 4 for the hosted
-  tier; local legacy notes get re-wrapped under the per-harbor content key
-  by a one-shot migration, after which the shared master key retires.
+- honest boundary, stated plainly: a removed member can retain and read
+  material from epochs whose keys they already held; cryptography cannot make
+  them forget it. They can never read a later epoch. This closes
+  NOTE_ENCRYPTION gap 4 for the hosted tier; local legacy notes get re-wrapped
+  under epoch-scoped per-harbor content keys by a one-shot migration, after
+  which the shared master key retires.
 
 ### 5. Recovery — shares and passkeys; read back never equals control back
 
@@ -181,8 +210,8 @@ webhook ingress, fleet-cloud telemetry — streams the relay legitimately
 processes). The lying middle state — plaintext-as-base64 sitting in a field
 the trust story calls ciphertext — is abolished:
 
-- `/v1/publish` enforces AEAD structure on E2E channels (detect-and-warn
-  for one release, then reject);
+- `/v1/publish` rejects payloads without the required AEAD envelope on E2E
+  channels from the first shared-harbor release;
 - per-channel counters `events_sealed_total` / `events_relay_readable_total`
   feed the health surface; an E2E channel receiving a readable payload is a
   `crit` invariant breach (loud-fail, ADR-0045);
@@ -198,15 +227,15 @@ grand plan's N1 ruling, adopted here as a launch precondition.
   not a fast-follow. The cost is real: key-distribution ceremony UX is the
   risk item (X2's own assessment), and `pd harbor invite` must work
   end-to-end on two physical machines before anything ships.
-- **A new kernel crate exists.** `core/kernel/pd-vault` grows the TCB; per
+- **A new kernel crate is required.** `core/kernel/pd-vault` will grow the TCB; per
   ADR-0120 it stays small — seal/open/derive/rewrap and nothing
   product-shaped moves in.
 - **No server-side features over vault content.** portdaddy.dev cannot
   search, index, preview, or deduplicate harbor content, and support cannot
   "take a look." These are permanent product constraints, priced in.
-- **The removed-member read window is real** until the epoch bump lands.
-  Documented, surfaced in the member-removal UI, bounded by lazy-rekey
-  latency.
+- **Previously disclosed ciphertext stays disclosed.** Member removal blocks
+  future-epoch access; it cannot claw back plaintext or old keys the member
+  already possessed. The member-removal UI says that plainly.
 - **Lost-everything means lost data.** Stated at opt-in; recovery-share
   setup is offered in the same flow so the sharp edge comes with a rail.
 - **Legacy migration debt:** the `master.key` file → keychain → per-harbor
@@ -221,8 +250,8 @@ grand plan's N1 ruling, adopted here as a launch precondition.
 - **Passphrase-derived master key as the primary root.** Rejected as
   primary (human-entropy ceiling, sync-across-devices pain); retained as an
   export/backup encoding for recovery shares.
-- **MLS/TreeKEM group keying.** Deferred, not rejected. Epoch-tagged lazy
-  rekey is honest and sufficient at launch scale; MLS earns a revisit when
+- **MLS/TreeKEM group keying.** Deferred, not rejected. Epoch-tagged forward
+  rotation is honest and sufficient at launch scale; MLS earns a revisit when
   harbors routinely exceed tens of members or a hardened forward-secrecy
   requirement arrives. Adopting it now would be resume-driven cryptography.
 - **Per-note asymmetric sealing to every member.** Rejected: N×M envelope

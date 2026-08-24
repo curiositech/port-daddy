@@ -134,7 +134,7 @@ the Trusted Sequencer anti-pattern closed as a standing rule.
 The `authority_epoch` bumps on **any** membership or device change: member
 added, member removed, device paired, device revoked, writer-lease handoff.
 This aligns with X2's existing epoch boundary — member removal already
-triggers lazy channel-key rotation "at next epoch"
+triggers forward channel-key rotation at the next epoch
 (`docs/proposals/relay-grand-plan.md` §X2) — so key rotation and authority
 rotation share one clock.
 
