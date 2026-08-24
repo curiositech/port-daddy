@@ -286,6 +286,25 @@ describe('cron handler — the outside clock', () => {
   });
 });
 
+describe('/status reports whether the clock is wound', () => {
+  it('is null on a seat nothing has ever armed — the incident, visible from one GET', async () => {
+    const { seat } = makeSeat();
+    const body = (await (await seat.fetch(
+      new Request('https://steward.internal/status', { headers: { 'x-steward-repo': REPO } }),
+    )).json()) as { alarmAt: number | null; lastWakeAt: number | null };
+    expect(body.alarmAt).toBeNull();
+  });
+
+  it('reports the armed target once a pulse has wound it', async () => {
+    const { seat } = makeSeat();
+    await seat.fetch(pulseReq());
+    const body = (await (await seat.fetch(
+      new Request('https://steward.internal/status', { headers: { 'x-steward-repo': REPO } }),
+    )).json()) as { alarmAt: number | null };
+    expect(typeof body.alarmAt).toBe('number');
+  });
+});
+
 describe('worker route — /pulse is reachable and still gated', () => {
   /** Route through the real worker with a namespace that runs a real seat. */
   function wiredEnv(over: Partial<Env> = {}): { env: Env; storage: FakeStorage } {

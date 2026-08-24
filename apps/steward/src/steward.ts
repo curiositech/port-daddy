@@ -276,6 +276,13 @@ export class StewardDO {
       charter: charter ?? null,
       pendingWakes: inbox.size,
       lastWakeAt,
+      // Is the clock actually wound? `lastWakeAt` says when the seat last beat;
+      // this says whether it is going to beat again. The two answer different
+      // questions and the difference is the whole P1 PR 5 incident: a seat can
+      // have woken recently and still be dead, because nothing re-armed it.
+      // Null here is the signature of a stopped pulse — the one field that
+      // would have made "deployed but never running" visible from one GET.
+      alarmAt: await this.state.storage.getAlarm(),
       degraded,
       fallbackEntries: fallback.length,
       recentDeckLog: recentLog,
