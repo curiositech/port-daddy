@@ -104,6 +104,36 @@ describe('per-run Workers AI circuit', () => {
     expect(circuit.isOpen).toBe(true);
   });
 
+  it('can spend the deadline at most ONCE per run, which is what makes 600s fit the wall budget', async () => {
+    // THE SAFETY ARGUMENT FOR FLEET_AI_CALL_DEADLINE_MS, PINNED. A queue
+    // consumer gets ~15 minutes of wall clock; the deadline is 600s. That is
+    // only sound because the circuit opens on the first timeout and every
+    // later call is rejected WITHOUT awaiting the provider. If a future edit
+    // let a second call reach the provider after a timeout, worst-case wait
+    // would become MAX_MAP_CHUNKS_PER_SHIP × 600s — far past the budget, and
+    // the invocation would be killed mid-run with no catchable error, which
+    // is precisely the #7743 failure shape. Timing is asserted rather than
+    // call counts alone: the point is that the later calls cost no WAITING.
+    const deadlineMs = 20;
+    const circuit = new FleetAiCircuit(deadlineMs);
+    const silent = vi.fn(() => new Promise<never>(() => undefined));
+
+    const startedAt = Date.now();
+    await expect(circuit.run(silent)).rejects.toMatchObject({
+      failure: { name: 'FleetAiCallDeadlineError' },
+    });
+    // Seven more chunks' worth of calls, as one ship's MAP fan-out would issue.
+    for (let i = 0; i < 7; i++) {
+      await expect(circuit.run(silent)).rejects.toBeInstanceOf(FleetAiDependencyError);
+    }
+    const elapsed = Date.now() - startedAt;
+
+    // One deadline's wait, not eight. Generous headroom for scheduler jitter;
+    // the failure this catches is an order-of-magnitude regression, not ms.
+    expect(elapsed).toBeLessThan(deadlineMs * 4);
+    expect(silent).toHaveBeenCalledTimes(1);
+  });
+
   it('opens on a retryable provider failure and rejects later work without a downstream call', async () => {
     const circuit = new FleetAiCircuit();
     const first = vi.fn(async () => {
