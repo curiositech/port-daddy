@@ -19,6 +19,12 @@ impl BlameLine {
     pub fn short_commit(&self) -> &str {
         self.commit.get(..7).unwrap_or(&self.commit)
     }
+
+    /// Whether Git attributed this line only to the current in-memory working
+    /// copy rather than to a commit. This is provenance, not a person.
+    pub fn is_working_tree(&self) -> bool {
+        self.commit == "working"
+    }
 }
 
 fn is_header(line: &str) -> Option<(&str, usize)> {
@@ -240,6 +246,7 @@ mod tests {
         let lines = parse_porcelain(input).expect("valid working-tree blame");
         assert_eq!(lines[0].commit, "working");
         assert_eq!(lines[0].short_commit(), "working");
+        assert!(lines[0].is_working_tree());
     }
 
     #[test]

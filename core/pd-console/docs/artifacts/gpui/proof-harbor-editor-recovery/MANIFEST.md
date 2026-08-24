@@ -12,7 +12,14 @@ an edit invalidated blame instead of showing false provenance, a failed normal
 open preserved the current editor, and Escape returned a failed deep link to
 its parent Files view.
 
-An after-framebuffer image is intentionally absent. macOS denied Screen
-Recording permission to the agent host (`screencapture` could not create an
-image from the exact pd-console window). The JSON receipt is evidence from the
-real native process, but it is not mislabeled as a GPUI screenshot.
+This still is from the rebuilt native GPUI process. It shows the editable Rust
+buffer, caret, syntax status, replica provenance column, and explicit wrap and
+blame controls:
+
+![Rebuilt Harbor Editor ready for native editing](after-editor-ready.png)
+
+No motion artifact is included. The operator explicitly ended further movie
+capture attempts after the native process, structured state transitions, and
+still had been verified. The JSON receipt remains the authoritative evidence
+for interactions that a still cannot prove; it is not mislabeled as motion
+capture.

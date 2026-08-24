@@ -2,6 +2,18 @@
   "schema": "pd-console.harbor-editor-native-proof.v1",
   "capturedAt": "2026-08-23",
   "binary": "core/target/debug/pd-console --features gpui",
+  "runtimeProcess": {
+    "pid": 26338,
+    "windowId": 290670,
+    "controlSocket": "/Users/erichowens/coding/tmp/harbor-editor-proof-run/control-branch-head.sock",
+    "initialState": {
+      "pane": "editor",
+      "wrap": false,
+      "showBlame": false,
+      "blame": "off",
+      "syntax": "RUST"
+    }
+  },
   "nativeReceipts": [
     {
       "scenario": "physical typing reaches the focused Loro buffer",
@@ -44,12 +56,19 @@
     "editorView": "7 passed",
     "gitBlame": "5 passed",
     "syntax": "9 passed",
+    "paletteContrast": "2 passed",
     "gpuiBuild": "passed"
   },
   "pixelCapture": {
     "before": "before-permission-denied.png",
-    "after": null,
-    "status": "blocked by macOS Screen Recording permission for the agent host",
-    "note": "The native receipts above are control-socket state from the real GPUI process, not a claimed framebuffer capture."
+    "after": "after-editor-ready.png",
+    "afterResolution": "2428x1600",
+    "afterSha256": "7078279eace22a0543989afb0cbd964677c3a315e132ccc6554fc68fae53e6a6",
+    "status": "native still verified"
+  },
+  "motionCapture": {
+    "artifact": null,
+    "status": "not produced",
+    "reason": "Operator directed that no further movie-capture attempts be made after native state and still verification."
   }
 }
