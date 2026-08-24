@@ -1876,19 +1876,4 @@ Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrabl
 
 \end{thebibliography}
 
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Limitations \& Boundaries}\label{sec:limitations}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
-
-\begin{itemize}
-    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
-    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
-\end{itemize}
-
-These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
-
 \end{document}
