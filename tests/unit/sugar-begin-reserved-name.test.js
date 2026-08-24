@@ -298,4 +298,43 @@ describe('Defect C door 2 — /actors/register cannot bind a reserved alias to l
     expect(souls.resolveActor('proj:node:dev').actorId).toBe(reg.json().actorId);
     await app.close();
   });
+
+  // Positive control for the guard's ALLOW branch: the reservation is not an
+  // absolute ban — the RIGHTFUL owner (an operator-trusted registration) may
+  // bind a reserved authority alias, and a self-service caller that already
+  // owns it may re-present it. Without this, the allow branch
+  // (`isOperator || alreadyOwns`) could silently regress into either a total
+  // ban (403ing legitimate operator provisioning) or an open door, and no
+  // test would notice.
+  test('the rightful owner CAN bind a reserved alias: operator-trusted provisioning is allowed', () => {
+    const opDb = createTestDb();
+    const opSouls = createTestActorSouls(opDb, { operatorSecret: 'op-secret-123' });
+    try {
+      // Operator-token registration binding the reserved authority name.
+      const minted = opSouls.register({ operatorToken: 'op-secret-123', alias: 'system' });
+      expect(minted.ok).toBe(true);
+      expect(minted.status).toBe('minted');
+      expect(minted.soulClass).toBe('operator');
+      // The reserved alias now resolves to the operator soul (not 'unknown').
+      const resolved = opSouls.resolveActor('system');
+      expect(resolved.actorId).toBe(minted.actorId);
+      expect(resolved.soulClass).toBe('operator');
+
+      // alreadyOwns: re-presenting the same reserved alias with the owner's
+      // credential is an idempotent no-op, not a fresh acquisition — allowed.
+      const rePresent = opSouls.register({ credential: minted.credential, alias: 'system' });
+      expect(rePresent.ok).toBe(true);
+      expect(rePresent.actorId).toBe(minted.actorId);
+      expect(opSouls.resolveActor('system').actorId).toBe(minted.actorId);
+
+      // Control: an uncredentialed self-service caller still cannot bind it.
+      const attacker = opSouls.register({ alias: 'system' });
+      expect(attacker.ok).toBe(false);
+      expect(attacker.code).toBe('RESERVED_ALIAS');
+      // The operator's binding is untouched.
+      expect(opSouls.resolveActor('system').actorId).toBe(minted.actorId);
+    } finally {
+      opDb.close();
+    }
+  });
 });
