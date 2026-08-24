@@ -2,12 +2,10 @@
   "auditor_version": "0.2.0",
   "summary": {
     "total": 319,
-    "passing": 318,
-    "failing": 1,
-    "warning_only": 114,
-    "failing_skills": [
-      "harbor-results"
-    ]
+    "passing": 319,
+    "failing": 0,
+    "warning_only": 115,
+    "failing_skills": []
   },
   "skills": [
     {
@@ -1585,17 +1583,14 @@
     {
       "name": "harbor-results",
       "root": "skills/harbor-results",
-      "ok": false,
-      "orphans": [
-        "scripts/b4_deontic_fragment.py"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": [
-        "references"
+        "references",
+        "scripts"
       ]
     },
     {
