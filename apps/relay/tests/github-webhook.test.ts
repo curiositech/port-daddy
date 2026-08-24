@@ -17,7 +17,12 @@
 import { describe, it, expect } from 'vitest';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
-import { handleGithubWebhook, channelsForWebhook } from '../src/github-webhook.js';
+import {
+  handleGithubWebhook,
+  channelsForWebhook,
+  GITHUB_RELAY_READABLE_REASON,
+} from '../src/github-webhook.js';
+import { tryDecodeTransitEnvelope } from '../src/envelope.js';
 import type { Env } from '../src/types.js';
 
 const SECRET = 'super-secret-webhook-key';
@@ -76,6 +81,10 @@ function makeMockD1(cap: Captured): D1Database {
 }
 
 // ── DO mock: record every channel publish() routed to it ──────────────────────
+// Every published event body the DO received, so a test can assert what
+// actually went on the wire — not merely which channel it went to.
+const publishedEvents: Array<{ channel: string; ciphertext?: string }> = [];
+
 function makeEnv(cap: Captured, publishedChannels: string[], secret: string | undefined = SECRET): Env {
   const harborChannel = {
     idFromName: (name: string) => ({ name }),
@@ -83,8 +92,9 @@ function makeEnv(cap: Captured, publishedChannels: string[], secret: string | un
       async fetch(url: string, init?: { body?: string }) {
         if (url.includes('action=publish') && init?.body) {
           const { event } = JSON.parse(init.body) as { event: string };
-          const ev = JSON.parse(event) as { channel: string };
+          const ev = JSON.parse(event) as { channel: string; ciphertext?: string };
           publishedChannels.push(ev.channel);
+          publishedEvents.push(ev);
         }
         return new Response(null, { status: 204 });
       },
@@ -637,5 +647,67 @@ describe('fleet enqueue — durable PR generation admission', () => {
     expect((await handleGithubWebhook(request(), env)).status).toBe(204);
     expect((await handleGithubWebhook(request(), env)).status).toBe(204);
     expect(sent).toHaveLength(1);
+  });
+});
+
+// ── N1 on the wire: what the webhook actually publishes ──────────────────────
+//
+// The regression this locks is the one A1 exists to end: this producer used to
+// write base64 PLAINTEXT into the ciphertext slot with sig:''. Asserting the
+// channel list alone would not have caught that — only decoding the transit
+// body does. So this reads the bytes the Durable Object received and holds them
+// to the classification contract.
+describe('handleGithubWebhook — N1 envelope classification on the wire', () => {
+  it('publishes a labeled relay_readable envelope carrying its stated reason and a real signature', async () => {
+    publishedEvents.length = 0;
+    const cap: Captured = { events: [], audits: [] };
+    const channels: string[] = [];
+    const res = await handleGithubWebhook(
+      webhookReq({ body: PR_BODY, signature: sign(SECRET, PR_BODY), event: 'pull_request', delivery: 'd-n1' }),
+      makeEnv(cap, channels)
+    );
+    expect(res.status).toBe(204);
+    expect(publishedEvents.length).toBeGreaterThan(0);
+
+    for (const ev of publishedEvents) {
+      const envelope = tryDecodeTransitEnvelope(ev.ciphertext ?? '');
+      // Not merely "parses" — it must satisfy the discriminated union, which
+      // the old plaintext-as-base64 body could never do.
+      expect(envelope).not.toBeNull();
+      expect(envelope!.classification).toBe('relay_readable');
+      // The honesty requirement: a relay-readable class must SAY why it may
+      // transit unencrypted. Asserting ONLY that the emitted reason equals the
+      // imported constant would be a tautology — both sides move together when
+      // the constant is edited (verified by mutation: changing the constant
+      // left that assertion green). So pin the SUBSTANCE independently, then
+      // check the wiring separately.
+      const reason = (envelope as { reason?: unknown }).reason;
+      expect(typeof reason).toBe('string');
+      // It must name the actual justification: this payload is already public
+      // via GitHub, so relaying it in the clear adds no exposure. A reason that
+      // stops saying that is a different claim and must fail here.
+      expect(reason as string).toMatch(/github/i);
+      expect(reason as string).toMatch(/public/i);
+      expect((reason as string).length).toBeGreaterThan(20);
+      // …and the wiring: what shipped is what the module declares.
+      expect(reason).toBe(GITHUB_RELAY_READABLE_REASON);
+      // sig:'' was the old tell. A classification nobody signed is unbound.
+      expect(envelope!.sig).toBeTruthy();
+      expect(envelope!.sig.value.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('never emits a sealed envelope from this producer (it holds no keys to seal with)', async () => {
+    publishedEvents.length = 0;
+    const cap: Captured = { events: [], audits: [] };
+    const channels: string[] = [];
+    await handleGithubWebhook(
+      webhookReq({ body: PR_BODY, signature: sign(SECRET, PR_BODY), event: 'pull_request', delivery: 'd-n1-2' }),
+      makeEnv(cap, channels)
+    );
+    for (const ev of publishedEvents) {
+      const envelope = tryDecodeTransitEnvelope(ev.ciphertext ?? '');
+      expect(envelope!.classification).not.toBe('sealed');
+    }
   });
 });

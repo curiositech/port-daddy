@@ -1,0 +1,182 @@
+{
+  "doThisNext": [
+    {
+      "reason": "status-now",
+      "slug": "ship-roadmap-home",
+      "title": "Ship the roadmap-home projection"
+    }
+  ],
+  "generatedAt": 1755820800000,
+  "harbor": "fleet",
+  "items": [
+    {
+      "claim": null,
+      "dependencies": [],
+      "id": "rm_0001",
+      "lastTouchedAt": 1755820680000,
+      "liveEvidence": {
+        "ageMs": null,
+        "dispatchId": null,
+        "label": "static — no dispatch receipt trail",
+        "lastEvidenceAt": null,
+        "live": false,
+        "maxAgeMs": 65000,
+        "source": null
+      },
+      "priority": 1,
+      "receipts": [
+        {
+          "at": 1755820300000,
+          "by": null,
+          "detail": "operator decision 4: roadmap is home",
+          "kind": "note"
+        },
+        {
+          "at": 1755820400000,
+          "by": "cartographer",
+          "detail": "status -> now",
+          "kind": "status-event"
+        }
+      ],
+      "slug": "ship-roadmap-home",
+      "status": "now",
+      "title": "Ship the roadmap-home projection"
+    },
+    {
+      "claim": null,
+      "dependencies": [],
+      "id": "rm_0002",
+      "lastTouchedAt": 1755820770000,
+      "liveEvidence": {
+        "ageMs": 30000,
+        "dispatchId": "d-live",
+        "label": "live — events arriving",
+        "lastEvidenceAt": 1755820770000,
+        "live": true,
+        "maxAgeMs": 65000,
+        "source": "popper-dispatch"
+      },
+      "priority": 2,
+      "receipts": [
+        {
+          "at": 1755820710000,
+          "by": "roadmap-popper",
+          "detail": "dispatch d-live (in_progress)",
+          "kind": "dispatch"
+        }
+      ],
+      "slug": "popper-live",
+      "status": "backlog",
+      "title": "Being worked right now"
+    },
+    {
+      "claim": null,
+      "dependencies": [],
+      "id": "rm_0003",
+      "lastTouchedAt": 1755817200000,
+      "liveEvidence": {
+        "ageMs": 3600000,
+        "dispatchId": "d-stale",
+        "label": "showing cached truth — last evidence 3600s",
+        "lastEvidenceAt": 1755817200000,
+        "live": false,
+        "maxAgeMs": 65000,
+        "source": "popper-dispatch"
+      },
+      "priority": 3,
+      "receipts": [
+        {
+          "at": 1755817100000,
+          "by": "roadmap-popper",
+          "detail": "dispatch d-stale (in_progress)",
+          "kind": "dispatch"
+        }
+      ],
+      "slug": "popper-stale",
+      "status": "backlog",
+      "title": "Dispatched an hour ago"
+    },
+    {
+      "claim": null,
+      "dependencies": [],
+      "id": "rm_0004",
+      "lastTouchedAt": 1755820799000,
+      "liveEvidence": {
+        "ageMs": 0,
+        "dispatchId": "d-future",
+        "label": "unverifiable — evidence dated 86400s in the future",
+        "lastEvidenceAt": 1755907200000,
+        "live": false,
+        "maxAgeMs": 65000,
+        "source": "popper-dispatch"
+      },
+      "priority": 4,
+      "receipts": [
+        {
+          "at": 1755907200000,
+          "by": "roadmap-popper",
+          "detail": "dispatch d-future (in_progress)",
+          "kind": "dispatch"
+        }
+      ],
+      "slug": "popper-future",
+      "status": "backlog",
+      "title": "Evidence from tomorrow"
+    },
+    {
+      "claim": null,
+      "dependencies": [],
+      "id": "rm_0006",
+      "lastTouchedAt": 1755820799000,
+      "liveEvidence": {
+        "ageMs": null,
+        "dispatchId": "d-ghost",
+        "label": "stale — dispatch trail without stream evidence",
+        "lastEvidenceAt": null,
+        "live": false,
+        "maxAgeMs": 65000,
+        "source": "popper-dispatch"
+      },
+      "priority": 5,
+      "receipts": [
+        {
+          "at": 1755820799000,
+          "by": "roadmap-popper",
+          "detail": "dispatch d-ghost",
+          "kind": "dispatch"
+        }
+      ],
+      "slug": "popper-ghost",
+      "status": "backlog",
+      "title": "Orphaned dispatch stamp"
+    },
+    {
+      "claim": null,
+      "dependencies": [],
+      "id": "rm_0005",
+      "lastTouchedAt": 1755820796000,
+      "liveEvidence": {
+        "ageMs": 4000,
+        "dispatchId": "d-settled",
+        "label": "settled — dispatch settled",
+        "lastEvidenceAt": 1755820796000,
+        "live": false,
+        "maxAgeMs": 65000,
+        "source": "popper-dispatch"
+      },
+      "priority": 2,
+      "receipts": [
+        {
+          "at": 1755820750000,
+          "by": "operator",
+          "detail": "dispatch d-settled (settled)",
+          "kind": "dispatch"
+        }
+      ],
+      "slug": "popper-settled-fresh",
+      "status": "done",
+      "title": "Already settled, evidence still fresh"
+    }
+  ],
+  "v": 1
+}

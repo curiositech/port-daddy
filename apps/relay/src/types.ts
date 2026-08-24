@@ -10,6 +10,10 @@ export interface Env {
   DB: D1Database;
   // Durable Object namespace — one DO per (harbor_fingerprint, channel)
   HARBOR_CHANNEL: DurableObjectNamespace;
+  // ADR-0092: one authority-free CRDT coordination replica per project.
+  // Optional until the v0003 Durable Object migration is deployed; routes
+  // fail closed with COORDINATION_UNCONFIGURED while absent.
+  COORDINATION_ROOM?: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
   // Queue producers — one FleetRunJob per GitHub delivery handed to the
@@ -28,6 +32,9 @@ export interface Env {
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
   GITHUB_WEBHOOK_SECRET: string;          // HMAC-SHA256 secret for GitHub webhook ingress
+  // 32-byte hex root for first-party coordination macaroons. Never exposed;
+  // operator provisioning returns only caveat-scoped grants.
+  COORDINATION_MACAROON_ROOT_KEY_HEX?: string;
   // HMAC secret (>=32 chars) gating the HTML fleet run page (ADR-0101 Phase 0).
   // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
   // only opens with the operator token.
@@ -41,6 +48,10 @@ export interface Env {
   GITHUB_OAUTH_CLIENT_SECRET?: string;  // secret
   USER_TOKEN_WRAPPING_KEY?: string;     // secret, 32-byte hex; AES-GCM wraps the gh token
   PUBLIC_BASE_URL?: string;             // var, relay's public origin; redirect_uri base
+  // GitHub's durable numeric id for the initial Cloud Fleet operator. The
+  // matching account is materialized into user_roles on first authorized read;
+  // this is a public identifier, not an authentication secret.
+  RELAY_OPERATOR_GITHUB_USER_ID?: string;
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;
@@ -66,6 +77,16 @@ export interface Env {
   // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
   // not a secret. Optional: unset ⇒ the module's committed default is used.
   SHIPWRIGHT_MODEL?: string;
+  // Model id for the Engineman's chat (src/snipe-chat.ts). A var, not a
+  // secret. Optional: unset ⇒ the relay's one committed chat default is used,
+  // resolved through the existing resolver rather than restated here.
+  SNIPE_MODEL?: string;
+  // Daily per-user chat budget (src/chat-spend.ts), shared by every
+  // conversational surface. Vars, not secrets, and NEVER caller input: nothing
+  // in a request body can reach these. Unset or unparsable values fall back to
+  // the committed defaults — never to "unlimited", and never to zero.
+  CHAT_DAILY_MESSAGES?: string;
+  CHAT_DAILY_TOKENS?: string;
   // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
   // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
   // secret. ONLY the exact string 'on' enables the pd-mediator seat's

@@ -365,6 +365,88 @@ export interface PRContext {
 }
 
 /**
+ * A fail-closed current-head check used immediately before model work and
+ * GitHub mutations. `changed` is a normal supersession outcome; `unavailable`
+ * is infrastructure failure and must retry rather than publish against an
+ * unverified head.
+ */
+export class PullRequestHeadValidationError extends Error {
+  constructor(
+    readonly kind: 'changed' | 'unavailable',
+    readonly expectedHead: string,
+    readonly currentHead: string | null,
+    readonly boundary: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'PullRequestHeadValidationError';
+  }
+}
+
+export type PullRequestHeadGuard = (boundary: string) => Promise<void>;
+
+/**
+ * Prove that a pull request still points at the head this Fleet run reviewed.
+ *
+ * This intentionally fetches only the live PR JSON, not the diff/files bundle
+ * used by {@link fetchPRContext}. It sits on hot publication boundaries, where
+ * a cheap authoritative read is preferable to either another expensive
+ * context fetch or a stale GitHub mutation.
+ */
+export async function requireCurrentPullRequestHead(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  expectedHead: string,
+  token: string,
+  boundary: string,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    });
+  } catch (err) {
+    throw new PullRequestHeadValidationError(
+      'unavailable',
+      expectedHead,
+      null,
+      boundary,
+      `could not verify pull request head at ${boundary}: ${String(err).slice(0, 240)}`,
+    );
+  }
+  if (!res.ok) {
+    throw new PullRequestHeadValidationError(
+      'unavailable',
+      expectedHead,
+      null,
+      boundary,
+      `could not verify pull request head at ${boundary}: GitHub returned ${res.status}`,
+    );
+  }
+  const live = (await res.json()) as { head?: { sha?: unknown } | null };
+  const currentHead = typeof live.head?.sha === 'string' ? live.head.sha : null;
+  if (!currentHead) {
+    throw new PullRequestHeadValidationError(
+      'unavailable',
+      expectedHead,
+      null,
+      boundary,
+      `could not verify pull request head at ${boundary}: response omitted head.sha`,
+    );
+  }
+  if (currentHead !== expectedHead) {
+    throw new PullRequestHeadValidationError(
+      'changed',
+      expectedHead,
+      currentHead,
+      boundary,
+      `pull request head changed at ${boundary}: expected ${expectedHead}, current ${currentHead}`,
+    );
+  }
+}
+
+/**
  * Fork detection from the webhook payload's head/base repo full names.
  * Both absent (minimal test payloads) ⇒ same-repo. Head absent while base is
  * known (deleted fork repo) ⇒ conservative: fork.
@@ -725,6 +807,7 @@ export async function postShipComment(
   shipRole: string,
   body: string,
   token: string,
+  mutationGuard: PullRequestHeadGuard = async () => {},
 ): Promise<void> {
   if (!body.trim()) return;
 
@@ -739,6 +822,7 @@ export async function postShipComment(
   const existing = await findExistingComment(owner, repo, prNumber, shipHandle, token);
 
   if (existing) {
+    await mutationGuard(`before patch pd-${shipHandle} comment`);
     await fetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/comments/${existing}`,
       {
@@ -748,6 +832,7 @@ export async function postShipComment(
       },
     );
   } else {
+    await mutationGuard(`before post pd-${shipHandle} comment`);
     await fetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`,
       {
@@ -818,6 +903,7 @@ export async function upsertPrBodySection(
   endMarker: string,
   section: string,
   token: string,
+  mutationGuard: PullRequestHeadGuard = async () => {},
 ): Promise<boolean> {
   try {
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
@@ -844,13 +930,15 @@ export async function upsertPrBodySection(
         : block;
     if (next === current) return true; // already up to date — no write needed
     if (next.length > GITHUB_PR_BODY_MAX) return false; // never truncate a human's body
+    await mutationGuard(`before patch PR #${prNumber} body section`);
     const patch = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
       method: 'PATCH',
       headers: ghHeaders(token),
       body: JSON.stringify({ body: next }),
     });
     return patch.ok;
-  } catch {
+  } catch (error) {
+    if (error instanceof PullRequestHeadValidationError) throw error;
     return false;
   }
 }
