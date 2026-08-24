@@ -341,7 +341,7 @@ mod tests {
         let absent = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target")
             .join("definitely-not-a-timeline-binary");
-        let error = spawn_timeline_process(&absent, "http://127.0.0.1:9876")
+        let error = spawn_timeline_process(&absent, "http://127.0.0.1:1")
             .expect_err("an absent resolved executable must fail at the spawn boundary");
 
         assert!(error.contains("TIMELINE_SPAWN_FAILED"));
