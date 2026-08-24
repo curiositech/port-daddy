@@ -307,6 +307,11 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       dependencies: r.dependencies ?? [],
       notes: (r.notes ?? []).map((n) => ({ text: n.text })),
       harbor: r.harbor,
+      // Gantt wall-clock date anchors (ADR-0086 planner columns) — carried
+      // through so `renderBoard` can date-anchor a task's bar instead of
+      // leaving every item on the CPM-relative offset (see planner-board.ts).
+      startedAt: r.startedAt,
+      dueAt: r.dueAt,
     }));
     const plan = derivePlan(items);
     if (graphEdges) {
