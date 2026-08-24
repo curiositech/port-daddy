@@ -98,7 +98,7 @@ theorem says that once it is, conservation survives every DAG shape an adversary
 one, the child's prior $\gamma\, w\cdot\mathrm{value}(\text{source})$, and the claim ``total inherited over the DAG's closure
 $\le$ total witnessed.'' The refute-first sweep killed it before any proof effort was spent: a full-weight chain
 $e\to a_1\to a_2\to a_3$ at $\gamma=0.9$ is budget-legal at every hop, yet its closure sums to $0.9+0.81+0.729=2.44>1$ [internal,
-\texttt{a6\_no\_mint.py}]. Budgets without debiting conserve nothing for $\gamma>\tfrac12$. The counterexample forced the transfer
+\texttt{a6\_no\_mint.py}]. Budgets without debiting conserve nothing for $\gamma>\tfrac12$ (Figure~\ref{fig:r12reg}). The counterexample forced the transfer
 semantics below --- the sweep-first discipline locating the correct statement before the proof, again.
 
 \begin{thebox}
@@ -194,7 +194,7 @@ caught $1975\times$ [internal].
 
 \textbf{Numbers by hand.} The pool clears $c_H$ when $\mu\cdot 1+(1-\mu)\cdot 0.4\ge 0.5$, i.e.\ $0.6\mu\ge 0.1$, so
 $\mu^\star=1/6$ [verified]. Attested, keeping the strong engine earns $\theta_H-c_H=0.5$ while swapping earns
-$\theta_L-c_L=0.2$: the flip is $\Delta c-\Delta\theta=0.3-0.6=-0.3$ [verified]. \emph{Now you try:} raise the strong engine's cost
+$\theta_L-c_L=0.2$: the flip is $\Delta c-\Delta\theta=0.3-0.6=-0.3$ [verified] (Figure~\ref{fig:r13reg}). \emph{Now you try:} raise the strong engine's cost
 to $c_H=0.7$ --- what committed share keeps the unattested pool alive? ($\mu^\star=(0.7-0.4)/0.6=0.5$: half the market must be
 committed before quality can even break even [verified].)
 
@@ -310,7 +310,7 @@ $H=G_{\max}(\delta_h/\delta_f)^t$ for all-mass-at-$t$ schedules matches the swee
 
 \textbf{Numbers by hand.} At $\delta_h=0.95$, $\delta_f=0.60$, $G_{\max}=20$: the cliff costs the honest newcomer exactly $20$;
 holding the same deterrence with all mass at $t=5$ costs $20\cdot(0.95/0.60)^5=199.0$ --- ten times the honest tax for zero
-additional deterrence [verified]. \emph{Now you try:} same instance, mass at $t=2$ --- what does the honest newcomer pay?
+additional deterrence [verified] (Figure~\ref{fig:b6reg}). \emph{Now you try:} same instance, mass at $t=2$ --- what does the honest newcomer pay?
 ($20\cdot(0.95/0.60)^2=20\times 2.507=50.1$ [verified].)
 
 \begin{figure}[htbp]
