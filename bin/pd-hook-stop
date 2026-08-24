@@ -295,6 +295,12 @@ if command -v jq >/dev/null 2>&1; then
   [ -n "$SID" ] && SESSION="$SID"
 fi
 SESSION="$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-96)"
+# review finding (pd-qa, 2026-08-24): an empty SESSION here would make every
+# such caller share the marker name "$MARKER_ROOT/.blocked", colliding
+# unrelated sessions onto one lock. $PPID is a POSIX special parameter and
+# is never actually empty, but this fallback removes the possibility
+# outright rather than relying on that guarantee holding in every sh.
+[ -n "$SESSION" ] || SESSION="nosession-$$"
 MARKER_ROOT="$PD_HOME/squid/stop-blocks"
 MARKER="$MARKER_ROOT/$SESSION.blocked"
 mkdir -p "$MARKER_ROOT" 2>/dev/null || exit 0
