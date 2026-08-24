@@ -713,19 +713,23 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
       `They still state the contract; run them.`
     );
   }
+  // Zero-test evidence outranks the exit code: checked BEFORE `passed`, so a
+  // runner that exits 0 after discovering nothing (--passWithNoTests and kin)
+  // cannot render as a PASS backed by zero executed tests.
+  if (!sandbox.ranTests) {
+    return (
+      `**Execution: RAN — ZERO TESTS EXECUTED.** The runner's own output ` +
+      `records no test executing — the authored suite failed to load, or the ` +
+      `runner discovered nothing (whatever the exit code) — so this run is ` +
+      `evidence about the authored test files, not about the PR. The verdict ` +
+      `is neither a pass nor a block on that basis; the purser's authoring ` +
+      `defect is the thing to fix.`
+    );
+  }
   if (sandbox.passed) {
     return (
       `**Execution: RAN — PASSED.** The PR head satisfies these tests today. ` +
       `Keep it that way.`
-    );
-  }
-  if (!sandbox.ranTests) {
-    return (
-      `**Execution: RAN — ZERO TESTS EXECUTED.** The authored suite failed to ` +
-      `LOAD (the runner's own output records no test executing), so this run ` +
-      `is evidence about the authored test files, not about the PR. The ` +
-      `verdict is NOT a block on that basis; the purser's authoring defect is ` +
-      `the thing to fix.`
     );
   }
   // Name the failures individually when the runner's format allowed it. This
@@ -960,12 +964,14 @@ async function rerunExistingTests(
 
   let verdict: Verdict;
   if (sandbox.executed && !sandbox.ranTests) {
-    // The suite loaded ZERO tests — an instrument failure, not the PR's. A
-    // BLOCK here gates real work on the purser's own broken file (the #9224
-    // 13-line sketch: "Your test suite must contain at least one test"), so
-    // the ship reports itself broken instead. `errored` routes this through
-    // the broken-ship doctrine: the run fails until the authored file is
-    // fixed, but the PR under review is not the one on the hook.
+    // The suite loaded ZERO tests — an instrument failure, not the PR's,
+    // whichever way it exited. A BLOCK here gates real work on the purser's
+    // own broken file (the #9224 13-line sketch: "Your test suite must
+    // contain at least one test"); a PASS here (exit 0 with nothing
+    // discovered, e.g. --passWithNoTests) certifies the PR on zero evidence.
+    // So the ship reports itself broken instead. `errored` routes this
+    // through the broken-ship doctrine: the run fails until the authored
+    // file is fixed, but the PR under review is not the one on the hook.
     return {
       ship: ship.name,
       blocking: ship.blocking,
@@ -1792,8 +1798,9 @@ export async function runPurser(
 
     let verdict: Verdict;
     if (sandbox.executed && !sandbox.ranTests) {
-      // Zero tests executed ⇒ the authored suite failed to load. Same rule as
-      // the re-run path: the ship is broken, the PR is not blocked on it.
+      // Zero tests executed ⇒ the instrument is broken, whatever the exit
+      // code. Same rule as the re-run path: the ship reports itself errored;
+      // the PR is neither blocked on it nor passed by it.
       return {
         ship: ship.name,
         blocking: ship.blocking,

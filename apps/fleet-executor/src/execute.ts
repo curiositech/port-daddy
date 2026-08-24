@@ -72,6 +72,7 @@ import {
 } from './proposals.js';
 import {
   createOrUpdateBranch,
+  fetchRepoFileText,
   fetchRepoTreePaths,
   openStackedPr,
   GitHubApiError,
@@ -94,6 +95,7 @@ import {
 } from './usable-output.js';
 import { renderFindingsComment } from './findings-render.js';
 import {
+  auditFindingLineBounds,
   auditFindings,
   auditProposals,
   renderCitationAuditNote,
@@ -2323,6 +2325,44 @@ async function runShip(
       }
     }
 
+    // Line-bounds audit — runs on every surviving finding, whether or not the
+    // /files list was trustworthy: a citation of a real, changed file can
+    // still name a line that objectively cannot exist (line 0, or a line past
+    // the file's EOF at the PR head). Objective bounds only; semantic line
+    // accuracy (right line, wrong claim — the measured 84-of-120 failure) is
+    // remaining work, not something this audit certifies.
+    if (findings !== null && findings.length > 0) {
+      const lineAudit = await auditFindingLineBounds(findings, path =>
+        headFileLineCountFor(prCtx.owner, prCtx.repo, prCtx.headSha, path, token),
+      );
+      if (lineAudit.unverifiable.length > 0) {
+        // Fail open, loudly: these findings were kept unchecked.
+        console.warn(
+          `[fleet-executor] pd-${ship.name}: line-bounds audit could not read ` +
+            `${lineAudit.unverifiable.join(', ')} at the PR head — findings on ` +
+            `those files were kept unverified`,
+        );
+      }
+      if (lineAudit.rejected.length > 0) {
+        for (const r of lineAudit.rejected) {
+          console.warn(
+            `[fleet-executor] pd-${ship.name}: withheld finding citing ` +
+              `'${r.path}:${r.line}' — ${
+                r.reason === 'non-positive'
+                  ? 'line numbers start at 1'
+                  : `the file has ${r.lineCount} lines at the PR head`
+              }`,
+          );
+        }
+        await transcript.step('ship-citation-audit', ship.name,
+          `pd-${ship.name}: withheld ${lineAudit.rejected.length} finding(s) citing impossible line numbers`,
+          { rejected: lineAudit.rejected },
+        );
+        findingsAuditNote += renderCitationAuditNote([], [], [], lineAudit.rejected);
+        findings = lineAudit.kept;
+      }
+    }
+
     // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
     // marker (the ship produced output we couldn't parse); a parsed block is a
     // 'ship-verdict' carrying the resolved verdict line.
@@ -2991,6 +3031,42 @@ export async function headTreePathsFor(
   return paths;
 }
 
+/**
+ * Line count of one cited file at the PR head, for the citation line-bounds
+ * audit — memoized like headTreePathsFor and for the same reason: findings
+ * cluster on few files, and re-deliveries in a warm isolate re-cite them.
+ *
+ * Bounded on every axis: only files actually cited with a line number reach
+ * here (auditFindingLineBounds fetches lazily and caps distinct fetches per
+ * run), and the contents API itself refuses blobs over 1 MB — which collapses
+ * to null, i.e. FAIL OPEN: null means "count unknown, keep the finding",
+ * never "assume 0 lines". A silently eaten real finding is worse than a
+ * posted bogus one.
+ */
+const headLineCountMemo = new Map<string, number | null>();
+const HEAD_LINE_COUNT_MEMO_CAP = 64;
+
+export async function headFileLineCountFor(
+  owner: string,
+  repo: string,
+  sha: string,
+  path: string,
+  token: string,
+): Promise<number | null> {
+  const key = `${owner}/${repo}@${sha}:${path}`;
+  if (headLineCountMemo.has(key)) return headLineCountMemo.get(key) ?? null;
+  const text = await fetchRepoFileText(owner, repo, path, sha, token);
+  // Same count the scoreboard uses (split('\n').length), so the runtime audit
+  // and the measurement script can never disagree about the same citation.
+  const count = text === null ? null : text.split('\n').length;
+  if (headLineCountMemo.size >= HEAD_LINE_COUNT_MEMO_CAP) {
+    const oldest = headLineCountMemo.keys().next().value;
+    if (oldest !== undefined) headLineCountMemo.delete(oldest);
+  }
+  headLineCountMemo.set(key, count);
+  return count;
+}
+
 export function filesInChunk(diffChunk: string): string[] {
   const out = new Set<string>();
   // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
@@ -3048,7 +3124,8 @@ function pathFromDiffLine(line: string): string | null {
 /**
  * Build the MAP-stage prompt for one diff chunk.
  *
- * **The chunk is a partial view, and saying so is load-bearing.** Review is
+ * **The chunk is a partial view, and the prompt must say so — omitting that
+ * one statement is what produced the failures below.** Review is
  * map-reduce: each call sees one chunk of a diff that may span dozens of files.
  * Earlier this was communicated only as ` (chunk 3 of 12)` appended to a
  * heading, with the full changed-file list rendered flat above it. That

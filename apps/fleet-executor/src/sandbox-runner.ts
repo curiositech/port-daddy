@@ -43,20 +43,23 @@ export interface SandboxRunOutcome {
   /** Why execution did not happen (binding absent, sandbox error). Null on success. */
   reason: string | null;
   /**
-   * False when the command ran, exited non-zero, and the runner's own output
-   * says it executed ZERO tests — a suite that failed to LOAD (module
-   * resolution, ESM/CJS mismatch, "must contain at least one test"), not a
-   * suite whose assertions failed.
+   * False when the command ran and the runner's own output says it executed
+   * ZERO tests — REGARDLESS of exit code. A suite that failed to LOAD (module
+   * resolution, ESM/CJS mismatch, "must contain at least one test") exits
+   * non-zero; a runner under `--passWithNoTests`, or any invocation that
+   * discovers nothing and exits 0, is the same broken instrument wearing a
+   * green exit code. Classification happens BEFORE the exit-code verdict.
    *
-   * The distinction is the whole point: `passed === false` with
-   * `ranTests === false` is evidence about the AUTHORED TEST FILES, not about
-   * the PR under review. Three real runs read as contract violations this way
-   * — #9224 (a 13-line sketch with zero declarations: "Your test suite must
-   * contain at least one test"), #9730 (4 suites, every one "failed to run",
-   * Tests: 0 total), #9639 (ESM `require` crash in beforeAll) — and each
-   * BLOCKED a PR whose code no assertion had touched. True whenever any test
-   * actually executed, and true when the output is unrecognisable (unknown
-   * runner formats must not be silently forgiven).
+   * The distinction is the whole point: `ranTests === false` is evidence
+   * about the AUTHORED TEST FILES, not about the PR under review. Three real
+   * runs read as contract violations this way — #9224 (a 13-line sketch with
+   * zero declarations: "Your test suite must contain at least one test"),
+   * #9730 (4 suites, every one "failed to run", Tests: 0 total), #9639 (ESM
+   * `require` crash in beforeAll) — and each BLOCKED a PR whose code no
+   * assertion had touched; the exit-0 twin would have PASSED a PR the same
+   * way, on zero evidence. True whenever any test actually executed, and true
+   * when the output is unrecognisable (unknown runner formats must not be
+   * silently forgiven).
    */
   ranTests: boolean;
 }
@@ -65,25 +68,39 @@ export interface SandboxRunOutcome {
  * Did the runner's own output record that ZERO tests executed?
  *
  * Conservative on purpose, mirroring parseTestFailures below: only the
- * runners' own zero-count records match, never prose. A false here downgrades
- * a BLOCK to advisory, so over-matching would let a genuinely failing suite
- * read as an instrument problem — each signal is a literal line a runner
- * prints when it discovered or ran nothing:
+ * runners' own zero-count records match, never prose. A true here reroutes
+ * the verdict from the PR to the instrument, so over-matching would let a
+ * genuinely failing suite read as an instrument problem — each signal is a
+ * literal line a runner prints when it discovered or ran nothing:
  *
  *   jest / vitest    `Tests:       0 total`  (with suites failing to run)
  *   jest             `Your test suite must contain at least one test.`
  *   jest / vitest    `No tests found` / `No test files found`
- *   pytest           `collected 0 items` alongside collection errors
- *   go test          `[no test files]` as the only outcome
+ *   pytest           `collected 0 items`
+ *   pytest           `no tests ran in 0.12s`  (the final summary line)
+ *   go test          `?   pkg   [no test files]` with NO package-result line
+ *                    recording an executed test
  *
  * A run with ANY executed test — even 1 passed of 10 — returns false: partial
  * execution is real evidence and stays under the ordinary pass/fail verdict.
+ * The go signal is where that bites: `go test ./...` prints `[no test files]`
+ * for every test-less package IN THE SAME OUTPUT as `ok pkg 0.31s` (or a
+ * timed `FAIL pkg 0.31s`) for packages whose tests ran, so the marker alone
+ * proves nothing — only its presence with no executed-package result does.
  */
 export function ranZeroTests(combined: string): boolean {
   if (/^\s*Tests:\s+0 total\s*$/m.test(combined)) return true;
   if (/Your test suite must contain at least one test/.test(combined)) return true;
   if (/^\s*No tests? f(?:ound|iles found)/m.test(combined)) return true;
-  if (/collected 0 items/.test(combined) && /error/i.test(combined)) return true;
+  if (/collected 0 items/.test(combined)) return true;
+  if (/no tests ran in [\d.]+s/.test(combined)) return true;
+  if (
+    /^\?\s+\S+\s+\[no test files\]$/m.test(combined) &&
+    !/^ok\s+\S+/m.test(combined) &&
+    !/^FAIL\s+\S+\s+[\d.]+s/m.test(combined)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -330,10 +347,11 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       // Parsed from the COMPLETE output, before the tail truncation above.
       failures: passed ? [] : parseTestFailures(combined),
       reason: null,
-      // Classified from the complete output too, and only meaningful on a
-      // failure: a green run trivially "ran tests" even if the runner printed
-      // nothing we recognise.
-      ranTests: passed ? true : !ranZeroTests(combined),
+      // Classified from the complete output, BEFORE the exit-code verdict:
+      // explicit zero-test evidence is a broken instrument whatever the exit
+      // code. `--passWithNoTests` (and anything else that exits 0 after
+      // discovering nothing) must not turn into a PASS on zero evidence.
+      ranTests: !ranZeroTests(combined),
     };
   } catch (err) {
     return {

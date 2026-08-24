@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   auditCitation,
+  auditFindingLineBounds,
   auditFindings,
   auditProposals,
   bareCitedPath,
@@ -112,6 +113,99 @@ describe('auditFindings', () => {
   });
 });
 
+describe('auditFindingLineBounds', () => {
+  const withLine = (path: string, line: number): Finding => ({ path, line, severity: 'HIGH', body: 'x' });
+
+  /** A line-count fetcher over a fixed file→length table, counting its calls. */
+  const counter = (table: Record<string, number | null>) => {
+    const calls: string[] = [];
+    return {
+      calls,
+      fetch: async (path: string) => {
+        calls.push(path);
+        return table[path] ?? null;
+      },
+    };
+  };
+
+  it('withholds a line < 1 outright, with no content fetch at all', async () => {
+    const { calls, fetch } = counter({});
+    const audit = await auditFindingLineBounds(
+      [withLine('src/a.ts', 0), withLine('src/a.ts', -3)],
+      fetch,
+    );
+    expect(calls).toEqual([]);
+    expect(audit.kept).toHaveLength(0);
+    expect(audit.rejected).toEqual([
+      { path: 'src/a.ts', line: 0, reason: 'non-positive' },
+      { path: 'src/a.ts', line: -3, reason: 'non-positive' },
+    ]);
+  });
+
+  it('withholds a line past EOF and names the file length; keeps in-bounds lines', async () => {
+    const { fetch } = counter({ 'src/a.ts': 100 });
+    const audit = await auditFindingLineBounds(
+      [withLine('src/a.ts', 100), withLine('src/a.ts', 101)],
+      fetch,
+    );
+    expect(audit.kept.map(f => f.line)).toEqual([100]);
+    expect(audit.rejected).toEqual([
+      { path: 'src/a.ts', line: 101, reason: 'past-eof', lineCount: 100 },
+    ]);
+  });
+
+  it('strips a :NN suffix off the cited path before fetching', async () => {
+    // A finding sometimes carries the line in the path string as well as the
+    // line field — the fetch must go to the file, not to "file:12".
+    const { calls, fetch } = counter({ 'src/a.ts': 10 });
+    const audit = await auditFindingLineBounds([withLine('src/a.ts:12', 12)], fetch);
+    expect(calls).toEqual(['src/a.ts']);
+    expect(audit.rejected).toEqual([
+      { path: 'src/a.ts:12', line: 12, reason: 'past-eof', lineCount: 10 },
+    ]);
+  });
+
+  it('fetches each cited file once, however many findings cite it', async () => {
+    const { calls, fetch } = counter({ 'src/a.ts': 50 });
+    await auditFindingLineBounds(
+      [withLine('src/a.ts', 1), withLine('src/a.ts', 2), withLine('src/a.ts', 999)],
+      fetch,
+    );
+    expect(calls).toEqual(['src/a.ts']);
+  });
+
+  it('fails OPEN when content is unavailable — the finding is kept and the gap is named', async () => {
+    const { fetch } = counter({ 'src/gone.ts': null });
+    const audit = await auditFindingLineBounds([withLine('src/gone.ts', 5000)], fetch);
+    expect(audit.kept).toHaveLength(1);
+    expect(audit.rejected).toHaveLength(0);
+    expect(audit.unverifiable).toEqual(['src/gone.ts']);
+  });
+
+  it('caps distinct fetches per run and fails OPEN past the cap', async () => {
+    const { calls, fetch } = counter({ 'src/a.ts': 10, 'src/b.ts': 10 });
+    const audit = await auditFindingLineBounds(
+      [withLine('src/a.ts', 99), withLine('src/b.ts', 99)],
+      fetch,
+      1,
+    );
+    expect(calls).toEqual(['src/a.ts']);
+    expect(audit.rejected).toEqual([
+      { path: 'src/a.ts', line: 99, reason: 'past-eof', lineCount: 10 },
+    ]);
+    expect(audit.kept.map(f => f.path)).toEqual(['src/b.ts']);
+    expect(audit.unverifiable).toEqual(['src/b.ts']);
+  });
+
+  it('leaves non-path-shaped citations alone, fetching nothing for them', async () => {
+    const { calls, fetch } = counter({});
+    const audit = await auditFindingLineBounds([withLine('PR description', 3)], fetch);
+    expect(calls).toEqual([]);
+    expect(audit.kept).toHaveLength(1);
+    expect(audit.rejected).toHaveLength(0);
+  });
+});
+
 const proposal = (title: string, evidenceList: string[]): Proposal =>
   ({ title, rationale: 'r', evidence: evidenceList, action: 'roadmap' }) as Proposal;
 
@@ -200,5 +294,17 @@ describe('renderCitationAuditNote', () => {
     expect(note).toContain('mixed');
     expect(note).toContain('csp-validator.ts');
     expect(note).toContain('stripped');
+  });
+
+  it('names impossible line citations — both flavours — and their evidence', () => {
+    const note = renderCitationAuditNote([], [], [], [
+      { path: 'src/a.ts', line: 0, reason: 'non-positive' },
+      { path: 'src/b.ts', line: 9001, reason: 'past-eof', lineCount: 120 },
+    ]);
+    expect(note).toContain('cited line cannot exist');
+    expect(note).toContain('`src/a.ts:0` (line numbers start at 1)');
+    expect(note).toContain('`src/b.ts:9001` (the file has 120 lines at this PR\'s head)');
+    // Line rejections alone must be enough to render a note.
+    expect(renderCitationAuditNote([], [], [], [])).toBe('');
   });
 });

@@ -1269,6 +1269,31 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
     const { result } = await run({ sandbox: 'absent', blocking: false, blockWithoutSandbox: true });
     expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK' });
   });
+
+  // A green exit code over ZERO executed tests is not a PASS — it is a broken
+  // instrument (--passWithNoTests, an empty discovery). The ship must report
+  // ITSELF errored, so the run fails on the broken-ship doctrine instead of
+  // certifying the PR on zero evidence.
+  const runZeroTestGreen = async (output: string) => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    const env = makeEnv({ AI: ai, SANDBOX: sandboxStub(0, output) });
+    return runPurser(mkShip({ blocking: true }), mkCtx(), env, 'tok', rec.transcript, freshMetrics());
+  };
+
+  it('exit 0 + "No tests found" ⇒ errored (instrument failure), never an evidence-free PASS', async () => {
+    const result = await runZeroTestGreen('No tests found, exiting with code 0\n');
+    expect(result.errored).toBe(true);
+    expect(result.failureReason).toContain('zero tests');
+    expect(aggregateConclusion([result])).toBe('failure');
+  });
+
+  it('exit 0 + "Tests: 0 total" ⇒ errored (instrument failure), never an evidence-free PASS', async () => {
+    const result = await runZeroTestGreen('Tests:       0 total\n');
+    expect(result.errored).toBe(true);
+    expect(result.failureReason).toContain('zero tests');
+    expect(aggregateConclusion([result])).toBe('failure');
+  });
 });
 
 // ---------------------------------------------------------------------------
