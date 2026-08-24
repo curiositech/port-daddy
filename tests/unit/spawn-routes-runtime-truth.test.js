@@ -172,4 +172,64 @@ describe('spawn route effective runtime truth with real preflight', () => {
       await app.close();
     }
   });
+
+  test('cli-tube receipt survives completion in the FleetBar /spawn API, and is absent when unavailable', async () => {
+    const costTracker = makeCostTracker();
+    const app = await buildApp({ transcripts, costTracker });
+    const receipt = {
+      tool: 'pd-coast-guard',
+      agentId: 'will-be-replaced-by-the-spawner',
+      backend: 'cli:codex',
+      confined: true,
+      mechanism: 'seatbelt',
+      confinedPaths: ['/Users/operator/.ssh'],
+      scrubbedSecrets: ['OPENAI_API_KEY'],
+      egressCap: { maxRequests: 5000, maxBytes: 1000000 },
+      egress: { requests: 4, bytes: 1280, blocked: 1, injected: 0 },
+      writePolicy: 'unrestricted',
+      writeDeniedPaths: [],
+      startedAt: 1,
+      endedAt: 2,
+      honestLimits: 'Cooperative-case defense only.',
+    };
+
+    try {
+      mockSpawnViaCliTube.mockResolvedValueOnce({
+        output: 'guarded cli tube completion',
+        error: null,
+        rawStdout: '',
+        coastGuardReceipt: receipt,
+      });
+      const guarded = await app.inject({
+        method: 'POST',
+        url: '/spawn',
+        payload: { backend: 'claude', task: 'guarded completion', identity: 'port-daddy:test:cli-tube-receipt', budgetUsd: 0.75 },
+      });
+      expect(guarded.statusCode).toBe(200);
+
+      const guardedHistory = await app.inject({ method: 'GET', url: '/spawn' });
+      const guardedAgent = guardedHistory.json().agents.find((agent) => agent.agentId === guarded.json().agentId);
+      expect(guardedAgent).toEqual(expect.objectContaining({
+        status: 'completed',
+        coastGuard: expect.objectContaining({
+          mechanism: 'seatbelt',
+          egress: { requests: 4, bytes: 1280, blocked: 1, injected: 0 },
+        }),
+      }));
+
+      mockSpawnViaCliTube.mockResolvedValueOnce({ output: 'no receipt', error: null, rawStdout: '' });
+      const unguarded = await app.inject({
+        method: 'POST',
+        url: '/spawn',
+        payload: { backend: 'claude', task: 'receipt unavailable', identity: 'port-daddy:test:cli-tube-no-receipt', budgetUsd: 0.75 },
+      });
+      expect(unguarded.statusCode).toBe(200);
+
+      const unguardedHistory = await app.inject({ method: 'GET', url: '/spawn' });
+      const unguardedAgent = unguardedHistory.json().agents.find((agent) => agent.agentId === unguarded.json().agentId);
+      expect(unguardedAgent).not.toHaveProperty('coastGuard');
+    } finally {
+      await app.close();
+    }
+  });
 });

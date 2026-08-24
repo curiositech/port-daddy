@@ -1860,7 +1860,18 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         Block::Chip { label, tone } => {
             let color_u32 = tone_rgb(&tone);
             let color = rgb(color_u32);
-            div()
+            // A chip is a small inline badge, not a section banner. Its parent
+            // block list is a `flex_col()`; gpui/Taffy defaults an unset
+            // `align_items` to Stretch (CSS flexbox default), so a plain div
+            // with no override fills the pane's full width on the cross axis
+            // — exactly the "6 ON THE CRITICAL PATH" bar rendering as a
+            // full-bleed banner instead of a short pill (operator report on
+            // the live Planner Gantt, 2026-08-23). `flex_shrink_0` does NOT
+            // fix this — it governs the flex item's MAIN-axis sizing, not
+            // cross-axis stretch; only `align_self` does. `Block::Row`'s own
+            // row div correctly relies on the stretch default (rows SHOULD
+            // span full width); only this leaf badge needed the opt-out.
+            let mut el = div()
                 .mx(px(tokens::SPACE_3))
                 .my(px(tokens::SPACE_1))
                 .px(px(8.0))
@@ -1870,8 +1881,9 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .font_family("IBM Plex Mono")
                 .text_size(px(tokens::TEXT_CAPTION))
                 .font_weight(FontWeight::BOLD)
-                .child(label)
-                .into_any_element()
+                .child(label);
+            el.style().align_self = Some(gpui::AlignItems::Start);
+            el.into_any_element()
         }
         Block::Flag {
             letter,
