@@ -2221,6 +2221,26 @@ fn invalidate_editor_blame(state: &mut EditorSurfaceState) {
     }
 }
 
+/// Record the measured text-input bounds for exactly one editor pane.
+///
+/// Editor panes share the window focus handle, so paint order must never make
+/// one pane overwrite another pane's geometry. The return value tells the
+/// caller whether wrapped layout needs another render after a width change.
+fn record_editor_input_bounds(
+    editors: &mut HashMap<String, EditorSurfaceState>,
+    editor_key: &str,
+    bounds: Bounds<Pixels>,
+) -> bool {
+    let Some(state) = editors.get_mut(editor_key) else {
+        return false;
+    };
+    let width_changed = state.input_bounds.is_none_or(|previous| {
+        (f32::from(previous.size.width) - f32::from(bounds.size.width)).abs() >= tokens::CODE_CH
+    });
+    state.input_bounds = Some(bounds);
+    state.wrap_lines && width_changed
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EditorPlacement {
     ReplaceFocused,
@@ -3011,15 +3031,10 @@ impl ConsoleView {
             .filter(|_| state.wrap_lines)
             .map(|bounds| {
                 let gutter_cols = text.split('\n').count().max(1).to_string().len() as f32;
-                editor_wrap_columns(
-                    f32::from(bounds.size.width),
-                    gutter_cols,
-                    state.show_blame,
-                )
+                editor_wrap_columns(f32::from(bounds.size.width), gutter_cols, state.show_blame)
             });
         let line_for_visual_row = |visual_row| {
-            editor_hit_position(text, visual_row, 0, wrap_columns)
-                .map(|(line, _)| line as u32 + 1)
+            editor_hit_position(text, visual_row, 0, wrap_columns).map(|(line, _)| line as u32 + 1)
         };
         let top_line = line_for_visual_row(visual_top).unwrap_or(1);
         let last_line = text.split('\n').count().max(1) as u32;
@@ -7309,8 +7324,8 @@ impl Element for EditorInputElement {
         cx: &mut App,
     ) {
         let focus = self.view.read(cx).focus_handle(cx);
-        let is_focused = self.view.read(cx).focused_editor_key().as_deref()
-            == Some(self.editor_key.as_str());
+        let is_focused =
+            self.view.read(cx).focused_editor_key().as_deref() == Some(self.editor_key.as_str());
         if is_focused {
             window.handle_input(
                 &focus,
@@ -7320,15 +7335,8 @@ impl Element for EditorInputElement {
         }
         let editor_key = self.editor_key.clone();
         self.view.update(cx, |view, cx| {
-            if let Some(state) = view.editors.get_mut(&editor_key) {
-                let width_changed = state.input_bounds.is_none_or(|previous| {
-                    (f32::from(previous.size.width) - f32::from(bounds.size.width)).abs()
-                        >= tokens::CODE_CH
-                });
-                state.input_bounds = Some(bounds);
-                if state.wrap_lines && width_changed {
-                    cx.notify();
-                }
+            if record_editor_input_bounds(&mut view.editors, &editor_key, bounds) {
+                cx.notify();
             }
         });
     }
@@ -8807,6 +8815,47 @@ mod add_pane_tests {
         assert!(editors
             .get(&editor_key(&path, None))
             .is_some_and(|state| state.pane.buffer().is_some()));
+    }
+
+    #[test]
+    fn editor_input_bounds_remain_pane_local_regardless_of_paint_order() {
+        let root = env!("CARGO_MANIFEST_DIR");
+        let first_path = format!("{root}/Cargo.toml");
+        let second_path = format!("{root}/src/app.rs");
+        let first_key = editor_key(&first_path, None);
+        let second_key = editor_key(&second_path, None);
+        let mut editors = HashMap::from([
+            (
+                first_key.clone(),
+                editor_surface_state(first_path, None, "test:operator".into()),
+            ),
+            (
+                second_key.clone(),
+                editor_surface_state(second_path, None, "test:operator".into()),
+            ),
+        ]);
+        let first_bounds = Bounds::new(point(px(10.0), px(20.0)), size(px(300.0), px(200.0)));
+        let second_bounds = Bounds::new(point(px(410.0), px(20.0)), size(px(500.0), px(200.0)));
+
+        // Paint the inactive pane first, then the focused pane. Both must keep
+        // their own hit-test geometry so the first click can place the caret.
+        assert!(!record_editor_input_bounds(
+            &mut editors,
+            &second_key,
+            second_bounds
+        ));
+        assert!(!record_editor_input_bounds(
+            &mut editors,
+            &first_key,
+            first_bounds
+        ));
+
+        let first = editors[&first_key].input_bounds.expect("first bounds");
+        let second = editors[&second_key].input_bounds.expect("second bounds");
+        assert_eq!(f32::from(first.left()), 10.0);
+        assert_eq!(f32::from(first.size.width), 300.0);
+        assert_eq!(f32::from(second.left()), 410.0);
+        assert_eq!(f32::from(second.size.width), 500.0);
     }
 
     #[test]
