@@ -277,7 +277,10 @@ $\sigma^{+}_{\min}$ lower bound is tight under the adversarial offset ($r/\|o_\p
 uniform kernel lie of norm $5$ gives $r=2\times10^{-14}$ --- invisible in principle, correctly not flagged. Localization
 $200/200$ (two-cycles topology) plus $128/128$ (severed expanders); noise boundary measured: $\ge95\%$ localization up to
 $\sigma_\eta/\sigma_{\mathrm{eq}}\approx0.1$, $76.5\%$ at $0.2$; sufficient-condition violations $0$. Timing slope versus
-$|E|$: conjugate gradient $0.65$, dense solve $1.88$. Two coordinated liars on a common cycle: each alone certified at
+$|E|$ (wall-clock, machine-dependent --- only the qualitative split reproduces across runs): conjugate gradient stays
+well under the $1.6$ gate ($\approx0.6$--$0.7$ across repeated runs) while dense solve is consistently super-linear and
+several times steeper ($\gtrsim3.0$); it is the CR-3 decomposition, not the two digits, that the gate certifies. Two
+coordinated liars on a common cycle: each alone certified at
 $r\ge|s|/\sqrt{8}$, the coalition cancels to $r=6\times10^{-15}$. The D2-unmasked mutant fires on a severed lie at
 $0.839$ --- exactly the full-visibility value, caught [internal, \texttt{sheaf\_consistency\_radius.py}].
 \end{thebox}
@@ -383,7 +386,9 @@ D1/D2 reintroduction mutants, and the structural $\beta_1$/cokernel printout), a
 $R_{\mathrm{eff}}$ closed-form checks on $C_4$--$C_{12}$ and 200 random graphs, the localization and noise-boundary
 measurements, the timing slopes, and the coalition-cancellation witness). Each script exits nonzero on any failed check.
 Every [verified] number is recomputable by hand from the closed forms restated in the boxes. Figures regenerate from
-\texttt{figures/src/} at the same seed.
+\texttt{figures/src/} at the same seed. The one exception to bit-exact reproduction: CR-3's timing slopes are wall-clock
+and machine-dependent, so the script asserts and re-asserts only the qualitative gate (conjugate-gradient sub-$1.6$,
+dense solve several times steeper), not the printed digits.
 
 \begin{thebibliography}{9}
 \bibitem{abramsky-brandenburger} S.~Abramsky and A.~Brandenburger. The sheaf-theoretic structure of non-locality and
