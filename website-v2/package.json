@@ -31,7 +31,8 @@
     "test:figure-palette": "node scripts/check-figure-palette.mjs",
     "test:install-commands": "node scripts/check-install-commands.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
-    "test:gifs": "node scripts/check-terminal-recordings.mjs"
+    "test:gifs": "node scripts/check-terminal-recordings.mjs",
+    "test:porthole": "tsx scripts/check-porthole-casts.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

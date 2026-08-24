@@ -181,6 +181,12 @@ import {
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
 import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
+import {
+  configuredDaemonUrl,
+  configuredDaemonUnavailableMessage,
+  hasExplicitDaemonEndpoint,
+  shouldAutoStartLocalDaemon,
+} from '../cli/utils/remote-daemon.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -191,7 +197,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destruc
 import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
-const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const PORT_DADDY_URL: string = getDaemonTcpUrl(configuredDaemonUrl(process.env));
 // Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
@@ -369,12 +375,12 @@ function printLaunchHints(hints: {
  * Resolve connection target: Unix socket or TCP.
  */
 function resolveTarget(): ConnectionTarget {
+  const explicitUrl = configuredDaemonUrl(process.env);
+  if (explicitUrl) {
+    return resolveDaemonTcpTarget(explicitUrl);
+  }
   if (process.env.PORT_DADDY_FORCE_TCP === '1') {
     return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
-  }
-  // Explicit TCP URL overrides socket
-  if (process.env.PORT_DADDY_URL) {
-    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   // Use socket if it exists
   if (existsSync(SOCK_PATH)) {
@@ -1291,15 +1297,36 @@ Commands:
     --limit <n>             Limit rows per section (default: 8)
     --status <s>            now|backlog|parked|merge|done|all
     --harbor <h>            Harbor scope
+    --project <name>        Logical project filter (derives the harbor when --harbor is absent)
     -q, --quiet             Print one slug per line
     -j, --json              Output raw roadmap_items rows
 
   roadmap upsert <slug>     Create/update a durable roadmap item receipt
-    --summary <md>          Roadmap summary markdown
+    --summary <md>          Roadmap summary markdown (one-line headline)
     --status <s>            now|backlog|parked|merge|done
+    --kind <k>              project|epic|story|task|subtask|bug|chore (default: task)
+    --priority <1-5>        1 highest .. 5 lowest (default: 3)
+    --estimate <units>      Effort units (positive whole number) — the Gantt/CPM node duration
+    --start <when>          Actual start: YYYY-MM-DD, +Nd, or epoch ms
+    --due <when>            Target finish: YYYY-MM-DD, +Nd, or epoch ms
+    --assignee <id>         Durable owner — a roster agentNodeId or slug (validated
+                            against pd roster; unknown owners are rejected)
+    --unassign              Clear the owner (sends explicit null)
+    --actual <units>        Effort actually spent (positive whole number, same units as --estimate)
+    --tag <t>               Add a tag (repeatable); --clear-tags empties the set
+    --description <md>      Long-form body markdown (summary stays the headline)
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
     --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+    --project <name>        Logical project recorded on the item
+
+  roadmap link <slug>       Pin a typed artifact link to an item's Jira card
+    --pr <number>           Link a pull request (--url/--title optional)
+    --doc <path>            Link a repo doc path
+    --file <path>           Link a file path
+    --media <path-or-url>   Link media (--mime/--caption optional)
+  roadmap unlink <slug>     Remove a typed link (same selector flags)
+  roadmap links <slug>      List an item's typed links
 
   roadmap delete <slug>     Remove a roadmap item (and its status-event audit rows)
     --harbor <h>            Harbor to delete from (default: repo/project name)
@@ -1312,12 +1339,44 @@ Commands:
     --as <agentId>          Harvester id (default: operator-cli)
     --into <roadmap-slug>   Roadmap slug the feedback was folded into
 
+  roadmap chomp <doc.md...> Chomp ANY markdown planning doc into roadmap items
+                            (headings → project/epic/story/task hierarchy,
+                            checklists → tasks, explicit "depends on" → deps,
+                            filename → provenance tag). Idempotent; never
+                            clobbers rows enriched after the first chomp.
+                            Default is a PREVIEW — writing goes through a
+                            reviewed PR via --emit-pr-plan (single-writer
+                            doctrine: no silent roadmap writes).
+    --emit-pr-plan <dir>    THE write act: upsert via the daemon AND emit the
+                            doc-removal PR artifacts — regenerated
+                            roadmap.snapshot.json, a chomp-receipt.json work
+                            receipt, a git-rm list of chomped docs, and a
+                            ready PR body (does NOT open the PR itself)
+    --dry-run               Explicit preview (same as omitting --emit-pr-plan)
+    --status <s>            Default status for planning-doc items (default: backlog)
+    --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+    --as <agentId>          Actor stamped on freshly inserted rows
+    --enrich                Polish long-section summaries via the configured
+                            LLM backend (PD_CHOMP_BACKEND / fleet default);
+                            without a backend, extraction stays deterministic
+
+  roadmap import-markdown   Legacy alias: chomp the 3 canonical curated piles
+                            (docs/ROADMAP.md Next Cuts, IDEAS-TROVE now,
+                            DOGFOOD-FEEDBACK now) through the same path
+    --dry-run               Report without writing
+
 Examples:
   pd roadmap
   pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
   pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap upsert relay-hardening --summary "Relay retry storms" --kind epic --priority 2 --estimate 5 --due +14d
+  pd roadmap upsert relay-hardening --assignee portdaddy-relay-steward --tag infra --tag reliability
+  pd roadmap link relay-hardening --pr 9340 --title "retry backoff"
+  pd roadmap links relay-hardening
   pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
+  pd roadmap chomp PLAN.md docs/proposals/v4.md --dry-run
+  pd roadmap chomp PLAN.md --emit-pr-plan /tmp/chomp-pr
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   'skill-graft': `Skill Graft — Native local skill guidance for fleet ships
@@ -2480,7 +2539,7 @@ export async function main(): Promise<void> {
   // Flags whose repeated occurrences should accumulate into an array
   // instead of last-write-wins. Add a key here when a consumer is array-aware
   // (e.g. `--files A --files B`).
-  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config', 'tag']);
 
   // Greedily consume every following non-option token. This makes the
   // documented `--files a b c` form equivalent to repeating the flag without
@@ -3399,6 +3458,14 @@ export async function main(): Promise<void> {
     await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
     const error = err as Error;
     if (isDaemonUnavailableError(error)) {
+      // An explicitly selected URL/profile is a peer, not a hint to fall back
+      // to this machine. Direct-DB fallback and local auto-start would both
+      // redirect writes into the wrong ledger while that peer is offline.
+      if (hasExplicitDaemonEndpoint(process.env)) {
+        ui.error(configuredDaemonUnavailableMessage(PORT_DADDY_URL));
+        process.exit(1);
+      }
+
       // Daemon unreachable — try direct-DB mode for Tier 1 commands
       if (TIER_1_COMMANDS.has(command)) {
         try {
@@ -3418,7 +3485,7 @@ export async function main(): Promise<void> {
         process.exit(1);
       }
 
-      if (!autoStartAttempted) {
+      if (!autoStartAttempted && shouldAutoStartLocalDaemon(PORT_DADDY_URL, process.env)) {
         // Auto-start daemon on first use
         autoStartAttempted = true;
         console.error('Port Daddy daemon is not running. Starting it...');

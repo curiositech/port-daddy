@@ -24,7 +24,11 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { executeFleet, ensureRunRow } from '../src/execute.js';
-import { completeCheckRun } from '../src/github.js';
+import {
+  completeCheckRun,
+  completeCheckRunDetailed,
+  githubMutationRetryDelayMs,
+} from '../src/github.js';
 import { handleDlqJob } from '../src/dlq.js';
 import {
   freshState,
@@ -70,6 +74,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -152,12 +157,13 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
   });
 
   it('retries a transient failure and succeeds without the caller ever seeing an error', async () => {
+    vi.useFakeTimers();
     let calls = 0;
     const realFetch = globalThis.fetch;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (String(input).includes('/check-runs/99')) {
+        if (String(input).includes('/check-runs/99') && init?.method === 'PATCH') {
           calls += 1;
           if (calls < 2) return new Response('server hiccup', { status: 502 });
         }
@@ -165,20 +171,100 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
       }) as unknown as typeof fetch,
     );
 
-    const ok = await completeCheckRun('owner', 'repo', 99, 'success', 'all good', 'tok');
+    const completion = completeCheckRun('owner', 'repo', 99, 'success', 'all good', 'tok');
+    await vi.runAllTimersAsync();
+    const ok = await completion;
     expect(ok).toBe(true);
     expect(calls).toBe(2); // one failure, one success — proves the internal retry ran
   });
 
   it('returns false (never throws) after exhausting retries on a persistent failure', async () => {
+    vi.useFakeTimers();
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('still down', { status: 503 })) as unknown as typeof fetch,
     );
 
+    const completion = completeCheckRun('owner', 'repo', 99, 'success', 'all good', 'tok');
+    await vi.runAllTimersAsync();
+    await expect(completion).resolves.toBe(false);
+  });
+
+  it('accepts an ambiguous PATCH when read-back proves the intended conclusion landed', async () => {
+    let patchCalls = 0;
+    let getCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH') {
+          patchCalls += 1;
+          throw new Error('socket reset after request body upload');
+        }
+        getCalls += 1;
+        return new Response(JSON.stringify({ status: 'completed', conclusion: 'success' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }) as unknown as typeof fetch,
+    );
+
     await expect(
       completeCheckRun('owner', 'repo', 99, 'success', 'all good', 'tok'),
-    ).resolves.toBe(false);
+    ).resolves.toBe(true);
+    expect(patchCalls).toBe(1);
+    expect(getCalls).toBe(1);
+  });
+
+  it('captures bounded GitHub diagnostics and stops retrying permanent 4xx responses', async () => {
+    let patchCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH') {
+          patchCalls += 1;
+          return new Response(`invalid ${'x'.repeat(1000)}`, {
+            status: 422,
+            headers: { 'x-github-request-id': 'request-abc' },
+          });
+        }
+        return new Response('not complete', { status: 404 });
+      }) as unknown as typeof fetch,
+    );
+
+    const result = await completeCheckRunDetailed(
+      'owner',
+      'repo',
+      99,
+      'success',
+      'all good',
+      'tok',
+    );
+    expect(result.ok).toBe(false);
+    expect(result.diagnostic).toContain('status=422');
+    expect(result.diagnostic).toContain('request_id=request-abc');
+    expect(result.diagnostic!.length).toBeLessThan(600);
+    expect(patchCalls).toBe(1);
+  });
+
+  it('follows GitHub mutation pacing and provider retry headers', () => {
+    expect(
+      githubMutationRetryDelayMs(
+        new Response('', { status: 429, headers: { 'retry-after': '12' } }),
+        1,
+      ),
+    ).toBe(12_000);
+    expect(githubMutationRetryDelayMs(new Response('', { status: 403 }), 1)).toBe(60_000);
+    expect(githubMutationRetryDelayMs(new Response('', { status: 503 }), 2)).toBe(2_000);
+    expect(
+      githubMutationRetryDelayMs(
+        new Response('', {
+          status: 403,
+          headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1010' },
+        }),
+        1,
+        1_000_000,
+      ),
+    ).toBe(10_000);
   });
 
   it('a persistently-failing completion PATCH propagates before aggregate review', async () => {

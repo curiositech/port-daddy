@@ -7,7 +7,8 @@
  * sweep periodically. It is scheduled *remediation/maintenance*, not a pure
  * monitor: it enforces three invariants Phase 1 introduced but left unbounded.
  *
- *   R1 retention   — events + fleet_run_steps + fleet_runs older than
+ *   R1 retention   — events + fleet_run_steps + fleet_runs + terminal admission
+ *                    receipts older than
  *                    EVENT_RETENTION_DAYS are pruned (the knob was declared but
  *                    never read — fleet_run_steps grew unbounded; ADR-0101 OQ4).
  *   R2 session reap— expired web_sessions are deleted (resolveSession already
@@ -25,6 +26,7 @@
 import type { Env } from './types.js';
 import { flushDeprecationSightings } from './deprecations.js';
 import { DIRECTORY_SIGNAL_RETENTION_DAYS } from './directory.js';
+import { ROADMAP_ACTIVITY_CAP } from './roadmap-mirror.js';
 
 const DAY_SECONDS = 24 * 60 * 60;
 const ERASURE_HARD_DELETE_DAYS = 30;
@@ -40,6 +42,7 @@ export interface SweepResult {
   eventsPruned: number;
   runStepsPruned: number;
   runsPruned: number;
+  runIntentsPruned: number;
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
@@ -48,6 +51,9 @@ export interface SweepResult {
   // operators, and every derived signal is retention-bounded.
   directoryDelistDropped: number;
   directorySignalsPruned: number;
+  // Roadmap mirror (operator mandate 2026-08-22): the activity TAIL is capped
+  // per (user, repo); the mirrors themselves persist (state, not history).
+  roadmapActivityPruned: number;
   errors: string[];
 }
 
@@ -118,6 +124,17 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'fleet_runs',
   );
+  // Active admission rows are never retention-pruned: they are the only durable
+  // evidence that queued/retrying work exists before a transcript materializes.
+  const runIntentsPruned = await deleteOlderThan(
+    env.DB,
+    `DELETE FROM fleet_run_intents
+      WHERE state IN ('superseded','enqueue_failed','success','failure','neutral','cancelled')
+        AND finished_at IS NOT NULL AND finished_at < ?`,
+    retentionHorizon,
+    errors,
+    'fleet_run_intents',
+  );
   const eventsPruned = await deleteOlderThan(
     env.DB,
     'DELETE FROM events WHERE arrived_at < ?',
@@ -155,6 +172,29 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     'capability_index(retention)',
   );
 
+  // R-RM — roadmap-mirror activity cap (operator mandate 2026-08-22): ingest
+  // already keeps only the newest ROADMAP_ACTIVITY_CAP rows per (user, repo);
+  // the sweep RE-ENFORCES that invariant so no code path (a crash between
+  // writes, a future bug) can leave an unbounded activity table behind. The
+  // mirror headers/items/edges are deliberately NOT retention-pruned: they are
+  // current state, replaced wholesale on the next push — never history.
+  const roadmapActivityPruned = await deleteWhere(
+    env.DB,
+    `DELETE FROM roadmap_mirror_activity
+      WHERE (user_id, repo_full_name, at, slug, kind) IN (
+        SELECT user_id, repo_full_name, at, slug, kind FROM (
+          SELECT user_id, repo_full_name, at, slug, kind,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY user_id, repo_full_name
+                   ORDER BY at DESC, slug DESC, kind DESC
+                 ) AS rn
+            FROM roadmap_mirror_activity)
+         WHERE rn > ?)`,
+    [ROADMAP_ACTIVITY_CAP],
+    errors,
+    'roadmap_mirror_activity(cap)',
+  );
+
   // R2 — reap expired web sessions (bounded growth; not a security fix).
   const sessionsReaped = await deleteOlderThan(
     env.DB,
@@ -174,6 +214,13 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'web_sessions(erased)',
   );
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'user_roles(erased)',
+  );
   // Defensive: eraseUser already purged the account's Shipwright chats at
   // delete time; this catches rows soft-deleted users somehow still own so the
   // hard-delete below never orphans conversation content.
@@ -184,6 +231,24 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'shipwright_chats(erased)',
   );
+  // Defensive, same shape as the shipwright guard above: eraseUser already
+  // purged the account's roadmap mirror at delete time; these catch rows a
+  // soft-deleted user somehow still owns so the FK-referencing hard delete
+  // below can never fail or orphan mirror content.
+  for (const table of [
+    'roadmap_mirror_items',
+    'roadmap_mirror_edges',
+    'roadmap_mirror_activity',
+    'roadmap_mirrors',
+  ]) {
+    await deleteOlderThan(
+      env.DB,
+      `DELETE FROM ${table} WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)`,
+      erasureHorizon,
+      errors,
+      `${table}(erased)`,
+    );
+  }
   const usersHardDeleted = await deleteOlderThan(
     env.DB,
     'DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?',
@@ -207,12 +272,14 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     eventsPruned,
     runStepsPruned,
     runsPruned,
+    runIntentsPruned,
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,
     sightingsFlushed,
     directoryDelistDropped,
     directorySignalsPruned,
+    roadmapActivityPruned,
     errors,
   };
 }

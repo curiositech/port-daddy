@@ -91,7 +91,13 @@ gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --
 # Confirm the daemon/CLI binaries land on the release:
 #   pd-darwin-arm64.tar.gz
 #   pd-linux-x64.tar.gz
-# plus the FleetBar preview .zip and pd-console artifact.
+# plus the FleetBar preview .zip. The pd-console .zip is CONDITIONAL: it is
+# only attached when core/pd-console (or scripts/package-pd-console.sh)
+# actually changed since the previous tag — version-string churn aside. An
+# unchanged console is deliberately not re-cut; the newest console stays on
+# the last release that built one, and that release's latest.json simply
+# omits the console entry. To force a rebuild (e.g. signing-cert rotation),
+# dispatch release.yml with force_console=true.
 # Confirm both archives have provenance bound to this repository, release.yml,
 # the exact tag ref, and the tag commit (the tap enforces the same boundary).
 
@@ -119,6 +125,7 @@ pd done "v3.15.0 shipped"
 |---|---|---|
 | `Could not resolve: "@clack/prompts"` (and friends) in `release.yml` | Workflow ran `bun build --compile` without first running `bun install`. `node_modules` empty in the checkout. | `release.yml` must have a `bun install` step between `setup-bun` and `bun build`. Validated in the workflow today. |
 | `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | A version surface drifted — usually you forgot to run `sync-version.ts` after `npm version`. | Run `npx tsx scripts/sync-version.ts` (it stamps every surface, incl. `mcp/server.ts` + `referenceCatalog.ts`), restage, recommit. |
+| Release mutation fails in `actions/checkout` even though both PAT secrets are configured | The preferred `RELEASE_TRAIN_TOKEN` is expired or under-scoped. Secret-expression fallback is presence-based, so a non-empty dead credential masks `HOMEBREW_TAP_TOKEN`. | The train live-probes repository push permission and falls back automatically. If both probes fail, repair or rotate the repository Actions secrets; do not re-run the unchanged workflow. |
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
 | `brew upgrade port-daddy` still serves the old version | The tap's serialized self-promotion has not completed, or it rejected tag/imprint/digest/provenance evidence. The source `update-homebrew` wait stays red instead of hiding the gap. | Inspect the tap workflow failure. After fixing the actual contract, run `gh workflow run update-formula.yml --repo curiositech/homebrew-tap --ref main`; it self-discovers the release and requires no payload or cross-repo token. |

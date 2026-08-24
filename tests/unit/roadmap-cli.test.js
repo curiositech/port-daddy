@@ -16,7 +16,8 @@ jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch,
 }));
 
-const { handleRoadmap, resolveRoadmapHarbor } = await import('../../cli/commands/roadmap.js');
+const { handleRoadmap, resolveRoadmapHarbor, renderChompTree, buildChompPrBody } =
+  await import('../../cli/commands/roadmap.js');
 
 const fixture = {
   generatedAt: 1,
@@ -341,5 +342,166 @@ describe('pd roadmap', () => {
         }),
       }),
     );
+  });
+});
+
+// Operator mandate 2026-08-22: `pd roadmap chomp` is the general planning-doc
+// ingestion verb — parse ANY markdown planning doc into roadmap items via the
+// daemon, preview with --dry-run, and emit the doc-removal PR artifacts.
+describe('pd roadmap chomp', () => {
+  const chompFixture = {
+    success: true,
+    docs: [{ path: 'PLAN.md', format: 'planning-doc', parsed: 3, missing: false }],
+    items: [
+      {
+        slug: 'v4-plan', kind: 'project', status: 'backlog', summaryMd: 'V4 Plan',
+        descriptionMd: 'Body.', parent: null, dependsOn: [], tags: ['plan'],
+        sourcePath: 'PLAN.md', depth: 0, action: 'inserted', protected: false,
+      },
+      {
+        slug: 'phase-1', kind: 'epic', status: 'now', summaryMd: 'Phase 1',
+        descriptionMd: null, parent: 'v4-plan', dependsOn: ['anchor'], tags: ['plan'],
+        sourcePath: 'PLAN.md', depth: 1, action: 'inserted', protected: false,
+      },
+      {
+        slug: 'old-row', kind: 'task', status: 'now', summaryMd: 'Existing row',
+        descriptionMd: null, parent: 'v4-plan', dependsOn: [], tags: ['plan'],
+        sourcePath: 'PLAN.md', depth: 1, action: 'updated', protected: true,
+      },
+    ],
+    inserted: ['v4-plan', 'phase-1'],
+    updated: ['old-row'],
+    parentEdges: [
+      { parent: 'v4-plan', child: 'phase-1' },
+      { parent: 'v4-plan', child: 'old-row' },
+    ],
+    parentEdgesWritten: 2,
+    dangling: [],
+    warnings: [],
+    enrichment: null,
+    missingFiles: [],
+    sourceCommit: null,
+    dryRun: false,
+  };
+
+  test('posts the docs to /roadmap/chomp with root, harbor, and dry-run flags', async () => {
+    pdFetch.mockResolvedValue({ ok: true, json: async () => ({ ...chompFixture, dryRun: true }) });
+
+    await handleRoadmap(['chomp', 'PLAN.md', 'docs/V4.md'], {
+      dir: '/repo',
+      harbor: 'port-daddy',
+      as: 'agent-1',
+      'dry-run': true,
+      json: true,
+    });
+
+    expect(pdFetch.mock.calls[0][0]).toContain('/roadmap/chomp');
+    const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      rootDir: '/repo',
+      paths: ['PLAN.md', 'docs/V4.md'],
+      harbor: 'port-daddy',
+      by: 'agent-1',
+      dryRun: true,
+    });
+  });
+
+  test('bare chomp (no --emit-pr-plan) is a PREVIEW — the daemon is asked for a dry run', async () => {
+    // Single-writer doctrine: roadmap writes land through a reviewed PR, so
+    // without the PR-plan flag the CLI must never request a real write.
+    pdFetch.mockResolvedValue({ ok: true, json: async () => ({ ...chompFixture, dryRun: true }) });
+
+    await handleRoadmap(['chomp', 'PLAN.md'], { dir: '/repo', harbor: 'port-daddy', json: true });
+
+    const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+    expect(body.dryRun).toBe(true);
+  });
+
+  test('--emit-pr-plan performs the real write and emits snapshot + receipt + git-rm list + PR body', async () => {
+    const { mkdtempSync, readFileSync, rmSync, existsSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const planDir = mkdtempSync(join(tmpdir(), 'pd-chomp-plan-'));
+    const rootDir = mkdtempSync(join(tmpdir(), 'pd-chomp-root-'));
+
+    pdFetch.mockImplementation(async (url) => {
+      if (String(url).includes('/roadmap/chomp')) {
+        return { ok: true, json: async () => ({ ...chompFixture, sourceCommit: 'abc1234' }) };
+      }
+      // buildRoadmapSnapshot's GET /roadmap/items read.
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          items: [{ slug: 'v4-plan', status: 'backlog', summaryMd: 'V4 Plan' }],
+        }),
+      };
+    });
+
+    try {
+      await handleRoadmap(['chomp', 'PLAN.md'], {
+        dir: rootDir,
+        harbor: 'port-daddy',
+        'emit-pr-plan': planDir,
+        json: true,
+      });
+
+      // The daemon was asked for a REAL write (no dryRun flag in the body).
+      const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+      expect(body.dryRun).toBeUndefined();
+
+      expect(existsSync(join(planDir, 'roadmap.snapshot.json'))).toBe(true);
+      expect(existsSync(join(planDir, 'remove-docs.txt'))).toBe(true);
+      expect(readFileSync(join(planDir, 'remove-docs.txt'), 'utf8')).toBe('PLAN.md\n');
+
+      const receipt = JSON.parse(readFileSync(join(planDir, 'chomp-receipt.json'), 'utf8'));
+      expect(receipt.receipt).toBe('roadmap-chomp');
+      expect(receipt.sourceCommit).toBe('abc1234');
+      expect(receipt.inserted).toEqual(['v4-plan', 'phase-1']);
+      expect(receipt.items.find((i) => i.slug === 'old-row').protected).toBe(true);
+      expect(receipt.skipped).toBeDefined();
+
+      const prBody = readFileSync(join(planDir, 'pr-body.md'), 'utf8');
+      expect(prBody).toContain('## Summary');
+      expect(prBody).toContain('chomp-receipt.json');
+    } finally {
+      rmSync(planDir, { recursive: true, force: true });
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('requires at least one doc path', async () => {
+    await expect(handleRoadmap(['chomp'], {})).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('refuses --emit-pr-plan combined with --dry-run (the plan snapshots real writes)', async () => {
+    await expect(
+      handleRoadmap(['chomp', 'PLAN.md'], { 'dry-run': true, 'emit-pr-plan': '/tmp/x' }),
+    ).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('renderChompTree indents children under parents and marks protected rows', () => {
+    const lines = renderChompTree(chompFixture.items);
+    expect(lines[0]).toBe('- v4-plan [project/backlog]');
+    expect(lines).toContain('  - phase-1 [epic/now]  deps: anchor');
+    expect(lines.some((l) => l.includes('old-row [task/now/protected]'))).toBe(true);
+  });
+
+  test('buildChompPrBody fills the gated PR template with tree, git-rm list, and trailers', () => {
+    const body = buildChompPrBody({
+      result: chompFixture,
+      docPaths: ['PLAN.md'],
+      harbor: 'port-daddy',
+      snapshotRelPath: 'docs/roadmap/roadmap.snapshot.json',
+    });
+    expect(body).toContain('## Summary');
+    expect(body).toContain('## Test Plan');
+    expect(body).toContain('- `PLAN.md`');
+    expect(body).toContain('- v4-plan [project/backlog]');
+    expect(body).toContain('visual-exempt:');
+    expect(body).toContain('Roadmap-Item: none —');
+    expect(body).toContain('Roadmap-Spawns: v4-plan, phase-1');
   });
 });

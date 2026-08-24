@@ -56,6 +56,9 @@ mod editor_claims;
 #[path = "../editor_commit_gate.rs"]
 mod editor_commit_gate;
 #[allow(dead_code)]
+#[path = "../editor_input.rs"]
+mod editor_input;
+#[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
@@ -117,6 +120,12 @@ mod planner_pane;
 mod prs_pane;
 #[path = "../roadmap_pane.rs"]
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wiring — gpui-free, hosted here so the headless test gate runs its suite.
+#[allow(dead_code)]
+#[path = "../roadmap_projection.rs"]
+mod roadmap_projection;
 #[allow(dead_code)] // parse/serve are exercised by tests; the server runs only in the gpui bin
 #[path = "../script.rs"]
 mod script; // control-socket scripting (parse + serve tests)
@@ -134,6 +143,12 @@ mod term;
 mod theme;
 #[path = "../util.rs"]
 mod util;
+// Timeline companion-window launcher (ADR-0112 path 3). The launch shell is
+// GUI-only at runtime, but its pure binary-path resolver + missing-binary
+// message are unit-tested HERE on the cheap non-gpui gate.
+#[allow(dead_code)]
+#[path = "../timeline.rs"]
+mod timeline;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]
@@ -148,8 +163,9 @@ use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
+use pane::{OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
+use planner_pane::PlannerPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
@@ -175,7 +191,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":work <goal> · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
+            ":work <goal> · :planner · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
@@ -213,7 +229,10 @@ async fn drain_active_subscription(
         // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
         // per channel is the isolation; a single `window` deadline bounds the drain, and
         // either channel closing ends it — mirroring the Agent arm's `None => break`.
-        Some(Subscription::Editor { channel, coord_channel }) => {
+        Some(Subscription::Editor {
+            channel,
+            coord_channel,
+        }) => {
             let active = reg.active;
             let mut edit_rx = daemon.subscribe_channel(&channel);
             let mut coord_rx = daemon.subscribe_channel(&coord_channel);
@@ -263,6 +282,25 @@ async fn main() -> Result<()> {
             return Ok(());
         }
     };
+
+    // `--capture-planner <path.png>`: refresh the Planner pane against the live
+    // daemon and rasterize its Block view to a PNG, then exit. The purpose is
+    // CI-grade visual evidence on Linux — the Block rasterizer is one of the
+    // console's real renderers, so this PNG is the pane as the console draws
+    // it, not a mock. Same design as the gpui bin's `--headless-capture`.
+    let argv: Vec<String> = std::env::args().collect();
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-planner") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-planner requires a <path.png>"))?;
+        let mut pane = PlannerPane::new();
+        pane.refresh(&daemon).await?;
+        let png = headless_capture::render_blocks(&pane.view(), &theme::DARK, 1180).to_png();
+        std::fs::write(path, &png)?;
+        println!("planner capture written: {path}");
+        return Ok(());
+    }
+
     banner(&style, daemon.base());
 
     // Build the pane registry — register all panes once at startup.
@@ -277,6 +315,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(HarborPane::new()));
     reg.register(Box::new(GalaxyPane::new()));
     reg.register(Box::new(interruptions_pane::InterruptionsPane::new()));
+    reg.register(Box::new(PlannerPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -536,6 +575,21 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":planner" || line == ":gantt" || line == ":roadmap" {
+            // The roadmap's critical-path Gantt — the same PlannerPane the GPUI
+            // window leads with, rendered headlessly so Linux CI and operators
+            // without a window can read the schedule (and capture evidence).
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "planner")
+                .unwrap_or(0);
+            if let Err(e) = reg.refresh_active(&daemon).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":fleet" {
             // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
             // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
@@ -601,7 +655,7 @@ async fn main() -> Result<()> {
         } else {
             err(
                 &style,
-                "unknown command; use :work <goal>, :roster, :lane, :harbor, or :quit",
+                "unknown command; use :work <goal>, :planner, :roster, :lane, :harbor, or :quit",
             );
         }
     }
