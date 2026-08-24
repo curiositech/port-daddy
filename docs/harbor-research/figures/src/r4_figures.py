@@ -6,7 +6,6 @@ Two PNG outputs: r4_relation.png and r4_regime.png
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from matplotlib.patches import Rectangle, FancyArrowPatch
 
 # HOUSE RULES

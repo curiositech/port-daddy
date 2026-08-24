@@ -6,8 +6,6 @@ Generates two PNG figures for the harbor-exposition Rail-B pair.
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 # Set seed for deterministic output
 np.random.seed(20260816)

@@ -5,11 +5,8 @@ R5 Figures: hypervisor enforceability = supervisory control
 - r5_regime.png: REGIME DIAGRAM (regimentable vs detect-only classification)
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import FancyArrowPatch, Rectangle
-import matplotlib.lines as mlines
 
 # House colors (from task)
 HARBORBLUE = (30/255, 70/255, 110/255)

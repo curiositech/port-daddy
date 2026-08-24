@@ -6,7 +6,6 @@ Two figures: relation-map (voting-booth analogy) and regime diagram (gate behavi
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, FancyArrowPatch
-import numpy as np
 
 # House colors
 HARBORBLUE = (30/255, 70/255, 110/255)

@@ -6,7 +6,6 @@ R8 figure pair: Work-unit machine (harbor-exposition Rail-B)
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from matplotlib.patches import Rectangle, FancyArrowPatch
 import numpy as np
 

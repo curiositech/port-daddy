@@ -7,9 +7,7 @@ R6 Figures: sheaf verdict (cohomology of equivocation)
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import Rectangle, FancyArrowPatch, Circle
-import math
 
 # House colors (from task)
 HARBORBLUE = (30/255, 70/255, 110/255)
