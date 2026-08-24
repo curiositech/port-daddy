@@ -20,12 +20,14 @@ on:
       - 'proofs/**'
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'skills/harbor-results/scripts/**'
   pull_request:
     branches: [main]
     paths:
       - 'proofs/**'
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'skills/harbor-results/scripts/**'
   # Merge queue: trigger on the queued group so every proof job reports a check
   # context (no path filter is possible on merge_group). The heavy jobs SKIP on
   # merge_group via their per-job `if:` below, and a skipped job reports
@@ -76,7 +78,7 @@ jobs:
             cat delta-threshold.actual.txt
             exit 1
           fi
-          echo "PASS: delta-threshold cubic has a unique root in [0.25, 0.26]."
+          echo "PASS: delta-threshold cubic has a unique root in [0.34, 0.35]."
 
       - name: Upload Z3 output
         if: always()
@@ -190,7 +192,7 @@ jobs:
         run: |
           set -euo pipefail
           if grep -q "The outcome is: NoError" claim_signaling.apalache.log; then
-            echo "PASS: Apalache reports NoError on the IC invariant at delta=0.26."
+            echo "PASS: Apalache reports NoError on the IC invariant at delta=0.35."
           else
             echo "FAIL: Apalache did not report NoError."
             tail -100 claim_signaling.apalache.log
@@ -303,3 +305,29 @@ jobs:
           path: |
             proofs/bonded/pareto/threat-bands.ci.log
             proofs/bonded/pareto/threat-bands.ci.json
+
+  # ── Harbor research estate (R1–R12): every executed result re-verified ──────
+  # The strongest verification work in the repo previously had zero CI coverage
+  # (scripts lived in skills/, invoked by nothing). Each script asserts its own
+  # headline numbers at seed 20260816 and exits nonzero on drift; a failure
+  # here means a result the volume cites no longer reproduces.
+  harbor-results-estate:
+    name: Harbor results / R-scripts (seed 20260816)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install numeric deps
+        run: pip install numpy scipy matplotlib networkx
+      - name: Run the executed-results scripts
+        run: |
+          set -euo pipefail
+          cd skills/harbor-results/scripts
+          for s in a3_epsilon_ledger a4_canary_sprt a6_no_mint                    a7_experiment b1_frontier b2_tower b3_controllability                    b6_probation c0_workunit c1_noninterference                    sheaf_mechanism_proof sheaf_harness_v2; do
+            echo "::group::$s"
+            python3 "$s.py"
+            echo "::endgroup::"
+          done
