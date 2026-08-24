@@ -1,15 +1,19 @@
 // tests/unit/purser/test-broken-banner-links.test.js
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 describe('doc-retirement-guard: broken banner links', () => {
   const tempRoot = mkdtempSync(join(tmpdir(), 'doc-retire-'));
 
   // Helper to run the guard with custom root/manifest
   const runGuard = () => {
-    const cmd = resolve(tempRoot, 'scripts', 'doc-retirement-guard.mjs');
+    const cmd = resolve(__dirname, '../../../scripts/doc-retirement-guard.mjs');
     return spawnSync('node', [cmd, '--root', tempRoot, '--manifest', join(tempRoot, 'docs', 'retirement-manifest.json')], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -47,14 +51,14 @@ describe('doc-retirement-guard: broken banner links', () => {
     // Clean up temp directory
     const rimraf = (path) => {
       if (!existsSync(path)) return;
-      const stat = require('node:fs').statSync(path);
+      const stat = statSync(path);
       if (stat.isDirectory()) {
-        for (const f of require('node:fs').readdirSync(path)) {
+        for (const f of readdirSync(path)) {
           rimraf(join(path, f));
         }
-        require('node:fs').rmdirSync(path);
+        rmdirSync(path);
       } else {
-        require('node:fs').unlinkSync(path);
+        unlinkSync(path);
       }
     };
     rimraf(tempRoot);

@@ -1,8 +1,12 @@
 // tests/unit/purser/test-missing-manifest-entry.test.js
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, existsSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 describe('doc-retirement-guard: missing manifest entry', () => {
   const root = mkdtempSync(join(tmpdir(), 'doc-retirement-guard-test-'));
@@ -17,8 +21,7 @@ describe('doc-retirement-guard: missing manifest entry', () => {
     // create directories
     [docsDir, adrDir].forEach((d) => {
       if (!existsSync(d)) {
-        // eslint-disable-next-line no-sync
-        require('node:fs').mkdirSync(d, { recursive: true });
+        mkdirSync(d, { recursive: true });
       }
     });
 
@@ -48,8 +51,8 @@ describe('doc-retirement-guard: missing manifest entry', () => {
   test('fails when a retired file is not listed in the manifest', () => {
     // Resolve path to the guard script relative to this test file
     const guardPath = resolve(
-      dirname(import.meta.url),
-      '../../../../scripts/doc-retirement-guard.mjs',
+      __dirname,
+      '../../../scripts/doc-retirement-guard.mjs',
     );
 
     const result = spawnSync(
