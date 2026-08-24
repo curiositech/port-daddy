@@ -31,12 +31,23 @@ encryption.
 
 What is encrypted **today**:
 
-- **Session notes, at rest.** Envelope encryption — a daemon master key at
-  `~/.port-daddy/master.key` (0600, never in the DB), a random per-session
-  AES-256-GCM key wrapped under it and stored in
-  `sessions.wrapped_session_key`, and a random 12-byte IV per note. The Merkle
-  chain hashes the **ciphertext**, so integrity holds without revealing
+- **Session notes written while a master key is available.** Envelope
+  encryption — a daemon master key at `~/.port-daddy/master.key` (0600, never
+  in the DB), a random per-session AES-256-GCM key wrapped under it and stored
+  in `sessions.wrapped_session_key`, and a random 12-byte IV per note. The
+  Merkle chain hashes the **ciphertext**, so integrity holds without revealing
   content. Implemented and ProVerif-verified (`docs/NOTE_ENCRYPTION_DESIGN.md`).
+
+  Three qualifications, because an inventory that separates scoping from
+  encryption has to be exact about what the corpus actually holds:
+  `createNoteEncryption` **fails open** — if master-key initialization throws,
+  it logs "note encryption DISABLED" and stores notes plaintext, fatal only
+  when `requireMasterKey` is set (`lib/note-encryption.ts:196-208`);
+  `maybeEncrypt` returns content unchanged when the session has no wrapped key
+  or encryption is off (`lib/sessions.ts:624-628`); and notes written before a
+  session had a wrapped key stay plaintext rows, which `maybeDecrypt` passes
+  through by design for backward compatibility. So: new notes are encrypted on
+  the healthy path, not the whole note corpus.
 
 What is **not** encrypted:
 
