@@ -3,7 +3,9 @@
   "summary": {
     "total": 319,
     "passing": 319,
-    "failing": 0
+    "failing": 0,
+    "warning_only": 115,
+    "failing_skills": []
   },
   "skills": [
     {
