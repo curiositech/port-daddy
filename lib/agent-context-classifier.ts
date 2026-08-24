@@ -159,7 +159,8 @@ export interface AgentContextClassifier {
 }
 
 /** Source categories whose coverage contributes to the confidence calculation. */
-type AgentContextSourceKind = 'purpose' | 'note' | 'claim' | 'diff';
+const AGENT_CONTEXT_SOURCE_KINDS = ['purpose', 'note', 'claim', 'diff'] as const;
+type AgentContextSourceKind = (typeof AGENT_CONTEXT_SOURCE_KINDS)[number];
 
 /** One bounded semantic document in the single embedding batch. */
 interface AgentContextSource {
@@ -454,8 +455,13 @@ function confidenceFromSemanticEvidence(
     }
   }
   const semanticCoherence = pairCount > 0 ? pairTotal / pairCount : 0;
-  const sourceKindCoverage = new Set(sources.map((source) => source.kind)).size / 4;
-  const support = Math.min(1, Math.max(0, sources.length - 1) / 4);
+  const sourceKindDenominator = AGENT_CONTEXT_SOURCE_KINDS.length;
+  const sourceKindCoverage = new Set(sources.map((source) => source.kind)).size
+    / sourceKindDenominator;
+  const support = Math.min(
+    1,
+    Math.max(0, sources.length - 1) / sourceKindDenominator,
+  );
   const confidence = clamp01(
     0.25 + (0.55 * semanticCoherence) + (0.10 * sourceKindCoverage) + (0.10 * support),
   );
