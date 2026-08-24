@@ -200,7 +200,8 @@ describe('pd fleet transcript', () => {
       'not-json\n' +
       JSON.stringify({ v: 1, seq: 0, kind: 'oracle', phase: 'mystery', content: 'nope', truncated: 'yes' }) + '\n' +
       JSON.stringify({ v: 1, seq: 0, kind: 'assistant', phase: 'map', content: [], chunk: null, usage: null, truncated: false }) + '\n' +
-      JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 0, seq: -1, kind: 'assistant', phase: 'map', chunk: null, model: 'm', ts: 1700000000, latencyMs: null, usage: null, costUsd: null, content: [], sysRef: 42, truncated: false }) + '\n';
+      JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 0, seq: -1, kind: 'assistant', phase: 'map', chunk: null, model: 'm', ts: 1700000000, latencyMs: null, usage: null, costUsd: null, content: [], sysRef: 42, truncated: false }) + '\n' +
+      JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 2, kind: 'assistant', phase: 'map', chunk: [], model: 'm', ts: 1700000000, latencyMs: 'slow', usage: 'lots', costUsd: 'free', content: [], sysRef: null, truncated: false }) + '\n';
     mockFetch
       .mockResolvedValueOnce(relayResponse(200, LEDGER))
       .mockResolvedValueOnce(relayResponse(200, bad, true));
@@ -220,7 +221,14 @@ describe('pd fleet transcript', () => {
     expect(report).toMatch(/line 5: INVALID — .*seq must be a non-negative integer/);
     expect(report).toMatch(/line 5: INVALID — .*attempt must be a positive integer/);
     expect(report).toMatch(/line 5: INVALID — .*sysRef must be null or a non-empty string/);
-    expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('5 invalid line(s), 0 valid'));
+    // Line 6: MISSING seq is a violation in its own right (never silently
+    // passed), and every nullable-telemetry shape rule fires on wrong types.
+    expect(report).toMatch(/line 6: INVALID — .*seq must be a non-negative integer/);
+    expect(report).toMatch(/line 6: INVALID — .*chunk must be null or \{index:number, count:number\}/);
+    expect(report).toMatch(/line 6: INVALID — .*usage must be null or \{prompt:number, completion:number\}/);
+    expect(report).toMatch(/line 6: INVALID — .*latencyMs must be null or a number/);
+    expect(report).toMatch(/line 6: INVALID — .*costUsd must be null or a number/);
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('6 invalid line(s), 0 valid'));
   });
 
   test('--file validates a local capture with no relay, no credentials, no daemon', async () => {
