@@ -87,7 +87,7 @@ def frontier_figure():
     d_inf_top = np.clip(p - f_inf, 0, 0.049)
     ax.fill_between(f_inf, 0, d_inf_top, facecolor='#e5e5e5',
                      edgecolor='none', hatch='////', zorder=0)
-    ax.text(0.041, 0.001, 'infeasible\n($f<p-\\delta$)', fontsize=7.6,
+    ax.text(0.0415, 0.0007, 'infeasible\n($f{<}p{-}\\delta$)', fontsize=7.3,
             color=GREY, ha='left', va='bottom', style='italic')
 
     cmap = LinearSegmentedColormap.from_list('harbor_seq', ['#ffffff', HARBORBLUE])
@@ -120,7 +120,7 @@ def frontier_figure():
         (0.10, 0.01, 0.1100, '$R(0.01,0.10)=0.110$'),
         (0.06, 0.04, 0.0087, '$R(0.04,0.06)=0.009$'),
     ]
-    offsets = [(-0.005, 0.011), (0.012, 0.006), (0.014, -0.001), (-0.017, 0.006)]
+    offsets = [(0.013, 0.018), (0.012, 0.006), (0.014, -0.001), (-0.017, 0.006)]
     for (f0, d0, r0, label), (dx, dy) in zip(named, offsets):
         marker = '*' if d0 == 0.0 and abs(f0 - p) < 1e-9 else 'o'
         ms = 13 if marker == '*' else 8
