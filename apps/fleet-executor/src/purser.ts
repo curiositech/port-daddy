@@ -115,6 +115,7 @@ import {
 } from './purser-rerun.js';
 import {
   runTestsInSandbox,
+  sandboxCoordinationPeerFromEnv,
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
@@ -129,6 +130,11 @@ import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { repairContractOutput, REPAIR_ESCALATION_MODEL } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
+import {
+  FleetAiCircuit,
+  FleetAiDependencyError,
+  PROVIDER_MAX_DELIVERY_ATTEMPTS,
+} from './ai-resilience.js';
 
 // ---------------------------------------------------------------------------
 
@@ -574,6 +580,7 @@ async function purserAiCall(
   user: string,
   maxTokens: number,
   metrics: PurserMetrics,
+  aiCircuit: FleetAiCircuit,
   /**
    * Model for THIS step, when it differs from the ship's own. Already guarded
    * by fleet.ts against unknown ids, so an unusable pin arrives here as
@@ -591,10 +598,12 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   await assertCurrentHead(`before pd-${ship.name} Purser model call`);
-  const res = await env.AI.run(
-    (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
-    request,
-    aiOptions(env, ship.name),
+  const res = await aiCircuit.run(() =>
+    env.AI.run(
+      (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
+      request,
+      aiOptions(env, ship.name),
+    ),
   );
   await assertCurrentHead(`after pd-${ship.name} Purser model call`);
   const { text } = extractAiText(res);
@@ -702,6 +711,21 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
       `Keep it that way.`
     );
   }
+  if (
+    sandbox.outcomeKind === 'harness-failure' ||
+    sandbox.outcomeKind === 'unclassified-failure'
+  ) {
+    return (
+      `**Execution: RUNNER ERROR — NO AUTHOR FAILURE CLAIMED.** The test command ` +
+      `started, but it did not produce structured evidence of a failed test case. ` +
+      `This Purser result is disabled as broken machinery; the reviewed PR remains ` +
+      `unchanged while the generated suite or harness is repaired.` +
+      `\n\n<details>\n<summary>Runner output (tail)</summary>\n\n` +
+      '```\n' +
+      sandbox.outputTail.slice(-FAILURE_TAIL_BYTES) +
+      '\n```\n\n</details>'
+    );
+  }
   // Name the failures individually when the runner's format allowed it. This
   // is the difference between "your PR fails its contract, here is 1 KB of
   // scrollback" and "these four cases fail" — the second is actionable, the
@@ -726,6 +750,24 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
     sandbox.outputTail.slice(-FAILURE_TAIL_BYTES) +
     '\n```\n\n</details>'
   );
+}
+
+function sandboxFailureIsHarness(sandbox: SandboxRunOutcome): boolean {
+  return (
+    sandbox.executed &&
+    sandbox.passed === false &&
+    (sandbox.outcomeKind === 'harness-failure' ||
+      sandbox.outcomeKind === 'unclassified-failure')
+  );
+}
+
+function sandboxFailureIsAssertion(sandbox: SandboxRunOutcome): boolean {
+  if (!sandbox.executed || sandbox.passed !== false) return false;
+  // Outcomes persisted before the structured-classification rollout carry no
+  // outcomeKind. Preserve their historical fail-closed interpretation; fresh
+  // sandbox runs always set the field and only structured Jest failed-test
+  // counts enter the assertion path.
+  return sandbox.outcomeKind === undefined || sandbox.outcomeKind === 'assertion-failure';
 }
 
 function renderTestList(files: StackedFile[]): string {
@@ -894,6 +936,7 @@ async function rerunExistingTests(
     headSha: prCtx.headSha,
     files,
     token,
+    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
   });
   await assertCurrentHead(`after pd-${ship.name} reused-tests sandbox`);
 
@@ -949,9 +992,11 @@ async function rerunExistingTests(
 }
 
 /**
- * Run the purser against one PR. Ordinary failures resolve to an honest
- * ShipResult + transcript trail; current-head validation errors propagate so
- * the orchestrator can cancel an obsolete run. See the module doc for phases.
+ * Run the purser against one PR. Product and permanent dependency failures
+ * resolve to an honest ShipResult + transcript trail. A retryable Workers AI
+ * dependency fault is deliberately rethrown while queue budget remains; the
+ * queue is the single retry layer for every Fleet ship. Current-head validation
+ * errors also propagate so the orchestrator can cancel an obsolete run.
  */
 export async function runPurser(
   ship: ShipConfig,
@@ -966,6 +1011,10 @@ export async function runPurser(
   runId = '',
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
+  /** One circuit shared by every AI call in this queue delivery. */
+  aiCircuit = new FleetAiCircuit(),
+  /** Provider attempt after successful checkpoint continuations are excluded. */
+  providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
   /** Fail-closed live-head proof around model work and publication. */
   assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<ShipResult> {
@@ -1098,18 +1147,23 @@ export async function runPurser(
         priorOutput,
         reason,
         call: async (model, system, user) =>
-          (await purserAiCall(
-            ship,
-            env,
-            system,
-            user,
-            maxTokens,
-            metrics,
-            model,
-            assertCurrentHead,
-          )).text,
+          (
+            await purserAiCall(
+              ship,
+              env,
+              system,
+              user,
+              maxTokens,
+              metrics,
+              aiCircuit,
+              model,
+              assertCurrentHead,
+            )
+          ).text,
         validate,
-        abortOnError: error => error instanceof PullRequestHeadValidationError,
+        abortOnError: error =>
+          error instanceof PullRequestHeadValidationError ||
+          error instanceof FleetAiDependencyError,
       });
       await transcript.step(
         'ship-repair',
@@ -1130,6 +1184,7 @@ export async function runPurser(
       prBlock(prCtx),
       STEELMAN_MAX_TOKENS,
       metrics,
+      aiCircuit,
       undefined,
       assertCurrentHead,
     );
@@ -1209,6 +1264,7 @@ export async function runPurser(
       prBlock(prCtx),
       PLAN_MAX_TOKENS,
       metrics,
+      aiCircuit,
       ship.cfPlanModel,
       assertCurrentHead,
     );
@@ -1322,6 +1378,7 @@ export async function runPurser(
           prBlock(prCtx),
           TESTS_MAX_TOKENS,
           metrics,
+          aiCircuit,
           ship.cfAuthorModel,
           assertCurrentHead,
         );
@@ -1513,6 +1570,7 @@ export async function runPurser(
             prBlock(prCtx),
             TESTS_MAX_TOKENS,
             metrics,
+            aiCircuit,
             // The rewrite runs on the ESCALATION tier, never the author tier:
             // a model that just authored a non-executable file is the worst
             // candidate to fix it (14-day D1 record: 83 of 110 same-model
@@ -1625,17 +1683,25 @@ export async function runPurser(
       headSha: prCtx.headSha,
       files,
       token,
+      coordinationPeer: sandboxCoordinationPeerFromEnv(env),
     });
     await assertCurrentHead(`after pd-${ship.name} authored-tests sandbox`);
     await transcript.step(
       'purser-sandbox',
       ship.name,
       sandbox.executed
-        ? `pd-${ship.name}: sandbox ${sandbox.passed ? 'PASSED' : 'FAILED'}`
+        ? `pd-${ship.name}: sandbox ${
+            sandbox.passed
+              ? 'PASSED'
+              : sandboxFailureIsHarness(sandbox)
+                ? 'RUNNER ERROR'
+                : 'FAILED'
+          }`
         : `pd-${ship.name}: sandbox NOT RUN`,
       {
         executed: sandbox.executed,
         passed: sandbox.passed,
+        ...(sandbox.outcomeKind ? { outcomeKind: sandbox.outcomeKind } : {}),
         failuresTail:
           sandbox.executed && sandbox.passed === false
             ? sandbox.outputTail.slice(-FAILURE_TAIL_BYTES)
@@ -1685,14 +1751,13 @@ export async function runPurser(
         ship: ship.name,
         url: stackedPr.url,
       }, squidConsent);
-      // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests, and
-      // ONLY when the exact generated tests were actually EXECUTED — sandbox
-      // absent (the default deploy, no SANDBOX binding) means the tests were
-      // authored but never run, exactly the #5860 failure mode ("the body
-      // admitted they were not run"). Retargeting a PR onto an unexecuted
-      // contract hides the true origin/main diff and shrinks normal CI for no
-      // verified benefit — the purser must not do that on faith.
-      if (!prCtx.isFork && sandbox.executed) {
+      // GUARD: only same-repo (non-fork) PRs are retargeted onto generated
+      // tests, and ONLY after the exact suite PASSED. Merely starting a runner
+      // is not evidence: PR #9778 started Jest, loaded zero valid tests, and the
+      // old `sandbox.executed` condition still retargeted #9767 onto the broken
+      // branch. Retargeting changes the reviewed diff and CI base, so failure,
+      // absence, and uncertainty all leave the author PR unchanged.
+      if (!prCtx.isFork && sandbox.executed && sandbox.passed === true) {
         try {
           await assertCurrentHead(`before pd-${ship.name} implementation PR retarget`);
           await retargetPrBase(
@@ -1709,10 +1774,13 @@ export async function runPurser(
             `[fleet-executor] pd-${ship.name} retarget #${prCtx.prNumber} failed: ${String(err)}`,
           );
         }
-      } else if (!prCtx.isFork && !sandbox.executed) {
-        retargetSkipReason =
-          'the adversarial tests were authored but not executed ' +
-          `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`;
+      } else if (!prCtx.isFork) {
+        retargetSkipReason = !sandbox.executed
+          ? 'the adversarial tests were authored but not executed ' +
+            `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`
+          : sandboxFailureIsHarness(sandbox)
+            ? 'the generated suite or runner failed without structured assertion evidence, so Purser is broken for this run and may not mutate the reviewed PR.'
+            : 'the generated tests did not pass, so the reviewed PR base remains unchanged while their findings are resolved.';
       }
     } catch (err) {
       if (err instanceof PullRequestHeadValidationError) throw err;
@@ -1787,16 +1855,21 @@ export async function runPurser(
     // tests (honest degradation), and the interruption escalated the human
     // ask — but the run must not stay green over it: `errored` fails the run
     // until the permission/failure is fixed (broken-ship doctrine). A sandbox
-    // FAILURE observed before the degradation still reads as BLOCK.
+    // structured assertion FAILURE observed before the degradation still reads
+    // as BLOCK. A runner/harness failure is broken machinery, never product
+    // evidence.
     if (degradedReason && !stackedPr) {
-      const verdict: Verdict =
-        sandbox.executed && sandbox.passed === false ? 'BLOCK' : brokenShip.verdict;
+      const verdict: Verdict = sandboxFailureIsAssertion(sandbox)
+        ? 'BLOCK'
+        : brokenShip.verdict;
       return { ...brokenShip, verdict };
     }
 
     let verdict: Verdict;
-    if (sandbox.executed) {
-      // BLOCK while sandbox-executed tests fail on the PR head.
+    if (sandboxFailureIsHarness(sandbox)) {
+      return brokenShip;
+    } else if (sandbox.executed) {
+      // BLOCK only when structured assertion evidence fails on the PR head.
       verdict = sandbox.passed ? 'PASS' : 'BLOCK';
     } else {
       // Never block on tests that were never run — unless the operator
@@ -1826,6 +1899,47 @@ export async function runPurser(
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
   } catch (err) {
     if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetAiDependencyError) {
+      const failure = err.failure;
+      await transcript.step(
+        'ship-error',
+        ship.name,
+        `pd-${ship.name}: ERROR — ${failure.summary}`,
+        {
+          error: failure.summary,
+          status: failure.status,
+          code: failure.code,
+          retryable: failure.retryable,
+          providerCircuitOpen: aiCircuit.isOpen,
+          providerAttempt,
+        },
+      );
+
+      if (failure.retryable && providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS) {
+        throw err;
+      }
+
+      await transcript.step(
+        'ship-verdict',
+        ship.name,
+        `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored)`,
+        { errored: true },
+      );
+      return {
+        ...brokenShip,
+        failureReason: failure.summary,
+        ...(failure.retryable
+          ? {
+              brokenAdjudicated: {
+                scope: 'fleet' as const,
+                reason:
+                  `Workers AI dependency circuit remained open through ` +
+                  `${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS} provider attempts`,
+              },
+            }
+          : {}),
+      };
+    }
     // An unexpected crash is the definition of a broken ship: it surfaces as
     // an errored result under the ship's real blocking flag, which fails the
     // run (broken-ship doctrine, 2026-08-19). The verdict word is never a

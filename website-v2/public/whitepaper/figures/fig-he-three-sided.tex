@@ -7,59 +7,57 @@
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
 
+% ─── The Three-Sided Market: Three Sides, One Escrow ──────────────────────────
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  side/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
-               inner sep=5pt,text width=42mm,align=center,minimum height=22mm},
-  escrow/.style={draw=hhebony,line width=1.4pt,fill=hhsand!30,
-                 rounded corners=3pt,inner sep=6pt,text width=58mm,
-                 align=center,minimum height=26mm},
-  idobj/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                inner sep=3pt,font=\scriptsize,text width=42mm,
-                align=center,text=hhink},
-  flow/.style={->,>=Latex,thick,draw=hhebony},
+  sidebox/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, text width=44mm, align=center, minimum height=20mm},
+  escrowbox/.style={draw=hhcobalt, line width=0.9pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=7pt, text width=68mm, align=center, minimum height=24mm},
+  oraclebox/.style={draw=hhink, line width=0.6pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, text width=88mm, align=center},
+  idbadge/.style={draw=hhcobalt!60, line width=0.5pt, fill=hhpaper, rounded corners=1.5pt, inner sep=3pt, font=\scriptsize, text width=42mm, align=center},
+  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
+  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
 ]
 
-% ─── The three sides across the top ────────────────────────────────────
-\node[side] (labor) at (-62mm,30mm)
-  {\textbf{Side 1 — Labor}\\\footnotesize operator-for-hire};
-\node[side] (capital) at (0,38mm)
-  {\textbf{Side 2 — Capital}\\\footnotesize agent / fleet as rentable asset};
-\node[side] (ip) at (62mm,30mm)
-  {\textbf{Side 3 — IP}\\\footnotesize skill / tool licensed};
+  % ─── The Three Market Sides (Top) ───────────────────────────────────────────
+  \node[sidebox] (labor) at (-5.2, 3.2) {
+    \textbf{\scshape Side 1: Labor}\\[2pt]
+    {\footnotesize Operator-for-Hire / Agent Fleet}
+  };
+  \node[sidebox] (capital) at (0.0, 3.8) {
+    \textbf{\scshape Side 2: Capital}\\[2pt]
+    {\footnotesize Compute / Rented Agent Assets}
+  };
+  \node[sidebox] (ip) at (5.2, 3.2) {
+    \textbf{\scshape Side 3: IP}\\[2pt]
+    {\footnotesize Licensed Skills \& Tool Modules}
+  };
 
-% ─── The single escrow at the centre ───────────────────────────────────
-\node[escrow] (esc) at (0,-6mm)
-  {\textbf{ONE FLOAT-PLAN ESCROW}\\[2pt]
-   \footnotesize daemon: serialized txn, sign $\{\textit{anchor},\,\textit{plan hash}\}$\\[2pt]
-   \scriptsize\textbf{invariant:} $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$};
+  % Identity Key Badges (Above each side)
+  \node[idbadge, above=3mm of labor] {Keys on \textbf{Principal} (human/org)};
+  \node[idbadge, above=3mm of capital] {Keys on \textbf{Asset Owner}};
+  \node[idbadge, above=3mm of ip] {Keys on \textbf{Content SHA} (skill version)};
 
-% all three sides settle through the same object
-\draw[flow] (labor.south)   to[out=-90,in=150] (esc.west);
-\draw[flow] (capital.south) -- (esc.north);
-\draw[flow] (ip.south)      to[out=-90,in=30]  (esc.east);
+  % ─── The Single Settlement Escrow (Center) ──────────────────────────────────
+  \node[escrowbox] (esc) at (0.0, 0.2) {
+    \textbf{\scshape Unified Float-Plan Escrow}\\[2pt]
+    {\footnotesize 4-Bucket Ledger (Bounty, Bond, Reserve, Fee)}\\[1pt]
+    {\scriptsize \textbf{Conservation Invariant:} $\text{Wallet} + \text{Escrow} + \text{Commons} = \text{Supply}$}
+  };
 
-% ─── The oracle / settlement at the bottom ─────────────────────────────
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
-      text width=92mm,align=center,below=8mm of esc] (settle)
-  {\footnotesize $\mathsf{oracle}(\text{acceptance})\;\Rightarrow\;
-   \{\,\text{success}\mid\text{partial}\mid\text{sabotage}\mid\text{dispute}\,\}$};
-\draw[flow] (esc.south) -- (settle.north);
+  % Flow lines converging from all three sides into escrow
+  \draw[flowarr] (labor.south) to[out=-90, in=165] (esc.west);
+  \draw[flowarr] (capital.south) -- (esc.north);
+  \draw[flowarr] (ip.south) to[out=-90, in=15] (esc.east);
 
-% ─── The identity divergence band (the category-theory finding) ────────
-\node[idobj,above=2mm of labor]   {keys on the \textbf{principal}\\(human/org)};
-\node[idobj,above=2mm of capital] {keys on the \textbf{asset owner}};
-\node[idobj,above=2mm of ip]      {keys on the \textbf{content hash} (skill version)};
+  % ─── The Oracle / Settlement State (Bottom) ─────────────────────────────────
+  \node[oraclebox, below=9mm of esc] (settle) {
+    \textbf{\scshape Ground-Truth Oracle Settlement}\\[2pt]
+    {\footnotesize $\mathsf{oracle}(\text{Acceptance}) \;\Longrightarrow\; \{\,\textbf{Success} \mid \textbf{Partial} \mid \textbf{Sabotage} \mid \textbf{Dispute}\,\}$}
+  };
+  \draw[accentarr] (esc.south) -- (settle.north);
 
-\node[draw=hhcobalt,thick,dashed,rounded corners=3pt,inner sep=3pt,
-      fit=(labor)(capital)(ip)] {};
-
-
-\end{tikzpicture}%
-}
+\end{tikzpicture}
 \caption{The three-sided market. Labor, capital (rented agents), and IP (licensed
 skills) are three distinct \emph{incentive constraints} --- not three UI tabs ---
 that all settle on a \emph{single} float-plan escrow, so conservation holds

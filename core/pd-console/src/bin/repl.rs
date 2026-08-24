@@ -56,6 +56,9 @@ mod editor_claims;
 #[path = "../editor_commit_gate.rs"]
 mod editor_commit_gate;
 #[allow(dead_code)]
+#[path = "../editor_input.rs"]
+mod editor_input;
+#[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
@@ -220,7 +223,10 @@ async fn drain_active_subscription(
         // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
         // per channel is the isolation; a single `window` deadline bounds the drain, and
         // either channel closing ends it — mirroring the Agent arm's `None => break`.
-        Some(Subscription::Editor { channel, coord_channel }) => {
+        Some(Subscription::Editor {
+            channel,
+            coord_channel,
+        }) => {
             let active = reg.active;
             let mut edit_rx = daemon.subscribe_channel(&channel);
             let mut coord_rx = daemon.subscribe_channel(&coord_channel);

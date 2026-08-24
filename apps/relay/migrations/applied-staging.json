@@ -58,6 +58,10 @@
     {
       "file": "2026-08-22-repo-settings.sql",
       "appliedAt": "2026-08-22T21:45:35Z"
+    },
+    {
+      "file": "2026-08-22-roadmap-mirror.sql",
+      "appliedAt": "2026-08-23T18:58:33Z"
     }
   ]
 }
