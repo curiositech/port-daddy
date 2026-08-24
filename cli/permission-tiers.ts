@@ -139,7 +139,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   relay: 'silent',           // refined: `relay url <url>` is notify
   init: 'notify',
   setup: 'notify',
-  transcripts: 'silent',    // refined: `transcripts delete/rm` is destructive
+  transcripts: 'silent',    // read-only list/show/cost/watch surface
   transcript: 'silent',     // singular alias for the same read-only views
   morning: 'silent',        // reads the overnight dispatch report; no mutation
 
@@ -399,6 +399,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'roadmap render': 'notify',
   'roadmap import': 'notify',
   'roadmap import-markdown': 'notify',
+  'roadmap chomp': 'notify',
 
   // harbor subcommands
   'harbor create': 'notify',
@@ -528,15 +529,11 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   // commit: bare form records a commitment, close finalizes one
   'commit close': 'notify',
 
-  // transcripts: list/show/cost/watch are read-only; delete/rm removes a run record
+  // transcripts: the public CLI is read-only; mutation stays in trusted producers
   'transcripts list': 'silent',
   'transcripts show': 'silent',
   'transcripts cost': 'silent',
   'transcripts watch': 'silent',
-  'transcripts delete': 'destructive',
-  'transcripts rm': 'destructive',
-  'transcript delete': 'destructive',
-  'transcript rm': 'destructive',
 
   // harbor-ledger: status is read-only; project/rebuild rewrite disposable
   // projections from the append-only ledger (no event data can be lost)

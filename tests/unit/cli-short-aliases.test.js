@@ -35,7 +35,9 @@ describe('operator short aliases', () => {
 
 describe('operator repeatable flags', () => {
   test('--files accumulates across repeated CLI flag occurrences', () => {
-    expect(cliSource).toMatch(/REPEATABLE_FLAGS[\s\S]*new Set\(\['files', 'client-arg', 'codex-config'\]\)/);
+    // 'tag' joined the repeatable set for `pd roadmap upsert --tag a --tag b`
+    // (Jira-grade roadmap items, 2026-08-22).
+    expect(cliSource).toMatch(/REPEATABLE_FLAGS[\s\S]*new Set\(\['files', 'client-arg', 'codex-config', 'tag'\]\)/);
     expect(cliSource).toContain('options[key] = [existing, value as string];');
     expect(cliSource).toContain('else if (Array.isArray(options.files)) files.push(...(options.files as string[]));');
   });

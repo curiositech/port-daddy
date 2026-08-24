@@ -22,6 +22,7 @@ import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
+import type { SpawnerHarborBridge } from './agent-harbor/spawner-bridge.js';
 import { parseCodexTranscript, mapCodexStreamLine, type StructuredTurn } from './spawner/codex-transcript.js';
 import { parseClaudeCodeTranscript, mapClaudeCodeStreamLine, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
 import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
@@ -322,6 +323,12 @@ interface SpawnerDeps {
    *  conversation (system prompt + task + assistant output + tool calls) to
    *  the fleet_transcripts table. Surface for `pd transcripts ...` + UI. */
   transcripts?: Transcripts;
+  /** Optional Agent Harbor bridge (lib/agent-harbor/spawner-bridge.ts). When
+   *  wired, every spawn is registered as an Agent Harbor node and its
+   *  transcript is hash-chained into the event ledger, and a real (C1-only)
+   *  compliance probe runs at finalize. Best-effort: absence or failure never
+   *  changes spawn/kill behavior, only Agent Harbor visibility for that agent. */
+  harborBridge?: SpawnerHarborBridge;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   /** When true (the default), a backend MUST NOT run unless its full
@@ -1564,6 +1571,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     bonds,
     harbors,
     transcripts,
+    harborBridge,
     enforceTelemetryPolicy = true,
     enforceTranscriptPolicy = true,
     telemetryBypassApproval,
@@ -1595,6 +1603,20 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // best-effort mode: swallow
     }
   }
+
+  // ── Agent Harbor bridge (best-effort; see lib/agent-harbor/spawner-bridge.ts) ──
+  // Maps a transcript id back to the bounded run facts the terminal context
+  // envelope needs. Content is deliberately absent: the bridge re-reads the
+  // already-redacted fleet_transcript_messages rows instead of copying raw
+  // prompts from SpawnSpec.
+  const transcriptHarborRuns = new Map<string, {
+    agentId: string;
+    sourceAdapter: string;
+    model: string;
+    project: string | null;
+    workdir: string | null;
+    estimatedPromptTokens: number | null;
+  }>();
 
   /** Open the transcript row and record the opening system/user turns.
    *  Returns the id, or null only when recording is disabled (no module +
@@ -1637,6 +1659,25 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         timestamp: startedAt,
       });
     });
+    if (id && harborBridge) {
+      transcriptHarborRuns.set(id, {
+        agentId,
+        sourceAdapter: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+        project: getProjectName(spec.identity) ?? null,
+        workdir: spec.workdir ?? null,
+        estimatedPromptTokens: typeof spec.estimatedPromptTokens === 'number'
+          ? spec.estimatedPromptTokens
+          : null,
+      });
+      harborBridge.registerNode(agentId, spec.identity ?? null, startedAt);
+      harborBridge.appendTranscriptEvent(agentId, 'session_started', startedAt, {
+        transcriptId: id,
+        sourceAdapter: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+      });
+      harborBridge.syncTranscript(agentId, id);
+    }
     return id;
   }
 
@@ -1649,6 +1690,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         timestamp: ts,
       });
     });
+    const run = transcriptHarborRuns.get(transcriptId);
+    if (run && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
   }
 
   /** Record the backend's full structured conversation (reasoning / tool
@@ -1662,6 +1705,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         transcripts.appendMessage(transcriptId, turnToMessage(turn, ts));
       }
     });
+    const run = transcriptHarborRuns.get(transcriptId);
+    if (run && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
   }
 
   /** Append ONE live transcript delta mid-run (the cli-tube `onTranscriptDelta`
@@ -1673,6 +1718,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     recordOrThrow('delta', () => {
       transcripts.appendMessage(transcriptId, message);
     });
+    const run = transcriptHarborRuns.get(transcriptId);
+    if (run && harborBridge) harborBridge.syncTranscript(run.agentId, transcriptId);
   }
 
   function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
@@ -1700,6 +1747,41 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         error,
       });
     });
+    const run = transcriptHarborRuns.get(transcriptId);
+    if (run && harborBridge) {
+      harborBridge.syncTranscript(run.agentId, transcriptId);
+      harborBridge.appendTranscriptEvent(run.agentId, 'session_end', endedAt, {
+        transcriptId,
+        status,
+        telemetryMode: telemetry?.rateMode ?? 'estimated',
+      });
+      const adapterUsedTokens = telemetry
+        ? telemetry.inputTokens + telemetry.outputTokens
+        : null;
+      harborBridge.recordContext({
+        agentNodeId: run.agentId,
+        sessionId: run.agentId,
+        runId: transcriptId,
+        transcriptId,
+        sourceAdapter: run.sourceAdapter,
+        model: run.model,
+        windowTokens: getEffectiveContextWindow(run.model),
+        daemonUsedTokensEstimate: (run.estimatedPromptTokens ?? telemetry?.inputTokens ?? 0)
+          + (telemetry?.outputTokens ?? 0),
+        adapterUsedTokensEstimate: adapterUsedTokens,
+        estimateMode: telemetry?.rateMode ?? 'estimated',
+        project: run.project,
+        projectDir: run.workdir,
+        workdir: run.workdir,
+        measuredAt: new Date(endedAt).toISOString(),
+      });
+      // Fire-and-forget: runProbeAndRecord never rejects (it catches
+      // internally), but guard here too so a future change to that contract
+      // can never surface as an unhandled rejection out of a synchronous
+      // finalize call.
+      void harborBridge.runProbeAndRecord(run.agentId).catch(() => {});
+      transcriptHarborRuns.delete(transcriptId);
+    }
   }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via
@@ -2369,7 +2451,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // Final-answer-only backends (API calls): one assistant turn.
         txAssistant(transcriptId, output, completedAt);
       }
-      if (error) {
+      if (error && !wasKilled) {
         // Record the error itself as a final turn so operators see why the run
         // failed without having to cross-reference status.
         txAssistant(transcriptId, `[error] ${error}`, completedAt);

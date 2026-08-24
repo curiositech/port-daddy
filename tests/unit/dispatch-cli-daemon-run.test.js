@@ -7,6 +7,8 @@ const mockQueue = {
   list: jest.fn(() => []),
   cancel: jest.fn(),
   propose: jest.fn(),
+  prepareForRun: jest.fn(),
+  restorePreparedRun: jest.fn(),
 };
 const mockWorkIntentService = {
   captureDispatch: jest.fn(({ goal }, queue) => {
@@ -104,6 +106,7 @@ function dispatch(overrides = {}) {
     mergePolicy: 'review',
     rejectReason: null,
     createdAt: 1,
+    runRequestedAt: null,
     claimedAt: null,
     startedAt: null,
     producedAt: null,
@@ -133,7 +136,9 @@ describe('pd dispatch run --really-run daemon contract', () => {
       throw new Error(`exit:${code}`);
     });
     console.log = jest.fn();
-    mockQueue.get.mockReturnValue(dispatch());
+    const proposed = dispatch();
+    mockQueue.get.mockReturnValue(proposed);
+    mockQueue.prepareForRun.mockReturnValue(proposed);
   });
 
   afterAll(() => {
@@ -152,7 +157,85 @@ describe('pd dispatch run --really-run daemon contract', () => {
     await handleDispatch(['run', 'dispatch-1'], { 'really-run': true, json: true });
 
     expect(mockPdFetch).toHaveBeenCalledWith('/dispatches/dispatch-1/run', { method: 'POST' });
+    expect(mockQueue.prepareForRun).toHaveBeenCalledWith('dispatch-1');
     expect(mockRunNext).not.toHaveBeenCalled();
+  });
+
+  test('prepares an auto-claimed dispatch for the daemon worker before posting run', async () => {
+    const claimed = dispatch({ state: 'claimed', claimedAt: 123 });
+    const prepared = dispatch({ state: 'proposed', runRequestedAt: 456, claimedAt: null });
+    mockQueue.get.mockReturnValue(claimed);
+    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockIsDaemonRunning.mockResolvedValue(true);
+    mockPdFetch.mockResolvedValue(response(true, {
+      ok: true,
+      queued: true,
+      launchedThisTick: 1,
+      dispatch: prepared,
+    }));
+
+    await handleDispatch(['run', 'dispatch-1'], { 'really-run': true, json: true });
+
+    expect(mockQueue.prepareForRun).toHaveBeenCalledWith('dispatch-1');
+    expect(mockPdFetch).toHaveBeenCalledWith('/dispatches/dispatch-1/run', { method: 'POST' });
+  });
+
+  test('treats a worker claim racing the daemon request as already queued', async () => {
+    const prepared = dispatch({ state: 'proposed', claimedAt: null });
+    const claimed = dispatch({
+      state: 'claimed',
+      claimedAt: 456,
+      workerActorId: 'daemon-worker',
+      sessionId: 'session-daemon-worker',
+    });
+    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockIsDaemonRunning.mockResolvedValue(true);
+    mockPdFetch.mockResolvedValue(response(false, {
+      ok: false,
+      error: "dispatch is in state 'claimed'; only 'proposed' dispatches can be (re)queued",
+      dispatch: claimed,
+    }, 409));
+
+    await handleDispatch(['run', 'dispatch-1'], { 'really-run': true, json: true });
+
+    expect(mockUi.error).not.toHaveBeenCalled();
+    expect(mockRunNext).not.toHaveBeenCalled();
+  });
+
+  test('restores an auto-claim placeholder when the daemon rejects the run request', async () => {
+    const claimed = dispatch({ state: 'claimed', claimedAt: 123 });
+    const prepared = dispatch({ state: 'proposed', runRequestedAt: 456, claimedAt: null });
+    mockQueue.get.mockReturnValue(claimed);
+    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockIsDaemonRunning.mockResolvedValue(true);
+    mockPdFetch.mockResolvedValue(response(false, {
+      ok: false,
+      error: 'dispatch worker is disabled',
+      dispatch: prepared,
+    }, 503));
+
+    await expect(handleDispatch(['run', 'dispatch-1'], { 'really-run': true })).rejects.toThrow('exit:1');
+
+    expect(mockQueue.restorePreparedRun).toHaveBeenCalledWith(claimed, prepared);
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/worker is disabled/));
+  });
+
+  test('does not accept an unbound claimed placeholder as a worker claim race', async () => {
+    const original = dispatch({ state: 'claimed', claimedAt: 123 });
+    const prepared = dispatch({ state: 'proposed', runRequestedAt: 456, claimedAt: null });
+    const unboundClaim = dispatch({ state: 'claimed', claimedAt: 123 });
+    mockQueue.get.mockReturnValue(original);
+    mockQueue.prepareForRun.mockReturnValue(prepared);
+    mockIsDaemonRunning.mockResolvedValue(true);
+    mockPdFetch.mockResolvedValue(response(false, {
+      ok: false,
+      error: "dispatch is in state 'claimed'",
+      dispatch: unboundClaim,
+    }, 409));
+
+    await expect(handleDispatch(['run', 'dispatch-1'], { 'really-run': true })).rejects.toThrow('exit:1');
+
+    expect(mockQueue.restorePreparedRun).toHaveBeenCalledWith(original, prepared);
   });
 
   test('fails closed when the daemon is unavailable', async () => {
@@ -161,6 +244,8 @@ describe('pd dispatch run --really-run daemon contract', () => {
     await expect(handleDispatch(['run', 'dispatch-1'], { 'really-run': true })).rejects.toThrow('exit:1');
 
     expect(mockPdFetch).not.toHaveBeenCalled();
+    expect(mockQueue.prepareForRun).not.toHaveBeenCalled();
+    expect(mockQueue.restorePreparedRun).not.toHaveBeenCalled();
     expect(mockRunNext).not.toHaveBeenCalled();
     expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/daemon unavailable/));
   });

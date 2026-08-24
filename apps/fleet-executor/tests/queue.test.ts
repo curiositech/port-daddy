@@ -123,6 +123,171 @@ describe('queue consumer', () => {
     expect(state.completed.at(-1)?.conclusion).toBe('success');
   });
 
+  it('acks successful slices and sends explicit deduplicated continuation messages', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      blocking: true',
+        '      prompt: review',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: test',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'FLEET-VERDICT: PASS',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    }).ai;
+    const continuationSend = vi.fn(async (
+      _body: FleetRunJob,
+      _options?: { delaySeconds?: number },
+    ) => ({
+      metadata: { metrics: { sent: 1 } },
+    }));
+    const env = makeEnv({
+      FLEET_TOKENS: kv,
+      AI: ai,
+      DB: db.db,
+      FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
+    });
+
+    const first = fakeMessage(makeJob(), 1);
+    await handler.queue!(fakeBatch([first]), env, capturingCtx());
+
+    expect(first.ack).toHaveBeenCalledTimes(1);
+    expect(first.retry).not.toHaveBeenCalled();
+    expect(continuationSend).toHaveBeenCalledTimes(1);
+    const sequenceOne = continuationSend.mock.calls[0]?.[0] as FleetRunJob;
+    expect(sequenceOne.continuationSequence).toBe(1);
+
+    const second = fakeMessage(sequenceOne, 1);
+    await handler.queue!(fakeBatch([second]), env, capturingCtx());
+
+    expect(second.ack).toHaveBeenCalledTimes(1);
+    expect(second.retry).not.toHaveBeenCalled();
+    expect(continuationSend).toHaveBeenCalledTimes(1);
+    expect(state.completed.at(-1)?.conclusion).toBe('success');
+
+    // Simulate later checkpoints having advanced well past sequence one before
+    // an at-least-once duplicate is delivered. It is provably stale, so no
+    // successor repair is necessary.
+    await recordDeliveryContinuation(env, makeJob(), 101, 'later-ship', []);
+    await recordDeliveryContinuation(env, makeJob(), 202, 'latest-ship', []);
+
+    const callsBeforeDuplicate = vi.mocked(ai.run).mock.calls.length;
+    const duplicate = fakeMessage(sequenceOne, 1);
+    await handler.queue!(fakeBatch([duplicate]), env, capturingCtx());
+
+    expect(duplicate.ack).toHaveBeenCalledTimes(1);
+    expect(duplicate.retry).not.toHaveBeenCalled();
+    expect(continuationSend).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(ai.run)).toHaveBeenCalledTimes(callsBeforeDuplicate);
+  });
+
+  it('retries an explicit continuation when its durable cursor is unavailable', async () => {
+    const failingDb = {
+      prepare() {
+        throw new Error('D1 unavailable');
+      },
+    } as unknown as D1Database;
+    const continuationSend = vi.fn();
+    const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 1);
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({
+        DB: failingDb,
+        FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
+      }),
+      capturingCtx(),
+    );
+
+    expect(msg.retry).toHaveBeenCalledTimes(1);
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(continuationSend).not.toHaveBeenCalled();
+  });
+
+  it('re-sends the exact successor when checkpoint commit outran its queue send', async () => {
+    const db = memoryD1();
+    const job = makeJob();
+    await recordDeliveryContinuation(
+      makeEnv({ DB: db.db }),
+      job,
+      1,
+      'code-reviewer',
+      ['qa', 'red-team'],
+    );
+    await recordDeliveryContinuation(
+      makeEnv({ DB: db.db }),
+      job,
+      101,
+      'qa',
+      ['red-team'],
+    );
+    const continuationSend = vi.fn(async (
+      _body: FleetRunJob,
+      _options?: { delaySeconds?: number },
+    ) => ({
+      metadata: { metrics: { sent: 1 } },
+    }));
+    const ai = aiStub({ perShip: {} }).ai;
+    const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 2);
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({
+        AI: ai,
+        DB: db.db,
+        FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
+      }),
+      capturingCtx(),
+    );
+
+    expect(continuationSend).toHaveBeenCalledTimes(1);
+    expect(continuationSend.mock.calls[0]?.[0]).toMatchObject({
+      deliveryId: job.deliveryId,
+      continuationSequence: 2,
+    });
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it('retries a continuation that is ahead of its durable checkpoint', async () => {
+    const db = memoryD1();
+    const continuationSend = vi.fn();
+    const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 1);
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({
+        DB: db.db,
+        FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
+      }),
+      capturingCtx(),
+    );
+
+    expect(msg.retry).toHaveBeenCalledTimes(1);
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(continuationSend).not.toHaveBeenCalled();
+  });
+
   it('does not charge intentional slices against the provider retry circuit', async () => {
     state.files.set(
       'main:pd-fleet.yml',
@@ -232,6 +397,80 @@ describe('queue consumer', () => {
     expect(msg.retry).not.toHaveBeenCalled();
     expect(intent.state).toBe('cancelled');
     expect(intent.error).toContain('no longer current');
+  });
+
+  it('closes a mid-flight supersession with an honest spend and publication receipt', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      blocking: true',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: review',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const intent = { state: 'queued', error: null as string | null };
+    const db = {
+      prepare(sql: string) {
+        let bound: unknown[] = [];
+        const stmt = {
+          bind(...values: unknown[]) { bound = values; return stmt; },
+          async first<T>() {
+            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+              return { state: intent.state } as T;
+            }
+            return null;
+          },
+          async all<T>() { return { results: [] as T[] }; },
+          async run() {
+            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
+              intent.state = String(bound[0]);
+              intent.error = bound[3] == null ? null : String(bound[3]);
+            }
+            return { success: true, meta: { changes: 1 } };
+          },
+        };
+        return stmt;
+      },
+      batch: async () => [],
+    } as unknown as D1Database;
+    let moved = false;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' },
+      onCall: () => {
+        if (!moved) {
+          moved = true;
+          state.prHeadSha = 'NEWER-DURING-AI';
+        }
+      },
+    }).ai;
+    const msg = fakeMessage(makeJob({ action: 'synchronize', deliveryId: 'delivery-midflight-stale' }));
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, DB: db, AI: ai }),
+      capturingCtx(),
+    );
+
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(intent.state).toBe('cancelled');
+    expect(intent.error).toContain('changed during Fleet execution');
+    expect(intent.error).toContain('Model work may already have occurred');
+    expect(intent.error).toContain('after pd-code-reviewer MAP');
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.commentPosts).toBe(0);
+    expect(state.reviews).toHaveLength(0);
   });
 
   it('closes an execution-only fleet as cancelled instead of looking for a missing run', async () => {

@@ -26,12 +26,15 @@ mod daemon_pane;
 mod dispatch_pane;
 mod editor_claims;
 mod editor_commit_gate;
+mod editor_input;
 mod editor_pane;
 mod editor_sync;
+mod editor_view;
 mod editor_wedge;
 mod fleet_pane;
 mod galaxy_canvas;
 mod galaxy_pane;
+mod git_blame;
 mod grid;
 mod harbor_pane;
 mod headless_capture;
@@ -62,6 +65,7 @@ mod suggest_pane;
 mod syntax;
 mod term;
 mod theme;
+mod timeline;
 mod tokens;
 mod util;
 mod work_plan;
@@ -312,10 +316,13 @@ fn main() {
     app::init_theme_from_env();
     app::init_motion_from_env();
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
-    // All fallback logic lives in DaemonClient::discover(); no literals here.
+    // Canonical daemon discovery: PORT_DADDY_URL env var → console-daemon.url →
+    // daemon.port file → the stable berth default. All fallback logic lives in
+    // DaemonClient::discover(); no literals here. Discovery is infallible now —
+    // with nothing registered the console opens against the stable berth and the
+    // panes render reachability honestly instead of panicking pre-window.
     let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery failed")
+        .expect("daemon discovery is infallible")
         .base()
         .to_string();
 
@@ -487,7 +494,7 @@ fn main() {
         // edit-sync + coordination lanes into its persistent EditorPane, then pushes
         // `(bound_path, view())` here on each fold edge for the foreground to surface on
         // the Editor surface — the wedge finally shows in the RUNNING window.
-        let (editor_tx, editor_rx) = mpsc::channel::<(String, Vec<pane::Block>)>();
+        let (editor_tx, editor_rx) = mpsc::channel::<app::EditorUpdate>();
         // Sextant bus: the bg thread owns the GET /galaxy/session/:id round-trip
         // for a clicked point and streams the parsed detail (or the daemon's real
         // failure) back to the view's drawer. Mirrors the WorkPlan bus: a small
@@ -1057,6 +1064,52 @@ fn main() {
                                 editor = Some(pane);
                                 editor_stream = None; // resubscribe to the new file's channels
                             }
+                            app::ControlMsg::EditorLocalChange {
+                                path,
+                                frame,
+                                presence,
+                            } => {
+                                let Some(ed) = editor.as_mut().filter(|ed| ed.path_str() == path) else {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "editor change not mirrored",
+                                        format!("live lane is not bound to {path}"),
+                                    ));
+                                    continue;
+                                };
+                                let mut changed = false;
+                                if let Some(frame) = frame {
+                                    changed |= ed.ingest_local_frame(&frame);
+                                    if let Err(error) = client
+                                        .tube_send(ed.channel(), &frame, "editor")
+                                        .await
+                                    {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor delta broadcast failed",
+                                            error.to_string(),
+                                        ));
+                                    }
+                                }
+                                ed.set_local_presence(presence);
+                                let now_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .map(|duration| duration.as_millis() as i64)
+                                    .unwrap_or_default();
+                                if let Some(frame) = ed.take_presence_broadcast(now_ms) {
+                                    if let Err(error) = client.send_presence(ed.channel(), &frame).await {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor presence broadcast failed",
+                                            error.to_string(),
+                                        ));
+                                    }
+                                }
+                                if changed {
+                                    let _ = editor_tx.send(app::EditorUpdate {
+                                        path: ed.path_str().to_string(),
+                                        blocks: ed.view(),
+                                        remote_frames: Vec::new(),
+                                    });
+                                }
+                            }
                         }
                     }
 
@@ -1192,6 +1245,7 @@ fn main() {
                         // pushes view() to the foreground on a paint EDGE — an idle editor
                         // with live cursors sends nothing (the P2 discipline, carried here).
                         let mut editor_dirty = false;
+                        let mut remote_frames = Vec::new();
                         match ed.subscription() {
                             Some(pane::Subscription::Editor { channel, coord_channel }) => {
                                 let reopen = match &editor_stream {
@@ -1219,8 +1273,12 @@ fn main() {
                                 // frame kinds (`ingest_frame` / `ingest_presence`
                                 // are mutually exclusive); `||` short-circuits so a
                                 // frame folds through exactly one path.
-                                editor_dirty |=
-                                    ed.ingest_frame(&msg.text) || ed.ingest_presence(&msg.text);
+                                if ed.ingest_frame(&msg.text) {
+                                    editor_dirty = true;
+                                    remote_frames.push(msg.text);
+                                } else {
+                                    editor_dirty |= ed.ingest_presence(&msg.text);
+                                }
                             }
                             while let Ok(msg) = coord_rx.try_recv() {
                                 editor_dirty |= ed.ingest_claim(&msg.text);
@@ -1230,7 +1288,11 @@ fn main() {
                         // Surface the folded pane on the edge — presence cursors, claim
                         // bands, and the wedge conflict/gate Blocks now flow to the window.
                         if editor_dirty {
-                            let _ = editor_tx.send((ed.path_str().to_string(), ed.view()));
+                            let _ = editor_tx.send(app::EditorUpdate {
+                                path: ed.path_str().to_string(),
+                                blocks: ed.view(),
+                                remote_frames,
+                            });
                         }
                     }
                     let all = vec![
@@ -1344,10 +1406,10 @@ fn main() {
                     // pane blocks — presence cursors, region claims, wedge conflict/gate
                     // bands — folded into the Editor surface so the running window paints
                     // the collaboration state, not a cold file re-read.
-                    while let Ok(editor_blocks) = editor_rx.try_recv() {
+                    while let Ok(editor_update) = editor_rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.set_editor_blocks(editor_blocks.clone());
+                                view.apply_editor_update(editor_update.clone());
                                 cx.notify();
                             });
                         });

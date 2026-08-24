@@ -2388,7 +2388,7 @@ _port_daddy() {
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
     # Fleet ship-run transcripts
-    'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
+    'transcripts:browse fleet ship-run transcripts (list/show/watch/cost)'
     'transcript:alias for transcripts — view a single ship-run record'
     # Squid bridge
     'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'

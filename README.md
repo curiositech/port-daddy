@@ -344,7 +344,6 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd agent inbox clear` — deletes all messages in the inbox
 - `pd harbor destroy <name>` — tears down a harbor and evicts everyone in it
 - `pd spawn kill <id>` — terminates a running spawned agent mid-run
-- `pd transcripts delete/rm` — removes durable agent transcripts
 - `pd restore <id>` — overwrites the live registry DB from a snapshot
 - `pd fleet down` — SIGTERMs the running fleet
 - `pd fleet panic --reason "<text>"` — SIGTERMs every running fleet agent (also requires typing `YES`)
@@ -395,7 +394,7 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
-**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`
+**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles.
 
 **Daemon & host** — `start`, `stop`, `restart`, `install`, `uninstall`, `daemon`, `dev`, `use`, `doctor`, `diagnose`, `attest`, `health`, `metrics`, `bench`, `ci-gate`, `backup`, `restore`, `cut`, `upgrade`, `self-update`, `safe`, `secret`, `guard`, `config`, `init`, `setup`, `mcp`, `relay`, `tunnel`, `webhook`/`webhooks`, `version`
 
@@ -406,6 +405,40 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 ## 📡 Multi-Agent Coordination
 
 Port Daddy is built for the "Wild West" of agentic workflows where agents hail each other ad-hoc.
+
+### Cloud coordination peer (ADR-0092)
+
+An optional per-project relay room federates sessions, append-only notes,
+advisory file claims, and project-scoped logical lock leases between local and
+cloud daemons. The room is a peer, never the authority: every daemon writes its
+own SQLite ledger while offline, keeps a durable outbox, and CRDT-merges after
+reconnection. Ports, processes, sockets, and machine-local exclusion remain
+local. Each local ledger persists its replica identity beside that outbox, so a
+daemon restart cannot strand older operations under a new sync envelope.
+Replicated lock leases are shown under coordination-scoped projection names.
+Ownership metadata and collision-safe fallback slots prevent them from
+overwriting or releasing enforcing machine-local locks, including a lock that
+already occupies a projection-shaped name.
+
+The relay exposes an operator-gated grant endpoint and a macaroon-gated sync
+endpoint. Grants are scoped to `coordination-sync` plus one project, actor, and
+expiry. A deployment enables a daemon peer only when all four settings are
+present: `PORT_DADDY_COORDINATION_URL`, `PORT_DADDY_COORDINATION_PROJECT`,
+`PORT_DADDY_COORDINATION_ACTOR`, and the managed secret
+`PORT_DADDY_COORDINATION_MACAROON`. Partial configuration is reported but does
+not prevent the local daemon from starting or accepting local work.
+Agents can inspect `coordination_status()` over MCP to distinguish a healthy
+room connection from an offline peer with locally queued work; disconnected
+never means the local coordination ledger stopped accepting writes.
+
+Cloud sandboxes use the same runtime rather than a mock coordination client:
+the executor builds the compiled binary, starts an isolated daemon with its own
+`PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and `PORT_DADDY_SOCK`, waits for health,
+and runs `pd begin` before sandbox work. It then waits until the session has
+been durably acknowledged by the room and observed through the daemon cursor.
+If an explicitly configured remote
+daemon is unavailable, the CLI reports that peer as unavailable and never
+silently starts a different local daemon or falls back to a local database.
 
 ### Swarm Radio (Pub/Sub)
 
@@ -540,6 +573,8 @@ Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, token
 Same-harness continuation is daemon-witnessed rather than inferred. All four native harnesses require UUID-shaped session identities, preventing option-shaped values from reaching their argv parsers. Claude, Codex, and Gemini require an explicit transcript reference instead of scanning an unbounded harness store; Claude JSONL and Codex `session_meta` must bind the UUID to the canonical workspace, agy must agree across its conversation-keyed brain transcript and exact `last_conversations` workspace mapping, and Gemini must agree across its project registry, project hash, UUID, explicit chat file, and canonical workspace. Evidence is opened once with no-follow semantics, read under fixed byte and entry caps, and bound to file plus workspace device/inode identity. `POST /memory/handoffs/:episodeId/continue` revalidates that witness immediately before spawn, carries the witnessed device/inode into the spawner, checks it again at the final child-process boundary, uses the canonical workspace as the child cwd, sanitizes the outgoing prompt, resolves all backend overrides, and permits native resume only when source and effective target share an adapter family with session-scoped resume support. Claude, Codex, agy, and Gemini then use their native session flags; Codex resume deliberately omits spawn-only `--sandbox` and `-C` flags. The canonical SQLite database atomically accepts each hashed idempotency key and gives every receipt a daemon-generation owner and lease. Startup recovery orphans only expired prior-generation work, accepted-to-running is a compare-and-swap that must succeed before spawn, and `success: true` is returned only after the same owner durably records `completed`; in-flight idempotent retries return HTTP 202 with `success: false` and `pending: true`. The receipt stores only hashes of the prompt and idempotency key. The sanitized prompt still enters the ordinary governed spawn transcript; its unredacted source never does. Read receipts through `GET /memory/continuations/:continuationId` or filter them with `GET /memory/continuations`.
 
 Cross-harness continuation uses the same endpoint and receipt ledger. Choose the concrete runtime with `targetBackend` and set `mode` to `auto`, `native`, or `handoff` (`auto` is the default). Auto mode restores only a compatible session-scoped native family; otherwise it starts a new target session from [`pd.agent-harbor.handoff-successor-brief.v0`](schemas/agent-harbor/v0/handoff-successor-brief.schema.json). The brief carries durable identity and predecessor lineage plus the sanitized objective, every preserved operator turn, decisions, coordination evidence, workspace state, artifacts, and compact recent context. It explicitly treats historical content as data rather than new system/tool authority, is scanned again before acceptance, and never copies the raw provider transcript. Capsule workspace paths are context, never cwd authority: a successor reuses a reverified source workspace witness, or a stateless/history-only source must supply an explicit current `targetWorkdir`; Port Daddy captures that user-owned absolute directory's device/inode identity, binds it into request idempotency, and checks it again before spawn. An explicit target cannot redirect a witnessed session into another checkout. Explicit native mode fails rather than silently switching semantics; explicit handoff mode always creates a successor, even on the same backend family.
+
+Spawner-launched bodies now feed their already-redacted transcript rows into Agent Harbor as real hash-chained conversation evidence. At run finalization the daemon emits a `ContextEnvelope` using the higher of adapter-reported usage and its persisted-transcript estimate. Crossing the compaction threshold builds and immediately revalidates a cited `CompactionPacket`; the packet is projected into the same sanitized handoff episode consumed by `POST /memory/handoffs/:episodeId/continue`, so the existing leased idempotency receipt remains the only successor path. `GET /agent-harbor/context-continuity` projects envelopes, packet head hashes, handoff episode ids, and continuation receipts for FleetBar. The Giant Squid panel shows this proof alongside hook health; it does not turn a self-reported percentage into a green status. Interactive Squid adapters still need to emit the same envelope contract before this coverage is universal.
 
 Harness portability is reported as predicates, not a marketing score. `pd backend adapters --matrix` prints the generated 17×17 native-or-handoff mechanics grid; `--probe` adds side-effect-free binary/help discovery. `GET /harness-adapters/continuation-matrix` and the read-only MCP tool `harness_continuation_matrix` keep those catalog ceilings separate from completed spawn transcripts and continuation receipts, label evidence older than seven days as stale, and leave exact live interaction unverified until a dedicated control receipt exists. Neither discovery nor an agent's self-report earns runtime conformance. The canonical response schema is [`schemas/agent-harbor/v0/harness-continuation-matrix.schema.json`](schemas/agent-harbor/v0/harness-continuation-matrix.schema.json).
 
@@ -730,12 +765,21 @@ Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
 user-level entries are still project-scoped at runtime: the wrapper requires a
 fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
-project registry. Outside an armed root they no-op. A healthy no-op turn emits
-zero bytes and no status message; the hot path reads bounded local evidence and
-never waits on the daemon or launches the full CLI. When an exact-project trace
-or fleet-wide control alert is actionable, the prompt envelope is capped at one
-heading plus two facts and 512 bytes of context, with a one-second harness
-deadline. Reinstalling hooks is idempotent and migrates older duplicate
+project registry. Outside an armed root they no-op. Coordination content stays
+bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and no
+status message; the hot path reads bounded local evidence and never waits on
+the daemon or launches the full CLI. When an exact-project trace or fleet-wide
+control alert is actionable, the coordination envelope is capped at one heading
+plus two facts and 512 bytes of context, with a one-second harness deadline.
+The end-of-turn SITREP is the deliberate exception (operator doctrine,
+2026-08-22): governed by the per-repo `sitrep.endOfTurn` dial (`off` |
+`suggest` | `enforce`, default `enforce`; `PD_SITREP` env override wins, then
+`agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`),
+the prompt hook injects the end-of-turn SITREP table contract each turn — the
+harness's visible value surface, riding outside the coordination byte cap.
+`suggest` injects the contract as a suggestion; `enforce` marks a turn that
+ends without the table incomplete. Scaffold the table with `pd sitrep
+--template`. Reinstalling hooks is idempotent and migrates older duplicate
 registrations while preserving user-owned hooks. The installed graph is
 intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
