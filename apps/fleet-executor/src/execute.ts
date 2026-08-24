@@ -953,7 +953,7 @@ async function recordShipSpend(
  *   apart from "3 timeouts at 300000ms" without a separate join.
  * @returns Nothing; failures are logged and swallowed, never thrown.
  */
-async function recordShipAiCallStats(
+export async function recordShipAiCallStats(
   env: ExecutorEnv,
   runId: string,
   ship: ShipConfig,
