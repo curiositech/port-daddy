@@ -172,12 +172,18 @@ interface LocksLike {
  * How `cleanup()` decides whether a dying DISPLAY handle is allowed to take a
  * lock with it.
  *
- * See the long note in cleanup() itself. Either supply `resolveAgentActorId`
- * directly, or the `souls`/`sessions` pair and one is built for you via
+ * See the long note in cleanup() itself. Either supply `agentOwnsSoul`
+ * directly, or the `sessions` manager and one is built for you via
  * lib/agent-soul-binding.ts.
  */
 export interface CleanupOptions {
-  resolveAgentActorId?: (agentId: string) => string | null;
+  /**
+   * Membership predicate: does a dying display handle bind to `actorId`? Keyed
+   * to the specific soul so a display handle shared by several souls cannot let
+   * one soul's session decide another soul's lock. Defaults to a session-stamp
+   * predicate built from `sessions`.
+   */
+  agentOwnsSoul?: (agentId: string, actorId: string) => boolean;
   sessions?: SessionBindingLookup | null;
 }
 
@@ -799,12 +805,14 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
 
     let releasedLocks = 0;
 
-    // Resolve a dying display handle to the minted soul whose credentialed
-    // act created it — the daemon-written session stamp, NOT the alias table
-    // (see lib/agent-soul-binding.ts for why the alias is not evidence here).
-    // Null means "no ownership claim proved", which is NOT "unowned".
-    const resolveActorId = options.resolveAgentActorId
-      ?? (options.sessions ? createReaperSoulResolver({ sessions: options.sessions }) : () => null);
+    // Decide whether a dying display handle binds to a specific soul — the
+    // daemon-written session stamp, NOT the alias table (see
+    // lib/agent-soul-binding.ts for why the alias is not evidence here). This
+    // is a MEMBERSHIP test keyed to the lock's stamped soul: a display handle
+    // shared by several souls must not let one soul's session release another
+    // soul's lock. `false` means "no ownership claim proved", NOT "unowned".
+    const agentOwnsSoul = options.agentOwnsSoul
+      ?? (options.sessions ? createReaperSoulResolver({ sessions: options.sessions }) : () => false);
 
     for (const agent of cleanupCandidates) {
       // Release locks owned by this agent.
@@ -834,7 +842,6 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       if (locks) {
         const lockResult = locks.list({ owner: agent.id });
         const candidateLocks = lockResult.locks || [];
-        let agentActorId: string | null | undefined;
         for (const lock of candidateLocks) {
           const metadata = lock.metadata && typeof lock.metadata === 'object' && !Array.isArray(lock.metadata)
             ? lock.metadata as Record<string, unknown>
@@ -842,10 +849,11 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
           const stampedActor = typeof metadata?.actorId === 'string' && metadata.actorId
             ? metadata.actorId
             : null;
-          if (stampedActor) {
-            if (agentActorId === undefined) agentActorId = resolveActorId(agent.id);
-            if (agentActorId !== stampedActor) continue;
-          }
+          // A stamped lock is force-released only when the dying handle is
+          // proven to bind to THAT soul (membership among its session stamps).
+          // A shared display handle carrying another soul's session must not
+          // qualify; when nothing proves the binding, the lock is left to TTL.
+          if (stampedActor && !agentOwnsSoul(agent.id, stampedActor)) continue;
           locks.release(lock.name, { force: true });
           releasedLocks++;
         }

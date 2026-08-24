@@ -58,7 +58,7 @@ import {
   type IdentityVerifier,
   type IdentityWriteVerdict,
 } from './identity-write-boundary.js';
-import { resolveSessionSoul, type SessionBindingLookup } from './agent-soul-binding.js';
+import { resolveSessionSoul, sessionSoulIncludes, type SessionBindingLookup } from './agent-soul-binding.js';
 
 /** The verified half of a write verdict — the only success shape this gate returns. */
 export type VerifiedWriteVerdict = Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
@@ -195,8 +195,13 @@ export function createInboxIdentity(deps: InboxIdentityDeps) {
     }
 
     const resolvedAlias = souls ? souls.resolveActor(asserted).actorId : null;
-    const boundBySession = resolveAgentSoul(sessions, asserted);
-    if (resolvedAlias !== verified.actorId && boundBySession !== verified.actorId) {
+    // Membership, not "first stamp": a display name shared by several honest
+    // souls (POST /sugar/begin binds no alias) carries one session stamp per
+    // soul, and each of them must be able to send under it. Asking whether the
+    // CALLER's own soul is among those stamps both fixes the shared-agent
+    // lockout and refuses a caller who is not a member.
+    const boundBySession = sessionSoulIncludes(sessions, asserted, verified.actorId, { includeClosed: false });
+    if (resolvedAlias !== verified.actorId && !boundBySession) {
       logger?.error('identity_write_rejected', {
         route,
         code: 'INBOX_FROM_MISMATCH',

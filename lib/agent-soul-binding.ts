@@ -67,32 +67,40 @@ function stampedActorId(session: unknown): string | null {
 }
 
 /**
- * Resolve a display agentId to a minted soul through the SESSION stamp.
+ * Collect EVERY minted soul stamped onto a display agentId's sessions.
+ *
+ * A display agentId is not owned by a single soul: `POST /sugar/begin`
+ * deliberately binds no alias, so several honest agents can each open a session
+ * under one shared display string (e.g. `proj:node:dev`). Each such session
+ * carries its own soul's verified stamp. Membership in THIS set — not "the
+ * first stamp found" — is the correct authorization question. Returning only
+ * the first stamp both (a) let one shared-agent user lock the others out with a
+ * spurious mismatch, and (b) invited trusting a soul the caller does not own.
  *
  * @param sessions - The sessions manager (or null when not wired).
  * @param agentId - The display agent id.
  * @param options.includeClosed - When true, consider sessions of any status,
- *        not just active ones. Use this only when the question is historical
- *        ("did this handle ever belong to that soul?"), never when the
- *        question is a live authorization.
- * @returns The bound minted actorId, or null.
+ *        not just active ones (historical question); when false, ACTIVE only
+ *        (live authorization).
+ * @returns The set of minted actorIds stamped for that agentId (possibly empty).
  */
-export function resolveSessionSoul(
+function collectStampedActorIds(
   sessions: SessionBindingLookup | null | undefined,
   agentId: string,
   options: { includeClosed?: boolean } = {},
-): string | null {
-  if (!sessions || !agentId) return null;
+): Set<string> {
+  const found = new Set<string>();
+  if (!sessions || !agentId) return found;
 
   if (!options.includeClosed) {
     if (typeof sessions.activeSessionIdsByAgent !== 'function' || typeof sessions.get !== 'function') {
-      return null;
+      return found;
     }
     let sessionIds: string[];
     try {
       sessionIds = sessions.activeSessionIdsByAgent(agentId);
     } catch {
-      return null;
+      return found;
     }
     for (const sessionId of sessionIds) {
       let record: { success: boolean; session?: unknown };
@@ -103,23 +111,72 @@ export function resolveSessionSoul(
       }
       if (!record?.success) continue;
       const actorId = stampedActorId(record.session);
-      if (actorId) return actorId;
+      if (actorId) found.add(actorId);
     }
-    return null;
+    return found;
   }
 
-  if (typeof sessions.list !== 'function') return null;
+  if (typeof sessions.list !== 'function') return found;
   let rows: Array<Record<string, unknown>>;
   try {
     const listed = sessions.list({ agentId, allWorktrees: true, limit: 50 }) as
       { sessions?: Array<Record<string, unknown>> } | undefined;
     rows = Array.isArray(listed?.sessions) ? listed.sessions : [];
   } catch {
-    return null;
+    return found;
   }
   for (const row of rows) {
     const actorId = stampedActorId(row);
-    if (actorId) return actorId;
+    if (actorId) found.add(actorId);
+  }
+  return found;
+}
+
+/**
+ * Does `actorId` belong to the set of souls stamped onto `agentId`'s sessions?
+ *
+ * This is the membership test both callers actually need: the inbox sender gate
+ * asks "is the CALLER's own soul among the active sessions stamped for this
+ * display name?", and the reaper asks "was the lock's stamped soul ever an act
+ * of this dying handle?". Both are keyed to a specific actorId, so neither may
+ * trust whichever stamp happens to sort first.
+ *
+ * @param sessions - The sessions manager (or null when not wired).
+ * @param agentId - The display agent id.
+ * @param actorId - The minted soul whose membership is being tested.
+ * @param options.includeClosed - Active-only (false) vs any-status (true).
+ * @returns true when `actorId` is stamped on a matching session.
+ */
+export function sessionSoulIncludes(
+  sessions: SessionBindingLookup | null | undefined,
+  agentId: string,
+  actorId: string,
+  options: { includeClosed?: boolean } = {},
+): boolean {
+  if (!actorId) return false;
+  return collectStampedActorIds(sessions, agentId, options).has(actorId);
+}
+
+/**
+ * Resolve a display agentId to a minted soul through the SESSION stamp.
+ *
+ * Prefer {@link sessionSoulIncludes} for any authorization decision: this
+ * returns an ARBITRARY member of the stamped set (the first found) and so
+ * cannot answer "does THIS soul own the name?" when a display string is shared
+ * by several souls. It remains for diagnostics and single-soul callers.
+ *
+ * @param sessions - The sessions manager (or null when not wired).
+ * @param agentId - The display agent id.
+ * @param options.includeClosed - When true, consider sessions of any status.
+ * @returns One bound minted actorId, or null.
+ */
+export function resolveSessionSoul(
+  sessions: SessionBindingLookup | null | undefined,
+  agentId: string,
+  options: { includeClosed?: boolean } = {},
+): string | null {
+  for (const actorId of collectStampedActorIds(sessions, agentId, options)) {
+    return actorId;
   }
   return null;
 }
@@ -150,11 +207,15 @@ export function resolveSessionSoul(
  * closing it means credentialing heartbeats — a different slice.
  *
  * @param deps.sessions - The sessions manager.
- * @returns A `(agentId) => actorId | null` resolver that includes closed
- *          sessions, because the reaper runs after the session is abandoned.
+ * @returns A `(agentId, actorId) => boolean` membership predicate that includes
+ *          closed sessions (the reaper runs after the session is abandoned) and
+ *          tests whether the lock's stamped soul is among the souls that opened
+ *          a session under the dying handle — not whichever stamp sorts first,
+ *          which for a shared display handle could be a different soul.
  */
 export function createReaperSoulResolver(deps: {
   sessions?: SessionBindingLookup | null;
-}): (agentId: string) => string | null {
-  return (agentId: string) => resolveSessionSoul(deps.sessions, agentId, { includeClosed: true });
+}): (agentId: string, actorId: string) => boolean {
+  return (agentId: string, actorId: string) =>
+    sessionSoulIncludes(deps.sessions, agentId, actorId, { includeClosed: true });
 }

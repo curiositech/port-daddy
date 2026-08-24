@@ -284,6 +284,99 @@ describe('inbox identity boundary — POST /agents/:id/inbox', () => {
     expect(stored.fromActorId).toBe(sender.actorId);
   });
 
+  // ── Defect A (#8877): the session binding is a MEMBERSHIP test, not "the
+  // first stamp found" ──────────────────────────────────────────────────────
+  //
+  // A display agentId is shared: POST /sugar/begin binds no alias, so two
+  // honest agents can each `pd begin --agent-id shared-agent`, producing two
+  // active sessions under one display name, each stamped with its own soul.
+  // Resolving that name to a SINGLE stamp (the old resolveAgentSoul) let
+  // whichever session sorted first win, and locked every other honest
+  // shared-agent user out with a spurious INBOX_FROM_MISMATCH. The gate must
+  // ask "is the CALLER's soul among the stamps for this name?".
+
+  /** A sessions stub allowing SEVERAL souls to stamp the same display agentId. */
+  function sessionsWithSharedBindings(bindingsByAgent) {
+    const byAgent = new Map();
+    const byId = new Map();
+    let n = 0;
+    for (const [agentId, stamps] of Object.entries(bindingsByAgent)) {
+      const ids = [];
+      for (const stamp of stamps) {
+        const sessionId = `session-${++n}`;
+        ids.push(sessionId);
+        byId.set(sessionId, {
+          success: true,
+          session: { id: sessionId, agentId, metadata: { identity: stamp } },
+        });
+      }
+      byAgent.set(agentId, ids);
+    }
+    return {
+      activeSessionIdsByAgent: (agentId) => byAgent.get(agentId) ?? [],
+      get: (sessionId) => byId.get(sessionId) ?? { success: false },
+    };
+  }
+
+  test('DEFECT A regression: a shared display agentId does NOT lock out the second honest soul', async () => {
+    const first = mintTestActor(souls);
+    const second = mintTestActor(souls);
+    // Both opened a session under the SAME display name; `first` sorts first in
+    // the stamp set, which is exactly what the old "return first" logic
+    // returned — so `second` was 403'd even though it holds a real session.
+    const sessions = sessionsWithSharedBindings({
+      'shared-agent': [
+        { verified: true, actorId: first.actorId, soulClass: 'newcomer' },
+        { verified: true, actorId: second.actorId, soulClass: 'newcomer' },
+      ],
+    });
+    const built = buildAgentsApp({ souls, sessions, inbox });
+    app = built.app;
+
+    // The first soul can send (it always could).
+    const resA = await app.inject({
+      method: 'POST',
+      url: '/agents/recipient/inbox',
+      headers: first.headers,
+      payload: { content: 'from the first shared agent', from: 'shared-agent' },
+    });
+    expect(resA.statusCode).toBe(200);
+
+    // THE REGRESSION: the second soul — not first in the set — must ALSO send.
+    const resB = await app.inject({
+      method: 'POST',
+      url: '/agents/recipient/inbox',
+      headers: second.headers,
+      payload: { content: 'from the second shared agent', from: 'shared-agent' },
+    });
+    expect(resB.statusCode).toBe(200);
+    const stored = inbox.list('recipient').messages;
+    expect(stored.map((m) => m.fromActorId).sort()).toEqual([first.actorId, second.actorId].sort());
+  });
+
+  test('DEFECT A: a caller with no session under the shared name is still 403 (membership refuses non-members)', async () => {
+    const memberA = mintTestActor(souls);
+    const memberB = mintTestActor(souls);
+    const outsider = mintTestActor(souls);
+    const sessions = sessionsWithSharedBindings({
+      'shared-agent': [
+        { verified: true, actorId: memberA.actorId, soulClass: 'newcomer' },
+        { verified: true, actorId: memberB.actorId, soulClass: 'newcomer' },
+      ],
+    });
+    const built = buildAgentsApp({ souls, sessions, inbox });
+    app = built.app;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agents/recipient/inbox',
+      headers: outsider.headers, // holds a real credential, but no shared-agent session
+      payload: { content: 'I am not one of them', from: 'shared-agent' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().code).toBe('INBOX_FROM_MISMATCH');
+    expect(inbox.list('recipient').count).toBe(0);
+  });
+
   test("another soul's ACTIVE session agentId is still 403 (the binding is not a free-for-all)", async () => {
     const attacker = mintTestActor(souls);
     const victim = mintTestActor(souls);

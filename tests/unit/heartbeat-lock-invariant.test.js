@@ -163,6 +163,37 @@ describe("heartbeat plane cannot reap another soul's locks", () => {
     expect(locks.check('build:artifacts').held).toBe(false);
   });
 
+  test("DEFECT A: the reaper releases the owner soul's lock even when another soul's session sorts first", () => {
+    // A shared display handle can carry SEVERAL souls' sessions (pd begin binds
+    // no alias). The reaper must ask "is the lock's stamped soul AMONG the
+    // handle's session stamps?" — a membership test — not "does the FIRST stamp
+    // equal it?". The old resolver returned an arbitrary member, so when a
+    // different soul's session sorted first the reaper failed to reap the dead
+    // agent's OWN lock (a fail-closed regression, but still wrong).
+    const owner = mintTestActor(souls);
+    const otherSoul = mintTestActor(souls);
+    acquireAs(owner, 'release:promote', 'shared-handle');
+
+    // A stub whose closed-inclusive list returns the OTHER soul first, then the
+    // owner — reproducing "the owner's stamp is not the one that sorts first".
+    const sessionsStub = {
+      list: () => ({
+        sessions: [
+          { agentId: 'shared-handle', metadata: { identity: { verified: true, actorId: otherSoul.actorId } } },
+          { agentId: 'shared-handle', metadata: { identity: { verified: true, actorId: owner.actorId } } },
+        ],
+      }),
+    };
+
+    agents.register('shared-handle', { pid: process.pid, status: 'draining' });
+    ageAgentPastDeath(db, 'shared-handle', 'draining');
+    const result = agents.cleanup(locks, { sessions: sessionsStub });
+
+    // Membership finds the owner among the stamps, so the lock is reaped.
+    expect(result.releasedLocks).toBe(1);
+    expect(locks.check('release:promote').held).toBe(false);
+  });
+
   test('an UNSTAMPED lock is still reaped by owner string (no soul, nothing to protect)', () => {
     // Locks written by an in-process path that has no soul carry no actorId.
     // There is no ownership claim to honour, so the historical string-match
