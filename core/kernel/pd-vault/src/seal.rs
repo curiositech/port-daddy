@@ -604,4 +604,37 @@ mod tests {
         let second = seal(&kat_key(), &nonce, KAT_PLAINTEXT, &kat_aad()).unwrap();
         assert_ne!(first, second);
     }
+
+    #[test]
+    fn a_null_byte_in_the_channel_id_round_trips_and_does_not_collide() {
+        // The module docs claim a channel id may contain arbitrary bytes,
+        // including a NUL, without creating an AAD collision — the
+        // length-prefixed encoding has no reserved separator byte. Prove it:
+        // seal/open round-trips with a NUL embedded, and the NUL'd channel
+        // does not produce the same associated data as its NUL-stripped
+        // sibling (the collision a naive C-string-style encoding would have).
+        let with_nul = SealAad {
+            harbor_id: KAT_HARBOR,
+            channel_id: "harbor/al\0pha",
+            epoch: KAT_EPOCH,
+            seq: KAT_SEQ,
+        };
+        let without_nul = SealAad {
+            channel_id: "harbor/alpha",
+            ..with_nul
+        };
+        assert_ne!(with_nul.encode().unwrap(), without_nul.encode().unwrap());
+
+        let sealed = seal(&kat_key(), &KAT_NONCE, KAT_PLAINTEXT, &with_nul).unwrap();
+        assert_eq!(
+            open(&kat_key(), &KAT_NONCE, &sealed, &with_nul).unwrap(),
+            KAT_PLAINTEXT
+        );
+        // And it must not open under the NUL-stripped AAD — that would be
+        // exactly the collision this test exists to rule out.
+        assert!(matches!(
+            open(&kat_key(), &KAT_NONCE, &sealed, &without_nul),
+            Err(VaultError::Decrypt)
+        ));
+    }
 }
