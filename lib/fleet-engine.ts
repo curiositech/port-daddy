@@ -2743,6 +2743,12 @@ export function isAbsoluteCronSchedule(cron: string): boolean {
  *
  * `now` defaults to Date.now() and exists as a parameter purely so tests can
  * pin it; production callers always omit it.
+ *
+ * Fixed-clock computation deliberately inherits the daemon host's local
+ * `Date` disambiguation. A spring-forward target inside a gap advances by the
+ * gap, while a fall-back fold selects the earlier occurrence. This helper is
+ * not a timezone-aware calendar walker and does not enumerate both fold
+ * instants.
  */
 export function computeNextAbsoluteFireDelayMs(cron: string, now: number = Date.now()): number | null {
   if (!isAbsoluteCronSchedule(cron)) return null;

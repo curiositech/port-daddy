@@ -9,6 +9,7 @@
 //      /spawn returns {status: 'spawned'} -- callbacks are dead code
 
 import { jest } from '@jest/globals';
+import { spawnSync as realSpawnSync } from 'node:child_process';
 import { readFileSync as realReadFileSync } from 'node:fs';
 import { join as realJoin } from 'node:path';
 import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
@@ -1481,6 +1482,44 @@ describe('computeNextAbsoluteFireDelayMs', () => {
     const now = new Date(2026, 0, 15, 0, 0, 0, 0).getTime(); // Jan 15, 00:00:00.000
     expect(computeNextAbsoluteFireDelayMs('0 0 * * *', now)).toBe(24 * 60 * 60 * 1000);
   });
+
+  test('uses host-local Date disambiguation for DST gaps and folds', () => {
+    const childMarker = 'PD_FLEET_DST_TEST_CHILD';
+    if (process.env[childMarker] === '1') {
+      // 02:30 does not exist on this spring-forward day. Date.setHours uses
+      // compatible local-time disambiguation and advances it to 03:30 EDT.
+      const beforeGap = new Date('2026-03-08T00:30:00-05:00').getTime();
+      expect(computeNextAbsoluteFireDelayMs('30 2 * * *', beforeGap)).toBe(2 * 60 * 60 * 1000);
+
+      // 01:30 occurs twice on this fall-back day. Date.setHours chooses the
+      // earlier occurrence (EDT); this helper never enumerates both instants.
+      const beforeFold = new Date('2026-11-01T00:30:00-04:00').getTime();
+      expect(computeNextAbsoluteFireDelayMs('30 1 * * *', beforeFold)).toBe(60 * 60 * 1000);
+      return;
+    }
+
+    // Jest's fake Date retains the timezone active when its worker started,
+    // so run this one case in a fresh Node process whose TZ is fixed before
+    // module load. The child re-enters only this named test and exercises the
+    // production helper above; the marker prevents recursion.
+    const repoRoot = realJoin(import.meta.dirname, '..', '..');
+    const result = realSpawnSync(process.execPath, [
+      '--experimental-vm-modules',
+      realJoin(repoRoot, 'node_modules', 'jest', 'bin', 'jest.js'),
+      'tests/unit/fleet-engine.test.js',
+      '--runInBand',
+      '-t',
+      'uses host-local Date disambiguation for DST gaps and folds',
+    ], {
+      cwd: repoRoot,
+      env: { ...process.env, TZ: 'America/New_York', [childMarker]: '1', PD_USE_CLI_BACKEND: 'none' },
+      encoding: 'utf8',
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`DST child test failed\n${result.stdout}\n${result.stderr}`);
+    }
+  });
 });
 
 test('parseCronInterval retains its direct-call DEFAULT_INTERVAL compatibility', () => {
@@ -2259,6 +2298,47 @@ describe('pd-fleet.yml dispatch-runner manifest (gated nightly entry)', () => {
     expect(manifestRaw).not.toMatch(/\$8\.50(?:\/day)?\s+ceiling/i);
     expect(runtimeConfig.limits.budgetUsdPerDay).toBe(8.5);
     expect(runtimeConfig.agents.map(agent => agent.name)).not.toContain('dispatch-runner');
+  });
+
+  test('the parsed fleet-wide settled-spend threshold is checked before every launch attempt', async () => {
+    const threshold = runtimeConfig.limits.budgetUsdPerDay;
+    const callOrder = [];
+    const budgetStatus = jest.fn(() => {
+      callOrder.push('budget');
+      return {
+        project: 'test-fleet',
+        budgetUsdPerDay: threshold,
+        spentUsd: 1,
+        remainingUsd: threshold - 1,
+        percentUsed: 100 / threshold,
+        overBudget: false,
+      };
+    });
+    global.fetch = jest.fn(async (url, init) => {
+      if (String(url).endsWith('/spawn')) {
+        callOrder.push('spawn');
+        expect(JSON.parse(init.body).budgetUsd).toBe(threshold);
+      }
+      return { ok: true, status: 200, json: async () => ({ agentId: 'abc', status: 'spawned' }) };
+    });
+
+    const config = {
+      ...makeConfig(),
+      limits: { budgetUsdPerDay: threshold },
+    };
+    const runnerWithManifestBudget = createFleetRunner(config, '/tmp/proj', {
+      costTracker: { budgetStatus },
+    });
+
+    await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
+      .resolves.toEqual({ success: true });
+    await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
+      .resolves.toEqual({ success: true });
+
+    expect(threshold).toBe(8.5);
+    expect(budgetStatus).toHaveBeenNthCalledWith(1, 'test-fleet', 8.5);
+    expect(budgetStatus).toHaveBeenNthCalledWith(2, 'test-fleet', 8.5);
+    expect(callOrder).toEqual(['budget', 'spawn', 'budget', 'spawn']);
   });
 
   test('the remaining blast-radius values stay documented beside the gate', () => {

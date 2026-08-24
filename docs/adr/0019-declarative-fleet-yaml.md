@@ -186,7 +186,7 @@ The YAML supports template variables that are resolved at runtime:
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `trigger` | string | * | Channel to subscribe to (mutually exclusive with `schedule`) |
-| `schedule` | string | * | Cron expression (mutually exclusive with `trigger`) |
+| `schedule` | string | * | Supported cron subset: `*/N * * * *`, `0 */N * * *`, `M * * * *`, or `M H * * *` (mutually exclusive with `trigger`). Fixed clocks use the host's local `Date`: DST gaps advance by the gap and folds select the earlier occurrence; this is not timezone-aware calendar walking. |
 | `backend` | string | yes | `claude`, `ollama`, `gemini`, `aider`, `custom` |
 | `prompt` | string | yes | The task for the AI agent (supports template vars) |
 | `enabled` | bool | no | Set `false` to keep a declaration inspectable but omit it from executable runtime config (default: true; malformed values fail closed to disabled) |
