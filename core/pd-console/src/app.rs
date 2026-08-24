@@ -23,6 +23,10 @@ use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, 
 use crate::dispatch_pane::DispatchHead;
 use crate::editor_input::{EditorInput, TextEdit};
 use crate::editor_sync::PresenceState;
+use crate::editor_view::{
+    editor_hit_position, editor_text_layout, editor_visual_position_for_byte, editor_wrap_columns,
+    wrap_byte_ranges, BLAME_COL_CHARS,
+};
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
@@ -37,6 +41,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Operator control messages sent from the GPUI view (button clicks) back to the
 /// background refresh thread, which owns the surfaces and performs the daemon
@@ -1166,6 +1171,39 @@ fn editor_paint_state(input: &EditorInput, text: &str) -> EditorPaintState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EditorVisualRow {
+    line_index: usize,
+    range: std::ops::Range<usize>,
+    continuation: bool,
+    final_segment: bool,
+}
+
+fn editor_visual_rows(
+    lines: &[crate::pane::CodeLine],
+    wrap_columns: Option<usize>,
+) -> std::sync::Arc<[EditorVisualRow]> {
+    let mut rows = Vec::new();
+    for (line_index, line) in lines.iter().enumerate() {
+        let ranges = wrap_columns
+            .map(|columns| wrap_byte_ranges(&line.text, columns))
+            .unwrap_or_else(|| vec![0..line.text.len()]);
+        let final_index = ranges.len().saturating_sub(1);
+        rows.extend(
+            ranges
+                .into_iter()
+                .enumerate()
+                .map(|(segment, range)| EditorVisualRow {
+                    line_index,
+                    range,
+                    continuation: segment > 0,
+                    final_segment: segment == final_index,
+                }),
+        );
+    }
+    rows.into()
+}
+
 fn render_code_buffer(
     pane_id: PaneId,
     lines: std::sync::Arc<[crate::pane::CodeLine]>,
@@ -1173,15 +1211,38 @@ fn render_code_buffer(
     bands: Vec<crate::pane::CodeBand>,
     scroll: Option<UniformListScrollHandle>,
     input: Option<EditorPaintState>,
+    options: Option<&EditorRenderOptions>,
 ) -> AnyElement {
     let t = current_theme();
-    let count = lines.len();
+    let show_blame = options.is_some_and(|options| options.show_blame);
+    let blame = options.and_then(|options| options.blame.clone());
+    let wrap_columns = options
+        .filter(|options| options.wrap_lines)
+        .and_then(|options| options.viewport_width)
+        .map(|width| editor_wrap_columns(width, gutter_cols as f32, show_blame));
+    let rows = editor_visual_rows(&lines, wrap_columns);
+    let count = rows.len();
     let list = uniform_list(
         SharedString::from(format!("code-{pane_id}")),
         count,
         move |range: std::ops::Range<usize>, _window, _cx| {
             range
-                .map(|ix| render_code_line(&lines[ix], gutter_cols, &bands, input.as_ref()))
+                .map(|ix| {
+                    let row = &rows[ix];
+                    let line = &lines[row.line_index];
+                    let blame_line = blame
+                        .as_deref()
+                        .and_then(|lines| lines.get(line.number.saturating_sub(1) as usize));
+                    render_code_segment(
+                        line,
+                        row,
+                        gutter_cols,
+                        &bands,
+                        input.as_ref(),
+                        blame_line,
+                        show_blame,
+                    )
+                })
                 .collect::<Vec<_>>()
         },
     )
@@ -1212,10 +1273,32 @@ fn render_code_line(
     bands: &[crate::pane::CodeBand],
     input: Option<&EditorPaintState>,
 ) -> AnyElement {
+    let row = EditorVisualRow {
+        line_index: line.number.saturating_sub(1) as usize,
+        range: 0..line.text.len(),
+        continuation: false,
+        final_segment: true,
+    };
+    render_code_segment(line, &row, gutter_cols, bands, input, None, false)
+}
+
+fn render_code_segment(
+    line: &crate::pane::CodeLine,
+    row: &EditorVisualRow,
+    gutter_cols: u8,
+    bands: &[crate::pane::CodeBand],
+    input: Option<&EditorPaintState>,
+    blame: Option<&crate::git_blame::BlameLine>,
+    show_blame: bool,
+) -> AnyElement {
     let t = current_theme();
     // Last covering band wins (the pane pushes the conflict wedge last).
     let band = bands.iter().rev().find(|b| b.covers(line.number));
-    let num = format!("{:>width$}", line.number, width = gutter_cols as usize);
+    let num = if row.continuation {
+        format!("{:>width$}", "↳", width = gutter_cols as usize)
+    } else {
+        format!("{:>width$}", line.number, width = gutter_cols as usize)
+    };
 
     // Per-run color highlights over one text element; Plain runs inherit the
     // container's ink2 so only colored spans carry a HighlightStyle.
@@ -1225,9 +1308,11 @@ fn render_code_line(
     for (len, kind) in &line.runs {
         let start = at.min(text_len);
         let end = at.saturating_add(*len as usize).min(text_len);
-        if !matches!(kind, crate::pane::SyntaxKind::Plain) && start < end {
+        let visible_start = start.max(row.range.start);
+        let visible_end = end.min(row.range.end);
+        if !matches!(kind, crate::pane::SyntaxKind::Plain) && visible_start < visible_end {
             highlights.push((
-                start..end,
+                visible_start - row.range.start..visible_end - row.range.start,
                 HighlightStyle {
                     color: Some(rgb(t.syntax(*kind)).into()),
                     ..Default::default()
@@ -1240,32 +1325,54 @@ fn render_code_line(
         }
     }
     if let Some(range) = input.and_then(|state| state.selection.get(&line.number)) {
-        highlights.push((
-            range.clone(),
-            HighlightStyle {
-                background_color: Some(tone_wash(t.accent, 0x55).into()),
-                ..Default::default()
-            },
-        ));
+        let start = range.start.max(row.range.start);
+        let end = range.end.min(row.range.end);
+        if start < end {
+            highlights.push((
+                start - row.range.start..end - row.range.start,
+                HighlightStyle {
+                    background_color: Some(tone_wash(t.accent, 0x55).into()),
+                    ..Default::default()
+                },
+            ));
+        }
     }
     if let Some(range) = input.and_then(|state| state.marked.get(&line.number)) {
-        highlights.push((
-            range.clone(),
-            HighlightStyle {
-                underline: Some(UnderlineStyle {
-                    color: Some(rgb(t.accent_ink).into()),
-                    thickness: px(1.0),
-                    wavy: false,
-                }),
-                ..Default::default()
-            },
-        ));
+        let start = range.start.max(row.range.start);
+        let end = range.end.min(row.range.end);
+        if start < end {
+            highlights.push((
+                start - row.range.start..end - row.range.start,
+                HighlightStyle {
+                    underline: Some(UnderlineStyle {
+                        color: Some(rgb(t.accent_ink).into()),
+                        thickness: px(1.0),
+                        wavy: false,
+                    }),
+                    ..Default::default()
+                },
+            ));
+        }
     }
-    let author_tag = line.author_tag.clone();
+    let author_tag = (!row.continuation)
+        .then(|| line.author_tag.clone())
+        .flatten();
     let caret_col = input
         .and_then(|state| state.caret)
         .filter(|(number, _)| *number == line.number)
-        .map(|(_, byte)| line.text[..byte.min(line.text.len())].chars().count());
+        .and_then(|(_, byte)| {
+            let in_segment = byte >= row.range.start
+                && (byte < row.range.end || (row.final_segment && byte == row.range.end));
+            in_segment.then(|| {
+                line.text[row.range.start..byte.min(row.range.end)]
+                    .graphemes(true)
+                    .count()
+            })
+        });
+    let text = line.text[row.range.clone()].to_string();
+    let blame_label = (!row.continuation)
+        .then(|| blame.map(compact_blame_label))
+        .flatten();
 
     div()
         .h(px(tokens::CODE_LINE_H))
@@ -1301,6 +1408,17 @@ fn render_code_line(
                 .text_color(rgb(t.tone(&line.author_tone)))
                 .when_some(author_tag, |d, tag| d.child(SharedString::new(tag))),
         )
+        .when(show_blame, |line_row| {
+            line_row.child(
+                div()
+                    .w(px(BLAME_COL_CHARS * tokens::CODE_CH + 8.0))
+                    .pr(px(8.0))
+                    .flex_shrink_0()
+                    .overflow_hidden()
+                    .text_color(rgb(t.muted))
+                    .when_some(blame_label, |d, label| d.child(label)),
+            )
+        })
         .child(
             div()
                 .relative()
@@ -1308,10 +1426,7 @@ fn render_code_line(
                 .flex_1()
                 .flex()
                 .items_center()
-                .child(
-                    StyledText::new(SharedString::new(line.text.clone()))
-                        .with_highlights(highlights),
-                )
+                .child(StyledText::new(SharedString::new(text)).with_highlights(highlights))
                 .when_some(caret_col, |d, column| {
                     d.child(
                         div()
@@ -1325,6 +1440,26 @@ fn render_code_line(
                 }),
         )
         .into_any_element()
+}
+
+fn compact_blame_label(blame: &crate::git_blame::BlameLine) -> String {
+    if blame.is_working_tree() {
+        return "working tree"
+            .graphemes(true)
+            .take(BLAME_COL_CHARS as usize)
+            .collect();
+    }
+    let author = blame
+        .author
+        .split_whitespace()
+        .next()
+        .filter(|part| !part.is_empty())
+        .unwrap_or("unknown");
+    let label = format!("{} · {author}", blame.short_commit());
+    label
+        .graphemes(true)
+        .take(BLAME_COL_CHARS as usize)
+        .collect()
 }
 
 pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
@@ -2063,6 +2198,65 @@ struct EditorSurfaceState {
     scroll: UniformListScrollHandle,
     input: EditorInput,
     input_bounds: Option<Bounds<Pixels>>,
+    wrap_lines: bool,
+    show_blame: bool,
+    blame: EditorBlameState,
+    blame_rx: Option<mpsc::Receiver<std::result::Result<Vec<crate::git_blame::BlameLine>, String>>>,
+}
+
+#[derive(Clone)]
+enum EditorBlameState {
+    Off,
+    Loading,
+    Ready(std::sync::Arc<[crate::git_blame::BlameLine]>),
+    Stale,
+    Error(String),
+}
+
+#[derive(Clone)]
+struct EditorRenderOptions {
+    wrap_lines: bool,
+    show_blame: bool,
+    blame: Option<std::sync::Arc<[crate::git_blame::BlameLine]>>,
+    blame_status: String,
+    syntax_label: String,
+    viewport_width: Option<f32>,
+}
+
+fn invalidate_editor_blame(state: &mut EditorSurfaceState) {
+    if matches!(
+        state.blame,
+        EditorBlameState::Loading | EditorBlameState::Ready(_)
+    ) {
+        state.blame = EditorBlameState::Stale;
+        state.blame_rx = None;
+    }
+}
+
+/// Record the measured text-input bounds for exactly one editor pane.
+///
+/// Editor panes share the window focus handle, so paint order must never make
+/// one pane overwrite another pane's geometry. The return value tells the
+/// caller whether wrapped layout needs another render after a width change.
+fn record_editor_input_bounds(
+    editors: &mut HashMap<String, EditorSurfaceState>,
+    editor_key: &str,
+    bounds: Bounds<Pixels>,
+) -> bool {
+    let Some(state) = editors.get_mut(editor_key) else {
+        return false;
+    };
+    let width_changed = state.input_bounds.is_none_or(|previous| {
+        (f32::from(previous.size.width) - f32::from(bounds.size.width)).abs() >= tokens::CODE_CH
+    });
+    state.input_bounds = Some(bounds);
+    state.wrap_lines && width_changed
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EditorPlacement {
+    ReplaceFocused,
+    SplitRight,
 }
 
 /// Stable map key for an Editor surface binding.
@@ -2071,6 +2265,90 @@ fn editor_key(path: &str, region: Option<(u32, u32)>) -> String {
         Some((s, e)) => format!("{path}:{s}-{e}"),
         None => path.to_string(),
     }
+}
+
+fn editor_surface_state(
+    path: String,
+    region: Option<(u32, u32)>,
+    identity: String,
+) -> EditorSurfaceState {
+    let mut pane = crate::editor_pane::EditorPane::new_with_identity(path, region, identity);
+    pane.load();
+    // Demo seam (env-gated, never on by default): merge a second Loro replica's
+    // lines into the opened buffer so the author column visibly differentiates
+    // operator vs agent authorship. This exercises the real CRDT merge path on a
+    // demo copy only; the file on disk is never written.
+    if std::env::var("PD_CONSOLE_DEMO_AUTHORS").is_ok() {
+        if let Some(buf) = pane.buffer() {
+            let agent = crate::buffer::HarborBuffer::empty("port-daddy:editor:demo-agent");
+            if agent.apply_remote_ops(&buf.export_ops()).is_ok() {
+                agent.insert_authored(
+                    0,
+                    "// [agent replica] merged these two lines over the tube —\n// [agent replica] note the distinct author tag + tone in the gutter.\n",
+                );
+                let _ = buf.apply_remote_ops(&agent.export_ops());
+            }
+        }
+    }
+    EditorSurfaceState {
+        pane,
+        scroll: UniformListScrollHandle::new(),
+        input: EditorInput::default(),
+        input_bounds: None,
+        wrap_lines: false,
+        show_blame: false,
+        blame: EditorBlameState::Off,
+        blame_rx: None,
+    }
+}
+
+/// Prepare the file completely before mutating the pane tree. A failed read
+/// leaves both the workspace and editor cache untouched, which is the critical
+/// navigation invariant for permission-denied files.
+fn open_editor_transaction(
+    workspace: &mut Workspace,
+    editors: &mut HashMap<String, EditorSurfaceState>,
+    path: String,
+    region: Option<(u32, u32)>,
+    identity: String,
+    placement: EditorPlacement,
+) -> std::result::Result<(), String> {
+    let key = editor_key(&path, region);
+    let ready = editors
+        .get(&key)
+        .is_some_and(|state| state.pane.buffer().is_some() && state.pane.load_error().is_none());
+    if !ready {
+        let candidate = editor_surface_state(path.clone(), region, identity);
+        if let Some(reason) = candidate.pane.load_error() {
+            return Err(format!(
+                "Could not open {path}: {reason}. Your current view was kept."
+            ));
+        }
+        editors.insert(key, candidate);
+    }
+
+    let surface = SurfaceKind::Editor { path, region };
+    match placement {
+        EditorPlacement::ReplaceFocused => workspace.swap_surface(surface),
+        EditorPlacement::SplitRight => {
+            workspace.split(Dir::Row, surface);
+        }
+    }
+    Ok(())
+}
+
+fn editor_recovery_root(path: &str) -> Option<String> {
+    std::path::Path::new(path)
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(|parent| parent.to_string_lossy().into_owned())
+}
+
+fn editor_error_from_blocks(blocks: &[Block]) -> Option<String> {
+    blocks.iter().find_map(|block| match block {
+        Block::KeyVal(key, value) if key == "error" => Some(value.clone()),
+        _ => None,
+    })
 }
 
 /// Collect every Editor surface binding under a pane-tree node.
@@ -2269,38 +2547,34 @@ impl ConsoleView {
         for (key, path, region) in wanted {
             if !self.editors.contains_key(&key) {
                 let identity = crate::editor_pane::resolve_operator_identity();
-                let mut pane =
-                    crate::editor_pane::EditorPane::new_with_identity(path, region, identity);
-                pane.load();
-                // Demo seam (env-gated, never on by default): merge a second
-                // Loro replica's lines into the opened buffer so the author
-                // column visibly differentiates operator vs agent authorship.
-                // This exercises the REAL CRDT merge path — the same
-                // apply_remote_ops a live agent peer rides — on a demo copy of
-                // the buffer only; the file on disk is never written.
-                if std::env::var("PD_CONSOLE_DEMO_AUTHORS").is_ok() {
-                    if let Some(buf) = pane.buffer() {
-                        let agent =
-                            crate::buffer::HarborBuffer::empty("port-daddy:editor:demo-agent");
-                        if agent.apply_remote_ops(&buf.export_ops()).is_ok() {
-                            agent.insert_authored(
-                                0,
-                                "// [agent replica] merged these two lines over the tube —\n// [agent replica] note the distinct author tag + tone in the gutter.\n",
-                            );
-                            let _ = buf.apply_remote_ops(&agent.export_ops());
-                        }
-                    }
-                }
-                self.editors.insert(
-                    key,
-                    EditorSurfaceState {
-                        pane,
-                        scroll: UniformListScrollHandle::new(),
-                        input: EditorInput::default(),
-                        input_bounds: None,
-                    },
-                );
+                self.editors
+                    .insert(key, editor_surface_state(path, region, identity));
             }
+        }
+        let mut blame_errors = Vec::new();
+        for state in self.editors.values_mut() {
+            let received = state.blame_rx.as_ref().map(mpsc::Receiver::try_recv);
+            match received {
+                Some(Ok(Ok(lines))) => {
+                    state.blame = EditorBlameState::Ready(lines.into());
+                    state.blame_rx = None;
+                }
+                Some(Ok(Err(reason))) => {
+                    state.blame = EditorBlameState::Error(reason.clone());
+                    state.blame_rx = None;
+                    blame_errors.push(reason);
+                }
+                Some(Err(mpsc::TryRecvError::Disconnected)) => {
+                    let reason = "Git blame worker stopped before returning a result".to_string();
+                    state.blame = EditorBlameState::Error(reason.clone());
+                    state.blame_rx = None;
+                    blame_errors.push(reason);
+                }
+                Some(Err(mpsc::TryRecvError::Empty)) | None => {}
+            }
+        }
+        if let Some(reason) = blame_errors.pop() {
+            self.control_flash = Some(format!("Git blame unavailable: {reason}"));
         }
     }
 
@@ -2320,6 +2594,100 @@ impl ConsoleView {
     }
     fn ws_mut(&mut self) -> &mut Workspace {
         &mut self.tabs[self.active_tab].workspace
+    }
+    fn open_editor(
+        &mut self,
+        path: String,
+        region: Option<(u32, u32)>,
+        placement: EditorPlacement,
+    ) -> std::result::Result<(), String> {
+        let identity = crate::editor_pane::resolve_operator_identity();
+        let active_tab = self.active_tab;
+        open_editor_transaction(
+            &mut self.tabs[active_tab].workspace,
+            &mut self.editors,
+            path.clone(),
+            region,
+            identity,
+            placement,
+        )?;
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::OpenEditor { path, region });
+        }
+        Ok(())
+    }
+
+    fn toggle_editor_wrap(&mut self, key: &str) -> bool {
+        let Some(state) = self.editors.get_mut(key) else {
+            return false;
+        };
+        state.wrap_lines = !state.wrap_lines;
+        self.control_flash = Some(format!(
+            "Editor line wrap {}",
+            if state.wrap_lines { "on" } else { "off" }
+        ));
+        true
+    }
+
+    fn toggle_editor_blame(&mut self, key: &str) -> bool {
+        let Some(state) = self.editors.get_mut(key) else {
+            return false;
+        };
+        state.show_blame = !state.show_blame;
+        if state.show_blame
+            && matches!(
+                state.blame,
+                EditorBlameState::Off | EditorBlameState::Stale | EditorBlameState::Error(_)
+            )
+        {
+            let path = std::path::PathBuf::from(state.pane.path_str());
+            let contents = state.pane.text().unwrap_or_default();
+            let (tx, rx) = mpsc::channel();
+            state.blame = EditorBlameState::Loading;
+            state.blame_rx = Some(rx);
+            std::thread::spawn(move || {
+                let _ = tx.send(crate::git_blame::load_with_contents(&path, &contents));
+            });
+        }
+        self.control_flash = Some(format!(
+            "Git blame {}",
+            if state.show_blame { "on" } else { "off" }
+        ));
+        true
+    }
+
+    fn focused_failed_editor_path(&self) -> Option<String> {
+        let SurfaceKind::Editor { path, region } = self.ws().focused_surface() else {
+            return None;
+        };
+        let local_failed = self
+            .editors
+            .get(&editor_key(path, *region))
+            .is_some_and(|state| state.pane.load_error().is_some());
+        let live_failed = self
+            .editor_blocks
+            .as_ref()
+            .is_some_and(|(live_path, blocks)| {
+                live_path == path && editor_error_from_blocks(blocks).is_some()
+            });
+        (local_failed || live_failed).then(|| path.clone())
+    }
+
+    fn return_editor_to_files(&mut self, pane_id: PaneId, path: &str) {
+        self.ws_mut().focus(pane_id);
+        self.ws_mut().swap_surface(SurfaceKind::FileTree {
+            root: editor_recovery_root(path),
+        });
+        self.control_flash = Some("Returned to Files. The unreadable file was not opened.".into());
+    }
+
+    fn recover_failed_editor(&mut self) -> bool {
+        let Some(path) = self.focused_failed_editor_path() else {
+            return false;
+        };
+        let pane_id = self.ws().focused();
+        self.return_editor_to_files(pane_id, &path);
+        true
     }
     fn zoomed(&self) -> Option<PaneId> {
         self.tabs[self.active_tab].zoomed
@@ -2577,6 +2945,21 @@ impl ConsoleView {
             "j" => self.command = Some(CommandLine::new(CmdKind::Claim)),
             "Q" => self.command = Some(CommandLine::new(CmdKind::Release)),
             "X" => self.command = Some(CommandLine::new(CmdKind::Kill)),
+            // Summon the Voyage Timeline as a Vello/wgpu companion window
+            // (ADR-0112 path 3, "ship now"): the gpui shell execs the proven
+            // `pd-timeline-proto` binary detached against the current berth, so
+            // the operator gets the scrubbed playhead + causal-thread beziers
+            // with zero stack-mixing risk. `v` for "Voyage Timeline".
+            "v" => match crate::timeline::launch_timeline_companion(&self.daemon_url) {
+                Ok(bin) => {
+                    self.control_flash = Some(format!(
+                        "\u{2693} Voyage Timeline launched · {} · berth {}",
+                        bin.display(),
+                        self.daemon_url
+                    ));
+                }
+                Err(msg) => self.control_flash = Some(msg),
+            },
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any launcher key swaps the focused pane's surface — "hop context".
@@ -2669,14 +3052,27 @@ impl ConsoleView {
     fn presence_for_editor(state: &EditorSurfaceState, text: &str) -> PresenceState {
         let (cursor_line, cursor_col) = state.input.presence_cursor(text);
         let (anchor_line, anchor_col) = state.input.presence_anchor(text);
-        let top_line = state.scroll.0.borrow().base_handle.logical_scroll_top().0 as u32 + 1;
+        let visual_top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+        let wrap_columns = state
+            .input_bounds
+            .filter(|_| state.wrap_lines)
+            .map(|bounds| {
+                let gutter_cols = text.split('\n').count().max(1).to_string().len() as f32;
+                editor_wrap_columns(f32::from(bounds.size.width), gutter_cols, state.show_blame)
+            });
+        let line_for_visual_row = |visual_row| {
+            editor_hit_position(text, visual_row, 0, wrap_columns).map(|(line, _)| line as u32 + 1)
+        };
+        let top_line = line_for_visual_row(visual_top).unwrap_or(1);
+        let last_line = text.split('\n').count().max(1) as u32;
+        let bottom_line = line_for_visual_row(visual_top.saturating_add(80)).unwrap_or(last_line);
         PresenceState {
             cursor_line,
             cursor_col,
             anchor_line,
             anchor_col,
             top_line,
-            bottom_line: top_line.saturating_add(80),
+            bottom_line,
         }
     }
 
@@ -2705,6 +3101,7 @@ impl ConsoleView {
                 Ok(frame) => {
                     let after = state.pane.text().unwrap_or_default();
                     state.input.reconcile(&after);
+                    invalidate_editor_blame(state);
                     let presence = Self::presence_for_editor(state, &after);
                     state.pane.set_local_presence(presence);
                     Ok((state.pane.path_str().to_string(), frame, presence))
@@ -2869,9 +3266,12 @@ impl ConsoleView {
             let bounds = state.input_bounds?;
             let text = state.pane.text()?;
             let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
-            let gutter_cols = text.lines().count().max(1).to_string().len() as f32;
-            let gutter_px =
-                2.0 + 6.0 + gutter_cols * tokens::CODE_CH + 8.0 + 2.0 * tokens::CODE_CH + 6.0;
+            let (gutter_px, wrap_columns) = editor_text_layout(
+                &text,
+                f32::from(bounds.size.width),
+                state.wrap_lines,
+                state.show_blame,
+            );
             let row = ((f32::from(event.position.y - bounds.top()) / tokens::CODE_LINE_H).floor()
                 as isize)
                 .max(0) as usize;
@@ -2879,9 +3279,8 @@ impl ConsoleView {
                 / tokens::CODE_CH)
                 .floor()
                 .max(0.0) as usize;
-            let utf16 = state
-                .input
-                .utf16_index_for_line_column(&text, top + row, column);
+            let (line, column) = editor_hit_position(&text, top + row, column, wrap_columns)?;
+            let utf16 = state.input.utf16_index_for_line_column(&text, line, column);
             Some(
                 state
                     .input
@@ -3007,18 +3406,16 @@ impl ConsoleView {
         // surface) — no daemon round-trip, so handle it before the tx guard.
         if cmd.kind == CmdKind::AddPane {
             match surface_for_query(&text) {
-                Some(surface) => {
-                    // Opening an Editor surface also binds the producer's live editor
-                    // lane to the file (wire stage 1) — read `path`/`region` before
-                    // `split` moves the surface.
-                    if let SurfaceKind::Editor { path, region } = &surface {
-                        if let Some(tx) = &self.control_tx {
-                            let _ = tx.send(ControlMsg::OpenEditor {
-                                path: path.clone(),
-                                region: *region,
-                            });
+                Some(SurfaceKind::Editor { path, region }) => {
+                    match self.open_editor(path, region, EditorPlacement::SplitRight) {
+                        Ok(()) => self.control_flash = Some(format!("added pane: {text}")),
+                        Err(reason) => {
+                            self.control_flash = Some(reason);
+                            crate::audio::play(crate::audio::Cue::Error);
                         }
                     }
+                }
+                Some(surface) => {
                     self.ws_mut().split(Dir::Row, surface);
                     self.control_flash = Some(format!("added pane: {text}"));
                 }
@@ -3626,6 +4023,19 @@ impl ConsoleView {
                     reply
                 } else {
                     match surface_for_query(&pane) {
+                        Some(SurfaceKind::Editor { path, region }) => {
+                            match self.open_editor(path, region, EditorPlacement::ReplaceFocused) {
+                                Ok(()) => json!({
+                                    "ok": true,
+                                    "focused": self.ws().focused_surface().label(),
+                                }),
+                                Err(error) => json!({
+                                    "ok": false,
+                                    "error": error,
+                                    "focused": self.ws().focused_surface().label(),
+                                }),
+                            }
+                        }
                         Some(surface) => {
                             self.ws_mut().swap_surface(surface);
                             json!({"ok": true, "focused": self.ws().focused_surface().label()})
@@ -3639,6 +4049,38 @@ impl ConsoleView {
                 }
             }
             ScriptRequest::State { pane } => {
+                if pane.is_none() {
+                    if let SurfaceKind::Editor { path, region } = self.ws().focused_surface() {
+                        let key = editor_key(path, *region);
+                        return match self.editors.get(&key) {
+                            Some(state) => {
+                                let blame = match &state.blame {
+                                    EditorBlameState::Off => "off",
+                                    EditorBlameState::Loading => "loading",
+                                    EditorBlameState::Ready(_) => "ready",
+                                    EditorBlameState::Stale => "stale",
+                                    EditorBlameState::Error(_) => "error",
+                                };
+                                json!({
+                                    "ok": true,
+                                    "pane": "editor",
+                                    "path": path,
+                                    "text": state.pane.text(),
+                                    "wrap": state.wrap_lines,
+                                    "showBlame": state.show_blame,
+                                    "blame": blame,
+                                    "syntax": crate::syntax::lang_for_path(path).label(),
+                                })
+                            }
+                            None => json!({
+                                "ok": false,
+                                "pane": "editor",
+                                "path": path,
+                                "error": "focused editor state is not loaded",
+                            }),
+                        };
+                    }
+                }
                 let target = pane.unwrap_or_else(|| {
                     nav_id_for_surface(self.ws().focused_surface())
                         .unwrap_or("fleet")
@@ -3846,8 +4288,10 @@ impl ConsoleView {
     /// Open a galaxy-detail file row in the Editor surface (read-only host).
     pub(crate) fn open_galaxy_file(&mut self, pane_id: PaneId, path: String) {
         self.ws_mut().focus(pane_id);
-        self.ws_mut()
-            .swap_surface(SurfaceKind::Editor { path, region: None });
+        if let Err(reason) = self.open_editor(path, None, EditorPlacement::ReplaceFocused) {
+            self.control_flash = Some(reason);
+            crate::audio::play(crate::audio::Cue::Error);
+        }
     }
 
     /// Fold one galaxy push from the background worker into the drawer state:
@@ -3905,6 +4349,7 @@ impl ConsoleView {
                     if let Some(text) = state.pane.text() {
                         state.input.reconcile(&text);
                     }
+                    invalidate_editor_blame(state);
                 }
             }
         }
@@ -4022,6 +4467,12 @@ impl ConsoleView {
     ) -> AnyElement {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
+        let editor_failure = match surface {
+            SurfaceKind::Editor { path, .. } => {
+                editor_error_from_blocks(&blocks).map(|reason| (path.clone(), reason))
+            }
+            _ => None,
+        };
         let sparse_status = story_sparse_status(&blocks);
         let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
@@ -4045,6 +4496,36 @@ impl ConsoleView {
                         .text()
                         .map(|text| editor_paint_state(&state.input, &text))
                 }),
+            _ => None,
+        };
+        let editor_options = match surface {
+            SurfaceKind::Editor { path, region } => {
+                self.editors.get(&editor_key(path, *region)).map(|state| {
+                    let (blame_status, blame) = if !state.show_blame {
+                        ("OFF".to_string(), None)
+                    } else {
+                        match &state.blame {
+                            EditorBlameState::Off => ("OFF".to_string(), None),
+                            EditorBlameState::Loading => ("LOADING".to_string(), None),
+                            EditorBlameState::Ready(lines) => {
+                                ("ON".to_string(), Some(lines.clone()))
+                            }
+                            EditorBlameState::Stale => ("STALE".to_string(), None),
+                            EditorBlameState::Error(reason) => (format!("ERROR · {reason}"), None),
+                        }
+                    };
+                    EditorRenderOptions {
+                        wrap_lines: state.wrap_lines,
+                        show_blame: state.show_blame,
+                        blame,
+                        blame_status,
+                        syntax_label: crate::syntax::lang_for_path(path).label().to_string(),
+                        viewport_width: state
+                            .input_bounds
+                            .map(|bounds| f32::from(bounds.size.width)),
+                    }
+                })
+            }
             _ => None,
         };
         // The dispatch surface (focused) gets the interactive review GATE.
@@ -4155,8 +4636,9 @@ impl ConsoleView {
             .border_1()
             .border_color(rgb(current_theme().line))
             .bg(rgb(current_theme().panel))
-            .on_click(cx.listener(move |this, _ev, _window, cx| {
+            .on_click(cx.listener(move |this, _ev, window, cx| {
                 this.ws_mut().focus(id);
+                window.focus(&this.focus_handle);
                 cx.notify();
             }))
             // One knockout zone per pane, matching apps.html's panel headers.
@@ -4287,8 +4769,25 @@ impl ConsoleView {
                     // generic page-scroll `body` is deliberately NOT used —
                     // the uniform_list owns the wheel and paints only the
                     // visible line window.
+                    None if editor_failure.is_some() => {
+                        let (path, reason) = editor_failure
+                            .expect("editor failure guard guarantees recovery details");
+                        body.child(render_editor_open_failure(id, path, reason, cx))
+                    }
                     None if is_editor => {
+                        let editor_state_key = match surface {
+                            SurfaceKind::Editor { path, region } => editor_key(path, *region),
+                            _ => String::new(),
+                        };
                         let mut head = div().flex().flex_col().flex_shrink_0();
+                        if let Some(options) = editor_options.clone() {
+                            head = head.child(render_editor_toolbar(
+                                id,
+                                editor_state_key.clone(),
+                                &options,
+                                cx,
+                            ));
+                        }
                         let mut code: Option<AnyElement> = None;
                         for blk in blocks {
                             match blk {
@@ -4303,6 +4802,7 @@ impl ConsoleView {
                                         bands,
                                         editor_scroll.clone(),
                                         editor_input.clone(),
+                                        editor_options.as_ref(),
                                     ));
                                 }
                                 other => head = head.child(render_block(other, motion)),
@@ -4323,22 +4823,26 @@ impl ConsoleView {
                                         .overflow_hidden()
                                         .cursor(CursorStyle::IBeam)
                                         .child(c)
-                                        .when(is_focused, |surface| {
-                                            surface.child(
-                                                div()
-                                                    .absolute()
-                                                    .size_full()
-                                                    .on_mouse_down(
-                                                        MouseButton::Left,
-                                                        cx.listener(|this, event, _window, cx| {
-                                                            this.handle_editor_mouse_down(event, cx);
-                                                        }),
-                                                    )
-                                                    .child(EditorInputElement {
-                                                        view: cx.entity(),
+                                        // Keep the hit-test/input layer mounted even
+                                        // while this pane is inactive. The first click
+                                        // must both focus the pane and place the caret.
+                                        .child(
+                                            div()
+                                                .absolute()
+                                                .size_full()
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    cx.listener(move |this, event, window, cx| {
+                                                        this.ws_mut().focus(id);
+                                                        window.focus(&this.focus_handle);
+                                                        this.handle_editor_mouse_down(event, cx);
                                                     }),
-                                            )
-                                        }),
+                                                )
+                                                .child(EditorInputElement {
+                                                    view: cx.entity(),
+                                                    editor_key: editor_state_key.clone(),
+                                                }),
+                                        ),
                                 )
                             })
                     }
@@ -6390,28 +6894,225 @@ fn render_filetree_row(
                 .font_family("IBM Plex Mono")
                 .child(entry.name.clone()),
         )
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
+        .on_click(cx.listener(move |this, _ev, window, cx| {
             this.ws_mut().focus(id);
+            window.focus(&this.focus_handle);
             if is_dir {
                 // Descend: rebind the FileTree root to this directory.
                 this.ws_mut().bind_entity(Some(path.clone()));
             } else {
-                // Open the file in the Harbor Editor surface, and bind the producer's
-                // live editor lane to it (wire stage 1) so the buffer follows remote
-                // ops / presence / claims.
-                this.ws_mut().swap_surface(SurfaceKind::Editor {
-                    path: path.clone(),
-                    region: None,
-                });
-                if let Some(tx) = &this.control_tx {
-                    let _ = tx.send(ControlMsg::OpenEditor {
-                        path: path.clone(),
-                        region: None,
-                    });
+                // The file is fully read into its Loro buffer BEFORE the pane tree
+                // changes. Permission errors therefore leave this FileTree and its
+                // root intact instead of stranding the operator in an error pane.
+                if let Err(reason) =
+                    this.open_editor(path.clone(), None, EditorPlacement::ReplaceFocused)
+                {
+                    this.control_flash = Some(reason);
+                    crate::audio::play(crate::audio::Cue::Error);
                 }
             }
             cx.notify();
         }))
+}
+
+/// A failed legacy/deep-linked editor surface must always have an obvious way
+/// home. Normal file-tree opens are transactional and never reach this state,
+/// but stale scripts and daemon messages can still bind an unreadable path.
+fn render_editor_open_failure(
+    id: PaneId,
+    path: String,
+    reason: String,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let filename = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or(&path)
+        .to_string();
+    let path_for_click = path.clone();
+
+    div()
+        .flex_1()
+        .flex()
+        .items_center()
+        .justify_center()
+        .p(px(tokens::SPACE_4))
+        .child(
+            div()
+                .w_full()
+                .max_w(px(680.0))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.raised))
+                .child(div().h(px(4.0)).w_full().bg(rgb(t.gated)))
+                .child(
+                    div()
+                        .p(px(tokens::SPACE_4))
+                        .flex()
+                        .flex_col()
+                        .gap(px(tokens::SPACE_3))
+                        .child(
+                            div()
+                                .font_family("IBM Plex Mono")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(rgb(t.ink))
+                                .child(format!("Could not open {filename}")),
+                        )
+                        .child(
+                            div()
+                                .font_family("IBM Plex Mono")
+                                .text_size(px(tokens::TEXT_BODY))
+                                .text_color(rgb(t.gated))
+                                .child(reason),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(tokens::TEXT_BODY))
+                                .text_color(rgb(t.muted))
+                                .child(
+                                    "Nothing was changed. Return to Files and choose another file.",
+                                ),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(tokens::SPACE_3))
+                                .child(
+                                    div()
+                                        .id(SharedString::from(format!(
+                                            "editor-open-error-back-{id}"
+                                        )))
+                                        .border_1()
+                                        .border_color(rgb(t.accent))
+                                        .bg(rgb(t.accent))
+                                        .text_color(rgb(knockout_ink(t.accent)))
+                                        .px(px(tokens::SPACE_4))
+                                        .py(px(tokens::SPACE_2))
+                                        .cursor_pointer()
+                                        .font_family("IBM Plex Mono")
+                                        .text_size(px(tokens::TEXT_BODY))
+                                        .font_weight(FontWeight::BOLD)
+                                        .hover(|style| {
+                                            style
+                                                .bg(rgb(current_theme().accent_ink))
+                                                .border_color(rgb(current_theme().accent_ink))
+                                        })
+                                        .on_click(cx.listener(move |this, _ev, window, cx| {
+                                            this.return_editor_to_files(id, &path_for_click);
+                                            window.focus(&this.focus_handle);
+                                            crate::audio::play(crate::audio::Cue::Tick);
+                                            cx.notify();
+                                        }))
+                                        .child("Back to Files"),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(tokens::TEXT_BODY))
+                                        .text_color(rgb(t.muted))
+                                        .child("or press Esc"),
+                                ),
+                        ),
+                ),
+        )
+        .into_any_element()
+}
+
+/// Persistent, inspectable editor-view controls. These affect only this opened
+/// view: neither wrapping nor Git provenance mutates the Loro document.
+fn render_editor_toolbar(
+    id: PaneId,
+    editor_key: String,
+    options: &EditorRenderOptions,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let wrap_key = editor_key.clone();
+    let blame_key = editor_key;
+    let wrap_on = options.wrap_lines;
+    let blame_on = options.show_blame;
+    let blame_status = if options.blame_status.starts_with("ERROR") {
+        "ERROR"
+    } else {
+        options.blame_status.as_str()
+    };
+
+    div()
+        .h(px(38.0))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .px(px(tokens::SPACE_3))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.panel))
+        .font_family("IBM Plex Mono")
+        .text_size(px(tokens::TEXT_BODY))
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .child(format!("SYNTAX {}", options.syntax_label)),
+        )
+        .child(div().text_color(rgb(t.muted)).child(if blame_on {
+            "COLUMNS REPLICA + GIT"
+        } else {
+            "COLUMN REPLICA"
+        }))
+        .child(div().flex_1())
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-wrap-toggle-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(if wrap_on { t.accent } else { t.line }))
+                .bg(rgb(if wrap_on { t.raised } else { t.panel }))
+                .text_color(rgb(if wrap_on { t.accent_ink } else { t.ink2 }))
+                .cursor_pointer()
+                .hover(|style| {
+                    style
+                        .border_color(rgb(current_theme().accent))
+                        .bg(rgb(current_theme().raised))
+                })
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.toggle_editor_wrap(&wrap_key) {
+                        crate::audio::play(crate::audio::Cue::Tick);
+                    }
+                    cx.notify();
+                }))
+                .child(format!("WRAP {}", if wrap_on { "ON" } else { "OFF" })),
+        )
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-blame-toggle-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(if blame_on { t.engaged } else { t.line }))
+                .bg(rgb(if blame_on { t.raised } else { t.panel }))
+                .text_color(rgb(if blame_on { t.engaged } else { t.ink2 }))
+                .cursor_pointer()
+                .hover(|style| {
+                    style
+                        .border_color(rgb(current_theme().engaged))
+                        .bg(rgb(current_theme().raised))
+                })
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.toggle_editor_blame(&blame_key) {
+                        crate::audio::play(crate::audio::Cue::Tick);
+                    }
+                    cx.notify();
+                }))
+                .child(format!("BLAME {blame_status}")),
+        )
+        .into_any_element()
 }
 
 /// Map an existing nav id to the richest matching surface (semantic where one
@@ -6543,12 +7244,15 @@ impl EntityInputHandler for ConsoleView {
         let state = self.editors.get(&key)?;
         let text = state.pane.text()?;
         let byte = state.input.byte_range_for_utf16(&text, &range_utf16).start;
-        let (line, column) = state.input.presence_at_byte(&text, byte);
-        let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0 as u32 + 1;
-        let visible_row = line.saturating_sub(top) as f32;
-        let gutter_cols = text.lines().count().max(1).to_string().len() as f32;
-        let gutter_px =
-            2.0 + 6.0 + gutter_cols * tokens::CODE_CH + 8.0 + 2.0 * tokens::CODE_CH + 6.0;
+        let (gutter_px, wrap_columns) = editor_text_layout(
+            &text,
+            f32::from(element_bounds.size.width),
+            state.wrap_lines,
+            state.show_blame,
+        );
+        let (visual_row, column) = editor_visual_position_for_byte(&text, byte, wrap_columns);
+        let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+        let visible_row = visual_row.saturating_sub(top) as f32;
         Some(Bounds::new(
             point(
                 element_bounds.left() + px(gutter_px + column as f32 * tokens::CODE_CH),
@@ -6569,24 +7273,27 @@ impl EntityInputHandler for ConsoleView {
         let bounds = state.input_bounds?;
         let text = state.pane.text()?;
         let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
-        let gutter_cols = text.lines().count().max(1).to_string().len() as f32;
-        let gutter_px =
-            2.0 + 6.0 + gutter_cols * tokens::CODE_CH + 8.0 + 2.0 * tokens::CODE_CH + 6.0;
+        let (gutter_px, wrap_columns) = editor_text_layout(
+            &text,
+            f32::from(bounds.size.width),
+            state.wrap_lines,
+            state.show_blame,
+        );
         let row = ((f32::from(point.y - bounds.top()) / tokens::CODE_LINE_H).floor() as isize)
             .max(0) as usize;
         let column = ((f32::from(point.x - bounds.left()) - gutter_px) / tokens::CODE_CH)
             .floor()
             .max(0.0) as usize;
-        Some(
-            state
-                .input
-                .utf16_index_for_line_column(&text, top + row, column),
-        )
+        let (line, column) = editor_hit_position(&text, top + row, column, wrap_columns)?;
+        Some(state.input.utf16_index_for_line_column(&text, line, column))
     }
 }
 
 struct EditorInputElement {
     view: Entity<ConsoleView>,
+    /// Stable state key for the pane this element measures. Input focus is
+    /// shared at the window level, but geometry must remain pane-local.
+    editor_key: String,
 }
 
 impl IntoElement for EditorInputElement {
@@ -6644,16 +7351,19 @@ impl Element for EditorInputElement {
         cx: &mut App,
     ) {
         let focus = self.view.read(cx).focus_handle(cx);
-        window.handle_input(
-            &focus,
-            ElementInputHandler::new(bounds, self.view.clone()),
-            cx,
-        );
-        self.view.update(cx, |view, _cx| {
-            if let Some(key) = view.focused_editor_key() {
-                if let Some(state) = view.editors.get_mut(&key) {
-                    state.input_bounds = Some(bounds);
-                }
+        let is_focused =
+            self.view.read(cx).focused_editor_key().as_deref() == Some(self.editor_key.as_str());
+        if is_focused {
+            window.handle_input(
+                &focus,
+                ElementInputHandler::new(bounds, self.view.clone()),
+                cx,
+            );
+        }
+        let editor_key = self.editor_key.clone();
+        self.view.update(cx, |view, cx| {
+            if record_editor_input_bounds(&mut view.editors, &editor_key, bounds) {
+                cx.notify();
             }
         });
     }
@@ -7641,6 +8351,10 @@ impl Render for ConsoleView {
                         ev.keystroke.modifiers,
                         cx,
                     );
+                } else if key == "escape" && this.recover_failed_editor() {
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                    cx.stop_propagation();
                 } else if this.focused_editor_key().is_some() {
                     // Printable text is delivered by GPUI's platform input
                     // bridge (`EntityInputHandler`) so IME/dead-key composition
@@ -8074,6 +8788,111 @@ impl Render for ConsoleView {
 #[cfg(test)]
 mod add_pane_tests {
     use super::*;
+
+    #[test]
+    fn failed_editor_open_preserves_the_file_tree_and_cache() {
+        let root = env!("CARGO_MANIFEST_DIR").to_string();
+        let original = SurfaceKind::FileTree {
+            root: Some(root.clone()),
+        };
+        let mut workspace = Workspace::new(original.clone());
+        let mut editors = HashMap::new();
+
+        let error = open_editor_transaction(
+            &mut workspace,
+            &mut editors,
+            root,
+            None,
+            "test:operator".into(),
+            EditorPlacement::ReplaceFocused,
+        )
+        .expect_err("reading a directory as a file must fail");
+
+        assert!(error.contains("Could not open"));
+        assert_eq!(workspace.focused_surface(), &original);
+        assert!(
+            editors.is_empty(),
+            "failed candidates must not enter the cache"
+        );
+    }
+
+    #[test]
+    fn successful_editor_open_commits_surface_and_cache_together() {
+        let path = format!("{}/Cargo.toml", env!("CARGO_MANIFEST_DIR"));
+        let mut workspace = Workspace::new(SurfaceKind::FileTree { root: None });
+        let mut editors = HashMap::new();
+
+        open_editor_transaction(
+            &mut workspace,
+            &mut editors,
+            path.clone(),
+            None,
+            "test:operator".into(),
+            EditorPlacement::ReplaceFocused,
+        )
+        .expect("manifest is readable");
+
+        assert_eq!(
+            workspace.focused_surface(),
+            &SurfaceKind::Editor {
+                path: path.clone(),
+                region: None,
+            }
+        );
+        assert!(editors
+            .get(&editor_key(&path, None))
+            .is_some_and(|state| state.pane.buffer().is_some()));
+    }
+
+    #[test]
+    fn editor_input_bounds_remain_pane_local_regardless_of_paint_order() {
+        let root = env!("CARGO_MANIFEST_DIR");
+        let first_path = format!("{root}/Cargo.toml");
+        let second_path = format!("{root}/src/app.rs");
+        let first_key = editor_key(&first_path, None);
+        let second_key = editor_key(&second_path, None);
+        let mut editors = HashMap::from([
+            (
+                first_key.clone(),
+                editor_surface_state(first_path, None, "test:operator".into()),
+            ),
+            (
+                second_key.clone(),
+                editor_surface_state(second_path, None, "test:operator".into()),
+            ),
+        ]);
+        let first_bounds = Bounds::new(point(px(10.0), px(20.0)), size(px(300.0), px(200.0)));
+        let second_bounds = Bounds::new(point(px(410.0), px(20.0)), size(px(500.0), px(200.0)));
+
+        // Paint the inactive pane first, then the focused pane. Both must keep
+        // their own hit-test geometry so the first click can place the caret.
+        assert!(!record_editor_input_bounds(
+            &mut editors,
+            &second_key,
+            second_bounds
+        ));
+        assert!(!record_editor_input_bounds(
+            &mut editors,
+            &first_key,
+            first_bounds
+        ));
+
+        let first = editors[&first_key].input_bounds.expect("first bounds");
+        let second = editors[&second_key].input_bounds.expect("second bounds");
+        assert_eq!(f32::from(first.left()), 10.0);
+        assert_eq!(f32::from(first.size.width), 300.0);
+        assert_eq!(f32::from(second.left()), 410.0);
+        assert_eq!(f32::from(second.size.width), 500.0);
+    }
+
+    #[test]
+    fn failed_editor_recovery_returns_to_its_parent_directory() {
+        assert_eq!(
+            editor_recovery_root("/repo/private/file.rs").as_deref(),
+            Some("/repo/private")
+        );
+        assert!(editor_recovery_root("file.rs").is_none());
+    }
 
     #[test]
     fn picker_matches_nav_by_id_label_and_key() {

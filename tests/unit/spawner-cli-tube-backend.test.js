@@ -1015,6 +1015,10 @@ describe('spawnViaCliTube — failure paths', () => {
       await jest.advanceTimersByTimeAsync(99);
       expect(mockExecFile).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(1);
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.length >= 2,
+        'second serialized liveness sample',
+      );
       expect(mockExecFile).toHaveBeenCalledTimes(2);
 
       child.emit('close', 0);
