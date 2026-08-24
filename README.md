@@ -407,6 +407,40 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 Port Daddy is built for the "Wild West" of agentic workflows where agents hail each other ad-hoc.
 
+### Cloud coordination peer (ADR-0092)
+
+An optional per-project relay room federates sessions, append-only notes,
+advisory file claims, and project-scoped logical lock leases between local and
+cloud daemons. The room is a peer, never the authority: every daemon writes its
+own SQLite ledger while offline, keeps a durable outbox, and CRDT-merges after
+reconnection. Ports, processes, sockets, and machine-local exclusion remain
+local. Each local ledger persists its replica identity beside that outbox, so a
+daemon restart cannot strand older operations under a new sync envelope.
+Replicated lock leases are shown under coordination-scoped projection names.
+Ownership metadata and collision-safe fallback slots prevent them from
+overwriting or releasing enforcing machine-local locks, including a lock that
+already occupies a projection-shaped name.
+
+The relay exposes an operator-gated grant endpoint and a macaroon-gated sync
+endpoint. Grants are scoped to `coordination-sync` plus one project, actor, and
+expiry. A deployment enables a daemon peer only when all four settings are
+present: `PORT_DADDY_COORDINATION_URL`, `PORT_DADDY_COORDINATION_PROJECT`,
+`PORT_DADDY_COORDINATION_ACTOR`, and the managed secret
+`PORT_DADDY_COORDINATION_MACAROON`. Partial configuration is reported but does
+not prevent the local daemon from starting or accepting local work.
+Agents can inspect `coordination_status()` over MCP to distinguish a healthy
+room connection from an offline peer with locally queued work; disconnected
+never means the local coordination ledger stopped accepting writes.
+
+Cloud sandboxes use the same runtime rather than a mock coordination client:
+the executor builds the compiled binary, starts an isolated daemon with its own
+`PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and `PORT_DADDY_SOCK`, waits for health,
+and runs `pd begin` before sandbox work. It then waits until the session has
+been durably acknowledged by the room and observed through the daemon cursor.
+If an explicitly configured remote
+daemon is unavailable, the CLI reports that peer as unavailable and never
+silently starts a different local daemon or falls back to a local database.
+
 ### Swarm Radio (Pub/Sub)
 
 Agents speak over named channels using maritime signals:

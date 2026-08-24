@@ -31,6 +31,7 @@ const TOOL_FEATURE_MAP = {
   // Host-safety posture audit (ADR-0088 Phase A) — read-only
   'safe_scan': 'safe',
   'relay_status': 'relay',
+  'coordination_status': 'coordination',
   'harbormaster_status': 'harbormaster',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
@@ -455,7 +456,7 @@ function extractMcpApiCalls(mcpContent) {
 }
 
 /**
- * Extract all Express routes from routes/*.ts files.
+ * Extract all daemon routes from routes/*.ts files and server.ts.
  * Returns array of { method, path, file } objects.
  */
 function extractServerRoutes() {
@@ -475,6 +476,19 @@ function extractServerRoutes() {
         file
       });
     }
+  }
+
+  // A small number of boot-coupled, read-only routes are registered directly
+  // in server.ts (for example coordination peer readiness). They are real MCP
+  // targets too, so omitting them here creates a false "ghost API call".
+  const serverContent = readFileSync(join(ROOT, 'server.ts'), 'utf-8');
+  let match;
+  while ((match = routePattern.exec(serverContent)) !== null) {
+    routes.push({
+      method: match[1].toUpperCase(),
+      path: normalizePath(match[2]),
+      file: 'server.ts',
+    });
   }
 
   return routes;

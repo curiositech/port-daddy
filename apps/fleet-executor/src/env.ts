@@ -51,6 +51,17 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   SANDBOX?: unknown;
   /**
+   * ADR-0092 coordination peer configuration for cloud sandboxes. These four
+   * values are all-or-nothing; the macaroon is a Worker secret and is scoped
+   * to this project, stable actor, and the coordination-sync operation. Each
+   * sandbox generates its own replica id at runtime so concurrent daemons do
+   * not share an HLC identity.
+   */
+  PORT_DADDY_COORDINATION_URL?: string;
+  PORT_DADDY_COORDINATION_PROJECT?: string;
+  PORT_DADDY_COORDINATION_ACTOR?: string;
+  PORT_DADDY_COORDINATION_MACAROON?: string;
+  /**
    * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
    * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is
    * honored, anything else falls back to DEFAULT_XO_MODEL — see resolveXoModel.

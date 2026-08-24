@@ -1853,6 +1853,23 @@
         "sdk": false
       }
     },
+    "coordination": {
+      "description": "Offline-first per-project coordination peer with CRDT-replicated sessions, notes, advisory claims, and logical lock leases (ADR-0092)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /coordination/status"
+      ],
+      "mcp": [
+        "coordination_status"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Optional local/cloud peer status. The Durable Object room is a replica, never the authority; local daemon writes remain available offline."
+    },
     "coordination_guard": {
       "description": "Project-local enforcement controls requiring active Port Daddy sessions and matching file claims before commit",
       "cli": [
