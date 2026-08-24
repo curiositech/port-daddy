@@ -35,6 +35,9 @@ const items: MigrationItem[] = raw.map((i) => ({
   dependencies: (i.dependencies as string[]) ?? [],
   notes: ((i.notes as Array<{ text: string }>) ?? []).map((n) => ({ text: String(n.text ?? '') })),
   harbor: String(i.harbor ?? 'fleet'),
+  // Gantt wall-clock date anchors, when the daemon serves them.
+  startedAt: typeof i.startedAt === 'number' ? i.startedAt : null,
+  dueAt: typeof i.dueAt === 'number' ? i.dueAt : null,
 }));
 
 const plan = derivePlan(items);

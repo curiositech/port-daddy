@@ -41,7 +41,7 @@ it, break ties, and make agreed roles stick (claims + commitments it serializes)
 Across operators there is no shared sovereign, so the same round must be enforced
 by **bonds**, not fiat. Same conversation; different teeth. This is not a wart —
 it is *why Paper 4 exists* (truthful signaling is a Nash equilibrium only inside
-one operator's box; δ\* ≈ 0.253, machine-checked).
+one operator's box; δ\* ≈ 0.3425, machine-checked).
 
 ## Concept 2 — Peer suggestibility + the parley protocol
 
