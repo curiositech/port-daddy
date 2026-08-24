@@ -1,9 +1,11 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 301,
-    "passing": 301,
-    "failing": 0
+    "total": 319,
+    "passing": 319,
+    "failing": 0,
+    "warning_only": 115,
+    "failing_skills": []
   },
   "skills": [
     {
@@ -636,6 +638,16 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "cognitive-task-analysis",
+      "root": "skills/cognitive-task-analysis",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "color-contrast-auditor",
       "root": "skills/color-contrast-auditor",
       "ok": true,
@@ -788,6 +800,30 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "dag-chain-decomposition",
+      "root": "skills/dag-chain-decomposition",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "schemas"
+      ]
+    },
+    {
+      "name": "dag-confidence-scorer",
+      "root": "skills/dag-confidence-scorer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "schemas"
+      ]
+    },
+    {
       "name": "dag-context-bridger",
       "root": "skills/dag-context-bridger",
       "ok": true,
@@ -848,6 +884,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "dag-executor",
+      "root": "skills/dag-executor",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "schemas"
+      ]
+    },
+    {
       "name": "dag-failure-analyzer",
       "root": "skills/dag-failure-analyzer",
       "ok": true,
@@ -856,6 +904,18 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "dag-fast-decomposition",
+      "root": "skills/dag-fast-decomposition",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "dag-feedback-synthesizer",
@@ -926,6 +986,30 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "dag-orchestrator",
+      "root": "skills/dag-orchestrator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "schemas"
+      ]
+    },
+    {
+      "name": "dag-output-validator",
+      "root": "skills/dag-output-validator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "schemas"
+      ]
     },
     {
       "name": "dag-parallel-executor",
@@ -1028,6 +1112,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "dag-semantic-matcher",
+      "root": "skills/dag-semantic-matcher",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "schemas"
+      ]
+    },
+    {
       "name": "dag-skill-registry",
       "root": "skills/dag-skill-registry",
       "ok": true,
@@ -1050,6 +1146,16 @@
     {
       "name": "dag-task-scheduler",
       "root": "skills/dag-task-scheduler",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "dag-visual-editor-design",
+      "root": "skills/dag-visual-editor-design",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1224,6 +1330,26 @@
     {
       "name": "execution-lifecycle-manager",
       "root": "skills/execution-lifecycle-manager",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "expert-task-analysis",
+      "root": "skills/expert-task-analysis",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "falsification-first",
+      "root": "skills/falsification-first",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1443,6 +1569,31 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "harbor-exposition",
+      "root": "skills/harbor-exposition",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "harbor-results",
+      "root": "skills/harbor-results",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "hierarchical-skill-repr",
       "root": "skills/hierarchical-skill-repr",
       "ok": true,
@@ -1545,6 +1696,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "hypertree-planning",
+      "root": "skills/hypertree-planning",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "ideal-web-app-builder",
       "root": "skills/ideal-web-app-builder",
       "ok": true,
@@ -1608,6 +1771,18 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "kieras-goms-for-task-analysis",
+      "root": "skills/kieras-goms-for-task-analysis",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "kubernetes-debugging-runbook",
@@ -2118,6 +2293,16 @@
     {
       "name": "pd-relay-zero-trust",
       "root": "skills/pd-relay-zero-trust",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "pilot-hypertree-execution",
+      "root": "skills/pilot-hypertree-execution",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -2828,6 +3013,18 @@
       ]
     },
     {
+      "name": "stanton-2006-hierarchical-task-analysis",
+      "root": "skills/stanton-2006-hierarchical-task-analysis",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "status-attestation-split-plane",
       "root": "skills/status-attestation-split-plane",
       "ok": true,
@@ -3272,6 +3469,16 @@
     {
       "name": "wu-2023-autogen",
       "root": "skills/wu-2023-autogen",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "xie-et-al-2025-survey-llm-task-planning",
+      "root": "skills/xie-et-al-2025-survey-llm-task-planning",
       "ok": true,
       "orphans": [],
       "drift": [],

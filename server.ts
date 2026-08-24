@@ -46,7 +46,7 @@ import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
-import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
@@ -140,6 +140,7 @@ import {
   coordinationPeerConfigFromEnv,
   type CoordinationPeer,
 } from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -617,9 +618,11 @@ sessions.setActivityLog(activityLog);
 // queues, and CRDT-merges. A partial/malformed configuration degrades loudly
 // without preventing the offline-first daemon from starting.
 let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
 try {
   const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
   if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
     coordinationPeer = createCoordinationPeer({
       db,
       sessions,
@@ -649,11 +652,7 @@ const symbolClaims = createSymbolClaims(db, {
 });
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
-  messaging.publish(`inbox:${agentId}`, {
-    ...message,
-    sender: message.from || 'SYSTEM',
-    signal: (message as any).signal || 'report'
-  });
+  messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
 const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
@@ -683,7 +682,8 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();

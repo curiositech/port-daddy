@@ -16,10 +16,13 @@ import type Database from 'better-sqlite3';
 import { createHash } from 'crypto';
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
 import { join, extname, resolve, dirname, sep, isAbsolute } from 'path';
-import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
 import { matrixConflict, isContractChanging, type ClaimType } from './symbol-conflict-matrix.js';
+import {
+  createTreeSitterLocateFile,
+  resolveTreeSitterRuntimeAssets,
+} from './tree-sitter-runtime.js';
 
 // =============================================================================
 // Types
@@ -276,22 +279,25 @@ async function ensureTreeSitterInitialized(): Promise<{
         `typeof mod.default: ${typeof mod?.default}`
       );
     }
-    await TreeSitterParser.init();
+    // Resolve every file before entering Emscripten. In a Bun standalone
+    // executable, web-tree-sitter's bundled default can retain a path from the
+    // build machine; passing that missing path to Parser.init() has crashed the
+    // daemon instead of producing a recoverable parse error.
+    const runtime = resolveTreeSitterRuntimeAssets();
+    await TreeSitterParser.init({
+      locateFile: createTreeSitterLocateFile(runtime.runtimeWasm),
+    });
     _parserClass = TreeSitterParser;
 
-    // Resolve WASM paths from tree-sitter-wasms package
-    const require = createRequire(import.meta.url);
-    const wasmDir = join(require.resolve('tree-sitter-wasms/package.json'), '..', 'out');
-
-    const langConfigs: Array<{ key: SupportedLanguage; file: string }> = [
-      { key: 'typescript', file: 'tree-sitter-typescript.wasm' },
-      { key: 'javascript', file: 'tree-sitter-javascript.wasm' },
-      { key: 'python', file: 'tree-sitter-python.wasm' },
+    const langConfigs: Array<{ key: SupportedLanguage; path: string }> = [
+      { key: 'typescript', path: runtime.grammars.typescript },
+      { key: 'javascript', path: runtime.grammars.javascript },
+      { key: 'python', path: runtime.grammars.python },
     ];
 
-    for (const { key, file } of langConfigs) {
+    for (const { key, path } of langConfigs) {
       try {
-        const lang = await TreeSitterParser.Language.load(join(wasmDir, file));
+        const lang = await TreeSitterParser.Language.load(path);
         _languages[key] = lang;
       } catch (err) {
         // Non-fatal -- language just won't be available

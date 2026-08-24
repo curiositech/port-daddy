@@ -80,7 +80,7 @@ import {
 } from './stacked-pr.js';
 import {
   runTestsInSandbox,
-  sandboxCoordinationPeerFromEnv,
+  sandboxCoordinationEnrollmentFromEnv,
 } from './sandbox-runner.js';
 import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
@@ -2674,7 +2674,10 @@ async function maybeStackProposal(
     headSha: prCtx.headSha,
     files,
     token,
-    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
+    coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+      project: `${prCtx.owner}/${prCtx.repo}`,
+      runId,
+    }),
   });
   if (sandbox.executed && sandbox.passed === false) {
     return degrade(
