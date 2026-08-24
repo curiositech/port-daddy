@@ -1900,6 +1900,19 @@ function parseTranscriptJsonl(body: string): {
         unsupportedVersion += 1;
         continue;
       }
+      if (!Array.isArray(t.content)) {
+        // Wrong-typed content is the same corruption class as unparseable
+        // JSON: the body cannot be rendered faithfully, so count it — the
+        // notice discloses it and the raw download still carries the bytes.
+        badLines += 1;
+        continue;
+      }
+      if (t.usage && (typeof t.usage.prompt !== 'number' || typeof t.usage.completion !== 'number')) {
+        t.usage = null;
+      }
+      if (t.chunk && (typeof t.chunk.index !== 'number' || typeof t.chunk.count !== 'number')) {
+        t.chunk = null;
+      }
       turns.push(t);
     } catch {
       badLines += 1;
@@ -1917,7 +1930,9 @@ function turnPhaseLabel(t: ViewerTurn): string {
 /** Render one turn card — anchored `#t{seq}`, no scripts, everything escaped. */
 function renderTurnCard(t: ViewerTurn, firstSysSeqByRef: Map<string, number>): string {
   const kind = ['system', 'user', 'assistant', 'error'].includes(t.kind) ? t.kind : 'assistant';
-  const text = t.content?.map(c => (typeof c?.text === 'string' ? c.text : '')).join('') ?? '';
+  // Belt to the parser's braces: renderTranscriptViewerPage is exported, so
+  // never trust a caller to have run parseTranscriptJsonl's shape gate.
+  const text = (Array.isArray(t.content) ? t.content : []).map(c => (typeof c?.text === 'string' ? c.text : '')).join('');
   const usage = t.usage
     ? `<span>${t.usage.prompt.toLocaleString('en-US')} in / ${t.usage.completion.toLocaleString('en-US')} out</span>`
     : '';
