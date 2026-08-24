@@ -1,0 +1,168 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{graphicx}
+\graphicspath{{../figures/}}
+\usepackage{mdframed}
+\newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
+\newmdenv[backgroundcolor=red!4,linecolor=shipred,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{boundary}
+\newcommand{\onebreath}[1]{\begin{center}\emph{#1}\end{center}}
+
+\title{\textbf{Reputation is Amortized Verification:}\\[3pt]
+\large Inspection Games for Agent Economies\\[3pt]
+\normalsize Paper 3 of the Harbor research program --- B2/R7, executed}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent A marketplace where AI judges grade AI work is an inspection game. We give three results. \emph{Stage:} a bonded judge is deterred iff $\rho d B \ge G$; the critical audit rate is $\rho^\star = G/(dB)$ under the keep-gain convention and $\rho^\star_c = G/(d(G{+}B))$ under confiscation --- the settlement convention alone moves the headline audit budget by roughly 17\%. \emph{Tower:} when level $k{+}1$ audits level-$k$ auditors sampled \emph{sealed} from a pool spanning $C$ disjoint cliques, rational bribery is all-or-nothing and profitable only while corrupt value exceeds $C\,B$; below that threshold corruption decays geometrically at $(1-\rho d)$ per level, so \emph{finite} bond capital certifies a tower of unbounded depth. \emph{Amortization:} as a judge's verified history grows, incentive-compatible audit schedules decline --- lifetime audit spend falls from $\Theta(T)$ (flat) to $\Theta(\log T)$ (losses only if audited) to $O(1) = aG^2/(2dBrv)$ (cheats also surface at an independent rate $r$). Reputation, on this account, is not a soft social layer bolted onto verification: it is the mechanism by which verification cost is amortized over a history. The results convert the source volume's central open conjecture (III.11.1) into a parameterized theorem with a named implementation, and every number reproduces from a bundled script.
+\end{abstract}
+
+\noindent\emph{Express lane: deterrence holds iff audit-probability $\times$ detection $\times$ bond $\ge$ corrupt gain; stacking auditors sampled sealed from $C$ independent cliques makes bribery collapse geometrically with finite total bond; and history-indexed audit schedules make lifetime verification spend $\Theta(\log T)$ or $O(1)$ instead of $\Theta(T)$ --- formal statements in the boxes of \S\ref{sec:stage}, \S\ref{sec:tower}, \S\ref{sec:amort}.}
+
+\section{Introduction}\label{sec:intro}
+\textbf{The scene.} A marketplace where AI agents do work and AI judges grade it. A judge posts a bond that is slashed if it is caught cheating. A judge can take a bribe: pass shoddy work, pocket $G$. So you audit the judges --- but auditors can be bribed too, and now it looks like watchers all the way up, each level dearer than the last. Meanwhile the platform's accountant asks a different question: a judge with ten thousand verified grades is still being audited at the same rate as a newcomer --- is that spend buying anything?
+
+\textbf{The idea in one breath.}
+\onebreath{Honesty holds when expected punishment beats the bribe; the tower of auditors converges, because each level has geometrically less corruption left to protect, provided judges are drawn sealed from enough independent camps that no single deal buys them all; and the audit rate an old judge needs falls with the reputation it would forfeit --- so reputation is amortized verification.}
+
+\textbf{The idea, before the formalism.} Traffic enforcement does not post an officer on every corner; it makes expected fine $\times$ odds of being caught exceed the minutes saved by speeding. That is the stage game: gain $G$, audit probability $\rho$, detection probability $d$, slashable bond $B$. The tower adds jury selection from disjoint pools: if each auditing layer is drawn sealed from $C$ rival benches, a briber must pay all $C$ benches to be safe --- worthwhile only for enormous corruption, which then bleeds value paying for its own protection. And the amortization result is the actuarial half of the same logic: a judge with a long verified history has a large future income stream at stake, which is itself a punishment the platform did not have to fund --- so the platform can audit it less, and the incentive constraint stays exactly binding. Figure~\ref{fig:relation} draws the correspondence. \emph{Misread to preempt:} the tower result does \emph{not} require infinitely many honest auditors, and the amortization result does \emph{not} assume old judges are intrinsically nicer. The former needs diversity ($C>1$) plus finite bonds, because what each level protects shrinks; the latter needs only that accumulated reputation is genuinely forfeit on capture --- deterrence is re-derived, not assumed, at every $t$.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.92\textwidth]{r7_relation.png}
+\caption{The relation map for the stage game. Left: traffic enforcement --- a driver obeys when expected fine $F\cdot p$ beats the time saved $T$, and the city need not catch every car. Right: agent honesty --- a judge is honest when $\rho\, d\, B \ge G$, giving the critical audit rate $\rho^\star = G/(dB)$. The arrows carry the load: expected fine $\Leftrightarrow$ expected slash, patrol budget $\Leftrightarrow$ audit rate. The analogy maps \emph{relations}, not surface features: both systems price deterrence, neither buys omniscience.}
+\label{fig:relation}
+\end{figure}
+
+\textbf{Contributions.} (i) The stage-game threshold with its convention fork made explicit (\S\ref{sec:stage}) --- the same game yields $\rho^\star=0.25$ or $\rho^\star_c=0.2083$ at our running parameters depending on whether capture confiscates the gain, and quoting one without pinning the settlement rule is a reproducible way to be $17\%$ wrong. (ii) The tower-contraction theorem (\S\ref{sec:tower}): sealed sampling from $C$ disjoint cliques makes bribery uneconomical below corrupt value $C\,B$, after which corruption decays geometrically --- finite bond capital certifies unbounded audit depth, with sealing identified as load-bearing rather than hygienic. (iii) The amortization theorems (\S\ref{sec:amort}): flat auditing spends $\Theta(T)$; the loss-only-if-audited schedule spends $\Theta(\log T)$; independent revelation at rate $r$ gives $O(1)$ lifetime spend with closed form $aG^2/(2dBrv)$ --- and which of the two holds is an empirical fork, not a modeling taste. (iv) The connection to the program's repeated-game mechanization (\S\ref{sec:signaling}): the discount-factor thresholds $\delta \ge 1/3$ (grim) and $\delta^\star = 0.3425080314$ (graduated trigger), now CI-checked by Z3 and TLC/Apalache in the repository's \texttt{proofs/economics/} directory, are the same deterrence arithmetic with continuation value in place of bonds. (v) The conversion of the source volume's Conjecture III.11.1 into a parameterized theorem with a named implementation (\S\ref{sec:conjecture}). Every number is tagged [verified] (externally recomputable) or [internal] (regenerates from the bundled script \texttt{b2\_tower.py}).
+
+\section{Related work, and what is actually new}\label{sec:related}
+The stage game is classical. Deterrence-by-expected-penalty is Becker \cite{becker1968}; the leader--follower and simultaneous inspection formulations, including the committed-inspector solution we use, are surveyed by Avenhaus, von Stengel and Zamir \cite{avz2002}, whose treatment of inspector commitment and inspectee indifference we follow. Reputation-as-equilibrium-behavior is Kreps--Wilson \cite{krepswilson1982} and Fudenberg--Levine \cite{fudenberglevine1989}: a long-lived player's continuation value disciplines short-run temptation. Batched verification of many items with few tests goes back to Dorfman's group-screening design \cite{dorfman1943}, which is the right lineage for pooled audit sampling, though we do not use pooling here.
+
+\emph{New, honestly stated:} the amortized-verification framing --- deriving the \emph{declining audit schedule} that keeps the incentive constraint exactly binding as history accumulates, and costing it end-to-end ($\Theta(T)$ vs.\ $\Theta(\log T)$ vs.\ $O(1)$, with the closed form $aG^2/(2dBrv)$); the contraction theorem for a \emph{stackable} audit tower whose auditors are themselves corruptible LLM judges, with model heterogeneity identified as the mechanism that supplies the disjoint cliques the contraction needs; and the observation that sealing the sampling draw is load-bearing (\S\ref{sec:tower}). \emph{Imported:} everything in the previous paragraph. The contribution is closing a conjecture the source volume posed, with a named implementation and a measurement obligation --- not a new solution concept.
+
+\section{The stage game and the convention fork}\label{sec:stage}
+A judge grades one outcome. Cheating yields a one-shot gain $G$. The platform audits with probability $\rho$ at cost $a$ per audit; an audit detects a cheat with probability $d$; detection slashes the judge's posted bond $B$. Under the \emph{keep-gain} convention the caught cheat retains $G$ and forfeits $B$; under the \emph{confiscation} convention capture forfeits the gain as well.
+
+\begin{thebox}
+\begin{theorem}[Stage deterrence]\label{thm:stage}
+A judge with one-shot corrupt gain $G$, facing audit probability $\rho$, detection probability $d$, and slashable bond $B$, is deterred iff $\rho d B \ge G$; the critical committed audit rate is
+\[ \rho^\star \;=\; \frac{G}{dB} \qquad \text{(keep-gain; Becker's condition).} \]
+If capture also confiscates the gain, the cheat payoff is $G - \rho d (G{+}B)$ and the critical rate falls to
+\[ \rho^\star_c \;=\; \frac{G}{d(G+B)} \;<\; \rho^\star. \]
+In the simultaneous (uncommitted) game, with $a$ the audit cost and $L$ the auditor's loss from an uncaught cheat, the mixed Nash equilibrium is $\rho^\star = G/(dB)$, $q^\star = a/(dL)$: the judge's indifference pins the audit rate, the auditor's indifference pins the cheat rate.
+\end{theorem}
+\end{thebox}
+
+\emph{Proof.} Keep-gain: the cheat payoff is $G - \rho d B$, nonpositive iff $\rho \ge G/(dB)$. Confiscation: replace $B$ by $G+B$ in the forfeiture. Mixed equilibrium: the judge mixes only if indifferent, $G - \rho d B = 0$; the auditor mixes only if indifferent between auditing ($-a - qL(1-d)$) and not ($-qL$), which solves to $q^\star = a/(dL)$. Direct best-response checks confirm both indifferences numerically (\S\ref{sec:repro}). \hfill$\square$
+
+\textbf{Numbers by hand.} At the program's running parameters $G{=}10$, $d{=}0.8$, $B{=}50$: $\rho^\star = 10/(0.8\cdot 50) = 0.25$ [verified] --- audit one grade in four, and the cheat payoff is exactly $+0.000000$ at $\rho^\star$ [internal, \texttt{b2\_tower.py}]. Under confiscation, $\rho^\star_c = 10/(0.8\cdot 60) = 0.2083$ [verified]. The convention moves the required audit budget from $0.25$ to $0.2083$ --- a $16.7\%$ cut for free, \emph{if and only if} your settlement rail actually claws back the gain. With $a{=}1$, $L{=}40$: $q^\star = 1/(0.8\cdot 40) = 0.03125$ [verified]. \emph{Now you try:} double the bond to $B{=}100$ --- what is $\rho^\star$? ($0.125$: a bigger bond lets you audit half as often; capital and vigilance are substitutes along $\rho d B = G$.)
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.78\textwidth]{r7_regime.png}
+\caption{The regime diagram: the deterrence frontier $\rho d B = G$ in the (bond $B$, audit rate $\rho$) plane at $G{=}10$, $d{=}0.8$. Above the curve $\rho = G/(dB)$, cheating is unprofitable; below it, cheating pays. The marked point is the running example $(B,\rho^\star) = (50, 0.25)$, where the measured cheat payoff is exactly zero [internal, \texttt{b2\_tower.py}]. The inset records the tower consequence of \S\ref{sec:tower}: sealed sampling from $C$ cliques drives surviving corrupt value down as $(1-\rho d)^k$, a $\times 0.8$-per-level collapse at $C{=}8$.}
+\label{fig:regime}
+\end{figure}
+
+\section{The tower: bribing sealed juries from $C$ cliques}\label{sec:tower}
+Who audits the auditors? Let level $k{+}1$ audit level-$k$ auditors. An auditor at any level is itself a bonded judge, so Theorem~\ref{thm:stage} prices its honesty: the minimum bribe an auditor rationally accepts is its expected forfeiture $\beta = \rho d B$. The platform's one structural lever is \emph{where auditors come from}: each audit is sampled, sealed, from a pool spanning $C$ disjoint cliques --- distinct principals, distinct model families --- such that a corrupt agreement inside one clique does not reach the others. A briber protecting corrupt value $G_k$ at level $k$ faces a choice: bribe, or absorb the audit.
+
+\begin{thebox}
+\begin{theorem}[Tower contraction]\label{thm:tower}
+Let level $k{+}1$ audit level-$k$ auditors, each audit sampled sealed (the draw unknown to the briber) from a pool spanning $C$ disjoint cliques, each auditor bonded at $B$ with audit parameters $(\rho, d)$ and bribe floor $\beta = \rho d B$. Then rational bribery is all-or-nothing --- bribing $c < C$ cliques leaves capture probability $(C{-}c)/C$ against the same total corrupt value, so partial bribery is dominated --- and bribing all $C$ is profitable iff
+\[ G_k \,\rho d \;>\; C\beta \quad\Longleftrightarrow\quad G_k \;>\; C\,B. \]
+Below that threshold bribery stops and corrupt value decays geometrically:
+\[ G_{k+1} \;=\; (1-\rho d)\,G_k. \]
+Consequently a tower of unbounded depth is certified by \emph{finite} bond capital: $B$ per level for $\lceil \log G_0 / \log\frac{1}{1-\rho d} \rceil$ levels suffices to drive surviving corrupt value below any fixed unit.
+\end{theorem}
+\end{thebox}
+
+\emph{Proof sketch.} The briber's alternatives at level $k$: pay $C\beta$ and keep $G_k$ (all cliques bought, audit defanged), or pay nothing and keep $(1-\rho d)G_k$ in expectation. Bribing beats not bribing iff $G_k \rho d > C\beta = C\rho d B$, i.e.\ iff $G_k > C B$; the audit bite $\rho d$ cancels, leaving a pure capital comparison between the value protected and the bonds that must be compensated. Once $G_k \le CB$ the geometric recursion takes over, and the level count to reach value $<1$ is $\lceil \log G_0 / \log\frac{1}{1-\rho d} \rceil$, each level requiring one bond $B$. \hfill$\square$
+
+\textbf{Why sealing is load-bearing, not hygienic.} The factor $C$ in the profitability threshold exists \emph{only because the briber cannot see the draw}. If the sampling draw leaks --- the briber learns \emph{which} auditor will handle its case before the bribe is placed --- it need buy exactly one auditor at price $\beta$, and bribery is profitable iff $G_k \rho d > \beta$, i.e.\ iff $G_k > B$: the clique multiplier vanishes and heterogeneity buys nothing. A leaked draw converts an eight-bench jury system into a single corruptible clerk. Sealed randomized selection (in deployment: VRF-selected honeypot audits, \S\ref{sec:conjecture}) is therefore part of the theorem's hypothesis, and auditing the \emph{sampler} is part of the security boundary.
+
+\textbf{Numbers by hand.} $G_0 = 400$, parameters as above, $\rho = \rho^\star = 0.25$, so $\beta = \rho d B = 10$ and $\rho d = 0.2$. At $C{=}1$: the profitability threshold is $G_k > 50$, so bribery persists and corruption sits on \emph{linear life support}, bleeding only the bribe bill $C\beta = 10$ per level: $400 \to 390 \to 380 \to \cdots$ [internal, \texttt{b2\_tower.py}]. At $C{=}8$: the threshold is $G_k > 400$, not met even at level 0, so bribery is uneconomical from the first level and the collapse is geometric at $(1-\rho d) = 0.8$ per level: $400 \to 320 \to 256 \to 204.8 \to \cdots$ [internal]. In the geometric regime the levels needed to drive corrupt value below one unit: $\lceil \log 400 / \log 1.25 \rceil = 27$, so total bond capital $27 \times 50 = 1350$ [verified, arithmetic] --- a finite, budgetable number certifying unbounded depth. \emph{Now you try:} at $C{=}2$, what is the per-level bleed while bribery remains profitable? ($C\beta = 20$ per level: $400 \to 380 \to 360 \to \cdots$, until $G_k \le CB = 100$, where the decay turns geometric.)
+
+\section{Reputation is amortized verification}\label{sec:amort}
+The stage game prices one grade. A platform judges $T$ of them per judge lifetime, and flat auditing at $\rho^\star$ costs $a\rho^\star T = \Theta(T)$. But an old judge is not a newcomer: it has a verified history of length $t$, and with per-period reputation rent $v$ its accumulated stake $vt$ --- the future income its record commands --- is forfeit on capture. That stake is punishment capital the platform did not fund, and an incentive-compatible audit schedule may spend it.
+
+\begin{thebox}
+\begin{theorem}[Amortization]\label{thm:amort}
+Let a judge at history length $t$ have reputation-at-stake $v t$, and let the audit schedule $\rho_t$ be chosen so the one-shot deviation is weakly unprofitable at every $t$. Then:
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item \textbf{(Flat.)} The history-blind schedule $\rho_t \equiv \rho^\star = G/(dB)$ is incentive compatible and spends $a\rho^\star T = \Theta(T)$.
+\item \textbf{(Model A: loss only if audited.)} If a cheat is penalized only when an audit catches it, and capture forfeits both bond and stake, the binding schedule is
+$\rho_t = G / \bigl(d(B + v t)\bigr)$,
+and lifetime spend is $a\sum_{t<T}\rho_t = \frac{aG}{dv}\ln\!\bigl(1 + \tfrac{vT}{B}\bigr) + O(1) = \Theta(\log T)$.
+\item \textbf{(Model B: independent revelation.)} If cheats additionally surface without audits at rate $r$ per period (whistle-blowers, downstream failures, tombstoned provenance), destroying the stake $vt$ when they do, the binding schedule is
+$\rho_t = \max\!\bigl(0, \tfrac{G - r v t}{dB}\bigr)$,
+which reaches zero at $t^\star = G/(rv)$; lifetime spend is bounded by the closed form
+\[ a\sum_{t\ge 0}\rho_t \;\longrightarrow\; \frac{a G t^\star}{2dB} \;=\; \frac{aG^2}{2dBrv} \;=\; O(1). \]
+\end{enumerate}
+Under each schedule the deviation value is $\le 0$ pointwise at every $t$: reputation does not weaken deterrence, it \emph{funds} it.
+\end{theorem}
+\end{thebox}
+
+\emph{Proof.} (2) The deviation value at $t$ is $G - \rho_t d (B + vt)$; setting it to zero gives the schedule, and the spend is a harmonic-type sum: $a\sum_t G/(d(B+vt)) \approx \frac{aG}{dv}\ln(1+vT/B)$. (3) The deviation value is $G - \rho_t d B - r v t$ (audit slash plus the expected independent loss); the binding schedule is linear and hits zero at $t^\star = G/(rv)$, so the spend is the area of a triangle with base $t^\star$ and height $a\rho^\star = aG/(dB)$: $\tfrac12 \cdot \tfrac{G}{rv} \cdot \tfrac{aG}{dB} = \tfrac{aG^2}{2dBrv}$, independent of $T$. \hfill$\square$
+
+\textbf{Numbers by hand --- with the caveat a referee would otherwise find.} Parameters $G{=}10$, $d{=}0.8$, $B{=}50$, $a{=}1$, $v{=}0.6$, $r{=}0.05$, horizon $T{=}200$. Flat spend: $1 \cdot 0.25 \cdot 200 = 50.00$ [verified]. Model A: $25.58$ measured against closed form $\frac{aG}{dv}\ln(1+vT/B) = 25.50$ [internal, \texttt{b2\_tower.py} / verified]. Model B: measured spend $35.08$ against the $O(1)$ limit $aG^2/(2dBrv) = 41.67$ [internal/verified]. \textbf{Note that $35.08 \neq 41.67$, and the discrepancy is not error:} at these parameters $t^\star = G/(rv) = 333 > T = 200$, so the audit schedule has not yet reached zero within the measured horizon --- \emph{the $O(1)$ curve had not saturated at $T{=}200$}. The measured $35.08$ is the partial triangle; the closed form is its full area, attained only for $T \ge t^\star = 333$. Run the horizon past $t^\star$ and the cumulative spend flattens at $41.67$ exactly. A comparison quoting ``$35.08$ vs.\ limit $41.67$'' without this sentence would invite the (correct) referee objection that the constant had not been reached; with it, the pre-asymptotic gap is itself a check that the closed form is the right area. The incentive checks pass pointwise: maximum deviation value $+1.78\times 10^{-15}$ under both schedules --- machine-epsilon zeros, i.e.\ $\le 0$ up to float epsilon, exactly the binding-constraint signature [internal]. \emph{Now you try:} at what $T$ do Model A and flat differ by a factor of 4? (Solve $\frac{aG}{dv}\ln(1+vT/B) = \tfrac14 a\rho^\star T$; at these parameters $T \approx 470$ --- the log curve's lead widens without bound.)
+
+\textbf{The fork is empirical.} Whether a deployment lives in Model A or Model B is a question about the world, not the model: \emph{do cheats surface without audits?} If bad grades eventually reveal themselves --- failed downstream builds, provenance tombstones, user reports --- then $r > 0$ and lifetime verification spend per honest judge is a constant. If a cheat undetected at audit time is silent forever, only the $\Theta(\log T)$ schedule is safe. The deployment telemetry that estimates $r$ (the rate at which sanctioned outcomes were first flagged by non-audit channels) is therefore part of this paper's measurement obligation, not an implementation detail.
+
+\section{The discount-factor connection: claim signaling, mechanized}\label{sec:signaling}
+The program's repeated-game track prices the same deterrence with a different currency. In the corrected claim-signaling stage game --- payoffs $(3,3)$ mutual-truth, $(0,4)/(4,0)$ sucker/defector, $(1,1)$ mutual-claim --- the one-shot deviation gain is $g = 1$ and the per-round punishment loss is $2$. A grim trigger sustains cooperation iff $1 \le 2\,\delta/(1-\delta)$, i.e.\ $\delta \ge 1/3$; the gentler three-round graduated trigger requires $1 \le 2(\delta + \delta^2 + \delta^3)$, whose threshold is the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star = 0.3425080314$. These are not folklore numbers: they are CI-mechanized in the repository's \texttt{proofs/economics/} directory --- \texttt{delta-threshold.z3} proves existence, uniqueness in $(0,1)$, and location in $[0.34, 0.35]$ of the root by real-algebraic decision procedure; \texttt{claim\_signaling.tla} model-checks the discounted one-shot-deviation invariant under both TLC and Apalache; and \texttt{sweep-delta.sh} confirms the empirical crossover ($\delta = 0.35$ on the integer grid) matches the closed form. Every claim in this paragraph is [verified] by that CI suite.
+
+The connection to Theorem~\ref{thm:amort} is exact, not analogical. In Kreps--Wilson \cite{krepswilson1982} and Fudenberg--Levine \cite{fudenberglevine1989}, deterrence is funded by \emph{continuation value}: the discounted future surplus a deviator forfeits. In the inspection game it is funded by \emph{bond plus stake}: $d(B + vt)$ at audit, $rvt$ by revelation. Model A's schedule $\rho_t = G/(d(B+vt))$ is precisely the statement that as endogenous continuation value $vt$ accumulates, exogenous verification $\rho_t$ can retreat while the total deterrent stays pinned at $G$ --- the bonded game continuously deforms into the repeated game. The discount thresholds $\delta \ge 1/3$ and $\delta^\star = 0.3425$ are the limiting case $B = 0$, $\rho = 0$: all deterrence carried by the future. Reputation is amortized verification in both formalisms; the inspection game just itemizes the invoice.
+
+\section{Conjecture III.11.1, parameterized}\label{sec:conjecture}
+The source volume's central open question --- Conjecture III.11.1, the grading-oracle problem --- asked whether a recursive rate-the-raters scheme can terminate. Two external reviews proposed answers that seemed to compete: one mandated a heterogeneous judge mix (distinct model families, to break correlated mode collapse) with VRF-selected honeypot tasks so a judge never knows when it is audited; the other derived the local condition $\rho d B > G$ and insisted a recursive tower needs a per-level contraction plus a grounded termination. Neither had the theorem. Fused, they \emph{are} it:
+\begin{itemize}[leftmargin=1.6em,itemsep=1pt]
+\item \emph{Model heterogeneity supplies the cliques.} The disjointness that Theorem~\ref{thm:tower}'s $C$ counts is statistical and economic independence of judge pools --- exactly what distinct principals running distinct model families provide, and what a homogeneous pool (one vendor, one model, $C{=}1$) provably does not: at $C{=}1$ the tower sits on linear life support (\S\ref{sec:tower}).
+\item \emph{VRF honeypots implement the sealed audit.} A verifiable random function selecting honeypot tasks at rate $\rho^\star$ is precisely the sealed sampling the contraction hypothesis requires: the draw is unpredictable to the briber (sealing) yet publicly auditable after the fact (so the sampler itself cannot be quietly corrupted).
+\item \emph{The termination is named, not wished.} The tower roots in an exogenously honest anchor --- the operator at $n{=}1$, a bonded arbitration market at scale --- and Theorem~\ref{thm:tower} prices the depth: $27$ levels and bond capital $1350$ at the running parameters [verified, arithmetic].
+\end{itemize}
+The conjecture thereby becomes a \emph{parameterized theorem} --- deterrence at $\rho^\star = G/(dB)$ per level, contraction $(1-\rho d)$ under sealed $C$-clique sampling with the bribery cutoff $G_k \le CB$, amortized lifetime cost by Theorem~\ref{thm:amort} --- plus a \emph{measurement obligation}: does the deployed judge pool actually satisfy sealed multi-clique sampling, and what are $d$, $r$, and the cross-clique collusion correlation? Those are numbers to estimate from audit telemetry, not assumptions to wave at.
+
+\section{Reproducibility}\label{sec:repro}
+Every number in this paper regenerates deterministically from one self-contained script, \texttt{skills/harbor-results/scripts/b2\_tower.py} (numpy + matplotlib; program seed convention 20260816, though the computation is deterministic). Its output at the running parameters, verbatim:
+\begin{quote}\small\ttfamily
+rho* (keep-gain)~~~~~= G/(dB)~~~~~~= 0.2500 \\
+rho* (confiscation)~~= G/(d(G+B))~~= 0.2083 \\
+q*~~~(mixed NE)~~~~~~= a/(dL)~~~~~~= 0.0312 \\
+judge indifferent at rho*: cheat payoff = +0.000000 \\
+C=1:~~400.0~~390.0~~380.0~~370.0~~360.0~~350.0~~340.0~~330.0~~320.0 \\
+C=8:~~400.0~~320.0~~256.0~~204.8~~163.8~~131.1~~104.9~~~83.9~~~67.1 \\
+levels to drive corrupt value below 1 unit (geometric regime): 27; \\
+total bond capital = B per level * levels = 1350 \\
+flat:~~~~~~~50.00~~~(Theta(T)) \\
+model A:~~~~25.58~~~(Theta(log T);~closed form 25.50) \\
+model B:~~~~35.08~~~(O(1); closed form aG\^{}2/(2dBrv) = 41.67; hits 0 at t*=333) \\
+IC check A: max deviation value = +1.78e-15 (<=0) \\
+IC check B: max deviation value = +1.78e-15 (<=0)
+\end{quote}
+The script also verifies the mixed equilibrium by direct best-response check (auditor indifference $-1.25 = -1.25$) and renders the three-panel summary figure. The claim-signaling thresholds of \S\ref{sec:signaling} regenerate independently via the CI suite in \texttt{proofs/economics/} (Z3, TLC, Apalache, and the $\delta$-sweep).
+
+\section{Honest boundaries}\label{sec:boundaries}
+\begin{boundary}
+\textbf{What this paper does not say.}
+\begin{itemize}[leftmargin=1.6em,itemsep=2pt]
+\item \emph{The headline is convention-dependent.} $\rho^\star = 0.25$ under keep-gain, $0.2083$ under confiscation --- a $\sim$17\% swing from the settlement rule alone. Quote neither without stating which convention your slashing contract implements; a platform whose escrow claws back the gain but which budgets audits at $G/(dB)$ is over-auditing, and one that budgets at $G/(d(G{+}B))$ without clawback is under-deterring.
+\item \emph{Sealed sampling is a hypothesis, not a garnish.} A briber who learns the audit draw before placing bribes faces threshold $G_k > B$, not $G_k > CB$: the clique math collapses to $C{=}1$ (\S\ref{sec:tower}). The sampler --- and its VRF, and whoever operates it --- is inside the trusted computing base of Theorem~\ref{thm:tower}.
+\item \emph{The tower needs an honest root.} Contraction shrinks corruption level over level; something exogenously honest must sit at the top --- the operator in a small deployment, a bonded arbitration market at scale. The theorem prices the depth to that root; it does not conjure the root.
+\item \emph{$d$, $r$, $v$, and cross-clique correlation are measured quantities, not assumptions.} Detection probability comes from audit outcomes; the revelation rate $r$ from non-audit provenance of sanctions; cross-clique collusion correlation from judge-pair agreement statistics. ``Disjoint cliques'' is falsifiable and must be monitored: two nominally rival benches fine-tuned from the same base model may fail disjointness in exactly the correlated-error cases that matter.
+\item \emph{The $\Theta(\log T)$-vs-$O(1)$ fork is empirical.} Model B's constant lifetime spend holds only if cheats surface without audits ($r>0$). And at the session parameters the $O(1)$ claim is demonstrated pre-asymptotically: $t^\star = 333 > T = 200$, so the measured spend $35.08$ sits below, not at, the $41.67$ limit (\S\ref{sec:amort}).
+\item \emph{One-shot gains, risk-neutral bribers, stationary parameters.} $G$ is per-grade; an adversary who can correlate many small cheats below audit granularity, or who values capture asymmetrically, needs the repeated-game extension of \S\ref{sec:signaling} with the stake re-derived. The machine-epsilon IC residuals ($+1.78\times 10^{-15}$) are zeros of a float computation, stated as ``$\le 0$ up to float epsilon,'' not as exact algebra.
+\end{itemize}
+\end{boundary}
+
+\begin{thebibliography}{9}
+\bibitem{avz2002} R.~Avenhaus, B.~von Stengel, and S.~Zamir. Inspection games. In \emph{Handbook of Game Theory with Economic Applications}, Vol.~3, Ch.~51, pp.~1947--1987. Elsevier, 2002.
+\bibitem{becker1968} G.~S. Becker. Crime and punishment: an economic approach. \emph{Journal of Political Economy} 76(2):169--217, 1968.
+\bibitem{krepswilson1982} D.~M. Kreps and R.~Wilson. Reputation and imperfect information. \emph{Journal of Economic Theory} 27(2):253--279, 1982.
+\bibitem{fudenberglevine1989} D.~Fudenberg and D.~K. Levine. Reputation and equilibrium selection in games with a patient player. \emph{Econometrica} 57(4):759--778, 1989.
+\bibitem{dorfman1943} R.~Dorfman. The detection of defective members of large populations. \emph{Annals of Mathematical Statistics} 14(4):436--440, 1943.
+\end{thebibliography}
+
+\end{document}
