@@ -133,8 +133,11 @@ describe('quorum route identity boundary', () => {
     expect(acceptedProposal.statusCode).toBe(200);
     expect(acceptedProposal.json().proposal.authorityHarbor).toBe('tenant-b');
     expect(acceptedProposal.json().proposal.harbor).toBe('tenant-b');
-    expect(tuples.rd(['quorum:proposal', '*', '*'], { harbor: '  tenant-b  ' })).toHaveLength(0);
-    expect(tuples.rd(['quorum:proposal', '*', '*'], { harbor: 'tenant-b' })).toHaveLength(1);
+    const tenantBRows = tuples.rd(['quorum:proposal', '*', '*'], { harbor: 'tenant-b' });
+    expect(tenantBRows).toHaveLength(1);
+    expect(tenantBRows[0].harbor).toBe('tenant-b');
+    expect(tenantBRows[0].fields[2].harbor).toBe('tenant-b');
+    expect(tenantBRows[0].fields[2].authorityHarbor).toBe('tenant-b');
     const proposalId = acceptedProposal.json().proposal.proposalId;
 
     const crossTenantVote = await app.inject({
