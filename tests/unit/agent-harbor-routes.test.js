@@ -33,6 +33,7 @@ import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-serv
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createContinuationStore } from '../../lib/continuation-runtime.js';
 import { createTranscripts } from '../../lib/transcripts.js';
+import { createContextContinuityCoordinator } from '../../lib/agent-harbor/context-continuity.js';
 import { agentHarborPlugin } from '../../routes/agent-harbor.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -220,6 +221,60 @@ describe('agent-harbor routes', () => {
       expect(body.authority.command).toEqual(['canCommand', 'freshProjection', 'allowDecision']);
       expect(body.authority.query).toEqual(['canQuery']);
       expect(body.authority.daemonToSurfaceEvent).toEqual(['canSubscribeEvents']);
+    });
+  });
+
+  describe('GET /agent-harbor/context-continuity', () => {
+    test('projects verified context pressure and packet evidence for FleetBar', async () => {
+      const coordinator = createContextContinuityCoordinator(db);
+      coordinator.record({
+        agentNodeId: NODE_ID,
+        sessionId: SESSION_ID,
+        runId: 'route-context-run',
+        transcriptId: 'route-context-transcript',
+        sourceAdapter: 'cli:codex',
+        model: 'gpt-5',
+        project: 'port-daddy',
+        projectDir: '/repo',
+        workdir: '/repo',
+        windowTokens: 1_000,
+        daemonUsedTokensEstimate: 950,
+        adapterUsedTokensEstimate: 900,
+        estimateMode: 'estimated',
+        measuredAt: '2026-08-23T12:00:00.000Z',
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/agent-harbor/context-continuity?limit=10',
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        schemaVersion: 1,
+        counts: { observed: 1, packetReady: 1, successorRequired: 1 },
+        items: [{
+          agentNodeId: NODE_ID,
+          sessionId: SESSION_ID,
+          readiness: 'successor-required',
+          pressure: {
+            band: 'critical',
+            action: 'require_compaction_or_successor',
+            strategy: 'max-daemon-and-adapter',
+          },
+          packet: { validatorPassed: true },
+        }],
+      });
+
+      const matching = await app.inject({
+        method: 'GET',
+        url: '/agent-harbor/context-continuity?projectDir=%2Frepo',
+      });
+      const foreign = await app.inject({
+        method: 'GET',
+        url: '/agent-harbor/context-continuity?projectDir=%2Fother',
+      });
+      expect(matching.json().counts.observed).toBe(1);
+      expect(foreign.json().counts.observed).toBe(0);
     });
   });
 

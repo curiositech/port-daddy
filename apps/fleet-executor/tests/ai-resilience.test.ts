@@ -84,6 +84,26 @@ describe('provider delivery counter normalization', () => {
 });
 
 describe('per-run Workers AI circuit', () => {
+  it('bounds a silent provider call and opens the circuit with timeout evidence', async () => {
+    const circuit = new FleetAiCircuit(10);
+    const silent = vi.fn(() => new Promise<never>(() => undefined));
+    const blocked = vi.fn(async () => 'should not run');
+
+    await expect(circuit.run(silent)).rejects.toMatchObject({
+      failure: {
+        name: 'FleetAiCallDeadlineError',
+        status: 408,
+        code: 3007,
+        retryable: true,
+      },
+    });
+    await expect(circuit.run(blocked)).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(silent).toHaveBeenCalledTimes(1);
+    expect(blocked).not.toHaveBeenCalled();
+    expect(circuit.isOpen).toBe(true);
+  });
+
   it('opens on a retryable provider failure and rejects later work without a downstream call', async () => {
     const circuit = new FleetAiCircuit();
     const first = vi.fn(async () => {

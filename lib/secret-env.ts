@@ -16,7 +16,7 @@
  * at daemon startup we **snapshot** the sensitive keys into a sealed
  * in-module cache, then **delete** them from `process.env`. Callers
  * that need the values use `getSecret(...)`. Child processes that
- * need them inherited in their env use `withSecretsInChildEnv(base)`.
+ * need them inherited in their env use `withSecretsInChildEnv(base, keys)`.
  *
  * Net effect:
  *   - `process.env.ANTHROPIC_API_KEY` is `undefined` after snapshot.
@@ -50,7 +50,7 @@
  *
  *   // For child processes that need the secret in their env:
  *   spawn('ngrok', [...args], {
- *     env: withSecretsInChildEnv(process.env),
+ *     env: withSecretsInChildEnv(process.env, ['NGROK_AUTHTOKEN']),
  *   });
  */
 
@@ -76,6 +76,7 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'VOYAGE_API_KEY',
   'DEEPSEEK_API_KEY',
   'XAI_API_KEY',
+  'PORT_DADDY_COORDINATION_MACAROON',
 ]);
 
 /** Sealed in-module cache. The only way in is snapshotSensitiveEnv(). */
@@ -288,22 +289,25 @@ export function managedSecretStorageStatus(): ManagedSecretStorageStatus {
 }
 
 /**
- * Build a child-process env that includes the cached secrets. Use when
- * spawning a subprocess that needs one of these keys in its env
- * (e.g. ngrok needing NGROK_AUTHTOKEN). Preserves whatever the caller
- * already had in `base`; only fills in cached keys that aren't
- * already present.
+ * Build a child-process env containing only the explicitly requested managed
+ * secrets. Requiring an allow-list at each spawn boundary prevents a new
+ * daemon-only credential from silently fanning out to every unrelated child.
+ * Preserves whatever the caller already had in `base`.
  *
  * @example
  *   spawn('ngrok', ['http', '3000'], {
- *     env: withSecretsInChildEnv(process.env),
+ *     env: withSecretsInChildEnv(process.env, ['NGROK_AUTHTOKEN']),
  *   });
  */
 export function withSecretsInChildEnv(
-  base: NodeJS.ProcessEnv = {},
+  base: NodeJS.ProcessEnv,
+  keys: readonly string[],
 ): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = { ...base };
-  for (const [key, value] of cache) {
+  for (const key of keys) {
+    requireManagedSecretKey(key);
+    const value = getSecret(key);
+    if (value === undefined) continue;
     if (out[key] === undefined) {
       out[key] = value;
     }

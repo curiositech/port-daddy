@@ -116,6 +116,25 @@ describe('repairContractOutput', () => {
     expect(out.attempts[0]).toMatchObject({ ok: false, outputLength: 0 });
   });
 
+  it('propagates caller-classified aborts without spending on an escalation attempt', async () => {
+    const abort = new Error('pull request head changed');
+    let calls = 0;
+    await expect(repairContractOutput({
+      shipLabel: 'pd-qa',
+      model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      contract: CONTRACT,
+      priorOutput: 'x',
+      reason: 'empty',
+      call: async () => {
+        calls += 1;
+        throw abort;
+      },
+      validate: () => false,
+      abortOnError: error => error === abort,
+    })).rejects.toBe(abort);
+    expect(calls).toBe(1);
+  });
+
   it('the repair prompt names the failure, restates the contract, and forbids commentary', () => {
     const system = buildRepairSystemPrompt('pd-lookout', CONTRACT, 'no verdict line');
     expect(system).toContain('pd-lookout');
