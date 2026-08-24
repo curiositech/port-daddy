@@ -355,5 +355,6 @@ describe('actor routes', () => {
     expect(hailAgent).not.toHaveBeenCalled();
 
     await app.close();
+    db.close();
   });
 });
