@@ -12,6 +12,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm,
   xlabel={digest budget $B$ (bits)},
   ylabel={$P(\text{miss}\ge 1)$},
   title={\textbf{Panel 1}\\the floor bounds every encoder},
@@ -52,7 +53,17 @@
 };
 \addlegendentry{random}
 \addplot[gray,dashed,forget plot] coordinates { (5.9822,0) (5.9822,1) };
-\node[gray,font=\scriptsize,rotate=90,anchor=north] at (axis cs:6.15,0.98) {$B^\star{=}5.98$};
+% Short, unrotated label placed in the visible gap between the collapsed
+% floor/oracle curves (near 0 for x>6.5) and the noisy/random curves
+% (which stay above ~0.9 across this x-range) -- clear of both the curves
+% and the south-west legend box (which tops out well below y=0.8). The
+% original rotated, full-value label ($B^\star{=}5.98$, rotate=90) swept
+% far enough vertically to run into the legend plate and horizontally
+% enough (given this axis's compressed x-scale) to sit on the noisy
+% curve -- illegible. The exact value is already in the caption/table, so
+% the in-plot tag only needs to name the quantity, not restate it.
+\node[gray,font=\scriptsize,anchor=west,fill=white,fill opacity=0.85,
+      text opacity=1,inner sep=1.5pt] at (axis cs:6.3,0.8) {$B^\star$};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -62,6 +73,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm,
   xlabel={digest budget $B$ (bits)},
   ylabel={$P(\text{miss}\ge 1)$},
   title={\textbf{Panel 2}\\feature corruption $\phi$ inflates the floor},
@@ -102,6 +114,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm,
   xlabel={joint digest budget $B$ (bits)},
   ylabel={$P(\text{joint miss}\ge 1)$},
   title={\textbf{Panel 3}\\split-digest joint miss},
@@ -128,8 +141,16 @@
 \addlegendentry{disjoint}
 \addplot[seagreen,dashed,forget plot] coordinates { (5.9822,0) (5.9822,1) };
 \addplot[shipred,dashed,forget plot] coordinates { (12.7662,0) (12.7662,1) };
-\node[seagreen,font=\scriptsize,rotate=90,anchor=north] at (axis cs:5.75,0.98) {floor$_k{=}5.98$};
-\node[shipred,font=\scriptsize,rotate=90,anchor=north] at (axis cs:12.55,0.98) {floor$_{2k}{=}12.77$};
+% No in-plot text tag on these two dashed reference lines: this axis's
+% x-scale is so compressed (xmax=13.5 inside a third-width panel) that
+% even a short rotated label sweeps several data-units both vertically
+% (running into the south-west legend) and horizontally (drifting onto
+% the disjoint/half-overlap curves) -- the previous floor_k/floor_{2k}
+% node labels landed squarely on top of the curve markers, illegible.
+% The lines are already color-coded to their series (seagreen = full
+% overlap = single-reader floor, shipred = disjoint = 2k floor) and the
+% caption spells out both values (6.0 and 12.8 bits) in prose, so the
+% dashed lines alone carry the information without a colliding label.
 \end{axis}
 \end{tikzpicture}
 \end{minipage}

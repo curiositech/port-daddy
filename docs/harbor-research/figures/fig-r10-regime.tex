@@ -17,7 +17,11 @@
   ylabel={certified total $\varepsilon$},
   title={\textbf{R10 regime} --- which DP accounting to quote at which engagement length ($\delta'=10^{-6}$)},
   xmin=4,xmax=256,ymin=0,ymax=30,
-  legend pos=south east,
+  % south east put the legend directly on top of the k=128 measured-point
+  % annotation node (both live in the lower-right of the plot) -- moved to
+  % north west, which is empty at this scale (both curves are near y=0-2
+  % for x near xmin).
+  legend pos=north west,
 ]
 \addplot[fill=seagreen,opacity=0.10,draw=none,forget plot] coordinates {
   (35.284,3.4935) (36.164,3.5414) (46.187,4.0581) (58.988,4.6576) (75.337,5.3548)

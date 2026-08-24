@@ -34,23 +34,35 @@
   regimebox/.style={draw,thick,align=center,font=\small,inner sep=4pt},
 }
 \pgfplotsset{
+  % height is generous on purpose: a rotated ylabel string, rendered at
+  % label-font size, must fit inside the axis height without poking above
+  % the top of the axis into the title's row -- a real collision bug found
+  % by rendering the first CI build (fig-r2-regime.tex, fig-b1-frontier.tex).
   harbor curve/.style={
-    width=0.46\textwidth,height=4.2cm,
+    width=0.46\textwidth,height=5.6cm,
     axis lines=left,
-    label style={font=\small},
+    label style={font=\scriptsize},
     tick label style={font=\scriptsize},
-    title style={font=\small,align=center},
-    legend style={font=\scriptsize,draw=none,fill=none},
+    title style={font=\small,align=center,yshift=2pt},
+    % Opaque plate under the legend: an inside-plot legend (legend pos=...)
+    % otherwise renders its text directly on top of plotted curves, which
+    % reads as noise, not data. This does not fix true text/text collisions
+    % (two annotations, or a legend square with a data marker) -- those
+    % still need a per-figure legend pos / node position choice.
+    legend style={font=\scriptsize,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
     thick,
   },
   harbor bar/.style={
-    width=0.46\textwidth,height=4.2cm,
+    width=0.46\textwidth,height=5.6cm,
     ybar,bar width=6pt,
     ymode=log,log origin=infty,
     axis lines=left,
-    label style={font=\small},
-    tick label style={font=\scriptsize},
-    title style={font=\small,align=center},
-    legend style={font=\scriptsize,draw=none,fill=none},
+    label style={font=\scriptsize},
+    tick label style={font=\tiny},
+    % Long/multi-word symbolic x-tick labels (category names) collide with
+    % each other at 0deg; rotate and right-anchor so they read cleanly.
+    xticklabel style={rotate=40,anchor=east,font=\tiny,inner sep=1pt},
+    title style={font=\small,align=center,yshift=2pt},
+    legend style={font=\scriptsize,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
   },
 }

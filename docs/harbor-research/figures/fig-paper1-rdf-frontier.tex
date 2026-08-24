@@ -504,23 +504,23 @@
 \node[font=\scriptsize,text=gray,align=left,fill=white,fill opacity=0.75,text opacity=1,inner sep=1pt] at (axis cs:0.0435,0.0022,0) {\itshape infeasible\\($f{<}p{-}\delta$)};
 % Crossover boundary f = 1 - delta/p, i.e. delta = p(1-f) -- exact line.
 \addplot3[shipred,dashed,thick,mark=none] coordinates {(0.04,0.048,0) (0.16,0.042,0)};
-\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.1cm,inner sep=3pt] at (axis cs:0.128,0.0125,0)
-  {$R=0$ beyond here:\\independent flagger\\already meets the\\miss budget};
-\draw[->,shipred,thick] (axis cs:0.128,0.0105,0) -- (axis cs:0.145,0.04275,0);
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=2.6cm,inner sep=3pt] at (axis cs:0.11,0.034,0)
+  {$R=0$ beyond here\\(flagger meets $\delta$)};
+\draw[->,shipred,thick] (axis cs:0.126,0.0295,0) -- (axis cs:0.136,0.0432,0);
 % The four named numbers from the "Numbers" paragraph.
 \addplot3[only marks,mark=star,mark size=4.5pt,shipred,mark options={fill=shipred,draw=white,line width=0.4pt},forget plot] coordinates {(0.05,0.00,0.2864)};
 \node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.5cm,inner sep=2pt] at (axis cs:0.077,0.020,0)
   {zero-miss corner\\$R(0,0.05)=H(0.05)=0.286$\\{[verified, Cover--Thomas]}};
 \draw[->,shipred] (axis cs:0.077,0.0175,0) -- (axis cs:0.052,0.0025,0);
 \addplot3[only marks,mark=*,mark size=2pt,shipred,mark options={fill=shipred,draw=white,line width=0.4pt},forget plot] coordinates {(0.10,0.00,0.1864)};
-\node[font=\scriptsize,fill=white,draw=shipred,inner sep=2pt] at (axis cs:0.121,0.008,0) {$R(0,0.10)=0.186$};
-\draw[->,shipred] (axis cs:0.113,0.0065,0) -- (axis cs:0.101,0.001,0);
+\node[font=\scriptsize,fill=white,draw=shipred,inner sep=2pt] at (axis cs:0.145,0.006,0) {$R(0,0.10)=0.186$};
+\draw[->,shipred] (axis cs:0.135,0.0055,0) -- (axis cs:0.102,0.001,0);
 \addplot3[only marks,mark=*,mark size=2pt,shipred,mark options={fill=shipred,draw=white,line width=0.4pt},forget plot] coordinates {(0.10,0.01,0.1100)};
-\node[font=\scriptsize,fill=white,draw=shipred,inner sep=2pt] at (axis cs:0.126,0.009,0) {$R(0.01,0.10)=0.110$};
-\draw[->,shipred] (axis cs:0.117,0.009,0) -- (axis cs:0.102,0.0105,0);
+\node[font=\scriptsize,fill=white,draw=shipred,inner sep=2pt] at (axis cs:0.145,0.022,0) {$R(0.01,0.10)=0.110$};
+\draw[->,shipred] (axis cs:0.135,0.0195,0) -- (axis cs:0.103,0.0108,0);
 \addplot3[only marks,mark=*,mark size=2pt,shipred,mark options={fill=shipred,draw=white,line width=0.4pt},forget plot] coordinates {(0.06,0.04,0.0087)};
-\node[font=\scriptsize,fill=white,draw=shipred,inner sep=2pt] at (axis cs:0.048,0.0455,0) {$R(0.04,0.06)=0.009$};
-\draw[->,shipred] (axis cs:0.052,0.0448,0) -- (axis cs:0.059,0.0415,0);
+\node[font=\scriptsize,fill=white,draw=shipred,inner sep=2pt] at (axis cs:0.063,0.0455,0) {$R(0.04,0.06)=0.009$};
+\draw[->,shipred] (axis cs:0.069,0.0432,0) -- (axis cs:0.061,0.0412,0);
 \end{axis}
 \end{tikzpicture}
 \caption{The two-constraint frontier $R(\delta,f)$ over the whole $(f,\delta)$ plane near the guarantee corner, from the Proposition's closed form (same formula as \texttt{b1\_frontier.py}). The four numbers of the ``Numbers'' paragraph are marked directly on the surface, including the zero-miss corner that ties this section back to Theorem 1. The dashed line is the Proposition's own boundary $f=1-\delta/p$: below it both constraints bind and the pinned joint applies; above it an $X$-independent flagger already meets the miss budget and $R=0$ exactly, not rising --- the region the corrected geometric-honesty note above refers to. The small hatched wedge is simply infeasible ($f<p-\delta$: not enough flag budget to cover the source rate at all).}

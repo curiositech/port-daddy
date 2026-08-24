@@ -11,34 +11,34 @@
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[x=0.78cm,y=0.78cm]
-\node[align=center,font=\small\bfseries,text=harborblue,text width=11.5cm] at (6,10.3)
+\node[align=center,font=\small\bfseries,text=harborblue,text width=11.5cm] at (6,12.13)
   {R4 --- the digest-zoom Pareto frontier: two knobs buy back bits, sparsity buys back opens};
 
 % Base domain (left): classical single-constraint rate-distortion
-\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,9.4);
-\node[align=center,font=\small\bfseries] at (2.0,9.05) {Base: single-constraint RD};
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,11.3);
+\node[align=center,font=\small\bfseries] at (2.0,10.95) {Base: single-constraint RD};
 
 % Target domain (right): R4's two-constraint dial
-\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,9.4);
-\node[align=center,font=\small\bfseries] at (10.0,9.05) {Target: R4's operator dial};
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,11.3);
+\node[align=center,font=\small\bfseries] at (10.0,10.95) {Target: R4's operator dial};
 
 % Row 1
-\node[align=center,font=\scriptsize] at (2.0,7.4) {minimize $I(X;\hat X)$\\s.t.\ distortion $\le D$\\(Shannon 1959,\\textbook RDC)};
-\node[align=center,font=\scriptsize] at (10.0,7.4) {minimize $I(X;\hat X)$\\s.t.\ miss rate $\le \delta$\\AND flag rate $\le f$\\(custom formulation)};
-\draw[<->,>=Stealth,thick,shipred] (3.9,7.25) -- (8.1,7.25);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,8.02) {a SECOND knob:\\flags buy back bits};
+\node[align=center,font=\scriptsize] at (2.0,8.25) {minimize $I(X;\hat X)$\\s.t.\ distortion $\le D$\\(Shannon 1959,\\textbook RDC)};
+\node[align=center,font=\scriptsize] at (10.0,8.25) {minimize $I(X;\hat X)$\\s.t.\ miss rate $\le \delta$\\AND flag rate $\le f$\\(custom formulation)};
+\draw[<->,>=Stealth,thick,shipred] (3.9,7.98) -- (8.1,7.98);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,9.75) {a SECOND knob:\\flags buy back bits};
 
 % Row 2
-\node[align=center,font=\scriptsize] at (2.0,4.7) {zero tolerance:\\$\delta = 0$,\\no missed\\positives allowed};
-\node[align=center,font=\scriptsize] at (10.0,4.7) {$R(0, f{\to}p) = H(p)$\\$p{=}0.05 \Rightarrow 0.286$ bits/sym\\{[verified, Cover--Thomas]}\\the strict corner};
-\draw[<->,>=Stealth,thick,shipred] (3.9,4.55) -- (8.1,4.55);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,5.32) {$\delta{=}0$ boundary $\Leftrightarrow$\\classical entropy floor};
+\node[align=center,font=\scriptsize] at (2.0,5.15) {zero tolerance:\\$\delta = 0$,\\no missed\\positives allowed};
+\node[align=center,font=\scriptsize] at (10.0,5.15) {$R(0, f{\to}p) = H(p)$\\$p{=}0.05 \Rightarrow 0.286$ bits/sym\\{[verified, Cover--Thomas]}\\the strict corner};
+\draw[<->,>=Stealth,thick,shipred] (3.9,4.88) -- (8.1,4.88);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,6.65) {$\delta{=}0$ boundary $\Leftrightarrow$\\entropy floor};
 
 % Row 3
-\node[align=center,font=\scriptsize] at (2.0,1.9) {Twenty Questions:\\$N$ candidates,\\$\log_2(N)$ questions,\\each halves the set\\(if answers are RARE)};
-\node[align=center,font=\scriptsize] at (10.0,1.9) {Group-splitting zoom:\\$F$ flagged, $k$ criticals,\\$k\cdot\log_2(F/k)$ opens\\vs $F$ flat reads,\\measured $15.3\times$ [\texttt{b1\_frontier.py}]};
-\draw[<->,>=Stealth,thick,shipred] (3.9,1.75) -- (8.1,1.75);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,2.52) {pays ONLY in the\\sparse-flagged regime};
+\node[align=center,font=\scriptsize] at (2.0,1.90) {Twenty Questions:\\$N$ candidates,\\$\log_2(N)$ questions,\\each halves the set\\(if answers are RARE)};
+\node[align=center,font=\scriptsize] at (10.0,1.90) {Group-splitting zoom:\\$F$ flagged, $k$ criticals,\\$k\cdot\log_2(F/k)$ opens\\vs $F$ flat reads,\\measured $15.3\times$ [\texttt{b1\_frontier.py}]};
+\draw[<->,>=Stealth,thick,shipred] (3.9,1.58) -- (8.1,1.58);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,3.60) {pays ONLY in the\\sparse regime};
 
 \node[align=center,font=\scriptsize,text width=11cm] at (6.0,0.25)
   {\itshape One dial, three faces: the constraint that got added, the boundary where it collapses back to Shannon, and the search cost it buys. $R(0,0.10)=0.186$, $R(0.01,0.10)=0.110$, $R(0.04,0.06)=0.009$ bits/sym [internal, \texttt{b1\_frontier.py}].};

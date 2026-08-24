@@ -12,25 +12,35 @@
 \centering
 \begin{tikzpicture}[
   every node/.style={font=\small},
-  rowbox/.style={regimebox,text width=4.4cm,inner sep=6pt},
+  rowbox/.style={regimebox,text width=4.8cm,inner sep=6pt},
   rowlabel/.style={font=\bfseries\scriptsize,align=center,text width=3.2cm},
 ]
 \node[harborblue,font=\bfseries\normalsize] (title) at (0,0)
   {R12 --- reputation you cannot photocopy};
 
 % Row 1: honest instrument
-\node[rowbox,draw=harborblue,fill=harborblue!10,anchor=north east] (b1) at ($(title.south)+(-4.6,-0.9)$)
+% Offsets kept at 2.1cm (not the wider spacing this once used): the row
+% boxes' combined half-width (offset + text width) must stay well inside
+% half the page text width, or the right-hand column clips off the page
+% edge -- a real bug found by rendering the CI build.
+\node[rowbox,draw=harborblue,fill=harborblue!10,anchor=north east] (b1) at ($(title.south)+(-2.1,-0.9)$)
   {\textbf{\textcolor{harborblue}{Bank Transfer}}\\ \$100 sent debits the sender's balance};
-\node[rowbox,draw=seagreen,fill=seagreen!10,anchor=north west] (t1) at ($(title.south)+(4.6,-0.9)$)
-  {\textbf{\textcolor{seagreen}{Fork Inheritance (transfer)}}\\ child: $\gamma\,w\cdot\mathrm{spend}(p)$\quad parent: $-w\cdot\mathrm{spend}(p)$\\ \textbf{= TRANSFER}};
+\node[rowbox,draw=seagreen,fill=seagreen!10,anchor=north west] (t1) at ($(title.south)+(2.1,-0.9)$)
+  {\textbf{\textcolor{seagreen}{Fork}}\\ \textbf{\textcolor{seagreen}{Inheritance}}\\ \textbf{\textcolor{seagreen}{(transfer)}}\\ child: $\gamma\,w\cdot\mathrm{spend}(p)$\quad parent: $-w\cdot\mathrm{spend}(p)$\\ \textbf{= TRANSFER}};
 \draw[relarrow,harborblue] (b1.east) -- (t1.west)
   node[rowlabel,midway,above,text=harborblue] {debit-on-send\\$\Leftrightarrow$ split};
 
 % Row 2: minting failure mode
-\node[rowbox,draw=shipred,fill=shipred!10,anchor=north east] (b2) at ($(b1.south east)+(0,-1.5)$)
+% b2's y comes from t1.south (not b1.south): t1 is the taller box by
+% construction (its title now breaks over three short lines -- see above),
+% so anchoring row 2 to each column's own row-1 box independently left the
+% two row-2 boxes at different heights, a real misalignment found by
+% rendering the CI build. Taking both from the taller box's bottom keeps
+% row 2 level regardless of exactly how tall either row-1 box renders.
+\node[rowbox,draw=shipred,fill=shipred!10,anchor=north east] (b2) at ($(t1.south |- b1.south east)+(0,-1.5)$)
   {\textbf{\textcolor{shipred}{Photocopier}}\\ copies mint money from nothing};
 \node[rowbox,draw=shipred,fill=shipred!10,anchor=north west] (t2) at ($(t1.south west)+(0,-1.5)$)
-  {\textbf{\textcolor{shipred}{Copy-Full (mutant)}}\\ child: $\mathrm{spend}(p)$ undebited\\ \textbf{8.2$\times$ quorum multiplication}};
+  {\textbf{\textcolor{shipred}{Copy-Full (mutant)}}\\ child: $\mathrm{spend}(p)$\\ undebited\\ \textbf{8.2$\times$ quorum multiplication}};
 \draw[relarrow,shipred] (b2.east) -- (t2.west)
   node[rowlabel,midway,above,text=shipred] {photocopy\\$\Leftrightarrow$ quorum $\times$};
 

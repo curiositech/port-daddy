@@ -9,11 +9,16 @@
 \begin{tikzpicture}[x=1cm,y=1cm]
 
 % ---- Title ----
-\node[align=center,text width=11.5cm,font=\bfseries] at (6.85,8.7) {The four pillars, composed into one sealed pipeline};
-\node[align=center,text width=11.5cm,font=\small,color=black!45] at (6.85,8.22) {Each pillar closes a gap the other three leave open --- drop any one and the account stops being auditable.};
+\node[align=center,text width=11.5cm,font=\bfseries] at (6.85,9.7) {The four pillars, composed into one sealed pipeline};
+\node[align=center,text width=11.5cm,font=\small,color=black!45] at (6.85,9.15) {Each pillar closes a gap the other three leave open --- drop any one and the account stops being auditable.};
 
 % ---- Top: dual-attested key release (single entry point) ----
-\node[regimebox,draw=black!70,fill=black!6,minimum width=4.2cm,minimum height=0.75cm,text width=4.0cm] (top) at (6.85,7.725) {%
+% Wide text width so both lines set on one row each (was 4.0cm, which wrapped
+% the heading to 3 lines and the annotation to 2, overflowing the 0.75cm
+% minimum height and swallowing the title/subtitle above it -- see the CI
+% render). Box bottom is kept at the original y=7.35 so the arrow below is
+% unchanged.
+\node[regimebox,draw=black!70,fill=black!6,minimum width=9.8cm,minimum height=1.4cm,text width=9.5cm] (top) at (6.85,8.05) {%
   {\small\bfseries Derek + Erin --- dual-attested key release}\\[2pt]
   {\scriptsize\color{black!45} the room is sealed from three sides at once}%
 };

@@ -57,10 +57,10 @@
 \addplot[only marks,mark=*,mark size=1.6pt,seagreen,forget plot] coordinates {(199,35.075000)};
 \addplot[seagreen,dashed,thin,forget plot] coordinates {(0,41.666667) (200,41.666667)};
 \node[regimebox,anchor=west,align=left,font=\scriptsize,draw=seagreen,fill=white]
-  at (axis cs:4,45)
+  at (axis cs:4,26)
   {Model B limit $aG^2/(2dBrv)=41.67$,\\ reached only at $t^\star{=}G/(rv){=}333$\\ (off this range)};
-\node[regimebox,anchor=north west,align=left,font=\scriptsize,draw=seagreen,fill=white]
-  (satnote) at (axis cs:90,10)
+\node[regimebox,anchor=south west,align=left,font=\scriptsize,draw=seagreen,fill=white]
+  (satnote) at (axis cs:90,3)
   {measured at $T{=}200$: spend $35.08$\\ $T{=}200 < t^\star{=}333$, so this is the\\ partial triangle, not yet the $41.67$ limit\\ --- pre-saturation, not error};
 \draw[-{Stealth[length=2mm]},seagreen,thin] (axis cs:199,35.075) -- (satnote.east);
 \end{axis}

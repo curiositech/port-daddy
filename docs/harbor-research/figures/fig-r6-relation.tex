@@ -7,6 +7,12 @@
 % [verified: script r6_figures.py]
 \begin{figure}[htbp]
 \centering
+% The two-column base/target layout below is laid out in absolute cm and is
+% natively wider than \textwidth (two ~5cm row-box columns plus a ~10cm gap
+% for the relation arrows/labels); \resizebox scales the whole picture down
+% to the text width so nothing runs off the page margin, without touching
+% any node position or content.
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   every node/.style={font=\small},
   rowbox/.style={regimebox,text width=4.7cm,inner sep=6pt},
@@ -48,6 +54,7 @@
 \node[font=\itshape\small,align=center,text width=12.5cm] at ($(b3.south east)!0.5!(t3.south west)+(0,-1.1)$)
   {Cohomology detects equivocation beyond pairwise comparison iff the missing edge lies on a cycle --- on a cut edge, never.};
 \end{tikzpicture}
+}
 \caption{Relation-map for the mechanism. Wristwatch offsets around a table map to signed-log
 disagreements around a gossip cycle by \emph{relations}: loop-sum $\leftrightarrow$ cocycle condition; a loop through the
 missing link $\leftrightarrow$ a cycle through the uncompared edge. The map predicts, correctly, where the mechanism dies:

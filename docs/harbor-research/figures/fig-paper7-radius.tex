@@ -22,7 +22,12 @@
   xtick={0,0.2,0.4,0.6,0.8,1.0},
   ytick={0,0.2,0.4,0.6,0.8,1.0},
   legend pos=north east,
-  legend style={font=\tiny,draw=none,fill=none},
+  % Re-specify the harbor-curve legend plate in full (a second `legend
+  % style=` key here replaces, not merges with, the one `harbor curve`
+  % sets) -- only the font shrinks to \tiny for these long entries; the
+  % opaque white plate/border must stay or legend text sits bare on the
+  % axis again.
+  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
   title={CR-1 closed form: the lie the residual certifies, by topology\\{\scriptsize [verified; \texttt{sheaf\_consistency\_radius.py}]}},
 ]
 \addplot[harborblue,thick,no markers,domain=0:1,samples=100] {sqrt(1-x)};
@@ -36,7 +41,10 @@
 \node[seagreen,font=\scriptsize] at (axis cs:0.79,0.555) {$C_4$};
 \node[seagreen,font=\scriptsize] at (axis cs:0.845,0.455) {$C_6$};
 \node[seagreen,font=\scriptsize] at (axis cs:0.887,0.398) {$C_8$};
-\node[seagreen,font=\scriptsize] at (axis cs:0.878,0.335) {$C_{12}$};
+% Was (0.878,0.335): left of and just below the C_8 label above, so the two
+% collided directly. Moved further right and down, past C_8's marker along
+% the curve, matching the up-right offset used for the other three labels.
+\node[seagreen,font=\scriptsize] at (axis cs:0.935,0.330) {$C_{12}$};
 \node[seagreen,font=\scriptsize,align=left,text width=3.5cm] at (axis cs:0.20,0.75) {$C_6$, lie $s=3$:\\ $r=3\sqrt{1-5/6}=1.2247$};
 \draw[seagreen,->] (axis cs:0.30,0.62) -- (axis cs:0.80,0.44);
 \node[shipred,font=\scriptsize,align=center,text width=3.3cm] at (axis cs:0.55,0.24) {bridge / cut edge:\\ full leverage, zero residual};

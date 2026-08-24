@@ -17,6 +17,13 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  % Local width override: harbor curve's default width=0.46\textwidth is
+  % sized for 2-panel figures. This figure has THREE panels, each in a
+  % 0.32\textwidth minipage (5.09cm on a4paper) -- at the shared default
+  % width (7.32cm) each axis overflows its column by 2.23cm, bleeding into
+  % its neighbors (titles/ylabels/legends crashing across panel boundaries).
+  % 3.6cm plot width + scriptsize labels fits inside 0.32\textwidth cleanly.
+  width=3.6cm,
   xlabel={audit probability $\rho$},
   ylabel={judge cheat payoff},
   title={\textbf{A} --- the deterrence line},
@@ -37,8 +44,13 @@
 \addlegendentry{confiscation}
 \addplot[harborblue,dotted,forget plot] coordinates {(0.25,-15) (0.25,11)};
 \addplot[seagreen,dotted,forget plot] coordinates {(0.2083,-15) (0.2083,11)};
-\node[harborblue,font=\scriptsize,anchor=west] at (axis cs:0.252,9) {$\rho^\star{=}0.250$};
-\node[seagreen,font=\scriptsize,anchor=east] at (axis cs:0.2063,9) {$\rho^\star_c{=}0.208$};
+% Labels moved from y=9 (near the top, where legend pos=north east also
+% lands) down to y=-12: at x=0.2--0.26 both curves sit near y=0 (their
+% breakeven crossing, by construction), so y=-12 is well clear of both the
+% curves and the legend. White plate is extra insurance since this build
+% can only be checked by re-rendering, not compiled locally.
+\node[harborblue,font=\scriptsize,anchor=west,fill=white,fill opacity=0.9,inner sep=1.5pt] at (axis cs:0.252,-12) {$\rho^\star{=}0.250$};
+\node[seagreen,font=\scriptsize,anchor=east,fill=white,fill opacity=0.9,inner sep=1.5pt] at (axis cs:0.2063,-12) {$\rho^\star_c{=}0.208$};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -48,6 +60,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm, % see width note in Panel A above
   ymode=log,
   xlabel={audit level $k$},
   ylabel={surviving corrupt value $G_k$ (log)},
@@ -80,6 +93,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm, % see width note in Panel A above
   xlabel={verified-history length $t$},
   ylabel={cumulative audit spend},
   title={\textbf{C} --- reputation is amortized},
@@ -111,7 +125,16 @@
 };
 \addlegendentry{model B}
 \addplot[seagreen,dotted,forget plot] coordinates {(0,41.6667) (199,41.6667)};
-\node[seagreen,font=\scriptsize,anchor=north east] at (axis cs:199,41.6667) {closed form $\approx 41.67$};
+% Label was anchored at the line's right endpoint (199,41.6667), extending
+% leftward into x~=[105,199] -- but the flat-schedule curve (shipred) climbs
+% from 40.5 at t=161 to 42.25 at t=168, i.e. it crosses the label's own
+% y-band right where the label sat. Relocated to the bottom-right corner
+% (t=198,y=3), anchor=south east so the text spans roughly t in[69,198]:
+% every curve stays above y~=12 across that whole span (the lowest point
+% any curve reaches there is model A's ~11.9 near t=63-70), so this spot
+% is clear of every curve and of the north-west legend; the plate keeps it
+% legible against the axis frame regardless.
+\node[seagreen,font=\scriptsize,anchor=south east,fill=white,fill opacity=0.9,inner sep=1.5pt] at (axis cs:198,3) {closed form $\approx 41.67$};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}

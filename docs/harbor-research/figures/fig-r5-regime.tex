@@ -39,7 +39,7 @@ forbid \texttt{internal\_plan} & {\color{shipred}\textbf{detect-only}}\\
 \begin{minipage}{0.48\textwidth}
 \centering
 {\small\bfseries compound case: how it becomes regimentable}\\[7pt]
-\begin{tikzpicture}[x=0.6cm,y=0.55cm,
+\begin{tikzpicture}[x=0.78cm,y=0.7cm,
   every node/.style={font=\small},
   flow/.style={relnode,text width=3.4cm,minimum height=1.1cm},
 ]
@@ -47,13 +47,13 @@ forbid \texttt{internal\_plan} & {\color{shipred}\textbf{detect-only}}\\
   {\texttt{in\_context\_read} ($\Sigma_u$)\\ \footnotesize uncontrollable --- always \textbf{PERMITTED}};
 \node[flow,draw=harborblue,fill=harborblue!8] (taint) at (5.0,5.55)
   {taint $=1$\\ \footnotesize recorded on the ledger};
-\node[flow,draw=shipred,fill=shipred!8,text width=2.9cm] (egress) at (2.9,2.4)
+\node[flow,draw=shipred,fill=shipred!8,text width=2.5cm] (egress) at (2.0,2.4)
   {\texttt{net\_egress} ($\Sigma_c$)\\ \footnotesize controllable};
-\node[flow,draw=shipred,fill=shipred!18,text width=2.5cm] (block) at (7.6,2.4)
+\node[flow,draw=shipred,fill=shipred!18,text width=2.2cm] (block) at (8.0,2.4)
   {\footnotesize\textbf{GATED}\\ while taint $=1$};
 
 \draw[relarrow,harborblue,line width=1.3pt] (read) -- (taint)
-  node[midway,right,font=\scriptsize\itshape,xshift=2pt,text=harborblue,align=left] {records taint\\(mechanism)};
+  node[midway,right,font=\scriptsize\itshape,xshift=2pt,text=harborblue,align=left] {records taint};
 \draw[relarrow,shipred] (taint) -- (egress)
   node[midway,left,font=\scriptsize\itshape,xshift=-2pt,text=shipred] {gates};
 \draw[relarrow,shipred] (egress) -- (block)

@@ -35,9 +35,9 @@
 } \closedcycle;
 \addlegendentry{zero-miss possible ($k{=}2$)}
 \addplot[only marks,mark=*,mark size=2.2pt,shipred,forget plot] coordinates {(0.1333,5.9822)};
-\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.4cm,inner sep=3pt] at (axis cs:0.62,9.6)
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.4cm,inner sep=3pt] at (axis cs:0.55,6.0)
   {measured: $N{=}60,k{=}2,m{=}8$\\$\to 5.98$ bits [verified]};
-\draw[->,shipred,thick] (axis cs:0.5,8.6) -- (axis cs:0.1450,6.35);
+\draw[->,shipred,thick] (axis cs:0.36,6.0) -- (axis cs:0.155,5.98);
 \end{axis}
 \end{tikzpicture}
 \caption{Regime diagram for the floor: required digest bits $B^\star$ against the open-budget fraction $m/N$ (here $N{=}60$, $k{=}2$; the marked point is the experiment's $m{=}8$, $B^\star{=}5.98$ bits [verified]). The floor is steep where budgets are tight and vanishes only when the overseer opens everything --- the price of the guarantee, not of usefulness.}

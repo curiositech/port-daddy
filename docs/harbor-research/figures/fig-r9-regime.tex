@@ -9,17 +9,33 @@
 \begin{tikzpicture}[x=1cm,y=1cm]
 
 % Title
-\node[align=center,text width=10.5cm,font=\bfseries] at (5.5,6.75) {R9 regime --- what the gate promises, and the mutants that prove the checker sees};
-\node[align=center,text width=10.5cm,font=\small,color=black!45] at (5.5,6.28) {schedule secret-independence checked separately --- an enabledness difference is itself a channel [internal, \texttt{c1\_noninterference.py}]};
+% Both title and subtitle wrap to 2 lines at this text width; the original
+% 0.47cm center-to-center gap was sized for single-line text and let the
+% wrapped title's second line collide with the subtitle's first line (seen
+% in the CI render). Pushed both up with a full 2-line-tall clearance
+% between them; canvas has open space above so this costs nothing.
+\node[align=center,text width=10.5cm,font=\bfseries] at (5.5,7.95) {R9 regime --- what the gate promises, and the mutants that prove the checker sees};
+\node[align=center,text width=10.5cm,font=\small,color=black!45] at (5.5,6.9) {schedule secret-independence checked separately --- an enabledness difference is itself a channel [internal, \texttt{c1\_noninterference.py}]};
 
 % Column headers
-\node[font=\bfseries] at (3.2,5.55) {Honest Gate};
-\node[font=\bfseries] at (5.92,5.55) {Leaky-Gate Mutant};
-\node[font=\bfseries] at (8.64,5.55) {Bypass Mutant};
+% Two-word headers set as one unbounded line ran into each other (e.g.
+% "Leaky-Gate Mutant" overlapped "Bypass Mutant") since adjacent column
+% centers are only 2.72cm apart. Explicit line breaks keep every line
+% comfortably narrower than the 2.6cm cell width, and the header block
+% moved up (5.55 -> 5.9) to leave clearance below the taller two-line
+% subtitle and above the grid.
+\node[font=\bfseries,align=center] at (3.2,5.9) {Honest\\Gate};
+\node[font=\bfseries,align=center] at (5.92,5.9) {Leaky-Gate\\Mutant};
+\node[font=\bfseries,align=center] at (8.64,5.9) {Bypass\\Mutant};
 
 % Row labels
-\node[font=\bfseries,align=right] at (1.35,4.45) {$(0,2)$\\equal parity};
-\node[font=\bfseries,align=right] at (1.35,2.63) {$(0,1)$\\unequal parity};
+% anchor=east flushes the label's right edge to x=1.75 regardless of its
+% wrapped width; previously these were center-anchored at x=1.35, so the
+% wider second line ("unequal parity") extended past the honest-gate
+% cell's left edge (x=1.9) and sat on top of that cell's text (seen in the
+% CI render).
+\node[font=\bfseries,align=right,anchor=east] at (1.75,4.45) {$(0,2)$\\equal parity};
+\node[font=\bfseries,align=right,anchor=east] at (1.75,2.63) {$(0,1)$\\unequal parity};
 
 % Row 1: (0,2) equal parity
 \node[regimebox,draw=black,fill=seagreen,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (3.2,4.45) {\bfseries identical views\\[3pt]\small all interleavings, depth 7};

@@ -37,12 +37,12 @@
 };
 \addlegendentry{$\rho = G/(dB)$}
 \addplot[only marks,mark=*,mark size=2.2pt,shipred,forget plot] coordinates {(50,0.25)};
-\node[regimebox,anchor=west,align=left,font=\scriptsize,draw=shipred,fill=white]
+\node[regimebox,anchor=south west,align=left,font=\scriptsize,draw=shipred,fill=white]
   (measnote) at (axis cs:65,0.05)
   {measured: cheat payoff\\ exactly $0$ at $\rho^\star$\\ {[internal, \texttt{b2\_tower.py}]}};
 \draw[-{Stealth[length=2mm]},shipred,thin] (axis cs:50,0.25) -- (measnote.north);
 \node[regimebox,anchor=north west,align=left,font=\scriptsize,draw=harborblue,fill=yellow!15]
-  at (rel axis cs:0.03,0.40)
+  at (rel axis cs:0.03,0.60)
   {tower: sealed sampling from $C$ cliques\\ $\Rightarrow$ corruption decays $(1-\rho d)^k$\\ $C=8$ collapses $\times 0.8$/level};
 \end{axis}
 \end{tikzpicture}

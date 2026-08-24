@@ -18,22 +18,30 @@
 \node[align=center,font=\small\bfseries] at (10.0,9.05) {Target: the agent harbor};
 
 % Row 1
-\node[align=center,font=\scriptsize] at (2.0,7.31) {Collision course:\\constant bearing,\\decreasing range ---\\geometry any watch\\officer computes};
-\node[align=center,font=\scriptsize] at (10.0,7.31) {In-fragment conflict scan:\\Horn propagation +\\sweep-line + Bellman--Ford,\\polynomial witness\\(no judgment consumed)};
+% Box interior is only ~2.82cm wide and the arrow-label gap only ~3.42cm --
+% both narrower than these hand-broken lines render at (measured directly
+% off the CI build: "In-fragment conflict scan:" alone renders 4.39cm wide,
+% "chartered RESOLUTION begins" 5.72cm wide), which is what was driving the
+% text-on-text collision between the row text and the red correspondence
+% labels. text width pins every line inside its own column; \tiny/\scriptsize
+% plus the extra manual breaks below keep the resulting block short enough
+% to still clear the row above/below.
+\node[align=center,font=\tiny,text width=2.7cm] at (2.0,7.31) {Collision course:\\constant bearing,\\decreasing range ---\\geometry any watch\\officer computes};
+\node[align=center,font=\tiny,text width=2.7cm] at (10.0,7.31) {In-fragment\\conflict scan:\\Horn propagation +\\sweep-line +\\Bellman--Ford,\\polynomial witness\\(no judgment consumed)};
 \draw[<->,>=Stealth,thick,shipred] (3.9,7.25) -- (8.1,7.25);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,7.83) {mechanical DETECTION\\no authority needed};
+\node[align=center,font=\scriptsize\bfseries,text=shipred,text width=3.0cm] at (6.0,7.83) {mechanical\\DETECTION\\no authority needed};
 
 % Row 2
-\node[align=center,font=\scriptsize] at (2.0,4.72) {Give-way beyond the\\rulebook: harbor\\traffic control decides\\who yields};
-\node[align=center,font=\scriptsize] at (10.0,4.72) {Disjunctive obligations:\\conflict-freedom NP-complete ---\\a chartered resolver\\must choose the discharge};
+\node[align=center,font=\tiny,text width=2.7cm] at (2.0,4.72) {Give-way beyond the\\rulebook: harbor\\traffic control\\decides\\who yields};
+\node[align=center,font=\tiny,text width=2.7cm] at (10.0,4.72) {Disjunctive\\obligations:\\conflict-freedom\\NP-complete ---\\a chartered resolver\\must choose\\the discharge};
 \draw[<->,>=Stealth,thick,shipred] (3.9,4.45) -- (8.1,4.45);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,5.03) {where the rulebook ends\\chartered RESOLUTION begins};
+\node[align=center,font=\scriptsize\bfseries,text=shipred,text width=3.0cm] at (6.0,5.03) {where the rulebook\\ends\\chartered\\RESOLUTION\\begins};
 
 % Row 3
-\node[align=center,font=\scriptsize] at (2.0,2.02) {One licensed pilot\\vs a pool of tug crews;\\ports license a\\second pilot};
-\node[align=center,font=\scriptsize] at (10.0,2.02) {Sole role owner iff\\skill premium clears $g(\rho,c)$;\\no succession plan:\\viable only below $D^\star$};
+\node[align=center,font=\tiny,text width=2.7cm] at (2.0,2.02) {One licensed pilot\\vs a pool of\\tug crews;\\ports license a\\second pilot};
+\node[align=center,font=\tiny,text width=2.7cm] at (10.0,2.02) {Sole role owner iff\\skill premium clears $g(\rho,c)$;\\no succession plan:\\viable only below $D^\star$};
 \draw[<->,>=Stealth,thick,shipred] (3.9,1.75) -- (8.1,1.75);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,2.33) {sole OWNERSHIP is priced,\\not presumed};
+\node[align=center,font=\scriptsize\bfseries,text=shipred,text width=3.0cm] at (6.0,2.33) {sole\\OWNERSHIP\\is priced,\\not presumed};
 
 \node[align=center,font=\scriptsize,text width=10cm] at (6.0,0.25)
   {\itshape The map carries relations, not scenery: refusable-by-rule vs decided-by-charter vs paid-for-by-premium.};

@@ -29,20 +29,20 @@
 \addplot[seagreen,dashed,mark=o,mark size=1.8pt,thick] coordinates {
   (1,5.8138) (2,11.9644) (3,18.5104) (4,25.5323)
 };
-\addlegendentry{two independent heads (naive $2\times$)}
+\addlegendentry{naive $2\times$}
 \addplot[harborblue,mark=square*,mark size=1.8pt,thick] coordinates {
   (1,5.9822) (2,12.7662) (3,20.7699) (4,31.2527)
 };
-\addlegendentry{true joint floor (disjoint readers)}
+\addlegendentry{joint floor}
 \addplot[draw=none,fill=shipred,fill opacity=0.10] coordinates {
   (1,5.8138) (2,11.9644) (3,18.5104) (4,25.5323)
   (4,31.2527) (3,20.7699) (2,12.7662) (1,5.9822)
 } \closedcycle;
-\addlegendentry{super-additivity penalty}
+\addlegendentry{penalty}
 \addplot[only marks,mark=*,mark size=2.4pt,shipred,forget plot] coordinates {(2,12.7662)};
-\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.0cm,inner sep=3pt] at (axis cs:3.1,31)
-  {$k{=}2$: $12.77$ vs $11.96$\\ratio $1.067$ [verified]};
-\draw[->,shipred,thick] (axis cs:2.7,29) -- (axis cs:2.05,13.4);
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=1.7cm,inner sep=3pt] at (axis cs:3.6,6.5)
+  {$k{=}2$\\ratio $1.067$};
+\draw[->,shipred,thick] (axis cs:2.9,9.0) -- (axis cs:2.08,12.3);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -59,20 +59,16 @@
   legend pos=north west,
 ]
 \addplot[gray,dotted,thick,mark=none] coordinates {(0.5,1.0) (10.5,1.0)};
-\addlegendentry{naive $2\times$ baseline (ratio $=1$)}
 \addplot[harborblue,mark=square*,mark size=1.8pt,thick] coordinates {
   (1,1.0290) (2,1.0670) (3,1.1221) (4,1.2240)
 };
-\addlegendentry{$m=8$ (matches panel a)}
+\addlegendentry{$m=8$ (panel a)}
 \addplot[seagreen,dashed,mark=o,mark size=1.8pt,thick] coordinates {
   (1,1.0157) (2,1.0332) (3,1.0529) (4,1.0754) (5,1.1015)
   (6,1.1323) (7,1.1698) (8,1.2175) (9,1.2830) (10,1.3922)
 };
-\addlegendentry{$m=20$ (wider regime)}
+\addlegendentry{$m=20$}
 \addplot[only marks,mark=*,mark size=2.4pt,shipred,forget plot] coordinates {(2,1.0670)};
-\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.4cm,inner sep=3pt] at (axis cs:7.6,1.06)
-  {$k{=}2,m{=}8$: ratio $1.067$\\{[verified, matches (a)]}};
-\draw[->,shipred,thick] (axis cs:6.2,1.06) -- (axis cs:2.1,1.068);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}

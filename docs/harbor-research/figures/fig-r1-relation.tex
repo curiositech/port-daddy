@@ -5,34 +5,34 @@
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[x=0.78cm,y=0.78cm]
-\node[align=center,font=\normalsize\bfseries,text=harborblue] at (6,10.3)
+\node[align=center,font=\normalsize\bfseries,text=harborblue] at (6,12.35)
   {R1 --- the digest is a message; the floor is its length};
 
 % Base domain (left): the combinatorial world
-\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,9.4);
-\node[align=center,font=\small\bfseries] at (2.0,9.05) {Base: where the $k$ criticals\\could be hiding};
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,10.6);
+\node[align=center,font=\small\bfseries] at (2.0,11.4) {Base: where the $k$ criticals\\could be hiding};
 
 % Target domain (right): the digest channel
-\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,9.4);
-\node[align=center,font=\small\bfseries] at (10.0,9.05) {Target: the digest that must\\name where to look};
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,10.6);
+\node[align=center,font=\small\bfseries] at (10.0,11.4) {Target: the digest that must\\name where to look};
 
 % Row 1
-\node[align=center,font=\scriptsize] at (2.0,7.52) {$N$ artifacts total,\\$k$ of them load-bearing:\\$\binom{N}{k}$ ways to place\\the $k$ criticals among $N$};
-\node[align=center,font=\scriptsize] at (10.0,7.52) {Shared codebook:\\every flagged $m$-subset\\covers only $\binom{m}{k}$ of\\those $\binom{N}{k}$ placements};
-\draw[<->,>=Stealth,thick,shipred] (3.9,7.25) -- (8.1,7.25);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,8.21) {one digest selects\\ONE covering};
+\node[align=center,font=\scriptsize] at (2.0,8.20) {$N$ artifacts total,\\$k$ of them load-bearing:\\$\binom{N}{k}$ ways to place\\the $k$ criticals among $N$};
+\node[align=center,font=\scriptsize] at (10.0,8.20) {Shared codebook:\\every flagged $m$-subset\\covers only $\binom{m}{k}$ of\\those $\binom{N}{k}$ placements};
+\draw[<->,>=Stealth,thick,shipred] (3.9,7.93) -- (8.1,7.93);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,9.75) {one digest selects\\ONE covering};
 
 % Row 2
-\node[align=center,font=\scriptsize] at (2.0,4.72) {A digest of $B$ literal bits\\is a message with\\$2^B$ distinguishable\\values --- no more};
-\node[align=center,font=\scriptsize] at (10.0,4.72) {Decoder: shared table\\of $m$-subsets; each\\message names one\\$m$-subset to open};
-\draw[<->,>=Stealth,thick,shipred] (3.9,4.45) -- (8.1,4.45);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,5.41) {zero-miss needs\\$B \ge \log_2\binom{N}{k} - \log_2\binom{m}{k}$};
+\node[align=center,font=\scriptsize] at (2.0,5.00) {A digest of $B$ literal bits\\is a message with\\$2^B$ distinguishable\\values --- no more};
+\node[align=center,font=\scriptsize] at (10.0,5.00) {Decoder: shared table\\of $m$-subsets; each\\message names one\\$m$-subset to open};
+\draw[<->,>=Stealth,thick,shipred] (3.9,4.73) -- (8.1,4.73);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,6.55) {zero-miss needs\\$B \ge \log_2\binom{N}{k} - \log_2\binom{m}{k}$};
 
 % Row 3
-\node[align=center,font=\scriptsize] at (2.0,2.02) {Boundary instance:\\$N{=}60$, $k{=}2$ --- oracle /\\noisy / random encoders\\run against the bound};
-\node[align=center,font=\scriptsize] at (10.0,2.02) {$m{=}8$ opened $\Rightarrow$\\$B^\star = 5.98$ bits;\\$0/16$ floor violations\\{[verified, \texttt{a7\_experiment.py}]}};
-\draw[<->,>=Stealth,thick,shipred] (3.9,1.75) -- (8.1,1.75);
-\node[align=center,font=\small\bfseries,text=shipred] at (6.0,2.71) {the floor holds\\exactly, not on average};
+\node[align=center,font=\scriptsize] at (2.0,1.80) {Boundary instance:\\$N{=}60$, $k{=}2$ --- oracle /\\noisy / random encoders\\run against the bound};
+\node[align=center,font=\scriptsize] at (10.0,1.80) {$m{=}8$ opened $\Rightarrow$\\$B^\star = 5.98$ bits;\\$0/16$ floor violations\\{[verified, \texttt{a7\_experiment.py}]}};
+\draw[<->,>=Stealth,thick,shipred] (3.9,1.53) -- (8.1,1.53);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,3.35) {the floor holds\\exactly};
 
 \node[align=center,font=\scriptsize,text width=10cm] at (6.0,0.25)
   {\itshape The map carries a combinatorial fact, not scenery: each flagged $m$-set can only ever cover $\binom{m}{k}$ of the $\binom{N}{k}$ ways $k$ criticals could sit among $N$.};

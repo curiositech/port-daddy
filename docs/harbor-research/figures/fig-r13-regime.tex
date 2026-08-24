@@ -14,11 +14,15 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
-  width=0.46\textwidth,height=5.6cm,
   xlabel={committed high-engine share $\mu$},
   ylabel={price the pool clears},
   title={\textbf{A} --- unattested: the pool must clear $c_H$},
   xmin=0,xmax=1,ymin=0.3,ymax=1.05,
+  % Fewer, explicit ticks: at this panel's actual rendered width (half the
+  % single-panel figures' width, inside a two-up minipage) the default
+  % 0.2-spaced ticks print with no gap between labels -- a real crowding
+  % bug found by rendering the CI build.
+  xtick={0,0.5,1},
   legend pos=north west,
 ]
 \fill[shipred,opacity=0.08] (axis cs:0,0.3) rectangle (axis cs:0.16667,1.05);
@@ -28,13 +32,20 @@
   (0,0.4) (0.1,0.46) (0.2,0.52) (0.3,0.58) (0.4,0.64) (0.5,0.7)
   (0.6,0.76) (0.7,0.82) (0.8,0.88) (0.9,0.94) (1.0,1.0)
 };
-\addlegendentry{pooled price $\mu\theta_H+(1-\mu)\theta_L$}
+% Legend entries shortened (formula/value already in the caption and the
+% axis's own dashed-line label below): the long versions, at this panel's
+% actual width, ran the legend past the plot's right edge.
+\addlegendentry{pooled price}
 \addplot[shipred,dashed,thick] coordinates {(0,0.5) (1,0.5)};
-\addlegendentry{high-engine cost $c_H=0.5$}
+\addlegendentry{cost $c_H=0.5$}
 \addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.16667,0.5)};
-\node[font=\small,anchor=west] at (axis cs:0.2,0.42) {$\mu^\star=1/6$};
-\node[shipred,font=\scriptsize\bfseries,align=center,rotate=90] at (axis cs:0.085,0.66) {death spiral to $\theta_L$};
-\node[seagreen,font=\scriptsize\bfseries,align=center] at (axis cs:0.62,0.42) {committed sellers stay};
+% Anchored directly under its own marker (not offset right into where the
+% "sellers stay" label sits) -- the two collided directly on top of one
+% another at the old positions, a real text/text overlap found by
+% rendering the CI build.
+\node[font=\scriptsize,anchor=north] at (axis cs:0.16667,0.465) {$\mu^\star=1/6$};
+\node[shipred,font=\scriptsize\bfseries,align=center,rotate=90] at (axis cs:0.1,0.66) {death spiral};
+\node[seagreen,font=\scriptsize\bfseries,align=center,anchor=south east] at (axis cs:0.98,0.31) {sellers stay};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -44,29 +55,41 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
-  width=0.46\textwidth,height=5.6cm,
   xlabel={quality gap $\Delta\theta$},
   ylabel={one-period gain from swapping},
   title={\textbf{B} --- attestation flips the incentive},
   xmin=0,xmax=0.8,ymin=-0.65,ymax=0.45,
+  % See panel A: explicit, sparser ticks avoid the crowded default spacing
+  % at this panel's actual rendered width.
+  xtick={0,0.4,0.8},
   legend pos=south east,
 ]
 \fill[shipred,opacity=0.08] (axis cs:0,0) rectangle (axis cs:0.8,0.45);
 \fill[seagreen,opacity=0.08] (axis cs:0,-0.65) rectangle (axis cs:0.8,0);
 \draw[black,thick] (axis cs:0,0) -- (axis cs:0.8,0);
 \addplot[shipred,thick] coordinates {(0,0.3) (0.8,0.3)};
-\addlegendentry{unattested gain $=\Delta c$ (any price)}
+% Legend entries shortened (the "(any price)" qualifier and the repeated
+% "gain =" are already carried by the caption): full-length versions ran
+% off both edges of this panel's actual plot width, a real overflow found
+% by rendering the CI build.
+\addlegendentry{unattested: $\Delta c$}
 \addplot[seagreen,thick] coordinates {
   (0,0.3) (0.1,0.2) (0.2,0.1) (0.3,0.0) (0.4,-0.1) (0.5,-0.2)
   (0.6,-0.3) (0.7,-0.4) (0.8,-0.5)
 };
-\addlegendentry{attested gain $=\Delta c-\Delta\theta$}
+\addlegendentry{attested: $\Delta c-\Delta\theta$}
 \addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.3,0.0)};
-\node[font=\scriptsize] at (axis cs:0.3,0.055) {flip at $\Delta\theta=\Delta c$};
+\node[font=\scriptsize,anchor=south west] at (axis cs:0.33,0.03) {flip: $\Delta\theta=\Delta c$};
 \addplot[seagreen,only marks,mark=*,mark size=2.4pt,forget plot] coordinates {(0.6,-0.3)};
-\node[seagreen,font=\scriptsize\bfseries,align=center] at (axis cs:0.4,-0.5) {worked instance:\\keep 0.5 vs swap 0.2};
-\node[shipred,font=\scriptsize\bfseries] at (axis cs:0.68,0.36) {swap pays};
-\node[seagreen,font=\scriptsize\bfseries] at (axis cs:0.55,-0.15) {keeping the strong engine pays};
+% All four annotation nodes below are re-anchored to the plot's four open
+% quadrants (top-left, left-center, bottom-left, top-right kept clear of
+% the south-east legend) with shortened text: at the old center-anchored
+% positions and full-length wording they ran into the legend, into the
+% axis's own left edge, and into each other -- real collisions and
+% off-axis clipping found by rendering the CI build.
+\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=west] at (axis cs:0.03,-0.08) {worked instance:\\keep 0.5, swap 0.2};
+\node[shipred,font=\scriptsize\bfseries,anchor=north west] at (axis cs:0.03,0.40) {swap pays};
+\node[seagreen,font=\scriptsize\bfseries,anchor=south west] at (axis cs:0.03,-0.6) {strong engine pays};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}

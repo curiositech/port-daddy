@@ -40,12 +40,17 @@
 \begin{tikzpicture}[
   gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
 ]
-\node[gnode] (n0) at (-1.0,0) {0};
-\node[gnode] (n1) at (-0.6,0) {1};
-\node[gnode] (n2) at (-0.2,0) {2};
-\node[gnode] (n3) at (0.2,0) {3};
-\node[gnode] (n4) at (0.6,0) {4};
-\node[gnode] (n5) at (1.0,0) {5};
+% Node spacing widened from the original 0.4 to 0.75: at minimum size 5.5mm
+% (0.55cm diameter), 0.4cm spacing made every circle overlap its neighbor,
+% which swallowed the dashed cut-edge's visible gap entirely (it rendered
+% indistinguishable from the solid edges). 0.75cm leaves a real gap between
+% circles so the dash pattern on the n4--n5 cut edge actually shows.
+\node[gnode] (n0) at (-1.875,0) {0};
+\node[gnode] (n1) at (-1.125,0) {1};
+\node[gnode] (n2) at (-0.375,0) {2};
+\node[gnode] (n3) at (0.375,0) {3};
+\node[gnode] (n4) at (1.125,0) {4};
+\node[gnode] (n5) at (1.875,0) {5};
 \draw[black,thick] (n0) -- (n1);
 \draw[black,thick] (n1) -- (n2);
 \draw[black,thick] (n2) -- (n3);

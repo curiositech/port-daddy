@@ -10,6 +10,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm,
   xlabel={flag rate $f$},
   ylabel={rate $R$ (bits/symbol)},
   title={\textbf{A} --- zero-miss rate vs.\ open budget},
@@ -43,6 +44,7 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  width=3.6cm,
   xlabel={miss tolerance $\delta/p$},
   ylabel={rate $R$ (bits/symbol)},
   title={\textbf{B} --- rate vs.\ miss tolerance},
@@ -76,9 +78,9 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor bar,
+  width=3.6cm,
   symbolic x coords={F2500,F1500,F1000,F250},
   xtick=data,
-  x tick label style={rotate=45,anchor=east,font=\scriptsize},
   ylabel={expected opens (log)},
   title={\textbf{C} --- the zoom advantage},
   legend pos=north east,
