@@ -4733,7 +4733,7 @@ impl ConsoleView {
                         body.child(render_editor_open_failure(id, path, reason, cx))
                     }
                     None if is_editor => {
-                        let editor_key_for_controls = match surface {
+                        let editor_state_key = match surface {
                             SurfaceKind::Editor { path, region } => editor_key(path, *region),
                             _ => String::new(),
                         };
@@ -4741,7 +4741,7 @@ impl ConsoleView {
                         if let Some(options) = editor_options.clone() {
                             head = head.child(render_editor_toolbar(
                                 id,
-                                editor_key_for_controls,
+                                editor_state_key.clone(),
                                 &options,
                                 cx,
                             ));
@@ -4798,6 +4798,7 @@ impl ConsoleView {
                                                 )
                                                 .child(EditorInputElement {
                                                     view: cx.entity(),
+                                                    editor_key: editor_state_key.clone(),
                                                 }),
                                         ),
                                 )
@@ -7248,6 +7249,9 @@ impl EntityInputHandler for ConsoleView {
 
 struct EditorInputElement {
     view: Entity<ConsoleView>,
+    /// Stable state key for the pane this element measures. Input focus is
+    /// shared at the window level, but geometry must remain pane-local.
+    editor_key: String,
 }
 
 impl IntoElement for EditorInputElement {
@@ -7305,22 +7309,25 @@ impl Element for EditorInputElement {
         cx: &mut App,
     ) {
         let focus = self.view.read(cx).focus_handle(cx);
-        window.handle_input(
-            &focus,
-            ElementInputHandler::new(bounds, self.view.clone()),
-            cx,
-        );
+        let is_focused = self.view.read(cx).focused_editor_key().as_deref()
+            == Some(self.editor_key.as_str());
+        if is_focused {
+            window.handle_input(
+                &focus,
+                ElementInputHandler::new(bounds, self.view.clone()),
+                cx,
+            );
+        }
+        let editor_key = self.editor_key.clone();
         self.view.update(cx, |view, cx| {
-            if let Some(key) = view.focused_editor_key() {
-                if let Some(state) = view.editors.get_mut(&key) {
-                    let width_changed = state.input_bounds.is_none_or(|previous| {
-                        (f32::from(previous.size.width) - f32::from(bounds.size.width)).abs()
-                            >= tokens::CODE_CH
-                    });
-                    state.input_bounds = Some(bounds);
-                    if state.wrap_lines && width_changed {
-                        cx.notify();
-                    }
+            if let Some(state) = view.editors.get_mut(&editor_key) {
+                let width_changed = state.input_bounds.is_none_or(|previous| {
+                    (f32::from(previous.size.width) - f32::from(bounds.size.width)).abs()
+                        >= tokens::CODE_CH
+                });
+                state.input_bounds = Some(bounds);
+                if state.wrap_lines && width_changed {
+                    cx.notify();
                 }
             }
         });
