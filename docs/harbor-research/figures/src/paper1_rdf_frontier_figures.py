@@ -62,7 +62,11 @@ def rate_general(pp, f, delta):
 def true_rate(pp, f, delta):
     """The actual optimum: the pinned formula while both constraints bind
     (f < 1 - delta/p), and exactly 0 past that line (an independent
-    flagger of rate f already meets the miss budget there)."""
+    flagger of rate f already meets the miss budget there). Returns NaN
+    where f < p - delta -- infeasible (not enough flag budget even to
+    cover the source rate), a distinct region from the R=0 one."""
+    if f < pp - delta - 1e-12:
+        return np.nan
     if f >= 1 - delta / pp:
         return 0.0
     return rate_general(pp, f, delta)
@@ -76,9 +80,19 @@ def frontier_figure():
 
     fig, ax = plt.subplots(figsize=(9.2, 6.2), dpi=150)
 
+    # infeasible corner (f < p - delta: not even enough flag budget to
+    # cover the source rate) -- hatched gray, drawn under the contourf so
+    # it stays visually distinct from the legitimate R=0 region above.
+    f_inf = np.linspace(0.04, p, 50)
+    d_inf_top = np.clip(p - f_inf, 0, 0.049)
+    ax.fill_between(f_inf, 0, d_inf_top, facecolor='#e5e5e5',
+                     edgecolor='none', hatch='////', zorder=0)
+    ax.text(0.041, 0.001, 'infeasible\n($f<p-\\delta$)', fontsize=7.6,
+            color=GREY, ha='left', va='bottom', style='italic')
+
     cmap = LinearSegmentedColormap.from_list('harbor_seq', ['#ffffff', HARBORBLUE])
     levels = np.linspace(0, 0.30, 13)
-    cf = ax.contourf(F, D, R, levels=levels, cmap=cmap)
+    cf = ax.contourf(F, D, R, levels=levels, cmap=cmap, zorder=1)
     cbar = fig.colorbar(cf, ax=ax, pad=0.02)
     cbar.set_label('$R(\\delta,f)$  (bits/symbol)', fontsize=9.5)
     cbar.ax.tick_params(labelsize=8.5)
