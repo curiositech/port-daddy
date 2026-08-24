@@ -504,7 +504,10 @@ async fn wait_for_sse_retry<T>(
 }
 
 fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> String {
-    if let Some(url) = explicit_url.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(url) = explicit_url
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         return url.trim_end_matches('/').to_string();
     }
     if let Some(port) = published_port
@@ -1104,26 +1107,20 @@ impl DaemonClient {
         Ok(())
     }
 
-    /// Convene an operator parley: `POST /parley/call`. `parties` are AGENT ids
-    /// (`fleet_transcripts.spawned_agent_id` — never transcript/session ids;
-    /// parley DMs each party via its agent inbox) and the daemon 400s below 2
-    /// distinct ids, so callers gate the affordance client-side too. Returns the
-    /// parsed body so the caller can surface `parley.parleyId` / `channel`; a
-    /// non-2xx surfaces the daemon's rejection verbatim through
-    /// [`ensure_success`] (the alert bus shows it, never a silent swallow).
+    /// Convene an operator parley: `POST /parley/call`. The request supplies
+    /// durable session ids, never caller-authored actors or inbox targets. The
+    /// daemon resolves participant authority from those sessions. Returns the
+    /// parsed response; any rejection reaches the alert bus verbatim.
     pub async fn call_parley(
         &self,
         surface: &str,
         reason: &str,
-        called_by: &str,
-        parties: &[String],
+        session_ids: &[String],
     ) -> Result<serde_json::Value> {
         let body = serde_json::json!({
             "surface": surface,
             "reason": reason,
-            "calledBy": called_by,
-            "parties": parties,
-            "trigger": "operator",
+            "sessionIds": session_ids,
         });
         let resp = self
             .http

@@ -136,6 +136,7 @@ pub(crate) fn render_galaxy(
         .filter(|p| view.galaxy_selected.contains(&p.id))
         .count();
     let parties = gp::distinct_agents(&snapshot.points, &view.galaxy_selected);
+    let session_ids = gp::distinct_sessions(&snapshot.points, &view.galaxy_selected);
     let hover_point = view
         .galaxy_hover
         .as_ref()
@@ -225,7 +226,13 @@ pub(crate) fn render_galaxy(
             snapshot.cluster,
             &t,
         ))
-        .child(selection_bar(selected_count, &parties, &t, cx));
+        .child(selection_bar(
+            selected_count,
+            &parties,
+            session_ids.len(),
+            &t,
+            cx,
+        ));
 
     if let Some(reason) = &view.galaxy_detail_error {
         root = root.child(
@@ -691,16 +698,17 @@ fn hover_strip(
     }
 }
 
-/// The selection bar: count + distinct-agent chips + Clear + Initiate parley.
-/// The parley button disables (with the reason spelled out) below 2 distinct
-/// agent ids — the daemon 400s otherwise, so the gate lives client-side too.
+/// The selection bar: count + actor-hint chips + Clear + Initiate parley.
+/// The chips remain useful labels, but durable session ids are the only manual
+/// participant authority sent to the daemon.
 fn selection_bar(
     selected_count: usize,
     parties: &[String],
+    session_count: usize,
     t: &Theme,
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
-    let can_parley = parties.len() >= 2;
+    let can_parley = session_count >= 2;
     let mut bar = div()
         .flex()
         .flex_wrap()
@@ -718,8 +726,7 @@ fn selection_bar(
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(t.ink))
                 .child(format!(
-                    "{selected_count} selected \u{00b7} {} distinct agent(s)",
-                    parties.len()
+                    "{selected_count} selected \u{00b7} {session_count} attributable session(s)",
                 )),
         );
 
@@ -806,7 +813,7 @@ fn selection_bar(
             div()
                 .text_size(px(tokens::TEXT_CAPTION))
                 .text_color(rgb(t.muted))
-                .child("needs \u{2265}2 distinct agents (parley DMs each party)"),
+                .child("needs \u{2265}2 sessions with durable identity receipts"),
         );
     }
 

@@ -54,6 +54,28 @@ impl MissionViewModel {
         }
     }
 
+    pub fn starting(snapshot: &crate::agent::WorkSnapshot) -> Self {
+        let mut model = Self::from_snapshot(snapshot);
+        model.state = "starting".into();
+        model
+    }
+
+    pub fn from_execution(receipt: &crate::agent::WorkExecutionReceipt) -> Self {
+        let mut model = Self::from_snapshot(&receipt.snapshot);
+        model.state = receipt.state.clone();
+        model.dispatch_id = Some(receipt.dispatch_id.clone());
+        model.launch_id = receipt.launch_id.clone().or(model.launch_id);
+        model.agent_id = receipt.agent_id.clone().or(model.agent_id);
+        model.transcript_id = receipt.transcript_id.clone().or(model.transcript_id);
+        model.backend = receipt.backend.clone().or(model.backend);
+        model.model = receipt.model.clone().or(model.model);
+        model.worktree = receipt.worktree_path.clone().or(model.worktree);
+        model.branch = receipt.branch.clone().or(model.branch);
+        model.artifact = receipt.result_artifact.clone().or(model.artifact);
+        model.error = receipt.error_message.clone().or(model.error);
+        model
+    }
+
     pub fn stage(&self) -> (&'static str, Tone) {
         match self.state.as_str() {
             "proposed" | "claimed" => ("Starting", Tone::Engaged),
@@ -103,17 +125,26 @@ impl MissionViewModel {
             .unwrap_or(0);
         if failing > 0 {
             vec![Block::Chip {
-                label: format!("{failing} check{} failing", if failing == 1 { "" } else { "s" }),
+                label: format!(
+                    "{failing} check{} failing",
+                    if failing == 1 { "" } else { "s" }
+                ),
                 tone: Tone::Gated,
             }]
         } else if pending > 0 {
             vec![Block::Chip {
-                label: format!("{pending} check{} running", if pending == 1 { "" } else { "s" }),
+                label: format!(
+                    "{pending} check{} running",
+                    if pending == 1 { "" } else { "s" }
+                ),
                 tone: Tone::Engaged,
             }]
         } else if unresolved > 0 {
             vec![Block::Chip {
-                label: format!("checks passed · {unresolved} review thread{} open", if unresolved == 1 { "" } else { "s" }),
+                label: format!(
+                    "checks passed · {unresolved} review thread{} open",
+                    if unresolved == 1 { "" } else { "s" }
+                ),
                 tone: Tone::Engaged,
             }]
         } else {
@@ -196,7 +227,9 @@ mod tests {
     #[test]
     fn empty_screen_asks_for_an_outcome_in_plain_language() {
         let rendered = blocks(&MissionViewModel::empty(), &[]);
-        assert!(matches!(rendered[0], Block::Header(ref text) if text == "What should Port Daddy do?"));
+        assert!(
+            matches!(rendered[0], Block::Header(ref text) if text == "What should Port Daddy do?")
+        );
         assert!(rendered.iter().any(|block| matches!(block, Block::WrappedText { text, .. } if text.contains("plain English"))));
     }
 
@@ -211,13 +244,20 @@ mod tests {
             model: Some("gpt-5.3-codex".into()),
             ..MissionViewModel::default()
         };
-        let rendered = blocks(&model, &[Block::TranscriptLine {
-            text: "running tests".into(),
-            tone: Tone::Accent,
-        }]);
+        let rendered = blocks(
+            &model,
+            &[Block::TranscriptLine {
+                text: "running tests".into(),
+                tone: Tone::Accent,
+            }],
+        );
         assert!(rendered.iter().any(|block| matches!(block, Block::KeyVal(key, value) if key == "agent" && value == "spawned-codex-7")));
-        assert!(rendered.iter().any(|block| matches!(block, Block::Header(text) if text == "Live work")));
-        assert!(rendered.iter().any(|block| matches!(block, Block::TranscriptLine { text, .. } if text == "running tests")));
+        assert!(rendered
+            .iter()
+            .any(|block| matches!(block, Block::Header(text) if text == "Live work")));
+        assert!(rendered.iter().any(
+            |block| matches!(block, Block::TranscriptLine { text, .. } if text == "running tests")
+        ));
     }
 
     #[test]
@@ -236,7 +276,51 @@ mod tests {
             ..MissionViewModel::default()
         };
         let rendered = blocks(&model, &[]);
-        assert!(rendered.iter().any(|block| matches!(block, Block::ArtifactRef { path, .. } if path.ends_with("/pull/123"))));
-        assert!(rendered.iter().any(|block| matches!(block, Block::Chip { label, .. } if label == "1 check running")));
+        assert!(rendered.iter().any(
+            |block| matches!(block, Block::ArtifactRef { path, .. } if path.ends_with("/pull/123"))
+        ));
+        assert!(rendered
+            .iter()
+            .any(|block| matches!(block, Block::Chip { label, .. } if label == "1 check running")));
+    }
+
+    #[test]
+    fn execution_receipt_uses_event_time_runtime_identity_when_snapshot_lags() {
+        let snapshot = crate::agent::WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "intent-3",
+                "goal": { "text": "Build the thing" }
+            }),
+            plan: None,
+            execution: None,
+        };
+        let receipt = crate::agent::WorkExecutionReceipt {
+            status: "accepted".into(),
+            duplicate: false,
+            correlation_id: "corr-3".into(),
+            snapshot,
+            projection: "governed-mission".into(),
+            dispatch_id: "dispatch-3".into(),
+            state: "in_progress".into(),
+            session_id: Some("session-3".into()),
+            worktree_path: Some("/worktrees/mission-3".into()),
+            branch: Some("codex/mission-3".into()),
+            launch_id: Some("launch-3".into()),
+            agent_id: Some("agent-3".into()),
+            transcript_id: Some("transcript-3".into()),
+            backend: Some("cli:codex".into()),
+            model: Some("gpt-5.3-codex".into()),
+            result_artifact: None,
+            error_message: None,
+            launched_this_tick: 1,
+            next_action: "follow the exact agent".into(),
+        };
+
+        let model = MissionViewModel::from_execution(&receipt);
+        assert_eq!(model.agent_id.as_deref(), Some("agent-3"));
+        assert_eq!(model.transcript_id.as_deref(), Some("transcript-3"));
+        assert_eq!(model.backend.as_deref(), Some("cli:codex"));
+        assert_eq!(model.model.as_deref(), Some("gpt-5.3-codex"));
+        assert_eq!(model.branch.as_deref(), Some("codex/mission-3"));
     }
 }

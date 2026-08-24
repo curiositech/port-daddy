@@ -919,11 +919,73 @@ pub fn sample_console_blocks() -> Vec<Block> {
     ]
 }
 
+/// Deterministic proof of the mission-first default surface. The state flag lets
+/// CI and PR evidence show the same mission moving from admission to live work
+/// to a reviewable pull request without requiring Screen Recording permission.
+pub fn sample_mission_blocks(state: &str) -> Vec<Block> {
+    let (stage, stage_tone) = match state {
+        "settled" => ("PR ready", Tone::Landed),
+        "failed" => ("Needs attention", Tone::Gated),
+        "starting" => ("Starting", Tone::Engaged),
+        _ => ("Working", Tone::Accent),
+    };
+    let mut blocks = vec![
+        Block::Header("Repair the mission console and open its pull request".into()),
+        Block::Chip {
+            label: stage.into(),
+            tone: stage_tone,
+        },
+        Block::KeyVal("agent".into(), "spawned-codex-7".into()),
+        Block::KeyVal("runtime".into(), "cli:codex · gpt-5.3-codex".into()),
+        Block::KeyVal("branch".into(), "codex/mission-console".into()),
+    ];
+    if state == "failed" {
+        blocks.push(Block::WrappedText {
+            text: "The selected runtime could not start. Retry or choose another agent.".into(),
+            tone: Tone::Gated,
+        });
+    }
+    blocks.extend([
+        Block::Gap,
+        Block::Header("Live work".into()),
+        Block::ChatTurn {
+            speaker: "agent".into(),
+            text: "Replaced the global planner dump with one durable mission receipt.".into(),
+            tone: Tone::Engaged,
+        },
+        Block::TranscriptLine {
+            text: "running pd-console mission view tests".into(),
+            tone: Tone::Accent,
+        },
+        Block::TranscriptLine {
+            text: "4 passed; exact agent and branch remain attached".into(),
+            tone: Tone::Landed,
+        },
+    ]);
+    if state == "settled" {
+        blocks.extend([
+            Block::Gap,
+            Block::Header("Delivery".into()),
+            Block::ArtifactRef {
+                label: "Open pull request".into(),
+                path: "https://github.com/curiositech/port-daddy/pull/0000".into(),
+                preview: Some("code, checks, review, and merge status".into()),
+                tone: Tone::Landed,
+            },
+            Block::Chip {
+                label: "all checks passed".into(),
+                tone: Tone::Landed,
+            },
+        ]);
+    }
+    blocks
+}
+
 /// Runtime entrypoint behind `--headless-capture <path>`: render the sample
 /// console Block model to a PNG at `path`. Returns bytes written. No window, no
 /// display, no Screen-Recording permission — safe from any shell, incl. an agent's.
-pub fn capture_to_path(path: &str) -> std::io::Result<usize> {
-    let png = render_blocks(&sample_console_blocks(), &DARK, 960).to_png();
+pub fn capture_state_to_path(path: &str, state: &str) -> std::io::Result<usize> {
+    let png = render_blocks(&sample_mission_blocks(state), &DARK, 960).to_png();
     let p = std::path::Path::new(path);
     if let Some(parent) = p.parent() {
         if !parent.as_os_str().is_empty() {
@@ -932,6 +994,10 @@ pub fn capture_to_path(path: &str) -> std::io::Result<usize> {
     }
     std::fs::write(p, &png)?;
     Ok(png.len())
+}
+
+pub fn capture_to_path(path: &str) -> std::io::Result<usize> {
+    capture_state_to_path(path, "in_progress")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1049,6 +1115,24 @@ mod geom_tests {
             .filter(|&(x, y)| c.pixel(x, y) != bg)
             .count();
         assert!(painted > 500, "too few painted pixels: {painted}");
+    }
+
+    #[test]
+    fn mission_capture_states_are_distinct_and_show_delivery_only_when_settled() {
+        let running = sample_mission_blocks("in_progress");
+        let settled = sample_mission_blocks("settled");
+        assert!(running
+            .iter()
+            .any(|block| matches!(block, Block::Chip { label, .. } if label == "Working")));
+        assert!(!running
+            .iter()
+            .any(|block| matches!(block, Block::ArtifactRef { .. })));
+        assert!(settled
+            .iter()
+            .any(|block| matches!(block, Block::Chip { label, .. } if label == "PR ready")));
+        assert!(settled
+            .iter()
+            .any(|block| matches!(block, Block::ArtifactRef { .. })));
     }
 
     /// On-demand viewable artifact: `--headless-capture` and the proof script write

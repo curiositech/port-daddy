@@ -390,12 +390,21 @@ impl LanePane {
 
     fn fold_transcript_message(&mut self, tx_id: &str, msg: &serde_json::Value) -> bool {
         let mut rendered = false;
+        let mut structured_error: Option<String> = None;
         let timestamp = msg.get("timestamp").and_then(|t| t.as_i64()).unwrap_or(0);
 
         if let Some(tool_calls) = msg.get("tool_calls").and_then(|calls| calls.as_array()) {
             for (idx, call) in tool_calls.iter().enumerate() {
                 if let Some(name) = field_str(call, &["name", "tool", "toolName"]) {
-                    let state = if call.get("result").is_some() {
+                    let state = if name == "error" {
+                        if let Some(message) = call
+                            .get("args")
+                            .and_then(|args| field_str(args, &["message"]))
+                        {
+                            structured_error = Some(message.to_string());
+                        }
+                        ToolState::Failed
+                    } else if call.get("result").is_some() {
                         ToolState::Ok
                     } else {
                         ToolState::Running
@@ -409,7 +418,10 @@ impl LanePane {
             }
         }
 
-        let Some(content) = field_str(msg, &["content", "text", "delta"]) else {
+        let Some(content) = structured_error
+            .as_deref()
+            .or_else(|| field_str(msg, &["content", "text", "delta"]))
+        else {
             return rendered;
         };
         let content = content.trim();
@@ -418,7 +430,11 @@ impl LanePane {
         }
 
         let role = field_str(msg, &["role"]).unwrap_or("assistant");
-        let (speaker, tone) = chat_speaker_for_role(role);
+        let (speaker, tone) = if structured_error.is_some() {
+            ("runtime".into(), Tone::Gated)
+        } else {
+            chat_speaker_for_role(role)
+        };
         self.push_unique_chat_turn(
             format!("{tx_id}:msg:{timestamp}:{role}:{}", digest_text(content)),
             speaker,
@@ -1600,6 +1616,40 @@ mod tests {
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].name, "rg");
         assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn structured_runtime_error_shows_its_message_instead_of_a_placeholder() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "update",
+                "entry": {
+                    "id": "tx-runtime-warning",
+                    "messages": [{
+                        "role": "tool",
+                        "content": "[codex:error]",
+                        "timestamp": 12,
+                        "tool_calls": [{
+                            "name": "error",
+                            "args": {"message": "Falling back to the HTTPS transport."}
+                        }]
+                    }],
+                    "outputs": []
+                }
+            }),
+        ));
+
+        assert!(chat_turns(&lane).iter().any(|(speaker, text, tone)| {
+            speaker == "runtime"
+                && text == "Falling back to the HTTPS transport."
+                && *tone == Tone::Gated
+        }));
+        assert_eq!(
+            lane.tools.last().map(|tool| tool.state),
+            Some(ToolState::Failed)
+        );
     }
 
     #[test]
