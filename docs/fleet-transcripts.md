@@ -88,11 +88,22 @@ The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
   digests, locator, byte count, format, attempts, and success/failure. A generic
   success bit or mismatched evidence is failure. Replays skip only an exact
   matching success.
+- Message/output appends are status-conditional writes. Once a transcript is
+  terminal, its header and child content are immutable, so the receipt digest
+  cannot be invalidated by a late append.
 - The first terminal `finalize()` transition wins. An asynchronous backend
   completion cannot rewrite a prior kill or produce a second archive receipt.
 - `recordTranscript()` emits an `end` event and archives only when its imported
-  snapshot is terminal. It does not inherit `finalize()`'s first-terminal-wins
-  guarantee and remains the CAP0/BOOT0-blocked legacy full-entry bridge.
+  snapshot is terminal. Its header and children commit atomically and it cannot
+  reopen a terminal row, but it remains the CAP0/BOOT0-blocked legacy full-entry
+  bridge rather than trusted producer authority.
+- The current manual backfill examines only the 50 newest terminal rows and has
+  no automatic failed-receipt retry. Older failures are not self-healing until a
+  cursor-driven repair action lands.
+- Archive publication still uses Node pathname operations rather than an
+  `openat`/dirfd-bound chain. Existing no-follow, mode, owner, link-count, and
+  descriptor checks do not fully stop a hostile same-UID parent/name swap; a
+  native dirfd-relative publisher is required for that stronger threat model.
 
 ### Write-authority blocker
 

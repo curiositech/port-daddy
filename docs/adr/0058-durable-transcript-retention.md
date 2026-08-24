@@ -47,13 +47,15 @@ external warehouse.
   closed. The approved archive root remains configurable.
 - **The hook and lifecycle race.** `lib/transcripts.ts` accepts an
   `archiveSink`, called from terminal `finalize()` and from `recordTranscript()`
-  only when the imported snapshot is terminal. The first `finalize()`/spawner
+  only when the imported snapshot is terminal. Message and output appends are
+  single status-conditional writes, so once any terminal snapshot is committed
+  its header and child content are immutable. The first `finalize()`/spawner
   terminal transition wins, so a late backend completion cannot rewrite an
   operator kill, emit a second terminal event, or archive that transition twice.
-  `recordTranscript()` does not share that compare-and-set guarantee; it remains
-  the CAP0/BOOT0-blocked legacy full-entry bridge. A sink/receipt failure never
-  rewrites a completed spawn into failure, but is logged loudly and remains
-  retryable.
+  `recordTranscript()` remains the CAP0/BOOT0-blocked legacy full-entry bridge,
+  but commits its imported header and children atomically and cannot reopen an
+  already terminal row. A sink/receipt failure never rewrites a completed spawn
+  into failure, but is logged loudly and remains manually retryable.
 - **Exact artifact receipts.** `fleet_transcript_archive_receipts` binds the
   canonical snapshot digest to the exact artifact locator, SHA-256, byte length,
   format, attempt count, and success/failure timestamps. A generic success bit,
@@ -66,8 +68,16 @@ external warehouse.
   `POST /transcripts/archive/backfill`) currently retries up to the 50 most
   recent terminal snapshots. Exact successes skip without another sink write;
   failures and incomplete legacy receipts retry; `archived` counts only exact
-  durable successes. This bounded legacy bridge is not yet the complete
-  cursor-driven operator repair action.
+  durable successes. There is no automatic failed-receipt retry, and failures
+  older than that newest-first window are not self-healing. This bounded legacy
+  bridge is not yet the complete cursor-driven operator repair action.
+- **Residual pathname race.** The Node implementation uses pathname operations
+  plus `O_NOFOLLOW`, ownership/link-count checks, exact file-descriptor identity,
+  and private modes, but it does not use an `openat`/dirfd-bound publication
+  chain. A hostile same-UID process able to rename or swap an approved root or
+  partition component during publication can still redirect a name-based
+  operation. Closing that local-adversary gap requires a dirfd-relative native
+  publication primitive; this PR does not claim that stronger guarantee.
 - **Pluggable warehouse.** External sinks (S3/R2/BigQuery) implement the same
   `TranscriptArchiveSink` interface and are wired in place of (or alongside) the
   JSONL archive. Replacement sinks must return the same exact-artifact evidence;

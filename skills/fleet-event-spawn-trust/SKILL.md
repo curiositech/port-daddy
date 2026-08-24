@@ -162,6 +162,9 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
       complete write, atomically publish, clamp directories/files to least
       privilege, reject symlink/unsafe targets, and require a receipt binding the
       exact artifact locator/digest/size/format before pruning live evidence.
+- [ ] A terminal evidence receipt freezes every field covered by its digest.
+      Status checks and child writes are one atomic operation; full-entry imports
+      commit header plus children together before publication.
 
 ## Residual (sound fixes not yet shipped — see ADR-0093 §10)
 

@@ -458,10 +458,19 @@ PD_TRANSCRIPT_ARCHIVE_DIR or ~/.port-daddy/transcripts/
   and root directories before success. A failed or concurrent writer removes
   only its own unpublished temp and cannot truncate another process's retained
   record.
+- Terminal publication freezes the live header, messages, and outputs. Public
+  appends are single status-conditional writes, and the legacy full-entry import
+  commits header plus children in one transaction before emitting or archiving.
+  A child-write failure rolls the terminal row back instead of minting a receipt
+  for an incomplete snapshot.
 - A success receipt binds the exact snapshot and artifact locator, SHA-256, byte
   count, and format. Generic success or mismatched evidence is failure.
   Archive roots/partitions are private `0700`; temp/final files are `0600`;
   symlink and unsafe targets fail closed.
+- Residual limits are explicit: publication remains pathname-based rather than
+  dirfd-relative, so a hostile same-UID parent/name swap is not fully excluded;
+  manual backfill scans only the 50 newest terminal rows and does not
+  automatically retry older failed receipts.
 - `PD_TRANSCRIPT_ARCHIVE=off` downgrades official-agent eligibility unless an
   equivalent durable sink is configured and visible in the compliance report.
 - Work Receipts need the same retention floor. Until a receipt archive exists,
