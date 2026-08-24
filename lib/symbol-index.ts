@@ -310,6 +310,10 @@ async function ensureTreeSitterInitialized(): Promise<{
 
 export function createSymbolIndex(db: Database.Database, options?: { graphEdges?: GraphEdges }) {
   const graphEdges = options?.graphEdges;
+  // Serialize writers only when they target the same path. Unrelated dirty
+  // files remain independent, while a follower re-enters parseFile after the
+  // leader commits and becomes a cheap hash hit instead of reparsing.
+  const refreshBarriers = new Map<string, Promise<void>>();
   // Self-initialize tables
   db.exec(SCHEMA_SQL);
 
@@ -1425,19 +1429,45 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
    */
   async function refresh(filePaths: readonly string[]): Promise<SymbolIndexRefreshTelemetry> {
     const startedAt = Date.now();
-    const uniquePaths: string[] = [];
+    const orderedInputs: Array<string | { invalidIndex: number }> = [];
     const seen = new Set<string>();
+    const files: SymbolIndexRefreshFileTelemetry[] = [];
 
-    for (const filePath of filePaths) {
+    for (const [index, filePath] of filePaths.entries()) {
+      if (typeof filePath !== 'string' || filePath.length === 0) {
+        orderedInputs.push({ invalidIndex: index });
+        continue;
+      }
       const absPath = resolve(filePath);
       if (seen.has(absPath)) continue;
       seen.add(absPath);
-      uniquePaths.push(absPath);
+      orderedInputs.push(absPath);
     }
 
-    const files: SymbolIndexRefreshFileTelemetry[] = [];
+    for (const input of orderedInputs) {
+      if (typeof input !== 'string') {
+        files.push({
+          filePath: `<invalid:${input.invalidIndex}>`,
+          status: 'failed',
+          symbolsBefore: 0,
+          symbolsAfter: 0,
+          dependenciesBefore: 0,
+          dependenciesAfter: 0,
+          durationMs: 0,
+          error: `filePaths[${input.invalidIndex}] must be a non-empty string`,
+        });
+        continue;
+      }
+      const absPath = input;
+      const precedingRefresh = refreshBarriers.get(absPath);
+      let releaseRefresh: () => void = () => {};
+      const currentBarrier = new Promise<void>((resolveBarrier) => {
+        releaseRefresh = resolveBarrier;
+      });
+      refreshBarriers.set(absPath, currentBarrier);
+      if (precedingRefresh) await precedingRefresh;
 
-    for (const absPath of uniquePaths) {
+      try {
       const fileStartedAt = Date.now();
       const before = getIndexedRowCounts(absPath);
 
@@ -1515,6 +1545,12 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
           error: (error as Error).message,
         });
       }
+      } finally {
+        releaseRefresh();
+        if (refreshBarriers.get(absPath) === currentBarrier) {
+          refreshBarriers.delete(absPath);
+        }
+      }
     }
 
     let reparsedFiles = 0;
@@ -1553,7 +1589,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       completedAt,
       durationMs: completedAt - startedAt,
       requestedFiles: filePaths.length,
-      uniqueFiles: uniquePaths.length,
+      uniqueFiles: orderedInputs.length,
       reparsedFiles,
       unchangedFiles,
       deletedFiles,
