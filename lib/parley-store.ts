@@ -1,0 +1,3239 @@
+/**
+ * Indexed transactional authority for Parley lifecycle state.
+ *
+ * Every authoritative key is tenant + harbor scoped. Automatic admission is a
+ * single SQLite transaction: canonical signal reservation, lineage ownership,
+ * global/surface capacity, the Parley record, participants, summons outbox,
+ * and the first terminal evaluation receipt either all commit or all roll back.
+ * Inbox delivery is deliberately outside that transaction and can only happen
+ * after a durable outbox lease (claim-before-hail).
+ */
+
+import { createHash, randomUUID } from 'node:crypto';
+import type { DatabaseInstance } from './sqlite-runtime.js';
+import {
+  PARLEY_CHECKPOINTS,
+  PARLEY_SHAPES,
+  CONFLICT_SIGNAL_LIMITS,
+  CONFLICT_SIGNAL_PRODUCERS,
+  conflictSignalId,
+  shouldConvene,
+  type ConflictSignal,
+  type ParleyDecision,
+} from './parley-trigger.js';
+import type {
+  AutomaticParleyLifecycle,
+  ParleyOutcome,
+  ParleyParticipant,
+  ParleyPerformative,
+  ParleyRecord,
+  ParleyStatus,
+  ParleyTurn,
+} from './parley.js';
+
+export const PARLEY_STORE_LIMITS = Object.freeze({
+  maxTenantChars: 128,
+  maxHarborChars: 128,
+  maxParleyIdChars: 192,
+  maxChannelChars: 256,
+  maxActorChars: CONFLICT_SIGNAL_LIMITS.maxPartyChars,
+  maxParticipants: CONFLICT_SIGNAL_LIMITS.maxParties,
+  maxTurnContentChars: 16_384,
+  maxDecisionChars: 16_384,
+  maxProposalIdChars: 256,
+  maxRoundLimit: 64,
+  maxTurnsPerParley: 4_096,
+  maxListPage: 100,
+  maxPendingOutboxPerHarbor: 2_048,
+  maxOutboxPayloadBytes: 131_072,
+  maxOutboxAttempts: 8,
+  maxOutboxClaim: 100,
+  maxRetainedRecordsPerHarbor: 1_024,
+  maxRetainedSignalsPerHarbor: 8_192,
+  maxRetainedTurnsPerHarbor: 16_384,
+  maxRetainedOutboxPerHarbor: 8_192,
+  maxOverflowIntentsPerParley: 128,
+  maxTtlMs: 90 * 24 * 60 * 60 * 1000,
+  retentionMs: 30 * 24 * 60 * 60 * 1000,
+  reapBatch: 500,
+} as const);
+
+/**
+ * Server-owned freshness and replay policy for trusted producer events.
+ *
+ * A producer cannot select any of these values. A new observation must arrive
+ * promptly, exact retries remain replayable for the whole producer retry
+ * horizon, and the tombstone survives through that horizon. Once reaped, the
+ * original producedAt is old enough that the event can never be admitted anew.
+ */
+export const PARLEY_SIGNAL_FRESHNESS = Object.freeze({
+  maxSignalAgeMs: 24 * 60 * 60 * 1000,
+  maxFutureClockSkewMs: 5 * 60 * 1000,
+  maxProducerRetryHorizonMs: 30 * 24 * 60 * 60 * 1000,
+  dedupeTombstoneMs: 30 * 24 * 60 * 60 * 1000,
+} as const);
+
+/** Immutable lifecycle policy stamped by STORE0 for automatic Parleys. */
+export const PARLEY_STORE_POLICY = Object.freeze({
+  automaticResponseTtlMs: 60 * 60 * 1000,
+  automaticRoundLimit: 3,
+} as const);
+
+if (PARLEY_SIGNAL_FRESHNESS.dedupeTombstoneMs
+  < PARLEY_SIGNAL_FRESHNESS.maxProducerRetryHorizonMs) {
+  throw new Error('Parley dedupe tombstone must cover the maximum producer retry horizon');
+}
+
+export const PARLEY_STORE_FAULT_BOUNDARIES = Object.freeze([
+  'manual.record',
+  'manual.participants',
+  'manual.outbox',
+  'automatic.signal',
+  'automatic.lineage',
+  'automatic.record',
+  'automatic.participants',
+  'automatic.surface-admission',
+  'automatic.global-admission',
+  'automatic.outbox',
+  'automatic.receipt',
+  'turn.record',
+  'turn.outbox',
+  'terminal.outcome',
+  'terminal.release',
+] as const);
+
+export type ParleyStoreFaultBoundary = (typeof PARLEY_STORE_FAULT_BOUNDARIES)[number];
+export type AutomaticTerminalState = 'evaluated' | 'fired' | 'suppressed' | 'failed';
+
+export interface StoredParleyParticipant {
+  actorId: string;
+  inboxTarget: string | null;
+  sessionId: string | null;
+  lineageRootSessionId: string | null;
+  summoned: boolean;
+  caller: boolean;
+}
+
+export interface StoredParleyTurn extends ParleyTurn {
+  /** Monotonic durable frontier; timestamps are presentation, not receipt authority. */
+  turnSequence: number;
+}
+
+export interface StoredSeenReceipt {
+  /** Timestamp of the durable turn at the frontier, or null before any turn exists. */
+  lastSeenAt: number | null;
+  /** Highest existing turn sequence acknowledged by this participant. */
+  turnSequence: number;
+}
+
+export interface StoredDeliveryOverflowReceipt {
+  droppedIntents: number;
+  batchCount: number;
+  sawTurn: boolean;
+  sawEscalation: boolean;
+  evidenceHash: string;
+  firstAt: number;
+  lastAt: number;
+  lastError: string;
+}
+
+export interface ParleyQuotaSnapshot {
+  retainedRecords: number;
+  retainedSignals: number;
+  retainedTurns: number;
+  retainedOutbox: number;
+}
+
+export interface ParleyStoreSnapshot {
+  parley: ParleyRecord;
+  participants: StoredParleyParticipant[];
+  turns: StoredParleyTurn[];
+  outcome: ParleyOutcome | null;
+  seen: Map<string, StoredSeenReceipt>;
+  deliveryOverflow: StoredDeliveryOverflowReceipt | null;
+  /** One captured clock value used for both TTL settlement and this projection. */
+  observedAt: number;
+}
+
+export interface ParleyNotificationIntent {
+  deliveryKey: string;
+  recipientActorId: string;
+  inboxTarget: string;
+  fromActorId: string;
+  eventType: 'parley_summons' | 'parley_turn' | 'parley_escalation';
+  payload: Record<string, unknown>;
+}
+
+export interface ClaimedParleyNotification extends ParleyNotificationIntent {
+  id: number;
+  attempts: number;
+  leaseToken: string;
+}
+
+export interface AutomaticAdmissionInput {
+  harbor: string;
+  signal: ConflictSignal;
+  signalFingerprint: string;
+  lineageKey: string;
+  decision: ParleyDecision;
+  terminalState: Exclude<AutomaticTerminalState, 'failed'>;
+  reason: string;
+  parley: ParleyRecord | null;
+  participants: ParleyParticipant[];
+  notifications: ((record: ParleyRecord) => ParleyNotificationIntent[]) | null;
+  maxPendingGlobal: number;
+  maxPendingPerSurface: number;
+  cooldownMs: number;
+}
+
+export interface AutomaticAdmissionResult {
+  terminalState: AutomaticTerminalState;
+  replayed: boolean;
+  parley: ParleyRecord | null;
+  reason: string;
+  summonsInserted: number;
+  receiptInserted: boolean;
+}
+
+export interface AddTurnInput {
+  harbor: string;
+  parleyId: string;
+  party: string;
+  performative: ParleyPerformative;
+  content: string;
+  proposalId: string | null;
+  evidenceRefs: string[];
+  idempotencyKey: string;
+  intentFingerprint: string;
+  notifications: (turnSequence: number, at: number) => ParleyNotificationIntent[];
+}
+
+export interface AddTurnResult {
+  turn: ParleyTurn | null;
+  turnSequence: number | null;
+  deliveryKeys: string[];
+  escalatedReason: string | null;
+  replayed: boolean;
+}
+
+export interface ParleyStoreDeps {
+  db: DatabaseInstance;
+  tenantId: string;
+  now?: () => number;
+  faultInjector?: (boundary: ParleyStoreFaultBoundary) => void;
+}
+
+export interface ManualAdmissionInput {
+  parley: Omit<ParleyRecord, 'createdAt' | 'responseDueAt'>;
+  /** Bounded duration; null means no response deadline. */
+  responseTtlMs: number | null;
+  participants: StoredParleyParticipant[];
+  notifications: (record: ParleyRecord) => ParleyNotificationIntent[];
+}
+
+interface RecordRow {
+  tenant_id: string;
+  harbor: string;
+  parley_id: string;
+  surface: string;
+  reason: string;
+  called_by: string;
+  trigger: string;
+  channel: string;
+  status: string;
+  response_due_at: number | null;
+  round_limit: number;
+  created_at: number;
+  updated_at: number;
+  retention_until: number;
+  automatic_signal_id: string | null;
+  automatic_call_fingerprint: string | null;
+  automatic_lineage_key: string | null;
+  automatic_checkpoint: string | null;
+  automatic_kind: string | null;
+  automatic_shape: string | null;
+  automatic_evidence_json: string | null;
+  automatic_confidence: number | null;
+  automatic_magnitude: number | null;
+}
+
+interface ParticipantRow {
+  ordinal: number;
+  actor_id: string;
+  inbox_target: string | null;
+  session_id: string | null;
+  lineage_root_session_id: string | null;
+  summoned: number;
+  caller: number;
+}
+
+interface TurnRow {
+  turn_sequence: number;
+  party: string;
+  idempotency_key: string;
+  intent_fingerprint: string;
+  performative: string;
+  content: string;
+  proposal_id: string | null;
+  evidence_json: string;
+  delivery_keys_json: string;
+  at: number;
+}
+
+interface OutcomeRow {
+  status: string;
+  decision: string | null;
+  reason: string | null;
+  resolved_by: string;
+  dissenters_json: string;
+  at: number;
+}
+
+interface SignalRow {
+  signal_fingerprint: string;
+  canonical_signal_json: string;
+  lineage_key: string;
+  producer_id: string;
+  checkpoint: string;
+  producer_event_key: string;
+  produced_at: number;
+  created_at: number;
+  expires_at: number;
+}
+
+interface ReceiptRow {
+  terminal_state: string;
+  parley_id: string | null;
+  decision_json: string;
+  reason: string;
+  created_at: number;
+}
+
+interface LineageRow {
+  owner_signal_id: string;
+  owner_parley_id: string | null;
+  state: string;
+  reserved_at: number;
+  cooldown_ms: number;
+  cooldown_until: number;
+}
+
+interface OutboxRow {
+  id: number;
+  delivery_key: string;
+  recipient_actor_id: string;
+  inbox_target: string;
+  from_actor_id: string;
+  event_type: string;
+  payload_json: string;
+  payload_hash: string;
+  attempts: number;
+  lease_token: string | null;
+}
+
+const TERMINAL_STATUSES: ReadonlySet<ParleyStatus> = new Set(['COLLAPSED', 'ESCALATED', 'VOIDED']);
+const PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set([
+  'propose', 'critique', 'revise', 'agree', 'refuse', 'inform',
+]);
+const BUDGETED_PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set([
+  'propose', 'critique', 'revise', 'inform',
+]);
+const SCHEMA = `
+  CREATE TABLE IF NOT EXISTS parley_quota_ledger (
+    tenant_id TEXT NOT NULL CHECK(length(tenant_id) BETWEEN 1 AND 128),
+    harbor TEXT NOT NULL CHECK(length(harbor) BETWEEN 1 AND 128),
+    retained_records INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_records BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedRecordsPerHarbor}),
+    retained_signals INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_signals BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedSignalsPerHarbor}),
+    retained_turns INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_turns BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedTurnsPerHarbor}),
+    retained_outbox INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_outbox BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor}),
+    PRIMARY KEY (tenant_id, harbor)
+  );
+
+  CREATE TABLE IF NOT EXISTS parley_auto_signals (
+    tenant_id TEXT NOT NULL CHECK(length(tenant_id) BETWEEN 1 AND 128),
+    harbor TEXT NOT NULL CHECK(length(harbor) BETWEEN 1 AND 128),
+    signal_id TEXT NOT NULL CHECK(length(signal_id) BETWEEN 1 AND 128),
+    signal_fingerprint TEXT NOT NULL CHECK(length(signal_fingerprint) = 64),
+    canonical_signal_json TEXT NOT NULL,
+    lineage_key TEXT NOT NULL CHECK(length(lineage_key) BETWEEN 1 AND 192),
+    producer_id TEXT NOT NULL CHECK(length(producer_id) BETWEEN 1 AND 128),
+    checkpoint TEXT NOT NULL CHECK(checkpoint IN ('conversation','claim','session_begin','session_takeover','continuation_accept','quorum_vote','guard_receipt')),
+    producer_event_key TEXT NOT NULL CHECK(length(producer_event_key) = 64),
+    produced_at INTEGER NOT NULL CHECK(produced_at > 0),
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL CHECK(expires_at >= created_at),
+    PRIMARY KEY (tenant_id, harbor, signal_id),
+    UNIQUE (tenant_id, harbor, producer_event_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parley_signals_retention
+    ON parley_auto_signals(tenant_id, harbor, expires_at, signal_id);
+
+  CREATE TABLE IF NOT EXISTS parley_records (
+    tenant_id TEXT NOT NULL CHECK(length(tenant_id) BETWEEN 1 AND 128),
+    harbor TEXT NOT NULL CHECK(length(harbor) BETWEEN 1 AND 128),
+    parley_id TEXT NOT NULL CHECK(length(parley_id) BETWEEN 1 AND 192),
+    surface TEXT NOT NULL CHECK(length(surface) BETWEEN 1 AND 1024),
+    reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 2048),
+    called_by TEXT NOT NULL CHECK(length(called_by) BETWEEN 1 AND 128),
+    trigger TEXT NOT NULL CHECK(trigger IN ('operator','claim_overlap','detector','swarm_fit')),
+    channel TEXT NOT NULL CHECK(length(channel) BETWEEN 1 AND 256),
+    status TEXT NOT NULL CHECK(status IN ('SUMMONED','CONVENED','COLLAPSED','ESCALATED','VOIDED')),
+    response_due_at INTEGER,
+    round_limit INTEGER NOT NULL CHECK(round_limit BETWEEN 1 AND 64),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    retention_until INTEGER NOT NULL CHECK(retention_until >= created_at),
+    automatic_signal_id TEXT,
+    automatic_call_fingerprint TEXT,
+    automatic_lineage_key TEXT,
+    automatic_checkpoint TEXT,
+    automatic_kind TEXT,
+    automatic_shape TEXT,
+    automatic_evidence_json TEXT,
+    automatic_confidence REAL,
+    automatic_magnitude REAL,
+    PRIMARY KEY (tenant_id, harbor, parley_id),
+    UNIQUE (tenant_id, harbor, automatic_signal_id),
+    FOREIGN KEY (tenant_id, harbor, automatic_signal_id)
+      REFERENCES parley_auto_signals(tenant_id, harbor, signal_id)
+      ON DELETE RESTRICT,
+    CHECK (
+      (automatic_signal_id IS NULL
+        AND automatic_call_fingerprint IS NULL
+        AND automatic_lineage_key IS NULL
+        AND automatic_checkpoint IS NULL
+        AND automatic_kind IS NULL
+        AND automatic_shape IS NULL
+        AND automatic_evidence_json IS NULL
+        AND automatic_confidence IS NULL
+        AND automatic_magnitude IS NULL)
+      OR
+      (automatic_signal_id IS NOT NULL
+        AND length(automatic_call_fingerprint) = 64
+        AND automatic_lineage_key IS NOT NULL
+        AND automatic_checkpoint IS NOT NULL
+        AND automatic_kind IS NOT NULL
+        AND automatic_shape IS NOT NULL
+        AND automatic_evidence_json IS NOT NULL
+        AND automatic_confidence BETWEEN 0 AND 1
+        AND automatic_magnitude >= 0)
+    )
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parley_records_status
+    ON parley_records(tenant_id, harbor, status, created_at DESC, parley_id DESC);
+  CREATE INDEX IF NOT EXISTS idx_parley_records_surface
+    ON parley_records(tenant_id, harbor, surface, status, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_parley_records_retention
+    ON parley_records(tenant_id, harbor, retention_until, parley_id);
+
+  CREATE TABLE IF NOT EXISTS parley_participants (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 32),
+    actor_id TEXT NOT NULL CHECK(length(actor_id) BETWEEN 1 AND 128),
+    inbox_target TEXT CHECK(inbox_target IS NULL OR length(inbox_target) BETWEEN 1 AND 128),
+    session_id TEXT CHECK(session_id IS NULL OR length(session_id) BETWEEN 1 AND 128),
+    lineage_root_session_id TEXT CHECK(lineage_root_session_id IS NULL OR length(lineage_root_session_id) BETWEEN 1 AND 128),
+    summoned INTEGER NOT NULL CHECK(summoned IN (0,1)),
+    caller INTEGER NOT NULL CHECK(caller IN (0,1)),
+    PRIMARY KEY (tenant_id, harbor, parley_id, actor_id),
+    UNIQUE (tenant_id, harbor, parley_id, ordinal),
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS parley_turns (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    turn_sequence INTEGER NOT NULL CHECK(turn_sequence > 0),
+    party TEXT NOT NULL CHECK(length(party) BETWEEN 1 AND 128),
+    idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) BETWEEN 1 AND 256),
+    intent_fingerprint TEXT NOT NULL CHECK(length(intent_fingerprint) = 64),
+    performative TEXT NOT NULL CHECK(performative IN ('propose','critique','revise','agree','refuse','inform')),
+    content TEXT NOT NULL CHECK(length(content) BETWEEN 1 AND 16384),
+    proposal_id TEXT CHECK(proposal_id IS NULL OR length(proposal_id) <= 256),
+    evidence_json TEXT NOT NULL,
+    delivery_keys_json TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, harbor, parley_id, turn_sequence),
+    UNIQUE (tenant_id, harbor, parley_id, party, idempotency_key),
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id, harbor, parley_id, party)
+      REFERENCES parley_participants(tenant_id, harbor, parley_id, actor_id)
+      ON DELETE RESTRICT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parley_turns_party
+    ON parley_turns(tenant_id, harbor, parley_id, party, turn_sequence);
+  CREATE INDEX IF NOT EXISTS idx_parley_turns_frontier
+    ON parley_turns(tenant_id, harbor, parley_id, at, turn_sequence);
+
+  CREATE TABLE IF NOT EXISTS parley_seen_receipts (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    last_seen_turn_sequence INTEGER NOT NULL CHECK(last_seen_turn_sequence > 0),
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, harbor, parley_id, actor_id),
+    FOREIGN KEY (tenant_id, harbor, parley_id, actor_id)
+      REFERENCES parley_participants(tenant_id, harbor, parley_id, actor_id)
+      ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id, harbor, parley_id, last_seen_turn_sequence)
+      REFERENCES parley_turns(tenant_id, harbor, parley_id, turn_sequence)
+      ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS parley_outcomes (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('COLLAPSED','ESCALATED','VOIDED')),
+    decision TEXT,
+    reason TEXT,
+    resolved_by TEXT NOT NULL CHECK(length(resolved_by) BETWEEN 1 AND 128),
+    dissenters_json TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, harbor, parley_id),
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS parley_auto_terminal_receipts (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    signal_id TEXT NOT NULL,
+    terminal_state TEXT NOT NULL CHECK(terminal_state IN ('evaluated','fired','suppressed','failed')),
+    parley_id TEXT,
+    decision_json TEXT NOT NULL,
+    reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 4096),
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, harbor, signal_id),
+    FOREIGN KEY (tenant_id, harbor, signal_id)
+      REFERENCES parley_auto_signals(tenant_id, harbor, signal_id)
+      ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE,
+    CHECK (
+      (terminal_state = 'fired' AND parley_id IS NOT NULL)
+      OR (terminal_state <> 'fired' AND parley_id IS NULL)
+    )
+  );
+
+  CREATE TABLE IF NOT EXISTS parley_lineage_cooldowns (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    lineage_key TEXT NOT NULL CHECK(length(lineage_key) BETWEEN 1 AND 192),
+    owner_signal_id TEXT NOT NULL,
+    owner_parley_id TEXT,
+    state TEXT NOT NULL CHECK(state IN ('active','cooldown')),
+    reserved_at INTEGER NOT NULL,
+    cooldown_ms INTEGER NOT NULL CHECK(cooldown_ms BETWEEN 1 AND ${PARLEY_STORE_LIMITS.maxTtlMs}),
+    cooldown_until INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, harbor, lineage_key),
+    FOREIGN KEY (tenant_id, harbor, owner_signal_id)
+      REFERENCES parley_auto_signals(tenant_id, harbor, signal_id)
+      ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parley_lineage_owner
+    ON parley_lineage_cooldowns(tenant_id, harbor, owner_signal_id);
+
+  CREATE TABLE IF NOT EXISTS parley_admissions (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    dimension TEXT NOT NULL CHECK(length(dimension) BETWEEN 1 AND 96),
+    slot INTEGER NOT NULL CHECK(slot >= 0),
+    signal_id TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    reserved_at INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, harbor, dimension, slot),
+    UNIQUE (tenant_id, harbor, dimension, signal_id),
+    FOREIGN KEY (tenant_id, harbor, signal_id)
+      REFERENCES parley_auto_signals(tenant_id, harbor, signal_id)
+      ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parley_admissions_signal
+    ON parley_admissions(tenant_id, harbor, signal_id);
+
+  CREATE TABLE IF NOT EXISTS parley_notification_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL CHECK(length(tenant_id) BETWEEN 1 AND 128),
+    harbor TEXT NOT NULL CHECK(length(harbor) BETWEEN 1 AND 128),
+    parley_id TEXT NOT NULL,
+    delivery_key TEXT NOT NULL CHECK(length(delivery_key) BETWEEN 1 AND 512),
+    recipient_actor_id TEXT NOT NULL CHECK(length(recipient_actor_id) BETWEEN 1 AND 128),
+    inbox_target TEXT NOT NULL CHECK(length(inbox_target) BETWEEN 1 AND 128),
+    from_actor_id TEXT NOT NULL CHECK(length(from_actor_id) BETWEEN 1 AND 128),
+    event_type TEXT NOT NULL CHECK(event_type IN ('parley_summons','parley_turn','parley_escalation')),
+    payload_json TEXT NOT NULL,
+    payload_hash TEXT NOT NULL CHECK(length(payload_hash) = 64),
+    state TEXT NOT NULL CHECK(state IN ('pending','leased','delivered','dead')),
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 8),
+    available_at INTEGER NOT NULL,
+    lease_until INTEGER,
+    lease_token TEXT,
+    last_error TEXT,
+    created_at INTEGER NOT NULL,
+    delivered_at INTEGER,
+    UNIQUE (tenant_id, harbor, delivery_key),
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE,
+    CHECK (
+      (state = 'leased' AND lease_until IS NOT NULL AND lease_token IS NOT NULL)
+      OR (state <> 'leased' AND lease_until IS NULL AND lease_token IS NULL)
+    )
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parley_outbox_ready
+    ON parley_notification_outbox(tenant_id, harbor, state, available_at, id);
+  CREATE INDEX IF NOT EXISTS idx_parley_outbox_retention
+    ON parley_notification_outbox(tenant_id, harbor, delivered_at, id);
+
+  CREATE TABLE IF NOT EXISTS parley_notification_overflow_receipts (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    dropped_intents INTEGER NOT NULL
+      CHECK(dropped_intents BETWEEN 1 AND ${PARLEY_STORE_LIMITS.maxOverflowIntentsPerParley}),
+    batch_count INTEGER NOT NULL CHECK(batch_count BETWEEN 1 AND 4),
+    saw_turn INTEGER NOT NULL CHECK(saw_turn IN (0,1)),
+    saw_escalation INTEGER NOT NULL CHECK(saw_escalation IN (0,1)),
+    evidence_hash TEXT NOT NULL CHECK(length(evidence_hash) = 64),
+    first_at INTEGER NOT NULL,
+    last_at INTEGER NOT NULL CHECK(last_at >= first_at),
+    last_error TEXT NOT NULL CHECK(length(last_error) BETWEEN 1 AND 4096),
+    PRIMARY KEY (tenant_id, harbor, parley_id),
+    FOREIGN KEY (tenant_id, harbor, parley_id)
+      REFERENCES parley_records(tenant_id, harbor, parley_id)
+      ON DELETE CASCADE
+  );
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_records_quota_insert
+  AFTER INSERT ON parley_records
+  BEGIN
+    INSERT INTO parley_quota_ledger (tenant_id, harbor)
+    VALUES (NEW.tenant_id, NEW.harbor)
+    ON CONFLICT(tenant_id, harbor) DO NOTHING;
+    UPDATE parley_quota_ledger
+    SET retained_records = retained_records + 1
+    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_records_quota_delete
+  BEFORE DELETE ON parley_records
+  BEGIN
+    SELECT CASE WHEN COALESCE((
+      SELECT retained_records FROM parley_quota_ledger
+      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-record quota ledger underflow') END;
+    UPDATE parley_quota_ledger
+    SET retained_records = retained_records - 1
+    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_signals_quota_insert
+  AFTER INSERT ON parley_auto_signals
+  BEGIN
+    INSERT INTO parley_quota_ledger (tenant_id, harbor)
+    VALUES (NEW.tenant_id, NEW.harbor)
+    ON CONFLICT(tenant_id, harbor) DO NOTHING;
+    UPDATE parley_quota_ledger
+    SET retained_signals = retained_signals + 1
+    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_signals_quota_delete
+  BEFORE DELETE ON parley_auto_signals
+  BEGIN
+    SELECT CASE WHEN COALESCE((
+      SELECT retained_signals FROM parley_quota_ledger
+      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-signal quota ledger underflow') END;
+    UPDATE parley_quota_ledger
+    SET retained_signals = retained_signals - 1
+    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_turns_quota_insert
+  AFTER INSERT ON parley_turns
+  BEGIN
+    INSERT INTO parley_quota_ledger (tenant_id, harbor)
+    VALUES (NEW.tenant_id, NEW.harbor)
+    ON CONFLICT(tenant_id, harbor) DO NOTHING;
+    UPDATE parley_quota_ledger
+    SET retained_turns = retained_turns + 1
+    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_turns_quota_delete
+  BEFORE DELETE ON parley_turns
+  BEGIN
+    SELECT CASE WHEN COALESCE((
+      SELECT retained_turns FROM parley_quota_ledger
+      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-turn quota ledger underflow') END;
+    UPDATE parley_quota_ledger
+    SET retained_turns = retained_turns - 1
+    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_outbox_quota_insert
+  AFTER INSERT ON parley_notification_outbox
+  BEGIN
+    INSERT INTO parley_quota_ledger (tenant_id, harbor)
+    VALUES (NEW.tenant_id, NEW.harbor)
+    ON CONFLICT(tenant_id, harbor) DO NOTHING;
+    UPDATE parley_quota_ledger
+    SET retained_outbox = retained_outbox + 1
+    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_parley_outbox_quota_delete
+  BEFORE DELETE ON parley_notification_outbox
+  BEGIN
+    SELECT CASE WHEN COALESCE((
+      SELECT retained_outbox FROM parley_quota_ledger
+      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-outbox quota ledger underflow') END;
+    UPDATE parley_quota_ledger
+    SET retained_outbox = retained_outbox - 1
+    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
+  END;
+`;
+
+function hash(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function json(value: unknown): string {
+  const normalize = (candidate: unknown): unknown => {
+    if (Array.isArray(candidate)) return candidate.map(normalize);
+    if (candidate && typeof candidate === 'object') {
+      return Object.fromEntries(
+        Object.entries(candidate as Record<string, unknown>)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, nested]) => [key, normalize(nested)]),
+      );
+    }
+    return candidate;
+  };
+  const encoded = JSON.stringify(normalize(value));
+  if (typeof encoded !== 'string') throw new Error('value is not JSON-serializable');
+  return encoded;
+}
+
+/** Stable cooldown lineage deliberately excludes evidence references. */
+export function parleySignalLineageKey(signal: Pick<
+  ConflictSignal,
+  'checkpoint' | 'kind' | 'surface' | 'parties'
+>): string {
+  const parties = [...new Set(signal.parties.map((party) => party.trim()))].sort();
+  return `parley-lineage:v1:${hash(json([
+    signal.checkpoint,
+    signal.kind,
+    signal.surface.trim(),
+    parties,
+  ]))}`;
+}
+
+function parseJson<T>(raw: string, label: string): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new Error(`parley store poisoned row: invalid ${label}`);
+  }
+}
+
+function decodeParleyDecision(raw: string, expectedSignalId: string): ParleyDecision {
+  const value = parseJson<unknown>(raw, 'automatic terminal decision JSON');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('parley store poisoned row: automatic terminal decision must be an object');
+  }
+  const decision = value as Record<string, unknown>;
+  const checkpoint = decision.checkpoint;
+  const shape = decision.shape;
+  if (typeof decision.convene !== 'boolean'
+    || (checkpoint !== null && !(PARLEY_CHECKPOINTS as readonly unknown[]).includes(checkpoint))
+    || decision.signalId !== expectedSignalId
+    || typeof decision.policyCleared !== 'boolean'
+    || !Number.isSafeInteger(decision.unresolved)
+    || (decision.unresolved as number) < 0
+    || typeof decision.expectedWaste !== 'number'
+    || !Number.isFinite(decision.expectedWaste)
+    || (decision.expectedWaste as number) < 0
+    || typeof decision.margin !== 'number'
+    || !Number.isFinite(decision.margin)
+    || (decision.terminated !== null
+      && decision.terminated !== 'max-rounds'
+      && decision.terminated !== 'delegation-depth')
+    || typeof decision.reason !== 'string'
+    || !decision.reason
+    || decision.reason !== decision.reason.trim()
+    || decision.reason.length > 4_096
+    || (shape !== undefined && !(PARLEY_SHAPES as readonly unknown[]).includes(shape))) {
+    throw new Error('parley store poisoned row: automatic terminal decision is invalid');
+  }
+  return decision as unknown as ParleyDecision;
+}
+
+function assertCanonicalString(value: unknown, label: string, max: number): string {
+  if (typeof value !== 'string' || !value || value !== value.trim()) {
+    throw new Error(`${label} must be a non-empty canonical string`);
+  }
+  if (value.length > max) throw new Error(`${label} exceeds ${max} characters`);
+  return value;
+}
+
+function assertFiniteTimestamp(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${label} must be a non-negative safe integer timestamp`);
+  return value;
+}
+
+function canonicalStrings(values: readonly string[], label: string, maxItems: number, maxChars: number): string[] {
+  if (!Array.isArray(values) || values.length > maxItems) {
+    throw new Error(`${label} exceeds ${maxItems} items`);
+  }
+  const result = [...new Set(values.map((value) => assertCanonicalString(value, label, maxChars)))].sort();
+  return result;
+}
+
+function isTerminalStatus(value: string): value is Extract<ParleyStatus, 'COLLAPSED' | 'ESCALATED' | 'VOIDED'> {
+  return value === 'COLLAPSED' || value === 'ESCALATED' || value === 'VOIDED';
+}
+
+function isAutomaticTerminalState(value: string): value is AutomaticTerminalState {
+  return value === 'evaluated' || value === 'fired' || value === 'suppressed' || value === 'failed';
+}
+
+function changes(result: unknown): number {
+  return Number((result as { changes?: unknown })?.changes ?? 0);
+}
+
+function assertRecord(record: ParleyRecord, tenantId: string): void {
+  assertCanonicalString(tenantId, 'parley tenantId', PARLEY_STORE_LIMITS.maxTenantChars);
+  assertCanonicalString(record.harbor, 'parley harbor', PARLEY_STORE_LIMITS.maxHarborChars);
+  assertCanonicalString(record.parleyId, 'parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+  assertCanonicalString(record.surface, 'parley surface', CONFLICT_SIGNAL_LIMITS.maxSurfaceChars);
+  assertCanonicalString(record.reason, 'parley reason', CONFLICT_SIGNAL_LIMITS.maxReasonChars);
+  assertCanonicalString(record.calledBy, 'parley calledBy', PARLEY_STORE_LIMITS.maxActorChars);
+  assertCanonicalString(record.channel, 'parley channel', PARLEY_STORE_LIMITS.maxChannelChars);
+  if (!Number.isInteger(record.roundLimit)
+    || record.roundLimit < 1
+    || record.roundLimit > PARLEY_STORE_LIMITS.maxRoundLimit) {
+    throw new Error(`parley roundLimit must be between 1 and ${PARLEY_STORE_LIMITS.maxRoundLimit}`);
+  }
+  assertFiniteTimestamp(record.createdAt, 'parley createdAt');
+  if (record.responseDueAt !== null) {
+    assertFiniteTimestamp(record.responseDueAt, 'parley responseDueAt');
+    if (record.responseDueAt < record.createdAt) {
+      throw new Error('parley responseDueAt must not precede createdAt');
+    }
+    if (record.responseDueAt - record.createdAt > PARLEY_STORE_LIMITS.maxTtlMs) {
+      throw new Error(`parley TTL exceeds ${PARLEY_STORE_LIMITS.maxTtlMs}ms`);
+    }
+  }
+  if (record.status !== 'SUMMONED') {
+    throw new Error('new Parley records must start SUMMONED');
+  }
+}
+
+function assertParticipant(value: StoredParleyParticipant, label: string): StoredParleyParticipant {
+  const actorId = assertCanonicalString(value.actorId, `${label}.actorId`, PARLEY_STORE_LIMITS.maxActorChars);
+  const inboxTarget = value.inboxTarget === null
+    ? null
+    : assertCanonicalString(value.inboxTarget, `${label}.inboxTarget`, PARLEY_STORE_LIMITS.maxActorChars);
+  const sessionId = value.sessionId === null
+    ? null
+    : assertCanonicalString(value.sessionId, `${label}.sessionId`, PARLEY_STORE_LIMITS.maxActorChars);
+  const lineageRootSessionId = value.lineageRootSessionId === null
+    ? null
+    : assertCanonicalString(
+      value.lineageRootSessionId,
+      `${label}.lineageRootSessionId`,
+      PARLEY_STORE_LIMITS.maxActorChars,
+    );
+  if (!value.summoned && !value.caller) throw new Error(`${label} must be summoned or caller`);
+  if (value.summoned && inboxTarget === null) throw new Error(`${label} summoned participant needs inboxTarget`);
+  return { actorId, inboxTarget, sessionId, lineageRootSessionId, summoned: value.summoned, caller: value.caller };
+}
+
+function assertParticipants(values: StoredParleyParticipant[]): StoredParleyParticipant[] {
+  if (!Array.isArray(values) || values.length < 2 || values.length > PARLEY_STORE_LIMITS.maxParticipants + 1) {
+    throw new Error(`parley participants must contain 2-${PARLEY_STORE_LIMITS.maxParticipants + 1} rows`);
+  }
+  const actors = new Set<string>();
+  const inboxes = new Set<string>();
+  let summoned = 0;
+  let callers = 0;
+  const result = values.map((value, index) => {
+    const participant = assertParticipant(value, `parley participant ${index}`);
+    if (actors.has(participant.actorId)) throw new Error('parley participant actorIds must be unique');
+    actors.add(participant.actorId);
+    if (participant.inboxTarget !== null) {
+      if (inboxes.has(participant.inboxTarget)) throw new Error('parley participant inboxTargets must be unique');
+      inboxes.add(participant.inboxTarget);
+    }
+    if (participant.summoned) summoned++;
+    if (participant.caller) callers++;
+    return participant;
+  });
+  if (summoned < 2) throw new Error('parley needs at least two summoned participants');
+  if (callers !== 1) throw new Error('parley needs exactly one caller participant');
+  return result.sort((a, b) => {
+    if (a.summoned !== b.summoned) return a.summoned ? -1 : 1;
+    return a.actorId.localeCompare(b.actorId);
+  });
+}
+
+function assertNotification(intent: ParleyNotificationIntent): ParleyNotificationIntent {
+  if (!intent || typeof intent !== 'object' || Array.isArray(intent)) {
+    throw new Error('outbox notification intent must be an object');
+  }
+  if (!intent.payload || typeof intent.payload !== 'object' || Array.isArray(intent.payload)) {
+    throw new Error('outbox payload must be an object');
+  }
+  const canonical: ParleyNotificationIntent = {
+    deliveryKey: assertCanonicalString(intent.deliveryKey, 'outbox deliveryKey', 512),
+    recipientActorId: assertCanonicalString(intent.recipientActorId, 'outbox recipientActorId', 128),
+    inboxTarget: assertCanonicalString(intent.inboxTarget, 'outbox inboxTarget', 128),
+    fromActorId: assertCanonicalString(intent.fromActorId, 'outbox fromActorId', 128),
+    eventType: intent.eventType,
+    payload: intent.payload,
+  };
+  if (intent.eventType !== 'parley_summons'
+    && intent.eventType !== 'parley_turn'
+    && intent.eventType !== 'parley_escalation') {
+    throw new Error('outbox eventType is invalid');
+  }
+  const payloadJson = json(intent.payload);
+  if (Buffer.byteLength(payloadJson, 'utf8') > PARLEY_STORE_LIMITS.maxOutboxPayloadBytes) {
+    throw new Error(`outbox payload exceeds ${PARLEY_STORE_LIMITS.maxOutboxPayloadBytes} bytes`);
+  }
+  return canonical;
+}
+
+function canonicalNotifications(intents: ParleyNotificationIntent[]): ParleyNotificationIntent[] {
+  if (!Array.isArray(intents) || intents.length > PARLEY_STORE_LIMITS.maxParticipants + 1) {
+    throw new Error(
+      `parley notification batch exceeds ${PARLEY_STORE_LIMITS.maxParticipants + 1} intents`,
+    );
+  }
+  const canonical = intents.map(assertNotification);
+  const deliveryKeys = canonical.map((intent) => intent.deliveryKey);
+  if (new Set(deliveryKeys).size !== deliveryKeys.length) {
+    throw new Error('parley notification delivery keys must be unique within a batch');
+  }
+  return canonical;
+}
+
+function decodeRecord(row: RecordRow): ParleyRecord {
+  if (row.status !== 'SUMMONED'
+    && row.status !== 'CONVENED'
+    && row.status !== 'COLLAPSED'
+    && row.status !== 'ESCALATED'
+    && row.status !== 'VOIDED') {
+    throw new Error('parley store poisoned row: invalid record status');
+  }
+  if (row.trigger !== 'operator'
+    && row.trigger !== 'claim_overlap'
+    && row.trigger !== 'detector'
+    && row.trigger !== 'swarm_fit') {
+    throw new Error('parley store poisoned row: invalid trigger');
+  }
+  const automatic = row.automatic_signal_id === null
+    ? null
+    : {
+      idempotencyKey: row.automatic_signal_id,
+      signalId: row.automatic_signal_id,
+      callFingerprint: assertCanonicalString(
+        row.automatic_call_fingerprint,
+        'stored automatic callFingerprint',
+        64,
+      ),
+      lineageKey: assertCanonicalString(row.automatic_lineage_key, 'stored automatic lineageKey', 192),
+      checkpoint: assertCanonicalString(row.automatic_checkpoint, 'stored automatic checkpoint', 64),
+      kind: assertCanonicalString(row.automatic_kind, 'stored automatic kind', 64),
+      shape: assertCanonicalString(row.automatic_shape, 'stored automatic shape', 64),
+      evidenceRefs: canonicalStrings(
+        parseJson<string[]>(row.automatic_evidence_json ?? '', 'automatic evidence JSON'),
+        'stored evidence reference',
+        CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs,
+        CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars,
+      ),
+      confidence: Number(row.automatic_confidence),
+      magnitude: Number(row.automatic_magnitude),
+      participants: [],
+    } as ParleyRecord['automatic'];
+  return {
+    parleyId: row.parley_id,
+    surface: row.surface,
+    reason: row.reason,
+    parties: [],
+    calledBy: row.called_by,
+    trigger: row.trigger,
+    channel: row.channel,
+    status: row.status,
+    harbor: row.harbor,
+    responseDueAt: row.response_due_at,
+    roundLimit: row.round_limit,
+    createdAt: row.created_at,
+    automatic,
+  };
+}
+
+function decodeParticipant(row: ParticipantRow): StoredParleyParticipant {
+  if ((row.summoned !== 0 && row.summoned !== 1) || (row.caller !== 0 && row.caller !== 1)) {
+    throw new Error('parley store poisoned row: invalid participant role');
+  }
+  return assertParticipant({
+    actorId: row.actor_id,
+    inboxTarget: row.inbox_target,
+    sessionId: row.session_id,
+    lineageRootSessionId: row.lineage_root_session_id,
+    summoned: row.summoned === 1,
+    caller: row.caller === 1,
+  }, 'stored participant');
+}
+
+function decodeTurn(parleyId: string, row: TurnRow): StoredParleyTurn {
+  if (!Number.isSafeInteger(row.turn_sequence) || row.turn_sequence < 1) {
+    throw new Error('parley store poisoned row: invalid turn sequence');
+  }
+  assertFiniteTimestamp(row.at, 'stored turn time');
+  if (!PERFORMATIVES.has(row.performative as ParleyPerformative)) {
+    throw new Error('parley store poisoned row: invalid performative');
+  }
+  return {
+    parleyId,
+    turnSequence: row.turn_sequence,
+    party: row.party,
+    performative: row.performative as ParleyPerformative,
+    content: row.content,
+    proposalId: row.proposal_id,
+    evidenceRefs: canonicalStrings(
+      parseJson<string[]>(row.evidence_json, 'turn evidence JSON'),
+      'stored turn evidence',
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs,
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars,
+    ),
+    at: row.at,
+  };
+}
+
+function decodeOutcome(parleyId: string, row: OutcomeRow | undefined): ParleyOutcome | null {
+  if (!row) return null;
+  if (!isTerminalStatus(row.status)) throw new Error('parley store poisoned row: invalid outcome status');
+  return {
+    parleyId,
+    status: row.status,
+    decision: row.decision,
+    reason: row.reason,
+    resolvedBy: row.resolved_by,
+    dissenters: canonicalStrings(
+      parseJson<string[]>(row.dissenters_json, 'outcome dissenters JSON'),
+      'stored dissenter',
+      PARLEY_STORE_LIMITS.maxParticipants,
+      PARLEY_STORE_LIMITS.maxActorChars,
+    ),
+    at: row.at,
+  };
+}
+
+function decodeDeliveryOverflow(row: {
+  dropped_intents: number;
+  batch_count: number;
+  saw_turn: number;
+  saw_escalation: number;
+  evidence_hash: string;
+  first_at: number;
+  last_at: number;
+  last_error: string;
+} | undefined): StoredDeliveryOverflowReceipt | null {
+  if (!row) return null;
+  if (!Number.isSafeInteger(row.dropped_intents)
+    || row.dropped_intents < 1
+    || row.dropped_intents > PARLEY_STORE_LIMITS.maxOverflowIntentsPerParley
+    || !Number.isSafeInteger(row.batch_count)
+    || row.batch_count < 1
+    || row.batch_count > 4
+    || (row.saw_turn !== 0 && row.saw_turn !== 1)
+    || (row.saw_escalation !== 0 && row.saw_escalation !== 1)
+    || !/^[a-f0-9]{64}$/.test(row.evidence_hash)
+    || !Number.isSafeInteger(row.first_at)
+    || !Number.isSafeInteger(row.last_at)
+    || row.last_at < row.first_at
+    || typeof row.last_error !== 'string'
+    || !row.last_error
+    || row.last_error !== row.last_error.trim()
+    || row.last_error.length > 4_096) {
+    throw new Error('parley store poisoned row: invalid notification overflow receipt');
+  }
+  return {
+    droppedIntents: row.dropped_intents,
+    batchCount: row.batch_count,
+    sawTurn: row.saw_turn === 1,
+    sawEscalation: row.saw_escalation === 1,
+    evidenceHash: row.evidence_hash,
+    firstAt: row.first_at,
+    lastAt: row.last_at,
+    lastError: row.last_error,
+  };
+}
+
+/** Create one tenant-bound Parley authority. No returned method can omit harbor scope. */
+export function createParleyStore(deps: ParleyStoreDeps) {
+  const { db } = deps;
+  const tenantId = assertCanonicalString(
+    deps.tenantId,
+    'parley store tenantId',
+    PARLEY_STORE_LIMITS.maxTenantChars,
+  );
+  const now = deps.now ?? (() => Date.now());
+  const fault = deps.faultInjector ?? (() => undefined);
+
+  db.pragma('foreign_keys = ON');
+  db.pragma('busy_timeout = 5000');
+  db.exec(SCHEMA);
+
+  function scope(harbor: string): string {
+    return assertCanonicalString(harbor, 'parley harbor', PARLEY_STORE_LIMITS.maxHarborChars);
+  }
+
+  function checkedQuotaSnapshot(row: {
+    retained_records: number;
+    retained_signals: number;
+    retained_turns: number;
+    retained_outbox: number;
+  }, label: string): ParleyQuotaSnapshot {
+    const values = [
+      ['retainedRecords', row.retained_records, PARLEY_STORE_LIMITS.maxRetainedRecordsPerHarbor],
+      ['retainedSignals', row.retained_signals, PARLEY_STORE_LIMITS.maxRetainedSignalsPerHarbor],
+      ['retainedTurns', row.retained_turns, PARLEY_STORE_LIMITS.maxRetainedTurnsPerHarbor],
+      ['retainedOutbox', row.retained_outbox, PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor],
+    ] as const;
+    for (const [name, value, maximum] of values) {
+      if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
+        throw new Error(`parley quota ledger poisoned row: ${label}.${name} is invalid`);
+      }
+    }
+    return {
+      retainedRecords: row.retained_records,
+      retainedSignals: row.retained_signals,
+      retainedTurns: row.retained_turns,
+      retainedOutbox: row.retained_outbox,
+    };
+  }
+
+  function quotaSnapshot(harbor: string): ParleyQuotaSnapshot {
+    const row = db.prepare(`
+      SELECT retained_records, retained_signals, retained_turns, retained_outbox
+      FROM parley_quota_ledger
+      WHERE tenant_id = ? AND harbor = ?
+    `).get(tenantId, harbor) as {
+      retained_records: number;
+      retained_signals: number;
+      retained_turns: number;
+      retained_outbox: number;
+    } | undefined;
+    return row ? checkedQuotaSnapshot(row, `${tenantId}/${harbor}`) : {
+      retainedRecords: 0,
+      retainedSignals: 0,
+      retainedTurns: 0,
+      retainedOutbox: 0,
+    };
+  }
+
+  function assertQuotaAvailable(
+    harbor: string,
+    deltas: Partial<ParleyQuotaSnapshot>,
+  ): void {
+    if (!db.inTransaction) {
+      throw new Error('parley quota admission requires an active SQLite transaction');
+    }
+    db.prepare(`
+      INSERT INTO parley_quota_ledger (tenant_id, harbor)
+      VALUES (?, ?)
+      ON CONFLICT(tenant_id, harbor) DO NOTHING
+    `).run(tenantId, harbor);
+    const current = quotaSnapshot(harbor);
+    const checks = [
+      [
+        'retained record',
+        current.retainedRecords,
+        deltas.retainedRecords ?? 0,
+        PARLEY_STORE_LIMITS.maxRetainedRecordsPerHarbor,
+      ],
+      [
+        'retained automatic signal',
+        current.retainedSignals,
+        deltas.retainedSignals ?? 0,
+        PARLEY_STORE_LIMITS.maxRetainedSignalsPerHarbor,
+      ],
+      [
+        'retained turn',
+        current.retainedTurns,
+        deltas.retainedTurns ?? 0,
+        PARLEY_STORE_LIMITS.maxRetainedTurnsPerHarbor,
+      ],
+      [
+        'retained outbox',
+        current.retainedOutbox,
+        deltas.retainedOutbox ?? 0,
+        PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor,
+      ],
+    ] as const;
+    for (const [label, count, delta, maximum] of checks) {
+      if (!Number.isSafeInteger(delta) || delta < 0 || count + delta > maximum) {
+        throw new Error(`parley ${label} quota ${maximum} reached for ${tenantId}/${harbor}`);
+      }
+    }
+  }
+
+  function reconcileQuotaLedger(): void {
+    // Migration/restart reconciliation owns the writer lock from its first
+    // canonical count through ledger replacement. A concurrent admission can
+    // therefore happen wholly before or wholly after rebuild, never in the
+    // scan-to-reset gap.
+    const transaction = db.transaction(() => {
+      const scopes = db.prepare(`
+        SELECT tenant_id, harbor FROM parley_records WHERE tenant_id = ?
+        UNION SELECT tenant_id, harbor FROM parley_auto_signals WHERE tenant_id = ?
+        UNION SELECT tenant_id, harbor FROM parley_turns WHERE tenant_id = ?
+        UNION SELECT tenant_id, harbor FROM parley_notification_outbox WHERE tenant_id = ?
+      `).all(tenantId, tenantId, tenantId, tenantId) as Array<{ tenant_id: string; harbor: string }>;
+      const reconciled = scopes.map(({ harbor }) => {
+        const count = (table: string): number => Number((db.prepare(`
+          SELECT COUNT(*) AS count FROM ${table} WHERE tenant_id = ? AND harbor = ?
+        `).get(tenantId, harbor) as { count: number }).count);
+        return {
+          harbor,
+          retained_records: count('parley_records'),
+          retained_signals: count('parley_auto_signals'),
+          retained_turns: count('parley_turns'),
+          retained_outbox: count('parley_notification_outbox'),
+        };
+      });
+      for (const row of reconciled) checkedQuotaSnapshot(row, `${tenantId}/${row.harbor}`);
+      db.prepare(`
+        DELETE FROM parley_quota_ledger
+        WHERE tenant_id = ?
+      `).run(tenantId);
+      const insert = db.prepare(`
+        INSERT INTO parley_quota_ledger (
+          tenant_id, harbor, retained_records, retained_signals,
+          retained_turns, retained_outbox
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const row of reconciled) {
+        insert.run(
+          tenantId,
+          row.harbor,
+          row.retained_records,
+          row.retained_signals,
+          row.retained_turns,
+          row.retained_outbox,
+        );
+      }
+    });
+    transaction.immediate();
+  }
+
+  reconcileQuotaLedger();
+
+  function insertRecord(record: ParleyRecord): void {
+    assertRecord(record, tenantId);
+    const retentionUntil = record.createdAt + PARLEY_STORE_LIMITS.retentionMs;
+    if (!Number.isSafeInteger(retentionUntil)) {
+      throw new Error('parley record retention deadline exceeds timestamp capacity');
+    }
+    const automatic = record.automatic;
+    const result = db.prepare(`
+      INSERT INTO parley_records (
+        tenant_id, harbor, parley_id, surface, reason, called_by, trigger,
+        channel, status, response_due_at, round_limit, created_at, updated_at,
+        retention_until, automatic_signal_id, automatic_call_fingerprint,
+        automatic_lineage_key, automatic_checkpoint, automatic_kind,
+        automatic_shape, automatic_evidence_json, automatic_confidence,
+        automatic_magnitude
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      )
+    `).run(
+      tenantId,
+      record.harbor,
+      record.parleyId,
+      record.surface,
+      record.reason,
+      record.calledBy,
+      record.trigger,
+      record.channel,
+      record.status,
+      record.responseDueAt,
+      record.roundLimit,
+      record.createdAt,
+      record.createdAt,
+      retentionUntil,
+      automatic?.signalId ?? null,
+      automatic?.callFingerprint ?? null,
+      automatic?.lineageKey ?? null,
+      automatic?.checkpoint ?? null,
+      automatic?.kind ?? null,
+      automatic?.shape ?? null,
+      automatic ? json(automatic.evidenceRefs) : null,
+      automatic?.confidence ?? null,
+      automatic?.magnitude ?? null,
+    );
+    if (changes(result) !== 1) throw new Error('parley store failed to insert canonical record');
+  }
+
+  function insertParticipants(record: ParleyRecord, input: StoredParleyParticipant[]): StoredParleyParticipant[] {
+    const participants = assertParticipants(input);
+    const statement = db.prepare(`
+      INSERT INTO parley_participants (
+        tenant_id, harbor, parley_id, ordinal, actor_id, inbox_target,
+        session_id, lineage_root_session_id, summoned, caller
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    participants.forEach((participant, ordinal) => {
+      statement.run(
+        tenantId,
+        record.harbor,
+        record.parleyId,
+        ordinal,
+        participant.actorId,
+        participant.inboxTarget,
+        participant.sessionId,
+        participant.lineageRootSessionId,
+        participant.summoned ? 1 : 0,
+        participant.caller ? 1 : 0,
+      );
+    });
+    return participants;
+  }
+
+  function pendingOutboxCount(harbor: string): number {
+    const row = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND state IN ('pending','leased')
+    `).get(tenantId, harbor) as { count: number };
+    return Number(row.count);
+  }
+
+  function insertNotificationRows(
+    record: ParleyRecord,
+    canonical: ParleyNotificationIntent[],
+    createdAt: number,
+    state: 'pending' | 'dead',
+    lastError: string | null,
+  ): number {
+    const statement = db.prepare(`
+      INSERT INTO parley_notification_outbox (
+        tenant_id, harbor, parley_id, delivery_key, recipient_actor_id,
+        inbox_target, from_actor_id, event_type, payload_json, payload_hash,
+        state, attempts, available_at, lease_until, lease_token, last_error,
+        created_at, delivered_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, NULL, ?, ?, NULL)
+      ON CONFLICT(tenant_id, harbor, delivery_key) DO NOTHING
+    `);
+    let inserted = 0;
+    for (const intent of canonical) {
+      const payload = json(intent.payload);
+      const result = statement.run(
+        tenantId,
+        record.harbor,
+        record.parleyId,
+        intent.deliveryKey,
+        intent.recipientActorId,
+        intent.inboxTarget,
+        intent.fromActorId,
+        intent.eventType,
+        payload,
+        hash(payload),
+        state,
+        createdAt,
+        lastError,
+        createdAt,
+      );
+      inserted += changes(result);
+      if (changes(result) === 0) {
+        const existing = db.prepare(`
+          SELECT parley_id, payload_hash, recipient_actor_id, inbox_target, from_actor_id, event_type
+          FROM parley_notification_outbox
+          WHERE tenant_id = ? AND harbor = ? AND delivery_key = ?
+        `).get(tenantId, record.harbor, intent.deliveryKey) as {
+          parley_id: string;
+          payload_hash: string;
+          recipient_actor_id: string;
+          inbox_target: string;
+          from_actor_id: string;
+          event_type: string;
+        } | undefined;
+        if (!existing
+          || existing.parley_id !== record.parleyId
+          || existing.payload_hash !== hash(payload)
+          || existing.recipient_actor_id !== intent.recipientActorId
+          || existing.inbox_target !== intent.inboxTarget
+          || existing.from_actor_id !== intent.fromActorId
+          || existing.event_type !== intent.eventType) {
+          throw new Error(`parley outbox replay mismatch for ${intent.deliveryKey}`);
+        }
+      }
+    }
+    return inserted;
+  }
+
+  function insertNotifications(
+    record: ParleyRecord,
+    intents: ParleyNotificationIntent[],
+    createdAt: number = record.createdAt,
+  ): number {
+    if (intents.length === 0) return 0;
+    const canonical = canonicalNotifications(intents);
+    assertQuotaAvailable(record.harbor, { retainedOutbox: canonical.length });
+    if (pendingOutboxCount(record.harbor) + canonical.length > PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor) {
+      throw new Error(`parley notification outbox capacity ${PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor} reached`);
+    }
+    return insertNotificationRows(record, canonical, createdAt, 'pending', null);
+  }
+
+  function insertOverflowReceipt(
+    record: ParleyRecord,
+    intents: ParleyNotificationIntent[],
+    createdAt: number,
+    lastError: string,
+  ): void {
+    const prior = db.prepare(`
+      SELECT dropped_intents, batch_count, saw_turn, saw_escalation,
+             evidence_hash, first_at
+      FROM parley_notification_overflow_receipts
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(tenantId, record.harbor, record.parleyId) as {
+      dropped_intents: number;
+      batch_count: number;
+      saw_turn: number;
+      saw_escalation: number;
+      evidence_hash: string;
+      first_at: number;
+    } | undefined;
+    const droppedIntents = (prior?.dropped_intents ?? 0) + intents.length;
+    const batchCount = (prior?.batch_count ?? 0) + 1;
+    if (droppedIntents > PARLEY_STORE_LIMITS.maxOverflowIntentsPerParley || batchCount > 4) {
+      throw new Error('parley terminal delivery overflow exceeded its bounded evidence receipt');
+    }
+    const sawTurn = (prior?.saw_turn === 1)
+      || intents.some((intent) => intent.eventType === 'parley_turn');
+    const sawEscalation = (prior?.saw_escalation === 1)
+      || intents.some((intent) => intent.eventType === 'parley_escalation');
+    const batchHash = hash(json(intents.map((intent) => ({
+      deliveryKey: intent.deliveryKey,
+      recipientActorId: intent.recipientActorId,
+      inboxTarget: intent.inboxTarget,
+      fromActorId: intent.fromActorId,
+      eventType: intent.eventType,
+      payloadHash: hash(json(intent.payload)),
+    }))));
+    const evidenceHash = prior ? hash(json([prior.evidence_hash, batchHash])) : batchHash;
+    db.prepare(`
+      INSERT INTO parley_notification_overflow_receipts (
+        tenant_id, harbor, parley_id, dropped_intents, batch_count,
+        saw_turn, saw_escalation, evidence_hash, first_at, last_at, last_error
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(tenant_id, harbor, parley_id) DO UPDATE SET
+        dropped_intents = excluded.dropped_intents,
+        batch_count = excluded.batch_count,
+        saw_turn = excluded.saw_turn,
+        saw_escalation = excluded.saw_escalation,
+        evidence_hash = excluded.evidence_hash,
+        last_at = excluded.last_at,
+        last_error = excluded.last_error
+    `).run(
+      tenantId,
+      record.harbor,
+      record.parleyId,
+      droppedIntents,
+      batchCount,
+      sawTurn ? 1 : 0,
+      sawEscalation ? 1 : 0,
+      evidenceHash,
+      prior?.first_at ?? createdAt,
+      createdAt,
+      lastError,
+    );
+  }
+
+  /**
+   * Terminal state is higher priority than delivery admission. Active-capacity
+   * saturation records terminal publications as dead rows while retained quota
+   * remains. At the hard retained-row limit, one bounded overflow receipt is
+   * inserted or updated instead. Neither condition may roll back the outcome,
+   * admission release, or refusal turn.
+   */
+  function insertTerminalNotifications(
+    record: ParleyRecord,
+    intents: ParleyNotificationIntent[],
+    createdAt: number,
+  ): number {
+    if (intents.length === 0) return 0;
+    const canonical = canonicalNotifications(intents);
+    const quota = quotaSnapshot(record.harbor);
+    const retainedCapacityAvailable = quota.retainedOutbox + canonical.length
+      <= PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor;
+    if (!retainedCapacityAvailable) {
+      insertOverflowReceipt(
+        record,
+        canonical,
+        createdAt,
+        `terminal notification overflow: retained outbox quota ${PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor} reached`,
+      );
+      return canonical.length;
+    }
+    const saturated = pendingOutboxCount(record.harbor) + canonical.length
+      > PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor;
+    insertNotificationRows(
+      record,
+      canonical,
+      createdAt,
+      saturated ? 'dead' : 'pending',
+      saturated
+        ? `terminal notification overflow: active outbox capacity ${PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor} reached`
+        : null,
+    );
+    return canonical.length;
+  }
+
+  function getRecordRow(harbor: string, parleyId: string): RecordRow | undefined {
+    return db.prepare(`
+      SELECT * FROM parley_records
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(tenantId, scope(harbor), assertCanonicalString(
+      parleyId,
+      'parley id',
+      PARLEY_STORE_LIMITS.maxParleyIdChars,
+    )) as RecordRow | undefined;
+  }
+
+  function participantRows(harbor: string, parleyId: string): ParticipantRow[] {
+    return db.prepare(`
+      SELECT ordinal, actor_id, inbox_target, session_id, lineage_root_session_id, summoned, caller
+      FROM parley_participants
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+      ORDER BY ordinal ASC, actor_id ASC
+    `).all(tenantId, harbor, parleyId) as ParticipantRow[];
+  }
+
+  function snapshotFromRow(row: RecordRow, observedAt: number): ParleyStoreSnapshot {
+    assertFiniteTimestamp(observedAt, 'parley snapshot time');
+    const participants = participantRows(row.harbor, row.parley_id).map(decodeParticipant);
+    if (participants.length < 2) throw new Error('parley store poisoned row: participant set is incomplete');
+    const parley = decodeRecord(row);
+    parley.parties = participants.filter((participant) => participant.summoned).map((participant) => participant.actorId);
+    if (parley.automatic) {
+      parley.automatic.participants = participants
+        .filter((participant) => participant.summoned)
+        .map((participant) => {
+          if (!participant.inboxTarget || !participant.sessionId || !participant.lineageRootSessionId) {
+            throw new Error('parley store poisoned row: automatic participant transport identity is incomplete');
+          }
+          return {
+            actorId: participant.actorId as ParleyParticipant['actorId'],
+            inboxTarget: participant.inboxTarget,
+            sessionId: participant.sessionId,
+            lineageRootSessionId: participant.lineageRootSessionId,
+          };
+        });
+    }
+    const turns = (db.prepare(`
+      SELECT turn_sequence, party, performative, content, proposal_id, evidence_json, at
+      FROM parley_turns
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+      ORDER BY turn_sequence ASC
+    `).all(tenantId, row.harbor, row.parley_id) as TurnRow[])
+      .map((turn) => decodeTurn(row.parley_id, turn));
+    const outcome = decodeOutcome(row.parley_id, db.prepare(`
+      SELECT status, decision, reason, resolved_by, dissenters_json, at
+      FROM parley_outcomes
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(tenantId, row.harbor, row.parley_id) as OutcomeRow | undefined);
+    if (outcome && row.status !== outcome.status) {
+      throw new Error('parley store poisoned row: canonical status and outcome disagree');
+    }
+    if (!outcome && TERMINAL_STATUSES.has(row.status as ParleyStatus)) {
+      throw new Error('parley store poisoned row: terminal record has no outcome');
+    }
+    const seenRows = db.prepare(`
+      SELECT r.actor_id, r.last_seen_turn_sequence, t.at AS last_seen_at
+      FROM parley_seen_receipts r
+      JOIN parley_turns t
+        ON t.tenant_id = r.tenant_id
+       AND t.harbor = r.harbor
+       AND t.parley_id = r.parley_id
+       AND t.turn_sequence = r.last_seen_turn_sequence
+      WHERE r.tenant_id = ? AND r.harbor = ? AND r.parley_id = ?
+      ORDER BY r.actor_id ASC
+    `).all(tenantId, row.harbor, row.parley_id) as Array<{
+      actor_id: string;
+      last_seen_turn_sequence: number;
+      last_seen_at: number;
+    }>;
+    const seen = new Map<string, StoredSeenReceipt>();
+    for (const receipt of seenRows) {
+      if (!Number.isSafeInteger(receipt.last_seen_turn_sequence)
+        || receipt.last_seen_turn_sequence < 1
+        || !Number.isSafeInteger(receipt.last_seen_at)) {
+        throw new Error('parley store poisoned row: invalid seen turn frontier');
+      }
+      seen.set(receipt.actor_id, {
+        lastSeenAt: receipt.last_seen_at,
+        turnSequence: receipt.last_seen_turn_sequence,
+      });
+    }
+    const deliveryOverflow = decodeDeliveryOverflow(db.prepare(`
+      SELECT dropped_intents, batch_count, saw_turn, saw_escalation,
+             evidence_hash, first_at, last_at, last_error
+      FROM parley_notification_overflow_receipts
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(tenantId, row.harbor, row.parley_id) as {
+      dropped_intents: number;
+      batch_count: number;
+      saw_turn: number;
+      saw_escalation: number;
+      evidence_hash: string;
+      first_at: number;
+      last_at: number;
+      last_error: string;
+    } | undefined);
+    return { parley, participants, turns, outcome, seen, deliveryOverflow, observedAt };
+  }
+
+  function createManual(input: ManualAdmissionInput): ParleyRecord {
+    const at = assertFiniteTimestamp(now(), 'manual Parley admission time');
+    if (input.parley.automatic !== null) {
+      throw new Error('manual Parley admission cannot carry automatic metadata');
+    }
+    const ttlMs = input.responseTtlMs;
+    if (ttlMs !== null
+      && (!Number.isSafeInteger(ttlMs) || ttlMs < 1 || ttlMs > PARLEY_STORE_LIMITS.maxTtlMs)) {
+      throw new Error(`manual Parley responseTtlMs must be null or between 1 and ${PARLEY_STORE_LIMITS.maxTtlMs}`);
+    }
+    const responseDueAt = ttlMs === null ? null : at + ttlMs;
+    if (responseDueAt !== null && !Number.isSafeInteger(responseDueAt)) {
+      throw new Error('manual Parley response deadline exceeds timestamp capacity');
+    }
+    const record: ParleyRecord = {
+      ...input.parley,
+      createdAt: at,
+      responseDueAt,
+    };
+    scope(record.harbor);
+    const notifications = canonicalNotifications(input.notifications(record));
+    const transaction = db.transaction(() => {
+      assertQuotaAvailable(record.harbor, {
+        retainedRecords: 1,
+        retainedOutbox: notifications.length,
+      });
+      if (pendingOutboxCount(record.harbor) + notifications.length
+        > PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor) {
+        throw new Error(
+          `parley notification outbox capacity ${PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor} reached`,
+        );
+      }
+      insertRecord(record);
+      fault('manual.record');
+      insertParticipants(record, input.participants);
+      fault('manual.participants');
+      insertNotifications(record, notifications);
+      fault('manual.outbox');
+      return snapshotFromRow(getRecordRow(record.harbor, record.parleyId)!, at).parley;
+    });
+    return transaction();
+  }
+
+  function insertTerminalReceipt(
+    harbor: string,
+    signalId: string,
+    state: AutomaticTerminalState,
+    parleyId: string | null,
+    decision: ParleyDecision,
+    reason: string,
+    at: number,
+  ): boolean {
+    assertCanonicalString(reason, 'automatic terminal reason', 4096);
+    if (decision.signalId !== signalId) {
+      throw new Error('automatic terminal decision signalId does not match its receipt');
+    }
+    const result = db.prepare(`
+      INSERT INTO parley_auto_terminal_receipts (
+        tenant_id, harbor, signal_id, terminal_state, parley_id,
+        decision_json, reason, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(tenant_id, harbor, signal_id) DO NOTHING
+    `).run(tenantId, harbor, signalId, state, parleyId, json(decision), reason, at);
+    if (changes(result) === 0) {
+      const prior = db.prepare(`
+        SELECT terminal_state, parley_id, decision_json, reason, created_at
+        FROM parley_auto_terminal_receipts
+        WHERE tenant_id = ? AND harbor = ? AND signal_id = ?
+      `).get(tenantId, harbor, signalId) as ReceiptRow | undefined;
+      if (!prior
+        || prior.terminal_state !== state
+        || prior.parley_id !== parleyId
+        || prior.decision_json !== json(decision)
+        || prior.reason !== reason) {
+        throw new Error(`parley terminal receipt replay mismatch for ${signalId}`);
+      }
+      return false;
+    }
+    return true;
+  }
+
+  function readTerminalReceipt(harbor: string, signalId: string): ReceiptRow | null {
+    const row = db.prepare(`
+      SELECT terminal_state, parley_id, decision_json, reason, created_at
+      FROM parley_auto_terminal_receipts
+      WHERE tenant_id = ? AND harbor = ? AND signal_id = ?
+    `).get(tenantId, harbor, signalId) as ReceiptRow | undefined;
+    if (!row) return null;
+    if (!isAutomaticTerminalState(row.terminal_state)) {
+      throw new Error('parley store poisoned row: invalid automatic terminal state');
+    }
+    if ((row.terminal_state === 'fired') !== (row.parley_id !== null)) {
+      throw new Error('parley store poisoned row: automatic terminal Parley reference is inconsistent');
+    }
+    if (row.parley_id !== null) {
+      assertCanonicalString(row.parley_id, 'automatic terminal parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+    }
+    assertFiniteTimestamp(row.created_at, 'automatic terminal receipt time');
+    decodeParleyDecision(row.decision_json, signalId);
+    return row;
+  }
+
+  function resultFromReceipt(harbor: string, receipt: ReceiptRow): AutomaticAdmissionResult {
+    const parley = receipt.parley_id
+      ? snapshotFromRow(
+        getRecordRow(harbor, receipt.parley_id)
+          ?? (() => { throw new Error('parley store poisoned row: terminal receipt references missing Parley'); })(),
+        receipt.created_at,
+      ).parley
+      : null;
+    return {
+      terminalState: receipt.terminal_state as AutomaticTerminalState,
+      replayed: true,
+      parley,
+      reason: receipt.reason,
+      summonsInserted: 0,
+      receiptInserted: false,
+    };
+  }
+
+  function writeOutcome(
+    row: RecordRow,
+    input: {
+      status: Extract<ParleyStatus, 'COLLAPSED' | 'ESCALATED' | 'VOIDED'>;
+      decision: string | null;
+      reason: string | null;
+      resolvedBy: string;
+      dissenters: string[];
+      at: number;
+    },
+  ): { outcome: ParleyOutcome; inserted: boolean } {
+    const observedAt = assertFiniteTimestamp(input.at, 'outcome server time');
+    const latestTurn = db.prepare(`
+      SELECT MAX(at) AS at FROM parley_turns
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(tenantId, row.harbor, row.parley_id) as { at: number | null };
+    const at = Math.max(observedAt, row.created_at, row.updated_at, latestTurn.at ?? 0);
+    const retentionUntil = at + PARLEY_STORE_LIMITS.retentionMs;
+    if (!Number.isSafeInteger(at) || !Number.isSafeInteger(retentionUntil)) {
+      throw new Error('parley terminal clock exceeds timestamp capacity');
+    }
+    const resolvedBy = assertCanonicalString(input.resolvedBy, 'outcome resolvedBy', 128);
+    const decision = input.decision === null
+      ? null
+      : assertCanonicalString(input.decision, 'outcome decision', PARLEY_STORE_LIMITS.maxDecisionChars);
+    const reason = input.reason === null
+      ? null
+      : assertCanonicalString(input.reason, 'outcome reason', PARLEY_STORE_LIMITS.maxDecisionChars);
+    const dissenters = canonicalStrings(
+      input.dissenters,
+      'outcome dissenter',
+      PARLEY_STORE_LIMITS.maxParticipants,
+      PARLEY_STORE_LIMITS.maxActorChars,
+    );
+    const result = db.prepare(`
+      INSERT INTO parley_outcomes (
+        tenant_id, harbor, parley_id, status, decision, reason,
+        resolved_by, dissenters_json, at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(tenant_id, harbor, parley_id) DO NOTHING
+    `).run(
+      tenantId,
+      row.harbor,
+      row.parley_id,
+      input.status,
+      decision,
+      reason,
+      resolvedBy,
+      json(dissenters),
+      at,
+    );
+    if (changes(result) === 1) {
+      const updated = db.prepare(`
+        UPDATE parley_records
+        SET status = ?, updated_at = ?, retention_until = ?
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+          AND status NOT IN ('COLLAPSED','ESCALATED','VOIDED')
+      `).run(
+        input.status,
+        at,
+        retentionUntil,
+        tenantId,
+        row.harbor,
+        row.parley_id,
+      );
+      if (changes(updated) !== 1) {
+        throw new Error('parley store poisoned row: terminal outcome could not advance its canonical record');
+      }
+      return {
+        inserted: true,
+        outcome: {
+          parleyId: row.parley_id,
+          status: input.status,
+          decision,
+          reason,
+          resolvedBy,
+          dissenters,
+          at,
+        },
+      };
+    }
+    const prior = decodeOutcome(row.parley_id, db.prepare(`
+      SELECT status, decision, reason, resolved_by, dissenters_json, at
+      FROM parley_outcomes
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(tenantId, row.harbor, row.parley_id) as OutcomeRow | undefined);
+    if (!prior) throw new Error('parley store poisoned row: outcome conflict without outcome');
+    return { outcome: prior, inserted: false };
+  }
+
+  function releaseAutomatic(row: RecordRow, at: number): void {
+    if (!row.automatic_signal_id || !row.automatic_lineage_key) return;
+    const lineage = db.prepare(`
+      SELECT cooldown_ms
+      FROM parley_lineage_cooldowns
+      WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+        AND owner_signal_id = ?
+    `).get(
+      tenantId,
+      row.harbor,
+      row.automatic_lineage_key,
+      row.automatic_signal_id,
+    ) as { cooldown_ms: number } | undefined;
+    if (!lineage
+      || !Number.isSafeInteger(lineage.cooldown_ms)
+      || lineage.cooldown_ms < 1
+      || lineage.cooldown_ms > PARLEY_STORE_LIMITS.maxTtlMs) {
+      throw new Error('parley store poisoned row: automatic lineage cooldown policy is missing or invalid');
+    }
+    const cooldownUntil = at + lineage.cooldown_ms;
+    if (!Number.isSafeInteger(cooldownUntil)) {
+      throw new Error('parley automatic lineage cooldown exceeds timestamp capacity');
+    }
+    db.prepare(`
+      DELETE FROM parley_admissions
+      WHERE tenant_id = ? AND harbor = ? AND signal_id = ?
+    `).run(tenantId, row.harbor, row.automatic_signal_id);
+    const released = db.prepare(`
+      UPDATE parley_lineage_cooldowns
+      SET state = 'cooldown', cooldown_until = ?
+      WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+        AND owner_signal_id = ?
+    `).run(
+      cooldownUntil,
+      tenantId,
+      row.harbor,
+      row.automatic_lineage_key,
+      row.automatic_signal_id,
+    );
+    if (changes(released) !== 1) {
+      throw new Error('parley store poisoned row: automatic lineage release lost its owner');
+    }
+  }
+
+  function escalationNotifications(row: RecordRow, reason: string, at: number): ParleyNotificationIntent[] {
+    return participantRows(row.harbor, row.parley_id)
+      .map(decodeParticipant)
+      .filter((participant) => participant.inboxTarget !== null)
+      .map((participant) => ({
+        deliveryKey: `parley-escalation:${row.parley_id}:${participant.actorId}`,
+        recipientActorId: participant.actorId,
+        inboxTarget: participant.inboxTarget!,
+        fromActorId: 'port-daddy:parley',
+        eventType: 'parley_escalation' as const,
+        payload: {
+          kind: 'parley_escalation',
+          parleyId: row.parley_id,
+          surface: row.surface,
+          channel: row.channel,
+          reason,
+          at,
+        },
+      }));
+  }
+
+  function settleExpired(harbor: string, at: number): number {
+    const expired = db.prepare(`
+      SELECT * FROM parley_records
+      WHERE tenant_id = ? AND harbor = ?
+        AND status NOT IN ('COLLAPSED','ESCALATED','VOIDED')
+        AND response_due_at IS NOT NULL AND response_due_at < ?
+      ORDER BY response_due_at ASC, parley_id ASC
+      LIMIT ?
+    `).all(tenantId, harbor, at, PARLEY_STORE_LIMITS.reapBatch) as RecordRow[];
+    let settled = 0;
+    for (const row of expired) {
+      const reason = 'response TTL expired without terminal outcome';
+      const terminal = writeOutcome(row, {
+        status: 'ESCALATED',
+        decision: null,
+        reason,
+        resolvedBy: 'port-daddy:parley',
+        dissenters: [],
+        at,
+      });
+      if (!terminal.inserted) continue;
+      releaseAutomatic(row, terminal.outcome.at);
+      insertTerminalNotifications(
+        decodeRecord(row),
+        escalationNotifications(row, reason, terminal.outcome.at),
+        terminal.outcome.at,
+      );
+      settled++;
+    }
+    return settled;
+  }
+
+  function settleOneExpired(
+    harbor: string,
+    parleyId: string,
+    at: number,
+  ): boolean {
+    const row = getRecordRow(harbor, parleyId);
+    if (!row
+      || TERMINAL_STATUSES.has(row.status as ParleyStatus)
+      || row.response_due_at === null
+      || row.response_due_at >= at) {
+      return false;
+    }
+    const reason = 'response TTL expired without terminal outcome';
+    const terminal = writeOutcome(row, {
+      status: 'ESCALATED',
+      decision: null,
+      reason,
+      resolvedBy: 'port-daddy:parley',
+      dissenters: [],
+      at,
+    });
+    if (!terminal.inserted) return false;
+    releaseAutomatic(row, terminal.outcome.at);
+    insertTerminalNotifications(
+      decodeRecord(row),
+      escalationNotifications(row, reason, terminal.outcome.at),
+      terminal.outcome.at,
+    );
+    return true;
+  }
+
+  function validateSignal(input: AutomaticAdmissionInput): {
+    harbor: string;
+    signalId: string;
+    canonicalSignal: string;
+    lineageKey: string;
+    producerId: string;
+    checkpoint: string;
+    producerEventKey: string;
+    producedAt: number;
+    at: number;
+  } {
+    const harbor = scope(input.harbor);
+    const expectedDecision = shouldConvene(input.signal, { mode: 'automatic' });
+    if (!expectedDecision.policyCleared && !expectedDecision.terminated) {
+      throw new Error(expectedDecision.reason);
+    }
+    const signalId = assertCanonicalString(
+      input.signal.signalId,
+      'automatic signalId',
+      CONFLICT_SIGNAL_LIMITS.maxSignalIdChars,
+    );
+    const lineageKey = assertCanonicalString(input.lineageKey, 'automatic lineageKey', 192);
+    const expectedSignalId = conflictSignalId({
+      checkpoint: input.signal.checkpoint,
+      kind: input.signal.kind,
+      surface: input.signal.surface,
+      parties: input.signal.parties,
+      evidenceRefs: input.signal.evidenceRefs,
+    });
+    if (signalId !== expectedSignalId) {
+      throw new Error('automatic signalId does not match its canonical structural identity');
+    }
+    const expectedLineageKey = parleySignalLineageKey(input.signal);
+    if (lineageKey !== expectedLineageKey) {
+      throw new Error('automatic lineageKey does not match its canonical signal lineage');
+    }
+    if (json(input.decision) !== json(expectedDecision)) {
+      throw new Error('automatic decision does not match immutable server evaluation');
+    }
+    if ((expectedDecision.terminated !== null && input.terminalState !== 'suppressed')
+      || (expectedDecision.terminated === null
+        && !expectedDecision.convene
+        && input.terminalState !== 'evaluated')
+      || (expectedDecision.convene && input.terminalState === 'evaluated')) {
+      throw new Error('automatic terminal state does not match immutable server evaluation');
+    }
+    if (!/^[a-f0-9]{64}$/.test(input.signalFingerprint)) {
+      throw new Error('automatic signalFingerprint must be a lowercase SHA-256 digest');
+    }
+    if (!Number.isInteger(input.maxPendingGlobal) || input.maxPendingGlobal < 1 || input.maxPendingGlobal > 256) {
+      throw new Error('automatic maxPendingGlobal must be between 1 and 256');
+    }
+    if (!Number.isInteger(input.maxPendingPerSurface)
+      || input.maxPendingPerSurface < 1
+      || input.maxPendingPerSurface > input.maxPendingGlobal) {
+      throw new Error('automatic maxPendingPerSurface is invalid');
+    }
+    if (!Number.isSafeInteger(input.cooldownMs) || input.cooldownMs < 1 || input.cooldownMs > PARLEY_STORE_LIMITS.maxTtlMs) {
+      throw new Error('automatic cooldownMs is invalid');
+    }
+    if (!input.signal?.provenance || input.signal.provenance.trustTier !== 'INTERNAL') {
+      throw new Error('automatic signal provenance must be INTERNAL');
+    }
+    const producerId = assertCanonicalString(
+      input.signal.provenance.producer,
+      'automatic signal producer',
+      128,
+    );
+    if (!(Object.values(CONFLICT_SIGNAL_PRODUCERS) as string[]).includes(producerId)) {
+      throw new Error(`automatic signal producer '${producerId}' is unknown`);
+    }
+    const checkpoint = assertCanonicalString(input.signal.checkpoint, 'automatic signal checkpoint', 64);
+    if (!(PARLEY_CHECKPOINTS as readonly string[]).includes(checkpoint)) {
+      throw new Error(`automatic signal checkpoint '${checkpoint}' is unknown`);
+    }
+    const producedAt = assertFiniteTimestamp(
+      input.signal.provenance.producedAt,
+      'automatic signal producedAt',
+    );
+    if (producedAt === 0) throw new Error('automatic signal producedAt must be positive');
+    const canonicalParties = canonicalStrings(
+      input.signal.parties as string[],
+      'automatic signal party',
+      CONFLICT_SIGNAL_LIMITS.maxParties,
+      CONFLICT_SIGNAL_LIMITS.maxPartyChars,
+    );
+    const canonicalEvidenceRefs = canonicalStrings(
+      input.signal.evidenceRefs as string[],
+      'automatic signal evidence',
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs,
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars,
+    );
+    if (json(canonicalParties) !== json(input.signal.parties)
+      || json(canonicalEvidenceRefs) !== json(input.signal.evidenceRefs)
+      || input.signal.surface !== input.signal.surface.trim()
+      || input.signal.reason !== input.signal.reason.trim()) {
+      throw new Error('automatic signal must use canonical ordered strings');
+    }
+    const canonicalSignal = json(input.signal);
+    if (Buffer.byteLength(canonicalSignal, 'utf8') > PARLEY_STORE_LIMITS.maxOutboxPayloadBytes) {
+      throw new Error('automatic canonical signal exceeds storage capacity');
+    }
+    if (hash(canonicalSignal) !== input.signalFingerprint) {
+      throw new Error('automatic signalFingerprint does not match canonical signal content');
+    }
+    if (input.terminalState === 'fired') {
+      if (!input.parley) throw new Error('fired automatic admission requires a Parley');
+      if (typeof input.notifications !== 'function') {
+        throw new Error('fired automatic admission requires a notification factory');
+      }
+      if (input.parley.harbor !== harbor) throw new Error('automatic Parley harbor does not match admission scope');
+      if (input.parley.automatic?.signalId !== signalId
+        || input.parley.automatic.lineageKey !== lineageKey) {
+        throw new Error('automatic Parley metadata does not match canonical signal reservation');
+      }
+    } else if (input.parley !== null || input.notifications !== null || input.participants.length !== 0) {
+      throw new Error('non-fired automatic admission cannot create a Parley, participants, or notifications');
+    }
+    const at = assertFiniteTimestamp(now(), 'automatic admission time');
+    return {
+      harbor,
+      signalId,
+      canonicalSignal,
+      lineageKey,
+      producerId,
+      checkpoint,
+      producerEventKey: hash(json([producerId, checkpoint, signalId])),
+      producedAt,
+      at,
+    };
+  }
+
+  function assertFreshSignal(input: ReturnType<typeof validateSignal>): void {
+    const oldest = Math.max(0, input.at - PARLEY_SIGNAL_FRESHNESS.maxSignalAgeMs);
+    const newest = input.at + PARLEY_SIGNAL_FRESHNESS.maxFutureClockSkewMs;
+    if (!Number.isSafeInteger(newest)) {
+      throw new Error('automatic admission clock exceeds timestamp capacity');
+    }
+    if (input.producedAt < oldest) {
+      throw new Error(
+        `automatic signal is older than the server freshness window ${PARLEY_SIGNAL_FRESHNESS.maxSignalAgeMs}ms`,
+      );
+    }
+    if (input.producedAt > newest) {
+      throw new Error(
+        `automatic signal is future-dated beyond server clock skew ${PARLEY_SIGNAL_FRESHNESS.maxFutureClockSkewMs}ms`,
+      );
+    }
+  }
+
+  function terminalAutomaticResult(
+    harbor: string,
+    signalId: string,
+    state: AutomaticTerminalState,
+    decision: ParleyDecision,
+    reason: string,
+    at: number,
+    parley: ParleyRecord | null = null,
+    summonsInserted = 0,
+  ): AutomaticAdmissionResult {
+    const receiptInserted = insertTerminalReceipt(
+      harbor,
+      signalId,
+      state,
+      parley?.parleyId ?? null,
+      decision,
+      reason,
+      at,
+    );
+    fault('automatic.receipt');
+    return {
+      terminalState: state,
+      replayed: false,
+      parley,
+      reason,
+      summonsInserted,
+      receiptInserted,
+    };
+  }
+
+  function findAvailableSlot(harbor: string, dimension: string, capacity: number): number | null {
+    const rows = db.prepare(`
+      SELECT slot, signal_id, parley_id
+      FROM parley_admissions
+      WHERE tenant_id = ? AND harbor = ? AND dimension = ?
+      ORDER BY slot ASC
+    `).all(tenantId, harbor, dimension) as Array<{ slot: number; signal_id: string; parley_id: string }>;
+    const occupied = new Set<number>();
+    for (const row of rows) {
+      if (!Number.isInteger(row.slot) || row.slot < 0 || row.slot >= capacity) {
+        throw new Error('parley store poisoned row: admission slot is outside policy capacity');
+      }
+      const owner = getRecordRow(harbor, row.parley_id);
+      if (!owner || owner.automatic_signal_id !== row.signal_id) {
+        throw new Error('parley store poisoned row: admission owner is inconsistent');
+      }
+      if (TERMINAL_STATUSES.has(owner.status as ParleyStatus)) {
+        throw new Error('parley store poisoned row: terminal Parley still owns admission capacity');
+      }
+      occupied.add(row.slot);
+    }
+    for (let slot = 0; slot < capacity; slot++) {
+      if (!occupied.has(slot)) return slot;
+    }
+    return null;
+  }
+
+  function lineageSuppression(
+    harbor: string,
+    lineageKey: string,
+    signalId: string,
+    at: number,
+  ): string | null {
+    const row = db.prepare(`
+      SELECT owner_signal_id, owner_parley_id, state, reserved_at,
+             cooldown_ms, cooldown_until
+      FROM parley_lineage_cooldowns
+      WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+    `).get(tenantId, harbor, lineageKey) as LineageRow | undefined;
+    if (!row) return null;
+    if (row.state !== 'active' && row.state !== 'cooldown') {
+      throw new Error('parley store poisoned row: invalid lineage state');
+    }
+    if (!Number.isSafeInteger(row.reserved_at)
+      || !Number.isSafeInteger(row.cooldown_ms)
+      || row.cooldown_ms < 1
+      || row.cooldown_ms > PARLEY_STORE_LIMITS.maxTtlMs
+      || !Number.isSafeInteger(row.cooldown_until)) {
+      throw new Error('parley store poisoned row: invalid lineage timing policy');
+    }
+    if (row.owner_signal_id === signalId) {
+      throw new Error('parley store poisoned row: signal reservation exists without terminal receipt');
+    }
+    if (row.state === 'active') {
+      const owner = row.owner_parley_id ? getRecordRow(harbor, row.owner_parley_id) : undefined;
+      if (owner && !TERMINAL_STATUSES.has(owner.status as ParleyStatus)) {
+        return `pending automatic Parley ${owner.parley_id} already owns this lineage`;
+      }
+      if (owner && TERMINAL_STATUSES.has(owner.status as ParleyStatus)) {
+        const outcome = db.prepare(`
+          SELECT at FROM parley_outcomes
+          WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+        `).get(tenantId, harbor, owner.parley_id) as { at: number } | undefined;
+        if (!outcome) throw new Error('parley store poisoned row: terminal lineage owner has no outcome');
+        row.cooldown_until = outcome.at + row.cooldown_ms;
+        if (!Number.isSafeInteger(row.cooldown_until)) {
+          throw new Error('parley store poisoned row: lineage cooldown exceeds timestamp capacity');
+        }
+        db.prepare(`
+          UPDATE parley_lineage_cooldowns
+          SET state = 'cooldown', cooldown_until = ?
+          WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+        `).run(row.cooldown_until, tenantId, harbor, lineageKey);
+      } else if (at - row.reserved_at < row.cooldown_ms) {
+        return `pending automatic signal ${row.owner_signal_id} already owns this lineage`;
+      } else {
+        db.prepare(`
+          DELETE FROM parley_lineage_cooldowns
+          WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+        `).run(tenantId, harbor, lineageKey);
+        return null;
+      }
+    }
+    if (at < row.cooldown_until) {
+      return `automatic Parley lineage is within cooldown until ${row.cooldown_until}`;
+    }
+    db.prepare(`
+      DELETE FROM parley_lineage_cooldowns
+      WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+    `).run(tenantId, harbor, lineageKey);
+    return null;
+  }
+
+  /**
+   * Join automatic admission to an already-open transaction on this exact DB.
+   * This method never publishes notifications. Calling the ordinary admission
+   * method from an owning transaction is forbidden because its post-savepoint
+   * return is not an outer commit boundary.
+   */
+  function admitAutomaticInTransaction(input: AutomaticAdmissionInput): AutomaticAdmissionResult {
+    if (!db.inTransaction) {
+      throw new Error('automatic admission transaction seam requires an active owning SQLite transaction');
+    }
+    const validated = validateSignal(input);
+    const existing = db.prepare(`
+      SELECT signal_fingerprint, canonical_signal_json, lineage_key,
+             producer_id, checkpoint, producer_event_key, produced_at,
+             created_at, expires_at
+      FROM parley_auto_signals
+      WHERE tenant_id = ? AND harbor = ? AND signal_id = ?
+    `).get(tenantId, validated.harbor, validated.signalId) as SignalRow | undefined;
+    if (existing) {
+      if (existing.signal_fingerprint !== input.signalFingerprint
+        || existing.canonical_signal_json !== validated.canonicalSignal
+        || existing.lineage_key !== validated.lineageKey
+        || existing.producer_id !== validated.producerId
+        || existing.checkpoint !== validated.checkpoint
+        || existing.producer_event_key !== validated.producerEventKey
+        || existing.produced_at !== validated.producedAt) {
+        throw new Error('automatic signal replay mismatch: signalId was used for different canonical input');
+      }
+      const receipt = readTerminalReceipt(validated.harbor, validated.signalId);
+      if (!receipt) {
+        throw new Error('parley store poisoned row: automatic signal has no terminal evaluation receipt');
+      }
+      return resultFromReceipt(validated.harbor, receipt);
+    }
+
+    assertFreshSignal(validated);
+    assertQuotaAvailable(validated.harbor, { retainedSignals: 1 });
+    const expiresAt = validated.at + PARLEY_SIGNAL_FRESHNESS.dedupeTombstoneMs;
+    if (!Number.isSafeInteger(expiresAt)) {
+      throw new Error('automatic signal tombstone exceeds timestamp capacity');
+    }
+    const automaticResponseDueAt = validated.at + PARLEY_STORE_POLICY.automaticResponseTtlMs;
+    if (!Number.isSafeInteger(automaticResponseDueAt)) {
+      throw new Error('automatic Parley response deadline exceeds timestamp capacity');
+    }
+    const parleyRecord: ParleyRecord | null = input.parley === null ? null : {
+      ...input.parley,
+      status: 'SUMMONED',
+      responseDueAt: automaticResponseDueAt,
+      roundLimit: PARLEY_STORE_POLICY.automaticRoundLimit,
+      createdAt: validated.at,
+    };
+    const admissionNotifications = parleyRecord && input.notifications
+      ? canonicalNotifications(input.notifications(parleyRecord))
+      : [];
+    settleExpired(validated.harbor, validated.at);
+
+      db.prepare(`
+        INSERT INTO parley_auto_signals (
+          tenant_id, harbor, signal_id, signal_fingerprint,
+          canonical_signal_json, lineage_key, producer_id, checkpoint,
+          producer_event_key, produced_at, created_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        validated.harbor,
+        validated.signalId,
+        input.signalFingerprint,
+        validated.canonicalSignal,
+        validated.lineageKey,
+        validated.producerId,
+        validated.checkpoint,
+        validated.producerEventKey,
+        validated.producedAt,
+        validated.at,
+        expiresAt,
+      );
+      fault('automatic.signal');
+
+      if (input.terminalState !== 'fired') {
+        return terminalAutomaticResult(
+          validated.harbor,
+          validated.signalId,
+          input.terminalState,
+          input.decision,
+          input.reason,
+          validated.at,
+        );
+      }
+
+      const lineageReason = lineageSuppression(
+        validated.harbor,
+        validated.lineageKey,
+        validated.signalId,
+        validated.at,
+      );
+      if (lineageReason) {
+        return terminalAutomaticResult(
+          validated.harbor,
+          validated.signalId,
+          'suppressed',
+          input.decision,
+          lineageReason,
+          validated.at,
+        );
+      }
+
+      const surfaceDimension = `surface:${hash(parleyRecord!.surface)}`;
+      const surfaceSlot = findAvailableSlot(
+        validated.harbor,
+        surfaceDimension,
+        input.maxPendingPerSurface,
+      );
+      if (surfaceSlot === null) {
+        return terminalAutomaticResult(
+          validated.harbor,
+          validated.signalId,
+          'suppressed',
+          input.decision,
+          `automatic Parley surface cap ${input.maxPendingPerSurface} reached`,
+          validated.at,
+        );
+      }
+      const globalSlot = findAvailableSlot(
+        validated.harbor,
+        'global',
+        input.maxPendingGlobal,
+      );
+      if (globalSlot === null) {
+        return terminalAutomaticResult(
+          validated.harbor,
+          validated.signalId,
+          'suppressed',
+          input.decision,
+          `automatic Parley global cap ${input.maxPendingGlobal} reached`,
+          validated.at,
+        );
+      }
+
+      assertQuotaAvailable(validated.harbor, {
+        retainedRecords: 1,
+        retainedOutbox: admissionNotifications.length,
+      });
+      if (pendingOutboxCount(validated.harbor) + admissionNotifications.length
+        > PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor) {
+        throw new Error(
+          `parley notification outbox capacity ${PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor} reached`,
+        );
+      }
+      const initialCooldownUntil = validated.at + input.cooldownMs;
+      if (!Number.isSafeInteger(initialCooldownUntil)) {
+        throw new Error('parley automatic lineage cooldown exceeds timestamp capacity');
+      }
+
+      db.prepare(`
+        INSERT INTO parley_lineage_cooldowns (
+          tenant_id, harbor, lineage_key, owner_signal_id, owner_parley_id,
+          state, reserved_at, cooldown_ms, cooldown_until
+        ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)
+      `).run(
+        tenantId,
+        validated.harbor,
+        validated.lineageKey,
+        validated.signalId,
+        parleyRecord!.parleyId,
+        validated.at,
+        input.cooldownMs,
+        initialCooldownUntil,
+      );
+      fault('automatic.lineage');
+
+      insertRecord(parleyRecord!);
+      fault('automatic.record');
+      const participants: StoredParleyParticipant[] = input.participants.map((participant) => ({
+        actorId: participant.actorId,
+        inboxTarget: participant.inboxTarget,
+        sessionId: participant.sessionId,
+        lineageRootSessionId: participant.lineageRootSessionId,
+        summoned: true,
+        caller: participant.actorId === parleyRecord!.calledBy,
+      }));
+      if (!participants.some((participant) => participant.caller)) {
+        participants.push({
+          actorId: parleyRecord!.calledBy,
+          inboxTarget: null,
+          sessionId: null,
+          lineageRootSessionId: null,
+          summoned: false,
+          caller: true,
+        });
+      }
+      insertParticipants(parleyRecord!, participants);
+      fault('automatic.participants');
+
+      db.prepare(`
+        INSERT INTO parley_admissions (
+          tenant_id, harbor, dimension, slot, signal_id, parley_id, reserved_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        validated.harbor,
+        surfaceDimension,
+        surfaceSlot,
+        validated.signalId,
+        parleyRecord!.parleyId,
+        validated.at,
+      );
+      fault('automatic.surface-admission');
+      db.prepare(`
+        INSERT INTO parley_admissions (
+          tenant_id, harbor, dimension, slot, signal_id, parley_id, reserved_at
+        ) VALUES (?, ?, 'global', ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        validated.harbor,
+        globalSlot,
+        validated.signalId,
+        parleyRecord!.parleyId,
+        validated.at,
+      );
+      fault('automatic.global-admission');
+
+      const summonsInserted = insertNotifications(parleyRecord!, admissionNotifications);
+      fault('automatic.outbox');
+      return terminalAutomaticResult(
+        validated.harbor,
+        validated.signalId,
+        'fired',
+        input.decision,
+        input.reason,
+        validated.at,
+        snapshotFromRow(getRecordRow(validated.harbor, parleyRecord!.parleyId)!, validated.at).parley,
+        summonsInserted,
+      );
+  }
+
+  function admitAutomatic(input: AutomaticAdmissionInput): AutomaticAdmissionResult {
+    if (db.inTransaction) {
+      throw new Error(
+        'automatic admission inside an owning transaction must use admitAutomaticInTransaction',
+      );
+    }
+    return db.transaction(() => admitAutomaticInTransaction(input)).immediate();
+  }
+
+  function getSnapshot(harborInput: string, parleyId: string): ParleyStoreSnapshot | null {
+    const harbor = scope(harborInput);
+    const at = assertFiniteTimestamp(now(), 'parley read time');
+    const transaction = db.transaction(() => {
+      settleOneExpired(harbor, parleyId, at);
+      const row = getRecordRow(harbor, parleyId);
+      return row ? snapshotFromRow(row, at) : null;
+    });
+    return transaction();
+  }
+
+  function getAutomatic(signalIdInput: string, harborInput: string): AutomaticParleyLifecycle | null {
+    const harbor = scope(harborInput);
+    const signalId = assertCanonicalString(
+      signalIdInput,
+      'automatic signalId',
+      CONFLICT_SIGNAL_LIMITS.maxSignalIdChars,
+    );
+    const at = assertFiniteTimestamp(now(), 'automatic read time');
+    const transaction = db.transaction(() => {
+      const signal = db.prepare(`
+        SELECT 1 AS present
+        FROM parley_auto_signals
+        WHERE tenant_id = ? AND harbor = ? AND signal_id = ?
+      `).get(tenantId, harbor, signalId) as { present: number } | undefined;
+      if (!signal) return null;
+      const receipt = readTerminalReceipt(harbor, signalId);
+      if (!receipt) throw new Error('parley store poisoned row: automatic signal has no terminal receipt');
+      if (!receipt.parley_id) return null;
+      settleOneExpired(harbor, receipt.parley_id, at);
+      const row = getRecordRow(harbor, receipt.parley_id);
+      if (!row) throw new Error('parley store poisoned row: automatic receipt references missing Parley');
+      const snapshot = snapshotFromRow(row, at);
+      return { parley: snapshot.parley, status: snapshot.outcome?.status ?? snapshot.parley.status };
+    });
+    return transaction();
+  }
+
+  function list(input: {
+    harbor: string;
+    status?: ParleyStatus;
+    limit?: number;
+    before?: { createdAt: number; parleyId: string };
+  }): ParleyStoreSnapshot[] {
+    const harbor = scope(input.harbor);
+    const limit = input.limit ?? 50;
+    if (!Number.isInteger(limit) || limit < 1 || limit > PARLEY_STORE_LIMITS.maxListPage) {
+      throw new Error(`parley list limit must be between 1 and ${PARLEY_STORE_LIMITS.maxListPage}`);
+    }
+    if (input.status && input.status !== 'SUMMONED' && input.status !== 'CONVENED'
+      && input.status !== 'COLLAPSED' && input.status !== 'ESCALATED' && input.status !== 'VOIDED') {
+      throw new Error('parley list status is invalid');
+    }
+    const at = assertFiniteTimestamp(now(), 'parley list time');
+    const transaction = db.transaction(() => {
+      settleExpired(harbor, at);
+      const clauses = ['tenant_id = ?', 'harbor = ?'];
+      const params: unknown[] = [tenantId, harbor];
+      if (input.status) {
+        clauses.push('status = ?');
+        params.push(input.status);
+      }
+      if (input.before) {
+        const createdAt = assertFiniteTimestamp(input.before.createdAt, 'parley page cursor time');
+        const parleyId = assertCanonicalString(
+          input.before.parleyId,
+          'parley page cursor id',
+          PARLEY_STORE_LIMITS.maxParleyIdChars,
+        );
+        clauses.push('(created_at < ? OR (created_at = ? AND parley_id < ?))');
+        params.push(createdAt, createdAt, parleyId);
+      }
+      params.push(limit);
+      const rows = db.prepare(`
+        SELECT * FROM parley_records
+        WHERE ${clauses.join(' AND ')}
+        ORDER BY created_at DESC, parley_id DESC
+        LIMIT ?
+      `).all(...params) as RecordRow[];
+      return rows.map((row) => snapshotFromRow(row, at));
+    });
+    return transaction();
+  }
+
+  function addTurn(input: AddTurnInput): AddTurnResult {
+    const harbor = scope(input.harbor);
+    const parleyId = assertCanonicalString(input.parleyId, 'parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+    const party = assertCanonicalString(input.party, 'parley turn party', PARLEY_STORE_LIMITS.maxActorChars);
+    if (!PERFORMATIVES.has(input.performative)) throw new Error('parley turn performative is invalid');
+    const content = assertCanonicalString(
+      input.content,
+      'parley turn content',
+      PARLEY_STORE_LIMITS.maxTurnContentChars,
+    );
+    const proposalId = input.proposalId === null
+      ? null
+      : assertCanonicalString(input.proposalId, 'parley proposalId', PARLEY_STORE_LIMITS.maxProposalIdChars);
+    const evidenceRefs = canonicalStrings(
+      input.evidenceRefs,
+      'parley turn evidence',
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs,
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars,
+    );
+    if (Object.prototype.hasOwnProperty.call(input, 'at')) {
+      throw new Error('parley turns do not accept caller-owned timestamps');
+    }
+    const idempotencyKey = assertCanonicalString(
+      input.idempotencyKey,
+      'parley turn idempotencyKey',
+      256,
+    );
+    if (!/^[a-f0-9]{64}$/.test(input.intentFingerprint)) {
+      throw new Error('parley turn intentFingerprint must be a lowercase SHA-256 digest');
+    }
+    const expectedFingerprint = hash(json({
+      parleyId,
+      party,
+      performative: input.performative,
+      content,
+      proposalId,
+      evidenceRefs,
+    }));
+    if (input.intentFingerprint !== expectedFingerprint) {
+      throw new Error('parley turn intentFingerprint does not match canonical turn content');
+    }
+    const at = assertFiniteTimestamp(now(), 'parley turn time');
+    const transaction = db.transaction((): AddTurnResult => {
+      const existingTurn = db.prepare(`
+        SELECT turn_sequence, party, idempotency_key, intent_fingerprint,
+               performative, content, proposal_id, evidence_json,
+               delivery_keys_json, at
+        FROM parley_turns
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+          AND party = ? AND idempotency_key = ?
+      `).get(tenantId, harbor, parleyId, party, idempotencyKey) as TurnRow | undefined;
+      if (existingTurn) {
+        const storedEvidence = canonicalStrings(
+          parseJson<string[]>(existingTurn.evidence_json, 'turn evidence JSON'),
+          'stored turn evidence',
+          CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs,
+          CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars,
+        );
+        const storedFingerprint = hash(json({
+          parleyId,
+          party: existingTurn.party,
+          performative: existingTurn.performative,
+          content: existingTurn.content,
+          proposalId: existingTurn.proposal_id,
+          evidenceRefs: storedEvidence,
+        }));
+        if (existingTurn.intent_fingerprint !== storedFingerprint
+          || existingTurn.intent_fingerprint !== input.intentFingerprint) {
+          throw new Error('parley turn idempotency replay mismatch');
+        }
+        const deliveryKeys = canonicalStrings(
+          parseJson<string[]>(existingTurn.delivery_keys_json, 'turn delivery keys JSON'),
+          'stored turn delivery key',
+          PARLEY_STORE_LIMITS.maxParticipants + 1,
+          512,
+        );
+        return {
+          turn: decodeTurn(parleyId, existingTurn),
+          turnSequence: existingTurn.turn_sequence,
+          deliveryKeys,
+          escalatedReason: null,
+          replayed: true,
+        };
+      }
+      let row = getRecordRow(harbor, parleyId);
+      if (!row) throw new Error(`parley '${parleyId}' not found in harbor '${harbor}'`);
+      const participant = db.prepare(`
+        SELECT summoned FROM parley_participants
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND actor_id = ?
+      `).get(tenantId, harbor, parleyId, party) as { summoned: number } | undefined;
+      if (!participant || participant.summoned !== 1) {
+        throw new Error(`party '${party}' was not summoned`);
+      }
+      settleOneExpired(harbor, parleyId, at);
+      row = getRecordRow(harbor, parleyId)!;
+      const existingOutcome = decodeOutcome(parleyId, db.prepare(`
+        SELECT status, decision, reason, resolved_by, dissenters_json, at
+        FROM parley_outcomes
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+      `).get(tenantId, harbor, parleyId) as OutcomeRow | undefined);
+      if (existingOutcome) {
+        return {
+          turn: null,
+          turnSequence: null,
+          deliveryKeys: [],
+          escalatedReason: `parley is already ${existingOutcome.status}`,
+          replayed: false,
+        };
+      }
+      if (BUDGETED_PERFORMATIVES.has(input.performative)) {
+        const used = db.prepare(`
+          SELECT COUNT(*) AS count FROM parley_turns
+          WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND party = ?
+            AND performative IN ('propose','critique','revise','inform')
+        `).get(tenantId, harbor, parleyId, party) as { count: number };
+        if (Number(used.count) >= row.round_limit) {
+          const reason = `round limit exhausted for ${party}`;
+          const terminal = writeOutcome(row, {
+            status: 'ESCALATED',
+            decision: null,
+            reason,
+            resolvedBy: 'port-daddy:parley',
+            dissenters: [party],
+            at,
+          });
+          fault('terminal.outcome');
+          if (terminal.inserted) {
+            releaseAutomatic(row, terminal.outcome.at);
+            fault('terminal.release');
+            insertTerminalNotifications(
+              decodeRecord(row),
+              escalationNotifications(row, reason, terminal.outcome.at),
+              terminal.outcome.at,
+            );
+          }
+          return {
+            turn: null,
+            turnSequence: null,
+            deliveryKeys: [],
+            escalatedReason: reason,
+            replayed: false,
+          };
+        }
+      }
+      const count = db.prepare(`
+        SELECT COUNT(*) AS count FROM parley_turns
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+      `).get(tenantId, harbor, parleyId) as { count: number };
+      if (Number(count.count) >= PARLEY_STORE_LIMITS.maxTurnsPerParley) {
+        throw new Error(`parley turn capacity ${PARLEY_STORE_LIMITS.maxTurnsPerParley} reached`);
+      }
+      const last = db.prepare(`
+        SELECT turn_sequence, at
+        FROM parley_turns
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+        ORDER BY turn_sequence DESC
+        LIMIT 1
+      `).get(tenantId, harbor, parleyId) as { turn_sequence: number; at: number } | undefined;
+      if (last && at < last.at) {
+        throw new Error('parley turn time cannot precede the durable turn frontier');
+      }
+      const nextSequence = (last?.turn_sequence ?? 0) + 1;
+      if (!Number.isSafeInteger(nextSequence)) {
+        throw new Error('parley turn sequence exceeds integer capacity');
+      }
+      const turn: ParleyTurn = {
+        parleyId,
+        party,
+        performative: input.performative,
+        content,
+        proposalId,
+        evidenceRefs,
+        at,
+      };
+      const notifications = canonicalNotifications(input.notifications(nextSequence, at));
+      const deliveryKeys = notifications.map((notification) => notification.deliveryKey).sort();
+      assertQuotaAvailable(harbor, {
+        retainedTurns: 1,
+        retainedOutbox: input.performative === 'refuse' ? 0 : notifications.length,
+      });
+      if (input.performative !== 'refuse'
+        && pendingOutboxCount(harbor) + notifications.length
+          > PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor) {
+        throw new Error(
+          `parley notification outbox capacity ${PARLEY_STORE_LIMITS.maxPendingOutboxPerHarbor} reached`,
+        );
+      }
+      db.prepare(`
+        INSERT INTO parley_turns (
+          tenant_id, harbor, parley_id, turn_sequence, party,
+          idempotency_key, intent_fingerprint, performative,
+          content, proposal_id, evidence_json, delivery_keys_json, at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        harbor,
+        parleyId,
+        nextSequence,
+        party,
+        idempotencyKey,
+        input.intentFingerprint,
+        input.performative,
+        content,
+        proposalId,
+        json(evidenceRefs),
+        json(deliveryKeys),
+        at,
+      );
+      fault('turn.record');
+      const insertedNotifications = input.performative === 'refuse'
+        ? insertTerminalNotifications(decodeRecord(row), notifications, at)
+        : insertNotifications(decodeRecord(row), notifications, at);
+      if (insertedNotifications !== notifications.length) {
+        throw new Error('parley turn notification keys collided with prior payloads');
+      }
+      fault('turn.outbox');
+
+      if (input.performative === 'refuse') {
+        const reason = `${party} refused the Parley`;
+        const terminal = writeOutcome(row, {
+          status: 'ESCALATED',
+          decision: null,
+          reason,
+          resolvedBy: 'port-daddy:parley',
+          dissenters: [party],
+          at,
+        });
+        fault('terminal.outcome');
+        if (terminal.inserted) {
+          releaseAutomatic(row, terminal.outcome.at);
+          fault('terminal.release');
+          insertTerminalNotifications(
+            decodeRecord(row),
+            escalationNotifications(row, reason, terminal.outcome.at),
+            terminal.outcome.at,
+          );
+        }
+      } else {
+        const missing = db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM parley_participants p
+          WHERE p.tenant_id = ? AND p.harbor = ? AND p.parley_id = ? AND p.summoned = 1
+            AND NOT EXISTS (
+              SELECT 1 FROM parley_turns t
+              WHERE t.tenant_id = p.tenant_id AND t.harbor = p.harbor
+                AND t.parley_id = p.parley_id AND t.party = p.actor_id
+            )
+        `).get(tenantId, harbor, parleyId) as { count: number };
+        if (Number(missing.count) === 0) {
+          db.prepare(`
+            UPDATE parley_records SET status = 'CONVENED', updated_at = ?
+            WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND status = 'SUMMONED'
+          `).run(at, tenantId, harbor, parleyId);
+        }
+      }
+      return {
+        turn,
+        turnSequence: nextSequence,
+        deliveryKeys,
+        escalatedReason: null,
+        replayed: false,
+      };
+    });
+    return transaction();
+  }
+
+  function markSeen(input: {
+    harbor: string;
+    parleyId: string;
+    actorId: string;
+    throughTurnSequence?: number;
+  }): StoredSeenReceipt {
+    if (Object.prototype.hasOwnProperty.call(input, 'throughAt')) {
+      throw new Error('parley receipt timestamp watermarks are not accepted; use throughTurnSequence');
+    }
+    const harbor = scope(input.harbor);
+    const parleyId = assertCanonicalString(input.parleyId, 'parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+    const actorId = assertCanonicalString(input.actorId, 'parley receipt actor', PARLEY_STORE_LIMITS.maxActorChars);
+    const requestedSequence = input.throughTurnSequence;
+    if (requestedSequence !== undefined
+      && (!Number.isSafeInteger(requestedSequence) || requestedSequence < 0)) {
+      throw new Error('parley receipt throughTurnSequence must be a non-negative safe integer');
+    }
+    const updatedAt = assertFiniteTimestamp(now(), 'parley receipt update time');
+    const transaction = db.transaction(() => {
+      const participant = db.prepare(`
+        SELECT 1 AS present FROM parley_participants
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND actor_id = ?
+      `).get(tenantId, harbor, parleyId, actorId) as { present: number } | undefined;
+      if (!participant) throw new Error(`'${actorId}' is not part of parley '${parleyId}' in harbor '${harbor}'`);
+      const frontierRow = db.prepare(`
+        SELECT COALESCE(MAX(turn_sequence), 0) AS turn_sequence
+        FROM parley_turns
+        WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+      `).get(tenantId, harbor, parleyId) as {
+        turn_sequence: number;
+      };
+      if (!Number.isSafeInteger(frontierRow.turn_sequence) || frontierRow.turn_sequence < 0) {
+        throw new Error('parley store poisoned row: invalid durable turn frontier');
+      }
+      const throughTurnSequence = requestedSequence ?? frontierRow.turn_sequence;
+      if (throughTurnSequence > frontierRow.turn_sequence) {
+        throw new Error(
+          `parley receipt throughTurnSequence ${throughTurnSequence} exceeds durable turn frontier ${frontierRow.turn_sequence}`,
+        );
+      }
+      if (throughTurnSequence > 0) {
+        const exactTurn = db.prepare(`
+          SELECT 1 AS present
+          FROM parley_turns
+          WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND turn_sequence = ?
+        `).get(tenantId, harbor, parleyId, throughTurnSequence) as { present: number } | undefined;
+        if (!exactTurn) {
+          throw new Error('parley store poisoned row: requested durable turn sequence is missing');
+        }
+      }
+      settleOneExpired(harbor, parleyId, updatedAt);
+      if (throughTurnSequence > 0) {
+        db.prepare(`
+          INSERT INTO parley_seen_receipts (
+            tenant_id, harbor, parley_id, actor_id,
+            last_seen_turn_sequence, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(tenant_id, harbor, parley_id, actor_id) DO UPDATE SET
+            last_seen_turn_sequence = MAX(
+              parley_seen_receipts.last_seen_turn_sequence,
+              excluded.last_seen_turn_sequence
+            ),
+            updated_at = CASE
+              WHEN excluded.last_seen_turn_sequence > parley_seen_receipts.last_seen_turn_sequence
+                THEN excluded.updated_at
+              ELSE parley_seen_receipts.updated_at
+            END
+        `).run(tenantId, harbor, parleyId, actorId, throughTurnSequence, updatedAt);
+      }
+      const row = db.prepare(`
+        SELECT r.last_seen_turn_sequence, t.at AS last_seen_at
+        FROM parley_seen_receipts r
+        JOIN parley_turns t
+          ON t.tenant_id = r.tenant_id
+         AND t.harbor = r.harbor
+         AND t.parley_id = r.parley_id
+         AND t.turn_sequence = r.last_seen_turn_sequence
+        WHERE r.tenant_id = ? AND r.harbor = ?
+          AND r.parley_id = ? AND r.actor_id = ?
+      `).get(tenantId, harbor, parleyId, actorId) as {
+        last_seen_turn_sequence: number;
+        last_seen_at: number;
+      } | undefined;
+      if (!row) return { lastSeenAt: null, turnSequence: 0 };
+      if (!Number.isSafeInteger(row.last_seen_turn_sequence)
+        || row.last_seen_turn_sequence < 1
+        || !Number.isSafeInteger(row.last_seen_at)) {
+        throw new Error('parley store poisoned row: invalid seen turn frontier');
+      }
+      return {
+        lastSeenAt: row.last_seen_at,
+        turnSequence: row.last_seen_turn_sequence,
+      };
+    });
+    return transaction();
+  }
+
+  function claimNotifications(
+    harborInput: string,
+    options: { limit?: number; leaseMs?: number } = {},
+  ): ClaimedParleyNotification[] {
+    const harbor = scope(harborInput);
+    const limit = options.limit ?? 25;
+    const leaseMs = options.leaseMs ?? 30_000;
+    if (!Number.isInteger(limit) || limit < 1 || limit > PARLEY_STORE_LIMITS.maxOutboxClaim) {
+      throw new Error(`outbox claim limit must be between 1 and ${PARLEY_STORE_LIMITS.maxOutboxClaim}`);
+    }
+    if (!Number.isSafeInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 10 * 60 * 1000) {
+      throw new Error('outbox leaseMs must be between 1000 and 600000');
+    }
+    const at = assertFiniteTimestamp(now(), 'outbox claim time');
+    const transaction = db.transaction(() => {
+      db.prepare(`
+        UPDATE parley_notification_outbox
+        SET state = 'pending', available_at = ?, lease_until = NULL,
+            lease_token = NULL, last_error = 'lease expired before acknowledgement'
+        WHERE tenant_id = ? AND harbor = ? AND state = 'leased' AND lease_until <= ?
+      `).run(at, tenantId, harbor, at);
+      db.prepare(`
+        UPDATE parley_notification_outbox
+        SET state = 'dead', lease_until = NULL, lease_token = NULL,
+            last_error = COALESCE(last_error, 'maximum attempts exhausted')
+        WHERE tenant_id = ? AND harbor = ? AND state = 'pending'
+          AND attempts >= ?
+      `).run(tenantId, harbor, PARLEY_STORE_LIMITS.maxOutboxAttempts);
+      const rows = db.prepare(`
+        SELECT id, delivery_key, recipient_actor_id, inbox_target, from_actor_id,
+               event_type, payload_json, payload_hash, attempts, lease_token
+        FROM parley_notification_outbox
+        WHERE tenant_id = ? AND harbor = ? AND state = 'pending'
+          AND available_at <= ? AND attempts < ?
+        -- A crashed delivery must resume before untouched fan-out can move
+        -- ahead of it. Attempts are bounded, so this recovery class cannot
+        -- starve never-attempted rows indefinitely.
+        ORDER BY CASE WHEN attempts > 0 THEN 0 ELSE 1 END ASC,
+                 available_at ASC,
+                 id ASC
+        LIMIT ?
+      `).all(
+        tenantId,
+        harbor,
+        at,
+        PARLEY_STORE_LIMITS.maxOutboxAttempts,
+        limit,
+      ) as OutboxRow[];
+      const claimed: ClaimedParleyNotification[] = [];
+      for (const row of rows) {
+        let payload: Record<string, unknown>;
+        try {
+          payload = parseJson<Record<string, unknown>>(row.payload_json, 'outbox payload JSON');
+          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+            throw new Error('parley store poisoned row: outbox payload must be an object');
+          }
+          if (hash(row.payload_json) !== row.payload_hash) {
+            throw new Error('parley store poisoned row: outbox payload hash mismatch');
+          }
+          assertNotification({
+            deliveryKey: row.delivery_key,
+            recipientActorId: row.recipient_actor_id,
+            inboxTarget: row.inbox_target,
+            fromActorId: row.from_actor_id,
+            eventType: row.event_type as ParleyNotificationIntent['eventType'],
+            payload,
+          });
+        } catch (error) {
+          db.prepare(`
+            UPDATE parley_notification_outbox
+            SET state = 'dead', lease_until = NULL, lease_token = NULL, last_error = ?
+            WHERE tenant_id = ? AND harbor = ? AND id = ? AND state = 'pending'
+          `).run(
+            error instanceof Error ? error.message : 'poisoned outbox row',
+            tenantId,
+            harbor,
+            row.id,
+          );
+          continue;
+        }
+        const leaseToken = randomUUID();
+        const result = db.prepare(`
+          UPDATE parley_notification_outbox
+          SET state = 'leased', attempts = attempts + 1,
+              lease_until = ?, lease_token = ?, last_error = NULL
+          WHERE tenant_id = ? AND harbor = ? AND id = ? AND state = 'pending'
+            AND attempts = ?
+        `).run(at + leaseMs, leaseToken, tenantId, harbor, row.id, row.attempts);
+        if (changes(result) !== 1) throw new Error('outbox claim race changed the selected row');
+        claimed.push({
+          id: row.id,
+          deliveryKey: row.delivery_key,
+          recipientActorId: row.recipient_actor_id,
+          inboxTarget: row.inbox_target,
+          fromActorId: row.from_actor_id,
+          eventType: row.event_type as ParleyNotificationIntent['eventType'],
+          payload,
+          attempts: row.attempts + 1,
+          leaseToken,
+        });
+      }
+      return claimed;
+    });
+    return transaction();
+  }
+
+  function acknowledgeNotification(harborInput: string, id: number, leaseToken: string): void {
+    const harbor = scope(harborInput);
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('outbox id is invalid');
+    assertCanonicalString(leaseToken, 'outbox leaseToken', 128);
+    const at = assertFiniteTimestamp(now(), 'outbox acknowledgement time');
+    const result = db.prepare(`
+      UPDATE parley_notification_outbox
+      SET state = 'delivered', delivered_at = ?, lease_until = NULL,
+          lease_token = NULL, last_error = NULL
+      WHERE tenant_id = ? AND harbor = ? AND id = ?
+        AND state = 'leased' AND lease_token = ? AND lease_until > ?
+    `).run(at, tenantId, harbor, id, leaseToken, at);
+    if (changes(result) !== 1) throw new Error('outbox acknowledgement lost its lease');
+  }
+
+  function retryNotification(
+    harborInput: string,
+    id: number,
+    leaseToken: string,
+    error: string,
+  ): 'pending' | 'dead' {
+    const harbor = scope(harborInput);
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('outbox id is invalid');
+    assertCanonicalString(leaseToken, 'outbox leaseToken', 128);
+    const message = assertCanonicalString(error, 'outbox delivery error', 4096);
+    const at = assertFiniteTimestamp(now(), 'outbox retry time');
+    const row = db.prepare(`
+      SELECT attempts FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND id = ?
+        AND state = 'leased' AND lease_token = ? AND lease_until > ?
+    `).get(tenantId, harbor, id, leaseToken, at) as { attempts: number } | undefined;
+    if (!row) throw new Error('outbox retry lost its lease');
+    if (row.attempts >= PARLEY_STORE_LIMITS.maxOutboxAttempts) {
+      const result = db.prepare(`
+        UPDATE parley_notification_outbox
+        SET state = 'dead', lease_until = NULL, lease_token = NULL, last_error = ?
+        WHERE tenant_id = ? AND harbor = ? AND id = ?
+          AND state = 'leased' AND lease_token = ? AND lease_until > ?
+      `).run(message, tenantId, harbor, id, leaseToken, at);
+      if (changes(result) !== 1) throw new Error('outbox retry lost its lease');
+      return 'dead';
+    }
+    const backoffMs = Math.min(60_000, 250 * (2 ** Math.max(0, row.attempts - 1)));
+    const result = db.prepare(`
+      UPDATE parley_notification_outbox
+      SET state = 'pending', available_at = ?, lease_until = NULL,
+          lease_token = NULL, last_error = ?
+      WHERE tenant_id = ? AND harbor = ? AND id = ?
+        AND state = 'leased' AND lease_token = ? AND lease_until > ?
+    `).run(at + backoffMs, message, tenantId, harbor, id, leaseToken, at);
+    if (changes(result) !== 1) throw new Error('outbox retry lost its lease');
+    return 'pending';
+  }
+
+  function reap(harborInput: string): {
+    escalated: number;
+    records: number;
+    signals: number;
+    outbox: number;
+  } {
+    if (arguments.length > 1) {
+      throw new Error('parley reap does not accept caller-owned timestamps');
+    }
+    const harbor = scope(harborInput);
+    const at = assertFiniteTimestamp(now(), 'parley reap time');
+    const escalated = db.transaction(() => settleExpired(harbor, at))();
+    const transaction = db.transaction(() => {
+      const records = db.prepare(`
+        SELECT parley_id, automatic_signal_id FROM parley_records r
+        WHERE r.tenant_id = ? AND r.harbor = ?
+          AND r.status IN ('COLLAPSED','ESCALATED','VOIDED')
+          AND r.retention_until <= ?
+          AND (
+            r.automatic_signal_id IS NULL
+            OR EXISTS (
+              SELECT 1 FROM parley_auto_signals s
+              WHERE s.tenant_id = r.tenant_id AND s.harbor = r.harbor
+                AND s.signal_id = r.automatic_signal_id AND s.expires_at < ?
+            )
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM parley_notification_outbox o
+            WHERE o.tenant_id = r.tenant_id AND o.harbor = r.harbor
+              AND o.parley_id = r.parley_id AND o.state IN ('pending','leased')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM parley_lineage_cooldowns l
+            WHERE l.tenant_id = r.tenant_id AND l.harbor = r.harbor
+              AND l.owner_signal_id = r.automatic_signal_id
+              AND (l.state = 'active' OR l.cooldown_until > ?)
+          )
+        ORDER BY r.retention_until ASC, r.parley_id ASC
+        LIMIT ?
+      `).all(tenantId, harbor, at, at, at, PARLEY_STORE_LIMITS.reapBatch) as Array<{
+        parley_id: string;
+        automatic_signal_id: string | null;
+      }>;
+      let recordsDeleted = 0;
+      let signalsDeleted = 0;
+      for (const record of records) {
+        recordsDeleted += changes(db.prepare(`
+          DELETE FROM parley_records
+          WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+        `).run(tenantId, harbor, record.parley_id));
+        if (record.automatic_signal_id) {
+          signalsDeleted += changes(db.prepare(`
+            DELETE FROM parley_auto_signals
+            WHERE tenant_id = ? AND harbor = ? AND signal_id = ? AND expires_at < ?
+              AND NOT EXISTS (
+                SELECT 1 FROM parley_records r
+                WHERE r.tenant_id = parley_auto_signals.tenant_id
+                  AND r.harbor = parley_auto_signals.harbor
+                  AND r.automatic_signal_id = parley_auto_signals.signal_id
+              )
+          `).run(tenantId, harbor, record.automatic_signal_id, at));
+        }
+      }
+      const signalRows = db.prepare(`
+        SELECT signal_id FROM parley_auto_signals s
+        WHERE s.tenant_id = ? AND s.harbor = ? AND s.expires_at < ?
+          AND EXISTS (
+            SELECT 1 FROM parley_auto_terminal_receipts t
+            WHERE t.tenant_id = s.tenant_id AND t.harbor = s.harbor
+              AND t.signal_id = s.signal_id
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM parley_records r
+            WHERE r.tenant_id = s.tenant_id AND r.harbor = s.harbor
+              AND r.automatic_signal_id = s.signal_id
+          )
+        ORDER BY s.expires_at ASC, s.signal_id ASC
+        LIMIT ?
+      `).all(tenantId, harbor, at, PARLEY_STORE_LIMITS.reapBatch) as Array<{ signal_id: string }>;
+      for (const signal of signalRows) {
+        signalsDeleted += changes(db.prepare(`
+          DELETE FROM parley_auto_signals
+          WHERE tenant_id = ? AND harbor = ? AND signal_id = ?
+        `).run(tenantId, harbor, signal.signal_id));
+      }
+      const outboxDeleted = changes(db.prepare(`
+        DELETE FROM parley_notification_outbox
+        WHERE id IN (
+          SELECT id FROM parley_notification_outbox
+          WHERE tenant_id = ? AND harbor = ? AND state IN ('delivered','dead')
+            AND COALESCE(delivered_at, created_at) <= ?
+          ORDER BY COALESCE(delivered_at, created_at) ASC, id ASC
+          LIMIT ?
+        )
+      `).run(tenantId, harbor, at - PARLEY_STORE_LIMITS.retentionMs, PARLEY_STORE_LIMITS.reapBatch));
+      return { records: recordsDeleted, signals: signalsDeleted, outbox: outboxDeleted };
+    });
+    return { escalated, ...transaction() };
+  }
+
+  function inspectCounts(harborInput: string): Record<string, number> {
+    const harbor = scope(harborInput);
+    const tables = [
+      'parley_records',
+      'parley_participants',
+      'parley_turns',
+      'parley_seen_receipts',
+      'parley_outcomes',
+      'parley_auto_signals',
+      'parley_auto_terminal_receipts',
+      'parley_lineage_cooldowns',
+      'parley_admissions',
+      'parley_notification_outbox',
+      'parley_notification_overflow_receipts',
+      'parley_quota_ledger',
+    ] as const;
+    const result: Record<string, number> = {};
+    for (const table of tables) {
+      const row = db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE tenant_id = ? AND harbor = ?`)
+        .get(tenantId, harbor) as { count: number };
+      result[table] = Number(row.count);
+    }
+    return result;
+  }
+
+  function inspectQuota(harborInput: string): ParleyQuotaSnapshot {
+    return quotaSnapshot(scope(harborInput));
+  }
+
+  return {
+    tenantId,
+    createManual,
+    admitAutomatic,
+    admitAutomaticInTransaction,
+    getSnapshot,
+    getAutomatic,
+    list,
+    addTurn,
+    markSeen,
+    claimNotifications,
+    acknowledgeNotification,
+    retryNotification,
+    reap,
+    inspectCounts,
+    inspectQuota,
+  };
+}
+
+export type ParleyStore = ReturnType<typeof createParleyStore>;
