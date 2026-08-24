@@ -235,8 +235,8 @@ export interface SandboxCoordinationPeer {
   url: string;
   project: string;
   actorId: string;
-  /** Unique daemon/process replica id; generated per sandbox when omitted. */
-  replicaId?: string;
+  /** Unique daemon/process replica id, generated for this sandbox grant. */
+  replicaId: string;
   /** Scoped ADR-0092 macaroon. Never written into the cloned checkout. */
   macaroon: string;
 }
@@ -480,7 +480,7 @@ function cloudPeerDaemonEnv(peer: SandboxCoordinationPeer): Record<string, strin
     PORT_DADDY_COORDINATION_URL: peer.url,
     PORT_DADDY_COORDINATION_PROJECT: peer.project,
     PORT_DADDY_COORDINATION_ACTOR: peer.actorId,
-    PORT_DADDY_COORDINATION_REPLICA: peer.replicaId ?? newSandboxReplicaId(),
+    PORT_DADDY_COORDINATION_REPLICA: peer.replicaId,
     PORT_DADDY_COORDINATION_MACAROON: peer.macaroon,
   };
 }
@@ -746,6 +746,13 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     }
     await daemonProcess.waitForPort(CLOUD_PEER_PORT, { path: '/health' });
     const identity = coordinationPeer.actorId;
+    const markerPath = `.portdaddy/cloud-peers/${coordinationPeer.replicaId}.peer`;
+    const enrollmentNote = [
+      'Fleet cloud coordination peer enrolled',
+      `actor=${identity}`,
+      `replica=${coordinationPeer.replicaId}`,
+      `marker=${markerPath}`,
+    ].join(' ');
     const beginCommand = [
       './dist/port-daddy begin',
       shq('Cloud sandbox coordination peer'),
@@ -755,6 +762,12 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       '--sidequest',
       shq('ADR-0092 cloud coordination peer runtime'),
       '--allow-main-worktree',
+      '--files',
+      shq(markerPath),
+      '&&',
+      './dist/port-daddy note',
+      shq(enrollmentNote),
+      '--type progress',
     ].join(' ');
     const beginResult = await sandbox.exec(beginCommand, {
       cwd: REPOSITORY_ROOT,
@@ -762,7 +775,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     });
     if (!execPassed(beginResult)) {
       return notExecuted(
-        'cloud pd daemon started but its coordination session could not begin',
+        'cloud pd daemon started but its coordination session, marker claim, or enrollment note failed',
         combinedOutput(beginResult),
       );
     }

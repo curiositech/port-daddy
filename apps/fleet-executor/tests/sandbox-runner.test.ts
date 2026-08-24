@@ -285,6 +285,10 @@ describe('runTestsInSandbox', () => {
     expect(execCalls[1].command).toContain('npm run build:bin');
     expect(execCalls[2].command).toContain('./dist/port-daddy begin');
     expect(execCalls[2].command).toContain('--lifecycle durable');
+    expect(execCalls[2].command).toContain('--files');
+    expect(execCalls[2].command).toMatch(/\.portdaddy\/cloud-peers\/fleet-peer-[0-9a-f]{24}\.peer/);
+    expect(execCalls[2].command).toContain('./dist/port-daddy note');
+    expect(execCalls[2].command).toContain('Fleet cloud coordination peer enrolled');
     expect(execCalls[3].command).toContain('/coordination/status');
     expect(execCalls[3].command).toContain('status.outbox === 0');
     expect(execCalls[3].command).toContain('status.cursor > 0');
