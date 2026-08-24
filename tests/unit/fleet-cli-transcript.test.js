@@ -199,7 +199,8 @@ describe('pd fleet transcript', () => {
       JSON.stringify({ v: 2, seq: 0, kind: 'assistant', phase: 'map', content: [], truncated: false }) + '\n' +
       'not-json\n' +
       JSON.stringify({ v: 1, seq: 0, kind: 'oracle', phase: 'mystery', content: 'nope', truncated: 'yes' }) + '\n' +
-      JSON.stringify({ v: 1, seq: 0, kind: 'assistant', phase: 'map', content: [], chunk: null, usage: null, truncated: false }) + '\n';
+      JSON.stringify({ v: 1, seq: 0, kind: 'assistant', phase: 'map', content: [], chunk: null, usage: null, truncated: false }) + '\n' +
+      JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 0, seq: -1, kind: 'assistant', phase: 'map', chunk: null, model: 'm', ts: 1700000000, latencyMs: null, usage: null, costUsd: null, content: [], sysRef: 42, truncated: false }) + '\n';
     mockFetch
       .mockResolvedValueOnce(relayResponse(200, LEDGER))
       .mockResolvedValueOnce(relayResponse(200, bad, true));
@@ -215,7 +216,11 @@ describe('pd fleet transcript', () => {
     expect(report).toContain('model must be a non-empty string');
     // Cross-line rule: line 4 reuses seq 0 after line 3's seq 0.
     expect(report).toMatch(/line 4: INVALID — .*seq 0 does not increase past 0/);
-    expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('4 invalid line(s), 0 valid'));
+    // Boundary rules: negative seq, zero attempt, wrong-typed sysRef (line 5).
+    expect(report).toMatch(/line 5: INVALID — .*seq must be a non-negative integer/);
+    expect(report).toMatch(/line 5: INVALID — .*attempt must be a positive integer/);
+    expect(report).toMatch(/line 5: INVALID — .*sysRef must be null or a non-empty string/);
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('5 invalid line(s), 0 valid'));
   });
 
   test('--file validates a local capture with no relay, no credentials, no daemon', async () => {
