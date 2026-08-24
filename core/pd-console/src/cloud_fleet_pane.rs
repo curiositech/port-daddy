@@ -224,6 +224,151 @@ impl FleetProposal {
     }
 }
 
+/// One (ship, attempt) capture from a run's transcript LEDGER
+/// (`GET /fleet/runs/:id/transcripts.json` — pd-transcript.v1 Phase 3/4,
+/// docs/FLEET-SESSION-TRANSCRIPTS.md). The ledger row carries the capture's
+/// outcome columns; the raw turns come from the sibling `.jsonl` route.
+#[derive(Debug, Clone)]
+struct TranscriptSession {
+    ship: String,
+    attempt: i64,
+    turns: i64,
+    prompt_tokens: Option<i64>,
+    completion_tokens: Option<i64>,
+    cost_usd: Option<f64>,
+    incomplete: bool,
+}
+
+impl TranscriptSession {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            ship: s(v, "ship"),
+            attempt: n(v, "attempt"),
+            turns: n(v, "turns"),
+            prompt_tokens: optional_i64(v, "promptTokens"),
+            completion_tokens: optional_i64(v, "completionTokens"),
+            cost_usd: v.get("costUsd").and_then(Value::as_f64),
+            incomplete: b(v, "incomplete"),
+        }
+    }
+
+    /// Ledger-row token summary: honest `not reported`, never a lying `0/0`
+    /// (mirrors the run page's usage-honesty rule).
+    fn tokens_label(&self) -> String {
+        match (self.prompt_tokens, self.completion_tokens) {
+            (Some(p), c) => format!("{p} in / {} out", c.unwrap_or(0)),
+            _ => "tokens not reported".into(),
+        }
+    }
+}
+
+/// One pd-transcript.v1 envelope, parsed TOLERANTLY from a `.jsonl` line.
+/// Only what the pane renders is kept; anything wrong-typed degrades to a
+/// counted skip (never a crash) — the same posture as the web viewer's parser,
+/// because a transcript is read precisely when something already went wrong.
+#[derive(Debug, Clone)]
+struct TranscriptTurn {
+    seq: i64,
+    kind: String,
+    phase: String,
+    chunk: Option<(i64, i64)>,
+    model: String,
+    prompt_tokens: Option<i64>,
+    completion_tokens: Option<i64>,
+    truncated: bool,
+    text: String,
+}
+
+impl TranscriptTurn {
+    /// `MAP 3/7` for chunked turns, bare `PLAN`/`GATE`/… otherwise.
+    fn phase_label(&self) -> String {
+        match self.chunk {
+            Some((index, count)) => format!("{} {}/{}", self.phase.to_uppercase(), index + 1, count),
+            None => self.phase.to_uppercase(),
+        }
+    }
+
+    /// Header line the pane paints above the body: seq, kind, phase, model,
+    /// usage, and the explicit TRUNCATED badge when the capture dropped bytes.
+    fn header(&self) -> String {
+        let usage = match (self.prompt_tokens, self.completion_tokens) {
+            (Some(p), Some(c)) => format!(" · {p} in / {c} out"),
+            _ => String::new(),
+        };
+        let truncated = if self.truncated { " · TRUNCATED" } else { "" };
+        format!(
+            "#t{} {} {} · {}{}{}",
+            self.seq,
+            self.kind.to_uppercase(),
+            self.phase_label(),
+            trunc(&self.model, 36),
+            usage,
+            truncated
+        )
+    }
+}
+
+/// Parse one `.jsonl` body into renderable turns plus an honest skipped count.
+/// A line is skipped — never thrown on — when it is not JSON, not major
+/// version 1, has no numeric `seq`, or carries wrong-typed `content`; the
+/// count renders as a notice so the pane never fakes completeness.
+fn parse_transcript_jsonl(body: &str) -> (Vec<TranscriptTurn>, usize) {
+    let mut turns = Vec::new();
+    let mut skipped = 0usize;
+    for line in body.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let Ok(v) = serde_json::from_str::<Value>(line) else {
+            skipped += 1;
+            continue;
+        };
+        let version_ok = v.get("v").and_then(Value::as_i64) == Some(1);
+        let seq = optional_i64(&v, "seq");
+        let content_ok = v.get("content").is_some_and(Value::is_array);
+        if !version_ok || seq.is_none() || !content_ok {
+            skipped += 1;
+            continue;
+        }
+        let text: String = arr(&v, "content")
+            .iter()
+            .filter_map(|part| part.get("text").and_then(Value::as_str))
+            .collect();
+        let usage = v.get("usage").cloned().unwrap_or(Value::Null);
+        let chunk = v.get("chunk").and_then(|c| {
+            Some((
+                c.get("index").and_then(Value::as_i64)?,
+                c.get("count").and_then(Value::as_i64)?,
+            ))
+        });
+        turns.push(TranscriptTurn {
+            seq: seq.unwrap_or(0),
+            kind: s(&v, "kind"),
+            phase: s(&v, "phase"),
+            chunk,
+            model: s(&v, "model"),
+            prompt_tokens: optional_i64(&usage, "prompt"),
+            completion_tokens: optional_i64(&usage, "completion"),
+            truncated: b(&v, "truncated"),
+            text,
+        });
+    }
+    turns.sort_by_key(|turn| turn.seq);
+    (turns, skipped)
+}
+
+/// Turn kind → paint tone: the model's own words are the payload (Landed),
+/// an error turn is the incident (Conflicted), prompts are context the
+/// operator usually already knows (Resting/Engaged).
+fn turn_tone(kind: &str) -> Tone {
+    match kind {
+        "error" => Tone::Conflicted,
+        "assistant" => Tone::Landed,
+        "user" => Tone::Engaged,
+        _ => Tone::Resting,
+    }
+}
+
 /// Conclusion → display tone (color resolves at paint time).
 fn conclusion_tone(conclusion: &str) -> Tone {
     match conclusion {
@@ -329,6 +474,19 @@ pub struct CloudFleetPane {
     last_error: Option<String>,
     detail_error: Option<String>,
     proposal_error: Option<String>,
+    /// The selected run's transcript LEDGER rows (pd-transcript.v1 Phase 4).
+    sessions: Vec<TranscriptSession>,
+    /// Parsed turns of the session currently shown (newest attempt of the
+    /// first captured ship, unless a prior choice is still valid).
+    session_turns: Vec<TranscriptTurn>,
+    /// Malformed/foreign lines skipped while parsing — rendered as an honest
+    /// notice, never hidden.
+    session_skipped: usize,
+    /// (run id, ship, attempt) the loaded session belongs to. Capture flushes
+    /// ONCE at ship completion (immutable after), so a matching key means the
+    /// bytes cannot have changed and the poll loop skips the refetch.
+    session_key: Option<(String, String, i64)>,
+    session_error: Option<String>,
 }
 
 impl Default for CloudFleetPane {
@@ -358,6 +516,11 @@ impl Default for CloudFleetPane {
             last_error: None,
             detail_error: None,
             proposal_error: None,
+            sessions: Vec::new(),
+            session_turns: Vec::new(),
+            session_skipped: 0,
+            session_key: None,
+            session_error: None,
         }
     }
 }
@@ -406,6 +569,82 @@ impl CloudFleetPane {
     /// admission are the states that require operator remediation.
     fn alarmed(&self) -> bool {
         self.paused || self.failed_admission > 0
+    }
+
+    /// The selected run's captured ship sessions (pd-transcript.v1 Phase 4):
+    /// the ledger table, then the shown session's turns as chat. Mirrors the
+    /// web viewer's reading posture — assistant/error text is the payload and
+    /// renders open (bounded), system/user prompts fold to a one-line summary,
+    /// truncation and skipped lines are said out loud, and "nothing captured"
+    /// is a status, not an error, because transcripts flush at ship completion.
+    fn push_raw_sessions(&self, blocks: &mut Vec<Block>) {
+        blocks.push(Block::Gap);
+        blocks.push(Block::Header("Raw Ship Sessions".into()));
+        if let Some(err) = &self.session_error {
+            blocks.push(Block::KeyVal("error".into(), err.clone()));
+            return;
+        }
+        if self.selected_run.is_none() {
+            blocks.push(Block::KeyVal("status".into(), "no run selected".into()));
+            return;
+        }
+        if self.sessions.is_empty() {
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no captured sessions yet — a ship's transcript flushes when it completes".into(),
+            ));
+            return;
+        }
+        for session in self.sessions.iter().take(12) {
+            blocks.push(Block::Row(vec![
+                format!("pd-{}", trunc(&session.ship, 18)),
+                format!("attempt {}", session.attempt),
+                format!("{} turns", session.turns),
+                trunc(&session.tokens_label(), 24),
+                session
+                    .cost_usd
+                    .map(|usd| format!("${usd:.4}"))
+                    .unwrap_or_else(|| "—".into()),
+                if session.incomplete {
+                    "INCOMPLETE".into()
+                } else {
+                    String::new()
+                },
+            ]));
+        }
+        let Some((_, ship, attempt)) = &self.session_key else {
+            return;
+        };
+        blocks.push(Block::KeyVal(
+            format!("pd-{ship} session"),
+            format!("attempt {attempt} · raw pd-transcript.v1"),
+        ));
+        if self.session_skipped > 0 {
+            blocks.push(Block::TranscriptLine {
+                text: format!(
+                    "{} malformed/foreign line(s) skipped — the raw .jsonl download carries every byte",
+                    self.session_skipped
+                ),
+                tone: Tone::Gated,
+            });
+        }
+        let start = self.session_turns.len().saturating_sub(10);
+        for turn in &self.session_turns[start..] {
+            let body = match turn.kind.as_str() {
+                // Prompts fold exactly like the web viewer's <details> and the
+                // CLI's --full gate: bulky context, one line, never a wall.
+                "system" | "user" if !turn.text.is_empty() => {
+                    format!("({} chars — prompt folded)", turn.text.len())
+                }
+                "system" if turn.text.is_empty() => "(system prompt deduplicated — sysRef)".into(),
+                _ => trunc(&turn.text, 400),
+            };
+            blocks.push(Block::ChatTurn {
+                speaker: turn.header(),
+                text: body,
+                tone: turn_tone(&turn.kind),
+            });
+        }
     }
 
     fn push_pending_proposals(&self, blocks: &mut Vec<Block>) {
@@ -481,6 +720,72 @@ fn fleet_read_status_error(status: reqwest::StatusCode) -> Option<String> {
         return Some("Cloud Fleet session rejected — renew it from FleetBar Credentials".into());
     }
     (!status.is_success()).then(|| format!("Cloud Fleet read failed ({status})"))
+}
+
+/// GET → response body TEXT, with the relay's deliberate 404 mapped to
+/// `Ok(None)`: on the transcript surfaces, 404 means "nothing captured yet OR
+/// unknown OR unauthorized" — indistinguishable by design — so it is an
+/// expected answer the pane phrases honestly, never an error chip.
+async fn fetch_text_ok_or_missing(
+    daemon: &DaemonClient,
+    url: &str,
+    token: &str,
+) -> std::result::Result<Option<String>, String> {
+    let mut req = daemon.http_client().get(url);
+    if !token.trim().is_empty() {
+        req = req.bearer_auth(token);
+    }
+    match req.send().await {
+        Err(e) => Err(format!("relay unreachable: {e}")),
+        Ok(resp) => {
+            let status = resp.status();
+            if status == reqwest::StatusCode::NOT_FOUND {
+                return Ok(None);
+            }
+            if let Some(error) = fleet_read_status_error(status) {
+                return Err(error);
+            }
+            resp.text()
+                .await
+                .map(Some)
+                .map_err(|e| format!("bad response: {e}"))
+        }
+    }
+}
+
+/// `{base}/fleet/runs/{id}/transcripts.json` — the run's transcript ledger.
+/// Built with real URL segment encoding (never string interpolation of the
+/// run id), the same discipline as [`run_detail_url`].
+fn transcript_ledger_url(base: &str, run_id: &str) -> std::result::Result<String, String> {
+    let mut url = reqwest::Url::parse(&format!("{}/fleet/runs/", base.trim_end_matches('/')))
+        .map_err(|_| "saved relay address is invalid".to_string())?;
+    url.path_segments_mut()
+        .map_err(|_| "saved relay address cannot address a run".to_string())?
+        .pop_if_empty()
+        .push(run_id)
+        .push("transcripts.json");
+    Ok(url.into())
+}
+
+/// `{base}/fleet/runs/{id}/transcript/{ship}.jsonl?attempt=N` — one captured
+/// session's raw pd-transcript.v1 bytes.
+fn transcript_jsonl_url(
+    base: &str,
+    run_id: &str,
+    ship: &str,
+    attempt: i64,
+) -> std::result::Result<String, String> {
+    let mut url = reqwest::Url::parse(&format!("{}/fleet/runs/", base.trim_end_matches('/')))
+        .map_err(|_| "saved relay address is invalid".to_string())?;
+    url.path_segments_mut()
+        .map_err(|_| "saved relay address cannot address a run".to_string())?
+        .pop_if_empty()
+        .push(run_id)
+        .push("transcript")
+        .push(&format!("{ship}.jsonl"));
+    url.query_pairs_mut()
+        .append_pair("attempt", &attempt.to_string());
+    Ok(url.into())
 }
 
 fn run_detail_url(base: &str, run_id: &str) -> std::result::Result<String, String> {
@@ -691,6 +996,9 @@ impl Pane for CloudFleetPane {
             blocks.push(Block::KeyVal("status".into(), "no run selected".into()));
         }
 
+        // ── Raw ship sessions (pd-transcript.v1 — Phase 4) ────────────────────
+        self.push_raw_sessions(&mut blocks);
+
         // ── Ship prompts (read-only) ───────────────────────────────────────────
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Ships".into()));
@@ -858,6 +1166,97 @@ impl Pane for CloudFleetPane {
                 self.loaded_detail_id = None;
                 self.loaded_detail_progress_at = None;
                 self.detail_retry_at = None;
+            }
+
+            // ── Raw ship sessions (pd-transcript.v1 — Phase 4) ────────────────
+            // Ledger first; then one session's raw turns. Capture flushes ONCE
+            // at ship completion, so a session whose (run, ship, attempt) key we
+            // already loaded is immutable — the poll loop refetches only the
+            // cheap ledger, never the bytes it already has.
+            if let Some(run) = self.selected_run.clone() {
+                match transcript_ledger_url(&base, &run.id) {
+                    Err(error) => {
+                        self.session_error = Some(error);
+                        self.sessions.clear();
+                    }
+                    Ok(url) => match fetch_text_ok_or_missing(daemon, &url, &token).await {
+                        Err(error) => self.session_error = Some(error),
+                        Ok(None) => {
+                            // The relay's uniform 404: nothing captured yet (or
+                            // not visible) — a status the view phrases honestly.
+                            self.session_error = None;
+                            self.sessions.clear();
+                            self.session_turns.clear();
+                            self.session_skipped = 0;
+                            self.session_key = None;
+                        }
+                        Ok(Some(body)) => {
+                            self.session_error = None;
+                            let data: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
+                            self.sessions = arr(&data, "transcripts")
+                                .iter()
+                                .map(TranscriptSession::from_value)
+                                .collect();
+                            // Keep the prior ship choice while it still exists in
+                            // the ledger; otherwise show the first captured ship
+                            // (ledger order is ship ASC, newest attempt first).
+                            let wanted = self
+                                .session_key
+                                .as_ref()
+                                .filter(|(run_id, ship, attempt)| {
+                                    run_id == &run.id
+                                        && self.sessions.iter().any(|session| {
+                                            &session.ship == ship && session.attempt == *attempt
+                                        })
+                                })
+                                .cloned()
+                                .or_else(|| {
+                                    self.sessions.first().map(|session| {
+                                        (run.id.clone(), session.ship.clone(), session.attempt)
+                                    })
+                                });
+                            match wanted {
+                                None => {
+                                    self.session_turns.clear();
+                                    self.session_skipped = 0;
+                                    self.session_key = None;
+                                }
+                                Some(key) if self.session_key.as_ref() == Some(&key) => {}
+                                Some((run_id, ship, attempt)) => {
+                                    match transcript_jsonl_url(&base, &run_id, &ship, attempt) {
+                                        Err(error) => self.session_error = Some(error),
+                                        Ok(url) => {
+                                            match fetch_text_ok_or_missing(daemon, &url, &token)
+                                                .await
+                                            {
+                                                Err(error) => self.session_error = Some(error),
+                                                Ok(None) => {
+                                                    self.session_turns.clear();
+                                                    self.session_skipped = 0;
+                                                    self.session_key = None;
+                                                }
+                                                Ok(Some(jsonl)) => {
+                                                    let (turns, skipped) =
+                                                        parse_transcript_jsonl(&jsonl);
+                                                    self.session_turns = turns;
+                                                    self.session_skipped = skipped;
+                                                    self.session_key =
+                                                        Some((run_id, ship, attempt));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                }
+            } else {
+                self.sessions.clear();
+                self.session_turns.clear();
+                self.session_skipped = 0;
+                self.session_key = None;
+                self.session_error = None;
             }
 
             // Ship config (read-only prompts/roles). Tolerate either {ships:[...]}
@@ -1226,5 +1625,188 @@ mod tests {
             url,
             "https://relay.example/v1/fleet/runs/intent:delivery-live"
         );
+    }
+
+    // ── Raw ship sessions (pd-transcript.v1 — Phase 4) ───────────────────────
+
+    fn turn_line(seq: i64, kind: &str, text: &str, extra: Value) -> String {
+        let mut v = json!({
+            "v": 1, "seq": seq, "phase": "map", "chunk": null, "kind": kind,
+            "model": "@cf/test/model", "ts": 1_700_000_000, "latencyMs": 900,
+            "usage": {"prompt": 100, "completion": 20}, "costUsd": 0.0012,
+            "content": [{"type": "text", "text": text}], "sysRef": null,
+            "truncated": false,
+        });
+        if let (Value::Object(base), Value::Object(over)) = (&mut v, extra) {
+            for (k, val) in over {
+                base.insert(k, val);
+            }
+        }
+        v.to_string()
+    }
+
+    #[test]
+    fn parse_transcript_jsonl_is_tolerant_and_counts_what_it_skips() {
+        let body = [
+            turn_line(1, "assistant", "FLEET-VERDICT: PASS", json!({"chunk": {"index": 2, "count": 7}})),
+            turn_line(0, "system", "You are pd-qa.", json!({})),
+            "not-json-at-all".into(),
+            turn_line(9, "assistant", "future major", json!({"v": 2})),
+            turn_line(3, "assistant", "wrong-typed content", json!({"content": "a string"})),
+            turn_line(2, "error", "Workers AI 429", json!({"truncated": true, "usage": null})),
+        ]
+        .join("\n");
+        let (turns, skipped) = parse_transcript_jsonl(&body);
+        // 3 renderable turns, sorted by seq; 3 skips (bad JSON, v2, bad content).
+        assert_eq!(turns.len(), 3);
+        assert_eq!(skipped, 3);
+        assert_eq!(
+            turns.iter().map(|t| t.seq).collect::<Vec<_>>(),
+            vec![0, 1, 2]
+        );
+        assert_eq!(turns[1].phase_label(), "MAP 3/7");
+        assert!(turns[1].header().contains("100 in / 20 out"));
+        assert!(turns[2].header().contains("TRUNCATED"));
+        assert!(!turns[2].header().contains("in /"), "null usage prints no counts");
+    }
+
+    fn pane_with_session() -> CloudFleetPane {
+        let mut pane = configured();
+        pane.selected_run = Some(FleetRun::from_value(&json!({
+            "id": "run:d-1", "prNumber": 7, "repo": "octo/widgets",
+            "headSha": "abc", "conclusion": "success", "ships": ["qa"],
+            "elapsedMs": 1000, "createdAt": 1_700_000_000, "state": "success",
+        })));
+        pane.sessions = vec![
+            TranscriptSession {
+                ship: "qa".into(),
+                attempt: 2,
+                turns: 3,
+                prompt_tokens: Some(1200),
+                completion_tokens: Some(240),
+                cost_usd: Some(0.0031),
+                incomplete: false,
+            },
+            TranscriptSession {
+                ship: "purser".into(),
+                attempt: 1,
+                turns: 14,
+                prompt_tokens: None,
+                completion_tokens: None,
+                cost_usd: None,
+                incomplete: true,
+            },
+        ];
+        let (turns, skipped) = parse_transcript_jsonl(
+            &[
+                turn_line(0, "system", "You are pd-qa.", json!({})),
+                turn_line(1, "user", "diff chunk one", json!({})),
+                turn_line(2, "assistant", "FLEET-VERDICT: PASS", json!({})),
+                turn_line(3, "error", "Workers AI 429", json!({"truncated": true})),
+                "corrupt".into(),
+            ]
+            .join("\n"),
+        );
+        pane.session_turns = turns;
+        pane.session_skipped = skipped;
+        pane.session_key = Some(("run:d-1".into(), "qa".into(), 2));
+        pane
+    }
+
+    #[test]
+    fn raw_sessions_render_ledger_rows_folded_prompts_and_honest_notices() {
+        let blocks = pane_with_session().view();
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Header(h) if h == "Raw Ship Sessions")));
+        // Ledger rows: real tokens on one, honest "not reported" + INCOMPLETE
+        // on the other — never a lying 0/0.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(cells) if cells.iter().any(|c| c == "pd-qa")
+                && cells.iter().any(|c| c.contains("1200 in / 240 out"))
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(cells) if cells.iter().any(|c| c == "pd-purser")
+                && cells.iter().any(|c| c.contains("not reported"))
+                && cells.iter().any(|c| c == "INCOMPLETE")
+        )));
+        // Prompts fold; the model's words render open; the error turn alarms.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ChatTurn { speaker, text, .. }
+                if speaker.starts_with("#t0 SYSTEM") && text.contains("prompt folded")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ChatTurn { text, tone: Tone::Landed, .. }
+                if text.contains("FLEET-VERDICT: PASS")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ChatTurn { speaker, tone: Tone::Conflicted, .. }
+                if speaker.contains("TRUNCATED")
+        )));
+        // The skipped corrupt line is disclosed, never silent.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::TranscriptLine { text, .. } if text.contains("1 malformed/foreign line(s) skipped")
+        )));
+    }
+
+    #[test]
+    fn no_captures_is_a_status_not_an_error() {
+        let mut pane = pane_with_session();
+        pane.sessions.clear();
+        pane.session_turns.clear();
+        pane.session_key = None;
+        pane.session_skipped = 0;
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k == "status" && v.contains("flushes when it completes")
+        )));
+        assert!(!blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+    }
+
+    #[test]
+    fn transcript_urls_encode_segments_and_carry_the_attempt() {
+        assert_eq!(
+            transcript_ledger_url("https://relay.example/", "run:d-1").unwrap(),
+            "https://relay.example/fleet/runs/run:d-1/transcripts.json"
+        );
+        assert_eq!(
+            transcript_jsonl_url("https://relay.example", "run:d-1", "qa", 2).unwrap(),
+            "https://relay.example/fleet/runs/run:d-1/transcript/qa.jsonl?attempt=2"
+        );
+    }
+
+    // ── PNG proofs (offscreen Block raster — same pattern as hitl-interruptions;
+    //    gpui 0.2.2 exposes no offscreen Metal readback, see headless_capture.rs) ──
+
+    fn write_png(name: &str, blocks: &[Block]) -> Vec<u8> {
+        let canvas = crate::headless_capture::render_blocks(blocks, &crate::theme::DARK, 1100);
+        let png = canvas.to_png();
+        assert!(png.len() > 2_000, "{name}: suspiciously small PNG");
+        assert_eq!(&png[0..8], &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
+        let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("../target/cloud-fleet-transcript-{name}.png"));
+        std::fs::write(&out, &png).expect("write png");
+        png
+    }
+
+    /// Only the raw-sessions SECTION, not the whole pane — the committed
+    /// proofs stay small and legible (the hitl-interruptions convention).
+    fn section_blocks(pane: &CloudFleetPane) -> Vec<Block> {
+        let mut blocks = Vec::new();
+        pane.push_raw_sessions(&mut blocks);
+        blocks
+    }
+
+    #[test]
+    fn renders_the_session_states_to_real_pngs() {
+        let with_session = write_png("session", &section_blocks(&pane_with_session()));
+        let mut empty = pane_with_session();
+        empty.sessions.clear();
+        empty.session_turns.clear();
+        empty.session_key = None;
+        let no_captures = write_png("empty", &section_blocks(&empty));
+        assert_ne!(with_session, no_captures);
     }
 }
