@@ -15,6 +15,7 @@ figures:
 docs:
 	mkdir -p build && cp tex/*.tex build/ && cp figures/*.png build/
 	cd build && for d in $(TEXS); do pdflatex -interaction=nonstopmode $$d.tex >/dev/null; pdflatex -interaction=nonstopmode $$d.tex >/dev/null; done
-	@ls build/*.pdf
+	mkdir -p pdf && cp build/*.pdf pdf/
+	@ls pdf/*.pdf
 clean:
 	rm -rf build
