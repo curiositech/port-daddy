@@ -140,6 +140,7 @@ describe('handleFleetRunTranscriptPage', () => {
         turn({ seq: 2, content: { type: 'text', text: 'object-not-array' } }),
         turn({ seq: 3, usage: { prompt: 'NaN', completion: 20 } }),
         turn({ seq: 4, chunk: { index: 'x', count: 2 } }),
+        turn({ seq: 5, latencyMs: -4200 }),
       ]
         .map(t => JSON.stringify(t))
         .join('\n') + '\n';
@@ -156,6 +157,8 @@ describe('handleFleetRunTranscriptPage', () => {
     expect(html).not.toContain('NaN in'); // …but with its metrics dropped, not invented
     expect(html).toContain('id="t4"');
     expect(html).not.toContain('object-not-array');
+    expect(html).toContain('id="t5"'); // negative-latency turn renders…
+    expect(html).not.toContain('-4.2s'); // …without a nonsense negative duration
   });
 
   it('404s on unknown ship, missing object, absent bucket, hostile names', async () => {
