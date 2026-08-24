@@ -202,6 +202,14 @@ describe('harbors routes', () => {
       expect(res.statusCode).toBe(400);
       expect(res.json()).toEqual({ error: 'name is not valid percent-encoding', code: 'VALIDATION_ERROR' });
     });
+
+    it('404s on an empty name segment rather than processing it downstream', async () => {
+      // Fastify routes GET /harbors/ to :name = '' (confirmed against a bare Fastify
+      // instance); harbors.get('') safely returns undefined -> 404, same as any other
+      // unknown name. Documents that the empty-string case is reachable but harmless.
+      const res = await app.inject({ method: 'GET', url: '/harbors/' });
+      expect(res.statusCode).toBe(404);
+    });
   });
 
   // ─── DELETE /harbors/:name ──────────────────────────────────────────────
@@ -360,6 +368,20 @@ describe('harbors routes', () => {
       });
       expect(res.statusCode).toBe(200);
       expect(res.json().verdict.allowed).toBe(false);
+    });
+
+    it('denies an unrecognized action.kind with the unknown boundary (fail-closed)', async () => {
+      // isEnvelopeAction() at the HTTP boundary only checks shape (object + string kind);
+      // the enum of real kinds is enforced downstream by assessEnvelope()'s switch, whose
+      // default arm denies with boundary 'unknown'. Verifies that fail-closed path directly
+      // rather than relying on the deny-all-envelope case above to imply it.
+      const res = await app.inject({
+        method: 'POST',
+        url: '/harbors/proj:web/check',
+        payload: { agentId: 'agent-1', action: { kind: 'not-a-real-kind' } },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().verdict).toMatchObject({ allowed: false, boundary: 'unknown' });
     });
 
     it('denies membership before evaluating the envelope, with the membership boundary', async () => {
