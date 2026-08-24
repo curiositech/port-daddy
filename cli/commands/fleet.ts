@@ -1637,6 +1637,24 @@ function validateTranscriptEnvelope(v: unknown): string[] {
     }
   }
   if (typeof o.truncated !== 'boolean') problems.push('truncated must be a boolean');
+  // Identity + provenance fields the producer always writes (transcript-capture.ts).
+  if (typeof o.runId !== 'string' || o.runId.length === 0) problems.push('runId must be a non-empty string');
+  if (typeof o.ship !== 'string' || o.ship.length === 0) problems.push('ship must be a non-empty string');
+  if (typeof o.attempt !== 'number' || !Number.isInteger(o.attempt) || o.attempt < 1) {
+    problems.push('attempt must be a positive integer');
+  }
+  if (typeof o.model !== 'string' || o.model.length === 0) problems.push('model must be a non-empty string');
+  if (typeof o.ts !== 'number') problems.push('ts must be a number (unix seconds)');
+  // Nullable telemetry: absent/null is honest "not reported"; wrong-typed is not.
+  if (o.sysRef !== null && o.sysRef !== undefined && (typeof o.sysRef !== 'string' || o.sysRef.length === 0)) {
+    problems.push('sysRef must be null or a non-empty string');
+  }
+  if (o.latencyMs !== null && o.latencyMs !== undefined && typeof o.latencyMs !== 'number') {
+    problems.push('latencyMs must be null or a number');
+  }
+  if (o.costUsd !== null && o.costUsd !== undefined && typeof o.costUsd !== 'number') {
+    problems.push('costUsd must be null or a number');
+  }
   return problems;
 }
 

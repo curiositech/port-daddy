@@ -75,9 +75,11 @@ const LEDGER = {
     },
   ],
 };
+// COMPLETE pd-transcript.v1 envelopes, exactly as the producer writes them —
+// the --validate tests depend on every always-written field being present.
 const JSONL =
-  JSON.stringify({ v: 1, seq: 0, kind: 'system', phase: 'map', model: 'm', content: [{ type: 'text', text: 'You are pd-qa.' }], sysRef: 'fnv1a:aa:14', truncated: false }) + '\n' +
-  JSON.stringify({ v: 1, seq: 1, kind: 'assistant', phase: 'map', model: 'm', usage: { prompt: 120, completion: 30 }, content: [{ type: 'text', text: 'FLEET-VERDICT: PASS' }], truncated: false }) + '\n';
+  JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 2, seq: 0, kind: 'system', phase: 'map', chunk: null, model: 'm', ts: 1700000000, latencyMs: null, usage: null, costUsd: null, content: [{ type: 'text', text: 'You are pd-qa.' }], sysRef: 'fnv1a:aa:14', truncated: false }) + '\n' +
+  JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 2, seq: 1, kind: 'assistant', phase: 'map', chunk: null, model: 'm', ts: 1700000004, latencyMs: 900, usage: { prompt: 120, completion: 30 }, costUsd: 0.001, content: [{ type: 'text', text: 'FLEET-VERDICT: PASS' }], sysRef: null, truncated: false }) + '\n';
 
 function relayResponse(status, body, isText = false) {
   return {
@@ -209,8 +211,10 @@ describe('pd fleet transcript', () => {
     expect(report).toContain('phase must be one of');
     expect(report).toContain('content must be a parts array');
     expect(report).toContain('truncated must be a boolean');
+    expect(report).toContain('runId must be a non-empty string');
+    expect(report).toContain('model must be a non-empty string');
     // Cross-line rule: line 4 reuses seq 0 after line 3's seq 0.
-    expect(report).toContain('line 4: INVALID — seq 0 does not increase past 0');
+    expect(report).toMatch(/line 4: INVALID — .*seq 0 does not increase past 0/);
     expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('4 invalid line(s), 0 valid'));
   });
 
