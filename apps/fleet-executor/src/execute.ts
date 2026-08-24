@@ -91,6 +91,7 @@ import {
   FleetAiDependencyError,
   normalizeProviderQueueAttempt,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  RUN_ABSOLUTE_DEADLINE_MS,
   type ShipAiCallStats,
 } from './ai-resilience.js';
 import { resolveAiCallDeadlineMs } from '../../shared/repo-ai-settings.js';
@@ -763,6 +764,37 @@ export async function ensureRunRow(
 }
 
 /**
+ * Read back this logical run's TRUE first-attempt start time.
+ *
+ * `recordRunStart`'s `ON CONFLICT` never touches `created_at`, so this column
+ * is the one place a redelivered/continued run's original wall-clock start
+ * survives — everything else in this file only ever sees "now". This is the
+ * value {@link RUN_ABSOLUTE_DEADLINE_MS} is measured against: a run that has
+ * been going, across however many queue continuations, since before that
+ * ceiling must stop rather than keep spending.
+ *
+ * Fails open (returns null) on any missing binding or read error — an
+ * absolute-deadline check that could itself break every run over a D1 hiccup
+ * would be a worse failure mode than the retry storm it exists to prevent.
+ *
+ * @param env - Worker bindings (D1).
+ * @param runId - This run's deterministic id (`run:<deliveryId>`).
+ * @returns The run's original `created_at` in epoch seconds, or null.
+ */
+async function getRunStartedAtSec(env: ExecutorEnv, runId: string): Promise<number | null> {
+  if (!env.DB) return null;
+  try {
+    const row = await env.DB.prepare(`SELECT created_at FROM fleet_runs WHERE id = ?`)
+      .bind(runId)
+      .first<{ created_at: number }>();
+    return typeof row?.created_at === 'number' ? row.created_at : null;
+  } catch (err) {
+    console.error(`[fleet-executor] getRunStartedAtSec failed run=${runId}: ${String(err)}`);
+    return null;
+  }
+}
+
+/**
  * Stamp the final conclusion + end-to-end wall-clock elapsed onto the run.
  * The durable first `created_at` is authoritative across checkpoint retries;
  * `startMs` is only a defensive fallback for a malformed legacy row. Best-effort:
@@ -962,17 +994,25 @@ export async function recordShipAiCallStats(
 ): Promise<void> {
   if (!env.DB || !stats || stats.calls === 0) return;
   try {
+    // ADD on conflict, never REPLACE: `runId` is stable across every queue
+    // delivery/continuation of one logical run (`run:${deliveryId}`), and
+    // `FleetAiCircuit` is a fresh in-memory instance per invocation. A ship
+    // whose call times out on delivery 1 and succeeds on delivery 2 must
+    // report BOTH attempts — REPLACE semantics silently dropped delivery 1's
+    // timeout the moment delivery 2 flushed its own (unrelated) counters.
+    // This was a DO-NOT-SHIP finding on PR #9800: the exact failure attempts
+    // this table exists to surface were the ones it was losing.
     await env.DB.prepare(
       `INSERT INTO fleet_ai_call_stats
          (run_id, ship, calls, ok_calls, timeout_calls, error_calls, total_elapsed_ms, max_elapsed_ms, deadline_ms, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(run_id, ship) DO UPDATE SET
-         calls = excluded.calls,
-         ok_calls = excluded.ok_calls,
-         timeout_calls = excluded.timeout_calls,
-         error_calls = excluded.error_calls,
-         total_elapsed_ms = excluded.total_elapsed_ms,
-         max_elapsed_ms = excluded.max_elapsed_ms,
+         calls = fleet_ai_call_stats.calls + excluded.calls,
+         ok_calls = fleet_ai_call_stats.ok_calls + excluded.ok_calls,
+         timeout_calls = fleet_ai_call_stats.timeout_calls + excluded.timeout_calls,
+         error_calls = fleet_ai_call_stats.error_calls + excluded.error_calls,
+         total_elapsed_ms = fleet_ai_call_stats.total_elapsed_ms + excluded.total_elapsed_ms,
+         max_elapsed_ms = MAX(fleet_ai_call_stats.max_elapsed_ms, excluded.max_elapsed_ms),
          deadline_ms = excluded.deadline_ms`,
     )
       .bind(
@@ -1450,6 +1490,9 @@ export async function executeFleet(
   // failed, so every completion path below can rely on details_url resolving
   // to a real run page (see ensureRunRow's docstring).
   await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  // The run's TRUE first-attempt start, surviving every continuation/retry —
+  // see RUN_ABSOLUTE_DEADLINE_MS and the per-ship-loop check below.
+  const runStartedAtSec = await getRunStartedAtSec(env, runId);
   // Record what each ship IS (model, role, blocking/execution posture) once,
   // before any of them run — see recordShipsConfigInTranscript's docstring.
   await recordShipsConfigInTranscript(transcript, cloudShips);
@@ -1716,6 +1759,47 @@ export async function executeFleet(
       await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
+    }
+
+    // Re-check the run's ABSOLUTE wall-clock budget before each ship. Raising
+    // the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
+    // compensating run-level ceiling would let a roster of retrying ships spend
+    // hours — this is the bound that stops it regardless of how many queue
+    // continuations or provider retries got the run this far. Measured against
+    // the run's TRUE first-attempt start (runStartedAtSec), not "now" relative
+    // to this invocation, so it cannot be reset by re-enqueuing a continuation.
+    // Fails open exactly like the credit/pause gates above — a broken deadline
+    // check must never itself break a run — for both a missing value AND an
+    // implausible one (non-positive, or in the future relative to "now"): the
+    // same validity shape recordRunEnd's own durable-start fallback already
+    // uses, so a malformed created_at cannot manufacture a false deadline trip
+    // any more than it can manufacture a false elapsed-time report there.
+    const runStartedAtMs = runStartedAtSec != null ? runStartedAtSec * 1000 : null;
+    if (runStartedAtMs != null && runStartedAtMs > 0 && runStartedAtMs <= Date.now()) {
+      const runElapsedMs = Date.now() - runStartedAtMs;
+      if (runElapsedMs > RUN_ABSOLUTE_DEADLINE_MS) {
+        const summary =
+          `Fleet review exceeded its ${Math.round(RUN_ABSOLUTE_DEADLINE_MS / 60_000)}-minute run budget ` +
+          `before pd-${ship.name} (${results.length} of ${orderedShips.length} ships completed) — stopping ` +
+          `rather than continuing to spend. Re-push the PR to start a fresh run.`;
+        await transcript.step(
+          'run-deadline-exceeded',
+          ship.name,
+          'Check concluded: neutral (run exceeded its absolute wall-clock budget)',
+          {
+            checkRunId,
+            conclusion: 'neutral',
+            stoppedBeforeShip: ship.name,
+            shipsCompleted: results.length,
+            shipsTotal: orderedShips.length,
+            runElapsedMs,
+            runAbsoluteDeadlineMs: RUN_ABSOLUTE_DEADLINE_MS,
+          },
+        );
+        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await recordRunEnd(env, runId, 'neutral', startMs);
+        return;
+      }
     }
 
     // RESUME: an earlier attempt of this delivery already completed this ship.

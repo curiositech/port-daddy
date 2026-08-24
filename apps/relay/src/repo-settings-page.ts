@@ -27,7 +27,7 @@
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
-import { resolveSession, userCanReadRepo } from './auth-github.js';
+import { resolveSession, userCanReadRepo, userIsRepoAdmin } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
 import { HEAD, TOKENS } from './account-page.js';
 import {
@@ -36,6 +36,7 @@ import {
   MAX_AI_CALL_DEADLINE_MS,
   MIN_AI_CALL_DEADLINE_MS,
   parseAiCallDeadlineMs,
+  resolveAiCallDeadlineMs,
 } from '../../shared/repo-ai-settings.js';
 
 /** The closed enum of SITREP dial levels the screen (and the DB CHECK) accept. */
@@ -454,6 +455,28 @@ export async function handleRepoSettingsSet(request: Request, env: Env): Promise
   const readable = await userCanReadRepo(env, session, owner, name);
   if (!readable) {
     return backToRepos(`GitHub says ${repo} is not readable by ${session.user.login}.`, true);
+  }
+  // Authority gate for the AI call deadline specifically (DO-NOT-SHIP finding
+  // on PR #9800): this value is not a per-user preference like the sitrep
+  // dial — fleet-executor treats the most-recently-updated repo_settings row
+  // as authoritative for EVERY installation reviewing this repository. Mere
+  // read access (userCanReadRepo, above) would let any GitHub user who can
+  // see a public repo silently change execution behavior for everyone who
+  // uses it. Only require admin when the submission would actually CHANGE
+  // the repo-wide effective value — re-saving the sitrep dial at whatever
+  // deadline is already in effect (the overwhelmingly common case, since 5
+  // minutes is both the default and this session's ask) never needs it.
+  const currentEffectiveDeadlineMs = await resolveAiCallDeadlineMs(env.DB, repo);
+  if (aiCallDeadlineMs !== currentEffectiveDeadlineMs) {
+    const isAdmin = await userIsRepoAdmin(env, session, owner, name);
+    if (!isAdmin) {
+      return backToRepos(
+        `Only a repository admin can change ${repo}'s AI call timeout (currently ` +
+          `${Math.round(currentEffectiveDeadlineMs / 60_000)}m) — it applies to every installation ` +
+          `reviewing this repository, not just your account. Leave it unchanged to save the sitrep dial.`,
+        true,
+      );
+    }
   }
   // Read-modify-write settings_json: it is the forward-compatible bag for
   // every setting this screen grows, so a write here must preserve any other

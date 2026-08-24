@@ -8,16 +8,18 @@
  * and queue attempts exactly when Workers AI is already out of capacity.
  */
 
+import { DEFAULT_AI_CALL_DEADLINE_MS } from '../../shared/repo-ai-settings.js';
+
 /** Queue deliveries allowed to probe a retryable Workers AI failure. */
 export const PROVIDER_MAX_DELIVERY_ATTEMPTS = 3;
 
 /**
  * Default hard wall-clock budget for one Workers AI binding call, used only
- * when a repository has not configured its own deadline (see
- * `apps/shared/repo-ai-settings.ts`, which owns this exact value as
- * `DEFAULT_AI_CALL_DEADLINE_MS` — kept in sync deliberately: this constant is
- * fleet-executor's fallback when a settings read is skipped or fails, that
- * module's is the value written by `/account/repos` and read from D1).
+ * when a repository has not configured its own deadline. Re-exported from
+ * `apps/shared/repo-ai-settings.ts` (rather than a second `300_000` literal
+ * "kept in sync by comment") so there is exactly one place this number is
+ * declared — a duplicated constant with a synchronization comment is not
+ * drift prevention (pd-qa adversarial finding, PR #9800).
  *
  * Workers AI's binding does not document an AbortSignal option. Racing the
  * binding promise is therefore the local fail-fast boundary: Fleet stops
@@ -28,9 +30,36 @@ export const PROVIDER_MAX_DELIVERY_ATTEMPTS = 3;
  * Raised from 60s to 5 minutes (2026-08-23): 60s was an arbitrary defensive
  * value, not derived from any Workers AI-side limit, and it was tripping on
  * ordinary latency for larger prompts. Operators can now configure this
- * per-repository; this is just the floor when they haven't.
+ * per-repository; this is just the floor when they haven't. See
+ * {@link RUN_ABSOLUTE_DEADLINE_MS} for the compensating run-level bound this
+ * raise required.
  */
-export const FLEET_AI_CALL_DEADLINE_MS = 300_000;
+export const FLEET_AI_CALL_DEADLINE_MS = DEFAULT_AI_CALL_DEADLINE_MS;
+
+/**
+ * Hard ceiling on how long ONE LOGICAL RUN (a PR review, spanning every
+ * Cloudflare Queue continuation and retry it takes) may run before Fleet
+ * gives up and completes the check neutral rather than continuing to spend.
+ *
+ * Design rationale: raising {@link FLEET_AI_CALL_DEADLINE_MS} to 5 minutes
+ * (configurable up to 10) without a compensating run-level bound turns a
+ * roster of ships into an unbounded retry storm — each ship's own AI calls
+ * can be retried across up to `PROVIDER_MAX_DELIVERY_ATTEMPTS` (3) queue
+ * deliveries, so a ~9-ship roster's worst case is roughly
+ * `9 ships × 3 attempts × 5–10 minutes` = 135–270 minutes with no ceiling at
+ * all. This is the DO-NOT-SHIP finding from the human adversarial review on
+ * PR #9800: a per-call deadline bounds one call; nothing bounded the run.
+ *
+ * 45 minutes is chosen to comfortably fit a legitimate large roster running
+ * slowly-but-successfully (the common case this deadline should never touch)
+ * while firmly ruling out the multi-hour pathological case. It is a flat,
+ * non-configurable constant on purpose: making it a per-repo setting would
+ * reopen the same cross-user-authority problem the deadline setting itself
+ * was flagged for (see `apps/shared/repo-ai-settings.ts`'s admin-authorization
+ * requirement) for a knob whose only honest value is "as small as the fleet's
+ * genuine worst-case legitimate runtime requires."
+ */
+export const RUN_ABSOLUTE_DEADLINE_MS = 45 * 60_000;
 
 /** Full-jitter queue backoff: 15s, 30s, 60s ceilings, capped at two minutes. */
 const PROVIDER_RETRY_BASE_SECONDS = 15;

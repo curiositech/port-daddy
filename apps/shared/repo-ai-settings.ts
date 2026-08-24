@@ -20,8 +20,16 @@
  * per-user-per-repo record. A queue-driven Fleet run has no "current user" to
  * scope by, so {@link resolveAiCallDeadlineMs} takes the most-recently-updated
  * row across every user who has configured that repository ("last editor
- * wins"). This is a known interim tradeoff, not real per-repo admin scoping —
- * building that would need its own ACL model and is out of scope here.
+ * wins" among the users who could legitimately write a non-default value).
+ * This is safe only because the WRITE side is gated: `apps/relay`'s
+ * `handleRepoSettingsSet` requires `userIsRepoAdmin` (GitHub's own
+ * `permissions.admin` for the caller) before it will persist a value that
+ * would actually change the repo's currently-effective deadline — a
+ * DO-NOT-SHIP finding on PR #9800 was that mere read access let any GitHub
+ * user who could see a public repository silently change execution behavior
+ * for every installation reviewing it. "Last admin wins" among multiple
+ * legitimate admins is an accepted, much smaller residual tradeoff; a real
+ * per-repo/installation authority record is still out of scope here.
  */
 
 /** Default deadline for a single Workers AI binding call: 5 minutes. */
