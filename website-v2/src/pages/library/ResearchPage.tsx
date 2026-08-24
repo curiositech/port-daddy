@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, FileText, Sigma } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { SevenProofsFigure } from '@/components/library/SevenProofsFigure'
 import {
   BracketLabel,
   PageContainer,
@@ -152,71 +153,75 @@ export default function ResearchLibraryPage() {
         {/* ── Hero ── */}
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
-            <div className="space-y-[var(--space-5)]">
-              <Link
-                to="/library"
-                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] hover:text-[var(--brand-primary)]"
-              >
-                <ArrowLeft aria-hidden="true" size={14} />
-                Back to the Harbor Library
-              </Link>
+            <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.92fr)_minmax(18rem,0.5fr)] lg:items-start">
+              <div className="space-y-[var(--space-5)]">
+                <Link
+                  to="/library"
+                  className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] hover:text-[var(--brand-primary)]"
+                >
+                  <ArrowLeft aria-hidden="true" size={14} />
+                  Back to the Harbor Library
+                </Link>
 
-              <PanelEyebrow>The Harbor Research Program — seven papers, adversarially reviewed</PanelEyebrow>
-              <PanelTitle as="h1" size="hero" className="max-w-[22ch]">
-                The whitepapers made the claims. This is where they get proved.
-              </PanelTitle>
-              <PanelBody size="default" className="max-w-[68ch] text-[length:var(--text-lg)]">
-                Seven library chapters argue the harbor works. Underneath four of
-                them sit theorems the prose alone can&rsquo;t carry — a digest
-                floor measured in bits, a controllability boundary between what
-                a runtime can prevent and what it can only notice, a
-                bribery-proof tower of judges auditing judges, a conservation
-                law that stops reputation from being minted out of thin air.
-                These seven papers are where{' '}
-                <strong className="font-black text-[var(--text-primary)]">R1 through R17</strong>{' '}
-                stop being entries in a results compendium and become proofs:
-                Akerlof&rsquo;s unraveling flipping the moment you attest the
-                engine, a queueing threshold the whitepaper got wrong and this
-                corrects in both directions, an NP-completeness frontier found
-                one clause outside a tractable fragment, a sheaf-cohomology
-                detector whose headline number you can check by hand. Pull out
-                any one of these seven and a specific claim in the library
-                stops being backed.
-              </PanelBody>
+                <PanelEyebrow>The Harbor Research Program — seven papers, adversarially reviewed</PanelEyebrow>
+                <PanelTitle as="h1" size="hero" className="max-w-[22ch]">
+                  The whitepapers made the claims. This is where they get proved.
+                </PanelTitle>
+                <PanelBody size="default" className="max-w-[68ch] text-[length:var(--text-lg)]">
+                  Seven library chapters argue the harbor works. Underneath four of
+                  them sit theorems the prose alone can&rsquo;t carry — a digest
+                  floor measured in bits, a controllability boundary between what
+                  a runtime can prevent and what it can only notice, a
+                  bribery-proof tower of judges auditing judges, a conservation
+                  law that stops reputation from being minted out of thin air.
+                  These seven papers are where{' '}
+                  <strong className="font-black text-[var(--text-primary)]">R1 through R17</strong>{' '}
+                  stop being entries in a results compendium and become proofs:
+                  Akerlof&rsquo;s unraveling flipping the moment you attest the
+                  engine, a queueing threshold the whitepaper got wrong and this
+                  corrects in both directions, an NP-completeness frontier found
+                  one clause outside a tractable fragment, a sheaf-cohomology
+                  detector whose headline number you can check by hand. Pull out
+                  any one of these seven and a specific claim in the library
+                  stops being backed.
+                </PanelBody>
 
-              <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
-                {[
-                  { value: '07', label: 'papers, arXiv-style' },
-                  { value: '16', label: 'results proved, R1–R17' },
-                  { value: String(RESEARCH_PAPER_TOTAL_PAGES), label: 'pages across the set' },
-                ].map((stat) => (
-                  <div key={stat.label} className="space-y-[var(--space-1)]">
-                    <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--text-primary)]">
-                      {stat.value}
+                <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
+                  {[
+                    { value: '07', label: 'papers, arXiv-style' },
+                    { value: '16', label: 'results proved, R1–R17' },
+                    { value: String(RESEARCH_PAPER_TOTAL_PAGES), label: 'pages across the set' },
+                  ].map((stat) => (
+                    <div key={stat.label} className="space-y-[var(--space-1)]">
+                      <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--text-primary)]">
+                        {stat.value}
+                      </div>
+                      <div className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                        {stat.label}
+                      </div>
                     </div>
-                    <div className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                      {stat.label}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-[var(--space-3)]">
+                  <a
+                    href="#the-papers"
+                    className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    Read the seven papers
+                    <ArrowRight aria-hidden="true" size={14} />
+                  </a>
+                  <a
+                    href="#result-ledger"
+                    className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    <Sigma aria-hidden="true" size={14} />
+                    See the R-number ledger
+                  </a>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-[var(--space-3)]">
-                <a
-                  href="#the-papers"
-                  className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-                >
-                  Read the seven papers
-                  <ArrowRight aria-hidden="true" size={14} />
-                </a>
-                <a
-                  href="#result-ledger"
-                  className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-                >
-                  <Sigma aria-hidden="true" size={14} />
-                  See the R-number ledger
-                </a>
-              </div>
+              <SevenProofsFigure />
             </div>
           </PageContainer>
         </section>
