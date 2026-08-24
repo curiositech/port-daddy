@@ -104,6 +104,15 @@ describe('isReservedIdentityName', () => {
     }
   });
 
+  test('does NOT reserve the product name — it is the default project-derived agentId', () => {
+    // `pd begin` in a project named port-daddy derives agentId "port-daddy";
+    // reserving it 403s every honest begin in this repo (caught by the
+    // compiled-CLI surface E2E). Keep it claimable.
+    for (const n of ['port-daddy', 'portdaddy', 'Port-Daddy', '  port-daddy  ']) {
+      expect(isReservedIdentityName(n)).toBe(false);
+    }
+  });
+
   test('the reserved set is non-empty and includes "system"', () => {
     expect(reservedIdentityNames()).toContain('system');
   });

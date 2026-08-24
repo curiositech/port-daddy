@@ -57,8 +57,14 @@ const SYSTEM_RESERVED: readonly string[] = [
   'superuser',
   'sudo',
   'kernel',
-  'port-daddy',
-  'portdaddy',
+  // NOTE: the product name ("port-daddy"/"portdaddy") is deliberately NOT
+  // reserved. `pd begin` derives a default display agentId from the project
+  // directory, which in this repo (and any project literally named port-daddy)
+  // IS "port-daddy" — reserving it 403s every honest begin in that project.
+  // A `- sender: port-daddy` line reads as the product/context, not as an
+  // authority instructing the agent, so the forge value is low and the
+  // collision cost is high. Reserve authority-over-agent words and role names,
+  // not the product's own name.
   'harbormaster',
   'harbor',
   'fleet',
