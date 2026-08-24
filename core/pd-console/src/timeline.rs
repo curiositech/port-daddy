@@ -16,7 +16,10 @@
 //! loop never waits on it. Nothing here depends on gpui, so its `#[cfg(test)]`
 //! suite runs on the cheap non-gpui gate via `bin/repl.rs`.
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
 /// The companion binary's name (its `[[bin]]` name in
 /// `core/pd-timeline-proto/Cargo.toml`, and the file it builds to).
@@ -123,12 +126,10 @@ fn timeline_proto_dir() -> PathBuf {
 ///   `PD_TIMELINE_PROTO_BIN` override) and resolves a concrete binary;
 /// * on `Missing`, returns [`Err`] with [`missing_binary_message`] — the caller
 ///   surfaces it as a `control_flash` (never a silent no-op, never a panic);
-/// * on `Found`, spawns the child with [`std::process::Command::spawn`] —
-///   **non-blocking**: `spawn` returns immediately and the `Child` handle is
-///   dropped (fire-and-forget), so the gpui event loop is never stalled. This is
-///   the same detached discipline as the `Command::new("open")` PNG viewer in
-///   `main.rs`, minus its `.status()` wait (that call runs on a blocking worker;
-///   this one runs on the gpui thread and must not block).
+/// * on `Found`, spawns the child with [`std::process::Command::spawn`] and
+///   hands its process handle to a tiny named reaper thread. The GPUI event loop
+///   remains non-blocking, while exited companion windows cannot accumulate as
+///   zombie processes across repeated launches.
 ///
 /// The child inherits our env and is additionally handed `PORT_DADDY_URL =
 /// daemon_url` so the companion reads the *same* berth the console is currently
@@ -141,26 +142,62 @@ pub fn launch_timeline_companion(daemon_url: &str) -> Result<PathBuf, String> {
     let proto_dir = timeline_proto_dir();
     let env_override = std::env::var("PD_TIMELINE_PROTO_BIN").ok();
 
-    match resolve_timeline_binary(
-        env_override.as_deref(),
-        exe_dir,
-        &proto_dir,
-        &|p| p.exists(),
-    ) {
+    match resolve_timeline_binary(env_override.as_deref(), exe_dir, &proto_dir, &|p| {
+        p.exists()
+    }) {
         TimelineBinary::Found(bin) => {
-            std::process::Command::new(&bin)
-                .env("PORT_DADDY_URL", daemon_url)
-                .spawn()
-                .map_err(|e| {
-                    format!(
-                        "TIMELINE_SPAWN_FAILED · could not exec {} · {e}",
-                        bin.display()
-                    )
-                })?;
+            spawn_timeline_process(&bin, daemon_url)?;
             Ok(bin)
         }
         TimelineBinary::Missing { searched } => Err(missing_binary_message(&searched)),
     }
+}
+
+/// Spawn the already-resolved companion and reap it away from GPUI's event
+/// loop. Kept separate from resolution so the actual process-error boundary is
+/// directly testable.
+fn spawn_timeline_process(bin: &Path, daemon_url: &str) -> Result<(), String> {
+    let child = std::process::Command::new(bin)
+        .env("PORT_DADDY_URL", daemon_url)
+        .spawn()
+        .map_err(|e| {
+            format!(
+                "TIMELINE_SPAWN_FAILED · could not exec {} · {e}",
+                bin.display()
+            )
+        })?;
+
+    let child = Arc::new(Mutex::new(child));
+    let reaper_child = Arc::clone(&child);
+    let display = bin.display().to_string();
+    if let Err(error) = std::thread::Builder::new()
+        .name("pd-timeline-reaper".to_string())
+        .spawn(move || match reaper_child.lock() {
+            Ok(mut child) => {
+                if let Err(wait_error) = child.wait() {
+                    eprintln!(
+                        "[pd-console] timeline companion {display} wait failed: {wait_error}"
+                    );
+                }
+            }
+            Err(_) => {
+                eprintln!("[pd-console] timeline companion {display} reaper lock was poisoned")
+            }
+        })
+    {
+        // Thread creation failed after the child started. Do not leak that
+        // process: terminate and synchronously reap it before returning.
+        if let Ok(mut child) = child.lock() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        return Err(format!(
+            "TIMELINE_REAPER_FAILED · could not monitor {} · {error}",
+            bin.display()
+        ));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -202,12 +239,8 @@ mod tests {
         let installed = "/Applications/pd/dist/core/pd-timeline-proto";
         let dev_release = "/repo/core/pd-timeline-proto/target/release/pd-timeline-proto";
         // Both exist; the installed copy (higher priority) must win.
-        let got = resolve_timeline_binary(
-            None,
-            Some(exe_dir),
-            proto,
-            &only(&[installed, dev_release]),
-        );
+        let got =
+            resolve_timeline_binary(None, Some(exe_dir), proto, &only(&[installed, dev_release]));
         assert_eq!(got, TimelineBinary::Found(PathBuf::from(installed)));
     }
 
@@ -301,5 +334,17 @@ mod tests {
         assert!(msg.contains("core/pd-timeline-proto"));
         assert!(msg.contains("/dist/core/pd-timeline-proto"));
         assert!(msg.contains("/repo/core/pd-timeline-proto/target/release/pd-timeline-proto"));
+    }
+
+    #[test]
+    fn resolved_binary_spawn_failure_is_actionable() {
+        let absent = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("definitely-not-a-timeline-binary");
+        let error = spawn_timeline_process(&absent, "http://127.0.0.1:9876")
+            .expect_err("an absent resolved executable must fail at the spawn boundary");
+
+        assert!(error.contains("TIMELINE_SPAWN_FAILED"));
+        assert!(error.contains("definitely-not-a-timeline-binary"));
     }
 }
