@@ -64,6 +64,14 @@ jobs:
       - name: Render the harbor-research corpus
         run: make -C docs/harbor-research docs
 
+      - name: Publish the seven papers + execution reports for the site
+        run: |
+          set -euo pipefail
+          mkdir -p website-v2/public/research
+          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 exec4 exec5; do
+            cp "docs/harbor-research/pdf/$f.pdf" "website-v2/public/research/$f.pdf"
+          done
+
       - name: Commit rebuilt PDFs (same-repo branch)
         if: >-
           (github.event_name == 'push' && github.ref_name != 'main') ||
@@ -77,12 +85,12 @@ jobs:
             "build(harbor-research): regenerate PDFs from source"*)
               echo "HEAD is already a build commit — nothing to do."; exit 0;;
           esac
-          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf)" ]; then
+          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
             echo "PDFs already match source — nothing to commit."; exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/harbor-research/pdf/*.pdf
+          git add docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(harbor-research): regenerate PDFs from source"
           git push origin "HEAD:$TARGET_BRANCH"
@@ -91,11 +99,11 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
-          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf)" ]; then
+          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
             echo "All in-scope harbor-research PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Rendered PDFs differ from what's committed:"
-          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' || true
+          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf' || true
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
             echo "::error::main is serving stale harbor-research PDFs — a PR must carry"
             echo "rebuilt PDFs (the feature-branch build commits them automatically)."
