@@ -22,6 +22,7 @@
  */
 
 import { pdFetch } from '../utils/fetch.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
@@ -137,6 +138,15 @@ const ATTENTION_PROTOCOL_CHANNELS = [
  */
 function attentionFetch(path: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
   return pdFetch(path, options);
+}
+
+function attentionOwnerHeaders(agentId: string, json: boolean = false): Record<string, string> {
+  return {
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+    // An explicit empty value prevents pdFetch from substituting a different
+    // context soul when --agent selects an identity this shell does not own.
+    'x-actor-credential': resolveCliActorCredential(agentId) ?? '',
+  };
 }
 
 function suggestionFor(
@@ -438,7 +448,7 @@ async function resolveSubscriptionTarget(channel: string, options: CLIOptions): 
 async function subscribeAgent(agentId: string, channel: string): Promise<{ subscribed: boolean; channel: string }> {
   const res: PdFetchResponse = await attentionFetch('/attention/subscribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: attentionOwnerHeaders(agentId, true),
     body: JSON.stringify({ agentId, channel }),
   });
   const data = (await res.json()) as { success: boolean; subscribed?: boolean; error?: string };
@@ -528,7 +538,7 @@ async function handleUnsubscribe(agentId: string, channel: string, options: CLIO
   }
   const res: PdFetchResponse = await attentionFetch('/attention/unsubscribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: attentionOwnerHeaders(agentId, true),
     body: JSON.stringify({ agentId, channel: physicalChannel }),
   });
   const data = (await res.json()) as { success: boolean; removed?: boolean; error?: string };
@@ -552,7 +562,9 @@ async function handleUnsubscribe(agentId: string, channel: string, options: CLIO
 
 async function listAgentSubscriptions(agentId: string): Promise<string[]> {
   const params = new URLSearchParams({ agentId });
-  const res: PdFetchResponse = await attentionFetch(`/attention/subscriptions?${params}`);
+  const res: PdFetchResponse = await attentionFetch(`/attention/subscriptions?${params}`, {
+    headers: attentionOwnerHeaders(agentId),
+  });
   const data = (await res.json()) as { success: boolean; agentId?: string; channels?: string[]; error?: string };
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'failed to list subscriptions');
@@ -635,7 +647,9 @@ export async function handleAttention(options: CLIOptions, deps: AttentionHandle
   if (options.limit !== undefined) params.set('limit', String(options.limit));
 
   const fetchAttention = deps.fetch ?? attentionFetch;
-  const res: PdFetchResponse = await fetchAttention(`/attention?${params}`);
+  const res: PdFetchResponse = await fetchAttention(`/attention?${params}`, {
+    headers: attentionOwnerHeaders(agentId),
+  });
   const data = (await res.json()) as unknown as AttentionSummary;
   if (!res.ok || !data.success) {
     ui.error(data.error || 'attention fetch failed');

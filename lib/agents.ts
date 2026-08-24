@@ -289,6 +289,16 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     `),
     heartbeat: db.prepare('UPDATE agents SET last_heartbeat = ?, pid = ?, status = COALESCE(?, status), readiness = COALESCE(?, readiness), progress = COALESCE(?, progress) WHERE id = ?'),
     unregister: db.prepare('DELETE FROM agents WHERE id = ?'),
+    unregisterIfNoActiveSessions: db.prepare(`
+      DELETE FROM agents
+      WHERE id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM sessions
+          WHERE sessions.agent_id = agents.id
+            AND sessions.status = 'active'
+        )
+    `),
     list: db.prepare('SELECT * FROM agents ORDER BY last_heartbeat DESC'),
     listByWorktree: db.prepare('SELECT * FROM agents WHERE worktree_id = ? ORDER BY last_heartbeat DESC'),
     listByProject: db.prepare('SELECT * FROM agents WHERE identity_project = ? ORDER BY last_heartbeat DESC'),
@@ -537,6 +547,53 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   }
 
   /**
+   * Serialize an existing actor's inbox refresh and session start as one
+   * writer transaction. Fresh actor registration already supplies an outer
+   * actorSouls transaction; nested callers deliberately reuse that owner and
+   * carry their projection publisher outward instead of committing early.
+   */
+  function runCanonicalSessionRegistration<
+    T extends Record<string | symbol, unknown> & { success: unknown },
+  >(effect: () => T): T | {
+    success: false;
+    error: string;
+    code: 'STORE_UNAVAILABLE';
+  } {
+    if (db.inTransaction) return effect();
+
+    const rollback = Symbol('canonical-session-registration-rollback');
+    let rejectedEffect: T | undefined;
+    const transaction = db.transaction(() => {
+      const result = effect();
+      if (result.success !== true) {
+        rejectedEffect = result;
+        throw rollback;
+      }
+      return result;
+    });
+
+    try {
+      const result = transaction.immediate();
+      const publishAfterCommit = result[ACTOR_REGISTRATION_AFTER_COMMIT];
+      if (typeof publishAfterCommit === 'function') {
+        try {
+          publishAfterCommit();
+        } catch {
+          // Cache/index/activity projections are derived and rebuildable.
+        }
+      }
+      return result;
+    } catch (error) {
+      if (error === rollback && rejectedEffect) return rejectedEffect;
+      return {
+        success: false,
+        error: 'canonical inbox and session could not be committed atomically',
+        code: 'STORE_UNAVAILABLE',
+      };
+    }
+  }
+
+  /**
    * Send heartbeat for an agent (enriched with status, readiness, progress)
    */
   function heartbeat(agentId: string, options: HeartbeatOptions = {}) {
@@ -645,6 +702,149 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       agentId,
       message: 'agent unregistered'
     };
+  }
+
+  /**
+   * End one canonical session and remove its inbox only if that same commit
+   * observes no other active session for the actor.
+   *
+   * This is intentionally one IMMEDIATE SQLite writer transaction. It
+   * serializes the target session mutation and final-inbox decision against
+   * actorSouls.registerAtomically(): a concurrent begin either commits first
+   * and prevents deletion, or commits after teardown and rebinds the inbox.
+   * Derived session/agent projections publish only after this transaction's
+   * COMMIT succeeds.
+   */
+  function finalizeSessionAndUnregisterIfNoActiveSessions(
+    agentId: string,
+    finalizeSession: () => Record<string | symbol, unknown>,
+    options: UnregisterOptions = {},
+  ) {
+    if (!agentId || typeof agentId !== 'string') {
+      return { success: false, error: 'agent ID must be a non-empty string' };
+    }
+    if (typeof finalizeSession !== 'function') {
+      return {
+        success: false,
+        unregistered: false,
+        agentId,
+        error: 'canonical session finalizer is required',
+        code: 'VALIDATION_ERROR',
+      };
+    }
+
+    // Nested use cannot prove the outer COMMIT before publishing derived
+    // state. Fail closed instead of silently unindexing inside that transaction.
+    if (db.inTransaction) {
+      return {
+        success: false,
+        unregistered: false,
+        agentId,
+        error: 'canonical inbox teardown requires ownership of the SQLite commit boundary',
+        code: 'POST_COMMIT_PUBLISHER_REQUIRED',
+      };
+    }
+
+    const rollback = Symbol('canonical-session-finalize-rollback');
+    let rejectedMutation: Record<string | symbol, unknown> | undefined;
+    try {
+      const finalizeIfAuthorized = db.transaction(() => {
+        const existing = stmts.get.get(agentId) as AgentRow | undefined;
+        if (existing?.verified_actor_id) {
+          const release = options[VERIFIED_ACTOR_INBOX_REGISTRATION];
+          const releaseActorId = typeof release?.actorId === 'string' ? release.actorId.trim() : '';
+          const releaseHarbor = typeof release?.harbor === 'string' ? release.harbor.trim() : '';
+          if (
+            releaseActorId !== existing.verified_actor_id
+            || releaseHarbor !== existing.verified_actor_harbor
+            || releaseActorId !== agentId
+          ) {
+            return {
+              success: false as const,
+              unregistered: false,
+              agentId,
+              error: 'verified actor inbox release requires the matching server authority',
+              code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+            };
+          }
+        }
+
+        const mutation = finalizeSession();
+        if (mutation.success !== true) {
+          rejectedMutation = mutation;
+          throw rollback;
+        }
+        const deletion = existing
+          ? stmts.unregisterIfNoActiveSessions.run(agentId)
+          : { changes: 0 };
+        return {
+          success: true as const,
+          mutation,
+          existing,
+          unregistered: deletion.changes === 1,
+        };
+      });
+      const result = finalizeIfAuthorized.immediate();
+      if (!result.success) return result;
+
+      const sessionPublisher = result.mutation[ACTOR_REGISTRATION_AFTER_COMMIT];
+      let projectionError: unknown;
+      if (typeof sessionPublisher === 'function') {
+        try {
+          sessionPublisher();
+        } catch (error) {
+          projectionError = error;
+        }
+      }
+      if (result.unregistered && semanticIndex && result.existing) {
+        const identity = [
+          result.existing.identity_project,
+          result.existing.identity_stack,
+          result.existing.identity_context,
+        ].filter(Boolean).join(':');
+        if (identity) {
+          try {
+            semanticIndex.unindexEntry(identity, agentId);
+          } catch (error) {
+            projectionError ??= error;
+          }
+        }
+      }
+
+      return {
+        success: true,
+        mutation: result.mutation,
+        unregistered: result.unregistered,
+        agentId,
+        retainedForActiveSessions: !result.unregistered,
+        ...(projectionError ? { projectionError: (projectionError as Error).message } : {}),
+        message: result.unregistered
+          ? 'agent unregistered'
+          : 'agent retained for active canonical sessions',
+      };
+    } catch (err) {
+      if (err === rollback) {
+        return {
+          success: false,
+          unregistered: false,
+          agentId,
+          mutation: rejectedMutation,
+          error: typeof rejectedMutation?.error === 'string'
+            ? rejectedMutation.error
+            : 'canonical session finalization failed',
+          code: typeof rejectedMutation?.code === 'string'
+            ? rejectedMutation.code
+            : 'SESSION_MUTATION_FAILED',
+        };
+      }
+      return {
+        success: false,
+        unregistered: false,
+        agentId,
+        error: (err as Error).message,
+        code: 'STORE_UNAVAILABLE',
+      };
+    }
   }
 
   /**
@@ -1022,8 +1222,10 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
 
   return {
     register,
+    runCanonicalSessionRegistration,
     heartbeat,
     unregister,
+    finalizeSessionAndUnregisterIfNoActiveSessions,
     get,
     resolveLiveActorInbox,
     list,

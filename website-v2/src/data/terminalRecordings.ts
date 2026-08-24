@@ -70,12 +70,13 @@ const tutorialRecordings: Record<string, RecordingSpec> = {
     commands: ['pd status', 'pd notes --limit 5'],
   },
   inbox: {
-    title: 'See a direct agent message land in the right place',
+    title: 'See a verified direct message land in the exact actor inbox',
     caption:
-      'This clip shows the real inbox boundary: the human control layer sends one direct handoff, then the named agent reads that durable message from its own lane.',
+      'This clip uses two daemon-minted actor credentials: the sender targets the receiver\'s canonical actor ID, then only that receiver credential can read and acknowledge the durable message.',
     commands: [
-      'AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER "Review migration 0142 on staging before release."',
-      'pd inbox --agent QA-REVIEWER --unread --limit 1',
+      'pd inbox send <canonical-actor-id> "Review migration 0142 on staging before release."',
+      'pd inbox --unread --limit 1',
+      'pd inbox read-all',
     ],
   },
   sugar: {

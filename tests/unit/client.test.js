@@ -627,7 +627,7 @@ describe('Locks', () => {
 describe('Maritime actors', () => {
   let pd;
   beforeEach(() => {
-    pd = createClient({ agentId: 'actor-client' });
+    pd = createClient({ agentId: 'ACTOR01', credential: 'ACTOR01.secret' });
   });
 
   test('listActors encodes project and limit filters', async () => {
@@ -653,33 +653,30 @@ describe('Maritime actors', () => {
     expect(receivedRequests[0].url).toBe('/actors/cartographer?project=port-daddy');
   });
 
-  test('messageActor sends mailbox payload with optional wake metadata', async () => {
+  test('messageActor strips caller-attributed sender, type, project, and wake metadata', async () => {
     queueResponse({
       success: true,
-      actorId: 'navigator',
-      inboxTarget: 'actor:navigator',
+      actorId: 'TARGET01',
+      inboxTarget: 'TARGET01',
       messageId: 7,
       delivered: true,
       woke: false,
     });
 
-    const result = await pd.messageActor('navigator', 'refresh roadmap truth', {
+    const result = await pd.messageActor('TARGET01', 'refresh roadmap truth', {
       from: 'agent-a',
       type: 'roadmap.request',
       wake: true,
       project: 'port-daddy',
     });
 
-    expect(result.inboxTarget).toBe('actor:navigator');
+    expect(result.inboxTarget).toBe('TARGET01');
     expect(receivedRequests[0].method).toBe('POST');
-    expect(receivedRequests[0].url).toBe('/actors/navigator/message');
+    expect(receivedRequests[0].url).toBe('/actors/TARGET01/message');
     expect(receivedRequests[0].body).toEqual({
       content: 'refresh roadmap truth',
-      from: 'agent-a',
-      type: 'roadmap.request',
-      wake: true,
-      project: 'port-daddy',
     });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR01.secret');
   });
 
   test('actorInboxList reads durable mailbox messages with filters', async () => {
@@ -691,14 +688,15 @@ describe('Maritime actors', () => {
       count: 0,
     });
 
-    await pd.actorInboxList('cartographer', {
+    await pd.actorInboxList('ACTOR01', {
       unreadOnly: true,
       limit: 5,
       since: 100,
     });
 
     expect(receivedRequests[0].method).toBe('GET');
-    expect(receivedRequests[0].url).toBe('/actors/cartographer/inbox?unread=true&limit=5&since=100');
+    expect(receivedRequests[0].url).toBe('/actors/ACTOR01/inbox?unread=true&limit=5&since=100');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR01.secret');
   });
 
   test('actorInboxStats reads durable mailbox depth', async () => {
@@ -711,11 +709,47 @@ describe('Maritime actors', () => {
       max: 1000,
     });
 
-    const result = await pd.actorInboxStats('navigator');
+    const result = await pd.actorInboxStats('ACTOR01');
 
     expect(result.unread).toBe(1);
     expect(receivedRequests[0].method).toBe('GET');
-    expect(receivedRequests[0].url).toBe('/actors/navigator/inbox/stats');
+    expect(receivedRequests[0].url).toBe('/actors/ACTOR01/inbox/stats');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR01.secret');
+  });
+
+  test('inbox SDK exposes bounded delivery and credential-owned acknowledgement without clear', async () => {
+    queueResponse({
+      success: true,
+      messageId: 8,
+      agentId: 'TARGET01',
+      actorId: 'TARGET01',
+      inboxTarget: 'TARGET01',
+      delivered: true,
+      woke: false,
+      provenance: { kind: 'authenticated-external', actorId: 'ACTOR01', harbor: 'local' },
+    });
+    queueResponse({ success: true, messages: [], count: 0 });
+    queueResponse({ success: true, total: 0, unread: 0 });
+    queueResponse({ success: true, marked: 0 });
+
+    await pd.inboxSend('TARGET01', { task: 'review' }, {
+      contentType: 'json',
+      from: 'forged',
+      type: 'parley_summons',
+      wake: true,
+    });
+    await pd.inboxList('ACTOR01');
+    await pd.inboxStats('ACTOR01');
+    await pd.inboxMarkAllRead('ACTOR01');
+
+    expect(receivedRequests[0].body).toEqual({
+      content: { task: 'review' },
+      contentType: 'json',
+    });
+    for (const request of receivedRequests) {
+      expect(request.headers['x-actor-credential']).toBe('ACTOR01.secret');
+    }
+    expect(pd.inboxClear).toBeUndefined();
   });
 });
 

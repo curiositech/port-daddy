@@ -182,7 +182,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   u: 'approval',
   spawn: 'approval',        // refined: `spawn kill` is destructive
   sortie: 'approval',       // one-shot multi-agent mission: spawns agents, spends budget; refined: read subcommands are silent
-  agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
+  agent: 'approval',        // refined: `agent unregister` is destructive; inbox clear is retired
   mcp: 'approval',
   harbor: 'approval',       // refined: `harbor destroy` is destructive
   harbormaster: 'approval', // start/stop the shared merge-owning actor; affects every agent's merges
@@ -221,7 +221,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * resolveTier() before falling back to TIER_REGISTRY[command].
  *
  * Two-token keys only. If the second positional arg disambiguates the tier,
- * it goes here. Three-token keys (e.g. distinguishing `agent inbox clear`
+ * it goes here. Three-token keys (e.g. distinguishing `agent inbox send`
  * from `agent inbox list`) use the special longer-key form and are matched
  * by best-effort prefix.
  */
@@ -356,7 +356,6 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox list': 'silent',
   'agent inbox stats': 'silent',
   'agent inbox send': 'approval',
-  'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
 
   // durable named-agent roster: reads are silent, profile facts are notify,
@@ -592,7 +591,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
  *                  "--expired" if the flag changes the tier (rare).
  *
  * Resolution order:
- *   1. Three-token key:  "<command> <argv0> <argv1>"   (e.g. "agent inbox clear")
+ *   1. Three-token key:  "<command> <argv0> <argv1>"   (e.g. "agent inbox send")
  *   2. Two-token key:    "<command> <argv0>"           (e.g. "salvage claim")
  *   3. Flag-suffix key:  "<command> --<flag>"          (e.g. "release --expired")
  *   4. Bare command:     TIER_REGISTRY[command]
@@ -690,7 +689,6 @@ export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
   'channels clear',
   'dns cleanup',
   'agent unregister',
-  'agent inbox clear',
   'harbor destroy',
   'spawn kill',
   'fleet down',

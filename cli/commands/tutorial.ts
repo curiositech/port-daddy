@@ -624,54 +624,89 @@ async function lesson12Phases(): Promise<void> {
 async function lesson13Inbox(): Promise<void> {
   lessonHeader(13, 'Agent Inbox — Direct Messaging');
 
-  process.stderr.write(`  Every registered agent has a personal inbox.\n`);
-  process.stderr.write(`  Use it for targeted handoffs; use pub/sub for broadcasts.\n\n`);
+  process.stderr.write(`  Every verified actor has a private live inbox.\n`);
+  process.stderr.write(`  The daemon attributes senders; only the exact actor credential can read or acknowledge.\n\n`);
 
   const ts = Date.now();
-  const aliceId = `tutorial-alice-${ts}`;
-  const bobId   = `tutorial-bob-${ts}`;
-  state.inboxSenderAgent   = aliceId;
-  state.inboxReceiverAgent = bobId;
+  type TutorialInboxParticipant = { agentId: string; sessionId: string; credential: string };
+  const beginParticipant = async (label: string, role: string): Promise<TutorialInboxParticipant> => {
+    const response = await pdFetch('/sugar/begin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentId: `tutorial-${label}-${ts}`,
+        purpose: `Inbox demo ${role}`,
+        identity: `tutorial:inbox:${label}`,
+        lifecycle: 'durable',
+      }),
+    });
+    const data = await response.json() as Record<string, unknown>;
+    if (
+      !response.ok
+      || typeof data.agentId !== 'string'
+      || typeof data.sessionId !== 'string'
+      || typeof data.credential !== 'string'
+    ) {
+      throw new Error(typeof data.error === 'string' ? data.error : `could not start ${label}`);
+    }
+    return { agentId: data.agentId, sessionId: data.sessionId, credential: data.credential };
+  };
+  const ownerHeaders = (credential: string) => ({
+    'Content-Type': 'application/json',
+    'x-actor-credential': credential,
+  });
+  let alice: TutorialInboxParticipant | undefined;
+  let bob: TutorialInboxParticipant | undefined;
 
-  // Register two agents
-  await pdFetch('/agents', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: aliceId, type: 'tutorial', purpose: 'Inbox demo sender' }),
-  }).catch(() => {});
-  await pdFetch('/agents', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: bobId, type: 'tutorial', purpose: 'Inbox demo receiver' }),
-  }).catch(() => {});
-  process.stderr.write(`  Registered agents: ${aliceId} and ${bobId}\n\n`);
+  try {
+    alice = await beginParticipant('alice', 'sender');
+    bob = await beginParticipant('bob', 'receiver');
+    process.stderr.write(`  Verified actors: ${alice.agentId} and ${bob.agentId}\n\n`);
 
-  // Alice sends Bob a message
-  process.stderr.write(`  ${ANSI.fgCyan}Alice → Bob:${ANSI.reset} "Migrations complete, ready for review"\n`);
-  await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: 'Migrations complete, ready for review', from: aliceId, type: 'handoff' }),
-  }).catch(() => {});
+    process.stderr.write(`  ${ANSI.fgCyan}Alice → Bob:${ANSI.reset} "Migrations complete, ready for review"\n`);
+    await pdFetch(`/agents/${encodeURIComponent(bob.agentId)}/inbox`, {
+      method: 'POST',
+      headers: ownerHeaders(alice.credential),
+      body: JSON.stringify({ content: 'Migrations complete, ready for review' }),
+    });
 
-  // Bob checks stats
-  const statsResp = await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox/stats`).catch(() => null);
-  const stats = (statsResp?.ok ? await statsResp.json() : {}) as { total?: number; unread?: number };
-  process.stderr.write(`  Bob's inbox: total=${stats?.total ?? '?'}, unread=${stats?.unread ?? '?'}\n\n`);
+    const statsResp = await pdFetch(`/agents/${encodeURIComponent(bob.agentId)}/inbox/stats`, {
+      headers: ownerHeaders(bob.credential),
+    });
+    const stats = (statsResp.ok ? await statsResp.json() : {}) as { total?: number; unread?: number };
+    process.stderr.write(`  Bob's inbox: total=${stats.total ?? '?'}, unread=${stats.unread ?? '?'}\n\n`);
 
-  // Bob reads
-  const readResp = await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`).catch(() => null);
-  const inbox = (readResp?.ok ? await readResp.json() : {}) as { messages?: Array<{ from?: string; content: string; type: string }> };
-  for (const msg of (inbox?.messages ?? [])) {
-    process.stderr.write(`  ${ANSI.fgGreen}[${msg.type}]${ANSI.reset} From ${msg.from ?? 'unknown'}: ${msg.content}\n`);
+    const readResp = await pdFetch(`/agents/${encodeURIComponent(bob.agentId)}/inbox`, {
+      headers: ownerHeaders(bob.credential),
+    });
+    const inbox = (readResp.ok ? await readResp.json() : {}) as { messages?: Array<{ from?: string; content: string; type: string }> };
+    for (const msg of (inbox.messages ?? [])) {
+      process.stderr.write(`  ${ANSI.fgGreen}[${msg.type}]${ANSI.reset} From ${msg.from ?? 'external'}: ${msg.content}\n`);
+    }
+
+    await pdFetch(`/agents/${encodeURIComponent(bob.agentId)}/inbox/read-all`, {
+      method: 'PUT',
+      headers: ownerHeaders(bob.credential),
+      body: '{}',
+    });
+    process.stderr.write(`\n  Inbox acknowledged without deleting its audit trail.\n\n`);
+  } catch (error) {
+    ui.warn(`Could not run the verified inbox demo: ${(error as Error).message}`);
+  } finally {
+    for (const participant of [bob, alice]) {
+      if (!participant) continue;
+      await pdFetch('/sugar/done', {
+        method: 'POST',
+        headers: ownerHeaders(participant.credential),
+        body: JSON.stringify({
+          agentId: participant.agentId,
+          sessionId: participant.sessionId,
+          status: 'completed',
+          note: 'Result: Verified inbox tutorial complete.',
+        }),
+      }).catch(() => {});
+    }
   }
-
-  // Mark all read and clear
-  await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox/read-all`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}',
-  }).catch(() => {});
-  await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`, { method: 'DELETE' }).catch(() => {});
-  process.stderr.write(`\n  Inbox cleared.\n\n`);
 
   process.stderr.write(`  CLI: ${ANSI.fgCyan}pd inbox list <agentId>${ANSI.reset}\n`);
   process.stderr.write(`       ${ANSI.fgCyan}pd inbox send <agentId> "message"${ANSI.reset}\n`);
@@ -807,9 +842,6 @@ export async function cleanupTutorialState(
 
   // Clean up inbox agents from lesson 13
   if (tutorialState.inboxReceiverAgent) {
-    try {
-      await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxReceiverAgent)}/inbox`, { method: 'DELETE' });
-    } catch {}
     try {
       const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxReceiverAgent)}`, { method: 'DELETE' });
       if (response.ok || response.status === 404) tutorialState.inboxReceiverAgent = undefined;

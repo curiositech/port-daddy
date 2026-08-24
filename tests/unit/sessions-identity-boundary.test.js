@@ -23,7 +23,7 @@ import { resolveWriteIdentity, stampIdentityMetadata } from '../../lib/identity-
 
 const { sessionsPlugin } = await import('../../routes/sessions.js');
 
-function buildApp({ withSouls = true } = {}) {
+function buildApp({ withSouls = true, parleyAutoTrigger = null } = {}) {
   const db = createTestDb();
   const sessions = createSessions(db);
   const souls = withSouls ? createTestActorSouls(db) : null;
@@ -41,6 +41,7 @@ function buildApp({ withSouls = true } = {}) {
       logger,
       activityLog: { log() {} },
       actorSouls: souls,
+      parleyAutoTrigger,
     },
   });
   return { app, db, sessions, souls, logs };
@@ -119,6 +120,29 @@ describe('identity write boundary — POST /sessions', () => {
     const stored = sessions.get(body.id);
     expect(stored.session.metadata.identity.verified).toBe(true);
     expect(stored.session.metadata.identity.actorId).toBe(minted.actorId);
+    await app.close();
+  });
+
+  test('a same-soul body alias is assertion-only and never becomes the session party', async () => {
+    const { app, souls, sessions } = buildApp();
+    const minted = mintTestActor(souls, 'display-session-owner');
+    expect(souls.register({
+      credential: minted.credential,
+      alias: 'secondary-session-display',
+    })).toEqual(expect.objectContaining({ ok: true, actorId: minted.actorId }));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: minted.headers,
+      payload: { purpose: 'canonical alias assertion', agentId: 'secondary-session-display' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const stored = sessions.get(response.json().id).session;
+    expect(stored.agentId).toBe(minted.actorId);
+    expect(stored.agentId).not.toBe('secondary-session-display');
+    expect(stored.metadata.identity.actorId).toBe(minted.actorId);
     await app.close();
   });
 
@@ -232,7 +256,7 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
     await app.close();
   });
 
-  test('takeover with a minted credential succeeds and stamps the successor actorId', async () => {
+  test('a different minted actor cannot take over another canonical session', async () => {
     const { app, souls, sessions } = buildApp();
     const owner = mintTestActor(souls, 'owner2:stack:ctx');
     const successor = mintTestActor(souls, 'successor2:stack:ctx');
@@ -247,11 +271,284 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
       url: `/sessions/${started.id}/takeover`,
       payload: { agentId: 'successor2:stack:ctx', credential: successor.credential },
     });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(sessions.get(started.id).session.status).toBe('active');
+    expect(sessions.list({ allWorktrees: true }).sessions).toHaveLength(1);
+    await app.close();
+  });
+
+  test('the canonical owner can take over and a same-soul body alias never becomes the successor party', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'owner3:stack:ctx');
+    expect(souls.register({
+      credential: owner.credential,
+      alias: 'owner3-secondary-display',
+    })).toEqual(expect.objectContaining({ ok: true, actorId: owner.actorId }));
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'canonical owner takeover', credential: owner.credential },
+    })).json();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${started.id}/takeover`,
+      payload: {
+        agentId: 'owner3-secondary-display',
+        credential: owner.credential,
+      },
+    });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.identity).toEqual(expect.objectContaining({ verified: true, actorId: successor.actorId }));
+    expect(body.identity).toEqual(expect.objectContaining({ verified: true, actorId: owner.actorId }));
     const stored = sessions.get(body.successorId);
-    expect(stored.session.metadata.identity.actorId).toBe(successor.actorId);
+    expect(stored.session.agentId).toBe(owner.actorId);
+    expect(stored.session.agentId).not.toBe('owner3-secondary-display');
+    expect(stored.session.metadata.identity.actorId).toBe(owner.actorId);
+    await app.close();
+  });
+
+  test('an unstamped legacy predecessor fails closed even with its actor credential', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'legacy-owner:stack:ctx');
+    const legacy = sessions.start('unstamped legacy takeover', {
+      agentId: owner.actorId,
+      project: 'demo',
+      durable: true,
+      metadata: { displayIdentity: 'legacy-owner:stack:ctx' },
+    });
+    expect(legacy).toEqual(expect.objectContaining({ success: true }));
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${legacy.id}/takeover`,
+      headers: owner.headers,
+      payload: {},
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('SESSION_IDENTITY_UNVERIFIED');
+    expect(sessions.get(legacy.id).session.status).toBe('active');
+    expect(sessions.list({ allWorktrees: true }).sessions).toHaveLength(1);
+    await app.close();
+  });
+});
+
+describe('identity write boundary — generic session lifecycle routes', () => {
+  test('PUT /sessions/:id is retired for missing, forged, and even valid credentials', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'retired-put-owner:stack:ctx');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'retired lifecycle target', credential: owner.credential },
+    })).json();
+
+    for (const request of [
+      { payload: { status: 'completed' } },
+      { headers: { 'x-actor-credential': 'FORGED.invalid' }, payload: { status: 'abandoned' } },
+      { headers: owner.headers, payload: { status: 'completed' } },
+    ]) {
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/sessions/${started.id}`,
+        ...request,
+      });
+      expect(response.statusCode).toBe(404);
+      expect(sessions.get(started.id).session.status).toBe('active');
+    }
+    await app.close();
+  });
+
+  test('PUT /sessions/:id/phase rejects anonymous and cross-actor mutation, then accepts the exact owner', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'phase-owner-display');
+    const attacker = mintTestActor(souls, 'phase-attacker-display');
+    expect(souls.register({
+      credential: owner.credential,
+      alias: 'phase-owner-secondary-display',
+    })).toEqual(expect.objectContaining({ ok: true, actorId: owner.actorId }));
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: owner.headers,
+      payload: { purpose: 'phase authority target' },
+    })).json();
+    const initialPhase = sessions.get(started.id).session.phase;
+
+    const anonymous = await app.inject({
+      method: 'PUT',
+      url: `/sessions/${started.id}/phase`,
+      payload: { phase: 'testing' },
+    });
+    expect(anonymous.statusCode).toBe(401);
+    expect(anonymous.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+
+    const crossActor = await app.inject({
+      method: 'PUT',
+      url: `/sessions/${started.id}/phase`,
+      headers: attacker.headers,
+      payload: { phase: 'testing' },
+    });
+    expect(crossActor.statusCode).toBe(403);
+    expect(crossActor.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(sessions.get(started.id).session.phase).toBe(initialPhase);
+
+    const exactOwner = await app.inject({
+      method: 'PUT',
+      url: `/sessions/${started.id}/phase`,
+      headers: owner.headers,
+      payload: { phase: 'testing', agentId: 'phase-owner-secondary-display' },
+    });
+    expect(exactOwner.statusCode).toBe(200);
+    expect(exactOwner.json().phase).toBe('testing');
+    expect(sessions.get(started.id).session.agentId).toBe(owner.actorId);
+    await app.close();
+  });
+
+  test('PUT /sessions/:id/phase fails closed for an unstamped legacy owner row', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'legacy-phase-owner');
+    const legacy = sessions.start('legacy phase target', {
+      agentId: owner.actorId,
+      durable: true,
+      metadata: { displayIdentity: 'legacy-phase-owner' },
+    });
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/sessions/${legacy.id}/phase`,
+      headers: owner.headers,
+      payload: { phase: 'testing' },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('SESSION_IDENTITY_UNVERIFIED');
+    expect(sessions.get(legacy.id).session.phase).toBe('in_progress');
+    await app.close();
+  });
+
+  test('DELETE /sessions/:id rejects missing and forged credentials before archiving', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'delete-auth-owner:stack:ctx');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'delete credential target', credential: owner.credential },
+    })).json();
+    expect(sessions.end(started.id, { status: 'completed' }).success).toBe(true);
+
+    const missing = await app.inject({ method: 'DELETE', url: `/sessions/${started.id}` });
+    expect(missing.statusCode).toBe(401);
+    expect(missing.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+
+    const forged = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${started.id}`,
+      headers: { 'x-actor-credential': 'FORGED.invalid' },
+    });
+    expect(forged.statusCode).toBe(401);
+    expect(forged.json().code).toBe('IDENTITY_CREDENTIAL_INVALID');
+    expect(sessions.get(started.id).session.metadata.archivedAt).toBeUndefined();
+    await app.close();
+  });
+
+  test('a different valid actor cannot archive the owner session', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'delete-owner:stack:ctx');
+    const attacker = mintTestActor(souls, 'delete-attacker:stack:ctx');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'cross-owner archive target', credential: owner.credential },
+    })).json();
+    expect(sessions.end(started.id, { status: 'completed' }).success).toBe(true);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${started.id}`,
+      headers: attacker.headers,
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(sessions.get(started.id).session.metadata.archivedAt).toBeUndefined();
+    await app.close();
+  });
+
+  test('the owner cannot use generic DELETE to tear down an active session', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'active-delete-owner:stack:ctx');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'active delete target', credential: owner.credential },
+    })).json();
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${started.id}`,
+      headers: owner.headers,
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('SESSION_ACTIVE_USE_SUGAR_DONE');
+    expect(sessions.get(started.id).session.status).toBe('active');
+    expect(sessions.get(started.id).session.metadata.archivedAt).toBeUndefined();
+    await app.close();
+  });
+
+  test('the exact owner can archive a terminal session while caller aliases remain assertion-only', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'terminal-delete-owner:stack:ctx');
+    expect(souls.register({
+      credential: owner.credential,
+      alias: 'terminal-delete-secondary-display',
+    })).toEqual(expect.objectContaining({ ok: true, actorId: owner.actorId }));
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'terminal archive target', credential: owner.credential },
+    })).json();
+    expect(sessions.end(started.id, { status: 'completed' }).success).toBe(true);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${started.id}`,
+      headers: owner.headers,
+      payload: { agentId: 'terminal-delete-secondary-display' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: true,
+      id: started.id,
+      status: 'completed',
+      archived: true,
+      notesPreserved: true,
+    }));
+    const archived = sessions.get(started.id).session;
+    expect(archived.agentId).toBe(owner.actorId);
+    expect(archived.agentId).not.toBe('terminal-delete-secondary-display');
+    expect(archived.metadata.archivedAt).toEqual(expect.any(Number));
+    await app.close();
+  });
+
+  test('an unstamped legacy terminal session cannot recover archive authority', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'legacy-delete-owner:stack:ctx');
+    const legacy = sessions.start('legacy terminal archive', {
+      agentId: owner.actorId,
+      project: 'demo',
+      durable: true,
+      metadata: { displayIdentity: 'legacy-delete-owner:stack:ctx' },
+    });
+    expect(sessions.end(legacy.id, { status: 'completed' }).success).toBe(true);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${legacy.id}`,
+      headers: owner.headers,
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('SESSION_IDENTITY_UNVERIFIED');
+    expect(sessions.get(legacy.id).session.metadata.archivedAt).toBeUndefined();
     await app.close();
   });
 });
@@ -346,21 +643,51 @@ describe('identity write boundary — notes writes', () => {
     await app.close();
   });
 
-  test('a fully anonymous note (no agentId, no credential) is still admitted', async () => {
-    const { app } = buildApp();
+  test('anonymous and cross-actor callers cannot append to a selected canonical session', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'selected-note-owner');
+    const attacker = mintTestActor(souls, 'selected-note-attacker');
     const started = (await app.inject({
       method: 'POST',
       url: '/sessions',
-      payload: { purpose: 'anonymous host session' },
+      headers: owner.headers,
+      payload: { purpose: 'selected note target' },
     })).json();
-    const res = await app.inject({
+
+    const anonymous = await app.inject({
       method: 'POST',
       url: '/notes',
-      payload: { content: 'anonymous quick note', sessionId: started.id },
+      payload: { content: 'anonymous selected note', sessionId: started.id },
     });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().success).toBe(true);
-    expect(res.json().identity).toBeUndefined();
+    expect(anonymous.statusCode).toBe(401);
+    expect(anonymous.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+
+    const crossActor = await app.inject({
+      method: 'POST',
+      url: `/sessions/${started.id}/notes`,
+      headers: attacker.headers,
+      payload: { content: 'cross-actor selected note' },
+    });
+    expect(crossActor.statusCode).toBe(403);
+    expect(crossActor.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(sessions.getNotes(started.id).notes).toHaveLength(0);
+    await app.close();
+  });
+
+  test('an anonymous note without a caller-selected session retains unattributed semantics', async () => {
+    const { app, sessions } = buildApp();
+    const anonymousSession = sessions.start('anonymous host session');
+    const response = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: { content: 'anonymous quick note' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: true,
+      sessionId: anonymousSession.id,
+    }));
+    expect(response.json().identity).toBeUndefined();
     await app.close();
   });
 });
@@ -442,9 +769,30 @@ describe('identity write boundary — file claim writes', () => {
       payload: { files: ['src/held2.ts'], agentId: 'unbound-display-name', credential: attacker.credential },
     });
     expect(res.statusCode).toBe(403);
-    expect(res.json().code).toBe('SESSION_AGENT_MISMATCH');
+    expect(res.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
     const claims = sessions.listAllActiveClaims({});
     expect(claims.claims.some((c) => c.filePath === 'src/held2.ts')).toBe(true);
+    await app.close();
+  });
+
+  test('an unstamped legacy session cannot recover file-claim authority from a valid credential', async () => {
+    const { app, souls, sessions } = buildApp();
+    const owner = mintTestActor(souls, 'legacy-claim-owner');
+    const legacy = sessions.start('legacy claim authority', {
+      agentId: owner.actorId,
+      durable: true,
+      metadata: { displayIdentity: 'legacy-claim-owner' },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/sessions/${legacy.id}/files`,
+      headers: owner.headers,
+      payload: { files: ['src/legacy-authority.ts'] },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('SESSION_IDENTITY_UNVERIFIED');
+    expect(sessions.listAllActiveClaims({}).claims).toHaveLength(0);
     await app.close();
   });
 
@@ -472,6 +820,65 @@ describe('identity write boundary — file claim writes', () => {
     });
     expect(release.statusCode).toBe(200);
     expect(release.json().released).toEqual(['src/mine.ts']);
+    await app.close();
+  });
+
+  test('alias-owned and unstamped active rows cannot become automatic conflict-signal parties or liveness proof', async () => {
+    const evaluate = jest.fn(() => ({ state: 'started', parleyId: 'should-not-run' }));
+    const { app, souls, sessions } = buildApp({ parleyAutoTrigger: { evaluate } });
+    const legacyHolder = mintTestActor(souls, 'legacy-signal-holder');
+    const challenger = mintTestActor(souls, 'canonical-signal-challenger');
+    const aliasOwned = sessions.start('alias-owned signal holder', {
+      agentId: 'legacy-signal-holder',
+      files: ['src/alias-owned-signal.ts'],
+      metadata: {
+        identity: { verified: true, actorId: legacyHolder.actorId },
+      },
+    });
+    expect(aliasOwned.success).toBe(true);
+    const challengerSession = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: challenger.headers,
+      payload: { purpose: 'canonical challenger' },
+    })).json();
+
+    const holderConflict = await app.inject({
+      method: 'POST',
+      url: `/sessions/${challengerSession.id}/files`,
+      headers: challenger.headers,
+      payload: { files: ['src/alias-owned-signal.ts'] },
+    });
+    expect(holderConflict.statusCode).toBe(409);
+    expect(holderConflict.json().code).toBe('FILE_CONFLICT');
+
+    const canonicalHolder = mintTestActor(souls, 'canonical-signal-holder');
+    const holderSession = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: canonicalHolder.headers,
+      payload: { purpose: 'canonical holder', files: ['src/legacy-liveness.ts'] },
+    });
+    expect(holderSession.statusCode).toBe(200);
+    const legacyRequester = mintTestActor(souls, 'legacy-signal-requester');
+    const legacyRequesterSession = sessions.start('unstamped requester liveness', {
+      agentId: 'legacy-signal-requester',
+      metadata: { displayIdentity: 'legacy-signal-requester' },
+    });
+    expect(legacyRequesterSession.success).toBe(true);
+
+    const livenessConflict = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: legacyRequester.headers,
+      payload: {
+        purpose: 'must not inherit legacy liveness',
+        files: ['src/legacy-liveness.ts'],
+      },
+    });
+    expect(livenessConflict.statusCode).toBe(409);
+    expect(livenessConflict.json().code).toBe('FILE_CONFLICT');
+    expect(evaluate).not.toHaveBeenCalled();
     await app.close();
   });
 });

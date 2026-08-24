@@ -929,7 +929,7 @@ pd fleet run qa`,
     code: `pd actors --project port-daddy
 pd actor coxswain --inbox --unread
 pd actor quartermaster --message "Budget check before the next spawn"
-pd actor cartographer --message "Roadmap drifted from what shipped; re-map" --wake
+pd actor cartographer --message "Roadmap drifted from what shipped; re-map"
 pd notes --limit 10`,
     theory: [
       'A durable actor is a role with memory, addressability, and responsibility. A model process is just one possible body for that role, which is why a dead body does not erase the inbox, session notes, or ownership trail.',

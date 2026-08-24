@@ -326,6 +326,44 @@ describe('CLI Integration Tests', () => {
         clearTestCurrentContext(slot);
       }
     }, 30000);
+
+    test('pd session abandon carries the stored actor credential through Sugar', async () => {
+      const slot = `session-abandon-${Date.now()}`;
+      try {
+        const begin = await requestWithRetry('/sugar/begin', {
+          method: 'POST',
+          body: {
+            purpose: 'CLI authenticated abandon',
+            identity: `cli:test:authenticated-abandon-${Date.now()}`,
+            lifecycle: 'durable',
+          },
+        });
+        expect(begin.ok).toBe(true);
+        expect(begin.data.credential).toEqual(expect.any(String));
+        writeTestCurrentContext({
+          agentId: begin.data.actorId,
+          sessionId: begin.data.sessionId,
+          purpose: 'CLI authenticated abandon',
+          identity: 'cli:test:authenticated-abandon',
+          contextSlot: slot,
+          credential: begin.data.credential,
+        });
+
+        const result = runCli(
+          ['session', 'abandon', '--session', begin.data.sessionId, '--yes', '--json'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
+        );
+        expect(result.success).toBe(true);
+        expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
+          success: true,
+          id: begin.data.sessionId,
+        }));
+        const stored = await requestWithRetry(`/sessions/${encodeURIComponent(begin.data.sessionId)}`);
+        expect(stored.data.session.status).toBe('abandoned');
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    }, 30000);
   });
 
   describe('Ideas Command', () => {
@@ -876,60 +914,92 @@ describe('CLI Integration Tests', () => {
       const agentId = `bug12-agent-${Date.now()}`;
       // #8877: attributed session starts require a daemon-minted credential.
       const actor = await registerTestActorVia(requestWithRetry, { alias: agentId });
+      const fixtureId = Date.now();
 
       // Create sessions with different statuses
-      const activeRes = await requestWithRetry('/sessions', {
+      const activeRes = await requestWithRetry('/sugar/begin', {
         method: 'POST',
-        body: { purpose: 'Bug 12 active test', agentId },
+        body: {
+          purpose: 'Bug 12 active test',
+          identity: `cli:test:bug12-active-${fixtureId}`,
+          lifecycle: 'durable',
+        },
         headers: actor.headers,
       });
       expect(activeRes.ok).toBe(true);
-      const activeId = activeRes.data.id;
+      const activeId = activeRes.data.sessionId;
 
-      const completedRes = await requestWithRetry('/sessions', {
+      const completedRes = await requestWithRetry('/sugar/begin', {
         method: 'POST',
-        body: { purpose: 'Bug 12 completed test', agentId },
+        body: {
+          purpose: 'Bug 12 completed test',
+          identity: `cli:test:bug12-completed-${fixtureId}`,
+          lifecycle: 'durable',
+        },
         headers: actor.headers,
       });
       expect(completedRes.ok).toBe(true);
-      const completedId = completedRes.data.id;
+      const completedId = completedRes.data.sessionId;
 
-      const completeDoneRes = await requestWithRetry(`/sessions/${completedId}`, {
-        method: 'PUT',
-        body: { status: 'completed', note: 'Done' },
+      const completeDoneRes = await requestWithRetry('/sugar/done', {
+        method: 'POST',
+        headers: actor.headers,
+        body: {
+          sessionId: completedId,
+          status: 'completed',
+          note: 'Result: status fixture complete. not-applicable: integration fixture',
+          skipOriginCheck: true,
+          skipOriginCheckReason: 'integration status fixture',
+        },
       });
       expect(completeDoneRes.ok).toBe(true);
 
-      const abandonedRes = await requestWithRetry('/sessions', {
+      const abandonedRes = await requestWithRetry('/sugar/begin', {
         method: 'POST',
-        body: { purpose: 'Bug 12 abandoned test', agentId },
+        body: {
+          purpose: 'Bug 12 abandoned test',
+          identity: `cli:test:bug12-abandoned-${fixtureId}`,
+          lifecycle: 'durable',
+        },
         headers: actor.headers,
       });
       expect(abandonedRes.ok).toBe(true);
-      const abandonedId = abandonedRes.data.id;
+      const abandonedId = abandonedRes.data.sessionId;
 
-      const abandonDoneRes = await requestWithRetry(`/sessions/${abandonedId}`, {
-        method: 'PUT',
-        body: { status: 'abandoned' },
+      const abandonDoneRes = await requestWithRetry('/sugar/done', {
+        method: 'POST',
+        headers: actor.headers,
+        body: { sessionId: abandonedId, status: 'abandoned' },
       });
       expect(abandonDoneRes.ok).toBe(true);
 
       // Without --all: should only show active sessions
-      const activeOnly = runCli(['sessions', '--agent', agentId, '--json']);
+      const activeOnly = runCli(['sessions', '--agent', actor.actorId, '--json']);
       const activeData = JSON.parse(activeOnly.stdout);
       expect(activeData.sessions.every(s => s.status === 'active')).toBe(true);
 
       // With --all: should show all statuses
-      const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--json']);
+      const allSessions = runCli(['sessions', '--agent', actor.actorId, '--all', '--json']);
       const allData = JSON.parse(allSessions.stdout);
       const statuses = new Set(allData.sessions.map(s => s.status));
       expect(statuses.has('completed')).toBe(true);
       expect(statuses.has('abandoned')).toBe(true);
 
-      // Cleanup
-      runCli(['session', 'rm', activeId]);
-      runCli(['session', 'rm', completedId]);
-      runCli(['session', 'rm', abandonedId]);
+      // Cleanup: active teardown stays on Sugar; terminal archive is an
+      // independently authenticated owner-only boundary.
+      const activeDone = await requestWithRetry('/sugar/done', {
+        method: 'POST',
+        headers: actor.headers,
+        body: { sessionId: activeId, status: 'abandoned' },
+      });
+      expect(activeDone.ok).toBe(true);
+      for (const sessionId of [activeId, completedId, abandonedId]) {
+        const archived = await requestWithRetry(`/sessions/${sessionId}`, {
+          method: 'DELETE',
+          headers: actor.headers,
+        });
+        expect(archived.ok).toBe(true);
+      }
     });
   });
 
@@ -1467,25 +1537,31 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Inbox CLI Commands', () => {
-    const receiverId = `rec-agent-${Date.now()}`;
-    const senderId = `send-agent-${Date.now()}`;
+    let receiver;
+    let sender;
 
-    beforeAll(() => {
-      runCli(['agent', 'register', '--agent', receiverId]);
-      runCli(['agent', 'register', '--agent', senderId]);
+    beforeAll(async () => {
+      receiver = await registerTestActorVia(request, { alias: `rec-agent-${Date.now()}` });
+      sender = await registerTestActorVia(request, { alias: `send-agent-${Date.now()}` });
     });
 
     afterAll(() => {
-      runCli(['inbox', 'clear', '--agent', receiverId]);
+      runCli(['inbox', 'read-all', '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
     });
 
     test('send, list, and show message', () => {
       // 1. Send message
-      const sendRes = runCli(['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json']);
+      const sendRes = runCli(['inbox', 'send', receiver.actorId, 'Hello Port Daddy!', '--agent', sender.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: sender.credential },
+      });
       expect(sendRes.success).toBe(true);
 
       // 2. List inbox to get message ID
-      const listRes = runCli(['inbox', 'list', '--agent', receiverId, '--json']);
+      const listRes = runCli(['inbox', 'list', '--agent', receiver.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(listRes.success).toBe(true);
       const listData = JSON.parse(listRes.stdout);
       expect(listData.messages.length).toBeGreaterThan(0);
@@ -1494,33 +1570,57 @@ describe('CLI Integration Tests', () => {
       const msgId = targetMessage.id;
 
       // 3. Show message using show subcommand
-      const showRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId]);
+      const showRes = runCli(['inbox', 'show', String(msgId), '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(showRes.success).toBe(true);
-      expect(showRes.stdout).toContain('From:      ' + senderId);
+      expect(showRes.stdout).toContain('From:      ' + sender.actorId);
       expect(showRes.stdout).toContain('Hello Port Daddy!');
 
       // 4. Show message using read subcommand alias
-      const readRes = runCli(['inbox', 'read', String(msgId), '--agent', receiverId]);
+      const readRes = runCli(['inbox', 'read', String(msgId), '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(readRes.success).toBe(true);
-      expect(readRes.stdout).toContain('From:      ' + senderId);
+      expect(readRes.stdout).toContain('From:      ' + sender.actorId);
       expect(readRes.stdout).toContain('Hello Port Daddy!');
 
       // 5. Show message with quiet option
-      const quietRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId, '-q']);
+      const quietRes = runCli(['inbox', 'show', String(msgId), '--agent', receiver.actorId, '-q'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(quietRes.success).toBe(true);
       expect(quietRes.stdout.trim()).toBe('Hello Port Daddy!');
 
       // 6. Show message with json option
-      const jsonRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId, '--json']);
+      const jsonRes = runCli(['inbox', 'show', String(msgId), '--agent', receiver.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(jsonRes.success).toBe(true);
       const jsonData = JSON.parse(jsonRes.stdout);
       expect(jsonData.id).toBe(msgId);
       expect(jsonData.content).toBe('Hello Port Daddy!');
 
       // 7. Error when message is not found
-      const notFoundRes = runCli(['inbox', 'show', '999999', '--agent', receiverId]);
+      const notFoundRes = runCli(['inbox', 'show', '999999', '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(notFoundRes.success).toBe(false);
       expect(notFoundRes.stderr).toContain('not found');
+    });
+
+    test('removed clear command is unknown and leaves inbox evidence intact', () => {
+      const clear = runCli(['inbox', 'clear', '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
+      expect(clear.success).toBe(false);
+      expect(clear.stderr).toContain('Unknown inbox subcommand');
+
+      const list = runCli(['inbox', 'list', '--agent', receiver.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
+      expect(list.success).toBe(true);
+      expect(JSON.parse(list.stdout).messages.some(message => message.content === 'Hello Port Daddy!')).toBe(true);
     });
   });
 

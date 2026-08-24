@@ -468,31 +468,30 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
   const pd = createSessionClient(options);
   let data: SessionEndResult;
   try {
-    if (status === 'completed') {
-      const noPr = options['no-pr'] === true || options.noPr === true;
-      const subtask = options.subtask === true || options['subtask'] === true;
-      const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
-      const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
+    const noPr = options['no-pr'] === true || options.noPr === true;
+    const subtask = options.subtask === true || options['subtask'] === true;
+    const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
+    const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
 
-      const sugarResult = await pd.done(note, {
-        agentId: stringOption(options, 'agent', 'agent-id', 'agentId'),
-        sessionId: stringOption(options, 'session', 'session-id', 'sessionId'),
-        status,
-        skipOriginCheck: skipOriginCheck ? true : undefined,
-        skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
-        noPr: noPr ? true : undefined,
-        subtask: subtask ? true : undefined,
-      });
+    // Completion and abandonment share the authenticated Sugar lifecycle.
+    // The retired generic PUT /sessions/:id and raw IPC paths never receive
+    // canonical ownership authority from a caller-selected session id.
+    const sugarResult = await pd.done(note, {
+      agentId: stringOption(options, 'agent', 'agent-id', 'agentId'),
+      sessionId: stringOption(options, 'session', 'session-id', 'sessionId'),
+      status,
+      skipOriginCheck: skipOriginCheck ? true : undefined,
+      skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+      noPr: noPr ? true : undefined,
+      subtask: subtask ? true : undefined,
+    });
 
-      data = {
-        success: sugarResult.success,
-        id: sugarResult.sessionId,
-        error: sugarResult.error,
-        releasedFiles: sugarResult.releasedFiles,
-      } as any;
-    } else {
-      data = await pd.endSession(note, { status });
-    }
+    data = {
+      success: sugarResult.success,
+      id: sugarResult.sessionId,
+      error: sugarResult.error,
+      releasedFiles: sugarResult.releasedFiles,
+    } as any;
   } catch (error) {
     const errorBody = getErrorBody(error);
     ui.error((errorBody.error as string) || (error as Error).message || 'Failed to end session');

@@ -61,7 +61,6 @@ describe('pd learn cleanup lifecycle', () => {
       '/dns/tutorial%3Adns%3Alesson9',
       '/locks/tutorial-lock',
       '/agents/tutorial-lock-agent',
-      '/agents/tutorial-bob/inbox',
       '/agents/tutorial-bob',
       '/agents/tutorial-alice',
     ]);
@@ -84,12 +83,12 @@ describe('pd learn cleanup lifecycle', () => {
     });
   });
 
-  test('one failed cleanup request does not strand independent resources', async () => {
+  test('one failed legacy agent cleanup does not strand independent resources', async () => {
     const state = populatedState();
     const calls: string[] = [];
     const fakeFetch = async (path: string): Promise<PdFetchResponse> => {
       calls.push(path);
-      if (path === '/agents/tutorial-bob/inbox') throw new Error('inbox route unavailable');
+      if (path === '/agents/tutorial-bob') throw new Error('agent route unavailable');
       return response();
     };
 
@@ -97,7 +96,7 @@ describe('pd learn cleanup lifecycle', () => {
 
     expect(calls).toContain('/agents/tutorial-bob');
     expect(calls).toContain('/agents/tutorial-alice');
-    expect(state.inboxReceiverAgent).toBeUndefined();
+    expect(state.inboxReceiverAgent).toBe('tutorial-bob');
     expect(state.inboxSenderAgent).toBeUndefined();
   });
 

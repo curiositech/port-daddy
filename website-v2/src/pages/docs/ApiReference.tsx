@@ -465,37 +465,29 @@ const ENDPOINTS: Endpoint[] = [
     group: 'Agents',
     method: 'POST',
     path: '/agents/:id/inbox',
-    description: 'Send a message to an agent inbox. Supports hailing unregistered agents.',
+    description: 'Deliver bounded external content to one exact live canonical inbox. The daemon attributes sender provenance and never wakes the runtime.',
     requestBody: `{
-  "content": "Please review auth changes",
-  "from": "agent-2",
-  "type": "request"
+  "content": "Please review auth changes"
 }`,
   },
   {
     group: 'Agents',
     method: 'GET',
     path: '/agents/:id/inbox',
-    description: 'Read an agent inbox. Filter by unread, limit, or since timestamp.',
-    curl: `$ curl "${BASE}/agents/agent-1/inbox?unread=true"`,
+    description: 'Read a private inbox with that exact actor’s daemon-minted credential. Filter by unread, limit, or since timestamp.',
+    curl: `$ curl -H "x-actor-credential: $PORT_DADDY_ACTOR_CREDENTIAL" "${BASE}/agents/actor-id/inbox?unread=true"`,
   },
   {
     group: 'Agents',
     method: 'PUT',
     path: '/agents/:id/inbox/:messageId/read',
-    description: 'Mark a single inbox message as read.',
+    description: 'Mark one message read with the exact owner credential.',
   },
   {
     group: 'Agents',
     method: 'PUT',
     path: '/agents/:id/inbox/read-all',
-    description: 'Mark all inbox messages as read.',
-  },
-  {
-    group: 'Agents',
-    method: 'DELETE',
-    path: '/agents/:id/inbox',
-    description: 'Clear all messages from an agent inbox.',
+    description: 'Mark all inbox messages read with the exact owner credential. Destructive clearing is not exposed.',
   },
 
   // ── Salvage ─────────────────────────────────────────────────

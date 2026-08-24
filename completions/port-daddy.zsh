@@ -511,9 +511,10 @@ _pd_cmd_actors() {
     '--project[filter live evidence by project]:project:' \
     '--limit[max session/salvage evidence]:count:' \
     '--message[queue a message to the actor mailbox]:message:' \
-    '--from[message sender]:sender:' \
-    '--type[message type]:type:' \
-    '--wake[try to hail compatibility fleet body]' \
+    '--inbox[read the exact credential-owned live actor inbox]' \
+    '--inbox-stats[read private inbox counts]' \
+    '--unread[show only unread inbox messages]' \
+    '--mark-read[acknowledge inbox messages after reading]' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '1:actor id or alias:(navigator cartographer coxswain signalman harbormaster sounder lookout breaker caulker quartermaster)'
@@ -2215,9 +2216,10 @@ _pd_cmd_inbox() {
   inbox_subcmds=(
     'send:send a message to an agent inbox'
     'stats:get inbox stats for an agent'
-    'clear:clear all messages from an agent inbox'
     'read-all:mark all messages as read'
     'list:list messages in an agent inbox'
+    'show:show one message and acknowledge it'
+    'read:show one message and acknowledge it'
   )
 
   local state subcmd
@@ -2239,13 +2241,15 @@ _pd_cmd_inbox() {
       case "$subcmd" in
         send)
           _arguments \
-            '--message[message content]:message:' \
-            '--from[sender agent ID]:agent ID:_pd_complete_agents' \
+            '--agent[sender canonical actor ID]:agent ID:_pd_complete_agents' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]'
           ;;
-        stats|list|read-all|clear)
+        stats|list|read-all|show|read)
           _arguments \
+            '--agent[exact credential-owned canonical actor ID]:agent ID:_pd_complete_agents' \
+            '--unread[show only unread messages]' \
+            '--limit[maximum messages]:count:' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]'
           ;;

@@ -794,11 +794,14 @@ for prog in port-daddy pd
     # inbox subcommands
     complete -c $prog -n "__pd_using_command inbox" -x -a 'send' -d 'Send a message to an agent inbox'
     complete -c $prog -n "__pd_using_command inbox" -x -a 'stats' -d 'Get inbox stats for an agent'
-    complete -c $prog -n "__pd_using_command inbox" -x -a 'clear' -d 'Clear all messages from an agent inbox'
     complete -c $prog -n "__pd_using_command inbox" -x -a 'read-all' -d 'Mark all messages as read'
     complete -c $prog -n "__pd_using_command inbox" -x -a 'list' -d 'List messages in an agent inbox'
+    complete -c $prog -n "__pd_using_command inbox" -x -a 'show' -d 'Show and acknowledge one inbox message'
+    complete -c $prog -n "__pd_using_command inbox" -x -a 'read' -d 'Show and acknowledge one inbox message'
     complete -c $prog -n "__pd_using_command inbox" -l message -d 'Message content' -x
-    complete -c $prog -n "__pd_using_command inbox" -l from -d 'Sender agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command inbox" -l agent -d 'Exact credential-owned canonical actor ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command inbox" -l unread -d 'Show only unread messages'
+    complete -c $prog -n "__pd_using_command inbox" -l limit -d 'Maximum messages' -x
     complete -c $prog -n "__pd_using_command inbox" -x -a '(__pd_agent_ids)'
 
     # -----------------------------------------------------------------------

@@ -225,8 +225,10 @@ describe('resolveTier', () => {
     }
   });
 
-  test('pd agent inbox clear is destructive', () => {
-    expect(resolveTier('agent', ['inbox', 'clear'])).toBe('destructive');
+  test('pd agent inbox clear has no permission-tier residue after route retirement', () => {
+    expect(SUBCOMMAND_TIERS).not.toHaveProperty('agent inbox clear');
+    expect(DESTRUCTIVE_COMMANDS).not.toContain('agent inbox clear');
+    expect(resolveTier('agent', ['inbox', 'clear'])).toBe('silent');
     expect(resolveTier('agent', ['inbox', 'list'])).toBe('silent');
     expect(resolveTier('agent', ['unregister'])).toBe('destructive');
     expect(resolveTier('agent', ['register'])).toBe('notify');
@@ -363,7 +365,6 @@ describe('DESTRUCTIVE_COMMANDS: handler wiring', () => {
     'channels clear': ['cli/commands/messaging.ts'],
     'dns cleanup': ['cli/commands/dns.ts'],
     'agent unregister': ['cli/commands/agents.ts'],
-    'agent inbox clear': ['cli/commands/agents.ts'],
     'harbor destroy': ['cli/commands/harbors.ts'],
     'spawn kill': ['cli/commands/spawn.ts'],
     'fleet down': ['cli/commands/fleet.ts'],

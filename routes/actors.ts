@@ -12,23 +12,32 @@ import {
 import type { createAgentInbox } from '../lib/agent-inbox.js';
 import type { createResurrection } from '../lib/resurrection.js';
 import type { createSessions } from '../lib/sessions.js';
-import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { ActorSouls } from '../lib/actor-souls.js';
+import {
+  authorizeCanonicalInboxOwner,
+  createExternalInboxRateLimiter,
+  parseExternalInboxContent,
+  resolveCanonicalInboxTarget,
+  resolveExternalInboxSender,
+  type ExternalInboxRateLimiter,
+  type InboxBoundaryFailure,
+} from '../lib/inbox-http-boundary.js';
+import type { BoundaryLogger } from '../lib/identity-write-boundary.js';
 
 type AgentsManager = ReturnType<typeof createAgents>;
 type AgentInboxManager = ReturnType<typeof createAgentInbox>;
 type SessionsManager = ReturnType<typeof createSessions>;
 type ResurrectionManager = ReturnType<typeof createResurrection>;
-type FleetDaemonManager = ReturnType<typeof createFleetDaemon>;
 
 interface ActorsRouteDeps {
   agents?: AgentsManager;
   agentInbox?: AgentInboxManager;
   sessions?: SessionsManager;
   resurrection?: ResurrectionManager;
-  fleetDaemon?: FleetDaemonManager;
   /** ADR-0040 daemon-minted actor identity store (POST /actors/register). */
   actorSouls?: ActorSouls;
+  logger?: BoundaryLogger;
+  externalInboxLimiter?: ExternalInboxRateLimiter;
 }
 
 interface RegisterActorBody {
@@ -57,6 +66,7 @@ interface ActorParams {
 
 interface ActorMessageBody {
   content?: unknown;
+  contentType?: unknown;
   from?: string;
   type?: string;
   wake?: boolean;
@@ -124,13 +134,27 @@ function attachMailboxStats(actor: ActorRecord, deps: ActorsRouteDeps): ActorRec
   };
 }
 
-function actorOr404(id: string, deps: ActorsRouteDeps, project?: string): ActorRecord | null {
+function actorOr404(
+  id: string,
+  deps: ActorsRouteDeps,
+  project?: string,
+  includeMailboxStats: boolean = true,
+): ActorRecord | null {
   const actor = getActor(id, collectProjectionInput(deps, { project }));
-  return actor ? attachMailboxStats(actor, deps) : null;
+  return actor && includeMailboxStats ? attachMailboxStats(actor, deps) : actor;
 }
 
 export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = async (fastify, opts) => {
   const deps = opts.deps ?? {};
+  const externalInboxLimiter = deps.externalInboxLimiter ?? createExternalInboxRateLimiter();
+
+  function boundaryError(reply: FastifyReply, outcome: InboxBoundaryFailure) {
+    return reply.code(outcome.httpStatus).send({
+      success: false,
+      error: outcome.error,
+      code: outcome.code,
+    });
+  }
 
   fastify.get('/actors', async (request: FastifyRequest<{ Querystring: ActorsQuery }>) => {
     const input = collectProjectionInput(deps, request.query ?? {});
@@ -281,23 +305,8 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     request: FastifyRequest<{ Params: ActorParams; Body: ActorMessageBody }>,
     reply: FastifyReply,
   ) => {
-    const actor = actorOr404(request.params.id, deps);
-    if (!actor) {
-      return reply.code(404).send({
-        success: false,
-        error: `Unknown actor: ${request.params.id}`,
-        code: 'ACTOR_NOT_FOUND',
-      });
-    }
-
-    const { content, from, type, wake, project } = request.body ?? {};
-    if (content === undefined || content === null || content === '') {
-      return reply.code(400).send({
-        success: false,
-        error: 'content required',
-        code: 'VALIDATION_ERROR',
-      });
-    }
+    const content = parseExternalInboxContent(request.body);
+    if (!content.ok) return boundaryError(reply, content);
     if (!deps.agentInbox) {
       return reply.code(501).send({
         success: false,
@@ -305,10 +314,41 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         code: 'ACTOR_INBOX_UNAVAILABLE',
       });
     }
+    const target = resolveCanonicalInboxTarget({
+      souls: deps.actorSouls,
+      resolver: deps.agents,
+      requestedActorId: request.params.id,
+    });
+    if (!target.ok) return boundaryError(reply, target);
+    const sender = resolveExternalInboxSender({
+      souls: deps.actorSouls,
+      resolver: deps.agents,
+      headers: request.headers as Record<string, unknown>,
+      harbor: target.harbor,
+      route: 'POST /actors/:id/message',
+      logger: deps.logger,
+    });
+    if (!sender.ok) return boundaryError(reply, sender);
+    const rate = externalInboxLimiter.consume({
+      senderActorId: sender.provenance.actorId,
+      targetActorId: target.actorId,
+    });
+    if (!rate.ok) {
+      return reply
+        .code(429)
+        .header('Retry-After', String(rate.retryAfterSeconds ?? 1))
+        .send({
+          success: false,
+          error: 'external inbox delivery rate limit exceeded',
+          code: 'INBOX_RATE_LIMITED',
+          scope: rate.scope,
+        });
+    }
 
-    const result = deps.agentInbox.send(actor.inboxTarget, content, {
-      from: typeof from === 'string' ? from : undefined,
-      type: typeof type === 'string' ? type : 'actor.message',
+    const result = deps.agentInbox.send(target.inboxTarget, content.content, {
+      from: sender.from,
+      type: sender.messageType,
+      contentType: content.contentType,
     });
     if (!result.success) {
       const statusCode = (result as Record<string, unknown>).code === 'RESOURCE_LIMIT' ? 429 : 400;
@@ -319,25 +359,14 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       });
     }
 
-    let wakeResult: unknown = null;
-    if (wake === true && actor.compatibilityFleetAgent && deps.fleetDaemon?.hailAgent) {
-      wakeResult = await deps.fleetDaemon.hailAgent(actor.compatibilityFleetAgent, {
-        project: typeof project === 'string' ? project : undefined,
-        source: 'inbox',
-        from: typeof from === 'string' ? from : null,
-        message: content,
-        messageContent: String(content),
-      });
-    }
-
     return {
       success: true,
-      actorId: actor.id,
-      inboxTarget: actor.inboxTarget,
+      actorId: target.actorId,
+      inboxTarget: target.inboxTarget,
       messageId: result.messageId,
       delivered: true,
-      woke: wake === true && !!actor.compatibilityFleetAgent && !!wakeResult,
-      wake: wakeResult,
+      woke: false,
+      provenance: sender.provenance,
     };
   });
 
@@ -345,14 +374,6 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     request: FastifyRequest<{ Params: ActorParams; Querystring: ActorInboxQuery }>,
     reply: FastifyReply,
   ) => {
-    const actor = actorOr404(request.params.id, deps);
-    if (!actor) {
-      return reply.code(404).send({
-        success: false,
-        error: `Unknown actor: ${request.params.id}`,
-        code: 'ACTOR_NOT_FOUND',
-      });
-    }
     if (!deps.agentInbox) {
       return reply.code(501).send({
         success: false,
@@ -360,9 +381,18 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         code: 'ACTOR_INBOX_UNAVAILABLE',
       });
     }
+    const owner = authorizeCanonicalInboxOwner({
+      souls: deps.actorSouls,
+      resolver: deps.agents,
+      headers: request.headers as Record<string, unknown>,
+      requestedActorId: request.params.id,
+      route: 'GET /actors/:id/inbox',
+      logger: deps.logger,
+    });
+    if (!owner.ok) return boundaryError(reply, owner);
 
     const limit = parseLimit(request.query?.limit);
-    const result = deps.agentInbox.list(actor.inboxTarget, {
+    const result = deps.agentInbox.list(owner.inboxTarget, {
       unreadOnly: request.query?.unread === 'true',
       limit,
       since: parseSince(request.query?.since),
@@ -370,8 +400,8 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
 
     return {
       success: true,
-      actorId: actor.id,
-      inboxTarget: actor.inboxTarget,
+      actorId: owner.actorId,
+      inboxTarget: owner.inboxTarget,
       messages: result.messages,
       count: result.count,
     };
@@ -381,14 +411,6 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     request: FastifyRequest<{ Params: ActorParams }>,
     reply: FastifyReply,
   ) => {
-    const actor = actorOr404(request.params.id, deps);
-    if (!actor) {
-      return reply.code(404).send({
-        success: false,
-        error: `Unknown actor: ${request.params.id}`,
-        code: 'ACTOR_NOT_FOUND',
-      });
-    }
     if (!deps.agentInbox) {
       return reply.code(501).send({
         success: false,
@@ -396,12 +418,21 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         code: 'ACTOR_INBOX_UNAVAILABLE',
       });
     }
+    const owner = authorizeCanonicalInboxOwner({
+      souls: deps.actorSouls,
+      resolver: deps.agents,
+      headers: request.headers as Record<string, unknown>,
+      requestedActorId: request.params.id,
+      route: 'GET /actors/:id/inbox/stats',
+      logger: deps.logger,
+    });
+    if (!owner.ok) return boundaryError(reply, owner);
 
-    const stats = deps.agentInbox.stats(actor.inboxTarget);
+    const stats = deps.agentInbox.stats(owner.inboxTarget);
     return {
       success: true,
-      actorId: actor.id,
-      inboxTarget: actor.inboxTarget,
+      actorId: owner.actorId,
+      inboxTarget: owner.inboxTarget,
       total: stats.total,
       unread: stats.unread,
       max: deps.agentInbox.MAX_INBOX_MESSAGES ?? null,
@@ -412,14 +443,6 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     request: FastifyRequest<{ Params: ActorParams }>,
     reply: FastifyReply,
   ) => {
-    const actor = actorOr404(request.params.id, deps);
-    if (!actor) {
-      return reply.code(404).send({
-        success: false,
-        error: `Unknown actor: ${request.params.id}`,
-        code: 'ACTOR_NOT_FOUND',
-      });
-    }
     if (!deps.agentInbox) {
       return reply.code(501).send({
         success: false,
@@ -427,12 +450,21 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         code: 'ACTOR_INBOX_UNAVAILABLE',
       });
     }
+    const owner = authorizeCanonicalInboxOwner({
+      souls: deps.actorSouls,
+      resolver: deps.agents,
+      headers: request.headers as Record<string, unknown>,
+      requestedActorId: request.params.id,
+      route: 'PUT /actors/:id/inbox/read-all',
+      logger: deps.logger,
+    });
+    if (!owner.ok) return boundaryError(reply, owner);
 
-    const result = deps.agentInbox.markAllRead(actor.inboxTarget);
+    const result = deps.agentInbox.markAllRead(owner.inboxTarget);
     return {
       success: true,
-      actorId: actor.id,
-      inboxTarget: actor.inboxTarget,
+      actorId: owner.actorId,
+      inboxTarget: owner.inboxTarget,
       marked: result.marked ?? 0,
     };
   });

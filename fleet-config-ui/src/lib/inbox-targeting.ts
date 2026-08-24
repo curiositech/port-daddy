@@ -9,8 +9,9 @@ export interface InboxAgentTarget {
 }
 
 /**
- * Normalize daemon-backed actor entries into direct-inbox targets. Targets are
- * addressable souls first; waking a live body is best-effort at send time.
+ * Normalize daemon-backed actor entries into direct-inbox targets. Only a
+ * server-stamped actorInboxBinding may select a target; session/display aliases
+ * never become recipient authority. The route revalidates liveness at send time.
  *
  * Example:
  * - input: `[{ inboxTarget: 'spark', actorState: 'salvaged' }]`
@@ -34,7 +35,24 @@ export function resolveInboxAgentTargets(actors: OperatorActorEntry[]): InboxAge
       return (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0);
     })
     .flatMap((actor) => {
-      const target = (actor.inboxTarget || actor.fleetAgentName || actor.id || '').trim();
+      const registry = actor.registry as (OperatorActorEntry['registry'] & {
+        actorInboxBinding?: {
+          verified?: unknown;
+          actorId?: unknown;
+          harbor?: unknown;
+          inboxTarget?: unknown;
+        } | null;
+      }) | null;
+      const binding = registry?.actorInboxBinding;
+      const target = typeof binding?.actorId === 'string' ? binding.actorId.trim() : '';
+      const harbor = typeof binding?.harbor === 'string' ? binding.harbor.trim() : '';
+      if (
+        binding?.verified !== true
+        || !target
+        || !harbor
+        || registry?.id !== target
+        || binding.inboxTarget !== target
+      ) return [];
       if (!target || seen.has(target)) return [];
       seen.add(target);
       return [{

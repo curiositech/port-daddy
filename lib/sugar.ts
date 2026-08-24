@@ -37,13 +37,21 @@ import {
 
 interface AgentsModule {
   register(id: string, options?: Record<string, unknown>): AgentRegistrationResult;
+  runCanonicalSessionRegistration(
+    effect: () => Record<string | symbol, unknown> & { success: unknown },
+  ): Record<string | symbol, unknown> & { success: unknown };
   unregister(id: string, options?: Record<string | symbol, unknown>): Record<string, unknown>;
+  finalizeSessionAndUnregisterIfNoActiveSessions(
+    id: string,
+    finalizeSession: () => Record<string | symbol, unknown>,
+    options?: Record<string | symbol, unknown>,
+  ): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
 }
 
 interface SessionsModule {
-  start(purpose: string, options?: Record<string, unknown>): Record<string, unknown>;
-  end(id: string, options?: Record<string, unknown>): Record<string, unknown>;
+  start(purpose: string, options?: Record<string, unknown>): Record<string | symbol, unknown>;
+  end(id: string, options?: Record<string, unknown>): Record<string | symbol, unknown>;
   list(options?: Record<string, unknown>): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
@@ -981,6 +989,8 @@ export function createSugar(deps: SugarDeps) {
       || options.agentId
       || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
 
+    const performCanonicalRegistration = () => {
+
     // Step 1: Register the agent
     const registerOpts: Record<string | symbol, unknown> = {};
     if (name) registerOpts.name = name;
@@ -1084,12 +1094,7 @@ export function createSugar(deps: SugarDeps) {
     if (agentResult.salvageHint) {
       response.salvageHint = agentResult.salvageHint;
     }
-    const publishAfterCommit = agentResult[ACTOR_REGISTRATION_AFTER_COMMIT];
-    if (typeof publishAfterCommit === 'function') {
-      response[ACTOR_REGISTRATION_AFTER_COMMIT] = publishAfterCommit;
-    }
-
-    activityLog.log('sugar_begin', {
+    const publishSugarBegin = () => activityLog.log('sugar_begin', {
       agentId,
       targetId: sessionTarget(identityProject, sessionResult.id as string),
       details: `Agent ${agentId} began: ${purpose.trim()}`,
@@ -1103,6 +1108,25 @@ export function createSugar(deps: SugarDeps) {
         lifecycle,
       } as unknown as Record<string, unknown>,
     });
+    const postCommitPublishers = [
+      agentResult[ACTOR_REGISTRATION_AFTER_COMMIT],
+      sessionResult[ACTOR_REGISTRATION_AFTER_COMMIT],
+    ].filter((publisher): publisher is () => void => typeof publisher === 'function');
+    if (postCommitPublishers.length > 0) {
+      response[ACTOR_REGISTRATION_AFTER_COMMIT] = () => {
+        let firstError: unknown;
+        for (const publisher of [...postCommitPublishers, publishSugarBegin]) {
+          try {
+            publisher();
+          } catch (error) {
+            firstError ??= error;
+          }
+        }
+        if (firstError) throw firstError;
+      };
+    } else {
+      publishSugarBegin();
+    }
 
     // Auto-enroll commitment to complete session (Law 1: daemon/module derives deadline)
     if (deps.commitments) {
@@ -1115,7 +1139,13 @@ export function createSugar(deps: SugarDeps) {
       });
     }
 
-    return response;
+      return response;
+    };
+
+    if (verifiedBinding) {
+      return agents.runCanonicalSessionRegistration(performCanonicalRegistration);
+    }
+    return performCanonicalRegistration();
   }
 
   /**
@@ -1128,9 +1158,31 @@ export function createSugar(deps: SugarDeps) {
    *      or "not-applicable: <reason>".
    *
    * See lib/git-origin-check.ts for the motivation and details.
-   */
+  */
   function done(options: DoneOptions) {
     const { agentId, note, status = 'completed' } = options;
+    const rawVerifiedBinding = options[VERIFIED_SUGAR_ACTOR_BINDING];
+    let verifiedBinding: VerifiedSugarActorBinding | null = null;
+    if (rawVerifiedBinding !== undefined) {
+      const actorId = typeof rawVerifiedBinding?.actorId === 'string'
+        ? rawVerifiedBinding.actorId.trim()
+        : '';
+      const harbor = typeof rawVerifiedBinding?.harbor === 'string'
+        ? rawVerifiedBinding.harbor.trim()
+        : '';
+      const inboxTarget = typeof rawVerifiedBinding?.inboxTarget === 'string'
+        ? rawVerifiedBinding.inboxTarget.trim()
+        : '';
+      if (!actorId || !harbor || inboxTarget !== actorId) {
+        return {
+          success: false,
+          error: 'verified actor binding must select the canonical actor inbox in one harbor',
+          code: 'CANONICAL_ACTOR_BINDING_INVALID',
+        };
+      }
+      verifiedBinding = { actorId, harbor, inboxTarget };
+    }
+    const authoritativeAgentId = verifiedBinding?.actorId ?? agentId;
     let { sessionId } = options;
     const skipOriginCheck = options.skipOriginCheck === true;
     const skipOriginCheckReason = typeof options.skipOriginCheckReason === 'string'
@@ -1138,8 +1190,8 @@ export function createSugar(deps: SugarDeps) {
       : '';
 
     // Find session by agent if not provided
-    if (!sessionId && agentId) {
-      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
+    if (!sessionId && authoritativeAgentId) {
+      const listResult = sessions.list({ agentId: authoritativeAgentId, status: 'active', allWorktrees: true });
       const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
       if (sessionsList.length > 0) {
         sessionId = sessionsList[0].id;
@@ -1147,7 +1199,7 @@ export function createSugar(deps: SugarDeps) {
     }
 
     // Fallback: find most recent active session (only if no explicit agentId was given)
-    if (!sessionId && !agentId) {
+    if (!sessionId && !authoritativeAgentId) {
       const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
       const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
       if (sessionsList.length > 0) {
@@ -1163,21 +1215,37 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
-    // Verify ownership: if agentId is provided and sessionId was also provided,
-    // confirm the session belongs to this agent. Prevents agent A from closing
-    // agent B's session by passing B's sessionId.
-    if (agentId && options.sessionId) {
-      const sessionInfo = sessions.get(sessionId);
-      if (sessionInfo.success && sessionInfo.session) {
-        const session = sessionInfo.session as Record<string, unknown>;
-        if (session.agentId && session.agentId !== agentId) {
-          return {
-            success: false,
-            error: `Session ${sessionId} belongs to agent ${session.agentId}, not ${agentId}`,
-            code: 'SESSION_OWNERSHIP_MISMATCH',
-          };
-        }
-      }
+    const ownershipInfo = sessions.get(sessionId);
+    const ownedSession = ownershipInfo.success && ownershipInfo.session
+      ? ownershipInfo.session as Record<string, unknown>
+      : null;
+    if (!ownedSession) {
+      return {
+        success: false,
+        error: `Session ${sessionId} was not found`,
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+    if (authoritativeAgentId && ownedSession.agentId !== authoritativeAgentId) {
+      return {
+        success: false,
+        error: `Session ${sessionId} belongs to agent ${String(ownedSession.agentId)}, not ${authoritativeAgentId}`,
+        code: 'SESSION_OWNERSHIP_MISMATCH',
+      };
+    }
+    if (
+      verifiedBinding
+      && (
+        !hasVerifiedActorStamp(ownedSession.metadata, verifiedBinding.actorId)
+        || !hasVerifiedActorInboxStamp(ownedSession.metadata, verifiedBinding)
+      )
+    ) {
+      return {
+        success: false,
+        error: `Session ${sessionId} lacks the verified canonical actor ownership stamp`,
+        code: 'SESSION_IDENTITY_UNVERIFIED',
+        sessionId,
+      };
     }
 
     // =========================================================================
@@ -1340,24 +1408,14 @@ export function createSugar(deps: SugarDeps) {
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;
 
-    // End the session
+    // End the target and make the final-inbox decision under one SQLite writer
+    // transaction. A concurrent canonical begin cannot commit between them.
     const endOpts: Record<string, unknown> = { status };
     if (effectiveNote) endOpts.note = effectiveNote;
-    const sessionResult = sessions.end(sessionId, endOpts);
-
-    if (!sessionResult.success) {
-      return {
-        success: false,
-        error: `Session end failed: ${sessionResult.error}`,
-        code: 'SESSION_END_FAILED',
-      };
-    }
-
-    // Unregister the agent
+    const effectiveAgentId = authoritativeAgentId || findAgentForSession(sessionId);
+    let sessionResult: Record<string | symbol, unknown>;
     let agentUnregistered = false;
-    const effectiveAgentId = agentId || findAgentForSession(sessionId);
     if (effectiveAgentId) {
-      const verifiedBinding = options[VERIFIED_SUGAR_ACTOR_BINDING];
       const unregisterOpts: Record<string | symbol, unknown> = {};
       if (verifiedBinding) {
         unregisterOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
@@ -1365,8 +1423,31 @@ export function createSugar(deps: SugarDeps) {
           harbor: verifiedBinding.harbor,
         };
       }
-      const unregResult = agents.unregister(effectiveAgentId, unregisterOpts);
-      agentUnregistered = !!unregResult.unregistered;
+      const finalized = agents.finalizeSessionAndUnregisterIfNoActiveSessions(
+        effectiveAgentId,
+        () => sessions.end(sessionId!, endOpts),
+        unregisterOpts,
+      );
+      if (!finalized.success) {
+        return {
+          success: false,
+          error: `Session end failed: ${String(finalized.error || 'atomic lifecycle mutation failed')}`,
+          code: typeof finalized.code === 'string' ? finalized.code : 'SESSION_END_FAILED',
+        };
+      }
+      sessionResult = finalized.mutation as Record<string | symbol, unknown>;
+      agentUnregistered = finalized.unregistered === true;
+    } else {
+      // Trusted unattributed module calls have no actor inbox to coordinate.
+      // No external route reaches this branch.
+      sessionResult = sessions.end(sessionId, endOpts);
+      if (!sessionResult.success) {
+        return {
+          success: false,
+          error: `Session end failed: ${String(sessionResult.error)}`,
+          code: 'SESSION_END_FAILED',
+        };
+      }
     }
 
     // Close associated commitments

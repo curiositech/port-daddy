@@ -212,22 +212,6 @@ function readImage(file: File): Promise<VisualTaskImageAttachment> {
   });
 }
 
-function summarizeTask(task: VisualTaskSubmission, channel: string, messageId?: number): string {
-  const pieces = [
-    `[visual-task:${task.kind}] ${task.title}`,
-    task.description,
-    `Payload: ${channel}${messageId ? ` #${messageId}` : ''}`,
-  ];
-  if (task.region) {
-    pieces.push(`Region: ${task.region.coordinateSpace} ${task.region.x},${task.region.y} ${task.region.width}x${task.region.height}`);
-  }
-  if (task.domContext?.selectors.length) {
-    pieces.push(`DOM selectors: ${task.domContext.selectors.slice(0, 4).join(' | ')}`);
-  }
-  if (task.pageUrl) pieces.push(`URL: ${task.pageUrl}`);
-  return pieces.filter(Boolean).join('\n');
-}
-
 function dispatchGoal(task: VisualTaskSubmission, channel: string, channelMessageId?: number): string {
   return [
     `Visual task from FleetBar: ${task.kind} - ${task.title}`,
@@ -281,6 +265,7 @@ export default function VisualTaskPanel({
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [actorTargets, setActorTargets] = useState<InboxAgentTarget[]>([]);
   const [targetAgent, setTargetAgent] = useState('');
+  const [inboxCredential, setInboxCredential] = useState('');
   const [inboxStats, setInboxStats] = useState<InboxStats>({ total: 0, unread: 0 });
   const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
   const [kind, setKind] = useState<VisualTaskKind>('fix');
@@ -336,17 +321,23 @@ export default function VisualTaskPanel({
   }, [project, projectDir]);
 
   useEffect(() => {
+    setInboxCredential('');
+    setInboxStats({ total: 0, unread: 0 });
+    setInboxMessages([]);
+  }, [targetAgent]);
+
+  useEffect(() => {
     let cancelled = false;
     async function loadInbox() {
-      if (!targetAgent) {
+      if (!targetAgent || !inboxCredential.trim()) {
         setInboxStats({ total: 0, unread: 0 });
         setInboxMessages([]);
         return;
       }
       try {
         const [stats, messages] = await Promise.all([
-          fetchAgentInboxStats(targetAgent),
-          fetchAgentInbox(targetAgent, { limit: 5 }),
+          fetchAgentInboxStats(targetAgent, inboxCredential),
+          fetchAgentInbox(targetAgent, inboxCredential, { limit: 5 }),
         ]);
         if (!cancelled) {
           setInboxStats(stats);
@@ -361,7 +352,7 @@ export default function VisualTaskPanel({
     }
     loadInbox();
     return () => { cancelled = true; };
-  }, [targetAgent]);
+  }, [inboxCredential, targetAgent]);
 
   const canSubmit = useMemo(() => {
     return !busy && (description.trim().length > 0 || !!image || !!domContext);
@@ -497,28 +488,22 @@ export default function VisualTaskPanel({
       });
       const channel = visualTarget?.physical ?? ensured.channel.physicalName;
       const published = await publishMessage(channel, task, 'fleet-ui-visual');
-      const summary = summarizeTask(task, channel, published.id);
       const results: string[] = [`payload ${published.id ? `#${published.id}` : 'posted'} to ${channel}`];
 
       if (targetAgent) {
         const inbox = await sendAgentMessage(targetAgent, {
           content: task,
           contentType: 'json',
-          type: 'visual-task',
-          messageContent: summary,
-          project: projectDir ?? project ?? undefined,
-          from: 'fleet-ui-visual',
-          wake: true,
         });
-        results.push(inbox.woke
-          ? `woke ${selectedTarget?.label ?? targetAgent}`
-          : `delivered to ${selectedTarget?.label ?? targetAgent}${inbox.error ? `, wake pending: ${inbox.error}` : ''}`);
-        const [stats, messages] = await Promise.all([
-          fetchAgentInboxStats(targetAgent),
-          fetchAgentInbox(targetAgent, { limit: 5 }),
-        ]);
-        setInboxStats(stats);
-        setInboxMessages(messages);
+        results.push(`delivered to ${selectedTarget?.label ?? targetAgent}${inbox.messageId ? ` as #${inbox.messageId}` : ''}`);
+        if (inboxCredential.trim()) {
+          const [stats, messages] = await Promise.all([
+            fetchAgentInboxStats(targetAgent, inboxCredential),
+            fetchAgentInbox(targetAgent, inboxCredential, { limit: 5 }),
+          ]);
+          setInboxStats(stats);
+          setInboxMessages(messages);
+        }
       }
 
       if (startDispatch) {
@@ -710,8 +695,21 @@ export default function VisualTaskPanel({
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
                   <Bot size={14} />
                   <span>{selectedTarget.actorState.replace(/_/g, ' ')} · {selectedTarget.actorStateReason}</span>
-                  <span>{inboxStats.unread} unread / {inboxStats.total} total</span>
+                  <span>{inboxCredential.trim() ? `${inboxStats.unread} unread / ${inboxStats.total} total` : 'inbox private'}</span>
                 </div>
+              )}
+              {targetAgent && (
+                <label className="mt-3 block">
+                  <span className="pd-label">Actor credential for private readback</span>
+                  <input
+                    type="password"
+                    value={inboxCredential}
+                    onChange={(event) => setInboxCredential(event.target.value)}
+                    autoComplete="off"
+                    className="pd-input font-mono"
+                    placeholder="Leave empty to deliver without reading"
+                  />
+                </label>
               )}
             </div>
 

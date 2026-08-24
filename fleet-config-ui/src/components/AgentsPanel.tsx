@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Bot, Ghost, Mail, PauseCircle, PlayCircle, Radio, RefreshCw, Square, StickyNote } from 'lucide-react';
 import {
-  clearAgentInbox,
   fetchActiveAgentRoster,
   dismissSalvageAgent,
   fetchAgentInbox,
@@ -189,6 +188,7 @@ export default function AgentsPanel({
   const [projectSessions, setProjectSessions] = useState<SessionSummary[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [inboxCredential, setInboxCredential] = useState('');
   const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
   const [inboxStats, setInboxStats] = useState<InboxStats>({ total: 0, unread: 0 });
   const [fileClaims, setFileClaims] = useState<FileClaim[]>([]);
@@ -304,9 +304,16 @@ export default function AgentsPanel({
     setDetailLoading(true);
     setActionError(null);
     try {
+      const inboxTarget = selectedActor?.inboxTarget ?? selected.id;
+      const inbox = inboxCredential.trim()
+        ? Promise.all([
+            fetchAgentInbox(inboxTarget, inboxCredential, { limit: 20 }),
+            fetchAgentInboxStats(inboxTarget, inboxCredential),
+          ])
+        : Promise.resolve<[InboxMessage[], InboxStats]>([[], { total: 0, unread: 0 }]);
       const [messages, stats, claims, feeds] = await Promise.all([
-        fetchAgentInbox(selectedActor?.inboxTarget ?? selected.id, { limit: 20 }),
-        fetchAgentInboxStats(selectedActor?.inboxTarget ?? selected.id),
+        inbox.then(([messages]) => messages),
+        inbox.then(([, stats]) => stats),
         fetchFileClaims({ agent: selected.registry?.id ?? selected.id }),
         Promise.all(
           knownChannels.map(async (channel) => ({
@@ -326,7 +333,7 @@ export default function AgentsPanel({
     } finally {
       setDetailLoading(false);
     }
-  }, [knownChannels, selected, selectedActor]);
+  }, [inboxCredential, knownChannels, selected, selectedActor]);
 
   useEffect(() => {
     void loadDirectory();
@@ -335,6 +342,12 @@ export default function AgentsPanel({
   useEffect(() => {
     void loadDetails();
   }, [loadDetails]);
+
+  useEffect(() => {
+    setInboxCredential('');
+    setInboxMessages([]);
+    setInboxStats({ total: 0, unread: 0 });
+  }, [selectedAgentId]);
 
   const summary = useMemo(() => ({
     running: actorEntries.filter((actor) => actor.actorState === 'running').length,
@@ -391,32 +404,18 @@ export default function AgentsPanel({
   }, [loadDirectory, selected]);
 
   const handleMarkInboxRead = useCallback(async () => {
-    if (!selected) return;
+    if (!selected || !inboxCredential.trim()) return;
     setActionBusy('inbox');
     setActionError(null);
     try {
-      await markAllAgentInboxRead(selected.id);
+      await markAllAgentInboxRead(selectedActor?.inboxTarget ?? selected.id, inboxCredential);
       await loadDetails();
     } catch (err) {
       setActionError((err as Error).message);
     } finally {
       setActionBusy(null);
     }
-  }, [loadDetails, selected]);
-
-  const handleClearInbox = useCallback(async () => {
-    if (!selected) return;
-    setActionBusy('inbox');
-    setActionError(null);
-    try {
-      await clearAgentInbox(selected.id);
-      await loadDetails();
-    } catch (err) {
-      setActionError((err as Error).message);
-    } finally {
-      setActionBusy(null);
-    }
-  }, [loadDetails, selected]);
+  }, [inboxCredential, loadDetails, selected, selectedActor]);
 
   const handleRunFleet = useCallback(async () => {
     if (!selectedFleetAgent || !onRunFleetAgent) return;
@@ -707,25 +706,40 @@ export default function AgentsPanel({
                 subtitle="Recent direct messages and queue state"
                 action={
                   <div className="flex items-center gap-2">
+                    <input
+                      type="password"
+                      value={inboxCredential}
+                      onChange={(event) => setInboxCredential(event.target.value)}
+                      placeholder="Actor credential"
+                      autoComplete="off"
+                      aria-label="Actor credential for inbox access"
+                      className="w-44 rounded-md px-2 py-1 text-[10px] font-mono"
+                      style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+                    />
+                    <button
+                      onClick={() => void loadDetails()}
+                      disabled={inboxBusy || !inboxCredential.trim()}
+                      className="rounded-md px-2 py-1 text-[10px] font-semibold disabled:opacity-50"
+                      style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+                    >
+                      Read
+                    </button>
                     <button
                       onClick={() => void handleMarkInboxRead()}
-                      disabled={inboxBusy || inboxStats.total === 0}
+                      disabled={inboxBusy || !inboxCredential.trim() || inboxStats.unread === 0}
                       className="rounded-md px-2 py-1 text-[10px] font-semibold disabled:opacity-50"
                       style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
                     >
                       Mark read
                     </button>
-                    <button
-                      onClick={() => void handleClearInbox()}
-                      disabled={inboxBusy || inboxStats.total === 0}
-                      className="rounded-md px-2 py-1 text-[10px] font-semibold disabled:opacity-50"
-                      style={{ color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)', backgroundColor: 'var(--pd-accent-surface)' }}
-                    >
-                      Clear
-                    </button>
                   </div>
                 }
               >
+                {!inboxCredential.trim() && (
+                  <div className="mb-3 text-[11px]" style={{ color: 'var(--pd-muted)' }}>
+                    Inbox content is actor-private. Present that actor’s one-time daemon credential to read or acknowledge it.
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
                   <span className="inline-flex items-center gap-1"><Mail size={13} /> {inboxStats.total} total</span>
                   <span>{inboxStats.unread} unread</span>

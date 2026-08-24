@@ -9,9 +9,17 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Attention } from '../lib/attention.js';
+import {
+  authorizeCanonicalInboxOwner,
+  type InboxActorSouls,
+  type InboxBoundaryFailure,
+  type LiveInboxResolver,
+} from '../lib/inbox-http-boundary.js';
 
 interface AttentionRouteDeps {
   attention: Attention;
+  actorSouls?: InboxActorSouls | null;
+  agents?: LiveInboxResolver | null;
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -24,6 +32,11 @@ function badRequest(reply: FastifyReply, message: string) {
   return { success: false, error: message, code: 'VALIDATION_ERROR' };
 }
 
+function boundaryError(reply: FastifyReply, outcome: InboxBoundaryFailure) {
+  reply.code(outcome.httpStatus);
+  return { success: false, error: outcome.error, code: outcome.code };
+}
+
 export const attentionPlugin: FastifyPluginAsync<{ deps: AttentionRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
   const { attention, metrics, logger } = deps;
@@ -34,6 +47,15 @@ export const attentionPlugin: FastifyPluginAsync<{ deps: AttentionRouteDeps }> =
       const query = request.query as Record<string, string | undefined>;
       const agentId = (query.agentId || '').trim();
       if (!agentId) return badRequest(reply, 'agentId required');
+      const owner = authorizeCanonicalInboxOwner({
+        souls: deps.actorSouls,
+        resolver: deps.agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'GET /attention',
+        logger,
+      });
+      if (!owner.ok) return boundaryError(reply, owner);
 
       const peek = query.peek === 'true' || query.peek === '1';
       let limit: number | undefined;
@@ -45,9 +67,9 @@ export const attentionPlugin: FastifyPluginAsync<{ deps: AttentionRouteDeps }> =
         limit = parsed;
       }
 
-      const result = attention.compose(agentId, { peek, limit });
+      const result = attention.compose(owner.actorId, { peek, limit });
       logger.info('attention_compose', {
-        agentId,
+        agentId: owner.actorId,
         peek,
         items: result.counts.total,
         inbox: result.counts.inbox,
@@ -68,12 +90,22 @@ export const attentionPlugin: FastifyPluginAsync<{ deps: AttentionRouteDeps }> =
       const { agentId, channel } = (request.body || {}) as Record<string, string>;
       if (!agentId) return badRequest(reply, 'agentId required');
       if (!channel) return badRequest(reply, 'channel required');
+      const owner = authorizeCanonicalInboxOwner({
+        souls: deps.actorSouls,
+        resolver: deps.agents,
+        headers: request.headers as Record<string, unknown>,
+        body: request.body,
+        requestedActorId: agentId,
+        route: 'POST /attention/subscribe',
+        logger,
+      });
+      if (!owner.ok) return boundaryError(reply, owner);
 
-      const result = attention.subscribe(agentId, channel);
+      const result = attention.subscribe(owner.actorId, channel);
       if (!result.success) {
         return badRequest(reply, result.error || 'subscribe failed');
       }
-      logger.info('attention_subscribe', { agentId, channel, newSubscription: result.subscribed });
+      logger.info('attention_subscribe', { agentId: owner.actorId, channel, newSubscription: result.subscribed });
       return result;
     } catch (error) {
       metrics.errors++;
@@ -89,12 +121,22 @@ export const attentionPlugin: FastifyPluginAsync<{ deps: AttentionRouteDeps }> =
       const { agentId, channel } = (request.body || {}) as Record<string, string>;
       if (!agentId) return badRequest(reply, 'agentId required');
       if (!channel) return badRequest(reply, 'channel required');
+      const owner = authorizeCanonicalInboxOwner({
+        souls: deps.actorSouls,
+        resolver: deps.agents,
+        headers: request.headers as Record<string, unknown>,
+        body: request.body,
+        requestedActorId: agentId,
+        route: 'POST /attention/unsubscribe',
+        logger,
+      });
+      if (!owner.ok) return boundaryError(reply, owner);
 
-      const result = attention.unsubscribe(agentId, channel);
+      const result = attention.unsubscribe(owner.actorId, channel);
       if (!result.success) {
         return badRequest(reply, result.error || 'unsubscribe failed');
       }
-      logger.info('attention_unsubscribe', { agentId, channel, removed: result.removed });
+      logger.info('attention_unsubscribe', { agentId: owner.actorId, channel, removed: result.removed });
       return result;
     } catch (error) {
       metrics.errors++;
@@ -110,9 +152,18 @@ export const attentionPlugin: FastifyPluginAsync<{ deps: AttentionRouteDeps }> =
       const query = request.query as Record<string, string | undefined>;
       const agentId = (query.agentId || '').trim();
       if (!agentId) return badRequest(reply, 'agentId required');
+      const owner = authorizeCanonicalInboxOwner({
+        souls: deps.actorSouls,
+        resolver: deps.agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'GET /attention/subscriptions',
+        logger,
+      });
+      if (!owner.ok) return boundaryError(reply, owner);
 
-      const channels = attention.listSubscriptions(agentId);
-      return { success: true, agentId, channels };
+      const channels = attention.listSubscriptions(owner.actorId);
+      return { success: true, agentId: owner.actorId, channels };
     } catch (error) {
       metrics.errors++;
       logger.error('attention_subscriptions_error', { error: (error as Error).message });

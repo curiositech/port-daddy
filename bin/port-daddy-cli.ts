@@ -964,7 +964,6 @@ Commands:
     --inbox-stats           Show actor mailbox depth
     --unread                With --inbox, only show unread messages
     --mark-read             With --inbox, mark that actor mailbox read after printing
-    --wake                  Try to hail the compatibility fleet body, if one exists
     -j, --json              Output as JSON
 
 Canonical actors (mirror lib/actor-roster.ts ACTOR_ROSTER):

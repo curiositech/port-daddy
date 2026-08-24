@@ -24,12 +24,12 @@ async function req(method: string, path: string, body?: any, credential?: string
  * Mint a daemon-issued soul for a demo agent through the public mint door.
  * Returns the plaintext credential the seeded writes below present.
  */
-async function mintDemoActor(alias: string): Promise<string> {
+async function mintDemoActor(alias: string): Promise<{ actorId: string; credential: string }> {
   const data = await req('POST', '/actors/register', { alias });
-  if (!data?.credential) {
+  if (!data?.actorId || !data?.credential) {
     throw new Error(`chaos: failed to mint actor for ${alias}: ${JSON.stringify(data)}`);
   }
-  return data.credential as string;
+  return { actorId: data.actorId as string, credential: data.credential as string };
 }
 
 async function sleep(ms: number) {
@@ -72,12 +72,11 @@ async function chaos() {
   ];
 
   console.log('Registering agents...');
-  const credentials = new Map<string, string>();
+  const principals = new Map<string, { actorId: string; credential: string }>();
   for (const a of agents) {
-    await req('POST', '/agents', a);
-    await req('POST', `/agents/${a.id}/heartbeat`);
-    // Mint each demo agent's ADR-0040 soul so its attributed writes verify.
-    credentials.set(a.id, await mintDemoActor(a.id));
+    // Registration atomically mints a canonical actor and binds its live inbox.
+    // The display alias never becomes authority for later writes.
+    principals.set(a.id, await mintDemoActor(a.id));
     await sleep(50);
   }
 
@@ -90,29 +89,30 @@ async function chaos() {
   // 4. Start Sessions & Add Notes
   console.log('Starting sessions...');
   for (let i = 0; i < 5; i++) {
+    const principal = principals.get(agents[i].id)!;
     const s = await req('POST', '/sessions', {
-      agentId: agents[i].id,
+      agentId: principal.actorId,
       identity: services[i],
       purpose: agents[i].purpose,
       phase: ['planning', 'in_progress', 'testing', 'reviewing'][i % 4]
-    }, credentials.get(agents[i].id));
+    }, principal.credential);
 
     await req('POST', `/sessions/${s.sessionId}/notes`, {
       content: `Initialized workspace for ${services[i]}`,
       type: 'info'
-    }, credentials.get(agents[i].id));
+    }, principal.credential);
     await sleep(50);
     await req('POST', `/sessions/${s.sessionId}/notes`, {
       content: `Completed phase step: ${agents[i].purpose}`,
       type: 'progress'
-    }, credentials.get(agents[i].id));
+    }, principal.credential);
   }
 
   // 5. Acquire Locks
   console.log('Acquiring locks...');
-  await req('POST', '/locks/db-migration', { owner: 'agent-db-1', ttl: 300000 }, credentials.get('agent-db-1'));
-  await req('POST', '/locks/stripe-sandbox', { owner: 'agent-api-2', ttl: 120000 }, credentials.get('agent-api-2'));
-  await req('POST', '/locks/e2e-cluster', { owner: 'agent-test-3', ttl: 60000 }, credentials.get('agent-test-3'));
+  await req('POST', '/locks/db-migration', { owner: principals.get('agent-db-1')!.actorId, ttl: 300000 }, principals.get('agent-db-1')!.credential);
+  await req('POST', '/locks/stripe-sandbox', { owner: principals.get('agent-api-2')!.actorId, ttl: 120000 }, principals.get('agent-api-2')!.credential);
+  await req('POST', '/locks/e2e-cluster', { owner: principals.get('agent-test-3')!.actorId, ttl: 60000 }, principals.get('agent-test-3')!.credential);
 
   // 6. Pub/Sub Messaging
   console.log('Publishing messages...');
@@ -122,7 +122,12 @@ async function chaos() {
   
   // 7. Inbox Messaging
   console.log('Sending inbox messages...');
-  await req('POST', '/agents/agent-api-2/inbox', { content: 'DB migration finished, safe to start.', from: 'agent-db-1', type: 'handoff' });
+  await req(
+    'POST',
+    `/agents/${principals.get('agent-api-2')!.actorId}/inbox`,
+    { content: 'DB migration finished, safe to start.' },
+    principals.get('agent-db-1')!.credential,
+  );
 
   console.log('Chaos generation complete. Check the dashboard!');
 }

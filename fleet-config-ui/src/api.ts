@@ -51,9 +51,8 @@ import type {
   GalaxySessionDetailResponse,
 } from './types';
 
-const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
-const DAEMON_STORAGE_KEY = 'pd.fleet-ui.daemon-url';
-const DAEMON_HISTORY_STORAGE_KEY = 'pd.fleet-ui.daemon-history';
+const DAEMON_STORAGE_KEY = 'pd.control-center.daemon-url';
+const DAEMON_HISTORY_STORAGE_KEY = 'pd.control-center.daemon-history';
 export const CUSTOM_DAEMON_SENTINEL = '__custom__';
 
 function canUseWindow(): boolean {
@@ -73,14 +72,11 @@ function inferOriginDaemonUrl(): string | null {
 }
 
 function defaultDaemonChoices(): string[] {
-  return uniqueDaemonUrls([
-    inferOriginDaemonUrl(),
-    CANONICAL_PREFERRED_DAEMON_URL,
-  ]);
+  return uniqueDaemonUrls([inferOriginDaemonUrl()]);
 }
 
 function fallbackDaemonUrl(): string {
-  return defaultDaemonChoices()[0] ?? CANONICAL_PREFERRED_DAEMON_URL;
+  return defaultDaemonChoices()[0] ?? '';
 }
 
 function normalizeDaemonUrl(value: string): string {
@@ -143,7 +139,7 @@ function resolveInitialDaemonUrl(): string {
     inferOriginDaemonUrl(),
     safeNormalize(canUseWindow() ? window.localStorage.getItem(DAEMON_STORAGE_KEY) : null),
     fallbackDaemonUrl(),
-  ])[0] ?? fallbackDaemonUrl();
+  ])[0] ?? '';
 }
 
 let daemonUrl = resolveInitialDaemonUrl();
@@ -162,7 +158,7 @@ function syncDaemonQueryParam(url: string): void {
 }
 
 function daemonEndpoint(path: string): string {
-  return `${daemonUrl}${path}`;
+  return daemonUrl ? `${daemonUrl}${path}` : path;
 }
 
 export function getDaemonUrl(): string {
@@ -185,6 +181,7 @@ export function getDaemonChoices(): string[] {
 }
 
 export function formatDaemonLabel(url: string): string {
+  if (!url) return 'same origin';
   try {
     const parsed = new URL(url);
     return `${parsed.hostname}:${parsed.port || (parsed.protocol === 'https:' ? '443' : '80')}`;
@@ -211,12 +208,18 @@ export function runSetupAction(input: {
   });
 }
 
-async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function api<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+): Promise<T> {
   const startedAt = Date.now();
   const res = await fetch(daemonEndpoint(path), {
     method,
+    ...(Object.keys(headers).length > 0 && { headers }),
     ...(body !== undefined && {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
     }),
   });
@@ -270,9 +273,9 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
   return res.json();
 }
 
-const get = <T>(path: string) => api<T>('GET', path);
+const get = <T>(path: string, headers?: Record<string, string>) => api<T>('GET', path, undefined, headers);
 const post = <T>(path: string, body?: unknown) => api<T>('POST', path, body);
-const put = <T>(path: string, body: unknown) => api<T>('PUT', path, body);
+const put = <T>(path: string, body: unknown, headers?: Record<string, string>) => api<T>('PUT', path, body, headers);
 const del = <T>(path: string) => api<T>('DELETE', path);
 
 function pathCategory(path: string): string {
@@ -502,7 +505,12 @@ export async function fetchRegistryAgents(opts: {
   return data.agents ?? [];
 }
 
-export async function fetchAgentInbox(agentId: string, opts: {
+function actorInboxHeaders(credential: string): Record<string, string> {
+  if (!credential.trim()) throw new Error('actor credential required for inbox access');
+  return { 'x-actor-credential': credential };
+}
+
+export async function fetchAgentInbox(agentId: string, credential: string, opts: {
   unreadOnly?: boolean;
   limit?: number;
   since?: number;
@@ -511,24 +519,26 @@ export async function fetchAgentInbox(agentId: string, opts: {
   if (opts.unreadOnly) params.set('unread', 'true');
   if (opts.limit) params.set('limit', String(opts.limit));
   if (opts.since) params.set('since', String(opts.since));
-  const data = await get<{ messages?: InboxMessage[] }>(`/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? `?${params}` : ''}`);
+  const data = await get<{ messages?: InboxMessage[] }>(
+    `/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? `?${params}` : ''}`,
+    actorInboxHeaders(credential),
+  );
   return data.messages ?? [];
 }
 
-export async function fetchAgentInboxStats(agentId: string): Promise<InboxStats> {
-  const data = await get<{ total?: number; unread?: number }>(`/agents/${encodeURIComponent(agentId)}/inbox/stats`);
+export async function fetchAgentInboxStats(agentId: string, credential: string): Promise<InboxStats> {
+  const data = await get<{ total?: number; unread?: number }>(
+    `/agents/${encodeURIComponent(agentId)}/inbox/stats`,
+    actorInboxHeaders(credential),
+  );
   return {
     total: data.total ?? 0,
     unread: data.unread ?? 0,
   };
 }
 
-export async function markAllAgentInboxRead(agentId: string): Promise<{ success: boolean; marked: number }> {
-  return put(`/agents/${encodeURIComponent(agentId)}/inbox/read-all`, {});
-}
-
-export async function clearAgentInbox(agentId: string): Promise<{ success: boolean; deleted: number }> {
-  return del(`/agents/${encodeURIComponent(agentId)}/inbox`);
+export async function markAllAgentInboxRead(agentId: string, credential: string): Promise<{ success: boolean; marked: number }> {
+  return put(`/agents/${encodeURIComponent(agentId)}/inbox/read-all`, {}, actorInboxHeaders(credential));
 }
 
 export async function fetchSalvageAgents(opts: {
@@ -636,30 +646,20 @@ export async function resolveChannel(name: string, projectDir?: string): Promise
   }
 }
 
-/**
- * Send a direct inbox message and optionally wake the target fleet agent.
- *
- * Example:
- * - input: `('spark', { content: 'What should I do next?', project: 'port-daddy', wake: true })`
- * - output: `{ delivered: true, woke: false, error: 'No running fleet agent matches spark' }`
- *
- * A 409 wake conflict is treated as partial success because the daemon has
- * already stored the inbox message even if it could not wake a live runtime.
- */
+/** Send bounded external content. The daemon owns sender provenance and never wakes a runtime. */
 export async function sendAgentMessage(agentId: string, opts: {
   content: unknown;
-  project?: string;
-  from?: string;
-  type?: string;
-  contentType?: 'text' | 'json' | 'binary';
-  messageContent?: string;
-  wake?: boolean;
+  contentType?: 'text' | 'json';
 }): Promise<{
   success: boolean;
   delivered: boolean;
-  woke: boolean;
+  woke: false;
   messageId?: number;
-  wake?: { success: boolean; project?: string; agent?: string; error?: string };
+  provenance?: {
+    kind: 'anonymous-external' | 'authenticated-external';
+    actorId: string | null;
+    harbor: string;
+  };
   error?: string;
 }> {
   const path = `/agents/${encodeURIComponent(agentId)}/inbox`;
@@ -668,12 +668,7 @@ export async function sendAgentMessage(agentId: string, opts: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       content: opts.content,
-      project: opts.project,
-      from: opts.from ?? 'fleet-ui',
-      type: opts.type,
-      contentType: opts.contentType,
-      messageContent: opts.messageContent,
-      wake: opts.wake ?? true,
+      ...(opts.contentType ? { contentType: opts.contentType } : {}),
     }),
   });
 
@@ -682,7 +677,7 @@ export async function sendAgentMessage(agentId: string, opts: {
     ? await res.json().catch(() => null) as Record<string, unknown> | null
     : null;
 
-  if (!res.ok && res.status !== 409) {
+  if (!res.ok) {
     const detail = typeof payload?.error === 'string' && payload.error.trim()
       ? payload.error.trim()
       : `${path}: ${res.status} ${res.statusText}`;
@@ -696,9 +691,13 @@ export async function sendAgentMessage(agentId: string, opts: {
   }) as {
     success: boolean;
     delivered: boolean;
-    woke: boolean;
+    woke: false;
     messageId?: number;
-    wake?: { success: boolean; project?: string; agent?: string; error?: string };
+    provenance?: {
+      kind: 'anonymous-external' | 'authenticated-external';
+      actorId: string | null;
+      harbor: string;
+    };
     error?: string;
   };
 }

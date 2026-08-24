@@ -12,13 +12,17 @@ install_pd_shim() {
 }
 
 ensure_daemon() {
-  if pd status >/dev/null 2>&1; then
+  # `pd status` deliberately exits non-zero for an isolated feature berth's
+  # binary-drift warning. The recorder only needs a responsive daemon, so use
+  # the health command as the readiness gate and keep feature-berth recordings
+  # from accidentally trying to start or replace the canonical daemon.
+  if pd health >/dev/null 2>&1; then
     return 0
   fi
 
   node "$ROOT_DIR/bin/port-daddy-cli.js" start >/dev/null 2>&1 || true
   sleep 1
-  pd status >/dev/null 2>&1
+  pd health >/dev/null 2>&1
 }
 
 type_cmd() {
@@ -129,9 +133,38 @@ play_recording() {
       ;;
     tutorials/inbox)
       intro
-      run_cmd "node \"$ROOT_DIR/bin/port-daddy-cli.js\" inbox clear --agent QA-REVIEWER"
-      run_cmd "AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER \"Review migration 0142 on staging before release.\""
-      run_cmd "pd inbox --agent QA-REVIEWER --unread --limit 1"
+      INBOX_RECORDING_SENDER_SLOT="site-inbox-sender-$$"
+      INBOX_RECORDING_RECEIVER_SLOT="site-inbox-receiver-$$"
+      local inbox_sender_id
+      local inbox_receiver_id
+
+      cleanup_site_inbox_recording() {
+        PORT_DADDY_CONTEXT_SLOT="$INBOX_RECORDING_RECEIVER_SLOT" pd done \
+          "Recording fixture cleanup after verified readback" \
+          --status abandoned --force-incomplete \
+          --reason "Website inbox tutorial cleanup" --quiet >/dev/null 2>&1 || true
+        PORT_DADDY_CONTEXT_SLOT="$INBOX_RECORDING_SENDER_SLOT" pd done \
+          "Recording fixture cleanup after verified delivery" \
+          --status abandoned --force-incomplete \
+          --reason "Website inbox tutorial cleanup" --quiet >/dev/null 2>&1 || true
+      }
+      trap cleanup_site_inbox_recording EXIT
+
+      inbox_sender_id="$(PORT_DADDY_CONTEXT_SLOT="$INBOX_RECORDING_SENDER_SLOT" pd begin \
+        "Inbox tutorial sender $$" --identity "tutorial:inbox:sender-$$" --lifecycle durable \
+        --sidequest "Website inbox tutorial recording" --quiet)"
+      inbox_receiver_id="$(PORT_DADDY_CONTEXT_SLOT="$INBOX_RECORDING_RECEIVER_SLOT" pd begin \
+        "Inbox tutorial receiver $$" --identity "tutorial:inbox:receiver-$$" --lifecycle durable \
+        --sidequest "Website inbox tutorial recording" --quiet)"
+
+      run_cmd "PORT_DADDY_CONTEXT_SLOT=$INBOX_RECORDING_SENDER_SLOT pd whoami"
+      run_cmd "PORT_DADDY_CONTEXT_SLOT=$INBOX_RECORDING_SENDER_SLOT pd inbox send $inbox_receiver_id \"Review migration 0142 on staging before release.\""
+      run_cmd "PORT_DADDY_CONTEXT_SLOT=$INBOX_RECORDING_RECEIVER_SLOT pd inbox --unread --limit 1"
+      run_cmd "PORT_DADDY_CONTEXT_SLOT=$INBOX_RECORDING_RECEIVER_SLOT pd inbox read-all"
+
+      cleanup_site_inbox_recording
+      trap - EXIT
+      unset INBOX_RECORDING_SENDER_SLOT INBOX_RECORDING_RECEIVER_SLOT
       ;;
     tutorials/harbors)
       intro

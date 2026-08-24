@@ -9,31 +9,22 @@
 
 import { PortDaddy } from '../../lib/client.js';
 import { request, getDaemonState } from '../helpers/integration-setup.js';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 
 describe('Agent Inbox Real-time Integration', () => {
-  const agentId = 'test-agent-' + Date.now();
+  let agentId;
+  let actor;
   let pd;
 
   beforeAll(async () => {
     const { sockPath } = getDaemonState();
-    pd = new PortDaddy({ agentId, socketPath: sockPath });
-
-    // Ensure agent is registered
-    const reg = await request('/agents', {
-      method: 'POST',
-      body: {
-        id: agentId,
-        purpose: 'Testing real-time inbox'
-      }
-    });
-    if (!reg.ok) {
-      console.error(`[DEBUG] Agent registration failed: HTTP ${reg.status}`, reg.text);
-    }
-    expect(reg.ok).toBe(true);
+    actor = await registerTestActorVia(request, { alias: `inbox-integration-${Date.now()}` });
+    agentId = actor.actorId;
+    pd = new PortDaddy({ agentId, credential: actor.credential, socketPath: sockPath });
   });
 
   afterAll(async () => {
-    await pd.inboxClear(agentId);
+    await pd.inboxMarkAllRead(agentId);
   });
 
   test('Should receive inbox messages in real-time via subscription', (done) => {
@@ -43,12 +34,11 @@ describe('Agent Inbox Real-time Integration', () => {
     sub.on('connected', async () => {
       // Once connected, send a message to this agent
       try {
-        await pd.inboxSend(agentId, testContent, { from: 'system-test', type: 'hail' });
+        await pd.inboxSend(agentId, testContent);
       } catch (err) {
         console.error(`[DEBUG] inboxSend failed: ${err.message}`, {
           agentId,
           content: testContent,
-          options: { from: 'system-test', type: 'hail' }
         });
         done(err);
       }
@@ -62,7 +52,8 @@ describe('Agent Inbox Real-time Integration', () => {
     sub.on('message', (msg) => {
       try {
         expect(msg.content).toBe(testContent);
-        expect(msg.from).toBe('system-test');
+        expect(msg.from).toBe(agentId);
+        expect(msg.type).toBe('external.authenticated');
         expect(msg.agentId).toBe(agentId);
         
         clearTimeout(timer);

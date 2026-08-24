@@ -4,10 +4,9 @@
  * POST   /sessions                - Start a session
  * GET    /sessions                - List sessions
  * GET    /sessions/:id            - Get session details
- * PUT    /sessions/:id            - End or abandon a session
  * POST   /sessions/:id/takeover   - Start a successor session without deleting notes
- * DELETE /sessions/:id            - Archive session, preserving notes
- * POST   /sessions/:id/notes      - Add a note to a session (compat alias for /notes)
+ * DELETE /sessions/:id            - Archive a terminal session owned by the verified caller
+ * POST   /sessions/:id/notes      - Add an owner-authenticated note to a selected session
  * GET    /sessions/:id/notes      - Get notes for a session
  * POST   /sessions/:id/files      - Claim files for a session
  * DELETE /sessions/:id/files      - Release files from a session
@@ -191,6 +190,34 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     parleyAutoTrigger,
   } = deps;
 
+  type CanonicalSessionOwner = {
+    id?: unknown;
+    status?: unknown;
+    agentId?: unknown;
+    purpose?: unknown;
+    metadata?: {
+      identity?: {
+        verified?: unknown;
+        actorId?: unknown;
+      };
+    } | null;
+  };
+
+  /**
+   * Read the daemon-stamped owner of a session without resolving aliases.
+   * Both durable fields must contain the same minted actor id. This makes
+   * legacy, self-asserted, and alias-owned rows ineligible for authority even
+   * when an alias happens to resolve to a live soul today.
+   */
+  function canonicalStampedActorId(session: CanonicalSessionOwner | null | undefined): string | null {
+    const owner = typeof session?.agentId === 'string' ? session.agentId.trim() : '';
+    const stamp = session?.metadata?.identity;
+    const stampedActorId = stamp?.verified === true && typeof stamp.actorId === 'string'
+      ? stamp.actorId.trim()
+      : '';
+    return owner && stampedActorId && owner === stampedActorId ? owner : null;
+  }
+
   interface ClaimConflictRecord {
     filePath: string;
     sessionId: string;
@@ -203,24 +230,26 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   function canonicalActorForSession(sessionId: string): string | null {
     const result = sessions.get(sessionId) as {
       success?: boolean;
-      session?: { status?: unknown; agentId?: unknown };
+      session?: CanonicalSessionOwner;
     };
     const session = result.session;
-    if (!result.success || session?.status !== 'active' || typeof session.agentId !== 'string') return null;
-    const storedAgentId = session.agentId.trim();
-    if (!storedAgentId || !actorSouls) return null;
-    const resolved = actorSouls.resolveActor(storedAgentId);
-    return resolved.soulClass === 'unknown' ? null : resolved.actorId;
+    if (!result.success || session?.status !== 'active' || !actorSouls) return null;
+    const actorId = canonicalStampedActorId(session);
+    if (!actorId) return null;
+    const resolved = actorSouls.resolveActor(actorId);
+    return resolved.soulClass !== 'unknown' && resolved.actorId === actorId ? actorId : null;
   }
 
   function hasActiveCanonicalActor(actorId: string): boolean {
     const active = sessions.list({ status: 'active', allWorktrees: true, limit: 1000 }) as {
-      sessions?: Array<{ agentId?: unknown }>;
+      sessions?: CanonicalSessionOwner[];
     };
     return (active.sessions ?? []).some((session) => {
-      if (typeof session.agentId !== 'string' || !actorSouls) return false;
-      const resolved = actorSouls.resolveActor(session.agentId.trim());
-      return resolved.soulClass !== 'unknown' && resolved.actorId === actorId;
+      if (!actorSouls) return false;
+      const stampedActorId = canonicalStampedActorId(session);
+      if (!stampedActorId || stampedActorId !== actorId) return false;
+      const resolved = actorSouls.resolveActor(stampedActorId);
+      return resolved.soulClass !== 'unknown' && resolved.actorId === stampedActorId;
     });
   }
 
@@ -484,117 +513,86 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         result: { success: false, error: verdict.error, code: verdict.code },
       };
     }
-    return { success: true, agentId: verdict.agentId, verdict };
+    // Caller aliases are assertions only. Once the credential verifies, every
+    // durable route in this plugin receives the daemon-minted actor id.
+    return {
+      success: true,
+      agentId: verdict.kind === 'verified' ? verdict.actorId : null,
+      verdict,
+    };
   };
 
   /**
-   * Authorize a file-claim mutation (claim/release) against the target
-   * session.
-   *
-   * Purpose: file claims are coordination state OWNED by a session; letting
-   * any caller mutate them under the owner's name is the blocking/stealing
-   * attack the #8877 audit records. The design checks, in order: an agentId
-   * is present (claims are always attributed), the session exists and is
-   * active, the asserted agentId matches the session's owner string, and —
-   * when the session was started with a verified identity stamp — that the
-   * caller's VERIFIED minted actor is the same soul that owns the session.
-   * The last check is what makes the string comparison sound: a session
-   * stamped `identity.actorId` can only have its claims mutated by a caller
-   * holding that soul's credential, not by anyone who learned the display
-   * name.
-   *
-   * @param sessionId - Target session id from the route path.
-   * @param agentId - Effective attribution id from the identity verdict.
-   * @param action - Which mutation is being authorized (for error text).
-   * @param verdict - The successful identity verdict for this request.
-   * @returns Success, or the error body (and implied status) to return.
+   * Authorize a lifecycle mutation against the daemon-stamped canonical owner.
+   * Caller aliases are assertions only: the credential's minted actor id is
+   * compared with both the durable owner column and the reserved identity
+   * stamp. Unstamped or alias-owned legacy rows fail closed instead of
+   * regaining authority through a compatibility path.
    */
-  const authorizeFileMutationRoute = (
+  const authorizeCanonicalSessionOwner = (
     sessionId: string,
-    agentId: string | null,
-    action: 'claiming' | 'releasing',
-    verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
-  ): { success: true } | { success: false; result: Record<string, unknown> } => {
-    if (!agentId) {
+    identity: Extract<IdentityWriteVerdict, { ok: true }>,
+  ):
+    | { success: true; session: CanonicalSessionOwner; actorId: string }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    const lookup = sessions.get(sessionId) as {
+      success?: boolean;
+      code?: unknown;
+      error?: unknown;
+      session?: CanonicalSessionOwner;
+    };
+    if (!lookup.success || !lookup.session) {
       return {
         success: false,
+        httpStatus: 404,
         result: {
           success: false,
-          error: `agentId is required when ${action} files for a session`,
-          code: 'SESSION_AGENT_REQUIRED',
+          error: typeof lookup.error === 'string' ? lookup.error : 'session not found',
+          code: 'SESSION_NOT_FOUND',
+        },
+      };
+    }
+    if (identity.kind !== 'verified') {
+      return {
+        success: false,
+        httpStatus: 401,
+        result: {
+          success: false,
+          error: 'session lifecycle mutations require a verified actor credential',
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
         },
       };
     }
 
-    const lookup = sessions.get(sessionId);
-    if (!lookup.success) {
-      return {
-        success: false,
-        result: { ...lookup, code: lookup.code || 'SESSION_NOT_FOUND' },
-      };
-    }
-
-    const session = lookup.session as { agentId?: unknown; status?: unknown } | undefined;
-    const owner = typeof session?.agentId === 'string' ? session.agentId.trim() : '';
+    const owner = canonicalStampedActorId(lookup.session);
     if (!owner) {
       return {
         success: false,
+        httpStatus: 409,
         result: {
           success: false,
-          error: `agentId is required before ${action} files for a session`,
-          code: 'SESSION_AGENT_REQUIRED',
+          error: `session "${sessionId}" lacks an exact canonical owner stamp`,
+          code: 'SESSION_IDENTITY_UNVERIFIED',
         },
       };
     }
-    if (session?.status !== 'active') {
+    if (identity.actorId !== owner) {
       return {
         success: false,
-        result: {
-          success: false,
-          error: `session is ${String(session?.status)}; only active sessions can ${action === 'claiming' ? 'claim' : 'release'} files`,
-          code: 'SESSION_NOT_ACTIVE',
-        },
-      };
-    }
-    if (owner !== agentId) {
-      return {
-        success: false,
-        result: {
-          success: false,
-          error: `agentId "${agentId}" cannot mutate file claims for session owned by "${owner}"`,
-          code: 'SESSION_AGENT_MISMATCH',
-        },
-      };
-    }
-
-    // When the session record carries a verified identity stamp, the caller's
-    // minted actor must be the SAME soul — knowing the owner's display string
-    // is not ownership.
-    const stamped = (session as { metadata?: { identity?: { verified?: unknown; actorId?: unknown } } })
-      ?.metadata?.identity;
-    if (
-      stamped &&
-      stamped.verified === true &&
-      typeof stamped.actorId === 'string' &&
-      verdict?.kind === 'verified' &&
-      verdict.actorId !== stamped.actorId
-    ) {
-      return {
-        success: false,
+        httpStatus: 403,
         result: {
           success: false,
           error: `the presented credential's actor does not own session "${sessionId}"`,
-          code: 'SESSION_AGENT_MISMATCH',
+          code: 'SESSION_OWNERSHIP_MISMATCH',
         },
       };
     }
-
-    return { success: true };
+    return { success: true, session: lookup.session, actorId: identity.actorId };
   };
 
   /**
-   * Shared handler for the canonical `POST /notes` and the compat alias
-   * `POST /sessions/:id/notes`.
+   * Shared handler for `POST /notes` and the session-scoped
+   * `POST /sessions/:id/notes` path.
    *
    * Purpose: notes are the durable narrative of record (they feed
    * changelog-from-note, briefings, and roster projections), so this is a
@@ -628,15 +626,35 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
-    // #8877: notes are durable attributed records — enforce the identity
-    // write boundary before anything is persisted.
-    const noteIdentity = mutationIdentity(request, agentId, routeSessionId ? 'POST /sessions/:id/notes' : 'POST /notes');
+    const sessionId = routeSessionId ?? (
+      typeof bodySessionId === 'string' && bodySessionId.trim()
+        ? bodySessionId.trim()
+        : null
+    );
+
+    // Selecting an existing session is an ownership mutation, even when the
+    // note body itself carries no identity string. Anonymous quick notes remain
+    // available only when the daemon selects/creates an unattributed session.
+    const noteIdentity = mutationIdentity(
+      request,
+      agentId,
+      routeSessionId ? 'POST /sessions/:id/notes' : 'POST /notes',
+      { requireIdentity: Boolean(sessionId) },
+    );
     if (!noteIdentity.success) {
       reply.code(noteIdentity.httpStatus);
       return noteIdentity.result;
     }
 
-    const sessionId = routeSessionId ?? bodySessionId;
+    let canonicalAgentId = noteIdentity.agentId;
+    if (sessionId) {
+      const owner = authorizeCanonicalSessionOwner(sessionId, noteIdentity.verdict);
+      if (!owner.success) {
+        reply.code(owner.httpStatus);
+        return owner.result;
+      }
+      canonicalAgentId = owner.actorId;
+    }
 
     // Adversarial-fleet projects (redteam-review, whitehat-defense) require
     // envelope-encrypted bodies. Look up the session's identity_project to
@@ -661,7 +679,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
     }
 
-    const result = sessions.quickNote(writtenContent, { sessionId, agentId: noteIdentity.agentId, type });
+    const result = sessions.quickNote(writtenContent, { sessionId, agentId: canonicalAgentId, type });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
@@ -872,54 +890,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // PUT /sessions/:id - End or abandon a session
-  fastify.put('/sessions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const sessionIdParam = (request.params as any).id;
-      const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const { status, note } = request.body as any;
-
-      let result: Record<string, unknown>;
-
-      if (status === 'abandoned') {
-        result = sessions.abandon(sessionId);
-      } else {
-        result = sessions.end(sessionId, { note, status });
-      }
-
-      // Symbol claims release with the session (advisory reservations are session-scoped).
-      if (result.success && symbolClaims) {
-        try { symbolClaims.release(sessionId); } catch { /* best-effort */ }
-      }
-
-      if (!result.success) {
-        reply.code(404);
-        return { ...result, code: 'SESSION_NOT_FOUND' };
-      }
-
-      logger.info('session_ended', {
-        sessionId,
-        status: result.status,
-        releasedFiles: Array.isArray(result.releasedFiles) ? result.releasedFiles.length : 0
-      });
-
-      if (activityLog?.log) {
-        activityLog.log('session_end', {
-          details: `Ended session: ${sessionId} (${result.status})`,
-          metadata: { sessionId, status: result.status as string }
-        });
-      }
-
-      return result;
-
-    } catch (error) {
-      metrics.errors++;
-      logger.error('session_end_error', { error: (error as Error).message });
-      reply.code(500);
-      return { error: 'internal server error' };
-    }
-  });
-
   // POST /sessions/:id/takeover - Non-destructively continue an existing session
   fastify.post('/sessions/:id/takeover', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -934,6 +904,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (!sessionAgent.success) {
         reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
+      }
+      const owner = authorizeCanonicalSessionOwner(sessionId, sessionAgent.verdict);
+      if (!owner.success) {
+        reply.code(owner.httpStatus);
+        return owner.result;
       }
       const lifecycle = parseSessionLifecycle(body.lifecycle);
       const worktreePolicy = evaluateSessionWorktreePolicy({
@@ -955,7 +930,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       );
 
       const result = sessions.takeover(sessionId, {
-        agentId: sessionAgent.agentId,
+        agentId: owner.actorId,
         purpose: typeof body.purpose === 'string' ? body.purpose : null,
         note: typeof body.note === 'string' ? body.note : null,
         project: typeof body.project === 'string' ? body.project : null,
@@ -997,7 +972,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const { phase } = request.body as any;
+      const body = (request.body || {}) as any;
+      const sessionAgent = mutationIdentity(
+        request,
+        body.agentId,
+        'PUT /sessions/:id/phase',
+        { requireIdentity: true },
+      );
+      if (!sessionAgent.success) {
+        reply.code(sessionAgent.httpStatus);
+        return sessionAgent.result;
+      }
+      const owner = authorizeCanonicalSessionOwner(sessionId, sessionAgent.verdict);
+      if (!owner.success) {
+        reply.code(owner.httpStatus);
+        return owner.result;
+      }
+      const { phase } = body;
 
       if (!phase || typeof phase !== 'string') {
         reply.code(400);
@@ -1022,6 +1013,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       logger.info('session_phase_set', {
         sessionId,
+        actorId: owner.actorId,
         phase: result.phase,
         previousPhase: result.previousPhase
       });
@@ -1029,7 +1021,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (activityLog?.log) {
         activityLog.log('session_phase', {
           details: `Session ${sessionId} phase: ${result.previousPhase} → ${result.phase}`,
-          metadata: { sessionId, phase: result.phase as string, previousPhase: result.previousPhase as string }
+          metadata: {
+            sessionId,
+            actorId: owner.actorId,
+            phase: result.phase as string,
+            previousPhase: result.previousPhase as string,
+          }
         });
       }
 
@@ -1043,11 +1040,35 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // DELETE /sessions/:id - Archive session and preserve notes
+  // DELETE /sessions/:id - Archive a terminal session owned by the verified caller
   fastify.delete('/sessions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+      const body = (request.body || {}) as any;
+      const sessionAgent = mutationIdentity(
+        request,
+        body.agentId,
+        'DELETE /sessions/:id',
+        { requireIdentity: true },
+      );
+      if (!sessionAgent.success) {
+        reply.code(sessionAgent.httpStatus);
+        return sessionAgent.result;
+      }
+      const owner = authorizeCanonicalSessionOwner(sessionId, sessionAgent.verdict);
+      if (!owner.success) {
+        reply.code(owner.httpStatus);
+        return owner.result;
+      }
+      if (owner.session.status === 'active') {
+        reply.code(409);
+        return {
+          success: false,
+          error: 'active sessions must be closed through the authenticated Sugar lifecycle',
+          code: 'SESSION_ACTIVE_USE_SUGAR_DONE',
+        };
+      }
 
       const result = sessions.remove(sessionId);
 
@@ -1071,7 +1092,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // POST /sessions/:id/notes - Compatibility alias for the canonical /notes write path
+  // POST /sessions/:id/notes - Owner-authenticated write to a selected session
   fastify.post('/sessions/:id/notes', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionIdParam = (request.params as any).id;
@@ -1175,16 +1196,29 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const requestAgent = mutationIdentity(request, agentId, 'POST /sessions/:id/files');
+      const requestAgent = mutationIdentity(
+        request,
+        agentId,
+        'POST /sessions/:id/files',
+        { requireIdentity: true },
+      );
       if (!requestAgent.success) {
         reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
 
-      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'claiming', requestAgent.verdict);
-      if (!routeAuth.success) {
-        reply.code(errorStatus(routeAuth.result));
-        return routeAuth.result;
+      const owner = authorizeCanonicalSessionOwner(sessionId, requestAgent.verdict);
+      if (!owner.success) {
+        reply.code(owner.httpStatus);
+        return owner.result;
+      }
+      if (owner.session.status !== 'active') {
+        reply.code(409);
+        return {
+          success: false,
+          error: `session is ${String(owner.session.status)}; only active sessions can claim files`,
+          code: 'SESSION_NOT_ACTIVE',
+        };
       }
 
       if (hasFiles && !force) {
@@ -1202,7 +1236,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const result = sessions.claimFiles(sessionId, files || [], { regions, force, agentId: requestAgent.agentId });
+      const result = sessions.claimFiles(sessionId, files || [], {
+        regions,
+        force,
+        agentId: owner.actorId,
+      });
 
       if (!result.success) {
         reply.code(errorStatus(result));
@@ -1241,13 +1279,41 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // its blast radius (read-claims on every downstream caller). Pre-flight validator (ast-a2-1)
   // rejects blocking conflicts. Returns predicted conflicts with other active sessions.
   fastify.post('/sessions/:id/symbols', async (request: FastifyRequest, reply: FastifyReply) => {
+    const sessionIdParam = (request.params as any).id;
+    const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+    const body = (request.body ?? {}) as {
+      claims?: unknown;
+      autoDeriveRadius?: boolean;
+      radiusDepth?: number;
+      agentId?: unknown;
+    };
+    const sessionAgent = mutationIdentity(
+      request,
+      body.agentId,
+      'POST /sessions/:id/symbols',
+      { requireIdentity: true },
+    );
+    if (!sessionAgent.success) {
+      reply.code(sessionAgent.httpStatus);
+      return sessionAgent.result;
+    }
+    const owner = authorizeCanonicalSessionOwner(sessionId, sessionAgent.verdict);
+    if (!owner.success) {
+      reply.code(owner.httpStatus);
+      return owner.result;
+    }
+    if (owner.session.status !== 'active') {
+      reply.code(409);
+      return {
+        success: false,
+        error: `session is ${String(owner.session.status)}; only active sessions can claim symbols`,
+        code: 'SESSION_NOT_ACTIVE',
+      };
+    }
     if (!symbolClaims) {
       reply.code(501);
       return { success: false, error: 'symbol claims not available' };
     }
-    const sessionIdParam = (request.params as any).id;
-    const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-    const body = (request.body ?? {}) as { claims?: unknown; autoDeriveRadius?: boolean; radiusDepth?: number };
     const raw = Array.isArray(body.claims) ? body.claims : [];
     const claims: Array<{ filePath: string; symbolPath: string; type: ClaimType }> = [];
     for (const c of raw as any[]) {
@@ -1271,17 +1337,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const conflicts = result.conflicts as SymbolConflict[];
       if (conflicts.length > 0 && suggestions && agentInbox) {
         try {
-          const sessionResult = typeof sessions.get === 'function'
-            ? sessions.get(sessionId) as {
-                session?: { agentId?: string | null; purpose?: string | null };
-              }
-            : null;
           surfaceSymbolConflictAdvice(
             { suggestions, inbox: agentInbox, activityLog },
             {
               sessionId,
-              agentId: sessionResult?.session?.agentId ?? null,
-              purpose: sessionResult?.session?.purpose ?? null,
+              agentId: owner.actorId,
+              purpose: typeof owner.session.purpose === 'string' ? owner.session.purpose : null,
               conflicts,
             },
           );
@@ -1313,6 +1374,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      logger.info('session_symbols_claimed', {
+        sessionId,
+        actorId: owner.actorId,
+        claimsCount: claims.length,
+        conflictsCount: conflicts.length,
+      });
       return { success: true, ...result };
     } catch (error) {
       metrics.errors++;
@@ -1364,19 +1431,32 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const requestAgent = mutationIdentity(request, agentId, 'DELETE /sessions/:id/files');
+      const requestAgent = mutationIdentity(
+        request,
+        agentId,
+        'DELETE /sessions/:id/files',
+        { requireIdentity: true },
+      );
       if (!requestAgent.success) {
         reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
 
-      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'releasing', requestAgent.verdict);
-      if (!routeAuth.success) {
-        reply.code(errorStatus(routeAuth.result));
-        return routeAuth.result;
+      const owner = authorizeCanonicalSessionOwner(sessionId, requestAgent.verdict);
+      if (!owner.success) {
+        reply.code(owner.httpStatus);
+        return owner.result;
+      }
+      if (owner.session.status !== 'active') {
+        reply.code(409);
+        return {
+          success: false,
+          error: `session is ${String(owner.session.status)}; only active sessions can release files`,
+          code: 'SESSION_NOT_ACTIVE',
+        };
       }
 
-      const result = sessions.releaseFiles(sessionId, files, { regions, agentId: requestAgent.agentId });
+      const result = sessions.releaseFiles(sessionId, files, { regions, agentId: owner.actorId });
 
       if (!result.success) {
         reply.code(errorStatus(result));

@@ -20,18 +20,65 @@ describe('Sugar canonical identity persistence', () => {
   let actorSouls;
   let semanticIndex;
   let semanticIndexTransactionStates;
+  let semanticUnindexTransactionStates;
+  let sessionKeyCache;
+  let sessionKeyCacheTransactionStates;
+  let activityLog;
+  let observedActivity;
+  let activityTransactionStates;
+  let episodicMemory;
+  let rememberedEpisodes;
+  let episodeTransactionStates;
 
   beforeEach(async () => {
     db = createTestDb();
     semanticIndexTransactionStates = [];
+    semanticUnindexTransactionStates = [];
     semanticIndex = {
       index: jest.fn(() => semanticIndexTransactionStates.push(db.inTransaction)),
-      unindexEntry: jest.fn(),
+      unindexEntry: jest.fn(() => semanticUnindexTransactionStates.push(db.inTransaction)),
       find: jest.fn(() => []),
     };
+    sessionKeyCacheTransactionStates = [];
+    sessionKeyCache = new Map();
+    const setSessionKey = sessionKeyCache.set.bind(sessionKeyCache);
+    jest.spyOn(sessionKeyCache, 'set').mockImplementation((sessionId, key) => {
+      sessionKeyCacheTransactionStates.push(db.inTransaction);
+      setSessionKey(sessionId, key);
+      return sessionKeyCache;
+    });
+    const sessionKey = Buffer.alloc(32, 0x42);
+    const noteEncryption = {
+      isEnabled: () => true,
+      generateSessionKey: () => Buffer.from(sessionKey),
+      wrapSessionKey: () => 'wrapped-test-session-key',
+      unwrapSessionKey: () => Buffer.from(sessionKey),
+      encryptNote: (content) => `encrypted:${content}`,
+      decryptNote: (content) => content.replace(/^encrypted:/, ''),
+      isEncrypted: (content) => content.startsWith('encrypted:'),
+    };
+    rememberedEpisodes = [];
+    episodeTransactionStates = [];
+    episodicMemory = {
+      remember: jest.fn((episode) => {
+        rememberedEpisodes.push(episode);
+        episodeTransactionStates.push(db.inTransaction);
+        return { success: true };
+      }),
+    };
     agents = createAgents(db, { semanticIndex });
-    sessions = createSessions(db);
-    const activityLog = createActivityLog(db);
+    sessions = createSessions(db, noteEncryption, {
+      semanticIndex,
+      sessionKeyCache,
+      episodicMemory,
+    });
+    activityLog = createActivityLog(db);
+    observedActivity = [];
+    activityTransactionStates = [];
+    activityLog.subscribe((entry) => {
+      observedActivity.push(entry);
+      activityTransactionStates.push(db.inTransaction);
+    });
     sessions.setActivityLog(activityLog);
     sugar = createSugar({
       agents,
@@ -136,6 +183,7 @@ describe('Sugar canonical identity persistence', () => {
       agentId: 'caller-controlled-agent',
       harbor: 'victim-harbor',
       project: 'victim-project',
+      files: ['src/identity-postcommit.ts'],
     });
 
     expect(response.statusCode).toBe(200);
@@ -154,7 +202,20 @@ describe('Sugar canonical identity persistence', () => {
       expect.objectContaining({ type: 'agent', id: body.actorId }),
       body.actorId,
     );
-    expect(semanticIndexTransactionStates).toEqual([false]);
+    expect(semanticIndex.index).toHaveBeenCalledWith(
+      'demo',
+      expect.objectContaining({ type: 'session', id: body.sessionId }),
+      body.sessionId,
+    );
+    expect(semanticIndexTransactionStates).toEqual([false, false]);
+    expect(sessionKeyCache.set).toHaveBeenCalledWith(body.sessionId, expect.any(Buffer));
+    expect(sessionKeyCacheTransactionStates).toEqual([false]);
+    expect(observedActivity.map((entry) => entry.type)).toEqual(expect.arrayContaining([
+      'session.start',
+      'file.claim',
+      'sugar_begin',
+    ]));
+    expect(activityTransactionStates.every((inTransaction) => inTransaction === false)).toBe(true);
   });
 
   test('a failed fresh session start rolls back soul, inbox, alias, pool, and session rows', async () => {
@@ -179,6 +240,9 @@ describe('Sugar canonical identity persistence', () => {
     expect(db.prepare('SELECT COUNT(*) AS count FROM agents').get().count).toBe(0);
     expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count).toBe(0);
     expect(semanticIndex.index).not.toHaveBeenCalled();
+    expect(sessionKeyCache.set).not.toHaveBeenCalled();
+    expect(sessionKeyCache.size).toBe(0);
+    expect(observedActivity).toHaveLength(0);
   });
 
   test('a deferred SQLite commit failure rolls back identity rows without publishing a ghost index entry', async () => {
@@ -201,6 +265,7 @@ describe('Sugar canonical identity persistence', () => {
       purpose: 'fresh commit rollback',
       identity: 'demo:test:commit-rollback',
       agentId: 'caller-commit-rollback',
+      files: ['src/identity-rollback.ts'],
     });
 
     expect(response.statusCode).toBe(503);
@@ -210,7 +275,11 @@ describe('Sugar canonical identity persistence', () => {
     expect(db.prepare('SELECT COUNT(*) AS count FROM newcomer_pool').get().count).toBe(0);
     expect(db.prepare('SELECT COUNT(*) AS count FROM agents').get().count).toBe(0);
     expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM session_files').get().count).toBe(0);
     expect(semanticIndex.index).not.toHaveBeenCalled();
+    expect(sessionKeyCache.set).not.toHaveBeenCalled();
+    expect(sessionKeyCache.size).toBe(0);
+    expect(observedActivity).toHaveLength(0);
   });
 
   test('missing or invalid credentials cannot resume an existing canonical actor', async () => {
@@ -325,6 +394,178 @@ describe('Sugar canonical identity persistence', () => {
       success: true,
       binding: expect.objectContaining({ inboxTarget: first.actorId }),
     });
+  });
+
+  test('done keeps the canonical inbox bound while another live session remains', async () => {
+    const first = (await injectBegin({
+      purpose: 'shared actor first session',
+      identity: 'demo:test:shared-actor-first',
+      agentId: 'caller-first-display',
+    })).json();
+    const secondResponse = await injectBegin({
+      purpose: 'shared actor second session',
+      identity: 'demo:test:shared-actor-second',
+      agentId: 'caller-second-display',
+    }, first.credential);
+    expect(secondResponse.statusCode).toBe(200);
+    const second = secondResponse.json();
+    expect(second.actorId).toBe(first.actorId);
+    expect(second.sessionId).not.toBe(first.sessionId);
+
+    const activeBefore = sessions.list({
+      agentId: first.actorId,
+      status: 'active',
+      allWorktrees: true,
+    }).sessions;
+    expect(activeBefore.filter((session) => session.agentId === first.actorId)).toHaveLength(2);
+
+    const doneFirst = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: { 'x-actor-credential': first.credential },
+      payload: {
+        sessionId: first.sessionId,
+        agentId: 'forged-display-cannot-select-owner',
+        note: validResultNote,
+      },
+    });
+    expect(doneFirst.statusCode).toBe(200);
+    expect(doneFirst.json()).toEqual(expect.objectContaining({
+      success: true,
+      agentId: first.actorId,
+      sessionId: first.sessionId,
+      agentUnregistered: false,
+    }));
+    expect(sessions.get(second.sessionId).session.status).toBe('active');
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual({
+      success: true,
+      binding: expect.objectContaining({
+        actorId: first.actorId,
+        harbor: 'local',
+        inboxTarget: first.actorId,
+      }),
+    });
+
+    const doneSecond = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: { 'x-actor-credential': first.credential },
+      payload: {
+        sessionId: second.sessionId,
+        note: validResultNote,
+      },
+    });
+    expect(doneSecond.statusCode).toBe(200);
+    expect(doneSecond.json()).toEqual(expect.objectContaining({
+      success: true,
+      agentId: first.actorId,
+      sessionId: second.sessionId,
+      agentUnregistered: true,
+    }));
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual(expect.objectContaining({
+      success: false,
+      code: 'ACTOR_INBOX_UNBOUND',
+    }));
+    expect(semanticUnindexTransactionStates.length).toBeGreaterThan(0);
+    expect(semanticUnindexTransactionStates.every((inTransaction) => inTransaction === false)).toBe(true);
+    expect(rememberedEpisodes.length).toBeGreaterThan(0);
+    expect(episodeTransactionStates.every((inTransaction) => inTransaction === false)).toBe(true);
+    expect(activityTransactionStates.every((inTransaction) => inTransaction === false)).toBe(true);
+  });
+
+  test('Sugar finalizes the target inside the canonical inbox writer transaction', async () => {
+    const first = (await injectBegin({
+      purpose: 'teardown race predecessor',
+      identity: 'demo:test:teardown-race-predecessor',
+    })).json();
+    const originalFinalize = agents.finalizeSessionAndUnregisterIfNoActiveSessions.bind(agents);
+    let finalizerObservedWriter = false;
+    agents.finalizeSessionAndUnregisterIfNoActiveSessions = (actorId, finalizeSession, options) => (
+      originalFinalize(actorId, () => {
+        finalizerObservedWriter = db.inTransaction;
+        return finalizeSession();
+      }, options)
+    );
+
+    let done;
+    try {
+      done = await app.inject({
+        method: 'POST',
+        url: '/sugar/done',
+        headers: { 'x-actor-credential': first.credential },
+        payload: { sessionId: first.sessionId, note: validResultNote },
+      });
+    } finally {
+      agents.finalizeSessionAndUnregisterIfNoActiveSessions = originalFinalize;
+    }
+
+    expect(finalizerObservedWriter).toBe(true);
+    expect(done.statusCode).toBe(200);
+    expect(done.json()).toEqual(expect.objectContaining({
+      success: true,
+      agentId: first.actorId,
+      sessionId: first.sessionId,
+      agentUnregistered: true,
+    }));
+    expect(sessions.get(first.sessionId).session.status).toBe('completed');
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual(expect.objectContaining({
+      success: false,
+      code: 'ACTOR_INBOX_UNBOUND',
+    }));
+  });
+
+  test('a deferred inbox-delete COMMIT failure rolls back the session and every derived effect', async () => {
+    const first = (await injectBegin({
+      purpose: 'teardown commit rollback predecessor',
+      identity: 'demo:test:teardown-commit-rollback',
+    })).json();
+    semanticIndex.unindexEntry.mockClear();
+    semanticUnindexTransactionStates.length = 0;
+    rememberedEpisodes.length = 0;
+    episodeTransactionStates.length = 0;
+    observedActivity.length = 0;
+    activityTransactionStates.length = 0;
+    db.exec(`
+      CREATE TABLE inbox_teardown_commit_parent (id TEXT PRIMARY KEY);
+      CREATE TABLE inbox_teardown_commit_guard (
+        agent_id TEXT,
+        FOREIGN KEY (agent_id) REFERENCES inbox_teardown_commit_parent(id)
+          DEFERRABLE INITIALLY DEFERRED
+      );
+      CREATE TRIGGER reject_inbox_teardown_commit
+      AFTER DELETE ON agents
+      BEGIN
+        INSERT INTO inbox_teardown_commit_guard (agent_id) VALUES (OLD.id);
+      END;
+    `);
+
+    const done = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: { 'x-actor-credential': first.credential },
+      payload: { sessionId: first.sessionId, note: validResultNote },
+    });
+
+    expect(done.statusCode).toBe(500);
+    expect(done.json()).toEqual(expect.objectContaining({
+      success: false,
+      code: 'STORE_UNAVAILABLE',
+    }));
+    expect(sessions.get(first.sessionId).session.status).toBe('active');
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual({
+      success: true,
+      binding: expect.objectContaining({
+        actorId: first.actorId,
+        harbor: 'local',
+        inboxTarget: first.actorId,
+      }),
+    });
+    expect(semanticIndex.unindexEntry).not.toHaveBeenCalled();
+    expect(semanticUnindexTransactionStates).toHaveLength(0);
+    expect(rememberedEpisodes).toHaveLength(0);
+    expect(episodeTransactionStates).toHaveLength(0);
+    expect(observedActivity).toHaveLength(0);
+    expect(activityTransactionStates).toHaveLength(0);
   });
 
   test('active legacy display identity cannot stand in for a verified ownership stamp', async () => {

@@ -192,7 +192,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'sessions': {
     description: 'Detailed session management (start, end, phases, file claims)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file', 'claim_region', 'release_region'],
+    tools: ['start_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file', 'claim_region', 'release_region'],
   },
   'notes': {
     description: 'Add and list session notes',
@@ -215,8 +215,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['list_actors', 'get_actor', 'message_actor', 'list_actor_inbox', 'get_actor_inbox_stats'],
   },
   'inbox': {
-    description: 'Agent-to-agent direct messaging via inbox',
-    tools: ['inbox_send', 'inbox_read', 'inbox_stats', 'inbox_mark_read', 'inbox_mark_all_read', 'inbox_clear'],
+    description: 'Bounded external delivery plus credential-owned private inbox reads and acknowledgements',
+    tools: ['inbox_send', 'inbox_read', 'inbox_stats', 'inbox_mark_read', 'inbox_mark_all_read'],
   },
   'webhooks': {
     description: 'Register and manage webhooks for Port Daddy event notifications',
@@ -391,19 +391,19 @@ const TOOLS = [
   {
     name: 'end_session_full',
     description:
-      '[Essential] End session + unregister agent in one step. Use this at the end of every coding ' +
-      'session instead of calling end_session and then unregistering the agent separately. ' +
+      '[Essential] End a session and conditionally unbind its canonical live inbox in one authenticated step. ' +
+      'This is the sole MCP lifecycle teardown and requires the active daemon-minted actor credential. ' +
       'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth complete, all tests passing"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         agent_id: {
           type: 'string',
-          description: 'Your agent ID (from begin_session response)',
+          description: 'Canonical actor ID from begin_session; assertion-only and must match the active credential',
         },
         session_id: {
           type: 'string',
-          description: 'Session ID to end (auto-found from agent_id if omitted)',
+          description: 'Owned session ID to end (auto-found from the active canonical actor if omitted)',
         },
         note: {
           type: 'string',
@@ -1106,26 +1106,6 @@ const TOOLS = [
     },
   },
   {
-    name: 'end_session',
-    description:
-      '[Standard] End the current active session. Status can be "completed" (success) or "abandoned" ' +
-      '(gave up). For a single atomic call that also unregisters your agent, prefer end_session_full instead.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        session_id: {
-          type: 'string',
-          description: 'Session ID to end (omit for active session)',
-        },
-        status: {
-          type: 'string',
-          enum: ['completed', 'abandoned'],
-          description: 'How the session ended (default: completed)',
-        },
-      },
-    },
-  },
-  {
     name: 'get_session',
     description: '[Standard] Get full details for a session including notes, file claims, and phase.',
     inputSchema: {
@@ -1683,33 +1663,17 @@ const TOOLS = [
   {
     name: 'message_actor',
     description:
-      '[Standard] Queue a message to a durable actor mailbox. Does not grant dormant actors live mutation authority.',
+      '[Standard] Deliver bounded external content to one exact live canonical actor inbox. Sender provenance is daemon-owned and delivery never wakes a runtime.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         actor_id: {
           type: 'string',
-          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+          description: 'Exact daemon-minted canonical actor ID. Display aliases are rejected.',
         },
         content: {
           type: 'string',
           description: 'Message content to queue.',
-        },
-        from: {
-          type: 'string',
-          description: 'Sender agent id or operator label.',
-        },
-        type: {
-          type: 'string',
-          description: 'Optional message type.',
-        },
-        wake: {
-          type: 'boolean',
-          description: 'Try to hail the compatibility fleet body when one exists.',
-        },
-        project: {
-          type: 'string',
-          description: 'Optional project hint for wake routing.',
         },
       },
       required: ['actor_id', 'content'],
@@ -1718,13 +1682,13 @@ const TOOLS = [
   {
     name: 'list_actor_inbox',
     description:
-      '[Standard] Read recent messages queued to a durable actor mailbox.',
+      '[Standard] Read a private live actor inbox using the active MCP session actor credential.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         actor_id: {
           type: 'string',
-          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+          description: 'Exact daemon-minted canonical actor ID owned by the active credential.',
         },
         unread_only: {
           type: 'boolean',
@@ -1745,13 +1709,13 @@ const TOOLS = [
   {
     name: 'get_actor_inbox_stats',
     description:
-      '[Standard] Read mailbox depth for a durable actor.',
+      '[Standard] Read private mailbox depth using the exact owner credential.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         actor_id: {
           type: 'string',
-          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+          description: 'Exact daemon-minted canonical actor ID owned by the active credential.',
         },
       },
       required: ['actor_id'],
@@ -1847,25 +1811,17 @@ const TOOLS = [
   // ── Agent Inbox ───────────────────────────────────────────────────────
   {
     name: 'inbox_send',
-    description: '[Advanced] Send a direct message to another agent\'s inbox.',
+    description: '[Advanced] Deliver bounded external content to one exact live canonical actor inbox. The daemon owns sender provenance and never wakes a runtime.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         agent_id: {
           type: 'string',
-          description: 'Recipient agent ID',
+          description: 'Exact daemon-minted canonical recipient actor ID',
         },
         content: {
           type: 'string',
           description: 'Message content',
-        },
-        from: {
-          type: 'string',
-          description: 'Sender agent ID (optional)',
-        },
-        type: {
-          type: 'string',
-          description: 'Message type (default: message)',
         },
       },
       required: ['agent_id', 'content'],
@@ -1873,13 +1829,13 @@ const TOOLS = [
   },
   {
     name: 'inbox_read',
-    description: '[Advanced] Read messages from an agent\'s inbox.',
+    description: '[Advanced] Read the active credential owner\'s exact private inbox.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         agent_id: {
           type: 'string',
-          description: 'Agent ID whose inbox to read',
+          description: 'Exact canonical actor ID owned by the active credential',
         },
         unread_only: {
           type: 'boolean',
@@ -1895,13 +1851,13 @@ const TOOLS = [
   },
   {
     name: 'inbox_stats',
-    description: '[Advanced] Get inbox statistics (total and unread count) for an agent.',
+    description: '[Advanced] Get private inbox counts for the exact active credential owner.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         agent_id: {
           type: 'string',
-          description: 'Agent ID to get stats for',
+          description: 'Exact canonical actor ID owned by the active credential',
         },
       },
       required: ['agent_id'],
@@ -1909,7 +1865,7 @@ const TOOLS = [
   },
   {
     name: 'inbox_mark_read',
-    description: '[Advanced] Mark a specific inbox message as read.',
+    description: '[Advanced] Acknowledge one message in the active credential owner\'s exact inbox.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1927,7 +1883,7 @@ const TOOLS = [
   },
   {
     name: 'inbox_mark_all_read',
-    description: '[Advanced] Mark all messages in an agent\'s inbox as read.',
+    description: '[Advanced] Acknowledge all messages in the active credential owner\'s exact inbox.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1939,21 +1895,6 @@ const TOOLS = [
       required: ['agent_id'],
     },
   },
-  {
-    name: 'inbox_clear',
-    description: '[Advanced] Delete all messages from an agent\'s inbox.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        agent_id: {
-          type: 'string',
-          description: 'Agent ID whose inbox to clear',
-        },
-      },
-      required: ['agent_id'],
-    },
-  },
-
   // ── Webhooks ──────────────────────────────────────────────────────────
   {
     name: 'webhook_add',
@@ -3922,25 +3863,6 @@ async function handleTool(
       break;
     }
 
-    case 'end_session': {
-      if (args.session_id) {
-        res = await PUT(`/sessions/${args.session_id}`, {
-          status: args.status || 'completed',
-        });
-      } else {
-        // Find active session and end it
-        const sessions = await GET('/sessions?status=active');
-        const active = (sessions.data.sessions as Array<Record<string, unknown>>)?.[0];
-        if (!active) {
-          return JSON.stringify({ success: false, message: 'No active session found' });
-        }
-        res = await PUT(`/sessions/${active.id}`, {
-          status: args.status || 'completed',
-        });
-      }
-      break;
-    }
-
     case 'get_session': {
       res = await GET(`/sessions/${encodeURIComponent(args.session_id as string)}`);
       break;
@@ -4204,10 +4126,6 @@ async function handleTool(
       const body: Record<string, unknown> = {
         content: args.content,
       };
-      if (args.from) body.from = args.from;
-      if (args.type) body.type = args.type;
-      if (typeof args.wake === 'boolean') body.wake = args.wake;
-      if (args.project) body.project = args.project;
       res = await POST(`/actors/${encodeURIComponent(args.actor_id as string)}/message`, body);
       break;
     }
@@ -4261,8 +4179,6 @@ async function handleTool(
     // ── Agent Inbox ─────────────────────────────────────────────────────
     case 'inbox_send': {
       const body: Record<string, unknown> = { content: args.content };
-      if (args.from) body.from = args.from;
-      if (args.type) body.type = args.type;
       res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox`, body);
       break;
     }
@@ -4288,11 +4204,6 @@ async function handleTool(
 
     case 'inbox_mark_all_read': {
       res = await PUT(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox/read-all`);
-      break;
-    }
-
-    case 'inbox_clear': {
-      res = await DELETE(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox`);
       break;
     }
 

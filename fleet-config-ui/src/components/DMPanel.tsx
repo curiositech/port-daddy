@@ -39,8 +39,8 @@ function formatInboxContent(content: unknown): string {
 
 /**
  * Operator messaging surface for direct inbox delivery and channel publication.
- * Direct inbox delivery now targets durable actors first; the daemon stores the
- * message regardless of whether a live runtime can be hailed immediately.
+ * Direct inbox delivery targets durable actors through bounded external ingress.
+ * The daemon owns sender provenance and delivery never wakes a runtime.
  */
 export default function DMPanel({
   channels,
@@ -58,6 +58,7 @@ export default function DMPanel({
   const [sending, setSending] = useState(false);
   const [deliveryNotice, setDeliveryNotice] = useState<string | null>(null);
   const [actorLoading, setActorLoading] = useState(false);
+  const [agentInboxCredential, setAgentInboxCredential] = useState('');
   const [agentInboxLoading, setAgentInboxLoading] = useState(false);
   const [agentInboxStats, setAgentInboxStats] = useState<InboxStats>({ total: 0, unread: 0 });
   const [agentInboxMessages, setAgentInboxMessages] = useState<InboxMessage[]>([]);
@@ -121,10 +122,16 @@ export default function DMPanel({
   });
 
   useEffect(() => {
+    setAgentInboxCredential('');
+    setAgentInboxStats({ total: 0, unread: 0 });
+    setAgentInboxMessages([]);
+  }, [agent]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadAgentInbox() {
-      if (mode !== 'agent' || !agent) {
+      if (mode !== 'agent' || !agent || !agentInboxCredential.trim()) {
         setAgentInboxStats({ total: 0, unread: 0 });
         setAgentInboxMessages([]);
         return;
@@ -133,8 +140,8 @@ export default function DMPanel({
       setAgentInboxLoading(true);
       try {
         const [stats, messages] = await Promise.all([
-          fetchAgentInboxStats(agent),
-          fetchAgentInbox(agent, { limit: 8 }),
+          fetchAgentInboxStats(agent, agentInboxCredential),
+          fetchAgentInbox(agent, agentInboxCredential, { limit: 8 }),
         ]);
         if (!cancelled) {
           setAgentInboxStats(stats);
@@ -153,7 +160,7 @@ export default function DMPanel({
 
     loadAgentInbox();
     return () => { cancelled = true; };
-  }, [agent, mode]);
+  }, [agent, agentInboxCredential, mode]);
 
   const handleSend = async () => {
     const trimmed = message.trim();
@@ -169,18 +176,16 @@ export default function DMPanel({
     setDeliveryNotice(null);
     try {
       if (mode === 'agent') {
-        const result = await sendAgentMessage(agent, { content: trimmed, project: projectDir ?? project ?? undefined, wake: true });
-        setDeliveryNotice(
-          result.woke
-            ? `Delivered to ${selectedTarget?.label ?? agent} and hailed successfully.`
-            : `Delivered to ${selectedTarget?.label ?? agent}${result.messageId ? ` as #${result.messageId}` : ''}${result.error ? `, but could not wake a live runtime: ${result.error}.` : '.'}`,
-        );
-        const [stats, messages] = await Promise.all([
-          fetchAgentInboxStats(agent),
-          fetchAgentInbox(agent, { limit: 8 }),
-        ]);
-        setAgentInboxStats(stats);
-        setAgentInboxMessages(messages);
+        const result = await sendAgentMessage(agent, { content: trimmed });
+        setDeliveryNotice(`Delivered to ${selectedTarget?.label ?? agent}${result.messageId ? ` as #${result.messageId}` : ''}.`);
+        if (agentInboxCredential.trim()) {
+          const [stats, messages] = await Promise.all([
+            fetchAgentInboxStats(agent, agentInboxCredential),
+            fetchAgentInbox(agent, agentInboxCredential, { limit: 8 }),
+          ]);
+          setAgentInboxStats(stats);
+          setAgentInboxMessages(messages);
+        }
       } else {
         await publishMessage(selectedChannel?.physical ?? channel, trimmed);
         setDeliveryNotice(`Published to ${selectedChannel?.logical ?? channel}.`);
@@ -213,7 +218,7 @@ export default function DMPanel({
           ))}
         </div>
         <span className="text-[11px]" style={{ color: 'var(--pd-dim)' }}>
-          {mode === 'agent' ? 'Direct message + wake' : 'Broadcast only'}
+          {mode === 'agent' ? 'Bounded direct delivery' : 'Broadcast only'}
         </span>
       </div>
 
@@ -251,7 +256,7 @@ export default function DMPanel({
             </div>
             <div className="text-[12px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
               {mode === 'agent'
-                ? 'Use this for bounded operator messages that should reach one actor and keep the conversation out of public channels. Wake is best-effort if no body is currently live.'
+                ? 'Use this for bounded external messages to one live canonical actor. The daemon attributes provenance and never wakes or controls the target runtime.'
                 : 'Use this for broadcast traffic that multiple agents may hear through their trigger channels.'}
             </div>
             {mode === 'agent' && actorLoading && (
@@ -262,6 +267,19 @@ export default function DMPanel({
             {mode === 'agent' && selectedTarget && (
               <div className="mt-2 text-[11px]" style={{ color: 'var(--pd-dim)' }}>
                 {selectedTarget.actorState.replace(/_/g, ' ')} · {selectedTarget.actorStateReason}
+              </div>
+            )}
+            {mode === 'agent' && agent && (
+              <div className="mt-3">
+                <label className="pd-label">Actor credential for private readback</label>
+                <input
+                  type="password"
+                  value={agentInboxCredential}
+                  onChange={(event) => setAgentInboxCredential(event.target.value)}
+                  autoComplete="off"
+                  placeholder="Leave empty to send without reading"
+                  className="pd-input font-mono"
+                />
               </div>
             )}
             {mode === 'agent' && actorTargets.length === 0 && (
@@ -335,13 +353,19 @@ export default function DMPanel({
               </div>
             </div>
             <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
-              {mode === 'agent' && agent ? `${agentInboxStats.unread}/${agentInboxStats.total} unread` : `${sent.length} total`}
+                {mode === 'agent' && agent
+                  ? agentInboxCredential.trim() ? `${agentInboxStats.unread}/${agentInboxStats.total} unread` : 'private'
+                  : `${sent.length} total`}
             </div>
           </div>
 
           <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1">
             {mode === 'agent' ? (
-              agentInboxLoading ? (
+              !agentInboxCredential.trim() ? (
+                <div className="rounded-xl border px-3 py-4 text-sm" style={{ color: 'var(--pd-muted)', borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
+                  Present the exact actor credential to inspect this private inbox. Sending does not grant read authority.
+                </div>
+              ) : agentInboxLoading ? (
                 <div className="rounded-xl border px-3 py-4 text-sm" style={{ color: 'var(--pd-muted)', borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
                   Loading inbox…
                 </div>

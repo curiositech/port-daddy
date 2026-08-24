@@ -9,6 +9,7 @@
 import type Database from 'better-sqlite3';
 import { randomBytes } from 'crypto';
 import { ActivityType } from './activity.js';
+import { ACTOR_REGISTRATION_AFTER_COMMIT } from './actor-souls.js';
 import { getWorktreeId } from './worktree.js';
 import { patternToSql } from './identity.js';
 import { buildHumanReadableId } from './agent-names.js';
@@ -19,6 +20,9 @@ import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
 import { createClaimForest, type ClaimForestClaim } from './claim-forest.js';
 
 const MAX_NOTES_PER_SESSION = 500;
+const SESSION_POST_COMMIT_EFFECTS: unique symbol = Symbol('session-post-commit-effects');
+
+type PostCommitEffect = () => void;
 
 // Optional activity logger interface — injected after creation via setActivityLog()
 interface ActivityLogger {
@@ -77,6 +81,7 @@ interface ClaimFilesOptions {
   regions?: FileRegion[];
   force?: boolean;
   agentId?: string | null;
+  [SESSION_POST_COMMIT_EFFECTS]?: PostCommitEffect[];
 }
 
 interface ReleaseFilesOptions {
@@ -105,6 +110,12 @@ interface StartOptions {
 interface EndOptions {
   note?: string;
   status?: string;
+}
+
+interface SessionMutationResult extends Record<string | symbol, unknown> {
+  success: boolean;
+  error?: string;
+  code?: string;
 }
 
 interface TakeoverOptions {
@@ -182,6 +193,8 @@ export function createSessions(
     episodicMemory?: EpisodicMemory;
     symbolIndex?: SymbolIndex;
     requireAgentForFileClaims?: boolean;
+    /** Injectable derived cache used by transaction-boundary regressions. */
+    sessionKeyCache?: Map<string, Buffer>;
   },
 ) {
   const semanticIndex = options?.semanticIndex;
@@ -189,7 +202,7 @@ export function createSessions(
   const symbolIndex = options?.symbolIndex;
   const requireAgentForFileClaims = options?.requireAgentForFileClaims === true;
   // In-memory cache: sessionId → unwrapped session key (avoids re-unwrap on every read)
-  const sessionKeyCache = new Map<string, Buffer>();
+  const sessionKeyCache = options?.sessionKeyCache ?? new Map<string, Buffer>();
   // Ensure tables exist (base schema without worktree_id for migration compatibility)
   const schemaStatements = [
     `CREATE TABLE IF NOT EXISTS sessions (
@@ -907,6 +920,43 @@ export function createSessions(
     activityLog = logger;
   }
 
+  /**
+   * Publish derived state after its owning SQLite commit. Every publisher gets
+   * a turn so one stale cache cannot suppress the remaining projections; the
+   * first error is rethrown for the commit owner to record or ignore.
+   */
+  function runPostCommitEffects(effects: PostCommitEffect[]): void {
+    let firstError: unknown;
+    for (const effect of effects) {
+      try {
+        effect();
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+    if (firstError) throw firstError;
+  }
+
+  function settlePostCommitEffects(
+    result: Record<string | symbol, unknown>,
+    effects: PostCommitEffect[],
+    deferUntilOuterCommit: boolean,
+    operation: string,
+  ): void {
+    if (deferUntilOuterCommit) {
+      result[ACTOR_REGISTRATION_AFTER_COMMIT] = () => runPostCommitEffects(effects);
+      return;
+    }
+    try {
+      runPostCommitEffects(effects);
+    } catch (error) {
+      // These caches and notifications are explicitly derived. The SQLite row
+      // already committed, so a projection failure must not lie that the
+      // authoritative mutation failed; a rebuild can recover the projection.
+      console.error(`[Sessions] Failed to publish ${operation} derived state:`, (error as Error).message);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
@@ -914,7 +964,7 @@ export function createSessions(
   /**
    * Start a new session
    */
-  function start(purpose: string, options: StartOptions = {}) {
+  function start(purpose: string, options: StartOptions = {}): SessionMutationResult {
     if (!purpose || typeof purpose !== 'string') {
       return { success: false, error: 'purpose must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
@@ -922,6 +972,9 @@ export function createSessions(
     if (!trimmedPurpose) {
       return { success: false, error: 'purpose must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
+
+    const deferUntilOuterCommit = db.inTransaction;
+    const postCommitEffects: PostCommitEffect[] = [];
 
     const now = Date.now();
     const id = generateSessionId(trimmedPurpose);
@@ -988,10 +1041,12 @@ export function createSessions(
         const sessionKey = noteEncryption.generateSessionKey();
         const wrappedKey = noteEncryption.wrapSessionKey(sessionKey, noteEncryptionScope(identityProject));
         stmts.setWrappedKey.run(wrappedKey, id);
-        sessionKeyCache.set(id, sessionKey);
+        postCommitEffects.push(() => sessionKeyCache.set(id, sessionKey));
       } catch (err) {
         // Encryption key generation failed — session still works, notes will be plaintext
-        console.error('[Sessions] Failed to generate session encryption key:', (err as Error).message);
+        postCommitEffects.push(() => {
+          console.error('[Sessions] Failed to generate session encryption key:', (err as Error).message);
+        });
       }
     }
 
@@ -1000,14 +1055,17 @@ export function createSessions(
     let conflicts: FileConflict[] | undefined;
 
     if (files.length > 0) {
-      const claimResult = claimFiles(id, files, { agentId: normalizedAgentId });
+      const claimResult = claimFiles(id, files, {
+        agentId: normalizedAgentId,
+        [SESSION_POST_COMMIT_EFFECTS]: postCommitEffects,
+      });
       claimedFiles = claimResult.claimed;
       if (claimResult.conflicts && claimResult.conflicts.length > 0) {
         conflicts = claimResult.conflicts;
       }
     }
 
-    const result: Record<string, unknown> = {
+    const result: SessionMutationResult = {
       success: true,
       id,
       purpose: trimmedPurpose,
@@ -1024,13 +1082,14 @@ export function createSessions(
 
     // Keep trie in sync (1:N via entryId = sessionId)
     if (semanticIndex && identityProject) {
-      semanticIndex.index(identityProject, {
+      postCommitEffects.push(() => semanticIndex.index(identityProject, {
         type: 'session', id, identity: identityProject, status: 'active',
-      }, id);
+      }, id));
     }
 
     if (activityLog) {
-      activityLog.log(ActivityType.SESSION_START, {
+      const logger = activityLog;
+      postCommitEffects.push(() => logger.log(ActivityType.SESSION_START, {
         agentId: normalizedAgentId,
         targetId: sessionTarget(identityProject, id),
         details: `Session started: ${trimmedPurpose}`,
@@ -1042,8 +1101,10 @@ export function createSessions(
           identityProject: identityProject || undefined,
           worktreeId: resolvedWorktreeId || undefined,
         } as unknown as Record<string, unknown>,
-      });
+      }));
     }
+
+    settlePostCommitEffects(result, postCommitEffects, deferUntilOuterCommit, 'session start');
 
     return result;
   }
@@ -1051,7 +1112,7 @@ export function createSessions(
   /**
    * End a session (set status to completed or custom)
    */
-  function end(sessionId: string, options: EndOptions = {}) {
+  function end(sessionId: string, options: EndOptions = {}): SessionMutationResult {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string' };
     }
@@ -1060,6 +1121,9 @@ export function createSessions(
     if (!session) {
       return { success: false, error: 'session not found' };
     }
+
+    const deferUntilOuterCommit = db.inTransaction;
+    const postCommitEffects: PostCommitEffect[] = [];
 
     const now = Date.now();
     const { note, status = 'completed' } = options;
@@ -1070,7 +1134,7 @@ export function createSessions(
       if (trimmedNote) {
         const storedNote = maybeEncrypt(sessionId, trimmedNote);
         const noteResult = stmts.insertNote.run(sessionId, storedNote, 'handoff', now);
-        rememberEpisode(
+        postCommitEffects.push(() => rememberEpisode(
           session,
           'handoff',
           `${sessionId}:note:${Number(noteResult.lastInsertRowid)}`,
@@ -1080,7 +1144,7 @@ export function createSessions(
             sessionId,
             noteType: 'handoff',
           },
-        );
+        ));
       }
     }
 
@@ -1098,11 +1162,12 @@ export function createSessions(
 
     // Remove from trie (targeted 1:N removal by entryId)
     if (semanticIndex && session.identity_project) {
-      semanticIndex.unindexEntry(session.identity_project, sessionId);
+      postCommitEffects.push(() => semanticIndex.unindexEntry(session.identity_project!, sessionId));
     }
 
     if (activityLog) {
-      activityLog.log(ActivityType.SESSION_END, {
+      const logger = activityLog;
+      postCommitEffects.push(() => logger.log(ActivityType.SESSION_END, {
         agentId: session.agent_id,
         targetId: sessionTarget(session.identity_project, sessionId),
         details: `Session ended: ${sessionId} (${status})`,
@@ -1113,15 +1178,17 @@ export function createSessions(
           identityProject: session.identity_project || undefined,
           releasedFiles: releasedFiles.length,
         } as unknown as Record<string, unknown>,
-      });
+      }));
     }
 
-    return {
+    const result: SessionMutationResult = {
       success: true,
       id: sessionId,
       status,
       releasedFiles,
     };
+    settlePostCommitEffects(result, postCommitEffects, deferUntilOuterCommit, 'session end');
+    return result;
   }
 
   /**
@@ -1790,7 +1857,8 @@ export function createSessions(
     }
 
     if (activityLog && claimed.length > 0) {
-      activityLog.log(ActivityType.FILE_CLAIM, {
+      const logger = activityLog;
+      const publishClaim = () => logger.log(ActivityType.FILE_CLAIM, {
         agentId: session.agent_id,
         targetId: sessionTarget(session.identity_project, sessionId),
         details: `Claimed ${claimed.length} file(s) for session ${sessionId}`,
@@ -1802,6 +1870,9 @@ export function createSessions(
           identityProject: session.identity_project || undefined,
         } as unknown as Record<string, unknown>,
       });
+      const collector = options?.[SESSION_POST_COMMIT_EFFECTS];
+      if (collector) collector.push(publishClaim);
+      else publishClaim();
     }
 
     return {

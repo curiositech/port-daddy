@@ -94,7 +94,6 @@ describe('tutorial cleanup error resilience', () => {
       '/sugar/done',
       '/dns/tutorial%3Adns%3Alesson9',
       '/locks/tutorial-lock',
-      '/agents/tutorial-bob/inbox',
       '/agents/tutorial-bob',
       '/agents/tutorial-alice',
     ]);

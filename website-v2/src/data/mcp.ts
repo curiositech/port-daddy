@@ -141,7 +141,7 @@ export const ALL_CATEGORIES: McpCategory[] = [
     darkColor: 'var(--p-teal-300)',
     bg: 'var(--badge-teal-bg)',
     border: 'var(--badge-teal-border)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
+    tools: ['start_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
     description: 'Detailed session management including phases and advisory file claims.',
   },
   {
@@ -201,7 +201,7 @@ export const ALL_CATEGORIES: McpCategory[] = [
     darkColor: 'var(--brand-accent)',
     bg: 'var(--badge-amber-bg)',
     border: 'var(--badge-amber-border)',
-    tools: ['inbox_send', 'inbox_read', 'inbox_stats', 'inbox_mark_read', 'inbox_mark_all_read', 'inbox_clear'],
+    tools: ['inbox_send', 'inbox_read', 'inbox_stats', 'inbox_mark_read', 'inbox_mark_all_read'],
     description: 'Direct agent-to-agent messaging, like an email inbox for agents.',
   },
   {

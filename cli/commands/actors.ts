@@ -2,6 +2,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 
 interface ActorRecord {
   id: string;
@@ -74,8 +75,12 @@ function inboxQueryString(options: CLIOptions): string {
   return text ? `?${text}` : '';
 }
 
-async function fetchActors(path: string): Promise<ActorsResponse> {
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}${path}`);
+function actorInboxOwnerHeaders(actorId: string): Record<string, string> {
+  return { 'x-actor-credential': resolveCliActorCredential(actorId) ?? '' };
+}
+
+async function fetchActors(path: string, headers?: Record<string, string>): Promise<ActorsResponse> {
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}${path}`, headers ? { headers } : {});
   const data = await res.json() as unknown as ActorsResponse;
   if (!res.ok || !data.success) {
     ui.error(data.error || `actors request failed with status ${res.status}`);
@@ -85,16 +90,20 @@ async function fetchActors(path: string): Promise<ActorsResponse> {
 }
 
 async function fetchActorInbox(actorId: string, options: CLIOptions): Promise<ActorsResponse> {
-  return fetchActors(`/actors/${encodeURIComponent(actorId)}/inbox${inboxQueryString(options)}`);
+  return fetchActors(
+    `/actors/${encodeURIComponent(actorId)}/inbox${inboxQueryString(options)}`,
+    actorInboxOwnerHeaders(actorId),
+  );
 }
 
 async function fetchActorInboxStats(actorId: string): Promise<ActorsResponse> {
-  return fetchActors(`/actors/${encodeURIComponent(actorId)}/inbox/stats`);
+  return fetchActors(`/actors/${encodeURIComponent(actorId)}/inbox/stats`, actorInboxOwnerHeaders(actorId));
 }
 
 async function markActorInboxRead(actorId: string): Promise<ActorsResponse> {
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/actors/${encodeURIComponent(actorId)}/inbox/read-all`, {
     method: 'PUT',
+    headers: actorInboxOwnerHeaders(actorId),
   });
   const data = await res.json() as unknown as ActorsResponse & { marked?: number };
   if (!res.ok || !data.success) {
@@ -114,14 +123,17 @@ async function sendActorMessage(actorId: string, options: CLIOptions): Promise<A
     ui.error('actor message requires --message <text>');
     process.exit(1);
   }
+  if (
+    options.from !== undefined
+    || options.type !== undefined
+    || options.wake !== undefined
+    || options.project !== undefined
+  ) {
+    ui.error('actor message sender, type, project, and wake authority are selected by the daemon; those flags are retired');
+    process.exit(2);
+  }
 
-  const body = {
-    content: message,
-    from: typeof options.from === 'string' ? options.from : undefined,
-    type: typeof options.type === 'string' ? options.type : undefined,
-    wake: options.wake === true,
-    project: typeof options.project === 'string' ? options.project : undefined,
-  };
+  const body = { content: message };
 
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/actors/${encodeURIComponent(actorId)}/message`, {
     method: 'POST',
