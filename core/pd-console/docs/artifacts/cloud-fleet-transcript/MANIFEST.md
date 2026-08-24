@@ -37,6 +37,10 @@ size, pixels unchanged).
   yet — a ship's transcript flushes when it completes" renders as a status,
   never an error, because absence before completion is the designed behavior
   (docs/FLEET-SESSION-TRANSCRIPTS.md Phase 1 flush-once).
+- [states.gif](./states.gif) — the two states as one looping sequence
+  (empty → flushed session), i.e. exactly the transition the pane's poll loop
+  paints when a ship completes and its capture appears. Assembled from the
+  same test-regenerated rasters; frames identical to the stills above.
 
 Data flows through the relay's Phase 3 machine surfaces:
 `GET /fleet/runs/:id/transcripts.json` (ledger) and
