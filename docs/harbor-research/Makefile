@@ -1,7 +1,7 @@
 # Harbor research build. Deps: python3 (numpy scipy matplotlib networkx),
 # pdflatex (texlive; do NOT add microtype/lmodern — see HANDOFF §3.6).
 SK := $(CURDIR)/../../skills/harbor-results/scripts
-TEXS = doc1_treatise doc2_product doc3_research doc4_papers exec1 exec2 exec3 review portfolio
+TEXS = doc1_treatise doc2_product doc3_research doc4_papers exec1 exec2 exec3 exec4 review portfolio
 .PHONY: all figures docs clean
 all: docs
 figures:
