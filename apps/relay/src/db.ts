@@ -879,6 +879,8 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   await db.prepare('DELETE FROM user_roles WHERE user_id = ?').bind(userId).run();
   // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
   await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
+  // The chat spend counters are meaningless without the account — purge them too.
+  await db.prepare('DELETE FROM shipwright_spend WHERE user_id = ?').bind(userId).run();
   // Roadmap mirrors are the account's own pushed roadmap replicas (ADR-0101
   // Critical-2 delete control, team tier) — all four tables die NOW too. The
   // daemon keeps its local source of record; only the cloud replica is erased.
@@ -1847,4 +1849,48 @@ export async function listShipwrightMessages(
 export async function clearShipwrightChats(db: D1Database, userId: string): Promise<number> {
   const res = await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
   return res.meta?.changes ?? 0;
+}
+
+// ── Shipwright spend counters (grand-plan §chat-spend-caps) ──────────────────
+//
+// Deliberately NOT the per-harbor X8 budget machinery: chat spend is scoped to
+// the signed-in web user, and a plain counter row per (user_id, UTC day) is
+// the whole requirement. "Reset at rollover" is key arithmetic — a new day
+// reads a row that does not exist yet, so the count starts at zero.
+
+export interface ShipwrightSpendRow {
+  messages: number;
+  est_tokens: number;
+}
+
+/** Today's spend for one user; a missing row reads as zero (nothing spent). */
+export async function getShipwrightSpend(
+  db: D1Database,
+  userId: string,
+  windowStart: number,
+): Promise<ShipwrightSpendRow> {
+  const row = await db
+    .prepare('SELECT messages, est_tokens FROM shipwright_spend WHERE user_id = ? AND window_start = ?')
+    .bind(userId, windowStart)
+    .first<ShipwrightSpendRow>();
+  return row ?? { messages: 0, est_tokens: 0 };
+}
+
+/**
+ * Record one accepted chat turn against the user's daily window: +1 message,
+ * +`estTokens` estimated tokens. One UPSERT — no read-modify-write window for
+ * a concurrent turn to slip through uncounted.
+ */
+export async function addShipwrightSpend(
+  db: D1Database,
+  row: { userId: string; windowStart: number; estTokens: number },
+): Promise<void> {
+  await db
+    .prepare(
+      'INSERT INTO shipwright_spend (user_id, window_start, messages, est_tokens) VALUES (?, ?, 1, ?) ' +
+        'ON CONFLICT (user_id, window_start) DO UPDATE SET ' +
+        'messages = messages + 1, est_tokens = est_tokens + excluded.est_tokens',
+    )
+    .bind(row.userId, row.windowStart, row.estTokens)
+    .run();
 }

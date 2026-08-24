@@ -36,6 +36,7 @@ import {
 import { randomHex } from './crypto.js';
 import { HEAD, TOKENS } from './account-page.js';
 import { SHIPWRIGHT_RETENTION_DAYS } from './retention-sweep.js';
+import { shipwrightDailyCaps, SHIPWRIGHT_DAILY_MESSAGES_DEFAULT } from './shipwright.js';
 import { MODEL_DOSSIER, type DossierModel } from './model-dossier.js';
 
 /** Minimal HTML-escape for interpolated user data (XSS guard). */
@@ -419,6 +420,14 @@ export interface ShipwrightPageView {
   installations: UserInstallation[] | null;
   /** Whitelisted notice key from ?notice=, or null. */
   notice: string | null;
+  /**
+   * The daily chat-turn cap IN FORCE (chat-spend-caps) — stated in the
+   * honesty strip so a 429 refusal is never the first the operator hears of
+   * a budget. Optional so existing render call sites stay valid; unset falls
+   * back to the committed default (the number is right whenever the env
+   * override is unset, which is the normal deployment).
+   */
+  dailyMessages?: number;
 }
 
 /**
@@ -546,7 +555,10 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
     branch + PR into a repo whose GitHub App installation you own; it never pushes to existing
     branches, never merges, and cannot read your repo. Your review stays the gate. Conversations stay
     on this account only, are yours to export or delete, and are pruned after
-    ${SHIPWRIGHT_RETENTION_DAYS} days.</p>
+    ${SHIPWRIGHT_RETENTION_DAYS} days. A daily budget of
+    ${view.dailyMessages ?? SHIPWRIGHT_DAILY_MESSAGES_DEFAULT} chat turns per account keeps the model
+    spend bounded — when it runs dry the Shipwright says so in the conversation and rests until UTC
+    midnight; a refused message is never stored.</p>
   </div>
   ${renderModelBoard()}
   ${noticeHtml}
@@ -598,7 +610,8 @@ export async function handleShipwrightPage(request: Request, env: Env): Promise<
     installations = null;
   }
   const nonce = randomHex(16);
-  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice }), {
+  const dailyMessages = shipwrightDailyCaps(env).messages;
+  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice, dailyMessages }), {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',

@@ -59,6 +59,20 @@
  * Verdicts are NOT persisted (no schema change): they are recomputed from the
  * stored message content on every read, so a schema/parser upgrade re-badges
  * old conversations for free. See {@link validateEmittedYaml}.
+ *
+ * SPEND CAPS (grand-plan §chat-spend-caps): per-message chars and the
+ * 40-message history window bound one turn, but nothing bounded how many
+ * turns — a looping client could burn Workers AI quota indefinitely. Each
+ * chat turn now checks a per-user DAILY budget (messages + estimated tokens,
+ * one D1 counter row per user per UTC day) BEFORE the model call; a spent
+ * budget refuses with 429 + `Retry-After` (seconds to UTC midnight) and an
+ * honest reason the page shows in-chat — and the refused user message is NOT
+ * persisted, so a refusal never half-spends a turn. The budget constants are
+ * server-owned: committed defaults, overridable ONLY by deploy-time vars
+ * (SHIPWRIGHT_DAILY_MESSAGES / SHIPWRIGHT_DAILY_TOKENS), never caller input.
+ * This is deliberately NOT the per-harbor X8 budget machinery — chat is
+ * user-scoped, so a plain D1 counter row keyed (user_id, window_start)
+ * suffices: no ledger, no reservations, no cross-plane accounting.
  */
 
 import type { Env } from './types.js';
@@ -68,6 +82,8 @@ import {
   insertShipwrightMessage,
   listShipwrightMessages,
   clearShipwrightChats,
+  getShipwrightSpend,
+  addShipwrightSpend,
 } from './db.js';
 import { validateFleetYaml, type FleetValidationResult } from './fleet-parser.js';
 import { commitFilesAndOpenPr } from './fleet-control.js';
@@ -89,6 +105,67 @@ export const SHIPWRIGHT_DEFAULT_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwe
 
 export function shipwrightModel(env: Env): string {
   return env.SHIPWRIGHT_MODEL?.trim() || SHIPWRIGHT_DEFAULT_MODEL;
+}
+
+// ── Daily spend caps (chat-spend-caps) ───────────────────────────────────────
+//
+// Server-owned budget constants. Overridable only by deploy-time vars — a
+// request body never reaches these numbers. Sizing: the token estimate below
+// floors a turn at CHAT_MAX_TOKENS (2 048) even for an empty prompt, so
+// 200 000 tokens ≈ the same order as 60 maximal turns — the two caps bind
+// together, messages for loopers, tokens for wall-of-text loopers.
+
+export const SHIPWRIGHT_DAILY_MESSAGES_DEFAULT = 60;
+export const SHIPWRIGHT_DAILY_TOKENS_DEFAULT = 200_000;
+/** Coarse chars→tokens divisor; deliberately conservative (English ≈ 4). */
+const CHARS_PER_TOKEN = 4;
+const DAY_SECONDS = 24 * 60 * 60;
+
+export interface ShipwrightDailyCaps {
+  messages: number;
+  tokens: number;
+}
+
+/** The caps in force: env override when it parses as a positive integer, else
+ * the committed default. Fail-safe: garbage can never mean "unlimited". */
+export function shipwrightDailyCaps(env: Env): ShipwrightDailyCaps {
+  const parse = (raw: string | undefined, fallback: number): number => {
+    const n = parseInt(raw ?? '', 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+  return {
+    messages: parse(env.SHIPWRIGHT_DAILY_MESSAGES, SHIPWRIGHT_DAILY_MESSAGES_DEFAULT),
+    tokens: parse(env.SHIPWRIGHT_DAILY_TOKENS, SHIPWRIGHT_DAILY_TOKENS_DEFAULT),
+  };
+}
+
+/** UTC midnight (unix seconds) of the day containing `now` — the counter key.
+ * A new day is a new key, so rollover resets the count by arithmetic alone. */
+export function spendWindowStart(now: number): number {
+  return now - (now % DAY_SECONDS);
+}
+
+/**
+ * Estimated token cost of one chat turn, charged at acceptance time: the new
+ * message's input tokens plus the FULL output allowance (CHAT_MAX_TOKENS) —
+ * we cannot know the real completion length before the model runs, and a
+ * budget that guesses low protects nothing. An estimate, and says so: history
+ * re-sent per turn is bounded separately (HISTORY_WINDOW × MAX_MESSAGE_CHARS)
+ * and is deliberately not double-charged here.
+ */
+export function estimateTurnTokens(messageChars: number): number {
+  return Math.ceil(messageChars / CHARS_PER_TOKEN) + CHAT_MAX_TOKENS;
+}
+
+/** The honest refusal copy — the 429 body's `error`, rendered in-chat by the
+ * page. States what ran out, that nothing was stored, and when it resets. */
+export function spendCapNotice(retryAfterSeconds: number): string {
+  const hours = Math.max(1, Math.ceil(retryAfterSeconds / 3600));
+  return (
+    `Today's Shipwright budget is spent — the daily cap on chat turns keeps model spend bounded ` +
+    `for every account. It resets at UTC midnight (about ${hours}h). ` +
+    `Your message was NOT stored; bring it back then.`
+  );
 }
 
 // ── The system prompt — colorful, but competent ──────────────────────────────
@@ -320,7 +397,28 @@ export async function handleShipwrightChat(request: Request, env: Env): Promise<
   const userId = session.user.id;
   const now = Math.floor(Date.now() / 1000);
 
+  // ── Spend cap (chat-spend-caps): checked BEFORE persisting the message and
+  // BEFORE the model call. A refused turn stores nothing and spends nothing —
+  // 429 with Retry-After (seconds to UTC midnight, when the window rolls) and
+  // an honest reason the page renders in-chat. Caps are server-owned
+  // (shipwrightDailyCaps) — nothing in the request body can move them.
+  const caps = shipwrightDailyCaps(env);
+  const windowStart = spendWindowStart(now);
+  const turnTokens = estimateTurnTokens(message.length);
+  const spent = await getShipwrightSpend(db, userId, windowStart);
+  if (spent.messages >= caps.messages || spent.est_tokens + turnTokens > caps.tokens) {
+    const retryAfter = Math.max(1, windowStart + DAY_SECONDS - now);
+    return Response.json(
+      { code: 'SPEND_CAP', error: spendCapNotice(retryAfter), retryAfterSeconds: retryAfter },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+    );
+  }
+
   await insertShipwrightMessage(db, { userId, role: 'user', content: message, now });
+  // The turn is accepted — charge it now (before the model call), so a client
+  // that aborts mid-stream still spent its turn. Slight over-count on a model
+  // error is the safe direction for a protective budget.
+  await addShipwrightSpend(db, { userId, windowStart, estTokens: turnTokens });
 
   const history = await listShipwrightMessages(db, userId, HISTORY_WINDOW);
   const messages = [

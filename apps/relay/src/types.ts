@@ -77,6 +77,12 @@ export interface Env {
   // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
   // not a secret. Optional: unset ⇒ the module's committed default is used.
   SHIPWRIGHT_MODEL?: string;
+  // Per-user daily Shipwright chat budgets (src/shipwright.ts, grand-plan
+  // §chat-spend-caps). Vars, not secrets, and NEVER caller input — the caps
+  // are server-owned. Optional: unset or garbage ⇒ the module's committed
+  // defaults (fail-safe: a bad knob can never mean "unlimited").
+  SHIPWRIGHT_DAILY_MESSAGES?: string;
+  SHIPWRIGHT_DAILY_TOKENS?: string;
   // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
   // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
   // secret. ONLY the exact string 'on' enables the pd-mediator seat's
