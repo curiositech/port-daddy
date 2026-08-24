@@ -400,7 +400,7 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
 > **Proof gate — met.** 1,200 tests green across both Workers; the fleet run on its own fix
 > PR healed, adjudicated, and narrated itself.
 
-### P1 — The Steward takes the seat (≈2 weeks · 4 PRs)
+### P1 — The Steward takes the seat (≈2 weeks · 5 PRs)
 
 1. Steward DO scaffold: identity, storage schema (charter, merge-ledger, deck-log), alarm
    heartbeat, wake queue from the existing webhook receiver.
@@ -410,6 +410,19 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
    "ship it" gate for protected paths.
 4. Clusterfudge state machine v1 (land-fail loop + budget tripwires), interruptions wiring,
    console-less fallback: the pinned Steward-log issue.
+5. The pulse: a cron trigger and `/pulse` watchdog that arm the seat's first alarm and
+   re-arm a lost one.
+
+   **Why this PR exists, recorded rather than smoothed over.** PR 1's scope above says "wake
+   queue from the existing webhook receiver" — the queue shipped, the receiver's dispatch did
+   not, and nothing else ever posted a wake. A Durable Object alarm re-arms itself only
+   *after* it has fired once, so the seat sat deployed and commissioned with its heartbeat
+   never started: production `steward_deck_log` held **zero rows** across PRs 1–4. Every one
+   of those PRs was green, and none of them was wrong about what it built; the gap was
+   between them, in the assumption that something upstream would knock. §5.3 already names
+   the remedy — the deck log is the vital sign, and *nobody read it*. The lesson is cheap and
+   general: a component that cannot start itself needs an owner for its first beat, and
+   "deployed" is not "alive" until the vital sign says so.
 
 > **Proof gate.** Seven days unattended on this repo: every open PR reaches merged or an
 > explicit SURFACE with a reason; zero un-charted merges; deck log complete for every wake;

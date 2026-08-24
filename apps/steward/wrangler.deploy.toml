@@ -46,11 +46,42 @@
 #      via .github/workflows/deploy-steward.yml (secrets above survive every
 #      deploy). For first-time provisioning or out-of-band repair:
 #        wrangler deploy --config wrangler.deploy.toml
+#
+#   4. Verify the seat is ALIVE, not merely deployed. The cron below pulses it
+#      hourly, and every wake writes exactly one deck-log entry (§5.3), so
+#      within the hour:
+#        wrangler d1 execute port-daddy-relay --remote \
+#          --command "SELECT datetime(created_at,'unixepoch'), entry_kind, summary
+#                     FROM steward_deck_log ORDER BY created_at DESC LIMIT 5"
+#      Zero rows an hour after a deploy means the seat is not running. This
+#      check is not optional paranoia: P1 sat deployed, commissioned, and
+#      completely silent because nothing ever armed its first alarm — and a
+#      green deploy said nothing about it either way.
 
 name = "pd-steward"
 main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
+
+# The outside clock (P1 PR 5). A Durable Object alarm re-arms itself, but only
+# after it has fired once, and nothing else in this system ever asks the seat
+# to wake — P1 shipped deployed and commissioned with ZERO deck-log rows in
+# production for exactly that reason. A DO cannot start its own clock, so the
+# starter motor has to come from outside it.
+#
+# Hourly, against a 6h heartbeat: the pulse is a no-op whenever an alarm is
+# already armed, so a faster cron buys faster recovery from a LOST alarm
+# without causing one extra wake. The offset minute keeps this off the :00
+# spike every naive cron schedule piles onto.
+[triggers]
+crons = ["23 * * * *"]
+
+# The roster the cron pulses — repository names, not credentials, and
+# deliberately in the committed config where a reader can see which seats are
+# supposed to be alive. An empty roster pulses nothing; the handler logs that
+# as an error rather than a quiet success.
+[vars]
+STEWARD_REPOS = "curiositech/port-daddy"
 
 # Shared append-only history fabric — same database the relay and
 # fleet-executor already use (fleet_runs / fleet_run_steps live here too).
