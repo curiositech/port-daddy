@@ -62,7 +62,12 @@
   % See panel A: explicit, sparser ticks avoid the crowded default spacing
   % at this panel's actual rendered width.
   xtick={0,0.4,0.8},
-  legend pos=south east,
+  % Moved from south east: a south-east legend at this panel's actual width
+  % spans nearly the full lower half of the plot, burying the worked-instance
+  % label's third line entirely -- a real collision found by rendering the
+  % CI build. North east is clear here (the falsified curve is already
+  % negative by x=0.5), freeing the bottom for that label.
+  legend pos=north east,
 ]
 \fill[shipred,opacity=0.08] (axis cs:0,0) rectangle (axis cs:0.8,0.45);
 \fill[seagreen,opacity=0.08] (axis cs:0,-0.65) rectangle (axis cs:0.8,0);
@@ -81,13 +86,16 @@
 \addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.3,0.0)};
 \node[font=\scriptsize,anchor=south west,text width=1.6cm,align=left] at (axis cs:0.33,0.03) {flip:\\$\Delta\theta{=}\Delta c$};
 \addplot[seagreen,only marks,mark=*,mark size=2.4pt,forget plot] coordinates {(0.6,-0.3)};
-% All four annotation nodes below are re-anchored to the plot's four open
-% quadrants (top-left, left-center, bottom-left, top-right kept clear of
-% the south-east legend) with shortened text: at the old center-anchored
-% positions and full-length wording they ran into the legend, into the
-% axis's own left edge, and into each other -- real collisions and
-% off-axis clipping found by rendering the CI build.
-\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=north west,text width=1.9cm] at (axis cs:0.03,-0.10) {worked:\\keep 0.5,\\swap 0.2};
+% All annotation nodes below are re-anchored to the plot's open quadrants
+% with shortened text: at earlier center-anchored positions and
+% full-length wording they ran into the legend, into the axis's own left
+% edge, and into each other -- real collisions and off-axis clipping found
+% by rendering the CI build. The worked-instance label sits right of its
+% own marker (0.6,-0.3), narrow enough to clear the right axis edge at
+% x=0.8 and the "strong engine pays" label at the opposite corner -- its
+% previous wide, marker-straddling placement collided with both the
+% marker and the (then-south-east) legend, also found by rendering.
+\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=north west,text width=1.3cm] at (axis cs:0.64,-0.20) {worked:\\$0.5\to0.2$};
 \node[shipred,font=\scriptsize\bfseries,anchor=north west] at (axis cs:0.03,0.40) {swap pays};
 \node[seagreen,font=\scriptsize\bfseries,anchor=south west] at (axis cs:0.03,-0.6) {strong engine pays};
 \end{axis}
