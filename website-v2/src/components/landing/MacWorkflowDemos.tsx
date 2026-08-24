@@ -152,7 +152,7 @@ function DemoPreview({ demo }: { demo: MacAppDemo }) {
         <img
           src={demo.media.light}
           alt={demo.media.alt}
-          className="aspect-[16/10] w-full object-cover"
+          className="aspect-[16/10] w-full object-contain"
           loading="lazy"
         />
       </picture>
