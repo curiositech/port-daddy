@@ -656,7 +656,7 @@ Every agent spawned through a subprocess backend (`codex`, `claude-cli`, `aider`
 2. **Broker** — the agent's environment carries **no raw API key**. Every managed provider key *and* every key loaded from your `.env` files is scrubbed from the child env; keys stay in the daemon's sealed cache.
 3. **Cap** — outbound API traffic is forced through a local meter with a **hard per-agent request/byte cap**; the over-cap call is refused (`402 Spend Cap Exceeded`).
 
-Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording what was confined, which keys were scrubbed, and the metered egress. `pd coast-guard` (alias `pd cg`) shows local confinement status; opt out per-run with `PD_COAST_GUARD_OFF=1`.
+Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording what was confined, which keys were scrubbed, and the metered egress. Completed receipts remain visible in the daemon's `/spawn` history and FleetBar's compact Recent confinement section; no row appears when a backend has no receipt. `pd coast-guard` (alias `pd cg`) shows local confinement status; opt out per-run with `PD_COAST_GUARD_OFF=1`.
 
 **Coordination keeps working.** Confinement denies secret-file *reads* — not network or process exec. The agent still reaches the daemon, runs the `pd` CLI, and talks to MCP servers (stdio MCP is a child process; loopback HTTP is `NO_PROXY`-exempt so local traffic never burns the spend cap).
 
