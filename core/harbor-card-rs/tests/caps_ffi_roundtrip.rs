@@ -47,8 +47,21 @@ fn ffi_subset_matches_pure_function_along_a_realistic_delegation_chain() {
     // root operator hands progressively NARROWER capability sets down the chain.
     // Every hop must be a subset of its immediate parent (the I4 invariant).
     let chain: Vec<Vec<&str>> = vec![
-        vec!["db:write", "db:read", "fs:critical", "spawn:agent", "net:egress", "presence:write"],
-        vec!["db:write", "db:read", "fs:critical", "spawn:agent", "net:egress"],
+        vec![
+            "db:write",
+            "db:read",
+            "fs:critical",
+            "spawn:agent",
+            "net:egress",
+            "presence:write",
+        ],
+        vec![
+            "db:write",
+            "db:read",
+            "fs:critical",
+            "spawn:agent",
+            "net:egress",
+        ],
         vec!["db:write", "db:read", "fs:critical", "spawn:agent"],
         vec!["db:read", "fs:critical", "spawn:agent"],
         vec!["db:read", "fs:critical"],
@@ -63,7 +76,10 @@ fn ffi_subset_matches_pure_function_along_a_realistic_delegation_chain() {
         let ffi = ffi_subset(parent, child);
         let pure = pure_subset(parent, child);
         assert_eq!(ffi, pure, "hop {i}: FFI and pure subset must agree");
-        assert!(ffi, "hop {i} of a valid attenuation chain must be a subset of its parent");
+        assert!(
+            ffi,
+            "hop {i} of a valid attenuation chain must be a subset of its parent"
+        );
     }
 }
 
@@ -75,11 +91,14 @@ fn ffi_catches_a_non_monotonic_middle_hop_escalation() {
     let chain: Vec<Vec<&str>> = vec![
         vec!["db:read", "db:write"],
         vec!["db:read", "db:write", "admin"], // hop 1: ESCALATION
-        vec!["db:read"],                       // hop 2: back within root
+        vec!["db:read"],                      // hop 2: back within root
     ];
     let hop1 = ffi_subset(&chain[0], &chain[1]);
     let hop2 = ffi_subset(&chain[1], &chain[2]);
-    assert!(!hop1, "the escalating middle hop must fail the subset check over the FFI");
+    assert!(
+        !hop1,
+        "the escalating middle hop must fail the subset check over the FFI"
+    );
     assert!(hop2, "the final hop attenuates its immediate parent");
     // A naive final-vs-root check would wrongly pass — prove the trap is real.
     assert!(
@@ -127,7 +146,8 @@ fn ffi_exports_are_thread_safe_under_concurrent_calls() {
         }));
     }
     for h in handles {
-        h.join().expect("enforcer FFI thread panicked — the exports must be panic-free");
+        h.join()
+            .expect("enforcer FFI thread panicked — the exports must be panic-free");
     }
 }
 

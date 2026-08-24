@@ -132,7 +132,10 @@ fn ffi_roundtrip_matches_pure_function_on_a_realistic_fanout_dag() {
         with_slack >= 1,
         "the DAG must exercise a non-zero-slack node, else it can't catch a slack-marshal bug"
     );
-    assert!(critical >= 3, "critical path must be a real chain, not a single node");
+    assert!(
+        critical >= 3,
+        "critical path must be a real chain, not a single node"
+    );
     assert!(
         got["criticalPath"].as_array().unwrap().len() >= 3,
         "criticalPath must be a genuine multi-hop chain"
@@ -158,7 +161,10 @@ fn ffi_is_thread_safe_under_concurrent_calls() {
         handles.push(std::thread::spawn(move || {
             for _ in 0..64 {
                 let got = call_schedule(&req);
-                assert_eq!(got, expected, "concurrent FFI call produced a divergent/torn result");
+                assert_eq!(
+                    got, expected,
+                    "concurrent FFI call produced a divergent/torn result"
+                );
             }
         }));
     }
@@ -179,7 +185,10 @@ fn ffi_fails_closed_on_corrupted_and_hostile_buffers() {
     let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
     unsafe { pd_string_free(ptr) };
     let resp: Value = serde_json::from_str(&out).unwrap();
-    assert_eq!(resp["ok"], false, "a truncated buffer must fail closed, not crash");
+    assert_eq!(
+        resp["ok"], false,
+        "a truncated buffer must fail closed, not crash"
+    );
 
     // Non-UTF-8 bytes with a valid length — the utf8 guard must catch it.
     // 0xff,0xfe,0x01,0x80 is invalid UTF-8 and contains no interior NUL, so
@@ -202,11 +211,17 @@ fn ffi_fails_closed_on_corrupted_and_hostile_buffers() {
     let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
     unsafe { pd_string_free(ptr) };
     let resp: Value = serde_json::from_str(&out).unwrap();
-    assert_eq!(resp["ok"], false, "oversized input must be rejected fail-closed");
+    assert_eq!(
+        resp["ok"], false,
+        "oversized input must be rejected fail-closed"
+    );
 
     // Null pointer with zero length — the classic "no data" call.
     let ptr = unsafe { pd_schedule_dag_json(std::ptr::null(), 0) };
-    assert!(!ptr.is_null(), "even a null request yields a response, never a null return");
+    assert!(
+        !ptr.is_null(),
+        "even a null request yields a response, never a null return"
+    );
     unsafe { pd_string_free(ptr) };
 }
 
@@ -226,7 +241,10 @@ fn ffi_cycle_over_the_boundary_matches_pure_function() {
     );
     assert_eq!(got, expected);
     assert_eq!(got["ok"], false);
-    assert_eq!(got["cyclic"], true, "the cycle must be reported cyclic across the boundary");
+    assert_eq!(
+        got["cyclic"], true,
+        "the cycle must be reported cyclic across the boundary"
+    );
 }
 
 // ── request-marshaling helpers (mirror the koffi request shape) ──────────────
