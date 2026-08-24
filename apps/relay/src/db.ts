@@ -758,10 +758,14 @@ export async function createUserToken(
 }
 
 /**
- * Resolve a pdu_ token hash to its live (non-revoked, unexpired) user, bumping
- * last_used_at. Returns null for unknown/revoked/expired tokens or deleted users.
+ * Resolve a pdu_ token hash to its live (non-revoked, unexpired) user without
+ * mutating token metadata. Use this for polling and other read-heavy paths.
  */
-export async function resolveUserToken(db: D1Database, tokenHash: string, now: number): Promise<UserRow | null> {
+export async function resolveUserTokenReadOnly(
+  db: D1Database,
+  tokenHash: string,
+  now: number,
+): Promise<UserRow | null> {
   const t = await db
     .prepare('SELECT user_id, expires_at, revoked_at FROM user_tokens WHERE token_hash = ?')
     .bind(tokenHash)
@@ -769,6 +773,16 @@ export async function resolveUserToken(db: D1Database, tokenHash: string, now: n
   if (!t || t.revoked_at != null) return null;
   if (t.expires_at != null && t.expires_at <= now) return null;
   const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').bind(t.user_id).first<UserRow>();
+  if (!user) return null;
+  return user;
+}
+
+/**
+ * Resolve a pdu_ token hash and record interactive use. Polling surfaces should
+ * call {@link resolveUserTokenReadOnly} so refreshes do not amplify D1 writes.
+ */
+export async function resolveUserToken(db: D1Database, tokenHash: string, now: number): Promise<UserRow | null> {
+  const user = await resolveUserTokenReadOnly(db, tokenHash, now);
   if (!user) return null;
   await db.prepare('UPDATE user_tokens SET last_used_at = ? WHERE token_hash = ?').bind(now, tokenHash).run();
   return user;

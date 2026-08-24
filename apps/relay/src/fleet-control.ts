@@ -75,8 +75,8 @@ async function readJson<T>(request: Request): Promise<T | null> {
  * Reads only — never mutates. Resolves a repo-scoped GitHub App token.
  */
 export async function handleFleetConfig(request: Request, env: Env): Promise<Response> {
-  const denied = await fleetOperatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   const url = new URL(request.url);
   const defaultBranch = env.DEFAULT_BRANCH ?? 'main';

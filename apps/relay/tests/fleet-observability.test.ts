@@ -24,6 +24,9 @@ import type { Env } from '../src/types.js';
 
 // >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
 const OPERATOR = 'super-secret-operator-token-32bytes-min';
+const ACCOUNT_TOKEN = `pdu_${'a'.repeat(64)}`;
+const ACCOUNT_USER_ID = 'u_owner';
+const ACCOUNT_GITHUB_USER_ID = 2_093_678;
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -97,6 +100,28 @@ function req(path: string, method: string, token: string | null, body?: unknown)
   });
 }
 
+function accountAuthFirst(query: string): unknown {
+  if (query.includes('FROM user_tokens')) {
+    return { user_id: ACCOUNT_USER_ID, expires_at: null, revoked_at: null };
+  }
+  if (query.includes('FROM users WHERE id')) {
+    return {
+      id: ACCOUNT_USER_ID,
+      github_user_id: ACCOUNT_GITHUB_USER_ID,
+      login: 'erichowens',
+      display_name: null,
+      avatar_url: null,
+      primary_email: null,
+      email_verified: 0,
+      created_at: 1,
+      last_login_at: 1,
+      deleted_at: null,
+    };
+  }
+  if (query.includes('FROM user_roles')) return { allowed: 1 };
+  return null;
+}
+
 // Two runs as the DB would store them (newest first — listFleetRuns ORDER BY).
 const RUN_NEW = {
   id: 'run-new',
@@ -150,7 +175,6 @@ describe('fleet observability — operator gate', () => {
   });
 
   it('lets the configured signed-in owner read activity with an existing pdu token', async () => {
-    const token = `pdu_${'a'.repeat(64)}`;
     let roleGranted = false;
     const db = makeMockD1({
       onFirst: (q) => {
@@ -180,12 +204,29 @@ describe('fleet observability — operator gate', () => {
       },
     });
     const response = await handleFleetActivity(
-      req('/v1/fleet/activity', 'GET', token),
+      req('/v1/fleet/activity', 'GET', ACCOUNT_TOKEN),
       makeEnv({ db, operatorGithubUserId: '2093678' }),
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ code: 'OK', runs: [] });
     expect(roleGranted).toBe(true);
+  });
+
+  it('does not rewrite token usage metadata during repeated account-backed polls', async () => {
+    const writes: string[] = [];
+    const db = makeMockD1({
+      onFirst: (q) => accountAuthFirst(q),
+      onAll: () => [],
+      onRun: (q) => { writes.push(q); },
+    });
+    const env = makeEnv({ db });
+
+    expect((await handleFleetActivity(req('/v1/fleet/activity', 'GET', ACCOUNT_TOKEN), env)).status).toBe(200);
+    expect((await handleFleetHealth(req('/v1/fleet/health', 'GET', ACCOUNT_TOKEN), env)).status).toBe(200);
+    expect((await handleFleetActivity(req('/v1/fleet/activity', 'GET', ACCOUNT_TOKEN), env)).status).toBe(200);
+    expect((await handleFleetHealth(req('/v1/fleet/health', 'GET', ACCOUNT_TOKEN), env)).status).toBe(200);
+
+    expect(writes.some((query) => query.includes('UPDATE user_tokens'))).toBe(false);
   });
 });
 
@@ -394,6 +435,41 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(health.lastRunAgeSec).not.toBeNull();
     expect(health.lastRunAgeSec!).toBeGreaterThanOrEqual(30);
   });
+
+  it('attributes account-backed pause and resume audits without recording token material', async () => {
+    const kv = makeKV();
+    const auditDetails: string[] = [];
+    const db = makeMockD1({
+      onFirst: (q) => accountAuthFirst(q),
+      onRun: (q, bound) => {
+        if (q.includes('INSERT INTO audit_log')) auditDetails.push(String(bound[4]));
+      },
+    });
+    const env = makeEnv({ kv, db });
+
+    expect((await handleFleetPause(
+      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: true }),
+      env,
+    )).status).toBe(200);
+    expect((await handleFleetPause(
+      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false }),
+      env,
+    )).status).toBe(200);
+
+    expect(auditDetails.map((detail) => JSON.parse(detail))).toEqual([
+      {
+        source: 'account',
+        operation: 'pause',
+        actor: { userId: ACCOUNT_USER_ID, githubUserId: ACCOUNT_GITHUB_USER_ID },
+      },
+      {
+        source: 'account',
+        operation: 'resume',
+        actor: { userId: ACCOUNT_USER_ID, githubUserId: ACCOUNT_GITHUB_USER_ID },
+      },
+    ]);
+    expect(auditDetails.join('\n')).not.toContain(ACCOUNT_TOKEN);
+  });
 });
 
 // ── DELETE /v1/fleet/runs/:id (ADR-0101 export/delete per-tier) ────────────────
@@ -444,5 +520,31 @@ describe('handleDeleteFleetRun', () => {
     expect(res.status).toBe(200);
     expect((await res.json() as { deleted: number }).deleted).toBe(1);
     expect(seen).toEqual(['intent']);
+  });
+
+  it('attributes an account-backed transcript deletion without recording token material', async () => {
+    let auditDetail = '';
+    const db = makeMockD1({
+      onFirst: (q) => accountAuthFirst(q),
+      onRun: (q, bound) => {
+        if (q.includes('DELETE FROM fleet_runs')) return 1;
+        if (q.includes('INSERT INTO audit_log')) auditDetail = String(bound[4]);
+        return 0;
+      },
+    });
+
+    const res = await handleDeleteFleetRun(
+      req('/v1/fleet/runs/run-new', 'DELETE', ACCOUNT_TOKEN),
+      makeEnv({ db }),
+      'run-new',
+    );
+
+    expect(res.status).toBe(200);
+    expect(JSON.parse(auditDetail)).toEqual({
+      source: 'account',
+      operation: 'delete-run',
+      actor: { userId: ACCOUNT_USER_ID, githubUserId: ACCOUNT_GITHUB_USER_ID },
+    });
+    expect(auditDetail).not.toContain(ACCOUNT_TOKEN);
   });
 });
