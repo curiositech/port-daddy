@@ -26,7 +26,7 @@ use crate::protocol::{
 };
 use crate::redemption::{
     RedemptionError, RedemptionOutcome, RedemptionStore, ReservationAdmission, ReservationKind,
-    ReservationRecord,
+    ReservationRecord, ReservationRequest,
 };
 
 const ACTION_RESERVATION_REQUEST_DOMAIN: &str = "port-daddy/action-reservation-request/v1";
@@ -424,15 +424,15 @@ impl Broker {
             Err(error) => return capability_refusal(error),
         };
 
-        match self.redemptions.reserve(
-            parent,
-            &parent_digest,
-            ReservationKind::Attenuation,
-            &request_digest,
+        match self.redemptions.reserve(ReservationRequest {
+            capability: parent,
+            capability_digest: &parent_digest,
+            kind: ReservationKind::Attenuation,
+            request_digest: &request_digest,
             new_result_expires_at_ms,
             admission,
             now_ms,
-        ) {
+        }) {
             Ok(RedemptionOutcome::Reserved(record)) => self.attenuated_capability_response(
                 parent,
                 &intent,
@@ -582,15 +582,15 @@ impl Broker {
             Ok(digest) => digest,
             Err(error) => return capability_refusal(error),
         };
-        match self.redemptions.reserve(
+        match self.redemptions.reserve(ReservationRequest {
             capability,
-            &digest,
-            ReservationKind::Action,
-            &request_digest,
-            None,
+            capability_digest: &digest,
+            kind: ReservationKind::Action,
+            request_digest: &request_digest,
+            new_result_expires_at_ms: None,
             admission,
             now_ms,
-        ) {
+        }) {
             Ok(RedemptionOutcome::Reserved(record)) => {
                 action_reserved_response(capability, &digest, record, false)
             }

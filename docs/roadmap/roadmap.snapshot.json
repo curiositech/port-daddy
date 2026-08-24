@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787528087885,
+  "generatedAt": 1787556819530,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 294,
+  "count": 300,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -262,7 +262,7 @@
     {
       "slug": "adr-0048-phase-7-L3-federation-market",
       "status": "now",
-      "summaryMd": "L3 platform: harbor federation (Alice's fleet) -> the work-for-hire + skill/agent marketplace on the bond ledger (anchor protocol). Done when two operators' fleets safely co-work + trade with reputation + escrow."
+      "summaryMd": "Shared-harbor prerequisites: one-writer authority, split signing and encryption custody, fail-closed transcript egress, native mobile HITL, and explicit launch sequencing."
     },
     {
       "slug": "adr-0048-phase-8-whitepapers",
@@ -447,7 +447,7 @@
     {
       "slug": "adr-doc-reconciliation-sweep",
       "status": "now",
-      "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' — does not exist) and 0053 (Relay 'verifies discharges/ProVerif' — zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
+      "summaryMd": "Reconcile active documentation with the published runtime, distribution, and operator authorities; remove obsolete executable guidance instead of preserving competing instructions."
     },
     {
       "slug": "adr-number-collision-guard",
@@ -536,8 +536,8 @@
     },
     {
       "slug": "ast-a1-5-graph-integrity-auditor",
-      "status": "now",
-      "summaryMd": "Add a read-only AST graph integrity auditor with focused corruption and clean-state tests."
+      "status": "done",
+      "summaryMd": "AST A1.5 graph integrity auditor"
     },
     {
       "slug": "ast-a2-1-symbol-claim-isolation-validator",
@@ -623,6 +623,11 @@
       "slug": "bosun-plist-stale-cellar-path-on-upgrade",
       "status": "backlog",
       "summaryMd": "com.portdaddy.bosun.plist pins a versioned Cellar path (e.g. 3.25.2_2/bin/pd-bosun) and goes stale on every brew upgrade, causing EX_CONFIG exit-78 and zero auto-restart on daemon crash until port-daddy install is manually re-run. pd doctor also falsely reports the binary as MISSING when it's actually a stale-path config error. Fix belongs in the brew upgrade post-install hook: regenerate the plist against the currently-linked Cellar path automatically."
+    },
+    {
+      "slug": "budget-terminal-timer-cancellation",
+      "status": "now",
+      "summaryMd": "Restore the lost terminal-state disarm contract so a delayed budget grace timer cannot kill or rewrite an agent after its run has already completed."
     },
     {
       "slug": "build-integrity-spine-drift-checks",
@@ -846,7 +851,7 @@
     },
     {
       "slug": "fix-fleet-live-introspection-20260822",
-      "status": "backlog",
+      "status": "now",
       "summaryMd": "Native signed-in Cloud Fleet introspection across FleetBar and pd-console"
     },
     {
@@ -1040,9 +1045,19 @@
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
+      "slug": "harbor-editor-failed-open-recovery",
+      "status": "done",
+      "summaryMd": "Repair Harbor Editor failed-open recovery and editor basics: typing, optional line wrapping, git blame, and syntax highlighting."
+    },
+    {
       "slug": "harbor-editor-local-text-input",
       "status": "now",
       "summaryMd": "Make the live Harbor Editor locally editable: GPUI text input and IME, grapheme-safe cursor and selection, CRDT-authored insert/delete, presence updates, virtualization-safe repainting, and visual proof."
+    },
+    {
+      "slug": "harbor-editor-p3-agents-as-peers-claims",
+      "status": "now",
+      "summaryMd": "Harbor Editor P3 claim authority: canonical stable file and region claim identities, atomic first-granted overlap rejection, exact lifecycle and successor transfer semantics, and no public force bypass."
     },
     {
       "slug": "harbor-replicaid-agent-branch-clock",
@@ -1138,6 +1153,11 @@
       "slug": "migration-fixture-rehearsal-ci",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): CI keeps fixture DBs of the last 3 released schema epochs + a scrubbed real-registry copy; boots the migrator over each asserting counts-never-shrink, verify probes green, user_version at max; wire into the PR #681 release soak. Acceptance: a migration lacking a verify probe or shrinking a count fails CI."
+    },
+    {
+      "slug": "mission-first-pd-console-prompt-launch-live-work-artifacts-a",
+      "status": "now",
+      "summaryMd": "Make pd-console open on one mission screen: plain-language prompt, governed launch, exact agent and transcript, live work, PR checks, and clickable delivery artifact."
     },
     {
       "slug": "model-abstraction-audit",
@@ -1330,6 +1350,11 @@
       "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
     },
     {
+      "slug": "runtime-session-accounting-release",
+      "status": "backlog",
+      "summaryMd": "Ship post-3.30.2 runtime truth: published endpoint discovery, durable spawn receipts, named-daemon Squid conformance, complete session accounting, Beacon continuation visibility, and a new Homebrew daemon build."
+    },
+    {
       "slug": "rust-kernel-bugfix-sweep",
       "status": "now",
       "summaryMd": "Fix the real bugs the rustdoc-backfill Opus agents found-but-didn't-fix (documentation-only scope at the time): pd-anchor keystore.rs soft-revoke is dead code (hard HashMap::remove instead of the revoked flag), pd-core KernelEvent.id vs pd-eventlog's sequence-derived id can diverge, pd-runtime BackendCapacity doesn't enforce active_jobs<=max_parallel_jobs, pd-eventlog KernelProjection::apply double-counts on replay, harbor-card-rs verify() doesn't validate iat or alg, pd-compat import_sessions has no rollback on partial failure."
@@ -1433,6 +1458,11 @@
       "slug": "surface-triad-redesign",
       "status": "backlog",
       "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
+    },
+    {
+      "slug": "swarm-coordination-parley",
+      "status": "now",
+      "summaryMd": "Make swarm coordination governed instead of aspirational: fit gate, council tally, tuple-backed parley, guard-enforced roadmap receipts, game-theoretic incentive audits, mechanism-design checks, WinDAGs skill grafts for every phase, and a separate windags_skill_induct tool for repo/user/global skill ingestion plus curated activation plans."
     },
     {
       "slug": "transcript-compliance-hitl-health",
