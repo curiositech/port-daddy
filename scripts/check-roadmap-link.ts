@@ -1,5 +1,5 @@
 /**
- * Roadmap-link gate — CI entry point (non-blocking).
+ * Roadmap-link gate — CI entry point (BLOCKING; required in branch protection).
  *
  *   npx tsx scripts/check-roadmap-link.ts            # CI: reads $GITHUB_EVENT_PATH
  *   npx tsx scripts/check-roadmap-link.ts 512        # local: inspect PR #512 via gh
