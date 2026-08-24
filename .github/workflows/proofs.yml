@@ -326,7 +326,7 @@ jobs:
         run: |
           set -euo pipefail
           cd skills/harbor-results/scripts
-          for s in a3_epsilon_ledger a4_canary_sprt a6_no_mint                    a7_experiment b1_frontier b2_tower b3_controllability                    b6_probation c0_workunit c1_noninterference                    sheaf_mechanism_proof sheaf_harness_v2; do
+          for s in a3_epsilon_ledger a4_canary_sprt a6_no_mint                    a7_experiment b1_frontier b2_tower b3_controllability                    b6_probation c0_workunit c1_noninterference                    sheaf_mechanism_proof sheaf_harness_v2 zoom_bound_check; do
             echo "::group::$s"
             python3 "$s.py"
             echo "::endgroup::"
