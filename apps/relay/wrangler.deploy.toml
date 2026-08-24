@@ -18,6 +18,7 @@
 #   3. Set secrets:
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        openssl rand -hex 32 | wrangler secret put COORDINATION_MACAROON_ROOT_KEY_HEX
 #        # GitHub login (ADR-0101 Phase 1) — login stays DISABLED (503) until all
 #        # four of GITHUB_OAUTH_CLIENT_ID (var, below), PUBLIC_BASE_URL (var,
 #        # below), and these two secrets are present:
@@ -40,7 +41,7 @@
 # push to main by .github/workflows/deploy-relay.yml.
 
 name = "port-daddy-relay"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -66,6 +67,9 @@ RATE_LIMIT_WINDOW_MS = "60000"
 # Login is disabled until the two matching secrets are also set (see header).
 GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 PUBLIC_BASE_URL = "https://relay.portdaddy.dev"
+# Durable GitHub numeric id for the initial account-backed Cloud Fleet operator.
+# Public identity metadata; authorization still requires a live pdu_ token.
+RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
 # Workers AI model for the Shipwright chat (src/shipwright.ts). A plain var so
 # operators can retarget without a code deploy; unknown ids fail the AI call
 # with an honest AI_ERROR, they never remap silently.
@@ -99,6 +103,7 @@ migrations_dir = "migrations"
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
   { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+  { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
 ]
 
 [[migrations]]
@@ -109,6 +114,11 @@ new_classes = ["HarborChannel"]
 [[migrations]]
 tag = "v0002"
 new_classes = ["HarborQuota"]
+
+# ADR-0092: one CRDT coordination peer per project.
+[[migrations]]
+tag = "v0003"
+new_sqlite_classes = ["CoordinationRoom"]
 
 [[kv_namespaces]]
 # JWKS cache and pinned relay key cache
@@ -205,6 +215,7 @@ GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 # account's workers.dev subdomain (shown by `wrangler deploy --env latest`).
 # Login stays disabled unless the matching secrets are set for --env latest.
 PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
+RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
 SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
 # X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
 # `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
@@ -232,11 +243,12 @@ migrations_dir = "migrations"
 
 # Same DO classes as prod; environments get their OWN namespace instances, so
 # relay-latest's HarborChannel/HarborQuota state is fully isolated from prod's.
-# ([[migrations]] are top-level and shared — v0002 registers HarborQuota.)
+# ([[migrations]] are top-level and shared — v0002/v0003 register the DOs.)
 [env.latest.durable_objects]
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
   { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+  { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
 ]
 
 [[env.latest.kv_namespaces]]

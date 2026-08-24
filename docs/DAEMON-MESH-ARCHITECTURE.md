@@ -21,8 +21,30 @@
 
 **Author:** Erich Owens (with architecture by Claude)
 **Date:** March 2026
-**Status:** Design Document — Pre-Implementation
+**Status:** SUPERSEDED (2026-08) — kept for historical rationale only, not a live design
 **Prerequisite:** V4 Phase 5 (The Network) in the Unified Roadmap
+
+> **This document is the "Part XVII" approach that ADR-0027 (Relay Harbor Mesh)
+> explicitly rejected.** Raft-inspired leader election, multi-writer SQLite
+> avoidance via a single canonical leader, HLC clocks, and Merkle-hash state
+> diffing are all **not** the shipped design. The accepted decision is much
+> smaller: a harbor whose *membership* is shared across daemons via
+> out-of-band Ed25519 keypair exchange, with **pub/sub event federation**
+> (not state replication) over the PD Relay under harbor-fingerprint
+> namespacing. Session/lock/note state stays local to each daemon — that is
+> a deliberate privacy property, not a gap to close later. See ADR-0027,
+> ADR-0049 (Relay v0 Architecture, Accepted, shipped in `apps/relay/`), and
+> `skills/pd-relay-zero-trust/references/v4-remote-harbor-redefinition.md`
+> for the full rationale. This document remains here because ADR-0049 cites
+> it as the "why not the daemon mesh" counterfactual — read it as archived
+> reasoning, not a roadmap.
+>
+> The **mDNS/Tailscale-API discovery layer** described in this document under
+> "Three discovery layers" is a separate concern from state sync and is
+> *not* superseded — it maps to what PLAN.md calls "Lighthouse" (a phone-book
+> discovery registry, no traffic, no history), which the relay-era doctrine
+> explicitly keeps as its own plane. Do not read the discovery-layer content
+> here as dead; only the leader-election/state-sync/Merkle machinery is.
 
 ---
 

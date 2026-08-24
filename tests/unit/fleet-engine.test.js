@@ -9,6 +9,7 @@
 //      /spawn returns {status: 'spawned'} -- callbacks are dead code
 
 import { jest } from '@jest/globals';
+import { spawnSync as realSpawnSync } from 'node:child_process';
 import { readFileSync as realReadFileSync } from 'node:fs';
 import { join as realJoin } from 'node:path';
 import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
@@ -81,7 +82,8 @@ jest.unstable_mockModule('yaml', () => ({
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+const { parseFleetSource, astToConfig } = await import('../../lib/fleet-ast.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
 
@@ -193,36 +195,41 @@ afterEach(() => {
 
 // ─── Bug 1: */0 cron produces 0ms interval ───────────────────────────────────
 
-test('BUG 1: schedule */0 * * * * produces 0ms setInterval (runaway)', () => {
+test('BUG 1: schedule */0 * * * * is refused instead of arming a runaway timer', () => {
   const config = makeConfig({ schedule: '*/0 * * * *' });
-  const runner = createFleetRunner(config, '/tmp/proj');
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   runner.startAgent(config.agents[0]);
 
-  const calls = setIntervalSpy.mock.calls;
-  expect(calls.length).toBeGreaterThan(0);
-  const intervalMs = calls[0][1];
-  // 0ms or NaN both cause runaway — neither is a valid schedule
-  expect(intervalMs).toBeGreaterThan(0);
-  expect(Number.isFinite(intervalMs)).toBe(true);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'agent_failed',
+    details: expect.objectContaining({ error: expect.stringContaining('unsupported cron schedule') }),
+  }));
+  errSpy.mockRestore();
 });
 
 // ─── Bug 2: */abc cron produces NaN interval ─────────────────────────────────
 
-test('BUG 2: schedule */abc * * * * produces NaN setInterval (runaway)', () => {
+test('BUG 2: schedule */abc * * * * is refused instead of arming a NaN timer', () => {
   const config = makeConfig({ schedule: '*/abc * * * *' });
-  const runner = createFleetRunner(config, '/tmp/proj');
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   runner.startAgent(config.agents[0]);
 
-  const calls = setIntervalSpy.mock.calls;
-  expect(calls.length).toBeGreaterThan(0);
-  const intervalMs = calls[0][1];
-  // Must not be NaN — NaN causes Node.js to treat it as 1ms
-  expect(Number.isNaN(intervalMs)).toBe(false);
-  expect(intervalMs).toBeGreaterThan(0);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_failed' }));
+  errSpy.mockRestore();
 });
 
 // ─── Bug 3: YAML array-style agents corrupts names ───────────────────────────
@@ -399,6 +406,37 @@ test('ignores camelCase runOnStart in fleet yaml when run_on_start is false', ()
     schedule: '*/30 * * * *',
     runOnStart: false,
   }));
+});
+
+test('omits disabled and malformed-enabled agents before runtime projection', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'disabled-fleet',
+    agents: {
+      dark: {
+        enabled: false,
+        backend: 'custom',
+        prompt: 'must never run',
+        schedule: '0 1 * * *',
+      },
+      malformed: {
+        enabled: 'false',
+        backend: 'custom',
+        prompt: 'must also never run',
+        schedule: '0 1 * * *',
+      },
+      armed: {
+        enabled: true,
+        backend: 'claude-cli',
+        prompt: 'review',
+        trigger: 'git:committed',
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents.map(agent => agent.name)).toEqual(['armed']);
 });
 
 test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
@@ -1365,10 +1403,10 @@ describe('isAbsoluteCronSchedule', () => {
   test('rejects a constrained day-of-week field (honest limitation: no calendar walk)', () => {
     // pd-fleet.yml's tenderfoot ship uses "0 8 * * 1" (Monday 8am). This
     // module doesn't walk weekdays, so it declines rather than fire on the
-    // wrong day — parseCronInterval's coarser fallback still applies.
+    // wrong day. startAgent refuses the unsupported shape below.
     expect(isAbsoluteCronSchedule('0 8 * * 1')).toBe(false);
     // Same honesty for a constrained day-of-month and a fully-pinned date:
-    // any non-'*' calendar field declines to the interval fallback.
+    // any non-'*' calendar field is outside the supported subset.
     expect(isAbsoluteCronSchedule('0 1 15 * *')).toBe(false);
     expect(isAbsoluteCronSchedule('0 1 15 6 *')).toBe(false);
   });
@@ -1380,6 +1418,21 @@ describe('isAbsoluteCronSchedule', () => {
   test('rejects malformed/too-short input', () => {
     expect(isAbsoluteCronSchedule('garbage')).toBe(false);
     expect(isAbsoluteCronSchedule('0 25 * * *')).toBe(false); // hour out of range
+  });
+});
+
+describe('isIntervalCronSchedule', () => {
+  test('recognizes only the supported minute and hour step shapes', () => {
+    expect(isIntervalCronSchedule('*/5 * * * *')).toBe(true);
+    expect(isIntervalCronSchedule('0 */4 * * *')).toBe(true);
+  });
+
+  test('rejects zero, malformed, out-of-range, and calendar-constrained steps', () => {
+    expect(isIntervalCronSchedule('*/0 * * * *')).toBe(false);
+    expect(isIntervalCronSchedule('*/abc * * * *')).toBe(false);
+    expect(isIntervalCronSchedule('*/60 * * * *')).toBe(false);
+    expect(isIntervalCronSchedule('0 */24 * * *')).toBe(false);
+    expect(isIntervalCronSchedule('*/5 * * * 1')).toBe(false);
   });
 });
 
@@ -1429,9 +1482,47 @@ describe('computeNextAbsoluteFireDelayMs', () => {
     const now = new Date(2026, 0, 15, 0, 0, 0, 0).getTime(); // Jan 15, 00:00:00.000
     expect(computeNextAbsoluteFireDelayMs('0 0 * * *', now)).toBe(24 * 60 * 60 * 1000);
   });
+
+  test('uses host-local Date disambiguation for DST gaps and folds', () => {
+    const childMarker = 'PD_FLEET_DST_TEST_CHILD';
+    if (process.env[childMarker] === '1') {
+      // 02:30 does not exist on this spring-forward day. Date.setHours uses
+      // compatible local-time disambiguation and advances it to 03:30 EDT.
+      const beforeGap = new Date('2026-03-08T00:30:00-05:00').getTime();
+      expect(computeNextAbsoluteFireDelayMs('30 2 * * *', beforeGap)).toBe(2 * 60 * 60 * 1000);
+
+      // 01:30 occurs twice on this fall-back day. Date.setHours chooses the
+      // earlier occurrence (EDT); this helper never enumerates both instants.
+      const beforeFold = new Date('2026-11-01T00:30:00-04:00').getTime();
+      expect(computeNextAbsoluteFireDelayMs('30 1 * * *', beforeFold)).toBe(60 * 60 * 1000);
+      return;
+    }
+
+    // Jest's fake Date retains the timezone active when its worker started,
+    // so run this one case in a fresh Node process whose TZ is fixed before
+    // module load. The child re-enters only this named test and exercises the
+    // production helper above; the marker prevents recursion.
+    const repoRoot = realJoin(import.meta.dirname, '..', '..');
+    const result = realSpawnSync(process.execPath, [
+      '--experimental-vm-modules',
+      realJoin(repoRoot, 'node_modules', 'jest', 'bin', 'jest.js'),
+      'tests/unit/fleet-engine.test.js',
+      '--runInBand',
+      '-t',
+      'uses host-local Date disambiguation for DST gaps and folds',
+    ], {
+      cwd: repoRoot,
+      env: { ...process.env, TZ: 'America/New_York', [childMarker]: '1', PD_USE_CLI_BACKEND: 'none' },
+      encoding: 'utf8',
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`DST child test failed\n${result.stdout}\n${result.stderr}`);
+    }
+  });
 });
 
-test('malformed schedule keeps DEFAULT_INTERVAL via parseCronInterval', () => {
+test('parseCronInterval retains its direct-call DEFAULT_INTERVAL compatibility', () => {
   expect(parseCronInterval('garbage')).toBe(600000);
 });
 
@@ -1448,31 +1539,40 @@ test('startAgent: "0 1 * * *" arms a setTimeout at the next 01:00, not a fixed s
   expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
 });
 
-test('startAgent: malformed schedule still uses the setInterval fast path at DEFAULT_INTERVAL', () => {
+test('startAgent: malformed schedule fails closed without a timer or run-on-start', () => {
   const config = makeConfig({ schedule: 'garbage' });
-  const runner = createFleetRunner(config, '/tmp/proj');
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
   const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   runner.startAgent(config.agents[0]);
 
-  expect(setIntervalSpy.mock.calls[0][1]).toBe(600000);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
   expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_failed' }));
+  errSpy.mockRestore();
 });
 
-test('startAgent: constrained day-of-week "0 8 * * 1" falls back to the setInterval path at DEFAULT_INTERVAL', () => {
-  // Well-formed cron, but isAbsoluteCronSchedule rejects the constrained
-  // day field, so the absolute setTimeout chain must NOT engage; the agent
-  // stays on parseCronInterval's conservative interval instead.
+test('startAgent: constrained day-of-week "0 8 * * 1" fails closed', () => {
   const config = makeConfig({ schedule: '0 8 * * 1' });
-  const runner = createFleetRunner(config, '/tmp/proj');
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
   const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   runner.startAgent(config.agents[0]);
 
-  expect(setIntervalSpy.mock.calls[0][1]).toBe(600000);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
   expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'agent_failed',
+    details: expect.objectContaining({ error: expect.stringContaining('0 8 * * 1') }),
+  }));
+  errSpy.mockRestore();
 });
 
 test('startAgent: "*/5 * * * *" keeps the 5-minute setInterval fast path untouched', () => {
@@ -2148,45 +2248,107 @@ test('skillGraft that stalls never blocks a spawn: the budget elapses and the sh
 });
 
 // ---------------------------------------------------------------------------
-// pd-fleet.yml dispatch-runner manifest — executable form of pd-qa's demand on
-// PR #7279: the entry was uncommented by operator decision, so its guard rails
-// and its cron-parser precondition must be pinned by a test, not prose. Reads
-// the REAL pd-fleet.yml (realReadFileSync bypasses this file's fs mock).
-describe('pd-fleet.yml dispatch-runner manifest (armed nightly entry)', () => {
+// pd-fleet.yml dispatch-runner manifest — scheduler support can land without
+// arming the current dispatch artifact path, which still opens draft PRs.
+// Reads the REAL pd-fleet.yml (realReadFileSync bypasses this file's fs mock).
+describe('pd-fleet.yml dispatch-runner manifest (gated nightly entry)', () => {
+  const repoRoot = realJoin(import.meta.dirname, '..', '..');
   const manifestRaw = realReadFileSync(
-    realJoin(import.meta.dirname, '..', '..', 'pd-fleet.yml'),
+    realJoin(repoRoot, 'pd-fleet.yml'),
     'utf8',
   );
   const manifest = realYamlParse(manifestRaw);
+  const runtimeConfig = astToConfig(parseFleetSource(manifestRaw));
   const runner = manifest?.fleet?.agents?.['dispatch-runner'];
+  const dispatchBlock = manifestRaw.match(
+    /\n    dispatch-runner:[\s\S]*?(?=\n    # ─── The Purser)/,
+  )?.[0] ?? '';
 
-  test('the entry exists (uncommented) with its identity and prompt', () => {
-    expect(runner).toBeDefined();
-    expect(runner.identity).toBe('{project}:fleet:dispatch-runner');
-    expect(runner.prompt).toBe('pd dispatch run --next --really-run');
-    expect(runner.backend).toBe('custom');
+  test('the reviewed runner stays declaratively disabled while operator review is open', () => {
+    expect(runner).toMatchObject({
+      enabled: false,
+      schedule: '0 1 * * *',
+      backend: 'custom',
+      singleton: true,
+      cooldown_ms: 21_600_000,
+      timeout: 14_400_000,
+      daily_cap_usd: 10,
+      prompt: 'pd dispatch run --next --really-run',
+      identity: '{project}:fleet:dispatch-runner',
+    });
+    expect(manifestRaw).toMatch(/precondition 1 still open and\s+unverified in-repo/i);
+    expect(manifestRaw).toMatch(/nothing here attests to that review having\s+happened/i);
   });
 
-  test('its schedule satisfies the cron-parser precondition this PR closes', () => {
+  test('its documented schedule satisfies the cron-parser precondition this PR closes', () => {
     // Precondition 3 in the file's own comment block: absolute hour-of-day
     // support. Executable check — the schedule must be recognized as an
     // absolute pattern (setTimeout chain), never coerced to DEFAULT_INTERVAL.
-    expect(runner.schedule).toBe('0 1 * * *');
-    expect(isAbsoluteCronSchedule(runner.schedule)).toBe(true);
-    expect(computeNextAbsoluteFireDelayMs(runner.schedule)).not.toBeNull();
+    const documentedSchedule = /schedule:\s+"([^"]+)"/.exec(dispatchBlock)?.[1];
+    expect(documentedSchedule).toBe('0 1 * * *');
+    expect(isAbsoluteCronSchedule(documentedSchedule)).toBe(true);
+    expect(computeNextAbsoluteFireDelayMs(documentedSchedule)).not.toBeNull();
   });
 
-  test('the spend/blast-radius guard rails hold their reviewed values', () => {
-    expect(runner.singleton).toBe(true);
+  test('the real fleet-wide settled-spend threshold remains configured honestly', () => {
+    expect(manifest.fleet.limits.budget_usd_per_day).toBe(8.5);
     expect(runner.daily_cap_usd).toBe(10);
-    expect(runner.timeout).toBe(14_400_000); // 4h max wall-clock per spawn
-    expect(runner.timeout).toBeLessThanOrEqual(4 * 60 * 60 * 1000);
-    expect(runner.cooldown_ms).toBe(21_600_000); // 6h between runs
+    expect(dispatchBlock).toMatch(/review-contract metadata only; not a runtime budget authority/i);
+    expect(manifestRaw).toMatch(/configured fleet-wide settled-spend\s+# threshold checked before each launch/i);
+    expect(manifestRaw).toMatch(/not an atomic reservation;\s+# concurrent starts can oversubscribe it/i);
+    expect(manifestRaw).not.toMatch(/\$8\.50(?:\/day)?\s+ceiling/i);
+    expect(runtimeConfig.limits.budgetUsdPerDay).toBe(8.5);
+    expect(runtimeConfig.agents.map(agent => agent.name)).not.toContain('dispatch-runner');
   });
 
-  test('the open operator-review precondition stays stated in the file', () => {
-    // Precondition 1 (operator reviews the first dispatch PR) is honestly
-    // open; deleting the admission is a review-visible change, not a cleanup.
-    expect(manifestRaw).toMatch(/precondition 1 still open/i);
+  test('the parsed fleet-wide settled-spend threshold is checked before every launch attempt', async () => {
+    const threshold = runtimeConfig.limits.budgetUsdPerDay;
+    const callOrder = [];
+    const budgetStatus = jest.fn(() => {
+      callOrder.push('budget');
+      return {
+        project: 'test-fleet',
+        budgetUsdPerDay: threshold,
+        spentUsd: 1,
+        remainingUsd: threshold - 1,
+        percentUsed: 100 / threshold,
+        overBudget: false,
+      };
+    });
+    global.fetch = jest.fn(async (url, init) => {
+      if (String(url).endsWith('/spawn')) {
+        callOrder.push('spawn');
+        expect(JSON.parse(init.body).budgetUsd).toBe(threshold);
+      }
+      return { ok: true, status: 200, json: async () => ({ agentId: 'abc', status: 'spawned' }) };
+    });
+
+    const config = {
+      ...makeConfig(),
+      limits: { budgetUsdPerDay: threshold },
+    };
+    const runnerWithManifestBudget = createFleetRunner(
+      config,
+      realJoin(repoRoot, '.scratch', 'fleet-budget-test'),
+      {
+        costTracker: { budgetStatus },
+      },
+    );
+
+    await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
+      .resolves.toEqual({ success: true });
+    await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
+      .resolves.toEqual({ success: true });
+
+    expect(threshold).toBe(8.5);
+    expect(budgetStatus).toHaveBeenNthCalledWith(1, 'test-fleet', 8.5);
+    expect(budgetStatus).toHaveBeenNthCalledWith(2, 'test-fleet', 8.5);
+    expect(callOrder).toEqual(['budget', 'spawn', 'budget', 'spawn']);
+  });
+
+  test('the remaining blast-radius values stay documented beside the gate', () => {
+    expect(dispatchBlock).toMatch(/singleton:\s+true/);
+    expect(dispatchBlock).toMatch(/timeout:\s+14400000/);
+    expect(dispatchBlock).toMatch(/cooldown_ms:\s+21600000/);
   });
 });

@@ -85,12 +85,14 @@ fleet:
   limits:
     max_concurrent_spawns: 3
     max_spawns_per_hour: 12
-    # Daily ceiling under the new config: $5.50 if every ship runs
-    # on the cheapest cloud option for its tier (cloudflare for
+    # Forecast under the new config: $5.50 if every ship runs on the
+    # cheapest cloud option for its tier (cloudflare for
     # general, openai gpt-5-mini for code/tautology, anthropic only
     # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
     # is set and the operator is a Max subscriber, marginal cost
-    # drops to ~$0 — the cap becomes a safety net, not a forecast.
+    # drops to ~$0. $8.50/day is the configured fleet-wide settled-spend
+    # threshold checked before each launch. It is not an atomic reservation;
+    # concurrent starts can oversubscribe it.
     budget_usd_per_day: 8.50
 
   agents:
@@ -107,7 +109,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -149,7 +151,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/zai-org/glm-4.7-flash'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -196,7 +198,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -233,7 +235,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -281,7 +283,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -308,7 +310,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -378,7 +380,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -410,28 +412,24 @@ fleet:
     # pops the next proposed dispatch, and runs it autonomously in a fresh
     # worktree under ~/coding/tmp/port-daddy-dispatch-<idShort>.
     #
-    # Preconditions for enabling:
-    #   1. operator has reviewed the first PR opened by a dispatch run,
-    #   2. the pre-receive hook denying push-to-main inside dispatch worktrees
-    #      is wired (PR #161's destructive-op shim is the current floor),
-    #   3. the fleet engine's cron parser supports absolute hour-of-day
-    #      patterns (PR #137) -- SATISFIED: parseCronInterval no longer
-    #      coerces "0 1 * * *" to DEFAULT_INTERVAL; startAgent now arms a
-    #      self-re-arming setTimeout chain for fixed-clock schedules
-    #      (isAbsoluteCronSchedule / computeNextAbsoluteFireDelayMs,
-    #      lib/fleet-engine.ts) instead of a fixed setInterval.
+    # This reviewed declaration remains visible to config tooling but is
+    # omitted from executable FleetConfig while `enabled: false`.
+    # precondition 1 still open and unverified in-repo; nothing here attests to that review having happened.
+    # The scheduler support can land independently, but
+    # arming a producer before its first artifact has been reviewed cannot.
     #
-    # Uncommented by operator decision with precondition 1 still open and
-    # unverified in-repo -- nothing here attests to that review having
-    # happened; treat it as outstanding until the record says otherwise.
-    #
+    # Preconditions:
+    # 1. operator has reviewed the first PR opened by a dispatch run,
+    # 2. dispatch opens a ready PR and requests independent review — never a draft PR,
+    # 3. absolute hour-of-day cron uses a wall-clock setTimeout chain — SATISFIED
     dispatch-runner:
+      enabled: false
       schedule: "0 1 * * *"        # 1am daily; one tick per night
       backend: custom              # runs `pd dispatch run --next --really-run`
       singleton: true
       cooldown_ms: 21600000        # 6h cooldown between runs
       timeout: 14400000            # 4h max wall-clock per spawn
-      daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
+      daily_cap_usd: 10            # Review-contract metadata only; not a runtime budget authority.
       prompt: "pd dispatch run --next --really-run"
       identity: "{project}:fleet:dispatch-runner"
       telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
@@ -461,18 +459,35 @@ fleet:
       #   PLAN   reads the whole diff, emits a handful of paths  → INPUT-heavy
       #   AUTHOR reads the same diff, emits a whole test file     → OUTPUT-heavy
       #
-      # Per M tokens: qwen3-30b $0.051 in / $0.335 out; gpt-oss-20b $0.200 in /
-      # $0.300 out. So the mid tier is ~4x on input and slightly CHEAPER on
-      # output. Planning stays cheap; authoring — the step whose output has to
-      # be a runnable file, and whose failures now block a merge — gets the mid
-      # tier. Both are guarded by the same known-good set as `model:`: an
+      # Why not the gpt-oss-20b mid tier anymore (operator ruling 2026-08-22,
+      # from the live D1 record over 14 days): 121 authored sets ended
+      # NON-EXECUTABLE, 83 of 110 author-repairs FAILED, 124 purser
+      # BROKEN-SHIP runs adjudicated the fleet neutral on 249 of 584 runs
+      # (#8870). Total author output that window was ~2.5M tokens, so tier
+      # upgrades here cost single-digit dollars per two weeks against a fleet
+      # whose verdicts were half washed out.
+      #
+      # PLAN → GLM-4.7-Flash ($0.060/$0.400, 131k ctx): reads the whole diff,
+      # emits paths — the agentic 30B specialist at cheap-tier price, with 4x
+      # qwen3-30b's context so big diffs stop truncating.
+      # AUTHOR → DeepSeek V4-Flash-0731 ($0.44/$1.32, 1M ctx): authoring a
+      # runnable test file IS agentic coding, and this model's independent
+      # record on exactly that shape (Terminal-Bench 2.1 82.7, DeepSWE 54.4 —
+      # it beats DeepSeek's own Pro on nine agent benchmarks) beats
+      # gpt-oss-120b's mixed code-domain record at comparable blended cost.
+      # The one-shot author-repair rewrite stays on gpt-oss-120b (the
+      # escalation model) so the author and its repairer come from DIFFERENT
+      # model families — one family's blind spot can't both write and "fix"
+      # the same broken file.
+      #
+      # Both tiers are guarded by the same known-good set as `model:`: an
       # unknown id falls back to the tier default rather than silently
-      # returning blank, and NEITHER can reach the review bot's gpt-oss-120b.
+      # returning blank.
       #
       # Omit both to accept these defaults. `planModel`/`authorModel` and
       # `cfPlanModel`/`cfAuthorModel` are accepted spellings too.
-      plan_model: '@cf/qwen/qwen3-30b-a3b-fp8'    # default (cheap)
-      author_model: '@cf/openai/gpt-oss-20b'      # default (mid tier)
+      plan_model: '@cf/zai-org/glm-4.7-flash'
+      author_model: '@cf/deepseek-ai/deepseek-v4-flash-0731'
       # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
       # the check run, so a PR cannot merge while it contradicts its own
       # best-interpretation contract. Until now the purser authored tests,
@@ -533,7 +548,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -589,7 +604,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/zai-org/glm-4.7-flash'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
@@ -631,7 +646,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
@@ -744,10 +759,15 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
-          # 262k ctx, native structured outputs) — the right Workers AI tier for
-          # a code reviewer that emits JSON findings.
-          model: '@cf/moonshotai/kimi-k2.7-code'
+          # GLM-5.2 (Z.ai, 262k ctx): the strongest open coding model with
+          # INDEPENDENT benchmark validation — 62.1 SWE-bench Pro (beats
+          # GPT-5.5), 74.4% FrontierSWE, 81.0 Terminal-Bench 2.1. Chosen over
+          # the previous Kimi K2.7-Code pin (2026-08-22): kimi's numbers are
+          # vendor-only benchmarks that practitioners publicly dispute, at a
+          # comparable price ($1.40/$4.40 vs $0.95/$4.00 per M). Roughly
+          # $8/2wk at this ship's live volume; MAP below stays on the cheap
+          # agentic tier so chunk fan-out doesn't pay this rate.
+          model: '@cf/zai-org/glm-5.2'
       # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
       # diff on file boundaries and scans each chunk independently (MAP), then
       # makes ONE call to reconcile them (REDUCE). MAP runs N times and REDUCE
@@ -765,7 +785,11 @@ fleet:
       # Workers AI id returns a blank the parser reads as "clean" -- a typo here
       # would silence every chunk while REDUCE reported nothing found. Untiered
       # costs more; mute costs the truth.
-      map_model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      # MAP on GLM-4.7-Flash rather than qwen3-30b (2026-08-22): same cost
+      # class ($0.060 vs $0.051/M in) but the agentic-coding specialist of the
+      # 30B class — 59.2% SWE-bench vs qwen3-30b's 22% — and chunk scanning
+      # IS agentic code reading. 131k ctx also quadruples the chunk budget.
+      map_model: '@cf/zai-org/glm-4.7-flash'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -800,9 +824,11 @@ fleet:
     red-team:
       trigger: pull_request:opened
       # Novel attack construction benefits from headroom. anthropic
-      # sonnet is a soft preference here, NOT a pin — if only
-      # cloudflare's biggest model is available, red-team runs on
-      # it and accepts the quality trade.
+      # sonnet is a soft preference here, NOT a pin. On Cloudflare,
+      # red-team runs DeepSeek V4-Pro (2026-08-22): 80.6% SWE-bench
+      # Verified, a genuine reasoning flagship with a 1M-token window
+      # for whole-PR attack surfaces — at red-team's tiny live volume
+      # (21 calls per two weeks) it costs well under a dollar.
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -811,7 +837,7 @@ fleet:
         - backend: openai
           model: gpt-5
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/deepseek-ai/deepseek-v4-pro-0813'
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -851,7 +877,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -905,7 +931,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/google/gemma-4-26b-a4b-it'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -958,7 +984,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -1011,7 +1037,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -1109,8 +1135,10 @@ fleet:
       dedupe_window_ms: 600000
       singleton: true
       timeout: 1800000
-      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
-      # "Daily budget: $4.00" line in fleet/ships/steward.md).
+      # Desired $4/day Steward allocation beneath the fleet's configured
+      # settled-spend threshold (matches the "Daily budget: $4.00" line in
+      # fleet/ships/steward.md). Review-contract metadata only; the runtime
+      # does not parse or enforce this field.
       daily_cap_usd: 4
       allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
       prompt: |
@@ -1203,7 +1231,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:

@@ -47,27 +47,37 @@ describe('NODE_OPTIONS environment variable scoping', () => {
     expect(ubuntuStep.env).toBeUndefined();
   });
 
-  test('only the macOS unit-test step sets NODE_OPTIONS', () => {
+  test('only the two explicitly macOS Jest steps set NODE_OPTIONS', () => {
     const jobs = workflow.jobs;
-    let count = 0;
-    let jobIdWithNodeOptions = null;
+    const stepsWithNodeOptions = [];
     for (const [jobId, job] of Object.entries(jobs)) {
       if (!job.steps) continue;
       for (const step of job.steps) {
         if (step.env && step.env.NODE_OPTIONS !== undefined) {
-          count++;
-          jobIdWithNodeOptions = jobId;
+          stepsWithNodeOptions.push(`${jobId}:${step.name}`);
         }
       }
     }
-    expect(count).toBe(1);
-    expect(jobIdWithNodeOptions).toBe('unit-tests-macos');
+    expect(stepsWithNodeOptions).toEqual([
+      'unit-tests-macos:Run unit tests',
+      'unit-tests-compat:Run unit tests (macOS 4 GiB heap)',
+    ]);
   });
 
-  test('Non-macos jobs remain unchanged regarding NODE_OPTIONS', () => {
+  test('the compatibility limit is guarded by runner OS and every other job is unchanged', () => {
+    const compatibilityStep = namedStep(
+      workflow.jobs['unit-tests-compat'],
+      'Run unit tests (macOS 4 GiB heap)',
+    );
+    expect(compatibilityStep.if).toBe("runner.os == 'macOS'");
+
     const jobs = workflow.jobs;
     for (const [jobId, job] of Object.entries(jobs)) {
-      if (jobId === 'unit-tests-macos' || jobId === 'unit-tests') continue;
+      if (
+        jobId === 'unit-tests-macos' ||
+        jobId === 'unit-tests' ||
+        jobId === 'unit-tests-compat'
+      ) continue;
       if (!job.steps) continue;
       for (const step of job.steps) {
         if (step.env && step.env.NODE_OPTIONS !== undefined) {

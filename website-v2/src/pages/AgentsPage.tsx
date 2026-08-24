@@ -1797,7 +1797,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
                   <PanelBody className="max-w-[48rem]">{section.summary}</PanelBody>
                 </SurfacePanel>
                 <figure className="m-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-                  <img src={section.gif} alt={section.alt} className="aspect-[16/9] w-full object-cover" loading="eager" />
+                  <img src={section.gif} alt={section.alt} className="aspect-[16/9] w-full object-contain" loading="eager" />
                 </figure>
               </div>
 
