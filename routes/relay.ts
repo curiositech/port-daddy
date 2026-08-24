@@ -26,7 +26,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Database } from 'better-sqlite3';
-import { getRelayUrl, setRelayUrl } from '../lib/relay-client.js';
+import { getRelayUrl, setRelayUrl, setRelayCard } from '../lib/relay-client.js';
 import { isPrivateHost } from '../lib/utils.js';
 import { HARBOR_TOKEN_PHASE2_KEY_ID } from '../lib/harbor-tokens.js';
 
@@ -40,6 +40,13 @@ interface RelayRouteDeps {
   db: Database;
   getRelayStatus: () => RelayStatus;
   logger?: RelayLogger;
+  /**
+   * Invoked after a successful relay config write or card exchange, so the
+   * live connection lifecycle (lib/relay-connection.ts) re-reads config and
+   * reconnects without a daemon restart. Optional: routes stay functional
+   * (config persists; status still truthful) when no lifecycle is wired.
+   */
+  onConfigChanged?: () => void;
 }
 
 interface RelayStatus {
@@ -144,7 +151,7 @@ function validateRelayUrl(url: string): { error: string; code: string } | null {
 
 export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { db, getRelayStatus, logger } = deps;
+  const { db, getRelayStatus, logger, onConfigChanged } = deps;
 
   // GET /relay/config
   fastify.get('/relay/config', async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -170,6 +177,9 @@ export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (
 
       setRelayUrl(db, url);
       logger?.info('relay_config_set', { cleared: url === null });
+      // Let the live connection lifecycle pick the new target up now, not at
+      // the next daemon restart.
+      onConfigChanged?.();
       return reply.send({ ok: true, relay_url: url });
     },
   );
@@ -258,6 +268,19 @@ export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (
         } else {
           const text = await resp.text();
           result = { error: text, code: 'RELAY_ERROR' };
+        }
+
+        // Persist the exchanged card so the outbound connection lifecycle can
+        // handshake without a second operator step; poke the lifecycle so the
+        // fresh card is used immediately. Only on success — a relay error body
+        // must never overwrite a working stored card.
+        if (resp.ok) {
+          const card = (result as { card?: unknown })?.card;
+          if (typeof card === 'string' && card.length > 0) {
+            setRelayCard(db, card);
+            logger?.info('relay_card_stored', {});
+            onConfigChanged?.();
+          }
         }
 
         logger?.info('relay_exchange_done', { status: resp.status });
