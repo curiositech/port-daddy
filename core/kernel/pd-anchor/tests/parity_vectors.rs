@@ -60,10 +60,11 @@ fn third_party_grant_and_discharge_match_canonical_vector() {
     let root = v["root_key_utf8"].as_str().unwrap().as_bytes();
     let ckey = v["caveat_key_utf8"].as_str().unwrap().as_bytes();
     let tp = &v["third_party_grant"];
-    let g = mint_push_grant(MintPushGrant {
+    let g = mint_actor_bound_push_grant(MintActorBoundPushGrant {
         root_key: root,
-        grant_id: tp["identifier"].as_str().unwrap(),
+        grant_id: tp["grant_id"].as_str().unwrap(),
         repo: tp["repo"].as_str().unwrap(),
+        actor: tp["actor"].as_str().unwrap(),
         session: tp["session"].as_str().unwrap(),
         expires_ms: tp["expires_ms"].as_i64().unwrap(),
         caveat_key: ckey.to_vec(),
@@ -71,6 +72,10 @@ fn third_party_grant_and_discharge_match_canonical_vector() {
         protected_branch: tp["protected_branch"].as_str().unwrap(),
     })
     .unwrap();
+    assert_eq!(
+        g.macaroon.identifier,
+        tp["expected_identifier"].as_str().unwrap()
+    );
     assert_eq!(g.rent_caveat_id, tp["rent_caveat_id"].as_str().unwrap());
     assert_eq!(
         g.macaroon.caveats.last().unwrap().vid.clone().unwrap(),

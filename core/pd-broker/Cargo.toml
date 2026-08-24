@@ -4,10 +4,10 @@
 # lets it cross the socket. It reuses the kernel `pd-anchor` macaroon library
 # (the canonical verifier — ADR-0054) as a dependency rather than duplicating
 # any discharge/verification logic. On an authorized macaroon+discharge it mints
-# a scoped, short-lived capability *ticket* — a signed handle, not the secret.
+# a scoped, short-lived action capability — a signed handle, not the secret.
 [package]
 name = "pd-broker"
-description = "Isolated credential broker: macaroon-gated, scoped-ticket issuance, raw-secret-never-leaks (ADR-0087)"
+description = "Isolated credential broker: macaroon-gated action capabilities with durable one-use redemption (ADR-0087)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -31,6 +31,8 @@ pd-core = { path = "../kernel/pd-core" }
 hmac.workspace = true
 sha2.workspace = true
 hex.workspace = true
+getrandom.workspace = true
+rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
