@@ -603,10 +603,7 @@ mod tests {
             serde_json::from_str(&call_export(pd_schedule_dag_json, &req)).unwrap();
         assert_eq!(resp["ok"], true);
         assert_eq!(resp["makespan"], 6);
-        assert_eq!(
-            resp["criticalPath"],
-            serde_json::json!(["a", "b", "c"])
-        );
+        assert_eq!(resp["criticalPath"], serde_json::json!(["a", "b", "c"]));
     }
 
     #[test]
@@ -627,8 +624,14 @@ mod tests {
         for bad in ["", "not json", "{\"nodes\":1}"] {
             let c = CString::new(bad).unwrap();
             let ptr = unsafe { pd_schedule_dag_json(c.as_ptr(), bad.len()) };
-            assert!(!ptr.is_null(), "input {bad:?} should still yield a response, not null");
-            let out = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+            assert!(
+                !ptr.is_null(),
+                "input {bad:?} should still yield a response, not null"
+            );
+            let out = unsafe { std::ffi::CStr::from_ptr(ptr) }
+                .to_str()
+                .unwrap()
+                .to_string();
             unsafe { pd_string_free(ptr) };
             let resp: serde_json::Value = serde_json::from_str(&out).unwrap();
             assert_eq!(resp["ok"], false, "input {bad:?} should fail closed");
