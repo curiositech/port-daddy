@@ -263,9 +263,9 @@ durable storage and serialized mutation. \emph{This paper's core.}
 ownership claims, a message bus, stigmergic markers, obligations, and policy
 enforcement. This paper specifies the implemented half of it.
 \item[Legibility (the operator).] The human-facing view that renders the swarm
-intelligible. Treated in a accompanying chapter (\emph{The Legible Swarm}).
+intelligible. Treated in an accompanying chapter (\emph{The Legible Swarm}).
 \item[Economy (the market between operators).] The cross-machine market in which
-operators trade work and reputation. Treated in a accompanying chapter (\emph{The
+operators trade work and reputation. Treated in an accompanying chapter (\emph{The
 Harbor Economy}).
 \end{description}
 
@@ -532,6 +532,10 @@ The kernel's foundational promise --- ``a write that returned success survives''
 one the pitch most invites.
 
 \input{figures/fig-swk-durability-faultclass}
+
+Figure~\ref{fig:swk-durability-faultclass} draws the split this section defends:
+the same write, judged against two different fault classes with two different
+answers.
 
 \subsection{Why one label is a lie here}
 
@@ -840,6 +844,9 @@ Sergot~\cite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
 about how strong each arm actually is --- is the security heart of the paper.
 
+Figure~\ref{fig:swk-deontic-split} lays out the three modalities and the mechanism
+behind each.
+
 \input{figures/fig-swk-deontic-split}
 
 \subsection{The deontic split}
@@ -866,7 +873,8 @@ bypassing guardrails cannot afford.
 
 \input{figures/fig-swk-reference-monitor}
 
-Here is the correction that the rest of this stack must adopt. The most seductive
+Figure~\ref{fig:swk-reference-monitor} draws the correction this section makes
+precise. Here is the correction that the rest of this stack must adopt. The most seductive
 claim one can make about a coordination policy monitor --- that it ``makes
 forbidden states physically unreachable'' --- is false as stated. The monitor is a
 \emph{subscriber to an append-only event stream of operations that have already
@@ -1167,6 +1175,9 @@ I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} 
 The strongest words a single-writer design earns are ``serializable'' and
 ``linearizable.'' They are the formal payoff of the architecture, and they are what
 make the coordination layer's typed ownership trustworthy.
+
+Figure~\ref{fig:swk-consistency-model} lays out the four assumptions and the two
+guarantees they buy.
 
 \input{figures/fig-swk-consistency-model}
 
