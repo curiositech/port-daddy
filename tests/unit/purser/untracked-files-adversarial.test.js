@@ -4,16 +4,12 @@ import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PDF_GLOB = 'website-v2/public/whitepaper/*.pdf';
 
 // Helper to initialise a minimal git repo with a committed PDF
 function initRepoWithTrackedPdf() {

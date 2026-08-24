@@ -1,7 +1,7 @@
 // tests/unit/purser/node-availability-adversarial.test.js
 import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
