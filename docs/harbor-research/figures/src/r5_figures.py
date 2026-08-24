@@ -1,184 +1,262 @@
 #!/usr/bin/env python3
 """
 R5 Figures: hypervisor enforceability = supervisory control
-- r5_relation.png: RELATION-MAP (bouncer analogy → daemon control boundary)
-- r5_regime.png: REGIME DIAGRAM (regimentable vs detect-only classification)
+- r5_relation.png: RELATION-MAP (bouncer analogy -> daemon control boundary)
+- r5_regime.png: REGIME DIAGRAM (nine-policy classification table + compound-case flow)
 """
 
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
-from matplotlib.patches import FancyArrowPatch, Rectangle
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 # House colors (from task)
 HARBORBLUE = (30/255, 70/255, 110/255)
 SHIPRED = (140/255, 30/255, 30/255)
 SEAGREEN = (31/255, 110/255, 70/255)
 
+
 def create_relation_map():
     """
     Create r5_relation.png - the RELATION-MAP figure.
-    Three columns: Base (bouncer) | Target (daemon) | with labeled arrows.
-    Base: bouncer at door - refuses ENTRY (controllable) but cannot control THOUGHT (uncontrollable).
-    Target: daemon refuses mediated effects but cannot refuse internal model steps.
-    Arrows show the boundary correspondence.
+    Two full-height columns (Base / Target) with THREE substantive rows,
+    each row carrying real multi-line content on both sides plus a bold
+    red connective label describing the relation between them.
+    Row 1: the door/thought bouncer analogy, tightened.
+    Row 2: the actual Sigma_c (5) vs Sigma_u (3) event classification.
+    Row 3: the compound-case punchline -- gate the channel, never the token.
     """
-    fig, ax = plt.subplots(figsize=(12, 7), dpi=150)
+    fig, ax = plt.subplots(figsize=(12, 8.6), dpi=150)
     ax.set_xlim(0, 12)
-    ax.set_ylim(0, 10)
+    ax.set_ylim(0, 11)
     ax.axis('off')
 
     # Title
-    ax.text(6, 9.5, "R5 — gate the door, never the thought",
-            fontsize=11, weight='bold', ha='center', va='top')
+    ax.text(6, 10.65, "R5 — gate the door, never the thought",
+            fontsize=13, weight='bold', ha='center', va='top')
+    ax.text(6, 10.2, "hypervisor enforceability = Ramadge–Wonham supervisory control",
+            fontsize=9.5, ha='center', va='top', style='italic', color='#444444')
 
-    # ===== BASE DOMAIN (left) =====
-    y_base = 7.0
-    box1 = Rectangle((0.2, y_base-2.0), 3.2, 2.6,
-                          edgecolor=HARBORBLUE, facecolor=HARBORBLUE,
-                          alpha=0.15, linewidth=1.5)
-    ax.add_patch(box1)
-    ax.text(1.8, y_base+0.6, "Base Domain", fontsize=10, weight='bold',
-            ha='center', va='center')
-    ax.text(1.8, y_base+0.1, "Club's one door", fontsize=9, ha='center', va='center')
-    ax.text(1.8, y_base-0.3, "Bouncer can REFUSE:", fontsize=9, ha='center', va='center', weight='bold')
-    ax.text(1.8, y_base-0.7, "ENTRY (controllable)", fontsize=8, ha='center', va='center')
-    ax.text(1.8, y_base-1.1, "Bouncer cannot REFUSE:", fontsize=9, ha='center', va='center', weight='bold')
-    ax.text(1.8, y_base-1.5, "patron THOUGHT", fontsize=8, ha='center', va='center')
-    ax.text(1.8, y_base-1.8, "(uncontrollable)", fontsize=8, ha='center', va='center')
+    col_top, col_bot = 9.7, 0.35
+    base_x0, base_x1 = 0.2, 4.05
+    tgt_x0, tgt_x1 = 7.95, 11.8
 
-    # ===== TARGET DOMAIN (right) =====
-    y_target = 7.0
-    box2 = Rectangle((8.6, y_target-2.0), 3.2, 2.6,
-                          edgecolor=SEAGREEN, facecolor=SEAGREEN,
-                          alpha=0.15, linewidth=1.5)
-    ax.add_patch(box2)
-    ax.text(10.2, y_target+0.6, "Target Domain", fontsize=10, weight='bold',
-            ha='center', va='center')
-    ax.text(10.2, y_target+0.1, "the daemon's mediation boundary", fontsize=9, ha='center', va='center')
-    ax.text(10.2, y_target-0.3, "Daemon can FORBID:", fontsize=9, ha='center', va='center', weight='bold')
-    ax.text(10.2, y_target-0.7, "fs_write, net_egress,", fontsize=8, ha='center', va='center')
-    ax.text(10.2, y_target-0.95, "exec_tool, git_push, spawn", fontsize=8, ha='center', va='center')
-    ax.text(10.2, y_target-1.3, "Daemon cannot forbid:", fontsize=9, ha='center', va='center', weight='bold')
-    ax.text(10.2, y_target-1.7, "token emission, in-context read,", fontsize=8, ha='center', va='center')
-    ax.text(10.2, y_target-1.95, "internal plan (uncontrollable)", fontsize=8, ha='center', va='center')
+    base_col = FancyBboxPatch((base_x0, col_bot), base_x1 - base_x0, col_top - col_bot,
+                               boxstyle="round,pad=0,rounding_size=0.12",
+                               edgecolor=HARBORBLUE, facecolor=HARBORBLUE, alpha=0.10, linewidth=1.6)
+    ax.add_patch(base_col)
+    tgt_col = FancyBboxPatch((tgt_x0, col_bot), tgt_x1 - tgt_x0, col_top - col_bot,
+                              boxstyle="round,pad=0,rounding_size=0.12",
+                              edgecolor=SEAGREEN, facecolor=SEAGREEN, alpha=0.10, linewidth=1.6)
+    ax.add_patch(tgt_col)
 
-    # ===== UPPER ARROW (controllable → regimentable) =====
-    y_arrow_top = y_base + 0.5
-    arrow1 = FancyArrowPatch((3.4, y_arrow_top), (8.6, y_arrow_top),
-                            arrowstyle='<->', mutation_scale=22,
-                            linewidth=2.0, color=SHIPRED, alpha=0.85)
-    ax.add_patch(arrow1)
-    ax.text(6, y_arrow_top + 0.6, "refusable at the boundary",
-            fontsize=9, ha='center', va='bottom', style='italic', color=SHIPRED, weight='bold')
-    ax.text(6, y_arrow_top + 0.15, "⇔ preventable (regimentable)",
-            fontsize=9, ha='center', va='bottom', style='italic', color=SHIPRED, weight='bold')
+    base_cx = (base_x0 + base_x1) / 2
+    tgt_cx = (tgt_x0 + tgt_x1) / 2
 
-    # ===== LOWER ARROW (uncontrollable → detect-only) =====
-    y_arrow_bot = y_base - 1.6
-    arrow2 = FancyArrowPatch((3.4, y_arrow_bot), (8.6, y_arrow_bot),
-                            arrowstyle='<->', mutation_scale=22,
-                            linewidth=2.0, color=SHIPRED, alpha=0.85)
-    ax.add_patch(arrow2)
-    ax.text(6, y_arrow_bot - 0.5, "internal ⇔ detect-only forever",
-            fontsize=9, ha='center', va='top', style='italic', color=SHIPRED, weight='bold')
+    ax.text(base_cx, col_top - 0.35, "Base: the door", fontsize=11, weight='bold',
+            ha='center', va='top', color=HARBORBLUE)
+    ax.text(tgt_cx, col_top - 0.35, "Target: the daemon", fontsize=11, weight='bold',
+            ha='center', va='top', color=SEAGREEN)
 
-    # Bottom note
-    ax.text(6, 2.5, "Framework: Ramadge–Wonham (1987) supervisory control theory",
-            fontsize=9, ha='center', va='center', color='gray')
-    ax.text(6, 1.9, "Criterion: K̄Σᵤ ∩ L̄ ⊆ K̄ — no uncontrollable event exits the specification",
-            fontsize=9, ha='center', va='center', color='gray', weight='bold')
-    ax.text(6, 1.3, "Regimentable: policy K can be enforced by refusing Σ_c at the mediation boundary",
-            fontsize=8, ha='center', va='center', color='gray')
+    # Row centers
+    y1, y2, y3 = 8.15, 5.15, 2.15
+    row_gap_top = [9.15, 6.15, 3.15]     # header y per row
+    arrow_x0, arrow_x1 = base_x1 + 0.15, tgt_x0 - 0.15
+    mid_x = (arrow_x0 + arrow_x1) / 2
 
-    plt.tight_layout()
+    def draw_arrow(y, label_lines):
+        arrow = FancyArrowPatch((arrow_x0, y), (arrow_x1, y),
+                                 arrowstyle='<->', mutation_scale=20,
+                                 linewidth=2.2, color=SHIPRED, alpha=0.9,
+                                 connectionstyle="arc3,rad=0.0")
+        ax.add_patch(arrow)
+        n = len(label_lines)
+        line_h = 0.32
+        top_y = y + 0.18 + (n - 1) * line_h
+        for i, line in enumerate(label_lines):
+            ax.text(mid_x, top_y - i * line_h, line, fontsize=9.3, ha='center', va='bottom',
+                    style='italic', color=SHIPRED, weight='bold')
+
+    # ===== ROW 1: the analogy =====
+    ax.text(base_cx, row_gap_top[0], "Bouncer at the one door", fontsize=10, weight='bold',
+            ha='center', va='top')
+    ax.text(base_cx, row_gap_top[0] - 0.42,
+            "Refuses ENTRY at the door\n(controllable). Cannot refuse a\npatron's THOUGHT (uncontrollable) —\nthought never crosses the door.",
+            fontsize=8.6, ha='center', va='top', linespacing=1.5)
+
+    ax.text(tgt_cx, row_gap_top[0], "Daemon at the mediation boundary", fontsize=10, weight='bold',
+            ha='center', va='top')
+    ax.text(tgt_cx, row_gap_top[0] - 0.42,
+            "Refuses mediated EFFECTS — writes,\ncalls, spawns (controllable). Cannot\nrefuse internal MODEL STATE\n(uncontrollable) — it never crosses.",
+            fontsize=8.6, ha='center', va='top', linespacing=1.5)
+
+    draw_arrow(y1, ["the analogy holds exactly:", "gate the channel, never the mind"])
+
+    # ===== ROW 2: the 5-vs-3 split =====
+    ax.text(base_cx, row_gap_top[1], "Σ_c — controllable (5 events)", fontsize=10, weight='bold',
+            ha='center', va='top', color=HARBORBLUE)
+    ax.text(base_cx, row_gap_top[1] - 0.42,
+            "fs_write · net_egress · exec_tool\ngit_push · spawn_child\n\ncross the mediation boundary —\neach one can be refused.",
+            fontsize=8.6, ha='center', va='top', linespacing=1.5)
+
+    ax.text(tgt_cx, row_gap_top[1], "Σ_u — uncontrollable (3 events)", fontsize=10, weight='bold',
+            ha='center', va='top', color=SEAGREEN)
+    ax.text(tgt_cx, row_gap_top[1] - 0.42,
+            "model_emit_token\nin_context_read · internal_plan\n\nstay inside the model — they never\nreach the daemon to refuse.",
+            fontsize=8.6, ha='center', va='top', linespacing=1.5)
+
+    draw_arrow(y2, ["5 refusable events vs 3 that never arrive", "criterion: K̄Σᵤ ∩ L̄ ⊆ K̄  (Ramadge–Wonham 1987)"])
+
+    # ===== ROW 3: the compound-case punchline =====
+    ax.text(base_cx, row_gap_top[2], "naive read: forbid the secret", fontsize=10, weight='bold',
+            ha='center', va='top')
+    ax.text(base_cx, row_gap_top[2] - 0.42,
+            "forbid in_context_read directly →\nthat's a Σ_u event → detect-only\nforever. The daemon can never\nsee it coming to refuse it.",
+            fontsize=8.6, ha='center', va='top', linespacing=1.5)
+
+    ax.text(tgt_cx, row_gap_top[2], "regimentable rewrite: gate egress", fontsize=10, weight='bold',
+            ha='center', va='top')
+    ax.text(tgt_cx, row_gap_top[2] - 0.42,
+            "permit the read (Σ_u), record taint,\nforbid net_egress while tainted\n(Σ_c) → regimentable. Worked case:\n\"no egress AFTER secret read.\"",
+            fontsize=8.6, ha='center', va='top', linespacing=1.5)
+
+    draw_arrow(y3, ["the clean-room design rule:", "gate the channel, never the token"])
+
     plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r5_relation.png',
                 dpi=150, bbox_inches='tight')
     plt.close()
 
+
 def create_regime_diagram():
     """
     Create r5_regime.png - the REGIME DIAGRAM figure.
-    A 2×N classification chart with matplotlib patches.
-    Row 1: "regimentable (Ramadge–Wonham controllable)" - seagreen boxes for policies
-    Row 2: "detect-only forever" - shipred boxes for policies
-    A harborblue divider between them with the criterion.
+    Left panel: the nine-policy classification as a dense, color-coded
+    two-column table (Policy | Verdict).
+    Right panel: the compound-case flow rendered as a small directed
+    state graph (secret read -> taint recorded -> egress gated), TikZ-style,
+    with one edge (the uncontrollable-but-permitted read) highlighted in
+    harborblue to draw the eye to the mechanism that makes it regimentable.
     """
-    fig, ax = plt.subplots(figsize=(13, 6), dpi=150)
-    ax.set_xlim(0, 13)
-    ax.set_ylim(0, 6)
-    ax.axis('off')
+    fig = plt.figure(figsize=(14.5, 7.6), dpi=150)
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.28, 1.0], wspace=0.05)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
 
-    # Title
-    ax.text(6.5, 5.7, "R5 regime — the exact boundary between prevented and detected",
-            fontsize=11, weight='bold', ha='center', va='top')
+    fig.suptitle("R5 regime — the exact boundary between prevented and detected",
+                 fontsize=13, weight='bold', y=0.985)
 
-    # ===== ROW 1: REGIMENTABLE (top) =====
-    y_row1 = 4.2
+    # ---------------------------------------------------------------
+    # LEFT: nine-policy classification table
+    # ---------------------------------------------------------------
+    ax1.set_xlim(0, 10)
+    ax1.set_ylim(0, 10)
+    ax1.axis('off')
+    ax1.set_title("nine-policy classification", fontsize=11, weight='bold', pad=10)
 
-    # Row label
-    ax.text(0.3, y_row1, "regimentable\n(Ramadge–Wonham)", fontsize=9, weight='bold', ha='left', va='center')
-
-    # Define regimentable policies
-    regimentable_policies = [
-        "forbid\nfs_write",
-        "forbid\nnet_egress",
-        "forbid\nexec_tool",
-        "forbid\ngit_push",
-        "forbid\nspawn",
-        "compound:\nno egress\nAFTER\nsecret read",
+    rows = [
+        ("forbid fs_write", "regimentable", SEAGREEN, False),
+        ("forbid net_egress", "regimentable", SEAGREEN, False),
+        ("forbid exec_tool", "regimentable", SEAGREEN, False),
+        ("forbid git_push", "regimentable", SEAGREEN, False),
+        ("forbid spawn_child", "regimentable", SEAGREEN, False),
+        ("compound: no net_egress AFTER in_context_read", "regimentable ★", SEAGREEN, True),
+        ("forbid model_emit_token", "detect-only forever", SHIPRED, False),
+        ("forbid in_context_read", "detect-only forever", SHIPRED, False),
+        ("forbid internal_plan", "detect-only forever", SHIPRED, False),
     ]
 
-    box_width = 1.5
-    x_start = 2.0
-    for idx, policy in enumerate(regimentable_policies):
-        x_pos = x_start + idx * (box_width + 0.15)
-        box = Rectangle((x_pos, y_row1 - 0.55), box_width, 1.1,
-                            edgecolor=SEAGREEN, facecolor=SEAGREEN,
-                            alpha=0.25, linewidth=1.5)
-        ax.add_patch(box)
-        ax.text(x_pos + box_width/2, y_row1, policy, fontsize=8, ha='center', va='center',
-               weight='bold')
+    n = len(rows)
+    top, bottom = 9.15, 0.55
+    row_h = (top - bottom) / n
+    col1_x0, col1_x1 = 0.15, 6.35
+    col2_x0, col2_x1 = 6.45, 9.85
 
-    # ===== HARBORBLUE DIVIDER =====
-    y_divider = 2.0
-    divider_line = Rectangle((0.2, y_divider - 0.15), 12.6, 0.3,
-                            facecolor=HARBORBLUE, alpha=0.3, edgecolor=HARBORBLUE, linewidth=2)
-    ax.add_patch(divider_line)
+    # Header
+    hy = top + 0.42
+    ax1.text(col1_x0, hy, "policy", fontsize=9.5, weight='bold', ha='left', va='center', color='#333333')
+    ax1.text(col2_x0, hy, "verdict", fontsize=9.5, weight='bold', ha='left', va='center', color='#333333')
+    ax1.plot([0.15, 9.85], [top + 0.12, top + 0.12], color='#333333', linewidth=1.1)
 
-    # Criterion text on divider
-    ax.text(0.5, y_divider, "K̄Σᵤ ∩ L̄ ⊆ K̄", fontsize=9, weight='bold', ha='left', va='center',
-           color=HARBORBLUE, bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9))
-    ax.text(2.5, y_divider, "no uncontrollable event exits the spec", fontsize=9, ha='left', va='center',
-           style='italic', color=HARBORBLUE, weight='bold')
+    for i, (policy, verdict, color, highlight) in enumerate(rows):
+        y0 = top - (i + 1) * row_h
+        yc = y0 + row_h / 2
+        alpha = 0.30 if highlight else 0.16
+        lw = 2.0 if highlight else 0.9
+        cell1 = FancyBboxPatch((col1_x0, y0 + row_h * 0.08), col1_x1 - col1_x0, row_h * 0.84,
+                                boxstyle="round,pad=0,rounding_size=0.05",
+                                edgecolor=color, facecolor=color, alpha=alpha, linewidth=lw)
+        cell2 = FancyBboxPatch((col2_x0, y0 + row_h * 0.08), col2_x1 - col2_x0, row_h * 0.84,
+                                boxstyle="round,pad=0,rounding_size=0.05",
+                                edgecolor=color, facecolor=color, alpha=alpha + 0.10, linewidth=lw)
+        ax1.add_patch(cell1)
+        ax1.add_patch(cell2)
+        ax1.text(col1_x0 + 0.18, yc, policy, fontsize=8.7, ha='left', va='center',
+                  weight='bold' if highlight else 'normal')
+        ax1.text(col2_x0 + col2_x1 - col1_x0 - col1_x0 - 0.18 if False else (col2_x0 + 0.18), yc, verdict,
+                  fontsize=8.7, ha='left', va='center', weight='bold', color=color)
 
-    # ===== ROW 2: DETECT-ONLY (bottom) =====
-    y_row2 = 0.8
+    ax1.text(0.15, bottom - 0.42,
+              "criterion: K̄Σᵤ ∩ L̄ ⊆ K̄ (Ramadge–Wonham 1987) — no uncontrollable event exits the spec",
+              fontsize=8.3, ha='left', va='top', color='#444444', style='italic')
 
-    # Row label
-    ax.text(0.3, y_row2, "detect-only\nforever", fontsize=9, weight='bold', ha='left', va='center')
+    # ---------------------------------------------------------------
+    # RIGHT: compound-case flow as a small directed state graph
+    # ---------------------------------------------------------------
+    ax2.set_xlim(0, 10)
+    ax2.set_ylim(0, 10)
+    ax2.axis('off')
+    ax2.set_title("compound case: how it becomes regimentable", fontsize=11, weight='bold', pad=10)
 
-    # Define detect-only policies
-    detect_only_policies = [
-        "forbid\ntoken\nemission",
-        "forbid\nin-context\nread",
-        "forbid\ninternal\nplan",
-        "forbid\nconfident-\nfalsehood",
-    ]
+    def node(cx, cy, w, h, text, edgecolor, fc_alpha=0.14, fontsize=9.0, weight='bold'):
+        box = FancyBboxPatch((cx - w / 2, cy - h / 2), w, h,
+                              boxstyle="round,pad=0,rounding_size=0.16",
+                              edgecolor=edgecolor, facecolor=edgecolor, alpha=fc_alpha, linewidth=2.0)
+        ax2.add_patch(box)
+        ax2.text(cx, cy, text, fontsize=fontsize, ha='center', va='center', weight=weight,
+                  linespacing=1.35, color='#1a1a1a')
+        return (cx, cy, w, h)
 
-    x_start = 2.0
-    for idx, policy in enumerate(detect_only_policies):
-        x_pos = x_start + idx * (box_width + 0.15)
-        box = Rectangle((x_pos, y_row2 - 0.55), box_width, 1.1,
-                            edgecolor=SHIPRED, facecolor=SHIPRED,
-                            alpha=0.25, linewidth=1.5)
-        ax.add_patch(box)
-        ax.text(x_pos + box_width/2, y_row2, policy, fontsize=8, ha='center', va='center',
-               weight='bold')
+    def edge(n_from, n_to, label, color, rad=0.25, label_dy=0.35, lw=2.2, ls='-'):
+        x0, y0, w0, h0 = n_from
+        x1, y1, w1, h1 = n_to
+        arr = FancyArrowPatch((x0, y0), (x1, y1),
+                               arrowstyle='-|>', mutation_scale=18,
+                               linewidth=lw, linestyle=ls, color=color, alpha=0.95,
+                               connectionstyle=f"arc3,rad={rad}",
+                               shrinkA=max(w0, h0) * 26, shrinkB=max(w1, h1) * 26)
+        ax2.add_patch(arr)
+        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        # offset perpendicular for curved label placement
+        my += label_dy
+        ax2.text(mx, my, label, fontsize=8.2, ha='center', va='center', weight='bold',
+                  color=color, style='italic',
+                  bbox=dict(boxstyle='round,pad=0.18', facecolor='white', edgecolor='none', alpha=0.85))
 
-    plt.tight_layout()
+    n_read = node(5.0, 8.55, 6.4, 1.35,
+                  "in_context_read (Σ_u)\nuncontrollable — always PERMITTED",
+                  HARBORBLUE)
+    n_taint = node(5.0, 5.55, 5.4, 1.35,
+                   "taint = 1\nrecorded on the ledger",
+                   HARBORBLUE)
+    n_egress = node(2.9, 2.4, 4.6, 1.35,
+                     "net_egress (Σ_c)\ncontrollable",
+                     SHIPRED)
+    n_block = node(7.6, 2.4, 4.0, 1.35,
+                     "GATED\nwhile taint = 1",
+                     SHIPRED, fc_alpha=0.22)
+
+    # Highlighted mechanism edge (the read that stays permitted) -- drawn in harborblue, thicker
+    edge(n_read, n_taint, "records taint  (mechanism)", HARBORBLUE, rad=0.0, label_dy=0.0, lw=3.0)
+    edge(n_taint, n_egress, "gates", SHIPRED, rad=0.18, label_dy=0.28)
+    edge(n_egress, n_block, "refused at the boundary", SHIPRED, rad=0.0, label_dy=0.42, lw=2.2)
+
+    ax2.text(5.0, 0.55,
+              "the read is never refused — only the controllable egress it taints is.",
+              fontsize=8.6, ha='center', va='center', style='italic', color='#444444')
+
     plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r5_regime.png',
                 dpi=150, bbox_inches='tight')
     plt.close()
+
 
 if __name__ == '__main__':
     create_relation_map()

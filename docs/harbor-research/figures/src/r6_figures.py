@@ -19,72 +19,63 @@ GREY = (0.5, 0.5, 0.5)
 def create_relation_map():
     """
     Create r6_relation.png - the RELATION-MAP figure.
-    Three columns: base domain | target domain | with labeled arrows.
-    Base: wristwatches around a table (loop-sum must be zero)
-    Target: signed-log disagreements (coboundary / completion residual)
-    Arrows: "loop-sum ⇔ cocycle condition" and "needs a loop through the missing link ⇔
-            needs a cycle through the uncompared edge"
+    Base: wristwatches around a table (loop-sum must be zero).
+    Target: gossip logs on a communication graph (cocycle / completion residual).
+    Three substantive rows carry the mapping: topology setup, cycle-vs-bridge
+    fork, and the detection numbers — each row a labeled two-way arrow.
     """
-    fig, ax = plt.subplots(figsize=(13, 7), dpi=150)
-    ax.set_xlim(0, 13)
-    ax.set_ylim(0, 10)
+    fig, ax = plt.subplots(figsize=(12, 7.6), dpi=150)
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 10.6)
     ax.axis('off')
 
-    # Title
-    ax.text(6.5, 9.5, "R6 — equivocation is a watch that cannot add up around the table",
-            fontsize=11, weight='bold', ha='center', va='top')
+    ax.text(6, 10.3, "R6 — equivocation is a watch that cannot add up around the table",
+            fontsize=12, weight='bold', ha='center', va='top', color=HARBORBLUE)
 
-    # Column 1: Base Domain (Wristwatches)
-    y_base = 7.0
-    box1 = Rectangle((0.2, y_base-2.0), 3.2, 2.8,
-                          edgecolor=HARBORBLUE, facecolor=HARBORBLUE,
-                          alpha=0.15, linewidth=1.5)
-    ax.add_patch(box1)
-    ax.text(1.8, y_base+0.6, "Base Domain", fontsize=10, weight='bold',
+    # Base domain (left): wristwatches around a table
+    ax.add_patch(Rectangle((0.2, 0.7), 3.6, 8.7, edgecolor=HARBORBLUE,
+                           facecolor=HARBORBLUE, alpha=0.12, linewidth=1.5))
+    ax.text(2.0, 9.05, "Base: watches around a table", fontsize=10.5, weight='bold',
             ha='center', va='center')
-    ax.text(1.8, y_base+0.1, "Wristwatches", fontsize=9, ha='center', va='center')
-    ax.text(1.8, y_base-0.35, "around a table", fontsize=9, ha='center', va='center')
-    ax.text(1.8, y_base-0.8, "Pairwise offsets", fontsize=9, ha='center', va='center')
-    ax.text(1.8, y_base-1.2, "sum to ZERO around", fontsize=9, ha='center', va='center')
-    ax.text(1.8, y_base-1.6, "any loop if one", fontsize=9, ha='center', va='center')
 
-    # Column 2: Target Domain (Gossip Cohomology)
-    y_target = 7.0
-    box2 = Rectangle((9.6, y_target-2.0), 3.2, 2.8,
-                          edgecolor=SEAGREEN, facecolor=SEAGREEN,
-                          alpha=0.15, linewidth=1.5)
-    ax.add_patch(box2)
-    ax.text(11.2, y_target+0.6, "Target Domain", fontsize=10, weight='bold',
+    # Target domain (right): gossip logs on a graph
+    ax.add_patch(Rectangle((8.2, 0.7), 3.6, 8.7, edgecolor=SEAGREEN,
+                           facecolor=SEAGREEN, alpha=0.12, linewidth=1.5))
+    ax.text(10.0, 9.05, "Target: gossip logs on a graph", fontsize=10.5, weight='bold',
             ha='center', va='center')
-    ax.text(11.2, y_target+0.1, "Gossip Cycle", fontsize=9, ha='center', va='center')
-    ax.text(11.2, y_target-0.35, "Signed-log disagreements", fontsize=9, ha='center', va='center')
-    ax.text(11.2, y_target-0.8, "Completion residual r", fontsize=9, ha='center', va='center')
-    ax.text(11.2, y_target-1.2, "convicts equivocator", fontsize=9, ha='center', va='center')
-    ax.text(11.2, y_target-1.6, "even across unchecked link", fontsize=9, ha='center', va='center')
 
-    # Arrow 1: Base → Target (top) with top label
-    arrow1 = FancyArrowPatch((3.4, y_base+0.4), (9.6, y_target+0.4),
-                            arrowstyle='<->', mutation_scale=25,
-                            linewidth=2, color=SHIPRED, alpha=0.8)
-    ax.add_patch(arrow1)
-    ax.text(6.5, y_base+1.1, "loop-sum ⇔ cocycle condition",
-            fontsize=9, ha='center', va='bottom', style='italic', weight='bold', color=SHIPRED)
+    rows = [
+        # (y, base lines, target lines, arrow label lines)
+        (7.4,
+         ["Offsets between", "neighboring watches:", "consistent iff they", "sum to ZERO around", "every loop"],
+         ["Edge disagreements", "on the comm. graph:", "cocycle condition —", "sum to zero around", "every cycle"],
+         ["loop-sum", "⇔ cocycle condition"]),
+        (4.6,
+         ["One handshake skipped", "ON the loop: the other", "watches still relay", "the missing check", "around it"],
+         ["Uncompared edge ON a cycle:", "relayed reports substitute;", "uncompared edge is a BRIDGE", "(tree-δ surjective): nothing", "loops back to catch it"],
+         ["cycle ⇒ relay substitutes", "bridge ⇒ silent by construction"]),
+        (1.9,
+         ["A lying watch can't hide:", "neighbors' relayed times", "force a mismatch", "around the table"],
+         ["Completion residual r > 0", "proves no global story exists:", "C₆ relayed-cycle lie 1.225;", "P₆ bridge/cut-edge lie 0.000", "[sheaf_harness_v2.py]"],
+         ["nonzero r convicts —", "beyond pairwise comparison"]),
+    ]
 
-    # Arrow 2: Base → Target (bottom) with bottom label
-    arrow2 = FancyArrowPatch((3.4, y_base-1.3), (9.6, y_target-1.3),
-                            arrowstyle='<->', mutation_scale=25,
-                            linewidth=2, color=SHIPRED, alpha=0.8)
-    ax.add_patch(arrow2)
-    ax.text(6.5, y_base-2.0, "needs loop through missing link ⇔ needs cycle through uncompared edge",
-            fontsize=9, ha='center', va='top', style='italic', weight='bold', color=SHIPRED)
+    for y, base_lines, target_lines, label_lines in rows:
+        for i, s in enumerate(base_lines):
+            ax.text(2.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+        for i, s in enumerate(target_lines):
+            ax.text(10.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+        arrow = FancyArrowPatch((3.9, y - 0.15), (8.1, y - 0.15), arrowstyle='<->',
+                                connectionstyle="arc3,rad=0.08",
+                                mutation_scale=20, linewidth=1.8, color=SHIPRED, alpha=0.85)
+        ax.add_patch(arrow)
+        for i, s in enumerate(label_lines):
+            ax.text(6.0, y + 0.62 - 0.38 * i, s, fontsize=9, ha='center',
+                    va='center', color=SHIPRED, weight='bold')
 
-    # Bottom explanatory notes
-    ax.text(6.5, 2.8, "Nonzero loop-sum → someone shows different times to different neighbors.",
-            fontsize=9, ha='center', va='center', style='italic', color='gray')
-    ax.text(6.5, 2.1, "Nonzero completion residual r → no global explanation for the reports exists.",
-            fontsize=9, ha='center', va='center', style='italic', color='gray')
-    ax.text(6.5, 1.4, "Cohomology detects beyond pairwise comparison: via relayed reports around cycles.",
-            fontsize=9, ha='center', va='center', style='italic', color='gray')
+    ax.text(6.0, 0.25,
+            "Cohomology detects equivocation beyond pairwise comparison iff the missing edge lies on a cycle — on a cut edge, never.",
+            fontsize=8.5, ha='center', va='center', style='italic')
 
     plt.tight_layout()
     plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r6_relation.png',

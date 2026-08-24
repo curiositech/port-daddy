@@ -20,181 +20,189 @@ font_size = 10
 np.random.seed(20260816)
 
 # ============================================================================
-# Figure 1: r4_relation.png — RELATION-MAP (three columns)
+# Shared closed form (recomputed inline from b1_figure.py's rate_general,
+# not imported): I(X;X-hat) for a Bernoulli(p) source under a two-constraint
+# joint (miss rate <= delta, flag rate <= f). Verified against the three
+# compendium numbers below to machine precision before use here.
 # ============================================================================
 
-fig, ax = plt.subplots(figsize=(10, 6), dpi=dpi)
-ax.set_xlim(0, 10)
-ax.set_ylim(0, 10)
+def rate_general(p, f, delta):
+    q11 = p - delta
+    q10 = delta
+    q01 = f - q11
+    q00 = 1 - q10 - q11 - q01
+    if min(q00, q01, q10, q11) < -1e-9 or q01 < 0:
+        return np.nan
+    q = np.clip(np.array([[q00, q01], [q10, q11]]), 1e-15, 1)
+    q = q / q.sum()
+    px = q.sum(1, keepdims=True)
+    pxh = q.sum(0, keepdims=True)
+    return float((q * np.log2(q / (px * pxh))).sum())
+
+# ============================================================================
+# Figure 1: r4_relation.png — RELATION-MAP
+#   Base: the classical single-constraint rate-distortion problem
+#   Target: R4's two-constraint operator dial, its entropy boundary, and
+#           the search-cost consequence (zoom) that the sparsity clause buys
+# ============================================================================
+
+fig, ax = plt.subplots(figsize=(12, 7.8), dpi=dpi)
+ax.set_xlim(0, 12)
+ax.set_ylim(0, 10.6)
 ax.axis('off')
 
-# Title
-ax.text(5, 9.5, "R4 — zoom is twenty questions, and twenty questions needs a rare answer",
-        ha='center', va='top', fontsize=11, weight='bold')
+ax.text(6, 10.3, "R4 — the digest-zoom Pareto frontier: two knobs buy back bits, sparsity buys back opens",
+        fontsize=12, weight='bold', ha='center', va='top', color=harborblue)
 
-# Three columns: LEFT (base), MIDDLE (arrows), RIGHT (target)
+# Base domain (left): classical single-constraint rate-distortion
+ax.add_patch(Rectangle((0.2, 0.7), 3.6, 8.7, edgecolor=harborblue,
+                        facecolor=harborblue, alpha=0.12, linewidth=1.5))
+ax.text(2.0, 9.05, "Base: single-constraint RD", fontsize=11, weight='bold', ha='center', va='center')
 
-# LEFT COLUMN: Twenty Questions (base concept)
-x_left = 1.5
-y_start = 8.5
+# Target domain (right): R4's two-constraint dial
+ax.add_patch(Rectangle((8.2, 0.7), 3.6, 8.7, edgecolor=seagreen,
+                        facecolor=seagreen, alpha=0.12, linewidth=1.5))
+ax.text(10.0, 9.05, "Target: R4's operator dial", fontsize=11, weight='bold', ha='center', va='center')
 
-box_left = Rectangle((0.2, 3.7), 2.9, 5.2,
-                      edgecolor=harborblue, facecolor=harborblue, alpha=0.12, linewidth=1.5)
-ax.add_patch(box_left)
-ax.text(x_left, y_start, "Twenty Questions", ha='center', fontsize=10, weight='bold')
-
-items_left = [
-    "Start: N candidates",
-    "",
-    "Each question halves",
-    "the set (if answers",
-    "are RARE among",
-    "candidates)",
-    "",
-    "log₂(N) questions",
-    "to find the answer"
+rows = [
+    # (y, base lines, target lines, arrow label lines)
+    (7.4,
+     ["minimize I(X;X̂)", "s.t. distortion ≤ D", "(Shannon 1959,", "textbook RDC)"],
+     ["minimize I(X;X̂)", "s.t. miss rate ≤ δ", "AND flag rate ≤ f", "(custom formulation)"],
+     ["a SECOND knob:", "flags buy back bits"]),
+    (4.7,
+     ["zero tolerance:", "δ = 0,", "no missed", "positives allowed"],
+     ["R(0, f→p) = H(p)", "p=0.05 ⇒ 0.286 bits/sym", "[verified, Cover–Thomas]", "the strict corner"],
+     ["δ=0 boundary ⇔", "classical entropy floor"]),
+    (1.9,
+     ["Twenty Questions:", "N candidates,", "log₂(N) questions,", "each halves the set", "(if answers are RARE)"],
+     ["Group-splitting zoom:", "F flagged, k criticals,", "k·log₂(F/k) opens", "vs F flat reads,", "measured 15.3× [b1_frontier.py]"],
+     ["pays ONLY in the", "sparse-flagged regime"]),
 ]
 
-y = y_start - 1.2
-for item in items_left:
-    if item:
-        ax.text(x_left, y, item, ha='center', fontsize=9, style='italic' if 'RARE' in item else 'normal')
-    y -= 0.45
+for y, base_lines, target_lines, label_lines in rows:
+    n_b = len(base_lines)
+    for i, s in enumerate(base_lines):
+        ax.text(2.0, y + 0.42 * (n_b - 1) / 2 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+    n_t = len(target_lines)
+    for i, s in enumerate(target_lines):
+        ax.text(10.0, y + 0.42 * (n_t - 1) / 2 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+    arrow = FancyArrowPatch((3.9, y - 0.15), (8.1, y - 0.15), arrowstyle='<->',
+                             mutation_scale=20, linewidth=1.8, color=shipred, alpha=0.85,
+                             connectionstyle="arc3,rad=0.08")
+    ax.add_patch(arrow)
+    for i, s in enumerate(label_lines):
+        ax.text(6.0, y + 0.62 - 0.38 * i, s, fontsize=9, ha='center', va='center', color=shipred, weight='bold')
 
-# RIGHT COLUMN: Group-Splitting Zoom (target concept)
-x_right = 8.5
-
-box_right = Rectangle((6.9, 3.7), 2.9, 5.2,
-                       edgecolor=seagreen, facecolor=seagreen, alpha=0.12, linewidth=1.5)
-ax.add_patch(box_right)
-ax.text(x_right, y_start, "Group-Splitting Zoom", ha='center', fontsize=10, weight='bold')
-
-items_right = [
-    "F flagged items",
-    "k are criticals",
-    "",
-    "Each group-split halves",
-    "the examined group",
-    "(if criticals are RARE",
-    "within the flagged set)",
-    "",
-    "k·log₂(F/k) opens",
-    "vs F flat reads"
-]
-
-y = y_start - 1.2
-for item in items_right:
-    if item:
-        ax.text(x_right, y, item, ha='center', fontsize=9, style='italic' if 'RARE' in item else 'normal')
-    y -= 0.45
-
-# MIDDLE: connecting arrow and insight
-x_mid = 5
-
-# Horizontal arrow connecting the two concepts
-y_connection = 5.3
-arrow3 = FancyArrowPatch((x_left + 1.5, y_connection), (x_right - 1.5, y_connection),
-                         arrowstyle='<->', mutation_scale=25, linewidth=2.5, color=shipred, alpha=0.85)
-ax.add_patch(arrow3)
-
-ax.text(x_mid, y_connection + 0.35, "each question halves",
-        ha='center', fontsize=9, weight='bold', style='italic', color=shipred)
-ax.text(x_mid, y_connection - 0.35, "⇔ each group-split halves",
-        ha='center', fontsize=9, weight='bold', style='italic', color=shipred)
-
-# Key insight at bottom
-insight_box = Rectangle((1, 0.4), 8, 1.4,
-                         edgecolor=shipred, facecolor=shipred, alpha=0.08, linewidth=1.5)
-ax.add_patch(insight_box)
-
-ax.text(x_mid, 1.35, "Advantage requires SPARSITY",
-        ha='center', fontsize=10, weight='bold', color=shipred)
-ax.text(x_mid, 0.85, "zoom wins only when criticals are rare among flagged items",
-        ha='center', fontsize=9, style='italic')
+ax.text(6.0, 0.25,
+        "One dial, three faces: the constraint that got added, the boundary where it collapses back to Shannon, and the search "
+        "cost it buys.  R(0,0.10)=0.186, R(0.01,0.10)=0.110, R(0.04,0.06)=0.009 bits/sym [internal, b1_frontier.py].",
+        fontsize=8, ha='center', va='center', style='italic')
 
 plt.tight_layout()
 plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r4_relation.png', dpi=dpi, bbox_inches='tight')
 plt.close()
 
 # ============================================================================
-# Figure 2: r4_regime.png — REGIME DIAGRAM
+# Figure 2: r4_regime.png — REGIME DIAGRAM (two panels)
+#   Panel A: the two-constraint rate R(delta,f) surface (curves in f, at a
+#            few delta) for Bernoulli(0.05), with the compendium's three
+#            internal numbers and the verified zero-miss entropy corner
+#            marked directly on the curves that produce them.
+#   Panel B: the zoom advantage vs flagged-set density — the boundary where
+#            adaptive group-splitting stops paying (advantage = 1).
 # ============================================================================
 
-# Compute advantage curve: F/(k·log2(F/k))
-F = 2500
+fig, (axA, axB) = plt.subplots(1, 2, figsize=(13, 5.2), dpi=dpi)
 
-# Density range: k/F from 0.001 to 0.7
+# --- Panel A: R(delta, f) curves ---------------------------------------
+p = 0.05
+deltas = [0.0, 0.01, 0.04]
+colors_a = [harborblue, seagreen, shipred]
+styles_a = ['-', '--', '-.']
+
+for delta, c, ls in zip(deltas, colors_a, styles_a):
+    f_lo = max(p - delta, delta) + 1e-6
+    f_grid = np.linspace(f_lo, 0.4, 400)
+    R = np.array([rate_general(p, f, delta) for f in f_grid])
+    axA.plot(f_grid, R, color=c, lw=2.2, ls=ls, label=fr'$\delta$={delta:.2f}')
+
+# Verified zero-miss entropy corner: R(0, f->p) = H(p)
+Hp = -(p * np.log2(p) + (1 - p) * np.log2(1 - p))
+axA.scatter([p], [Hp], color=harborblue, s=90, zorder=5, marker='D', edgecolors='black', linewidth=1.0)
+axA.annotate(f'R(0,f→p)=H(p)={Hp:.3f}\n[verified, Cover–Thomas]',
+             xy=(p, Hp), xytext=(0.15, 0.235), fontsize=8,
+             bbox=dict(boxstyle='round,pad=0.35', facecolor=harborblue, alpha=0.10, edgecolor=harborblue, linewidth=1),
+             arrowprops=dict(arrowstyle='->', color=harborblue, lw=1.3))
+
+# Internal numbers, marked on the curves that produce them
+pts = [(0.10, 0.0, 0.186, harborblue, (0.17, 0.30)),
+       (0.10, 0.01, 0.110, seagreen, (0.20, 0.16)),
+       (0.06, 0.04, 0.009, shipred, (0.13, 0.05))]
+for f0, d0, r0, c, txy in pts:
+    r_check = rate_general(p, f0, d0)
+    axA.scatter([f0], [r_check], color=c, s=60, zorder=5, marker='o', edgecolors='black', linewidth=0.8)
+    axA.annotate(f'R({d0:.2f},{f0:.2f})={r0:.3f}\n[internal]', xy=(f0, r_check), xytext=txy,
+                 fontsize=8, color=c,
+                 arrowprops=dict(arrowstyle='->', color=c, lw=1.0))
+
+axA.set_xlabel('flag rate $f$', fontsize=10, weight='bold')
+axA.set_ylabel('rate $R(\\delta,f)$ (bits/sym)', fontsize=10, weight='bold')
+axA.set_title('Panel A — the two-constraint rate surface\n(Bernoulli $p$=0.05)', fontsize=10.5, weight='bold')
+axA.spines['top'].set_visible(False)
+axA.spines['right'].set_visible(False)
+axA.grid(alpha=0.2)
+axA.set_xlim(0, 0.4)
+axA.set_ylim(0, 0.34)
+axA.legend(fontsize=8.5, loc='upper right', title='miss tolerance')
+
+# --- Panel B: zoom advantage vs flagged-set density ---------------------
+F = 2500
 densities = np.logspace(np.log10(0.001), np.log10(0.7), 200)
 k_values = densities * F
 
-# Guard against log domain issues
 advantage = np.zeros_like(k_values)
 for i, k in enumerate(k_values):
-    if k > 0 and k < F:
+    if 0 < k < F:
         log_ratio = np.log2(F / k)
-        if log_ratio > 0:
-            advantage[i] = F / (k * log_ratio)
-        else:
-            advantage[i] = np.nan
+        advantage[i] = F / (k * log_ratio) if log_ratio > 0 else np.nan
     else:
         advantage[i] = np.nan
 
-fig, ax = plt.subplots(figsize=(10, 6), dpi=dpi)
+axB.loglog(densities, advantage, color=harborblue, linewidth=2.5, label='zoom advantage')
+axB.axhline(y=1, color=seagreen, linestyle='--', linewidth=2, label='zoom stops paying', zorder=2)
 
-# Plot the advantage curve
-ax.loglog(densities, advantage, color=harborblue, linewidth=2.5, label='Zoom advantage')
-
-# Horizontal line at advantage = 1 (zoom stops paying)
-ax.axhline(y=1, color=seagreen, linestyle='--', linewidth=2, label='zoom stops paying', zorder=2)
-
-# Shade the region where advantage > 1 (sparse regime)
-# Find where advantage > 1
 mask = advantage > 1
 if np.any(mask):
-    x_fill = densities[mask]
-    y_fill = advantage[mask]
-    # Create a filled area
-    ax.fill_between(x_fill, 1, y_fill, alpha=0.08, color=harborblue, label='sparse regime — zoom wins')
+    axB.fill_between(densities[mask], 1, advantage[mask], alpha=0.10, color=harborblue, label='sparse regime — zoom wins')
 
-# Measured point: k=10, F=2500, density=0.004, advantage=15.3
 measured_density = 10 / 2500
 measured_advantage = 15.3
-ax.scatter([measured_density], [measured_advantage], color=shipred, s=150, zorder=5, marker='o', edgecolors='darkred', linewidth=1.5)
+axB.scatter([measured_density], [measured_advantage], color=shipred, s=130, zorder=5, marker='o',
+            edgecolors='darkred', linewidth=1.5)
+axB.annotate("measured 15.3×\n(ideal ≈31×, ≈2× overhead)\n[b1_frontier.py]",
+             xy=(measured_density, measured_advantage), xytext=(0.02, 30), fontsize=8,
+             bbox=dict(boxstyle='round,pad=0.35', facecolor=shipred, alpha=0.10, edgecolor=shipred, linewidth=1),
+             arrowprops=dict(arrowstyle='->', color=shipred, lw=1.3))
 
-# Annotate measured point with detailed label
-annotation_text = "measured 15.3×\n(ideal ≈31×, ≈2× overhead)\n[b1_frontier.py]"
-ax.annotate(annotation_text, xy=(measured_density, measured_advantage),
-            xytext=(0.015, 25), fontsize=8,
-            bbox=dict(boxstyle='round,pad=0.4', facecolor=shipred, alpha=0.1, edgecolor=shipred, linewidth=1),
-            arrowprops=dict(arrowstyle='->', color=shipred, lw=1.5))
+axB.set_xlabel('flagged-set density (k/F)', fontsize=10, weight='bold')
+axB.set_ylabel('open-count advantage $F/(k\\log_2(F/k))$', fontsize=10, weight='bold')
+axB.set_title('Panel B — the sparse-flagged boundary\n(F=2500)', fontsize=10.5, weight='bold')
+axB.spines['top'].set_visible(False)
+axB.spines['right'].set_visible(False)
+axB.grid(True, which='both', alpha=0.2, linestyle='-', linewidth=0.5)
+axB.legend(loc='upper right', fontsize=8.5, framealpha=0.95)
+axB.set_xlim(0.0008, 0.8)
+axB.set_ylim(0.8, 100)
 
-# Labels and formatting
-ax.set_xlabel('flagged-set density (k/F)', fontsize=10, weight='bold')
-ax.set_ylabel('open-count advantage F/(k·log₂(F/k))', fontsize=10, weight='bold')
-ax.set_title('R4 regime — the zoom advantage lives in the sparse-flagged corner', fontsize=11, weight='bold', pad=15)
+fig.suptitle('R4 regime — the two-constraint dial and the boundary where zooming stops paying',
+             fontsize=12.5, weight='bold', y=1.02)
 
-# Hide top and right spines
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-# Adjust grid
-ax.grid(True, which='both', alpha=0.2, linestyle='-', linewidth=0.5)
-
-# Legend
-ax.legend(loc='upper right', fontsize=9, framealpha=0.95)
-
-# Set axis limits
-ax.set_xlim(0.0008, 0.8)
-ax.set_ylim(0.8, 100)
-
-# Prune any auto-generated log-scale ticks that fall outside the final view
-# limits (LogLocator emits one boundary decade beyond an explicit set_xlim/
-# set_ylim; its Text stays "visible" though never actually drawn).
 fig.canvas.draw()
-xlo, xhi = ax.get_xlim()
-ylo, yhi = ax.get_ylim()
-ax.set_xticks([t for t in ax.get_xticks() if xlo * 0.999 <= t <= xhi * 1.001])
-ax.set_yticks([t for t in ax.get_yticks() if ylo * 0.999 <= t <= yhi * 1.001])
+xlo, xhi = axB.get_xlim()
+ylo, yhi = axB.get_ylim()
+axB.set_xticks([t for t in axB.get_xticks() if xlo * 0.999 <= t <= xhi * 1.001])
+axB.set_yticks([t for t in axB.get_yticks() if ylo * 0.999 <= t <= yhi * 1.001])
 
 plt.tight_layout()
 plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r4_regime.png', dpi=dpi, bbox_inches='tight')

@@ -6,7 +6,7 @@ Two figures: relation-map (voting-booth analogy) and regime diagram (gate behavi
 
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
-from matplotlib.patches import Rectangle, FancyArrowPatch
+from matplotlib.patches import Rectangle, FancyBboxPatch, FancyArrowPatch
 
 # House colors
 HARBORBLUE = (30/255, 70/255, 110/255)
@@ -16,68 +16,92 @@ SEAGREEN = (31/255, 110/255, 70/255)
 
 def figure_r9_relation():
     """
-    R9 Relation Map: voting booth analogy -> sealed-room gate.
-    Two domain columns (Base | Target) with labeled equivalence arrows,
-    in the same idiom as the other R-series relation maps.
+    R9 Relation Map: sealed airlock (physical) -> sealed-room noninterference (formal).
+    Three substantive Base/Target rows with bold connective labels, in the
+    idiom of paper6_relation.png -- no wasted canvas.
     """
-    fig, ax = plt.subplots(figsize=(12, 6), dpi=150)
+    fig, ax = plt.subplots(figsize=(12, 7.8), dpi=150)
     ax.set_xlim(0, 12)
-    ax.set_ylim(0, 8)
+    ax.set_ylim(0, 9.8)
     ax.axis('off')
 
     # Title
-    ax.text(6, 7.6, "R9 — every release explicit, gated, and bounded",
-            fontsize=11, weight='bold', ha='center', va='top')
+    ax.text(6, 9.45, "R9 — every release explicit, gated, and bounded",
+            fontsize=13, weight='bold', ha='center', va='top')
+    ax.text(6, 9.02, "sealed airlock  ⟷  sealed-room noninterference modulo declassification",
+            fontsize=9.5, ha='center', va='top', style='italic', color=(0.35, 0.35, 0.35))
 
-    # ===== BASE DOMAIN (left): voting booth =====
-    y_base = 5.4
-    box1 = Rectangle((0.2, y_base - 2.0), 3.4, 2.9,
-                      edgecolor=HARBORBLUE, facecolor=HARBORBLUE, alpha=0.12, linewidth=1.5)
-    ax.add_patch(box1)
-    ax.text(1.9, y_base + 0.65, "Base Domain", fontsize=10, weight='bold', ha='center', va='center')
-    ax.text(1.9, y_base + 0.2, "Voting booth turnstile", fontsize=9, ha='center', va='center')
-    ax.text(1.9, y_base - 0.2, "“One click per PARTY,", fontsize=9, ha='center', va='center')
-    ax.text(1.9, y_base - 0.55, "not per voter”", fontsize=9, ha='center', va='center')
-    ax.text(1.9, y_base - 1.0, "Click = declared party tally", fontsize=9, ha='center', va='center')
-    ax.text(1.9, y_base - 1.4, "3 voters, 2 parties: 3! orderings,", fontsize=8.5, ha='center', va='center', color='gray')
-    ax.text(1.9, y_base - 1.7, "1 observable tally", fontsize=8.5, ha='center', va='center', color='gray')
+    box_w = 4.5
+    box_h = 2.15
+    left_x = 0.25
+    right_x = 12 - 0.25 - box_w
+    row_tops = [8.1, 5.55, 3.0]  # top y of each row's boxes
 
-    # ===== TARGET DOMAIN (right): sealed gate =====
-    y_target = 5.4
-    box2 = Rectangle((8.4, y_target - 2.0), 3.4, 2.9,
-                      edgecolor=SEAGREEN, facecolor=SEAGREEN, alpha=0.12, linewidth=1.5)
-    ax.add_patch(box2)
-    ax.text(10.1, y_target + 0.65, "Target Domain", fontsize=10, weight='bold', ha='center', va='center')
-    ax.text(10.1, y_target + 0.2, "Sealed gate g(s) = s mod 2", fontsize=9, ha='center', va='center')
-    ax.text(10.1, y_target - 0.2, "Release only the parity bit,", fontsize=9, ha='center', va='center')
-    ax.text(10.1, y_target - 0.55, "never the secret s", fontsize=9, ha='center', va='center')
-    ax.text(10.1, y_target - 1.0, "Bit = declared gate release", fontsize=9, ha='center', va='center')
-    ax.text(10.1, y_target - 1.4, "secrets 0,2 (equal parity):", fontsize=8.5, ha='center', va='center', color='gray')
-    ax.text(10.1, y_target - 1.7, "all interleavings, depth 7", fontsize=8.5, ha='center', va='center', color='gray')
+    def side_box(x, y_top, color, title, lines, sublines=None):
+        box = FancyBboxPatch((x, y_top - box_h), box_w, box_h,
+                              boxstyle="round,pad=0.08,rounding_size=0.12",
+                              edgecolor=color, facecolor=color, alpha=0.12, linewidth=1.6)
+        ax.add_patch(box)
+        cx = x + box_w / 2
+        ax.text(cx, y_top - 0.32, title, fontsize=10.5, weight='bold', ha='center', va='top')
+        y = y_top - 0.78
+        for ln in lines:
+            ax.text(cx, y, ln, fontsize=9.3, ha='center', va='top')
+            y -= 0.36
+        if sublines:
+            y -= 0.06
+            for ln in sublines:
+                ax.text(cx, y, ln, fontsize=8.3, ha='center', va='top', color='gray')
+                y -= 0.32
 
-    # ===== UPPER ARROW =====
-    y_arrow_top = y_base + 0.9
-    arrow1 = FancyArrowPatch((3.6, y_arrow_top), (8.4, y_arrow_top),
-                              arrowstyle='<->', mutation_scale=22, linewidth=2.0,
-                              color=SHIPRED, alpha=0.85)
-    ax.add_patch(arrow1)
-    ax.text(6, y_arrow_top + 0.35, "declared tally ⇔ declared release bit",
-            fontsize=9, ha='center', va='bottom', weight='bold', color=SHIPRED)
+    # ===== ROW 1: the mechanism =====
+    side_box(left_x, row_tops[0], HARBORBLUE, "Sealed airlock",
+              ["Derek moves freely inside the chamber;", "the outer door cycles only at"],
+              ["declared checkpoints — never mid-transit"])
+    side_box(right_x, row_tops[0], SEAGREEN, "Gate g(s) = s mod 2",
+              ["Derek's process holds secret s;", "only g(s) ever crosses the boundary"],
+              ["never s itself"])
 
-    # ===== LOWER ARROW =====
-    y_arrow_bot = y_base - 1.85
-    arrow2 = FancyArrowPatch((3.6, y_arrow_bot), (8.4, y_arrow_bot),
-                              arrowstyle='<->', mutation_scale=22, linewidth=2.0,
-                              color=SHIPRED, alpha=0.85)
-    ax.add_patch(arrow2)
-    ax.text(6, y_arrow_bot - 0.4, "indistinguishable ballots ⇔ equal-parity secrets",
-            fontsize=9, ha='center', va='top', weight='bold', color=SHIPRED)
+    # ===== ROW 2: the invariant =====
+    side_box(left_x, row_tops[1], HARBORBLUE, "Erin, at the porthole",
+              ["Sees only the checkpoint light —", "one occupant or another, indistinguishable"],
+              ["whenever the door-log matches"])
+    side_box(right_x, row_tops[1], SEAGREEN, "Erin's observation trace",
+              ["Identical for any s, s′ with g(s)=g(s′),", "under every interleaving of steps"],
+              ["unwinding: Derek-side actions never touch", "Erin-observable state ('local respect')"])
 
-    # Bottom interpretive notes
-    ax.text(6, 1.5, "Pledge: observations identical whenever g(s) = g(s′), across all interleavings.",
-            fontsize=9, ha='center', va='center', color='gray')
-    ax.text(6, 1.0, "Only the declared release bit carries information — the sealed room never leaks the secret itself.",
-            fontsize=9, ha='center', va='center', color='gray')
+    # ===== ROW 3: the proof =====
+    side_box(left_x, row_tops[2], HARBORBLUE, "Inspector's logbook",
+              ["Every door-sequence and occupant swap", "re-run — the light never tells them apart"],
+              ["except at a checkpoint itself"])
+    side_box(right_x, row_tops[2], SHIPRED, "Exhaustive + mutated",
+              ["All secret pairs × all interleavings", "to depth 7 [c1_noninterference.py]"],
+              ["leaky-gate: caught distinguishing (0,2)", "bypass: caught in 3 steps"])
+
+    # ===== CONNECTIVE ARROWS (curved, labeled) =====
+    def connector(y_top, label, color=SHIPRED, rad=0.18):
+        y_mid = y_top - box_h / 2
+        x0 = left_x + box_w
+        x1 = right_x
+        arrow = FancyArrowPatch((x0, y_mid), (x1, y_mid),
+                                 connectionstyle=f"arc3,rad={rad}",
+                                 arrowstyle='<->', mutation_scale=20, linewidth=2.1,
+                                 color=color, alpha=0.9)
+        ax.add_patch(arrow)
+        ax.text((x0 + x1) / 2, y_mid + rad * (x1 - x0) / 2 + 0.28, label,
+                fontsize=9.3, ha='center', va='bottom', weight='bold', color=color)
+
+    connector(row_tops[0], "the only door is the gate", rad=0.14)
+    connector(row_tops[1], "equal release ⇒ equal view", rad=0.14)
+    connector(row_tops[2], "checked, not assumed", color=SHIPRED, rad=0.14)
+
+    # Bottom interpretive caption
+    ax.text(6, 0.52,
+            "Two directions, one theorem: R5 says gate the channel; R9 says the gate suffices",
+            fontsize=9.3, ha='center', va='center', style='italic', color=(0.3, 0.3, 0.3))
+    ax.text(6, 0.18,
+            "(Goguen–Meseguer noninterference modulo declassification; Rushby unwinding, local-respect condition).",
+            fontsize=8.6, ha='center', va='center', style='italic', color=(0.45, 0.45, 0.45))
 
     plt.tight_layout()
     plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r9_relation.png',
