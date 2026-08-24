@@ -1440,6 +1440,54 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
     const { result } = await run({ sandbox: 'absent', blocking: false, blockWithoutSandbox: true });
     expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK' });
   });
+
+  // A green exit code over ZERO executed tests is not a PASS — it is a broken
+  // instrument (--passWithNoTests, an empty discovery). The ship must report
+  // ITSELF errored, so the run fails on the broken-ship doctrine instead of
+  // certifying the PR on zero evidence. Two real shapes are pinned: a
+  // structured Jest summary honestly reporting numTotalTests: 0 under
+  // success: true (the --passWithNoTests shape), and a run whose result file
+  // never appeared, leaving only the runner's literal zero-test record for
+  // classification.
+  const zeroTestGreenStub = (output: string, withSummary: boolean): unknown => {
+    const lines = ['__PD_PURSER_TEST_STARTED__', output];
+    if (withSummary) {
+      const summary = {
+        numFailedTests: 0,
+        numFailedTestSuites: 0,
+        numPassedTests: 0,
+        numRuntimeErrorTestSuites: 0,
+        numTotalTests: 0,
+        success: true,
+      };
+      lines.push(`__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`);
+    }
+    return { exec: async () => ({ exitCode: 0, stdout: lines.join('\n'), stderr: '' }) };
+  };
+
+  const runZeroTestGreen = async (output: string, withSummary: boolean) => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    const env = makeEnv({ AI: ai, SANDBOX: zeroTestGreenStub(output, withSummary) });
+    return runPurser(mkShip({ blocking: true }), mkCtx(), env, 'tok', rec.transcript, freshMetrics());
+  };
+
+  it('exit 0 + "No tests found" (no result file) ⇒ errored (instrument failure), never an evidence-free PASS', async () => {
+    const result = await runZeroTestGreen('No tests found, exiting with code 0\n', false);
+    expect(result.errored).toBe(true);
+    expect(result.failureReason).toContain('zero tests');
+    expect(aggregateConclusion([result])).toBe('failure');
+    // And never a retarget: a zero-test green run is not passing evidence.
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+  });
+
+  it('exit 0 + structured "Tests: 0 total" summary ⇒ errored (instrument failure), never an evidence-free PASS', async () => {
+    const result = await runZeroTestGreen('Tests:       0 total\n', true);
+    expect(result.errored).toBe(true);
+    expect(result.failureReason).toContain('zero tests');
+    expect(aggregateConclusion([result])).toBe('failure');
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

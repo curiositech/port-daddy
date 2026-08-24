@@ -497,6 +497,26 @@ function undiscoverablePlannedPaths(
  * carrying a whole source file is the most fragile thing a model can be asked
  * for, and it cost a 2026-08-09 run its entire 6KB of authored tests.
  */
+/**
+ * Spell out the '..'-arithmetic for a planned path instead of asking the model
+ * to do it. Both live authored-suite failures on 2026-08-23 (#9741, #9744) were
+ * the SAME off-by-one: from tests/unit/purser/ the model wrote two '..'
+ * segments to reach the repo root when three are required, so every repo file
+ * the tests touched resolved to a directory that exists on no ref. Arithmetic
+ * is ours to state, not the model's to rediscover per file.
+ */
+function depthNote(path: string): string {
+  const depth = path.split('/').length - 1;
+  if (depth === 0) return '';
+  const dots = Array.from({ length: depth }, () => "'..'").join(' + ');
+  return (
+    `This file sits ${depth} director${depth === 1 ? 'y' : 'ies'} below the repo root, ` +
+    `so the path from its directory to the repo root is EXACTLY ${depth} ` +
+    `segment${depth === 1 ? '' : 's'}: ${dots}. Build every repo-root-relative ` +
+    `path from that count.\n`
+  );
+}
+
 function fileAuthorSystemPrompt(
   ship: ShipConfig,
   steel: SteelManContract,
@@ -534,6 +554,12 @@ function fileAuthorSystemPrompt(
     `elisions like "... rest unchanged". Relative imports resolve from the ` +
     `directory containing ${planned.path}; count every required '..' segment ` +
     `from that directory and never invent a module — imports must name real repository files.\n` +
+    depthNote(planned.path) +
+    `Tests run on a LINUX CI runner. Never spawn a platform-specific binary ` +
+    `(xcodebuild, swift, launchctl, osascript, powershell) without first ` +
+    `probing for it and skipping the dependent cases when it is absent — a ` +
+    `hard failure on a missing toolchain reads as a failure of the PR, which ` +
+    `it is not.\n` +
     runnerNote +
     repairNote +
     `\n` +
@@ -703,6 +729,21 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
       `**Execution: NOT RUN.** ${sandbox.reason ?? 'sandbox unavailable'}. ` +
       `These tests have not been executed — no result is being claimed for them. ` +
       `They still state the contract; run them.`
+    );
+  }
+  // Zero-test evidence outranks the exit code: checked BEFORE `passed`, so a
+  // runner that exits 0 after discovering nothing (--passWithNoTests and kin)
+  // cannot render as a PASS backed by zero executed tests. A zero-test run
+  // that exited NON-zero falls through to the RUNNER ERROR rendering below —
+  // same broken-instrument routing, described as the harness failure it is.
+  if (sandbox.passed && !sandbox.ranTests) {
+    return (
+      `**Execution: RAN — ZERO TESTS EXECUTED.** The runner's own output ` +
+      `records no test executing — the authored suite failed to load, or the ` +
+      `runner discovered nothing (whatever the exit code) — so this run is ` +
+      `evidence about the authored test files, not about the PR. The verdict ` +
+      `is neither a pass nor a block on that basis; the purser's authoring ` +
+      `defect is the thing to fix.`
     );
   }
   if (sandbox.passed) {
@@ -983,6 +1024,24 @@ async function rerunExistingTests(
   );
 
   let verdict: Verdict;
+  if (sandbox.executed && !sandbox.ranTests) {
+    // The suite loaded ZERO tests — an instrument failure, not the PR's,
+    // whichever way it exited. A BLOCK here gates real work on the purser's
+    // own broken file (the #9224 13-line sketch: "Your test suite must
+    // contain at least one test"); a PASS here (exit 0 with nothing
+    // discovered, e.g. --passWithNoTests) certifies the PR on zero evidence.
+    // So the ship reports itself broken instead. `errored` routes this
+    // through the broken-ship doctrine: the run fails until the authored
+    // file is fixed, but the PR under review is not the one on the hook.
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: 'PASS',
+      errored: true,
+      failureReason: 'authored suite executed zero tests — instrument failure, not PR evidence',
+      findings: [],
+    };
+  }
   if (sandbox.executed) {
     verdict = sandbox.passed ? 'PASS' : 'BLOCK';
   } else {
@@ -1636,6 +1695,8 @@ export async function runPurser(
         passed: null,
         outputTail: '',
         failures: [],
+        outcomeKind: 'not-executed',
+        ranTests: true,
         reason: `not executed: ${executability.reason}`,
       };
       // Preserve the contract + authored tests as ADVISORY EVIDENCE (same
@@ -1692,7 +1753,9 @@ export async function runPurser(
       sandbox.executed
         ? `pd-${ship.name}: sandbox ${
             sandbox.passed
-              ? 'PASSED'
+              ? sandbox.ranTests
+                ? 'PASSED'
+                : 'ZERO TESTS EXECUTED'
               : sandboxFailureIsHarness(sandbox)
                 ? 'RUNNER ERROR'
                 : 'FAILED'
@@ -1756,8 +1819,10 @@ export async function runPurser(
       // is not evidence: PR #9778 started Jest, loaded zero valid tests, and the
       // old `sandbox.executed` condition still retargeted #9767 onto the broken
       // branch. Retargeting changes the reviewed diff and CI base, so failure,
-      // absence, and uncertainty all leave the author PR unchanged.
-      if (!prCtx.isFork && sandbox.executed && sandbox.passed === true) {
+      // absence, and uncertainty all leave the author PR unchanged. `ranTests`
+      // closes the green twin of #9778: an exit-0 run whose own output records
+      // ZERO executed tests (--passWithNoTests and kin) is not a pass either.
+      if (!prCtx.isFork && sandbox.executed && sandbox.passed === true && sandbox.ranTests) {
         try {
           await assertCurrentHead(`before pd-${ship.name} implementation PR retarget`);
           await retargetPrBase(
@@ -1780,7 +1845,9 @@ export async function runPurser(
             `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`
           : sandboxFailureIsHarness(sandbox)
             ? 'the generated suite or runner failed without structured assertion evidence, so Purser is broken for this run and may not mutate the reviewed PR.'
-            : 'the generated tests did not pass, so the reviewed PR base remains unchanged while their findings are resolved.';
+            : !sandbox.ranTests
+              ? 'the run executed ZERO tests despite its green exit code — an instrument failure, so there is no passing result to retarget this PR onto.'
+              : 'the generated tests did not pass, so the reviewed PR base remains unchanged while their findings are resolved.';
       }
     } catch (err) {
       if (err instanceof PullRequestHeadValidationError) throw err;
@@ -1859,6 +1926,9 @@ export async function runPurser(
     // as BLOCK. A runner/harness failure is broken machinery, never product
     // evidence.
     if (degradedReason && !stackedPr) {
+      // Only structured assertion evidence may BLOCK — a zero-test run never
+      // qualifies (its classifier kind is `harness-failure` on any exit code),
+      // so it lands on the broken-ship verdict with `errored` set.
       const verdict: Verdict = sandboxFailureIsAssertion(sandbox)
         ? 'BLOCK'
         : brokenShip.verdict;
@@ -1867,8 +1937,25 @@ export async function runPurser(
 
     let verdict: Verdict;
     if (sandboxFailureIsHarness(sandbox)) {
+      // Covers every zero-test run that exited non-zero, alongside the other
+      // load/discovery/runner breakages: broken machinery, never PR evidence.
       return brokenShip;
-    } else if (sandbox.executed) {
+    }
+    if (sandbox.executed && !sandbox.ranTests) {
+      // The remaining zero-test shape: a GREEN exit over zero executed tests
+      // (--passWithNoTests, an empty discovery). Same rule as the re-run
+      // path: the ship reports itself errored; the PR is neither blocked on
+      // it nor passed by it.
+      return {
+        ship: ship.name,
+        blocking: ship.blocking,
+        verdict: 'PASS',
+        errored: true,
+        failureReason: 'authored suite executed zero tests — instrument failure, not PR evidence',
+        findings: [],
+      };
+    }
+    if (sandbox.executed) {
       // BLOCK only when structured assertion evidence fails on the PR head.
       verdict = sandbox.passed ? 'PASS' : 'BLOCK';
     } else {

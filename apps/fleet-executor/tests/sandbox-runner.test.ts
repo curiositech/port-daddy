@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDefaultSandboxTestCommand,
   buildSandboxDaemonBootstrap,
+  ranZeroTests,
   runTestsInSandbox,
   sandboxCoordinationPeerFromEnv,
 } from '../src/sandbox-runner.js';
@@ -370,5 +371,198 @@ describe('cloud coordination bootstrap', () => {
     expect(script).toContain('/work/pd-peer');
     expect(script).not.toContain("macaroon'with-quote");
     expect(script).not.toContain('/tmp');
+  });
+});
+
+// ── Zero-tests classification ────────────────────────────────────────────────
+//
+// Three live runs on 2026-08-23 BLOCKED reviewed PRs on authored suites that
+// never executed a single test: #9224 (a 13-line sketch — "Your test suite
+// must contain at least one test"), #9730 (four suites all "failed to run",
+// Tests: 0 total), #9639 (ESM `require` crash in beforeAll). Exit-code-only
+// pass/fail cannot tell that failure mode from a real contract violation, so
+// the outcome now carries `ranTests` and the verdict paths key off it. For
+// default-Jest marker-protocol runs the structured summary's numTotalTests is
+// the authoritative zero-test signal; `ranZeroTests` is the literal fallback
+// for every runner format the summary protocol cannot see (pytest, go test,
+// custom commands, a default run whose result file never appeared).
+
+describe('ranZeroTests', () => {
+  it('recognises the jest empty-suite refusal', () => {
+    expect(
+      ranZeroTests(
+        'FAIL unit tests/unit/purser/404-existence-oracle.test.ts\n' +
+          '  ● Test suite failed to run\n\n' +
+          '    Your test suite must contain at least one test.\n\n' +
+          'Tests:       0 total\n',
+      ),
+    ).toBe(true);
+  });
+
+  it('recognises the zero-total summary from suites that failed to load', () => {
+    expect(
+      ranZeroTests(
+        "Cannot find module '@noble/ed25519' from 'apps/relay/src/crypto.ts'\n" +
+          'Test Suites: 4 failed, 4 total\n' +
+          'Tests:       0 total\n',
+      ),
+    ).toBe(true);
+  });
+
+  it('a run where ANY test executed is real evidence, even amid load failures', () => {
+    // The #9639 shape: 2 failed / 8 passed — those 8 executed, so pass/fail
+    // semantics stand and a failure still BLOCKs.
+    expect(
+      ranZeroTests(
+        'Test Suites: 2 failed, 2 passed, 4 total\n' +
+          'Tests:       2 failed, 8 passed, 10 total\n',
+      ),
+    ).toBe(false);
+  });
+
+  it('does not match prose that merely mentions zero tests', () => {
+    expect(ranZeroTests('the previous run had Tests: 0 total in its log')).toBe(false);
+  });
+
+  it('an unrecognised runner format is NOT forgiven', () => {
+    expect(ranZeroTests('some runner exploded in a way nothing here knows')).toBe(false);
+  });
+
+  it('recognises the jest/vitest "No tests found" discovery record', () => {
+    expect(ranZeroTests('No tests found, exiting with code 0\n')).toBe(true);
+    expect(ranZeroTests('No test files found, exiting with code 1\n')).toBe(true);
+  });
+
+  it('recognises pytest "collected 0 items" without needing a collection error', () => {
+    // The exit-5 shape: discovery simply found nothing — no error text at all.
+    expect(
+      ranZeroTests('==== test session starts ====\ncollected 0 items\n\n==== no tests ran in 0.02s ====\n'),
+    ).toBe(true);
+  });
+
+  it('recognises the pytest "no tests ran" final summary on its own', () => {
+    expect(ranZeroTests('==================== no tests ran in 0.12s ====================\n')).toBe(true);
+  });
+
+  it('recognises a go run where EVERY package has no test files', () => {
+    expect(
+      ranZeroTests('?   \texample.com/pkg/a\t[no test files]\n?   \texample.com/pkg/b\t[no test files]\n'),
+    ).toBe(true);
+  });
+
+  it('a mixed-package green go run is real evidence, not zero-test', () => {
+    // `go test ./...` prints `[no test files]` for test-less packages IN THE
+    // SAME OUTPUT as `ok pkg 0.31s` for packages whose tests executed. The
+    // marker's presence alone proves nothing — partial execution is real
+    // evidence, per this module's doctrine.
+    expect(
+      ranZeroTests('ok  \texample.com/pkg/a\t0.31s\n?   \texample.com/pkg/b\t[no test files]\n'),
+    ).toBe(false);
+  });
+
+  it('a go run with a timed package FAILURE beside [no test files] is real evidence too', () => {
+    expect(
+      ranZeroTests(
+        '--- FAIL: TestThing (0.00s)\nFAIL\nFAIL\texample.com/pkg/a\t0.12s\n?   \texample.com/pkg/b\t[no test files]\n',
+      ),
+    ).toBe(false);
+  });
+
+  it('does not mistake a prose mention of [no test files] mid-line for a go record', () => {
+    expect(ranZeroTests('warning: package x printed [no test files] last week\n')).toBe(false);
+  });
+});
+
+describe('runTestsInSandbox ranTests wiring', () => {
+  // The runner started (marker present) but never wrote a structured Jest
+  // summary — the result-file-missing shape — so classification falls back to
+  // the literal zero-test records in the raw output.
+  const params = (stdout: string, exitCode: number) => ({
+    sandboxBinding: {
+      async exec() {
+        return { exitCode, stdout: `${TEST_STARTED_MARKER}\n${stdout}`, stderr: '' };
+      },
+    },
+    owner: 'o',
+    repo: 'r',
+    headSha: 'a1b2c3',
+    files: [{ path: 'tests/unit/x.test.ts', contents: 't' }],
+    token: 'tok',
+  });
+
+  it('a failing run that executed zero tests reports ranTests: false (a harness failure)', async () => {
+    const out = await runTestsInSandbox(
+      params('Your test suite must contain at least one test.\nTests:       0 total\n', 1),
+    );
+    expect(out).toMatchObject({
+      executed: true,
+      passed: false,
+      ranTests: false,
+      outcomeKind: 'harness-failure',
+    });
+  });
+
+  it('a failing run whose tests DID execute reports ranTests: true', async () => {
+    const out = await runTestsInSandbox(
+      params('Tests:       2 failed, 8 passed, 10 total\n', 1),
+    );
+    expect(out).toMatchObject({ executed: true, passed: false, ranTests: true });
+  });
+
+  it('a green run whose tests really executed reports ranTests: true', async () => {
+    const out = await runTestsInSandbox(params('Tests: 12 passed, 12 total\n', 0));
+    expect(out).toMatchObject({
+      executed: true,
+      passed: true,
+      ranTests: true,
+      outcomeKind: 'passed',
+    });
+  });
+
+  // Classification precedes the exit-code verdict: a runner that exits 0
+  // after executing nothing (--passWithNoTests, an empty discovery) is a
+  // broken instrument wearing a green exit code, not evidence about the PR —
+  // never `outcomeKind: 'passed'`.
+  it('a GREEN run that found no tests reports ranTests: false', async () => {
+    const out = await runTestsInSandbox(params('No tests found, exiting with code 0\n', 0));
+    expect(out).toMatchObject({
+      executed: true,
+      passed: true,
+      ranTests: false,
+      outcomeKind: 'harness-failure',
+    });
+  });
+
+  it('a GREEN run with a zero-total summary reports ranTests: false', async () => {
+    const out = await runTestsInSandbox(params('Tests:       0 total\n', 0));
+    expect(out).toMatchObject({ executed: true, passed: true, ranTests: false });
+  });
+
+  it('a structured Jest summary with zero total tests is authoritative over a green exit', async () => {
+    const out = await runTestsInSandbox(
+      params(
+        `No tests found\n${jestSummary({
+          numPassedTests: 0,
+          numTotalTests: 0,
+          success: true,
+        })}\n`,
+        0,
+      ),
+    );
+    expect(out).toMatchObject({
+      executed: true,
+      passed: true,
+      ranTests: false,
+      outcomeKind: 'harness-failure',
+    });
+  });
+
+  it('a structured Jest summary with executed tests overrides a stray literal signal', async () => {
+    // The summary says one test really ran; prose in the output must not
+    // reroute the verdict to the instrument.
+    const out = await runTestsInSandbox(
+      params(`collected 0 items\n${jestSummary()}\n`, 0),
+    );
+    expect(out).toMatchObject({ executed: true, passed: true, ranTests: true, outcomeKind: 'passed' });
   });
 });

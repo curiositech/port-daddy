@@ -75,6 +75,8 @@ import {
 } from './proposals.js';
 import {
   createOrUpdateBranch,
+  fetchRepoFileText,
+  fetchRepoTreePaths,
   openStackedPr,
   GitHubApiError,
 } from './stacked-pr.js';
@@ -98,6 +100,13 @@ import {
   type NoUsableOutputReason,
 } from './usable-output.js';
 import { renderFindingsComment } from './findings-render.js';
+import {
+  auditFindingLineBounds,
+  auditFindings,
+  auditProposals,
+  renderCitationAuditNote,
+  type CitationEvidence,
+} from './citation-audit.js';
 import {
   captureProposals,
   ensureIdeasTable,
@@ -2343,6 +2352,36 @@ async function runShip(
       // with valid files, the ship's own code is branched from the PR HEAD and
       // opened as a PR based on the PR's head branch. At most ONE stack PR per
       // ship per run; every failure mode degrades to a transcript note.
+      // Citation audit (2026-08-23): proposal evidence arrays were the one
+      // fleet output nothing validated, and the measured result was findings
+      // "grounded" in csp-validator.ts, path-validator.ts, cli/visibility.py —
+      // files that exist on no ref. Path-shaped evidence must resolve at the
+      // PR head; concepts pass untouched; a proposal with ONLY fabricated
+      // evidence is withheld, visibly.
+      let proposalAuditNote = '';
+      if (curated && curated.length > 0) {
+        const treePaths = await headTreePathsFor(prCtx.owner, prCtx.repo, prCtx.headSha, token);
+        const citationEvidence: CitationEvidence = {
+          treePaths,
+          changedPaths: new Set(prCtx.files.map(f => f.filename)),
+        };
+        const audit = auditProposals(curated, citationEvidence);
+        if (audit.audited && (audit.dropped.length > 0 || audit.strippedFrom.length > 0)) {
+          for (const d of [...audit.dropped, ...audit.strippedFrom]) {
+            console.warn(
+              `[fleet-executor] pd-${ship.name}: fabricated evidence path(s) ` +
+                `${d.missing.join(', ')} on proposal "${d.title}"`,
+            );
+          }
+          await transcript.step('ship-citation-audit', ship.name,
+            `pd-${ship.name}: withheld ${audit.dropped.length} proposal(s), stripped fabricated ` +
+              `evidence from ${audit.strippedFrom.length}`,
+            { dropped: audit.dropped, stripped: audit.strippedFrom },
+          );
+          proposalAuditNote = renderCitationAuditNote([], audit.dropped, audit.strippedFrom);
+          curated = audit.kept;
+        }
+      }
       const stackedPr =
         curated && curated.length > 0
           ? await maybeStackProposal(
@@ -2372,7 +2411,8 @@ async function runShip(
       // malformed (null) → post the raw output so the model's prose isn't lost,
       // and record the ship as BROKEN rather than laundering it into a PASS.
       const malformed = proposals === null;
-      const body = rendered || (malformed ? output : '');
+      const renderedWithAudit = rendered ? rendered + proposalAuditNote : proposalAuditNote.trim() ? proposalAuditNote.trimStart() : '';
+      const body = renderedWithAudit || (malformed ? output : '');
 
       await transcript.step(
         malformed ? 'ship-finding' : 'ship-verdict',
@@ -2462,7 +2502,7 @@ async function runShip(
     // backstop that can eat correct output is not worth having.
     const changedPaths = new Set(prCtx.files.map(f => f.filename));
     const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
-    const findings =
+    const scopeFiltered =
       parsedFindings === null || !fileListTrustworthy
         ? parsedFindings
         : parsedFindings.filter(f => {
@@ -2474,6 +2514,65 @@ async function runShip(
             );
             return false;
           });
+
+    // Citation audit (2026-08-23) — the second layer, for exactly the case the
+    // scope filter fails open on: a possibly-truncated /files list. A finding
+    // whose cited path exists neither in the diff NOR anywhere in the head
+    // tree is not about this repository; it is withheld and named as such in
+    // the posted comment, so the reviewer's defect stays legible instead of
+    // shipping with a one-click issue button pointing at a fabricated file.
+    let findings = scopeFiltered;
+    let findingsAuditNote = '';
+    if (scopeFiltered !== null && scopeFiltered.length > 0 && !fileListTrustworthy) {
+      const treePaths = await headTreePathsFor(prCtx.owner, prCtx.repo, prCtx.headSha, token);
+      const audit = auditFindings(scopeFiltered, { treePaths, changedPaths });
+      if (audit.audited && audit.rejected.length > 0) {
+        await transcript.step('ship-citation-audit', ship.name,
+          `pd-${ship.name}: withheld ${audit.rejected.length} finding(s) citing nonexistent paths`,
+          { rejected: audit.rejected.map(f => `${f.path}:${f.line}`) },
+        );
+        findingsAuditNote = renderCitationAuditNote(audit.rejected.map(f => f.path), []);
+        findings = audit.kept;
+      }
+    }
+
+    // Line-bounds audit — runs on every surviving finding, whether or not the
+    // /files list was trustworthy: a citation of a real, changed file can
+    // still name a line that objectively cannot exist (line 0, or a line past
+    // the file's EOF at the PR head). Objective bounds only; semantic line
+    // accuracy (right line, wrong claim — the measured 84-of-120 failure) is
+    // remaining work, not something this audit certifies.
+    if (findings !== null && findings.length > 0) {
+      const lineAudit = await auditFindingLineBounds(findings, path =>
+        headFileLineCountFor(prCtx.owner, prCtx.repo, prCtx.headSha, path, token),
+      );
+      if (lineAudit.unverifiable.length > 0) {
+        // Fail open, loudly: these findings were kept unchecked.
+        console.warn(
+          `[fleet-executor] pd-${ship.name}: line-bounds audit could not read ` +
+            `${lineAudit.unverifiable.join(', ')} at the PR head — findings on ` +
+            `those files were kept unverified`,
+        );
+      }
+      if (lineAudit.rejected.length > 0) {
+        for (const r of lineAudit.rejected) {
+          console.warn(
+            `[fleet-executor] pd-${ship.name}: withheld finding citing ` +
+              `'${r.path}:${r.line}' — ${
+                r.reason === 'non-positive'
+                  ? 'line numbers start at 1'
+                  : `the file has ${r.lineCount} lines at the PR head`
+              }`,
+          );
+        }
+        await transcript.step('ship-citation-audit', ship.name,
+          `pd-${ship.name}: withheld ${lineAudit.rejected.length} finding(s) citing impossible line numbers`,
+          { rejected: lineAudit.rejected },
+        );
+        findingsAuditNote += renderCitationAuditNote([], [], [], lineAudit.rejected);
+        findings = lineAudit.kept;
+      }
+    }
 
     // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
     // marker (the ship produced output we couldn't parse); a parsed block is a
@@ -2504,7 +2603,7 @@ async function runShip(
             repo: prCtx.repo,
             prNumber: prCtx.prNumber,
             shipName: ship.name,
-          });
+          }) + findingsAuditNote;
 
     await assertCurrentHead(`before pd-${ship.name} review comment`);
     await postShipComment(
@@ -3149,6 +3248,70 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText 
  * bind one to the other, and attributing a snippet to the wrong path is the
  * natural outcome rather than an unlucky one.
  */
+/**
+ * Head-tree paths for the citation audit, memoized per (owner/repo@sha).
+ *
+ * One recursive trees call serves every ship in a run — and, in a warm Worker
+ * isolate, every re-delivery for the same head. Bounded so a long-lived
+ * isolate cannot hoard trees; insertion order is eviction order, which is
+ * enough when the working set is "the PRs currently being reviewed".
+ */
+const headTreeMemo = new Map<string, Set<string> | null>();
+const HEAD_TREE_MEMO_CAP = 8;
+
+export async function headTreePathsFor(
+  owner: string,
+  repo: string,
+  sha: string,
+  token: string,
+): Promise<Set<string> | null> {
+  const key = `${owner}/${repo}@${sha}`;
+  if (headTreeMemo.has(key)) return headTreeMemo.get(key) ?? null;
+  const paths = await fetchRepoTreePaths(owner, repo, sha, token);
+  if (headTreeMemo.size >= HEAD_TREE_MEMO_CAP) {
+    const oldest = headTreeMemo.keys().next().value;
+    if (oldest !== undefined) headTreeMemo.delete(oldest);
+  }
+  headTreeMemo.set(key, paths);
+  return paths;
+}
+
+/**
+ * Line count of one cited file at the PR head, for the citation line-bounds
+ * audit — memoized like headTreePathsFor and for the same reason: findings
+ * cluster on few files, and re-deliveries in a warm isolate re-cite them.
+ *
+ * Bounded on every axis: only files actually cited with a line number reach
+ * here (auditFindingLineBounds fetches lazily and caps distinct fetches per
+ * run), and the contents API itself refuses blobs over 1 MB — which collapses
+ * to null, i.e. FAIL OPEN: null means "count unknown, keep the finding",
+ * never "assume 0 lines". A silently eaten real finding is worse than a
+ * posted bogus one.
+ */
+const headLineCountMemo = new Map<string, number | null>();
+const HEAD_LINE_COUNT_MEMO_CAP = 64;
+
+export async function headFileLineCountFor(
+  owner: string,
+  repo: string,
+  sha: string,
+  path: string,
+  token: string,
+): Promise<number | null> {
+  const key = `${owner}/${repo}@${sha}:${path}`;
+  if (headLineCountMemo.has(key)) return headLineCountMemo.get(key) ?? null;
+  const text = await fetchRepoFileText(owner, repo, path, sha, token);
+  // Same count the scoreboard uses (split('\n').length), so the runtime audit
+  // and the measurement script can never disagree about the same citation.
+  const count = text === null ? null : text.split('\n').length;
+  if (headLineCountMemo.size >= HEAD_LINE_COUNT_MEMO_CAP) {
+    const oldest = headLineCountMemo.keys().next().value;
+    if (oldest !== undefined) headLineCountMemo.delete(oldest);
+  }
+  headLineCountMemo.set(key, count);
+  return count;
+}
+
 export function filesInChunk(diffChunk: string): string[] {
   const out = new Set<string>();
   // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
@@ -3206,7 +3369,8 @@ function pathFromDiffLine(line: string): string | null {
 /**
  * Build the MAP-stage prompt for one diff chunk.
  *
- * **The chunk is a partial view, and saying so is load-bearing.** Review is
+ * **The chunk is a partial view, and the prompt must say so — omitting that
+ * one statement is what produced the failures below.** Review is
  * map-reduce: each call sees one chunk of a diff that may span dozens of files.
  * Earlier this was communicated only as ` (chunk 3 of 12)` appended to a
  * heading, with the full changed-file list rendered flat above it. That
