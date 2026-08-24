@@ -63,6 +63,7 @@ describe('macOS job identity constraints', () => {
     }
     expect(stepsWithNodeOptions).toEqual([
       'unit-tests-macos:Run unit tests',
+      'unit-tests-compat:Run unit tests (macOS 4 GiB heap)',
     ]);
   });
 

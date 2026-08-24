@@ -68,6 +68,7 @@ import {
   buildHarnessContinuationMatrix,
   collectHarnessConformanceWitnesses,
 } from '../lib/harness-conformance.js';
+import { listContextContinuity } from '../lib/agent-harbor/context-continuity.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
@@ -231,6 +232,23 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
       return { data: buildHarnessContinuationMatrix({ witnesses }) };
     } catch (error) {
       return fail(reply, 'harness_continuation_matrix', error);
+    }
+  });
+
+  // Operator proof for the formerly disconnected context-memory chain. This
+  // is a disposable CQRS projection: the append-only context/packet events
+  // and idempotent continuation receipts remain the source evidence.
+  fastify.get('/agent-harbor/context-continuity', async (request, reply) => {
+    try {
+      const query = request.query as Record<string, unknown>;
+      const parsed = typeof query.limit === 'string' ? Number.parseInt(query.limit, 10) : 50;
+      const limit = Number.isFinite(parsed) ? parsed : 50;
+      const projectDir = typeof query.projectDir === 'string' && query.projectDir.trim()
+        ? query.projectDir.trim()
+        : null;
+      return listContextContinuity(db, { limit, projectDir });
+    } catch (error) {
+      return fail(reply, 'context_continuity', error);
     }
   });
 

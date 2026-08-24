@@ -11,6 +11,17 @@
 /** Queue deliveries allowed to probe a retryable Workers AI failure. */
 export const PROVIDER_MAX_DELIVERY_ATTEMPTS = 3;
 
+/**
+ * Hard wall-clock budget for one Workers AI binding call.
+ *
+ * Workers AI's binding does not document an AbortSignal option. Racing the
+ * binding promise is therefore the local fail-fast boundary: Fleet stops
+ * awaiting that call, opens the circuit, and lets the queue invocation end.
+ * The next delivery becomes the half-open probe. This bounds Fleet control
+ * flow without pretending the underlying provider operation was cancelled.
+ */
+export const FLEET_AI_CALL_DEADLINE_MS = 60_000;
+
 /** Full-jitter queue backoff: 15s, 30s, 60s ceilings, capped at two minutes. */
 const PROVIDER_RETRY_BASE_SECONDS = 15;
 const PROVIDER_RETRY_CAP_SECONDS = 120;
@@ -48,12 +59,29 @@ export class FleetAiDependencyError extends Error {
   }
 }
 
+/** Provider-shaped timeout so the existing classifier and queue retry apply. */
+class FleetAiCallDeadlineError extends Error {
+  readonly status = 408;
+  readonly code = 3007;
+
+  constructor(readonly deadlineMs: number) {
+    super(`Workers AI call exceeded its ${deadlineMs}ms deadline`);
+    this.name = 'FleetAiCallDeadlineError';
+  }
+}
+
 /**
  * Per-run circuit. It never escapes into isolate-global state: a fresh queue
  * delivery is the half-open probe, so one PR cannot poison later Fleet runs.
  */
 export class FleetAiCircuit {
   private openedBy: FleetAiDependencyError | null = null;
+
+  constructor(private readonly deadlineMs = FLEET_AI_CALL_DEADLINE_MS) {
+    if (!Number.isFinite(deadlineMs) || deadlineMs <= 0) {
+      throw new RangeError('Fleet AI call deadline must be a positive finite number');
+    }
+  }
 
   get isOpen(): boolean {
     return this.openedBy !== null;
@@ -65,12 +93,21 @@ export class FleetAiCircuit {
 
   async run<T>(call: () => Promise<T>): Promise<T> {
     if (this.openedBy) throw this.openedBy;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await call();
+      const timedOut = new Promise<never>((_resolve, reject) => {
+        deadline = setTimeout(
+          () => reject(new FleetAiCallDeadlineError(this.deadlineMs)),
+          this.deadlineMs,
+        );
+      });
+      return await Promise.race([call(), timedOut]);
     } catch (error) {
       const wrapped = new FleetAiDependencyError(describeAiFailure(error));
       if (wrapped.failure.retryable) this.openedBy = wrapped;
       throw wrapped;
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
     }
   }
 }

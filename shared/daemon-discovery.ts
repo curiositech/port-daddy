@@ -179,10 +179,12 @@ export const readDaemonPort = resolveDaemonPort;
 /**
  * Resolve the daemon's base TCP URL.
  *
- * Resolution order: `PORT_DADDY_URL` env var → `http://<host>:<resolveDaemonPort()>`.
+ * Resolution order: explicit URL → `PD_URL`/`PORT_DADDY_URL` env var →
+ * `http://<host>:<resolveDaemonPort()>`.
  */
-export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): string {
-  if (explicitUrl && explicitUrl.trim()) return explicitUrl;
+export function resolveDaemonUrl(explicitUrl?: string): string {
+  const selectedUrl = explicitUrl?.trim() || process.env.PD_URL?.trim() || process.env.PORT_DADDY_URL?.trim();
+  if (selectedUrl) return selectedUrl;
   return `http://${LOOPBACK_TCP_HOST}:${resolveDaemonPort()}`;
 }
 
@@ -199,7 +201,7 @@ export function resolvePublishedDaemonUrl(
   options: DaemonPortDiscoveryOptions = {},
 ): string {
   const env = options.env ?? process.env;
-  const selectedUrl = explicitUrl ?? env.PORT_DADDY_URL;
+  const selectedUrl = explicitUrl?.trim() || env.PD_URL?.trim() || env.PORT_DADDY_URL?.trim();
   if (selectedUrl?.trim()) {
     const value = selectedUrl.trim();
     let url: URL;
@@ -291,7 +293,7 @@ export type DaemonTarget = SocketTarget | TcpTarget;
  * the long-standing lib/request.test.js):
  *   0. `PORT_DADDY_FORCE_TCP=1` → loopback TCP, bypassing Unix socket
  *   1. `PORT_DADDY_SOCK` env  → explicit Unix socket (wins even over a URL)
- *   2. `PORT_DADDY_URL`  env  → explicit TCP URL
+ *   2. `PD_URL` / `PORT_DADDY_URL` env → explicit TCP URL (`PD_URL` wins)
  *   3. the daemon's socket file ({@link DEFAULT_SOCK}) exists → Unix socket
  *   4. loopback TCP from the selected daemon's published port file
  *   5. otherwise fail closed (never guess the allocator preference)
@@ -306,9 +308,10 @@ export function resolveDaemonTarget(
 ): DaemonTarget {
   const { socketPath = DEFAULT_SOCK, ...portOptions } = options;
   const discoveryOptions: DaemonPortDiscoveryOptions = { ...portOptions, env };
-  if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
+  const explicitUrl = env.PD_URL?.trim() || env.PORT_DADDY_URL?.trim() || undefined;
+  if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(explicitUrl, discoveryOptions);
   if (env.PORT_DADDY_SOCK) return { socketPath: env.PORT_DADDY_SOCK };
-  if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
+  if (explicitUrl) return resolveDaemonTcpTarget(explicitUrl, discoveryOptions);
   if (fileExists(socketPath)) return { socketPath };
-  return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
+  return resolveDaemonTcpTarget(explicitUrl, discoveryOptions);
 }

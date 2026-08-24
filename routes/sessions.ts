@@ -23,6 +23,12 @@ import {
 } from '../lib/worktree-policy.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
+import type { Suggestions } from '../lib/suggestions.js';
+import {
+  surfaceSymbolConflictAdvice,
+  type BrokerActivityLog,
+  type BrokerInbox,
+} from '../lib/suggestion-broker.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -101,9 +107,9 @@ interface SessionsRouteDeps {
     info(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
-  activityLog: {
-    log?(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
-  };
+  activityLog: BrokerActivityLog;
+  suggestions?: Suggestions;
+  agentInbox?: BrokerInbox;
   symbolClaims?: {
     claim(
       sessionId: string,
@@ -126,6 +132,13 @@ interface SessionsRouteDeps {
 
 type SessionLifecycle = 'durable' | 'ephemeral';
 
+/**
+ * Parse the explicit lifecycle vocabulary accepted by session mutations. The design
+ * keeps validation centralized so unknown values never silently become ephemeral.
+ *
+ * @param value - Untrusted request or CLI lifecycle value.
+ * @returns Normalized lifecycle, or null when the value is not supported.
+ */
 function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
@@ -133,10 +146,13 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 }
 
 /**
- * Create sessions routes
+ * Create the sessions routes. The design keeps lifecycle, identity, claims, notes,
+ * and their new durable advice projection behind one Fastify plugin so every caller
+ * observes the same authoritative session mutation boundaries.
  *
- * @param deps - Route dependencies
- * @returns Express router with session routes
+ * @param fastify - Fastify instance receiving the route registrations.
+ * @param opts - Injected sessions and coordination dependencies.
+ * @returns Promise resolved after the route surface is registered.
  */
 
 
@@ -145,8 +161,24 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog, symbolClaims, actorSouls } = deps;
+  const {
+    sessions,
+    metrics,
+    logger,
+    activityLog,
+    symbolClaims,
+    actorSouls,
+    suggestions,
+    agentInbox,
+  } = deps;
 
+  /**
+   * Map general session mutation errors to HTTP status. The intent is one stable
+   * transport contract for callers regardless of the underlying sessions method.
+   *
+   * @param result - Structured sessions-module error result.
+   * @returns HTTP status appropriate for the error code.
+   */
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'VALIDATION_ERROR':
@@ -166,6 +198,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   };
 
+  /**
+   * Map note-specific failures without treating a missing session as a validation
+   * error. The design preserves the distinction clients need for recovery flows.
+   *
+   * @param result - Structured note-write error result.
+   * @returns HTTP status appropriate for the note failure.
+   */
   const noteWriteStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'SESSION_NOT_FOUND':
@@ -179,12 +218,28 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   };
 
+  /**
+   * Read the optional agent identity header defensively. Its purpose is to normalize
+   * Fastify's string-or-array representation before identity verification.
+   *
+   * @param request - Incoming Fastify request.
+   * @returns Trimmed agent id, or null when absent or empty.
+   */
   const headerAgentId = (request: FastifyRequest): string | null => {
     const value = request.headers['x-agent-id'];
     if (Array.isArray(value)) return typeof value[0] === 'string' && value[0].trim() ? value[0].trim() : null;
     return typeof value === 'string' && value.trim() ? value.trim() : null;
   };
 
+  /**
+   * Resolve the asserted mutation agent from body or header before credential checks.
+   * The design rejects malformed assertions early while leaving authorization to the
+   * canonical identity-write boundary below.
+   *
+   * @param request - Incoming Fastify mutation request.
+   * @param bodyAgentId - Optional agent id asserted in the JSON body.
+   * @returns Normalized agent identity or a structured validation error.
+   */
   const mutationAgentId = (
     request: FastifyRequest,
     bodyAgentId: unknown,
@@ -1030,12 +1085,41 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         radiusDepth: typeof body.radiusDepth === 'number' ? body.radiusDepth : undefined,
       });
 
+      const conflicts = result.conflicts as SymbolConflict[];
+      if (conflicts.length > 0 && suggestions && agentInbox) {
+        try {
+          const sessionResult = typeof sessions.get === 'function'
+            ? sessions.get(sessionId) as {
+                session?: { agentId?: string | null; purpose?: string | null };
+              }
+            : null;
+          surfaceSymbolConflictAdvice(
+            { suggestions, inbox: agentInbox, activityLog },
+            {
+              sessionId,
+              agentId: sessionResult?.session?.agentId ?? null,
+              purpose: sessionResult?.session?.purpose ?? null,
+              conflicts,
+            },
+          );
+        } catch (error) {
+          // Advice is durable enrichment over the authoritative claim verdict. A
+          // delivery outage must be visible, but cannot rewrite blocked → allowed
+          // or warning → failed.
+          logger.error('symbol_conflict_advice_error', {
+            sessionId,
+            conflictsCount: conflicts.length,
+            error: (error as Error).message,
+          });
+        }
+      }
+
       // ast-a2-1: Claim validator pre-flight — reject blocking conflicts.
       // A blocking conflict means the symbol is already held in a way that makes
       // concurrent modification unsafe (e.g., two sessions modifying the same symbol
       // or one modifying a function another is calling). This gate makes symbol
       // conflicts predictable for the wedge rendering.
-      const blockingConflicts = (result.conflicts as SymbolConflict[]).filter(c => c.severity === 'blocking');
+      const blockingConflicts = conflicts.filter(c => c.severity === 'blocking');
       if (blockingConflicts.length > 0) {
         reply.code(409);
         return {

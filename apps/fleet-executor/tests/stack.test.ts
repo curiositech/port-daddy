@@ -127,6 +127,14 @@ async function runSpark(opts: {
   await executeFleet(opts.job ?? jobWithHeadRef(), env);
 }
 
+function sandboxExecResult(exitCode: number, output: string) {
+  return {
+    exitCode,
+    stdout: `__PD_PURSER_TEST_STARTED__\n${output}`,
+    stderr: '',
+  };
+}
+
 describe('stack proposals — happy path', () => {
   it('branches from the PR HEAD sha and opens a PR based on the PR head branch', async () => {
     const db = memoryD1();
@@ -177,7 +185,10 @@ describe('stack proposals — happy path', () => {
 
   it('sandbox-validates when the binding exists and stacks on a passing suite', async () => {
     const db = memoryD1();
-    await runSpark({ db, sandbox: { exec: async () => ({ exitCode: 0, stdout: 'ok', stderr: '' }) } });
+    await runSpark({
+      db,
+      sandbox: { exec: async () => sandboxExecResult(0, 'ok') },
+    });
     expect(state.stackedPrs).toHaveLength(1);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail))).toMatchObject({ sandboxValidated: true });
@@ -225,7 +236,9 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
     const db = memoryD1();
     await runSpark({
       db,
-      sandbox: { exec: async () => ({ exitCode: 1, stdout: 'FAIL src/fix 1 failed', stderr: '' }) },
+      sandbox: {
+        exec: async () => sandboxExecResult(1, 'FAIL src/fix 1 failed'),
+      },
     });
     expect(state.stackedPrs).toHaveLength(0);
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
