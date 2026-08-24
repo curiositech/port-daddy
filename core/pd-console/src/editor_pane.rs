@@ -325,6 +325,7 @@ impl EditorPane {
         &self,
         before: &str,
         range: std::ops::Range<usize>,
+        replacement_newlines: usize,
     ) -> std::result::Result<(), String> {
         let first_line = 1 + before[..range.start]
             .bytes()
@@ -332,10 +333,12 @@ impl EditorPane {
             .count() as u32;
         // Count newlines *inside* a non-empty replacement too: deleting a
         // newline joins two lines and therefore touches both claim regions.
-        let last_line = 1 + before.as_bytes()[..range.end]
+        let deleted_last_line = 1 + before.as_bytes()[..range.end]
             .iter()
             .filter(|b| **b == b'\n')
             .count() as u32;
+        let inserted_last_line = first_line.saturating_add(replacement_newlines as u32);
+        let last_line = deleted_last_line.max(inserted_last_line);
         for line in first_line..=last_line.max(first_line) {
             if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
                 return Err(gated.message());
@@ -368,7 +371,11 @@ impl EditorPane {
             ));
         }
 
-        self.ensure_editable_range(&before, range.clone())?;
+        self.ensure_editable_range(
+            &before,
+            range.clone(),
+            replacement.bytes().filter(|byte| *byte == b'\n').count(),
+        )?;
 
         let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
         let edit = buffer.replace_authored(unicode, replacement);
@@ -393,15 +400,15 @@ impl EditorPane {
             return Err("editor buffer is not loaded".into());
         };
         let before = buffer.to_string();
-        let range = if redo {
-            buffer.redo_range()?
+        let guard = if redo {
+            buffer.redo_guard()?
         } else {
-            buffer.undo_range()?
+            buffer.undo_guard()?
         };
-        let Some(range) = range else {
+        let Some(guard) = guard else {
             return Ok(None);
         };
-        self.ensure_editable_range(&before, range)?;
+        self.ensure_editable_range(&before, guard.range, guard.replacement_newlines)?;
 
         let edit = if redo {
             buffer.redo_authored()?
@@ -1506,50 +1513,175 @@ mod tests {
         }
     }
 
-    #[test]
-    fn claim_overlap_rejects_undo_and_redo_before_version_vector_changes() {
-        let path = write_temp("guarded-undo.rs", "fn guarded() {}\n");
-        let mut human = make_pane_as(&path, "port-daddy:console:undo-human");
-        human
-            .apply_local_text_edit(3..10, "changed")
-            .expect("initial local edit is claim-clear");
+    fn assert_history_denied_without_mutation(pane: &mut EditorPane, redo: bool) {
+        let before_text = pane.text().expect("loaded history text");
+        let before_stamp = pane.buffer().unwrap().change_stamp();
+        let before_undo_count = pane.buffer().unwrap().undo_count();
+        let before_redo_count = pane.buffer().unwrap().redo_count();
+        let refusal = if redo {
+            pane.redo_local_text_edit()
+        } else {
+            pane.undo_local_text_edit()
+        }
+        .expect_err("an overlapping live claim must deny before history mutation");
 
-        let mut agent = make_pane_as(&path, "port-daddy:editor:undo-claimant");
-        let claim = agent.acquire_region_claim(1, 1, "guarded", 1_000);
-        assert!(human.ingest_claim(&claim));
-
-        let before_text = human.text().unwrap();
-        let before_stamp = human.buffer().unwrap().change_stamp();
-        let before_undo_count = human.buffer().unwrap().undo_count();
-        let refusal = human
-            .undo_local_text_edit()
-            .expect_err("overlapping claim must reject before undo mutation");
         assert!(refusal.contains("is held by"));
-        assert_eq!(human.text().as_deref(), Some(before_text.as_str()));
-        assert_eq!(human.buffer().unwrap().change_stamp(), before_stamp);
-        assert_eq!(human.buffer().unwrap().undo_count(), before_undo_count);
+        assert_eq!(pane.text().as_deref(), Some(before_text.as_str()));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), before_stamp);
+        assert_eq!(pane.buffer().unwrap().undo_count(), before_undo_count);
+        assert_eq!(pane.buffer().unwrap().redo_count(), before_redo_count);
+        let denied_batch = pane.take_edit_receipts();
+        assert!(
+            denied_batch.complete,
+            "denial preserves exact receipt continuity"
+        );
+        assert!(
+            denied_batch.receipts.is_empty(),
+            "denial must not enqueue a text receipt"
+        );
+    }
 
+    #[test]
+    fn multiline_insertion_history_denies_every_touched_line_and_allows_adjacent_lines() {
+        const BEFORE: &str = "adjacent-before\nanchor\nadjacent-after\n";
+        const AFTER: &str = "adjacent-before\nanchor\nnew-one\nnew-two\nadjacent-after\n";
+        let insertion = "adjacent-before\nanchor".len();
+
+        for claimed_line in 2..=4 {
+            let path = write_temp(&format!("guarded-history-line-{claimed_line}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:history-human-{claimed_line}"),
+            );
+            let mut agent = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:history-claimant-{claimed_line}"),
+            );
+            human
+                .apply_local_text_edit(insertion..insertion, "\nnew-one\nnew-two")
+                .expect("initial multiline insertion is claim-clear");
+            let authored = human.take_edit_receipts();
+            assert!(authored.complete && authored.receipts.len() == 1);
+
+            let undo_claim =
+                agent.acquire_region_claim(claimed_line, claimed_line, "undo-touched-line", 1_000);
+            assert!(human.ingest_claim(&undo_claim));
+            assert_history_denied_without_mutation(&mut human, false);
+
+            let release = agent.release_region_claim(0);
+            assert!(human.ingest_claim(&release));
+            human
+                .undo_local_text_edit()
+                .expect("released undo succeeds")
+                .expect("released undo frame");
+            let undone = human.take_edit_receipts();
+            assert!(undone.complete && undone.receipts.len() == 1);
+
+            let redo_claim =
+                agent.acquire_region_claim(claimed_line, claimed_line, "redo-touched-line", 2_000);
+            assert!(human.ingest_claim(&redo_claim));
+            assert_history_denied_without_mutation(&mut human, true);
+        }
+
+        for adjacent_line in [1, 5] {
+            let path = write_temp(&format!("adjacent-history-line-{adjacent_line}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:adjacent-human-{adjacent_line}"),
+            );
+            let mut agent = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:adjacent-claimant-{adjacent_line}"),
+            );
+            human
+                .apply_local_text_edit(insertion..insertion, "\nnew-one\nnew-two")
+                .expect("initial multiline insertion is claim-clear");
+            let authored = human.take_edit_receipts();
+            assert!(authored.complete && authored.receipts.len() == 1);
+            let adjacent_claim = agent.acquire_region_claim(
+                adjacent_line,
+                adjacent_line,
+                "adjacent-unrelated",
+                3_000,
+            );
+            assert!(human.ingest_claim(&adjacent_claim));
+
+            human
+                .undo_local_text_edit()
+                .expect("adjacent claim does not deny undo")
+                .expect("adjacent undo frame");
+            assert_eq!(human.text().as_deref(), Some(BEFORE));
+            let undone = human.take_edit_receipts();
+            assert!(undone.complete && undone.receipts.len() == 1);
+            human
+                .redo_local_text_edit()
+                .expect("adjacent claim does not deny redo")
+                .expect("adjacent redo frame");
+            assert_eq!(human.text().as_deref(), Some(AFTER));
+            let redone = human.take_edit_receipts();
+            assert!(redone.complete && redone.receipts.len() == 1);
+        }
+    }
+
+    #[test]
+    fn pure_deletion_history_checks_restored_line_without_touching_adjacent_line() {
+        const BEFORE: &str = "open\nclaimed\nadjacent\n";
+        const AFTER: &str = "openclaimed\nadjacent\n";
+
+        let path = write_temp("guarded-deletion-history.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:deletion-history-human");
+        let mut agent = make_pane_as(&path, "port-daddy:editor:deletion-history-claimant");
+        human
+            .apply_local_text_edit(4..5, "")
+            .expect("initial newline deletion is claim-clear");
+        assert_eq!(human.text().as_deref(), Some(AFTER));
+        let authored = human.take_edit_receipts();
+        assert!(authored.complete && authored.receipts.len() == 1);
+
+        let undo_claim = agent.acquire_region_claim(2, 2, "restored-line", 1_000);
+        assert!(human.ingest_claim(&undo_claim));
+        assert_history_denied_without_mutation(&mut human, false);
         let release = agent.release_region_claim(0);
         assert!(human.ingest_claim(&release));
         human
             .undo_local_text_edit()
-            .expect("claim-clear undo succeeds")
-            .expect("undo frame exists");
-        assert_eq!(human.text().as_deref(), Some("fn guarded() {}\n"));
-        assert!(human.buffer().unwrap().can_redo());
+            .expect("released deletion undo succeeds")
+            .expect("deletion undo frame");
+        let undone = human.take_edit_receipts();
+        assert!(undone.complete && undone.receipts.len() == 1);
 
-        let redo_claim = agent.acquire_region_claim(1, 1, "guarded-redo", 2_000);
+        let redo_claim = agent.acquire_region_claim(2, 2, "rejoined-line", 2_000);
         assert!(human.ingest_claim(&redo_claim));
-        let before_redo_text = human.text().unwrap();
-        let before_redo_stamp = human.buffer().unwrap().change_stamp();
-        let before_redo_count = human.buffer().unwrap().redo_count();
-        let redo_refusal = human
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let adjacent_path = write_temp("adjacent-deletion-history.rs", BEFORE);
+        let mut adjacent_human =
+            make_pane_as(&adjacent_path, "port-daddy:console:deletion-adjacent-human");
+        let mut adjacent_agent = make_pane_as(
+            &adjacent_path,
+            "port-daddy:editor:deletion-adjacent-claimant",
+        );
+        adjacent_human
+            .apply_local_text_edit(4..5, "")
+            .expect("adjacent deletion fixture edit");
+        let authored = adjacent_human.take_edit_receipts();
+        assert!(authored.complete && authored.receipts.len() == 1);
+        let adjacent_claim = adjacent_agent.acquire_region_claim(3, 3, "unrelated-line", 3_000);
+        assert!(adjacent_human.ingest_claim(&adjacent_claim));
+        adjacent_human
+            .undo_local_text_edit()
+            .expect("line three does not deny deletion undo")
+            .expect("adjacent deletion undo frame");
+        assert_eq!(adjacent_human.text().as_deref(), Some(BEFORE));
+        let undone = adjacent_human.take_edit_receipts();
+        assert!(undone.complete && undone.receipts.len() == 1);
+        adjacent_human
             .redo_local_text_edit()
-            .expect_err("overlapping claim must reject before redo mutation");
-        assert!(redo_refusal.contains("is held by"));
-        assert_eq!(human.text().as_deref(), Some(before_redo_text.as_str()));
-        assert_eq!(human.buffer().unwrap().change_stamp(), before_redo_stamp);
-        assert_eq!(human.buffer().unwrap().redo_count(), before_redo_count);
+            .expect("line three does not deny deletion redo")
+            .expect("adjacent deletion redo frame");
+        assert_eq!(adjacent_human.text().as_deref(), Some(AFTER));
+        let redone = adjacent_human.take_edit_receipts();
+        assert!(redone.complete && redone.receipts.len() == 1);
     }
 
     #[test]
