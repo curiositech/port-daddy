@@ -62,36 +62,26 @@
   % See panel A: explicit, sparser ticks avoid the crowded default spacing
   % at this panel's actual rendered width.
   xtick={0,0.4,0.8},
-  % Moved from south east: a south-east legend at this panel's actual width
-  % spans nearly the full lower half of the plot, burying the worked-instance
-  % label's third line entirely -- a real collision found by rendering the
-  % CI build. North east is clear here (the falsified curve is already
-  % negative by x=0.5), freeing the bottom for that label.
-  legend pos=north east,
   % This panel's plotted width is only ~2cm on the page (see the bottom
-  % label's leading comment below) -- even in the empty north-east corner,
-  % the shared legend style's \scriptsize entries render nearly full plot
-  % width, so the legend's own (92%-opaque) plate still ghosted over the
-  % "swap pays" and "flip:" nodes underneath it, a real collision found by
-  % rendering the CI build. Extending (not replacing, per this corpus's own
-  % documented footgun) the shared style with a smaller font shrinks the
-  % legend enough to clear both.
-  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
+  % label's leading comment below) -- an in-plot legend for these two
+  % entries ("unattested: Delta c" / "attested: Delta c-Delta theta")
+  % cannot be made to fit at any legend pos or any readable font size
+  % without still ghosting over "flip:" or another node; four rounds of
+  % narrower/repositioned/smaller-font legend attempts each still collided
+  % on rendering the CI build. Dropped rather than patched a sixth time:
+  % the red/green convention (unattested/attested) is already established
+  % in Panel A and the rest of this paper's figures, and the caption states
+  % both quantities in words ("Delta c without attestation and
+  % Delta c-Delta theta with it").
 ]
 \fill[shipred,opacity=0.08] (axis cs:0,0) rectangle (axis cs:0.8,0.45);
 \fill[seagreen,opacity=0.08] (axis cs:0,-0.65) rectangle (axis cs:0.8,0);
 \draw[black,thick] (axis cs:0,0) -- (axis cs:0.8,0);
 \addplot[shipred,thick] coordinates {(0,0.3) (0.8,0.3)};
-% Legend entries shortened (the "(any price)" qualifier and the repeated
-% "gain =" are already carried by the caption): full-length versions ran
-% off both edges of this panel's actual plot width, a real overflow found
-% by rendering the CI build.
-\addlegendentry{unattested: $\Delta c$}
 \addplot[seagreen,thick] coordinates {
   (0,0.3) (0.1,0.2) (0.2,0.1) (0.3,0.0) (0.4,-0.1) (0.5,-0.2)
   (0.6,-0.3) (0.7,-0.4) (0.8,-0.5)
 };
-\addlegendentry{attested: $\Delta c-\Delta\theta$}
 \addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.3,0.0)};
 \node[font=\scriptsize,anchor=south west,text width=1.6cm,align=left] at (axis cs:0.33,0.03) {flip:\\$\Delta\theta{=}\Delta c$};
 \addplot[seagreen,only marks,mark=*,mark size=2.4pt,forget plot] coordinates {(0.6,-0.3)};
