@@ -31,6 +31,7 @@ const TOOL_FEATURE_MAP = {
   // Host-safety posture audit (ADR-0088 Phase A) — read-only
   'safe_scan': 'safe',
   'relay_status': 'relay',
+  'coordination_status': 'coordination',
   'harbormaster_status': 'harbormaster',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
@@ -339,6 +340,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
   'session_galaxy', // 2-D embedding map of recent agent sessions (routes/galaxy.ts: GET /galaxy/map + /galaxy/session/:id). An operator visualization surface consumed by fleet-ui, pd-console, and the FleetBar webview — cross-session t-SNE scatter data is for human eyes, not an agent-driving tool (an agent inspecting peers uses the sessions/transcripts/parley surfaces directly). MCP wrapper deferred indefinitely.
   'harbor-ledger',  // Agent Harbor read API (routes/agent-harbor.ts, C-routes wave). Read-only projection views consumed by the pd-console roster/detail panes (C3) and doctor (C8), plus a long-lived SSE transcript tail — streams are not MCP-shaped (same posture as agent_cockpit). Agents already write to the ledger via `pd harbor-ledger`; an MCP read wrapper is deferred until an agent-facing consumer exists.
+  'roadmap_activity', // Live-work join for the roadmap command center (operator mandate 2026-08-22). Read-only projection consumed by the FleetBar/dashboard board surfaces (follow-up PR) — an operator read model like transcripts/resource_governance, not an agent-driving tool; an agent inspecting who is on an item uses the sessions/cartographer roadmap-claims surfaces directly. MCP wrapper deferred until an agent-facing consumer exists.
   'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
 ]);
 
@@ -454,7 +456,7 @@ function extractMcpApiCalls(mcpContent) {
 }
 
 /**
- * Extract all Express routes from routes/*.ts files.
+ * Extract all daemon routes from routes/*.ts files and server.ts.
  * Returns array of { method, path, file } objects.
  */
 function extractServerRoutes() {
@@ -474,6 +476,19 @@ function extractServerRoutes() {
         file
       });
     }
+  }
+
+  // A small number of boot-coupled, read-only routes are registered directly
+  // in server.ts (for example coordination peer readiness). They are real MCP
+  // targets too, so omitting them here creates a false "ghost API call".
+  const serverContent = readFileSync(join(ROOT, 'server.ts'), 'utf-8');
+  let match;
+  while ((match = routePattern.exec(serverContent)) !== null) {
+    routes.push({
+      method: match[1].toUpperCase(),
+      path: normalizePath(match[2]),
+      file: 'server.ts',
+    });
   }
 
   return routes;

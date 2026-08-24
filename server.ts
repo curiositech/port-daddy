@@ -20,7 +20,7 @@ loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
 // read process.env at module-init time, so this has to run first so
 // dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot
 // capture the raw env values on load. See lib/secret-env.ts.
-import { snapshotSensitiveEnv } from './lib/secret-env.js';
+import { getSecret, snapshotSensitiveEnv } from './lib/secret-env.js';
 snapshotSensitiveEnv();
 
 import Fastify from 'fastify';
@@ -70,6 +70,7 @@ import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -118,6 +119,7 @@ import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
+import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -128,9 +130,15 @@ import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
+import { clearDaemonReady, publishDaemonReady } from './lib/daemon-ready.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
+import {
+  createCoordinationPeer,
+  coordinationPeerConfigFromEnv,
+  type CoordinationPeer,
+} from './lib/coordination-peer.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -382,7 +390,7 @@ const DAEMON_BERTH: DaemonBerthIdentity = {
   plane: DAEMON_PLANE,
 };
 
-import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
+import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE, DEFAULT_READY_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
@@ -394,6 +402,7 @@ const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY
 const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
 const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'heartbeat') : undefined);
+const READY_FILE: string = process.env.PORT_DADDY_READY_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.ready') : DEFAULT_READY_FILE);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
@@ -453,6 +462,11 @@ if (existsSync(SOCK_PATH)) {
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
 }
+
+// Readiness is a separate generation lease from Bosun liveness. Clear any
+// predecessor only after duplicate-owner detection, so a duplicate process
+// that defers cannot make the healthy daemon's hooks disappear.
+clearDaemonReady(READY_FILE);
 
 // Publish the launchd-owned generation BEFORE opening the production-sized DB
 // or constructing the service graph. Bosun previously saw only the prior
@@ -548,9 +562,12 @@ const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticRe
 const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ db, tuples });
+const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
+// Live-work join for the roadmap command center (operator mandate 2026-08-22).
+// Read-only projection over roadmap_items/roadmap_claims/sessions/agents.
+const roadmapActivity = createRoadmapActivity({ db });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -593,6 +610,34 @@ const sessions = createSessions(db, noteEncryption, {
   requireAgentForFileClaims: true,
 });
 sessions.setActivityLog(activityLog);
+
+// ADR-0092: optional cloud coordination peer. Local SQLite remains the write
+// path regardless of configuration or network health; the peer only observes,
+// queues, and CRDT-merges. A partial/malformed configuration degrades loudly
+// without preventing the offline-first daemon from starting.
+let coordinationPeer: CoordinationPeer | null = null;
+try {
+  const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
+  if (coordinationConfig) {
+    coordinationPeer = createCoordinationPeer({
+      db,
+      sessions,
+      locks,
+      config: coordinationConfig,
+      logger,
+    });
+    coordinationPeer.start();
+    logger.info('coordination_peer_started', {
+      project: coordinationConfig.project,
+      actorId: coordinationConfig.actorId,
+      url: coordinationConfig.url,
+    });
+  }
+} catch (error) {
+  logger.error('coordination_peer_configuration_invalid', {
+    error: (error as Error).message,
+  });
+}
 
 const symbolClaims = createSymbolClaims(db, {
   symbolIndex,
@@ -730,6 +775,13 @@ const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 
+// Hash-chain the transcript facts the spawner already persists into Agent
+// Harbor. This is an evidence feeder, not a second transcript store.
+const spawnerHarborBridge = createSpawnerHarborBridge(db, {
+  episodicMemory,
+  logger,
+});
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -743,6 +795,7 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
+  harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
@@ -1505,6 +1558,7 @@ await registerAllRoutes(
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
@@ -1529,6 +1583,22 @@ await registerAllRoutes(
   arbiter,
   { pheromones, sessions, db },
 );
+
+// Read-only local readiness proof for cloud sandboxes. The macaroon never
+// leaves the daemon process; bootstrap code can still verify that its `pd
+// begin` operation received a durable room acknowledgement (outbox drained)
+// and was observed back through the room cursor.
+app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
+  enabled: false,
+  connected: false,
+  project: null,
+  actorId: null,
+  replicaId: null,
+  cursor: 0,
+  outbox: 0,
+  lastSyncAt: null,
+  lastError: null,
+});
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
@@ -1633,6 +1703,7 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  try { coordinationPeer?.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
@@ -1641,6 +1712,7 @@ function shutdown(signal: string): void {
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
   try { unlinkSync(SOCK_PATH); } catch {}
+  clearDaemonReady(READY_FILE, process.pid);
   try { unlinkSync(PID_FILE); } catch {}
   try { unlinkSync(PORT_FILE); } catch {}
   process.exit(0);
@@ -1680,6 +1752,18 @@ process.on('uncaughtException', (err: Error) => {
 });
 
 function onReady(): void {
+  try {
+    publishDaemonReady(READY_FILE, process.pid);
+    logger.info('daemon_ready_published', { path: READY_FILE, pid: process.pid });
+  } catch (err) {
+    // Fail shut for hook delegation without taking down an otherwise healthy
+    // daemon. FleetBar can surface the log and repair the private runtime path.
+    logger.error('daemon_ready_publish_failed', {
+      path: READY_FILE,
+      pid: process.pid,
+      error: (err as Error).message,
+    });
+  }
   activityLog.log(ActivityType.DAEMON_START, {
     details: `Port Daddy v${VERSION} started (Fastify)`,
     metadata: { port: PORT, pid: process.pid, codeHash: CODE_HASH, socket: SOCK_PATH }

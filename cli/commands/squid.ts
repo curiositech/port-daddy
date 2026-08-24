@@ -659,6 +659,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     score: conformance.score,
     workspace: details.workspace,
     daemonAlive: conformance.daemonAlive,
+    daemonReady: conformance.daemonReady,
     tentaclesStaged: conformance.tentaclesStaged,
     providers: details.providers,
     identity: conformance.identity,
@@ -690,7 +691,12 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log('');
   printSquidValueCard(c);
   console.log('');
-  console.log(`  Daemon        ${conformance.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
+  const daemonLabel = !conformance.daemonAlive
+    ? c.bad('✗ down — every hook no-ops (gate fails open)')
+    : !conformance.daemonReady
+      ? c.dim('… booting — hooks stay inert until the readiness lease matches this PID')
+      : c.ok('✓ ready');
+  console.log(`  Daemon        ${daemonLabel}`);
   const stagedLabel = debug.enabled ? `staged at ${tentacleBinDir()}` : 'staged';
   console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, stagedLabel, 'not fully staged — pd squid on')}`);
   if (health.degraded) {

@@ -1,0 +1,8 @@
+#!/usr/bin/expect -f
+set stty_init "rows 28 columns 100"
+proc pause {t} { set ::timeout $t; expect timeout }
+spawn btop -u 500 --force-utf
+pause 11
+send "q"
+set timeout 8
+expect eof
