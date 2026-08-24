@@ -49,6 +49,11 @@ rodio = { version = "0.20", optional = true, default-features = false }
 portable-pty = { version = "0.9", optional = true }
 vt100 = { version = "0.15", optional = true }
 loro = "1.13"
+unicode-segmentation = "1.12"
+# The Planner Gantt's critical-path geometry comes from the kernel's canonical
+# CPM scheduler (ADR-0086 / ADR-0054) — one implementation, called natively, so
+# the console can never drift from the daemon's byte-parity TS fallback.
+pd-anchor = { path = "../kernel/pd-anchor" }
 # Base64 for the Harbor Editor tube frame codec (editor_sync.rs): a Loro update is
 # raw bytes, the PD tube carries JSON text, so an op frame's `ops` field is base64.
 # Already resolved in Cargo.lock (0.22.1, transitively via reqwest/rustls) — no new

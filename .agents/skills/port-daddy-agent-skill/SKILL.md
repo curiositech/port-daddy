@@ -70,12 +70,22 @@ Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
 Read `pd squid status` before claiming the harness works. `LIVE` means complete
-wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
-daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
-surface needs the same truth and `pd squid tap` to inspect the exact bounded
-next-turn envelope. User-level Codex/agy entries do not make hooks global: the
-wrapper requires the exact project root in the arm registry. `pd squid off`
-removes that root while preserving other projects.
+wiring plus a fresh daemon heartbeat and an exact `daemon.ready` → `daemon.pid`
+generation match. `READY` means the wiring is complete but the daemon is down
+or still behind its boot checks; `PARTIAL` and `DEGRADED` require repair. Use
+`--json` when another surface needs the same truth and `pd squid tap` to inspect
+the exact bounded next-turn envelope. User-level Codex/agy entries do not make
+hooks global: the wrapper requires the exact project root in the arm registry.
+`pd squid off` removes that root while preserving other projects.
+
+Do not infer hook readiness from the Bosun heartbeat alone. The daemon starts
+that heartbeat before its database-integrity gate so its supervisor will not
+kill a legitimately slow boot. The shared Claude/Codex/Gemini/agy wrapper first
+requires the ready PID to match the live PID, then checks heartbeat freshness
+and exact project arming. A missing, malformed, stale, or displaced generation
+is an immediate successful no-op; `pd squid status --json` exposes
+`daemonAlive` and `daemonReady` separately, and debug mode explains the skipped
+boot/displacement step without retaining prompt or tool content.
 
 When hook behavior is slow or confusing, use `pd squid debug on` only for the
 diagnostic window, reproduce the turn, then read `pd squid status` or the
@@ -104,14 +114,26 @@ reason, timestamps, and retry time. FleetBar's **Repair** button atomically
 restages the shims, rewires providers, and clears the latch only after success.
 An intentional direct-edit block (`exit 2`) is enforcement, not a hook failure.
 
-The normal hook path is invisible: no status message, no standing reminder,
-and zero stdout when there is no fresh actionable project fact or fleet-wide
-control alert. Its topology is deliberately bounded to one turn briefing plus a
-gate only for direct file-edit tools. Broad shell/exec tools and observational
-PostToolUse hooks are excluded; claims and notes carry cumulative outcomes.
-When coordination is genuinely useful, the prompt hook is capped at one heading
-plus two facts (512 bytes of context). A no-op turn that prints a plan/SITREP
-lecture, waits on the daemon, or scans an unbounded matrix is a product bug.
+Coordination content in the hook path stays bounded: no status message and
+zero coordination stdout when there is no fresh actionable project fact or
+fleet-wide control alert. Its topology is deliberately bounded to one turn
+briefing plus a gate only for direct file-edit tools. Broad shell/exec tools
+and observational PostToolUse hooks are excluded; claims and notes carry
+cumulative outcomes. When coordination is genuinely useful, the prompt hook's
+coordination block is capped at one heading plus two facts (512 bytes of
+context). A hook that waits on the daemon or scans an unbounded matrix is
+still a product bug — but the end-of-turn SITREP is not: it is the harness's
+visible value surface (operator doctrine, 2026-08-22), governed by the
+per-repo `sitrep.endOfTurn` dial (`off` | `suggest` | `enforce`, default
+`enforce`; `PD_SITREP` env override wins, then `agent.config.json` →
+`.portdaddy/sitrep.json` → `.portdaddy/project.json`). At suggest/enforce
+every turn carries the end-of-turn SITREP table contract —
+`| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status |
+Related PR/Issue | Docs / Roadmap Link |` — update Status each turn, carry
+unresolved rows forward, and mint a roadmap link (`pd roadmap upsert`) before
+writing code for a row. `enforce` makes a turn that ends without the table an
+incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
+quiet turns dial it off explicitly.
 `pd attention` is also safe before `pd begin`: without a bound identity its
 default read succeeds as an explicit empty/unbound result; subscription changes
 still require an identity.
@@ -601,6 +623,14 @@ readiness, launches, Shipwright, resources, spawned runs, or operator-visible
 coordination. Deeper guidance lives in `references/fleetbar-and-console.md`
 (loaded via the bundled assets map below).
 
+For Cloud Fleet, route the operator to the signed-in FleetBar Cloud Fleet
+section or the `pd-console` Cloud Fleet pane. Those surfaces show logical
+PR-head generations, delivery attempts, queue-ahead estimates, expected run
+timing, failures, and the durable transcript. Do not infer four logical runs
+from four queue deliveries, describe a D1-derived queue estimate as Cloudflare's
+exact queue position, or invent per-step ETAs when the executor has published
+only a run-level estimate.
+
 ## Bundled Assets — Load On Demand
 
 Everything else in this skill is progressive disclosure: each subdirectory has
@@ -707,6 +737,36 @@ pd relay exchange --oidc-token <t>            # OIDC → PD card (CI; reads $ACT
 
 MCP equivalent: `relay_status()` (read-only) tells an agent whether
 cross-machine pub/sub is live before it relies on a remote channel.
+
+### Cloud coordination peer — offline-first federation (ADR-0092 §4)
+
+When the four `PORT_DADDY_COORDINATION_*` settings are present, a daemon keeps
+a durable outbox and CRDT-syncs sessions, notes, advisory file claims, and
+project-scoped logical lock leases with a per-project relay Durable Object.
+The relay is a peer, not an authority: local work remains writable during a
+partition and reconverges later. Ports, PIDs, sockets, process supervision, and
+exclusive machine-local locks never move to the cloud.
+
+Treat logical replicated leases as visibility, not proof of mutual exclusion.
+During a partition two peers can both make progress; after reconnect the HLC
+fold chooses the displayed lease while distinct claims union without loss.
+Remote leases use ownership-verified coordination projection names and choose a
+collision-safe fallback slot when a machine-local lock already occupies one, so
+they cannot overwrite or release machine-local exclusion locks. A replica id
+belongs to the durable local ledger/outbox rather than one process lifetime;
+never rotate it during a restart with pending operations.
+
+MCP equivalent: `coordination_status()` is read-only and reports whether the
+peer is enabled/connected, its project, actor, stable replica id, durable room
+cursor, pending outbox count, last sync, and last error. A disconnected result
+is a federation diagnostic, not evidence that the local ledger is unavailable.
+
+An explicitly selected `PORT_DADDY_URL`, `PD_URL`, or daemon profile is an
+operator-selected peer boundary. If that peer is unavailable, the CLI reports
+the outage and does not silently fall back to a local database or start a
+replacement local daemon. Do not work around that refusal: restore/select the
+intended peer through FleetBar or continue only through an already-running
+offline-first local replica.
 
 ### Dispatch — autonomous feature-dev queue (ADR-0035)
 
@@ -900,6 +960,21 @@ section in `references/cli-reference.md` for the full surface.
 
 When done with the popped item: `pd roadmap release <slug>`. Letting a
 `--begin`-linked session end naturally also releases the claim.
+
+### Ingesting planning docs: `pd roadmap chomp`
+
+When the operator hands you a markdown planning document, do not leave it
+as a doc — chomp it: `pd roadmap chomp <doc.md…>` parses headings into a
+project→epic→story→task hierarchy, checklists into tasks, and explicit
+"depends on / blocked by / requires" phrasing into dependencies. The
+default run is a preview of the exact item tree; the only write path is
+`pd roadmap chomp <doc.md…> --emit-pr-plan <dir>`, which upserts through
+the daemon (idempotent; never clobbers rows enriched since the first
+chomp) and emits the doc-removal PR artifacts: the regenerated roadmap
+snapshot, a `chomp-receipt.json` work receipt, a `git rm` list, and a
+ready PR body. Filing that PR — items in, source docs deleted — is your
+explicit act, never automatic. The legacy `pd roadmap import-markdown`
+is an alias that chomps the three canonical curated piles.
 
 ## Actor Roster (universal Port Daddy concepts)
 

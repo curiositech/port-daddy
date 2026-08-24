@@ -16,6 +16,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createHash } from 'node:crypto';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -23,6 +24,27 @@ import {
 } from '../lib/worktree-policy.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
+import type { Suggestions } from '../lib/suggestions.js';
+import {
+  surfaceSymbolConflictAdvice,
+  type BrokerActivityLog,
+  type BrokerInbox,
+} from '../lib/suggestion-broker.js';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  stampIdentityMetadata,
+  type IdentityVerifier,
+  type IdentityWriteVerdict,
+} from '../lib/identity-write-boundary.js';
+import {
+  conflictSignalId,
+  CONFLICT_SIGNAL_LIMITS,
+  CONFLICT_SIGNAL_PRODUCERS,
+  CONFLICT_SIGNAL_SCHEMA_VERSION,
+  type ConflictSignal,
+} from '../lib/parley-trigger.js';
+import type { ParleyAutoTriggerResult } from '../lib/parley-auto-trigger.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -94,9 +116,9 @@ interface SessionsRouteDeps {
     info(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
-  activityLog: {
-    log?(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
-  };
+  activityLog: BrokerActivityLog;
+  suggestions?: Suggestions;
+  agentInbox?: BrokerInbox;
   symbolClaims?: {
     claim(
       sessionId: string,
@@ -106,10 +128,35 @@ interface SessionsRouteDeps {
     list(sessionId: string): unknown[];
     release(sessionId: string): number;
   };
+  /**
+   * ADR-0040 souls store (subset). Session/note/file-claim writes REQUIRE the
+   * daemon-minted credential (#8877 / ADR-0122 slice 1): a self-asserted
+   * agentId without a credential is rejected 401, a presented credential must
+   * verify (401 otherwise), and a verified credential cannot write under
+   * another soul's name (403). Anonymous writes (no identity claim at all)
+   * remain possible only where the route accepts unattributed writes.
+   */
+  actorSouls?: (IdentityVerifier & {
+    constants?: { defaultHarbor?: string };
+  }) | null;
+  /**
+   * Explicit G2/C1 injection boundary. Production server wiring remains absent
+   * until the U0 authenticated actions, U1 operator surface, and Q1 gates pass.
+   */
+  parleyAutoTrigger?: {
+    evaluate(signal: ConflictSignal, context: { harbor: string }): ParleyAutoTriggerResult;
+  } | null;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
 
+/**
+ * Parse the explicit lifecycle vocabulary accepted by session mutations. The design
+ * keeps validation centralized so unknown values never silently become ephemeral.
+ *
+ * @param value - Untrusted request or CLI lifecycle value.
+ * @returns Normalized lifecycle, or null when the value is not supported.
+ */
 function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
@@ -117,10 +164,13 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 }
 
 /**
- * Create sessions routes
+ * Create the sessions routes. The design keeps lifecycle, identity, claims, notes,
+ * and their new durable advice projection behind one Fastify plugin so every caller
+ * observes the same authoritative session mutation boundaries.
  *
- * @param deps - Route dependencies
- * @returns Express router with session routes
+ * @param fastify - Fastify instance receiving the route registrations.
+ * @param opts - Injected sessions and coordination dependencies.
+ * @returns Promise resolved after the route surface is registered.
  */
 
 
@@ -129,8 +179,179 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog, symbolClaims } = deps;
+  const {
+    sessions,
+    metrics,
+    logger,
+    activityLog,
+    symbolClaims,
+    actorSouls,
+    suggestions,
+    agentInbox,
+    parleyAutoTrigger,
+  } = deps;
 
+  interface ClaimConflictRecord {
+    filePath: string;
+    sessionId: string;
+    claimedAt: number;
+    startLine?: number | null;
+    endLine?: number | null;
+    symbolPath?: string | null;
+  }
+
+  function canonicalActorForSession(sessionId: string): string | null {
+    const result = sessions.get(sessionId) as {
+      success?: boolean;
+      session?: { status?: unknown; agentId?: unknown };
+    };
+    const session = result.session;
+    if (!result.success || session?.status !== 'active' || typeof session.agentId !== 'string') return null;
+    const storedAgentId = session.agentId.trim();
+    if (!storedAgentId || !actorSouls) return null;
+    const resolved = actorSouls.resolveActor(storedAgentId);
+    return resolved.soulClass === 'unknown' ? null : resolved.actorId;
+  }
+
+  function hasActiveCanonicalActor(actorId: string): boolean {
+    const active = sessions.list({ status: 'active', allWorktrees: true, limit: 1000 }) as {
+      sessions?: Array<{ agentId?: unknown }>;
+    };
+    return (active.sessions ?? []).some((session) => {
+      if (typeof session.agentId !== 'string' || !actorSouls) return false;
+      const resolved = actorSouls.resolveActor(session.agentId.trim());
+      return resolved.soulClass !== 'unknown' && resolved.actorId === actorId;
+    });
+  }
+
+  function claimAddress(conflict: ClaimConflictRecord): string | null {
+    if (typeof conflict.filePath !== 'string' || !conflict.filePath.trim()) return null;
+    const filePath = conflict.filePath.trim();
+    if (typeof conflict.symbolPath === 'string' && conflict.symbolPath.trim()) {
+      return `${filePath}#${conflict.symbolPath.trim()}`;
+    }
+    if (Number.isInteger(conflict.startLine) || Number.isInteger(conflict.endLine)) {
+      return `${filePath}#L${conflict.startLine ?? '*'}-${conflict.endLine ?? '*'}`;
+    }
+    return filePath;
+  }
+
+  function buildClaimConflictSignal(
+    requesterActorId: string,
+    rawConflicts: unknown[],
+  ): ConflictSignal | null {
+    if (rawConflicts.length === 0
+      || rawConflicts.length > CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs) return null;
+    const observations = rawConflicts.map((raw) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const conflict = raw as ClaimConflictRecord;
+      const address = claimAddress(conflict);
+      const party = typeof conflict.sessionId === 'string'
+        ? canonicalActorForSession(conflict.sessionId)
+        : null;
+      if (!address || !party || !Number.isSafeInteger(conflict.claimedAt) || conflict.claimedAt <= 0) {
+        return null;
+      }
+      return {
+        address,
+        party,
+        evidenceRef: `session-claim:${conflict.sessionId}:${address}:${conflict.claimedAt}`,
+      };
+    });
+    if (observations.length === 0 || observations.some((value) => value === null)) return null;
+    const complete = observations as Array<{ address: string; party: string; evidenceRef: string }>;
+    const parties = [...new Set([requesterActorId, ...complete.map((item) => item.party)])].sort();
+    const evidenceRefs = [...new Set(complete.map((item) => item.evidenceRef.trim()))].sort();
+    const addresses = [...new Set(complete.map((item) => item.address))].sort();
+    if (parties.length < 2 || evidenceRefs.length === 0 || addresses.length === 0) return null;
+    const surface = addresses.length === 1
+      ? `file-claim:${addresses[0]}`
+      : `file-claim-set:${createHash('sha256').update(JSON.stringify(addresses)).digest('hex')}`;
+    const checkpoint = 'claim' as const;
+    const kind = 'claim_overlap' as const;
+    return {
+      schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
+      signalId: conflictSignalId({ checkpoint, kind, surface, parties, evidenceRefs }),
+      kind,
+      checkpoint,
+      shape: 'contract-net',
+      parties,
+      surface,
+      magnitude: evidenceRefs.length,
+      confidence: 0.95,
+      reason: `${evidenceRefs.length} verified live file claim overlap(s)`,
+      evidenceRefs,
+      provenance: {
+        producer: CONFLICT_SIGNAL_PRODUCERS.claimConflict,
+        trustTier: 'INTERNAL',
+        producedAt: Date.now(),
+      },
+    };
+  }
+
+  function evaluateClaimConflictBestEffort(
+    verdict: IdentityWriteVerdict,
+    conflicts: unknown[],
+  ): void {
+    if (!parleyAutoTrigger || !verdict.ok || verdict.kind !== 'verified') return;
+    try {
+      if (conflicts.length === 0) return;
+      if (conflicts.length > CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: `claim conflict count exceeds bounded maximum ${CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs}`,
+          conflictsCount: conflicts.length,
+        });
+        return;
+      }
+      if (!hasActiveCanonicalActor(verdict.actorId)) {
+        logger.info('parley_auto_trigger_skipped', {
+          reason: 'verified requester has no active daemon session',
+          actorId: verdict.actorId,
+        });
+        return;
+      }
+      const signal = buildClaimConflictSignal(verdict.actorId, conflicts);
+      if (!signal) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'claim conflict did not resolve to two distinct live canonical actor identities',
+          conflictsCount: conflicts.length,
+        });
+        return;
+      }
+      const harbor = actorSouls?.constants?.defaultHarbor?.trim();
+      if (!harbor) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'automatic Parley requires the actor identity store canonical harbor',
+        });
+        return;
+      }
+      const result = parleyAutoTrigger.evaluate(signal, { harbor });
+      if (result.state === 'failed') {
+        logger.error('parley_auto_trigger_failed', {
+          signalId: signal.signalId,
+          reason: result.reason,
+        });
+      } else {
+        logger.info('parley_auto_trigger_evaluated', {
+          signalId: signal.signalId,
+          state: result.state,
+          parleyId: result.parleyId,
+        });
+      }
+    } catch (error) {
+      logger.error('parley_auto_trigger_failed', {
+        reason: error instanceof Error ? error.message : 'unknown automatic Parley failure',
+      });
+    }
+  }
+
+  /**
+   * Map general session mutation errors to HTTP status. The intent is one stable
+   * transport contract for callers regardless of the underlying sessions method.
+   *
+   * @param result - Structured sessions-module error result.
+   * @returns HTTP status appropriate for the error code.
+   */
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'VALIDATION_ERROR':
@@ -150,6 +371,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   };
 
+  /**
+   * Map note-specific failures without treating a missing session as a validation
+   * error. The design preserves the distinction clients need for recovery flows.
+   *
+   * @param result - Structured note-write error result.
+   * @returns HTTP status appropriate for the note failure.
+   */
   const noteWriteStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'SESSION_NOT_FOUND':
@@ -163,12 +391,28 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   };
 
+  /**
+   * Read the optional agent identity header defensively. Its purpose is to normalize
+   * Fastify's string-or-array representation before identity verification.
+   *
+   * @param request - Incoming Fastify request.
+   * @returns Trimmed agent id, or null when absent or empty.
+   */
   const headerAgentId = (request: FastifyRequest): string | null => {
     const value = request.headers['x-agent-id'];
     if (Array.isArray(value)) return typeof value[0] === 'string' && value[0].trim() ? value[0].trim() : null;
     return typeof value === 'string' && value.trim() ? value.trim() : null;
   };
 
+  /**
+   * Resolve the asserted mutation agent from body or header before credential checks.
+   * The design rejects malformed assertions early while leaving authorization to the
+   * canonical identity-write boundary below.
+   *
+   * @param request - Incoming Fastify mutation request.
+   * @param bodyAgentId - Optional agent id asserted in the JSON body.
+   * @returns Normalized agent identity or a structured validation error.
+   */
   const mutationAgentId = (
     request: FastifyRequest,
     bodyAgentId: unknown,
@@ -192,10 +436,84 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return { success: true, agentId };
   };
 
+  /**
+   * #8877 / ADR-0122 slice 1: the identity write boundary for this plugin's
+   * mutation routes.
+   *
+   * Why it exists: sessions and notes are durable attributed records, and the
+   * old `mutationAgentId` helper accepted whatever string the caller
+   * asserted — the impersonation gap issue #8877 records. This wrapper keeps
+   * the extraction points (body `agentId`, `x-agent-id` header) but routes the
+   * result through `resolveWriteIdentity`, whose design is fail-closed with
+   * no middle state: a self-asserted agentId with no credential ⇒ 401, a
+   * presented credential must verify (invalid ⇒ 401, never a silent
+   * fallback), and a valid credential cannot write under another soul's name
+   * (403). Only a request asserting no identity at all resolves anonymous.
+   *
+   * @param request - The incoming Fastify request (headers + body carriers).
+   * @param bodyAgentId - The raw `agentId` field from the request body.
+   * @param route - Route label for structured reject logs.
+   * @returns On success, the effective agentId plus the identity verdict
+   *          (verified / anonymous) for stamping records and responses; on
+   *          failure, the HTTP status and error body to return.
+   */
+  const mutationIdentity = (
+    request: FastifyRequest,
+    bodyAgentId: unknown,
+    route: string,
+    options?: { requireIdentity?: boolean },
+  ):
+    | { success: true; agentId: string | null; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    const base = mutationAgentId(request, bodyAgentId);
+    if (!base.success) {
+      return { success: false, httpStatus: 400, result: base.result };
+    }
+    const verdict = resolveWriteIdentity({
+      souls: actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+      assertedAgentId: base.agentId,
+      route,
+      logger,
+      requireIdentity: options?.requireIdentity,
+    });
+    if (!verdict.ok) {
+      return {
+        success: false,
+        httpStatus: verdict.httpStatus,
+        result: { success: false, error: verdict.error, code: verdict.code },
+      };
+    }
+    return { success: true, agentId: verdict.agentId, verdict };
+  };
+
+  /**
+   * Authorize a file-claim mutation (claim/release) against the target
+   * session.
+   *
+   * Purpose: file claims are coordination state OWNED by a session; letting
+   * any caller mutate them under the owner's name is the blocking/stealing
+   * attack the #8877 audit records. The design checks, in order: an agentId
+   * is present (claims are always attributed), the session exists and is
+   * active, the asserted agentId matches the session's owner string, and —
+   * when the session was started with a verified identity stamp — that the
+   * caller's VERIFIED minted actor is the same soul that owns the session.
+   * The last check is what makes the string comparison sound: a session
+   * stamped `identity.actorId` can only have its claims mutated by a caller
+   * holding that soul's credential, not by anyone who learned the display
+   * name.
+   *
+   * @param sessionId - Target session id from the route path.
+   * @param agentId - Effective attribution id from the identity verdict.
+   * @param action - Which mutation is being authorized (for error text).
+   * @param verdict - The successful identity verdict for this request.
+   * @returns Success, or the error body (and implied status) to return.
+   */
   const authorizeFileMutationRoute = (
     sessionId: string,
     agentId: string | null,
     action: 'claiming' | 'releasing',
+    verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
   ): { success: true } | { success: false; result: Record<string, unknown> } => {
     if (!agentId) {
       return {
@@ -249,9 +567,51 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
+    // When the session record carries a verified identity stamp, the caller's
+    // minted actor must be the SAME soul — knowing the owner's display string
+    // is not ownership.
+    const stamped = (session as { metadata?: { identity?: { verified?: unknown; actorId?: unknown } } })
+      ?.metadata?.identity;
+    if (
+      stamped &&
+      stamped.verified === true &&
+      typeof stamped.actorId === 'string' &&
+      verdict?.kind === 'verified' &&
+      verdict.actorId !== stamped.actorId
+    ) {
+      return {
+        success: false,
+        result: {
+          success: false,
+          error: `the presented credential's actor does not own session "${sessionId}"`,
+          code: 'SESSION_AGENT_MISMATCH',
+        },
+      };
+    }
+
     return { success: true };
   };
 
+  /**
+   * Shared handler for the canonical `POST /notes` and the compat alias
+   * `POST /sessions/:id/notes`.
+   *
+   * Purpose: notes are the durable narrative of record (they feed
+   * changelog-from-note, briefings, and roster projections), so this is a
+   * security-relevant write boundary. The design enforces, in order: content
+   * validation, the #8877 identity write boundary (a self-asserted id without
+   * a daemon-minted credential is 401, a forged credential is 401, another
+   * soul's name is 403 — before anything persists), the adversarial-project
+   * envelope guard, and only then the actual note write — with the identity
+   * verdict echoed on the response.
+   *
+   * @param request - The incoming Fastify request.
+   * @param reply - Fastify reply used to set the HTTP status code.
+   * @param routeSessionId - Session id from the path for the alias route, or
+   *        null for `POST /notes` (session comes from the body / agent scope).
+   * @returns The note-write result body, including an `identity` verdict for
+   *          attributed writes.
+   */
   const writeNote = (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -266,6 +626,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         error: 'content must be a non-empty string',
         code: 'VALIDATION_ERROR'
       };
+    }
+
+    // #8877: notes are durable attributed records — enforce the identity
+    // write boundary before anything is persisted.
+    const noteIdentity = mutationIdentity(request, agentId, routeSessionId ? 'POST /sessions/:id/notes' : 'POST /notes');
+    if (!noteIdentity.success) {
+      reply.code(noteIdentity.httpStatus);
+      return noteIdentity.result;
     }
 
     const sessionId = routeSessionId ?? bodySessionId;
@@ -293,17 +661,24 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
     }
 
-    const result = sessions.quickNote(writtenContent, { sessionId, agentId, type });
+    const result = sessions.quickNote(writtenContent, { sessionId, agentId: noteIdentity.agentId, type });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
       return result;
     }
 
+    // Surface the verified identity verdict on the response so the caller
+    // sees which minted actor the note was attributed to.
+    if (noteIdentity.verdict.kind !== 'anonymous') {
+      result.identity = noteIdentity.verdict.identity;
+    }
+
     logger.info('session_note_added', {
       noteId: result.noteId,
       sessionId: result.sessionId,
-      type: type || 'note'
+      type: type || 'note',
+      identityVerified: noteIdentity.verdict.kind === 'verified'
     });
 
     if (activityLog?.log) {
@@ -340,9 +715,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const sessionAgent = mutationAgentId(request, agentId);
+      const sessionAgent = mutationIdentity(request, agentId, 'POST /sessions');
       if (!sessionAgent.success) {
-        reply.code(400);
+        reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
       }
 
@@ -358,6 +733,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (files && Array.isArray(files) && files.length > 0 && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
+          evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
           return {
             success: false,
@@ -390,10 +766,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         allowMainWorktree,
       });
 
+      // #8877: the session row is the durable attributed record — stamp the
+      // verified identity verdict into its metadata so the record itself
+      // testifies which minted actor started it (and a caller-supplied
+      // `identity` key can never pre-fill the daemon's verdict slot).
+      const stampedMetadata = stampIdentityMetadata(mergedMetadata, sessionAgent.verdict);
+
       const result = sessions.start(purpose, {
         agentId: sessionAgent.agentId,
         files,
-        metadata: mergedMetadata,
+        metadata: stampedMetadata,
         worktreeId: worktreePolicy.worktree?.id,
         durable: lifecycle === 'durable',
       });
@@ -403,11 +785,20 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'VALIDATION_ERROR' };
       }
 
+      if (force && Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(sessionAgent.verdict, result.conflicts);
+      }
+
+      if (sessionAgent.verdict.kind !== 'anonymous') {
+        result.identity = sessionAgent.verdict.identity;
+      }
+
       logger.info('session_started', {
         sessionId: result.id,
         purpose,
         agentId: sessionAgent.agentId,
-        filesCount: files ? files.length : 0
+        filesCount: files ? files.length : 0,
+        identityVerified: sessionAgent.verdict.kind === 'verified'
       });
 
       if (activityLog?.log) {
@@ -535,9 +926,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const body = (request.body || {}) as any;
-      const sessionAgent = mutationAgentId(request, body.agentId);
+      // Takeover is ALWAYS attributed: when no agentId is asserted the
+      // successor inherits the predecessor's agent id, so an anonymous
+      // takeover would write an attributed record under someone else's name.
+      // requireIdentity turns even a bare no-claim takeover into a 401.
+      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover', { requireIdentity: true });
       if (!sessionAgent.success) {
-        reply.code(400);
+        reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
       }
       const lifecycle = parseSessionLifecycle(body.lifecycle);
@@ -565,7 +960,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         note: typeof body.note === 'string' ? body.note : null,
         project: typeof body.project === 'string' ? body.project : null,
         worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
-        metadata,
+        metadata: stampIdentityMetadata(metadata, sessionAgent.verdict),
         durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
         claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
       });
@@ -576,10 +971,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return result;
       }
 
+      if (sessionAgent.verdict.kind !== 'anonymous') {
+        result.identity = sessionAgent.verdict.identity;
+      }
+
       logger.info('session_taken_over', {
         predecessorId: result.predecessorId,
         successorId: result.successorId,
         claimsTransferred: result.claimsTransferred,
+        identityVerified: sessionAgent.verdict.kind === 'verified',
       });
 
       return result;
@@ -775,13 +1175,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const requestAgent = mutationAgentId(request, agentId);
+      const requestAgent = mutationIdentity(request, agentId, 'POST /sessions/:id/files');
       if (!requestAgent.success) {
-        reply.code(400);
+        reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
 
-      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'claiming');
+      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'claiming', requestAgent.verdict);
       if (!routeAuth.success) {
         reply.code(errorStatus(routeAuth.result));
         return routeAuth.result;
@@ -790,6 +1190,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (hasFiles && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
+          evaluateClaimConflictBestEffort(requestAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
           return {
             success: false,
@@ -806,6 +1207,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (!result.success) {
         reply.code(errorStatus(result));
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
+      }
+
+      if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, result.conflicts);
       }
 
       logger.info('session_files_claimed', {
@@ -863,12 +1268,41 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         radiusDepth: typeof body.radiusDepth === 'number' ? body.radiusDepth : undefined,
       });
 
+      const conflicts = result.conflicts as SymbolConflict[];
+      if (conflicts.length > 0 && suggestions && agentInbox) {
+        try {
+          const sessionResult = typeof sessions.get === 'function'
+            ? sessions.get(sessionId) as {
+                session?: { agentId?: string | null; purpose?: string | null };
+              }
+            : null;
+          surfaceSymbolConflictAdvice(
+            { suggestions, inbox: agentInbox, activityLog },
+            {
+              sessionId,
+              agentId: sessionResult?.session?.agentId ?? null,
+              purpose: sessionResult?.session?.purpose ?? null,
+              conflicts,
+            },
+          );
+        } catch (error) {
+          // Advice is durable enrichment over the authoritative claim verdict. A
+          // delivery outage must be visible, but cannot rewrite blocked → allowed
+          // or warning → failed.
+          logger.error('symbol_conflict_advice_error', {
+            sessionId,
+            conflictsCount: conflicts.length,
+            error: (error as Error).message,
+          });
+        }
+      }
+
       // ast-a2-1: Claim validator pre-flight — reject blocking conflicts.
       // A blocking conflict means the symbol is already held in a way that makes
       // concurrent modification unsafe (e.g., two sessions modifying the same symbol
       // or one modifying a function another is calling). This gate makes symbol
       // conflicts predictable for the wedge rendering.
-      const blockingConflicts = (result.conflicts as SymbolConflict[]).filter(c => c.severity === 'blocking');
+      const blockingConflicts = conflicts.filter(c => c.severity === 'blocking');
       if (blockingConflicts.length > 0) {
         reply.code(409);
         return {
@@ -930,13 +1364,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const requestAgent = mutationAgentId(request, agentId);
+      const requestAgent = mutationIdentity(request, agentId, 'DELETE /sessions/:id/files');
       if (!requestAgent.success) {
-        reply.code(400);
+        reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
 
-      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'releasing');
+      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'releasing', requestAgent.verdict);
       if (!routeAuth.success) {
         reply.code(errorStatus(routeAuth.result));
         return routeAuth.result;

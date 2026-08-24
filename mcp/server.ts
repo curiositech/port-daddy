@@ -39,7 +39,7 @@ import {
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
 import { governToolOutput } from '../lib/mcp-output-governor.js';
-import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId } from '../lib/mcp-session-cache.js';
+import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -66,6 +66,16 @@ async function api(
 ): Promise<ApiResponse> {
   const url = new URL(path, DAEMON_URL);
 
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Present the one begin_session captured (or the
+  // env-injected one) on every request; harmless on reads, required on writes.
+  const actorCredential = resolveActorCredential();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (actorCredential) headers['x-actor-credential'] = actorCredential;
+
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
@@ -73,10 +83,7 @@ async function api(
         port: url.port,
         path: url.pathname + url.search,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers,
         timeout: options?.timeout ?? REQUEST_TIMEOUT,
       },
       (res) => {
@@ -248,8 +255,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'coordination_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -469,6 +476,20 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'coordination_status',
+    description:
+      '[System] Offline-first coordination peer status (ADR-0092 section 4). ' +
+      'Returns whether federation is enabled and connected plus the project, actor, ' +
+      'stable replica id, durable room cursor, pending local outbox count, last sync, ' +
+      'and last error. A disconnected peer does not mean local coordination is ' +
+      'unavailable: the local SQLite ledger remains writable and reconverges later. ' +
+      'Read-only. Usage: coordination_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -3490,7 +3511,14 @@ async function handleTool(
         const data = res.data as Record<string, unknown>;
         const agentId = typeof data.agentId === 'string' ? data.agentId : undefined;
         const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
-        if (agentId && sessionId) setActiveSession({ agentId, sessionId });
+        // #8877: begin mints (or verifies) the ADR-0040 soul; the returned
+        // credential must be cached so every later attributed write from this
+        // process presents it. NEVER echo the credential back into the tool
+        // output visible to the model transcript longer than necessary — but
+        // the begin response itself already carries it by design (returned
+        // once); we additionally keep it here for subsequent calls.
+        const mintedCredential = typeof data.credential === 'string' ? data.credential : undefined;
+        if (agentId && sessionId) setActiveSession({ agentId, sessionId, credential: mintedCredential });
       }
       break;
     }
@@ -3533,6 +3561,11 @@ async function handleTool(
 
     case 'relay_status': {
       res = await GET('/relay/status');
+      break;
+    }
+
+    case 'coordination_status': {
+      res = await GET('/coordination/status');
       break;
     }
 

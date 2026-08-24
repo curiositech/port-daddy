@@ -237,6 +237,91 @@ export async function fetchRepoFile(
   return atob(body.content.replace(/\n/g, ''));
 }
 
+export interface PrMeta {
+  title: string;
+  body: string | null;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  htmlUrl: string;
+}
+
+/**
+ * Fetch a PR's title/size metadata. The fleet run page's own admission ledger
+ * (`fleet_run_intents`) only ever stores repo/number/url — the webhook payload
+ * carries a title too, but capturing it there would mean a schema migration
+ * for a value GitHub already answers on demand. Fetched live at render time
+ * instead, using the same repo-scoped installation token every other GitHub
+ * App read here uses; null on any failure so the page degrades to the bare
+ * repo#number it already had, never a broken render.
+ */
+export async function getPrMeta(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<PrMeta | null> {
+  const res = await fetch(`${GH_API}/repos/${owner}/${repo}/pulls/${prNumber}`, { headers: ghHeaders(token) });
+  if (!res.ok) return null;
+  const body = (await res.json()) as {
+    title?: string;
+    body?: string | null;
+    additions?: number;
+    deletions?: number;
+    changed_files?: number;
+    html_url?: string;
+  };
+  if (typeof body.title !== 'string') return null;
+  return {
+    title: body.title,
+    body: body.body ?? null,
+    additions: body.additions ?? 0,
+    deletions: body.deletions ?? 0,
+    changedFiles: body.changed_files ?? 0,
+    htmlUrl: body.html_url ?? `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+  };
+}
+
+/** Bound on rendered diff size — big enough for nearly every real PR, bounded against a pathological one blowing up the run page's response. */
+const MAX_DIFF_CHARS = 200_000;
+
+export interface PrDiff {
+  text: string;
+  truncated: boolean;
+}
+
+/**
+ * Fetch a PR's unified diff via GitHub's diff media type (plain text, not
+ * JSON). Truncated at {@link MAX_DIFF_CHARS} rather than unbounded — the page
+ * always keeps a link to the real diff on GitHub alongside whatever renders
+ * here. Null on any failure (network, non-2xx, GitHub disabling the media
+ * type on a huge PR) so the page degrades to that link, never a broken page.
+ */
+export async function getPrDiff(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<PrDiff | null> {
+  try {
+    const res = await fetch(`${GH_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3.diff',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'port-daddy-relay/1.0',
+      },
+    });
+    if (!res.ok) return null;
+    const full = await res.text();
+    return full.length <= MAX_DIFF_CHARS
+      ? { text: full, truncated: false }
+      : { text: full.slice(0, MAX_DIFF_CHARS), truncated: true };
+  } catch {
+    return null;
+  }
+}
+
 export interface ShipFileRef {
   path: string;
   name: string;

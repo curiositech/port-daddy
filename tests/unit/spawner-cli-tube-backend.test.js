@@ -17,7 +17,7 @@
 
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
-import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
@@ -25,6 +25,21 @@ import { PassThrough, Readable } from 'node:stream';
 const mockSpawn = jest.fn();
 const mockExecFile = jest.fn();
 const mockExecFileSync = jest.fn();
+const mockCoastGuardReceipt = {
+  tool: 'pd-coast-guard',
+  agentId: 'cli-tube/test',
+  backend: 'cli:claude-code',
+  confined: true,
+  mechanism: 'seatbelt',
+};
+const mockCoastGuardDispose = jest.fn();
+const mockWithCoastGuard = jest.fn(async (input) => ({
+  cmd: input.cmd,
+  args: input.args,
+  env: input.env,
+  receipt: () => mockCoastGuardReceipt,
+  dispose: mockCoastGuardDispose,
+}));
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
@@ -35,6 +50,9 @@ jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   execFile: mockExecFile,
   execFileSync: mockExecFileSync,
+}));
+jest.unstable_mockModule('../../lib/spawner/coast-guard-runner.js', () => ({
+  withCoastGuard: mockWithCoastGuard,
 }));
 
 const {
@@ -86,6 +104,15 @@ beforeEach(() => {
   });
   mockExecFileSync.mockReset();
   mockExecFileSync.mockReturnValue('');
+  mockCoastGuardDispose.mockReset();
+  mockWithCoastGuard.mockReset();
+  mockWithCoastGuard.mockImplementation(async (input) => ({
+    cmd: input.cmd,
+    args: input.args,
+    env: input.env,
+    receipt: () => mockCoastGuardReceipt,
+    dispose: mockCoastGuardDispose,
+  }));
   fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
   process.env.HOME = fakeHome;
   process.env.PATH = '/usr/bin:/bin';
@@ -501,7 +528,121 @@ describe('generateTubeChannel', () => {
   });
 });
 
+describe('spawnViaCliTube — Coast Guard confinement (ADR-0050, default-on)', () => {
+  test('a cli-tube child is spawned confined BY DEFAULT — no coastGuard option supplied', async () => {
+    // The whole point of the re-land: a caller that passes nothing extra still
+    // gets its child routed through the Coast Guard wrap before spawn.
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: { ...input.env, PD_TEST_CONFINED: '1' },
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'confined by default', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
+
+    // Coast Guard was consulted exactly once, with honest derived identity.
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      agentId: 'cli-tube/claude-code',
+      backend: 'cli:claude-code',
+      cmd: join(fakeHome, '.local', 'bin', 'claude'),
+    }));
+    // The child that actually ran is the WRAPPED command with the wrapped env —
+    // not the raw binary.
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/usr/bin/sandbox-wrapper',
+      expect.arrayContaining(['--', join(fakeHome, '.local', 'bin', 'claude')]),
+      expect.objectContaining({ env: expect.objectContaining({ PD_TEST_CONFINED: '1' }) }),
+    );
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+    expect(res.error).toBeNull();
+  });
+
+  test('a per-spec opt-out is passed through VERBATIM and the honest confined:false receipt is surfaced', async () => {
+    // The opt-out decision itself belongs to withCoastGuard/resolveCoastGuardPolicy
+    // (proven against the real implementations in spawner-coast-guard-runner.test.js
+    // and spawner-coast-guard.test.js); what cli-tube owes the caller is (1) the
+    // spec reaching that authority boundary untouched and (2) the resulting
+    // confined:false receipt reaching the CliTubeResult unlaundered.
+    const optOutReceipt = {
+      tool: 'pd-coast-guard',
+      agentId: 'cli-tube/claude-code',
+      backend: 'cli:claude-code',
+      confined: false,
+      mechanism: 'none',
+    };
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: input.cmd, // raw command, no wrapper — the opt-out shape
+      args: input.args,
+      env: input.env,
+      receipt: () => optOutReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ran raw', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'say hi',
+      coastGuard: { spec: { coastGuard: false } },
+    });
+
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      spec: { coastGuard: false },
+    }));
+    // The raw (unwrapped) command is what actually ran.
+    expect(mockSpawn).toHaveBeenCalledWith(
+      join(fakeHome, '.local', 'bin', 'claude'),
+      expect.any(Array),
+      expect.anything(),
+    );
+    expect(res.coastGuardReceipt).toBe(optOutReceipt);
+    expect(res.coastGuardReceipt.confined).toBe(false);
+    expect(res.error).toBeNull();
+  });
+});
+
 describe('spawnViaCliTube — claude-code happy path', () => {
+  test('routes the child through Coast Guard and returns its receipt', async () => {
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: { ...input.env, PD_TEST_CONFINED: '1' },
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'confined', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'say hi',
+      coastGuard: {
+        agentId: 'agent-receipt-test',
+        backend: 'cli:claude-code',
+        writePolicy: 'read-only',
+      },
+    });
+
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      agentId: 'agent-receipt-test',
+      backend: 'cli:claude-code',
+      writePolicy: 'read-only',
+    }));
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/usr/bin/sandbox-wrapper',
+      expect.arrayContaining(['--', join(fakeHome, '.local', 'bin', 'claude')]),
+      expect.objectContaining({ env: expect.objectContaining({ PD_TEST_CONFINED: '1' }) }),
+    );
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+  });
+
   test('invokes `claude` binary with the prompt', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'Hello!', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
@@ -653,6 +794,55 @@ describe('spawnViaCliTube — tube publishing', () => {
 });
 
 describe('spawnViaCliTube — failure paths', () => {
+  test('disposes Coast Guard and returns its receipt when spawn throws synchronously', async () => {
+    mockSpawn.mockImplementationOnce(() => { throw new Error('spawn exploded'); });
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('spawn exploded');
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test('sync spawn-throw error names both the Coast Guard wrapper and the original binary honestly', async () => {
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: input.env,
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockImplementationOnce(() => { throw new Error('spawn exploded'); });
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+
+    // Actual executable attempted was the wrapper, not the raw claude binary —
+    // the error must say so instead of only naming the pre-wrap binary.
+    expect(res.error).toContain('/usr/bin/sandbox-wrapper');
+    expect(res.error).toContain(join(fakeHome, '.local', 'bin', 'claude'));
+    expect(res.error).toContain('spawn exploded');
+  });
+
+  test('a Coast Guard preparation failure (withCoastGuard rejects) returns a structured error result instead of rejecting, and cleans up the codex scratch tempDir', async () => {
+    mockWithCoastGuard.mockRejectedValueOnce(new Error('egress meter failed to bind loopback port'));
+
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'hi' });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('egress meter failed to bind loopback port');
+    expect(res.coastGuardReceipt).toBeNull();
+    expect(res.output).toBe('');
+    expect(res.rawStdout).toBe('');
+    expect(mockSpawn).not.toHaveBeenCalled();
+    // codex allocates a scratch tempDir under ~/.port-daddy/cli-tube-scratch for
+    // --output-last-message BEFORE Coast Guard prep; a rejected withCoastGuard()
+    // must not leak it.
+    const scratchRoot = join(fakeHome, '.port-daddy', 'cli-tube-scratch');
+    const leftover = existsSync(scratchRoot) ? readdirSync(scratchRoot) : [];
+    expect(leftover).toEqual([]);
+  });
+
   test('ENOENT → "binary not found" error with auth hint', async () => {
     mockSpawn.mockReturnValue(fakeChild({ error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
@@ -804,7 +994,12 @@ describe('spawnViaCliTube — failure paths', () => {
       mockSpawn.mockReturnValue(child);
 
       const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10_000 });
-      await Promise.resolve();
+      // The Coast Guard wrap awaits before spawn, so drain microtasks until the
+      // first liveness sample lands instead of assuming a fixed tick count.
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.length >= 1,
+        'initial liveness sample',
+      );
 
       expect(mockExecFile).toHaveBeenCalledTimes(1);
       expect(mockExecFileSync).not.toHaveBeenCalled();
@@ -820,6 +1015,10 @@ describe('spawnViaCliTube — failure paths', () => {
       await jest.advanceTimersByTimeAsync(99);
       expect(mockExecFile).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(1);
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.length >= 2,
+        'second serialized liveness sample',
+      );
       expect(mockExecFile).toHaveBeenCalledTimes(2);
 
       child.emit('close', 0);

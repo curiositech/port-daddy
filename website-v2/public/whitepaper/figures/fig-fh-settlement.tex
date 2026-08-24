@@ -9,68 +9,76 @@
 \providecolor{hhpaper}{HTML}{FBF7EF}
 \providecolor{maydayred}{HTML}{8B0000}
 
+% ─── Cross-Harbor Settlement Ceremony ─────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  party/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!50,
-                inner sep=5pt,minimum width=34mm,minimum height=18mm,
-                align=center,font=\sffamily\bfseries\small},
-  escrow/.style={draw=hhcobalt,very thick,rounded corners=3pt,fill=hhpaper,
-                 inner sep=5pt,minimum width=38mm,minimum height=20mm,
-                 align=center,font=\sffamily\small},
-  stepbox/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=3pt,font=\sffamily\footnotesize,align=left,
-               text width=44mm},
-  edge/.style={->,>=Latex,thick,draw=hhebony},
-  constraint/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
-                     inner sep=5pt,align=left,font=\sffamily\footnotesize,
-                     text width=42mm},
+  party/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=36mm, minimum height=18mm, align=center},
+  escrow/.style={draw=hhcobalt, line width=0.85pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=6pt, minimum width=48mm, minimum height=18mm, align=center},
+  stepbox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=42mm, align=left},
+  outcomebox/.style={draw=hhink, line width=0.6pt, fill=hhsand!35, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=36mm, align=center},
+  guardbox/.style={draw=hhcobalt!70, line width=0.65pt, fill=hhcobalt!5, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=42mm, align=left},
+  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
+  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
 ]
 
-% ─── Parties at top: Alice's principal (poster), Bob's principal (claimant) ─
-\node[party] (PA) at (0,0)
-  {Alice (principal)\\\footnotesize bond poster};
-\node[escrow,right=22mm of PA] (E)
-  {\textbf{Bonded Escrow}\\\footnotesize recipient whitelist; fee cap;\\\footnotesize one atomic terminal transition};
-\node[party,right=22mm of E] (PB)
-  {Bob (principal)\\\footnotesize damage claimant};
+  % ─── Parties at Top ─────────────────────────────────────────────────────────
+  \node[party] (PA) at (-4.8, 0) {
+    \textbf{\scshape Alice (Principal)}\\[1pt]
+    {\scriptsize Performance Bond Poster}
+  };
+  \node[escrow] (E) at (0.0, 0) {
+    \textbf{\scshape 2-of-3 Multisig Escrow}\\[1pt]
+    {\scriptsize Bounded Custody \& Settlement}
+  };
+  \node[party] (PB) at (4.8, 0) {
+    \textbf{\scshape Bob (Principal)}\\[1pt]
+    {\scriptsize Bounty \& Damage Claimant}
+  };
 
-% ─── Step boxes below the line ──────────────────────────────────────
-\node[stepbox,below=14mm of PA.south,xshift=-2mm] (s1) {%
-  \textbf{1.} Alice's harbor mints work card for agent $\alpha$; agent operates at $B$. Bond $B_\alpha = \$B$ posted at $A$, locked in escrow.};
-\node[stepbox,below=14mm of E.south] (s2) {%
-  \textbf{2.} Damage detected at $B$ (acceptance criteria fail, or invariant violation). Bob's harbor signs claim $\mathsf{cl}_B = (R_B^{(e)}, \mathrm{evidence})$.};
-\node[stepbox,below=14mm of PB.south,xshift=2mm] (s3) {%
-  \textbf{3.} Escrow verifies inclusion of $\alpha$'s actions in $R_B^{(e)}$ and matches against acceptance preconditions signed at step 1. \emph{Two outcomes only.}};
+  % ─── Steps 1, 2, 3 Below ────────────────────────────────────────────────────
+  \node[stepbox] (s1) at (-4.8, -2.4) {
+    \textbf{1. Bond Posting}\\[1pt]
+    $A$ mints work card for agent $\alpha$; posts performance bond $B_\alpha$ into multisig escrow.
+  };
 
-% ─── Assumptions and outcomes, with orthogonal routing ───────────────────────
-\node[constraint,below=24mm of s1.south] (guard) {%
-  \textbf{Required authority boundary:} neither harbor can bypass the
-  recipient whitelist, fee cap, or atomic terminal-state transition.};
-\node[party,fill=hhteal!30,below=24mm of s2.south] (Op) {%
-  \textbf{Clear:}\\\footnotesize $B$ paid out of bond,\\\footnotesize remainder refunded};
-\node[party,fill=hhamber!20,below=24mm of s3.south] (Or) {%
-  \textbf{Refuse:}\\\footnotesize bond returned to $A$,\\\footnotesize escrow logs reason};
+  \node[stepbox] (s2) at (0.0, -2.4) {
+    \textbf{2. Damage Claim}\\[1pt]
+    Breach detected at $B$; Bob signs claim $\mathsf{cl}_B = (R_B^{(e)}, \text{evidence})$ to witness log.
+  };
 
-% ─── Flow edges ────────────────────────────────────────────────────
-\draw[edge] (PA.south) -- (s1.north);
-\draw[edge] (E.south) -- (s2.north);
-\draw[edge] (PB.south) -- (s3.north);
-\draw[edge] (s1.east) -- (s2.west);
-\draw[edge] (s2.east) -- (s3.west);
-% Outcomes from the verification step share a clear orthogonal branch.
-\coordinate (fork) at ($(s3.south)+(0,-10mm)$);
-\draw[edge] (s3.south) -- (fork) -| (Op.north);
-\draw[edge] (fork) -- (Or.north);
+  \node[stepbox] (s3) at (4.8, -2.4) {
+    \textbf{3. Oracle Verification}\\[1pt]
+    Escrow checks inclusion of $\alpha$'s actions in $R_B^{(e)}$ against step 1 criteria.
+  };
 
-\end{tikzpicture}%
-}
-\caption{Cross-harbor settlement protocol. The custody bound is conditional,
-not automatic: the escrow authority must enforce a recipient whitelist, a fee
-cap, and exactly one atomic terminal transition, and neither harbor may possess
-an out-of-band bypass. Under those assumptions the outcome space is clear or
-refuse. Without them, the worst-case loss is the full balance held in custody.}
+  \draw[flowarr] (PA.south) -- (s1.north);
+  \draw[flowarr] (E.south) -- (s2.north);
+  \draw[flowarr] (PB.south) -- (s3.north);
+
+  \draw[accentarr] (s1.east) -- (s2.west);
+  \draw[accentarr] (s2.east) -- (s3.west);
+
+  % ─── Outcomes and Structural Guard ──────────────────────────────────────────
+  \node[guardbox] (guard) at (-4.8, -4.8) {
+    \textbf{\scshape Authority Invariant:}\\
+    Neither harbor can bypass recipient whitelist, fee cap, or atomic 2-of-3 multisig transition.
+  };
+
+  \node[outcomebox] (Op) at (0.5, -4.8) {
+    \textbf{\scshape Settlement: Clear}\\[1pt]
+    $B$ compensated from bond; remainder refunded to $A$.
+  };
+
+  \node[outcomebox] (Or) at (4.8, -4.8) {
+    \textbf{\scshape Settlement: Refuse}\\[1pt]
+    Bond returned to $A$; escrow logs evidence proof.
+  };
+
+  \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Op.north);
+  \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Or.north);
+
+\end{tikzpicture}
+\caption{Cross-harbor settlement protocol. Custody bounds are structurally enforced: the escrow authority requires 2-of-3 multisig consensus across the recipient whitelist, fee cap, and atomic terminal transitions. The outcome space partitions cleanly into \textbf{Clear} or \textbf{Refuse}, preventing unbounded cross-harbor liability.}
 \label{fig:fh-settlement}
 \end{figure}

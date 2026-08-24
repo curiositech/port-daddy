@@ -7,7 +7,7 @@ struct FleetControlCenter: View {
     @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var cloudFleetStore = CloudFleetStore()
-    @StateObject private var squidHarnessStore = SquidHarnessStore()
+    @StateObject private var squidHarnessStore = SquidHarnessStore(baseURL: DaemonLocation.availableBaseURL())
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""

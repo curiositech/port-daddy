@@ -7,7 +7,8 @@
     "dev": "wrangler dev --local",
     "build": "tsc --noEmit",
     "deploy": "wrangler deploy",
-    "test": "vitest run",
+    "test": "npm run test:migrations && vitest run",
+    "test:migrations": "node scripts/check-migrations.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.0",
     "@cloudflare/workers-types": "^4.20260507.0",
+    "playwright": "^1.58.2",
     "typescript": "^5.8.3",
     "vitest": "^3.2.0",
     "wrangler": "^4.14.0"

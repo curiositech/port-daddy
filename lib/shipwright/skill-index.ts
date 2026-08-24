@@ -26,7 +26,12 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { DEFAULT_SEMANTIC_MODEL_ID, ensureOnnxRuntimeNativeLibFindable } from '../semantic-resolver.js';
+import {
+  ALLOW_MODEL_DOWNLOAD_ENV,
+  DEFAULT_SEMANTIC_MODEL_ID,
+  ensureOnnxRuntimeNativeLibFindable,
+  resolveRemoteModelPolicy,
+} from '../semantic-resolver.js';
 
 /**
  * Visibility tier a skill has opted into, from frontmatter `visibility`.
@@ -501,9 +506,32 @@ function ensureSchema(db: DatabaseInstance): void {
  * uses. Kept private to this module so the import of `@huggingface/transformers`
  * only happens for callers that actually run a search; CLI tests with an
  * injected embedder never touch the heavy module.
+ *
+ * Egress design: the same `resolveRemoteModelPolicy` gate as the semantic
+ * resolver's loader — a huggingface.co download happens only under the
+ * explicit `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` opt-in. Why here too: this
+ * loader is a deliberate mirror of the resolver's, and leaving it ungated
+ * would let a skill-index search re-open the exact remote fetch the
+ * local-only egress assertion forbids. With no opt-in and no cached model it
+ * throws before importing transformers (no network attempt); a cached model
+ * loads with `allowRemoteModels` pinned to `false`.
+ *
+ * @param cacheDir Persistent transformers cache root shared with the resolver
+ *   and the install-time prefetch.
+ * @param modelId Hugging Face model id to load (normally MiniLM).
+ * @returns A lazily constructed skill embedder mapping texts to normalized vectors.
  */
 async function createDefaultSkillEmbedder(cacheDir: string, modelId: string): Promise<SkillEmbedder> {
   mkdirSync(cacheDir, { recursive: true });
+  const policy = resolveRemoteModelPolicy(cacheDir, modelId);
+  if (policy.mode === 'unavailable') {
+    throw new Error(
+      `skill-index embedder unavailable: model ${modelId} is not cached at ${cacheDir} and remote model ` +
+      'download is disabled by default (local-only egress policy; no network attempt was made). ' +
+      'Prefetch it while online (npx tsx scripts/prefetch-embedding-model.ts) or set ' +
+      `${ALLOW_MODEL_DOWNLOAD_ENV}=1 to opt in to a one-time download from huggingface.co.`,
+    );
+  }
   ensureOnnxRuntimeNativeLibFindable();
   const transformers = await import('@huggingface/transformers');
   const { env, pipeline } = transformers as unknown as {
@@ -512,7 +540,7 @@ async function createDefaultSkillEmbedder(cacheDir: string, modelId: string): Pr
   };
   env.cacheDir = cacheDir;
   env.useFSCache = true;
-  env.allowRemoteModels = true;
+  env.allowRemoteModels = policy.allowRemote;
   const featureExtractor = await pipeline('feature-extraction', modelId);
   return {
     modelId,

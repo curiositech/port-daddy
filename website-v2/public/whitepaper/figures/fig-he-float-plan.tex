@@ -7,53 +7,51 @@
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
 
+% ─── The Float-Plan Escrow Ceremony: Three-Step Signed Handshake ──────────────
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=4pt,minimum width=30mm,
-               font=\bfseries\small,align=center},
-  msg/.style={->,>=Latex,thick,draw=hhebony},
-  note/.style={font=\scriptsize\itshape,text width=52mm,align=left},
-  inv/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
-              inner sep=4pt,font=\scriptsize,text width=58mm,align=left},
+  lane/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=34mm, align=center},
+  msgarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt},
+  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
+  stepbox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=48mm, align=left},
+  txnbox/.style={draw=hhcobalt, line width=0.75pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=4pt, font=\scriptsize, text width=38mm, align=center},
+  lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt}
 ]
 
-% three lanes
-\node[lane] (R) at (0,0) {Requester $R$\\\footnotesize (bounty holder)};
-\node[lane,right=34mm of R] (D) {Daemon\\\footnotesize (escrow agent)};
-\node[lane,right=34mm of D] (W) {Worker $W$\\\footnotesize (claim holder)};
+  % ─── Lifeline Headers (Top) ─────────────────────────────────────────────────
+  \node[lane] (R) at (-4.2, 0) {\textbf{\scshape Requester $R$}\\[1pt]{\scriptsize Bounty Holder}};
+  \node[lane] (D) at (0.0, 0) {\textbf{\scshape Daemon $D$}\\[1pt]{\scriptsize Escrow Arbiter}};
+  \node[lane] (W) at (4.2, 0) {\textbf{\scshape Worker $W$}\\[1pt]{\scriptsize Claim Holder}};
 
-\foreach \n in {R,D,W} {
-  \draw[dashed,gray] (\n.south) -- ($(\n.south)+(0,-58mm)$);
-}
+  % Lifeline dashed tracks
+  \draw[hhgray!40, line width=0.4pt, dashed] (R.south) -- ++(0, -5.2);
+  \draw[hhgray!40, line width=0.4pt, dashed] (D.south) -- ++(0, -5.2);
+  \draw[hhgray!40, line width=0.4pt, dashed] (W.south) -- ++(0, -5.2);
 
-% (1) requester signs FloatPlan
-\draw[msg] ($(R.south)+(0,-6mm)$) -- node[above,font=\scriptsize]
-  {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} ($(D.south)+(0,-6mm)$);
-\node[note,right=8mm of W,yshift=-7mm,text width=46mm]
-  {\textbf{(1)} $R$ signs a FloatPlan: task $+$ machine-checkable acceptance
-   criteria $+$ compute budget $+$ credit bounty.};
+  % ─── Step 1: Requester submits signed FloatPlan ─────────────────────────────
+  \draw[msgarr] (-4.2, -1.0) -- node[lbl, above] {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} (0.0, -1.0);
+  \node[stepbox] at (6.8, -1.0) {
+    \textbf{Step 1: Float-Plan Submission}\\
+    $R$ signs task manifest, oracle acceptance criteria, and escrowed bounty.
+  };
 
-% (2) daemon debits + escrows in EXCLUSIVE txn
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=3pt,
-      font=\scriptsize,text width=40mm,align=center]
-      at ($(D.south)+(0,-24mm)$) (txn)
-  {\textbf{(2)} \texttt{BEGIN EXCLUSIVE}\\ debit wallet $\to$ escrow row\\
-   \texttt{COMMIT}};
+  % ─── Step 2: Atomic serialized balance debit ────────────────────────────────
+  \node[txnbox] at (0.0, -2.5) {
+    \textbf{Step 2: Atomic Escrow}\\[1pt]
+    \texttt{BEGIN EXCLUSIVE}\\[1pt]
+    Debit Wallet $\to$ Lock Escrow\\[1pt]
+    \texttt{COMMIT}
+  };
 
-% (3) daemon signs anchor + plan hash, proving funds locked
-\draw[msg] ($(D.south)+(0,-38mm)$) -- node[above,font=\scriptsize]
-  {$\mathsf{sign}_{D}\{\textit{anchor id},\,\textit{plan hash}\}$} ($(W.south)+(0,-38mm)$);
-\node[note,right=2mm of W,yshift=-39mm]
-  {\textbf{(3)} The daemon proves to $W$ that funds are locked
-   \emph{before any work runs}. This is ``no-spawn-without-bond.''};
+  % ─── Step 3: Daemon signs proof-of-escrow to worker ─────────────────────────
+  \draw[msgarr] (0.0, -4.0) -- node[lbl, above] {$\mathsf{sign}_{D}\{\textit{anchor},\,\textit{plan hash}\}$} (4.2, -4.0);
+  \node[stepbox] at (6.8, -4.0) {
+    \textbf{Step 3: Execution Clearance}\\
+    $D$ presents signed proof of locked funds to $W$ (\textit{no-spawn-without-bond}).
+  };
 
-
-\end{tikzpicture}%
-}
+\end{tikzpicture}
 \caption{The float-plan escrow ceremony --- the atom every side of the market
 settles on. A three-step signed handshake over a standard digital-signature scheme:
 the requester signs a FloatPlan (task, machine-checkable acceptance criteria,

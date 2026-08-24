@@ -38,7 +38,7 @@ import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
-  readSquidHookDebugSnapshot,
+  readSquidHookCliDebugSnapshot,
   readSquidHookStatusSnapshot,
   resetSquidHookHealth,
   SQUID_HOOK_STATUS_MAX_STEPS,
@@ -143,7 +143,7 @@ export function handleSquidDebug(args: string[], options: CLIOptions): void {
   } else if (sub === 'clear') {
     snapshot = clearSquidHookDebugEvents();
   } else if (sub === 'status' || sub === 'show' || sub === 'list') {
-    snapshot = readSquidHookDebugSnapshot({ cwd });
+    snapshot = readSquidHookCliDebugSnapshot({ cwd });
   } else {
     ui.error(`Unknown squid debug command: ${sub}`);
     console.log('Use `pd squid debug on|off|status|clear`.');
@@ -154,7 +154,7 @@ export function handleSquidDebug(args: string[], options: CLIOptions): void {
   // Mutations return the global snapshot; narrow it to the selected project so
   // FleetBar and the CLI share one stable contract.
   if (sub !== 'status' && sub !== 'show' && sub !== 'list') {
-    snapshot = readSquidHookDebugSnapshot({ cwd });
+    snapshot = readSquidHookCliDebugSnapshot({ cwd });
   }
   if (options.json || options.j) {
     console.log(JSON.stringify(snapshot, null, 2));
@@ -659,6 +659,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     score: conformance.score,
     workspace: details.workspace,
     daemonAlive: conformance.daemonAlive,
+    daemonReady: conformance.daemonReady,
     tentaclesStaged: conformance.tentaclesStaged,
     providers: details.providers,
     identity: conformance.identity,
@@ -690,7 +691,12 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log('');
   printSquidValueCard(c);
   console.log('');
-  console.log(`  Daemon        ${conformance.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
+  const daemonLabel = !conformance.daemonAlive
+    ? c.bad('✗ down — every hook no-ops (gate fails open)')
+    : !conformance.daemonReady
+      ? c.dim('… booting — hooks stay inert until the readiness lease matches this PID')
+      : c.ok('✓ ready');
+  console.log(`  Daemon        ${daemonLabel}`);
   const stagedLabel = debug.enabled ? `staged at ${tentacleBinDir()}` : 'staged';
   console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, stagedLabel, 'not fully staged — pd squid on')}`);
   if (health.degraded) {

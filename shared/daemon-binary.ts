@@ -78,11 +78,12 @@ export function isOnnxRuntimeNativeLibraryDir(
 }
 
 /**
- * Build the dynamic-loader environment required before a compiled daemon
- * process starts. macOS dyld and the Linux ELF loader read these values at
- * process admission; assigning process.env later cannot repair a failed
- * `dlopen()`. That timing constraint is why launch commands, rather than the
- * lazy semantic loader, own this environment.
+ * Build the Linux dynamic-loader environment required before a compiled
+ * daemon starts. The design rationale is that macOS uses an
+ * executable-relative LC_RPATH embedded in the
+ * N-API binding because hardened runtime deliberately strips DYLD_* without
+ * an injection-enabling entitlement. Linux still needs LD_LIBRARY_PATH at
+ * process admission; assigning process.env later cannot repair dlopen().
  *
  * @param resourceDir Distribution root published to the daemon.
  * @param executablePath Compiled executable that will load ONNX Runtime.
@@ -98,9 +99,10 @@ export function resolveOnnxRuntimeNativeLaunchEnv(
   os: NodeJS.Platform = platform(),
   cpu: string = process.arch,
 ): Record<string, string> {
+  if (os !== 'linux') return {};
   const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, executablePath, os, cpu);
   if (!nativeDir) return {};
-  const variable = os === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
+  const variable = 'LD_LIBRARY_PATH';
   const existing = env[variable]?.trim();
   const entries = existing?.split(':').filter(Boolean) ?? [];
   const value = entries.includes(nativeDir)

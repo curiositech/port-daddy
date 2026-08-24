@@ -22,7 +22,7 @@ open an issue titled `Release train: hold`; to force a cut now, dispatch the
 workflow. The manual recipe below remains the fallback when the train can't
 run (and for major bumps, which stay human).
 
-The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit — soaking the exact packaged binary for 180s, running `pd batten verify` and the formula-compat preflight before sealing anything — and automatically dispatches to `curiositech/homebrew-tap` to roll the formula. After publish, `.github/workflows/fresh-install.yml` smokes the published artifacts AND the literal `brew install` path on pristine runners, and files an issue if either fails.
+The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit — soaking the exact packaged binary for 180s, running `pd batten verify` and the formula-compat preflight before sealing anything — and generates GitHub/Sigstore provenance for both platform archives. The serialized `curiositech/homebrew-tap` workflow discovers the stable feed without a cross-repository credential, verifies the independent tag, dual Batten imprints, archive digests, and v3.30.3+ provenance, then rolls the formula. The source release job waits for that exact formula version. After publish, `.github/workflows/fresh-install.yml` smokes the published artifacts AND the literal `brew install` path on pristine runners, and files an issue if either fails.
 
 **npm distribution is retired** (2026-07-04, operator decision): brew, the release binaries, and `latest.json` cover every supported install path; the npm token had been dead since 3.15.0 so the registry was eight releases stale anyway. `.github/workflows/publish.yml` remains as the manual path if npm is ever revived — if so, `npm deprecate` the stale versions first.
 
@@ -91,17 +91,21 @@ gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --
 # Confirm the daemon/CLI binaries land on the release:
 #   pd-darwin-arm64.tar.gz
 #   pd-linux-x64.tar.gz
-# plus the FleetBar preview .zip and pd-console artifact.
+# plus the FleetBar preview .zip. The pd-console .zip is CONDITIONAL: it is
+# only attached when core/pd-console (or scripts/package-pd-console.sh)
+# actually changed since the previous tag — version-string churn aside. An
+# unchanged console is deliberately not re-cut; the newest console stays on
+# the last release that built one, and that release's latest.json simply
+# omits the console entry. To force a rebuild (e.g. signing-cert rotation),
+# dispatch release.yml with force_console=true.
+# Confirm both archives have provenance bound to this repository, release.yml,
+# the exact tag ref, and the tag commit (the tap enforces the same boundary).
 
-# J. Brew tap rolls automatically via release.yml → update-homebrew job.
-#    If it failed (e.g. after a manual workflow_dispatch re-run), dispatch it:
-pd lock release-publish
-gh api repos/curiositech/homebrew-tap/dispatches \
-  --input - <<JSON
-{"event_type":"update-formula","client_payload":{"version":"v3.15.0"}}
-JSON
-# wait for update-formula.yml to commit to curiositech/homebrew-tap
-pd release release-publish
+# J. The tap discovers the stable release within ten minutes and serializes
+#    promotion itself. release.yml's update-homebrew job waits for the exact
+#    formula version. If the scheduled run needs repair, dispatch the tap's
+#    default-branch workflow; it self-discovers all evidence and needs no payload:
+gh workflow run update-formula.yml --repo curiositech/homebrew-tap --ref main
 
 # K. Verify users can actually upgrade
 brew update && brew upgrade port-daddy
@@ -121,9 +125,10 @@ pd done "v3.15.0 shipped"
 |---|---|---|
 | `Could not resolve: "@clack/prompts"` (and friends) in `release.yml` | Workflow ran `bun build --compile` without first running `bun install`. `node_modules` empty in the checkout. | `release.yml` must have a `bun install` step between `setup-bun` and `bun build`. Validated in the workflow today. |
 | `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | A version surface drifted — usually you forgot to run `sync-version.ts` after `npm version`. | Run `npx tsx scripts/sync-version.ts` (it stamps every surface, incl. `mcp/server.ts` + `referenceCatalog.ts`), restage, recommit. |
+| Release mutation fails in `actions/checkout` even though both PAT secrets are configured | The preferred `RELEASE_TRAIN_TOKEN` is expired or under-scoped. Secret-expression fallback is presence-based, so a non-empty dead credential masks `HOMEBREW_TAP_TOKEN`. | The train live-probes repository push permission and falls back automatically. If both probes fail, repair or rotate the repository Actions secrets; do not re-run the unchanged workflow. |
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
-| `brew upgrade port-daddy` still serves the old version | The `update-homebrew` job in `release.yml` hasn't run or failed (common after a `workflow_dispatch` re-run, which skips that job). | Manually dispatch: `gh api repos/curiositech/homebrew-tap/dispatches --input - <<<'{"event_type":"update-formula","client_payload":{"version":"vX.Y.Z"}}'`. Until the commit lands in the tap, the bottle URL points at the previous release. |
+| `brew upgrade port-daddy` still serves the old version | The tap's serialized self-promotion has not completed, or it rejected tag/imprint/digest/provenance evidence. The source `update-homebrew` wait stays red instead of hiding the gap. | Inspect the tap workflow failure. After fixing the actual contract, run `gh workflow run update-formula.yml --repo curiositech/homebrew-tap --ref main`; it self-discovers the release and requires no payload or cross-repo token. |
 
 ---
 
@@ -252,7 +257,7 @@ pd done "<feature> shipped to main via PR #N"
 
 - **`lib/`, `routes/`, `server.ts`, `mcp/` changes → require a binary smoke-test** (step D). Source-mode `tsx server.ts` lies about what users actually run — module resolution, dependency boundaries, and the CSP all behave differently in the compiled binary.
 - **Workflow files (`.github/workflows/*`) → can only be validated by actually running CI.** Dispatch on a feature branch before relying on them in a release path. PR #75 (`bun install` missing from `release.yml`) bit us specifically because nobody dry-ran the workflow before tagging.
-- **Brew tap changes → serialized by `pd lock release-publish`.** Always.
+- **Brew tap changes → land through the tap repo's normal worktree/PR/Fleet flow.** Release promotion itself is serialized by the tap workflow concurrency group; source releases never write across repositories.
 
 ---
 
@@ -264,7 +269,7 @@ Not decoration — these primitives matter:
 |---|---|
 | `pd begin --identity port-daddy:<work> --lifecycle durable` | Always. Session is the atomic unit of "who's editing what". |
 | `pd session files add <path>` | Before any edit. Advisory, but visible to other agents via `pd sessions --all-worktrees`. |
-| `pd lock release-publish` | **Only for §1 step J** (manual Homebrew-tap `repository_dispatch`, used when `release.yml`'s automatic roll fails). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
+| `pd lock release-publish` | Only for an exceptional manual mutation of release state. Ordinary tap promotion is already serialized by its workflow and needs no agent-held lock. |
 | `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"3.15.0 binaries published"`). |
 | `pd pub promotion:release-surfaces` | Manual fire of the channel that `pd-fleet.yml`'s documentarian listens on. After a release, this kicks the docs-review fleet. |
 | `pd claim <port-name> -q` | For isolated test daemons in worktrees. Don't hardcode ports. |

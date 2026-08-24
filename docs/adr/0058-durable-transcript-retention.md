@@ -27,44 +27,103 @@ MUST RETAIN."* The live SQL table is not the retention guarantee; durability is.
 
 ## Decision
 
-**Add an always-on, append-only durable archive outside the live DB, written on
+**Add an always-on, immutable durable archive outside the live DB, written on
 every transcript finalization.** It is the retention floor and the on-ramp to an
 external warehouse.
 
 - **`lib/transcript-archive.ts`** — `createJsonlTranscriptArchive({ dir })` returns
   a `TranscriptArchiveSink` that writes each finalized transcript, in full (header +
-  messages + outputs), as one **fsync'd** JSON line to a UTC-day-partitioned file
-  `transcripts-YYYY-MM-DD.jsonl` under `~/.port-daddy/transcripts/` (overridable via
-  `PD_TRANSCRIPT_ARCHIVE_DIR`). Append-only, durable, independent of the DB — it
-  survives a dropped/corrupted/reset `port-registry.db`.
-- **The hook.** `lib/transcripts.ts` gains an `archiveSink` option, called
-  fire-and-forget from both terminal paths (`finalize()` and `recordTranscript()`).
-  A sink failure NEVER blocks a spawn or the DB write — but it is logged **loudly**,
-  because a silent retention failure is the one outcome the directive forbids.
+  messages + outputs), as one immutable JSONL artifact at
+  `<root>/YYYY-MM-DD/transcript-<sha256>.jsonl` under
+  `~/.port-daddy/transcripts/` (overridable via
+  `PD_TRANSCRIPT_ARCHIVE_DIR`). Each writer creates its own unpredictable
+  `O_EXCL`/`O_NOFOLLOW` private temp, completes every byte, fsyncs the temp,
+  atomically publishes the content-addressed target, verifies the exact bytes,
+  and fsyncs the partition and root directories before success. A failed or
+  concurrent writer removes only its own unpublished temp; it never truncates
+  or unlinks another writer's retained artifact. Roots and day partitions are
+  created or clamped to `0700`; temps and final artifacts are `0600`.
+  Every existing component from the filesystem anchor through the configured
+  root and partition is checked with `lstat`; static symlink ancestors,
+  non-regular files, owner mismatches, and multiply-linked targets fail closed.
+  The approved archive root remains configurable but must resolve to that
+  symlink-free anchored directory chain.
+- **The hook and lifecycle race.** `lib/transcripts.ts` accepts an
+  `archiveSink`, called from terminal `finalize()` and from `recordTranscript()`
+  only when the imported snapshot is terminal. Message and output appends are
+  single status-conditional writes, so once any terminal snapshot is committed
+  its header and child content are immutable. The first `finalize()`/spawner
+  terminal transition wins, so a late backend completion cannot rewrite an
+  operator kill, emit a second terminal event, or archive that transition twice.
+  Finalize/import archive the canonical snapshot freshly read from the private
+  DB before any synchronous listener receives a mutable event object.
+  `recordTranscript()` is a trusted in-process full-snapshot importer: while a
+  row is running it atomically replaces the complete message/output child sets,
+  making retries and running-to-terminal import idempotent; it cannot reopen or
+  rewrite an already terminal row and has no HTTP route. A sink/receipt failure
+  never rewrites a completed spawn into failure, but is logged loudly and
+  remains internally retryable.
+- **Exact artifact receipts.** `fleet_transcript_archive_receipts` binds the
+  canonical snapshot digest to the exact artifact locator, SHA-256, byte length,
+  format, attempt count, and success/failure timestamps. A generic success bit,
+  malformed locator, stale snapshot digest, or mismatched artifact evidence is
+  persisted as failure, never as retained content. Receipt writes are
+  conditional: the first exact success is immutable. Same-digest races skip or
+  increment attempt accounting; an interleaved late failure or
+  different-digest success cannot replace the retained receipt.
 - **Default on.** `server.ts` wires the JSONL archive by default. Opt out only via
   `PD_TRANSCRIPT_ARCHIVE=off`. Retention is no longer something an operator can
   forget to enable.
-- **Backfill.** `transcripts.backfillArchive()` (exposed at
-  `POST /transcripts/archive/backfill`) re-archives every transcript already in the
-  DB, so "log ALL transcripts" covers history, not just runs since the archive was
-  switched on.
+- **Backfill.** The trusted in-process `transcripts.backfillArchive()` helper
+  currently retries up to the 50 most recent terminal snapshots. It has no
+  public HTTP or CLI action. Exact successes skip without another sink write;
+  failures and incomplete legacy receipts retry; `archived` counts only exact
+  durable successes. There is no automatic failed-receipt retry, and failures
+  older than that newest-first window are not self-healing. This bounded helper
+  is not yet the complete cursor-driven operator repair action.
+- **Residual pathname race.** The Node implementation uses pathname operations
+  plus `O_NOFOLLOW`, ownership/link-count checks, exact file-descriptor identity,
+  and private modes, but it does not use an `openat`/dirfd-bound publication
+  chain. A hostile same-UID process able to rename or swap an approved root or
+  partition component during publication can still redirect a name-based
+  operation. Closing that local-adversary gap requires a dirfd-relative native
+  publication primitive; this PR does not claim that stronger guarantee.
 - **Pluggable warehouse.** External sinks (S3/R2/BigQuery) implement the same
   `TranscriptArchiveSink` interface and are wired in place of (or alongside) the
-  JSONL archive. The directive's "data-warehousing solution" is satisfied by the
-  local archive today and any cloud sink tomorrow, with no change to the hot path.
+  JSONL archive. Replacement sinks must return the same exact-artifact evidence;
+  `{ ok: true }` alone is not retention.
+
+### Mutation-authority boundary
+
+`routes/transcripts.ts` is read-only. The credentialless full upsert,
+message/output append, delete, and archive-backfill handlers are not registered,
+the transcript module exports no delete primitive, and the public CLI exposes
+only list/show/watch/cost. Loopback or Unix socket
+possession, actual-peer metadata, process identity, `Host`, `X-Forwarded-For`,
+automation-marker omission, reusable actor credentials, and caller-supplied
+redemption receipts therefore cannot reach transcript mutation through this
+surface. Daemon-owned spawner/import code uses the in-process API directly.
+
+Any future delete or operator backfill is a new action surface, not a legacy
+downgrade. It must redeem a one-use actor/action/resource-scoped capability
+directly with the broker. Delete must additionally fail closed unless the exact
+current terminal snapshot already has, or synchronously obtains, a matching
+durable success receipt. That future delete is live-DB pruning, not privacy
+erasure.
 
 ## Consequences
 
-- **Positive.** Every agent transcript is durably retained the moment it finalizes,
-  outside the live DB, regardless of whether the operator ever configures a backup.
-  The JSONL format is greppable, streamable, and trivially shipped to a cloud
-  warehouse. DB loss no longer means transcript loss.
-- **Cost.** One fsync'd append per finalized run (finalize fires once per run, so
-  this is not a hot loop) and modest disk growth under `~/.port-daddy/transcripts/`.
-  A retention/rotation policy for the archive files is a follow-up; until then the
-  bias is deliberately toward keeping everything (the directive is "retain").
+- **Positive.** Each finalized agent transcript makes an immediate durable
+  archive attempt with exact success/failure accounting outside the live DB.
+  Successful immutable artifacts survive loss of the live database, and failed
+  attempts stay explicitly retryable instead of masquerading as retention.
+- **Cost.** One immutable artifact publication per finalized run, including file
+  and directory fsyncs, plus modest disk growth under
+  `~/.port-daddy/transcripts/`. A retention/rotation policy is a follow-up;
+  until then the bias is deliberately toward keeping everything.
 - **Reversible.** `PD_TRANSCRIPT_ARCHIVE=off` disables it; the archive files are
-  plain JSONL on disk.
+  plain one-record JSONL artifacts on disk. Disabling the sink does not grant
+  permission to prune the live copy.
 
 ## Related
 

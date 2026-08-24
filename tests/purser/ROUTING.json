@@ -132,6 +132,26 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "test-build-caches-untouched.sh": {
+      "runner": "quarantined",
+      "reason": "shell script -- tests/purser executes only node-test and jest, no shell runner exists; it also asserts core/harbor-card-rs/target/ still holds on-disk build caches, which a fresh CI checkout never has once #6727 untracks those artifacts"
+    },
+    "test-concurrent-modifications.sh": {
+      "runner": "quarantined",
+      "reason": "shell script with no runner; mutates the live repository -- writes files under core/harbor-card-rs/target/ and runs five real `git commit --no-verify` cycles -- a drill that must never execute inside the CI working tree"
+    },
+    "test-no-other-targets.sh": {
+      "runner": "quarantined",
+      "reason": "shell script with no runner in tests/purser; its invariant (no tracked target/ outside core/harbor-card-rs) is a one-line git ls-files check, but nothing executes .sh files here today"
+    },
+    "test-precommit-behavior.sh": {
+      "runner": "quarantined",
+      "reason": "shell script with no runner; commits real files with --no-verify to probe the pre-commit hook, so even a future shell runner would need an isolated fixture repo rather than the working tree"
+    },
+    "test-untrack-target.sh": {
+      "runner": "quarantined",
+      "reason": "shell script with no runner in tests/purser; verifies core/harbor-card-rs/target/ is untracked and gitignored -- the change #6727 itself makes -- but nothing executes .sh files here today"
     }
   }
 }
