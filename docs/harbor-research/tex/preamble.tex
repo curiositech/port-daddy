@@ -6,6 +6,10 @@
 \usepackage{enumitem}
 \usepackage{titlesec}
 \usepackage[colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \definecolor{harborblue}{RGB}{30,70,110}
 \definecolor{shipred}{RGB}{140,30,30}
 \definecolor{seagreen}{RGB}{31,110,70}
@@ -20,3 +24,33 @@
 \newtheorem*{verdict}{Verdict}
 \newtheorem*{adj}{Adjudication}
 \setlist{itemsep=1pt,topsep=2pt}
+
+% Shared native-figure styles for the harbor-research corpus (relation-maps,
+% regime diagrams, and data plots). Vector TikZ/pgfplots only -- see
+% docs/harbor-research/figures/CONVENTION.md for the house rule this follows.
+\tikzset{
+  relnode/.style={draw,rounded corners,thick,minimum width=2.6cm,minimum height=0.9cm,align=center,font=\small},
+  relarrow/.style={-{Stealth[length=2.5mm]},thick},
+  regimebox/.style={draw,thick,align=center,font=\small,inner sep=4pt},
+}
+\pgfplotsset{
+  harbor curve/.style={
+    width=0.46\textwidth,height=4.2cm,
+    axis lines=left,
+    label style={font=\small},
+    tick label style={font=\scriptsize},
+    title style={font=\small,align=center},
+    legend style={font=\scriptsize,draw=none,fill=none},
+    thick,
+  },
+  harbor bar/.style={
+    width=0.46\textwidth,height=4.2cm,
+    ybar,bar width=6pt,
+    ymode=log,log origin=infty,
+    axis lines=left,
+    label style={font=\small},
+    tick label style={font=\scriptsize},
+    title style={font=\small,align=center},
+    legend style={font=\scriptsize,draw=none,fill=none},
+  },
+}

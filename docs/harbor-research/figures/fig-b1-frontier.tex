@@ -1,0 +1,100 @@
+% B1: the zero-miss digest frontier. Three panels, each a real computed
+% curve/bar chart -- not a raster image. Panel A/B data recomputed directly
+% from rate_general() (docs/harbor-research/figures/src/b1_figure.py); Panel
+% C uses the exact simulation numbers printed in exec2.tex's own table
+% (Npool=5000, 120 trials/config, seed 20260816). [verified: script b1_figure.py, seed 20260816]
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={flag rate $f$},
+  ylabel={rate $R$ (bits/symbol)},
+  title={\textbf{A} --- zero-miss rate vs.\ open budget},
+  xmin=0,xmax=0.4,ymin=0,
+  legend pos=north east,
+]
+\addplot[seagreen] coordinates {
+  (0.02,0.1414) (0.0517,0.0917) (0.0833,0.0752) (0.115,0.0648) (0.1467,0.0572)
+  (0.1783,0.0511) (0.21,0.0462) (0.2417,0.0419) (0.2733,0.0382) (0.305,0.0349)
+  (0.3367,0.032) (0.3683,0.0293) (0.4,0.0269)
+};
+\addlegendentry{$p=0.02$}
+\addplot[harborblue] coordinates {
+  (0.05,0.2864) (0.0792,0.2112) (0.1083,0.1785) (0.1375,0.1564) (0.1667,0.1395)
+  (0.1958,0.1259) (0.225,0.1145) (0.2542,0.1046) (0.2833,0.0959) (0.3125,0.0882)
+  (0.3417,0.0812) (0.3708,0.0748) (0.4,0.069)
+};
+\addlegendentry{$p=0.05$}
+\addplot[shipred] coordinates {
+  (0.1,0.469) (0.125,0.3788) (0.15,0.3313) (0.175,0.2966) (0.2,0.269) (0.225,0.246)
+  (0.25,0.2263) (0.275,0.2089) (0.3,0.1935) (0.325,0.1796) (0.35,0.1669)
+  (0.375,0.1553) (0.4,0.1445)
+};
+\addlegendentry{$p=0.1$}
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={miss tolerance $\delta/p$},
+  ylabel={rate $R$ (bits/symbol)},
+  title={\textbf{B} --- rate vs.\ miss tolerance},
+  xmin=0,xmax=1,ymin=0,
+  legend pos=north east,
+]
+\addplot[seagreen] coordinates {
+  (0,0.1014) (0.0833,0.084) (0.1667,0.0702) (0.25,0.0581) (0.3333,0.0473)
+  (0.4167,0.0376) (0.5,0.0288) (0.5833,0.021) (0.6667,0.0141) (0.75,0.0082)
+  (0.8333,0.0036) (0.9167,0.0006) (1.0,0)
+};
+\addlegendentry{$p=0.02,f=0.04$}
+\addplot[harborblue] coordinates {
+  (0,0.1864) (0.0833,0.1486) (0.1667,0.1202) (0.25,0.0959) (0.3333,0.0748)
+  (0.4167,0.0564) (0.5,0.0405) (0.5833,0.0269) (0.6667,0.0157) (0.75,0.0071)
+  (0.8333,0.0016) (0.9167,0) (1.0,0)
+};
+\addlegendentry{$p=0.05,f=0.1$}
+\addplot[shipred] coordinates {
+  (0,0.391) (0.0833,0.3064) (0.1667,0.2432) (0.25,0.1905) (0.3333,0.1455)
+  (0.4167,0.107) (0.5,0.0745) (0.5833,0.0475) (0.6667,0.0261) (0.75,0.0105)
+  (0.8333,0.0015) (0.9167,0) (1.0,0)
+};
+\addlegendentry{$p=0.1,f=0.12$}
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor bar,
+  symbolic x coords={F2500,F1500,F1000,F250},
+  xtick=data,
+  x tick label style={rotate=45,anchor=east,font=\scriptsize},
+  ylabel={expected opens (log)},
+  title={\textbf{C} --- the zoom advantage},
+  legend pos=north east,
+  ymin=1,
+]
+\addplot[fill=shipred,draw=shipred!70!black] coordinates {
+  (F2500,2500) (F1500,1500) (F1000,1000) (F250,250)
+};
+\addlegendentry{flat}
+\addplot[fill=seagreen,draw=seagreen!70!black] coordinates {
+  (F2500,164) (F1500,149) (F1000,233) (F250,98)
+};
+\addlegendentry{adaptive}
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{\textbf{A:} zero-miss digest rate falls as the open budget $f$ grows. \textbf{B:} rate falls as miss tolerance $\delta$ grows, exactly to $0$ once $f<1-\delta/p$ no longer binds (an earlier render evaluated the pinned closed form past that line and showed a spurious uptick --- a domain-of-validity error, not a feature of the true frontier). \textbf{C:} the zoom advantage on a log scale --- adaptive inspection opens far fewer items than flat when load-bearing items are sparse in the flagged set, which is exactly the regime a miss-averse (safe) digest operates in. Labels give $|\text{flagged}|=F$; $k=10$ for $F\in\{2500,1500,250\}$, $k=20$ for $F=1000$ (matching the table above).}
+\label{fig:b1-frontier}
+\end{figure}

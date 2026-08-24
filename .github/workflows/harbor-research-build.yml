@@ -19,12 +19,14 @@ on:
     paths:
       - 'docs/harbor-research/tex/**/*.tex'
       - 'docs/harbor-research/figures/**/*.png'
+      - 'docs/harbor-research/figures/**/*.tex'
       - 'docs/harbor-research/Makefile'
       - '.github/workflows/harbor-research-build.yml'
   pull_request:
     paths:
       - 'docs/harbor-research/tex/**/*.tex'
       - 'docs/harbor-research/figures/**/*.png'
+      - 'docs/harbor-research/figures/**/*.tex'
       - 'docs/harbor-research/Makefile'
       - '.github/workflows/harbor-research-build.yml'
   merge_group:
