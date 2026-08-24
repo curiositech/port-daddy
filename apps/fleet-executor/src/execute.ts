@@ -86,6 +86,11 @@ import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import {
+  ShipTranscript,
+  runCaptured,
+  flushShipTranscript,
+} from './transcript-capture.js';
+import {
   describeAiFailure,
   FleetAiCircuit,
   FleetAiDependencyError,
@@ -1854,6 +1859,11 @@ export async function executeFleet(
     }
 
     const metrics = newShipMetrics();
+    // Raw session capture for this ship attempt (docs/FLEET-SESSION-TRANSCRIPTS.md):
+    // buffered per (run, ship, attempt), flushed once to R2 + the D1 index on
+    // BOTH exits below — a thrown ship still leaves its partial conversation
+    // behind, which is exactly when the forensics matter most.
+    const capture = new ShipTranscript(runId, ship.name, providerAttempt);
     let result: ShipResult;
     try {
       result = ship.purser
@@ -1870,6 +1880,7 @@ export async function executeFleet(
             aiCircuit,
             providerAttempt,
             assertCurrentHead,
+            capture,
           )
         : await runShip(
             ship,
@@ -1887,11 +1898,14 @@ export async function executeFleet(
             aiCircuit,
             providerAttempt,
             assertCurrentHead,
+            capture,
           );
       await assertCurrentHead(`after pd-${ship.name} model work, before checkpoint`);
     } catch (error) {
+      await flushShipTranscript(env, capture);
       return stopSupersededRun(error, true);
     }
+    await flushShipTranscript(env, capture);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -2267,6 +2281,12 @@ async function runShip(
   providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
   /** Fail-closed live-head proof around model work and publication. */
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  /**
+   * Raw pd-transcript.v1 session buffer for THIS ship attempt (null ⇒ capture
+   * off). Created and flushed by the orchestrator; this function only records
+   * into it via {@link runCaptured}. See docs/FLEET-SESSION-TRANSCRIPTS.md.
+   */
+  capture: ShipTranscript | null = null,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -2330,12 +2350,18 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await aiCircuit.runForShip(ship.name, () =>
-        env.AI.run(
-          mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
-          request,
-          aiOptions(env, ship.name),
-        ),
+      const res = await runCaptured(
+        capture,
+        { phase: 'map', model: mapModelFor(ship), chunk: { index: i, count: chunks.length } },
+        request,
+        () =>
+          aiCircuit.runForShip(ship.name, () =>
+            env.AI.run(
+              mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
+              request,
+              aiOptions(env, ship.name),
+            ),
+          ),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, mapModelFor(ship), res, text);
@@ -2368,7 +2394,7 @@ async function runShip(
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     if (chunks.length > 1) await assertCurrentHead(`before pd-${ship.name} REDUCE`);
-    let output = chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics, aiCircuit);
+    let output = chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics, aiCircuit, capture);
     if (chunks.length > 1) await assertCurrentHead(`after pd-${ship.name} REDUCE`);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
@@ -2391,7 +2417,7 @@ async function runShip(
         reason,
         call: async (model, system, user) => {
           await assertCurrentHead(`before pd-${ship.name} contract-repair model call`);
-          const text = await shipRepairCall(ship, env, metrics, model, system, user, aiCircuit);
+          const text = await shipRepairCall(ship, env, metrics, model, system, user, aiCircuit, capture);
           await assertCurrentHead(`after pd-${ship.name} contract-repair model call`);
           return text;
         },
@@ -2945,6 +2971,8 @@ function buildStackPrBody(
  * than throwing.
  */
 async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promise<number[]> {
+  // transcript-capture: exempt (embeddings are not conversational — no
+  // forensic value, high volume; see the RFC's call-site inventory)
   const res = await aiCircuit.run(() =>
     ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
   );
@@ -3127,6 +3155,8 @@ async function reduceFindings(
   env: ExecutorEnv,
   metrics: ShipMetrics,
   aiCircuit: FleetAiCircuit,
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
 ): Promise<string> {
   const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
@@ -3150,12 +3180,18 @@ async function reduceFindings(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await aiCircuit.runForShip(ship.name, () =>
-    env.AI.run(
-      ship.cfModel as Parameters<typeof env.AI.run>[0],
-      request,
-      aiOptions(env, ship.name),
-    ),
+  const res = await runCaptured(
+    capture,
+    { phase: 'reduce', model: reduceModelFor(ship) },
+    request,
+    () =>
+      aiCircuit.runForShip(ship.name, () =>
+        env.AI.run(
+          ship.cfModel as Parameters<typeof env.AI.run>[0],
+          request,
+          aiOptions(env, ship.name),
+        ),
+      ),
   );
   const { text } = extractAiText(res);
   accumulateUsage(metrics, reduceModelFor(ship), res, text);
@@ -3193,6 +3229,8 @@ async function shipRepairCall(
   system: string,
   user: string,
   aiCircuit: FleetAiCircuit,
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
 ): Promise<string> {
   const request = {
     messages: [
@@ -3202,11 +3240,13 @@ async function shipRepairCall(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await aiCircuit.runForShip(ship.name, () =>
-    env.AI.run(
-      model as Parameters<typeof env.AI.run>[0],
-      request,
-      aiOptions(env, ship.name),
+  const res = await runCaptured(capture, { phase: 'repair', model }, request, () =>
+    aiCircuit.runForShip(ship.name, () =>
+      env.AI.run(
+        model as Parameters<typeof env.AI.run>[0],
+        request,
+        aiOptions(env, ship.name),
+      ),
     ),
   );
   const { text } = extractAiText(res);

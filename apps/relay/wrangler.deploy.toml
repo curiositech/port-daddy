@@ -131,6 +131,15 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 [ai]
 binding = "AI"
 
+# R2 — raw ship session transcripts (pd-transcript.v1), WRITTEN by the
+# fleet-executor and only READ here (run-page links + the
+# /fleet/runs/:id/transcript/:ship.jsonl route). Env.TRANSCRIPTS is optional
+# in code; absent ⇒ transcript routes 404 and the page shows no links.
+# See docs/FLEET-SESSION-TRANSCRIPTS.md.
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
+
 # Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
 [[queues.producers]]
 binding = "FLEET_RUNS"
@@ -259,6 +268,12 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 
 # Workers AI binding — environments do NOT inherit top-level bindings, so the
 # [ai] block is repeated here on purpose (see the NOTE above).
+# Same PROD transcript bucket, read-only usage (staging runs read real
+# captures; the executor is the only writer and has no staging channel).
+[[env.latest.r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
+
 [env.latest.ai]
 binding = "AI"
 

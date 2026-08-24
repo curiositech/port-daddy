@@ -43,6 +43,15 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Workers AI binding. */
   AI: Ai;
   /**
+   * OPTIONAL R2 bucket (`fleet-transcripts`) holding each ship's raw
+   * pd-transcript.v1 session capture — one JSONL object per (run, ship,
+   * attempt), written once at ship completion by
+   * src/transcript-capture.ts's flushShipTranscript. Absent ⇒ capture is
+   * dark and every ship runs exactly as before: the transcript layer is
+   * evidence, never a dependency (docs/FLEET-SESSION-TRANSCRIPTS.md).
+   */
+  TRANSCRIPTS?: R2Bucket;
+  /**
    * OPTIONAL Cloudflare Sandbox binding (Containers beta, `@cloudflare/sandbox`)
    * used by the purser ship to EXECUTE its authored adversarial tests against
    * the PR head. Deliberately typed `unknown` and duck-typed in

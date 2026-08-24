@@ -28,6 +28,12 @@ export interface Env {
   // Optional so the relay still type-checks/deploys before the [ai] binding is
   // provisioned; the handlers fail closed with AI_ERROR when it is absent.
   AI?: Ai;
+  // R2 bucket (`fleet-transcripts`) holding raw pd-transcript.v1 session
+  // captures written by the fleet-executor — one JSONL object per (run, ship,
+  // attempt). The relay only READS it (the run page's raw-transcript links).
+  // Optional so the relay deploys before the binding is provisioned; absent ⇒
+  // transcript routes answer 404 and the run page simply shows no links.
+  TRANSCRIPTS?: R2Bucket;
   // Secrets
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello

@@ -1209,8 +1209,20 @@ function shipSpendBadge(list: FleetRunStepRow[]): string {
  * per-run and Port Daddy's ships are the same definitions across every repo
  * the fleet reviews.
  */
-function renderShipConfigPanel(configStep: FleetRunStepRow | undefined, shipName: string): string {
-  if (!configStep) return '';
+function renderShipConfigPanel(
+  configStep: FleetRunStepRow | undefined,
+  shipName: string,
+  /** Raw pd-transcript.v1 link for this ship, when one was captured. */
+  transcriptHref?: string,
+): string {
+  const transcriptLink = transcriptHref
+    ? `<a class="cfg-link" href="${esc(transcriptHref)}">Raw session transcript (JSONL) →</a>`
+    : '';
+  if (!configStep) {
+    // Pre-config-step runs can still have a captured transcript: the link is
+    // the promise this page has been making — never hide it behind config.
+    return transcriptLink ? `<div class="ship-config">${transcriptLink}</div>` : '';
+  }
   const o = asObject(parseDetail(configStep));
   const cfModel = typeof o.cfModel === 'string' ? o.cfModel : null;
   const modelRows = [
@@ -1235,7 +1247,7 @@ function renderShipConfigPanel(configStep: FleetRunStepRow | undefined, shipName
       : '',
   ].join('');
   const link = `<a class="cfg-link" href="https://github.com/${SHIP_DEFINITION_REPO}/blob/main/fleet/ships/${encodeURIComponent(shipName)}.md">Ship definition &amp; prompt on GitHub →</a>`;
-  return `<div class="ship-config">${modelRows}<div class="cfg-flags">${flags}</div>${link}</div>`;
+  return `<div class="ship-config">${modelRows}<div class="cfg-flags">${flags}</div>${link}${transcriptLink}</div>`;
 }
 
 /**
@@ -1299,7 +1311,12 @@ function renderDeliveryHistory(rows: FleetRunStepRow[], runStartSec: number): st
  * Fleet group's `delivery-attempt`/`delivery-failed` rows collapse into one
  * consolidated entry instead of one line per retry.
  */
-function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
+function renderShips(
+  steps: FleetRunStepRow[],
+  runStartSec: number,
+  /** ship → raw-transcript href (newest attempt), from the D1 index. */
+  transcriptHrefs?: Map<string, string>,
+): string {
   const groups = new Map<string, FleetRunStepRow[]>();
   for (const s of steps) {
     const key = s.ship ?? 'fleet';
@@ -1315,7 +1332,9 @@ function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
     const outcomeHtml = outcome ? `<span class="outcome tone-${outcome.tone}">${esc(outcome.text)}</span>` : '';
     const spendHtml = isFleet ? '' : shipSpendBadge(list);
     const configStep = isFleet ? undefined : list.find(s => s.kind === 'fleet-ship-config');
-    const configHtml = isFleet ? '' : renderShipConfigPanel(configStep, ship);
+    const configHtml = isFleet
+      ? ''
+      : renderShipConfigPanel(configStep, ship, transcriptHrefs?.get(ship));
 
     const deliveryRows = isFleet
       ? list.filter(s => s.kind === 'delivery-attempt' || s.kind === 'delivery-failed')
@@ -1483,10 +1502,23 @@ function renderGenerationsStrip(currentId: string, generations: FleetRunGenerati
  *   unavailable — the page still renders a complete, honest receipt).
  * @returns A complete, script-free HTML document.
  */
+/**
+ * One ship's newest raw session transcript, as a ready-to-render link. The
+ * href already carries the viewer's own capability token (when they presented
+ * one), so following it never widens exposure beyond the page itself.
+ */
+export interface FleetRunTranscriptLink {
+  ship: string;
+  attempt: number;
+  href: string;
+}
+
 export interface FleetRunPrContext {
   meta: PrMeta | null;
   diff: PrDiff | null;
   generations: FleetRunGenerationSummary[];
+  /** Raw pd-transcript.v1 links per ship (absent/empty ⇒ nothing captured). */
+  transcripts?: FleetRunTranscriptLink[];
 }
 
 export function renderFleetRunReceiptPage(
@@ -1566,7 +1598,15 @@ export function renderFleetRunReceiptPage(
     </div>
     <p class="tx-sub">Read it top to bottom. Each bot chunks the diff, weighs it, and files what it found;
     the last rows are what it posted back to GitHub.</p>
-    ${steps.length ? renderShips(steps, run.started_at ?? run.created_at) : emptyTranscript(run)}
+    ${
+      steps.length
+        ? renderShips(
+            steps,
+            run.started_at ?? run.created_at,
+            new Map((prContext.transcripts ?? []).map(t => [t.ship, t.href])),
+          )
+        : emptyTranscript(run)
+    }
 
     <footer class="receipt-foot">Run <code>${esc(run.id)}</code> · delivery <code>${esc(run.delivery_id)}</code>.
     ${esc(accessNote)}</footer>
@@ -1632,6 +1672,7 @@ export async function handleFleetRunPage(
 
     const active = ['admitting', 'queued', 'running', 'retrying'].includes(found.run.logical_state);
     const prContext = await gatherPrContext(env, found.run);
+    prContext.transcripts = await listTranscriptLinks(env, request, runId);
     return htmlResponse(renderFleetRunReceiptPage(found.run, found.steps, prContext), 200, active ? 5 : null);
   } catch {
     return noticePage(
@@ -1640,5 +1681,129 @@ export async function handleFleetRunPage(
       'The transcript store could not be read. Try again shortly.',
       500,
     );
+  }
+}
+
+// ── Raw session transcripts (pd-transcript.v1; docs/FLEET-SESSION-TRANSCRIPTS.md)
+
+/** One `fleet_run_transcripts` index row, as the read path consumes it. */
+interface TranscriptIndexRow {
+  ship: string;
+  attempt: number;
+  r2_key: string;
+}
+
+/** A ship name as the executor mints them — path-safe by construction. */
+const TRANSCRIPT_SHIP_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
+
+/**
+ * Read a run's transcript index rows, newest attempt first per ship.
+ *
+ * DESIGN: best-effort by contract — a pre-migration D1 (missing table) or a
+ * transient failure returns `[]` and the run page simply renders no links,
+ * because the transcript layer is evidence the page ADDS, never a dependency
+ * it can fail on (same posture as gatherPrContext's live GitHub reads).
+ */
+async function listTranscriptIndexRows(
+  db: D1Database,
+  runId: string,
+): Promise<TranscriptIndexRow[]> {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT ship, attempt, r2_key FROM fleet_run_transcripts
+         WHERE run_id = ? ORDER BY ship ASC, attempt DESC`,
+      )
+      .bind(runId)
+      .all<TranscriptIndexRow>();
+    return res.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build the run page's per-ship raw-transcript links (newest attempt wins).
+ *
+ * WHY the token rides along: the transcript route enforces the same capability
+ * scheme as the page itself, so a viewer who arrived via `?t=…` must carry
+ * that token onward — while a bearer/session viewer gets plain hrefs that the
+ * route authorizes through their own credentials. Either way, following a
+ * link never grants more than the page the viewer is already reading.
+ */
+async function listTranscriptLinks(
+  env: Env,
+  request: Request,
+  runId: string,
+): Promise<FleetRunTranscriptLink[]> {
+  const rows = await listTranscriptIndexRows(env.DB, runId);
+  if (rows.length === 0) return [];
+  const t = new URL(request.url).searchParams.get('t');
+  const suffix = t ? `?t=${encodeURIComponent(t)}` : '';
+  const newest = new Map<string, TranscriptIndexRow>();
+  for (const row of rows) if (!newest.has(row.ship)) newest.set(row.ship, row);
+  return [...newest.values()].map(row => ({
+    ship: row.ship,
+    attempt: row.attempt,
+    href:
+      `/fleet/runs/${encodeURIComponent(runId)}/transcript/` +
+      `${encodeURIComponent(row.ship)}.jsonl${suffix}`,
+  }));
+}
+
+/**
+ * GET /fleet/runs/:id/transcript/:ship.jsonl — stream one ship's raw
+ * pd-transcript.v1 capture from R2, under EXACTLY the run page's own
+ * authorization (operator bearer, capability token, or a signed-in user with
+ * GitHub read access to the run's repo). `?attempt=N` selects an attempt;
+ * default is the newest. 404 is the only failure the outside ever sees —
+ * missing run, missing transcript, bad ship name, and no access are
+ * deliberately indistinguishable, matching the page's own posture.
+ */
+export async function handleFleetRunTranscript(
+  request: Request,
+  env: Env,
+  runId: string,
+  ship: string,
+): Promise<Response> {
+  const notFound = () =>
+    new Response(JSON.stringify({ error: 'not found' }) + '\n', {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    });
+  if (!RUN_ID_RE.test(runId) || runId.includes('..')) return notFound();
+  if (!TRANSCRIPT_SHIP_RE.test(ship)) return notFound();
+  if (!env.TRANSCRIPTS) return notFound();
+  try {
+    const tokenOk = await hasTokenAuth(request, env, runId);
+    if (!tokenOk) {
+      const session = await resolveSession(request, env);
+      if (!session) return notFound();
+      const found = await getFleetRunProjectionWithSteps(env.DB, runId);
+      const [owner, repo] = (found?.run.repo_full_name ?? '').split('/');
+      if (!owner || !repo) return notFound();
+      if (!(await userCanReadRepo(env, session, owner, repo))) return notFound();
+    }
+    const rows = (await listTranscriptIndexRows(env.DB, runId)).filter(r => r.ship === ship);
+    if (rows.length === 0) return notFound();
+    const wanted = new URL(request.url).searchParams.get('attempt');
+    const row = wanted
+      ? rows.find(r => String(r.attempt) === wanted)
+      : rows[0]; // rows are newest-attempt-first
+    if (!row) return notFound();
+    const object = await env.TRANSCRIPTS.get(row.r2_key);
+    if (!object) return notFound();
+    return new Response(object.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'Content-Disposition': `inline; filename="${runId.replace(/[^A-Za-z0-9._-]/g, '_')}.${ship}.${row.attempt}.jsonl"`,
+      },
+    });
+  } catch {
+    return notFound();
   }
 }
