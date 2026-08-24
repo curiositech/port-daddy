@@ -6,6 +6,7 @@
  * idempotency key for the whole pipeline.
  */
 
+import type { CoordinationGrantServiceContract } from '../../../lib/coordination-grant-contract.js';
 import type { PortDaddyTelemetryEnv } from './telemetry.js';
 
 export interface ExecutorEnv extends PortDaddyTelemetryEnv {
@@ -50,17 +51,15 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * test results. See the commented block in wrangler.toml.example.
    */
   SANDBOX?: unknown;
-  /**
-   * ADR-0092 coordination peer configuration for cloud sandboxes. These four
-   * values are all-or-nothing; the macaroon is a Worker secret and is scoped
-   * to this project, stable actor, and the coordination-sync operation. Each
-   * sandbox generates its own replica id at runtime so concurrent daemons do
-   * not share an HLC identity.
-   */
+  /** Relay origin hosting the ADR-0092 coordination sync route. */
   PORT_DADDY_COORDINATION_URL?: string;
-  PORT_DADDY_COORDINATION_PROJECT?: string;
-  PORT_DADDY_COORDINATION_ACTOR?: string;
-  PORT_DADDY_COORDINATION_MACAROON?: string;
+  /**
+   * Relay's service-binding-only grant issuer. Fleet derives the project and
+   * actor from verified run context, then asks for one short-lived macaroon
+   * immediately before booting the real sandbox daemon. No static shared
+   * coordination credential is stored on the executor.
+   */
+  COORDINATION_GRANTS?: CoordinationGrantServiceContract;
   /**
    * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
    * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is

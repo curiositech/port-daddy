@@ -16,6 +16,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createHash } from 'node:crypto';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -36,6 +37,14 @@ import {
   type IdentityVerifier,
   type IdentityWriteVerdict,
 } from '../lib/identity-write-boundary.js';
+import {
+  conflictSignalId,
+  CONFLICT_SIGNAL_LIMITS,
+  CONFLICT_SIGNAL_PRODUCERS,
+  CONFLICT_SIGNAL_SCHEMA_VERSION,
+  type ConflictSignal,
+} from '../lib/parley-trigger.js';
+import type { ParleyAutoTriggerResult } from '../lib/parley-auto-trigger.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -127,7 +136,16 @@ interface SessionsRouteDeps {
    * another soul's name (403). Anonymous writes (no identity claim at all)
    * remain possible only where the route accepts unattributed writes.
    */
-  actorSouls?: IdentityVerifier | null;
+  actorSouls?: (IdentityVerifier & {
+    constants?: { defaultHarbor?: string };
+  }) | null;
+  /**
+   * Explicit G2/C1 injection boundary. Production server wiring remains absent
+   * until the U0 authenticated actions, U1 operator surface, and Q1 gates pass.
+   */
+  parleyAutoTrigger?: {
+    evaluate(signal: ConflictSignal, context: { harbor: string }): ParleyAutoTriggerResult;
+  } | null;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
@@ -170,7 +188,162 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     actorSouls,
     suggestions,
     agentInbox,
+    parleyAutoTrigger,
   } = deps;
+
+  interface ClaimConflictRecord {
+    filePath: string;
+    sessionId: string;
+    claimedAt: number;
+    startLine?: number | null;
+    endLine?: number | null;
+    symbolPath?: string | null;
+  }
+
+  function canonicalActorForSession(sessionId: string): string | null {
+    const result = sessions.get(sessionId) as {
+      success?: boolean;
+      session?: { status?: unknown; agentId?: unknown };
+    };
+    const session = result.session;
+    if (!result.success || session?.status !== 'active' || typeof session.agentId !== 'string') return null;
+    const storedAgentId = session.agentId.trim();
+    if (!storedAgentId || !actorSouls) return null;
+    const resolved = actorSouls.resolveActor(storedAgentId);
+    return resolved.soulClass === 'unknown' ? null : resolved.actorId;
+  }
+
+  function hasActiveCanonicalActor(actorId: string): boolean {
+    const active = sessions.list({ status: 'active', allWorktrees: true, limit: 1000 }) as {
+      sessions?: Array<{ agentId?: unknown }>;
+    };
+    return (active.sessions ?? []).some((session) => {
+      if (typeof session.agentId !== 'string' || !actorSouls) return false;
+      const resolved = actorSouls.resolveActor(session.agentId.trim());
+      return resolved.soulClass !== 'unknown' && resolved.actorId === actorId;
+    });
+  }
+
+  function claimAddress(conflict: ClaimConflictRecord): string | null {
+    if (typeof conflict.filePath !== 'string' || !conflict.filePath.trim()) return null;
+    const filePath = conflict.filePath.trim();
+    if (typeof conflict.symbolPath === 'string' && conflict.symbolPath.trim()) {
+      return `${filePath}#${conflict.symbolPath.trim()}`;
+    }
+    if (Number.isInteger(conflict.startLine) || Number.isInteger(conflict.endLine)) {
+      return `${filePath}#L${conflict.startLine ?? '*'}-${conflict.endLine ?? '*'}`;
+    }
+    return filePath;
+  }
+
+  function buildClaimConflictSignal(
+    requesterActorId: string,
+    rawConflicts: unknown[],
+  ): ConflictSignal | null {
+    if (rawConflicts.length === 0
+      || rawConflicts.length > CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs) return null;
+    const observations = rawConflicts.map((raw) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const conflict = raw as ClaimConflictRecord;
+      const address = claimAddress(conflict);
+      const party = typeof conflict.sessionId === 'string'
+        ? canonicalActorForSession(conflict.sessionId)
+        : null;
+      if (!address || !party || !Number.isSafeInteger(conflict.claimedAt) || conflict.claimedAt <= 0) {
+        return null;
+      }
+      return {
+        address,
+        party,
+        evidenceRef: `session-claim:${conflict.sessionId}:${address}:${conflict.claimedAt}`,
+      };
+    });
+    if (observations.length === 0 || observations.some((value) => value === null)) return null;
+    const complete = observations as Array<{ address: string; party: string; evidenceRef: string }>;
+    const parties = [...new Set([requesterActorId, ...complete.map((item) => item.party)])].sort();
+    const evidenceRefs = [...new Set(complete.map((item) => item.evidenceRef.trim()))].sort();
+    const addresses = [...new Set(complete.map((item) => item.address))].sort();
+    if (parties.length < 2 || evidenceRefs.length === 0 || addresses.length === 0) return null;
+    const surface = addresses.length === 1
+      ? `file-claim:${addresses[0]}`
+      : `file-claim-set:${createHash('sha256').update(JSON.stringify(addresses)).digest('hex')}`;
+    const checkpoint = 'claim' as const;
+    const kind = 'claim_overlap' as const;
+    return {
+      schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
+      signalId: conflictSignalId({ checkpoint, kind, surface, parties, evidenceRefs }),
+      kind,
+      checkpoint,
+      shape: 'contract-net',
+      parties,
+      surface,
+      magnitude: evidenceRefs.length,
+      confidence: 0.95,
+      reason: `${evidenceRefs.length} verified live file claim overlap(s)`,
+      evidenceRefs,
+      provenance: {
+        producer: CONFLICT_SIGNAL_PRODUCERS.claimConflict,
+        trustTier: 'INTERNAL',
+        producedAt: Date.now(),
+      },
+    };
+  }
+
+  function evaluateClaimConflictBestEffort(
+    verdict: IdentityWriteVerdict,
+    conflicts: unknown[],
+  ): void {
+    if (!parleyAutoTrigger || !verdict.ok || verdict.kind !== 'verified') return;
+    try {
+      if (conflicts.length === 0) return;
+      if (conflicts.length > CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: `claim conflict count exceeds bounded maximum ${CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs}`,
+          conflictsCount: conflicts.length,
+        });
+        return;
+      }
+      if (!hasActiveCanonicalActor(verdict.actorId)) {
+        logger.info('parley_auto_trigger_skipped', {
+          reason: 'verified requester has no active daemon session',
+          actorId: verdict.actorId,
+        });
+        return;
+      }
+      const signal = buildClaimConflictSignal(verdict.actorId, conflicts);
+      if (!signal) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'claim conflict did not resolve to two distinct live canonical actor identities',
+          conflictsCount: conflicts.length,
+        });
+        return;
+      }
+      const harbor = actorSouls?.constants?.defaultHarbor?.trim();
+      if (!harbor) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'automatic Parley requires the actor identity store canonical harbor',
+        });
+        return;
+      }
+      const result = parleyAutoTrigger.evaluate(signal, { harbor });
+      if (result.state === 'failed') {
+        logger.error('parley_auto_trigger_failed', {
+          signalId: signal.signalId,
+          reason: result.reason,
+        });
+      } else {
+        logger.info('parley_auto_trigger_evaluated', {
+          signalId: signal.signalId,
+          state: result.state,
+          parleyId: result.parleyId,
+        });
+      }
+    } catch (error) {
+      logger.error('parley_auto_trigger_failed', {
+        reason: error instanceof Error ? error.message : 'unknown automatic Parley failure',
+      });
+    }
+  }
 
   /**
    * Map general session mutation errors to HTTP status. The intent is one stable
@@ -560,6 +733,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (files && Array.isArray(files) && files.length > 0 && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
+          evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
           return {
             success: false,
@@ -609,6 +783,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (!result.success) {
         reply.code(400);
         return { ...result, code: result.code || 'VALIDATION_ERROR' };
+      }
+
+      if (force && Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(sessionAgent.verdict, result.conflicts);
       }
 
       if (sessionAgent.verdict.kind !== 'anonymous') {
@@ -1012,6 +1190,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (hasFiles && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
+          evaluateClaimConflictBestEffort(requestAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
           return {
             success: false,
@@ -1028,6 +1207,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (!result.success) {
         reply.code(errorStatus(result));
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
+      }
+
+      if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, result.conflicts);
       }
 
       logger.info('session_files_claimed', {
