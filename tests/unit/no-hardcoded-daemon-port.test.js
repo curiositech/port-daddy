@@ -20,7 +20,8 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { readdirSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { readdirSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
 import {
   DAEMON_ENDPOINT_ENFORCED_FILES,
@@ -41,6 +42,8 @@ const ALLOWED_FILES = new Set([
   'lib/port-takeover.ts',
   // Rust console berth picker mirrors the canonical daemon port as a Rust const.
   'core/pd-console/src/berths.rs',
+  // Purser's isolated cloud-peer sandbox explicitly assigns its private daemon port.
+  'apps/fleet-executor/src/sandbox-runner.ts',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-port.test.js',
 ]);
@@ -98,9 +101,10 @@ function isEnforced(rel) {
   return DAEMON_ENDPOINT_ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
 }
 
-export function findHardcodedPortOffenders() {
+export function findHardcodedPortOffenders(root = REPO_ROOT) {
   const offenders = [];
-  for (const { path, rel } of walk(REPO_ROOT)) {
+  for (const { path } of walk(root)) {
+    const rel = relative(root, path);
     if (!isEnforced(rel)) continue;
     if (ALLOWED_FILES.has(rel)) continue;
     if (LEGACY_ENDPOINT_DEBT_FILES.has(rel)) continue;
@@ -148,16 +152,19 @@ describe('no-hardcoded-daemon-port', () => {
     // crate-specific prefix `core/pd-bosun/target/`. A fabricated crate under
     // `core/` proves the exclusion now applies by directory name everywhere,
     // not just to pd-bosun.
-    const crateRoot = join(REPO_ROOT, 'core', '__daemon-port-guard-target-fixture-crate');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const fixtureRoot = mkdtempSync(join(scratchRoot, 'endpoint-port-guard-'));
+    const crateRoot = join(fixtureRoot, 'core', 'fixture-crate');
     const targetDir = join(crateRoot, 'target');
     const fixturePath = join(targetDir, 'generated.ts');
     mkdirSync(targetDir, { recursive: true });
     writeFileSync(fixturePath, 'const PORT = 9876;\n');
     try {
-      const offenders = findHardcodedPortOffenders();
-      expect(offenders.some((o) => o.path.includes('__daemon-port-guard-target-fixture-crate'))).toBe(false);
+      const offenders = findHardcodedPortOffenders(fixtureRoot);
+      expect(offenders).toEqual([]);
     } finally {
-      rmSync(crateRoot, { recursive: true, force: true });
+      rmSync(fixtureRoot, { recursive: true, force: true });
     }
   });
 

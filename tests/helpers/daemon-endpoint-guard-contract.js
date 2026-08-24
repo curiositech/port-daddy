@@ -34,7 +34,6 @@ export const DAEMON_ENDPOINT_ENFORCED_FILES = new Set([
 // New files never belong here. Remove an entry in the same atomic PR that
 // replaces its fixed endpoint with selected-daemon discovery.
 export const LEGACY_ENDPOINT_DEBT_FILES = new Set([
-  'apps/FleetBar/FleetBar/DaemonLocation.swift',
   'apps/pd-scout-extension/background.js',
   'apps/pd-scout-extension/popup.js',
   'core/pd-timeline-proto/src/main.rs',
@@ -58,7 +57,6 @@ export const LEGACY_ENDPOINT_DEBT_FILES = new Set([
   'website-v2/src/data/product.ts',
   'website-v2/src/docs-content/bestPractices.ts',
   'website-v2/src/docs-content/getStarted.ts',
-  'website-v2/src/lib/daemon-url.ts',
   'website-v2/src/pages/AgentsPage.tsx',
   'website-v2/src/pages/ScoutPage.tsx',
   'website-v2/src/pages/docs/ApiReference.tsx',

@@ -21,7 +21,8 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { readdirSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { readdirSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
 import {
   DAEMON_ENDPOINT_ENFORCED_FILES,
@@ -113,10 +114,11 @@ function isEnforced(rel) {
   return DAEMON_ENDPOINT_ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
 }
 
-function findOffenders(pattern) {
+export function findOffenders(pattern, root = REPO_ROOT) {
   const re = new RegExp(pattern);
   const offenders = [];
-  for (const { path, rel } of walk(REPO_ROOT)) {
+  for (const { path } of walk(root)) {
+    const rel = relative(root, path);
     if (!isEnforced(rel)) continue;
     if (ALLOWED_FILES.has(rel)) continue;
     if (LEGACY_ENDPOINT_DEBT_FILES.has(rel)) continue;
@@ -139,16 +141,19 @@ describe('no-hardcoded-daemon-url', () => {
     // crate-specific prefix `core/pd-bosun/target/`. A fabricated crate under
     // `core/` proves the exclusion now applies by directory name everywhere,
     // not just to pd-bosun.
-    const crateRoot = join(REPO_ROOT, 'core', '__daemon-url-guard-target-fixture-crate');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const fixtureRoot = mkdtempSync(join(scratchRoot, 'endpoint-url-guard-'));
+    const crateRoot = join(fixtureRoot, 'core', 'fixture-crate');
     const targetDir = join(crateRoot, 'target');
     const fixturePath = join(targetDir, 'generated.ts');
     mkdirSync(targetDir, { recursive: true });
     writeFileSync(fixturePath, 'const URL = "http://localhost:9876";\n');
     try {
-      const offenders = findOffenders(FORBIDDEN_PATTERNS[0]);
-      expect(offenders.some((o) => o.path.includes('__daemon-url-guard-target-fixture-crate'))).toBe(false);
+      const offenders = findOffenders(FORBIDDEN_PATTERNS[0], fixtureRoot);
+      expect(offenders).toEqual([]);
     } finally {
-      rmSync(crateRoot, { recursive: true, force: true });
+      rmSync(fixtureRoot, { recursive: true, force: true });
     }
   });
 
