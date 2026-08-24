@@ -104,7 +104,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Check the local install',
           command:
-            'port-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
+            'port-daddy status\nlaunchctl print gui/501/homebrew.mxcl.port-daddy\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
           notes: [
             'Use these when the CLI, FleetBar, or browser dashboard disagree.',
             'Do not assume the current checkout is the live runtime just because local source changed.',
@@ -115,7 +115,7 @@ export const getStartedSection: DocsContentSection = {
           tone: 'info',
           title: 'Discover the daemon endpoint, do not assume it',
           body:
-            'The daemon publishes its selected port when it starts. Clients discover the endpoint through ~/.port-daddy/daemon.port or the getDaemonTcpUrl() helper. Port contention during startup is normal — the daemon will select an available port.',
+            'The canonical stable daemon binds port 9876 and publishes that listener through ~/.port-daddy/daemon.port. Clients still resolve the endpoint through that file or getDaemonTcpUrl() so an explicit PORT_DADDY_URL can select a dev berth without hardcoded URLs. The stable daemon fails closed on port contention instead of silently moving.',
         },
         {
           type: 'paragraph',
@@ -254,7 +254,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Drift triage',
           command:
-            'pd status\nport-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\nwhich port-daddy',
+            'pd status\nport-daddy status\nlaunchctl print gui/501/homebrew.mxcl.port-daddy\nwhich port-daddy',
           notes: [
             'Use this set when the daemon, CLI, and code checkout tell different stories.',
           ],
