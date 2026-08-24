@@ -296,6 +296,18 @@ CREATE TABLE IF NOT EXISTS user_tokens (
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
+-- Server-authorized account roles. A pdu_ token proves account identity; this
+-- table separately proves authority for Cloud Fleet's team-scoped operator
+-- reads and controls. The initial owner row is materialized from the trusted
+-- RELAY_OPERATOR_GITHUB_USER_ID var on first access.
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id    TEXT    NOT NULL REFERENCES users(id),
+  role       TEXT    NOT NULL CHECK (role IN ('operator')),
+  source     TEXT    NOT NULL,
+  granted_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role)
+);
+
 -- Per-repo agent-behavior settings, account-scoped (the /account/repos screen).
 -- One row per (user, repo full name). sitrep_end_of_turn is the launch dial;
 -- settings_json is the forward-compatible bag for the settings the screen grows

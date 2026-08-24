@@ -209,6 +209,22 @@ actor, and expiry. The grant endpoint is independently operator-gated. The
 root key and per-actor macaroon are runtime secrets and never enter committed
 Worker configuration.
 
+Production activation is deliberately split into two ordered deploys. Relay
+first exports a named, service-binding-only `CoordinationGrantService`; it
+accepts only a validated project, actor id, and TTL, retains the root key inside
+Relay, and returns a macaroon capped at one hour. Cloudflare requires a named
+entrypoint to be deployed before another Worker can bind to it, so Fleet is not
+wired in the same rollout.
+
+The follow-up Fleet deploy derives the project from the live, GitHub-verified
+repository context and the actor from the durable Fleet run id. It requests one
+short-lived grant over the service binding and passes that grant only to the
+daemon process environment. The static global project/actor/macaroon tuple is
+then retired. This ordering keeps cloud a peer rather than an authority: Relay
+can attenuate admission to its replica, but local daemons continue accepting
+local operations while partitioned and reconcile their retained CRDT log when
+the peer returns.
+
 ### 5. Precondition (non-negotiable): the capability/trust gate ships first
 
 A cloud coordination plane widens the attack surface onto the exact wound already

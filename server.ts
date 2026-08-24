@@ -46,7 +46,7 @@ import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
-import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
@@ -648,11 +648,7 @@ const symbolClaims = createSymbolClaims(db, {
 });
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
-  messaging.publish(`inbox:${agentId}`, {
-    ...message,
-    sender: message.from || 'SYSTEM',
-    signal: (message as any).signal || 'report'
-  });
+  messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
 const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
