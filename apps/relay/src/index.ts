@@ -66,6 +66,10 @@
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
  *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
+ *   POST /v1/harbors/:namespace/:name/invites  (member-gated; mint a single-use invite)
+ *   GET  /v1/harbors/:namespace/:name/invites  (member-gated; list invites + lifecycle)
+ *   POST /v1/harbors/:namespace/:name/invites/:jti/revoke (inviter-or-owner; revoke)
+ *   POST /v1/harbors/:namespace/:name/join     (authed; redeem an invite → member + epoch tick)
  *   POST /v1/harbors/:namespace/:name/presence (member-gated; presence heartbeat, TTL ~90s)
  *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
  *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
@@ -189,6 +193,12 @@ import {
   handleGetHarbor,
   handleAddHarborMember,
 } from './harbors.js';
+import {
+  handleMintHarborInvite,
+  handleListHarborInvites,
+  handleRevokeHarborInvite,
+  handleJoinHarbor,
+} from './invites.js';
 import {
   handlePresenceBeat,
   handleGetPresence,
@@ -639,6 +649,14 @@ export default {
         response = await handleGetHarbor(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'members' && method === 'POST') {
         response = await handleAddHarborMember(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'invites' && method === 'POST') {
+        response = await handleMintHarborInvite(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'invites' && method === 'GET') {
+        response = await handleListHarborInvites(request, env, ns, name);
+      } else if (ns && name && sub === 'invites' && parts.length === 5 && parts[3] && parts[4] === 'revoke' && method === 'POST') {
+        response = await handleRevokeHarborInvite(request, env, ns, name, parts[3]);
+      } else if (ns && name && parts.length === 3 && sub === 'join' && method === 'POST') {
+        response = await handleJoinHarbor(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'POST') {
         response = await handlePresenceBeat(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'GET') {
