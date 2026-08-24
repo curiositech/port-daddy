@@ -7,8 +7,8 @@ const pdfPaths = {
 };
 
 const expectedHashes = {
-  'legible-swarm': 'fabfe1f8fefac74dc9605291b333f8e399522ed769294d75b138fb0d7d71291d',
-  'single-writer-kernel': '50449079b81e05efde426fd9724b2daac8d4b7e3bd37daac0dc529f838453b89'
+  'legible-swarm': '42e04a149fc2c3c93744dde0a256ebc8893b9e20178b3c7a7008adaed2b35814',
+  'single-writer-kernel': 'aa4373c51baef6d9eee7648b7e2034e4f7660edf2e5ad89a5338f6323926cc94'
 };
 
 describe('Whitepaper PDF hash verification', () => {
