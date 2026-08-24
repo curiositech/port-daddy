@@ -17,6 +17,11 @@ export interface InboxMessage {
   id: number;
   agentId: string;
   from: string | null;
+  // The daemon's VERIFIED verdict for the sender (#8877 / ADR-0122): `from` is a
+  // display string the sender chose, these two are what the daemon PROVED. A null
+  // pair means a daemon-internal in-process send, never rendered as a principal.
+  fromActorId: string | null;
+  fromSoulClass: string | null;
   content: unknown;
   contentType: string;
   type: string;
@@ -34,6 +39,8 @@ interface InboxRow {
   id: number;
   agent_id: string;
   from_agent: string | null;
+  from_actor_id: string | null;
+  from_soul_class: string | null;
   content: string;
   content_type: string;
   type: string;
@@ -54,6 +61,8 @@ interface DeliveryReservationRow {
 
 export interface SendOptions {
   from?: string;
+  fromActorId?: string | null;
+  fromSoulClass?: string | null;
   type?: string;
   contentType?: 'text' | 'json' | 'binary';
 }
@@ -122,6 +131,18 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     db.exec('ALTER TABLE agent_inbox ADD COLUMN delivery_key TEXT');
   } catch { /* already exists */ }
 
+  // from_actor_id / from_soul_class: the daemon's VERIFIED verdict for the sender
+  // (#8877 / ADR-0122). `from_agent` is a display string the sender chose; these
+  // two are what the daemon PROVED, and only the credentialed route gate writes
+  // them. A null pair means a daemon-internal in-process send, which must never
+  // be rendered as though a principal wrote it.
+  try {
+    db.exec('ALTER TABLE agent_inbox ADD COLUMN from_actor_id TEXT');
+  } catch { /* already exists */ }
+  try {
+    db.exec('ALTER TABLE agent_inbox ADD COLUMN from_soul_class TEXT');
+  } catch { /* already exists */ }
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_agent ON agent_inbox(agent_id, created_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_unread ON agent_inbox(agent_id) WHERE read = 0`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_from ON agent_inbox(from_agent, created_at)`);
@@ -146,8 +167,8 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
   const stmts = {
     send: db.prepare(`
       INSERT INTO agent_inbox
-        (agent_id, from_agent, content, content_type, type, read, created_at, delivery_key)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+        (agent_id, from_agent, from_actor_id, from_soul_class, content, content_type, type, read, created_at, delivery_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `),
     byId: db.prepare(`SELECT * FROM agent_inbox WHERE id = ? LIMIT 1`),
     deliveryByKey: db.prepare(`
@@ -198,6 +219,8 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
       id: row.id,
       agentId: row.agent_id,
       from: row.from_agent,
+      fromActorId: row.from_actor_id ?? null,
+      fromSoulClass: row.from_soul_class ?? null,
       content: row.content_type === 'json' ? safeJsonParse(row.content) : row.content,
       contentType: row.content_type,
       type: row.type,
@@ -255,6 +278,12 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     }
 
     const { from = null, type = 'message' } = options;
+    const fromActorId = typeof options.fromActorId === 'string' && options.fromActorId
+      ? options.fromActorId
+      : null;
+    const fromSoulClass = typeof options.fromSoulClass === 'string' && options.fromSoulClass
+      ? options.fromSoulClass
+      : null;
     let { contentType } = options;
     const now = Date.now();
     if (!contentType) {
@@ -314,7 +343,7 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
           };
         }
 
-        const result = stmts.send.run(agentId, from, contentStr, contentType, type, now, deliveryKey);
+        const result = stmts.send.run(agentId, from, fromActorId, fromSoulClass, contentStr, contentType, type, now, deliveryKey);
         const messageId = Number(result.lastInsertRowid);
         if (deliveryKey && fingerprint) {
           stmts.reserveDelivery.run(

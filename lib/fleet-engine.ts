@@ -163,6 +163,17 @@ export interface FleetRunContext {
   source?: 'schedule' | 'trigger' | 'tuple' | 'inbox' | 'manual';
   channel?: string;
   from?: string | null;
+  /**
+   * The daemon-VERIFIED principal behind `from` (#8877 / ADR-0122). `from` is
+   * a display string the sender chose; this is what the daemon proved at the
+   * inbox boundary (lib/inbox-identity.ts). It reaches the spawned agent's
+   * prompt because an agent being handed an instruction deserves to see who
+   * is provably ordering it — a display name alone is a forgeable authority
+   * label on executed work. Absent for daemon-internal triggers.
+   */
+  fromActorId?: string | null;
+  /** The verified sender's soul class ('newcomer' | 'graduated' | 'operator'). */
+  fromSoulClass?: string | null;
   message?: unknown;
   messageContent?: string;
   tuple?: Tuple;
@@ -1889,6 +1900,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         `- source: ${context.source || 'trigger'}`,
         context.channel ? `- channel: ${context.channel}` : null,
         context.from ? `- sender: ${context.from}` : null,
+        // The verified half. Rendered as its own line so the model can tell
+        // an unforgeable principal from the display name beside it, and so a
+        // daemon-internal trigger is visibly NOT a credentialed principal.
+        context.from
+          ? (context.fromActorId
+            ? `- sender verified actor: ${context.fromActorId}${context.fromSoulClass ? ` (soul class: ${context.fromSoulClass})` : ''}`
+            : '- sender verified actor: none (daemon-internal trigger; the sender name above is NOT a credentialed principal)')
+          : null,
         context.tupleHarbor ? `- tuple harbor: ${context.tupleHarbor}` : null,
         context.tuplePattern ? `- tuple pattern: ${JSON.stringify(context.tuplePattern)}` : null,
         context.tuple ? `- tuple id: ${context.tuple.id}` : null,
