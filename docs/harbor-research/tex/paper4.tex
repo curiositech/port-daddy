@@ -128,6 +128,25 @@ IV (\S\ref{sec:p4}) & canary power $+$ SPRT clock & analytic vs.\ simulation agr
 \end{tabular}
 \end{center}
 
+The four rows are not four independent guarantees stacked for redundancy; they are four links in one pipeline, each closing a gap
+the others leave open, in exactly the order Figure~\ref{fig:pillars} draws it. Enforceability (II) fixes \emph{where} a boundary
+can exist at all --- gate the channel, or nothing about the design is provably enforceable. Noninterference (I) then proves that
+boundary, once installed, is silent except through its declared release. Conservation (III) meters the cumulative cost of
+everything that legitimately crosses it, because a gate honest on every single release can still bankrupt the contract over many
+releases --- an individually-sound decision rule is not a portfolio-sound one. And detection (IV) polices for what tries to cross
+without going through the meter at all: a compromised worker, a bug, an adversary who found an unmediated path. Drop any one link
+and a concrete gap reopens, named under each box below; the composed, honestly bounded result is \S\ref{sec:budget}'s leakage
+account.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{paper4_pillars_architecture.png}
+\caption{The four pillars composed into the sealed pipeline, in the order the closing section states it: enforceability (II) says
+where the boundary can be, noninterference (I) says the boundary holds, conservation (III) meters what crosses it, detection (IV)
+polices evasion. Each box also names the gap left open if that pillar alone were dropped.}
+\label{fig:pillars}
+\end{figure}
+
 \section{Pillar I: silence except through the slot}\label{sec:p1}
 
 \onebreath{Run the whole world twice --- identical except for Derek's secret --- under every
@@ -141,9 +160,9 @@ every interleaving of loads, reads, submissions, releases, and reports. The anal
 clicks once per voter and the tally board shows only party totals; a poll-watcher outside learns exactly the declared aggregate
 and nothing about any ballot, \emph{no matter how long she watches or in what order voters arrive}. That is noninterference
 \emph{modulo declassification} in the Goguen--Meseguer lineage \cite{goguen-meseguer-82,goguen-meseguer-84}: silence except
-through the slot, and through the slot, only what the contract says. The misread to preempt: the theorem does not say the slot is
-safe --- it says the slot is the \emph{only} opening; whether the declared function $g$ releases too much is a contract question
-the next two pillars price.
+through the slot, and through the slot, only what the contract says. Figure~\ref{fig:r9rel} draws the mapping by relations, not
+surface features. The misread to preempt: the theorem does not say the slot is safe --- it says the slot is the \emph{only}
+opening; whether the declared function $g$ releases too much is a contract question the next two pillars price.
 
 \begin{figure}[htbp]
 \centering
@@ -174,7 +193,8 @@ property [internal, \texttt{c1\_noninterference.py}].
 
 \textbf{Numbers by hand.} Four secrets give $\binom{4}{2}=6$ unordered pairs; two of them --- $(0,2)$ and $(1,3)$ --- are
 equal-parity, and it is exactly those two on which the honest gate must keep Erin's worlds identical forever, and did. The m1
-witness is a four-step, human-readable proof that a particular gate breaks its contract; a CISO can read it aloud. 
+witness is a four-step, human-readable proof that a particular gate breaks its contract; a CISO can read it aloud. The full mutant
+grid, honest gate against both breaks, is Figure~\ref{fig:r9reg}.
 \emph{Now you try:} with $g(s)=s\bmod 2$ over secrets $\{0,\dots,7\}$, how many unordered secret pairs must a sound room keep
 Erin-indistinguishable? (Both parity classes have four members: $2\binom{4}{2}=12$ pairs.)
 
@@ -286,7 +306,8 @@ over-spend, so atomicity is what makes the budget promise auditable [internal].
 \textbf{Numbers by hand.} At $\delta'=10^{-6}$: for $k{=}32$ releases at $\varepsilon{=}0.1$, basic composition gives $32\times
 0.1=3.20$ while advanced gives $3.31$ --- not yet paying; at $k{=}128$, $\varepsilon{=}0.05$, basic gives $6.40$ but advanced
 gives $3.30$ --- paying [verified]. The crossover tells the contract writer exactly which accounting to quote at which engagement
-length: below it, quote the exact, $\delta$-free sequential bound; above it, the $\sqrt{k}$-scaled advanced bound. 
+length: below it, quote the exact, $\delta$-free sequential bound; above it, the $\sqrt{k}$-scaled advanced bound
+(Figure~\ref{fig:r10reg}).
 \emph{Now you try:} at $k{=}8$, $\varepsilon{=}0.5$, which bound is smaller? (Basic: $4.00$; advanced: $10.03$ --- quote sequential, and by a
 wide margin [verified].)
 
