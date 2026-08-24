@@ -1,6 +1,10 @@
 /** Narrow internal grant contract for ADR-0092 Fleet coordination peers. */
 
 import { isCoordinationScopeId } from '../../../lib/coordination-ledger.js';
+import type {
+  FleetCoordinationGrant,
+  FleetCoordinationGrantRequest,
+} from '../../../lib/coordination-grant-contract.js';
 import {
   COORDINATION_SYNC_VERB,
   mintCoordinationMacaroon,
@@ -11,19 +15,10 @@ export const FLEET_COORDINATION_GRANT_DEFAULT_TTL_SECONDS = 30 * 60;
 export const FLEET_COORDINATION_GRANT_MIN_TTL_SECONDS = 60;
 export const FLEET_COORDINATION_GRANT_MAX_TTL_SECONDS = 60 * 60;
 
-export interface FleetCoordinationGrantRequest {
-  project: string;
-  actorId: string;
-  ttlSeconds?: number;
-}
-
-export interface FleetCoordinationGrant {
-  macaroon: string;
-  project: string;
-  actorId: string;
-  verb: typeof COORDINATION_SYNC_VERB;
-  expiresAt: number;
-}
+export type {
+  FleetCoordinationGrant,
+  FleetCoordinationGrantRequest,
+} from '../../../lib/coordination-grant-contract.js';
 
 /**
  * Mint one attenuated capability for a verified Fleet run.
