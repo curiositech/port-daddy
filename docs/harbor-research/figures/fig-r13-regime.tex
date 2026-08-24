@@ -68,6 +68,15 @@
   % CI build. North east is clear here (the falsified curve is already
   % negative by x=0.5), freeing the bottom for that label.
   legend pos=north east,
+  % This panel's plotted width is only ~2cm on the page (see the bottom
+  % label's leading comment below) -- even in the empty north-east corner,
+  % the shared legend style's \scriptsize entries render nearly full plot
+  % width, so the legend's own (92%-opaque) plate still ghosted over the
+  % "swap pays" and "flip:" nodes underneath it, a real collision found by
+  % rendering the CI build. Extending (not replacing, per this corpus's own
+  % documented footgun) the shared style with a smaller font shrinks the
+  % legend enough to clear both.
+  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
 ]
 \fill[shipred,opacity=0.08] (axis cs:0,0) rectangle (axis cs:0.8,0.45);
 \fill[seagreen,opacity=0.08] (axis cs:0,-0.65) rectangle (axis cs:0.8,0);
@@ -104,7 +113,10 @@
 % the marker), and the bottom label wraps to three short lines that each
 % individually fit.
 \node[seagreen,font=\tiny\bfseries,anchor=east] at (axis cs:0.57,-0.30) {$0.5\to0.2$};
-\node[shipred,font=\scriptsize\bfseries,anchor=north west] at (axis cs:0.03,0.40) {swap pays};
+% "swap pays" (the top-left, y>0 region) dropped rather than fought with a
+% fifth reposition: it's already conveyed by the pink shading and the
+% caption's "swap pays exactly when Delta c > Delta theta" -- nothing is
+% lost, and it removes the only remaining occupant of the legend's footprint.
 \node[seagreen,font=\tiny\bfseries,align=left,anchor=south west,text width=1.0cm] at (axis cs:0.03,-0.6) {strong\\engine\\pays};
 \end{axis}
 \end{tikzpicture}
