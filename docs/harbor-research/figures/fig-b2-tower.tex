@@ -1,0 +1,120 @@
+% B2: the inspection tower -- who audits the auditors, and what it costs.
+% Three panels, each a real computed curve -- not a raster image. All data
+% recomputed directly from the closed-form functions in
+% skills/harbor-results/scripts/b2_tower.py (deterministic, no seed --
+% judge_cheat_payoff(), tower(), and the rho_A/rho_B/spend() amortization
+% arrays). Panel A/C sampled at reduced density (13 and 30 pts/curve resp.)
+% from the same closed forms the script evaluates at full density; Panel B
+% is plotted at its native density (audit levels k=0..8). Local color
+% `amber` mixes in for the fourth Panel-B series since the shared palette
+% in ../tex/preamble.tex only defines three colors.
+% [verified: script b2_tower.py, deterministic closed-form, no seed]
+\definecolor{amber}{RGB}{199,138,30}
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={audit probability $\rho$},
+  ylabel={judge cheat payoff},
+  title={\textbf{A} --- the deterrence line},
+  xmin=0,xmax=0.5,ymin=-15,ymax=11,
+  legend pos=north east,
+]
+\addplot[harborblue] coordinates {
+  (0.0,10.0000) (0.0417,8.3333) (0.0833,6.6667) (0.125,5.0000) (0.1667,3.3333)
+  (0.2083,1.6667) (0.25,0.0000) (0.2917,-1.6667) (0.3333,-3.3333) (0.375,-5.0000)
+  (0.4167,-6.6667) (0.4583,-8.3333) (0.5,-10.0000)
+};
+\addlegendentry{keep-gain}
+\addplot[seagreen,dashed] coordinates {
+  (0.0,10.0000) (0.0417,8.0000) (0.0833,6.0000) (0.125,4.0000) (0.1667,2.0000)
+  (0.2083,0.0000) (0.25,-2.0000) (0.2917,-4.0000) (0.3333,-6.0000) (0.375,-8.0000)
+  (0.4167,-10.0000) (0.4583,-12.0000) (0.5,-14.0000)
+};
+\addlegendentry{confiscation}
+\addplot[harborblue,dotted,forget plot] coordinates {(0.25,-15) (0.25,11)};
+\addplot[seagreen,dotted,forget plot] coordinates {(0.2083,-15) (0.2083,11)};
+\node[harborblue,font=\scriptsize,anchor=west] at (axis cs:0.252,9) {$\rho^\star{=}0.250$};
+\node[seagreen,font=\scriptsize,anchor=east] at (axis cs:0.2063,9) {$\rho^\star_c{=}0.208$};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  ymode=log,
+  xlabel={audit level $k$},
+  ylabel={surviving corrupt value $G_k$ (log)},
+  title={\textbf{B} --- the tower contracts},
+  xmin=0,xmax=8,ymin=60,ymax=450,
+  legend pos=south west,
+]
+\addplot[shipred,mark=*,mark size=1.2pt] coordinates {
+  (0,400.0) (1,390.0) (2,380.0) (3,370.0) (4,360.0) (5,350.0) (6,340.0) (7,330.0) (8,320.0)
+};
+\addlegendentry{$C{=}1$}
+\addplot[amber,mark=*,mark size=1.2pt] coordinates {
+  (0,400.0) (1,380.0) (2,360.0) (3,340.0) (4,320.0) (5,300.0) (6,280.0) (7,260.0) (8,240.0)
+};
+\addlegendentry{$C{=}2$}
+\addplot[harborblue,mark=*,mark size=1.2pt] coordinates {
+  (0,400.0) (1,360.0) (2,320.0) (3,280.0) (4,240.0) (5,200.0) (6,160.0) (7,128.0) (8,102.4)
+};
+\addlegendentry{$C{=}4$}
+\addplot[seagreen,mark=*,mark size=1.2pt] coordinates {
+  (0,400.0) (1,320.0) (2,256.0) (3,204.8) (4,163.84) (5,131.07) (6,104.86) (7,83.89) (8,67.11)
+};
+\addlegendentry{$C{=}8$}
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={verified-history length $t$},
+  ylabel={cumulative audit spend},
+  title={\textbf{C} --- reputation is amortized},
+  xmin=0,xmax=199,ymin=0,
+  legend pos=north west,
+]
+\addplot[shipred] coordinates {
+  (0,0.2500) (7,2.0000) (14,3.7500) (21,5.5000) (28,7.2500) (35,9.0000)
+  (42,10.7500) (49,12.5000) (56,14.2500) (63,16.0000) (70,17.7500) (77,19.5000)
+  (84,21.2500) (91,23.0000) (98,24.7500) (105,26.5000) (112,28.2500) (119,30.0000)
+  (126,31.7500) (133,33.5000) (140,35.2500) (147,37.0000) (154,38.7500) (161,40.5000)
+  (168,42.2500) (175,44.0000) (182,45.7500) (189,47.5000) (196,49.2500) (199,50.0000)
+};
+\addlegendentry{flat $\rho^\star$}
+\addplot[harborblue] coordinates {
+  (0,0.2500) (7,1.9207) (14,3.4674) (21,4.9071) (28,6.2537) (35,7.5185)
+  (42,8.7109) (49,9.8388) (56,10.9087) (63,11.9263) (70,12.8966) (77,13.8236)
+  (84,14.7112) (91,15.5625) (98,16.3803) (105,17.1673) (112,17.9256) (119,18.6573)
+  (126,19.3641) (133,20.0478) (140,20.7097) (147,21.3513) (154,21.9736) (161,22.5780)
+  (168,23.1652) (175,23.7364) (182,24.2924) (189,24.8339) (196,25.3616) (199,25.5838)
+};
+\addlegendentry{model A}
+\addplot[seagreen] coordinates {
+  (0,0.2500) (7,1.9790) (14,3.6713) (21,5.3268) (28,6.9455) (35,8.5275)
+  (42,10.0728) (49,11.5813) (56,13.0530) (63,14.4880) (70,15.8863) (77,17.2478)
+  (84,18.5725) (91,19.8605) (98,21.1118) (105,22.3263) (112,23.5040) (119,24.6450)
+  (126,25.7493) (133,26.8168) (140,27.8475) (147,28.8415) (154,29.7988) (161,30.7193)
+  (168,31.6030) (175,32.4500) (182,33.2603) (189,34.0338) (196,34.7705) (199,35.0750)
+};
+\addlegendentry{model B}
+\addplot[seagreen,dotted,forget plot] coordinates {(0,41.6667) (199,41.6667)};
+\node[seagreen,font=\scriptsize,anchor=north east] at (axis cs:199,41.6667) {closed form $\approx 41.67$};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{\textbf{A:} the deterrence line --- cheating's payoff crosses zero at $\rho^\star$, earlier under confiscation. \textbf{B:} the tower --- corrupt value per audit level (log scale); more cliques $C$ means bribery shuts off earlier and decay goes geometric. \textbf{C:} cumulative audit spend --- flat is linear forever; history-aware schedules bend to $\Theta(\log T)$ and $O(1)$.}
+\label{fig:b2-tower}
+\end{figure}

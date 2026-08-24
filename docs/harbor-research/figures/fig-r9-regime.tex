@@ -1,0 +1,48 @@
+% R9 regime: categorical grid (secret pairs x gate variants) -- no numeric
+% axes, so a plain tikzpicture grid of regimebox cells rather than pgfplots.
+% Cell text and layout traced directly from the cell_data dict and grid
+% geometry in figures/src/r9_figures.py::figure_r9_regime. [internal, script
+% r9_figures.py]
+\begin{figure}[htbp]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% Title
+\node[align=center,text width=10.5cm,font=\bfseries] at (5.5,6.75) {R9 regime --- what the gate promises, and the mutants that prove the checker sees};
+\node[align=center,text width=10.5cm,font=\small,color=black!45] at (5.5,6.28) {schedule secret-independence checked separately --- an enabledness difference is itself a channel [internal, \texttt{c1\_noninterference.py}]};
+
+% Column headers
+\node[font=\bfseries] at (3.2,5.55) {Honest Gate};
+\node[font=\bfseries] at (5.92,5.55) {Leaky-Gate Mutant};
+\node[font=\bfseries] at (8.64,5.55) {Bypass Mutant};
+
+% Row labels
+\node[font=\bfseries,align=right] at (1.35,4.45) {$(0,2)$\\equal parity};
+\node[font=\bfseries,align=right] at (1.35,2.63) {$(0,1)$\\unequal parity};
+
+% Row 1: (0,2) equal parity
+\node[regimebox,draw=black,fill=seagreen,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (3.2,4.45) {\bfseries identical views\\[3pt]\small all interleavings, depth 7};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (5.92,4.45) {\bfseries DISTINGUISHED\\[3pt]\small caught};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (8.64,4.45) {\bfseries DISTINGUISHED\\[3pt]\small caught in 3 steps};
+
+% Row 2: (0,1) unequal parity
+\node[regimebox,draw=black,fill=harborblue,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (3.2,2.63) {\bfseries differs only at\\[3pt]\small gate release};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (5.92,2.63) {\bfseries DISTINGUISHED\\[3pt]\small caught};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm] at (8.64,2.63) {\bfseries DISTINGUISHED\\[3pt]\small caught in 3 steps};
+
+% Legend / interpretation strip at the bottom
+\node[regimebox,draw=black!45,fill=black!3,align=left,text width=7.6cm,minimum width=8.04cm,anchor=north west,font=\small] at (1.9,1.05) {%
+  {\color{seagreen!70!black} Seagreen (holds):} honest gate enforces identity on equal-parity secret pairs.\\[3pt]
+  {\color{harborblue} Harborblue (holds):} honest gate isolates any difference to the gate-release event only.\\[3pt]
+  {\color{shipred} Red (caught):} every mutation is caught --- it leaks information the honest gate hides.%
+};
+
+\end{tikzpicture}%
+}
+\caption{Regime diagram for Pillar I: what the gate promises, and the mutants that prove the checker
+sees. The property holds on the shaded region (equal declassified value, any interleaving); the two mutation witnesses (leaky
+gate; gate bypass) sit provably outside it, each with a concrete trace
+[internal, \texttt{c1\_noninterference.py}].}
+\label{fig:r9reg}
+\end{figure}

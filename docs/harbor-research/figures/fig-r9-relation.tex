@@ -1,0 +1,67 @@
+% R9 relation-map: sealed airlock (physical analogy) <-> sealed-room
+% noninterference modulo declassification (formal target). Three rows
+% (mechanism / invariant / proof), boxes and connector labels traced
+% directly from the ax.text / side_box / connector calls in
+% figures/src/r9_figures.py::figure_r9_relation. [internal, script
+% r9_figures.py]
+\begin{figure}[htbp]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% Title
+\node[align=center,text width=11.5cm,font=\bfseries] at (6,9.45) {R9 --- every release explicit, gated, and bounded};
+\node[align=center,text width=11.5cm,font=\small\itshape,color=black!45] at (6,8.95) {sealed airlock $\longleftrightarrow$ sealed-room noninterference modulo declassification};
+
+% ===== ROW 1: the mechanism =====
+\node[relnode,draw=harborblue,fill=harborblue!12,minimum width=4.5cm,minimum height=2.15cm,text width=4.2cm] (l1) at (2.5,7.025) {%
+  {\bfseries Sealed airlock}\\[3pt]
+  Derek moves freely inside the chamber; the outer door cycles only at\\[3pt]
+  {\footnotesize\color{black!45} declared checkpoints --- never mid-transit}%
+};
+\node[relnode,draw=seagreen,fill=seagreen!12,minimum width=4.5cm,minimum height=2.15cm,text width=4.2cm] (r1) at (9.5,7.025) {%
+  {\bfseries Gate $g(s) = s \bmod 2$}\\[3pt]
+  Derek's process holds secret $s$; only $g(s)$ ever crosses the boundary\\[3pt]
+  {\footnotesize\color{black!45} never $s$ itself}%
+};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,line width=1.6pt] (l1.east) to[bend left=8] node[midway,above=2pt,font=\small\bfseries,color=shipred] {the only door is the gate} (r1.west);
+
+% ===== ROW 2: the invariant =====
+\node[relnode,draw=harborblue,fill=harborblue!12,minimum width=4.5cm,minimum height=2.15cm,text width=4.2cm] (l2) at (2.5,4.475) {%
+  {\bfseries Erin, at the porthole}\\[3pt]
+  Sees only the checkpoint light --- one occupant or another, indistinguishable\\[3pt]
+  {\footnotesize\color{black!45} whenever the door-log matches}%
+};
+\node[relnode,draw=seagreen,fill=seagreen!12,minimum width=4.5cm,minimum height=2.15cm,text width=4.2cm] (r2) at (9.5,4.475) {%
+  {\bfseries Erin's observation trace}\\[3pt]
+  Identical for any $s,s'$ with $g(s)=g(s')$, under every interleaving of steps\\[3pt]
+  {\footnotesize\color{black!45} unwinding: Derek-side actions never touch Erin-observable state (`local respect')}%
+};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,line width=1.6pt] (l2.east) to[bend left=8] node[midway,above=2pt,font=\small\bfseries,color=shipred] {equal release $\Rightarrow$ equal view} (r2.west);
+
+% ===== ROW 3: the proof =====
+\node[relnode,draw=harborblue,fill=harborblue!12,minimum width=4.5cm,minimum height=2.15cm,text width=4.2cm] (l3) at (2.5,1.925) {%
+  {\bfseries Inspector's logbook}\\[3pt]
+  Every door-sequence and occupant swap re-run --- the light never tells them apart\\[3pt]
+  {\footnotesize\color{black!45} except at a checkpoint itself}%
+};
+\node[relnode,draw=shipred,fill=shipred!10,minimum width=4.5cm,minimum height=2.15cm,text width=4.2cm] (r3) at (9.5,1.925) {%
+  {\bfseries Exhaustive + mutated}\\[3pt]
+  All secret pairs $\times$ all interleavings to depth 7 [\texttt{c1\_noninterference.py}]\\[3pt]
+  {\footnotesize\color{black!45} leaky-gate: caught distinguishing $(0,2)$; bypass: caught in 3 steps}%
+};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,line width=1.6pt] (l3.east) to[bend left=8] node[midway,above=2pt,font=\small\bfseries,color=shipred] {checked, not assumed} (r3.west);
+
+% Bottom interpretive caption
+\node[align=center,text width=11.5cm,font=\small\itshape,color=black!35] at (6,0.5) {Two directions, one theorem: R5 says gate the channel; R9 says the gate suffices};
+\node[align=center,text width=11.5cm,font=\footnotesize\itshape,color=black!45] at (6,0.05) {(Goguen--Meseguer noninterference modulo declassification; Rushby unwinding, local-respect condition).};
+
+\end{tikzpicture}%
+}
+\caption{Relation-map for Pillar I. The voting booth maps to the sealed workroom by
+\emph{relations}, not surface features: booth walls $\to$ attested isolation (no observation of the work); the tally board $\to$
+the declassification gate (the sole declared release); ``watching all day reveals no ballot'' $\to$ two-run observational
+equivalence under every interleaving. The analogy predicts, correctly, that the residual risk is a too-revealing tally --- a
+per-precinct board with one voter is a leaky $g$.}
+\label{fig:r9rel}
+\end{figure}

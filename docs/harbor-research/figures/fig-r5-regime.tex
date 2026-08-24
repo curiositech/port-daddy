@@ -1,0 +1,73 @@
+% R5 regime diagram: two panels, neither a numeric-axis plot, so this is a
+% policy table + a structural flow diagram rather than pgfplots -- per
+% CONVENTION.md's "decision/policy table" branch. LEFT: the nine-policy
+% classification, verdicts reproduced verbatim from
+% skills/harbor-results/scripts/b3_controllability.py (re-run to confirm:
+% all 5 single controllable-event policies -> regimentable, all 3
+% single uncontrollable-event policies -> detect-only, the compound policy
+% -> regimentable), same row order and divider as create_regime_diagram()
+% in figures/src/r5_figures.py. RIGHT: the compound-case flow
+% (in_context_read -> taint=1 -> gates net_egress -> GATED), same three
+% nodes/edges and same harborblue-highlighted mechanism edge as ax2 in the
+% source script.
+% [internal, script r5_figures.py; verified: script b3_controllability.py]
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+{\small\bfseries nine-policy classification}\\[5pt]
+\begin{tabular}{@{}p{3.5cm}c@{}}
+\toprule
+\textbf{policy} & \textbf{verdict}\\
+\midrule
+forbid \texttt{fs\_write} & {\color{seagreen}\textbf{regiment}}\\
+forbid \texttt{net\_egress} & {\color{seagreen}\textbf{regiment}}\\
+forbid \texttt{exec\_tool} & {\color{seagreen}\textbf{regiment}}\\
+forbid \texttt{git\_push} & {\color{seagreen}\textbf{regiment}}\\
+forbid \texttt{spawn\_child} & {\color{seagreen}\textbf{regiment}}\\
+compound: no \texttt{net\_egress} after \texttt{in\_context\_read} & {\color{seagreen}\textbf{regiment}~$\bigstar$}\\
+\midrule
+\multicolumn{2}{@{}p{6.1cm}@{}}{\footnotesize\itshape the divider carries the criterion: $\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$ (Ramadge--Wonham 1987) --- no uncontrollable event exits the spec}\\
+\midrule
+forbid \texttt{model\_emit\_token} & {\color{shipred}\textbf{detect-only}}\\
+forbid \texttt{in\_context\_read} & {\color{shipred}\textbf{detect-only}}\\
+forbid \texttt{internal\_plan} & {\color{shipred}\textbf{detect-only}}\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+{\small\bfseries compound case: how it becomes regimentable}\\[7pt]
+\begin{tikzpicture}[x=0.6cm,y=0.55cm,
+  every node/.style={font=\small},
+  flow/.style={relnode,text width=3.4cm,minimum height=1.1cm},
+]
+\node[flow,draw=harborblue,fill=harborblue!8] (read) at (5.0,8.55)
+  {\texttt{in\_context\_read} ($\Sigma_u$)\\ \footnotesize uncontrollable --- always \textbf{PERMITTED}};
+\node[flow,draw=harborblue,fill=harborblue!8] (taint) at (5.0,5.55)
+  {taint $=1$\\ \footnotesize recorded on the ledger};
+\node[flow,draw=shipred,fill=shipred!8,text width=2.9cm] (egress) at (2.9,2.4)
+  {\texttt{net\_egress} ($\Sigma_c$)\\ \footnotesize controllable};
+\node[flow,draw=shipred,fill=shipred!18,text width=2.5cm] (block) at (7.6,2.4)
+  {\footnotesize\textbf{GATED}\\ while taint $=1$};
+
+\draw[relarrow,harborblue,line width=1.3pt] (read) -- (taint)
+  node[midway,right,font=\scriptsize\itshape,xshift=2pt,text=harborblue,align=left] {records taint\\(mechanism)};
+\draw[relarrow,shipred] (taint) -- (egress)
+  node[midway,left,font=\scriptsize\itshape,xshift=-2pt,text=shipred] {gates};
+\draw[relarrow,shipred] (egress) -- (block)
+  node[midway,below,font=\scriptsize\itshape,yshift=-2pt,text=shipred,align=center] {refused at\\the boundary};
+
+\node[align=center,font=\scriptsize\itshape,text width=6.2cm] at (5.0,0.4)
+  {the read is never refused --- only the controllable egress it taints is.};
+\end{tikzpicture}
+\end{minipage}
+\caption{The regime diagram. Above the
+divider, the regimentable regime (Ramadge--Wonham controllable): forbid fs\_write / net\_egress / exec\_tool / git\_push /
+spawn, and the compound ``no egress after secret read.'' Below, detect-only forever: forbid token emission / in-context read
+/ internal plan / confident falsehood. The divider carries the criterion
+$\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$ --- no uncontrollable event exits the specification.
+Classifications reproduce from the product-automaton checker [internal, \texttt{b3\_controllability.py}].}
+\label{fig:regime}
+\end{figure}

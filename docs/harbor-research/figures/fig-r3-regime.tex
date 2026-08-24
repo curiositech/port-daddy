@@ -1,0 +1,51 @@
+% R3 regime diagram: the two loss lines and their crossing, transcribed
+% exactly from create_regime_diagram() in figures/src/r3_figures.py.
+% C_miss=100, c_att=1, C_fa=5; a_threshold = 6/105 (the script's literal
+% hardcoded value, reproduced -- this is the value that also appears in
+% paper1.tex's own body text "inspect when a>=6/105~=0.057").
+%
+% CROSS-CHECK NOTE: the caption below (kept verbatim from paper1.tex) states
+% the closed form a* = (c_att+C_fa)/(c_att+C_fa+C_miss) = 6/106 = 0.05660.
+% Solving Theorem 3's own inequality C_miss*a >= c_att + C_fa*(1-a) directly
+% gives a* = (c_att+C_fa)/(C_miss+C_fa) = 6/105 = 0.05714 -- the value the
+% script actually plots and the value used elsewhere in the paper's body
+% text. The two formulas are NOT algebraically equivalent (the "equivalently"
+% step in Theorem 3's odds-ratio rearrangement drops a c_att term); they
+% happen to round to the same "~0.057" at 3 significant figures, which is
+% presumably why this has not been caught before. Flagged, not silently
+% corrected -- see the figure-conversion report. The plotted crossing here
+% uses the script's actual value (6/105), consistent with the rest of the
+% paper's internal numbers.
+% [verified: script r3_figures.py]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.72\textwidth,height=6.4cm,
+  xlabel={calibrated posterior $a(x)$},
+  ylabel={expected loss},
+  title={\textbf{R3} --- inspection pays exactly where the calibrated posterior crosses the cost ratio},
+  xmin=0,xmax=0.2,ymin=0,ymax=26,
+  legend pos=north west,
+]
+\addplot[draw=none,fill=harborblue,fill opacity=0.08] coordinates {
+  (0.05714,0) (0.2,0) (0.2,26) (0.05714,26)
+} \closedcycle;
+\addlegendentry{inspect region ($a>a^\star$)}
+\addplot[harborblue,thick,domain=0:0.2,samples=2] {100*x};
+\addlegendentry{loss if ignored: $100\cdot a$}
+\addplot[seagreen,thick,domain=0:0.2,samples=2] {1+5*(1-x)};
+\addlegendentry{loss if inspected: $1+5\cdot(1-a)$}
+\draw[shipred,dashed,thick] (axis cs:0.05714,0) -- (axis cs:0.05714,26);
+\addplot[only marks,mark=*,mark size=2.2pt,shipred,forget plot] coordinates {(0.05714,5.714)};
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.0cm,inner sep=3pt] at (axis cs:0.14,12)
+  {$a^\star = 0.057$\\inspect above here\\{[verified]}};
+\draw[->,shipred,thick] (axis cs:0.115,10) -- (axis cs:0.064,6.4);
+\node[align=left,font=\scriptsize,text=gray,fill=white,draw=gray,inner sep=3pt] at (axis cs:0.16,23)
+  {\itshape raising $C_{\mathrm{miss}}$\\LOWERS the bar ---\\the corrected\\SDT direction};
+\end{axis}
+\end{tikzpicture}
+\caption{Regime diagram for the surfacing rule: expected loss of pass versus inspect as a function of the calibrated posterior $a(x)$. Inspection pays exactly where the curves cross, $a^\star=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(c_{\mathrm{att}}+C_{\mathrm{fa}}+C_{\mathrm{miss}})$ --- at the shown costs, $a^\star\approx0.057$ [verified].}
+\label{fig:r3reg}
+\end{figure}

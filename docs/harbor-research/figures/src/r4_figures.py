@@ -124,7 +124,14 @@ styles_a = ['-', '--', '-.']
 for delta, c, ls in zip(deltas, colors_a, styles_a):
     f_lo = max(p - delta, delta) + 1e-6
     f_grid = np.linspace(f_lo, 0.4, 400)
-    R = np.array([rate_general(p, f, delta) for f in f_grid])
+    # The pinned closed form is only valid while f < 1-delta/p (both
+    # constraints bind); past that boundary an X-independent flagger
+    # already meets the miss budget and the true rate is exactly 0.
+    # Evaluating the formula past the boundary anyway produces a spurious
+    # uptick (paper1.tex's "geometric honesty note" -- see b1_figure.py's
+    # Panel B, which has the same fix). Clip instead of extrapolating.
+    f_bound = 1 - delta / p
+    R = np.array([rate_general(p, f, delta) if f <= f_bound else 0.0 for f in f_grid])
     axA.plot(f_grid, R, color=c, lw=2.2, ls=ls, label=fr'$\delta$={delta:.2f}')
 
 # Verified zero-miss entropy corner: R(0, f->p) = H(p)

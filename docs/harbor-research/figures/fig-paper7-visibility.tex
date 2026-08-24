@@ -1,0 +1,60 @@
+% Paper7 three-tier observability contract. Structural diagram (a labeled
+% gossip graph plus a text legend of what each tier proves) -- no numeric
+% axes -- so plain tikzpicture per CONVENTION.md, not pgfplots. Graph
+% topology (hexagon C6 + pendant node 6, edge tiers) and all row text match
+% paper7_figures.py's visibility_figure() verbatim; the numbers 200/200,
+% 1.5e-13/400 trials, 0/200 are [internal, sheaf_harness_v2.py] as cited
+% in the script and cross-checked against \S\ref{sec:harness}'s box.
+% [verified: script paper7_figures.py]
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.40\textwidth}
+\centering
+\begin{tikzpicture}[
+  gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=6mm,inner sep=0pt,font=\scriptsize\bfseries,text=white},
+  comparededge/.style={harborblue,thick},
+  relayededge/.style={seagreen,thick,dashed},
+  severededge/.style={gray,thick,dotted},
+]
+\node[gnode] (n0) at (1.0,0) {0};
+\node[gnode] (n1) at (0.5,0.866) {1};
+\node[gnode] (n2) at (-0.5,0.866) {2};
+\node[gnode] (n3) at (-1.0,0) {3};
+\node[gnode] (n4) at (-0.5,-0.866) {4};
+\node[gnode] (n5) at (0.5,-0.866) {5};
+\node[gnode] (n6) at (2.2,0) {6};
+\draw[relayededge] (n0) -- (n1);
+\draw[comparededge] (n1) -- (n2);
+\draw[comparededge] (n2) -- (n3);
+\draw[comparededge] (n3) -- (n4);
+\draw[comparededge] (n4) -- (n5);
+\draw[comparededge] (n5) -- (n0);
+\draw[severededge] (n1) -- (n3);
+\draw[relayededge] (n0) -- (n6);
+\node[seagreen,font=\tiny,align=center] at (1.35,1.15) {relayed,\\on a cycle};
+\node[gray,font=\tiny] at (-0.95,0.35) {severed};
+\node[seagreen,font=\tiny,align=center] at (1.75,0.42) {relayed,\\cut edge};
+\end{tikzpicture}
+\\[3pt]
+{\small\bfseries one gossip graph, three visibility tiers}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.56\textwidth}
+\centering
+{\small\bfseries what each tier lets the completion residual prove}\\[6pt]
+\begin{tabular}{@{}cp{0.78\linewidth}@{}}
+\tikz[baseline=-0.5ex]{\draw[harborblue,thick] (0,0) -- (0.6,0);} \textbf{\textcolor{harborblue}{compared}}
+  & analyst cross-checks both endpoint reports on the edge; disagreement observed directly (pairwise detection). \\[8pt]
+\tikz[baseline=-0.5ex]{\draw[seagreen,thick,dashed] (0,0) -- (0.6,0);} \textbf{\textcolor{seagreen}{relayed}}
+  & endpoints' reports reach the analyst by gossip; the edge itself is never checked. On a cycle: $r>0$, detectable ($200/200$). On a cut edge: $r=0$ by algebra, provably silent (max $1.5\times10^{-13}$). \\[8pt]
+\tikz[baseline=-0.5ex]{\draw[gray,thick,dotted] (0,0) -- (0.6,0);} \textbf{\textcolor{gray}{severed}}
+  & no report crosses; the block is a free variable of the completion; equivocation there is provably dark ($0/200$). \\
+\end{tabular}
+\end{minipage}
+\caption{The three-tier observability contract. Left: one gossip graph wearing all three tiers ---
+compared (solid), relayed (dashed), severed (dotted). Right: what each tier lets the completion residual prove. The
+relayed tier splits by topology: on a cycle, $r>0$ detects ($200/200$); on a cut edge, $r=0$ by algebra (max residual
+$1.5\times10^{-13}$ over 400 trials); severed blocks are free variables and provably dark ($0/200$)
+[internal, \texttt{sheaf\_harness\_v2.py}].}
+\label{fig:vis}
+\end{figure}

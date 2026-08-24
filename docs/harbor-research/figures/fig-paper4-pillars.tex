@@ -1,0 +1,68 @@
+% Paper 4: the four-pillar architecture, composed into one sealed pipeline.
+% Purely structural (boxes + arrows, no numeric axes) -- positions and labels
+% traced directly from the ax.text / Rectangle / FancyArrowPatch calls in
+% figures/src/paper4_pillars_architecture_figures.py. [internal, script
+% paper4_pillars_architecture_figures.py]
+\begin{figure}[htbp]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% ---- Title ----
+\node[align=center,text width=11.5cm,font=\bfseries] at (6.85,8.7) {The four pillars, composed into one sealed pipeline};
+\node[align=center,text width=11.5cm,font=\small,color=black!45] at (6.85,8.22) {Each pillar closes a gap the other three leave open --- drop any one and the account stops being auditable.};
+
+% ---- Top: dual-attested key release (single entry point) ----
+\node[regimebox,draw=black!70,fill=black!6,minimum width=4.2cm,minimum height=0.75cm,text width=4.0cm] (top) at (6.85,7.725) {%
+  {\small\bfseries Derek + Erin --- dual-attested key release}\\[2pt]
+  {\scriptsize\color{black!45} the room is sealed from three sides at once}%
+};
+
+\draw[-{Stealth[length=3mm]},shipred,line width=1.8pt] (6.85,7.35) -- (6.85,6.95);
+
+% ---- Sealed workroom boundary ----
+\draw[black!55,thick,dashed,rounded corners=2pt] (0.55,3.3) rectangle (13.15,6.9);
+\node[anchor=north west,font=\scriptsize,color=black!45] at (0.85,6.75) {sealed workroom --- semantic handles only, no ambient network};
+
+% ---- Four stage boxes ----
+\node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s1) at (2.35,5.05) {%
+  {\color{harborblue}\bfseries\footnotesize II --- Mediation}\\[4pt]
+  {\footnotesize gate only $\Sigma_c$: egress, write, exec, push, spawn}\\[8pt]
+  {\scriptsize\color{black!45} if absent: no boundary is enforceable at all}%
+};
+\node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s2) at (5.4,5.05) {%
+  {\color{harborblue}\bfseries\footnotesize I --- Declassification gate}\\[4pt]
+  {\footnotesize silence except through $g(s)$}\\[8pt]
+  {\scriptsize\color{black!45} if absent: a gated channel could still leak the raw secret}%
+};
+\node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s3) at (8.45,5.05) {%
+  {\color{harborblue}\bfseries\footnotesize III --- $\varepsilon$-ledger}\\[4pt]
+  {\footnotesize atomic append + spend, $\sigma$ conserved}\\[8pt]
+  {\scriptsize\color{black!45} if absent: honest releases could still blow the contracted total}%
+};
+\node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s4) at (11.5,5.05) {%
+  {\color{harborblue}\bfseries\footnotesize IV --- Canary + SPRT}\\[4pt]
+  {\footnotesize power $1-\beta^k$, alarm clock on evasion}\\[8pt]
+  {\scriptsize\color{black!45} if absent: leaks that dodge the ledger go unnoticed}%
+};
+
+% Sequential arrows between stages (the composition order the paper states)
+\draw[-{Stealth[length=2.5mm]},black!55,thick] (s1.east) -- (s2.west);
+\draw[-{Stealth[length=2.5mm]},black!55,thick] (s2.east) -- (s3.west);
+\draw[-{Stealth[length=2.5mm]},black!55,thick] (s3.east) -- (s4.west);
+
+% ---- Bottom: the composed, bounded outcome ----
+\draw[-{Stealth[length=3mm]},harborblue,line width=1.8pt] (6.85,3.3) -- (6.85,2.15);
+
+\node[regimebox,draw=seagreen,fill=seagreen!12,minimum width=11.85cm,minimum height=0.95cm,text width=11.6cm] at (6.925,1.675) {%
+  {\bfseries\small\color{seagreen} bounded leakage account: $q\cdot b$ bits across $q$ jobs --- priced, not eliminated}\\[3pt]
+  {\scriptsize\color{black!45} timing, cache, and physical channels sit outside this account, declared so (\S6)}%
+};
+
+\end{tikzpicture}%
+}
+\caption{The four pillars composed into the sealed pipeline, in the order the closing section states it: enforceability (II) says
+where the boundary can be, noninterference (I) says the boundary holds, conservation (III) meters what crosses it, detection (IV)
+polices evasion. Each box also names the gap left open if that pillar alone were dropped.}
+\label{fig:pillars}
+\end{figure}

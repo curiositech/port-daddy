@@ -85,15 +85,7 @@ norm \emph{system}, never the norms --- a bad policy consistently held is consis
 just produces alarms. The theorems do not abolish authority; they \emph{relocate} it, from noticing to choosing, and then hand the
 remaining authority its bill.
 
-\begin{figure}[t]\centering \includegraphics[width=0.96\textwidth]{paper6_relation.png}
-\caption{The relation map. Base domain: a working port --- collision-course detection is geometry, give-way beyond the rulebook is
-harbor traffic control's chartered call, and the sole licensed pilot is paid a premium against a pool of tug crews, with a second
-license mandated. Target domain: the agent harbor --- in-fragment conflict scanning is Horn propagation + sweep-line +
-Bellman--Ford with a polynomial witness; disjunctive obligations make conflict-freedom NP-complete, so a chartered resolver
-chooses the discharge; and a sole role owner is justified iff the skill premium clears $g_A(\rho,c)$, with no-succession viability
-capped at $D^\star$. The correspondence arrows carry the theorem content: refusable-by-rule vs decided-by-charter vs
-paid-for-by-premium.}
-\label{fig:relation}\end{figure}
+\input{fig-paper6-relation.tex}
 
 \section{Part I. The lookout is a subroutine: the fragment $\mathcal{L}_c$}\label{sec:lang}
 Cheap detection is a \emph{language-design} choice, not a discovery about deontic logic in general. The commitment language
@@ -221,15 +213,7 @@ The cross-validation stack behind the closed forms: Erlang-C means against discr
 grid; the 60-instance random sweep over $(\lambda,\mu_s,\mu_g,c,A,w,\xi,\eta)$ gave 55 decisive instances and \textbf{0} sign
 violations of the boundary [internal, \texttt{b8\_specialization.py}].
 
-\begin{figure}[t]\centering \includegraphics[width=0.98\textwidth]{paper6_regime.png}
-\caption{The regime diagram. Panel A: the exact boundary $g(\rho,2)=1+2\rho-\rho^2$ (solid) against the falsified proposal
-$\tilde g$ (dashed); the shaded lenses are the two error regimes --- false-certify below the crossing at $\rho=(3-\sqrt5)/2$,
-false-reject above it --- with the two refuting instances marked ($r{=}1.15$ at $\rho{=}0.1$; $r{=}1.9$ at $\rho{=}0.5$). Panel B:
-the succession price at the reference instance ($\eta{=}0.25$, $K{=}1.036$): the downtime floor $W_\infty=\xi/(\eta(\xi+\eta))$
-crosses the pool cost line at $D^\star=0.350$; to its right pooling wins at every skill premium --- the marked point is a
-$\mu_s=10^8$ specialist still losing at $\xi/\eta=1.5D^\star$ ($W=1.376>K$). Both panels regenerate from
-\texttt{b8\_specialization.py} [internal, seed 20260816].}
-\label{fig:regime}\end{figure}
+\input{fig-paper6-regime.tex}
 
 \section{The succession price: what one mortal body costs}\label{sec:succession}
 The boundary above assumes the specialist never disappears. Sole owners disappear: sessions die, containers are reaped,

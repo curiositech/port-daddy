@@ -69,19 +69,9 @@ Wrong-turn v1 spurious violations & $8/14$ & [internal, \texttt{wrong-turns/}] \
 \end{tabular}
 \end{center}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.82\textwidth]{r1_relation.png}
-\caption{The relation-map for Theorem 1. A digest is a $B$-bit message selecting one of the decoder's covering $m$-subsets (base domain: a shared codebook); each covering accounts for $\binom{m}{k}$ of $\binom{N}{k}$ placements, which is the whole proof. The map is of \emph{relations}, not surface features: from it the reader can re-derive the floor without the text.}
-\label{fig:r1rel}
-\end{figure}
+\input{fig-r1-relation.tex}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.8\textwidth]{r1_regime.png}
-\caption{Regime diagram for the floor: required digest bits $B^\star$ against the open-budget fraction $m/N$ (here $N{=}60$, $k{=}2$; the marked point is the experiment's $m{=}8$, $B^\star{=}5.98$ bits [verified]). The floor is steep where budgets are tight and vanishes only when the overseer opens everything --- the price of the guarantee, not of usefulness.}
-\label{fig:r1reg}
-\end{figure}
+\input{fig-r1-regime.tex}
 
 \section{One summary cannot serve two readers}\label{sec:split}
 Every compaction in an agent system is read twice: by the \emph{successor} --- the next agent instance, which wants what is worth continuing (fit-shaped, forgone continuation value) --- and by the \emph{operator}, who wants what is dangerous to ignore (risk-shaped, regret-if-ignored). Standard practice stores one summary for both.
@@ -103,12 +93,7 @@ because $\log_2\binom{N}{2k}$ grows faster than $2\log_2\binom{N}{k}$. At $N{=}6
 
 \textbf{What it buys.} Two compaction heads --- one per reader class, compacted from durable artifacts --- are a necessity of the loss structure, not an architectural taste. The misread to preempt: comonotone readers \emph{can} share a head; the theorem forbids sharing only when the crossing pair actually occurs in the domain, and in agent oversight it does.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.8\textwidth]{r2_regime.png}
-\caption{Regime diagram for the split penalty: joint zero-miss floor against the number of items caught. The joint ($2k$) floor sits above \emph{twice} the single-reader floor --- super-additivity $1.05$--$1.08$ across the swept regimes [verified] --- so budgeting ``two summaries'' by doubling one summary's budget still under-provisions.}
-\label{fig:r2reg}
-\end{figure}
+\input{fig-r2-regime.tex}
 
 \section{The regret head is derived, not designed}\label{sec:regret}
 Which flagged items should actually interrupt a human? Fleet dashboards rank by $\mathrm{stakes}\times\mathrm{irreversibility}\times\mathrm{anomaly}$ --- three tuned knobs. We show the product form is a theorem under one commitment, which converts ``anomaly'' from a vibe into a measured obligation.
@@ -131,12 +116,7 @@ the classical likelihood-ratio criterion. The product form $\mathrm{stakes}\time
 If agent reputation $r$ is admitted, it enters as $a(x)=\Pr(\mathsf{bad}\mid\text{evidence},r)$ --- never as a free multiplier on the score. High reputation lowers surfacing frequency only where the calibrated posterior actually falls, and cannot zero a term: with $\mathrm{irrev}(x)=1$ and catastrophic stakes, $C_{\mathrm{miss}}(x)a(x)$ stays above threshold for any $a(x)$ bounded away from zero. This is the formal content of ``reputation must not defeat hard stakes gates.''
 \end{claim}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.8\textwidth]{r3_regime.png}
-\caption{Regime diagram for the surfacing rule: expected loss of pass versus inspect as a function of the calibrated posterior $a(x)$. Inspection pays exactly where the curves cross, $a^\star=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(c_{\mathrm{att}}+C_{\mathrm{fa}}+C_{\mathrm{miss}})$ --- at the shown costs, $a^\star\approx0.057$ [verified].}
-\label{fig:r3reg}
-\end{figure}
+\input{fig-r3-regime.tex}
 
 \section{The digest--zoom frontier, and the zoom theorem}\label{sec:frontier}
 Theorem 1 prices one corner: zero misses at a fixed open budget. The operator's real dial has three settings --- digest bits, expected opens, tolerated misses --- and the exchange rates among them are this section's subject. Its second half proves the theorem that was, until now, the program's one missing piece.
@@ -164,12 +144,7 @@ feasible iff all four are nonnegative, and $R(\delta,f)=I(X;\hat X)$ evaluated a
 
 \textbf{Numbers} ($p=0.05$): $R(0,0.05)=H(0.05)=0.286$ bits/symbol [verified, Cover--Thomas \cite{coverthomas}]; $R(0,0.10)=0.186$; $R(0.01,0.10)=0.110$; $R(0.04,0.06)=0.009$ [internal, \texttt{b1\_frontier.py}]. Reading: loosening the open budget cheapens the digest; tolerating misses cheapens it dramatically --- two orders of magnitude between the guarantee corner and $(\delta,f)=(0.04,0.06)$ (Figure~\ref{fig:rdffrontier} shows the whole surface these four numbers sit on). Consistency with Theorem 1: at $N{=}1000$, $R\cdot N\approx 186$ bits at $(0,2p)$, below the worst-case covering floor $\log_2\binom{1000}{50}\approx 282$ bits --- average-case rate under the worst-case floor, as it must be. One geometric honesty note, corrected here: the pinned closed form holds only while $f<1-\delta/p$, the Proposition's stated regime where both constraints bind; past that line an $X$-independent flagger already meets the miss budget on its own and the true rate is exactly $0$, not rising. An earlier plot that evaluated the pinned formula past this line showed a spurious uptick near $\delta/p\to1$ --- a domain-of-validity error, not a feature of the true frontier, and we flag it with the same audit-the-meter discipline as \S\ref{sec:floor}'s wrong turn.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.82\textwidth]{paper1_rdf_frontier.png}
-\caption{The two-constraint frontier $R(\delta,f)$ over the whole $(f,\delta)$ plane near the guarantee corner, from the Proposition's closed form (same formula as \texttt{b1\_frontier.py}). The four numbers of the ``Numbers'' paragraph are marked directly on the surface, including the zero-miss corner that ties this section back to Theorem 1. The dashed line is the Proposition's own boundary $f=1-\delta/p$: below it both constraints bind and the pinned joint applies; above it an $X$-independent flagger already meets the miss budget and $R=0$ exactly, not rising --- the region the corrected geometric-honesty note above refers to. The small hatched wedge is simply infeasible ($f<p-\delta$: not enough flag budget to cover the source rate at all).}
-\label{fig:rdffrontier}
-\end{figure}
+\input{fig-paper1-rdf-frontier.tex}
 
 \subsection{The zoom-advantage theorem}\label{sec:zoom}
 A conservative digest over-flags to be safe: it emits a flagged set of size $F$ containing the $k$ true criticals with $k\ll F$. The naive second stage opens all $F$. The adaptive second stage plays twenty questions with group queries (Figure~\ref{fig:r4rel}): open a \emph{group} of flagged items at once --- an aggregate check cheap at group level, such as a combined diff scan or batched test run --- learn whether the group contains any critical, and split only the groups that do. The analogy transfers because its load-bearing relation transfers: halving a set costs one question and eliminates half the candidates \emph{only when positives are rare in the set}. The misread to preempt: twenty questions finds \emph{one} answer in $\log_2 F$ queries; with $k$ answers the tree forks, and the accounting below is precisely the price of the forking.
@@ -216,19 +191,9 @@ Flat inspection opens $F$; adaptive halving opens at most $2k\lceil\log_2(F/k)\r
 
 \textbf{The dense-flag boundary, stated.} The advantage is not universal. When the flagged set is already dense in positives ($k/F$ large --- e.g.\ a tight flag budget $f\approx1.5p$, most flags real), group overhead dominates and adaptive halving can open \emph{more} than $F$: at $F{=}100,k{=}90$ the run costs $199$ opens against $100$ flat [internal]. The regime where zoom pays is exactly the sparse-flagged corner (Figure~\ref{fig:r4reg}) --- which is the corner a miss-averse, over-flagging digest inhabits, so the theorem supports the safety-relevant operating point and honestly does not support the other.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.82\textwidth]{r4_relation.png}
-\caption{The relation-map for zoom: twenty questions (base) against group-split inspection of the flagged set (target). The correspondence that does the work is ``one question halves the candidate set \emph{when answers are rare}''; the misread it invites --- that $\log_2 F$ questions suffice --- is exactly what Theorem 4's $2k\lceil\log_2(F/k)\rceil+4k$ accounting corrects for $k>1$.}
-\label{fig:r4rel}
-\end{figure}
+\input{fig-r4-relation.tex}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.8\textwidth]{r4_regime.png}
-\caption{Regime diagram for the zoom advantage: the idealized open-count advantage $F/(k\log_2(F/k))$ against flagged-set density $k/F$, over the sparse-to-moderate range this digest architecture targets. The advantage is steep where flags are sparse ($k\ll F$) and falls toward parity as density grows; the plotted idealization never crosses parity, but the deployed algorithm's constant overhead does invert the ordering at higher density still, exactly as measured at $(F,k)=(100,90)$ in \S\ref{sec:zoom} ($199$ adaptive opens against $100$ flat) --- both halves of the claim are load-bearing.}
-\label{fig:r4reg}
-\end{figure}
+\input{fig-r4-regime.tex}
 
 \section{Related work}\label{sec:related}
 \textbf{Group testing.} Dorfman \cite{dorfman}, Hwang's generalized binary splitting \cite{hwang}, and the Du--Hwang monograph \cite{duhwang} supply the second stage's mathematical substrate; \S\ref{sec:zoom} states precisely what is imported (the algorithmic idea and the counting lower bound) and what is contributed (the constant-explicit worst-case bound for plain halving, its tightness, and its role as the frontier's second-stage cost).

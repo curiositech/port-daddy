@@ -1,0 +1,86 @@
+% R6 regime diagram: three small graph topologies (cycle relayed, path
+% bridge/cut, cycle severed), each annotated with its residual outcome.
+% Structural diagram (node/edge topology + text annotation, no numeric
+% axes) so plain tikzpicture per CONVENTION.md, not pgfplots. Topology,
+% edge styling (solid/dashed black, dotted grey) and all three annotation
+% strings match r6_figures.py's create_regime_diagram() verbatim; the
+% residual values 1.225/0.000 are the C6/P6 minimal pair verified in
+% \S\ref{sec:mechanism} against sheaf_mechanism_proof.py, and the trial
+% counts 200/200, 0/200 are [internal, sheaf_harness_v2.py] as cited there.
+% [verified: script r6_figures.py]
+\begin{figure}[htbp]
+\centering
+{\small\bfseries R6 regime --- detection requires a cycle AND relayed reports; cut edges silent, severed edges dark [internal, \texttt{sheaf\_harness\_v2.py}]}\\[6pt]
+\begin{minipage}{0.32\textwidth}
+\centering
+{\small\bfseries (a) cycle $C_6$ relayed}\\[2pt]
+\begin{tikzpicture}[
+  gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
+]
+\node[gnode] (n0) at (1.0,0) {0};
+\node[gnode] (n1) at (0.5,0.866) {1};
+\node[gnode] (n2) at (-0.5,0.866) {2};
+\node[gnode] (n3) at (-1.0,0) {3};
+\node[gnode] (n4) at (-0.5,-0.866) {4};
+\node[gnode] (n5) at (0.5,-0.866) {5};
+\draw[black,thick,dashed] (n0) -- (n1);
+\draw[black,thick] (n1) -- (n2);
+\draw[black,thick] (n2) -- (n3);
+\draw[black,thick] (n3) -- (n4);
+\draw[black,thick] (n4) -- (n5);
+\draw[black,thick] (n5) -- (n0);
+\end{tikzpicture}
+\\[4pt]
+{\color{seagreen}\bfseries\footnotesize residual 1.225\\ detected (200/200\\ cohomology-only)}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+{\small\bfseries (b) path $P_6$ bridge}\\[2pt]
+\begin{tikzpicture}[
+  gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
+]
+\node[gnode] (n0) at (-1.0,0) {0};
+\node[gnode] (n1) at (-0.6,0) {1};
+\node[gnode] (n2) at (-0.2,0) {2};
+\node[gnode] (n3) at (0.2,0) {3};
+\node[gnode] (n4) at (0.6,0) {4};
+\node[gnode] (n5) at (1.0,0) {5};
+\draw[black,thick] (n0) -- (n1);
+\draw[black,thick] (n1) -- (n2);
+\draw[black,thick] (n2) -- (n3);
+\draw[black,thick] (n3) -- (n4);
+\draw[black,thick,dashed] (n4) -- (n5);
+\end{tikzpicture}
+\\[4pt]
+{\color{shipred}\bfseries\footnotesize cut edge:\\ residual 0.000\\ provably silent}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+{\small\bfseries (c) cycle $C_6$ severed}\\[2pt]
+\begin{tikzpicture}[
+  gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
+]
+\node[gnode] (n0) at (1.0,0) {0};
+\node[gnode] (n1) at (0.5,0.866) {1};
+\node[gnode] (n2) at (-0.5,0.866) {2};
+\node[gnode] (n3) at (-1.0,0) {3};
+\node[gnode] (n4) at (-0.5,-0.866) {4};
+\node[gnode] (n5) at (0.5,-0.866) {5};
+\draw[gray,thick,dotted] (n0) -- (n1);
+\draw[black,thick] (n1) -- (n2);
+\draw[black,thick] (n2) -- (n3);
+\draw[black,thick] (n3) -- (n4);
+\draw[black,thick] (n4) -- (n5);
+\draw[black,thick] (n5) -- (n0);
+\end{tikzpicture}
+\\[4pt]
+{\color{gray}\bfseries\footnotesize severed:\\ provably dark\\ (0/200)}
+\end{minipage}
+\caption{Regime diagram for the mechanism: (a) relayed cycle edge --- residual $1.225$, detected
+($200/200$ cohomology-only); (b) cut edge --- residual $0.000$, provably silent; (c) severed cycle edge --- provably dark
+($0/200$). Detection requires the cycle \emph{and} the relayed reports; each panel is one clause of the observability
+contract [internal, \texttt{sheaf\_harness\_v2.py}].}
+\label{fig:r6reg}
+\end{figure}

@@ -1,0 +1,81 @@
+% R2 regime diagram: super-additivity of the split-digest floor, recomputed
+% directly from Floor(N,k,m) = log2 C(N,k) - log2 C(m,k) in
+% create_regime_diagram() of figures/src/r2_figures.py.
+% Panel (a): N=60,m=8, naive 2x-Floor(k) vs true joint Floor(2k), k=1..4.
+% Panel (b): the ratio Floor(2k)/(2 Floor(k)) vs k, for m=8 (k=1..4) and
+% m=20 (k=1..10).
+% CROSS-CHECK NOTE: the caption below (kept verbatim from paper1.tex) states
+% "super-additivity 1.05--1.08 across the swept regimes" -- the script's own
+% swept data does NOT support that range: panel (a)/(b)'s m=8 curve alone
+% already reaches 1.122 at k=3 and 1.224 at k=4, and the m=20 curve reaches
+% 1.392 at k=10. Only the single k=2 point sits at 1.067, inside the stated
+% band. Flagged, not silently corrected -- see the figure-conversion report.
+% [verified: script r2_figures.py]
+\begin{figure}[t]
+\centering
+\textbf{\color{harborblue}R2 regime --- split floors are super-additive (12.77 vs 5.98 bits at $k{=}2$, not $2\times$)}\par\vspace{4pt}
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={items scored per reader ($k$)},
+  ylabel={joint zero-miss floor (bits)},
+  title={(a) $N{=}60$, $m{=}8$: joint floor beats naive doubling},
+  xmin=0.7,xmax=4.3,ymin=0,ymax=39.07,
+  xtick={1,2,3,4},
+  legend pos=north west,
+]
+\addplot[seagreen,dashed,mark=o,mark size=1.8pt,thick] coordinates {
+  (1,5.8138) (2,11.9644) (3,18.5104) (4,25.5323)
+};
+\addlegendentry{two independent heads (naive $2\times$)}
+\addplot[harborblue,mark=square*,mark size=1.8pt,thick] coordinates {
+  (1,5.9822) (2,12.7662) (3,20.7699) (4,31.2527)
+};
+\addlegendentry{true joint floor (disjoint readers)}
+\addplot[draw=none,fill=shipred,fill opacity=0.10] coordinates {
+  (1,5.8138) (2,11.9644) (3,18.5104) (4,25.5323)
+  (4,31.2527) (3,20.7699) (2,12.7662) (1,5.9822)
+} \closedcycle;
+\addlegendentry{super-additivity penalty}
+\addplot[only marks,mark=*,mark size=2.4pt,shipred,forget plot] coordinates {(2,12.7662)};
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.0cm,inner sep=3pt] at (axis cs:3.1,31)
+  {$k{=}2$: $12.77$ vs $11.96$\\ratio $1.067$ [verified]};
+\draw[->,shipred,thick] (axis cs:2.7,29) -- (axis cs:2.05,13.4);
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={items scored per reader ($k$)},
+  ylabel={Floor($2k$) / ($2\cdot$Floor($k$))},
+  title={(b) the penalty grows with $k$ across regimes},
+  xmin=0.5,xmax=10.5,ymin=0.98,ymax=1.45,
+  legend pos=north west,
+]
+\addplot[gray,dotted,thick,mark=none] coordinates {(0.5,1.0) (10.5,1.0)};
+\addlegendentry{naive $2\times$ baseline (ratio $=1$)}
+\addplot[harborblue,mark=square*,mark size=1.8pt,thick] coordinates {
+  (1,1.0290) (2,1.0670) (3,1.1221) (4,1.2240)
+};
+\addlegendentry{$m=8$ (matches panel a)}
+\addplot[seagreen,dashed,mark=o,mark size=1.8pt,thick] coordinates {
+  (1,1.0157) (2,1.0332) (3,1.0529) (4,1.0754) (5,1.1015)
+  (6,1.1323) (7,1.1698) (8,1.2175) (9,1.2830) (10,1.3922)
+};
+\addlegendentry{$m=20$ (wider regime)}
+\addplot[only marks,mark=*,mark size=2.4pt,shipred,forget plot] coordinates {(2,1.0670)};
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.4cm,inner sep=3pt] at (axis cs:7.6,1.06)
+  {$k{=}2,m{=}8$: ratio $1.067$\\{[verified, matches (a)]}};
+\draw[->,shipred,thick] (axis cs:6.2,1.06) -- (axis cs:2.1,1.068);
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{Regime diagram for the split penalty: joint zero-miss floor against the number of items caught. The joint ($2k$) floor sits above \emph{twice} the single-reader floor --- super-additivity $1.05$--$1.08$ across the swept regimes [verified] --- so budgeting ``two summaries'' by doubling one summary's budget still under-provisions.}
+\label{fig:r2reg}
+\end{figure}

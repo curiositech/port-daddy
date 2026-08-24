@@ -1,0 +1,49 @@
+% Paper 6 relation-map: structural diagram (no numeric axes), transcribed
+% from create_relation_map() in figures/src/paper6_figures.py -- same
+% base/target domain layout, same three rows, same coordinates (scaled by
+% a fixed unit length, matching the house convention already used for
+% fig-r1-relation.tex etc.). [internal, script paper6_figures.py]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.78cm,y=0.78cm]
+\node[align=center,font=\normalsize\bfseries,text=harborblue] at (6,10.3)
+  {Paper 6 --- the authority inventory: where the algorithm ends, the charter begins};
+
+% Base domain (left): a working port
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,9.4);
+\node[align=center,font=\small\bfseries] at (2.0,9.05) {Base: a working port};
+
+% Target domain (right): the harbor daemon
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,9.4);
+\node[align=center,font=\small\bfseries] at (10.0,9.05) {Target: the agent harbor};
+
+% Row 1
+\node[align=center,font=\scriptsize] at (2.0,7.31) {Collision course:\\constant bearing,\\decreasing range ---\\geometry any watch\\officer computes};
+\node[align=center,font=\scriptsize] at (10.0,7.31) {In-fragment conflict scan:\\Horn propagation +\\sweep-line + Bellman--Ford,\\polynomial witness\\(no judgment consumed)};
+\draw[<->,>=Stealth,thick,shipred] (3.9,7.25) -- (8.1,7.25);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,7.83) {mechanical DETECTION\\no authority needed};
+
+% Row 2
+\node[align=center,font=\scriptsize] at (2.0,4.72) {Give-way beyond the\\rulebook: harbor\\traffic control decides\\who yields};
+\node[align=center,font=\scriptsize] at (10.0,4.72) {Disjunctive obligations:\\conflict-freedom NP-complete ---\\a chartered resolver\\must choose the discharge};
+\draw[<->,>=Stealth,thick,shipred] (3.9,4.45) -- (8.1,4.45);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,5.03) {where the rulebook ends\\chartered RESOLUTION begins};
+
+% Row 3
+\node[align=center,font=\scriptsize] at (2.0,2.02) {One licensed pilot\\vs a pool of tug crews;\\ports license a\\second pilot};
+\node[align=center,font=\scriptsize] at (10.0,2.02) {Sole role owner iff\\skill premium clears $g(\rho,c)$;\\no succession plan:\\viable only below $D^\star$};
+\draw[<->,>=Stealth,thick,shipred] (3.9,1.75) -- (8.1,1.75);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,2.33) {sole OWNERSHIP is priced,\\not presumed};
+
+\node[align=center,font=\scriptsize,text width=10cm] at (6.0,0.25)
+  {\itshape The map carries relations, not scenery: refusable-by-rule vs decided-by-charter vs paid-for-by-premium.};
+\end{tikzpicture}
+\caption{The relation map. Base domain: a working port --- collision-course detection is geometry, give-way beyond the rulebook is
+harbor traffic control's chartered call, and the sole licensed pilot is paid a premium against a pool of tug crews, with a second
+license mandated. Target domain: the agent harbor --- in-fragment conflict scanning is Horn propagation + sweep-line +
+Bellman--Ford with a polynomial witness; disjunctive obligations make conflict-freedom NP-complete, so a chartered resolver
+chooses the discharge; and a sole role owner is justified iff the skill premium clears $g_A(\rho,c)$, with no-succession viability
+capped at $D^\star$. The correspondence arrows carry the theorem content: refusable-by-rule vs decided-by-charter vs
+paid-for-by-premium.}
+\label{fig:relation}
+\end{figure}

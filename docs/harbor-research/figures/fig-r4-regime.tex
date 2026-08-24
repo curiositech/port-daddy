@@ -1,0 +1,101 @@
+% R4 regime diagram: two panels, transcribed from figures/src/r4_figures.py
+% (the second figure block: axA/axB). Panel A: R(delta,f) curves at
+% delta in {0, 0.01, 0.04}, from the same rate_general closed form used
+% throughout paper1 (recomputed here, 30 points/curve). Panel B: the
+% idealized zoom advantage F/(k log2(F/k)) as a function of flagged-set
+% density k/F -- an exact closed form of density alone since
+% F/(k log2(F/k)) = 1/(density*log2(1/density)) for any F, recomputed
+% directly (no dependence on F=2500 beyond the measured point).
+%
+% BUG FOUND AND CORRECTED (not silently): the script's Panel A calls the raw
+% pinned formula `rate_general` across the WHOLE plotted f range for every
+% delta, without switching to true_rate's R=0 correction past the
+% Proposition's own boundary f=1-delta/p. For delta=0.04 that boundary is
+% f*=0.2, well inside the plotted range [0.04,0.4] -- so the script's raw
+% curve dips to 0 near f=0.19-0.21 and then rises again to 0.0069 by f=0.4,
+% i.e. it reproduces EXACTLY the "spurious uptick past the domain of
+% validity" bug that paper1.tex's own text (Sec. sec:rdf, and this figure's
+% neighbor fig:rdffrontier) says was already caught and fixed. It was not
+% fixed here. Per the house falsification-first rule this is corrected in
+% the curve below (delta=0.04 is clipped to R=0 for f>=0.2, matching
+% true_rate/paper1_rdf_frontier_figures.py's already-correct logic) rather
+% than reproduced; the .py script itself is left untouched, and this is
+% flagged prominently in the figure-conversion report.
+% [verified: script r4_figures.py, correction applied per CONVENTION.md]
+\begin{figure}[t]
+\centering
+\textbf{\color{harborblue}R4 regime --- the two-constraint dial and the boundary where zooming stops paying}\par\vspace{4pt}
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={flag rate $f$},
+  ylabel={rate $R(\delta,f)$ (bits/sym)},
+  title={Panel A --- the two-constraint rate surface\\(Bernoulli $p{=}0.05$)},
+  xmin=0,xmax=0.4,ymin=0,ymax=0.34,
+  legend pos=north east,
+  legend style={title={\scriptsize miss tolerance}},
+]
+\addplot[harborblue,thick] coordinates {
+(0.0500,0.2864) (0.0621,0.2423) (0.0741,0.2189) (0.0862,0.2018) (0.0983,0.1881) (0.1103,0.1768) (0.1224,0.1670) (0.1345,0.1584) (0.1466,0.1507) (0.1586,0.1438) (0.1707,0.1375) (0.1828,0.1317) (0.1948,0.1263) (0.2069,0.1213) (0.2190,0.1167) (0.2310,0.1123) (0.2431,0.1082) (0.2552,0.1043) (0.2672,0.1006) (0.2793,0.0970) (0.2914,0.0937) (0.3034,0.0905) (0.3155,0.0874) (0.3276,0.0845) (0.3397,0.0816) (0.3517,0.0789) (0.3638,0.0763) (0.3759,0.0738) (0.3879,0.0713) (0.4000,0.0690)
+};
+\addlegendentry{$\delta=0.00$}
+\addplot[seagreen,dashed,thick] coordinates {
+(0.0400,0.2062) (0.0524,0.1650) (0.0648,0.1443) (0.0772,0.1296) (0.0897,0.1181) (0.1021,0.1086) (0.1145,0.1005) (0.1269,0.0935) (0.1393,0.0873) (0.1517,0.0817) (0.1641,0.0767) (0.1766,0.0721) (0.1890,0.0679) (0.2014,0.0640) (0.2138,0.0604) (0.2262,0.0571) (0.2386,0.0539) (0.2510,0.0510) (0.2634,0.0482) (0.2759,0.0455) (0.2883,0.0431) (0.3007,0.0407) (0.3131,0.0385) (0.3255,0.0363) (0.3379,0.0343) (0.3503,0.0324) (0.3628,0.0305) (0.3752,0.0287) (0.3876,0.0270) (0.4000,0.0254)
+};
+\addlegendentry{$\delta=0.01$}
+\addplot[shipred,dashdotted,thick] coordinates {
+(0.0400,0.0141) (0.0524,0.0104) (0.0648,0.0078) (0.0772,0.0059) (0.0897,0.0044) (0.1021,0.0032) (0.1145,0.0023) (0.1269,0.0016) (0.1393,0.0011) (0.1517,0.0006) (0.1641,0.0003) (0.1766,0.0001) (0.1890,0.0000) (0.2014,0.0000) (0.2138,0.0000) (0.2262,0.0000) (0.2386,0.0000) (0.2510,0.0000) (0.2634,0.0000) (0.2759,0.0000) (0.2883,0.0000) (0.3007,0.0000) (0.3131,0.0000) (0.3255,0.0000) (0.3379,0.0000) (0.3503,0.0000) (0.3628,0.0000) (0.3752,0.0000) (0.3876,0.0000) (0.4000,0.0000)
+};
+\addlegendentry{$\delta=0.04$}
+\addplot[only marks,mark=diamond*,mark size=2.6pt,harborblue,mark options={draw=black,line width=0.5pt},forget plot] coordinates {(0.05,0.2864)};
+\node[regimebox,fill=harborblue!8,draw=harborblue,font=\scriptsize,text width=3.3cm,inner sep=3pt] at (axis cs:0.235,0.30)
+  {$R(0,f{\to}p)=H(p)=0.286$\\{[verified, Cover--Thomas]}};
+\draw[->,harborblue,thick] (axis cs:0.2,0.28) -- (axis cs:0.058,0.28);
+\addplot[only marks,mark=*,mark size=2pt,harborblue,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.10,0.1864)};
+\node[font=\scriptsize,harborblue] at (axis cs:0.24,0.235) {$R(0.00,0.10)=0.186$ [internal]};
+\draw[->,harborblue] (axis cs:0.20,0.232) -- (axis cs:0.107,0.192);
+\addplot[only marks,mark=*,mark size=2pt,seagreen,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.10,0.1100)};
+\node[font=\scriptsize,seagreen] at (axis cs:0.27,0.15) {$R(0.01,0.10)=0.110$ [internal]};
+\draw[->,seagreen] (axis cs:0.23,0.148) -- (axis cs:0.108,0.116);
+\addplot[only marks,mark=*,mark size=2pt,shipred,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.06,0.009)};
+\node[font=\scriptsize,shipred] at (axis cs:0.19,0.055) {$R(0.04,0.06)=0.009$ [internal]};
+\draw[->,shipred] (axis cs:0.15,0.052) -- (axis cs:0.065,0.014);
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xmode=log,ymode=log,
+  xlabel={flagged-set density ($k/F$)},
+  ylabel={open-count advantage $F/(k\log_2(F/k))$},
+  title={Panel B --- the sparse-flagged boundary\\($F{=}2500$)},
+  xmin=0.0008,xmax=0.8,ymin=0.8,ymax=100,
+  legend pos=north east,
+]
+\addplot[draw=none,fill=harborblue,fill opacity=0.10] coordinates {
+(0.001000,100.3433) (0.001314,79.5156) (0.001726,63.1178) (0.002268,50.1940) (0.002980,39.9968) (0.003915,31.9415) (0.005144,25.5706) (0.006758,20.5255) (0.008879,16.5251) (0.011666,13.3489) (0.015327,10.8239) (0.020137,8.8142) (0.026458,7.2128) (0.034761,5.9359) (0.045671,4.9175) (0.060005,4.1060) (0.078837,3.4610) (0.103580,2.9513) (0.136089,2.5538) (0.178801,2.2519) (0.234917,2.0370) (0.308646,1.9104) (0.405515,1.8938) (0.532785,2.0663) (0.700000,2.7762)
+(0.700000,1) (0.001000,1)
+} \closedcycle;
+\addlegendentry{sparse regime --- zoom wins}
+\addplot[harborblue,thick,no marks] coordinates {
+(0.001000,100.3433) (0.001314,79.5156) (0.001726,63.1178) (0.002268,50.1940) (0.002980,39.9968) (0.003915,31.9415) (0.005144,25.5706) (0.006758,20.5255) (0.008879,16.5251) (0.011666,13.3489) (0.015327,10.8239) (0.020137,8.8142) (0.026458,7.2128) (0.034761,5.9359) (0.045671,4.9175) (0.060005,4.1060) (0.078837,3.4610) (0.103580,2.9513) (0.136089,2.5538) (0.178801,2.2519) (0.234917,2.0370) (0.308646,1.9104) (0.405515,1.8938) (0.532785,2.0663) (0.700000,2.7762)
+};
+\addlegendentry{zoom advantage}
+\addplot[seagreen,dashed,thick,no marks] coordinates {(0.0008,1) (0.8,1)};
+\addlegendentry{zoom stops paying}
+\addplot[only marks,mark=*,mark size=2.6pt,shipred,mark options={draw=red!30!black,line width=0.6pt},forget plot] coordinates {(0.004,15.3)};
+\node[regimebox,fill=shipred!8,draw=shipred,font=\scriptsize,text width=3.4cm,inner sep=3pt] at (axis cs:0.012,45)
+  {measured $15.3\times$\\(ideal $\approx31\times$, $\approx2\times$ overhead)\\{[\texttt{b1\_frontier.py}]}};
+\draw[->,shipred,thick] (axis cs:0.012,26) -- (axis cs:0.0055,16.2);
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{Regime diagram for the zoom advantage: the idealized open-count advantage $F/(k\log_2(F/k))$ against flagged-set density $k/F$, over the sparse-to-moderate range this digest architecture targets. The advantage is steep where flags are sparse ($k\ll F$) and falls toward parity as density grows; the plotted idealization never crosses parity, but the deployed algorithm's constant overhead does invert the ordering at higher density still, exactly as measured at $(F,k)=(100,90)$ in \S\ref{sec:zoom} ($199$ adaptive opens against $100$ flat) --- both halves of the claim are load-bearing.}
+\label{fig:r4reg}
+\end{figure}

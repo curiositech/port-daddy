@@ -1,0 +1,67 @@
+% R7 relation map: Base (single audited inspector, the stage game of
+% Theorem~\ref{thm:stage}) vs. Target (the sealed-sampling inspection
+% tower of Theorem~\ref{thm:tower}). Structural diagram -- no numeric
+% axes. Box positions, row text, and connective labels transcribed
+% directly from the script's own layout calls (Rectangle geometry,
+% ax.text rows, FancyArrowPatch endpoints) -- see
+% docs/harbor-research/figures/src/r7_figures.py, lines 31-88.
+% [internal, script r7_figures.py]
+%
+% NOTE: the caption below is copied verbatim from paper3.tex and
+% describes a *different* relation map (Left: traffic enforcement /
+% Right: agent honesty, with "expected fine <=> expected slash, patrol
+% budget <=> audit rate"). The only script that generates r7_relation.png
+% draws Base: one audited inspector vs. Target: the inspection tower
+% (single stage game -> C-clique sealed tower), not a traffic-ticket
+% analogy. This fragment reproduces what the script actually draws;
+% the mismatch with the caption is flagged in the conversion report,
+% not silently patched.
+\begin{figure}[htbp]\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}
+\node[font=\normalsize\bfseries,color=harborblue] at (6,10.3)
+  {R7 --- reputation is amortized verification};
+
+% domain boxes (plain rectangles, matching the script's Rectangle patches)
+\filldraw[draw=harborblue,thick,fill=harborblue!12] (0.2,0.7) rectangle (3.8,9.4);
+\filldraw[draw=seagreen,thick,fill=seagreen!12] (8.2,0.7) rectangle (11.8,9.4);
+\node[font=\normalsize\bfseries] at (2.0,9.05) {Base: one audited inspector};
+\node[font=\normalsize\bfseries] at (10.0,9.05) {Target: the inspection tower};
+
+% -- Row 1 (script row y=7.4) --
+\node[align=center,font=\scriptsize] at (2.0,7.52)
+  {One-shot gain $G$,\\ audit prob $\rho$, detect $d$,\\ bond $B$ posted once\\ Honest iff $\rho\!\cdot\! d\!\cdot\! B \ge G$};
+\node[align=center,font=\scriptsize] at (10.0,7.52)
+  {Same threshold, sealed:\\ draw comes from $C{=}8$\\ disjoint cliques ---\\ $\rho^\star = G/(dB)$ unchanged};
+\draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
+  (3.9,7.25) to (8.1,7.25);
+\node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,7.64)
+  {single audit $\Leftrightarrow$ sealed audit\\ briber who learns the draw\\ beats the math};
+
+% -- Row 2 (script row y=4.6) --
+\node[align=center,font=\scriptsize] at (2.0,4.93)
+  {Bribe the one inspector,\\ pocket $G$, done ---\\ no notion of ``depth''};
+\node[align=center,font=\scriptsize] at (10.0,4.93)
+  {Bribe floor $\beta=\rho dB$/level;\\ pays only if $G_k > C\cdot B$,\\ else $G_{k+1}=(1-\rho d)G_k$};
+\draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
+  (3.9,4.45) to (8.1,4.45);
+\node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,4.84)
+  {one bribe $\Leftrightarrow$ bribe floor\\ climbs $\times C$ per level down\\ (finite bond, unbounded depth)};
+
+% -- Row 3 (script row y=1.9) --
+\node[align=center,font=\scriptsize] at (2.0,2.23)
+  {Flat patrol forever:\\ audit spend grows\\ $\Theta(T)$ over the horizon};
+\node[align=center,font=\scriptsize] at (10.0,2.23)
+  {Vest the bond: $\rho_t=G/(d(B{+}vt))$\\ $\Rightarrow \Theta(\log T)$ spend; add\\ whistleblowers $\Rightarrow O(1)$ spend};
+\draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
+  (3.9,1.75) to (8.1,1.75);
+\node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,2.14)
+  {flat patrol $\Leftrightarrow$ amortized\\ ladder $\Theta(\log T) / O(1)$\\ (pre-saturation caveat applies)};
+
+\node[align=center,font=\scriptsize\itshape,text width=10.5cm] at (6.0,0.25)
+  {The tower prices depth, not detection: a finite bond, sealed against the draw, certifies unbounded levels.};
+\end{tikzpicture}%
+}
+\caption{The relation map for the stage game. Left: traffic enforcement --- a driver obeys when expected fine $F\cdot p$ beats the time saved $T$, and the city need not catch every car. Right: agent honesty --- a judge is honest when $\rho\, d\, B \ge G$, giving the critical audit rate $\rho^\star = G/(dB)$. The arrows carry the load: expected fine $\Leftrightarrow$ expected slash, patrol budget $\Leftrightarrow$ audit rate. The analogy maps \emph{relations}, not surface features: both systems price deterrence, neither buys omniscience.}
+\label{fig:relation}
+\end{figure}

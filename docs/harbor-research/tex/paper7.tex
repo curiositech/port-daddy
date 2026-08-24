@@ -71,15 +71,7 @@ condition; missing comparison on a loop $=$ unchecked edge on a cycle; and --- t
 of a \emph{line} of tables can lie freely, because no loop passes through it: the telescoping argument needs the loop, and so
 does the theorem.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{r6_relation.png}
-\caption{Relation-map for the mechanism. Wristwatch offsets around a table map to signed-log
-disagreements around a gossip cycle by \emph{relations}: loop-sum $\leftrightarrow$ cocycle condition; a loop through the
-missing link $\leftrightarrow$ a cycle through the uncompared edge. The map predicts, correctly, where the mechanism dies:
-no loop, no telescoping, no detection.}
-\label{fig:r6rel}
-\end{figure}
+\input{fig-r6-relation.tex}
 
 \section{The model and the observability contract}\label{sec:model}
 
@@ -115,16 +107,7 @@ explains the visible data. Equivalently $r=\|\Pi_K\,g_K\|$, the projection of th
 per-coordinate cycle spaces: $r^2=\sum_c\|\mathrm{Proj}_{\mathrm{cycle}(G_c)}\,g^c\|^2$
 [internal, \texttt{sheaf\_harness\_v2.py}].
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\textwidth]{paper7_visibility.png}
-\caption{The three-tier observability contract. Left: one gossip graph wearing all three tiers ---
-compared (solid), relayed (dashed), severed (dotted). Right: what each tier lets the completion residual prove. The
-relayed tier splits by topology: on a cycle, $r>0$ detects ($200/200$); on a cut edge, $r=0$ by algebra (max residual
-$1.5\times10^{-13}$ over 400 trials); severed blocks are free variables and provably dark ($0/200$)
-[internal, \texttt{sheaf\_harness\_v2.py}].}
-\label{fig:vis}
-\end{figure}
+\input{fig-paper7-visibility.tex}
 
 \textbf{Two defects that taught the model.} The first harness (v1) got both halves of this contract wrong, and the rebuild
 kept the autopsies as named defects with reintroduction mutants. \textbf{D1:} v1 drew \emph{random orthonormal projections}
@@ -174,15 +157,7 @@ $\dim H^1$ --- a loopy topology has $\beta_1>0$ for purely topological reasons o
 must net $\beta_1$ out; the harness prints the structural cokernel separately (e.g.\ the two-path split-view topology:
 $\beta_1=1$, $\operatorname{coker}=2$) and scores only the residual, which is identically zero for honest worlds.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\textwidth]{r6_regime.png}
-\caption{Regime diagram for the mechanism: (a) relayed cycle edge --- residual $1.225$, detected
-($200/200$ cohomology-only); (b) cut edge --- residual $0.000$, provably silent; (c) severed cycle edge --- provably dark
-($0/200$). Detection requires the cycle \emph{and} the relayed reports; each panel is one clause of the observability
-contract [internal, \texttt{sheaf\_harness\_v2.py}].}
-\label{fig:r6reg}
-\end{figure}
+\input{fig-r6-regime.tex}
 
 \begin{boundary}
 \textbf{Honest boundary.} Detection requires the reports, not the check: severed links stay dark, cut edges silent, and the
@@ -293,16 +268,7 @@ relays with one never-compared link and a head-offset lie of $0.5$ --- the certi
 $0.5/\sqrt{12}=0.144$; double the ring and the certificate shrinks by $\sqrt2$: long cycles dilute conviction, which is an
 argument for short reconciliation loops in federation design.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.9\textwidth]{paper7_radius.png}
-\caption{The CR-1 closed form: certified residual per unit lie, $r/|s|=\sqrt{1-R_{\mathrm{eff}}(e)}$,
-against the effective resistance of the lied-on edge in its coordinate subgraph. The cycle family $C_n$ sits at
-$R_{\mathrm{eff}}=\tfrac{n-1}{n}$ (the harness's $C_6$ point marked, $3\sqrt{1-5/6}=1.2247$); the cut-edge corner
-$R_{\mathrm{eff}}=1$ is provable silence [verified; closed form exact on $C_4$--$C_{12}$ and 200 random graphs,
-\texttt{sheaf\_consistency\_radius.py}].}
-\label{fig:radius}
-\end{figure}
+\input{fig-paper7-radius.tex}
 
 \textbf{What it buys.} The harness's statistic is upgraded to a certificate with an interpretation a federation operator
 can act on: $r$ is the smallest lie consistent with what you saw, the hot edges lie on cycles through the culprit's

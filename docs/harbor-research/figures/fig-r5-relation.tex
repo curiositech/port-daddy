@@ -1,0 +1,71 @@
+% R5 relation-map: structural diagram (no numeric axes), transcribed from
+% create_relation_map() in figures/src/r5_figures.py -- same base/target
+% two-column layout, same three rows (bouncer analogy; the Sigma_c(5) vs
+% Sigma_u(3) event split; the compound-case punchline), same connective
+% labels, same coordinate range (ax.set_xlim(0,12), ax.set_ylim(0,11)
+% scaled by a fixed unit length, as in fig-r1-relation.tex).
+% [internal, script r5_figures.py]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.78cm,y=0.78cm]
+\node[align=center,font=\normalsize\bfseries] at (6,10.65)
+  {R5 --- gate the door, never the thought};
+\node[align=center,font=\footnotesize\itshape,text=black!55] at (6,10.25)
+  {hypervisor enforceability = Ramadge--Wonham supervisory control};
+
+% Base domain (left): the door
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.10] (0.2,0.35) rectangle (4.05,9.7);
+\node[align=center,font=\small\bfseries,text=harborblue] at (2.125,9.35) {Base: the door};
+
+% Target domain (right): the daemon
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.10] (7.95,0.35) rectangle (11.8,9.7);
+\node[align=center,font=\small\bfseries,text=seagreen] at (9.875,9.35) {Target: the daemon};
+
+% ===== Row 1: the analogy =====
+\node[align=center,font=\small\bfseries] at (2.125,9.15) {Bouncer at the one door};
+\node[align=center,font=\footnotesize,text width=3.7cm] at (2.125,8.68)
+  {Refuses \emph{entry} at the door (controllable). Cannot refuse a patron's \emph{thought} (uncontrollable) --- thought never crosses the door.};
+
+\node[align=center,font=\small\bfseries] at (9.875,9.15) {Daemon at the mediation boundary};
+\node[align=center,font=\footnotesize,text width=3.7cm] at (9.875,8.68)
+  {Refuses mediated \emph{effects} --- writes, calls, spawns (controllable). Cannot refuse internal \emph{model state} (uncontrollable) --- it never crosses.};
+
+\draw[<->,>=Stealth,thick,shipred] (4.2,8.15) -- (7.8,8.15);
+\node[align=center,font=\small\bfseries\itshape,text=shipred] at (6.0,8.55)
+  {the analogy holds exactly:\\ gate the channel, never the mind};
+
+% ===== Row 2: the 5-vs-3 split =====
+\node[align=center,font=\small\bfseries,text=harborblue] at (2.125,6.15) {$\Sigma_c$ --- controllable (5 events)};
+\node[align=center,font=\footnotesize,text width=3.7cm] at (2.125,5.68)
+  {\texttt{fs\_write} $\cdot$ \texttt{net\_egress} $\cdot$ \texttt{exec\_tool}\\ \texttt{git\_push} $\cdot$ \texttt{spawn\_child}\\[3pt] cross the mediation boundary --- each one can be refused.};
+
+\node[align=center,font=\small\bfseries,text=seagreen] at (9.875,6.15) {$\Sigma_u$ --- uncontrollable (3 events)};
+\node[align=center,font=\footnotesize,text width=3.7cm] at (9.875,5.68)
+  {\texttt{model\_emit\_token}\\ \texttt{in\_context\_read} $\cdot$ \texttt{internal\_plan}\\[3pt] stay inside the model --- they never reach the daemon to refuse.};
+
+\draw[<->,>=Stealth,thick,shipred] (4.2,5.15) -- (7.8,5.15);
+\node[align=center,font=\small\bfseries\itshape,text=shipred,text width=6.6cm] at (6.0,5.6)
+  {5 refusable events vs.\ 3 that never arrive\\ criterion: $\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$ (Ramadge--Wonham 1987)};
+
+% ===== Row 3: the compound-case punchline =====
+\node[align=center,font=\small\bfseries] at (2.125,3.15) {naive read: forbid the secret};
+\node[align=center,font=\footnotesize,text width=3.7cm] at (2.125,2.68)
+  {forbid \texttt{in\_context\_read} directly $\to$ that's a $\Sigma_u$ event $\to$ detect-only forever. The daemon can never see it coming to refuse it.};
+
+\node[align=center,font=\small\bfseries] at (9.875,3.15) {regimentable rewrite: gate egress};
+\node[align=center,font=\footnotesize,text width=3.7cm] at (9.875,2.68)
+  {permit the read ($\Sigma_u$), record taint, forbid \texttt{net\_egress} while tainted ($\Sigma_c$) $\to$ regimentable. Worked case: ``no egress after secret read.''};
+
+\draw[<->,>=Stealth,thick,shipred] (4.2,2.15) -- (7.8,2.15);
+\node[align=center,font=\small\bfseries\itshape,text=shipred] at (6.0,2.55)
+  {the clean-room design rule:\\ gate the channel, never the token};
+\end{tikzpicture}
+\caption{The relation map. Base domain: a
+club's single door --- the bouncer refuses entry (controllable) but cannot refuse thought (uncontrollable). Target domain:
+the daemon's mediation boundary --- the runtime can forbid fs\_write, net\_egress, exec\_tool, git\_push, spawn\_child, and
+cannot forbid token emission, in-context reads, or internal plans. The correspondence arrows carry the theorem:
+refusable-at-the-boundary $\Leftrightarrow$ preventable (regimentable); internal $\Leftrightarrow$ detect-only forever. The
+criterion under the map, $\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$, is Ramadge--Wonham controllability [verified
+framework].}
+\label{fig:relation}
+\end{figure}
