@@ -12,6 +12,10 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { TupleSpace } from '../lib/tuples.js';
 import {
+  canMutateQuorumAuthorityTuple,
+  isQuorumAuthorityTuple,
+} from '../lib/quorum.js';
+import {
   checkAdversarialProjectWrite,
   checkAdversarialTupleFields,
   projectForTupleKey,
@@ -31,6 +35,14 @@ export const tuplesPlugin: FastifyPluginAsync<TupleOpts> = async (app, opts) => 
     if (!Array.isArray(fields) || fields.length === 0) {
       reply.code(400);
       return { success: false, error: 'fields must be a non-empty array', code: 'VALIDATION_ERROR' };
+    }
+    if (isQuorumAuthorityTuple(fields)) {
+      reply.code(403);
+      return {
+        success: false,
+        error: 'quorum authority tuples can only be written by the trusted quorum service',
+        code: 'QUORUM_TUPLE_AUTHORITY_RESERVED',
+      };
     }
 
     // Adversarial-fleet projects (inferred from the first field, which is
@@ -103,6 +115,14 @@ export const tuplesPlugin: FastifyPluginAsync<TupleOpts> = async (app, opts) => 
     if (!Array.isArray(pattern)) {
       reply.code(400);
       return { success: false, error: 'pattern must be a JSON array' };
+    }
+    if (canMutateQuorumAuthorityTuple(pattern)) {
+      reply.code(403);
+      return {
+        success: false,
+        error: 'generic tuple deletion cannot select the reserved quorum authority namespace',
+        code: 'QUORUM_TUPLE_AUTHORITY_RESERVED',
+      };
     }
 
     const taken = tuples.take(pattern, {

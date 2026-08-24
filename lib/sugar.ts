@@ -42,6 +42,8 @@ interface SessionsModule {
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
+  /** Exact preflight used to preserve session-start's fail-closed conflict contract. */
+  getFileConflicts?(filePaths: string[]): Record<string, unknown>;
   /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
   resurrect?(sessionId: string): void;
   /** Shallow-merge a patch into the session's metadata JSON. Optional: older deps may not provide it. */
@@ -126,6 +128,12 @@ interface SugarDeps {
   commitments?: CommitmentsModule;
 }
 
+/**
+ * Route-only authority channel. Symbols do not survive JSON/MessagePack, so
+ * an IPC or HTTP payload cannot manufacture the daemon-verified principal.
+ */
+export const VERIFIED_SUGAR_ACTOR_ID: unique symbol = Symbol('verified-sugar-actor-id');
+
 interface BeginOptions {
   purpose?: string;
   /**
@@ -133,7 +141,7 @@ interface BeginOptions {
    * When present it is the sole authoritative agent/session owner; `agentId`
    * remains a display/request field for trusted direct-module callers only.
    */
-  canonicalAgentId?: string;
+  [VERIFIED_SUGAR_ACTOR_ID]?: string;
   agentId?: string;
   name?: string;
   identity?: string;
@@ -244,8 +252,7 @@ function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'eph
     : 'ephemeral';
 }
 
-/** Read the durable semantic display identity without consulting auth metadata. */
-function semanticIdentityFromMetadata(raw: unknown): string | null {
+function sessionMetadataRecord(raw: unknown): Record<string, unknown> | null {
   let metadata: Record<string, unknown> | null = null;
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     metadata = raw as Record<string, unknown>;
@@ -259,7 +266,37 @@ function semanticIdentityFromMetadata(raw: unknown): string | null {
       return null;
     }
   }
+  return metadata;
+}
+
+/** Read the durable semantic display identity without consulting auth metadata. */
+function semanticIdentityFromMetadata(raw: unknown): string | null {
+  const metadata = sessionMetadataRecord(raw);
   return typeof metadata?.semanticIdentity === 'string' ? metadata.semanticIdentity : null;
+}
+
+function hasVerifiedActorStamp(raw: unknown, actorId: string): boolean {
+  const metadata = sessionMetadataRecord(raw);
+  const stamp = metadata?.identity;
+  return Boolean(
+    stamp
+    && typeof stamp === 'object'
+    && !Array.isArray(stamp)
+    && (stamp as Record<string, unknown>).verified === true
+    && (stamp as Record<string, unknown>).actorId === actorId,
+  );
+}
+
+function authorityMetadata(
+  raw: Record<string, unknown> | undefined,
+  verifiedActorId: string | null,
+): Record<string, unknown> {
+  const metadata = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+  // Only the symbol-bearing route boundary may persist the reserved identity
+  // slot. Direct trusted callers retain semantic metadata but cannot forge a
+  // verified stamp by passing an ordinary object field.
+  if (!verifiedActorId) delete metadata.identity;
+  return metadata;
 }
 
 // =============================================================================
@@ -316,17 +353,26 @@ export function createSugar(deps: SugarDeps) {
    */
   function begin(options: BeginOptions) {
     const { purpose, identity, type, files, force } = options;
-    const canonicalAgentId = typeof options.canonicalAgentId === 'string'
-      ? options.canonicalAgentId.trim()
+    const rawVerifiedActorId = options[VERIFIED_SUGAR_ACTOR_ID];
+    const verifiedActorId = typeof rawVerifiedActorId === 'string'
+      ? rawVerifiedActorId.trim()
       : null;
 
-    if (options.canonicalAgentId !== undefined && !canonicalAgentId) {
+    if (rawVerifiedActorId !== undefined && !verifiedActorId) {
       return {
         success: false,
-        error: 'canonicalAgentId must be a non-empty daemon-verified actor ID',
+        error: 'verified actor ID must be a non-empty daemon-verified principal',
         code: 'CANONICAL_AGENT_ID_INVALID',
       };
     }
+    if (verifiedActorId && !hasVerifiedActorStamp(options.metadata, verifiedActorId)) {
+      return {
+        success: false,
+        error: 'verified actor metadata stamp is missing or does not match the daemon principal',
+        code: 'SESSION_IDENTITY_STAMP_INVALID',
+      };
+    }
+    const boundaryMetadata = authorityMetadata(options.metadata, verifiedActorId);
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
@@ -448,7 +494,7 @@ export function createSugar(deps: SugarDeps) {
             code: 'ROADMAP_ITEMS_UNAVAILABLE',
           };
         }
-        const by = canonicalAgentId || options.agentId || 'pd-begin';
+        const by = verifiedActorId || options.agentId || 'pd-begin';
         if (deps.roadmapItems.slugExists(slug)) {
           // Slug collision: the item already exists (possibly in another
           // harbor). LINK to it instead of upserting — an upsert here would
@@ -489,11 +535,13 @@ export function createSugar(deps: SugarDeps) {
     // commit. This mirrors the repo's claim/release idempotency discipline.
     // Trusted direct-module callers can opt out with an explicit `agentId`;
     // an HTTP caller's raw agentId never reaches this point as authority.
-    // A canonical actor ID preserves resume while binding the search to that
-    // one daemon-minted principal.
+    // A verified actor ID preserves resume while binding the search to that
+    // one daemon-minted principal. Canonical HTTP resumes additionally require
+    // the existing session's matching daemon stamp; roster display identity is
+    // never an ownership fallback.
     const resumeParsed = identity ? parseIdentity(identity) : null;
     const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
-    if (!force && (!options.agentId || canonicalAgentId) && resumeProject) {
+    if (!force && (!options.agentId || verifiedActorId) && resumeProject) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
@@ -510,30 +558,35 @@ export function createSugar(deps: SugarDeps) {
       // the agent's full identity is the real key.
       let match: Record<string, unknown> | undefined;
       let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
+      let unverifiedCandidateId: string | null = null;
       for (const s of activeRows) {
         if (
           !s
           || s.identityProject !== resumeProject
           || typeof s.agentId !== 'string'
-          || (canonicalAgentId && s.agentId !== canonicalAgentId)
+          || (verifiedActorId && s.agentId !== verifiedActorId)
         ) continue;
 
         const storedIdentity = semanticIdentityFromMetadata(s.metadata);
+        if (storedIdentity !== identity) continue;
 
-        if (storedIdentity === identity) {
-          match = s;
-          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-          break;
+        if (verifiedActorId && !hasVerifiedActorStamp(s.metadata, verifiedActorId)) {
+          unverifiedCandidateId = typeof s.id === 'string' ? s.id : 'unknown';
+          continue;
         }
-
-        // Fallback to agent roster
+        match = s;
         const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-        if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-          match = s;
-          matchAgent = agentResult.agent;
-          break;
-        }
+        if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
+        break;
+      }
+
+      if (verifiedActorId && unverifiedCandidateId && !match) {
+        return {
+          success: false,
+          error: `existing session '${unverifiedCandidateId}' lacks a matching verified actor ownership stamp`,
+          code: 'SESSION_IDENTITY_UNVERIFIED',
+          sessionId: unverifiedCandidateId,
+        };
       }
 
       if (!match) {
@@ -551,34 +604,37 @@ export function createSugar(deps: SugarDeps) {
             || s.status === 'active'
             || s.identityProject !== resumeProject
             || typeof s.agentId !== 'string'
-            || (canonicalAgentId && s.agentId !== canonicalAgentId)
+            || (verifiedActorId && s.agentId !== verifiedActorId)
           ) {
             continue;
           }
 
           const storedIdentity = semanticIdentityFromMetadata(s.metadata);
+          if (storedIdentity !== identity) continue;
 
-          if (storedIdentity === identity) {
-            match = s;
-            const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-            if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-            break;
+          if (verifiedActorId && !hasVerifiedActorStamp(s.metadata, verifiedActorId)) {
+            unverifiedCandidateId = typeof s.id === 'string' ? s.id : 'unknown';
+            continue;
           }
-
-          // Fallback to agent roster
+          match = s;
           const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-            match = s;
-            matchAgent = agentResult.agent;
-            break;
-          }
+          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
+          break;
+        }
+        if (verifiedActorId && unverifiedCandidateId && !match) {
+          return {
+            success: false,
+            error: `existing session '${unverifiedCandidateId}' lacks a matching verified actor ownership stamp`,
+            code: 'SESSION_IDENTITY_UNVERIFIED',
+            sessionId: unverifiedCandidateId,
+          };
         }
       }
 
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
         if (match.status !== 'active' && sessions.takeover) {
           // Resumption / takeover of recently closed session
-          const finalAgentId = canonicalAgentId || options.agentId || match.agentId;
+          const finalAgentId = verifiedActorId || options.agentId || match.agentId;
           const takeoverRes = sessions.takeover(match.id, {
             agentId: finalAgentId,
             purpose: purpose.trim(),
@@ -587,7 +643,7 @@ export function createSugar(deps: SugarDeps) {
             durable: durable,
             claimFiles: true,
             metadata: {
-              ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+              ...boundaryMetadata,
               semanticIdentity: identity || null,
               ...rentMetadata,
               takeoverReason: 'Idempotent resumption of recently closed session',
@@ -635,7 +691,7 @@ export function createSugar(deps: SugarDeps) {
               agentId: finalAgentId,
               details: 'sugar_begin_takeover_closed',
               metadata: {
-                ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+                ...boundaryMetadata,
                 sessionId: takeoverRes.successorId,
                 predecessorSessionId: match.id,
                 semanticIdentity: identity || null,
@@ -661,7 +717,7 @@ export function createSugar(deps: SugarDeps) {
         const decision = decideBeginResume(liveness);
         if (decision.action === 'resume') {
           const resumedSessionId: string = match.id;
-          const resumedAgentId: string = canonicalAgentId || match.agentId;
+          const resumedAgentId: string = verifiedActorId || match.agentId;
           const displayName =
             (typeof match.agentName === 'string' && match.agentName)
             || (typeof match.name === 'string' && match.name)
@@ -694,7 +750,7 @@ export function createSugar(deps: SugarDeps) {
           // Switching rent MODE clears the other field — a session is either
           // roadmap-linked or a sidequest, never ambiguously both.
           const resumeMetadataPatch: Record<string, unknown> = {
-            ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+            ...boundaryMetadata,
             semanticIdentity: identity || null,
           };
           if (Object.keys(rentMetadata).length > 0) {
@@ -715,7 +771,7 @@ export function createSugar(deps: SugarDeps) {
             agentId: resumedAgentId,
             details: 'sugar_begin_resumed',
             metadata: {
-              ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+              ...boundaryMetadata,
               sessionId: resumedSessionId,
               semanticIdentity: identity || null,
               actorId: resumedAgentId,
@@ -782,7 +838,7 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const worktreeMetadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+    const worktreeMetadata = mergeSessionWorktreeMetadata(boundaryMetadata, worktreePolicy.worktree, {
       requireLinkedWorktree: options.requireLinkedWorktree,
       allowMainWorktree: options.allowMainWorktree,
     });
@@ -804,9 +860,26 @@ export function createSugar(deps: SugarDeps) {
       type,
       fallback: 'Port Daddy Session',
     });
+
+    // `pd session start` now enters through this canonical ownership door.
+    // Preserve its established conflict contract: without an explicit force,
+    // do not register an agent or create a session that already conflicts.
+    if (files && files.length > 0 && !force && sessions.getFileConflicts) {
+      const conflictCheck = sessions.getFileConflicts(files);
+      const conflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
+      if (conflicts.length > 0) {
+        return {
+          success: false,
+          error: 'File conflicts detected',
+          code: 'FILE_CONFLICT',
+          conflicts,
+        };
+      }
+    }
+
     // Generate or use provided agent ID. The suffix keeps the stable machine key
     // unique; the slug keeps `pd begin` output readable to humans.
-    const agentId = canonicalAgentId
+    const agentId = verifiedActorId
       || options.agentId
       || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
 

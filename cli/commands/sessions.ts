@@ -22,7 +22,9 @@ import {
 } from '../utils/session-worktree-policy.js';
 import { resolveRelinkRent, formatRentReceipt, RELINK_GATE_MESSAGE } from './sugar.js';
 
-type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
+type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>> & {
+  sessionId?: string;
+};
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
 type SessionListResult = Awaited<ReturnType<PortDaddy['sessions']>>;
 type SessionRemoveResult = Awaited<ReturnType<PortDaddy['removeSession']>>;
@@ -309,21 +311,9 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
-  // #8877: an attributed session start requires a daemon-minted credential.
-  // Mint one through POST /actors/register when this shell does not already
-  // hold one (env or matching context); the alias binds the asserted agentId
-  // to the minted soul so nobody else can assert it uncredentialed.
-  if (!pd.credential && pd.agentId) {
-    try {
-      await pd.ensureActorCredential(pd.agentId);
-    } catch (error) {
-      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
-      process.exit(1);
-    }
-  }
+  const requestedAgentId = (typeof options.agent === 'string' ? options.agent.trim() : '') || undefined;
   const body: Record<string, unknown> = { purpose };
-  if (pd.agentId) body.agentId = pd.agentId;
+  if (requestedAgentId) body.agentId = requestedAgentId;
   if (options.force) body.force = true;
   body.lifecycle = lifecycle;
 
@@ -355,16 +345,57 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
   attachCliSessionWorktreePolicy(body, worktreePolicy);
 
+  // Session start and Sugar done are one ownership lifecycle. Start through
+  // the same canonical mint/verification boundary so the durable session is
+  // owned by the daemon-minted actor ID that done later verifies. The retired
+  // IPC/generic-session paths persisted the display alias and made a valid
+  // credential unable to complete its own session.
+  const actorCredential = resolveCliActorCredential(requestedAgentId);
+  let canonicalCredential = actorCredential ?? null;
   let data: SessionStartResult;
   try {
-    data = await pd.startSession(body as {
-      purpose: string;
-      agentId?: string;
-      files?: string[];
-      force?: boolean;
-      metadata?: Record<string, unknown>;
-      lifecycle?: SessionLifecycle;
+    const response = await pdFetch('/sugar/begin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // An explicit empty carrier prevents pdFetch from laundering an
+        // unrelated context soul into a request for a different alias. The
+        // Sugar mint door will either mint an unknown caller or fail closed
+        // when the asserted alias already belongs to another actor.
+        'x-actor-credential': actorCredential ?? '',
+      },
+      body: JSON.stringify(body),
     });
+    const beginData = await response.json();
+    if (!response.ok) {
+      const failure = new Error((beginData.error as string) || 'Failed to start session') as Error & {
+        body?: Record<string, unknown>;
+      };
+      failure.body = beginData;
+      throw failure;
+    }
+    if (typeof beginData.credential === 'string' && beginData.credential) {
+      canonicalCredential = beginData.credential;
+    }
+    // The Sugar mint door returns the bearer credential once. Persist it to
+    // the protected context below, but preserve the established session-start
+    // JSON contract: command output must never echo that secret into logs.
+    const publicBeginData = { ...beginData };
+    delete publicBeginData.credential;
+    data = {
+      ...publicBeginData,
+      id: beginData.sessionId as string,
+      status: 'active',
+      worktreeId: beginData.worktree
+        && typeof beginData.worktree === 'object'
+        && typeof (beginData.worktree as Record<string, unknown>).id === 'string'
+        ? (beginData.worktree as Record<string, unknown>).id as string
+        : null,
+      files: Array.isArray(beginData.fileClaims) ? beginData.fileClaims as string[] : undefined,
+      conflicts: Array.isArray(beginData.fileConflicts)
+        ? beginData.fileConflicts as SessionStartResult['conflicts']
+        : undefined,
+    } as SessionStartResult;
   } catch (error) {
     const errorBody = getErrorBody(error);
     ui.error((errorBody.error as string) || (error as Error).message || 'Failed to start session');
@@ -383,13 +414,13 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   const sessionId = data.id as string;
   // Persist the session + minted credential so follow-up commands in this
   // shell (files claim/release, notes, session end) present the same soul.
-  if (pd.agentId) {
+  if (typeof data.agentId === 'string' && data.agentId) {
     writeCurrentContext({
-      agentId: pd.agentId,
+      agentId: data.agentId,
       sessionId,
       purpose,
       startedAt: Date.now(),
-      credential: pd.credential ?? null,
+      credential: canonicalCredential,
     });
   }
   if (isJson(options)) {

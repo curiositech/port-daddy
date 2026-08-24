@@ -16,9 +16,9 @@
  * normal spawn pipeline (telemetry policy, wallet, bond all apply).
  *
  * Storage: tuples are durable, harbor-scoped, and already have
- * pattern-match semantics. Actor credentials have a separate durable
- * authority harbor so a tuple's coordination namespace cannot silently
- * become an identity namespace. Using tuples for proposals/votes means:
+ * pattern-match semantics. Actor credentials are verified in the same
+ * canonical harbor where proposal and vote evidence is persisted. Using
+ * tuples for proposals/votes means:
  * - subscribers can listen for `['quorum:proposal', '*', '*']` and react
  * - votes are append-only (no editing tuples)
  * - the proposal's authority harbor limits which canonical actors may vote
@@ -40,6 +40,15 @@
 
 import { randomUUID } from 'node:crypto';
 
+interface TupleRowMin {
+  id: number;
+  harbor: string | null;
+  fields: unknown[];
+  writtenBy: string | null;
+  createdAt: number;
+  expiresAt: number | null;
+}
+
 interface TupleSpaceMin {
   out(
     fields: unknown[],
@@ -48,7 +57,29 @@ interface TupleSpaceMin {
   rd(
     pattern: unknown[],
     options?: { harbor?: string; limit?: number },
-  ): Array<{ id: number; fields: unknown[]; writtenBy: string | null; createdAt: number; expiresAt: number | null }>;
+  ): TupleRowMin[];
+  poll(
+    pattern: unknown[],
+    options?: { harbor?: string; afterId?: number; limit?: number },
+  ): { tuple: TupleRowMin | null; lastId: number };
+}
+
+/** The generic tuple APIs must never mint or delete daemon-authority facts. */
+export const QUORUM_AUTHORITY_TUPLE_PREFIX = 'quorum:';
+
+export function isQuorumAuthorityTuple(fields: unknown[]): boolean {
+  return typeof fields[0] === 'string'
+    && fields[0].startsWith(QUORUM_AUTHORITY_TUPLE_PREFIX);
+}
+
+/**
+ * A destructive generic pattern is unsafe when its first field can select a
+ * reserved quorum row. Empty, `null`, and `*` patterns all match every key.
+ */
+export function canMutateQuorumAuthorityTuple(pattern: unknown[]): boolean {
+  if (pattern.length === 0 || pattern[0] === null || pattern[0] === '*') return true;
+  return typeof pattern[0] === 'string'
+    && pattern[0].startsWith(QUORUM_AUTHORITY_TUPLE_PREFIX);
 }
 
 export type QuorumStance = 'yes' | 'no' | 'abstain';
@@ -56,6 +87,8 @@ export type QuorumStance = 'yes' | 'no' | 'abstain';
 export interface QuorumProposal {
   /** Durable tuple-space row that witnesses this proposal. */
   tupleId: number;
+  /** Daemon-authority schema. Rows without this stamp are read-only legacy evidence. */
+  authorityVersion: 1;
   proposalId: string;
   role: string;
   reason: string;
@@ -74,6 +107,8 @@ export interface QuorumProposal {
 export interface QuorumVote {
   /** Durable tuple-space row that witnesses this vote. */
   tupleId: number;
+  /** Daemon-authority schema. Unstamped legacy rows never affect the tally. */
+  authorityVersion: 1;
   proposalId: string;
   voterId: string;
   stance: QuorumStance;
@@ -118,9 +153,62 @@ export interface QuorumDeps {
 }
 
 const DEFAULT_HARBOR = 'fleet';
-const DEFAULT_AUTHORITY_HARBOR = 'local';
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function canonicalScope(value: unknown, fallback: string, field: string): string {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`quorum.propose: ${field} must be a non-empty string if provided`);
+  }
+  return value.trim();
+}
+
+function hasCurrentProposalAuthority(proposal: Partial<QuorumProposal>): proposal is QuorumProposal {
+  return proposal.authorityVersion === 1
+    && typeof proposal.harbor === 'string'
+    && proposal.harbor.length > 0
+    && proposal.harbor === proposal.harbor.trim()
+    && typeof proposal.authorityHarbor === 'string'
+    && proposal.authorityHarbor.length > 0
+    && proposal.authorityHarbor === proposal.authorityHarbor.trim()
+    && proposal.authorityHarbor === proposal.harbor;
+}
+
+function decodeProposalRow(row: TupleRowMin): QuorumProposal | null {
+  const data = row.fields[2];
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const proposal = data as Partial<QuorumProposal>;
+  const durableProposalId = row.fields[1];
+  if (
+    typeof durableProposalId !== 'string'
+    || proposal.proposalId !== durableProposalId
+    || typeof proposal.proposedBy !== 'string'
+    || !proposal.proposedBy
+    || row.writtenBy !== proposal.proposedBy
+    || typeof proposal.harbor !== 'string'
+    || !proposal.harbor
+    || proposal.harbor !== proposal.harbor.trim()
+    || row.harbor !== proposal.harbor
+    || typeof proposal.role !== 'string'
+    || !proposal.role
+    || typeof proposal.reason !== 'string'
+    || !proposal.reason
+    || typeof proposal.threshold !== 'number'
+    || !Number.isFinite(proposal.threshold)
+    || proposal.threshold < 1
+    || typeof proposal.autoSpawn !== 'boolean'
+    || typeof proposal.createdAt !== 'number'
+    || !Number.isFinite(proposal.createdAt)
+    || (proposal.expiresAt !== null && (
+      typeof proposal.expiresAt !== 'number'
+      || !Number.isFinite(proposal.expiresAt)
+    ))
+  ) {
+    return null;
+  }
+  return { ...proposal, tupleId: row.id } as QuorumProposal;
+}
 
 export function createQuorum(deps: QuorumDeps) {
   const { tuples } = deps;
@@ -141,13 +229,18 @@ export function createQuorum(deps: QuorumDeps) {
     }
 
     const proposalId = randomUUID();
-    const harbor = input.harbor ?? DEFAULT_HARBOR;
-    const authorityHarbor = input.authorityHarbor?.trim() || DEFAULT_AUTHORITY_HARBOR;
+    const harbor = canonicalScope(input.harbor, DEFAULT_HARBOR, 'harbor');
+    const authorityHarbor = canonicalScope(
+      input.authorityHarbor,
+      harbor,
+      'authorityHarbor',
+    );
     const ttlMs = input.ttlMs ?? DEFAULT_TTL_MS;
     const createdAt = now();
     const expiresAt = ttlMs > 0 ? createdAt + ttlMs : null;
 
     const storedProposal: Omit<QuorumProposal, 'tupleId'> = {
+      authorityVersion: 1,
       proposalId,
       role: input.role,
       reason: input.reason,
@@ -172,10 +265,7 @@ export function createQuorum(deps: QuorumDeps) {
   function findProposal(proposalId: string): QuorumProposal | null {
     const matches = tuples.rd(['quorum:proposal', proposalId, '*'], { limit: 1 });
     if (matches.length === 0) return null;
-    const row = matches[0];
-    const data = row.fields[2] as Omit<QuorumProposal, 'tupleId'> | undefined;
-    if (!data || typeof data !== 'object') return null;
-    return { ...data, tupleId: row.id };
+    return decodeProposalRow(matches[0]);
   }
 
   function listProposals(options: { harbor?: string; limit?: number } = {}): QuorumProposal[] {
@@ -185,10 +275,8 @@ export function createQuorum(deps: QuorumDeps) {
     );
     const proposals: QuorumProposal[] = [];
     for (const row of matches) {
-      const data = row.fields[2];
-      if (data && typeof data === 'object') {
-        proposals.push({ ...(data as Omit<QuorumProposal, 'tupleId'>), tupleId: row.id });
-      }
+      const proposal = decodeProposalRow(row);
+      if (proposal) proposals.push(proposal);
     }
     return proposals;
   }
@@ -212,12 +300,16 @@ export function createQuorum(deps: QuorumDeps) {
     if (!proposal) {
       throw new Error(`quorum.vote: no proposal '${input.proposalId}' found`);
     }
+    if (!hasCurrentProposalAuthority(proposal)) {
+      throw new Error(`quorum.vote: proposal '${input.proposalId}' has no verified actor authority`);
+    }
     const t = now();
     if (proposal.expiresAt !== null && t > proposal.expiresAt) {
       throw new Error(`quorum.vote: proposal '${input.proposalId}' has expired`);
     }
 
     const storedVote: Omit<QuorumVote, 'tupleId'> = {
+      authorityVersion: 1,
       proposalId: input.proposalId,
       voterId: input.voterId,
       stance: input.stance,
@@ -259,15 +351,41 @@ export function createQuorum(deps: QuorumDeps) {
   }
 
   function getVotes(proposalId: string, harbor?: string): QuorumVote[] {
-    const matches = tuples.rd(['quorum:vote', proposalId, '*', '*'], { harbor, limit: 1000 });
-    const votes: QuorumVote[] = [];
     // Latest vote per voter wins (tuples are append-only; a voter
-    // changing their stance writes a new row; we keep the freshest).
+    // changing their stance writes a new row; we keep the freshest). Walk the
+    // exact proposal stream by durable row ID so one actor cannot evict other
+    // actors' effective ballots by appending more than a fixed read limit.
     const byVoter = new Map<string, QuorumVote>();
-    for (const row of matches) {
+    let afterId = 0;
+    while (true) {
+      const result = tuples.poll(
+        ['quorum:vote', proposalId, '*', '*'],
+        { harbor, afterId, limit: 1000 },
+      );
+      const row = result.tuple;
+      if (!row) {
+        if (result.lastId <= afterId) break;
+        afterId = result.lastId;
+        continue;
+      }
+      afterId = row.id;
       const data = row.fields[3];
       if (!data || typeof data !== 'object') continue;
       const v = { ...(data as Omit<QuorumVote, 'tupleId'>), tupleId: row.id };
+      const durableVoterId = row.fields[2];
+      if (
+        v.authorityVersion !== 1
+        || v.proposalId !== proposalId
+        || typeof durableVoterId !== 'string'
+        || v.voterId !== durableVoterId
+        || row.writtenBy !== durableVoterId
+        || (v.stance !== 'yes' && v.stance !== 'no' && v.stance !== 'abstain')
+        || !Number.isFinite(v.weight)
+        || v.weight < 0
+        || !Number.isFinite(v.at)
+      ) {
+        continue;
+      }
       const existing = byVoter.get(v.voterId);
       // Tuple IDs are the durable append order. They remain deterministic
       // even when two votes share a millisecond timestamp or an injected
@@ -276,7 +394,7 @@ export function createQuorum(deps: QuorumDeps) {
         byVoter.set(v.voterId, v);
       }
     }
-    for (const v of byVoter.values()) votes.push(v);
+    const votes = [...byVoter.values()];
     votes.sort((a, b) => a.at - b.at || a.tupleId - b.tupleId);
     return votes;
   }

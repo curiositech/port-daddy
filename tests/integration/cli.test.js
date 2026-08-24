@@ -265,23 +265,26 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Sugar Recovery Commands', () => {
-    test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
+    test('done succeeds over credentialed HTTP when the session is active but the agent row is gone', async () => {
       const slot = `stale-done-${Date.now()}`;
-      const agentId = `stale-done-agent-${Date.now()}`;
+      const requestedAlias = `stale-done-agent-${Date.now()}`;
 
       try {
         const begin = await requestWithRetry('/sugar/begin', {
           method: 'POST',
           body: {
             purpose: 'CLI stale-session recovery',
-            agentId,
+            agentId: requestedAlias,
             lifecycle: 'durable',
           },
         });
         expect(begin.ok).toBe(true);
 
         const sessionId = begin.data.sessionId;
+        const agentId = begin.data.agentId;
         expect(sessionId).toBeTruthy();
+        expect(agentId).toBe(begin.data.actorId);
+        expect(begin.data.credential).toEqual(expect.any(String));
 
         writeTestCurrentContext({
           agentId,
@@ -289,6 +292,7 @@ describe('CLI Integration Tests', () => {
           purpose: 'CLI stale-session recovery',
           identity: 'port-daddy',
           contextSlot: slot,
+          credential: begin.data.credential,
         });
 
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
@@ -297,9 +301,11 @@ describe('CLI Integration Tests', () => {
         // pd-done origin rule (substrate fix 2026-05-20): bypass via the
         // documented escape hatch for this integration test, which has no
         // intent to push or open a PR.
-        const result = runCliViaIpc(
+        // Sugar writes are no longer exposed through IPC: the real CLI must
+        // carry the stored actor credential to POST /sugar/done.
+        const result = runCli(
           ['done', 'Recovered after agent registry loss', '--json',
-           '--skip-origin-check', '--reason', 'cli ipc recovery integration test'],
+           '--skip-origin-check', '--reason', 'credentialed HTTP recovery integration test'],
           { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
         );
         expect(result.success).toBe(true);
@@ -578,10 +584,10 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', firstId]);
     });
 
-    test('session done reports releasedFiles count from actual response shape', () => {
+    test('session done uses canonical stored ownership and reports releasedFiles', async () => {
       const agentId = `bug-done-agent-${Date.now()}`;
       const filePath = `src/released-${Date.now()}.ts`;
-      const sessionId = runCli([
+      const started = runCli([
         'session',
         'start',
         'Release count test',
@@ -592,14 +598,25 @@ describe('CLI Integration Tests', () => {
         '--files',
         filePath,
         '-q',
-      ]).stdout.trim();
+      ]);
+      expect(started.success).toBe(true);
+      const sessionId = started.stdout.trim();
 
+      const before = await requestWithRetry(`/sessions/${encodeURIComponent(sessionId)}`);
+      expect(before.ok).toBe(true);
+      expect(before.data.session.agentId).toEqual(expect.any(String));
+      expect(before.data.session.agentId).not.toBe(agentId);
+      expect(before.data.session.metadata.identity).toMatchObject({
+        verified: true,
+        actorId: before.data.session.agentId,
+      });
+
+      // Follow-up lifecycle commands intentionally omit the retired display
+      // alias and consume the canonical actor + credential stored by start.
       const result = runCli([
         'session',
         'done',
         'not-applicable: wrapped up',
-        '--agent',
-        agentId,
         '--skip-origin-check',
         '--reason',
         'integration test count verification',
@@ -626,7 +643,7 @@ describe('CLI Integration Tests', () => {
         '-q',
       ]).stdout.trim();
 
-      const result = runCli(['session', 'files', 'rm', filePath, '--agent', agentId]);
+      const result = runCli(['session', 'files', 'rm', filePath]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
 
@@ -648,11 +665,11 @@ describe('CLI Integration Tests', () => {
         '-q',
       ]).stdout.trim();
 
-      const claimResult = runCli(['session', 'files', 'claim', fileA, fileB, '--agent', agentId]);
+      const claimResult = runCli(['session', 'files', 'claim', fileA, fileB]);
       expect(claimResult.success).toBe(true);
       expect(claimResult.stdout).toContain(`Claimed 2 file(s) in session ${sessionId}`);
 
-      const releaseResult = runCli(['session', 'files', 'release', fileA, '--agent', agentId]);
+      const releaseResult = runCli(['session', 'files', 'release', fileA]);
       expect(releaseResult.success).toBe(true);
       expect(releaseResult.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
 
@@ -697,8 +714,6 @@ describe('CLI Integration Tests', () => {
           '1',
           '--end-line',
           '3',
-          '--agent',
-          agentId,
           '--json',
         ]);
         expect(claimResult.success).toBe(true);
@@ -723,8 +738,6 @@ describe('CLI Integration Tests', () => {
           '1',
           '--end-line',
           '3',
-          '--agent',
-          agentId,
         ]);
         expect(releaseResult.success).toBe(true);
         expect(releaseResult.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
@@ -805,8 +818,9 @@ describe('CLI Integration Tests', () => {
       expect(afterCount).toBe(0);
     });
 
-    // Bug #15: session start --json ignored --json flag, output human-readable
-    test('session start --json outputs JSON (not colored text)', () => {
+    // Bug #15: session start --json ignored --json. The canonical Sugar mint
+    // path must also retain its bearer credential without printing it.
+    test('session start --json outputs JSON without the one-time actor credential', () => {
       const agentId = `bug15-agent-${Date.now()}`;
       const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--lifecycle', 'durable', '--json']);
       expect(result.success).toBe(true);
@@ -817,12 +831,25 @@ describe('CLI Integration Tests', () => {
       expect(data.success).toBe(true);
       expect(data.id).toMatch(/^session-bug-15-test-[a-f0-9]{12}$/);
       expect(data.purpose).toBe('Bug 15 test');
+      expect(data.credential).toBeUndefined();
+      expect(result.stdout).not.toMatch(/"credential"\s*:/);
 
       // Should NOT contain ANSI escape codes
       expect(result.stdout).not.toMatch(/\x1b\[/);
 
-      // Cleanup
-      runCli(['session', 'rm', data.id]);
+      // The secret was retained in the protected context even though it was
+      // absent from stdout: a follow-up attributed lifecycle write succeeds.
+      const done = runCli([
+        'session',
+        'done',
+        'not-applicable: JSON credential retention regression',
+        '--skip-origin-check',
+        '--reason',
+        'JSON credential retention integration test',
+        '--json',
+      ]);
+      expect(done.success).toBe(true);
+      expect(JSON.parse(done.stdout).success).toBe(true);
     });
 
     // Bug #11: Channels LAST ACTIVITY showed "20508d" because relativeTime()

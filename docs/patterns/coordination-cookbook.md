@@ -721,6 +721,16 @@ pd quorum show $pid    # passed: true/false, remainingNeeded: N
   durable tuple from that same actor determines its ballot.
 - Verdict: `pd quorum show` returns `passed` once `yesWeight >= threshold`.
 
+**Identity limit (not Sybil resistance).** One daemon-minted actor soul gets one
+effective ballot, even when that soul has several display aliases. That proves
+which local soul voted; it does not prove one human, one organization, or an
+eligible electorate member. The public actor-registration door can mint
+multiple newcomer souls (subject to its separate admission/spend controls), so
+this quorum primitive alone is not safe for high-stakes one-person-one-vote.
+Such decisions need a separately governed eligible-actor set or external
+personhood/account authority before votes are admitted; IDENTITY does not
+pretend to supply that policy.
+
 **When to use.** Decisions where you want explicit, auditable group consent.
 Autonomous merges, budget approvals, choosing one of N candidate
 implementations.

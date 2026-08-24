@@ -9,6 +9,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { ActorSouls } from '../lib/actor-souls.js';
+import { VERIFIED_SUGAR_ACTOR_ID } from '../lib/sugar.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -352,7 +353,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         // The daemon-minted principal is the sole lifecycle owner. The raw
         // body agentId was checked above only for cross-soul laundering and
         // never crosses into lib/sugar as authority.
-        canonicalAgentId: beginIdentity.verdict.actorId,
+        [VERIFIED_SUGAR_ACTOR_ID]: beginIdentity.verdict.actorId,
         name,
         type,
         files,
@@ -375,7 +376,11 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       });
 
       if (!result.success) {
-        const status = result.code === 'AGENT_REGISTRATION_FAILED'
+        const status = result.code === 'SESSION_IDENTITY_UNVERIFIED'
+          || result.code === 'SESSION_IDENTITY_STAMP_INVALID'
+          || result.code === 'FILE_CONFLICT'
+          ? 409
+          : result.code === 'AGENT_REGISTRATION_FAILED'
           || result.code === 'WORKTREE_REQUIRED'
           || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
           || result.code === 'MAIN_WORKTREE_CROWDED'

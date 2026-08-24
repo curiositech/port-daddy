@@ -243,7 +243,7 @@ describe('IPC Router', () => {
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });
 
-  test('session.start delegates to sessions.start', () => {
+  test('session.start falls through to the credentialed HTTP boundary', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -264,14 +264,12 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.start).toHaveBeenCalledWith('Clean up parity', expect.objectContaining({
-      files: ['src/auth.ts'],
-      force: true,
-    }));
-    expect(replies[0].payload.result.purpose).toBe('Clean up parity');
+    expect(deps.sessions.start).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.NOT_UNDERSTOOD);
+    expect(replies[0].payload.error).toBe('unknown_action');
   });
 
-  test('session.end delegates to sessions.end', () => {
+  test('session.end falls through to the credentialed HTTP boundary', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -292,11 +290,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.end).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      status: 'completed',
-      note: 'wrapped up',
-    }));
-    expect(replies[0].payload.result.ended).toBe(true);
+    expect(deps.sessions.end).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.NOT_UNDERSTOOD);
+    expect(replies[0].payload.error).toBe('unknown_action');
   });
 
   test('session.list delegates to sessions.list', () => {
@@ -351,7 +347,7 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.removed).toBe(true);
   });
 
-  test('session.takeover delegates to sessions.takeover with connection agent', () => {
+  test('session.takeover falls through to the credentialed HTTP boundary', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -371,11 +367,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.takeover).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      note: 'taking over',
-      agentId: 'registered-x',
-    }));
-    expect(replies[0].payload.result.successorId).toBe('session-new');
+    expect(deps.sessions.takeover).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.NOT_UNDERSTOOD);
+    expect(replies[0].payload.error).toBe('unknown_action');
   });
 
   test('sugar.whoami delegates to sugar service', () => {
@@ -569,6 +563,33 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.success).toBe(true);
   });
 
+  test('tuple.out cannot forge reserved quorum authority rows', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 261,
+        payload: {
+          action: IpcAction.TUPLE_OUT,
+          fields: ['quorum:vote', 'proposal-1', 'forged-voter', { authorityVersion: 1 }],
+          harbor: 'fleet',
+          writtenBy: 'forged-voter',
+        },
+      },
+      mockConn('forged-voter'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.out).not.toHaveBeenCalled();
+    expect(replies[0].payload.result).toEqual(expect.objectContaining({
+      success: false,
+      code: 'QUORUM_TUPLE_AUTHORITY_RESERVED',
+    }));
+  });
+
   test('tuple.rd delegates to tuple space', () => {
     const deps = createMockDeps();
     deps.tuples.rd.mockReturnValue([{ id: 2, fields: ['task', 'pending'] }]);
@@ -617,6 +638,33 @@ describe('IPC Router', () => {
 
     expect(deps.tuples.take).toHaveBeenCalledWith(['task', 'done'], { harbor: 'myapp', limit: 1 });
     expect(replies[0].payload.result.count).toBe(1);
+  });
+
+  test.each([
+    [['quorum:proposal', '*', '*']],
+    [['quorum:*']],
+    [['*']],
+    [[]],
+  ])('tuple.in pattern %j cannot delete quorum authority rows', (pattern) => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 281,
+        payload: { action: IpcAction.TUPLE_IN, pattern, harbor: 'fleet' },
+      },
+      mockConn('agent-1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.take).not.toHaveBeenCalled();
+    expect(replies[0].payload.result).toEqual(expect.objectContaining({
+      success: false,
+      code: 'QUORUM_TUPLE_AUTHORITY_RESERVED',
+    }));
   });
 
   test('tuple.scan delegates to tuple space', () => {
@@ -766,32 +814,35 @@ describe('IPC Router', () => {
     expect(deps.sessions.start).not.toHaveBeenCalled();
   });
 
-  test('registered agent passes auth gate for session.begin', () => {
+  test('registered agents cannot inject Sugar canonical identity through retired IPC begin', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
 
     router.handleFrame(
-      { type: Performative.REQUEST, convId: 11, payload: { action: IpcAction.BEGIN, agentId: 'registered-a1', purpose: 'testing' } },
+      {
+        type: Performative.REQUEST,
+        convId: 11,
+        payload: {
+          action: IpcAction.BEGIN,
+          agentId: 'registered-a1',
+          canonicalAgentId: 'forged-canonical-actor',
+          purpose: 'testing',
+        },
+      },
       mockConn('registered-a1'),
       (f) => replies.push(f),
     );
 
     expect(replies).toHaveLength(1);
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    expect(deps.sugar.begin).toHaveBeenCalledWith(expect.objectContaining({
-      action: IpcAction.BEGIN,
-      agentId: 'registered-a1',
-      purpose: 'testing',
-    }));
+    expect(replies[0].type).toBe(Performative.NOT_UNDERSTOOD);
+    expect(replies[0].payload.error).toBe('unknown_action');
+    expect(deps.sugar.begin).not.toHaveBeenCalled();
+    expect(deps.sessions.start).not.toHaveBeenCalled();
   });
 
-  test('session.done recovers from missing agent registration when session ownership matches', () => {
+  test('registered agents cannot close Sugar sessions through credentialless IPC done', () => {
     const deps = createMockDeps();
-    deps.sessions.get.mockReturnValue({
-      success: true,
-      session: { id: 'sess-stale', agentId: 'stale-agent', status: 'active' },
-    });
     const router = createIpcRouter(deps);
     const replies = [];
 
@@ -801,28 +852,24 @@ describe('IPC Router', () => {
         convId: 14,
         payload: {
           action: IpcAction.DONE,
-          agentId: 'stale-agent',
+          agentId: 'registered-stale-agent',
           sessionId: 'sess-stale',
           note: 'wrapped up after daemon restart',
         },
       },
-      mockConn('stale-agent'),
+      mockConn('registered-stale-agent'),
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.get).toHaveBeenCalledWith('sess-stale');
-    expect(deps.sugar.done).toHaveBeenCalledWith(expect.objectContaining({
-      action: IpcAction.DONE,
-      agentId: 'stale-agent',
-      sessionId: 'sess-stale',
-      note: 'wrapped up after daemon restart',
-    }));
+    expect(deps.sessions.get).not.toHaveBeenCalled();
+    expect(deps.sugar.done).not.toHaveBeenCalled();
+    expect(deps.sessions.end).not.toHaveBeenCalled();
     expect(replies).toHaveLength(1);
-    expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    expect(replies[0].payload.result.success).toBe(true);
+    expect(replies[0].type).toBe(Performative.NOT_UNDERSTOOD);
+    expect(replies[0].payload.error).toBe('unknown_action');
   });
 
-  test('session.done refuses recovery when explicit agent does not own the session', () => {
+  test('retired IPC done cannot recover authority from a legacy session owner field', () => {
     const deps = createMockDeps();
     deps.sessions.get.mockReturnValue({
       success: true,
@@ -845,7 +892,7 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.get).toHaveBeenCalledWith('sess-stale');
+    expect(deps.sessions.get).not.toHaveBeenCalled();
     expect(deps.sugar.done).not.toHaveBeenCalled();
     expect(replies).toHaveLength(1);
     expect(replies[0].type).toBe(Performative.REFUSE);
@@ -977,10 +1024,21 @@ describe('IPC Router', () => {
   test('all IPC actions have registered handlers', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
-    const allActions = Object.values(IpcAction);
+    const retiredCredentiallessLifecycleActions = new Set([
+      IpcAction.BEGIN,
+      IpcAction.DONE,
+      IpcAction.SESSION_START,
+      IpcAction.SESSION_END,
+      IpcAction.SESSION_TAKEOVER,
+    ]);
+    const allActions = Object.values(IpcAction)
+      .filter((action) => !retiredCredentiallessLifecycleActions.has(action));
 
     for (const action of allActions) {
       expect(router.actions).toContain(action);
+    }
+    for (const action of retiredCredentiallessLifecycleActions) {
+      expect(router.actions).not.toContain(action);
     }
   });
 });

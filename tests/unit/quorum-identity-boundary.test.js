@@ -83,14 +83,18 @@ describe('quorum route identity boundary', () => {
     expect(res.statusCode).toBe(200);
     const proposal = res.json().proposal;
     expect(proposal.proposedBy).toBe(author.actorId);
+    expect(proposal.authorityVersion).toBe(1);
     expect(proposal.authorityHarbor).toBe('local');
+    expect(proposal.harbor).toBe('local');
     expect(proposal.tupleId).toEqual(expect.any(Number));
 
-    const stored = tuples.rd(['quorum:proposal', proposal.proposalId, '*']);
+    expect(tuples.rd(['quorum:proposal', proposal.proposalId, '*'], { harbor: 'fleet' })).toHaveLength(0);
+    const stored = tuples.rd(['quorum:proposal', proposal.proposalId, '*'], { harbor: 'local' });
     expect(stored).toHaveLength(1);
     expect(stored[0].id).toBe(proposal.tupleId);
     expect(stored[0].writtenBy).toBe(author.actorId);
     expect(stored[0].fields[2].proposedBy).toBe(author.actorId);
+    expect(stored[0].fields[2].authorityVersion).toBe(1);
 
     const list = await app.inject({ method: 'GET', url: '/quorum/proposals' });
     expect(list.json().proposals[0].tupleId).toBe(proposal.tupleId);
@@ -108,7 +112,7 @@ describe('quorum route identity boundary', () => {
         role: 'tenant-b-coordinator',
         reason: 'must not cross the harbor boundary',
         threshold: 1,
-        harbor: 'tenant-b',
+        harbor: '  tenant-b  ',
       },
     });
     expect(crossTenantProposal.statusCode).toBe(401);
@@ -123,11 +127,14 @@ describe('quorum route identity boundary', () => {
         role: 'tenant-b-coordinator',
         reason: 'tenant-b owns this proposal',
         threshold: 1,
-        harbor: 'tenant-b',
+        harbor: '\t tenant-b \n',
       },
     });
     expect(acceptedProposal.statusCode).toBe(200);
     expect(acceptedProposal.json().proposal.authorityHarbor).toBe('tenant-b');
+    expect(acceptedProposal.json().proposal.harbor).toBe('tenant-b');
+    expect(tuples.rd(['quorum:proposal', '*', '*'], { harbor: '  tenant-b  ' })).toHaveLength(0);
+    expect(tuples.rd(['quorum:proposal', '*', '*'], { harbor: 'tenant-b' })).toHaveLength(1);
     const proposalId = acceptedProposal.json().proposal.proposalId;
 
     const crossTenantVote = await app.inject({
@@ -236,6 +243,102 @@ describe('quorum route identity boundary', () => {
     expect(storedVotes.every((row) => row.fields[2] === voter.actorId)).toBe(true);
     expect(storedVotes.every((row) => row.fields[3].voterId === voter.actorId)).toBe(true);
     expect(storedVotes.every((row) => row.writtenBy === voter.actorId)).toBe(true);
+  });
+
+  test('two aliases bound to one soul still produce one canonical effective ballot', async () => {
+    const author = mintTestActor(souls, 'quorum-author');
+    const voter = mintTestActor(souls, 'voter-primary-alias');
+    const proposal = (await propose(author)).json().proposal;
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/quorum/vote',
+      headers: voter.headers,
+      payload: { proposalId: proposal.proposalId, stance: 'yes' },
+    });
+    expect(first.statusCode).toBe(200);
+
+    const rebound = souls.register({
+      credential: voter.credential,
+      alias: 'voter-secondary-alias',
+    });
+    expect(rebound).toEqual(expect.objectContaining({ ok: true, actorId: voter.actorId }));
+    expect(souls.resolveAlias('voter-primary-alias')).toBe(voter.actorId);
+    expect(souls.resolveAlias('voter-secondary-alias')).toBe(voter.actorId);
+
+    clock += 1;
+    const second = await app.inject({
+      method: 'POST',
+      url: '/quorum/vote',
+      headers: voter.headers,
+      payload: { proposalId: proposal.proposalId, stance: 'no' },
+    });
+    expect(second.statusCode).toBe(200);
+
+    const status = quorum.getStatusById(proposal.proposalId);
+    expect(status.votes).toHaveLength(1);
+    expect(status.votes[0]).toEqual(expect.objectContaining({
+      voterId: voter.actorId,
+      stance: 'no',
+      authorityVersion: 1,
+    }));
+    expect(status.yesWeight).toBe(0);
+    expect(status.noWeight).toBe(1);
+  });
+
+  test('legacy proposals without the daemon authority version cannot accept votes', async () => {
+    const voter = mintTestActor(souls, 'legacy-proposal-voter');
+    const proposalId = 'legacy-self-asserted-proposal';
+    tuples.out(['quorum:proposal', proposalId, {
+      proposalId,
+      role: 'legacy-role',
+      reason: 'pre-boundary tuple must never regain authority',
+      threshold: 1,
+      proposedBy: voter.actorId,
+      authorityHarbor: 'local',
+      harbor: 'fleet',
+      autoSpawn: false,
+      expiresAt: clock + 60_000,
+      createdAt: clock,
+    }], { harbor: 'fleet', writtenBy: voter.actorId });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/quorum/vote',
+      headers: voter.headers,
+      payload: { proposalId, stance: 'yes' },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('QUORUM_AUTHORITY_SCOPE_MISSING');
+    expect(tuples.rd(['quorum:vote', proposalId, '*', '*'], { harbor: 'fleet' })).toHaveLength(0);
+  });
+
+  test('a proposal authenticated in one harbor but persisted in another cannot accept votes', async () => {
+    const voter = mintTestActor(souls, 'mismatched-harbor-voter');
+    const proposalId = 'mismatched-authority-harbor';
+    tuples.out(['quorum:proposal', proposalId, {
+      authorityVersion: 1,
+      proposalId,
+      role: 'legacy-role',
+      reason: 'cross-harbor authority must fail closed',
+      threshold: 1,
+      proposedBy: voter.actorId,
+      authorityHarbor: 'local',
+      harbor: 'fleet',
+      autoSpawn: false,
+      expiresAt: clock + 60_000,
+      createdAt: clock,
+    }], { harbor: 'fleet', writtenBy: voter.actorId });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/quorum/vote',
+      headers: voter.headers,
+      payload: { proposalId, stance: 'yes' },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('QUORUM_AUTHORITY_SCOPE_MISSING');
+    expect(tuples.rd(['quorum:vote', proposalId, '*', '*'], { harbor: 'fleet' })).toHaveLength(0);
   });
 
   test('HTTP callers cannot assign voting power; accepted votes use the server weight of one', async () => {

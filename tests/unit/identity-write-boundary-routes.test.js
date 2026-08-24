@@ -12,6 +12,7 @@ import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createLocks } from '../../lib/locks.js';
 import { createCommitments } from '../../lib/commitments.js';
+import { VERIFIED_SUGAR_ACTOR_ID } from '../../lib/sugar.js';
 import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { sugarPlugin } from '../../routes/sugar.js';
 import { locksPlugin } from '../../routes/locks.js';
@@ -41,7 +42,7 @@ describe('identity write boundary — sugar routes', () => {
             beginCalls.push(options);
             return {
               success: true,
-              agentId: options.canonicalAgentId || options.agentId || 'generated-agent',
+              agentId: options[VERIFIED_SUGAR_ACTOR_ID] || options.agentId || 'generated-agent',
               sessionId: 'session-1',
             };
           },
@@ -83,7 +84,8 @@ describe('identity write boundary — sugar routes', () => {
     // The minted credential round-trips through the real souls store.
     expect(souls.verifyCredential(body.credential)).toBe(body.actorId);
     expect(body.agentId).toBe(body.actorId);
-    expect(beginCalls[0].canonicalAgentId).toBe(body.actorId);
+    expect(beginCalls[0][VERIFIED_SUGAR_ACTOR_ID]).toBe(body.actorId);
+    expect(beginCalls[0].canonicalAgentId).toBeUndefined();
     expect(beginCalls[0].agentId).toBeUndefined();
     // The session record was stamped with the daemon's verdict, not caller input.
     expect(beginCalls[0].metadata.identity).toEqual(

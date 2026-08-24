@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createQuorum } from '../../lib/quorum.js';
@@ -35,6 +36,8 @@ describe('propose', () => {
     expect(proposal.proposalId).toEqual(expect.any(String));
     expect(proposal.role).toBe('promotion-coordinator');
     expect(proposal.threshold).toBe(2);
+    expect(proposal.authorityVersion).toBe(1);
+    expect(proposal.authorityHarbor).toBe('port-daddy:fleet');
     expect(proposal.harbor).toBe('port-daddy:fleet');
     expect(proposal.autoSpawn).toBe(false);
     expect(proposal.tupleId).toEqual(expect.any(Number));
@@ -132,6 +135,79 @@ describe('vote', () => {
       voterId: 'qa',
       stance: 'no',
     }));
+  });
+
+  test('a later malformed authority row cannot replace a valid canonical ballot', () => {
+    const p = quorum.propose({
+      role: 'r',
+      reason: 'malformed durable rows must fail closed',
+      threshold: 2,
+      proposedBy: 'spark',
+    });
+    const valid = quorum.vote({ proposalId: p.proposalId, voterId: 'qa', stance: 'no' });
+    const malformed = tuples.out(['quorum:vote', p.proposalId, 'qa', {
+      authorityVersion: 1,
+      proposalId: 'laundered-proposal-id',
+      voterId: 'qa',
+      stance: 'yes',
+      weight: 999,
+      at: clock + 1,
+    }], { harbor: p.harbor, writtenBy: 'qa' });
+    expect(malformed.id).toBeGreaterThan(valid.tupleId);
+
+    const status = quorum.getStatusById(p.proposalId);
+    expect(status.votes).toHaveLength(1);
+    expect(status.votes[0]).toEqual(expect.objectContaining({
+      tupleId: valid.tupleId,
+      voterId: 'qa',
+      stance: 'no',
+      weight: 1,
+    }));
+    expect(status.yesWeight).toBe(0);
+    expect(status.noWeight).toBe(1);
+  });
+
+  test('one actor cannot evict another actor ballot by appending over 1000 replacements', () => {
+    const p = quorum.propose({
+      role: 'r',
+      reason: 'ballot stream must not have a fixed event window',
+      threshold: 3,
+      proposedBy: 'spark',
+    });
+    const dateNow = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    try {
+      tuples.out(['quorum:vote', p.proposalId, 'quiet-voter', {
+        authorityVersion: 1,
+        proposalId: p.proposalId,
+        voterId: 'quiet-voter',
+        stance: 'yes',
+        weight: 1,
+        at: clock,
+      }], { harbor: p.harbor, writtenBy: 'quiet-voter' });
+
+      for (let i = 0; i < 1_001; i++) {
+        dateNow.mockReturnValue(1_700_000_000_001 + i);
+        tuples.out(['quorum:vote', p.proposalId, 'flooding-voter', {
+          authorityVersion: 1,
+          proposalId: p.proposalId,
+          voterId: 'flooding-voter',
+          stance: i === 1_000 ? 'no' : 'yes',
+          weight: 1,
+          at: clock + i + 1,
+        }], { harbor: p.harbor, writtenBy: 'flooding-voter' });
+      }
+
+      const status = quorum.getStatusById(p.proposalId);
+      expect(status.votes).toHaveLength(2);
+      expect(status.votes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ voterId: 'quiet-voter', stance: 'yes' }),
+        expect.objectContaining({ voterId: 'flooding-voter', stance: 'no' }),
+      ]));
+      expect(status.yesWeight).toBe(1);
+      expect(status.noWeight).toBe(1);
+    } finally {
+      dateNow.mockRestore();
+    }
   });
 
   test('abstain counts toward participation, not yes-weight', () => {

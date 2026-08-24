@@ -54,7 +54,9 @@ interface VoteBody {
 }
 
 function asString(v: unknown): string | undefined {
-  return typeof v === 'string' && v.length > 0 ? v : undefined;
+  if (typeof v !== 'string') return undefined;
+  const canonical = v.trim();
+  return canonical.length > 0 ? canonical : undefined;
 }
 
 function asPosInt(v: unknown): number | undefined {
@@ -78,6 +80,14 @@ export const quorumPlugin: FastifyPluginAsync<{ deps: QuorumDeps }> = async (fas
         error: 'role, reason, and threshold (integer >= 1) are required',
       };
     }
+    if (body.harbor !== undefined && !harbor) {
+      reply.code(400);
+      return {
+        success: false,
+        error: 'harbor must be a non-empty canonical tenant name if provided',
+        code: 'QUORUM_HARBOR_INVALID',
+      };
+    }
     if (body.proposedBy !== undefined || body.as !== undefined) {
       reply.code(400);
       return {
@@ -87,12 +97,25 @@ export const quorumPlugin: FastifyPluginAsync<{ deps: QuorumDeps }> = async (fas
       };
     }
 
+    const defaultHarbor = asString(actorSouls?.constants?.defaultHarbor);
+    const proposalHarbor = harbor ?? defaultHarbor;
+    if (!proposalHarbor) {
+      reply.code(503);
+      return {
+        success: false,
+        error: 'actor identity verifier is unavailable',
+        code: 'IDENTITY_VERIFIER_UNAVAILABLE',
+      };
+    }
+
     const identity = resolveWriteIdentity({
       souls: actorSouls,
       credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
       assertedAgentId: null,
       route: 'POST /quorum/propose',
-      harbor,
+      // Canonicalize exactly once, then use the same tenant for credential
+      // verification and durable tuple persistence.
+      harbor: proposalHarbor,
       logger,
       requireIdentity: true,
     });
@@ -109,10 +132,10 @@ export const quorumPlugin: FastifyPluginAsync<{ deps: QuorumDeps }> = async (fas
       // Credential-derived canonical actor; request-body identity fields are
       // rejected above and never reach durable state.
       proposedBy: verifiedIdentity.actorId,
-      // The credential lookup scope is durable proposal authority. It may
-      // differ from the historical default coordination tuple harbor.
-      authorityHarbor: harbor ?? actorSouls?.constants?.defaultHarbor,
-      harbor,
+      // Authority and storage share one durable tenant. A proposal cannot be
+      // authenticated in one harbor and persisted into another.
+      authorityHarbor: proposalHarbor,
+      harbor: proposalHarbor,
       autoSpawn: body.autoSpawn === true,
       ttlMs: typeof body.ttlMs === 'number' && Number.isFinite(body.ttlMs) ? body.ttlMs : undefined,
     };
@@ -154,12 +177,18 @@ export const quorumPlugin: FastifyPluginAsync<{ deps: QuorumDeps }> = async (fas
       reply.code(404);
       return { success: false, error: `proposal '${proposalId}' not found` };
     }
-    const authorityHarbor = proposalStatus.proposal.authorityHarbor?.trim();
-    if (!authorityHarbor) {
+    const durableAuthorityHarbor = proposalStatus.proposal.authorityHarbor;
+    if (
+      proposalStatus.proposal.authorityVersion !== 1
+      || typeof durableAuthorityHarbor !== 'string'
+      || !durableAuthorityHarbor
+      || durableAuthorityHarbor !== durableAuthorityHarbor.trim()
+      || proposalStatus.proposal.harbor !== durableAuthorityHarbor
+    ) {
       reply.code(409);
       return {
         success: false,
-        error: 'proposal has no durable actor authority scope and cannot accept authenticated votes',
+        error: 'proposal has no current durable actor authority and cannot accept authenticated votes',
         code: 'QUORUM_AUTHORITY_SCOPE_MISSING',
       };
     }
@@ -170,7 +199,7 @@ export const quorumPlugin: FastifyPluginAsync<{ deps: QuorumDeps }> = async (fas
       route: 'POST /quorum/vote',
       // A vote inherits its tenant from the durable proposal. The caller has
       // no vote-time harbor field with which to redirect credential checks.
-      harbor: authorityHarbor,
+      harbor: durableAuthorityHarbor,
       logger,
       requireIdentity: true,
     });
