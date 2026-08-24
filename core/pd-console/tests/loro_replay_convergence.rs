@@ -292,6 +292,91 @@ fn peer_local_undo_redo_frames_preserve_intervening_peer_edits_and_replay_idempo
     );
 }
 
+#[test]
+fn history_frames_preserve_remote_replacement_inside_local_span_across_repeated_cycles() {
+    let a = HarborBuffer::empty("port-daddy:console:interior-frame-A");
+    a.replace_authored(0..0, "ABC\n");
+    let b = HarborBuffer::empty("port-daddy:editor:interior-frame-B");
+    b.apply_remote_ops(&a.export_ops()).expect("B joins A");
+
+    let remote = b.replace_authored(1..2, "X");
+    let remote_frame = encode_frame(b.local_peer(), &remote.delta);
+    apply_frame(
+        &a,
+        &decode_frame(&remote_frame).expect("remote interior frame"),
+    )
+    .expect("A imports B replacement");
+    assert_eq!(a.to_string(), "AXC\n");
+
+    for cycle in 0..3 {
+        let undo = a
+            .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
+            .expect("governed interior undo")
+            .expect("effective interior undo");
+        assert_eq!(a.to_string(), "X", "undo cycle {cycle} preserves B");
+        let undo_frame = encode_frame(a.local_peer(), &undo.delta);
+        let decoded_undo = decode_frame(&undo_frame).expect("ordinary undo frame");
+        apply_frame(&b, &decoded_undo).expect("B imports interior undo");
+        assert_eq!(b.to_string(), a.to_string());
+        let stamp = b.change_stamp();
+        apply_frame(&b, &decoded_undo).expect("undo frame reimport");
+        assert_eq!(b.change_stamp(), stamp, "undo cycle {cycle} is idempotent");
+
+        let redo = a
+            .apply_history_governed(HistoryAction::Redo, |_, _| Ok(()))
+            .expect("governed interior redo")
+            .expect("effective interior redo");
+        assert_eq!(a.to_string(), "AXC\n", "redo cycle {cycle} preserves B");
+        let redo_frame = encode_frame(a.local_peer(), &redo.delta);
+        let decoded_redo = decode_frame(&redo_frame).expect("ordinary redo frame");
+        apply_frame(&b, &decoded_redo).expect("B imports interior redo");
+        assert_eq!(b.to_string(), a.to_string());
+        let stamp = b.change_stamp();
+        apply_frame(&b, &decoded_redo).expect("redo frame reimport");
+        assert_eq!(b.change_stamp(), stamp, "redo cycle {cycle} is idempotent");
+    }
+}
+
+#[test]
+fn multi_pop_history_frame_contains_the_one_effective_loro_update() {
+    let a = HarborBuffer::empty("port-daddy:console:multi-pop-frame-A");
+    a.replace_authored(0..0, "OLD-");
+    a.replace_authored(4..4, "TOP-");
+    let b = HarborBuffer::empty("port-daddy:editor:multi-pop-frame-B");
+    b.apply_remote_ops(&a.export_ops()).expect("B joins A");
+
+    let neutralize_top = b.replace_authored(4..8, "");
+    a.apply_remote_ops(&neutralize_top.delta)
+        .expect("A imports neutralizing remote deletion");
+    assert_eq!(a.to_string(), "OLD-");
+
+    let undo = a
+        .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
+        .expect("multi-pop undo succeeds")
+        .expect("older item is effective");
+    assert_eq!((a.undo_count(), a.redo_count()), (0, 1));
+    assert_eq!(a.to_string(), "");
+    let frame = encode_frame(a.local_peer(), &undo.delta);
+    let decoded = decode_frame(&frame).expect("multi-pop undo is an ordinary frame");
+    apply_frame(&b, &decoded).expect("B imports the effective undo update");
+    assert_eq!(b.to_string(), a.to_string());
+    let stamp = b.change_stamp();
+    apply_frame(&b, &decoded).expect("multi-pop undo frame reimports");
+    assert_eq!(b.change_stamp(), stamp);
+
+    let redo = a
+        .apply_history_governed(HistoryAction::Redo, |_, _| Ok(()))
+        .expect("reconciled redo succeeds")
+        .expect("older redo is effective");
+    let frame = encode_frame(a.local_peer(), &redo.delta);
+    apply_frame(
+        &b,
+        &decode_frame(&frame).expect("ordinary reconciled redo frame"),
+    )
+    .expect("B imports reconciled redo");
+    assert_eq!(b.to_string(), a.to_string());
+}
+
 // ── The four salvage properties ───────────────────────────────────────────────
 
 proptest! {

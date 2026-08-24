@@ -23,10 +23,9 @@
 //! survive reconnect"). We mask off `u64::MAX` because Loro reserves it.
 
 use loro::{
-    cursor::Side, ExpandType, ExportMode, LoroDoc, LoroText, LoroValue, StyleConfig,
-    StyleConfigMap, UndoItemMeta, UndoManager,
+    cursor::Side, ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap,
+    UndoItemMeta, UndoManager,
 };
-use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::VecDeque, ops::Range};
 
 /// Loro container name for the file's text. One file = one `LoroDoc` holding one
@@ -128,47 +127,18 @@ impl HistoryAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct HistoryGovernanceMetadata {
-    version: u8,
-    deleted_unicode_len: usize,
-    inserted_unicode_len: usize,
     deleted_newlines: usize,
     inserted_newlines: usize,
 }
 
 impl HistoryGovernanceMetadata {
-    const VERSION: u8 = 3;
-
     fn new(deleted: &str, inserted: &str) -> Self {
         Self {
-            version: Self::VERSION,
-            deleted_unicode_len: deleted.chars().count(),
-            inserted_unicode_len: inserted.chars().count(),
             deleted_newlines: deleted.bytes().filter(|byte| *byte == b'\n').count(),
             inserted_newlines: inserted.bytes().filter(|byte| *byte == b'\n').count(),
         }
-    }
-
-    fn encode(&self) -> LoroValue {
-        LoroValue::from(
-            serde_json::to_string(self).expect("serialize editor history governance metadata"),
-        )
-    }
-
-    fn decode(value: &LoroValue) -> std::result::Result<Self, String> {
-        let LoroValue::String(encoded) = value else {
-            return Err("editor history governance metadata is unavailable".into());
-        };
-        let metadata: Self = serde_json::from_str(encoded.as_ref())
-            .map_err(|error| format!("editor history governance metadata is invalid: {error}"))?;
-        if metadata.version != Self::VERSION {
-            return Err(format!(
-                "unsupported editor history governance metadata version {}",
-                metadata.version
-            ));
-        }
-        Ok(metadata)
     }
 
     fn replacement_newlines(&self, redo: bool) -> usize {
@@ -178,57 +148,80 @@ impl HistoryGovernanceMetadata {
             self.deleted_newlines
         }
     }
-
-    fn visible_unicode_len_after(&self, action: HistoryAction) -> usize {
-        match action {
-            HistoryAction::Undo => self.deleted_unicode_len,
-            HistoryAction::Redo => self.inserted_unicode_len,
-        }
-    }
-
-    fn visible_unicode_len_before(&self, action: HistoryAction) -> usize {
-        match action {
-            HistoryAction::Undo => self.inserted_unicode_len,
-            HistoryAction::Redo => self.deleted_unicode_len,
-        }
-    }
 }
 
-#[derive(Default)]
+#[derive(Clone)]
+struct HistoryGovernanceItem {
+    anchors: UndoItemMeta,
+    metadata: HistoryGovernanceMetadata,
+    anchors_complete: bool,
+}
+
+#[derive(Clone)]
+struct PreparedHistoryItem {
+    guard: HistoryGuard,
+}
+
 struct HistoryGovernanceStacks {
-    undo: VecDeque<UndoItemMeta>,
-    redo: VecDeque<UndoItemMeta>,
+    undo: VecDeque<HistoryGovernanceItem>,
+    redo: VecDeque<HistoryGovernanceItem>,
+    synchronized: bool,
+}
+
+impl Default for HistoryGovernanceStacks {
+    fn default() -> Self {
+        Self {
+            undo: VecDeque::new(),
+            redo: VecDeque::new(),
+            synchronized: true,
+        }
+    }
 }
 
 impl HistoryGovernanceStacks {
-    fn top(&self, action: HistoryAction) -> Option<&UndoItemMeta> {
+    fn source(&self, action: HistoryAction) -> &VecDeque<HistoryGovernanceItem> {
         match action {
-            HistoryAction::Undo => self.undo.back(),
-            HistoryAction::Redo => self.redo.back(),
+            HistoryAction::Undo => &self.undo,
+            HistoryAction::Redo => &self.redo,
         }
     }
 
-    fn record_authored(&mut self, meta: UndoItemMeta) {
+    fn record_authored(&mut self, item: HistoryGovernanceItem) {
         self.redo.clear();
         if self.undo.len() == HISTORY_CAPACITY {
             self.undo.pop_front();
         }
-        self.undo.push_back(meta);
+        self.undo.push_back(item);
     }
 
-    fn transfer(&mut self, action: HistoryAction, fresh_meta: UndoItemMeta) {
+    fn reconcile_after_history(
+        &mut self,
+        action: HistoryAction,
+        popped_source: usize,
+        fresh_opposite: Option<HistoryGovernanceItem>,
+        undo_count: usize,
+        redo_count: usize,
+    ) {
         let source = match action {
             HistoryAction::Undo => &mut self.undo,
             HistoryAction::Redo => &mut self.redo,
         };
-        source
-            .pop_back()
-            .expect("governed history source matched Loro before mutation");
-        let opposite = match action {
-            HistoryAction::Undo => &mut self.redo,
-            HistoryAction::Redo => &mut self.undo,
-        };
-        opposite.push_back(fresh_meta);
+        for _ in 0..popped_source {
+            if source.pop_back().is_none() {
+                self.synchronized = false;
+                break;
+            }
+        }
+        if let Some(item) = fresh_opposite {
+            let opposite = match action {
+                HistoryAction::Undo => &mut self.redo,
+                HistoryAction::Redo => &mut self.undo,
+            };
+            opposite.push_back(item);
+        }
+        if self.undo.len() != undo_count || self.redo.len() != redo_count {
+            self.synchronized = false;
+        }
     }
 }
 
@@ -546,7 +539,7 @@ impl HarborBuffer {
         // insertion point and the metadata retains the planned restoration.
         let governance = HistoryGovernanceMetadata::new(&before_text[byte_range], s);
         let inserted_end = range.start + s.chars().count();
-        let meta = self.governance_meta(&governance, range.start..inserted_end);
+        let item = self.governance_item(governance, range.start..inserted_end);
         let before_undo_count = self.undo.borrow().undo_count();
         self.doc.commit();
         debug_assert_eq!(
@@ -554,7 +547,7 @@ impl HarborBuffer {
             (before_undo_count + 1).min(HISTORY_CAPACITY),
             "one accepted replacement must create one Loro undo item"
         );
-        self.history_governance.borrow_mut().record_authored(meta);
+        self.history_governance.borrow_mut().record_authored(item);
 
         let delta = self
             .doc
@@ -566,40 +559,44 @@ impl HarborBuffer {
         AuthoredEdit { delta, receipt }
     }
 
-    fn governance_meta(
+    fn governance_item(
         &self,
-        governance: &HistoryGovernanceMetadata,
+        metadata: HistoryGovernanceMetadata,
         unicode_range: Range<usize>,
-    ) -> UndoItemMeta {
-        let mut meta = UndoItemMeta::new();
-        meta.set_value(governance.encode());
-        Self::add_governance_cursors(&self.text, &mut meta, unicode_range);
-        meta
+    ) -> HistoryGovernanceItem {
+        let mut anchors = UndoItemMeta::new();
+        let anchors_complete =
+            Self::add_governance_cursors(&self.text, &mut anchors, unicode_range);
+        HistoryGovernanceItem {
+            anchors,
+            metadata,
+            anchors_complete,
+        }
     }
 
     fn add_governance_cursors(
         text: &LoroText,
         meta: &mut UndoItemMeta,
         unicode_range: Range<usize>,
-    ) {
+    ) -> bool {
         meta.cursors.clear();
         let start_side = if unicode_range.is_empty() {
             Side::Right
         } else {
             Side::Left
         };
-        meta.add_cursor(
-            &text
-                .get_cursor(unicode_range.start, start_side)
-                .expect("cursor at post-edit replacement start"),
-        );
+        let Some(start) = text.get_cursor(unicode_range.start, start_side) else {
+            return false;
+        };
+        meta.add_cursor(&start);
         if !unicode_range.is_empty() {
-            meta.add_cursor(
-                &text
-                    .get_cursor(unicode_range.end, Side::Right)
-                    .expect("cursor at post-edit replacement end"),
-            );
+            let Some(end) = text.get_cursor(unicode_range.end, Side::Right) else {
+                meta.cursors.clear();
+                return false;
+            };
+            meta.add_cursor(&end);
         }
+        true
     }
 
     /// Current UTF-8 target range of the next local undo item. Stable Loro
@@ -628,76 +625,92 @@ impl HarborBuffer {
         &self,
         action: HistoryAction,
     ) -> std::result::Result<Option<HistoryGuard>, String> {
+        let text = self.text.to_string();
+        Ok(self
+            .prepare_history(action, &text)?
+            .into_iter()
+            .next()
+            .map(|item| item.guard))
+    }
+
+    fn prepare_history(
+        &self,
+        action: HistoryAction,
+        text: &str,
+    ) -> std::result::Result<Vec<PreparedHistoryItem>, String> {
         let undo = self.undo.borrow();
-        let available = if action.is_redo() {
-            undo.can_redo()
-        } else {
-            undo.can_undo()
-        };
-        if !available {
-            return Ok(None);
-        }
         let governance = self.history_governance.borrow();
-        if governance.undo.len() != undo.undo_count() || governance.redo.len() != undo.redo_count()
+        if !governance.synchronized
+            || governance.undo.len() != undo.undo_count()
+            || governance.redo.len() != undo.redo_count()
         {
             return Err("editor history governance is out of sync with Loro history".into());
         }
-        let meta = governance
-            .top(action)
-            .ok_or_else(|| "editor history metadata is unavailable".to_string())?;
-        if meta.cursors.is_empty() || meta.cursors.len() > 2 {
-            return Err("editor history metadata has no valid governed text span".into());
+        let source = governance.source(action);
+        if source.is_empty() {
+            return Ok(Vec::new());
         }
+        let mut prepared = Vec::with_capacity(source.len());
+        for item in source.iter().rev() {
+            let unicode_range = self.resolve_governance_range(item, text).ok_or_else(|| {
+                "editor history metadata has no valid governed text span".to_string()
+            })?;
+            prepared.push(PreparedHistoryItem {
+                guard: HistoryGuard {
+                    range: byte_offset_for_unicode(text, unicode_range.start)
+                        ..byte_offset_for_unicode(text, unicode_range.end),
+                    replacement_newlines: item.metadata.replacement_newlines(action.is_redo()),
+                },
+            });
+        }
+        Ok(prepared)
+    }
 
-        let mut unicode = Vec::with_capacity(meta.cursors.len());
-        for cursor in &meta.cursors {
-            unicode.push(
-                self.doc
-                    .get_cursor_pos(&cursor.cursor)
-                    .map_err(|error| format!("editor history cursor cannot be resolved: {error}"))?
-                    .current
-                    .pos,
-            );
+    fn resolve_governance_range(
+        &self,
+        item: &HistoryGovernanceItem,
+        text: &str,
+    ) -> Option<Range<usize>> {
+        if !item.anchors_complete
+            || item.anchors.cursors.is_empty()
+            || item.anchors.cursors.len() > 2
+        {
+            return None;
+        }
+        let mut unicode = Vec::with_capacity(item.anchors.cursors.len());
+        for cursor in &item.anchors.cursors {
+            let position = self.doc.get_cursor_pos(&cursor.cursor).ok()?.current.pos;
+            unicode.push(position);
         }
         unicode.sort_unstable();
-        let text = self.text.to_string();
         let unicode_len = text.chars().count();
         if unicode.iter().any(|position| *position > unicode_len) {
-            return Err("editor history cursor resolved outside the current text".into());
+            return None;
         }
-        let governance = HistoryGovernanceMetadata::decode(&meta.value)?;
-        let start = unicode[0];
-        let end = *unicode.last().expect("one or two history cursors");
+        let start = *unicode.first()?;
+        let end = *unicode.last()?;
         if start > end {
-            return Err("editor history metadata resolved an inverted text span".into());
+            return None;
         }
-        Ok(Some(HistoryGuard {
-            range: byte_offset_for_unicode(&text, start)..byte_offset_for_unicode(&text, end),
-            replacement_newlines: governance.replacement_newlines(action.is_redo()),
-        }))
+        Some(start..end)
     }
 
     /// Atomically validate and apply one peer-local Loro history item. The
     /// supplied claim validator always runs against the current stable range
     /// before Loro can mutate text, version vectors, stacks, or receipts.
     ///
-    /// After success, the opposite governance-stack item is rebuilt from the
-    /// actual post-operation receipt. This deliberately does not reuse Loro's
-    /// saved selection, which is not transformed by intervening remote imports.
+    /// After success, the opposite governance-stack item is rebuilt by mapping
+    /// the preflighted current span through the actual resulting document and
+    /// unioning the exact receipt. This deliberately does not reuse Loro's saved
+    /// selection, which is not transformed by intervening remote imports.
     pub fn apply_history_governed<F>(
         &self,
         action: HistoryAction,
-        validate: F,
+        mut validate: F,
     ) -> std::result::Result<Option<AuthoredEdit>, String>
     where
-        F: FnOnce(&str, &HistoryGuard) -> std::result::Result<(), String>,
+        F: FnMut(&str, &HistoryGuard) -> std::result::Result<(), String>,
     {
-        let before_text = self.text.to_string();
-        let Some(guard) = self.history_guard(action)? else {
-            return Ok(None);
-        };
-        validate(&before_text, &guard)?;
-
         // HarborBuffer never checks out historical frontiers or enables
         // detached editing. Reject that impossible state before UndoManager's
         // `perform` can pop an item and discover it is not editable.
@@ -708,82 +721,163 @@ impl HarborBuffer {
             return Err("editor history cannot mutate a shallow Loro document".into());
         }
 
-        let governance = {
-            let stacks = self.history_governance.borrow();
-            let meta = stacks
-                .top(action)
-                .expect("governance availability checked before validation");
-            HistoryGovernanceMetadata::decode(&meta.value)?
-        };
-        let before_unicode_len = before_text.chars().count();
-        let unicode_start = before_text[..guard.range.start].chars().count();
-        let guard_unicode_end = before_text[..guard.range.end].chars().count();
-        let expected_source_end = unicode_start
-            .checked_add(governance.visible_unicode_len_before(action))
-            .ok_or_else(|| "editor history source span overflowed".to_string())?;
-        if expected_source_end != guard_unicode_end {
-            return Err(
-                "editor history governed span no longer matches the planned replacement".into(),
-            );
+        let before_text = self.text.to_string();
+        let prepared = self.prepare_history(action, &before_text)?;
+        if prepared.is_empty() {
+            return Ok(None);
         }
-        let unicode_end = unicode_start
-            .checked_add(governance.visible_unicode_len_after(action))
-            .ok_or_else(|| "editor history post-operation span overflowed".to_string())?;
-        let expected_after_unicode_len = before_unicode_len
-            .checked_sub(governance.visible_unicode_len_before(action))
-            .and_then(|len| len.checked_add(governance.visible_unicode_len_after(action)))
-            .ok_or_else(|| "editor history resulting text length overflowed".to_string())?;
-        if unicode_end > expected_after_unicode_len {
-            return Err("editor history post-operation span exceeds the resulting text".into());
+        // Loro may discard any number of fully-neutralized items before one
+        // effective item is found. Its public API exposes no dry-run seam, so
+        // every bounded source item must clear claims before any can be popped.
+        for item in &prepared {
+            validate(&before_text, &item.guard)?;
         }
 
-        let before = self.doc.oplog_vv();
-        let changed = if action.is_redo() {
+        let (before_undo_count, before_redo_count) = {
+            let undo = self.undo.borrow();
+            (undo.undo_count(), undo.redo_count())
+        };
+        let captured_delta = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let captured_delta_for_callback = captured_delta.clone();
+        let subscription = self.doc.subscribe_local_update(Box::new(move |bytes| {
+            let mut captured = captured_delta_for_callback
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *captured = Some(bytes.clone());
+            true
+        }));
+        let loro_result = if action.is_redo() {
             self.undo.borrow_mut().redo()
         } else {
             self.undo.borrow_mut().undo()
-        }
-        .expect("attached full Harbor document with manager-owned history must apply its top item");
-        assert!(
-            changed,
-            "a prevalidated governed Loro history item must produce one operation"
-        );
+        };
         self.doc.commit();
+        drop(subscription);
+
         let after_text = self.text.to_string();
-        assert_eq!(
-            after_text.chars().count(),
-            expected_after_unicode_len,
-            "Loro history result must match the prevalidated replacement shape"
-        );
-        let delta = self
-            .doc
-            .export(ExportMode::updates(&before))
-            .expect("same-document history delta export after a captured version vector");
+        let delta = captured_delta
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+            .unwrap_or_default();
         let receipt = EditReceipt::between(&before_text, &after_text);
-
-        // The operation starts at the governed pre-mutation range and cannot
-        // change bytes before it. Rebuild the full planned visible span there
-        // in the resulting document. The exact receipt may be narrower when
-        // old/new text share a prefix or suffix (notably newline and CRLF
-        // replacements). It can even begin beyond a collapsed insertion point
-        // when an inserted leading newline equals the following file newline,
-        // so the planned span remains the governance authority.
-        let unicode_range = unicode_start..unicode_end;
-        let fresh_meta = self.governance_meta(&governance, unicode_range);
-        self.history_governance
-            .borrow_mut()
-            .transfer(action, fresh_meta);
-
-        let undo = self.undo.borrow();
-        let stacks = self.history_governance.borrow();
-        debug_assert_eq!(stacks.undo.len(), undo.undo_count());
-        debug_assert_eq!(stacks.redo.len(), undo.redo_count());
-        drop(stacks);
-        drop(undo);
+        let (after_undo_count, after_redo_count) = {
+            let undo = self.undo.borrow();
+            (undo.undo_count(), undo.redo_count())
+        };
+        let (before_source, after_source, before_opposite, after_opposite) = match action {
+            HistoryAction::Undo => (
+                before_undo_count,
+                after_undo_count,
+                before_redo_count,
+                after_redo_count,
+            ),
+            HistoryAction::Redo => (
+                before_redo_count,
+                after_redo_count,
+                before_undo_count,
+                after_undo_count,
+            ),
+        };
+        let popped_source = before_source.saturating_sub(after_source);
+        let pushed_opposite = after_opposite.saturating_sub(before_opposite);
+        let fresh_opposite = if pushed_opposite == 1 {
+            let executed = popped_source
+                .checked_sub(1)
+                .and_then(|index| prepared.get(index));
+            Some(self.fresh_history_item(
+                action,
+                executed,
+                &before_text,
+                &after_text,
+                receipt.as_ref(),
+            ))
+        } else {
+            None
+        };
+        let counts_are_possible = after_source <= before_source
+            && after_opposite >= before_opposite
+            && pushed_opposite <= 1
+            && (pushed_opposite == 0 || popped_source > 0);
+        {
+            let mut stacks = self.history_governance.borrow_mut();
+            stacks.reconcile_after_history(
+                action,
+                popped_source,
+                fresh_opposite,
+                after_undo_count,
+                after_redo_count,
+            );
+            if !counts_are_possible || loro_result.is_err() {
+                stacks.synchronized = false;
+            }
+        }
         if let Some(receipt) = &receipt {
             self.pending_receipts.borrow_mut().push(receipt.clone());
         }
-        Ok(Some(AuthoredEdit { delta, receipt }))
+        match loro_result {
+            Ok(_) if pushed_opposite == 1 || !delta.is_empty() || receipt.is_some() => {
+                Ok(Some(AuthoredEdit { delta, receipt }))
+            }
+            Ok(_) => Ok(None),
+            Err(error) if delta.is_empty() && receipt.is_none() => Err(format!(
+                "Loro history operation failed before producing an update: {error}"
+            )),
+            Err(_) => Ok(Some(AuthoredEdit { delta, receipt })),
+        }
+    }
+
+    fn fresh_history_item(
+        &self,
+        action: HistoryAction,
+        executed: Option<&PreparedHistoryItem>,
+        before_text: &str,
+        after_text: &str,
+        receipt: Option<&EditReceipt>,
+    ) -> HistoryGovernanceItem {
+        // Preserve the current prefix and suffix around the whole governed
+        // span. Unlike a minimal receipt, this retains equal newline/CRLF
+        // boundaries, while still expanding or contracting around remote text
+        // inside the stable span without using authored-time character counts.
+        let mapped_bytes = executed.and_then(|item| {
+            let range = &item.guard.range;
+            let suffix_len = before_text.len().checked_sub(range.end)?;
+            let end = after_text.len().checked_sub(suffix_len)?;
+            if range.start <= end
+                && after_text.is_char_boundary(range.start)
+                && after_text.is_char_boundary(end)
+            {
+                Some(range.start..end)
+            } else {
+                None
+            }
+        });
+        let receipt_bytes = receipt.map(|receipt| receipt.start.byte..receipt.new_end.byte);
+        let mapped_complete = mapped_bytes.is_some();
+        let bytes = match (mapped_bytes, receipt_bytes) {
+            (Some(a), Some(b)) => a.start.min(b.start)..a.end.max(b.end),
+            (Some(range), None) | (None, Some(range)) => range,
+            (None, None) => 0..0,
+        };
+        let unicode_range =
+            after_text[..bytes.start].chars().count()..after_text[..bytes.end].chars().count();
+        let before_bytes = executed.map(|item| item.guard.range.clone());
+        let metadata = match (action, before_bytes) {
+            (HistoryAction::Undo, Some(before)) => {
+                HistoryGovernanceMetadata::new(&after_text[bytes.clone()], &before_text[before])
+            }
+            (HistoryAction::Redo, Some(before)) => {
+                HistoryGovernanceMetadata::new(&before_text[before], &after_text[bytes.clone()])
+            }
+            (_, None) => {
+                HistoryGovernanceMetadata::new(&after_text[bytes.clone()], &after_text[bytes])
+            }
+        };
+        let mut item = self.governance_item(metadata, unicode_range);
+        if executed.is_none() || !mapped_complete {
+            item.anchors_complete = false;
+        }
+        item
     }
 
     pub fn can_undo(&self) -> bool {
@@ -1296,6 +1390,236 @@ mod tests {
             Some(repeated_redo_point..repeated_redo_point),
             "the next redo must be re-anchored after the second undo"
         );
+    }
+
+    fn apply_remote_replacement(
+        local: &HarborBuffer,
+        peer: &HarborBuffer,
+        range: Range<usize>,
+        replacement: &str,
+    ) {
+        peer.apply_remote_ops(&local.export_ops())
+            .expect("peer imports local state");
+        let edit = peer.replace_authored(range, replacement);
+        local
+            .apply_remote_ops(&edit.delta)
+            .expect("local imports peer replacement");
+    }
+
+    #[test]
+    fn remote_edits_inside_local_insert_survive_repeated_history_cycles() {
+        for (name, remote_range, remote_text, after_remote, after_undo, redo_range) in [
+            ("replace", 1..2, "X", "AXCq\n", "Xq\n", 0..1),
+            (
+                "insert-newline",
+                1..1,
+                "中\n",
+                "A中\nBCq\n",
+                "中\nq\n",
+                0..4,
+            ),
+        ] {
+            let dir = scratch_dir();
+            let path = dir.join(format!("history-remote-interior-{name}.txt"));
+            std::fs::write(&path, "q\n").unwrap();
+            let local = HarborBuffer::open(path.to_str().unwrap(), format!("interior:{name}:A"))
+                .expect("open interior fixture");
+            local.replace_authored(0..0, "ABC");
+            let peer = HarborBuffer::empty(format!("interior:{name}:B"));
+            apply_remote_replacement(&local, &peer, remote_range, remote_text);
+            assert_eq!(local.to_string(), after_remote);
+            let drained = local.take_edit_receipts();
+            assert!(drained.complete);
+
+            for cycle in 0..3 {
+                let undo = apply_history(&local, HistoryAction::Undo);
+                assert_eq!(local.to_string(), after_undo, "{name} undo cycle {cycle}");
+                assert_eq!(
+                    local.redo_range().unwrap(),
+                    Some(redo_range.clone()),
+                    "{name} redo is anchored around the preserved peer text"
+                );
+                assert!(undo.receipt.is_some(), "{name} undo emits a receipt");
+
+                let redo = apply_history(&local, HistoryAction::Redo);
+                assert_eq!(local.to_string(), after_remote, "{name} redo cycle {cycle}");
+                assert!(redo.receipt.is_some(), "{name} redo emits a receipt");
+            }
+            let batch = local.take_edit_receipts();
+            assert!(batch.complete);
+            assert_eq!(batch.receipts.len(), 6);
+        }
+    }
+
+    #[test]
+    fn neutralized_undo_top_preflights_older_item_and_reconciles_every_pop() {
+        let dir = scratch_dir();
+        let path = dir.join("history-neutralized-undo-top.txt");
+        std::fs::write(&path, "older\nneutral\n").unwrap();
+        let local = HarborBuffer::open(path.to_str().unwrap(), "neutralized:undo:A").unwrap();
+        local.replace_authored(0..0, "OLD-");
+        let top = local.to_string().find("neutral").unwrap();
+        let top_unicode = local.to_string()[..top].chars().count();
+        local.replace_authored(top_unicode..top_unicode, "TOP-");
+
+        let peer = HarborBuffer::empty("neutralized:undo:B");
+        peer.apply_remote_ops(&local.export_ops()).unwrap();
+        let peer_text = peer.to_string();
+        let top_byte = peer_text.find("TOP-").unwrap();
+        let top_start = peer_text[..top_byte].chars().count();
+        let peer_delete = peer.replace_authored(top_start..top_start + 4, "");
+        local.apply_remote_ops(&peer_delete.delta).unwrap();
+        assert_eq!(local.to_string(), "OLD-older\nneutral\n");
+        assert_eq!((local.undo_count(), local.redo_count()), (2, 0));
+
+        let before_text = local.to_string();
+        let before_stamp = local.change_stamp();
+        let before_receipts = local.edit_receipt_batch_snapshot();
+        let mut preflighted = Vec::new();
+        let refusal = local
+            .apply_history_governed(HistoryAction::Undo, |text, guard| {
+                preflighted.push(guard.range.clone());
+                if text[guard.range.clone()].contains("OLD-") {
+                    Err("older item claimed".into())
+                } else {
+                    Ok(())
+                }
+            })
+            .expect_err("older item is checked before neutralized top can pop");
+        assert_eq!(refusal, "older item claimed");
+        assert_eq!(preflighted.len(), 2, "both possible pops are preflighted");
+        assert_eq!(local.to_string(), before_text);
+        assert_eq!(local.change_stamp(), before_stamp);
+        assert_eq!((local.undo_count(), local.redo_count()), (2, 0));
+        assert_eq!(local.edit_receipt_batch_snapshot(), before_receipts);
+
+        apply_history(&local, HistoryAction::Undo);
+        assert_eq!(local.to_string(), "older\nneutral\n");
+        assert_eq!((local.undo_count(), local.redo_count()), (0, 1));
+        let stacks = local.history_governance.borrow();
+        assert!(stacks.synchronized);
+        assert_eq!((stacks.undo.len(), stacks.redo.len()), (0, 1));
+        drop(stacks);
+        apply_history(&local, HistoryAction::Redo);
+        assert_eq!(local.to_string(), "OLD-older\nneutral\n");
+        assert_eq!((local.undo_count(), local.redo_count()), (1, 0));
+    }
+
+    #[test]
+    fn fully_neutralized_history_is_consumed_without_receipt_or_opposite_item() {
+        let local = HarborBuffer::empty("neutralized:only:A");
+        local.replace_authored(0..0, "ABC");
+        let peer = HarborBuffer::empty("neutralized:only:B");
+        peer.apply_remote_ops(&local.export_ops()).unwrap();
+        let deletion = peer.replace_authored(0..3, "");
+        local.apply_remote_ops(&deletion.delta).unwrap();
+        assert_eq!(local.to_string(), "");
+        let before_receipts = local.edit_receipt_batch_snapshot();
+
+        let result = local
+            .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
+            .expect("neutralized history is a valid no-op");
+        assert!(result.is_none());
+        assert_eq!((local.undo_count(), local.redo_count()), (0, 0));
+        assert_eq!(local.edit_receipt_batch_snapshot(), before_receipts);
+        let stacks = local.history_governance.borrow();
+        assert!(stacks.synchronized);
+        assert_eq!((stacks.undo.len(), stacks.redo.len()), (0, 0));
+    }
+
+    #[test]
+    fn neutralized_newline_redo_preflights_older_item_and_reconciles_every_pop() {
+        let dir = scratch_dir();
+        let path = dir.join("history-neutralized-redo-top.txt");
+        std::fs::write(&path, "claim\nvictim\n").unwrap();
+        let local = HarborBuffer::open(path.to_str().unwrap(), "neutralized:redo:A").unwrap();
+        local.replace_authored(5..6, "");
+        let end = local.to_string().chars().count();
+        local.replace_authored(end..end, "OLDER");
+        apply_history(&local, HistoryAction::Undo);
+        apply_history(&local, HistoryAction::Undo);
+        assert_eq!(local.to_string(), "claim\nvictim\n");
+        assert_eq!((local.undo_count(), local.redo_count()), (0, 2));
+
+        let peer = HarborBuffer::empty("neutralized:redo:B");
+        peer.apply_remote_ops(&local.export_ops()).unwrap();
+        let peer_delete = peer.replace_authored(5..6, "");
+        local.apply_remote_ops(&peer_delete.delta).unwrap();
+        assert_eq!(local.to_string(), "claimvictim\n");
+
+        let before_text = local.to_string();
+        let before_stamp = local.change_stamp();
+        let before_receipts = local.edit_receipt_batch_snapshot();
+        let mut calls = 0;
+        let refusal = local
+            .apply_history_governed(HistoryAction::Redo, |text, guard| {
+                calls += 1;
+                if guard.range.start == text.len() {
+                    Err("older redo claimed".into())
+                } else {
+                    Ok(())
+                }
+            })
+            .expect_err("older redo is checked before neutralized newline top can pop");
+        assert_eq!(refusal, "older redo claimed");
+        assert_eq!(calls, 2);
+        assert_eq!(local.to_string(), before_text);
+        assert_eq!(local.change_stamp(), before_stamp);
+        assert_eq!((local.undo_count(), local.redo_count()), (0, 2));
+        assert_eq!(local.edit_receipt_batch_snapshot(), before_receipts);
+
+        apply_history(&local, HistoryAction::Redo);
+        assert_eq!(local.to_string(), "claimvictim\nOLDER");
+        assert_eq!((local.undo_count(), local.redo_count()), (1, 0));
+        let stacks = local.history_governance.borrow();
+        assert!(stacks.synchronized);
+        assert_eq!((stacks.undo.len(), stacks.redo.len()), (1, 0));
+    }
+
+    #[test]
+    fn governance_capacity_matches_loro_at_one_hundred_and_one_hundred_one_items() {
+        for authored in [HISTORY_CAPACITY, HISTORY_CAPACITY + 1] {
+            let buffer = HarborBuffer::empty(format!("history:capacity:{authored}"));
+            for _ in 0..authored {
+                let end = buffer.to_string().chars().count();
+                buffer.replace_authored(end..end, "x");
+            }
+            assert_eq!(buffer.undo_count(), HISTORY_CAPACITY);
+            let stacks = buffer.history_governance.borrow();
+            assert!(stacks.synchronized);
+            assert_eq!(stacks.undo.len(), buffer.undo_count());
+            assert_eq!(stacks.redo.len(), buffer.redo_count());
+            drop(stacks);
+
+            let mut preflighted = 0;
+            buffer
+                .apply_history_governed(HistoryAction::Undo, |_, _| {
+                    preflighted += 1;
+                    Ok(())
+                })
+                .expect("capacity-bound undo succeeds")
+                .expect("capacity-bound top is effective");
+            assert_eq!(preflighted, HISTORY_CAPACITY);
+            let stacks = buffer.history_governance.borrow();
+            assert!(stacks.synchronized);
+            assert_eq!(stacks.undo.len(), buffer.undo_count());
+            assert_eq!(stacks.redo.len(), buffer.redo_count());
+        }
+    }
+
+    #[test]
+    fn new_local_edit_clears_reanchored_redo_and_sidecar() {
+        let buffer = HarborBuffer::empty("history:new-edit-clears-redo");
+        buffer.replace_authored(0..0, "ABC");
+        apply_history(&buffer, HistoryAction::Undo);
+        assert_eq!((buffer.undo_count(), buffer.redo_count()), (0, 1));
+
+        buffer.replace_authored(0..0, "NEW");
+        assert_eq!((buffer.undo_count(), buffer.redo_count()), (1, 0));
+        assert!(buffer.redo_guard().unwrap().is_none());
+        let stacks = buffer.history_governance.borrow();
+        assert!(stacks.synchronized);
+        assert_eq!((stacks.undo.len(), stacks.redo.len()), (1, 0));
     }
 
     fn repeated_remote_shift_case(

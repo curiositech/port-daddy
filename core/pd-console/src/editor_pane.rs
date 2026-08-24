@@ -1674,6 +1674,134 @@ mod tests {
     }
 
     #[test]
+    fn neutralized_undo_top_cannot_skip_an_older_claimed_item() {
+        const BEFORE: &str = "older\nneutral\nadjacent\n";
+        let path = write_temp("neutralized-undo-claim.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:neutralized-undo-human");
+        human
+            .apply_local_text_edit(0..0, "OLD-")
+            .expect("older line edit");
+        let top = human.text().unwrap().find("neutral").unwrap();
+        human
+            .apply_local_text_edit(top..top, "TOP-")
+            .expect("top line edit");
+
+        let peer = HarborBuffer::empty("port-daddy:editor:neutralized-undo-peer");
+        peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+            .unwrap();
+        let peer_text = peer.to_string();
+        let top = peer_text.find("TOP-").unwrap();
+        let top_unicode = peer_text[..top].chars().count();
+        let deletion = peer.replace_authored(top_unicode..top_unicode + 4, "");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &deletion.delta);
+        assert!(human.ingest_frame(&frame));
+        assert_eq!(
+            human.text().as_deref(),
+            Some("OLD-older\nneutral\nadjacent\n")
+        );
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (2, 0)
+        );
+
+        let mut claimant = make_pane_as(&path, "port-daddy:editor:neutralized-undo-claimant");
+        let overlap = claimant.acquire_region_claim(1, 1, "older-item", 1_000);
+        assert!(human.ingest_claim(&overlap));
+        assert_history_denied_without_mutation(&mut human, false);
+
+        let release = claimant.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        let adjacent = claimant.acquire_region_claim(3, 3, "adjacent-line", 2_000);
+        assert!(human.ingest_claim(&adjacent));
+        human
+            .undo_local_text_edit()
+            .expect("adjacent claim permits multi-pop undo")
+            .expect("older effective undo frame");
+        assert_eq!(human.text().as_deref(), Some(BEFORE));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (0, 1)
+        );
+
+        let release = claimant.release_region_claim(1);
+        assert!(human.ingest_claim(&release));
+        let overlap = claimant.acquire_region_claim(1, 1, "older-redo", 3_000);
+        assert!(human.ingest_claim(&overlap));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let release = claimant.release_region_claim(2);
+        assert!(human.ingest_claim(&release));
+        let adjacent = claimant.acquire_region_claim(3, 3, "adjacent-redo", 4_000);
+        assert!(human.ingest_claim(&adjacent));
+        human
+            .redo_local_text_edit()
+            .expect("adjacent claim permits reconciled redo")
+            .expect("older redo frame");
+        assert_eq!(
+            human.text().as_deref(),
+            Some("OLD-older\nneutral\nadjacent\n")
+        );
+    }
+
+    #[test]
+    fn neutralized_newline_redo_cannot_skip_an_older_claimed_item() {
+        const BEFORE: &str = "claim\nvictim\n";
+        let path = write_temp("neutralized-redo-claim.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:neutralized-redo-human");
+        human
+            .apply_local_text_edit(5..6, "")
+            .expect("delete newline as older authored item");
+        let end = human.text().unwrap().len();
+        human
+            .apply_local_text_edit(end..end, "OLDER")
+            .expect("newer authored item");
+        human.undo_local_text_edit().unwrap().unwrap();
+        human.undo_local_text_edit().unwrap().unwrap();
+        assert_eq!(human.text().as_deref(), Some(BEFORE));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (0, 2)
+        );
+
+        let peer = HarborBuffer::empty("port-daddy:editor:neutralized-redo-peer");
+        peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+            .unwrap();
+        let deletion = peer.replace_authored(5..6, "");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &deletion.delta);
+        assert!(human.ingest_frame(&frame));
+        assert_eq!(human.text().as_deref(), Some("claimvictim\n"));
+
+        let mut claimant = make_pane_as(&path, "port-daddy:editor:neutralized-redo-claimant");
+        let claim = claimant.acquire_region_claim(2, 2, "older-redo-target", 1_000);
+        assert!(human.ingest_claim(&claim));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let release = claimant.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        human
+            .redo_local_text_edit()
+            .expect("released multi-pop redo succeeds")
+            .expect("older redo frame");
+        assert_eq!(human.text().as_deref(), Some("claimvictim\nOLDER"));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (1, 0)
+        );
+    }
+
+    #[test]
     fn repeated_remote_shift_history_denies_shifted_line_and_allows_adjacent_lines() {
         const BEFORE: &str = "abcd\ntail\n";
         const PREFIX: &str = "REMOTE\n";
