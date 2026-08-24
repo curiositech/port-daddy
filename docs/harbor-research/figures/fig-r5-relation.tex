@@ -9,8 +9,18 @@
 % width=6.6cm literal -- overran both side boxes). Content/meaning is
 % unchanged from the source script; only geometry and light prose trims.
 % [internal, script r5_figures.py]
-\begin{figure}[t]
+\begin{figure}[p]
 \centering
+% The diagram's native size (x=1cm,y=1cm coordinate grid, content to
+% y~17) is taller than a single page can hold alongside a caption this
+% long -- LaTeX's [t] float couldn't ever place it and pushed it all the
+% way past the references to the very end of the document, a real
+% document-flow bug found by rendering the CI build. Scaled to a fixed
+% height via \resizebox (proportional: text shrinks with the geometry, so
+% the row spacing fixed above stays correct) and given [p] (its own
+% dedicated page) since even scaled down it is still the tallest figure
+% in the corpus.
+\resizebox{!}{0.72\textheight}{%
 \begin{tikzpicture}[x=1cm,y=1cm]
 \node[align=center,font=\normalsize\bfseries] at (7.5,17.05)
   {R5 --- gate the door, never the thought};
@@ -63,7 +73,8 @@
 \draw[<->,>=Stealth,thick,shipred] (5.15,0.05) -- (9.85,0.05);
 \node[align=center,font=\small\bfseries\itshape,text=shipred,text width=4.4cm] at (7.5,1.05)
   {the clean-room design rule:\\ gate the channel, never the token};
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{The relation map. Base domain: a
 club's single door --- the bouncer refuses entry (controllable) but cannot refuse thought (uncontrollable). Target domain:
 the daemon's mediation boundary --- the runtime can forbid fs\_write, net\_egress, exec\_tool, git\_push, spawn\_child, and
