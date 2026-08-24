@@ -1632,7 +1632,7 @@ mod tests {
     fn turn_line(seq: i64, kind: &str, text: &str, extra: Value) -> String {
         let mut v = json!({
             "v": 1, "seq": seq, "phase": "map", "chunk": null, "kind": kind,
-            "model": "@cf/test/model", "ts": 1_700_000_000, "latencyMs": 900,
+            "model": "fixture/test-model", "ts": 1_700_000_000, "latencyMs": 900,
             "usage": {"prompt": 100, "completion": 20}, "costUsd": 0.0012,
             "content": [{"type": "text", "text": text}], "sysRef": null,
             "truncated": false,
