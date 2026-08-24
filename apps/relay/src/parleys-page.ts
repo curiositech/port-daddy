@@ -23,7 +23,7 @@
  *    resolveHarborMembership / resolveParleyInHarbor the JSON routes call, so
  *    the no-existence-oracle property holds identically on both surfaces: a
  *    non-member cannot distinguish "no such parley" from "not yours" — both
- *    render the same 404 page with the same words. See {@link notFoundPage}.
+ *    render the same 404 page with the same words. See {@link parleyNotFoundPage}.
  *  - SCRIPT-FREE CSP. `default-src 'none'` with no `script-src` at all: this
  *    page ships zero script tags and the policy says so. The Shipwright page
  *    is the ONE nonce-relaxed route on this relay and this is emphatically not
@@ -319,7 +319,8 @@ ${TOKENS}
  * Centralized so every state of this surface — list, detail, empty, 404 — is
  * unmistakably the same page. A 404 that lost the header would read as a
  * broken deploy rather than as an answer, and on a surface whose 404 is a
- * deliberate, load-bearing message (see {@link notFoundPage}) that confusion
+ * deliberate message that the surface depends on (see
+ * {@link parleyNotFoundPage}) that confusion
  * would undermine the very property the 404 exists to protect.
  *
  * @param title Text for the browser tab (escaped by the caller's contract; escaped here too).
@@ -351,7 +352,18 @@ ${inner}
  *
  * @returns A 404 Response with the standard page chrome.
  */
-function notFoundPage(): Response {
+/**
+ * The single 404 this surface serves.
+ *
+ * Exported because the ROUTER needs it too. index.ts's `/account/parleys/`
+ * branch answered an unroutable path with `new Response('Not Found')` — nine
+ * bytes, no headers — and answered a MALFORMED one with a 500, because its
+ * `decodeURIComponent` was unguarded and URIError reached the worker's global
+ * boundary. Three different replies for three flavours of "no", on a surface
+ * whose own text below promises exactly one. Same function, same bytes, or the
+ * promise is not kept.
+ */
+export function parleyNotFoundPage(): Response {
   return htmlResponse(
     shellPage(
       'Port Daddy — Parley not found',
@@ -1027,7 +1039,7 @@ export async function handleParleyListPage(
   const session = await resolveSession(request, env);
   if (!session) return toLogin();
   const gate = await resolveHarborMembership(env, session.user, namespace, name);
-  if (!gate) return notFoundPage();
+  if (!gate) return parleyNotFoundPage();
 
   const url = new URL(request.url);
   const nowSec = Math.floor(Date.now() / 1000);
@@ -1071,7 +1083,7 @@ export async function handleParleyListPage(
  * GET /account/parleys/:ns/:name/:id — one parley rendered in full.
  *
  * Both gates again run before any parley data is read, and both failures
- * funnel into the identical {@link notFoundPage} — a non-member and a
+ * funnel into the identical {@link parleyNotFoundPage} — a non-member and a
  * nonexistent id are the same answer, byte for byte.
  *
  * The viewer's own seat is resolved here rather than in the renderer because
@@ -1096,14 +1108,14 @@ export async function handleParleyDetailPage(
   const session = await resolveSession(request, env);
   if (!session) return toLogin();
   const gate = await resolveHarborMembership(env, session.user, namespace, name);
-  if (!gate) return notFoundPage();
+  if (!gate) return parleyNotFoundPage();
 
   const nowSec = Math.floor(Date.now() / 1000);
   let parley: ParleyRow | null;
   let positions: ParleyPositionRow[];
   try {
     parley = await resolveParleyInHarbor(env, gate.harbor, parleyId, nowSec);
-    if (!parley) return notFoundPage();
+    if (!parley) return parleyNotFoundPage();
     positions = await listParleyPositions(env.DB, parley.id);
   } catch {
     return htmlResponse(
@@ -1246,11 +1258,11 @@ export async function handleParleyVerdictForm(
   const session = await resolveSession(request, env);
   if (!session) return toLogin();
   const gate = await resolveHarborMembership(env, session.user, namespace, name);
-  if (!gate) return notFoundPage();
+  if (!gate) return parleyNotFoundPage();
 
   const nowSec = Math.floor(Date.now() / 1000);
   const parley = await resolveParleyInHarbor(env, gate.harbor, parleyId, nowSec);
-  if (!parley) return notFoundPage();
+  if (!parley) return parleyNotFoundPage();
 
   const detailHref = `/account/parleys/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/${encodeURIComponent(parleyId)}`;
   const back = (notice: string) =>
@@ -1391,7 +1403,7 @@ export async function handleParleySignForm(
   const session = await resolveSession(request, env);
   if (!session) return toLogin();
   const gate = await resolveHarborMembership(env, session.user, namespace, name);
-  if (!gate) return notFoundPage();
+  if (!gate) return parleyNotFoundPage();
 
   const detailHref = `/account/parleys/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/${encodeURIComponent(parleyId)}`;
   const back = (notice: string) =>
@@ -1440,7 +1452,7 @@ export async function handleParleySignForm(
   }
   // A 404 from the respond path means the parley is unknown OR foreign to this
   // harbor — the same no-oracle answer the GET renders, so render it the same.
-  if (res.status === 404) return notFoundPage();
+  if (res.status === 404) return parleyNotFoundPage();
 
   let code: string | undefined;
   try {

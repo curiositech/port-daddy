@@ -633,6 +633,71 @@ describe('transport headers', () => {
 // ── Routing through the real worker dispatcher ───────────────────────────────
 
 describe('route wiring (worker.fetch)', () => {
+  /**
+   * `notFoundPage` in parleys-page.ts says the quiet part out loud: "telling
+   * you a parley exists but is closed to you would be its own kind of leak."
+   * The router did not hold up its end.
+   *
+   * `.map(decodeURIComponent)` on the /account/parleys/ branch was UNGUARDED,
+   * so a malformed percent-escape threw URIError straight past the routing and
+   * into the worker's global boundary — which answers 500 INTERNAL_ERROR. A 500
+   * and a 404 are as distinguishable as answers get, so "your escape sequence
+   * was bad" was a different reply from "no such parley", on a surface whose
+   * whole design is that those must be one reply.
+   *
+   * The sibling harbors branch already guarded its decode. This one did not,
+   * and nothing tested it.
+   */
+  it('a malformed percent-escape in a parley path is a 404, not a 500', async () => {
+    const fx = makeParleyDb();
+    const env = makeParleyEnv(fx.db);
+    await seedDock(env);
+
+    const malformed = await worker.fetch(
+      req('/account/parleys/%ZZ/dock', { session: ALICE_SESSION }), env, {} as ExecutionContext,
+    );
+    expect(malformed.status).toBe(404);
+    const body = await malformed.text();
+    expect(body).not.toMatch(/INTERNAL_ERROR/);
+
+    // Premise: a real page came back, not an empty body. Without this the
+    // byte-identity assertion below passes for two empty strings.
+    expect(body.length).toBeGreaterThan(200);
+    expect(body).toContain('Not found');
+
+    // …and byte-identical to the 404 a well-formed but nonexistent parley
+    // gets, because two 404s with different bodies are still two answers.
+    const ghost = await worker.fetch(
+      req('/account/parleys/alice/ghost', { session: ALICE_SESSION }), env, {} as ExecutionContext,
+    );
+    expect(ghost.status).toBe(404);
+    expect(body).toBe(await ghost.text());
+  });
+
+  /**
+   * The router builds this 404 itself, on a construction path the handler tests
+   * never reach. A 404 that is cacheable or indexable leaks the same fact the
+   * body is careful not to state.
+   */
+  it('the router-built parley 404 carries no-store, noindex and a script-free CSP', async () => {
+    const fx = makeParleyDb();
+    const env = makeParleyEnv(fx.db);
+    await seedDock(env);
+
+    for (const path of ['/account/parleys/%ZZ/dock', '/account/parleys/alice/ghost']) {
+      const res = await worker.fetch(
+        req(path, { session: ALICE_SESSION }), env, {} as ExecutionContext,
+      );
+      expect(res.status).toBe(404);
+      expect(res.headers.get('Cache-Control')).toBe('no-store');
+      expect(res.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+      const csp = res.headers.get('Content-Security-Policy')!;
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).not.toContain('script-src');
+      expect(await res.text()).not.toMatch(/<script[\s>]/i);
+    }
+  });
+
   it('dispatches list, detail, and sign to the right handlers', async () => {
     const fx = makeParleyDb();
     const env = makeParleyEnv(fx.db);

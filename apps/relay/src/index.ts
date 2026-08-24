@@ -141,13 +141,7 @@ import {
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
-import {
-  handleParleysIndex,
-  handleParleyListPage,
-  handleParleyDetailPage,
-  handleParleySignForm,
-  handleParleyVerdictForm,
-} from './parleys-page.js';
+import { handleParleysIndex, handleParleyListPage, handleParleyDetailPage, handleParleySignForm, handleParleyVerdictForm, parleyNotFoundPage } from './parleys-page.js';
 import {
   handleMediatorConvene,
   handleMediatorSummonsRespond,
@@ -464,18 +458,31 @@ export default {
     else if (pathname === '/account/parleys' && method === 'GET') {
       response = await handleParleysIndex(request, env);
     } else if (pathname.startsWith('/account/parleys/')) {
-      const seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
-      const [pns, pname, pid, pverb] = seg;
-      if (pns && pname && seg.length === 2 && method === 'GET') {
+      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). Left
+      // unguarded, that threw past the routing into the global boundary, which
+      // answers 500 INTERNAL_ERROR — a visibly different reply from the 404
+      // every other unservable parley URL gets. This surface answers 404 for
+      // everything it will not serve precisely so a non-member and a
+      // nonexistent parley are one response; an undecodable segment joins them
+      // rather than announcing itself with a different status.
+      let seg: string[] | null = null;
+      try {
+        seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      } catch {
+        seg = null;
+      }
+      const [pns, pname, pid, pverb] = seg ?? [];
+      if (seg && pns && pname && seg.length === 2 && method === 'GET') {
         response = await handleParleyListPage(request, env, pns, pname);
-      } else if (pns && pname && pid && seg.length === 3 && method === 'GET') {
+      } else if (seg && pns && pname && pid && seg.length === 3 && method === 'GET') {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
-      } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
+      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
-      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
         response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
-        response = new Response('Not Found', { status: 404 });
+        // The SAME page a nonexistent parley gets, byte for byte.
+        response = parleyNotFoundPage();
       }
     }
 
