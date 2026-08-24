@@ -191,7 +191,7 @@ def create_regime_diagram():
         ax1.add_patch(cell2)
         ax1.text(col1_x0 + 0.18, yc, policy, fontsize=8.7, ha='left', va='center',
                   weight='bold' if highlight else 'normal')
-        ax1.text(col2_x0 + col2_x1 - col1_x0 - col1_x0 - 0.18 if False else (col2_x0 + 0.18), yc, verdict,
+        ax1.text(col2_x0 + 0.18, yc, verdict,
                   fontsize=8.7, ha='left', va='center', weight='bold', color=color)
 
     ax1.text(0.15, bottom - 0.42,

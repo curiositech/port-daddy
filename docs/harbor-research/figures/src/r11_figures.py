@@ -8,7 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch
-from scipy.stats import hypergeom
 import os
 
 # Colors (from house rules)
