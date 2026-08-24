@@ -877,7 +877,7 @@ NOT CLAIMED
                   <img
                     src="/demos/harness/harness-attention-activation.gif"
                     alt="Fresh terminal recording of Port Daddy attention recommending and arming useful coordination channels."
-                    className="aspect-video w-full object-cover"
+                    className="aspect-video w-full object-contain"
                     loading="eager"
                   />
                 </figure>
@@ -899,7 +899,7 @@ NOT CLAIMED
                   <img
                     src="/demos/harness/harness-fleetbar-repair-live.gif"
                     alt="Fresh FleetBar recording showing the harness moving from needs repair to confirmed live."
-                    className="aspect-video w-full object-cover"
+                    className="aspect-video w-full object-contain"
                     loading="eager"
                   />
                 </figure>

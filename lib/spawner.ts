@@ -2485,7 +2485,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // Final-answer-only backends (API calls): one assistant turn.
         txAssistant(transcriptId, output, completedAt);
       }
-      if (error) {
+      if (error && !wasKilled) {
         // Record the error itself as a final turn so operators see why the run
         // failed without having to cross-reference status.
         txAssistant(transcriptId, `[error] ${error}`, completedAt);

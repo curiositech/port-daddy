@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787518060275,
+  "generatedAt": 1787528087885,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 290,
+  "count": 293,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -380,6 +380,11 @@
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
     },
     {
+      "slug": "adr-0092-production-fleet-enrollment",
+      "status": "now",
+      "summaryMd": "Activate ADR-0092 cloud coordination as an offline-first Fleet peer"
+    },
+    {
       "slug": "adr-0096-signed-guidance-envelope",
       "status": "backlog",
       "summaryMd": "feat(agent-harbor): M5 turn-start suggestibility — signed guidance channel, fail-closed verifier, ProVerif-gated C3 (ADR-0096)"
@@ -631,8 +636,8 @@
     },
     {
       "slug": "ci-macos-node24-jest-memory-20260823",
-      "status": "now",
-      "summaryMd": "Stop repeated post-merge macOS Node 24 Jest heap exhaustion without broadening process limits"
+      "status": "done",
+      "summaryMd": "Prevent recurring macOS Node 24 Jest out-of-memory failures by scoping a 4 GiB V8 old-space limit to the macOS compatibility test step while preserving Linux command parity. PR #9783 merged at main d1f30731ffc01b13b48f808df72ad13e87e77e96; main CI run 32668945088 proved macOS Node 24, macOS Node 20, and both Linux comparison lanes successful."
     },
     {
       "slug": "claude-provenance-gated-git-guard",
@@ -676,8 +681,8 @@
     },
     {
       "slug": "codex-doctrine-hypertree",
-      "status": "backlog",
-      "summaryMd": "RFC: empirically earned fleet doctrine"
+      "status": "done",
+      "summaryMd": "Empirically earned Fleet doctrine architecture and machine-readable hypertree"
     },
     {
       "slug": "codex-durable-agent-cross-harness-20260715",
@@ -748,6 +753,11 @@
       "slug": "dev-berth-daemon-registration",
       "status": "merge",
       "summaryMd": "Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds."
+    },
+    {
+      "slug": "dispatch-codex-launch-claim-lifecycle-20260823",
+      "status": "now",
+      "summaryMd": "Repair PD-spawned Codex review launches and exact dispatch run ownership: canonical provider argv, requested-id priority, lease-safe preparation, and rollback after failed daemon acknowledgement."
     },
     {
       "slug": "dispatch-launcher-regression-hotfix-20260823",
@@ -881,7 +891,7 @@
     },
     {
       "slug": "fleet-poison-delivery-circuit-breaker-20260823",
-      "status": "now",
+      "status": "done",
       "summaryMd": "Stop poison Fleet deliveries from monopolizing the serialized cloud review queue: bound whole-delivery retries, surface admission/backlog state, and degrade broken ships fail-closed without starving newer heads."
     },
     {
@@ -1220,6 +1230,11 @@
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
     },
     {
+      "slug": "porthole-player-website-component",
+      "status": "backlog",
+      "summaryMd": "feat(porthole): production terminal-replay player replaces landing-page GIFs"
+    },
+    {
       "slug": "pr2596-qa-gap-fixes",
       "status": "now",
       "summaryMd": "Fix PR #2596 pd-qa gaps: onSessionEnd wiring test coverage + capsule validation at agent:dead call site"
@@ -1238,6 +1253,11 @@
       "slug": "readme-front-door-and-accuracy-gate",
       "status": "merge",
       "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
+    },
+    {
+      "slug": "relay-sqlite-placeholder-portability-20260823",
+      "status": "done",
+      "summaryMd": "Land the narrowly scoped Relay roadmap-mirror portability repair that replaces SQLite numbered placeholders with anonymous positional placeholders accepted consistently by Cloudflare D1 and Node SQLite. PR #9767 merged at main c5c2debfa0e5133138c8684a6f9c2748b02f9f35; exact-head CI passed; relay-latest deploy run 32670458914 succeeded; live Worker version 560bcf2a-787b-488c-8b12-560789630b73 returns HTTP 200 from /health."
     },
     {
       "slug": "relay-staging-ledger-pr-automation-20260823",

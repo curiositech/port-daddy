@@ -8,9 +8,10 @@ Supersedes the *operational overlap* between `pd dispatch` (ADR-0035 lineage),
 `pd spawn`, and `pd fleet` (the YAML runner). It does **not** supersede the
 substrate ADRs it builds on: 0013 (harbors), 0022 (durable actor souls / body
 leases), 0028 (actor / fleet-agent / session three layers), 0050 (Coast Guard:
-bonds, rent, slash, sandbox), 0046 (operator console), 0047-conversation-protocol
-(FIPA performatives). This ADR is the **conductor that ties those four substrates
-into one spawn primitive**.
+bonds, rent, slash, sandbox), 0046 (operator console), 0107-conversation-protocol
+(FIPA performatives — renumbered from the pre-retrofit slot also called "0047";
+current ADR-0047 is the unrelated Harbor Envelope Enforcement ADR). This ADR is
+the **conductor that ties those four substrates into one spawn primitive**.
 
 ## Context
 

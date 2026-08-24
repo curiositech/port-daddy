@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CONFIG = readFileSync(`${APP_ROOT}/wrangler.deploy.toml`, 'utf8');
+const DEPLOY_FACADE = readFileSync(`${APP_ROOT}/src/worker.ts`, 'utf8');
 const GITHUB_APP_MANIFEST = JSON.parse(
   readFileSync(`${APP_ROOT}/../github-app-fleet/manifest.json`, 'utf8')
 ) as {
@@ -56,6 +57,13 @@ function producerBlock(header: string, binding: string): string {
 }
 
 describe('wrangler.deploy.toml — release-channel domain safety (ADR-0119)', () => {
+  it('deploys the facade that exports the internal coordination grant service', () => {
+    expect(CONFIG).toMatch(/^main\s*=\s*"src\/worker\.ts"\s*$/m);
+    expect(DEPLOY_FACADE).toMatch(
+      /export\s*\{\s*CoordinationGrantService\s*\}\s*from\s*['"]\.\/coordination-grant-service\.js['"]/,
+    );
+  });
+
   it('prod owns the branded custom domain', () => {
     // The top-level block IS prod; the domain lives there and nowhere else.
     expect(CONFIG).toMatch(/pattern\s*=\s*"relay\.portdaddy\.dev"/);

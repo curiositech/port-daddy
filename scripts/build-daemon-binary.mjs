@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { arch, platform, tmpdir } from 'node:os';
+import { arch, homedir, platform } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
@@ -12,12 +12,16 @@ import {
   parseSemanticRuntimeProof,
   prepareOnnxRuntimeNativeBinding,
 } from './lib/onnx-runtime-native.mjs';
+import { smokeTreeSitterRoute } from './lib/smoke-tree-sitter.mjs';
+import { packageTreeSitterRuntime } from './lib/tree-sitter-runtime.mjs';
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist', 'daemon');
 const OUTFILE = join(DIST_DIR, platform() === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon');
 const MANIFEST = join(DIST_DIR, 'manifest.json');
 const args = new Set(process.argv.slice(2));
+const DURABLE_SCRATCH_DIR = process.env.PD_SCRATCH_ROOT || join(homedir(), 'coding', 'tmp');
+mkdirSync(DURABLE_SCRATCH_DIR, { recursive: true });
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -86,7 +90,7 @@ async function smokePublicSamples(port) {
 
 async function smokeBinary(nativeRuntime) {
   const port = await reservePort();
-  const prefix = join(tmpdir(), `port-daddy-daemon-smoke-${process.pid}`);
+  const prefix = join(DURABLE_SCRATCH_DIR, `port-daddy-daemon-smoke-${process.pid}`);
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(prefix, { recursive: true });
 
@@ -110,7 +114,11 @@ async function smokeBinary(nativeRuntime) {
   try {
     const health = await waitForHealth(port, child, stderrChunks);
     const samples = await smokePublicSamples(port);
-    return { health, samples };
+    const treeSitter = await smokeTreeSitterRoute({
+      baseUrl: `http://127.0.0.1:${port}`,
+      scratchRoot: join(prefix, 'tree-sitter'),
+    });
+    return { health, samples, treeSitter };
   } finally {
     if (child.exitCode === null) {
       child.kill('SIGTERM');
@@ -152,6 +160,10 @@ const onnxRuntimeNative = packageOnnxRuntimeNative({
   platform: platform(),
   arch: arch(),
 });
+const treeSitterRuntime = packageTreeSitterRuntime({
+  repoRoot: ROOT_DIR,
+  outputRoot: DIST_DIR,
+});
 run('bun', ['build', '--compile', 'bin/port-daddy-daemon.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
 
 let smoke = null;
@@ -177,10 +189,12 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   sqliteBackend: 'bun:sqlite',
   onnxRuntimeBinding,
   onnxRuntimeNative,
+  treeSitterRuntime,
   smoke: smoke ? {
     status: smoke.daemon.health.status,
     pid: smoke.daemon.health.pid ?? null,
     samples: smoke.daemon.samples,
+    treeSitter: smoke.daemon.treeSitter,
     semanticRuntime: smoke.semanticRuntime,
   } : null,
 }, null, 2)}\n`);
