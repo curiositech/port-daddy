@@ -980,6 +980,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         tuple: context.tuple ? {
           id: context.tuple.id,
           harbor: context.tuple.harbor,
+          idempotencyKey: context.tuple.idempotencyKey,
           fields: context.tuple.fields,
           writtenBy: context.tuple.writtenBy,
           createdAt: context.tuple.createdAt,
@@ -1012,6 +1013,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       tuple: tuplePayload ? {
         id: typeof tuplePayload.id === 'number' ? tuplePayload.id : 0,
         harbor: typeof tuplePayload.harbor === 'string' ? tuplePayload.harbor : null,
+        idempotencyKey: typeof tuplePayload.idempotencyKey === 'string'
+          ? tuplePayload.idempotencyKey
+          : null,
         fields: Array.isArray(tuplePayload.fields) ? tuplePayload.fields : [],
         writtenBy: typeof tuplePayload.writtenBy === 'string' ? tuplePayload.writtenBy : null,
         createdAt: typeof tuplePayload.createdAt === 'number' ? tuplePayload.createdAt : tuple.createdAt,

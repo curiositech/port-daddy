@@ -19,8 +19,16 @@ import {
   connectionLimits
 } from '../shared/connection-tracking.js';
 import { decodeMessage, type RawDaemonMessage } from '../lib/tube.js';
-import { buildLineage, summarizeThread, renderLineageTree } from '../lib/discourse-lineage.js';
-import { shouldConvene } from '../lib/parley-trigger.js';
+import {
+  buildLineage,
+  summarizeThread,
+  renderLineageTree,
+} from '../lib/discourse-lineage.js';
+import {
+  buildConversationalDiagnosticSignal,
+  CONFLICT_SIGNAL_PRODUCERS,
+  shouldConvene,
+} from '../lib/parley-trigger.js';
 
 interface MessagingRouteDeps {
   logger: {
@@ -211,7 +219,8 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
       const MAX_MESSAGE_LIMIT = 2000;
       const requestedLimit = limit ? parseInt(limit as string, 10) : MAX_MESSAGE_LIMIT;
       const safeLimit = Math.min(Math.max(1, requestedLimit), MAX_MESSAGE_LIMIT);
-      // Parley costs (RCP-2a). Tunable via query; unit-scaled defaults.
+      // ADR-0111/ADR-0129 diagnostic economics. Query values affect only this
+      // read-only lineage evaluation; automatic checkpoint policy is immutable.
       const costs = {
         parleyCost: Number.isFinite(parseFloat(parleyCost)) ? parseFloat(parleyCost) : 1,
         wastePerUnresolved: Number.isFinite(parseFloat(wastePerContradiction)) ? parseFloat(wastePerContradiction) : 2,
@@ -222,7 +231,19 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
 
       if (!result || result.success === false || !Array.isArray(result.messages)) {
         const emptyDigest = summarizeThread(buildLineage([]));
-        return { ok: true, channel: (request.params as any).channel, digest: emptyDigest, parley: shouldConvene(emptyDigest, costs), tree: '' };
+        const channel = (request.params as any).channel as string;
+        const signal = buildConversationalDiagnosticSignal({
+          channel,
+          digest: emptyDigest,
+          producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+        });
+        return {
+          ok: true,
+          channel,
+          digest: emptyDigest,
+          parley: shouldConvene(signal, { mode: 'diagnostic', costs }),
+          tree: '',
+        };
       }
 
       let decoded = result.messages.map((m) => decodeMessage(m as RawDaemonMessage));
@@ -232,14 +253,21 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
 
       const graph = buildLineage(decoded);
       const digest = summarizeThread(graph);
+      const channel = (request.params as any).channel as string;
+      const signal = buildConversationalDiagnosticSignal({
+        channel,
+        conversationId: graph.conversationId,
+        digest,
+        producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
+      });
       return {
         ok: true,
-        channel: (request.params as any).channel,
+        channel,
         ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
         digest,
-        // RCP-2a: should the swarm convene a parley over the unresolved
-        // contradictions? P(fail)·waste·|unresolved| > parleyCost.
-        parley: shouldConvene(digest, costs),
+        // ADR-0111/ADR-0129 diagnostic: evaluate the conversation checkpoint
+        // without summoning Parley. P(fail)·waste·|unresolved| > parleyCost.
+        parley: shouldConvene(signal, { mode: 'diagnostic', costs }),
         tree: renderLineageTree(graph),
       };
     } catch (error) {

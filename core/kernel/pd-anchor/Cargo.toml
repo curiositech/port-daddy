@@ -29,3 +29,15 @@ thiserror.workspace = true
 # millions of structured-random byte strings at the C-ABI exports and assert every
 # one fails closed (non-null sentinel JSON, never a panic across the boundary).
 proptest = "1.4"
+# Criterion baseline for the kernel hot paths (schedule CPM + macaroon verify).
+# default-features off drops the plotters/gnuplot HTML-report machinery we don't
+# need in CI; the statistical timing + confidence intervals are unaffected.
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "schedule_bench"
+harness = false
+
+[[bench]]
+name = "macaroon_bench"
+harness = false
