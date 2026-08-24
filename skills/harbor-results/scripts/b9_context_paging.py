@@ -357,34 +357,54 @@ print(f"  20 instances x (honest + corrupted phi in {{0.1,0.3}}), all h: 0 viola
 
 # ======================================================= (3) linearity in phi
 print("\n=== (3) LINEARITY: cost(phi) curve linear, slope <= N*c_refetch ===")
+# High cache pressure (unpinned working set >> unpinned capacity) so the phi
+# term is visible above sampling noise. Corruption schedules are NESTED
+# (common random numbers): for each sequence a master ordering of corruption
+# times/targets is drawn once, and rate phi uses its first floor(phi*N)
+# entries — cost(phi) is then a paired, monotone-comparable curve.
 N3 = 400
 sizes3 = {0: 2, 1: 2, 2: 2}
-for f in range(3, 10):
+for f in range(3, 13):
     sizes3[f] = int(rng.integers(1, 4))
 costs3 = {f: float(s) for f, s in sizes3.items()}
 pins3 = frozenset({0, 1, 2})
 p3 = sum(sizes3[f] for f in pins3)
 k3 = p3 + 6
-junk3 = [f for f in range(3, 10)
+junk3 = [f for f in range(3, 13)
          if p3 + sizes3[f] + max(sizes3.values()) <= k3]
 cmax3 = max(costs3.values())
-wu = 1.0 / (1 + np.arange(7))
+wu = 1.0 / (1 + np.arange(10))
 wu /= wu.sum()
 
 
 def gen3(rng):
     return [int(rng.integers(0, 3)) if rng.random() < 0.30
-            else 3 + int(rng.choice(7, p=wu)) for _ in range(N3)]
+            else 3 + int(rng.choice(10, p=wu)) for _ in range(N3)]
+
+
+def master_schedule(rng):
+    """Random times (nested prefix) with targets biased toward unpinning true
+    pins (the damaging direction) — still OBLIVIOUS: drawn before the run,
+    independent of cache state."""
+    times = rng.permutation(N3)
+    pinlist, junklist = sorted(pins3), sorted(junk3)
+    targets = [pinlist[int(rng.integers(len(pinlist)))] if rng.random() < 0.7
+               else junklist[int(rng.integers(len(junklist)))]
+               for _ in range(N3)]
+    return times, targets
 
 
 base_seqs = [gen3(rng) for _ in range(12)]
+schedules = [master_schedule(rng) for _ in base_seqs]
 honest = [run_seq(s, sizes3, costs3, k3, pins3).cost for s in base_seqs]
 phis = np.round(np.arange(0.0, 0.51, 0.05), 2)
 means, sharp_viol, sharp_max = [], 0, 0.0
 for phi in phis:
+    ncorr = int(phi * N3)
     tot = []
     for j, s in enumerate(base_seqs):
-        flips = random_flips(N3, phi, pins3, junk3, rng)
+        times, targets = schedules[j]
+        flips = {int(t): targets[int(t)] for t in times[:ncorr]}
         Cc = run_seq(s, sizes3, costs3, k3, pins3, flips)
         tot.append(Cc.cost)
         if flips:
@@ -399,7 +419,7 @@ pred = slope * phis + intercept
 R2 = 1 - np.sum((means - pred) ** 2) / np.sum((means - means.mean()) ** 2)
 sup = max((means[i] - means[0]) / (phis[i] * N3 * cmax3)
           for i in range(1, len(phis)))
-print(f"  phi grid {phis[0]}..{phis[-1]}, 12 seqs/point, N={N3}, c_refetch={cmax3:.0f}")
+print(f"  phi grid {phis[0]}..{phis[-1]}, 12 paired seqs/point, N={N3}, c_refetch={cmax3:.0f}")
 print(f"  mean cost: {means[0]:.1f} (phi=0) -> {means[-1]:.1f} (phi=0.5)")
 print(f"  linear fit slope = {slope:.1f}  vs bound N*c_refetch = {N3*cmax3:.0f}"
       f"  ({slope/(N3*cmax3)*100:.1f}% of ceiling)   R^2 = {R2:.4f}")
@@ -462,7 +482,7 @@ for name, inst in [("thrash", thrash_instance()), ("phase", phase_instance())]:
     check_b92_bound(f"{name} honest", seq, sizes, costs, k, pins, Ch, 0, opt_cache)
     for mode in ("random", "adaptive"):
         if mode == "random":
-            worst_extra, worst_n = 0.0, 1
+            worst_extra, worst_n = -np.inf, 1
             for d in range(5):
                 flips = random_flips(len(seq), 0.15, pins, junk, rng)
                 if not flips:
@@ -470,8 +490,9 @@ for name, inst in [("thrash", thrash_instance()), ("phase", phase_instance())]:
                 Cc = run_seq(seq, sizes, costs, k, pins, flips)
                 check_b92_bound(f"{name} rand#{d}", seq, sizes, costs, k, pins,
                                 Cc, len(flips), opt_cache)
-                if Cc.cost - Ch.cost > worst_extra:
+                if (Cc.cost - Ch.cost) / len(flips) > worst_extra / worst_n:
                     worst_extra, worst_n = Cc.cost - Ch.cost, len(flips)
+            worst_extra = max(worst_extra, 0.0)
         else:
             flips = adaptive_flips(seq, sizes, costs, k, pins, junk,
                                    budget=int(0.15 * len(seq)))
@@ -522,14 +543,17 @@ else:
 
 # ============================================== (5) MUTATION: blind pin trust
 print("\n=== (5) MUTATION: blind pin-trust must be catastrophic (repair-on-touch is load-bearing) ===")
-sizes5 = {0: 2, 1: 2, 2: 2, 3: 2}
+# Cyclic working set {1,2,3,4} (8 tokens) thrashes in the unpinned region
+# with OR without the pin resident, so evicting the pin buys nothing back:
+# the corruption's whole effect is on the pin itself.
+sizes5 = {0: 2, 1: 2, 2: 2, 3: 2, 4: 2}
 costs5 = {f: float(s) for f, s in sizes5.items()}
-k5, pins5 = 6, frozenset({0})
+k5, pins5 = 7, frozenset({0})
 T0 = 15                                            # single corruption: unpin span 0 once
 
 
 def blind_seq(N):
-    return [0 if t % 6 == 0 else 1 + (t % 3) for t in range(N)]
+    return [0 if t % 6 == 0 else 1 + (t % 4) for t in range(N)]
 
 
 rows5, prev_stale = [], None
@@ -549,15 +573,16 @@ print("  single corruption at t=15 (true pin unpinned once, then oracle honest f
 print("  N      graceful extra   blind stale-serves   blind damage (priced at refetch only)")
 for N, ge, st, sc in rows5:
     print(f"  {N:<6} {ge:8.1f}         {st:6d}               {sc:10.1f}")
-ratio5 = rows5[-1][3] / max(rows5[-1][1], EPS)
-print(f"  graceful pays ONE refetch (= {rows5[-1][1]:.0f} = c(f)), forever;"
-      f" blind-trust damage grows linearly in N")
-print(f"  degradation ratio at N=1920: {ratio5:.0f}x — and the true cost of acting on"
-      f" absent load-bearing context is a")
-print(f"  correctness failure, i.e. unbounded; pricing it at c_refetch is the"
-      f" CHARITABLE accounting. Mutation caught ✓")
-if ratio5 < 20:
-    fail(f"mutation NOT catastrophic: ratio only {ratio5:.1f}x")
+ratio5 = rows5[-1][3] / costs5[0]                  # damage in units of ONE refetch
+print(f"  graceful pays exactly ONE refetch (extra = {rows5[-1][1]:.0f} = c(f) = "
+      f"{costs5[0]:.0f}), independent of N;")
+print(f"  blind-trust never repairs: damage grows linearly, {ratio5:.0f} refetch-"
+      f"equivalents at N=1920 from ONE corruption —")
+print(f"  and the true cost of acting on absent load-bearing context is a "
+      f"correctness failure, i.e. unbounded;")
+print(f"  pricing it at c_refetch is the CHARITABLE accounting. Mutation caught ✓")
+if ratio5 < 20 or rows5[-1][1] > costs5[0] + EPS:
+    fail(f"mutation NOT catastrophic vs graceful: {ratio5:.1f} refetch-equivalents")
 
 # ------------------------------------------------------------------- figure
 figdir = os.environ.get("B9_FIGDIR", ".")
