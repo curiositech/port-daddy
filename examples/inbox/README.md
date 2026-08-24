@@ -42,4 +42,4 @@ npx tsx examples/inbox/inbox-monitor.ts my-agent-id
 
 Read and acknowledgement calls present the actor credential stored by `pd begin`. The public send path accepts only `content` plus optional `contentType`; the daemon selects sender provenance, rate limits delivery, and never wakes or controls the recipient runtime.
 
-Full reference: [docs/sdk.md](../../docs/sdk.md) — Inbox section.
+Full reference: [docs/sdk.md](https://github.com/curiositech/port-daddy/blob/main/docs/sdk.md) — Inbox section.

@@ -294,7 +294,9 @@ Register an agent.
 Response includes `salvageHint` if dead agents exist in the same project.
 
 ### POST /agents/:id/heartbeat
-Send a heartbeat to keep registration alive.
+Extend a canonical live-inbox lease. Canonical actor IDs require that actor's
+daemon-minted credential in `x-actor-credential`; aliases remain display-only
+and cannot renew canonical authority.
 
 ### DELETE /agents/:id
 Unregister an agent.
@@ -306,19 +308,23 @@ Get info about an agent.
 List all agents. Optional query param: `active=true`.
 
 ### POST /agents/:id/inbox
-Send a message to an agent's inbox. Body: `{ content, from?, type? }`.
+Bounded external ingress to one exact live canonical inbox. Body:
+`{ content, contentType? }`. Sender provenance is daemon-attributed; callers
+cannot provide `from`, wake a runtime, or gain terminal/operator authority.
 
 ### GET /agents/:id/inbox
-Read inbox messages. Query: `?unread=true&limit=50`.
+Read private inbox messages. Requires that exact actor's daemon-minted
+credential in `x-actor-credential`. Query: `?unread=true&limit=50`.
 
 ### GET /agents/:id/inbox/stats
-Inbox stats: total and unread message counts.
+Private inbox counts. Requires the exact owner credential.
+
+### PUT /agents/:id/inbox/:messageId/read
+Mark one message read. Requires the exact owner credential.
 
 ### PUT /agents/:id/inbox/read-all
-Mark all inbox messages as read.
-
-### DELETE /agents/:id/inbox
-Clear all inbox messages.
+Mark all inbox messages as read. Requires the exact owner credential.
+Destructive inbox clearing is not exposed.
 
 ---
 
