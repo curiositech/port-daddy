@@ -18,7 +18,7 @@
 
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync, copyFileSync, readdirSync, utimesSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +43,7 @@ import {
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid.js';
+import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
@@ -1211,6 +1212,139 @@ describe('Giant Squid Harness — pd-hook-stop closeout gate (ADR-0092 L4)', () 
     expect(r.status).toBe(0);
     expect(r.stdout).toBe('');
     expect(r.stderr).toBe('');
+  });
+});
+
+describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding 1, 2026-08-24)', () => {
+  // bin/pd-hook-stop used to capture the ENTIRE Stop event (including the
+  // whole final assistant message) into one unbounded shell variable, then
+  // copied it again through printf | jq and two grep passes — several full
+  // in-memory copies of a payload with no upper bound. The fix reads stdin
+  // through a hard byte budget BEFORE any shell-variable capture and fails
+  // open (with a sanitized receipt) rather than ever building the jq/grep
+  // pipeline over an oversized blob.
+  //
+  // A small overridden budget keeps these boundary fixtures tiny and fast;
+  // the separate multi-megabyte test below proves the SAME contract at the
+  // real production default (262144 bytes).
+  const BUDGET = 4096;
+  const oversizeLog = () => join(SCRATCH, 'squid', 'oversize-events.log');
+
+  // Build a Stop event whose JSON-serialized byte length is EXACTLY totalLen,
+  // padding the final assistant message field (never containing a SITREP
+  // table, so a within-budget case takes the normal "block" path — proving
+  // the budget check ran and then correctly fell through to real logic).
+  const paddedEvent = (totalLen: number, sessionId: string): string => {
+    const base = { cwd: WORKSPACE, session_id: sessionId, last_assistant_message: '' };
+    const baseLen = Buffer.byteLength(JSON.stringify(base));
+    const pad = totalLen - baseLen;
+    if (pad < 0) throw new Error('fixture too small for requested length');
+    const withPad = { ...base, last_assistant_message: 'x'.repeat(pad) };
+    const out = JSON.stringify(withPad);
+    expect(Buffer.byteLength(out)).toBe(totalLen); // fixture sanity, not the assertion under test
+    return out;
+  };
+
+  const runRaw = (input: string, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input,
+      env: { ...process.env, PD_HOME: SCRATCH, PD_SQUID_STOP_EVENT_BUDGET_BYTES: String(BUDGET), ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('exactly at budget: processes normally (no oversize receipt)', () => {
+    const r = runRaw(paddedEvent(BUDGET, 'budget-exact'));
+    expect(r.status).toBe(2); // BARE final message, no SITREP table -> normal enforce block
+    expect(r.stderr).toContain('SITREP enforce');
+    expect(existsSync(oversizeLog())).toBe(false);
+  });
+
+  test('one byte under budget: processes normally (no oversize receipt)', () => {
+    const r = runRaw(paddedEvent(BUDGET - 1, 'budget-minus-one'));
+    expect(r.status).toBe(2);
+    expect(existsSync(oversizeLog())).toBe(false);
+  });
+
+  test('one byte over budget: fails open with a sanitized oversize receipt, never blocks', () => {
+    const r = runRaw(paddedEvent(BUDGET + 1, 'budget-plus-one'));
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(existsSync(oversizeLog())).toBe(true);
+    const receipt = readFileSync(oversizeLog(), 'utf8').trim();
+    expect(receipt).toContain('pd-hook-stop');
+    expect(receipt).toContain('budget-plus-one'); // session id extracted from the bounded prefix
+    expect(receipt).toContain(String(BUDGET));
+    // The receipt is sanitized: never the event content itself.
+    expect(receipt).not.toContain('x'.repeat(64));
+  });
+
+  test('a multi-megabyte final response fails open fast at the real production budget (262144 bytes)', () => {
+    const hugeMessage = `Work done.\n## SITREP\n${'y'.repeat(5_000_000)}`;
+    const event = JSON.stringify({ cwd: WORKSPACE, session_id: 'huge-turn', last_assistant_message: hugeMessage });
+    expect(Buffer.byteLength(event)).toBeGreaterThan(5_000_000);
+    const startedAt = Date.now();
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: event,
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(elapsedMs).toBeLessThan(2_000); // no multi-copy amplification over the 5 MB payload
+    const receipt = readFileSync(oversizeLog(), 'utf8').trim();
+    expect(receipt).toContain('huge-turn');
+    expect(receipt).toContain('262144');
+  });
+
+  test('debug mode: the gate wrapper never re-buffers the full oversized event either', () => {
+    // Finding 1 also named cli/commands/hooks-install.ts's debug-mode gate
+    // wrapper: it used to capture the FULL event into `pd_input`, then piped
+    // that whole captured copy into the real tentacle — a second unbounded
+    // copy on top of the tentacle's own. Debug mode now buffers only a small
+    // bounded probe for the session-id label and streams the rest straight
+    // through, so even a multi-megabyte event stays fast and bounded.
+    const pdHome = join(SCRATCH, 'debug-oversize-home');
+    const binDir = join(pdHome, 'bin');
+    const srcBin = join(SCRATCH, 'debug-oversize-src');
+    mkdirSync(srcBin, { recursive: true });
+    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const) {
+      copyFileSync(bin(name), join(srcBin, name));
+      chmodSync(join(srcBin, name), 0o755);
+    }
+    stageTentacles(srcBin, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    writeFileSync(join(pdHome, 'daemon.pid'), '4242');
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'projects'), `${WORKSPACE}\n`);
+
+    const hugeMessage = `Work done.\n## SITREP\n${'z'.repeat(5_000_000)}`;
+    const event = JSON.stringify({ cwd: WORKSPACE, session_id: 'debug-huge-turn', last_assistant_message: hugeMessage });
+    const startedAt = Date.now();
+    const r = spawnSync(join(binDir, 'pd-hook-stop'), [], {
+      cwd: WORKSPACE,
+      input: event,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'claude' },
+      encoding: 'utf8',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(0); // this final message DOES carry a SITREP table -> compliant pass
+    expect(elapsedMs).toBeLessThan(3_000);
+    const events = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8');
+    // The debug session-id probe only ever buffers a SMALL bounded prefix
+    // (independent of the tentacle's own 256 KiB event budget), so a session
+    // id past that prefix on a 5 MB event is unparsable from the truncated
+    // JSON — the SAME documented degrade-to-$PPID fallback already used when
+    // the field is absent or unparsable, never a second unbounded capture.
+    expect(events).toMatch(/claude:\d+/);
+    expect(events).not.toContain('claude:debug-huge-turn');
+    expect(events).not.toContain('z'.repeat(64)); // the giant payload never lands in the sanitized log
+    expect(Buffer.byteLength(events)).toBeLessThan(10_000); // log stays tiny despite the 5 MB input
   });
 });
 

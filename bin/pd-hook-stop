@@ -54,8 +54,74 @@ PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 BLOCK_TTL_SECONDS="${PD_SQUID_STOP_BLOCK_TTL_SECONDS:-300}"
 case "$BLOCK_TTL_SECONDS" in ''|*[!0-9]*) BLOCK_TTL_SECONDS=300 ;; esac
 
-# Drain stdin so the CLI's pipe write never blocks, capturing the Stop event.
-EVENT="$(cat 2>/dev/null || true)"
+# Hard byte budget on the event path (review finding 1, 2026-08-24): the
+# unbounded `EVENT="$(cat)"` this used to do put the ENTIRE Stop event —
+# including the whole final assistant message, which can carry a pathological
+# multi-megabyte turn — into one shell variable, then copied it again through
+# printf | jq and two grep passes. That is several full in-memory copies of a
+# payload with no upper bound, a synchronous "hook storm" risk the harness's
+# own fail-open doctrine exists to prevent.
+#
+# 256 KiB is the budget. Reasoning: the SITREP contract text pd-hook-prompt
+# compels is well under 1 KiB, and even a very chatty end-of-turn summary plus
+# a wide markdown table rarely reaches tens of KB in practice — 256 KiB is
+# roughly an order of magnitude of headroom above any real SITREP-bearing
+# final message, while sitting far below the multi-MB pathological payloads
+# this finding is about. A turn that legitimately needs more than 256 KiB to
+# say "here is my SITREP table" is already a broken product on other grounds;
+# skipping verification for it (fail open) is strictly safer than building a
+# jq/grep pipeline over it.
+EVENT_BUDGET_BYTES="${PD_SQUID_STOP_EVENT_BUDGET_BYTES:-262144}"
+case "$EVENT_BUDGET_BYTES" in ''|*[!0-9]*) EVENT_BUDGET_BYTES=262144 ;; esac
+
+# Sanitized, bounded receipt for a skipped oversize event — no event content
+# ever enters it, just that pd-hook-stop saw and skipped one. Same atomic
+# append discipline pd-hook-post-tool uses for its pheromone trail (flock when
+# present, else a short mkdir-atomic retry), kept in its own small file so an
+# oversize spam can never grow the matrix.env pheromone stream the prompt
+# tentacle scans every turn. Bounded to its own last-200-line tail so this
+# receipt log cannot grow unboundedly either.
+record_oversize() {
+  OS_LOG="$PD_HOME/squid/oversize-events.log"
+  OS_LOCK="$PD_HOME/squid/oversize-events.log.lock"
+  OS_LINE="v1	pd-hook-stop	${1:-unknown}	${EVENT_BUDGET_BYTES}	$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
+  mkdir -p "$PD_HOME/squid" 2>/dev/null || return 0
+  if command -v flock >/dev/null 2>&1; then
+    ( flock 9; printf '%s\n' "$OS_LINE" >> "$OS_LOG" ) 9>"${OS_LOG}.flock" 2>/dev/null \
+      || printf '%s\n' "$OS_LINE" >> "$OS_LOG" 2>/dev/null || true
+  elif mkdir "$OS_LOCK" 2>/dev/null; then
+    printf '%s\n' "$OS_LINE" >> "$OS_LOG" 2>/dev/null || true
+    rmdir "$OS_LOCK" 2>/dev/null || true
+  else
+    printf '%s\n' "$OS_LINE" >> "$OS_LOG" 2>/dev/null || true
+  fi
+  OS_TOTAL="$(wc -l < "$OS_LOG" 2>/dev/null | tr -d '[:space:]')"
+  case "$OS_TOTAL" in ''|*[!0-9]*) return 0 ;; esac
+  [ "$OS_TOTAL" -gt 500 ] 2>/dev/null || return 0
+  tail -n 200 "$OS_LOG" > "$OS_LOG.trim.$$" 2>/dev/null && mv "$OS_LOG.trim.$$" "$OS_LOG" 2>/dev/null
+  rm -f "$OS_LOG.trim.$$" 2>/dev/null || true
+}
+
+# Read stdin through the budget BEFORE any shell-variable capture: `head -c`
+# physically stops once it has read EVENT_BUDGET_BYTES, so the shell never
+# holds more than that at once. A second `head -c 1` peek — reading whatever
+# is left on the same stream — is the exact byte-boundary test: empty at
+# EXACTLY the budget (nothing left to peek), non-empty at budget+1 (oversize).
+EVENT="$(head -c "$EVENT_BUDGET_BYTES" 2>/dev/null)"
+EXTRA="$(head -c 1 2>/dev/null)"
+if [ -n "$EXTRA" ]; then
+  # Oversize: never build the jq/grep pipeline over a truncated/pathological
+  # blob. Best-effort session id from the already-bounded prefix we hold (no
+  # further stdin read, no additional capture) purely for the receipt label.
+  OVERSIZE_SID="$(printf '%s' "$EVENT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  [ -n "$OVERSIZE_SID" ] || OVERSIZE_SID=unknown
+  record_oversize "$OVERSIZE_SID"
+  # Drain whatever remains of the caller's write in the background so this
+  # tentacle can fail open immediately (no added latency on its own exit)
+  # without leaving the caller's pipe write() blocked on a full pipe buffer.
+  ( cat >/dev/null 2>&1 & ) 2>/dev/null || true
+  exit 0
+fi
 [ -n "$EVENT" ] || exit 0
 
 # ── 1. Vendor loop guard: a stop we already blocked must pass unconditionally ─
