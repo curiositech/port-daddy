@@ -276,24 +276,36 @@ export async function runChatTurn(request: Request, env: Env, agent: ChatAgent):
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let raw = '';
-  const tee = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      raw += decoder.decode(chunk, { stream: true });
-      controller.enqueue(chunk);
-    },
-    async flush(controller) {
-      raw += decoder.decode();
-      const text = assembleSseText(raw);
-      await persistReply(text);
-      // The trailer rides the SAME stream as one final synthetic line, AFTER
-      // every real token, and is never part of `raw` or of what is persisted —
-      // so it can never be mistaken for, or forged as, the model's own words.
-      const trailer = agent.streamTrailer?.(text) ?? null;
-      if (trailer) controller.enqueue(encoder.encode(trailer));
+  const forwarded = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const reader = upstream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          raw += decoder.decode(value, { stream: true });
+          controller.enqueue(value);
+        }
+
+        raw += decoder.decode();
+        const text = assembleSseText(raw);
+        await persistReply(text);
+        // The trailer rides the SAME stream as one final synthetic line, AFTER
+        // every real token, and is never part of `raw` or of what is persisted —
+        // so it can never be mistaken for, or forged as, the model's own words.
+        const trailer = agent.streamTrailer?.(text) ?? null;
+        if (trailer) controller.enqueue(encoder.encode(trailer));
+        controller.close();
+      } catch (e) {
+        controller.error(e);
+      } finally {
+        reader.releaseLock();
+      }
     },
   });
 
-  return new Response(upstream.pipeThrough(tee), {
+  return new Response(forwarded, {
     status: 200,
     headers: {
       'Content-Type': 'text/event-stream; charset=utf-8',
