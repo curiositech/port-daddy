@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createTreeSitterLocateFile,
@@ -26,6 +27,25 @@ function writeCargo(root: string, marker: string) {
   }
 }
 
+function writePublishedCargo(publicationRoot: string, marker: string): string {
+  const cargoRoot = join(publicationRoot, `cargo-${marker}`);
+  writeCargo(cargoRoot, marker);
+  const files = [TREE_SITTER_RUNTIME_FILE, ...Object.values(TREE_SITTER_GRAMMAR_FILES)].map((name) => {
+    const path = join(cargoRoot, name);
+    return {
+      name,
+      sizeBytes: readFileSync(path).byteLength,
+      sha256: createHash('sha256').update(readFileSync(path)).digest('hex'),
+    };
+  });
+  writeFileSync(join(publicationRoot, 'current.json'), JSON.stringify({
+    version: 1,
+    cargoDir: `cargo-${marker}`,
+    files,
+  }));
+  return cargoRoot;
+}
+
 function sourceFiles(root: string) {
   return {
     runtimeWasm: join(root, TREE_SITTER_RUNTIME_FILE),
@@ -50,7 +70,7 @@ describe('Tree-sitter runtime resolution', () => {
     const execDir = join(root, 'bin');
     const packagedRoot = join(execDir, 'native', 'tree-sitter');
     const sourceRoot = join(root, 'packages');
-    writeCargo(packagedRoot, 'packaged');
+    const packagedCargo = writePublishedCargo(packagedRoot, 'packaged');
     writeCargo(sourceRoot, 'source');
 
     const resolved = resolveTreeSitterRuntimeAssets({
@@ -60,10 +80,10 @@ describe('Tree-sitter runtime resolution', () => {
     });
 
     expect(resolved.source).toBe('packaged');
-    expect(resolved.root).toBe(packagedRoot);
-    expect(resolved.runtimeWasm).toBe(join(packagedRoot, TREE_SITTER_RUNTIME_FILE));
+    expect(resolved.root).toBe(packagedCargo);
+    expect(resolved.runtimeWasm).toBe(join(packagedCargo, TREE_SITTER_RUNTIME_FILE));
     expect(resolved.grammars.typescript).toBe(
-      join(packagedRoot, TREE_SITTER_GRAMMAR_FILES.typescript),
+      join(packagedCargo, TREE_SITTER_GRAMMAR_FILES.typescript),
     );
   });
 
@@ -87,8 +107,8 @@ describe('Tree-sitter runtime resolution', () => {
     const root = makeScratch();
     const execDir = join(root, 'bin');
     const packagedRoot = join(execDir, 'native', 'tree-sitter');
-    writeCargo(packagedRoot, 'partial');
-    rmSync(join(packagedRoot, TREE_SITTER_GRAMMAR_FILES.python));
+    const packagedCargo = writePublishedCargo(packagedRoot, 'partial');
+    rmSync(join(packagedCargo, TREE_SITTER_GRAMMAR_FILES.python));
 
     expect(() => resolveTreeSitterRuntimeAssets({
       execDir,
