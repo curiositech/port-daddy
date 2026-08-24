@@ -29,7 +29,7 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId, ReceiptBatch};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -309,6 +309,41 @@ impl EditorPane {
         self.buffer.as_ref().map(HarborBuffer::to_string)
     }
 
+    /// Drain authoritative UTF-8 receipts in mutation order. P1B syntax work
+    /// consumes this seam directly and must never derive edits from snapshots.
+    pub fn take_edit_receipts(&mut self) -> ReceiptBatch {
+        self.buffer
+            .as_ref()
+            .map(HarborBuffer::take_edit_receipts)
+            .unwrap_or_default()
+    }
+
+    /// Fail closed on every live claim touched by a UTF-8 replacement. History
+    /// callers invoke this with Loro's stable cursor range before undo/redo, so
+    /// governance always precedes mutation.
+    fn ensure_editable_range(
+        &self,
+        before: &str,
+        range: std::ops::Range<usize>,
+    ) -> std::result::Result<(), String> {
+        let first_line = 1 + before[..range.start]
+            .bytes()
+            .filter(|b| *b == b'\n')
+            .count() as u32;
+        // Count newlines *inside* a non-empty replacement too: deleting a
+        // newline joins two lines and therefore touches both claim regions.
+        let last_line = 1 + before.as_bytes()[..range.end]
+            .iter()
+            .filter(|b| **b == b'\n')
+            .count() as u32;
+        for line in first_line..=last_line.max(first_line) {
+            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
+                return Err(gated.message());
+            }
+        }
+        Ok(())
+    }
+
     /// Apply one human edit expressed as a UTF-8 byte replacement. Existing
     /// live-claim policy is checked before any byte is written; accepted edits
     /// become locally-authored Loro ops and return the incremental tube frame the
@@ -333,28 +368,51 @@ impl EditorPane {
             ));
         }
 
-        let first_line = 1 + before[..range.start]
-            .bytes()
-            .filter(|b| *b == b'\n')
-            .count() as u32;
-        // Count newlines *inside* a non-empty replacement too: deleting a
-        // newline joins two lines and therefore touches both claim regions.
-        let last_line = 1 + before.as_bytes()[..range.end]
-            .iter()
-            .filter(|b| **b == b'\n')
-            .count() as u32;
-        for line in first_line..=last_line.max(first_line) {
-            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
-                return Err(gated.message());
-            }
-        }
+        self.ensure_editable_range(&before, range.clone())?;
 
         let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
-        let delta = buffer.replace_authored(unicode, replacement);
-        Ok(crate::editor_sync::encode_frame(
-            buffer.local_peer(),
-            &delta,
-        ))
+        let edit = buffer.replace_authored(unicode, replacement);
+        let frame = crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta);
+        Ok(frame)
+    }
+
+    /// Undo one foreground-authored item after resolving and claim-checking its
+    /// current merged range. The returned frame is the ordinary editor-sync
+    /// delta mirrored by the producer and broadcast to peers.
+    pub fn undo_local_text_edit(&mut self) -> std::result::Result<Option<String>, String> {
+        self.apply_local_history(false)
+    }
+
+    /// Redo one foreground-authored item through the same governed path.
+    pub fn redo_local_text_edit(&mut self) -> std::result::Result<Option<String>, String> {
+        self.apply_local_history(true)
+    }
+
+    fn apply_local_history(&mut self, redo: bool) -> std::result::Result<Option<String>, String> {
+        let Some(buffer) = self.buffer.as_ref() else {
+            return Err("editor buffer is not loaded".into());
+        };
+        let before = buffer.to_string();
+        let range = if redo {
+            buffer.redo_range()?
+        } else {
+            buffer.undo_range()?
+        };
+        let Some(range) = range else {
+            return Ok(None);
+        };
+        self.ensure_editable_range(&before, range)?;
+
+        let edit = if redo {
+            buffer.redo_authored()?
+        } else {
+            buffer.undo_authored()?
+        };
+        let Some(edit) = edit else {
+            return Ok(None);
+        };
+        let frame = crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta);
+        Ok(Some(frame))
     }
 
     /// Fold the foreground authority's exact local delta into the producer's
@@ -369,10 +427,11 @@ impl EditorPane {
             return false;
         };
         let before = buffer.change_stamp();
-        if crate::editor_sync::apply_frame(buffer, &frame).is_err() {
+        if buffer.apply_remote_ops(&frame.ops).is_err() {
             return false;
         }
-        buffer.change_stamp() != before
+        let changed = buffer.change_stamp() != before;
+        changed
     }
 
     /// The per-file tube channel this editor's op stream rides on. Callers open the
@@ -409,7 +468,12 @@ impl EditorPane {
         if frame.peer == buffer.local_peer() {
             return false; // our own ops, echoed back — nothing to fold
         }
-        crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+        let before = buffer.change_stamp();
+        if buffer.apply_remote_ops(&frame.ops).is_err() {
+            return false;
+        }
+        let changed = buffer.change_stamp() != before;
+        changed
     }
 
     // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
@@ -1304,6 +1368,125 @@ mod tests {
     }
 
     #[test]
+    fn undo_redo_frames_keep_foreground_and_producer_mirror_converged() {
+        let path = write_temp("history-mirror.rs", "let value = 1;\n");
+        let identity = "port-daddy:console:history-mirror";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = make_pane_as(&path, identity);
+
+        let foreground_initial = foreground.take_edit_receipts();
+        let producer_initial = producer_mirror.take_edit_receipts();
+        assert!(foreground_initial.complete && foreground_initial.receipts.is_empty());
+        assert!(producer_initial.complete && producer_initial.receipts.is_empty());
+
+        let edit_frame = foreground
+            .apply_local_text_edit(4..9, "answer")
+            .expect("local replacement");
+        assert!(producer_mirror.ingest_local_frame(&edit_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+
+        let undo_frame = foreground
+            .undo_local_text_edit()
+            .expect("undo is governed")
+            .expect("one local undo item");
+        assert_eq!(foreground.text().as_deref(), Some("let value = 1;\n"));
+        assert!(producer_mirror.ingest_local_frame(&undo_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+        assert!(
+            !producer_mirror.ingest_local_frame(&undo_frame),
+            "the producer reimports the exact frame idempotently"
+        );
+
+        let redo_frame = foreground
+            .redo_local_text_edit()
+            .expect("redo is governed")
+            .expect("one local redo item");
+        assert_eq!(foreground.text().as_deref(), Some("let answer = 1;\n"));
+        assert!(producer_mirror.ingest_local_frame(&redo_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+        assert!(
+            !producer_mirror.ingest_local_frame(&redo_frame),
+            "redo frame replay is also idempotent"
+        );
+
+        let foreground_batch = foreground.take_edit_receipts();
+        let producer_batch = producer_mirror.take_edit_receipts();
+        assert!(foreground_batch.complete);
+        assert!(producer_batch.complete);
+        let foreground_receipts = foreground_batch.receipts;
+        let producer_receipts = producer_batch.receipts;
+        assert_eq!(foreground_receipts.len(), 3);
+        assert_eq!(producer_receipts, foreground_receipts);
+        assert_eq!(foreground_receipts[0].deleted_text, "value");
+        assert_eq!(foreground_receipts[0].inserted_text, "answer");
+        assert_eq!(foreground_receipts[1].deleted_text, "answer");
+        assert_eq!(foreground_receipts[1].inserted_text, "value");
+        assert_eq!(foreground_receipts[2].deleted_text, "value");
+        assert_eq!(foreground_receipts[2].inserted_text, "answer");
+        let empty = foreground.take_edit_receipts();
+        assert!(empty.complete);
+        assert!(empty.receipts.is_empty(), "drain is exact");
+    }
+
+    #[test]
+    fn foreground_and_producer_receipt_overflow_is_bounded_and_explicit() {
+        let path = write_temp("receipt-overflow-mirror.txt", "x");
+        let identity = "port-daddy:console:receipt-overflow-mirror";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = make_pane_as(&path, identity);
+
+        for _ in 0..=crate::buffer::EDIT_RECEIPT_CAPACITY {
+            let end = foreground.text().expect("foreground text").len();
+            let frame = foreground
+                .apply_local_text_edit(end..end, "x")
+                .expect("local append");
+            assert!(producer_mirror.ingest_local_frame(&frame));
+        }
+
+        for batch in [
+            foreground.take_edit_receipts(),
+            producer_mirror.take_edit_receipts(),
+        ] {
+            assert!(!batch.complete, "every mirror reports the discontinuity");
+            assert!(
+                batch.receipts.is_empty(),
+                "no mirror retains or exposes a truncated receipt prefix"
+            );
+        }
+    }
+
+    #[test]
+    fn text_noop_creates_one_history_item_but_no_fake_receipt() {
+        let path = write_temp("noop-history.txt", "same\n");
+        let mut pane = make_pane_as(&path, "port-daddy:console:noop-history");
+        pane.apply_local_text_edit(0..4, "same")
+            .expect("valid replacement is accepted");
+        assert_eq!(pane.buffer().unwrap().undo_count(), 1);
+        let batch = pane.take_edit_receipts();
+        assert!(batch.complete);
+        assert!(batch.receipts.is_empty());
+    }
+
+    #[test]
+    fn ime_combining_grapheme_replacement_is_one_history_item() {
+        let path = write_temp("ime-history.txt", "e\u{301}lan\n");
+        let mut pane = make_pane_as(&path, "port-daddy:console:ime-history");
+        let before = pane.text().expect("loaded text");
+        let mut input = crate::editor_input::EditorInput::default();
+        let edit = input.replace(&before, Some(0..2), "👩‍🚀", true, Some(5..5));
+        pane.apply_local_text_edit(edit.range, &edit.text)
+            .expect("IME replacement is accepted as one edit");
+
+        assert_eq!(pane.text().as_deref(), Some("👩‍🚀lan\n"));
+        assert_eq!(pane.buffer().unwrap().undo_count(), 1);
+        pane.undo_local_text_edit()
+            .expect("IME undo succeeds")
+            .expect("one IME undo frame");
+        assert_eq!(pane.text().as_deref(), Some("e\u{301}lan\n"));
+        assert!(!pane.buffer().unwrap().can_undo());
+    }
+
+    #[test]
     fn local_keystroke_is_refused_inside_another_live_claim() {
         let path = write_temp("guarded-input.rs", "fn guarded() {}\nfn free() {}\n");
         let mut human = make_pane_as(&path, "port-daddy:console:human");
@@ -1321,6 +1504,52 @@ mod tests {
         for token in BYPASS {
             assert!(!refusal.to_ascii_lowercase().contains(token));
         }
+    }
+
+    #[test]
+    fn claim_overlap_rejects_undo_and_redo_before_version_vector_changes() {
+        let path = write_temp("guarded-undo.rs", "fn guarded() {}\n");
+        let mut human = make_pane_as(&path, "port-daddy:console:undo-human");
+        human
+            .apply_local_text_edit(3..10, "changed")
+            .expect("initial local edit is claim-clear");
+
+        let mut agent = make_pane_as(&path, "port-daddy:editor:undo-claimant");
+        let claim = agent.acquire_region_claim(1, 1, "guarded", 1_000);
+        assert!(human.ingest_claim(&claim));
+
+        let before_text = human.text().unwrap();
+        let before_stamp = human.buffer().unwrap().change_stamp();
+        let before_undo_count = human.buffer().unwrap().undo_count();
+        let refusal = human
+            .undo_local_text_edit()
+            .expect_err("overlapping claim must reject before undo mutation");
+        assert!(refusal.contains("is held by"));
+        assert_eq!(human.text().as_deref(), Some(before_text.as_str()));
+        assert_eq!(human.buffer().unwrap().change_stamp(), before_stamp);
+        assert_eq!(human.buffer().unwrap().undo_count(), before_undo_count);
+
+        let release = agent.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        human
+            .undo_local_text_edit()
+            .expect("claim-clear undo succeeds")
+            .expect("undo frame exists");
+        assert_eq!(human.text().as_deref(), Some("fn guarded() {}\n"));
+        assert!(human.buffer().unwrap().can_redo());
+
+        let redo_claim = agent.acquire_region_claim(1, 1, "guarded-redo", 2_000);
+        assert!(human.ingest_claim(&redo_claim));
+        let before_redo_text = human.text().unwrap();
+        let before_redo_stamp = human.buffer().unwrap().change_stamp();
+        let before_redo_count = human.buffer().unwrap().redo_count();
+        let redo_refusal = human
+            .redo_local_text_edit()
+            .expect_err("overlapping claim must reject before redo mutation");
+        assert!(redo_refusal.contains("is held by"));
+        assert_eq!(human.text().as_deref(), Some(before_redo_text.as_str()));
+        assert_eq!(human.buffer().unwrap().change_stamp(), before_redo_stamp);
+        assert_eq!(human.buffer().unwrap().redo_count(), before_redo_count);
     }
 
     #[test]
