@@ -1,0 +1,258 @@
+/**
+ * Porthole chrome — deliberately NOT the prototype's rounded, drop-shadowed
+ * "macOS window" look. This site's own terminal chrome (CodeBlock.tsx) is
+ * hard-edged: a 2px border, square status dots instead of traffic lights,
+ * zero box-shadow (tokens.semantic.css sets every --shadow-* to `none`).
+ * Porthole borrows that exact grammar so an embed reads as the SAME
+ * terminal component the rest of the site already uses for static code
+ * blocks, just one that can also move — not a second, competing chrome
+ * style bolted on next to it.
+ */
+
+.ph-root {
+  container-type: inline-size;
+}
+
+.ph-win {
+  background: var(--code-bg);
+  border: 2px solid var(--border-strong);
+  overflow: hidden;
+}
+
+.ph-win-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-2, 8px);
+  align-items: center;
+  height: 40px;
+  background: var(--code-header-bg);
+  border-bottom: 2px solid var(--border-strong);
+  padding: 0 var(--space-3, 12px);
+}
+
+.ph-dots {
+  display: flex;
+  gap: 6px;
+}
+.ph-dots i {
+  width: 6px;
+  height: 6px;
+  display: block;
+}
+.ph-dots i.r {
+  background: var(--code-dot-red);
+}
+.ph-dots i.a {
+  background: var(--code-dot-amber);
+}
+.ph-dots i.g {
+  background: var(--code-dot-green);
+}
+
+.ph-title {
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--code-comment);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ph-title b {
+  color: var(--code-command);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.ph-dims {
+  opacity: 0.85;
+}
+
+.ph-hint {
+  justify-self: end;
+  font-size: 11px;
+  color: var(--code-comment);
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.ph-win:hover .ph-hint {
+  opacity: 1;
+}
+@container (max-width: 460px) {
+  .ph-hint {
+    display: none;
+  }
+}
+
+.ph-term-wrap {
+  position: relative;
+  background: var(--code-bg);
+}
+.ph-term {
+  overflow: auto;
+  height: var(--ph-term-h, 24em);
+  padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-3, 12px) 34px;
+  overscroll-behavior: contain;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--type-code-size, 13px);
+  line-height: var(--leading-code, 1.5);
+  scrollbar-width: thin;
+}
+.ph-line {
+  position: relative;
+  white-space: pre;
+  min-height: 1.5em;
+  color: var(--code-text);
+}
+.ph-term.ph-wrap .ph-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ph-line::before {
+  content: "⧉";
+  position: absolute;
+  left: -20px;
+  top: 0;
+  color: var(--brand-primary);
+  opacity: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+.ph-line:hover::before {
+  opacity: 0.9;
+}
+.ph-term ::selection {
+  background: var(--interactive-active);
+  color: var(--code-command);
+}
+
+.ph-resume {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 10px;
+  font: 600 11px var(--font-mono, ui-monospace, monospace);
+  color: var(--brand-primary-foreground);
+  background: var(--brand-primary);
+  border: 0;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: none;
+}
+
+.ph-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  background: var(--code-header-bg);
+  border-top: 2px solid var(--border-strong);
+}
+.ph-btn,
+.ph-speed-chip {
+  touch-action: manipulation;
+  min-height: 28px;
+  font: 700 11px var(--font-mono, ui-monospace, monospace);
+  color: var(--code-command);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.ph-btn:hover,
+.ph-speed-chip:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+.ph-speeds {
+  display: flex;
+  gap: 4px;
+}
+.ph-speed-chip[aria-pressed="true"] {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary-foreground);
+}
+.ph-time {
+  font-size: 11px;
+  color: var(--code-comment);
+  margin-left: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ph-seek {
+  flex: 1 1 120px;
+  min-width: 100px;
+  height: 24px;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.ph-rail {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  background: var(--border-subtle);
+}
+.ph-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: var(--brand-primary);
+}
+@container (max-width: 420px) {
+  .ph-seek {
+    order: 10;
+    flex-basis: 100%;
+  }
+  .ph-time {
+    font-size: 10px;
+  }
+}
+
+.ph-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  font: 600 12px var(--font-mono, ui-monospace, monospace);
+  background: var(--text-primary);
+  color: var(--surface-base);
+  padding: 7px 13px;
+  opacity: 0;
+  transition: all 0.2s;
+  pointer-events: none;
+  z-index: 60;
+}
+.ph-toast.show {
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
+.ph-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: var(--space-2, 8px);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.ph-prov-k {
+  color: var(--brand-accent);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-ctl {
+    display: none;
+  }
+}

@@ -139,6 +139,7 @@ import {
   coordinationPeerConfigFromEnv,
   type CoordinationPeer,
 } from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -616,9 +617,11 @@ sessions.setActivityLog(activityLog);
 // queues, and CRDT-merges. A partial/malformed configuration degrades loudly
 // without preventing the offline-first daemon from starting.
 let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
 try {
   const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
   if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
     coordinationPeer = createCoordinationPeer({
       db,
       sessions,
@@ -678,7 +681,8 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();

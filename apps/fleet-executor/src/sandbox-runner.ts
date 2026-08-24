@@ -13,6 +13,11 @@
  * from "tests ran and failed" — see src/purser.ts.
  */
 
+import { isCoordinationScopeId } from '../../../lib/coordination-ledger.js';
+import type {
+  CoordinationGrantServiceContract,
+  FleetCoordinationGrant,
+} from '../../../lib/coordination-grant-contract.js';
 import type { StackedFile } from './stacked-pr.js';
 
 export interface SandboxRunOutcome {
@@ -212,38 +217,56 @@ export interface SandboxRunParams {
    * builds and boots the repository's real compiled pd daemon before running
    * tests, and that daemon joins the room as an ordinary offline-first peer.
    */
-  coordinationPeer?: SandboxCoordinationPeer;
+  coordinationEnrollment?: SandboxCoordinationEnrollment;
+}
+
+export interface SandboxCoordinationEnrollment {
+  /** Relay origin hosting /v1/coordination/:project/sync. */
+  url: string;
+  /** GitHub-verified owner/repository scope requested from Relay. */
+  project: string;
+  /** Durable Fleet run identity requested from Relay. */
+  actorId: string;
+  /** Service-binding capability; never passed into the sandbox. */
+  grants: CoordinationGrantServiceContract;
 }
 
 export interface SandboxCoordinationPeer {
-  /** Relay origin hosting /v1/coordination/:project/sync. */
   url: string;
-  /** Stable project/repository scope carried by the macaroon. */
   project: string;
-  /** Stable cloud actor id carried by the macaroon. */
   actorId: string;
-  /** Unique daemon/process replica id; generated per sandbox when omitted. */
-  replicaId?: string;
+  /** Unique daemon/process replica id, generated for this sandbox grant. */
+  replicaId: string;
   /** Scoped ADR-0092 macaroon. Never written into the cloned checkout. */
   macaroon: string;
 }
 
-interface SandboxCoordinationPeerEnv {
+interface SandboxCoordinationEnrollmentEnv {
   PORT_DADDY_COORDINATION_URL?: unknown;
-  PORT_DADDY_COORDINATION_PROJECT?: unknown;
-  PORT_DADDY_COORDINATION_ACTOR?: unknown;
-  PORT_DADDY_COORDINATION_MACAROON?: unknown;
+  COORDINATION_GRANTS?: unknown;
+}
+
+interface SandboxCoordinationRunIdentity {
+  /** GitHub-verified owner/repository name. */
+  project: string;
+  /** Durable Fleet run id, for example run:<delivery-id>. */
+  runId: string;
 }
 
 const DEFAULT_INSTALL_COMMAND =
   'npm ci --no-audit --no-fund --onnxruntime-node-install=skip';
 
 const CLOUD_PEER_ROOT = '/work/pd-peer';
+const CLOUD_PEER_WITNESS_ROOT = '/work/pd-peer-witness';
 const CLOUD_PEER_PORT = 9876;
 const REPOSITORY_ROOT = '/work/repo';
 const TEST_STARTED_MARKER = '__PD_PURSER_TEST_STARTED__';
 const JEST_SUMMARY_MARKER = '__PD_PURSER_JEST_SUMMARY__:';
 const JEST_RESULT_PATH = '/work/pd-purser-jest-result.json';
+const COORDINATION_SYNC_VERB = 'coordination-sync';
+const COORDINATION_GRANT_TTL_SECONDS = 60 * 60;
+const MIN_REMAINING_GRANT_LIFETIME_MS = 30_000;
+const MAX_GRANT_CLOCK_SKEW_MS = 60_000;
 
 function newSandboxReplicaId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -316,33 +339,116 @@ function summarizeJestResultCommand(): string {
 }
 
 /**
- * Resolve the all-or-nothing cloud-peer configuration from an executor env.
- * Partial configuration fails closed: silently booting an unregistered daemon
- * would make the cloud sandbox look coordinated when it is not.
+ * Resolve the all-or-nothing cloud-peer enrollment from executor bindings and
+ * live run context. Project and actor are never static deployment values.
  */
-export function sandboxCoordinationPeerFromEnv(
-  env: SandboxCoordinationPeerEnv,
-): SandboxCoordinationPeer | undefined {
-  const values = {
-    url: env.PORT_DADDY_COORDINATION_URL,
-    project: env.PORT_DADDY_COORDINATION_PROJECT,
-    actorId: env.PORT_DADDY_COORDINATION_ACTOR,
-    macaroon: env.PORT_DADDY_COORDINATION_MACAROON,
-  };
-  const present = Object.values(values).filter(
-    value => typeof value === 'string' && value.trim().length > 0,
-  ).length;
-  if (present === 0) return undefined;
-  if (present !== Object.keys(values).length) {
+export function sandboxCoordinationEnrollmentFromEnv(
+  env: SandboxCoordinationEnrollmentEnv,
+  identity: SandboxCoordinationRunIdentity,
+): SandboxCoordinationEnrollment | undefined {
+  const rawUrl = typeof env.PORT_DADDY_COORDINATION_URL === 'string'
+    ? env.PORT_DADDY_COORDINATION_URL.trim()
+    : '';
+  const grants = env.COORDINATION_GRANTS;
+  const hasGrants = Boolean(
+    grants
+    && typeof grants === 'object'
+    && typeof (grants as Record<string, unknown>).mintCoordinationGrant === 'function',
+  );
+  if (!rawUrl && !hasGrants) return undefined;
+  if (!rawUrl || !hasGrants) {
     throw new Error(
-      'cloud coordination peer requires URL, project, actor, and macaroon together',
+      'cloud coordination enrollment requires URL and COORDINATION_GRANTS together',
     );
   }
-  const peer = Object.fromEntries(
-    Object.entries(values).map(([key, value]) => [key, (value as string).trim()]),
-  ) as unknown as SandboxCoordinationPeer;
-  peer.replicaId = newSandboxReplicaId();
-  return peer;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('cloud coordination URL must be a valid HTTPS origin');
+  }
+  if (
+    parsed.protocol !== 'https:'
+    || parsed.username
+    || parsed.password
+    || parsed.pathname !== '/'
+    || parsed.search
+    || parsed.hash
+  ) {
+    throw new Error('cloud coordination URL must be a credential-free HTTPS origin');
+  }
+  if (!isCoordinationScopeId(identity.project, 200)) {
+    throw new Error('cloud coordination project must be a valid owner/repository scope');
+  }
+  if (!isCoordinationScopeId(identity.runId)) {
+    throw new Error('cloud coordination run id must be a valid durable scope');
+  }
+  const actorId = `fleet:${identity.runId}`;
+  if (!isCoordinationScopeId(actorId)) {
+    throw new Error('cloud coordination run id cannot form a valid actor scope');
+  }
+
+  return {
+    url: parsed.origin,
+    project: identity.project,
+    actorId,
+    grants: grants as CoordinationGrantServiceContract,
+  };
+}
+
+function validateCoordinationGrant(
+  grant: FleetCoordinationGrant,
+  enrollment: SandboxCoordinationEnrollment,
+  nowMs = Date.now(),
+): SandboxCoordinationPeer {
+  if (!grant || typeof grant !== 'object') {
+    throw new Error('Relay returned no coordination grant');
+  }
+  if (grant.project !== enrollment.project || grant.actorId !== enrollment.actorId) {
+    throw new Error('Relay returned a coordination grant for a different scope');
+  }
+  if (grant.verb !== COORDINATION_SYNC_VERB) {
+    throw new Error('Relay returned a coordination grant with the wrong verb');
+  }
+  if (typeof grant.macaroon !== 'string' || grant.macaroon.trim().length === 0) {
+    throw new Error('Relay returned an empty coordination macaroon');
+  }
+  if (
+    !Number.isSafeInteger(grant.expiresAt)
+    || grant.expiresAt <= nowMs + MIN_REMAINING_GRANT_LIFETIME_MS
+  ) {
+    throw new Error('Relay returned an expired coordination grant');
+  }
+  if (
+    grant.expiresAt
+    > nowMs + COORDINATION_GRANT_TTL_SECONDS * 1000 + MAX_GRANT_CLOCK_SKEW_MS
+  ) {
+    throw new Error('Relay returned a coordination grant beyond the requested TTL');
+  }
+  return {
+    url: enrollment.url,
+    project: enrollment.project,
+    actorId: enrollment.actorId,
+    replicaId: newSandboxReplicaId(),
+    macaroon: grant.macaroon.trim(),
+  };
+}
+
+async function mintSandboxCoordinationPeer(
+  enrollment: SandboxCoordinationEnrollment,
+): Promise<SandboxCoordinationPeer> {
+  let grant: FleetCoordinationGrant;
+  try {
+    grant = await enrollment.grants.mintCoordinationGrant({
+      project: enrollment.project,
+      actorId: enrollment.actorId,
+      ttlSeconds: COORDINATION_GRANT_TTL_SECONDS,
+    });
+  } catch {
+    throw new Error('Relay coordination grant RPC failed');
+  }
+  return validateCoordinationGrant(grant, enrollment);
 }
 
 /**
@@ -351,21 +457,25 @@ export function sandboxCoordinationPeerFromEnv(
  * `startProcess`, never to an `exec` that runs npm lifecycle or test code.
  */
 export function buildSandboxDaemonBootstrap(
-  peer: SandboxCoordinationPeer,
+  peer?: Pick<SandboxCoordinationPeer, 'macaroon'>,
 ): string[] {
   void peer;
   return [
     'npm run build:bin',
     `mkdir -p ${shq(CLOUD_PEER_ROOT)}`,
+    `mkdir -p ${shq(CLOUD_PEER_WITNESS_ROOT)}`,
   ];
 }
 
-function cloudPeerDaemonEnv(peer: SandboxCoordinationPeer): Record<string, string> {
+function cloudPeerDaemonEnv(
+  peer: SandboxCoordinationPeer,
+  root = CLOUD_PEER_ROOT,
+): Record<string, string> {
   return {
     PORT_DADDY_PORT: String(CLOUD_PEER_PORT),
-    PORT_DADDY_DB: `${CLOUD_PEER_ROOT}/registry.db`,
-    PORT_DADDY_PREFIX: CLOUD_PEER_ROOT,
-    PORT_DADDY_SOCK: `${CLOUD_PEER_ROOT}/port-daddy.sock`,
+    PORT_DADDY_DB: `${root}/registry.db`,
+    PORT_DADDY_PREFIX: root,
+    PORT_DADDY_SOCK: `${root}/port-daddy.sock`,
     PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
     PORT_DADDY_NO_FLEET: '1',
     PORT_DADDY_NO_FLEETBAR: '1',
@@ -375,17 +485,17 @@ function cloudPeerDaemonEnv(peer: SandboxCoordinationPeer): Record<string, strin
     PORT_DADDY_COORDINATION_URL: peer.url,
     PORT_DADDY_COORDINATION_PROJECT: peer.project,
     PORT_DADDY_COORDINATION_ACTOR: peer.actorId,
-    PORT_DADDY_COORDINATION_REPLICA: peer.replicaId ?? newSandboxReplicaId(),
+    PORT_DADDY_COORDINATION_REPLICA: peer.replicaId,
     PORT_DADDY_COORDINATION_MACAROON: peer.macaroon,
   };
 }
 
-function cloudPeerClientEnv(): Record<string, string> {
+function cloudPeerClientEnv(root = CLOUD_PEER_ROOT): Record<string, string> {
   return {
     PORT_DADDY_PORT: String(CLOUD_PEER_PORT),
-    PORT_DADDY_DB: `${CLOUD_PEER_ROOT}/registry.db`,
-    PORT_DADDY_PREFIX: CLOUD_PEER_ROOT,
-    PORT_DADDY_SOCK: `${CLOUD_PEER_ROOT}/port-daddy.sock`,
+    PORT_DADDY_DB: `${root}/registry.db`,
+    PORT_DADDY_PREFIX: root,
+    PORT_DADDY_SOCK: `${root}/port-daddy.sock`,
     PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
   };
 }
@@ -404,6 +514,53 @@ function cloudPeerConvergenceProbeCommand(): string {
     '  setTimeout(poll, 250);',
     '};',
     'void poll();',
+  ].join('\n');
+  return `node -e ${shq(script)}`;
+}
+
+function cloudPeerWitnessCommand(
+  peer: SandboxCoordinationPeer,
+  markerPath: string,
+  enrollmentNote: string,
+): string {
+  const script = [
+    "const { execFileSync } = require('node:child_process');",
+    `const project = ${JSON.stringify(peer.project)};`,
+    `const actorId = ${JSON.stringify(peer.actorId)};`,
+    `const markerPath = ${JSON.stringify(markerPath)};`,
+    `const enrollmentNote = ${JSON.stringify(enrollmentNote)};`,
+    `const purpose = ${JSON.stringify('Cloud sandbox coordination peer')};`,
+    'const run = (args) => JSON.parse(execFileSync(\'./dist/port-daddy\', args, { encoding: \'utf8\' }));',
+    'const metadata = (value) => {',
+    '  if (value && typeof value === \'object\' && !Array.isArray(value)) return value;',
+    '  if (typeof value !== \'string\') return {};',
+    '  try { const parsed = JSON.parse(value); return parsed && typeof parsed === \'object\' ? parsed : {}; } catch { return {}; }',
+    '};',
+    'let attempts = 0;',
+    'const poll = () => {',
+    '  try {',
+    "    const sessions = run(['sessions', '--project', project, '--all-worktrees', '--json']);",
+    "    const ownership = run(['who-owns', markerPath, '--json']);",
+    "    const notes = run(['notes', '--project', project, '--limit', '200', '--json']);",
+    '    const session = Array.isArray(sessions.sessions)',
+    '      ? sessions.sessions.find((value) => {',
+    '          const m = metadata(value.metadata);',
+    '          return value.purpose === purpose && (m.semanticIdentity === actorId || m.identity === actorId);',
+    '        })',
+    '      : null;',
+    '    const owned = Boolean(session && Array.isArray(ownership.owners)',
+    '      && ownership.owners.some((value) => value.sessionId === session.id));',
+    '    const noted = Boolean(session && Array.isArray(notes.notes)',
+    '      && notes.notes.some((value) => value.sessionId === session.id && value.content === enrollmentNote));',
+    '    if (session && owned && noted) {',
+    "      process.stdout.write('CLOUD_PEER_WITNESS_OK ' + session.id + '\\n');",
+    '      process.exit(0);',
+    '    }',
+    '  } catch {}',
+    "  if (++attempts >= 60) { console.error('fresh cloud peer did not read the exact session, claim, and note'); process.exit(1); }",
+    '  setTimeout(poll, 250);',
+    '};',
+    'poll();',
   ].join('\n');
   return `node -e ${shq(script)}`;
 }
@@ -516,7 +673,8 @@ function notExecuted(reason: string, output = ''): SandboxRunOutcome {
  * against the PR head, inside a Cloudflare Sandbox. Repository authentication,
  * untrusted install/build code, the coordination daemon, and test execution
  * are separate process scopes. The GitHub token reaches only the fetch; the
- * scoped coordination macaroon reaches only the daemon `startProcess` call.
+ * short-lived scoped coordination macaroon is minted only after checkout and
+ * setup, then reaches only the daemon `startProcess` call.
  * Never throws: every failure mode returns an honest non-executed outcome.
  */
 export async function runTestsInSandbox(params: SandboxRunParams): Promise<SandboxRunOutcome> {
@@ -534,14 +692,15 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       'SANDBOX binding absent — tests were NOT executed (no fabricated results)',
     );
   }
-  if (params.coordinationPeer && typeof sandbox.startProcess !== 'function') {
+  const coordinationEnrollment = params.coordinationEnrollment;
+  if (coordinationEnrollment && typeof sandbox.startProcess !== 'function') {
     return notExecuted(
-      'SANDBOX binding lacks startProcess — refusing to expose the cloud-peer macaroon to repository code',
+      'SANDBOX binding lacks startProcess — refusing to mint a cloud-peer macaroon',
     );
   }
 
   const publicCloneUrl = `https://github.com/${params.owner}/${params.repo}.git`;
-  const cloneUrl = params.coordinationPeer
+  const cloneUrl = coordinationEnrollment
     ? publicCloneUrl
     : `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
   const cloneLines: string[] = [
@@ -565,18 +724,18 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
   }
   // --onnxruntime-node-install=skip: onnxruntime-node's postinstall fetches
   // CUDA/TensorRT binaries on linux-x64 even though this sandbox has no GPU.
-  if (params.testCommand === undefined || params.coordinationPeer) {
+  if (params.testCommand === undefined || coordinationEnrollment) {
     setupLines.push(DEFAULT_INSTALL_COMMAND);
   }
-  if (params.coordinationPeer) {
-    setupLines.push(...buildSandboxDaemonBootstrap(params.coordinationPeer));
+  if (coordinationEnrollment) {
+    setupLines.push(...buildSandboxDaemonBootstrap());
   }
   const runner = buildRunnerScript(params.files, params.testCommand);
 
   // Preserve the existing single-command Purser protocol when no cloud peer
   // is configured. The multi-process split below is a security boundary for
   // the daemon macaroon, not a compatibility-breaking runner rewrite.
-  if (!params.coordinationPeer) {
+  if (!coordinationEnrollment) {
     try {
       const result = await sandbox.exec(
         `bash -lc ${shq([...cloneLines, ...setupLines, runner.script].join('\n'))}`,
@@ -610,57 +769,129 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       return notExecuted('sandbox setup failed before the test runner started', combinedOutput(setupResult));
     }
 
-    if (params.coordinationPeer) {
-      daemonProcess = await sandbox.startProcess!(
-        './dist/port-daddy __daemon',
-        {
-          cwd: REPOSITORY_ROOT,
-          env: cloudPeerDaemonEnv(params.coordinationPeer),
-        },
+    let coordinationPeer: SandboxCoordinationPeer;
+    try {
+      coordinationPeer = await mintSandboxCoordinationPeer(
+        coordinationEnrollment,
       );
-      if (
-        !daemonProcess ||
-        typeof daemonProcess.waitForPort !== 'function' ||
-        typeof daemonProcess.kill !== 'function'
-      ) {
-        return notExecuted(
-          'SANDBOX startProcess returned no controllable daemon handle',
-        );
-      }
-      await daemonProcess.waitForPort(CLOUD_PEER_PORT, { path: '/health' });
-      const identity = `${params.coordinationPeer.project}:cloud-sandbox:${params.coordinationPeer.actorId}`;
-      const beginCommand = [
-        './dist/port-daddy begin',
-        shq('Cloud sandbox coordination peer'),
-        '--identity',
-        shq(identity),
-        '--lifecycle durable',
-        '--sidequest',
-        shq('ADR-0092 cloud coordination peer runtime'),
-        '--allow-main-worktree',
-      ].join(' ');
-      const beginResult = await sandbox.exec(beginCommand, {
-        cwd: REPOSITORY_ROOT,
-        env: cloudPeerClientEnv(),
-      });
-      if (!execPassed(beginResult)) {
-        return notExecuted(
-          'cloud pd daemon started but its coordination session could not begin',
-          combinedOutput(beginResult),
-        );
-      }
-      const convergenceResult = await sandbox.exec(cloudPeerConvergenceProbeCommand(), {
-        cwd: REPOSITORY_ROOT,
-        env: cloudPeerClientEnv(),
-      });
-      if (!execPassed(convergenceResult)) {
-        return notExecuted(
-          'cloud pd daemon started but its coordination session was not durably acknowledged by the room',
-          combinedOutput(convergenceResult),
-        );
-      }
+    } catch (err) {
+      return notExecuted(
+        `cloud coordination grant failed: ${String(err).slice(0, 240)}`,
+      );
     }
 
+    daemonProcess = await sandbox.startProcess!(
+      './dist/port-daddy __daemon',
+      {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerDaemonEnv(coordinationPeer),
+      },
+    );
+    if (
+      !daemonProcess ||
+      typeof daemonProcess.waitForPort !== 'function' ||
+      typeof daemonProcess.kill !== 'function'
+    ) {
+      return notExecuted(
+        'SANDBOX startProcess returned no controllable daemon handle',
+      );
+    }
+    await daemonProcess.waitForPort(CLOUD_PEER_PORT, { path: '/health' });
+    const identity = coordinationPeer.actorId;
+    const markerPath = `.portdaddy/cloud-peers/${coordinationPeer.replicaId}.peer`;
+    const enrollmentNote = [
+      'Fleet cloud coordination peer enrolled',
+      `actor=${identity}`,
+      `replica=${coordinationPeer.replicaId}`,
+      `marker=${markerPath}`,
+    ].join(' ');
+    const beginCommand = [
+      './dist/port-daddy begin',
+      shq('Cloud sandbox coordination peer'),
+      '--identity',
+      shq(identity),
+      '--lifecycle durable',
+      '--sidequest',
+      shq('ADR-0092 cloud coordination peer runtime'),
+      '--allow-main-worktree',
+      '--files',
+      shq(markerPath),
+      '&&',
+      './dist/port-daddy note',
+      shq(enrollmentNote),
+      '--type progress',
+    ].join(' ');
+    const beginResult = await sandbox.exec(beginCommand, {
+      cwd: REPOSITORY_ROOT,
+      env: cloudPeerClientEnv(),
+    });
+    if (!execPassed(beginResult)) {
+      return notExecuted(
+        'cloud pd daemon started but its coordination session, marker claim, or enrollment note failed',
+        combinedOutput(beginResult),
+      );
+    }
+    const convergenceResult = await sandbox.exec(cloudPeerConvergenceProbeCommand(), {
+      cwd: REPOSITORY_ROOT,
+      env: cloudPeerClientEnv(),
+    });
+    if (!execPassed(convergenceResult)) {
+      return notExecuted(
+        'cloud pd daemon started but its coordination session was not durably acknowledged by the room',
+        combinedOutput(convergenceResult),
+      );
+    }
+
+    // A non-zero room cursor proves only that *something* has existed in this
+    // project. Kill the writer and boot a second daemon against a brand-new DB
+    // and prefix. The witness must read the writer's exact session, marker
+    // claim, and note through ordinary pd commands before authored tests run.
+    await daemonProcess.kill();
+    daemonProcess = null;
+    const witnessPeer: SandboxCoordinationPeer = {
+      ...coordinationPeer,
+      replicaId: newSandboxReplicaId(),
+    };
+    daemonProcess = await sandbox.startProcess!(
+      './dist/port-daddy __daemon',
+      {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerDaemonEnv(witnessPeer, CLOUD_PEER_WITNESS_ROOT),
+      },
+    );
+    if (
+      !daemonProcess
+      || typeof daemonProcess.waitForPort !== 'function'
+      || typeof daemonProcess.kill !== 'function'
+    ) {
+      return notExecuted(
+        'SANDBOX startProcess returned no controllable witness daemon handle',
+      );
+    }
+    await daemonProcess.waitForPort(CLOUD_PEER_PORT, { path: '/health' });
+    const witnessConvergence = await sandbox.exec(cloudPeerConvergenceProbeCommand(), {
+      cwd: REPOSITORY_ROOT,
+      env: cloudPeerClientEnv(CLOUD_PEER_WITNESS_ROOT),
+    });
+    if (!execPassed(witnessConvergence)) {
+      return notExecuted(
+        'fresh cloud pd witness did not converge with the coordination room',
+        combinedOutput(witnessConvergence),
+      );
+    }
+    const witnessResult = await sandbox.exec(
+      cloudPeerWitnessCommand(coordinationPeer, markerPath, enrollmentNote),
+      {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerClientEnv(CLOUD_PEER_WITNESS_ROOT),
+      },
+    );
+    if (!execPassed(witnessResult)) {
+      return notExecuted(
+        'fresh cloud pd witness could not read the exact session, marker claim, and enrollment note',
+        combinedOutput(witnessResult),
+      );
+    }
     const testResult = await sandbox.exec(`bash -lc ${shq(runner.script)}`, {
       cwd: REPOSITORY_ROOT,
     });
