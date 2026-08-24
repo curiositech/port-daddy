@@ -89,4 +89,5 @@ Self-contained; deps: numpy, scipy, matplotlib, networkx; seed 20260816 fixed in
 - `python3 scripts/a3_epsilon_ledger.py` — R10: exhaustive interleaving check (15 states, 0 violations), 2 atomicity mutations with shortest crimes (1 and 3 steps), DP composition crossover table.
 - `python3 scripts/a4_canary_sprt.py` — R11: operating-curve table (0.554 at m=100), Wald-vs-sim SPRT latencies (297 vs 359), correlated-stripping boundary demo.
 - `python3 scripts/a6_no_mint.py` — R12: closure-sum counterexample (2.44>1), 4000-DAG sweep (0 violations), copy-full mint caught (8.2×).
+- `python3 scripts/b6_probation.py` — B6: front-loaded probation dominance — 0 dominating schedules in 4,000 random instances (76,000 schedules tested), matching the closed-form exchange argument; exit nonzero on violation.
 - `python3 scripts/sheaf_harness_v2.py` — R6 harness rebuild (W8): completion-residual detector over compared/relayed/severed visibility; gates PASS (200/200 cohomology-only on relayed cycle edges, cut edges at float epsilon, severed provably dark); D1/D2 reintroduction mutants caught; verdict COMMIT.

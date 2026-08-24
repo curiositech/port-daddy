@@ -683,9 +683,9 @@ export default function HowWeProveGameTheoryPage() {
                     Full file is ~250 lines including the recommendation
                     machinery, graduated-trigger logic, and{' '}
                     <code>@type:</code> annotations. The numbers — including
-                    the threshold at &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.3425 —
+                    the threshold at &delta;<sup>*</sup>&nbsp;≈&nbsp;0.3425 —
                     are the ones the artifact actually checks. The cubic
-                    that produces &delta;<sup>&star;</sup> is independently
+                    that produces &delta;<sup>*</sup> is independently
                     discharged by{' '}
                     <code>proofs/economics/delta-threshold.z3</code> (next
                     section).
@@ -785,7 +785,7 @@ export default function HowWeProveGameTheoryPage() {
                     profitable one-shot deviation exists for any discount
                     factor &delta; above the root of the cubic{' '}
                     <code>2&delta;&sup3; + 2&delta;&sup2; + 2&delta; − 1 = 0</code>.
-                    The root is &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.3425. We
+                    The root is &delta;<sup>*</sup>&nbsp;≈&nbsp;0.3425. We
                     could derive it by hand — Cardano&apos;s formula, the
                     discriminant, the depressed cubic, all the
                     seventeenth-century plumbing — and ask the reader to
@@ -1104,7 +1104,7 @@ z3 cubic-root.smt2
                   </div>
                   <ul className="space-y-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                     <li>
-                      The threshold &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.3425
+                      The threshold &delta;<sup>*</sup>&nbsp;≈&nbsp;0.3425
                       is the root of a specific cubic that comes out of a
                       specific stage-game calibration (gain&nbsp;=&nbsp;1,
                       punishment loss/round&nbsp;=&nbsp;2). Other calibrations
