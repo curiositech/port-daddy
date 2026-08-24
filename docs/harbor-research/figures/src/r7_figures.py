@@ -6,6 +6,7 @@ Generates two PNG figures for the harbor-exposition Rail-B pair.
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 
 # Set seed for deterministic output
 np.random.seed(20260816)

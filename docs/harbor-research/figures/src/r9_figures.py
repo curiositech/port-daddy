@@ -5,6 +5,7 @@ Two figures: relation-map (voting-booth analogy) and regime diagram (gate behavi
 """
 
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch
 
 # House colors
@@ -151,9 +152,9 @@ def figure_r9_regime():
                             edgecolor='gray', facecolor=(0.97, 0.97, 0.97), linewidth=0.8)
     ax.add_patch(legend_box)
     legend_lines = [
-        "✓ Seagreen: honest gate enforces identity on equal-parity secret pairs.",
-        "✓ Harborblue: honest gate isolates any difference to the gate-release event only.",
-        "✗ Red: every mutation is caught — it leaks information the honest gate hides.",
+        "Seagreen (holds): honest gate enforces identity on equal-parity secret pairs.",
+        "Harborblue (holds): honest gate isolates any difference to the gate-release event only.",
+        "Red (caught): every mutation is caught — it leaks information the honest gate hides.",
     ]
     for k, line in enumerate(legend_lines):
         ax.text(grid_left + 0.15, legend_y_top - 0.3 - k * 0.35, line,

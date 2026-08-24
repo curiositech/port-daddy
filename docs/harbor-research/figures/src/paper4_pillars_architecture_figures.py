@@ -21,6 +21,7 @@ import matplotlib
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch  # noqa: E402
 
 np.random.seed(20260816)

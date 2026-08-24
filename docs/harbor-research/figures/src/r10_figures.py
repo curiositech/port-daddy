@@ -7,6 +7,7 @@ R10 Figures: ε-ledger conservation (A3)
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch
 
 # Set seed for deterministic output

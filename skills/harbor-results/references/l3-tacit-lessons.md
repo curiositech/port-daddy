@@ -4,7 +4,7 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 
 ## 1. The unpriced side channel (the meter bug)
 **Context.** Falsifying the information floor (R1): simulate digests at budget B, measure miss rate against the floor.
-**Mistake.** Gave the oracle encoder a perfect per-item score vector and charged B bits only for quantizing rank resolution (tie-breaking). Result: 8/16 apparent floor "violations."
+**Mistake.** Gave the oracle encoder a perfect per-item score vector and charged B bits only for quantizing rank resolution (tie-breaking). Result: 8/14 apparent floor "violations."
 **Fix.** Make B a literal message length: digest = encoder e:(features)→{0,1}^B, decoder d:{0,1}^B→(m-subset), shared data-independent codebook. Bits now gate *identification*. Violations → 0/16.
 **Rule.** An information bound constrains what a channel carries; any simulation that appears to beat one is leaking through an unpriced side channel. Audit the meter before doubting the theorem — and before trusting the "refutation."
 **Bit.** a7_experiment.py v1 vs v2; documented in Execution Report #1 §3.3. Repo: wrong turn at docs/harbor-research/wrong-turns/a7_experiment.py; fixed at skills/harbor-results/scripts/a7_experiment.py.

@@ -17,6 +17,7 @@ Numbers reproduce skills/harbor-results/scripts/b2_tower.py exactly.
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 
 HARBORBLUE = '#1e466e'
 SHIPRED = '#8c1e1e'

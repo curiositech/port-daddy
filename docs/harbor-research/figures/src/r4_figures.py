@@ -6,6 +6,7 @@ Two PNG outputs: r4_relation.png and r4_regime.png
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch
 
 # HOUSE RULES

@@ -6,6 +6,7 @@ R5 Figures: hypervisor enforceability = supervisory control
 """
 
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import FancyArrowPatch, Rectangle
 
 # House colors (from task)
@@ -53,7 +54,7 @@ def create_relation_map():
     ax.add_patch(box2)
     ax.text(10.2, y_target+0.6, "Target Domain", fontsize=10, weight='bold',
             ha='center', va='center')
-    ax.text(10.2, y_target+0.1, "RL mediation boundary", fontsize=9, ha='center', va='center')
+    ax.text(10.2, y_target+0.1, "the daemon's mediation boundary", fontsize=9, ha='center', va='center')
     ax.text(10.2, y_target-0.3, "Daemon can FORBID:", fontsize=9, ha='center', va='center', weight='bold')
     ax.text(10.2, y_target-0.7, "fs_write, net_egress,", fontsize=8, ha='center', va='center')
     ax.text(10.2, y_target-0.95, "exec_tool, git_push, spawn", fontsize=8, ha='center', va='center')

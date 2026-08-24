@@ -29,7 +29,7 @@ Checklist, run when designing AND when an experiment appears to beat a bound:
 
 ## 5. Wrong-turn report format + provenance
 **Wrong-turn entry (file next to the success):** Context (what was being tested) → The mistake (what was computed/assumed) → Why it was wrong (the mechanism) → The fix → The transferable rule → Artifact pointers (v1 and v2 scripts, both retained).
-**Numeric provenance:** every number in any write-up tagged **[verified]** (externally recomputable) or **[internal, script, seed]**. Wrong-turn numbers (the 8/16) are reported with the same tags as successes.
+**Numeric provenance:** every number in any write-up tagged **[verified]** (externally recomputable) or **[internal, script, seed]**. Wrong-turn numbers (the 8/14) are reported with the same tags as successes.
 **Why this is non-negotiable:** the external exposition audit demonstrated outside readers cannot distinguish verified theorems from internal counts unaided; and the program's three most valuable boundaries (meter integrity, data-vs-sheaf, cycle-vs-cut) were all discovered *by* wrong turns that would have been invisible if unreported.
 
 ## Ordering (the pipeline, one line)
