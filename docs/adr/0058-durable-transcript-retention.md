@@ -60,7 +60,11 @@ external warehouse.
   `recordTranscript()` is a trusted in-process full-snapshot importer: while a
   row is running it atomically replaces the complete message/output child sets,
   making retries and running-to-terminal import idempotent; it cannot reopen or
-  rewrite an already terminal row and has no HTTP route. A sink/receipt failure
+  rewrite an already terminal row and has no HTTP route. Both lifecycle entry
+  points stamp the reserved `port-daddy:spawner-transcript` producer,
+  `INTERNAL` trust tier, and daemon clock themselves. Caller-shaped producer
+  fields are ignored; migrated rows remain explicitly `null` rather than being
+  retroactively laundered into trusted evidence. A sink/receipt failure
   never rewrites a completed spawn into failure, but is logged loudly and
   remains internally retryable.
 - **Exact artifact receipts.** `fleet_transcript_archive_receipts` binds the
