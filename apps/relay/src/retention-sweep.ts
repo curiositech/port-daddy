@@ -24,6 +24,7 @@
  */
 
 import type { Env } from './types.js';
+import { flushDeprecationSightings } from './deprecations.js';
 import { DIRECTORY_SIGNAL_RETENTION_DAYS } from './directory.js';
 import { ROADMAP_ACTIVITY_CAP } from './roadmap-mirror.js';
 
@@ -45,6 +46,7 @@ export interface SweepResult {
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
+  sightingsFlushed: number;
   // X5 directory (doctrine D3): derived rows must not exist for unlisted
   // operators, and every derived signal is retention-bounded.
   directoryDelistDropped: number;
@@ -255,6 +257,15 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     'users(hard-delete)',
   );
 
+  // X6 - drain buffered deprecation sightings (KV) into D1, cardinality-
+  // capped (src/deprecations.ts). Skips cleanly when the env has no KV
+  // binding (unit tests); best-effort like every other step here.
+  let sightingsFlushed = 0;
+  if ((env as { KV?: KVNamespace }).KV) {
+    const f = await flushDeprecationSightings(env);
+    sightingsFlushed = f.flushed;
+    errors.push(...f.errors);
+  }
   return {
     now,
     retentionDays,
@@ -265,6 +276,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,
+    sightingsFlushed,
     directoryDelistDropped,
     directorySignalsPruned,
     roadmapActivityPruned,

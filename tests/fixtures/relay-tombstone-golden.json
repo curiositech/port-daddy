@@ -1,0 +1,17 @@
+{
+  "$comment": "Pinned wire contract for the relay X6 structured 410 tombstone. Producer: apps/relay/src/deprecations.ts renderTombstone (asserted by apps/relay/tests/deprecations.test.ts). Consumer: shared/relay-tombstone.ts parse/render (asserted by tests/unit/relay-tombstone.test.ts). Change producer, consumer, and this fixture together or not at all.",
+  "status": 410,
+  "body": {
+    "error": "/auth/status has been sunset; use /v1/auth/status",
+    "code": "SURFACE_SUNSET",
+    "endpoint": "/auth/status",
+    "deprecation": {
+      "id": "auth-unversioned",
+      "deprecated_at": "2026-08-09",
+      "sunset_at": "2027-03-01",
+      "successor": "/v1/auth/status",
+      "docs": "https://portdaddy.dev/docs/relay-deprecations",
+      "min_version": null
+    }
+  }
+}

@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync, rmSync, existsSync, mkdirSync, chmodSync }
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { PD_HOME } from '../../shared/paths.js';
+import { parseRelayTombstone, renderRelayTombstone } from '../../shared/relay-tombstone.js';
 
 const DEFAULT_RELAY = 'https://port-daddy-relay.erich-owens.workers.dev';
 const ACCOUNT_FILE = join(PD_HOME, 'account.json');
@@ -73,6 +74,12 @@ async function deviceLogin(): Promise<number> {
     error?: string;
   };
   if (!start.ok || !s.device_code || !s.user_code || !s.verification_uri) {
+    // X6: a sunset surface answers a structured 410 - render it actionably.
+    const tomb = parseRelayTombstone(start.status, s);
+    if (tomb) {
+      console.error(renderRelayTombstone(tomb));
+      return 1;
+    }
     console.error(`✖ Could not start device login: ${s.error ?? start.status}`);
     console.error('  If this says device flow is not enabled, turn on "Enable Device Flow" on the Port Daddy Fleet GitHub App.');
     return 1;
@@ -122,6 +129,14 @@ async function status(): Promise<number> {
   if (res.status === 401) {
     console.log(`Stored token for ${a.login || 'account'} is no longer valid (revoked or expired). Run: pd account login`);
     return 1;
+  }
+  if (res.status === 410) {
+    // X6: structured tombstone - the surface is gone; say what replaces it.
+    const tomb = parseRelayTombstone(res.status, await res.json().catch(() => null));
+    if (tomb) {
+      console.error(renderRelayTombstone(tomb));
+      return 1;
+    }
   }
   if (!res.ok) {
     console.error(`✖ Could not reach the relay (${res.status}).`);

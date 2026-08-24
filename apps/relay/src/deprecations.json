@@ -1,0 +1,25 @@
+{
+  "$comment": "X6 deprecation registry (docs/proposals/relay-grand-plan.md SX6). One entry per deprecated surface. This JSON is the single source of truth read by BOTH the Worker middleware (src/deprecations.ts) and the CI pre-sunset gate (scripts/check-sunsets.mjs). Dates are UTC ISO days. To extend a sunset, change sunsetAt in a commit; to sunset a surface, set tombstoned=true in the same commit the gate would otherwise fail - the old paths then answer a structured 410. Removal of a surface additionally requires the zero-identities-in-30-days sightings query to return 0 (surfaceRemovalAllowed in src/deprecations.ts).",
+  "deprecations": [
+    {
+      "id": "auth-unversioned",
+      "prefix": "/auth/",
+      "successorPrefix": "/v1/auth/",
+      "deprecatedAt": "2026-08-09",
+      "sunsetAt": "2027-03-01",
+      "docsUrl": "https://portdaddy.dev/docs/relay-deprecations",
+      "tombstoned": false,
+      "note": "Bare /auth/* moved under /v1/. Pure alias: same handlers, byte-identical bodies."
+    },
+    {
+      "id": "billing-unversioned",
+      "prefix": "/billing/",
+      "successorPrefix": "/v1/billing/",
+      "deprecatedAt": "2026-08-09",
+      "sunsetAt": "2027-03-01",
+      "docsUrl": "https://portdaddy.dev/docs/relay-deprecations",
+      "tombstoned": false,
+      "note": "Bare /billing/* moved under /v1/. Pure alias: same handlers, byte-identical bodies."
+    }
+  ]
+}
