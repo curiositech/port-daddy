@@ -51,18 +51,18 @@
 };
 \addlegendentry{$\delta=0.04$}
 \addplot[only marks,mark=diamond*,mark size=2.6pt,harborblue,mark options={draw=black,line width=0.5pt},forget plot] coordinates {(0.05,0.2864)};
-\node[regimebox,fill=white,fill opacity=0.9,draw=harborblue,font=\scriptsize,inner sep=1.5pt] at (axis cs:0.30,0.20)
+\node[regimebox,fill=white,fill opacity=0.9,draw=harborblue,font=\scriptsize,inner sep=1.5pt,anchor=east] at (axis cs:0.39,0.20)
   {$H(0.05)=0.286$};
-\draw[->,harborblue,thick] (axis cs:0.25,0.19) -- (axis cs:0.06,0.278);
+\draw[->,harborblue,thick] (axis cs:0.32,0.19) -- (axis cs:0.06,0.278);
 \addplot[only marks,mark=*,mark size=2pt,harborblue,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.10,0.1864)};
-\node[font=\scriptsize,harborblue,fill=white,fill opacity=0.9,inner sep=1.5pt] at (axis cs:0.30,0.14) {$R(0.00,0.10)=0.186$};
-\draw[->,harborblue] (axis cs:0.25,0.135) -- (axis cs:0.107,0.188);
+\node[font=\scriptsize,harborblue,fill=white,fill opacity=0.9,inner sep=1.5pt,anchor=east] at (axis cs:0.39,0.14) {$R(0.00,0.10)=0.186$};
+\draw[->,harborblue] (axis cs:0.32,0.135) -- (axis cs:0.107,0.188);
 \addplot[only marks,mark=*,mark size=2pt,seagreen,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.10,0.1100)};
-\node[font=\scriptsize,seagreen,fill=white,fill opacity=0.9,inner sep=1.5pt] at (axis cs:0.30,0.08) {$R(0.01,0.10)=0.110$};
-\draw[->,seagreen] (axis cs:0.25,0.078) -- (axis cs:0.108,0.113);
+\node[font=\scriptsize,seagreen,fill=white,fill opacity=0.9,inner sep=1.5pt,anchor=east] at (axis cs:0.39,0.08) {$R(0.01,0.10)=0.110$};
+\draw[->,seagreen] (axis cs:0.32,0.078) -- (axis cs:0.108,0.113);
 \addplot[only marks,mark=*,mark size=2pt,shipred,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.06,0.009)};
-\node[font=\scriptsize,shipred,fill=white,fill opacity=0.9,inner sep=1.5pt] at (axis cs:0.27,0.02) {$R(0.04,0.06)=0.009$};
-\draw[->,shipred] (axis cs:0.22,0.019) -- (axis cs:0.065,0.012);
+\node[font=\scriptsize,shipred,fill=white,fill opacity=0.9,inner sep=1.5pt,anchor=east] at (axis cs:0.39,0.02) {$R(0.04,0.06)=0.009$};
+\draw[->,shipred] (axis cs:0.32,0.019) -- (axis cs:0.065,0.012);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -75,7 +75,7 @@
   xmode=log,ymode=log,
   height=7.2cm,
   xlabel={flagged-set density ($k/F$)},
-  ylabel={advantage $F/(k\log_2(F/k))$},
+  ylabel={advantage (log)},
   title={Panel B --- the sparse-flagged boundary\\($F{=}2500$)},
   xmin=0.0008,xmax=0.8,ymin=0.8,ymax=100,
   legend pos=north east,
@@ -92,9 +92,9 @@
 \addplot[seagreen,dashed,thick,no marks] coordinates {(0.0008,1) (0.8,1)};
 \addlegendentry{zoom stops paying}
 \addplot[only marks,mark=*,mark size=2.6pt,shipred,mark options={draw=red!30!black,line width=0.6pt},forget plot] coordinates {(0.004,15.3)};
-\node[regimebox,fill=shipred!8,draw=shipred,font=\scriptsize,text width=2.6cm,inner sep=3pt] at (axis cs:0.010,25)
+\node[regimebox,fill=shipred!8,draw=shipred,font=\scriptsize,text width=2.6cm,inner sep=3pt,anchor=west] at (axis cs:0.012,25)
   {measured $15.3\times$\\(ideal $\approx31\times$)};
-\draw[->,shipred,thick] (axis cs:0.008,20) -- (axis cs:0.0048,16.5);
+\draw[->,shipred,thick] (axis cs:0.011,18) -- (axis cs:0.0048,16.5);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}

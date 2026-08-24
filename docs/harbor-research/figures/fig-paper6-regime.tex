@@ -32,7 +32,7 @@
   harbor curve,
   xlabel={utilization $\rho$},
   ylabel={skill premium $r=\mu_s/\mu_g$},
-  title={\textbf{A} --- the exact boundary vs the falsified one ($c=2$, $A=0$)},
+  title={\textbf{A} --- the exact boundary\\vs.\ the falsified one},
   xmin=0,xmax=0.95,ymin=0.9,ymax=4.0,
   xtick={0,0.2,0.4,0.6,0.8},
   ytick={1.0,1.5,2.0,2.5,3.0,3.5,4.0},
@@ -83,8 +83,8 @@
 \node[shipred,font=\scriptsize,anchor=west] at (axis cs:0.115,1.02) {false-certify $r{=}1.15$};
 \addplot[harborblue,mark=o,mark size=2.4pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.5,1.9)};
 \node[harborblue,font=\scriptsize,anchor=west] at (axis cs:0.53,1.78) {false-reject $r{=}1.9$};
-\node[shipred,font=\scriptsize\itshape,align=left,anchor=west] at (axis cs:0.09,2.25) {$\tilde g$ certifies,\\specialist loses};
-\node[harborblue,font=\scriptsize\itshape,align=left,anchor=west] at (axis cs:0.55,2.9) {$\tilde g$ rejects,\\specialist wins};
+\node[shipred,font=\scriptsize\itshape,align=left,anchor=west] at (axis cs:0.03,1.55) {$\tilde g$ certifies,\\specialist loses};
+\node[harborblue,font=\scriptsize\itshape,align=left,anchor=west] at (axis cs:0.55,1.35) {$\tilde g$ rejects,\\specialist wins};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -96,7 +96,7 @@
   harbor curve,
   xlabel={death-rate $\times$ succession-time, $\xi/\eta$},
   ylabel={mean response time $W$},
-  title={\textbf{B} --- the succession price ($\eta=0.25$, $K=1.036$)},
+  title={\textbf{B} --- the succession price\\($\eta{=}0.25$, $K{=}1.036$)},
   xmin=0,xmax=1.0,ymin=0,ymax=2.6,
   xtick={0,0.2,0.4,0.6,0.8,1.0},
   ytick={0,0.5,1.0,1.5,2.0,2.5},
@@ -125,8 +125,8 @@
 % ymax=2.6) sat inside -- not a shared-style issue, this callout is local
 % to the panel. Lower + smaller also clears the mu_s marker/label block
 % (~y=1.12-1.48) below it.
-\node[shipred,font=\tiny\bfseries,align=center] at (axis cs:0.72,1.72) {pooling wins at\\EVERY skill premium};
-\node[seagreen,font=\scriptsize,align=center] at (axis cs:0.16,1.65) {sole ownership viable\\if the premium clears $g_A$};
+\node[shipred,font=\tiny\bfseries,align=center] at (axis cs:0.78,2.25) {pooling wins at\\EVERY skill premium};
+\node[seagreen,font=\scriptsize,align=left,anchor=west] at (axis cs:0.03,1.05) {sole ownership viable\\if the premium clears $g_A$};
 \addplot[shipred,mark=*,mark size=2.2pt,only marks,forget plot] coordinates {(0.5244,1.3761)};
 \node[shipred,font=\scriptsize,anchor=west,align=left] at (axis cs:0.5444,1.30) {$\mu_s{=}10^8$ still loses\\($W{=}1.376{>}K$)};
 \end{axis}

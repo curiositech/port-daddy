@@ -43,9 +43,9 @@
 % "sellers stay" label sits) -- the two collided directly on top of one
 % another at the old positions, a real text/text overlap found by
 % rendering the CI build.
-\node[font=\scriptsize,anchor=north] at (axis cs:0.16667,0.465) {$\mu^\star=1/6$};
+\node[font=\scriptsize,anchor=north west] at (axis cs:0.19,0.465) {$\mu^\star=1/6$};
 \node[shipred,font=\scriptsize\bfseries,align=center,rotate=90] at (axis cs:0.1,0.66) {death spiral};
-\node[seagreen,font=\scriptsize\bfseries,align=center,anchor=south east] at (axis cs:0.98,0.31) {sellers stay};
+\node[seagreen,font=\scriptsize\bfseries,align=center,anchor=south] at (axis cs:0.6,0.32) {sellers stay};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -79,7 +79,7 @@
 };
 \addlegendentry{attested: $\Delta c-\Delta\theta$}
 \addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.3,0.0)};
-\node[font=\scriptsize,anchor=south west] at (axis cs:0.33,0.03) {flip: $\Delta\theta=\Delta c$};
+\node[font=\scriptsize,anchor=south west,text width=1.6cm,align=left] at (axis cs:0.33,0.03) {flip:\\$\Delta\theta{=}\Delta c$};
 \addplot[seagreen,only marks,mark=*,mark size=2.4pt,forget plot] coordinates {(0.6,-0.3)};
 % All four annotation nodes below are re-anchored to the plot's four open
 % quadrants (top-left, left-center, bottom-left, top-right kept clear of
@@ -87,7 +87,7 @@
 % positions and full-length wording they ran into the legend, into the
 % axis's own left edge, and into each other -- real collisions and
 % off-axis clipping found by rendering the CI build.
-\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=west] at (axis cs:0.03,-0.08) {worked instance:\\keep 0.5, swap 0.2};
+\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=west,text width=1.9cm] at (axis cs:0.03,-0.08) {worked:\\keep 0.5,\\swap 0.2};
 \node[shipred,font=\scriptsize\bfseries,anchor=north west] at (axis cs:0.03,0.40) {swap pays};
 \node[seagreen,font=\scriptsize\bfseries,anchor=south west] at (axis cs:0.03,-0.6) {strong engine pays};
 \end{axis}
