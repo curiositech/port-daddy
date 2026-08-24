@@ -178,6 +178,23 @@ function resolveChildProcess(code = 0, stdout = 'output', stderr = '') {
 }
 
 /**
+ * Start a custom backend without delivering its close event, leaving a real
+ * running record that kill() is allowed to transition to killed.
+ */
+async function startRunningCustom(spawner) {
+  mockChildProcess.stdout.on.mockImplementation(() => {});
+  mockChildProcess.stderr.on.mockImplementation(() => {});
+  mockChildProcess.on.mockImplementation(() => {});
+
+  const spawnPromise = spawner.spawn({ backend: 'custom', task: 'sleep 9999' });
+  await new Promise(r => setTimeout(r, 10));
+
+  const [agent] = spawner.list();
+  expect(agent.status).toBe('running');
+  return { agent, spawnPromise };
+}
+
+/**
  * Make the child process emit 'error'.
  */
 function rejectChildProcess(message = 'spawn failed') {
@@ -1010,13 +1027,11 @@ describe('list', () => {
 
   test('shows killed status after kill', async () => {
     const spawner = createSpawner();
-    setupOllamaFetchMock('response');
-
-    const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    spawner.kill(result.agentId);
+    const { agent } = await startRunningCustom(spawner);
+    spawner.kill(agent.agentId);
 
     const agents = spawner.list();
-    const killed = agents.find(a => a.agentId === result.agentId);
+    const killed = agents.find(a => a.agentId === agent.agentId);
     expect(killed.status).toBe('killed');
     expect(killed.completedAt).toBeTruthy();
   });
@@ -1029,13 +1044,11 @@ describe('list', () => {
 describe('kill', () => {
   test('marks agent as killed', async () => {
     const spawner = createSpawner();
-    setupOllamaFetchMock('response');
-
-    const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    spawner.kill(result.agentId);
+    const { agent: running } = await startRunningCustom(spawner);
+    spawner.kill(running.agentId);
 
     const agents = spawner.list();
-    const agent = agents.find(a => a.agentId === result.agentId);
+    const agent = agents.find(a => a.agentId === running.agentId);
     expect(agent.status).toBe('killed');
     expect(agent.completedAt).toBeTruthy();
   });
@@ -1056,11 +1069,9 @@ describe('kill', () => {
 
   test('calls PD coordination /sugar/done on kill', async () => {
     const spawner = createSpawner();
-    setupOllamaFetchMock('response');
-
-    const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
+    const { agent } = await startRunningCustom(spawner);
     mockFetch.mockClear();
-    spawner.kill(result.agentId);
+    spawner.kill(agent.agentId);
 
     // kill fires /sugar/done asynchronously — give it a tick
     await new Promise(r => setTimeout(r, 10));
@@ -1070,7 +1081,7 @@ describe('kill', () => {
     );
     expect(doneCalls.length).toBe(1);
     const body = JSON.parse(doneCalls[0][1].body);
-    expect(body.agentId).toBe(result.agentId);
+    expect(body.agentId).toBe(agent.agentId);
     expect(body.note).toBe('Killed by spawner');
   });
 
