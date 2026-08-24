@@ -38,13 +38,15 @@ function makeEnv(db: D1Database, retentionDays?: string): Env {
 describe('retention sweep', () => {
   it('prunes runs/steps/events at the retention horizon and reaps expired sessions', async () => {
     const { db, calls } = makeDb({
-      fleet_run_steps: 12, fleet_runs: 3, events: 40, web_sessions: 7, users: 1,
+      fleet_run_steps: 12, fleet_runs: 3, fleet_run_intents: 4,
+      events: 40, web_sessions: 7, users: 1,
     });
     const r = await runRetentionSweep(makeEnv(db, '7'), NOW);
 
     expect(r.retentionDays).toBe(7);
     expect(r.runStepsPruned).toBe(12);
     expect(r.runsPruned).toBe(3);
+    expect(r.runIntentsPruned).toBe(4);
     expect(r.eventsPruned).toBe(40);
     expect(r.sessionsReaped).toBe(7);
     expect(r.errors).toEqual([]);
@@ -52,6 +54,11 @@ describe('retention sweep', () => {
     // Retention deletes use now - 7d; the session reap uses `now` exactly.
     const retentionHorizon = NOW - 7 * DAY;
     expect(calls.find((c) => c.sql.includes('fleet_runs WHERE created_at'))!.horizon).toBe(retentionHorizon);
+    const intents = calls.find((c) => c.sql.includes('DELETE FROM fleet_run_intents'))!;
+    expect(intents.horizon).toBe(retentionHorizon);
+    expect(intents.sql).toContain("state IN ('superseded','enqueue_failed','success','failure','neutral','cancelled')");
+    expect(intents.sql).not.toContain("'queued'");
+    expect(intents.sql).not.toContain("'running'");
     expect(calls.find((c) => c.sql.includes('events WHERE arrived_at'))!.horizon).toBe(retentionHorizon);
     expect(calls.find((c) => c.sql.includes('web_sessions WHERE expires_at'))!.horizon).toBe(NOW);
   });
@@ -63,6 +70,8 @@ describe('retention sweep', () => {
     const erasureHorizon = NOW - 30 * DAY;
     const del = calls.find((c) => c.sql.includes('DELETE FROM users WHERE deleted_at IS NOT NULL'));
     expect(del!.horizon).toBe(erasureHorizon);
+    const roles = calls.find((c) => c.sql.includes('DELETE FROM user_roles WHERE user_id IN'));
+    expect(roles!.horizon).toBe(erasureHorizon);
   });
 
   it('fails SAFE on an unset/garbage retention knob — falls back to 30d, never horizon 0', async () => {

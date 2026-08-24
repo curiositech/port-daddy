@@ -131,6 +131,41 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
 
+-- Durable queue-admission truth, written before the queue consumer starts.
+-- One PR can have many immutable generations as new heads arrive; only the
+-- latest queued/running generation remains active and older work is marked
+-- superseded.  Delivery id is the webhook idempotency key.
+CREATE TABLE IF NOT EXISTS fleet_run_intents (
+  delivery_id        TEXT    PRIMARY KEY,
+  repo_full_name     TEXT    NOT NULL,
+  pr_number          INTEGER NOT NULL,
+  pr_url             TEXT    NOT NULL,
+  head_sha           TEXT    NOT NULL,
+  event_type         TEXT    NOT NULL,
+  action             TEXT,
+  generation         INTEGER NOT NULL,
+  state              TEXT    NOT NULL DEFAULT 'admitting'
+                             CHECK (state IN (
+                               'admitting', 'queued', 'running', 'retrying',
+                               'superseded', 'enqueue_failed',
+                               'success', 'failure', 'neutral', 'cancelled'
+                             )),
+  attempt_count      INTEGER NOT NULL DEFAULT 0,
+  queued_at          INTEGER NOT NULL DEFAULT (unixepoch()),
+  started_at         INTEGER,
+  last_progress_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+  finished_at        INTEGER,
+  superseded_by      TEXT,
+  last_error         TEXT,
+  UNIQUE (repo_full_name, pr_number, generation)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx
+  ON fleet_run_intents (repo_full_name, pr_number, generation DESC);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_state_queued_idx
+  ON fleet_run_intents (state, queued_at ASC);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_state_finished_idx
+  ON fleet_run_intents (state, finished_at ASC);
+
 -- Immutable transcript of each step within a run.
 CREATE TABLE IF NOT EXISTS fleet_run_steps (
   run_id             TEXT    NOT NULL,            -- FK to fleet_runs.id
@@ -261,6 +296,37 @@ CREATE TABLE IF NOT EXISTS user_tokens (
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
+-- Server-authorized account roles. A pdu_ token proves account identity; this
+-- table separately proves authority for Cloud Fleet's team-scoped operator
+-- reads and controls. The initial owner row is materialized from the trusted
+-- RELAY_OPERATOR_GITHUB_USER_ID var on first access.
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id    TEXT    NOT NULL REFERENCES users(id),
+  role       TEXT    NOT NULL CHECK (role IN ('operator')),
+  source     TEXT    NOT NULL,
+  granted_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role)
+);
+
+-- Per-repo agent-behavior settings, account-scoped (the /account/repos screen).
+-- One row per (user, repo full name). sitrep_end_of_turn is the launch dial;
+-- settings_json is the forward-compatible bag for the settings the screen grows
+-- next. The account is the RECORD of cross-device intent; enforcement stays in
+-- each clone's local agent.config.json, converged via GET /v1/repo-settings.
+CREATE TABLE IF NOT EXISTS repo_settings (
+  user_id            TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name     TEXT    NOT NULL,
+  sitrep_end_of_turn TEXT    NOT NULL DEFAULT 'off'
+    CHECK (sitrep_end_of_turn IN ('off','suggest','enforce')),
+  settings_json      TEXT    NOT NULL DEFAULT '{}'
+    CHECK (json_valid(settings_json)),
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name)
+);
+CREATE INDEX IF NOT EXISTS idx_repo_settings_user
+  ON repo_settings(user_id, updated_at DESC);
+
 -- ──────────────────────────────────────────────────────────────────────────
 -- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
 --
@@ -299,6 +365,26 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+
+-- Aggregate, per-ship Workers AI call stats (ADR none; see
+-- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
+-- notes). ONE row per (run_id, ship), flushed once when the ship finishes —
+-- not per Workers AI call — accumulated in memory by FleetAiCircuit.runForShip.
+CREATE TABLE IF NOT EXISTS fleet_ai_call_stats (
+  run_id          TEXT    NOT NULL,
+  ship            TEXT    NOT NULL,
+  calls           INTEGER NOT NULL DEFAULT 0,
+  ok_calls        INTEGER NOT NULL DEFAULT 0,
+  timeout_calls   INTEGER NOT NULL DEFAULT 0,
+  error_calls     INTEGER NOT NULL DEFAULT 0,
+  total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+  max_elapsed_ms  INTEGER NOT NULL DEFAULT 0,
+  deadline_ms     INTEGER NOT NULL,
+  created_at      INTEGER NOT NULL,
+  PRIMARY KEY (run_id, ship)
+);
+CREATE INDEX IF NOT EXISTS idx_fleet_ai_call_stats_ship
+  ON fleet_ai_call_stats(ship, created_at DESC);
 
 -- One Stripe customer per installation (created lazily at first checkout/portal).
 CREATE TABLE IF NOT EXISTS stripe_customers (
@@ -504,6 +590,92 @@ CREATE TABLE IF NOT EXISTS harbor_memberships (
 );
 CREATE INDEX IF NOT EXISTS harbor_memberships_member_idx
   ON harbor_memberships (member_kind, member_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Roadmap command-center mirror (operator mandate 2026-08-22; PR 1)
+--
+-- A daemon PUSHES its per-repo roadmap into these tables via
+-- PUT /v1/roadmap/snapshot (pdu_ bearer); the relay stores a REPLICA the
+-- operator can read anywhere — never a second source of truth (the daemon
+-- stays the single writer). Every ingest is a FULL REPLACE per
+-- (user_id, repo_full_name) in one transactional batch. The watermark is
+-- honest: generated_at is the DAEMON's clock (unix ms, verbatim),
+-- received_at is the RELAY's clock (unix seconds). Tombstoned items
+-- (deleted_at set) are INCLUDED — a tombstone is data in a union-merged
+-- registry. Item timestamps and activity `at` are daemon-clock unix ms,
+-- passed through verbatim.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS roadmap_mirrors (
+  user_id        TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name TEXT    NOT NULL,
+  harbor         TEXT    NOT NULL,               -- daemon-declared harbor label
+  daemon_label   TEXT,                            -- which daemon pushed (display only)
+  generated_at   INTEGER NOT NULL,               -- DAEMON clock, unix ms (watermark)
+  received_at    INTEGER NOT NULL,               -- RELAY clock, unix seconds
+  item_count     INTEGER NOT NULL,
+  edge_count     INTEGER NOT NULL,
+  harbor_id      TEXT    REFERENCES harbors(id), -- resolved remote harbor, when one matches
+  PRIMARY KEY (user_id, repo_full_name)
+);
+
+-- Mirrored roadmap items, tombstones included. status mirrors the daemon's
+-- closed lane enum and is CHECK-enforced; kind/priority stay open-shaped (a
+-- newer daemon may grow the ladder — the mirror's job is fidelity).
+CREATE TABLE IF NOT EXISTS roadmap_mirror_items (
+  user_id           TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name    TEXT    NOT NULL,
+  slug              TEXT    NOT NULL,
+  harbor            TEXT    NOT NULL,
+  status            TEXT    NOT NULL
+    CHECK (status IN ('now','backlog','parked','merge','done')),
+  kind              TEXT    NOT NULL DEFAULT 'task',
+  priority          INTEGER NOT NULL DEFAULT 3,
+  summary_md        TEXT    NOT NULL,
+  description_md    TEXT,
+  assignee_id       TEXT,
+  started_at        INTEGER,
+  due_at            INTEGER,
+  estimate          INTEGER,
+  last_touched_at   INTEGER NOT NULL,
+  created_at        INTEGER NOT NULL,
+  deleted_at        INTEGER,                      -- tombstone; off the board, queryable as deleted
+  dependencies_json TEXT    NOT NULL DEFAULT '[]'
+    CHECK (json_valid(dependencies_json)),
+  notes_json        TEXT    NOT NULL DEFAULT '[]'
+    CHECK (json_valid(notes_json)),
+  PRIMARY KEY (user_id, repo_full_name, harbor, slug)
+);
+CREATE INDEX IF NOT EXISTS idx_roadmap_mirror_items_board
+  ON roadmap_mirror_items(user_id, repo_full_name, status, last_touched_at DESC);
+
+-- Mirrored graph edges: hierarchy + dependency structure between items.
+CREATE TABLE IF NOT EXISTS roadmap_mirror_edges (
+  user_id        TEXT NOT NULL REFERENCES users(id),
+  repo_full_name TEXT NOT NULL,
+  scope          TEXT NOT NULL,
+  source_id      TEXT NOT NULL,
+  edge_type      TEXT NOT NULL
+    CHECK (edge_type IN ('parent_of','depends_on')),
+  target_id      TEXT NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name, scope, source_id, edge_type, target_id)
+);
+
+-- Recent roadmap activity tail — capped (~200 per repo) at ingest AND by the
+-- retention sweep; the mirrors themselves persist (state, not history).
+CREATE TABLE IF NOT EXISTS roadmap_mirror_activity (
+  user_id        TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name TEXT    NOT NULL,
+  -- `at` is the watermark, part of the PK, and the tail/cap sort key, so it
+  -- carries an explicit typeof() + positivity CHECK: column affinity alone
+  -- would admit text or negative values, and text sorts above integers.
+  at             INTEGER NOT NULL
+    CHECK (typeof(at) = 'integer' AND at > 0),   -- daemon clock, unix ms
+  slug           TEXT    NOT NULL,
+  kind           TEXT    NOT NULL,               -- e.g. 'touch' | 'promote' | 'status'
+  by_id          TEXT,                            -- daemon-side actor id, when known
+  detail_json    TEXT,
+  PRIMARY KEY (user_id, repo_full_name, at, slug, kind)
+);
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- X3 PRESENCE + HELM v1 — presence first, the Helm without ballots

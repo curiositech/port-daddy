@@ -2,140 +2,53 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square } from 'lucide-react'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
-import { CommandTerminal } from '@/components/ui/CommandTerminal'
+import { PortholeEmbed } from '@/components/porthole/PortholeEmbed'
 
+/**
+ * The landing page's terminal demos, replaying real `pd` sessions.
+ *
+ * Motivation: this used to render hand-written strings through a typewriter
+ * animation, under copy claiming "these are real recordings, with the
+ * daemon answering back" — an audit of the site
+ * (`demos/porthole/AUDIT-2026-08-18.md`) found the output didn't match what
+ * the CLI actually prints, because nothing here was ever recorded. Each
+ * `cast` below is a genuine asciicast capture of the real, released `pd`
+ * CLI against a live local daemon — recorded with
+ * `website-v2/scripts/record-porthole-cast.sh` per the capture doctrine in
+ * `demos/porthole/PLAN.md`, gated in CI by `check-porthole-casts.mjs`,
+ * replayed here as real, selectable DOM text (not a GIF, not a re-typed
+ * string) via `PortholeEmbed`.
+ */
 const DEMOS = [
   {
+    id: 'collision',
+    title: 'No Collisions',
+    description: 'Two agents about to touch the same thing — stopped cold',
+    cast: '/casts/porthole/collision.cast',
+  },
+  {
+    id: 'visibility',
+    title: 'Catch Up Instantly',
+    description: 'Two agents leave real notes while you’re away — one command hands you the whole picture',
+    cast: '/casts/porthole/visibility.cast',
+  },
+  {
+    id: 'ports',
+    title: 'No Port Fights',
+    description: 'Two services, one default port, zero EADDRINUSE',
+    cast: '/casts/porthole/ports.cast',
+  },
+  {
+    id: 'recovery',
+    title: 'Nothing Lost',
+    description: 'A warning sent before you logged off is waiting when you log on — even offline, never missed',
+    cast: '/casts/porthole/recovery.cast',
+  },
+  {
     id: 'quickstart',
-    title: 'Quick Start',
-    description: 'Start a task, log what you did, hand it off',
-    gif: '/gifs/quickstart.gif',
-    caption: 'A real recording of a Port Daddy quickstart: commands appear with daemon output, not as a naked checklist.',
-    code: `# Start working on a project
-$ pd begin "Building the photo upload API" --identity photoapp:api --lifecycle durable
-  Agent agent-a7f3 ready
-  Session started · port 9201 · identity photoapp:api
-
-# Log progress as you work
-$ pd note "Endpoint scaffolded, writing validation layer"
-  Note added to session
-
-# Check your context
-$ pd whoami
-  Agent: agent-a7f3
-  Session: session-b2e4
-  Identity: photoapp:api
-  Purpose: Building the photo upload API
-
-# Done for the day
-$ pd done "Upload API complete with tests"
-  Session completed · agent unregistered`,
-  },
-  {
-    id: 'coordination',
-    title: 'Multi-Agent',
-    description: 'Two agents in one repo without collisions',
-    gif: '/gifs/agents/coordination.gif',
-    caption: 'A real coordination recording with visible terminal responses for claims, notes, and guard state.',
-    code: `# Agent 1: Backend developer
-$ pd begin "REST API for auth" --identity myapp:api --lifecycle durable
-  Agent agent-c3d1 ready
-
-$ pd claim myapp:api
-  Port 9201 claimed · identity myapp:api
-
-# Agent 2: Frontend developer
-$ pd begin "React login page" --identity myapp:web --lifecycle durable
-  Agent agent-e5f2 ready
-
-$ pd claim myapp:web
-  Port 9202 claimed · identity myapp:web
-
-# Backend signals: auth endpoints are ready
-$ pd pub api:ready '{"endpoints":["/login","/register"]}'
-  Published to api:ready · 1 subscriber notified
-
-# Lock the database for migrations
-$ pd with-lock db-migrations npm run migrate
-  Lock acquired · running command
-  Migration complete
-  Lock released`,
-  },
-  {
-    id: 'spawn',
-    title: 'AI Spawn',
-    description: 'Hand off a small job with a dollar cap',
-    gif: '/gifs/agents/event-triggers.gif',
-    caption: 'A real agent-trigger recording. Terminal examples on this page must show the system answering back.',
-    code: `# Spawn a cheap Codex agent with an explicit budget ceiling
-$ pd spawn --backend codex \\
-    --tier low \\
-    --identity myapp:fixer \\
-    --budget 0.50 \\
-    -- "Fix the login bug in src/auth.ts"
-  Agent spawned-8a2f: completed
-  Backend: codex
-  Model: gpt-5.4-mini
-  Duration: 45s
-
-# Quiet mode — capture output in scripts
-$ result=$(pd spawn --backend codex --tier low --budget 0.20 -q -- "Write a commit message")
-$ echo $result
-  fix: validate JWT expiry before token refresh
-
-# List spawned agents
-$ pd spawned
-  AGENT ID          BACKEND    STATUS      AGE
-  spawned-8a2f      codex      completed   2m
-  spawned-b4c1      ollama     completed   5m`,
-  },
-  {
-    id: 'salvage',
-    title: 'Salvage',
-    description: 'Pick up work from an agent that crashed',
-    gif: '/gifs/salvage.gif',
-    caption: 'A real salvage recording with command output visible for the recovery path.',
-    code: `# Check for dead agents at session start
-$ pd salvage
-  1 agent pending salvage:
-
-  photoapp:api
-    agent-x7y9 — "Building photo upload"
-    Dead since: 12 minutes ago
-    Session notes: 3 entries
-
-# Claim the dead agent's work
-$ pd salvage claim agent-x7y9
-  Claimed · you now own agent-x7y9's session
-  3 notes and 2 file claims transferred
-
-# Continue where they left off
-$ pd notes --session agent-x7y9
-  [progress] Endpoint scaffolded
-  [decision] Using multer for multipart uploads
-  [blocker] CORS headers needed for frontend`,
-  },
-  {
-    id: 'relay-pki',
-    title: 'Relay PKI',
-    description: 'Let a remote agent in without trusting it with secrets',
-    code: `# Score the relay identity options with the skill script
-$ printf '%s\\n' '{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}' \\
-    | python3 skills/pd-relay-zero-trust/scripts/pki_decision.py \\
-    | jq -r '.result.ranked[] | "\\(.option) \\(.score)"'
-  OIDC 153
-  Hybrid 153
-  WoT 141
-  ACME 137
-
-# Read the accepted ADR boundary
-$ rg "auth-mode=wot|managed/global" docs/adr/0025-pki-decision.md
-  --auth-mode=wot is self-hosted and harbor-local only
-  WoT is not accepted into the managed/global registry in v0
-
-# The relay design keeps payloads opaque
-$ rg "relay never sees plaintext" docs/adr/0025-pki-decision.md
-  I1 (relay never sees plaintext): Preserved`,
+    title: 'First Contact',
+    description: 'From zero to a coordinated session in under a minute',
+    cast: '/casts/porthole/quickstart.cast',
   },
 ]
 
@@ -148,7 +61,7 @@ export function TerminalDemos() {
         <SectionIntro
           eyebrow="See it run for real"
           title="Under the app is a real local API your agents can drive."
-          description="The app is where you watch and steer. Underneath it is a set of commands your agents can script themselves: start a session, claim a file, hold a lock, send a message, hand off a job, and recover work from a crash. These are real recordings, with the daemon answering back."
+          description="The app is where you watch and steer. Underneath it is a set of commands your agents can script themselves: claim a port, hold a lock, leave a note, hand off a job, recover work from a crash. Every replay below is a genuine asciicast capture of the released pd CLI against a live daemon — real text, full scrollback, select any line and copy it."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
           titleClassName="max-w-[20ch]"
@@ -200,11 +113,7 @@ export function TerminalDemos() {
             transition={{ duration: 0.3 }}
             className="min-w-0 max-w-full overflow-hidden"
           >
-            <CommandTerminal
-              code={activeDemo.code}
-              title={activeDemo.title}
-              animate={false}
-            />
+            <PortholeEmbed src={activeDemo.cast} label={`${activeDemo.title} — ${activeDemo.description}`} eager />
           </motion.div>
         </div>
       </PageContainer>

@@ -103,7 +103,9 @@ done
 # ---------------------------------------------------------------------------
 # 3. Database and binary files must never be committed
 # ---------------------------------------------------------------------------
-STAGED_FILES=$(git diff --cached --name-only 2>/dev/null || true)
+# --diff-filter=d: deletions carry no staged content, and blocking them would
+# prevent the one commit that removes an already-tracked artifact.
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d 2>/dev/null || true)
 for f in ${(f)STAGED_FILES}; do
   case "$f" in
     *.db|*.db-wal|*.db-shm|*.sqlite|*.sqlite3)

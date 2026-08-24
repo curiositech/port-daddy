@@ -11,7 +11,7 @@
  * Precedence (pinned here and matching the long-standing lib/request.test.js):
  *   0. PORT_DADDY_FORCE_TCP=1 -> loopback TCP, bypassing Unix socket
  *   1. PORT_DADDY_SOCK env    -> explicit Unix socket
- *   2. PORT_DADDY_URL env     -> explicit TCP URL
+ *   2. PD_URL / PORT_DADDY_URL env -> explicit TCP URL
  *   3. the daemon's socket file exists -> Unix socket
  *   4. TCP from the selected daemon's published port file
  *   5. no publication -> fail closed (never guess the preferred port)
@@ -58,6 +58,16 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     const t = resolveDaemonTarget({ PORT_DADDY_URL: 'http://192.168.1.5:3001' }, NEVER);
     expect(t.host).toBe('192.168.1.5');
     expect(t.port).toBe(3001);
+    expect(t.socketPath).toBeUndefined();
+  });
+
+  test('2. PD_URL is a real transport alias and wins over PORT_DADDY_URL', () => {
+    const t = resolveDaemonTarget(
+      { PD_URL: ' http://remote-peer.example:4319 ', PORT_DADDY_URL: 'http://local.invalid:9876' },
+      ALWAYS,
+    );
+    expect(t.host).toBe('remote-peer.example');
+    expect(t.port).toBe(4319);
     expect(t.socketPath).toBeUndefined();
   });
 

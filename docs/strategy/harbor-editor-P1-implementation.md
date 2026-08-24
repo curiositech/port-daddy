@@ -8,8 +8,9 @@
 > **real Loro CRDT buffer** and proves the co-equal-replica model that is the whole
 > point of the wedge.
 >
-> **This is the substrate, NOT a finished editor.** Read "What is explicitly NOT
-> done" before assuming more shipped than did.
+> **This records the original substrate slice, not current editor truth.** The
+> later `harbor-editor-local-text-input` slice supplies the platform input bridge;
+> the historical boundary below remains useful provenance.
 
 ## What shipped in this slice
 
@@ -93,26 +94,23 @@ content). The GPUI face applies this Tone to the gutter cell; the TUI face shows
 author-tag text — both paint the same `Block`s. Color is meaning (semantic `Tone`,
 resolved to theme OKLCH by the renderer); there is **no `rgb(0x…)` hex** anywhere.
 
-## What is explicitly NOT done (no Potemkin)
+## Foundation-slice boundary (historical)
 
-- **No live keystroke editing.** GPUI 0.2.x ships no text-input widget; a usable
-  editable buffer needs a ~300-LOC custom `Element` (selection, IME, shaping). That
-  is the **explicitly-named NEXT step** and was deliberately not attempted in this
-  slice. The buffer is editable *programmatically* (so a merged agent replica's
-  lines render), but a human cannot type into the on-screen pane yet. **We did not
-  fake an editable buffer.** The pane is honestly read-only on screen.
+- **At the time this foundation landed, there was no live keystroke editing.**
+  The later `harbor-editor-local-text-input` slice adds `editor_input.rs`, GPUI's
+  platform `EntityInputHandler`, IME/selection/grapheme handling, guarded Loro
+  replacements, caret paint, and incremental delta broadcast.
 - **No undo-map, no tree-sitter incremental reparse.** Named in the battle-plan's
   full P1 row; out of scope for this foundation slice (the full P1 is multi-week).
 - **No networking / multiplayer / tube sync** — that's P2. `export_ops`/
   `apply_remote_ops` exist and are proven in-process (the merge test), but no
   transport wires them across processes yet.
 
-## The NAMED next steps (must NOT be deferred indefinitely)
+## The named continuation
 
-1. **The live-edit GPUI text `Element`.** The ~300-LOC custom input widget that
-   turns the read-only pane into an editable one: keystrokes → `HarborBuffer`
-   authored ops → viewport-diff re-render (not full re-layout per op). This is the
-   immediate next step after this slice.
+1. **Undo-map + tree-sitter incremental reparse.** These remain the unfinished
+   P1 items after local input. Local undo must not undo remote peers, and syntax
+   work must consume changed ranges instead of re-lexing the full file.
 2. **P3 — claims (the actual wedge).** `POST /conflicts/predict`, claim-before-edit,
    region/symbol claims rendered as Loro awareness ranges, the `Conflicted` guard
    band on overlap, and the agents-as-peers demo. The battle-plan is explicit: a

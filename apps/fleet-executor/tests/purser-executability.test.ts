@@ -9,6 +9,7 @@ import {
   extractBareImports,
   resolveImportCandidates,
   checkGeneratedTestsExecutable,
+  hasJestTestRegistration,
   repairMisrootedRelativeImport,
   JEST_CONFIG_CANDIDATES,
 } from '../src/purser-executability.js';
@@ -367,6 +368,161 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
     expect(result).toMatchObject({ ok: false, kind: 'missing-discovery-evidence' });
   });
 
+  it.each([
+    {
+      label: '#9760 literal placeholder body',
+      path: 'tests/unit/release-token-fallback.test.js',
+      contents: 'export function parseStableVersion(value) { ... }',
+    },
+    {
+      label: '#9760 truncated source excerpt',
+      path: 'tests/unit/release-token-fallback.test.js',
+      contents: 'if (parse\n… (diff truncated...)',
+    },
+  ])('rejects $label as syntax-error before sandbox evidence is considered', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: realJestPatterns,
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'syntax-error',
+      path,
+      reason: expect.stringContaining('before any sandbox execution'),
+    });
+  });
+
+  it('rejects the exact PR #9778 zero-test file before sandbox or GitHub mutation', () => {
+    const path = 'tests/unit/purser/placeholder-mismatch.test.ts';
+    const contents = [
+      'export async function replaceRoadmapMirror(',
+      '  env: { DB: D1Database },',
+      '  userId: string,',
+      '  repoFullName: string,',
+      '  harbor: string,',
+      '): Promise<void>;',
+    ].join('\n');
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: realJestPatterns,
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'missing-test-registration',
+      path,
+      reason: expect.stringContaining('before sandbox execution'),
+    });
+  });
+
+  it.each([
+    {
+      label: 'describe-only theater',
+      contents: "describe('contract', () => { beforeEach(() => setup()); });",
+    },
+    {
+      label: 'test words in comments and strings',
+      contents: "// test('not real')\nconst example = \"it('also not real')\";",
+    },
+    {
+      label: 'an each builder that is never invoked',
+      contents: "const cases = test.each([[1]]);\nexport { cases };",
+    },
+  ])('rejects $label because it registers no case', ({ contents }) => {
+    expect(hasJestTestRegistration({
+      path: 'tests/unit/purser/no-case.test.ts',
+      contents,
+    })).toBe(false);
+  });
+
+  it.each([
+    "it('case', () => {});",
+    "test.only('case', () => {});",
+    "test.todo('case');",
+    "test.concurrent('case', async () => {});",
+    "test.each([[1]])('case %s', value => expect(value).toBe(1));",
+    "test.concurrent.each([[1]])('case %s', value => expect(value).toBe(1));",
+    "import { test as verify } from '@jest/globals';\nverify('case', () => {});",
+  ])('accepts a real Jest registration: %s', contents => {
+    expect(hasJestTestRegistration({
+      path: 'tests/unit/purser/registered.test.ts',
+      contents,
+    })).toBe(true);
+  });
+
+  it('rejects TypeScript-only syntax in a .js test instead of parsing it as TypeScript', () => {
+    const path = 'tests/unit/typed-javascript.test.js';
+    const result = checkGeneratedTestsExecutable(
+      [{ path, contents: "type Value = string;\nconst value: Value = 'ready';\ntest('x', () => expect(value).toBe('ready'));" }],
+      { testMatchPatterns: realJestPatterns, repoTreePaths: new Set() },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'syntax-error',
+      path,
+    });
+  });
+
+  it.each([
+    {
+      path: 'tests/unit/typed.contract.test.ts',
+      contents: [
+        'type StableVersion = { major: number; minor: number; patch: number };',
+        'const parse = (value: string): StableVersion => ({ major: 1, minor: 2, patch: value.length });',
+        "test('parses', () => expect(parse('x').patch).toBe(1));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/view.contract.test.tsx',
+      contents: [
+        "const view = <span data-kind='receipt'>ready</span>;",
+        "test('renders', () => expect(view.props.children).toBe('ready'));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/module.contract.test.mts',
+      contents: [
+        'export type StableVersion = { major: number };',
+        'export const stable: StableVersion = { major: 3 };',
+        "test('exports', () => expect(stable.major).toBe(3));",
+      ].join('\n'),
+    },
+    {
+      path: 'tests/unit/commonjs.contract.test.cts',
+      contents: [
+        "const stable: { major: number } = require('./stable.cjs');",
+        "test('requires', () => expect(stable.major).toBe(3));",
+      ].join('\n'),
+    },
+  ])('accepts complete generated $path source with extension-appropriate syntax', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{ts,tsx,mts,cts}'],
+      repoTreePaths: new Set(['tests/unit/stable.cjs']),
+    });
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  it.each([
+    {
+      path: 'tests/unit/commonjs.contract.test.cts',
+      contents: 'export const invalidForCommonJs = true;',
+    },
+    {
+      path: 'tests/unit/module.contract.test.mts',
+      contents: 'return;',
+    },
+  ])('enforces the source type implied by $path', ({ path, contents }) => {
+    const result = checkGeneratedTestsExecutable([{ path, contents }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{mts,cts}'],
+      repoTreePaths: new Set(),
+    });
+
+    expect(result).toMatchObject({ ok: false, kind: 'syntax-error', path });
+  });
+
   it('fails closed when the repo tree is unknown (null), even for a discoverable path with no imports', () => {
     const result = checkGeneratedTestsExecutable(
       [{ path: 'tests/unit/widget.test.js', contents: 'it("x", () => {});' }],
@@ -406,8 +562,14 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
     // is "author tests", not "author tests plus untested helper modules"), so
     // this fixture only isolates cross-generated-file IMPORT resolution.
     const twoFiles = [
-      { path: 'tests/unit/widget.test.js', contents: "require('./shared.test.js');" },
-      { path: 'tests/unit/shared.test.js', contents: 'module.exports = {};' },
+      {
+        path: 'tests/unit/widget.test.js',
+        contents: "require('./shared.test.js');\nit('uses the shared contract', () => {});",
+      },
+      {
+        path: 'tests/unit/shared.test.js',
+        contents: "module.exports = {};\nit('loads as an authored test file', () => {});",
+      },
     ];
     const result = checkGeneratedTestsExecutable(twoFiles, {
       testMatchPatterns: realJestPatterns,

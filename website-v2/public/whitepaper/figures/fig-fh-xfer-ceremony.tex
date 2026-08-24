@@ -8,60 +8,56 @@
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
 
+% ─── Cross-Harbor Capability Transfer Ceremony ────────────────────────────────
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=4pt,minimum width=28mm,
-               font=\sffamily\bfseries\small,align=center},
-  msg/.style={->,>=Latex,thick,draw=hhebony},
-  threat/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,font=\sffamily\scriptsize\itshape,
-                 text=hhcobalt,align=left,text width=42mm},
-  defended/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,font=\sffamily\scriptsize,
-                   text=hhteal,align=left,text width=42mm},
+  lane/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=32mm, align=center},
+  msgarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt},
+  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
+  notebox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=62mm, align=left},
+  lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt}
 ]
 
-% ─── Four lanes: Alice, Harbor A, Harbor B, Bob ───────────────────
-\node[lane] (LA) at (0,0) {Alice's agent\\\footnotesize (claim holder)};
-\node[lane,right=22mm of LA] (HA) {Harbor $A$\\\footnotesize (Alice's daemon)};
-\node[lane,right=22mm of HA] (HB) {Harbor $B$\\\footnotesize (Bob's daemon)};
-\node[lane,right=22mm of HB] (LB) {Bob's agent\\\footnotesize (verifier)};
+  % ─── Four Lifelines ─────────────────────────────────────────────────────────
+  \node[lane] (LA) at (-5.1, 0) {\textbf{\scshape Alice's Agent}\\[1pt]{\scriptsize Claim Holder}};
+  \node[lane] (HA) at (-1.7, 0) {\textbf{\scshape Harbor $A$}\\[1pt]{\scriptsize Alice's Daemon}};
+  \node[lane] (HB) at (1.7, 0) {\textbf{\scshape Harbor $B$}\\[1pt]{\scriptsize Bob's Daemon}};
+  \node[lane] (LB) at (5.1, 0) {\textbf{\scshape Bob's Agent}\\[1pt]{\scriptsize Verifier}};
 
-% lifelines
-\foreach \n in {LA,HA,HB,LB} {
-  \draw[dashed,gray] (\n.south) -- ($(\n.south)+(0,-66mm)$);
-}
+  % Lifeline dashed tracks
+  \draw[hhgray!40, line width=0.4pt, dashed] (LA.south) -- ++(0, -5.4);
+  \draw[hhgray!40, line width=0.4pt, dashed] (HA.south) -- ++(0, -5.4);
+  \draw[hhgray!40, line width=0.4pt, dashed] (HB.south) -- ++(0, -5.4);
+  \draw[hhgray!40, line width=0.4pt, dashed] (LB.south) -- ++(0, -5.4);
 
-% ─── Message 1: Alice asks her harbor for an xfer card ─────────────
-\draw[msg] ($(LA.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_req}(C_A, B)$} ($(HA.south)+(0,-6mm)$);
+  % ─── Step 1: Transfer request ───────────────────────────────────────────────
+  \draw[msgarr] (-5.1, -1.0) -- node[lbl, above] {$\mathsf{xfer\_req}(C_A, B)$} (-1.7, -1.0);
 
-% ─── Message 2: Harbor A mints xfer envelope with attenuation ──────
-\draw[msg] ($(HA.south)+(0,-22mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} ($(HB.south)+(0,-22mm)$);
+  % ─── Step 2: Transfer offer with signed epoch root ──────────────────────────
+  \draw[msgarr] (-1.7, -2.2) -- node[lbl, above] {$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} (1.7, -2.2);
 
-% ─── Message 3: Harbor B counter-signs after attenuating ────────────
-\draw[msg] ($(HB.south)+(0,-40mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} ($(HA.south)+(0,-40mm)$);
+  % ─── Step 3: Attenuated ack with recipient epoch root ───────────────────────
+  \draw[msgarr] (1.7, -3.4) -- node[lbl, above] {$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} (-1.7, -3.4);
 
-% ─── Message 4: Card delivered to Bob's agent ───────────────────────
-\draw[msg] ($(HB.south)+(0,-58mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_deliver}\langle C_B'\rangle$} ($(LB.south)+(0,-58mm)$);
+  % ─── Step 4: Card delivery to destination verifier ──────────────────────────
+  \draw[msgarr] (1.7, -4.6) -- node[lbl, above] {$\mathsf{xfer\_deliver}\langle C_B'\rangle$} (5.1, -4.6);
 
-% ─── Forecloses / what could still go wrong (bottom annotation band) ─
-\node[threat,below=70mm of LA] (T) {%
-  \textbf{Threats foreclosed:}\\
-  $\bullet$ identity spoofing of $\mathit{sk}_A$ across the boundary;\\
-  $\bullet$ capability inflation across the transfer;\\
-  $\bullet$ replay at $B$ against a stale $R_A$.};
-\node[defended,right=4mm of T]{%
-  \textbf{Threats deferred to other primitives:}\\
-  $\bullet$ revocation latency \,$\to$\, \S\ref{sec:fh-revocation};\\
-  $\bullet$ settlement disputes \,$\to$\, \S\ref{sec:fh-settlement};\\
-  $\bullet$ unbonded harbor admission \,$\to$\, \S\ref{sec:fh-admission}.};
+  % ─── Summary Callout Box Below ──────────────────────────────────────────────
+  \node[notebox, below=5.8cm of HA, xshift=-1.7cm] {
+    \textbf{\scshape Invariants Foreclosed:}\\
+    $\bullet$ Identity spoofing of $\mathit{sk}_A$ across trust boundary\\
+    $\bullet$ Capability escalation ($\text{cap}_B' \subseteq \text{cap}_A$ enforced)\\
+    $\bullet$ Replay attack against stale epoch root $R_A$
+  };
+  \node[notebox, below=5.8cm of HB, xshift=1.7cm] {
+    \textbf{\scshape Deferred Properties:}\\
+    $\bullet$ Revocation propagation latency (\S\ref{sec:fh-revocation})\\
+    $\bullet$ 2-of-3 non-custodial settlement (\S\ref{sec:fh-settlement})\\
+    $\bullet$ Witness log equivocation proof (\S\ref{sec:fh-authority})
+  };
 
-\end{tikzpicture}%
-}
+\end{tikzpicture}
 \caption{The four-message cross-harbor capability transfer ceremony. The
 critical property is that no message after (3) needs to reach back to
 Harbor~$A$ in the hot path: $C_B'$ is verifiable under $\mathit{sk}_B$ alone,

@@ -15,6 +15,8 @@
 
 import { parse as parseYaml } from 'yaml';
 
+import { WORKERS_AI_RATES } from './spend.js';
+
 export interface ShipConfig {
   name: string;
   trigger: string | string[];
@@ -151,12 +153,12 @@ const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
  *   pricey gpt-oss-120b    $0.350 in / $0.750 out
  *
  * Note the shape: the mid tier is ~4x the cheap model on INPUT but slightly
- * CHEAPER on OUTPUT. So it is the wrong choice for a step that reads a large
- * diff and emits a little (planning), and a defensible one for a step that
- * reads the same diff and emits a whole file (authoring) — where it buys a
- * dense 20B model over a 30B MoE with ~3B active parameters, which is the
- * difference between test code that runs and test code that merely looks like
- * test code.
+ * CHEAPER on OUTPUT. History: it was the purser AUTHOR default from #6813
+ * until 2026-08-22, on the theory that a dense 20B beats a 30B MoE with ~3B
+ * active parameters at writing runnable code. The live D1 record refuted the
+ * theory at fleet scale (75% author-repair failure; see
+ * {@link AUTHOR_CF_MODEL}) — the tier remains available as an explicit
+ * operator opt-down pin, never again as the default for a fleet-gating step.
  *
  * VERIFIED to exist before being honored: developers.cloudflare.com documents
  * `@cf/openai/gpt-oss-20b`. This matters more than it sounds — a nonexistent
@@ -166,24 +168,71 @@ const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
  */
 const MID_CF_MODEL = '@cf/openai/gpt-oss-20b';
 
-// Cloudflare model ids the executor honors as an explicit ship pin: the cheap
-// model and the MID tier. The review bot's gpt-oss-120b is deliberately NOT here
-// — it is reached by ROLE (below), never by pin, so no ship can pin its way onto
-// the most expensive model. An id OUTSIDE this set is remapped to
-// {@link WORKING_CF_MODEL} (the cheap model), because a nonexistent Workers AI id
-// doesn't error — it yields a blank response the parser reads as "clean",
-// silencing the ship.
+// Cloudflare model ids the executor honors as an explicit ship pin. An id
+// OUTSIDE this set is remapped to {@link WORKING_CF_MODEL} (the cheap model),
+// because a nonexistent Workers AI id doesn't error — it yields a blank
+// response the parser reads as "clean", silencing the ship (#654's phantom
+// kimi ids are the tombstone).
 //
-// The old invariant here was "tiering can save money; it cannot spend more of
-// it", true when the cheap id was the only honored one. Admitting the mid tier
-// weakens that to a BOUND rather than a ratchet: a pin can now cost more per
-// call, but it still cannot reach the review bot's model, and the ceiling stays
-// operator-visible in one place. That trade is the point of the tier — some
-// steps were producing output too weak to use, and output nobody can use is not
-// a saving.
-const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
+// WHAT THIS SET GUARDS (recalibrated 2026-08-22, operator directive): the set
+// exists to stop SILENT-BLANK ids, not to enforce a price ceiling. The old
+// "no pin can reach the priciest model" ratchet was retired with data: over a
+// live 14-day window the busiest ship's entire Workers AI spend was under
+// $0.90, while the price guard was silently remapping red-team's declared
+// gpt-oss-120b pin and code-reviewer's declared kimi-k2.7-code pin down to
+// the cheap tier — protecting pennies by quietly degrading two ships the
+// operator had explicitly tiered up. A declared pin is now honored iff the id
+// is verified to exist; the admission contract for this set is:
+//
+//   1. the id appears on developers.cloudflare.com/ai/models as
+//      Cloudflare-hosted (checked against the catalog snapshot in
+//      skills/port-daddy-internal-dev/references/cloudflare-model-roster.md),
+//   2. it has a rate row in spend.ts WORKERS_AI_RATES (verified against the
+//      live pricing page — never guessed), and
+//   3. it has a MODEL_CONTEXT_TOKENS entry so chunk budgets stay derived.
+//
+// map-reduce-invariants.test.ts enforces 2–3; the roster reference records 1.
+// Exported so the admission contract is a TESTED invariant, not roster prose:
+// spend.test.ts asserts every member is priced and has a known context window.
+export const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/openai/gpt-oss-20b',
+  '@cf/openai/gpt-oss-120b',
+  '@cf/moonshotai/kimi-k2.7-code',
+  // Repertoire expansion, operator directive 2026-08-22 ("add new models"):
+  // each admitted with a pricing-page-verified rate and a model-page-verified
+  // context window; the community/benchmark evidence behind each is in the
+  // roster reference and the model-review artifact it links.
+  '@cf/zai-org/glm-4.7-flash', // 59.2% SWE-bench at cheap-tier price — the repo mechanic
+  '@cf/zai-org/glm-5.2', // strongest open coding model (62.1 SWE-bench Pro, indep. verified)
+  '@cf/deepseek-ai/deepseek-v4-flash-0731', // beats its own Pro on 9 agent benches; 1M ctx
+  '@cf/deepseek-ai/deepseek-v4-pro-0813', // 80.6% SWE-bench Verified; 1M ctx reasoning
+  '@cf/google/gemma-4-26b-a4b-it', // cheap-class diversity; best speed/reliability balance
+  '@cf/nvidia/nemotron-3-120b-a12b', // strongest agentic tool-reliability profile in class
+  // FULL-UNIVERSE admission (operator directive, PR #9249 comment): the set
+  // now honors EVERY current, non-deprecated, Cloudflare-hosted
+  // text-generation model with a published price and a served context window.
+  // Being honored is not an endorsement — assignments are chosen on evidence
+  // and judged on the scoreboard; the set only guards against silent-blank
+  // ids. Excluded, as documented rulings in the roster reference: the
+  // catalog's Deprecated tier (retirable ⇒ blank risk), llama-3.1-8b-fast
+  // (no published price ⇒ unmeterable), llama-guard-3-8b (safety classifier,
+  // not a generator), kimi-k2.6 (the #654 phantom id tombstone — needs one
+  // witnessed live call), and everything non-text (image/video/audio/
+  // embeddings — physically not coding agents).
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-3.1-8b-instruct-fp8',
+  '@cf/meta/llama-3.2-1b-instruct',
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/meta/llama-3.2-11b-vision-instruct',
+  '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  '@cf/qwen/qwen2.5-coder-32b-instruct',
+  '@cf/qwen/qwq-32b',
+  '@cf/qwen/qwen3.8-27b',
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  '@cf/ibm-granite/granite-4.0-h-micro',
+  '@cf/aisingapore/gemma-sea-lion-v4-27b-it',
 ]);
 
 /**
@@ -285,12 +334,19 @@ function isReviewBot(name: string): boolean {
 /**
  * Derive the Cloudflare Workers AI model for a ship:
  *   1. Honor the first `@cf/` fallback IF it is in {@link KNOWN_GOOD_CF_MODELS}
- *      — which is ONLY the cheap qwen3-30b, so a pin can never reach the pricey
- *      model.
- *   2. Otherwise (any other pin, e.g. gpt-oss / kimi / qwen-coder, or no `@cf/`
- *      pin) → a name-based default: {@link CODER_CF_MODEL} (gpt-oss-120b) for the
- *      code-review bot per {@link isReviewBot}, {@link DEFAULT_CF_MODEL} (cheap
- *      qwen3-30b) for every other ship.
+ *      — the verified-to-exist set. Since 2026-08-22 that set includes the
+ *      premium tiers, so a ship's declared pin (red-team's gpt-oss-120b,
+ *      code-reviewer's kimi-k2.7-code) is honored instead of silently
+ *      remapped down; the guard's job is blocking silent-blank ids, not
+ *      enforcing a price ceiling.
+ *   2. Otherwise (an unverified pin, or no `@cf/` pin) → a name-based default:
+ *      {@link CODER_CF_MODEL} (gpt-oss-120b) for the code-review bot per
+ *      {@link isReviewBot}, {@link DEFAULT_CF_MODEL} (cheap qwen3-30b) for
+ *      every other ship.
+ *
+ * @param agent the raw pd-fleet.yml agent entry
+ * @param name the ship's name (drives the role default)
+ * @returns the Workers AI model id this ship reduces/reviews on
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
@@ -319,9 +375,10 @@ function deriveCfModel(agent: RawAgent, name: string): string {
  *      back to an untiered run: more expensive, but never mute.
  *   2. A MAP pin equal to the ship's REDUCE model is dropped as a no-op, so
  *      `mapModelFor(ship) !== reduceModelFor(ship)` stays a meaningful claim.
- *   3. Nothing here can pin a ship ONTO the expensive model, because only the
- *      cheap id is in the honored set. Tiering can save money; it cannot spend
- *      more of it.
+ *   3. A MAP pin more expensive than the ship's REDUCE model is economically
+ *      backward (MAP repeats per chunk; REDUCE runs once) — that direction is
+ *      enforced by map-reduce-invariants.test.ts against the live rate table
+ *      rather than by shrinking the honored set.
  *
  * @param agent the raw pd-fleet.yml agent entry
  * @param cfModel the ship's already-resolved REDUCE model
@@ -329,8 +386,49 @@ function deriveCfModel(agent: RawAgent, name: string): string {
  */
 function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
   // MAP has no default tier: an absent or unusable pin means "run untiered".
-  return deriveStepModel(agent.map_model ?? agent.mapModel ?? agent.cfMapModel, cfModel, 'map_model')
-    .model;
+  const pin = deriveStepModel(
+    agent.map_model ?? agent.mapModel ?? agent.cfMapModel,
+    cfModel,
+    'map_model',
+  ).model;
+  if (pin === undefined) return undefined;
+  // Economic direction guard: MAP repeats per chunk, REDUCE runs once, so a
+  // MAP model with a higher blended rate than the ship's REDUCE model spends
+  // the most where the least capability is needed. Now that the known-good
+  // set includes premium ids (2026-08-22), the direction is enforced HERE by
+  // construction rather than by the honored set's price ceiling — a backward
+  // pin is dropped to an untiered run, matching the unusable-pin posture.
+  // Blend weighted toward input (diffs are input-heavy), the same shape
+  // map-reduce-invariants.test.ts asserts over the default ships.
+  //
+  // Unpriced-id semantics (pd-code-reviewer HIGH on #9249, examined): an
+  // unpriced id blends to +Infinity. For the PIN that is deliberate — an
+  // unpriced pin can never pass as "cheaper" and is dropped. For the REDUCE
+  // model the Infinity case is UNREACHABLE by construction: cfModel is always
+  // either a KNOWN_GOOD id or a role default, and the admission-contract test
+  // (spend.test.ts) forces every KNOWN_GOOD id to have a rate row. Were that
+  // invariant ever broken, blended(cfModel)=Infinity makes this guard KEEP
+  // the pin (fail-open tiering), not drop it — the opposite of the reported
+  // failure mode, and the safe direction.
+  /**
+   * Blended $/M for one model — the comparison currency for the direction
+   * guard above; an unpriced id blends to +Infinity by design so it can never
+   * pass as "cheaper".
+   * @param m Workers AI model id
+   * @returns blended per-million-token USD rate
+   */
+  const blended = (m: string): number => {
+    const r = WORKERS_AI_RATES[m];
+    return r ? r.input * 0.8 + r.output * 0.2 : Number.POSITIVE_INFINITY;
+  };
+  if (blended(pin) > blended(cfModel)) {
+    console.warn(
+      `[fleet-executor] map_model '${pin}' is pricier than the ship's reduce model ` +
+        `'${cfModel}'; fan-out on the pricier tier is economically backward — running untiered`,
+    );
+    return undefined;
+  }
+  return pin;
 }
 
 /**
@@ -408,14 +506,45 @@ function derivePurserPlanModel(agent: RawAgent, cfModel: string): string | undef
 }
 
 /**
- * The purser's per-file AUTHOR-step model. Defaults to {@link MID_CF_MODEL}.
+ * The purser's per-file AUTHOR-step model default: the strongest verified
+ * Workers AI tier, because this step's failures gate the whole fleet.
+ *
+ * Why not the mid tier anymore (operator ruling 2026-08-22, on live D1
+ * evidence): with gpt-oss-20b authoring, a 14-day window recorded 121
+ * authored-test sets ending NON-EXECUTABLE, an author-repair loop failing 83
+ * of 110 rewrites (75%), and 124 purser BROKEN-SHIP runs — which adjudicated
+ * to fleet-wide neutral on 249 of 584 runs (#8870). The cost delta of
+ * authoring on gpt-oss-120b (output $0.750/M vs $0.300/M over ~2.5M purser
+ * output tokens per two weeks) is about a dollar; the mid tier was saving
+ * that dollar by burning the fleet's verdict signal.
+ *
+ * Which strong tier (revised same day, repertoire expansion): the author step
+ * IS agentic coding — emit a runnable file against a real repo tree — and the
+ * independent record for deepseek-v4-flash-0731 on exactly that shape
+ * (Terminal-Bench 2.1 82.7, DeepSWE 54.4; it beats DeepSeek's own Pro on nine
+ * agent benchmarks) is far stronger than gpt-oss-120b's mixed code-domain
+ * record, at a comparable blended price ($0.44/$1.32 vs $0.35/$0.75) and a 1M
+ * context that ends diff-truncation for authoring. The repair rewrite stays
+ * on {@link REPAIR_ESCALATION_MODEL} (gpt-oss-120b) deliberately: author and
+ * repairer now come from different model families, so one family's blind
+ * spot cannot both write and "fix" the same broken file. Judged on its
+ * after-window via scripts/fleet-ship-stats.mjs.
+ */
+const AUTHOR_CF_MODEL = '@cf/deepseek-ai/deepseek-v4-flash-0731';
+
+/**
+ * The purser's per-file AUTHOR-step model. Defaults to {@link AUTHOR_CF_MODEL}.
  *
  * This is the step whose output is a runnable source file, and the one whose
  * failures are expensive in both directions: a weak model writes tests that
  * look plausible and do not run, and since those tests become a merge gate, a
- * bad one blocks a good PR. It is also the step where the mid tier is nearly
- * free — authoring is output-heavy and gpt-oss-20b's output rate ($0.300/M) is
- * *below* the cheap model's ($0.335/M); only the input side costs more.
+ * bad one blocks a good PR — or, under the broken-ship doctrine, gates the
+ * whole fleet. An operator can still pin the step down to a cheaper tier
+ * (`author_model:`), guarded by the same known-good set.
+ *
+ * @param agent the raw pd-fleet.yml purser entry
+ * @param cfModel the ship's already-resolved default model
+ * @returns the AUTHOR-step model id, or undefined for "same as cfModel"
  */
 function derivePurserAuthorModel(agent: RawAgent, cfModel: string): string | undefined {
   const pin = deriveStepModel(
@@ -424,7 +553,7 @@ function derivePurserAuthorModel(agent: RawAgent, cfModel: string): string | und
     'author_model',
   );
   if (pin.supplied) return pin.model;
-  return MID_CF_MODEL === cfModel ? undefined : MID_CF_MODEL;
+  return AUTHOR_CF_MODEL === cfModel ? undefined : AUTHOR_CF_MODEL;
 }
 
 /**

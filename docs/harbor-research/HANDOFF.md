@@ -31,11 +31,13 @@
 | A2 | R3 | Derived regret head / SDT fix | done | 1 | — |
 | B1 | R4 | R(δ,f) frontier + zoom advantage | done (sim + closed form; **theorem statement of zoom bound still needed**) | 1 | b1_frontier.py |
 | B3 | R5 | Hypervisor = RW controllability | done | 2, 4 | b3_controllability.py |
-| sheaf gate | R6 | Cycle-vs-cut verdict | mechanism proved; **statistical harness broken** (§3.3) | 7 | sheaf_mechanism_proof.py |
+| sheaf gate | R6 | Cycle-vs-cut verdict | mechanism proved; harness REBUILT (W8, gates PASS) | 7 | sheaf_mechanism_proof.py, sheaf_harness_v2.py |
 | B2 | R7 | Inspection tower + amortization | done | 3 | b2_tower.py |
 | C0 | R8 | Work-unit machine | done (bounded, 536 states) | 8 | c0_workunit.py |
 | C1 | R9 | Sealed-room noninterference | done (finite, depth 7) | 4 | c1_noninterference.py |
-| A3, A4, A6 | — | ε-ledger; canaries/SPRT; no-mint | **pending** | 4, 5 | — |
+| A3 | R10 | ε-conservation release ledger (exhaustive interleavings; DP seq + advanced composition) | done (W5) | 4 | a3_epsilon_ledger.py |
+| A4 | R11 | Canary power 1−β^k + hypergeometric operating curve + SPRT time-to-detection | done (W5) | 4 | a4_canary_sprt.py |
+| A6 | R12 | No-mint inheritance (transfer semantics; closure-sum phrasing refuted; 8.2× mint caught) | done (W5) | 5 / skill-econ | a6_no_mint.py |
 | B4 | — | Deontic-conflict fragment | pending | 6 | — |
 | B5, B6 | — | Engine substitution; probation cliff | pending | 5 | — |
 | B7, B8, B9 | — | Escalation signaling; specialization boundary; context paging | pending, **unscheduled** (§3.9) | 1-adjacent/6 | — |
@@ -152,3 +154,44 @@ Floor B*(N=60,k=2,m=8)=5.98 bits [V]; disjoint-readers floor 12.77 [V]; ratio 2.
 
 ### 3.9 Unscheduled backlog one-liners (proof paths in Portfolio PDF)
 B7 escalation signaling (single-crossing threshold; tuning band from measured validation rates). B8 specialization boundary (Erlang-C; breakdowns corner prices succession). B9 context paging (Landlord import + linear φ-degradation; φ shared with R1's forgeable-feature budget).
+
+---
+## 4. DELTA v3 (2026-08-19) — PR #7698 reconciled in-session
+- The treatise is now **in-repo and canonical**: sources at `whitepaper/` (legible-swarm, single-writer-kernel) and `website-v2/public/whitepaper/` (five papers + mega volume); the PAPERS table in `scripts/build-whitepapers.sh` is authoritative. W4-style edits target these files; the mega-volume PDF attachment instruction is obsolete.
+- **W4: done-pending-verification** (verification ledger: `pr7698-reconciliation.md`, same directory — corrections table, adjudications, follow-ups F1–F4).
+- **W14: executed in-session** (merge + adjudications + One Spine appendix). The One Spine appendix in the mega volume is now the admission test for any new mechanism: name your theorem family, your developer obligation, your boundary — no row, no feature.
+- **Proof debt is now blocking**: A3/A4 (asserted in the volume's cleanroom theorem), B5, B7, B8, B9; B6 discharged-as-sketch. **Revised wave order: W5 → W6 → W13 → W1–W3 → W8 → W9/W10.**
+- New tacit datum for the results skill: the duplicate-generator collision (#6368 vs #7698) — an unfiled exact-key claim conflict inside the project's own repo.
+
+---
+## 5. DELTA v4 (2026-08-23) — #9450 omnibus, artifact rescue, next-session plan
+- **Merged head under review:** the reconciliation (24052b84d) is pushed to `purser/pr-7278-tests` = PR **#9450**, now the omnibus publish vehicle. CI is red on that head with three diagnosed causes; the fix list and full resume plan live in `docs/harbor-research/plan-2026-08-23-merge-and-resume.md` (Part 0 = land #9450; Parts 1–7 = resume the program in ledger wave order W5 → W6 → W13 → W1–W3 → W8 → lifts).
+- **F4 partially discharged:** `pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (the W8-gating artifact — experiment matrix, Stage-1 COMMIT/CUT gates, three theorem candidates) and `pdf/The-Harbor-After-the-Harbor.pdf` (the rigor review behind doc1's adjudications; correctness audit + full exercise solution key + build sequence) are now committed, user-supplied renders. Only the theorem-proving-stack SotA report remains extract-only (§3.2).
+- **New stale-mechanization finding (fix before arXiv/publicity):** CI's `proofs.yml` still green-gates the VOID δ*≈0.2531 game — `proofs/economics/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says "IC holds at δ=0.26". Sync all surfaces together (plan Part 2). Also: B6's "0/4000 dominating schedules" number has NO generating script anywhere — write it.
+- **Note:** §0's "PDFs are intentionally NOT committed" is stale — commit bfc49dda1 committed all nine analysis PDFs (plus these two rescues); README.md:4 has the same stale line.
+
+---
+## 6. DELTA v5 (2026-08-24) — W5 + W8-core executed
+- **W5 done**: A3 (R10), A4 (R11), A6 (R12) — scripts + Execution Report #4 (`tex/exec4.tex`, Makefile TEXS updated), compendium/SKILL entries added. A6's portfolio phrasing was REFUTED by the sweep (γ>1/2 full-weight chains mint under budgets-without-debit; closure sum 2.44>1) and restated with transfer semantics — the sweep-first discipline locating the correct statement again. With A3/A4 executed, mega-volume `thm:cleanroom` claims 2–3 are upgradeable from "short and scheduled" (follow-up tex edit, appendices ~line 211).
+- **W8 core done**: `sheaf_harness_v2.py` — completion-residual detector; pre-registered gates PASS, verdict COMMIT. Key design finding: the spec's "uncompared" conflated RELAYED (reports gossiped, check never ran — detectable on cycles) with SEVERED (no data — free block, provably dark); the three-tier visibility model (compared/relayed/severed) is now the observability contract for Paper 7. D1/D2 reintroduction mutants caught; cut edges silent at float epsilon; v1's cut-edge "detections" confirmed as D2 artifacts. Consistency-radius theorem + Paper 7 assembly remain (W8 tail).
+- **Proof debt after W5**: blocking before arXiv: **B5, B7, B8, B9**; B6 discharged-as-sketch. Wave order: W6 → W13 → W1–W3 → W8-tail → W9/W10.
+
+---
+## 7. DELTA v6 (2026-08-24) — the papers are written; folds applied
+- **Papers 1–4 drafted as arXiv-style sources** (`tex/paper{1,2,3,4}.tex`, Makefile TEXS updated; canon figures included via graphicspath): Paper 1 "The Price of a Summary" (R1–R4 + the NEW zoom theorem — W1's missing piece PROVED: Q ≤ 2k⌈log₂(F/k)⌉+4k with exact tightness at F=4096,k=32 → 511; verified by zoom_bound_check.py, now in the estate CI job); Paper 2 "Regimented or Enforced" (R5, full two-direction proof, supC(thought-ban)=∅ corollary); Paper 3 "Reputation is Amortized Verification" (R7, convention fork + non-saturation caveats stated); Paper 4 "The Sealed Harbor" (R9+R5+R10+R11 four-pillar assembly, q·b leakage budget, honest-refusal list). All pass check_style.py 7/7. B1's "theorem statement of zoom bound still needed" crosswalk debt: DISCHARGED.
+- **Treatise folds** (website-v2 chapters): thm:cleanroom claims 2–3 → executed (a3/a4 scripts); spawn-to-person gains the no-mint status note (refuted-phrasing wrong turn reported) and the b6_probation.py citation; federated-harbor sheaf theorem gains the harness-COMMIT status note (three-tier visibility). Chapter PDFs regenerate in CI; pins resync after (F3 cycle).
+- **Remaining before arXiv**: B5 (Paper 5), B4 (Paper 6), B7–B9; W8-tail (consistency-radius theorem, Paper 7 assembly); lifts W9/W10. PDFs of papers 1–4 render via `make -C docs/harbor-research docs` where TeX exists (none in this container).
+
+---
+## 8. DELTA v7 (2026-08-24) — the blocking register runs dry
+- **W6 + W13 + W8-tail + B4 executed in one six-prover round**: B5 (R13, `b5_engine_substitution.py` — unraveling inside one identity, IC flip under attestation, resurrection soundness with 4 shortest-crime mutants), B7 (R14, `b7_escalation_band.py` — threshold equilibrium + two-walled tuning band, empty-band regime exhibited), B8 (R15, `b8_specialization.py` — the whitepaper's proposed specialization threshold FALSIFIED both directions; exact Erlang-C boundary g(ρ,c) + succession price D*), B9 (R16, `b9_context_paging.py` — Landlord import vs exact OPT + linear φ-degradation, repair-on-touch load-bearing), B4 (R17, `b4_deontic_fragment.py` — polynomial witness-producing conflict checker + NP-complete frontier via verified 3-SAT reduction), consistency radius (`sheaf_consistency_radius.py` — CR-1/2/3: r is the exact minimum lie, localizes to cycles through the equivocator, computes as ≤L Laplacian solves; the R6 1.2247 number has closed form 3·√(1−5/6); coalition cancellation located as the honest scope).
+- **Blocking-before-arXiv register (A3, A4, B5, B7, B8, B9): CLEAR.** Compendium now R1–R17 + the CR theorem block; Execution Report #5 (`tex/exec5.tex`, style gate 7/7); all six scripts added to the harbor-results-estate CI job (now 19 scripts).
+- **Whitepaper folds now owed (from these results)**: thm:specialization at legible-swarm.tex:868 must adopt the exact g (the current statement is refuted — tex draft in R15's provenance); context-paging thm (~line 1549) and escalation §951/1449 upgrade "proposed" → executed; B5/B7 Status lines gain ledger-code citations.
+- **Next: Papers 5–7 assemblies** — Paper 5 "Continuity Without Metaphysics" (R12+R13+B6), Paper 6 "What Needs an Authority" (R17+R15), Paper 7 "Cohomology of Equivocation" (R6+harness+CR). All inputs in hand; house style per papers 1–4.
+- Tacit datum: three provers wrote scripts into the tree while the orchestrator was mid-audit — the skill-hygiene "every script indexed" gate fired each time and was satisfied with in-progress bullets finalized at integration; adopt "index at landing, finalize at integration" as the pattern.
+
+---
+## 9. DELTA v8 (2026-08-24) — all seven papers drafted
+- **Papers 5–7 written** (`tex/paper{5,6,7}.tex`, Makefile TEXS updated; all 7/7 on the style gate; new canon figures paper6_*/paper7_*/r13_regime/b6_figure via figures/src/paper{5,6,7}_figures.py, figlint clean): Paper 5 "Continuity Without Metaphysics" (R12 no-mint + R13 unraveling/IC-flip/resurrection + B6 probation cliff — "not a soul but a ledger position"); Paper 6 "What Needs an Authority" (R17 fragment/frontier + R15 boundary/succession, the authority inventory priced); Paper 7 "The Cohomology of Equivocation" (R6 mechanism + harness COMMIT + CR-1/2/3, boundary section load-bearing). With Papers 1–4 (delta v6), the paper program's writing phase is COMPLETE — all seven drafted from executed results.
+- **Compendium accuracy fix** (caught by Paper 6's author at assembly): R15's succession numbers conflated two script instances — W=1.376 (μs=10⁸ still-loses test) occurs at ξ/η=1.5·D*, while ξ/η=2 is the mutation canary. Corrected. Lesson: paper assembly re-verifying against scripts is itself a check layer.
+- **Next**: whitepaper folds owed from R14–R17 (thm:specialization exact g; paging/escalation upgrades; B5/B7 Status lines), C2, lifts (Apalache/Isabelle), instrumentation.md (W12), F1/F5; PDF renders of papers 1–7 + exec5 happen in the CI TeX container (no local TeX), then the F3 pin-resync cycle if pins move.

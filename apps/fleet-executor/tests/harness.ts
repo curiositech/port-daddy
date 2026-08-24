@@ -573,8 +573,9 @@ export interface D1Capture {
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
   /**
-   * When true, the NEXT `INSERT OR REPLACE INTO fleet_runs` (recordRunStart's
-   * write, specifically — not ensureRunRow's `OR IGNORE`) throws once, then
+   * When true, the NEXT logical-run upsert into `fleet_runs`
+   * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
+   * throws once, then
    * resets to false. Simulates a transient D1 hiccup at exactly the moment
    * recordRunStart writes, to test ensureRunRow's backstop closes the gap.
    */
@@ -585,7 +586,7 @@ export interface D1Capture {
 
 /**
  * Minimal in-memory D1 stub. Recognizes the three statements the executor uses
- * (INSERT OR REPLACE INTO fleet_runs / fleet_run_steps, UPDATE fleet_runs) by
+ * (fleet_runs upsert / fleet_run_steps insert / fleet_runs update) by
  * keyword and records the bound parameters. Everything else is a no-op that
  * returns an empty result, so a stray query never blows up a test.
  */
@@ -610,7 +611,11 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
-        if (cap.failNextRecordRunStartInsert && /INSERT OR REPLACE INTO fleet_runs/i.test(sql)) {
+        if (
+          cap.failNextRecordRunStartInsert
+          && /INSERT INTO fleet_runs/i.test(sql)
+          && /ON CONFLICT\s*\(id\)/i.test(sql)
+        ) {
           cap.failNextRecordRunStartInsert = false;
           throw new Error('D1 unavailable (simulated recordRunStart failure)');
         }
@@ -625,13 +630,24 @@ export function memoryD1(): D1Capture {
             costUsd: Number(args[6]),
           });
         } else if (/INTO fleet_runs/i.test(sql)) {
-          // Real SQLite/D1 honors OR IGNORE (no-op on an existing primary key)
-          // vs OR REPLACE (overwrite) differently — ensureRunRow's backstop
-          // relies on exactly that distinction to never clobber a row
-          // recordRunStart already wrote successfully.
+          // Real SQLite/D1 honors OR IGNORE, OR REPLACE, and recordRunStart's
+          // ON CONFLICT update differently. The logical-run upsert refreshes
+          // pending metadata but preserves the first timestamp and any terminal
+          // result, while ensureRunRow remains a true no-op on an existing row.
           const isIgnore = /INSERT OR IGNORE/i.test(sql);
+          const isLogicalRunUpsert = /ON CONFLICT\s*\(id\)/i.test(sql);
+          const existing = runsById.get(String(args[0]));
           if (isIgnore && runsById.has(String(args[0]))) {
             // no-op, matching real D1
+          } else if (isLogicalRunUpsert && existing) {
+            if (existing.conclusion === 'pending') {
+              existing.deliveryId = args[1];
+              existing.repo = args[2];
+              existing.prNumber = args[3];
+              existing.prUrl = args[4];
+              existing.headSha = args[5];
+              if (existing.shipsCsv === '') existing.shipsCsv = args[6];
+            }
           } else {
             runsById.set(String(args[0]), {
               id: args[0],
@@ -657,15 +673,36 @@ export function memoryD1(): D1Capture {
             createdAt: Number(args[6]),
           });
         } else if (/UPDATE fleet_runs/i.test(sql)) {
-          const row = runsById.get(String(args[2]));
+          const usesDurableStart = /created_at\s*\*\s*1000/i.test(sql);
+          const row = runsById.get(String(args[usesDurableStart ? 4 : 2]));
           if (row) {
             row.conclusion = String(args[0]);
-            row.ms = Number(args[1]);
+            if (usesDurableStart) {
+              const createdAtMs = Number(row.createdAt) * 1000;
+              const endMs = Number(args[1]);
+              const fallbackStartMs = Number(args[3]);
+              const durableStartMs = Number.isFinite(createdAtMs)
+                && createdAtMs > 0
+                && createdAtMs <= endMs
+                ? createdAtMs
+                : fallbackStartMs;
+              row.ms = Math.max(0, Number(args[1]) - durableStartMs);
+            } else {
+              row.ms = Number(args[1]);
+            }
           }
         }
         return { success: true, meta: {} };
       },
       async first() {
+        // Run-deadline read-back (getRunStartedAtSec): the logical run's TRUE
+        // first-attempt created_at, surviving every continuation/retry —
+        // served from the same runsById map the INSERT path above maintains.
+        if (/SELECT created_at FROM fleet_runs WHERE id = \?/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const row = runsById.get(String(args[0]));
+          return row ? ({ created_at: row.createdAt } as unknown as Record<string, unknown>) : null;
+        }
         // Delivery-failure read-back: the newest recorded failure for one run,
         // ordered by seq (see src/delivery-failure.ts). Served from the same
         // `steps` array the INSERT path above appends to, so a test that writes
@@ -783,6 +820,8 @@ export function aiStub(opts: {
    * and heals on the repair retry (src/repair.ts).
    */
   perShipQueue?: Record<string, string[]>;
+  /** Hook fired after each AI call is recorded but before its response returns. */
+  onCall?: (call: AiStub['calls'][number]) => void | Promise<void>;
 }): AiStub {
   const calls: AiStub['calls'] = [];
   const withUsage = (response: string): Record<string, unknown> =>
@@ -810,7 +849,9 @@ export function aiStub(opts: {
 
     // --- REDUCE manager call ---
     if (/REDUCE manager/.test(sys)) {
-      calls.push({ model, phase: 'reduce', ship, temperature: args.temperature });
+      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature };
+      calls.push(call);
+      await opts.onCall?.(call);
       if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
       const mgr = opts.managerOutput;
       const out =
@@ -819,7 +860,9 @@ export function aiStub(opts: {
     }
 
     // --- MAP call ---
-    calls.push({ model, phase: 'map', ship, temperature: args.temperature });
+    const call = { model, phase: 'map' as const, ship, temperature: args.temperature };
+    calls.push(call);
+    await opts.onCall?.(call);
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
       return withUsage(shipResponse(ship));
