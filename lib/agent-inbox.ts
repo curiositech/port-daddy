@@ -23,7 +23,10 @@ export interface InboxMessage {
   read: boolean;
   readAt: number | null;
   createdAt: number;
-  /** Internal delivery identity; never a maritime/UI protocol signal. */
+}
+
+interface StoredInboxMessage extends InboxMessage {
+  /** Durable delivery identity is storage-internal and never enters public DTOs. */
   deliveryKey: string | null;
 }
 
@@ -76,7 +79,11 @@ export const INBOX_DELIVERY_CLEANUP_BATCH = 100;
 
 /** Canonical server callback projection: delivery identity never becomes UI signal. */
 export function inboxMessageForMessaging(message: InboxMessage) {
-  const { deliveryKey: _internalDeliveryKey, ...publishedMessage } = message;
+  // Defensively strip a storage-shaped object even though public callers are
+  // typed to receive InboxMessage without the internal delivery identity.
+  const { deliveryKey: _internalDeliveryKey, ...publishedMessage } = message as InboxMessage & {
+    deliveryKey?: unknown;
+  };
   return {
     ...publishedMessage,
     sender: message.from || 'SYSTEM',
@@ -186,7 +193,7 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     `),
   };
 
-  function formatMessage(row: InboxRow): InboxMessage {
+  function formatStoredMessage(row: InboxRow): StoredInboxMessage {
     return {
       id: row.id,
       agentId: row.agent_id,
@@ -199,6 +206,11 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
       createdAt: row.created_at,
       deliveryKey: row.delivery_key ?? null,
     };
+  }
+
+  function formatMessage(row: InboxRow): InboxMessage {
+    const { deliveryKey: _internalDeliveryKey, ...message } = formatStoredMessage(row);
+    return message;
   }
 
   function safeJsonParse(value: string): unknown {

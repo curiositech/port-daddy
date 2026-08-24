@@ -124,7 +124,10 @@ describe('Agent Inbox Module', () => {
       expect(first).toMatchObject({ success: true, replayed: false });
       expect(replay).toEqual({ ...first, replayed: true });
       expect(delivered).toHaveLength(1);
-      expect(keyedInbox.list('agent-b').messages[0].deliveryKey).toBe('summons:1');
+      expect(delivered[0]).not.toHaveProperty('deliveryKey');
+      expect(keyedInbox.list('agent-b').messages[0]).not.toHaveProperty('deliveryKey');
+      expect(db.prepare('SELECT delivery_key FROM agent_inbox WHERE id = ?').get(first.messageId))
+        .toEqual({ delivery_key: 'summons:1' });
     });
 
     it('treats reordered JSON object keys as the same canonical full message', () => {
@@ -172,8 +175,9 @@ describe('Agent Inbox Module', () => {
       })));
       expect(delivered).toMatchObject({ success: true, replayed: false });
       expect(inbox.list('agent-b').messages).toEqual([
-        expect.objectContaining({ content: 'legitimate', deliveryKey: key }),
+        expect.objectContaining({ content: 'legitimate' }),
       ]);
+      expect(inbox.list('agent-b').messages[0]).not.toHaveProperty('deliveryKey');
     });
 
     it('projects internal delivery identity as maritime report for messaging callbacks', () => {
@@ -198,6 +202,19 @@ describe('Agent Inbox Module', () => {
       expect(deliveryColumns).toContain('delivery_key');
       expect(deliveryColumns).not.toContain('signal');
       expect(db.prepare('SELECT delivery_key FROM agent_inbox WHERE agent_id = ?').get('agent-b'))
+        .toEqual({ delivery_key: 'parley_summons:p1:agent-b' });
+    });
+
+    it('keeps delivery identity out of public inbox and sent projections', () => {
+      const delivered = inbox.internal.sendOnce('agent-b', 'summons', {
+        from: 'agent-a',
+        deliveryKey: 'parley_summons:p1:agent-b',
+      });
+
+      expect(delivered).toMatchObject({ success: true, replayed: false });
+      expect(inbox.list('agent-b').messages[0]).not.toHaveProperty('deliveryKey');
+      expect(inbox.listSent('agent-a').messages[0]).not.toHaveProperty('deliveryKey');
+      expect(db.prepare('SELECT delivery_key FROM agent_inbox WHERE id = ?').get(delivered.messageId))
         .toEqual({ delivery_key: 'parley_summons:p1:agent-b' });
     });
 

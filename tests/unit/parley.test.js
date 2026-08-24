@@ -183,9 +183,9 @@ describe('automatic call durability', () => {
     expect(tuples.rd(['parley:summons', first.parley.parleyId, '*', '*'], { harbor: 'port-daddy' })).toHaveLength(2);
     expect(inbox.list('agent-a').messages).toHaveLength(1);
     expect(inbox.list('agent-b').messages).toHaveLength(1);
-    expect(inbox.list('agent-a').messages[0].deliveryKey).toBe(
-      `parley_summons:${first.parley.parleyId}:agent-a`,
-    );
+    expect(inbox.list('agent-a').messages[0]).not.toHaveProperty('deliveryKey');
+    expect(db.prepare('SELECT delivery_key FROM agent_inbox WHERE agent_id = ?').get('agent-a'))
+      .toEqual({ delivery_key: `parley_summons:${first.parley.parleyId}:agent-a` });
   });
 
   test('reconciles a partial inbox delivery without duplicating prior writes', () => {

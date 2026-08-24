@@ -61,7 +61,13 @@ interface TupleLike {
 interface TupleSpaceMin {
   outOnce(
     fields: unknown[],
-    options: { harbor?: string; writtenBy?: string; ttlMs?: number; idempotencyKey: string },
+    options: {
+      harbor?: string;
+      writtenBy?: string;
+      ttlMs?: number;
+      idempotencyKey: string;
+      internalOnly?: boolean;
+    },
   ): { tuple: TupleLike; inserted: boolean };
   getByIdempotencyKey(
     idempotencyKey: string,
@@ -228,6 +234,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
         writtenBy: AUTOMATIC_WRITER,
         ttlMs: PARLEY_AUTO_TRIGGER_POLICY.signalRetentionMs,
         idempotencyKey: `parley:auto:terminal:${hash([signalId, state])}`,
+        internalOnly: true,
       }).inserted;
     } catch {
       // Nonthrowing service: no activity row without a durable terminal owner.
@@ -270,7 +277,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
       for (let attempt = 0; attempt < 2; attempt++) {
         const reservation = deps.tuples.outOnce(
           ['parley:auto:cap', dimension, slot, signalId],
-          { harbor, writtenBy: AUTOMATIC_WRITER, idempotencyKey },
+          { harbor, writtenBy: AUTOMATIC_WRITER, idempotencyKey, internalOnly: true },
         );
         const owner = reservation.tuple.fields[3];
         if (reservation.inserted || owner === signalId) {
@@ -421,6 +428,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
           writtenBy: AUTOMATIC_WRITER,
           ttlMs: PARLEY_AUTO_TRIGGER_POLICY.signalRetentionMs,
           idempotencyKey: `parley:auto:signal:${effective.signalId}`,
+          internalOnly: true,
         },
       );
       const authoritative = reservation.tuple.fields[2];
@@ -507,6 +515,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
           harbor,
           writtenBy: AUTOMATIC_WRITER,
           idempotencyKey: lineageIdempotencyKey,
+          internalOnly: true,
         },
       );
       let lineageOwned = false;
@@ -557,7 +566,12 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
           }
           lineageReservation = deps.tuples.outOnce(
             ['parley:auto:lineage', lineageKey, effective.signalId, now()],
-            { harbor, writtenBy: AUTOMATIC_WRITER, idempotencyKey: lineageIdempotencyKey },
+            {
+              harbor,
+              writtenBy: AUTOMATIC_WRITER,
+              idempotencyKey: lineageIdempotencyKey,
+              internalOnly: true,
+            },
           );
           continue;
         }
