@@ -29,7 +29,7 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId, ReceiptBatch};
+use crate::buffer::{peer_id_for_identity, HarborBuffer, HistoryAction, PeerId, ReceiptBatch};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -399,22 +399,14 @@ impl EditorPane {
         let Some(buffer) = self.buffer.as_ref() else {
             return Err("editor buffer is not loaded".into());
         };
-        let before = buffer.to_string();
-        let guard = if redo {
-            buffer.redo_guard()?
+        let action = if redo {
+            HistoryAction::Redo
         } else {
-            buffer.undo_guard()?
+            HistoryAction::Undo
         };
-        let Some(guard) = guard else {
-            return Ok(None);
-        };
-        self.ensure_editable_range(&before, guard.range, guard.replacement_newlines)?;
-
-        let edit = if redo {
-            buffer.redo_authored()?
-        } else {
-            buffer.undo_authored()?
-        };
+        let edit = buffer.apply_history_governed(action, |before, guard| {
+            self.ensure_editable_range(before, guard.range.clone(), guard.replacement_newlines)
+        })?;
         let Some(edit) = edit else {
             return Ok(None);
         };
@@ -1518,6 +1510,7 @@ mod tests {
         let before_stamp = pane.buffer().unwrap().change_stamp();
         let before_undo_count = pane.buffer().unwrap().undo_count();
         let before_redo_count = pane.buffer().unwrap().redo_count();
+        let before_receipts = pane.buffer().unwrap().edit_receipt_batch_snapshot();
         let refusal = if redo {
             pane.redo_local_text_edit()
         } else {
@@ -1530,14 +1523,10 @@ mod tests {
         assert_eq!(pane.buffer().unwrap().change_stamp(), before_stamp);
         assert_eq!(pane.buffer().unwrap().undo_count(), before_undo_count);
         assert_eq!(pane.buffer().unwrap().redo_count(), before_redo_count);
-        let denied_batch = pane.take_edit_receipts();
-        assert!(
-            denied_batch.complete,
-            "denial preserves exact receipt continuity"
-        );
-        assert!(
-            denied_batch.receipts.is_empty(),
-            "denial must not enqueue a text receipt"
+        assert_eq!(
+            pane.buffer().unwrap().edit_receipt_batch_snapshot(),
+            before_receipts,
+            "denial must preserve the authoritative receipt batch byte-for-byte"
         );
     }
 
@@ -1682,6 +1671,98 @@ mod tests {
         assert_eq!(adjacent_human.text().as_deref(), Some(AFTER));
         let redone = adjacent_human.take_edit_receipts();
         assert!(redone.complete && redone.receipts.len() == 1);
+    }
+
+    #[test]
+    fn repeated_remote_shift_history_denies_shifted_line_and_allows_adjacent_lines() {
+        const BEFORE: &str = "abcd\ntail\n";
+        const PREFIX: &str = "REMOTE\n";
+        let cases = [
+            ("insertion", 2..2, "LOCAL", "abLOCALcd\ntail\n"),
+            ("replacement", 1..3, "XY", "aXYd\ntail\n"),
+            ("deletion", 1..3, "", "ad\ntail\n"),
+        ];
+
+        for (name, range, replacement, expected_after) in cases {
+            let path = write_temp(&format!("repeated-history-{name}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:repeated-history-{name}"),
+            );
+            human
+                .apply_local_text_edit(range, replacement)
+                .expect("initial local edit is accepted");
+            human
+                .undo_local_text_edit()
+                .expect("first undo succeeds")
+                .expect("first undo frame");
+
+            let peer = HarborBuffer::empty(format!("port-daddy:editor:remote-shift-{name}"));
+            peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+                .expect("peer joins after first undo");
+            let remote = peer.replace_authored(0..0, PREFIX);
+            let remote_frame = crate::editor_sync::encode_frame(peer.local_peer(), &remote.delta);
+            assert!(human.ingest_frame(&remote_frame));
+
+            human
+                .redo_local_text_edit()
+                .expect("first redo succeeds after remote shift")
+                .expect("first redo frame");
+            assert_eq!(
+                human.text().as_deref(),
+                Some(format!("{PREFIX}{expected_after}").as_str())
+            );
+            human
+                .undo_local_text_edit()
+                .expect("second undo succeeds")
+                .expect("second undo frame");
+            assert_eq!(
+                human.text().as_deref(),
+                Some(format!("{PREFIX}{BEFORE}").as_str())
+            );
+
+            let queued = human.buffer().unwrap().edit_receipt_batch_snapshot();
+            assert!(queued.complete);
+            assert_eq!(
+                queued.receipts.len(),
+                5,
+                "accepted edit, undo, import, redo, and second undo remain queued"
+            );
+
+            let mut claimant = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:repeated-claimant-{name}"),
+            );
+            let overlap = claimant.acquire_region_claim(2, 2, "shifted-actual-line", 1_000);
+            assert!(human.ingest_claim(&overlap));
+            assert_history_denied_without_mutation(&mut human, true);
+
+            let release_overlap = claimant.release_region_claim(0);
+            assert!(human.ingest_claim(&release_overlap));
+            let before_adjacent = claimant.acquire_region_claim(1, 1, "adjacent-before", 2_000);
+            assert!(human.ingest_claim(&before_adjacent));
+            human
+                .redo_local_text_edit()
+                .expect("preceding adjacent line allows redo")
+                .expect("adjacent redo frame");
+            human
+                .undo_local_text_edit()
+                .expect("preceding adjacent line allows undo")
+                .expect("adjacent undo frame");
+
+            let release_before = claimant.release_region_claim(1);
+            assert!(human.ingest_claim(&release_before));
+            let after_adjacent = claimant.acquire_region_claim(3, 3, "adjacent-after", 3_000);
+            assert!(human.ingest_claim(&after_adjacent));
+            human
+                .redo_local_text_edit()
+                .expect("following adjacent line allows redo")
+                .expect("following adjacent redo frame");
+            human
+                .undo_local_text_edit()
+                .expect("following adjacent line allows undo")
+                .expect("following adjacent undo frame");
+        }
     }
 
     #[test]

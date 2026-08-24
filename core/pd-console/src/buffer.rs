@@ -24,15 +24,10 @@
 
 use loro::{
     cursor::Side, ExpandType, ExportMode, LoroDoc, LoroText, LoroValue, StyleConfig,
-    StyleConfigMap, UndoItemMeta, UndoManager, UndoOrRedo,
+    StyleConfigMap, UndoItemMeta, UndoManager,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    collections::VecDeque,
-    ops::Range,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, collections::VecDeque, ops::Range};
 
 /// Loro container name for the file's text. One file = one `LoroDoc` holding one
 /// `LoroText` under this key (battle-plan §3).
@@ -49,6 +44,11 @@ const AUTHOR_MARK: &str = "author";
 /// consumer must full-parse the current text instead of applying a truncated
 /// incremental sequence.
 pub const EDIT_RECEIPT_CAPACITY: usize = 256;
+
+/// Keep the governance ledger exactly as deep as Loro's configured history.
+/// This stores only stable claim anchors and replacement shape, never inverse
+/// operations; Loro remains the sole undo/redo implementation.
+const HISTORY_CAPACITY: usize = 100;
 
 /// A Loro replica id. `u64` per `loro_common::PeerID`; re-aliased here so the
 /// public surface does not force callers to depend on the loro crate directly.
@@ -114,30 +114,35 @@ pub struct HistoryGuard {
     pub replacement_newlines: usize,
 }
 
+/// Which peer-local Loro history operation to perform through the governed
+/// atomic entry point.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryAction {
+    Undo,
+    Redo,
+}
+
+impl HistoryAction {
+    fn is_redo(self) -> bool {
+        matches!(self, Self::Redo)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct HistoryGovernanceMetadata {
     version: u8,
-    phase: HistoryGovernancePhase,
     deleted_unicode_len: usize,
     inserted_unicode_len: usize,
     deleted_newlines: usize,
     inserted_newlines: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-enum HistoryGovernancePhase {
-    AuthoredUndo,
-    TransferredRedo,
-    ResurrectedUndo,
-}
-
 impl HistoryGovernanceMetadata {
-    const VERSION: u8 = 2;
+    const VERSION: u8 = 3;
 
     fn new(deleted: &str, inserted: &str) -> Self {
         Self {
             version: Self::VERSION,
-            phase: HistoryGovernancePhase::AuthoredUndo,
             deleted_unicode_len: deleted.chars().count(),
             inserted_unicode_len: inserted.chars().count(),
             deleted_newlines: deleted.bytes().filter(|byte| *byte == b'\n').count(),
@@ -174,25 +179,57 @@ impl HistoryGovernanceMetadata {
         }
     }
 
-    fn visible_unicode_len(&self, kind: UndoOrRedo) -> usize {
-        match kind {
-            UndoOrRedo::Undo => self.inserted_unicode_len,
-            UndoOrRedo::Redo => self.deleted_unicode_len,
+    fn visible_unicode_len_after(&self, action: HistoryAction) -> usize {
+        match action {
+            HistoryAction::Undo => self.deleted_unicode_len,
+            HistoryAction::Redo => self.inserted_unicode_len,
         }
     }
 
-    fn transfer_to(&mut self, kind: UndoOrRedo) {
-        self.phase = match kind {
-            UndoOrRedo::Undo => HistoryGovernancePhase::ResurrectedUndo,
-            UndoOrRedo::Redo => HistoryGovernancePhase::TransferredRedo,
-        };
+    fn visible_unicode_len_before(&self, action: HistoryAction) -> usize {
+        match action {
+            HistoryAction::Undo => self.inserted_unicode_len,
+            HistoryAction::Redo => self.deleted_unicode_len,
+        }
     }
 }
 
 #[derive(Default)]
-struct UndoMetadataBridge {
-    pending_local: Mutex<VecDeque<UndoItemMeta>>,
-    popped: Mutex<Option<UndoItemMeta>>,
+struct HistoryGovernanceStacks {
+    undo: VecDeque<UndoItemMeta>,
+    redo: VecDeque<UndoItemMeta>,
+}
+
+impl HistoryGovernanceStacks {
+    fn top(&self, action: HistoryAction) -> Option<&UndoItemMeta> {
+        match action {
+            HistoryAction::Undo => self.undo.back(),
+            HistoryAction::Redo => self.redo.back(),
+        }
+    }
+
+    fn record_authored(&mut self, meta: UndoItemMeta) {
+        self.redo.clear();
+        if self.undo.len() == HISTORY_CAPACITY {
+            self.undo.pop_front();
+        }
+        self.undo.push_back(meta);
+    }
+
+    fn transfer(&mut self, action: HistoryAction, fresh_meta: UndoItemMeta) {
+        let source = match action {
+            HistoryAction::Undo => &mut self.undo,
+            HistoryAction::Redo => &mut self.redo,
+        };
+        source
+            .pop_back()
+            .expect("governed history source matched Loro before mutation");
+        let opposite = match action {
+            HistoryAction::Undo => &mut self.redo,
+            HistoryAction::Redo => &mut self.undo,
+        };
+        opposite.push_back(fresh_meta);
+    }
 }
 
 struct PendingReceipts {
@@ -229,6 +266,14 @@ impl PendingReceipts {
         };
         self.complete = true;
         batch
+    }
+
+    #[cfg(test)]
+    fn snapshot(&self) -> ReceiptBatch {
+        ReceiptBatch {
+            receipts: self.receipts.iter().cloned().collect(),
+            complete: self.complete,
+        }
     }
 }
 
@@ -350,7 +395,10 @@ pub struct HarborBuffer {
     doc: LoroDoc,
     text: LoroText,
     undo: RefCell<UndoManager>,
-    undo_metadata: Arc<UndoMetadataBridge>,
+    /// Bounded claim-governance metadata aligned with Loro's own bounded
+    /// history. Each successful transfer is re-anchored from the resulting
+    /// document; no inverse operation or text snapshot is stored here.
+    history_governance: RefCell<HistoryGovernanceStacks>,
     /// One ordered receipt stream for every text-changing mutation, including
     /// callers that ignore an `AuthoredEdit` or use a pre-P1A unit return path.
     /// P1B drains this instead of ever reconstructing snapshot diffs.
@@ -391,46 +439,16 @@ impl HarborBuffer {
             .expect("set_peer_id on a fresh doc");
         doc.config_text_style(Self::author_styles());
         let text = doc.get_text(TEXT_CONTAINER);
-        let undo_metadata = Arc::new(UndoMetadataBridge::default());
         let mut undo = UndoManager::new(&doc);
         // One accepted replacement is one history item, independent of typing
         // cadence. Keep this explicit even though zero is Loro's current default.
         undo.set_merge_interval(0);
-
-        let pushed_metadata = Arc::clone(&undo_metadata);
-        let pushed_doc = doc.clone();
-        let pushed_text = text.clone();
-        undo.set_on_push(Some(Box::new(move |kind, _, _| {
-            if matches!(kind, UndoOrRedo::Undo) {
-                if let Some(meta) = pushed_metadata
-                    .pending_local
-                    .lock()
-                    .expect("undo metadata queue")
-                    .pop_front()
-                {
-                    return meta;
-                }
-            }
-            let Some(popped) = pushed_metadata
-                .popped
-                .lock()
-                .expect("popped undo metadata")
-                .take()
-            else {
-                return UndoItemMeta::new();
-            };
-            Self::transferred_history_meta(&pushed_doc, &pushed_text, kind, popped)
-                .unwrap_or_default()
-        })));
-        let popped_metadata = Arc::clone(&undo_metadata);
-        undo.set_on_pop(Some(Box::new(move |_, _, meta| {
-            *popped_metadata.popped.lock().expect("popped undo metadata") = Some(meta);
-        })));
+        undo.set_max_undo_steps(HISTORY_CAPACITY);
         Self {
             doc,
             text,
             undo: RefCell::new(undo),
-            undo_metadata,
+            history_governance: RefCell::new(HistoryGovernanceStacks::default()),
             pending_receipts: RefCell::new(PendingReceipts::default()),
             local_peer,
             identity,
@@ -523,32 +541,20 @@ impl HarborBuffer {
                 .expect("mark authored span");
         }
 
-        // Attach governance to what is visible AFTER this replacement, not to
-        // the pre-edit selection. Non-empty spans use outside-facing boundaries
-        // (start/Left, end/Right) so the same stable anchors enclose the authored
-        // content again after an undo/redo cycle. A deletion has no visible span,
-        // so one right-biased cursor is the stable insertion point where undo
-        // will restore text; metadata carries the replacement's newline impact
-        // so claim checks cannot under-count that restoration.
-        let mut meta = UndoItemMeta::new();
-        meta.set_value(HistoryGovernanceMetadata::new(&before_text[byte_range], s).encode());
+        // Attach governance to what is visible AFTER this replacement. A
+        // deletion has no visible span, so one right-biased cursor anchors the
+        // insertion point and the metadata retains the planned restoration.
+        let governance = HistoryGovernanceMetadata::new(&before_text[byte_range], s);
         let inserted_end = range.start + s.chars().count();
-        self.add_post_edit_governance_cursors(&mut meta, range.start..inserted_end);
-        self.undo_metadata
-            .pending_local
-            .lock()
-            .expect("undo metadata queue")
-            .push_back(meta);
+        let meta = self.governance_meta(&governance, range.start..inserted_end);
+        let before_undo_count = self.undo.borrow().undo_count();
         self.doc.commit();
-        // Never let metadata from an unexpectedly empty commit bleed into the
-        // next replacement. A normal commit consumed it synchronously.
-        let stale = self
-            .undo_metadata
-            .pending_local
-            .lock()
-            .expect("undo metadata queue")
-            .pop_front();
-        debug_assert!(stale.is_none(), "replacement did not create an undo item");
+        debug_assert_eq!(
+            self.undo.borrow().undo_count(),
+            (before_undo_count + 1).min(HISTORY_CAPACITY),
+            "one accepted replacement must create one Loro undo item"
+        );
+        self.history_governance.borrow_mut().record_authored(meta);
 
         let delta = self
             .doc
@@ -560,12 +566,15 @@ impl HarborBuffer {
         AuthoredEdit { delta, receipt }
     }
 
-    fn add_post_edit_governance_cursors(
+    fn governance_meta(
         &self,
-        meta: &mut UndoItemMeta,
+        governance: &HistoryGovernanceMetadata,
         unicode_range: Range<usize>,
-    ) {
-        Self::add_governance_cursors(&self.text, meta, unicode_range);
+    ) -> UndoItemMeta {
+        let mut meta = UndoItemMeta::new();
+        meta.set_value(governance.encode());
+        Self::add_governance_cursors(&self.text, &mut meta, unicode_range);
+        meta
     }
 
     fn add_governance_cursors(
@@ -593,48 +602,6 @@ impl HarborBuffer {
         }
     }
 
-    fn transferred_history_meta(
-        doc: &LoroDoc,
-        text: &LoroText,
-        kind: UndoOrRedo,
-        popped: UndoItemMeta,
-    ) -> Option<UndoItemMeta> {
-        let mut governance = HistoryGovernanceMetadata::decode(&popped.value).ok()?;
-        governance.transfer_to(kind);
-
-        // Redo always follows a successful undo. Loro replaces cursors returned
-        // by this callback with the prior selection metadata in that path, but
-        // preserves the value. Mark the resurrected phase here; history_guard
-        // interprets those retained stable cursors below.
-        if matches!(kind, UndoOrRedo::Undo) {
-            let mut transferred = UndoItemMeta::new();
-            transferred.set_value(governance.encode());
-            transferred.cursors = popped.cursors;
-            return Some(transferred);
-        }
-
-        let start = popped
-            .cursors
-            .iter()
-            .filter_map(|cursor| doc.get_cursor_pos(&cursor.cursor).ok())
-            .map(|position| position.current.pos)
-            .min()?;
-        let end = start.checked_add(governance.visible_unicode_len(kind))?;
-        if end > text.len_unicode() {
-            return None;
-        }
-
-        // UndoManager's public on-push hook runs after the inverse mutation and
-        // before its opposite stack item is installed. Rebind that item to the
-        // span now visible in the resulting document. This gives redo the
-        // restored pre-edit span (or a collapsed insertion point) while keeping
-        // the original authored post-edit span authoritative for undo.
-        let mut transferred = UndoItemMeta::new();
-        transferred.set_value(governance.encode());
-        Self::add_governance_cursors(text, &mut transferred, start..end);
-        Some(transferred)
-    }
-
     /// Current UTF-8 target range of the next local undo item. Stable Loro
     /// cursors are resolved against the current merged document, so intervening
     /// peer edits shift this range before claim governance inspects it.
@@ -650,16 +617,19 @@ impl HarborBuffer {
     }
 
     pub fn undo_guard(&self) -> std::result::Result<Option<HistoryGuard>, String> {
-        self.history_guard(false)
+        self.history_guard(HistoryAction::Undo)
     }
 
     pub fn redo_guard(&self) -> std::result::Result<Option<HistoryGuard>, String> {
-        self.history_guard(true)
+        self.history_guard(HistoryAction::Redo)
     }
 
-    fn history_guard(&self, redo: bool) -> std::result::Result<Option<HistoryGuard>, String> {
+    fn history_guard(
+        &self,
+        action: HistoryAction,
+    ) -> std::result::Result<Option<HistoryGuard>, String> {
         let undo = self.undo.borrow();
-        let available = if redo {
+        let available = if action.is_redo() {
             undo.can_redo()
         } else {
             undo.can_undo()
@@ -667,12 +637,14 @@ impl HarborBuffer {
         if !available {
             return Ok(None);
         }
-        let meta = if redo {
-            undo.top_redo_meta()
-        } else {
-            undo.top_undo_meta()
+        let governance = self.history_governance.borrow();
+        if governance.undo.len() != undo.undo_count() || governance.redo.len() != undo.redo_count()
+        {
+            return Err("editor history governance is out of sync with Loro history".into());
         }
-        .ok_or_else(|| "editor history metadata is unavailable".to_string())?;
+        let meta = governance
+            .top(action)
+            .ok_or_else(|| "editor history metadata is unavailable".to_string())?;
         if meta.cursors.is_empty() || meta.cursors.len() > 2 {
             return Err("editor history metadata has no valid governed text span".into());
         }
@@ -694,82 +666,120 @@ impl HarborBuffer {
             return Err("editor history cursor resolved outside the current text".into());
         }
         let governance = HistoryGovernanceMetadata::decode(&meta.value)?;
-        let (start, end) = match (redo, governance.phase) {
-            (false, HistoryGovernancePhase::AuthoredUndo)
-            | (true, HistoryGovernancePhase::TransferredRedo) => (
-                unicode[0],
-                *unicode.last().expect("one or two history cursors"),
-            ),
-            (false, HistoryGovernancePhase::ResurrectedUndo) => {
-                // Loro's undo loop deliberately restores the prior selection's
-                // cursors when redo pushes its inverse item. Those cursors stay
-                // bound to the pre-redo IDs; resolving them after resurrection
-                // advances the start by the inserted length and the end by the
-                // replacement's net length. Correct those two known offsets,
-                // while retaining any additional movement caused by peers.
-                let start = unicode[0]
-                    .checked_sub(governance.inserted_unicode_len)
-                    .ok_or_else(|| "editor history start cursor underflowed".to_string())?;
-                let end = if unicode.len() == 1 {
-                    start
-                } else {
-                    let resolved_end = *unicode.last().expect("two history cursors");
-                    let cursor_end = resolved_end
-                        .checked_sub(
-                            governance
-                                .inserted_unicode_len
-                                .saturating_sub(governance.deleted_unicode_len),
-                        )
-                        .ok_or_else(|| "editor history end cursor underflowed".to_string())?;
-                    let authored_end = start
-                        .checked_add(governance.inserted_unicode_len)
-                        .ok_or_else(|| "editor history authored span overflowed".to_string())?;
-                    cursor_end.max(authored_end)
-                };
-                (start, end)
-            }
-            _ => return Err("editor history metadata direction is inconsistent".into()),
-        };
+        let start = unicode[0];
+        let end = *unicode.last().expect("one or two history cursors");
         if start > end {
             return Err("editor history metadata resolved an inverted text span".into());
         }
         Ok(Some(HistoryGuard {
             range: byte_offset_for_unicode(&text, start)..byte_offset_for_unicode(&text, end),
-            replacement_newlines: governance.replacement_newlines(redo),
+            replacement_newlines: governance.replacement_newlines(action.is_redo()),
         }))
     }
 
-    /// Undo one local history item and export the resulting ordinary Loro
-    /// update. Remote operations are transformed through the item and survive.
-    pub fn undo_authored(&self) -> std::result::Result<Option<AuthoredEdit>, String> {
-        self.apply_history(false)
-    }
-
-    /// Redo one local history item and export the resulting ordinary Loro
-    /// update. A new local replacement clears this stack through Loro itself.
-    pub fn redo_authored(&self) -> std::result::Result<Option<AuthoredEdit>, String> {
-        self.apply_history(true)
-    }
-
-    fn apply_history(&self, redo: bool) -> std::result::Result<Option<AuthoredEdit>, String> {
+    /// Atomically validate and apply one peer-local Loro history item. The
+    /// supplied claim validator always runs against the current stable range
+    /// before Loro can mutate text, version vectors, stacks, or receipts.
+    ///
+    /// After success, the opposite governance-stack item is rebuilt from the
+    /// actual post-operation receipt. This deliberately does not reuse Loro's
+    /// saved selection, which is not transformed by intervening remote imports.
+    pub fn apply_history_governed<F>(
+        &self,
+        action: HistoryAction,
+        validate: F,
+    ) -> std::result::Result<Option<AuthoredEdit>, String>
+    where
+        F: FnOnce(&str, &HistoryGuard) -> std::result::Result<(), String>,
+    {
         let before_text = self.text.to_string();
+        let Some(guard) = self.history_guard(action)? else {
+            return Ok(None);
+        };
+        validate(&before_text, &guard)?;
+
+        // HarborBuffer never checks out historical frontiers or enables
+        // detached editing. Reject that impossible state before UndoManager's
+        // `perform` can pop an item and discover it is not editable.
+        if self.doc.is_detached() {
+            return Err("editor history cannot mutate a detached Loro document".into());
+        }
+        if self.doc.is_shallow() {
+            return Err("editor history cannot mutate a shallow Loro document".into());
+        }
+
+        let governance = {
+            let stacks = self.history_governance.borrow();
+            let meta = stacks
+                .top(action)
+                .expect("governance availability checked before validation");
+            HistoryGovernanceMetadata::decode(&meta.value)?
+        };
+        let before_unicode_len = before_text.chars().count();
+        let unicode_start = before_text[..guard.range.start].chars().count();
+        let guard_unicode_end = before_text[..guard.range.end].chars().count();
+        let expected_source_end = unicode_start
+            .checked_add(governance.visible_unicode_len_before(action))
+            .ok_or_else(|| "editor history source span overflowed".to_string())?;
+        if expected_source_end != guard_unicode_end {
+            return Err(
+                "editor history governed span no longer matches the planned replacement".into(),
+            );
+        }
+        let unicode_end = unicode_start
+            .checked_add(governance.visible_unicode_len_after(action))
+            .ok_or_else(|| "editor history post-operation span overflowed".to_string())?;
+        let expected_after_unicode_len = before_unicode_len
+            .checked_sub(governance.visible_unicode_len_before(action))
+            .and_then(|len| len.checked_add(governance.visible_unicode_len_after(action)))
+            .ok_or_else(|| "editor history resulting text length overflowed".to_string())?;
+        if unicode_end > expected_after_unicode_len {
+            return Err("editor history post-operation span exceeds the resulting text".into());
+        }
+
         let before = self.doc.oplog_vv();
-        let changed = if redo {
+        let changed = if action.is_redo() {
             self.undo.borrow_mut().redo()
         } else {
             self.undo.borrow_mut().undo()
         }
-        .map_err(|error| format!("editor history operation failed: {error}"))?;
-        if !changed {
-            return Ok(None);
-        }
+        .expect("attached full Harbor document with manager-owned history must apply its top item");
+        assert!(
+            changed,
+            "a prevalidated governed Loro history item must produce one operation"
+        );
         self.doc.commit();
         let after_text = self.text.to_string();
+        assert_eq!(
+            after_text.chars().count(),
+            expected_after_unicode_len,
+            "Loro history result must match the prevalidated replacement shape"
+        );
         let delta = self
             .doc
             .export(ExportMode::updates(&before))
-            .map_err(|error| format!("export editor history delta: {error}"))?;
+            .expect("same-document history delta export after a captured version vector");
         let receipt = EditReceipt::between(&before_text, &after_text);
+
+        // The operation starts at the governed pre-mutation range and cannot
+        // change bytes before it. Rebuild the full planned visible span there
+        // in the resulting document. The exact receipt may be narrower when
+        // old/new text share a prefix or suffix (notably newline and CRLF
+        // replacements). It can even begin beyond a collapsed insertion point
+        // when an inserted leading newline equals the following file newline,
+        // so the planned span remains the governance authority.
+        let unicode_range = unicode_start..unicode_end;
+        let fresh_meta = self.governance_meta(&governance, unicode_range);
+        self.history_governance
+            .borrow_mut()
+            .transfer(action, fresh_meta);
+
+        let undo = self.undo.borrow();
+        let stacks = self.history_governance.borrow();
+        debug_assert_eq!(stacks.undo.len(), undo.undo_count());
+        debug_assert_eq!(stacks.redo.len(), undo.redo_count());
+        drop(stacks);
+        drop(undo);
         if let Some(receipt) = &receipt {
             self.pending_receipts.borrow_mut().push(receipt.clone());
         }
@@ -859,6 +869,11 @@ impl HarborBuffer {
     /// style-only changes never enter this stream.
     pub fn take_edit_receipts(&self) -> ReceiptBatch {
         self.pending_receipts.borrow_mut().take()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn edit_receipt_batch_snapshot(&self) -> ReceiptBatch {
+        self.pending_receipts.borrow().snapshot()
     }
 
     /// The full text content (all lines, newlines intact).
@@ -963,6 +978,13 @@ impl HarborBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn apply_history(buffer: &HarborBuffer, action: HistoryAction) -> AuthoredEdit {
+        buffer
+            .apply_history_governed(action, |_, _| Ok(()))
+            .expect("governed history operation succeeds")
+            .expect("one governed history item")
+    }
 
     /// A stable PD identity → PeerId mapping: same identity, same id; different
     /// identities, (overwhelmingly) different ids. This underpins the
@@ -1069,24 +1091,18 @@ mod tests {
         assert_eq!(buffer.undo_count(), 1, "one replacement is one item");
         assert_eq!(buffer.redo_count(), 0);
 
-        let undo = buffer
-            .undo_authored()
-            .expect("undo succeeds")
-            .expect("one undo item");
+        let undo = apply_history(&buffer, HistoryAction::Undo);
         assert_eq!(buffer.to_string(), "abc");
         assert_eq!(undo.receipt.as_ref().unwrap().deleted_text, "XYZ");
         assert_eq!(undo.receipt.as_ref().unwrap().inserted_text, "b");
         assert_eq!(buffer.redo_count(), 1);
 
-        let redo = buffer
-            .redo_authored()
-            .expect("redo succeeds")
-            .expect("one redo item");
+        let redo = apply_history(&buffer, HistoryAction::Redo);
         assert_eq!(buffer.to_string(), "aXYZc");
         assert_eq!(redo.receipt.as_ref().unwrap().deleted_text, "b");
         assert_eq!(redo.receipt.as_ref().unwrap().inserted_text, "XYZ");
 
-        buffer.undo_authored().unwrap().expect("undo before branch");
+        apply_history(&buffer, HistoryAction::Undo);
         assert!(buffer.can_redo());
         buffer.replace_authored(0..1, "A");
         assert!(!buffer.can_redo(), "new local edit clears redo history");
@@ -1121,7 +1137,7 @@ mod tests {
             "{name} undo governs the post-edit visible span"
         );
 
-        buffer.undo_authored().unwrap().expect("history case undo");
+        apply_history(&buffer, HistoryAction::Undo);
         assert_eq!(buffer.to_string(), before, "{name} undo text");
         assert_eq!(
             buffer.redo_guard().unwrap(),
@@ -1132,7 +1148,7 @@ mod tests {
             "{name} redo metadata survives the stack transfer"
         );
 
-        buffer.redo_authored().unwrap().expect("history case redo");
+        apply_history(&buffer, HistoryAction::Redo);
         assert_eq!(buffer.to_string(), expected_after, "{name} redo text");
         assert_eq!(
             buffer.undo_range().unwrap(),
@@ -1249,7 +1265,7 @@ mod tests {
         let shifted = local.to_string().find("LOCAL").unwrap();
         assert_eq!(local.undo_range().unwrap(), Some(shifted..shifted + 5));
 
-        let undo = local.undo_authored().unwrap().expect("shifted undo");
+        let undo = apply_history(&local, HistoryAction::Undo);
         peer.apply_remote_ops(&undo.delta).unwrap();
         peer.replace_authored(0..0, "SECOND\n");
         local.apply_remote_ops(&peer.export_ops()).unwrap();
@@ -1261,7 +1277,7 @@ mod tests {
                 replacement_newlines: 0,
             })
         );
-        let redo = local.redo_authored().unwrap().expect("shifted redo");
+        let redo = apply_history(&local, HistoryAction::Redo);
         assert!(local.to_string().contains("LOCALcd\n"));
         peer.apply_remote_ops(&redo.delta).unwrap();
         peer.replace_authored(0..0, "THIRD\n");
@@ -1272,6 +1288,128 @@ mod tests {
             Some(post_redo_shift..post_redo_shift + 5),
             "resurrected undo governance keeps shifting with later peer edits"
         );
+
+        apply_history(&local, HistoryAction::Undo);
+        let repeated_redo_point = local.to_string().find("cd\n").unwrap();
+        assert_eq!(
+            local.redo_range().unwrap(),
+            Some(repeated_redo_point..repeated_redo_point),
+            "the next redo must be re-anchored after the second undo"
+        );
+    }
+
+    fn repeated_remote_shift_case(
+        name: &str,
+        unicode_range: Range<usize>,
+        replacement: &str,
+        expected_after: &str,
+        expected_undo_range: Range<usize>,
+        expected_redo_range: Range<usize>,
+    ) {
+        const BEFORE: &str = "abcd\ntail\n";
+        const PREFIX: &str = "REMOTE\n";
+        let dir = scratch_dir();
+        let path = dir.join(format!("history-repeated-{name}.txt"));
+        std::fs::write(&path, BEFORE).unwrap();
+        let local = HarborBuffer::open(path.to_str().unwrap(), format!("history:{name}:local"))
+            .expect("open repeated-cycle fixture");
+
+        local.replace_authored(unicode_range, replacement);
+        apply_history(&local, HistoryAction::Undo);
+
+        let peer = HarborBuffer::empty(format!("history:{name}:peer"));
+        peer.apply_remote_ops(&local.export_ops()).unwrap();
+        peer.replace_authored(0..0, PREFIX);
+        local.apply_remote_ops(&peer.export_ops()).unwrap();
+
+        apply_history(&local, HistoryAction::Redo);
+        assert_eq!(local.to_string(), format!("{PREFIX}{expected_after}"));
+        assert_eq!(
+            local.undo_range().unwrap(),
+            Some(expected_undo_range.clone()),
+            "{name} redo freshly anchors the next undo"
+        );
+
+        apply_history(&local, HistoryAction::Undo);
+        assert_eq!(local.to_string(), format!("{PREFIX}{BEFORE}"));
+        assert_eq!(
+            local.redo_range().unwrap(),
+            Some(expected_redo_range.clone()),
+            "{name} second undo freshly anchors the next redo"
+        );
+
+        apply_history(&local, HistoryAction::Redo);
+        assert_eq!(local.to_string(), format!("{PREFIX}{expected_after}"));
+        assert_eq!(
+            local.undo_range().unwrap(),
+            Some(expected_undo_range),
+            "{name} repeated redo remains anchored without saved-selection reuse"
+        );
+    }
+
+    #[test]
+    fn repeated_history_cycles_reanchor_insertion_replacement_and_collapsed_deletion() {
+        repeated_remote_shift_case("insertion", 2..2, "LOCAL", "abLOCALcd\ntail\n", 9..14, 9..9);
+        repeated_remote_shift_case("replacement", 1..3, "XY", "aXYd\ntail\n", 8..10, 8..10);
+        repeated_remote_shift_case("deletion", 1..3, "", "ad\ntail\n", 8..8, 8..10);
+    }
+
+    #[test]
+    fn governed_history_rejection_preserves_all_authoritative_state() {
+        let dir = scratch_dir();
+        let path = dir.join("history-atomic-rejection.txt");
+        std::fs::write(&path, "one\ntwo\n").unwrap();
+        let buffer = HarborBuffer::open(path.to_str().unwrap(), "history:atomic-rejection")
+            .expect("open atomic rejection fixture");
+        buffer.replace_authored(4..4, "LOCAL\n");
+
+        let assert_rejected_without_mutation = |action| {
+            let before_text = buffer.to_string();
+            let before_state_vv = buffer.change_stamp();
+            let before_oplog_vv = buffer.doc.oplog_vv();
+            let before_undo_count = buffer.undo_count();
+            let before_redo_count = buffer.redo_count();
+            let before_receipts = buffer.edit_receipt_batch_snapshot();
+
+            let error = buffer
+                .apply_history_governed(action, |_, _| Err("claimed".into()))
+                .expect_err("claim validator rejects before Loro history mutation");
+            assert_eq!(error, "claimed");
+            assert_eq!(buffer.to_string(), before_text);
+            assert_eq!(buffer.change_stamp(), before_state_vv);
+            assert_eq!(buffer.doc.oplog_vv(), before_oplog_vv);
+            assert_eq!(buffer.undo_count(), before_undo_count);
+            assert_eq!(buffer.redo_count(), before_redo_count);
+            assert_eq!(buffer.edit_receipt_batch_snapshot(), before_receipts);
+        };
+
+        assert_rejected_without_mutation(HistoryAction::Undo);
+        apply_history(&buffer, HistoryAction::Undo);
+        assert_rejected_without_mutation(HistoryAction::Redo);
+    }
+
+    #[test]
+    fn text_noop_history_transfers_without_fake_receipts() {
+        let dir = scratch_dir();
+        let path = dir.join("history-text-noop.txt");
+        std::fs::write(&path, "same\n").unwrap();
+        let buffer = HarborBuffer::open(path.to_str().unwrap(), "history:text-noop")
+            .expect("open text-noop history fixture");
+
+        let authored = buffer.replace_authored(0..4, "same");
+        assert!(authored.receipt.is_none());
+        assert_eq!(buffer.undo_count(), 1);
+        assert!(buffer.edit_receipt_batch_snapshot().receipts.is_empty());
+
+        let undo = apply_history(&buffer, HistoryAction::Undo);
+        assert!(undo.receipt.is_none());
+        assert_eq!((buffer.undo_count(), buffer.redo_count()), (0, 1));
+        assert!(buffer.edit_receipt_batch_snapshot().receipts.is_empty());
+
+        let redo = apply_history(&buffer, HistoryAction::Redo);
+        assert!(redo.receipt.is_none());
+        assert_eq!((buffer.undo_count(), buffer.redo_count()), (1, 0));
+        assert!(buffer.edit_receipt_batch_snapshot().receipts.is_empty());
     }
 
     #[test]
@@ -1289,10 +1427,7 @@ mod tests {
         assert_eq!(receipt.deleted_text, "e\u{301}");
         assert_eq!(receipt.inserted_text, "👩‍🚀");
 
-        buffer
-            .undo_authored()
-            .unwrap()
-            .expect("IME replacement undo");
+        apply_history(&buffer, HistoryAction::Undo);
         assert_eq!(buffer.to_string(), "e\u{301}lan");
         assert!(!buffer.can_undo());
     }
@@ -1311,8 +1446,8 @@ mod tests {
         let peer_end = peer.to_string().chars().count();
         peer.replace_authored(peer_end..peer_end, "-B");
         buffer.apply_remote_ops(&peer.export_ops()).unwrap();
-        buffer.undo_authored().unwrap().expect("undo A");
-        buffer.redo_authored().unwrap().expect("redo A");
+        apply_history(&buffer, HistoryAction::Undo);
+        apply_history(&buffer, HistoryAction::Redo);
 
         let batch = buffer.take_edit_receipts();
         assert!(batch.complete);
