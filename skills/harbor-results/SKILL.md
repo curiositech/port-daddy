@@ -2,10 +2,12 @@
 license: Apache-2.0
 name: harbor-results
 description: >-
-  Compendium of the Harbor coordination program's executed results R1–R12 — information floor, split-digest theorem,
-  derived regret head, digest-zoom frontier, hypervisor-as-supervisory-control, sheaf equivocation verdict, inspection
-  tower, work-unit machine, sealed-room noninterference, ε-ledger conservation, canary/SPRT detection power,
-  no-mint reputation inheritance — with exact statements, verified-vs-internal numbers, honest
+  Compendium of the Harbor coordination program's executed results R1–R17 — information floor, split-digest theorem,
+  derived regret head, digest-zoom frontier, hypervisor-as-supervisory-control, sheaf equivocation verdict (with the
+  consistency-radius theorem), inspection tower, work-unit machine, sealed-room noninterference, ε-ledger conservation,
+  canary/SPRT detection power, no-mint reputation inheritance, engine substitution and resurrection soundness,
+  costly-escalation tuning band, Erlang-C specialization boundary, context paging under a corrupted pin oracle,
+  and the tractable deontic-conflict fragment — with exact statements, verified-vs-internal numbers, honest
   boundaries, paper mapping, and the tacit lessons behind them. Use when extending, citing, presenting, implementing,
   stress-testing, or planning follow-on work (papers, proofs, product claims) on any of these results. NOT for general
   math/CS reference, Port Daddy product features outside these results, or writing style (see harbor-exposition).
@@ -21,15 +23,15 @@ metadata:
       reason: The discipline that produced and validated these results
 ---
 
-# Harbor Results: The Executed Corpus (R1–R12)
+# Harbor Results: The Executed Corpus (R1–R17)
 
-Twelve results, executed and reproducible (program seed 20260816), each with a one-breath statement here and full depth in the references.
+Seventeen results, executed and reproducible (program seed 20260816), each with a one-breath statement here and full depth in the references.
 
 ## When to Use
-✅ Use for: citing or restating any R1–R12 result precisely; choosing which result underwrites a product claim; extending a result or checking whether a "new" idea is already covered or already refuted; packaging results into papers; onboarding a collaborator to the program.
+✅ Use for: citing or restating any R1–R17 result precisely; choosing which result underwrites a product claim; extending a result or checking whether a "new" idea is already covered or already refuted; packaging results into papers; onboarding a collaborator to the program.
 ❌ NOT for: general information theory / game theory / security reference unrelated to these nine; Port Daddy engineering outside the results (kernel schemas, CLI); exposition mechanics (harbor-exposition); running the validation discipline itself (falsification-first).
 
-## The Twelve, in one breath each
+## The Seventeen, in one breath each
 - **R1 — Information floor.** No digest below log₂C(N,k) − log₂C(m,k) bits can guarantee catching all k critical items among N while opening m; survived falsification (0/16 violations).
 - **R2 — Split-digest.** One scalar summary serves two readers iff their orders are comonotone; successor-agent and operator provably are not; joint zero-miss floors are super-additive (≈2.13×, not 2×).
 - **R3 — Derived regret head.** stakes × irreversibility × anomaly = exact expected unrecoverable loss iff anomaly is a calibrated posterior; optimal surfacing is the likelihood-ratio test; reputation enters only through the posterior.
@@ -42,6 +44,12 @@ Twelve results, executed and reproducible (program seed 20260816), each with a o
 - **R10 — ε-ledger conservation.** The release ledger's atomic append+add conserves σ = Σ_Λ εᵢ ≤ εmax under every concurrent interleaving (single-writer serialization); sequential/advanced DP composition gives the sum its meaning; recorded spend only — mediation is R5's job.
 - **R11 — Canary power + SPRT.** k smuggled canaries are caught w.p. 1−β^k; uniform planting gives the hypergeometric operating curve Pr(detect)=f(leak size); Wald's SPRT turns leak intensity into expected time-to-detection with errors at or below target.
 - **R12 — No-mint inheritance.** Fork priors conserve iff split = transfer (the source is debited): total live creditable reputation never exceeds total witnessed; copy-full inheritance mints 8.2× from one episode — the quorum attack the invariant blocks.
+- **R13 — Engine substitution.** Unattested, swapping a cheap engine behind a good record pays Δc at every price (Akerlof unraveling inside one identity, threshold μ*); engine attestation flips the incentive to Δc−Δθ — the planner's rule at zero audit stake; resurrection across providers is sanction-sound iff all three migration clauses hold, with a shortest attack per dropped clause.
+- **R14 — Escalation tuning band.** Monotone benefit and validation give a unique escalation threshold u*(δ) (Spence-style separating equilibrium; u* = δw/(1+δw) uniform-linear); the feasible debit set between alarm fatigue and distress silencing is an interval that can be EMPTY — then the fix is capacity or evidence quality, not tuning.
+- **R15 — Specialization boundary.** A sole specialist beats the pool iff μs/μg ≥ g(ρ,c) = cρ + c(1−ρ)/(c(1−ρ)+C(c,ρ)) — the whitepaper's proposed threshold falsified in both directions; with mortality ξ and succession rate η, pooling dominates at EVERY skill premium once ξ/η > D* — the price of the succession rule.
+- **R16 — Context paging.** Landlord's k/(k−h+1) competitiveness imports to variable-size context spans; a pin oracle corrupted at rate φ costs only an ADDITIVE φN·c_refetch with repair-on-touch — and exactly one blind-trusted corruption costs Θ(N); φ is R1's forgeable-feature budget, shared.
+- **R17 — Deontic conflict fragment.** Inside Horn + ground intervals + difference constraints, commitment-conflict detection is polynomial with a witness per conflict; one expressive step out (disjunctive obligations) is NP-complete — the fragment boundary is the exact price of proposal-time checking.
+- **R6 theorem (CR).** The completion residual r is a certified lower bound on any injected lie (equality at the completion), localizes to cycles through the equivocator, and computes in Õ(|E|·L); single-equivocator only — coalitions on a cycle can cancel to r = 0.
 
 ## Routing
 
@@ -74,7 +82,7 @@ flowchart TD
 **Detection**: Claiming zoom savings without stating flagged-set density.
 
 ## References
-- `references/results-compendium.md` — Load when citing, restating, packaging, or checking scope of any R1–R12: boxed statements, [verified] vs [internal] numbers, applications, boundaries, paper map, reproducibility pointers, and the treatise-corrections consensus.
+- `references/results-compendium.md` — Load when citing, restating, packaging, or checking scope of any R1–R17: boxed statements, [verified] vs [internal] numbers, applications, boundaries, paper map, reproducibility pointers, and the treatise-corrections consensus.
 - `references/l3-tacit-lessons.md` — Load BEFORE extending or re-implementing anything here, or designing a related experiment: the hard-won lessons (bugs hit, boundaries found, conventions that change answers) with transferable rules.
 
 ## Scripts (regenerate every [internal] number)
@@ -92,9 +100,9 @@ Self-contained; deps: numpy, scipy, matplotlib, networkx; seed 20260816 fixed in
 - `python3 scripts/b6_probation.py` — B6: front-loaded probation dominance — 0 dominating schedules in 4,000 random instances (76,000 schedules tested), matching the closed-form exchange argument; exit nonzero on violation.
 - `python3 scripts/zoom_bound_check.py` — Paper 1's zoom theorem verified: Q <= 2k*ceil(log2(F/k)) + 4k on every tested instance (random + adversarial placements), exact tightness at F=4096,k=32 (511), bound dominates the measured ~163 opens at the b1 point; exit nonzero on violation.
 - `python3 scripts/b7_escalation_band.py` — R14: costly-escalation threshold equilibrium (single crossing, closed forms u*=δw/(1+δw) and Lambert-W) + the two-sided debit tuning band tied to R3's constants; empty-band regime exhibited; zero-debit and excessive-debit mutants caught; exit nonzero on violation.
-- `python3 scripts/b4_deontic_fragment.py` — R17 (in progress): polynomial conflict checker for the Horn+interval+difference deontic fragment, with the 3-SAT hardness reduction one step outside it; exit nonzero on violation.
+- `python3 scripts/b4_deontic_fragment.py` — R17: polynomial witness-producing conflict checker for the Horn+interval+difference deontic fragment (3000-instance oracle sweep, 0 disagreements) + the 3-SAT NP-completeness reduction one expressive step outside it, verified both directions on 16/16 instances; Horn-propagation mutant misses 100/885 conflicts; exit nonzero on violation.
 - `python3 scripts/sheaf_harness_v2.py` — R6 harness rebuild (W8): completion-residual detector over compared/relayed/severed visibility; gates PASS (200/200 cohomology-only on relayed cycle edges, cut edges at float epsilon, severed provably dark); D1/D2 reintroduction mutants caught; verdict COMMIT.
 - `python3 scripts/b5_engine_substitution.py` — R13: Akerlof unraveling inside one identity (swap gain price-independent, μ* threshold, death spirals), the IC flip under engine attestation (swap gain Δc−Δθ, audit stake → 0), and resurrection soundness (747-state migration machine, 0 Def-III.6.1 violations intact; 4 mutants caught with shortest crimes 1,2,2,2); exit nonzero on violation.
-- `python3 scripts/sheaf_consistency_radius.py` — R18 (in progress): consistency-radius theorem for the W8 sheaf harness (quantitative version of the R6 verdict); exit nonzero on violation.
-- `python3 scripts/b9_context_paging.py` — R16 (in progress): context paging / Landlord competitiveness for the working-set economy; exit nonzero on violation.
+- `python3 scripts/sheaf_consistency_radius.py` — R6 theorem (W8 tail): CR-1/2/3 verified — soundness (r = exact minimum lie, 0/600 violations; closed form r = |s|·√(1−R_eff), the R6 1.2247 number derived), localization (328/328 noise-free, electrical-flow support), complexity (per-coordinate Laplacian decomposition, CG slope 0.65 vs dense 1.88); coalition-cancellation boundary exhibited; D2 mutant caught; exit nonzero on violation.
+- `python3 scripts/b9_context_paging.py` — R16: Landlord k/(k−h+1) import verified vs exact OPT (122 pairs, cycles at equality) + linear φ-degradation under a corrupted pin oracle (additive φN·c_refetch bound, 0 violations incl. adaptive corruption; slope 1.9% of ceiling, R²=0.994); blind pin-trust mutant catastrophic (Θ(N) staleness from one corruption); exit nonzero on violation.
 - `python3 scripts/b8_specialization.py` — R15: exact Erlang-C specialization boundary g(ρ,c) (falsifies the proposed 1+(c−1)ρ/(1−ρ) threshold in both directions, crossing at ρ=(3−√5)/2) + succession-price theorem W_bd closed form, D* = ηK/(1−ηK); DES/matrix-geometric/CTMC cross-checks, 60-instance sweep, breakdown-blind mutant caught; exit nonzero on violation.
