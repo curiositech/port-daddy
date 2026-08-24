@@ -161,7 +161,7 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from './fleet-observability.js';
-import { handleFleetRunPage } from './fleet-run-page.js';
+import { handleFleetRunPage, handleFleetRunTranscript } from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
@@ -495,6 +495,22 @@ export default {
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
       const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
       response = await handleAckInterruption(request, env, id);
+    }
+
+    // ── Raw ship session transcript (pd-transcript.v1 JSONL; same capability
+    //    scheme as the run page — docs/FLEET-SESSION-TRANSCRIPTS.md) ─────────
+    else if (
+      pathname.startsWith('/fleet/runs/') &&
+      method === 'GET' &&
+      /^\/fleet\/runs\/.+\/transcript\/[^/]+\.jsonl$/.test(pathname)
+    ) {
+      const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcript\/([^/]+)\.jsonl$/);
+      response = await handleFleetRunTranscript(
+        request,
+        env,
+        decodeURIComponent(m?.[1] ?? ''),
+        decodeURIComponent(m?.[2] ?? ''),
+      );
     }
 
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
@@ -867,13 +883,21 @@ export default {
     return finalizeResponse(response, requestId, pathname, env, ctx);
   },
 
-  // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
-  // no long-running Arbiter loop, so scheduled maintenance runs here. Two crons
-  // share one handler, dispatched on event.cron (wrangler.deploy.toml):
-  //   "*/5 * * * *"  — MERCY health sweep only (probes are cheap).
-  //   "0 */6 * * *"  — retention/session-reap/erasure sweep (+ a MERCY sweep,
-  //                    since every fire takes vitals). Best-effort: neither
-  //                    sweep ever throws.
+  /**
+   * Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
+   * no long-running Arbiter loop, so scheduled maintenance runs here — the
+   * design intent is that BOTH sweeps stay best-effort and never throw, since
+   * a failed cron must not shadow the next fire. Two crons share this one
+   * handler, dispatched on `event.cron` (wrangler.deploy.toml):
+   *   "*⁠/5 * * * *" — MERCY health sweep only (probes are cheap).
+   *   "0 *⁠/6 * * *" — retention/session-reap/erasure sweep (+ a MERCY sweep,
+   *                    since every fire takes vitals).
+   *
+   * @param event The controller carrying which cron expression fired.
+   * @param env Worker bindings (D1, KV, R2, queues).
+   * @param ctx Execution context — sweeps ride `waitUntil` past the response.
+   * @returns Resolves once the sweeps are scheduled (not completed).
+   */
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const MERCY_CRON = '*/5 * * * *';
     if (event.cron !== MERCY_CRON) {

@@ -163,6 +163,30 @@ CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx
   ON fleet_run_intents (repo_full_name, pr_number, generation DESC);
 CREATE INDEX IF NOT EXISTS fleet_run_intents_state_queued_idx
   ON fleet_run_intents (state, queued_at ASC);
+
+-- Raw ship session transcripts — the pd-transcript.v1 INDEX (Phase 1 of
+-- docs/FLEET-SESSION-TRANSCRIPTS.md). Bytes live in R2 (`fleet-transcripts`,
+-- one JSONL object per (run, ship, attempt)); these rows are what the run
+-- page and the transcript read route join against, and they double as the
+-- per-ship × per-model outcome ledger. Mirrors
+-- migrations/2026-08-24-fleet-run-transcripts.sql.
+CREATE TABLE IF NOT EXISTS fleet_run_transcripts (
+  run_id            TEXT    NOT NULL,
+  ship              TEXT    NOT NULL,
+  attempt           INTEGER NOT NULL,
+  r2_key            TEXT    NOT NULL,
+  turns             INTEGER NOT NULL,
+  bytes             INTEGER NOT NULL,
+  models_csv        TEXT,
+  prompt_tokens     INTEGER,
+  completion_tokens INTEGER,
+  cost_usd          REAL,
+  incomplete        INTEGER NOT NULL DEFAULT 0,
+  created_at        INTEGER NOT NULL,
+  PRIMARY KEY (run_id, ship, attempt)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_transcripts_run_idx
+  ON fleet_run_transcripts (run_id);
 CREATE INDEX IF NOT EXISTS fleet_run_intents_state_finished_idx
   ON fleet_run_intents (state, finished_at ASC);
 

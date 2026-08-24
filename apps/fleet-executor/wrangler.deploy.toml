@@ -106,6 +106,18 @@ database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
 
 # ---------------------------------------------------------------------------
+# R2 — raw ship session transcripts (pd-transcript.v1). One JSONL object per
+# (run, ship, attempt), written ONCE at ship completion/error by
+# src/transcript-capture.ts's flushShipTranscript; the relay reads the same
+# bucket for the run page's raw-transcript links. Best-effort like every
+# transcript write: an absent binding or a failed PUT never changes a run.
+# Bucket provisioned 2026-08-24 (`wrangler r2 bucket create fleet-transcripts`).
+# See docs/FLEET-SESSION-TRANSCRIPTS.md.
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
+
+# ---------------------------------------------------------------------------
 # OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
 # NOT ENABLED: this block is documentation, not a live binding. When the
 # SANDBOX binding exists, the purser (src/purser.ts) executes its authored
