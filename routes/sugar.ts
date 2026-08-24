@@ -9,7 +9,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { ActorSouls } from '../lib/actor-souls.js';
-import { VERIFIED_SUGAR_ACTOR_ID } from '../lib/sugar.js';
+import { VERIFIED_SUGAR_ACTOR_BINDING } from '../lib/sugar.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -24,7 +24,10 @@ import {
  * credential once, so `register` is required here in addition to the verify /
  * resolve pair the shared boundary uses.
  */
-type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register'>;
+type SugarActorSouls = Pick<
+  ActorSouls,
+  'verifyCredential' | 'resolveActor' | 'registerAtomically' | 'constants'
+>;
 
 interface SugarRouteDeps {
   sugar: {
@@ -79,21 +82,18 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
    *   soul → 401 IDENTITY_CREDENTIAL_REQUIRED. A registered name is owned;
    *   asserting it without its credential is exactly the impersonation #8877
    *   describes.
-   * - No credential, names unowned (or none) → MINT a fresh newcomer soul
-   *   (drawing on the shared per-project newcomer pool, so minting buys no
-   *   budget) and return its credential ONCE on the response. The caller
-   *   must present it on every later attributed write (done, notes, claims,
-   *   locks, ...). Self-assertion never becomes attribution: the durable
-   *   record is stamped with the MINTED actorId.
+   * - No credential, names unowned (or none) → request a fresh newcomer mint.
+   *   The route later commits that mint, canonical inbox registration, and
+   *   session start in one shared-DB transaction against a daemon-owned
+   *   admission scope. Caller display identity never selects that scope.
    * - Souls store unavailable → 503. Never admit an unverifiable identity.
    *
    * @param request - Incoming begin request (credential carriers: header
    *        `x-actor-credential` or body `credential`).
    * @param asserted - The self-asserted names on the request: `agentId` and
    *        `identity` (project:stack:context), either may be absent.
-   * @returns On success, the verified/minted verdict plus the plaintext
-   *          credential when this call minted (to return once); on failure,
-   *          the HTTP status and error body to return.
+   * @returns A verified verdict, a side-effect-free mint request, or the HTTP
+   *          error contract to return.
    */
   const resolveBeginIdentity = (
     request: FastifyRequest,
@@ -101,9 +101,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   ):
     | {
         success: true;
+        kind: 'verified';
         verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
-        mintedCredential: string | null;
       }
+    | { success: true; kind: 'mint'; assertedAgentId: string | null; assertedIdentity: string | null }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
     const credential = extractActorCredential(request.headers as Record<string, unknown>, request.body);
     const agentId = typeof asserted.agentId === 'string' && asserted.agentId.trim() ? asserted.agentId.trim() : null;
@@ -162,8 +163,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       // A credential always yields `verified` (never anonymous) on success.
       return {
         success: true,
+        kind: 'verified',
         verdict: verdict as Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>,
-        mintedCredential: null,
       };
     }
 
@@ -189,39 +190,11 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       }
     }
 
-    // Mint a fresh newcomer soul. The identity's project scopes the shared
-    // newcomer admission pool; the alias is NOT bound (identities like
-    // "proj:node:dev" are shared display strings across a fleet, and binding
-    // one agent's soul to them would lock every other legitimate agent out).
-    const project = identity ? identity.split(':')[0] : undefined;
-    const outcome = actorSouls.register({ project });
-    if (!outcome.ok) {
-      logger.error('identity_write_rejected', { route: 'POST /sugar/begin', code: outcome.code });
-      return {
-        success: false,
-        httpStatus: outcome.httpStatus,
-        result: {
-          success: false,
-          error: outcome.code === 'NEWCOMER_ADMIT_LIMIT'
-            ? 'newcomer admission limit reached for this project today'
-            : 'identity store unavailable',
-          code: outcome.code,
-        },
-      };
-    }
-    const actorId = outcome.actorId as string;
-    const soulClass = outcome.soulClass;
     return {
       success: true,
-      verdict: {
-        ok: true,
-        kind: 'verified',
-        actorId,
-        agentId: agentId ?? identity ?? actorId,
-        soulClass,
-        identity: { verified: true, actorId, soulClass },
-      },
-      mintedCredential: outcome.status === 'minted' ? outcome.credential : null,
+      kind: 'mint',
+      assertedAgentId: agentId,
+      assertedIdentity: identity,
     };
   };
 
@@ -347,33 +320,118 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return beginIdentity.result;
       }
 
-      const result = sugar.begin({
-        purpose,
-        identity,
-        // The daemon-minted principal is the sole lifecycle owner. The raw
-        // body agentId was checked above only for cross-soul laundering and
-        // never crosses into lib/sugar as authority.
-        [VERIFIED_SUGAR_ACTOR_ID]: beginIdentity.verdict.actorId,
-        name,
-        type,
-        files,
-        force,
-        // The session row is a durable attributed record: stamp the daemon's
-        // identity verdict into its metadata (the caller-supplied `identity`
-        // metadata key can never pre-fill the daemon's verdict slot).
-        metadata: stampIdentityMetadata(
+      const beginWithVerdict = (
+        verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>,
+      ) => {
+        const canonicalActorBinding = {
+          actorId: verdict.actorId,
+          harbor: actorSouls!.constants.defaultHarbor,
+          // A request body can suggest display names, but the daemon selects
+          // the delivery endpoint. It is always the canonical actor principal.
+          inboxTarget: verdict.actorId,
+        };
+        const stampedMetadata = stampIdentityMetadata(
           metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
-          beginIdentity.verdict,
-        ),
-        worktree,
-        requireLinkedWorktree,
-        allowMainWorktree,
-        bypassCrowdedGate,
-        lifecycle,
-        roadmapLink,
-        sidequestReason,
-        roadmapNewTitle,
-      });
+          verdict,
+        );
+        const canonicalMetadata = {
+          ...(stampedMetadata ?? {}),
+          actorInbox: {
+            verified: true,
+            ...canonicalActorBinding,
+          },
+        };
+
+        return sugar.begin({
+          purpose,
+          identity,
+          // The daemon-minted principal is the sole lifecycle owner. The raw
+          // body agentId was checked above only for cross-soul laundering and
+          // never crosses into lib/sugar as authority.
+          [VERIFIED_SUGAR_ACTOR_BINDING]: canonicalActorBinding,
+          name,
+          type,
+          files,
+          force,
+          // The session row is a durable attributed record: stamp the daemon's
+          // identity verdict into its metadata (the caller-supplied `identity`
+          // metadata key can never pre-fill the daemon's verdict slot).
+          metadata: canonicalMetadata,
+          worktree,
+          requireLinkedWorktree,
+          allowMainWorktree,
+          bypassCrowdedGate,
+          lifecycle,
+          roadmapLink,
+          sidequestReason,
+          roadmapNewTitle,
+        });
+      };
+
+      let beginVerdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
+      let mintedCredential: string | null = null;
+      let result: Record<string, any>;
+      if (beginIdentity.kind === 'verified') {
+        beginVerdict = beginIdentity.verdict;
+        result = beginWithVerdict(beginVerdict);
+      } else {
+        // A fresh soul, its canonical live inbox, and its session are one
+        // shared-DB commit. The daemon-owned default harbor also owns the
+        // admission bucket; caller identity/project strings are display only.
+        const atomic = actorSouls!.registerAtomically({
+          harbor: actorSouls!.constants.defaultHarbor,
+          project: actorSouls!.constants.defaultHarbor,
+        }, registration => {
+          const actorId = registration.actorId as string;
+          const verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> = {
+            ok: true,
+            kind: 'verified',
+            actorId,
+            agentId: beginIdentity.assertedAgentId ?? beginIdentity.assertedIdentity ?? actorId,
+            soulClass: registration.soulClass,
+            identity: {
+              verified: true,
+              actorId,
+              soulClass: registration.soulClass,
+            },
+          };
+          const beginResult = beginWithVerdict(verdict);
+          return {
+            success: beginResult.success === true,
+            verdict,
+            result: beginResult,
+            credential: registration.status === 'minted' ? registration.credential : null,
+          };
+        });
+
+        if (!atomic.ok && atomic.code !== 'REGISTRATION_EFFECT_FAILED') {
+          logger.error('identity_write_rejected', { route: 'POST /sugar/begin', code: atomic.code });
+          reply.code(atomic.httpStatus);
+          return {
+            success: false,
+            error: atomic.code === 'NEWCOMER_ADMIT_LIMIT'
+              ? 'newcomer admission limit reached for this daemon scope today'
+              : 'identity store unavailable',
+            code: atomic.code,
+          };
+        }
+        if (!atomic.ok) {
+          if (!atomic.effect) {
+            reply.code(503);
+            return {
+              success: false,
+              error: 'fresh identity and live inbox could not be committed atomically',
+              code: 'IDENTITY_REGISTRATION_ATOMIC_FAILED',
+            };
+          }
+          beginVerdict = atomic.effect.verdict;
+          result = atomic.effect.result;
+        } else {
+          beginVerdict = atomic.effect.verdict;
+          result = atomic.effect.result;
+          mintedCredential = atomic.effect.credential;
+        }
+      }
 
       if (!result.success) {
         const status = result.code === 'SESSION_IDENTITY_UNVERIFIED'
@@ -411,17 +469,17 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       // body `credential`) on every subsequent attributed write. There is no
       // recovery path for a lost credential (a fresh begin mints a fresh
       // newcomer soul).
-      result.actorIdentity = beginIdentity.verdict.identity;
-      result.actorId = beginIdentity.verdict.actorId;
-      if (beginIdentity.mintedCredential) {
-        result.credential = beginIdentity.mintedCredential;
+      result.actorIdentity = beginVerdict.identity;
+      result.actorId = beginVerdict.actorId;
+      if (mintedCredential) {
+        result.credential = mintedCredential;
       }
 
       logger.info('sugar_begin', {
         agentId: result.agentId,
         sessionId: result.sessionId,
-        actorId: beginIdentity.verdict.actorId,
-        minted: Boolean(beginIdentity.mintedCredential),
+        actorId: beginVerdict.actorId,
+        minted: Boolean(mintedCredential),
         identity,
         lifecycle,
         purpose,
@@ -472,6 +530,11 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       }
 
       const result = sugar.done({
+        [VERIFIED_SUGAR_ACTOR_BINDING]: {
+          actorId: doneIdentity.verdict.actorId,
+          harbor: actorSouls!.constants.defaultHarbor,
+          inboxTarget: doneIdentity.verdict.actorId,
+        },
         agentId: doneIdentity.verdict.actorId,
         sessionId,
         note,

@@ -5,7 +5,10 @@ import {
   resolveActorId,
 } from '../lib/actor-roster.js';
 import type { ActorRecord } from '../lib/actor-roster.js';
-import type { createAgents } from '../lib/agents.js';
+import {
+  VERIFIED_ACTOR_INBOX_REGISTRATION,
+  type createAgents,
+} from '../lib/agents.js';
 import type { createAgentInbox } from '../lib/agent-inbox.js';
 import type { createResurrection } from '../lib/resurrection.js';
 import type { createSessions } from '../lib/sessions.js';
@@ -29,7 +32,7 @@ interface ActorsRouteDeps {
 }
 
 interface RegisterActorBody {
-  /** Multi-tenant scope. Defaults to the souls store's default harbor. */
+  /** Retired caller scope. Any supplied value is rejected. */
   harbor?: string;
   /** Display alias ('project:stack:context'). Display-only; never a principal. */
   alias?: string;
@@ -37,8 +40,10 @@ interface RegisterActorBody {
   credential?: string;
   /** Operator escape hatch (advisory-above-floor; see ADR-0040 §2.4). */
   operatorToken?: string;
-  /** Project the newcomer will spend against — bounds the admit rate-limit. */
+  /** Retired caller scope. Admission uses a daemon-owned bucket. */
   project?: string;
+  /** Display-only legacy handle. It is ignored and never becomes a party. */
+  agentId?: string;
 }
 
 interface ActorsQuery {
@@ -144,7 +149,8 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
   // ("<actor_id>.<secret>"); re-presenting a valid credential returns the SAME
   // id (idempotent), a forged/mismatched one is rejected 401 (never mints), and
   // an uncredentialed registration mints a fresh NEWCOMER that draws from the
-  // shared per-project pool — so minting fresh ids buys no new budget.
+  // daemon-selected local admission bucket — request fields cannot buy a new
+  // tenant budget by renaming their project or harbor.
   //
   // This is NOT self-asserted registration. POST /agents still exists for
   // liveness bookkeeping but its self-asserted `id` is a DISPLAY handle only;
@@ -161,17 +167,59 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         code: 'ACTOR_SOULS_UNAVAILABLE',
       });
     }
+    if (!deps.agents) {
+      return reply.code(503).send({
+        success: false,
+        error: 'the verified actor inbox registry is unavailable',
+        code: 'ACTOR_INBOX_REGISTRY_UNAVAILABLE',
+      });
+    }
 
     const body = request.body ?? {};
-    const outcome = deps.actorSouls.register({
-      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+    // Local registration has exactly one daemon-owned authority scope. Request
+    // JSON, Host, forwarding headers, and loopback provenance cannot select a
+    // tenant. A future multi-tenant ingress must inject an authenticated scope
+    // into the daemon dependency graph before reaching this route.
+    if (body.harbor !== undefined || body.project !== undefined) {
+      return reply.code(400).send({
+        success: false,
+        error: 'actor registration scope is selected by the daemon, not request fields',
+        code: 'ACTOR_REGISTRATION_SCOPE_UNVERIFIED',
+      });
+    }
+    const harbor = deps.actorSouls.constants.defaultHarbor;
+    const outcome = deps.actorSouls.registerAtomically({
+      harbor,
       alias: typeof body.alias === 'string' ? body.alias : undefined,
       credential: typeof body.credential === 'string' ? body.credential : undefined,
       operatorToken: typeof body.operatorToken === 'string' ? body.operatorToken : undefined,
-      project: typeof body.project === 'string' ? body.project : undefined,
-    });
+      // The current local daemon admits every newcomer against one server-owned
+      // bucket. Caller project/display identity has zero admission authority.
+      project: harbor,
+    }, registration => deps.agents!.register(registration.actorId, {
+      name: typeof body.alias === 'string' ? body.alias : null,
+      metadata: {
+        actorIdentity: {
+          verified: true,
+          actorId: registration.actorId,
+          harbor,
+        },
+      },
+      [VERIFIED_ACTOR_INBOX_REGISTRATION]: {
+        actorId: registration.actorId,
+        harbor,
+      },
+    }));
 
     if (!outcome.ok) {
+      if (outcome.code === 'REGISTRATION_EFFECT_FAILED') {
+        const effect = outcome.effect as { code?: string } | undefined;
+        return reply.code(503).send({
+          success: false,
+          error: 'the verified actor inbox could not be registered',
+          code: effect?.code || 'ACTOR_INBOX_REGISTRATION_FAILED',
+        });
+      }
       return reply.code(outcome.httpStatus).send({
         success: false,
         error: outcome.code === 'CREDENTIAL_INVALID'
@@ -182,25 +230,28 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         code: outcome.code,
       });
     }
+    const registration = outcome.registration;
 
     // The plaintext credential is returned ONCE (only on a fresh mint). The
     // caller MUST persist it to re-authenticate the same soul; there is no
     // recovery path (a lost credential means a new newcomer next time).
-    if (outcome.status === 'minted') {
+    if (registration.status === 'minted') {
       return reply.code(201).send({
         success: true,
         status: 'minted',
-        actorId: outcome.actorId,
-        soulClass: outcome.soulClass,
-        credential: outcome.credential,
+        actorId: registration.actorId,
+        inboxTarget: registration.actorId,
+        soulClass: registration.soulClass,
+        credential: registration.credential,
       });
     }
 
     return reply.send({
       success: true,
       status: 'resolved',
-      actorId: outcome.actorId,
-      soulClass: outcome.soulClass,
+      actorId: registration.actorId,
+      inboxTarget: registration.actorId,
+      soulClass: registration.soulClass,
     });
   });
 

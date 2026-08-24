@@ -60,6 +60,12 @@ describe('Sugar canonical identity persistence', () => {
         lifecycle: 'durable',
         metadata: {
           identity: { verified: true, actorId: 'FORGED' },
+          actorInbox: {
+            verified: true,
+            actorId: 'FORGED',
+            harbor: 'victim-harbor',
+            inboxTarget: 'fresh-victim-agent',
+          },
           callerMetadata: 'preserved',
         },
         ...payload,
@@ -78,9 +84,40 @@ describe('Sugar canonical identity persistence', () => {
         verified: true,
         actorId,
       }),
+      actorInbox: {
+        verified: true,
+        actorId,
+        harbor: 'local',
+        inboxTarget: actorId,
+      },
     }));
     expect(stored.session.metadata.identity.actorId).not.toBe('FORGED');
+    expect(stored.session.metadata.actorInbox.inboxTarget).not.toBe('fresh-victim-agent');
+    expect(agents.resolveLiveActorInbox(actorId, 'local')).toEqual({
+      success: true,
+      binding: expect.objectContaining({ actorId, harbor: 'local', inboxTarget: actorId }),
+    });
     return stored.session;
+  }
+
+  function seedLegacySession({ purpose, identity, agentId, status = 'active' }) {
+    expect(agents.register(agentId, { identity, purpose })).toEqual(expect.objectContaining({
+      success: true,
+    }));
+    const started = sessions.start(purpose, {
+      agentId,
+      project: identity.split(':')[0],
+      metadata: { identity },
+      durable: true,
+    });
+    expect(started).toEqual(expect.objectContaining({ success: true }));
+    if (status !== 'active') {
+      expect(sessions.end(started.id, { status })).toEqual(expect.objectContaining({
+        success: true,
+        status,
+      }));
+    }
+    return started.id;
   }
 
   test('fresh begin persists and reads back the daemon-minted actor, never raw agentId or metadata', async () => {
@@ -88,6 +125,8 @@ describe('Sugar canonical identity persistence', () => {
       purpose: 'fresh canonical session',
       identity: 'demo:test:fresh-canonical',
       agentId: 'caller-controlled-agent',
+      harbor: 'victim-harbor',
+      project: 'victim-project',
     });
 
     expect(response.statusCode).toBe(200);
@@ -99,6 +138,31 @@ describe('Sugar canonical identity persistence', () => {
     expect(body.agentId).toBe(body.actorId);
     expect(body.agentId).not.toBe('caller-controlled-agent');
     expectCanonicalSession(body.sessionId, body.actorId, 'demo:test:fresh-canonical');
+    expect(db.prepare("SELECT COUNT(*) AS count FROM newcomer_pool WHERE project IN ('demo', 'victim-project', 'victim-harbor')").get().count).toBe(0);
+    expect(db.prepare("SELECT souls_seen FROM newcomer_pool WHERE project = 'local'").get()).toEqual({ souls_seen: 1 });
+  });
+
+  test('a failed fresh session start rolls back soul, inbox, alias, pool, and session rows', async () => {
+    const originalStart = sessions.start;
+    sessions.start = () => ({ success: false, error: 'injected fresh session failure' });
+    try {
+      const response = await injectBegin({
+        purpose: 'fresh atomic rollback',
+        identity: 'victim-project:test:fresh-rollback',
+        agentId: 'fresh-victim-agent',
+      });
+      expect(response.statusCode).toBe(500);
+      expect(response.json().code).toBe('SESSION_START_FAILED');
+      expect(response.json().credential).toBeUndefined();
+      expect(response.json().actorId).toBeUndefined();
+    } finally {
+      sessions.start = originalStart;
+    }
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_alias').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM newcomer_pool').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM agents').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count).toBe(0);
   });
 
   test('missing or invalid credentials cannot resume an existing canonical actor', async () => {
@@ -135,6 +199,14 @@ describe('Sugar canonical identity persistence', () => {
       identity: 'demo:test:resume-canonical',
       agentId: 'caller-first-display',
     })).json();
+
+    // A lost process registry row must be restored only through the verified
+    // Sugar boundary; historical session.agentId is not a delivery fallback.
+    db.prepare('DELETE FROM agents WHERE id = ?').run(first.actorId);
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual(expect.objectContaining({
+      success: false,
+      code: 'ACTOR_INBOX_UNBOUND',
+    }));
 
     const response = await injectBegin({
       purpose: 'resume canonical session again',
@@ -184,55 +256,76 @@ describe('Sugar canonical identity persistence', () => {
       .filter((session) => session.agentId === first.actorId)).toHaveLength(1);
   });
 
-  test('active legacy display identity cannot stand in for a verified ownership stamp', async () => {
+  test('a failed later session start cannot unregister an existing verified inbox binding', async () => {
     const first = (await injectBegin({
+      purpose: 'binding rollback predecessor',
+      identity: 'demo:test:binding-rollback-a',
+    })).json();
+    const originalStart = sessions.start;
+    sessions.start = () => ({ success: false, error: 'injected session failure' });
+    try {
+      const response = await injectBegin({
+        purpose: 'binding rollback failure',
+        identity: 'demo:test:binding-rollback-b',
+      }, first.credential);
+      expect(response.statusCode).toBe(500);
+      expect(response.json().code).toBe('SESSION_START_FAILED');
+    } finally {
+      sessions.start = originalStart;
+    }
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual({
+      success: true,
+      binding: expect.objectContaining({ inboxTarget: first.actorId }),
+    });
+  });
+
+  test('active legacy display identity cannot stand in for a verified ownership stamp', async () => {
+    const legacySessionId = seedLegacySession({
       purpose: 'legacy active predecessor',
       identity: 'demo:test:legacy-active',
       agentId: 'legacy-active-display',
-    })).json();
-    sessions.updateMetadata(first.sessionId, {
-      identity: 'demo:test:legacy-active',
     });
+    const principal = actorSouls.register({ project: 'demo' });
+    expect(principal).toEqual(expect.objectContaining({ ok: true }));
 
     const response = await injectBegin({
       purpose: 'must not resume legacy active row',
       identity: 'demo:test:legacy-active',
       agentId: 'legacy-active-display',
-    }, first.credential);
+    }, principal.credential);
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual(expect.objectContaining({
       success: false,
       code: 'SESSION_IDENTITY_UNVERIFIED',
-      sessionId: first.sessionId,
+      sessionId: legacySessionId,
     }));
-    expect(sessions.get(first.sessionId).session.status).toBe('active');
+    expect(sessions.get(legacySessionId).session.status).toBe('active');
   });
 
   test('an unrelated legacy row in the same project cannot block a canonical fresh identity', async () => {
-    const first = (await injectBegin({
+    const legacySessionId = seedLegacySession({
       purpose: 'unrelated legacy predecessor',
       identity: 'demo:test:legacy-unrelated-a',
       agentId: 'legacy-unrelated-display',
-    })).json();
-    sessions.updateMetadata(first.sessionId, {
-      identity: 'demo:test:legacy-unrelated-a',
     });
+    const principal = actorSouls.register({ project: 'demo' });
+    expect(principal).toEqual(expect.objectContaining({ ok: true }));
 
     const response = await injectBegin({
       purpose: 'different canonical identity',
       identity: 'demo:test:legacy-unrelated-b',
       agentId: 'different-display-name',
-    }, first.credential);
+    }, principal.credential);
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(expect.objectContaining({
       success: true,
       sessionStarted: true,
-      agentId: first.actorId,
+      agentId: principal.actorId,
     }));
-    expect(response.json().sessionId).not.toBe(first.sessionId);
+    expect(response.json().sessionId).not.toBe(legacySessionId);
     expectCanonicalSession(
       response.json().sessionId,
-      first.actorId,
+      principal.actorId,
       'demo:test:legacy-unrelated-b',
     );
   });
@@ -258,6 +351,10 @@ describe('Sugar canonical identity persistence', () => {
       agentId: first.actorId,
       sessionId: first.sessionId,
     }));
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual(expect.objectContaining({
+      success: false,
+      code: 'ACTOR_INBOX_UNBOUND',
+    }));
 
     const response = await injectBegin({
       purpose: 'takeover successor',
@@ -281,36 +378,33 @@ describe('Sugar canonical identity persistence', () => {
       'demo:test:takeover-canonical',
     );
     expect(stored.metadata.predecessorSessionId).toBe(first.sessionId);
+    expect(agents.resolveLiveActorInbox(first.actorId, 'local')).toEqual({
+      success: true,
+      binding: expect.objectContaining({ inboxTarget: first.actorId }),
+    });
   });
 
   test('closed legacy display identity cannot authorize a canonical takeover', async () => {
-    const first = (await injectBegin({
+    const legacySessionId = seedLegacySession({
       purpose: 'legacy takeover predecessor',
       identity: 'demo:test:legacy-takeover',
       agentId: 'legacy-takeover-display',
-    })).json();
-    const done = await app.inject({
-      method: 'POST',
-      url: '/sugar/done',
-      headers: { 'x-actor-credential': first.credential },
-      payload: { note: validResultNote },
+      status: 'completed',
     });
-    expect(done.statusCode).toBe(200);
-    sessions.updateMetadata(first.sessionId, {
-      identity: 'demo:test:legacy-takeover',
-    });
+    const principal = actorSouls.register({ project: 'demo' });
+    expect(principal).toEqual(expect.objectContaining({ ok: true }));
 
     const response = await injectBegin({
       purpose: 'must not take over legacy closed row',
       identity: 'demo:test:legacy-takeover',
       agentId: 'legacy-takeover-display',
-    }, first.credential);
+    }, principal.credential);
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual(expect.objectContaining({
       success: false,
       code: 'SESSION_IDENTITY_UNVERIFIED',
-      sessionId: first.sessionId,
+      sessionId: legacySessionId,
     }));
-    expect(sessions.get(first.sessionId).session.status).toBe('completed');
+    expect(sessions.get(legacySessionId).session.status).toBe('completed');
   });
 });

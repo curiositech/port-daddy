@@ -265,7 +265,7 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Sugar Recovery Commands', () => {
-    test('done succeeds over credentialed HTTP when the session is active but the agent row is gone', async () => {
+    test('raw agent deletion cannot erase canonical ownership and done uses credentialed HTTP', async () => {
       const slot = `stale-done-${Date.now()}`;
       const requestedAlias = `stale-done-agent-${Date.now()}`;
 
@@ -296,7 +296,8 @@ describe('CLI Integration Tests', () => {
         });
 
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
-        expect(unregister.ok).toBe(true);
+        expect(unregister.ok).toBe(false);
+        expect(unregister.status).toBe(400);
 
         // pd-done origin rule (substrate fix 2026-05-20): bypass via the
         // documented escape hatch for this integration test, which has no
@@ -304,8 +305,8 @@ describe('CLI Integration Tests', () => {
         // Sugar writes are no longer exposed through IPC: the real CLI must
         // carry the stored actor credential to POST /sugar/done.
         const result = runCli(
-          ['done', 'Recovered after agent registry loss', '--json',
-           '--skip-origin-check', '--reason', 'credentialed HTTP recovery integration test'],
+          ['done', 'Completed through canonical actor authority', '--json',
+           '--skip-origin-check', '--reason', 'credentialed HTTP identity integration test'],
           { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
         );
         expect(result.success).toBe(true);
@@ -1284,7 +1285,7 @@ describe('CLI Integration Tests', () => {
       clearTestCurrentContext(slot);
     });
 
-    test('pd whoami falls back to the stored session when the agent row is gone', async () => {
+    test('pd whoami retains canonical context after a raw deletion attempt is rejected', async () => {
       const beginResult = runCli([
         'begin',
         'Stale whoami fallback',
@@ -1298,7 +1299,8 @@ describe('CLI Integration Tests', () => {
       const beginData = JSON.parse(beginResult.stdout);
 
       const deleteRes = await requestWithRetry(`/agents/${encodeURIComponent(beginData.agentId)}`, { method: 'DELETE' });
-      expect(deleteRes.ok).toBe(true);
+      expect(deleteRes.ok).toBe(false);
+      expect(deleteRes.status).toBe(400);
 
       const result = runCli(['whoami', '--json']);
       expect(result.success).toBe(true);

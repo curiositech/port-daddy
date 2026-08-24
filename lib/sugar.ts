@@ -9,6 +9,10 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
+import {
+  VERIFIED_ACTOR_INBOX_REGISTRATION,
+  type VerifiedActorInboxRegistration,
+} from './agents.js';
 
 /** How recent an agent heartbeat counts as "a live process is driving this session right now". */
 const SESSION_DRIVING_TTL_MS = 180_000;
@@ -31,7 +35,7 @@ import {
 
 interface AgentsModule {
   register(id: string, options?: Record<string, unknown>): Record<string, unknown>;
-  unregister(id: string): Record<string, unknown>;
+  unregister(id: string, options?: Record<string | symbol, unknown>): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
 }
 
@@ -132,7 +136,11 @@ interface SugarDeps {
  * Route-only authority channel. Symbols do not survive JSON/MessagePack, so
  * an IPC or HTTP payload cannot manufacture the daemon-verified principal.
  */
-export const VERIFIED_SUGAR_ACTOR_ID: unique symbol = Symbol('verified-sugar-actor-id');
+export interface VerifiedSugarActorBinding extends VerifiedActorInboxRegistration {
+  inboxTarget: string;
+}
+
+export const VERIFIED_SUGAR_ACTOR_BINDING: unique symbol = Symbol('verified-sugar-actor-binding');
 
 interface BeginOptions {
   purpose?: string;
@@ -141,7 +149,7 @@ interface BeginOptions {
    * When present it is the sole authoritative agent/session owner; `agentId`
    * remains a display/request field for trusted direct-module callers only.
    */
-  [VERIFIED_SUGAR_ACTOR_ID]?: string;
+  [VERIFIED_SUGAR_ACTOR_BINDING]?: VerifiedSugarActorBinding;
   agentId?: string;
   name?: string;
   identity?: string;
@@ -174,6 +182,7 @@ interface BeginOptions {
 }
 
 interface DoneOptions {
+  [VERIFIED_SUGAR_ACTOR_BINDING]?: VerifiedSugarActorBinding;
   agentId?: string;
   sessionId?: string;
   note?: string;
@@ -269,10 +278,16 @@ function sessionMetadataRecord(raw: unknown): Record<string, unknown> | null {
   return metadata;
 }
 
-/** Read the durable semantic display identity without consulting auth metadata. */
+/**
+ * Read the durable semantic display identity without treating it as authority.
+ * Pre-ID0 rows stored that display value in `metadata.identity`; retaining it
+ * only for candidate detection lets the verified boundary reject a real
+ * legacy resume/takeover instead of silently creating a parallel session.
+ */
 function semanticIdentityFromMetadata(raw: unknown): string | null {
   const metadata = sessionMetadataRecord(raw);
-  return typeof metadata?.semanticIdentity === 'string' ? metadata.semanticIdentity : null;
+  if (typeof metadata?.semanticIdentity === 'string') return metadata.semanticIdentity;
+  return typeof metadata?.identity === 'string' ? metadata.identity : null;
 }
 
 function hasVerifiedActorStamp(raw: unknown, actorId: string): boolean {
@@ -287,15 +302,39 @@ function hasVerifiedActorStamp(raw: unknown, actorId: string): boolean {
   );
 }
 
+function hasVerifiedActorInboxStamp(raw: unknown, binding: VerifiedSugarActorBinding): boolean {
+  const metadata = sessionMetadataRecord(raw);
+  const stamp = metadata?.actorInbox;
+  return Boolean(
+    stamp
+    && typeof stamp === 'object'
+    && !Array.isArray(stamp)
+    && (stamp as Record<string, unknown>).verified === true
+    && (stamp as Record<string, unknown>).actorId === binding.actorId
+    && (stamp as Record<string, unknown>).harbor === binding.harbor
+    && (stamp as Record<string, unknown>).inboxTarget === binding.inboxTarget,
+  );
+}
+
 function authorityMetadata(
   raw: Record<string, unknown> | undefined,
-  verifiedActorId: string | null,
+  binding: VerifiedSugarActorBinding | null,
 ): Record<string, unknown> {
   const metadata = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
   // Only the symbol-bearing route boundary may persist the reserved identity
   // slot. Direct trusted callers retain semantic metadata but cannot forge a
   // verified stamp by passing an ordinary object field.
-  if (!verifiedActorId) delete metadata.identity;
+  if (!binding) {
+    delete metadata.identity;
+    delete metadata.actorInbox;
+    return metadata;
+  }
+  metadata.actorInbox = {
+    verified: true,
+    actorId: binding.actorId,
+    harbor: binding.harbor,
+    inboxTarget: binding.inboxTarget,
+  };
   return metadata;
 }
 
@@ -353,16 +392,34 @@ export function createSugar(deps: SugarDeps) {
    */
   function begin(options: BeginOptions) {
     const { purpose, identity, type, files, force } = options;
-    const rawVerifiedActorId = options[VERIFIED_SUGAR_ACTOR_ID];
-    const verifiedActorId = typeof rawVerifiedActorId === 'string'
-      ? rawVerifiedActorId.trim()
-      : null;
+    const rawVerifiedBinding = options[VERIFIED_SUGAR_ACTOR_BINDING];
+    let verifiedBinding: VerifiedSugarActorBinding | null = null;
+    if (rawVerifiedBinding !== undefined) {
+      const actorId = typeof rawVerifiedBinding?.actorId === 'string'
+        ? rawVerifiedBinding.actorId.trim()
+        : '';
+      const harbor = typeof rawVerifiedBinding?.harbor === 'string'
+        ? rawVerifiedBinding.harbor.trim()
+        : '';
+      const inboxTarget = typeof rawVerifiedBinding?.inboxTarget === 'string'
+        ? rawVerifiedBinding.inboxTarget.trim()
+        : '';
+      if (!actorId || !harbor || inboxTarget !== actorId) {
+        return {
+          success: false,
+          error: 'verified actor binding must select the canonical actor inbox in one harbor',
+          code: 'CANONICAL_ACTOR_BINDING_INVALID',
+        };
+      }
+      verifiedBinding = { actorId, harbor, inboxTarget };
+    }
+    const verifiedActorId = verifiedBinding?.actorId ?? null;
 
-    if (rawVerifiedActorId !== undefined && !verifiedActorId) {
+    if (rawVerifiedBinding !== undefined && !verifiedBinding) {
       return {
         success: false,
-        error: 'verified actor ID must be a non-empty daemon-verified principal',
-        code: 'CANONICAL_AGENT_ID_INVALID',
+        error: 'verified actor binding is invalid',
+        code: 'CANONICAL_ACTOR_BINDING_INVALID',
       };
     }
     if (verifiedActorId && !hasVerifiedActorStamp(options.metadata, verifiedActorId)) {
@@ -372,7 +429,7 @@ export function createSugar(deps: SugarDeps) {
         code: 'SESSION_IDENTITY_STAMP_INVALID',
       };
     }
-    const boundaryMetadata = authorityMetadata(options.metadata, verifiedActorId);
+    const boundaryMetadata = authorityMetadata(options.metadata, verifiedBinding);
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
@@ -402,6 +459,29 @@ export function createSugar(deps: SugarDeps) {
         worktree: worktreePolicy.worktree,
       };
     }
+
+    const registerCanonicalInbox = (displayName?: string | null): Record<string, unknown> => {
+      if (!verifiedBinding) return { success: true, skipped: true };
+      const registerOpts: Record<string | symbol, unknown> = {
+        metadata: boundaryMetadata,
+        [VERIFIED_ACTOR_INBOX_REGISTRATION]: {
+          actorId: verifiedBinding.actorId,
+          harbor: verifiedBinding.harbor,
+        },
+      };
+      if (displayName) registerOpts.name = displayName;
+      if (identity) registerOpts.identity = identity;
+      if (purpose) registerOpts.purpose = purpose;
+      if (type) registerOpts.type = type;
+      if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
+      return agents.register(verifiedBinding.inboxTarget, registerOpts);
+    };
+
+    const registrationFailure = (result: Record<string, unknown>) => ({
+      success: false,
+      error: `Agent registration failed: ${String(result.error ?? 'verified actor inbox unavailable')}`,
+      code: result.code || 'AGENT_REGISTRATION_FAILED',
+    });
 
     // =========================================================================
     // Rent-at-claim (S3): resolve the roadmap link / sidequest opt-out BEFORE
@@ -564,13 +644,19 @@ export function createSugar(deps: SugarDeps) {
           !s
           || s.identityProject !== resumeProject
           || typeof s.agentId !== 'string'
-          || (verifiedActorId && s.agentId !== verifiedActorId)
         ) continue;
 
         const storedIdentity = semanticIdentityFromMetadata(s.metadata);
         if (storedIdentity !== identity) continue;
 
-        if (verifiedActorId && !hasVerifiedActorStamp(s.metadata, verifiedActorId)) {
+        if (
+          verifiedBinding
+          && (
+            s.agentId !== verifiedBinding.actorId
+            || !hasVerifiedActorStamp(s.metadata, verifiedBinding.actorId)
+            || !hasVerifiedActorInboxStamp(s.metadata, verifiedBinding)
+          )
+        ) {
           unverifiedCandidateId = typeof s.id === 'string' ? s.id : 'unknown';
           continue;
         }
@@ -604,7 +690,6 @@ export function createSugar(deps: SugarDeps) {
             || s.status === 'active'
             || s.identityProject !== resumeProject
             || typeof s.agentId !== 'string'
-            || (verifiedActorId && s.agentId !== verifiedActorId)
           ) {
             continue;
           }
@@ -612,7 +697,14 @@ export function createSugar(deps: SugarDeps) {
           const storedIdentity = semanticIdentityFromMetadata(s.metadata);
           if (storedIdentity !== identity) continue;
 
-          if (verifiedActorId && !hasVerifiedActorStamp(s.metadata, verifiedActorId)) {
+          if (
+            verifiedBinding
+            && (
+              s.agentId !== verifiedBinding.actorId
+              || !hasVerifiedActorStamp(s.metadata, verifiedBinding.actorId)
+              || !hasVerifiedActorInboxStamp(s.metadata, verifiedBinding)
+            )
+          ) {
             unverifiedCandidateId = typeof s.id === 'string' ? s.id : 'unknown';
             continue;
           }
@@ -635,6 +727,8 @@ export function createSugar(deps: SugarDeps) {
         if (match.status !== 'active' && sessions.takeover) {
           // Resumption / takeover of recently closed session
           const finalAgentId = verifiedActorId || options.agentId || match.agentId;
+          const inboxRegistration = registerCanonicalInbox(purpose.trim());
+          if (!inboxRegistration.success) return registrationFailure(inboxRegistration);
           const takeoverRes = sessions.takeover(match.id, {
             agentId: finalAgentId,
             purpose: purpose.trim(),
@@ -723,6 +817,8 @@ export function createSugar(deps: SugarDeps) {
             || (typeof match.name === 'string' && match.name)
             || identity
             || 'Port Daddy Agent';
+          const inboxRegistration = registerCanonicalInbox(displayName);
+          if (!inboxRegistration.success) return registrationFailure(inboxRegistration);
           const resumed: Record<string, unknown> = {
             success: true,
             resumed: true,
@@ -884,21 +980,23 @@ export function createSugar(deps: SugarDeps) {
       || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
 
     // Step 1: Register the agent
-    const registerOpts: Record<string, unknown> = {};
+    const registerOpts: Record<string | symbol, unknown> = {};
     if (name) registerOpts.name = name;
     if (identity) registerOpts.identity = identity;
     if (purpose) registerOpts.purpose = purpose;
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
     if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
+    if (verifiedBinding) {
+      registerOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
+        actorId: verifiedBinding.actorId,
+        harbor: verifiedBinding.harbor,
+      };
+    }
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {
-      return {
-        success: false,
-        error: `Agent registration failed: ${agentResult.error}`,
-        code: agentResult.code || 'AGENT_REGISTRATION_FAILED',
-      };
+      return registrationFailure(agentResult);
     }
 
     // Step 2: Start session (rollback agent on failure)
@@ -929,8 +1027,19 @@ export function createSugar(deps: SugarDeps) {
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
     if (!sessionResult.success) {
-      // Rollback: unregister the agent
-      agents.unregister(agentId);
+      // Roll back only a row this begin created. Removing a pre-existing
+      // verified binding on a later session failure would make another live
+      // canonical actor unreachable.
+      if (agentResult.registered === true) {
+        const unregisterOpts: Record<string | symbol, unknown> = {};
+        if (verifiedBinding) {
+          unregisterOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
+            actorId: verifiedBinding.actorId,
+            harbor: verifiedBinding.harbor,
+          };
+        }
+        agents.unregister(agentId, unregisterOpts);
+      }
       return {
         success: false,
         error: `Session start failed: ${sessionResult.error}`,
@@ -1242,7 +1351,15 @@ export function createSugar(deps: SugarDeps) {
     let agentUnregistered = false;
     const effectiveAgentId = agentId || findAgentForSession(sessionId);
     if (effectiveAgentId) {
-      const unregResult = agents.unregister(effectiveAgentId);
+      const verifiedBinding = options[VERIFIED_SUGAR_ACTOR_BINDING];
+      const unregisterOpts: Record<string | symbol, unknown> = {};
+      if (verifiedBinding) {
+        unregisterOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
+          actorId: verifiedBinding.actorId,
+          harbor: verifiedBinding.harbor,
+        };
+      }
+      const unregResult = agents.unregister(effectiveAgentId, unregisterOpts);
       agentUnregistered = !!unregResult.unregistered;
     }
 

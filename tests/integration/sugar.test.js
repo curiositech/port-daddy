@@ -351,8 +351,8 @@ describe('Sugar Integration Tests', () => {
     });
   });
 
-  describe('Whoami with reaped agent row', () => {
-    test('falls back to an explicit active session', async () => {
+  describe('Whoami with canonical agent row', () => {
+    test('retains explicit active context after raw deletion is rejected', async () => {
       const beginRes = await sugarBegin({
         purpose: 'Whoami stale agent fallback',
         agentId: `whoami-stale-${Date.now()}`,
@@ -363,7 +363,8 @@ describe('Sugar Integration Tests', () => {
       const { agentId, sessionId } = beginRes.data;
 
       const deleteRes = await request(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
-      expect(deleteRes.ok).toBe(true);
+      expect(deleteRes.ok).toBe(false);
+      expect(deleteRes.status).toBe(400);
 
       const whoamiRes = await sugarWhoami({ agentId, sessionId });
       expect(whoamiRes.ok).toBe(true);
@@ -372,7 +373,7 @@ describe('Sugar Integration Tests', () => {
       expect(whoamiRes.data.agentId).toBe(agentId);
       expect(whoamiRes.data.sessionId).toBe(sessionId);
       expect(whoamiRes.data.purpose).toBe('Whoami stale agent fallback');
-      expect(whoamiRes.data.identity).toBeNull();
+      expect(whoamiRes.data.identity).toBe('test-project:api:stale-agent');
 
       const doneRes = await sugarDone({ sessionId });
       expect(doneRes.ok).toBe(true);

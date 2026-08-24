@@ -7,7 +7,10 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
-import { createAgents } from '../../lib/agents.js';
+import {
+  createAgents,
+  VERIFIED_ACTOR_INBOX_REGISTRATION,
+} from '../../lib/agents.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 
@@ -111,6 +114,126 @@ describe('Agents Module', () => {
 
       const result = agents.get('my-agent');
       expect(result.agent.pid).toBe(12345);
+    });
+  });
+
+  describe('Verified actor inbox registration', () => {
+    const binding = (actorId = 'actor-canonical', harbor = 'local') => ({
+      [VERIFIED_ACTOR_INBOX_REGISTRATION]: { actorId, harbor },
+    });
+
+    it('persists and resolves only the server-selected canonical actor endpoint', () => {
+      expect(agents.register('actor-canonical', binding())).toEqual(expect.objectContaining({
+        success: true,
+        agentId: 'actor-canonical',
+      }));
+
+      expect(agents.get('actor-canonical').agent.actorInboxBinding).toEqual(expect.objectContaining({
+        verified: true,
+        actorId: 'actor-canonical',
+        harbor: 'local',
+        inboxTarget: 'actor-canonical',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({
+          actorId: 'actor-canonical',
+          harbor: 'local',
+          inboxTarget: 'actor-canonical',
+        }),
+      });
+    });
+
+    it('rejects a server binding whose actor does not equal the registered endpoint', () => {
+      expect(agents.register('fresh-victim-agent', binding('actor-attacker'))).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_BINDING_INVALID',
+      }));
+      expect(agents.get('fresh-victim-agent').success).toBe(false);
+    });
+
+    it('prevents raw re-registration from overwriting or refreshing a verified binding', () => {
+      agents.register('actor-canonical', binding());
+      const original = agents.get('actor-canonical').agent;
+
+      expect(agents.register('actor-canonical', {
+        name: 'forged replacement',
+        metadata: { actorId: 'victim' },
+      })).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+      }));
+      expect(agents.get('actor-canonical').agent).toEqual(expect.objectContaining({
+        name: original.name,
+        lastHeartbeat: original.lastHeartbeat,
+        actorInboxBinding: original.actorInboxBinding,
+      }));
+    });
+
+    it('prevents raw unregister from deleting a verified binding', () => {
+      agents.register('actor-canonical', binding());
+
+      expect(agents.unregister('actor-canonical')).toEqual(expect.objectContaining({
+        success: false,
+        unregistered: false,
+        code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({ inboxTarget: 'actor-canonical' }),
+      });
+
+      expect(agents.unregister('actor-canonical', binding())).toEqual(expect.objectContaining({
+        success: true,
+        unregistered: true,
+        agentId: 'actor-canonical',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+      }));
+    });
+
+    it('fails closed for unbound and stale registry rows', () => {
+      agents.register('display-only-agent');
+      expect(agents.resolveLiveActorInbox('display-only-agent', 'local')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+      }));
+
+      agents.register('actor-canonical', binding());
+      db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
+        .run(Date.now() - agents.DEFAULT_CLEANUP_TTL - 1, 'actor-canonical');
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_STALE',
+      }));
+    });
+
+    it('uses operational liveness rather than the two-minute display TTL', () => {
+      agents.register('actor-canonical', binding());
+      db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
+        .run(Date.now() - agents.DEFAULT_AGENT_TTL - 1, 'actor-canonical');
+      expect(agents.get('actor-canonical').agent.isActive).toBe(false);
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({ inboxTarget: 'actor-canonical' }),
+      });
+    });
+
+    it('does not let the same canonical endpoint cross harbor authority', () => {
+      agents.register('actor-canonical', binding('actor-canonical', 'tenant-a'));
+      expect(agents.register(
+        'actor-canonical',
+        binding('actor-canonical', 'tenant-b'),
+      )).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_BINDING_CONFLICT',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'tenant-b')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+      }));
     });
   });
 
