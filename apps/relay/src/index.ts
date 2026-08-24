@@ -312,6 +312,27 @@ function corsCredentialed(response: Response): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
+/**
+ * Decode one URL path segment FAIL-CLOSED, for the transcript-family routes.
+ *
+ * WHY: malformed percent-encoding (`%zz`) makes decodeURIComponent throw, and
+ * the global boundary would surface that as a 500 — but everything under
+ * /fleet/runs/:id answers one indistinguishable 404 to every failure, and a
+ * malformed id must not be the single input that earns a distinguishable
+ * answer. Returning '' fails the handlers' RUN_ID_RE / ship-name validation,
+ * which IS that 404.
+ *
+ * @param segment The raw (still-encoded) path segment from the route match.
+ * @returns The decoded segment, or '' when the encoding is malformed.
+ */
+function safeDecodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return '';
+  }
+}
+
 function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
@@ -510,7 +531,7 @@ export default {
       /^\/fleet\/runs\/.+\/transcripts\.json$/.test(pathname)
     ) {
       const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcripts\.json$/);
-      response = await handleFleetRunTranscriptIndex(request, env, decodeURIComponent(m?.[1] ?? ''));
+      response = await handleFleetRunTranscriptIndex(request, env, safeDecodeSegment(m?.[1] ?? ''));
     }
 
     // ── Raw ship session transcript (pd-transcript.v1 JSONL; same capability
@@ -524,8 +545,8 @@ export default {
       response = await handleFleetRunTranscript(
         request,
         env,
-        decodeURIComponent(m?.[1] ?? ''),
-        decodeURIComponent(m?.[2] ?? ''),
+        safeDecodeSegment(m?.[1] ?? ''),
+        safeDecodeSegment(m?.[2] ?? ''),
       );
     }
 
@@ -540,8 +561,8 @@ export default {
       response = await handleFleetRunTranscriptPage(
         request,
         env,
-        decodeURIComponent(m?.[1] ?? ''),
-        decodeURIComponent(m?.[2] ?? ''),
+        safeDecodeSegment(m?.[1] ?? ''),
+        safeDecodeSegment(m?.[2] ?? ''),
       );
     }
 

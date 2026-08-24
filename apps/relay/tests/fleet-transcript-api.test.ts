@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import worker from '../src/index.js';
 import {
   handleFleetRunTranscript,
   handleFleetRunTranscriptIndex,
@@ -285,6 +286,25 @@ describe('handleFleetRunTranscriptIndex (transcripts.json — Phase 3)', () => {
         )
       ).status,
     ).toBe(404);
+  });
+});
+
+// Router-boundary case the handler tests cannot reach: a malformed
+// percent-encoded run id makes decodeURIComponent throw, which the global
+// fail-closed boundary would answer as a 500 — but the transcript surfaces
+// answer ONE indistinguishable 404 to every failure, so the routes decode
+// fail-closed (safeDecodeSegment) and the malformed id lands in the same 404.
+describe('router: malformed percent-encoding on transcript routes', () => {
+  it('answers the uniform 404, never the global 500 boundary', async () => {
+    const env = makeEnv(ROWS, OBJECTS);
+    for (const path of [
+      '/fleet/runs/%zz/transcripts.json',
+      '/fleet/runs/%zz/transcript/qa.jsonl',
+      '/fleet/runs/%zz/transcript/qa',
+    ]) {
+      const res = await worker.fetch(req(path, AUTH), env, {} as ExecutionContext);
+      expect(res.status).toBe(404);
+    }
   });
 });
 
