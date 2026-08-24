@@ -89,7 +89,6 @@ potentials in [-sum|c|, 0]); (4) mutation - the Horn-propagation step is
 removed from a mutant checker, which must MISS an indirect conflict the
 real checker catches, with the witness policy set printed.
 """
-import sys
 from itertools import product, combinations
 
 SEED = 20260816
