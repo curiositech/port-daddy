@@ -48,14 +48,22 @@ describe('transcript archive sink — fired on every terminal transcript', () =>
     expect(archived[0].messages.some((m) => m.content === 'did the work')).toBe(true);
   });
 
-  it('recordTranscript() (full-entry ingest) also archives', () => {
+  it('recordTranscript() atomically imports terminal content before archiving it', () => {
     const store = createTranscripts(db, { now, archiveSink: sink });
     store.recordTranscript({
       id: 'ext-1', ship: 'external', session_id: null, spawned_agent_id: 'a2',
       trigger: 'manual', backend: 'codex', model: 'gpt-5.4-mini', status: 'completed',
-      started_at: 1, ended_at: 2, messages: [], outputs: [],
+      started_at: 1, ended_at: 2,
+      messages: [{ role: 'assistant', content: 'terminal import', timestamp: 2 }],
+      outputs: [{ type: 'commit', summary: 'terminal artifact' }],
     });
-    expect(archived.map((e) => e.id)).toContain('ext-1');
+    expect(archived).toHaveLength(1);
+    expect(archived[0]).toMatchObject({
+      id: 'ext-1',
+      status: 'completed',
+      messages: [{ role: 'assistant', content: 'terminal import', timestamp: 2 }],
+      outputs: [{ type: 'commit', summary: 'terminal artifact' }],
+    });
   });
 
   it('recordTranscript() defers end emission and archival until a later terminal ingest', () => {
@@ -78,10 +86,21 @@ describe('transcript archive sink — fired on every terminal transcript', () =>
       SELECT status FROM fleet_transcript_archive_receipts WHERE transcript_id = ?
     `).get(running.id)).toBeUndefined();
 
-    store.recordTranscript({ ...running, status: 'completed', ended_at: 2 });
+    store.recordTranscript({
+      ...running,
+      status: 'completed',
+      ended_at: 2,
+      messages: [{ role: 'assistant', content: 'finished later', timestamp: 2 }],
+      outputs: [{ type: 'commit', summary: 'late terminal import' }],
+    });
 
     expect(archived).toHaveLength(1);
-    expect(archived[0]).toMatchObject({ id: running.id, status: 'completed' });
+    expect(archived[0]).toMatchObject({
+      id: running.id,
+      status: 'completed',
+      messages: [{ role: 'assistant', content: 'finished later', timestamp: 2 }],
+      outputs: [{ type: 'commit', summary: 'late terminal import' }],
+    });
     expect(endEvents).toHaveLength(1);
     expect(endEvents[0].entry).toMatchObject({ id: running.id, status: 'completed' });
     expect(db.prepare(`

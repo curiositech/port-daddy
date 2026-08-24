@@ -210,7 +210,7 @@ export interface TranscriptsModule {
   appendOutput(id: string, output: TranscriptOutput): void;
   /** Mark transcript as completed/failed/killed and finalize cost+tokens. */
   finalize(id: string, finalize: TranscriptFinalizeInput): void;
-  /** CAP0-blocked full-entry bridge; only terminal snapshots emit end/archive, without finalize's CAS. */
+  /** CAP0-blocked full-entry bridge; imports atomically and never reopens a terminal row. */
   recordTranscript(entry: TranscriptEntry): void;
   /** List recent transcripts (without messages — lightweight). */
   listTranscripts(filter?: TranscriptFilter): TranscriptEntry[];
@@ -605,6 +605,7 @@ export function createTranscripts(
       error = excluded.error,
       project = excluded.project,
       identity = excluded.identity
+    WHERE fleet_transcripts.status = 'running'
   `);
 
   const insertMessageStmt = db.prepare(`
@@ -612,9 +613,25 @@ export function createTranscripts(
     VALUES (?, COALESCE((SELECT MAX(seq) + 1 FROM fleet_transcript_messages WHERE transcript_id = ?), 0), ?, ?, ?, ?)
   `);
 
+  const appendMessageIfRunningStmt = db.prepare(`
+    INSERT INTO fleet_transcript_messages (transcript_id, seq, role, content, timestamp, tool_calls_json)
+    SELECT ?, COALESCE((SELECT MAX(seq) + 1 FROM fleet_transcript_messages WHERE transcript_id = ?), 0), ?, ?, ?, ?
+     WHERE EXISTS (
+       SELECT 1 FROM fleet_transcripts WHERE id = ? AND status = 'running'
+     )
+  `);
+
   const insertOutputStmt = db.prepare(`
     INSERT INTO fleet_transcript_outputs (transcript_id, seq, type, url, summary, created_at)
     VALUES (?, COALESCE((SELECT MAX(seq) + 1 FROM fleet_transcript_outputs WHERE transcript_id = ?), 0), ?, ?, ?, ?)
+  `);
+
+  const appendOutputIfRunningStmt = db.prepare(`
+    INSERT INTO fleet_transcript_outputs (transcript_id, seq, type, url, summary, created_at)
+    SELECT ?, COALESCE((SELECT MAX(seq) + 1 FROM fleet_transcript_outputs WHERE transcript_id = ?), 0), ?, ?, ?, ?
+     WHERE EXISTS (
+       SELECT 1 FROM fleet_transcripts WHERE id = ? AND status = 'running'
+     )
   `);
 
   const finalizeStmt = db.prepare(`
@@ -788,11 +805,11 @@ export function createTranscripts(
     return content;
   }
 
-  function appendMessage(id: string, message: TranscriptMessage): void {
-    const headerRow = getTranscriptRowStmt.get(id) as Record<string, unknown> | undefined;
-    if (!headerRow) {
-      throw new Error(`transcripts: no transcript with id "${id}"`);
-    }
+  function normalizeMessage(message: TranscriptMessage): {
+    content: string;
+    timestamp: number;
+    toolCallsJson: string | null;
+  } {
     const content = normalizeContent(message.content ?? '');
     let toolCallsJson: string | null = null;
     if (message.tool_calls && message.tool_calls.length > 0) {
@@ -805,23 +822,34 @@ export function createTranscripts(
       }));
       toolCallsJson = JSON.stringify(sanitized);
     }
-    insertMessageStmt.run(
-      id,
-      id,
-      message.role,
+    return {
       content,
-      message.timestamp ?? now(),
+      timestamp: message.timestamp ?? now(),
       toolCallsJson,
-    );
-    const refreshed = getTranscript(id);
-    if (refreshed) emit({ type: 'update', entry: refreshed });
+    };
   }
 
-  function appendOutput(id: string, output: TranscriptOutput): void {
+  function throwTranscriptMutationError(id: string): never {
     const headerRow = getTranscriptRowStmt.get(id) as Record<string, unknown> | undefined;
     if (!headerRow) {
       throw new Error(`transcripts: no transcript with id "${id}"`);
     }
+    throw new Error(`transcripts: transcript with id "${id}" is terminal and immutable`);
+  }
+
+  function insertImportedMessage(id: string, message: TranscriptMessage): void {
+    const normalized = normalizeMessage(message);
+    insertMessageStmt.run(
+      id,
+      id,
+      message.role,
+      normalized.content,
+      normalized.timestamp,
+      normalized.toolCallsJson,
+    );
+  }
+
+  function insertImportedOutput(id: string, output: TranscriptOutput): void {
     insertOutputStmt.run(
       id,
       id,
@@ -830,6 +858,35 @@ export function createTranscripts(
       output.summary,
       now(),
     );
+  }
+
+  function appendMessage(id: string, message: TranscriptMessage): void {
+    const normalized = normalizeMessage(message);
+    const result = appendMessageIfRunningStmt.run(
+      id,
+      id,
+      message.role,
+      normalized.content,
+      normalized.timestamp,
+      normalized.toolCallsJson,
+      id,
+    );
+    if (result.changes !== 1) throwTranscriptMutationError(id);
+    const refreshed = getTranscript(id);
+    if (refreshed) emit({ type: 'update', entry: refreshed });
+  }
+
+  function appendOutput(id: string, output: TranscriptOutput): void {
+    const result = appendOutputIfRunningStmt.run(
+      id,
+      id,
+      output.type,
+      output.url ?? null,
+      output.summary,
+      now(),
+      id,
+    );
+    if (result.changes !== 1) throwTranscriptMutationError(id);
     const refreshed = getTranscript(id);
     if (refreshed) emit({ type: 'update', entry: refreshed });
   }
@@ -863,41 +920,53 @@ export function createTranscripts(
   }
 
   function recordTranscript(entry: TranscriptEntry): void {
-    upsertTranscriptStmt.run(
-      entry.id,
-      entry.ship,
-      entry.session_id ?? null,
-      entry.spawned_agent_id,
-      entry.pr_number ?? null,
-      entry.issue_number ?? null,
-      entry.trigger,
-      entry.backend,
-      entry.model,
-      entry.requested_backend ?? entry.backend,
-      entry.effective_backend ?? entry.backend,
-      entry.requested_model ?? entry.model,
-      entry.effective_model ?? entry.model,
-      entry.backend_override_source ?? 'none',
-      entry.status,
-      entry.started_at,
-      entry.ended_at ?? null,
-      entry.cost_usd ?? null,
-      entry.tokens_in ?? null,
-      entry.tokens_out ?? null,
-      entry.error ?? null,
-      entry.project ?? null,
-      entry.identity ?? null,
-    );
-    for (const m of entry.messages || []) {
-      appendMessage(entry.id, m);
-    }
-    for (const o of entry.outputs || []) {
-      appendOutput(entry.id, o);
-    }
-    const refreshed = getTranscript(entry.id);
+    // The legacy full-entry bridge must still import a terminal snapshot's
+    // children, but no observer may see a terminal header before those children
+    // exist. Commit the header and content together, and never reopen a row that
+    // has already reached a terminal state.
+    const writeImport = db.transaction(() => {
+      const result = upsertTranscriptStmt.run(
+        entry.id,
+        entry.ship,
+        entry.session_id ?? null,
+        entry.spawned_agent_id,
+        entry.pr_number ?? null,
+        entry.issue_number ?? null,
+        entry.trigger,
+        entry.backend,
+        entry.model,
+        entry.requested_backend ?? entry.backend,
+        entry.effective_backend ?? entry.backend,
+        entry.requested_model ?? entry.model,
+        entry.effective_model ?? entry.model,
+        entry.backend_override_source ?? 'none',
+        entry.status,
+        entry.started_at,
+        entry.ended_at ?? null,
+        entry.cost_usd ?? null,
+        entry.tokens_in ?? null,
+        entry.tokens_out ?? null,
+        entry.error ?? null,
+        entry.project ?? null,
+        entry.identity ?? null,
+      );
+      if (result.changes !== 1) throwTranscriptMutationError(entry.id);
+      for (const message of entry.messages || []) {
+        insertImportedMessage(entry.id, message);
+      }
+      for (const output of entry.outputs || []) {
+        insertImportedOutput(entry.id, output);
+      }
+      const imported = getTranscript(entry.id);
+      if (!imported) throw new Error(`transcripts: imported transcript disappeared: ${entry.id}`);
+      return imported;
+    });
+    const refreshed = writeImport();
     if (refreshed && refreshed.status !== 'running') {
       emit({ type: 'end', entry: refreshed });
       archiveFinalized(refreshed);
+    } else if ((entry.messages?.length ?? 0) > 0 || (entry.outputs?.length ?? 0) > 0) {
+      emit({ type: 'update', entry: refreshed });
     }
   }
 

@@ -81,6 +81,47 @@ describe('transcripts module', () => {
       });
     });
 
+    it('freezes messages and outputs after the first terminal snapshot is archived', () => {
+      store = createTranscripts(db, {
+        now,
+        archiveSink: { archive: (entry) => archiveSuccess(entry) },
+      });
+      const id = store.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      store.appendMessage(id, { role: 'assistant', content: 'final answer', timestamp: clock });
+      store.appendOutput(id, { type: 'commit', summary: 'published result' });
+      store.finalize(id, { status: 'completed' });
+
+      const terminal = store.getTranscript(id);
+      const receipt = db.prepare(`
+        SELECT content_sha256, artifact_sha256, artifact_bytes, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id);
+
+      expect(() => store.appendMessage(id, {
+        role: 'assistant', content: 'late mutation', timestamp: clock + 1,
+      })).toThrow(/terminal and immutable/);
+      expect(() => store.appendOutput(id, {
+        type: 'other', summary: 'late output',
+      })).toThrow(/terminal and immutable/);
+
+      expect(store.getTranscript(id)).toEqual(terminal);
+      expect(db.prepare(`
+        SELECT content_sha256, artifact_sha256, artifact_bytes, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual(receipt);
+      const expected = describeTranscriptArchiveArtifact(terminal, 'receipt-validation');
+      expect(receipt).toEqual({
+        content_sha256: expected.sha256,
+        artifact_sha256: expected.sha256,
+        artifact_bytes: expected.bytes,
+        attempts: 1,
+      });
+    });
+
     it('retries a failed receipt and then skips the exact durable snapshot idempotently', () => {
       let fail = true;
       let calls = 0;
@@ -422,6 +463,83 @@ describe('transcripts module', () => {
       const tx = store.getTranscript('tx_upsert');
       expect(tx.status).toBe('completed');
       expect(tx.ended_at).toBe(clock + 100);
+    });
+
+    it('does not reopen or append to an already terminal imported transcript', () => {
+      const terminal = {
+        id: 'tx_import_frozen',
+        ship: 'qa',
+        spawned_agent_id: 'a',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'm',
+        status: 'completed',
+        started_at: clock,
+        ended_at: clock + 100,
+        messages: [{ role: 'assistant', content: 'original', timestamp: clock }],
+        outputs: [{ type: 'commit', summary: 'original output' }],
+      };
+      store.recordTranscript(terminal);
+
+      expect(() => store.recordTranscript({
+        ...terminal,
+        status: 'running',
+        ended_at: null,
+        messages: [{ role: 'assistant', content: 'replacement', timestamp: clock + 1 }],
+        outputs: [{ type: 'other', summary: 'replacement output' }],
+      })).toThrow(/terminal and immutable/);
+      expect(store.getTranscript(terminal.id)).toEqual(expect.objectContaining({
+        status: 'completed',
+        messages: [{ role: 'assistant', content: 'original', timestamp: clock }],
+        outputs: [{ type: 'commit', summary: 'original output' }],
+      }));
+    });
+
+    it('rolls back a terminal import when any child row fails', () => {
+      store.recordTranscript({
+        id: 'tx_atomic_import',
+        ship: 'qa',
+        spawned_agent_id: 'a',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'm',
+        status: 'running',
+        started_at: clock,
+        messages: [{ role: 'assistant', content: 'existing running content', timestamp: clock }],
+        outputs: [],
+      });
+      db.exec(`
+        CREATE TRIGGER reject_failed_terminal_import
+        BEFORE INSERT ON fleet_transcript_messages
+        WHEN NEW.content = 'reject this import'
+        BEGIN
+          SELECT RAISE(ABORT, 'injected child import failure');
+        END
+      `);
+
+      expect(() => store.recordTranscript({
+        id: 'tx_atomic_import',
+        ship: 'qa',
+        spawned_agent_id: 'a',
+        trigger: 'manual',
+        backend: 'claude',
+        model: 'm',
+        status: 'completed',
+        started_at: clock,
+        ended_at: clock + 100,
+        messages: [{ role: 'assistant', content: 'reject this import', timestamp: clock }],
+        outputs: [{ type: 'commit', summary: 'must roll back too' }],
+      })).toThrow(/injected child import failure/);
+
+      expect(store.getTranscript('tx_atomic_import')).toEqual(expect.objectContaining({
+        status: 'running',
+        ended_at: null,
+        messages: [{ role: 'assistant', content: 'existing running content', timestamp: clock }],
+        outputs: [],
+      }));
+      expect(db.prepare(`
+        SELECT status FROM fleet_transcript_archive_receipts WHERE transcript_id = ?
+      `).get('tx_atomic_import')).toBeUndefined();
     });
   });
 
