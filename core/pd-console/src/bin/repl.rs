@@ -140,6 +140,12 @@ mod term;
 mod theme;
 #[path = "../util.rs"]
 mod util;
+// Timeline companion-window launcher (ADR-0112 path 3). The launch shell is
+// GUI-only at runtime, but its pure binary-path resolver + missing-binary
+// message are unit-tested HERE on the cheap non-gpui gate.
+#[allow(dead_code)]
+#[path = "../timeline.rs"]
+mod timeline;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]

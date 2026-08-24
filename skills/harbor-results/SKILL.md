@@ -2,9 +2,10 @@
 license: Apache-2.0
 name: harbor-results
 description: >-
-  Compendium of the Harbor coordination program's executed results R1–R9 — information floor, split-digest theorem,
+  Compendium of the Harbor coordination program's executed results R1–R12 — information floor, split-digest theorem,
   derived regret head, digest-zoom frontier, hypervisor-as-supervisory-control, sheaf equivocation verdict, inspection
-  tower, work-unit machine, sealed-room noninterference — with exact statements, verified-vs-internal numbers, honest
+  tower, work-unit machine, sealed-room noninterference, ε-ledger conservation, canary/SPRT detection power,
+  no-mint reputation inheritance — with exact statements, verified-vs-internal numbers, honest
   boundaries, paper mapping, and the tacit lessons behind them. Use when extending, citing, presenting, implementing,
   stress-testing, or planning follow-on work (papers, proofs, product claims) on any of these results. NOT for general
   math/CS reference, Port Daddy product features outside these results, or writing style (see harbor-exposition).
@@ -20,15 +21,15 @@ metadata:
       reason: The discipline that produced and validated these results
 ---
 
-# Harbor Results: The Executed Corpus (R1–R9)
+# Harbor Results: The Executed Corpus (R1–R12)
 
-Nine results, executed and reproducible (program seed 20260816), each with a one-breath statement here and full depth in the references.
+Twelve results, executed and reproducible (program seed 20260816), each with a one-breath statement here and full depth in the references.
 
 ## When to Use
-✅ Use for: citing or restating any R1–R9 result precisely; choosing which result underwrites a product claim; extending a result or checking whether a "new" idea is already covered or already refuted; packaging results into papers; onboarding a collaborator to the program.
+✅ Use for: citing or restating any R1–R12 result precisely; choosing which result underwrites a product claim; extending a result or checking whether a "new" idea is already covered or already refuted; packaging results into papers; onboarding a collaborator to the program.
 ❌ NOT for: general information theory / game theory / security reference unrelated to these nine; Port Daddy engineering outside the results (kernel schemas, CLI); exposition mechanics (harbor-exposition); running the validation discipline itself (falsification-first).
 
-## The Nine, in one breath each
+## The Twelve, in one breath each
 - **R1 — Information floor.** No digest below log₂C(N,k) − log₂C(m,k) bits can guarantee catching all k critical items among N while opening m; survived falsification (0/16 violations).
 - **R2 — Split-digest.** One scalar summary serves two readers iff their orders are comonotone; successor-agent and operator provably are not; joint zero-miss floors are super-additive (≈2.13×, not 2×).
 - **R3 — Derived regret head.** stakes × irreversibility × anomaly = exact expected unrecoverable loss iff anomaly is a calibrated posterior; optimal surfacing is the likelihood-ratio test; reputation enters only through the posterior.
@@ -38,6 +39,9 @@ Nine results, executed and reproducible (program seed 20260816), each with a one
 - **R7 — Inspection tower.** ρ* = G/(dB); sealed sampling from C cliques makes bribery uneconomical (profitable iff G_k > C·B), corruption decays (1−ρd)^k; reputation is amortized verification (Θ(log T) or O(1) audit spend).
 - **R8 — Work-unit machine.** Six safety invariants hold in all 536 reachable states; all five guards proven load-bearing by mutation (shortest crimes: 4, 2, 4, 1, 7 steps).
 - **R9 — Sealed-room noninterference.** Erin's view identical across equal-parity secrets under every interleaving to depth 7; schedule secret-independence checked separately; leaky-gate and bypass mutations caught with witnesses.
+- **R10 — ε-ledger conservation.** The release ledger's atomic append+add conserves σ = Σ_Λ εᵢ ≤ εmax under every concurrent interleaving (single-writer serialization); sequential/advanced DP composition gives the sum its meaning; recorded spend only — mediation is R5's job.
+- **R11 — Canary power + SPRT.** k smuggled canaries are caught w.p. 1−β^k; uniform planting gives the hypergeometric operating curve Pr(detect)=f(leak size); Wald's SPRT turns leak intensity into expected time-to-detection with errors at or below target.
+- **R12 — No-mint inheritance.** Fork priors conserve iff split = transfer (the source is debited): total live creditable reputation never exceeds total witnessed; copy-full inheritance mints 8.2× from one episode — the quorum attack the invariant blocks.
 
 ## Routing
 
@@ -70,7 +74,7 @@ flowchart TD
 **Detection**: Claiming zoom savings without stating flagged-set density.
 
 ## References
-- `references/results-compendium.md` — Load when citing, restating, packaging, or checking scope of any R1–R9: boxed statements, [verified] vs [internal] numbers, applications, boundaries, paper map, reproducibility pointers, and the treatise-corrections consensus.
+- `references/results-compendium.md` — Load when citing, restating, packaging, or checking scope of any R1–R12: boxed statements, [verified] vs [internal] numbers, applications, boundaries, paper map, reproducibility pointers, and the treatise-corrections consensus.
 - `references/l3-tacit-lessons.md` — Load BEFORE extending or re-implementing anything here, or designing a related experiment: the hard-won lessons (bugs hit, boundaries found, conventions that change answers) with transferable rules.
 
 ## Scripts (regenerate every [internal] number)
@@ -82,3 +86,8 @@ Self-contained; deps: numpy, scipy, matplotlib, networkx; seed 20260816 fixed in
 - `python3 scripts/c0_workunit.py` — R8: 536-state invariant check + 5-mutation suite printing shortest crime traces.
 - `python3 scripts/c1_noninterference.py` — R9: exhaustive depth-7 NI check, schedule-independence check, 2 mutation witnesses.
 - `python3 scripts/sheaf_mechanism_proof.py` — R6: cycle-vs-cut minimal proof (signal 1.225 vs 0.000).
+- `python3 scripts/a3_epsilon_ledger.py` — R10: exhaustive interleaving check (15 states, 0 violations), 2 atomicity mutations with shortest crimes (1 and 3 steps), DP composition crossover table.
+- `python3 scripts/a4_canary_sprt.py` — R11: operating-curve table (0.554 at m=100), Wald-vs-sim SPRT latencies (297 vs 359), correlated-stripping boundary demo.
+- `python3 scripts/a6_no_mint.py` — R12: closure-sum counterexample (2.44>1), 4000-DAG sweep (0 violations), copy-full mint caught (8.2×).
+- `python3 scripts/b6_probation.py` — B6: front-loaded probation dominance — 0 dominating schedules in 4,000 random instances (76,000 schedules tested), matching the closed-form exchange argument; exit nonzero on violation.
+- `python3 scripts/sheaf_harness_v2.py` — R6 harness rebuild (W8): completion-residual detector over compared/relayed/severed visibility; gates PASS (200/200 cohomology-only on relayed cycle edges, cut edges at float epsilon, severed provably dark); D1/D2 reintroduction mutants caught; verdict COMMIT.
