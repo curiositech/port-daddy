@@ -7,7 +7,6 @@ Relation-map (dye packs → data canaries) and regime diagram (operating curve)
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, FancyArrowPatch
-from scipy.special import comb
 import os
 
 # Colors (from house rules)

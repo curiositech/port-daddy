@@ -70,7 +70,7 @@ print('=' * 72)
 print('\n=== (1) SWEEP FIRST: attack the literal closure-sum claim ===')
 gamma, q, D = 0.9, 1.0, 3
 iotas, val = [], q
-for d in range(D):
+for _ in range(D):
     val = gamma * val          # full-weight re-derivation chain, budget-legal
     iotas.append(val)
 closure = sum(iotas)

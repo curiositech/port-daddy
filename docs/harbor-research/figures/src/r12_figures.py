@@ -6,8 +6,7 @@ Produces r12_relation.png and r12_regime.png.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, FancyArrowPatch
-from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
 
 # Define colors per house rules
 harborblue = (30/255, 70/255, 110/255)
@@ -67,13 +66,13 @@ def make_relation_figure():
     # Arrow from transfer to target
     ax.annotate('', xy=(5.5, 4.0), xytext=(3.3, 4.0),
                 arrowprops=dict(arrowstyle='->', lw=2, color=harborblue))
-    ax.text(4.0, 4.35, "debit-on-send ⇔ split",
+    ax.text(x_arrow, 4.35, "debit-on-send ⇔ split",
             ha='center', fontsize=8, color=harborblue, weight='bold')
 
     # Arrow from photocopy to target
     ax.annotate('', xy=(5.5, 2.0), xytext=(3.3, 2.0),
                 arrowprops=dict(arrowstyle='->', lw=2, color=shipred))
-    ax.text(4.0, 1.65, "photocopy ⇔ quorum ×",
+    ax.text(x_arrow, 1.65, "photocopy ⇔ quorum ×",
             ha='center', fontsize=8, color=shipred, weight='bold')
 
     # === COLUMN 3: TARGET (FORK INHERITANCE) ===

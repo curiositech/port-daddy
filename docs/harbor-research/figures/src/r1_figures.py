@@ -7,7 +7,6 @@ R1 Figures: information floor and regime diagram
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import Rectangle, FancyArrowPatch
 import math
 

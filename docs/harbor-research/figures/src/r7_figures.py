@@ -88,7 +88,6 @@ fig, ax = plt.subplots(figsize=(8, 6), dpi=150)
 # Axes
 B_range = np.linspace(10, 100, 200)
 rho_range = np.linspace(0, 1, 200)
-B_grid, rho_grid = np.meshgrid(B_range, rho_range)
 
 # Curve: ρ = G / (d·B)
 rho_curve = G / (d * B_range)

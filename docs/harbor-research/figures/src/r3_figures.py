@@ -7,7 +7,6 @@ R3 Figures: regret head / inspection decision
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import Rectangle, FancyArrowPatch
 
 # House colors (from task)

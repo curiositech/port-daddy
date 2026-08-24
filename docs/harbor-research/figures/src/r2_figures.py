@@ -7,7 +7,6 @@ R2 Figures: split-digest theorem
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import Rectangle, FancyArrowPatch
 import math
 
