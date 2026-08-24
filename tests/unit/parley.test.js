@@ -285,6 +285,8 @@ describe('turns and terminal settlement', () => {
     expect(parley.internal).toEqual({
       admitAutomaticInTransaction: expect.any(Function),
       drainNotifications: expect.any(Function),
+      recoverDueNotifications: expect.any(Function),
+      stopNotificationRecovery: expect.any(Function),
     });
     expect(parley.internal).not.toHaveProperty('store');
     expect(parley.get(opened.parleyId).status).toBe('SUMMONED');
