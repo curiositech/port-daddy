@@ -56,7 +56,7 @@ function buildHarness(options: { throwFromTrigger?: boolean } = {}) {
         : trigger,
     },
   });
-  return { app, sessions, actorSouls, tuples, inbox, parley, logs, published };
+  return { app, db, sessions, actorSouls, tuples, inbox, parley, logs, published };
 }
 
 async function establishConflict(harness: ReturnType<typeof buildHarness>) {
@@ -109,10 +109,12 @@ describe('authenticated claim conflict automatic Parley', () => {
     expect(harness.tuples.rd(['parley:summons', parleyId, '*', '*'], { harbor: 'fleet' })).toHaveLength(2);
     expect(harness.inbox.list(owner.actorId).messages).toHaveLength(1);
     expect(harness.inbox.list(challenger.actorId).messages).toHaveLength(1);
-    expect(harness.inbox.list(owner.actorId).messages[0].deliveryKey)
-      .toBe(`parley_summons:${parleyId}:${owner.actorId}`);
-    expect(harness.inbox.list(challenger.actorId).messages[0].deliveryKey)
-      .toBe(`parley_summons:${parleyId}:${challenger.actorId}`);
+    expect(harness.inbox.list(owner.actorId).messages[0]).not.toHaveProperty('deliveryKey');
+    expect(harness.inbox.list(challenger.actorId).messages[0]).not.toHaveProperty('deliveryKey');
+    expect(harness.db.prepare('SELECT delivery_key FROM agent_inbox WHERE agent_id = ?')
+      .get(owner.actorId)).toEqual({ delivery_key: `parley_summons:${parleyId}:${owner.actorId}` });
+    expect(harness.db.prepare('SELECT delivery_key FROM agent_inbox WHERE agent_id = ?')
+      .get(challenger.actorId)).toEqual({ delivery_key: `parley_summons:${parleyId}:${challenger.actorId}` });
     expect(harness.published).toHaveLength(2);
     expect(harness.published.every((message) => message.signal === 'report')).toBe(true);
     expect(harness.published.every((message) => !Object.prototype.hasOwnProperty.call(

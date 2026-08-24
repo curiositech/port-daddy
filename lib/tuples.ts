@@ -48,6 +48,12 @@ interface TupleWriteOptions {
 
 interface TupleOutOnceOptions extends TupleWriteOptions {
   idempotencyKey: string;
+  /**
+   * Server-owned authority rows are addressable only through the indexed key
+   * primitives. Generic tuple routes, MCP tools, scans, takes, and subscribers
+   * must never observe or remove them.
+   */
+  internalOnly?: boolean;
 }
 
 interface TupleKeyOptions {
@@ -70,7 +76,8 @@ export function createTupleSpace(db: Database.Database) {
       written_by TEXT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       expires_at INTEGER,
-      idempotency_key TEXT
+      idempotency_key TEXT,
+      internal_only INTEGER NOT NULL DEFAULT 0
     )
   `);
 
@@ -78,9 +85,14 @@ export function createTupleSpace(db: Database.Database) {
   if (!tupleColumns.some((column) => column.name === 'idempotency_key')) {
     db.exec('ALTER TABLE tuples ADD COLUMN idempotency_key TEXT');
   }
+  if (!tupleColumns.some((column) => column.name === 'internal_only')) {
+    db.exec('ALTER TABLE tuples ADD COLUMN internal_only INTEGER NOT NULL DEFAULT 0');
+  }
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_harbor ON tuples(harbor)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_expires ON tuples(expires_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_public_harbor_created
+    ON tuples(internal_only, harbor, created_at)`);
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_tuples_harbor_idempotency
     ON tuples(COALESCE(harbor, ''), idempotency_key)
@@ -88,12 +100,12 @@ export function createTupleSpace(db: Database.Database) {
   `);
 
   const insertStmt = db.prepare(
-    'INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at, idempotency_key) VALUES (?, ?, ?, ?, ?, NULL)'
+    'INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at, idempotency_key, internal_only) VALUES (?, ?, ?, ?, ?, NULL, 0)'
   );
   const insertOnceStmt = db.prepare(`
     INSERT OR IGNORE INTO tuples
-      (harbor, fields, written_by, created_at, expires_at, idempotency_key)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (harbor, fields, written_by, created_at, expires_at, idempotency_key, internal_only)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const findOnceStmt = db.prepare(`
     SELECT * FROM tuples
@@ -183,6 +195,7 @@ export function createTupleSpace(db: Database.Database) {
       const harborKey = harbor ?? '';
       deleteExpiredOnceStmt.run(harborKey, idempotencyKey, now);
       const expiresAt = options.ttlMs ? now + options.ttlMs : null;
+      const internalOnly = options.internalOnly === true;
       const insert = insertOnceStmt.run(
         harbor,
         JSON.stringify(fields),
@@ -190,6 +203,7 @@ export function createTupleSpace(db: Database.Database) {
         now,
         expiresAt,
         idempotencyKey,
+        internalOnly ? 1 : 0,
       );
       const row = findOnceStmt.get(harborKey, idempotencyKey, now) as TupleRow | undefined;
       if (!row) throw new Error('tuple.outOnce: reservation could not be read back');
@@ -197,7 +211,7 @@ export function createTupleSpace(db: Database.Database) {
     });
 
     const result = reserve.immediate();
-    if (result.inserted) notifySubscribers(result.tuple);
+    if (result.inserted && options.internalOnly !== true) notifySubscribers(result.tuple);
     return result;
   }
 
@@ -316,6 +330,7 @@ export function createTupleSpace(db: Database.Database) {
     created_at: number;
     expires_at: number | null;
     idempotency_key: string | null;
+    internal_only: number;
   }
 
   function rowToTuple(row: TupleRow): Tuple {
@@ -330,6 +345,14 @@ export function createTupleSpace(db: Database.Database) {
     };
   }
 
+  /** Public tuple-space projections never reveal durable reservation keys. */
+  function rowToPublicTuple(row: TupleRow): Tuple {
+    return {
+      ...rowToTuple(row),
+      idempotencyKey: null,
+    };
+  }
+
   /** Read matching tuples (non-destructive). */
   function rd(pattern: unknown[], options?: { harbor?: string; limit?: number }): Tuple[] {
     cleanupStmt.run(Date.now());
@@ -341,17 +364,18 @@ export function createTupleSpace(db: Database.Database) {
       ? db.prepare(`
         SELECT * FROM tuples
         WHERE COALESCE(harbor, '') = COALESCE(?, '')
+          AND internal_only = 0
           AND (expires_at IS NULL OR expires_at > ?)
         ORDER BY created_at DESC
       `).all(harbor, now) as TupleRow[]
-      : db.prepare('SELECT * FROM tuples WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC').all(now) as TupleRow[];
+      : db.prepare('SELECT * FROM tuples WHERE internal_only = 0 AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at DESC').all(now) as TupleRow[];
 
     const matches: Tuple[] = [];
     const limit = options?.limit ?? 100;
 
     for (const row of rows) {
       if (matches.length >= limit) break;
-      const tuple = rowToTuple(row);
+      const tuple = rowToPublicTuple(row);
       if (matchesPattern(tuple.fields, pattern)) {
         matches.push(tuple);
       }
@@ -388,16 +412,17 @@ export function createTupleSpace(db: Database.Database) {
       ? db.prepare(
         `SELECT * FROM tuples
          WHERE COALESCE(harbor, '') = COALESCE(?, '')
+           AND internal_only = 0
            AND id > ? AND (expires_at IS NULL OR expires_at > ?)
          ORDER BY id ASC LIMIT ?`
       ).all(harbor, afterId, now, limit) as TupleRow[]
       : db.prepare(
-        'SELECT * FROM tuples WHERE id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
+        'SELECT * FROM tuples WHERE internal_only = 0 AND id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
       ).all(afterId, now, limit) as TupleRow[];
 
     let lastId = afterId;
     for (const row of rows) {
-      const tuple = rowToTuple(row);
+      const tuple = rowToPublicTuple(row);
       lastId = tuple.id;
       if (matchesPattern(tuple.fields, pattern)) {
         return { tuple, lastId };
@@ -417,11 +442,12 @@ export function createTupleSpace(db: Database.Database) {
       ? db.prepare(`
         SELECT * FROM tuples
         WHERE COALESCE(harbor, '') = COALESCE(?, '')
+          AND internal_only = 0
           AND (expires_at IS NULL OR expires_at > ?)
         ORDER BY created_at DESC
       `).all(canonical, now) as TupleRow[]
-      : db.prepare('SELECT * FROM tuples WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC').all(now) as TupleRow[];
-    return rows.map(rowToTuple);
+      : db.prepare('SELECT * FROM tuples WHERE internal_only = 0 AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at DESC').all(now) as TupleRow[];
+    return rows.map(rowToPublicTuple);
   }
 
   /** Count tuples, optionally matching a pattern. */
@@ -433,9 +459,10 @@ export function createTupleSpace(db: Database.Database) {
         ? db.prepare(`
           SELECT COUNT(*) as c FROM tuples
           WHERE COALESCE(harbor, '') = COALESCE(?, '')
+            AND internal_only = 0
             AND (expires_at IS NULL OR expires_at > ?)
         `).get(canonical, Date.now()) as { c: number }
-        : db.prepare('SELECT COUNT(*) as c FROM tuples WHERE expires_at IS NULL OR expires_at > ?').get(Date.now()) as { c: number };
+        : db.prepare('SELECT COUNT(*) as c FROM tuples WHERE internal_only = 0 AND (expires_at IS NULL OR expires_at > ?)').get(Date.now()) as { c: number };
       return row.c;
     }
     return rd(pattern, { harbor }).length;

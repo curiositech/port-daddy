@@ -68,13 +68,53 @@ describe('outOnce (durable idempotent write)', () => {
       expect(replay.tuple).toEqual(first.tuple);
       expect(replay.tuple.fields).toEqual(['once', 'original']);
       expect(replay.tuple.idempotencyKey).toBe('durable-key');
-      expect(tuplesA.rd(['once'], { harbor: 'fleet' })).toHaveLength(1);
+      expect(tuplesA.rd(['once'], { harbor: 'fleet' })).toEqual([
+        expect.objectContaining({ id: first.tuple.id, idempotencyKey: null }),
+      ]);
       expect(notified).toEqual([first.tuple.id]);
     } finally {
       dbA.close();
       dbB.close();
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test('keeps internal authority rows exact-key-only across every generic public surface', () => {
+    const notified = [];
+    tuples.subscribe(['parley:auto:lineage'], undefined, (tuple) => notified.push(tuple.id));
+    const authority = tuples.outOnce(
+      ['parley:auto:lineage', 'lineage-1', 'signal-1', Date.now()],
+      {
+        harbor: ' fleet ',
+        idempotencyKey: 'parley:auto:lineage:lineage-1',
+        internalOnly: true,
+      },
+    );
+
+    expect(authority.inserted).toBe(true);
+    expect(authority.tuple.idempotencyKey).toBe('parley:auto:lineage:lineage-1');
+    expect(notified).toEqual([]);
+    expect(tuples.rd(['parley:auto:lineage'], { harbor: 'fleet' })).toEqual([]);
+    expect(tuples.poll(['parley:auto:lineage'], { harbor: 'fleet' }).tuple).toBeNull();
+    expect(tuples.scan('fleet')).toEqual([]);
+    expect(tuples.count(undefined, 'fleet')).toBe(0);
+    expect(tuples.take(['parley:auto:lineage'], { harbor: 'fleet' })).toEqual([]);
+    expect(tuples.getByIdempotencyKey('parley:auto:lineage:lineage-1', { harbor: 'fleet' }))
+      .toEqual(authority.tuple);
+  });
+
+  test('redacts reservation keys from generic reads, polls, scans, and takes', () => {
+    const written = tuples.outOnce(['visible', 'payload'], {
+      harbor: 'fleet',
+      idempotencyKey: 'visible-delivery-key',
+    });
+
+    expect(written.tuple.idempotencyKey).toBe('visible-delivery-key');
+    expect(tuples.rd(['visible'], { harbor: 'fleet' })[0].idempotencyKey).toBeNull();
+    expect(tuples.poll(['visible'], { harbor: 'fleet' }).tuple.idempotencyKey).toBeNull();
+    expect(tuples.scan('fleet')[0].idempotencyKey).toBeNull();
+    expect(tuples.take(['visible'], { harbor: 'fleet' })[0].idempotencyKey).toBeNull();
+    expect(tuples.getByIdempotencyKey('visible-delivery-key', { harbor: 'fleet' })).toBeNull();
   });
 
   test('isolates the same key by canonical harbor', () => {
@@ -192,6 +232,7 @@ describe('outOnce (durable idempotent write)', () => {
       });
 
       expect(columns).toContain('idempotency_key');
+      expect(columns).toContain('internal_only');
       expect(indexes).toContain('idx_tuples_harbor_idempotency');
       expect(reservation.inserted).toBe(true);
       expect(migrated.rd(['legacy'], { harbor: 'legacy' })).toHaveLength(1);

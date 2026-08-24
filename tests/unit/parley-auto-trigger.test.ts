@@ -97,6 +97,14 @@ describe('durable automatic Parley trigger', () => {
     });
   }
 
+  function internalFields(kind: string): unknown[][] {
+    return (db.prepare('SELECT fields FROM tuples WHERE internal_only = 1 ORDER BY id').all() as Array<{
+      fields: string;
+    }>)
+      .map((row) => JSON.parse(row.fields) as unknown[])
+      .filter((fields) => fields[0] === kind);
+  }
+
   test('publishes frozen server caps and maps every kind to an existing trigger', () => {
     expect(Object.isFrozen(PARLEY_AUTO_TRIGGER_POLICY)).toBe(true);
     expect(PARLEY_AUTO_TRIGGER_POLICY).toEqual({
@@ -172,6 +180,7 @@ describe('durable automatic Parley trigger', () => {
       harbor: 'fleet',
       writtenBy: 'port-daddy:parley-auto-trigger',
       idempotencyKey: `parley:auto:lineage:${lineageKey}`,
+      internalOnly: true,
     });
 
     const earlySignal = automaticSignal({ evidenceRefs: ['claim:early:a', 'claim:early:b'] });
@@ -226,7 +235,8 @@ describe('durable automatic Parley trigger', () => {
     expect(tuples.rd(['parley:summons', first.parleyId, '*', '*'])).toHaveLength(2);
     expect(inbox.list('agent-a').messages).toHaveLength(1);
     expect(inbox.list('agent-b').messages).toHaveLength(1);
-    expect(tuples.rd(['parley:auto:cap', '*', '*', signal.signalId])).toHaveLength(0);
+    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
+      .toHaveLength(0);
   });
 
   test('requires every party to be a distinct live canonical daemon agent identity', () => {
@@ -305,7 +315,8 @@ describe('durable automatic Parley trigger', () => {
 
     expect(failed.state).toBe('failed');
     expect(failed.reason).toMatch(/failed before opened record/);
-    expect(tuples.rd(['parley:auto:cap', '*', '*', signal.signalId])).toHaveLength(0);
+    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
+      .toHaveLength(0);
 
     const recovered = service().evaluate(signal);
     expect(recovered.state).toBe('replayed');
@@ -334,8 +345,10 @@ describe('durable automatic Parley trigger', () => {
     const failed = service(faultingTuples as typeof tuples).evaluate(signal);
     expect(failed.state).toBe('failed');
     expect(failed.reason).toMatch(new RegExp(`injected ${_stage}`));
-    expect(tuples.rd(['parley:auto:lineage', '*', signal.signalId, '*'])).toHaveLength(0);
-    expect(tuples.rd(['parley:auto:cap', '*', '*', signal.signalId])).toHaveLength(0);
+    expect(internalFields('parley:auto:lineage').filter((fields) => fields[2] === signal.signalId))
+      .toHaveLength(0);
+    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
+      .toHaveLength(0);
     expect(parley.list()).toHaveLength(0);
 
     const recovered = service().evaluate(signal);
@@ -352,7 +365,8 @@ describe('durable automatic Parley trigger', () => {
     expect(partial.state).toBe('failed');
     expect(partial.reason).toMatch(/delivery incomplete/);
     expect(inbox.list('agent-a').messages).toHaveLength(1);
-    expect(tuples.rd(['parley:auto:cap', '*', '*', signal.signalId])).toHaveLength(2);
+    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
+      .toHaveLength(2);
 
     inbox.clear('agent-b');
     const restartedTuples = createTupleSpace(db);
@@ -415,7 +429,7 @@ describe('durable automatic Parley trigger', () => {
     expect(capped.state).toBe('suppressed');
     expect(capped.reason).toMatch(/global cap 32/);
     expect(parley.list()).toHaveLength(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal);
-    expect(tuples.rd(['parley:auto:cap', 'global', '*', '*']))
+    expect(internalFields('parley:auto:cap').filter((fields) => fields[1] === 'global'))
       .toHaveLength(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal);
 
     clock += 60 * 60 * 1000 + 1;
@@ -526,14 +540,45 @@ describe('durable automatic Parley trigger', () => {
     expect(tuples.rd(['parley:opened', first.parleyId, '*'])).toHaveLength(1);
   });
 
-  test('persists visible terminal tuple and activity states', () => {
+  test('keeps authority tuples private while preserving visible terminal activity', () => {
     const result = service().evaluate(automaticSignal());
-    const terminal = tuples.rd(['parley:auto:terminal', result.signalId, 'fired', '*']);
+    const terminal = internalFields('parley:auto:terminal')
+      .filter((fields) => fields[1] === result.signalId && fields[2] === 'fired');
     const activity = activityLog.getRecent({ type: 'parley.auto.fired' });
 
     expect(terminal).toHaveLength(1);
+    expect(tuples.rd(['parley:auto:terminal'])).toEqual([]);
+    expect(tuples.scan()).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ fields: expect.arrayContaining(['parley:auto:terminal']) }),
+    ]));
+    expect(tuples.take(['parley:auto:terminal'])).toEqual([]);
     expect(activity.count).toBe(1);
     expect(activity.entries[0].targetId).toBe(result.parleyId);
+  });
+
+  test('public tuple operations cannot erase signal or lineage authority before replay', () => {
+    const signal = automaticSignal();
+    const first = service().evaluate(signal);
+    const lineageKey = parleySignalLineageKey(signal);
+
+    expect(first.state).toBe('fired');
+    expect(tuples.rd(['parley:auto:signal'])).toEqual([]);
+    expect(tuples.take(['parley:auto:signal'])).toEqual([]);
+    expect(tuples.take(['parley:auto:lineage'])).toEqual([]);
+    expect(tuples.getByIdempotencyKey(
+      `parley:auto:signal:${signal.signalId}`,
+      { harbor: 'fleet' },
+    )?.fields[2])
+      .toMatchObject({ signal: expect.objectContaining({ signalId: signal.signalId }) });
+    expect(tuples.getByIdempotencyKey(
+      `parley:auto:lineage:${lineageKey}`,
+      { harbor: 'fleet' },
+    )?.fields[2])
+      .toBe(signal.signalId);
+    expect(service().evaluate(signal)).toMatchObject({
+      state: 'replayed',
+      parleyId: first.parleyId,
+    });
   });
 
   test('bounds terminal telemetry under a replay storm', () => {
@@ -543,8 +588,12 @@ describe('durable automatic Parley trigger', () => {
       expect(service().evaluate(signal).state).toBe('replayed');
     }
 
-    expect(tuples.rd(['parley:auto:terminal', signal.signalId, 'fired', '*'])).toHaveLength(1);
-    expect(tuples.rd(['parley:auto:terminal', signal.signalId, 'replayed', '*'])).toHaveLength(1);
+    expect(internalFields('parley:auto:terminal').filter(
+      (fields) => fields[1] === signal.signalId && fields[2] === 'fired',
+    )).toHaveLength(1);
+    expect(internalFields('parley:auto:terminal').filter(
+      (fields) => fields[1] === signal.signalId && fields[2] === 'replayed',
+    )).toHaveLength(1);
     expect(activityLog.getRecent({ type: 'parley.auto.fired' }).count).toBe(1);
     expect(activityLog.getRecent({ type: 'parley.auto.replayed' }).count).toBe(1);
   });
