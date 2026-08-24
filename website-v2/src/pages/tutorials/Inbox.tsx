@@ -5,8 +5,8 @@ import { Surface } from "@/components/ui/Surface";
 export function Inbox() {
   return (
     <TutorialLayout
-      title="Use Agent Inboxes"
-      description="Separate the human control layer from the agent execution layer, send a durable handoff to one named agent, and keep direct coordination readable instead of burying it in logs."
+      title="Use Verified Actor Inboxes"
+      description="Create two verified actor contexts, send a bounded durable handoff to one exact canonical actor, and acknowledge it without deleting the audit trail."
       number={10}
       total={21}
       level="Intermediate"
@@ -30,8 +30,9 @@ export function Inbox() {
                   Human Control Layer
                 </p>
                 <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
-                  A release lead, reviewer, or operator chooses the next owner,
-                  sends the assignment, and inspects whether the handoff landed.
+                  A release lead, reviewer, or operator chooses the next owner.
+                  Port Daddy turns that choice into a message for one exact,
+                  daemon-minted actor ID.
                 </p>
               </div>
               <div className="space-y-[var(--space-2)]">
@@ -39,54 +40,10 @@ export function Inbox() {
                   Agent Execution Layer
                 </p>
                 <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
-                  The receiving agent watches its own inbox, reads the message,
-                  and carries the task forward. That inbox belongs to one agent,
-                  not the whole fleet.
+                  The receiving actor presents its stored credential to read or
+                  acknowledge the message. A display name, alias, request body,
+                  or loopback connection cannot stand in for that credential.
                 </p>
-              </div>
-            </div>
-          </Surface>
-
-          <Surface depth="flat" radius="none" padding="lg">
-            <div className="space-y-[var(--space-4)]">
-              <div>
-                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                  Human Layer In The Console UI
-                </p>
-                <p className="mb-0 mt-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
-                  These are real Port Daddy console surfaces. The operator
-                  entrance is where a human sees launch blockers and next
-                  actions; the Fleet Flow surface is where a human inspects the
-                  running system after assigning work.
-                </p>
-              </div>
-
-              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
-                <figure className="m-0 space-y-[var(--space-2)]">
-                  <img
-                    src="/img/tutorial-human-layer-control-center.webp"
-                    alt="Real Fleet Control Center operator entrance from the local Port Daddy daemon, showing budget limits, what's ready to run, the project queue, and next actions."
-                    className="block w-full border-2 border-[var(--border-strong)]"
-                    loading="lazy"
-                  />
-                  <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
-                    Human control layer: the real daemon-served operator
-                    entrance, captured from the local Fleet Control Center.
-                  </figcaption>
-                </figure>
-
-                <figure className="m-0 space-y-[var(--space-2)]">
-                  <img
-                    src="/img/app-screens/fleet-flow-light.webp"
-                    alt="Real Fleet Flow console view showing project and agent activity inside the Port Daddy app."
-                    className="block w-full border-2 border-[var(--border-strong)]"
-                    loading="lazy"
-                  />
-                  <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
-                    Human control layer: Fleet Flow gives the operator the live
-                    system view after the handoff is assigned.
-                  </figcaption>
-                </figure>
               </div>
             </div>
           </Surface>
@@ -98,9 +55,9 @@ export function Inbox() {
                   Use Inbox When
                 </p>
                 <ul className="m-0 space-y-[var(--space-2)] pl-[var(--space-5)]">
-                  <li>one agent owns the next move</li>
-                  <li>the handoff should persist until read</li>
-                  <li>the sender identity should stay attached</li>
+                  <li>one verified actor owns the next move</li>
+                  <li>the exact canonical recipient is known</li>
+                  <li>daemon-attributed provenance should stay attached</li>
                 </ul>
               </div>
               <div className="space-y-[var(--space-2)]">
@@ -118,61 +75,84 @@ export function Inbox() {
         </section>
 
         <section className="space-y-[var(--space-4)]">
-          <h2 className="m-0">1. Start The Agent-Owned Receiver</h2>
+          <h2 className="m-0">1. Start The Verified Receiver</h2>
           <p>
-            Begin on the <strong>agent layer</strong>. In the receiving
-            terminal, watch the QA agent&apos;s inbox. This is the dedicated
-            lane where a direct assignment should appear.
+            Begin on the <strong>agent layer</strong>. In Terminal B, start the
+            receiver&apos;s durable session. The daemon mints the actor identity,
+            binds it to a live inbox in this harbor, and stores the one-time
+            credential in that terminal&apos;s local context.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`# Terminal B — QA agent
-$ pd inbox watch --agent QA-REVIEWER
+            {`# Terminal B — receiver
+$ pd begin "Review migration 0142" \\
+    --identity qa:reviewer \\
+    --lifecycle durable \\
+    --sidequest "Inbox tutorial receiver"
 
-Watching inbox for agent QA-REVIEWER...
-Waiting for unread messages...`}
+# Output
+agent    QA Reviewer (ACTOR7K4M2...)
+session  Review migration 0142 (session-review-...)`}
           </CodeBlock>
           <p>
-            This terminal belongs to the named agent. It is not a generic
-            operator monitor and not a broadcast channel listener.
+            <code>qa:reviewer</code> is useful display metadata. It is not the
+            recipient authority. Copy the canonical <code>ACTOR7K4M2...</code>
+            ID that the daemon returned; aliases cannot be substituted later.
           </p>
         </section>
 
         <section className="space-y-[var(--space-4)]">
-          <h2 className="m-0">2. Send The Handoff From The Human Layer</h2>
+          <h2 className="m-0">2. Send From Another Verified Actor</h2>
           <p>
-            Switch to the <strong>human control layer</strong>. The release lead
-            decides that QA owns the next step and sends one direct message to
-            that agent. In the CLI today, the sender identity comes from the
-            current agent context or the <code>AGENT_ID</code> environment
-            variable.
+            In Terminal A, begin the sender&apos;s session, then target the exact
+            canonical receiver ID. The CLI presents Terminal A&apos;s stored actor
+            credential; the body contains only bounded message content. It
+            cannot choose its own sender, wake the receiver, or claim operator
+            authority.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`# Terminal A — release lead
-$ AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER \
+            {`# Terminal A — sender
+$ pd begin "Coordinate staging release" \\
+    --identity release:lead \\
+    --lifecycle durable \\
+    --sidequest "Inbox tutorial sender"
+
+$ pd inbox send ACTOR7K4M2... \
   "Check migration 0142 on staging before release. Focus on lock ordering and rollback."
 
-Message sent to QA-REVIEWER`}
+Message sent to ACTOR7K4M2...`}
           </CodeBlock>
           <p>
-            This is the point of the inbox: one sender, one owner, one durable
-            assignment.
+            Port Daddy records the canonical sender from the verified
+            credential. A caller-provided alias or sender field has zero
+            authority and is not persisted as the party.
           </p>
         </section>
 
         <section className="space-y-[var(--space-4)]">
-          <h2 className="m-0">3. Confirm What The Agent Sees</h2>
+          <h2 className="m-0">3. Read And Acknowledge As The Owner</h2>
           <p>
-            Back in the <strong>agent layer</strong>, the watcher receives the
-            handoff with attribution. The agent can now act without scraping a
-            shared log or guessing who asked.
+            Back in Terminal B, read the inbox. The command uses the exact
+            receiver credential stored by <code>pd begin</code>. Another actor,
+            an anonymous HTTP caller, or a same-named alias is rejected.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`# Terminal B — QA agent
-Watching inbox for agent QA-REVIEWER...
+            {`# Terminal B — receiver
+$ pd inbox --unread --limit 1
 
-[12:04:38] <RELEASE-LEAD> Check migration 0142 on staging before release. Focus on...
-Check migration 0142 on staging before release. Focus on lock ordering and rollback.`}
+# Output
+✉ [12:04:38] <ACTOR9Q2D6...> Check migration 0142 on staging before release...
+1 message(s)
+
+$ pd inbox read-all
+Marked 1 message(s) as read`}
           </CodeBlock>
+
+          <p>
+            Acknowledgement preserves the durable audit trail. Destructive
+            inbox clear is not a public API. Anonymous external ingress, where
+            enabled, is stamped as external provenance, rate-limited and
+            bounded, and has no wake or terminal authority.
+          </p>
 
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
@@ -184,8 +164,8 @@ Check migration 0142 on staging before release. Focus on lock ordering and rollb
                 into shared noise.
               </p>
               <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
-                The agent layer gets a durable, attributable instruction instead
-                of a vague event stream.
+                The actor layer gets a durable, daemon-attributed instruction
+                instead of a self-asserted sender string.
               </p>
               <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
                 The handoff survives long enough to be read, resumed, or audited
@@ -202,18 +182,18 @@ Check migration 0142 on staging before release. Focus on lock ordering and rollb
             the inbox. If several listeners should react, publish to a channel.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`# Human assigns work to one agent
-AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER "Review the staging migration"
-Message sent to QA-REVIEWER
+            {`# A verified actor assigns work to one exact actor
+pd inbox send ACTOR7K4M2... "Review the staging migration"
+Message sent to ACTOR7K4M2...
 
 # System broadcasts a shared event
 pd pub release:staging '{"event":"migration-ready","build":"0142"}'
 SUCCESS: published to release:staging`}
           </CodeBlock>
           <p>
-            Humans assign through inboxes. Shared runtime events flow through
-            channels. If those two layers blur together, the coordination model
-            stops making sense.
+            Directed actor handoffs use inboxes. Shared runtime events flow
+            through channels. A channel subscription is never a shortcut around
+            inbox owner authentication.
           </p>
         </section>
 
@@ -222,8 +202,8 @@ SUCCESS: published to release:staging`}
           <p>
             This same split works for review requests, salvage recovery,
             operator escalation, and CI handoffs. A human or another tool
-            decides who owns the work. The named agent receives it in a
-            durable lane.
+            decides who owns the work. The daemon resolves that decision to one
+            canonical live actor in the correct harbor or fails closed.
           </p>
           <Surface depth="raised" radius="none" padding="lg">
             <div className="grid gap-[var(--space-4)] md:grid-cols-2">

@@ -6,10 +6,18 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import { createTestDb } from '../setup-unit.js';
-import { createAgents } from '../../lib/agents.js';
+import {
+  createAgents,
+  VERIFIED_ACTOR_INBOX_REGISTRATION,
+} from '../../lib/agents.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
+import { createSessions } from '../../lib/sessions.js';
+import { initDatabase } from '../../lib/db.js';
 
 describe('Agents Module', () => {
   let db;
@@ -111,6 +119,300 @@ describe('Agents Module', () => {
 
       const result = agents.get('my-agent');
       expect(result.agent.pid).toBe(12345);
+    });
+  });
+
+  describe('Verified actor inbox registration', () => {
+    const binding = (actorId = 'actor-canonical', harbor = 'local') => ({
+      [VERIFIED_ACTOR_INBOX_REGISTRATION]: { actorId, harbor },
+    });
+
+    it('persists and resolves only the server-selected canonical actor endpoint', () => {
+      expect(agents.register('actor-canonical', binding())).toEqual(expect.objectContaining({
+        success: true,
+        agentId: 'actor-canonical',
+      }));
+
+      expect(agents.get('actor-canonical').agent.actorInboxBinding).toEqual(expect.objectContaining({
+        verified: true,
+        actorId: 'actor-canonical',
+        harbor: 'local',
+        inboxTarget: 'actor-canonical',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({
+          actorId: 'actor-canonical',
+          harbor: 'local',
+          inboxTarget: 'actor-canonical',
+        }),
+      });
+    });
+
+    it('rejects a server binding whose actor does not equal the registered endpoint', () => {
+      expect(agents.register('fresh-victim-agent', binding('actor-attacker'))).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_BINDING_INVALID',
+      }));
+      expect(agents.get('fresh-victim-agent').success).toBe(false);
+    });
+
+    it('prevents raw re-registration from overwriting or refreshing a verified binding', () => {
+      agents.register('actor-canonical', binding());
+      const original = agents.get('actor-canonical').agent;
+
+      expect(agents.register('actor-canonical', {
+        name: 'forged replacement',
+        metadata: { actorId: 'victim' },
+      })).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+      }));
+      expect(agents.get('actor-canonical').agent).toEqual(expect.objectContaining({
+        name: original.name,
+        lastHeartbeat: original.lastHeartbeat,
+        actorInboxBinding: original.actorInboxBinding,
+      }));
+    });
+
+    it('prevents raw unregister from deleting a verified binding', () => {
+      agents.register('actor-canonical', binding());
+
+      expect(agents.unregister('actor-canonical')).toEqual(expect.objectContaining({
+        success: false,
+        unregistered: false,
+        code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({ inboxTarget: 'actor-canonical' }),
+      });
+
+      expect(agents.unregister('actor-canonical', binding())).toEqual(expect.objectContaining({
+        success: true,
+        unregistered: true,
+        agentId: 'actor-canonical',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+      }));
+    });
+
+    it('prevents raw final-session teardown from deleting a verified binding', () => {
+      agents.register('actor-canonical', binding());
+
+      expect(agents.finalizeSessionAndUnregisterIfNoActiveSessions(
+        'actor-canonical',
+        () => ({ success: true }),
+      )).toEqual(expect.objectContaining({
+        success: false,
+        unregistered: false,
+        code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({ inboxTarget: 'actor-canonical' }),
+      });
+    });
+
+    it('serializes final teardown against a production-shaped concurrent canonical begin', async () => {
+      const raceDir = mkdtempSync(join(process.cwd(), '.identity-inbox-race-'));
+      const dbPath = join(raceDir, 'registry.db');
+      const priorTestDb = process.env.PORT_DADDY_TEST_DB;
+      let raceDb;
+      let worker;
+
+      try {
+        process.env.PORT_DADDY_TEST_DB = dbPath;
+        raceDb = initDatabase({ dbPath });
+        if (priorTestDb === undefined) delete process.env.PORT_DADDY_TEST_DB;
+        else process.env.PORT_DADDY_TEST_DB = priorTestDb;
+
+        raceDb.pragma('busy_timeout = 5000');
+        createLocks(raceDb);
+        const raceAgents = createAgents(raceDb);
+        const raceSessions = createSessions(raceDb);
+        const actorId = 'actor-race-canonical';
+        expect(raceAgents.register(actorId, {
+          identity: 'demo:test:race-canonical',
+          ...binding(actorId),
+        })).toEqual(expect.objectContaining({ success: true }));
+        const predecessor = raceSessions.start('race predecessor', {
+          agentId: actorId,
+          project: 'demo',
+          durable: true,
+          metadata: {
+            identity: { verified: true, actorId },
+            actorInbox: {
+              verified: true,
+              actorId,
+              harbor: 'local',
+              inboxTarget: actorId,
+            },
+          },
+        });
+        expect(predecessor).toEqual(expect.objectContaining({ success: true }));
+
+        const attempted = new SharedArrayBuffer(4);
+        const attemptedView = new Int32Array(attempted);
+        worker = new Worker(`
+          const { parentPort, workerData } = require('node:worker_threads');
+          const Database = require(workerData.betterSqlitePath);
+          const db = new Database(workerData.dbPath);
+          db.pragma('busy_timeout = 5000');
+          const attempted = new Int32Array(workerData.attempted);
+          parentPort.postMessage({ ready: true });
+          parentPort.once('message', () => {
+            Atomics.store(attempted, 0, 1);
+            Atomics.notify(attempted, 0);
+            try {
+              db.transaction(() => {
+                const now = Date.now();
+                db.prepare(\`
+                  INSERT INTO agents (
+                    id, registered_at, last_heartbeat,
+                    verified_actor_id, verified_actor_harbor, verified_inbox_bound_at
+                  ) VALUES (?, ?, ?, ?, 'local', ?)
+                  ON CONFLICT(id) DO UPDATE SET
+                    last_heartbeat = excluded.last_heartbeat,
+                    verified_actor_id = excluded.verified_actor_id,
+                    verified_actor_harbor = excluded.verified_actor_harbor,
+                    verified_inbox_bound_at = COALESCE(agents.verified_inbox_bound_at, excluded.verified_inbox_bound_at)
+                \`).run(workerData.actorId, now, now, workerData.actorId, now);
+                db.prepare(\`
+                  INSERT INTO sessions (
+                    id, purpose, status, phase, agent_id, identity_project,
+                    created_at, updated_at, metadata, is_durable
+                  ) VALUES (?, 'race successor', 'active', 'in_progress', ?, 'demo', ?, ?, ?, 1)
+                \`).run(
+                  workerData.successorId,
+                  workerData.actorId,
+                  now,
+                  now,
+                  JSON.stringify({
+                    identity: { verified: true, actorId: workerData.actorId },
+                    actorInbox: {
+                      verified: true,
+                      actorId: workerData.actorId,
+                      harbor: 'local',
+                      inboxTarget: workerData.actorId,
+                    },
+                  }),
+                );
+              }).immediate();
+              parentPort.postMessage({ success: true });
+            } catch (error) {
+              parentPort.postMessage({ success: false, error: error.message });
+            } finally {
+              db.close();
+            }
+          });
+        `, {
+          eval: true,
+          workerData: {
+            dbPath,
+            actorId,
+            successorId: 'session-race-successor',
+            attempted,
+            betterSqlitePath: join(process.cwd(), 'node_modules', 'better-sqlite3'),
+          },
+        });
+
+        await new Promise((resolve, reject) => {
+          const onError = (error) => reject(error);
+          worker.once('error', onError);
+          worker.once('message', (message) => {
+            worker.off('error', onError);
+            expect(message).toEqual({ ready: true });
+            resolve();
+          });
+        });
+
+        const workerResult = new Promise((resolve, reject) => {
+          worker.once('error', reject);
+          worker.once('message', resolve);
+        });
+        const finalized = raceAgents.finalizeSessionAndUnregisterIfNoActiveSessions(
+          actorId,
+          () => {
+            const ended = raceSessions.end(predecessor.id, { status: 'completed' });
+            worker.postMessage({ begin: true });
+            const waitResult = Atomics.wait(attemptedView, 0, 0, 2000);
+            expect(['ok', 'not-equal']).toContain(waitResult);
+            expect(Atomics.load(attemptedView, 0)).toBe(1);
+            return ended;
+          },
+          binding(actorId),
+        );
+
+        expect(finalized).toEqual(expect.objectContaining({
+          success: true,
+          unregistered: true,
+        }));
+        expect(await workerResult).toEqual({ success: true });
+        expect(raceSessions.get(predecessor.id).session.status).toBe('completed');
+        expect(raceSessions.get('session-race-successor').session).toEqual(expect.objectContaining({
+          status: 'active',
+          agentId: actorId,
+        }));
+        expect(raceAgents.resolveLiveActorInbox(actorId, 'local')).toEqual({
+          success: true,
+          binding: expect.objectContaining({
+            actorId,
+            harbor: 'local',
+            inboxTarget: actorId,
+          }),
+        });
+      } finally {
+        if (priorTestDb === undefined) delete process.env.PORT_DADDY_TEST_DB;
+        else process.env.PORT_DADDY_TEST_DB = priorTestDb;
+        if (worker) await worker.terminate();
+        if (raceDb?.open) raceDb.close();
+        rmSync(raceDir, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('fails closed for unbound and stale registry rows', () => {
+      agents.register('display-only-agent');
+      expect(agents.resolveLiveActorInbox('display-only-agent', 'local')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+      }));
+
+      agents.register('actor-canonical', binding());
+      db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
+        .run(Date.now() - agents.DEFAULT_CLEANUP_TTL - 1, 'actor-canonical');
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_STALE',
+      }));
+    });
+
+    it('uses operational liveness rather than the two-minute display TTL', () => {
+      agents.register('actor-canonical', binding());
+      db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
+        .run(Date.now() - agents.DEFAULT_AGENT_TTL - 1, 'actor-canonical');
+      expect(agents.get('actor-canonical').agent.isActive).toBe(false);
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'local')).toEqual({
+        success: true,
+        binding: expect.objectContaining({ inboxTarget: 'actor-canonical' }),
+      });
+    });
+
+    it('does not let the same canonical endpoint cross harbor authority', () => {
+      agents.register('actor-canonical', binding('actor-canonical', 'tenant-a'));
+      expect(agents.register(
+        'actor-canonical',
+        binding('actor-canonical', 'tenant-b'),
+      )).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_BINDING_CONFLICT',
+      }));
+      expect(agents.resolveLiveActorInbox('actor-canonical', 'tenant-b')).toEqual(expect.objectContaining({
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+      }));
     });
   });
 

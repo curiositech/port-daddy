@@ -166,9 +166,9 @@ List actor projections. Options: `project`, `limit`. Returns `{ actors, count }`
 Get one actor by canonical ID or compatibility alias. Options: `project`. For example, `navigator` resolves to `cartographer`.
 
 ### `pd.messageActor(idOrAlias, content, options?)`
-Send a mailbox message to an actor. Options: `from`, `type`, `project`, `wake`.
-
-Use `wake: true` only when you also want to hail a compatible live fleet body; mailbox delivery does not require a live body.
+Send bounded external content to an actor mailbox. The daemon assigns sender
+provenance and never wakes or controls a runtime. The only option is
+`contentType` (`text` or `json`).
 
 ### `pd.actorInboxList(idOrAlias, options?)`
 Read recent messages queued to a durable actor mailbox. Options: `unreadOnly`, `limit`, `since`.
@@ -177,12 +177,7 @@ Read recent messages queued to a durable actor mailbox. Options: `unreadOnly`, `
 Read mailbox depth for one durable actor. Returns `{ unread, total, max }`.
 
 ```js
-await pd.messageActor('navigator', 'Refresh roadmap truth from CURRENT-WORK.md', {
-  from: 'agent-123',
-  type: 'roadmap.request',
-  project: 'port-daddy',
-  wake: true,
-})
+await pd.messageActor('navigator', 'Refresh roadmap truth from CURRENT-WORK.md')
 ```
 
 ---
@@ -359,22 +354,23 @@ Remove agent from salvage queue (reviewed/dismissed).
 ## Inbox
 
 ### `pd.inboxSend(agentId, content, options?)`
-Send a direct message to an agent's inbox. Options: `from`, `type`.
+Send bounded external content to a live canonical actor inbox. The daemon
+assigns sender provenance and never wakes or controls a runtime. The only
+option is `contentType` (`text` or `json`).
 
 ### `pd.inboxList(agentId, options?)`
-List inbox messages. Options: `unread`, `limit`.
+List inbox messages. Options: `unreadOnly`, `limit`, `since`. The client must
+hold the exact daemon-minted actor credential for `agentId`.
 
 ### `pd.inboxStats(agentId)`
-Get inbox stats: total and unread counts.
+Get inbox stats: total and unread counts. Requires the exact owner credential.
 
 ### `pd.inboxMarkRead(agentId, messageId)`
-Mark a single inbox message as read.
+Mark a single inbox message as read. Requires the exact owner credential.
 
 ### `pd.inboxMarkAllRead(agentId)`
-Mark all inbox messages as read.
-
-### `pd.inboxClear(agentId)`
-Clear all inbox messages.
+Mark all inbox messages as read. Requires the exact owner credential. Destructive
+inbox clearing is not exposed.
 
 ### `pd.inboxSubscribe(agentId, options?)`
 Subscribe to inbox via SSE. Returns `{ on(event, fn), unsubscribe() }`.

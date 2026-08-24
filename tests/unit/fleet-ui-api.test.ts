@@ -1,6 +1,26 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 const originalFetch = global.fetch;
+const CONTROL_CENTER_ORIGIN = 'https://control-center.test';
+
+function installControlCenterWindow(): void {
+  const values = new Map<string, string>();
+  (global as { window?: unknown }).window = {
+    location: {
+      origin: CONTROL_CENTER_ORIGIN,
+      protocol: 'https:',
+      hostname: 'control-center.test',
+      href: `${CONTROL_CENTER_ORIGIN}/fleet-ui/`,
+      search: '',
+    },
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+    navigator: { userAgent: 'Fleet Control Center test' },
+    history: { replaceState: jest.fn() },
+  };
+}
 
 const previewFixture = {
   requestedPath: 'routes/operator.ts',
@@ -19,6 +39,7 @@ const previewFixture = {
 
 beforeEach(() => {
   jest.resetModules();
+  installControlCenterWindow();
 });
 
 afterEach(() => {
@@ -27,7 +48,27 @@ afterEach(() => {
 });
 
 describe('fleet-config-ui api', () => {
-  test('sendAgentMessage treats wake conflicts as partial success', async () => {
+  test('uses a relative same-origin route instead of guessing a daemon port', async () => {
+    delete (global as { window?: unknown }).window;
+    jest.resetModules();
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: { get: () => 'application/json' },
+      json: async () => ({ success: true, delivered: true, woke: false, messageId: 1 }),
+    })) as typeof fetch;
+
+    const { sendAgentMessage } = await import('../../fleet-config-ui/src/api.ts');
+    await sendAgentMessage('qa', { content: 'same origin' });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/agents/qa/inbox',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  test('sendAgentMessage fails closed when external delivery is rejected', async () => {
     global.fetch = jest.fn(async () => ({
       ok: false,
       status: 409,
@@ -45,21 +86,12 @@ describe('fleet-config-ui api', () => {
     })) as typeof fetch;
 
     const { sendAgentMessage } = await import('../../fleet-config-ui/src/api.ts');
-    const result = await sendAgentMessage('spark', {
+    await expect(sendAgentMessage('spark', {
       content: 'What should I do next?',
-      project: 'port-daddy',
-      wake: true,
-    });
-
-    expect(result).toEqual(expect.objectContaining({
-      delivered: true,
-      woke: false,
-      messageId: 42,
-      error: 'No running fleet agent matches spark',
-    }));
+    })).rejects.toThrow('No running fleet agent matches spark');
   });
 
-  test('sendAgentMessage sends typed JSON inbox payloads with wake summary', async () => {
+  test('sendAgentMessage strips caller-attributed sender, type, project, and wake fields', async () => {
     global.fetch = jest.fn(async () => ({
       ok: true,
       status: 200,
@@ -83,21 +115,17 @@ describe('fleet-config-ui api', () => {
       messageContent: '[visual-task:fix] Button is clipped',
       from: 'fleet-ui-visual',
       wake: true,
-    });
+      project: 'port-daddy',
+    } as Parameters<typeof sendAgentMessage>[1] & Record<string, unknown>);
 
     expect(result.messageId).toBe(77);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/agents/qa/inbox',
+      `${CONTROL_CENTER_ORIGIN}/agents/qa/inbox`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
           content: { type: 'visual-task', title: 'Button is clipped' },
-          project: undefined,
-          from: 'fleet-ui-visual',
-          type: 'visual-task',
           contentType: 'json',
-          messageContent: '[visual-task:fix] Button is clipped',
-          wake: true,
         }),
       }),
     );
@@ -129,7 +157,7 @@ describe('fleet-config-ui api', () => {
 
     expect(dispatch.id).toBe('dispatch-1');
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/dispatches',
+      `${CONTROL_CENTER_ORIGIN}/dispatches`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -159,7 +187,7 @@ describe('fleet-config-ui api', () => {
 
     expect(preview).toEqual(previewFixture);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/operator/file-preview',
+      `${CONTROL_CENTER_ORIGIN}/operator/file-preview`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -211,7 +239,7 @@ describe('fleet-config-ui api', () => {
 
     expect(progress.nextCuts[0]?.slug).toBe('cartographer-roadmap-progress-screen');
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/cartographer/roadmap-progress?root=%2FUsers%2Ftest%2Fport-daddy',
+      `${CONTROL_CENTER_ORIGIN}/cartographer/roadmap-progress?root=%2FUsers%2Ftest%2Fport-daddy`,
       expect.objectContaining({ method: 'GET' }),
     );
   });
@@ -250,7 +278,7 @@ describe('fleet-config-ui api', () => {
 
     expect(overview.policy.suggestedConcurrentSpawns).toBe(4);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/resources/overview?projectDir=%2FUsers%2Ftest%2Fport-daddy&maxConcurrentSpawns=2',
+      `${CONTROL_CENTER_ORIGIN}/resources/overview?projectDir=%2FUsers%2Ftest%2Fport-daddy&maxConcurrentSpawns=2`,
       expect.objectContaining({ method: 'GET' }),
     );
   });
@@ -283,7 +311,7 @@ describe('fleet-config-ui api', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/setup/run',
+      `${CONTROL_CENTER_ORIGIN}/setup/run`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -321,7 +349,7 @@ describe('fleet-config-ui api', () => {
 
     expect(result.updatedAgents).toEqual(['qa', 'spider']);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/fleet/config/%2FUsers%2Ftest%2Fport-daddy/runtime',
+      `${CONTROL_CENTER_ORIGIN}/fleet/config/%2FUsers%2Ftest%2Fport-daddy/runtime`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({

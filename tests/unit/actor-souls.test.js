@@ -127,6 +127,28 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
     expect(over.httpStatus).toBe(429);
   });
+
+  test('atomic registration rolls back admission state when mint storage fails', () => {
+    db.prepare(`CREATE TRIGGER reject_actor_soul_mint
+      BEFORE INSERT ON actor_souls
+      BEGIN
+        SELECT RAISE(ABORT, 'injected actor soul failure');
+      END`).run();
+
+    const out = souls.registerAtomically(
+      { alias: 'must-not-persist', project: 'local', day: '2026-08-23' },
+      () => ({ success: true }),
+    );
+
+    expect(out).toEqual(expect.objectContaining({
+      ok: false,
+      code: 'STORE_UNAVAILABLE',
+      httpStatus: 503,
+    }));
+    expect(db.prepare('SELECT COUNT(*) AS n FROM actor_souls').get().n).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM actor_alias').get().n).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM newcomer_pool').get().n).toBe(0);
+  });
 });
 
 describe('actor-souls: graduation on clean exits', () => {

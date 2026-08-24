@@ -20,6 +20,10 @@ import type { IpcConnection } from './ipc-server.js';
 import { verifyAgent, actionRequiresRegistration } from './ipc-auth.js';
 import type { AgentVerifier } from './ipc-auth.js';
 import type { Tuple } from './tuples.js';
+import {
+  canMutateQuorumAuthorityTuple,
+  isQuorumAuthorityTuple,
+} from './quorum.js';
 
 // ─── Service Dependencies ───────────────────────────────────────────────────
 // These match the objects created in server.ts
@@ -94,8 +98,7 @@ function asStringArray(val: unknown): string[] | null {
 }
 
 function recoverableSessionAction(action: string): boolean {
-  return action === IpcAction.DONE ||
-    action === IpcAction.NOTE;
+  return action === IpcAction.NOTE;
 }
 
 // ─── Route Handler Type ─────────────────────────────────────────────────────
@@ -155,24 +158,11 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return deps.agents.unregister(String(p.agentId));
   });
 
-  // Sessions
-  handlers.set(IpcAction.BEGIN, (p) => {
-    if (deps.sugar) return deps.sugar.begin(p);
-    return deps.sessions.start(String(p.purpose ?? ''), p);
-  });
-
-  handlers.set(IpcAction.DONE, (p) => {
-    if (deps.sugar) return deps.sugar.done(p);
-    return deps.sessions.end(String(p.sessionId), p);
-  });
-
-  handlers.set(IpcAction.SESSION_START, (p) => {
-    return deps.sessions.start(String(p.purpose ?? ''), p);
-  });
-
-  handlers.set(IpcAction.SESSION_END, (p) => {
-    return deps.sessions.end(String(p.sessionId ?? ''), p);
-  });
+  // Attributed session lifecycle writes are deliberately absent from IPC. A
+  // registered socket identity proves only the connection's display handle;
+  // it does not carry the actor credential required by the HTTP write boundary.
+  // SDK/CLI probes therefore receive NOT_UNDERSTOOD and fall through to credentialed
+  // session/Sugar HTTP routes.
 
   handlers.set(IpcAction.SESSION_LIST, (p) => {
     return deps.sessions.list(p);
@@ -180,17 +170,6 @@ export function createIpcRouter(deps: IpcRouterDeps) {
 
   handlers.set(IpcAction.SESSION_REMOVE, (p) => {
     return deps.sessions.remove(String(p.sessionId ?? ''));
-  });
-
-  handlers.set(IpcAction.SESSION_TAKEOVER, (p, conn) => {
-    if (!deps.sessions.takeover) return { success: false, error: 'session takeover not available' };
-    const agentId = conn.agentId || (typeof p.agentId === 'string' && p.agentId.trim()
-      ? p.agentId.trim()
-      : null);
-    return deps.sessions.takeover(String(p.sessionId ?? ''), {
-      ...p,
-      agentId,
-    });
   });
 
   handlers.set(IpcAction.WHOAMI, (p) => {
@@ -276,6 +255,13 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     if (!Array.isArray(p.fields) || p.fields.length === 0) {
       return { success: false, error: 'fields must be a non-empty array', code: 'VALIDATION_ERROR' };
     }
+    if (isQuorumAuthorityTuple(p.fields)) {
+      return {
+        success: false,
+        error: 'quorum authority tuples can only be written by the trusted quorum service',
+        code: 'QUORUM_TUPLE_AUTHORITY_RESERVED',
+      };
+    }
     const tuple = deps.tuples?.out(
       p.fields,
       {
@@ -304,6 +290,13 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   handlers.set(IpcAction.TUPLE_IN, (p) => {
     if (!Array.isArray(p.pattern)) {
       return { success: false, error: 'pattern must be a JSON array' };
+    }
+    if (canMutateQuorumAuthorityTuple(p.pattern)) {
+      return {
+        success: false,
+        error: 'generic tuple deletion cannot select the reserved quorum authority namespace',
+        code: 'QUORUM_TUPLE_AUTHORITY_RESERVED',
+      };
     }
     const taken = deps.tuples?.take(
       p.pattern,

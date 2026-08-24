@@ -11,11 +11,13 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 
 interface ProposalRecord {
+  tupleId: number;
   proposalId: string;
   role: string;
   reason: string;
   threshold: number;
   proposedBy: string;
+  authorityHarbor: string;
   harbor: string;
   autoSpawn: boolean;
   expiresAt: number | null;
@@ -23,6 +25,7 @@ interface ProposalRecord {
 }
 
 interface VoteRecord {
+  tupleId: number;
   proposalId: string;
   voterId: string;
   stance: 'yes' | 'no' | 'abstain';
@@ -61,6 +64,10 @@ function readNumber(options: CLIOptions, ...keys: string[]): number | undefined 
   return undefined;
 }
 
+function hasAnyOption(options: CLIOptions, ...keys: string[]): boolean {
+  return keys.some((key) => options[key] !== undefined);
+}
+
 async function postJson(path: string, body: Record<string, unknown>): Promise<{ ok: boolean; data: any }> {
   const res = await pdFetch(`${PORT_DADDY_URL}${path}`, {
     method: 'POST',
@@ -78,7 +85,7 @@ async function getJson(path: string): Promise<{ ok: boolean; data: any }> {
 }
 
 function printProposal(p: ProposalRecord): void {
-  console.log(`  - ${p.proposalId.slice(0, 8)}  role=${p.role}  threshold=${p.threshold}  by=${p.proposedBy}  harbor=${p.harbor}`);
+  console.log(`  - ${p.proposalId.slice(0, 8)}  role=${p.role}  threshold=${p.threshold}  by=${p.proposedBy}  harbor=${p.harbor}  authority=${p.authorityHarbor}`);
   console.log(`    ${p.reason}`);
 }
 
@@ -86,8 +93,8 @@ export async function handleQuorum(args: string[], options: CLIOptions): Promise
   const sub = args[0];
   if (!sub || sub === 'help' || sub === '--help' || sub === '-h') {
     console.log(`Usage:
-  pd quorum propose --role <name> --reason <text> --threshold <n> --as <agentId> [--harbor <h>] [--auto-spawn] [--ttl-ms <ms>]
-  pd quorum vote --proposal <id> --as <agentId> --stance yes|no|abstain [--weight <n>]
+  pd quorum propose --role <name> --reason <text> --threshold <n> [--harbor <h>] [--auto-spawn] [--ttl-ms <ms>]
+  pd quorum vote --proposal <id> --stance yes|no|abstain
   pd quorum list [--harbor <h>] [--limit <n>]
   pd quorum show <proposalId>
 `);
@@ -97,13 +104,16 @@ export async function handleQuorum(args: string[], options: CLIOptions): Promise
   if (sub === 'propose') {
     const role = readString(options, 'role');
     const reason = readString(options, 'reason');
-    const proposedBy = readString(options, 'as', 'proposedBy', 'agent');
     const threshold = readNumber(options, 'threshold');
-    if (!role || !reason || !proposedBy || threshold === undefined) {
-      ui.error('--role, --reason, --as <agentId>, and --threshold <n> are all required');
+    if (hasAnyOption(options, 'as', 'proposedBy', 'proposed-by', 'agent')) {
+      ui.error('proposal identity comes from the stored actor credential; --as/--proposed-by/--agent are not accepted');
       process.exit(1);
     }
-    const body: Record<string, unknown> = { role, reason, proposedBy, threshold };
+    if (!role || !reason || threshold === undefined) {
+      ui.error('--role, --reason, and --threshold <n> are all required');
+      process.exit(1);
+    }
+    const body: Record<string, unknown> = { role, reason, threshold };
     const harbor = readString(options, 'harbor');
     if (harbor) body.harbor = harbor;
     if (options['auto-spawn'] === true || options.autoSpawn === true) body.autoSpawn = true;
@@ -129,15 +139,20 @@ export async function handleQuorum(args: string[], options: CLIOptions): Promise
 
   if (sub === 'vote') {
     const proposalId = readString(options, 'proposal', 'proposalId', 'id') || args[1];
-    const voterId = readString(options, 'as', 'voter', 'voterId', 'agent');
     const stance = readString(options, 'stance');
-    if (!proposalId || !voterId || !stance) {
-      ui.error('--proposal <id>, --as <agentId>, and --stance yes|no|abstain are required');
+    if (hasAnyOption(options, 'as', 'voter', 'voterId', 'voter-id', 'agent')) {
+      ui.error('voter identity comes from the stored actor credential; --as/--voter/--agent are not accepted');
       process.exit(1);
     }
-    const body: Record<string, unknown> = { proposalId, voterId, stance };
-    const weight = readNumber(options, 'weight');
-    if (weight !== undefined) body.weight = weight;
+    if (!proposalId || !stance) {
+      ui.error('--proposal <id> and --stance yes|no|abstain are required');
+      process.exit(1);
+    }
+    if (options.weight !== undefined) {
+      ui.error('vote weight is assigned by the server; --weight is not accepted');
+      process.exit(1);
+    }
+    const body: Record<string, unknown> = { proposalId, stance };
 
     const { ok, data } = await postJson('/quorum/vote', body);
     if (!ok) {
@@ -206,6 +221,7 @@ export async function handleQuorum(args: string[], options: CLIOptions): Promise
     console.log(`  reason:     ${status.proposal.reason}`);
     console.log(`  by:         ${status.proposal.proposedBy}`);
     console.log(`  harbor:     ${status.proposal.harbor}`);
+    console.log(`  authority:  ${status.proposal.authorityHarbor}`);
     console.log(`  threshold:  ${status.proposal.threshold}`);
     console.log(`  tally:      yes=${status.yesWeight} no=${status.noWeight} abstain=${status.abstainWeight}`);
     console.log(`  passed:     ${status.passed}`);

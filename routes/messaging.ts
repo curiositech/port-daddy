@@ -29,6 +29,11 @@ import {
   CONFLICT_SIGNAL_PRODUCERS,
   shouldConvene,
 } from '../lib/parley-trigger.js';
+import {
+  authorizeCanonicalInboxOwner,
+  type InboxActorSouls,
+  type LiveInboxResolver,
+} from '../lib/inbox-http-boundary.js';
 
 interface MessagingRouteDeps {
   logger: {
@@ -53,6 +58,8 @@ interface MessagingRouteDeps {
     }): Record<string, unknown>;
     resolveChannel(name: string, opts: { projectDir?: string | null }): Record<string, unknown>;
   };
+  actorSouls?: InboxActorSouls | null;
+  agents?: LiveInboxResolver | null;
 }
 
 /**
@@ -68,6 +75,47 @@ interface MessagingRouteDeps {
 // =============================================================================
 export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> = async (fastify, opts) => {
   const { logger, metrics, messaging } = opts.deps;
+
+  // Inbox channels are a derived live-delivery transport for the durable inbox,
+  // not a second authority surface. Generic publish/clear is retired; every
+  // backlog, poll, lineage, and SSE read requires the exact live canonical
+  // owner credential. This hook covers every /msg/:channel route uniformly so
+  // a newly added read shape cannot silently bypass the owner boundary.
+  fastify.addHook('preHandler', async (request, reply) => {
+    const channel = (request.params as { channel?: unknown } | null)?.channel;
+    if (typeof channel !== 'string' || !channel.startsWith('inbox:')) return;
+
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return reply.code(404).send({
+        success: false,
+        error: 'generic inbox channel mutation is retired; use the canonical inbox ingress',
+        code: 'INBOX_CHANNEL_MUTATION_RETIRED',
+      });
+    }
+
+    const actorId = channel.slice('inbox:'.length);
+    const owner = authorizeCanonicalInboxOwner({
+      souls: opts.deps.actorSouls,
+      resolver: opts.deps.agents,
+      headers: request.headers as Record<string, unknown>,
+      requestedActorId: actorId,
+      route: `${request.method} /msg/inbox:actor`,
+      logger: {
+        info: (message, meta) => logger.info(message, meta),
+        error: (message, meta) => {
+          if (logger.error) logger.error(message, meta);
+          else logger.info(message, meta);
+        },
+      },
+    });
+    if (!owner.ok) {
+      return reply.code(owner.httpStatus).send({
+        success: false,
+        error: owner.error,
+        code: owner.code,
+      });
+    }
+  });
 
   // Bearer token required when PD_WEBHOOK_FORWARD_TOKEN is set.
   // The Cloudflare Worker sets Authorization: Bearer <token> on every forward;

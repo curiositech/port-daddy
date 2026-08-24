@@ -13,6 +13,10 @@ function buildApp(extraDeps = {}) {
     unregister: jest.fn(() => ({ success: true, unregistered: true })),
     get: jest.fn(() => ({ success: true, agent: { id: 'agent-1' } })),
     list: jest.fn(() => ({ success: true, agents: [] })),
+    resolveLiveActorInbox: jest.fn((actorId, harbor) => ({
+      success: true,
+      binding: { actorId, harbor, inboxTarget: actorId, boundAt: 1, lastHeartbeat: Date.now() },
+    })),
   };
 
   return {
@@ -195,11 +199,28 @@ describe('agents routes', () => {
       type: 'parley_summons',
       deliveryKey: 'parley_summons:p1:agent-b',
     });
-    const { app, register } = buildApp({ agentInbox });
+    const actorSouls = {
+      constants: { defaultHarbor: 'local' },
+      verifyCredential: (credential) => credential === 'agent-b.secret'
+        ? 'agent-b'
+        : credential === 'agent-a.secret'
+          ? 'agent-a'
+          : null,
+      resolveActor: (actorId) => ({ actorId, soulClass: 'newcomer' }),
+    };
+    const { app, register } = buildApp({ agentInbox, actorSouls });
     await register();
 
-    const inboxResponse = await app.inject({ method: 'GET', url: '/agents/agent-b/inbox' });
-    const sentResponse = await app.inject({ method: 'GET', url: '/agents/agent-a/sent' });
+    const inboxResponse = await app.inject({
+      method: 'GET',
+      url: '/agents/agent-b/inbox',
+      headers: { 'x-actor-credential': 'agent-b.secret' },
+    });
+    const sentResponse = await app.inject({
+      method: 'GET',
+      url: '/agents/agent-a/sent',
+      headers: { 'x-actor-credential': 'agent-a.secret' },
+    });
 
     expect(delivered).toMatchObject({ success: true, replayed: false });
     expect(inboxResponse.statusCode).toBe(200);

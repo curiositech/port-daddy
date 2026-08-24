@@ -10,6 +10,17 @@ import { validateAgentId } from '../shared/validators.js';
 import { WebhookEvent } from '../lib/webhooks.js';
 import { getEffectiveContextWindow } from '../lib/context-window-tracker.js';
 import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
+import {
+  authorizeCanonicalInboxOwner,
+  createExternalInboxRateLimiter,
+  parseExternalInboxContent,
+  resolveCanonicalInboxTarget,
+  resolveExternalInboxSender,
+  type ExternalInboxRateLimiter,
+  type InboxActorSouls,
+  type InboxBoundaryFailure,
+  type LiveInboxResolver,
+} from '../lib/inbox-http-boundary.js';
 
 interface InboxMessage {
   id: number;
@@ -28,7 +39,7 @@ interface AgentsRouteDeps {
     error(msg: string, meta?: Record<string, unknown>): void;
   };
   metrics: { errors: number };
-  agents: {
+  agents: LiveInboxResolver & {
     register(id: string, opts: Record<string, unknown>): Record<string, unknown>;
     heartbeat(id: string, opts: Record<string, unknown>): Record<string, unknown>;
     unregister(id: string): Record<string, unknown>;
@@ -41,9 +52,12 @@ interface AgentsRouteDeps {
     listSent(fromAgent: string, opts?: { unreadOnly?: boolean; limit?: number }): { success: boolean; messages: InboxMessage[]; count: number };
     markRead(agentId: string, messageId: number): { success: boolean };
     markAllRead(agentId: string): { success: boolean; marked: number };
-    clear(agentId: string): { success: boolean; deleted: number };
     stats(agentId: string): { success: boolean; total: number; unread: number };
   };
+  /** Daemon-minted identity verifier and daemon-owned default harbor. */
+  actorSouls?: InboxActorSouls | null;
+  /** Test injection only; production gets one bounded limiter per plugin. */
+  externalInboxLimiter?: ExternalInboxRateLimiter;
   activityLog: {
     logAgent: {
       register(id: string): void;
@@ -56,14 +70,6 @@ interface AgentsRouteDeps {
   };
   messaging: {
     publish(channel: string, message: string): { success: boolean };
-  };
-  fleetDaemon?: {
-    hailAgent(agentId: string, context?: { project?: string; source?: 'inbox' | 'manual' | 'trigger' | 'schedule'; channel?: string; from?: string | null; message?: unknown; messageContent?: string }): Promise<{
-      success: boolean;
-      error?: string;
-      project?: string;
-      agent?: string;
-    }>;
   };
   contextTracker?: {
     upsertContextHealth(agentId: string, model: string, tokensUsed: number): unknown;
@@ -90,6 +96,18 @@ function requestPid(request: FastifyRequest, body: Record<string, unknown>): num
     ?? process.pid;
 }
 
+function inboxBoundaryError(reply: FastifyReply, outcome: InboxBoundaryFailure) {
+  reply.code(outcome.httpStatus);
+  return { success: false, error: outcome.error, code: outcome.code };
+}
+
+function parseInboxReadLimit(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : NaN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.min(Math.trunc(parsed), 200);
+}
+
 /**
  * Create agents routes
  *
@@ -102,7 +120,19 @@ function requestPid(request: FastifyRequest, body: Record<string, unknown>): num
 // Fastify plugin (dual-export)
 // =============================================================================
 export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon, contextTracker, cloudAppTelemetry } = opts.deps;
+  const {
+    logger,
+    metrics,
+    agents,
+    agentInbox,
+    actorSouls,
+    activityLog,
+    webhooks,
+    messaging,
+    contextTracker,
+    cloudAppTelemetry,
+  } = opts.deps;
+  const externalInboxLimiter = opts.deps.externalInboxLimiter ?? createExternalInboxRateLimiter();
 
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -176,6 +206,25 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
     try {
       const id = (request.params as any).id as string;
       const body = (request.body as Record<string, unknown>) || {};
+
+      // A heartbeat extends the live inbox lease used by identity resolution.
+      // Once an id is a server-bound canonical actor, only that exact soul may
+      // extend it; otherwise an anonymous caller could keep a stale victim live.
+      const current = agents.get(id);
+      const currentAgent = (current as {
+        agent?: { actorInboxBinding?: { verified?: boolean } | null };
+      }).agent;
+      if (current.success && currentAgent?.actorInboxBinding?.verified === true) {
+        const owner = authorizeCanonicalInboxOwner({
+          souls: actorSouls,
+          resolver: agents,
+          headers: request.headers as Record<string, unknown>,
+          requestedActorId: id,
+          route: 'POST /agents/:id/heartbeat',
+          logger,
+        });
+        if (!owner.ok) return inboxBoundaryError(reply, owner);
+      }
 
       const result = agents.heartbeat(id, {
         pid: requestPid(request, body),
@@ -320,26 +369,43 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   // POST /agents/:id/inbox - Send message to agent's inbox
   fastify.post('/agents/:id/inbox', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const agentId = (request.params as any).id as string;
-      const { content, from, type, wake, project, contentType, messageContent } = request.body as any;
-
-      const hasContent = content !== undefined
-        && content !== null
-        && !(typeof content === 'string' && content.trim() === '');
-      if (!hasContent) {
-        reply.code(400);
-        return { error: 'content required' };
+      const requestedActorId = (request.params as any).id as string;
+      const content = parseExternalInboxContent(request.body);
+      if (!content.ok) return inboxBoundaryError(reply, content);
+      const target = resolveCanonicalInboxTarget({
+        souls: actorSouls,
+        resolver: agents,
+        requestedActorId,
+      });
+      if (!target.ok) return inboxBoundaryError(reply, target);
+      const sender = resolveExternalInboxSender({
+        souls: actorSouls,
+        resolver: agents,
+        headers: request.headers as Record<string, unknown>,
+        harbor: target.harbor,
+        route: 'POST /agents/:id/inbox',
+        logger,
+      });
+      if (!sender.ok) return inboxBoundaryError(reply, sender);
+      const rate = externalInboxLimiter.consume({
+        senderActorId: sender.provenance.actorId,
+        targetActorId: target.actorId,
+      });
+      if (!rate.ok) {
+        reply.code(429).header('Retry-After', String(rate.retryAfterSeconds ?? 1));
+        return {
+          success: false,
+          error: 'external inbox delivery rate limit exceeded',
+          code: 'INBOX_RATE_LIMITED',
+          scope: rate.scope,
+        };
       }
 
-      const agentResult = agents.get(agentId);
-      if (!agentResult.success) {
-        logger.info('inbox_hail_sent', { agentId, from, note: 'Agent not in registry' });
-      }
-
-      const safeContentType = contentType === 'text' || contentType === 'json' || contentType === 'binary'
-        ? contentType
-        : undefined;
-      const result = agentInbox.send(agentId, content, { from, type, contentType: safeContentType });
+      const result = agentInbox.send(target.inboxTarget, content.content, {
+        from: sender.from,
+        type: sender.messageType,
+        contentType: content.contentType,
+      });
 
       if (!result.success) {
         const statusCode = (result as Record<string, unknown>).code === 'RESOURCE_LIMIT' ? 429 : 400;
@@ -347,37 +413,20 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         return { error: result.error, code: (result as Record<string, unknown>).code };
       }
 
-      logger.info('inbox_message_sent', { agentId, from, messageId: result.messageId });
-      let wakeResult: { success: boolean; error?: string; project?: string; agent?: string } | undefined;
-      if (wake === true && fleetDaemon?.hailAgent) {
-        wakeResult = await fleetDaemon.hailAgent(agentId, {
-          project: typeof project === 'string' ? project : undefined,
-          source: 'inbox',
-          from: typeof from === 'string' ? from : null,
-          message: content,
-          messageContent: typeof messageContent === 'string' && messageContent.trim()
-            ? messageContent.trim()
-            : typeof content === 'string'
-              ? content
-              : JSON.stringify(content),
-        });
-        if (!wakeResult.success) {
-          reply.code(409);
-          return {
-            success: false,
-            error: wakeResult.error,
-            messageId: result.messageId,
-            delivered: true,
-            woke: false,
-          };
-        }
-      }
+      logger.info('inbox_message_sent', {
+        actorId: target.actorId,
+        sender: sender.provenance.actorId,
+        provenance: sender.provenance.kind,
+        messageId: result.messageId,
+      });
 
       return {
         ...result,
+        actorId: target.actorId,
+        inboxTarget: target.inboxTarget,
         delivered: true,
-        woke: wake === true,
-        wake: wakeResult,
+        woke: false,
+        provenance: sender.provenance,
       };
     } catch (error) {
       metrics.errors++;
@@ -392,10 +441,19 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
     try {
       const agentId = (request.params as any).id as string;
       const { unread, limit, since } = request.query as any;
+      const owner = authorizeCanonicalInboxOwner({
+        souls: actorSouls,
+        resolver: agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'GET /agents/:id/inbox',
+        logger,
+      });
+      if (!owner.ok) return inboxBoundaryError(reply, owner);
 
-      return agentInbox.list(agentId, {
+      return agentInbox.list(owner.inboxTarget, {
         unreadOnly: unread === 'true',
-        limit: limit ? parseInt(limit as string, 10) : undefined,
+        limit: parseInboxReadLimit(limit),
         since: since ? parseInt(since as string, 10) : undefined
       });
     } catch (error) {
@@ -410,10 +468,19 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
     try {
       const agentId = (request.params as any).id as string;
       const { unread, limit } = request.query as any;
+      const owner = authorizeCanonicalInboxOwner({
+        souls: actorSouls,
+        resolver: agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'GET /agents/:id/sent',
+        logger,
+      });
+      if (!owner.ok) return inboxBoundaryError(reply, owner);
 
-      return agentInbox.listSent(agentId, {
+      return agentInbox.listSent(owner.actorId, {
         unreadOnly: unread === 'true',
-        limit: limit ? parseInt(limit as string, 10) : undefined
+        limit: parseInboxReadLimit(limit)
       });
     } catch (error) {
       metrics.errors++;
@@ -426,7 +493,16 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.get('/agents/:id/inbox/stats', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const agentId = (request.params as any).id as string;
-      return agentInbox.stats(agentId);
+      const owner = authorizeCanonicalInboxOwner({
+        souls: actorSouls,
+        resolver: agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'GET /agents/:id/inbox/stats',
+        logger,
+      });
+      if (!owner.ok) return inboxBoundaryError(reply, owner);
+      return agentInbox.stats(owner.inboxTarget);
     } catch (error) {
       metrics.errors++;
       reply.code(500);
@@ -439,8 +515,21 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
     try {
       const agentId = (request.params as any).id as string;
       const messageId = parseInt((request.params as any).messageId as string, 10);
+      if (!Number.isSafeInteger(messageId) || messageId <= 0) {
+        reply.code(400);
+        return { success: false, error: 'messageId must be a positive integer', code: 'VALIDATION_ERROR' };
+      }
+      const owner = authorizeCanonicalInboxOwner({
+        souls: actorSouls,
+        resolver: agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'PUT /agents/:id/inbox/:messageId/read',
+        logger,
+      });
+      if (!owner.ok) return inboxBoundaryError(reply, owner);
 
-      return agentInbox.markRead(agentId, messageId);
+      return agentInbox.markRead(owner.inboxTarget, messageId);
     } catch (error) {
       metrics.errors++;
       reply.code(500);
@@ -452,21 +541,16 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.put('/agents/:id/inbox/read-all', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const agentId = (request.params as any).id as string;
-      return agentInbox.markAllRead(agentId);
-    } catch (error) {
-      metrics.errors++;
-      reply.code(500);
-      return { error: 'internal server error' };
-    }
-  });
-
-  // DELETE /agents/:id/inbox - Clear inbox
-  fastify.delete('/agents/:id/inbox', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const agentId = (request.params as any).id as string;
-      const result = agentInbox.clear(agentId);
-      logger.info('inbox_cleared', { agentId, deleted: result.deleted });
-      return result;
+      const owner = authorizeCanonicalInboxOwner({
+        souls: actorSouls,
+        resolver: agents,
+        headers: request.headers as Record<string, unknown>,
+        requestedActorId: agentId,
+        route: 'PUT /agents/:id/inbox/read-all',
+        logger,
+      });
+      if (!owner.ok) return inboxBoundaryError(reply, owner);
+      return agentInbox.markAllRead(owner.inboxTarget);
     } catch (error) {
       metrics.errors++;
       reply.code(500);

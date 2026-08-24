@@ -265,23 +265,26 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Sugar Recovery Commands', () => {
-    test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
+    test('raw agent deletion cannot erase canonical ownership and done uses credentialed HTTP', async () => {
       const slot = `stale-done-${Date.now()}`;
-      const agentId = `stale-done-agent-${Date.now()}`;
+      const requestedAlias = `stale-done-agent-${Date.now()}`;
 
       try {
         const begin = await requestWithRetry('/sugar/begin', {
           method: 'POST',
           body: {
             purpose: 'CLI stale-session recovery',
-            agentId,
+            agentId: requestedAlias,
             lifecycle: 'durable',
           },
         });
         expect(begin.ok).toBe(true);
 
         const sessionId = begin.data.sessionId;
+        const agentId = begin.data.agentId;
         expect(sessionId).toBeTruthy();
+        expect(agentId).toBe(begin.data.actorId);
+        expect(begin.data.credential).toEqual(expect.any(String));
 
         writeTestCurrentContext({
           agentId,
@@ -289,17 +292,21 @@ describe('CLI Integration Tests', () => {
           purpose: 'CLI stale-session recovery',
           identity: 'port-daddy',
           contextSlot: slot,
+          credential: begin.data.credential,
         });
 
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
-        expect(unregister.ok).toBe(true);
+        expect(unregister.ok).toBe(false);
+        expect(unregister.status).toBe(400);
 
         // pd-done origin rule (substrate fix 2026-05-20): bypass via the
         // documented escape hatch for this integration test, which has no
         // intent to push or open a PR.
-        const result = runCliViaIpc(
-          ['done', 'Recovered after agent registry loss', '--json',
-           '--skip-origin-check', '--reason', 'cli ipc recovery integration test'],
+        // Sugar writes are no longer exposed through IPC: the real CLI must
+        // carry the stored actor credential to POST /sugar/done.
+        const result = runCli(
+          ['done', 'Completed through canonical actor authority', '--json',
+           '--skip-origin-check', '--reason', 'credentialed HTTP identity integration test'],
           { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
         );
         expect(result.success).toBe(true);
@@ -315,6 +322,44 @@ describe('CLI Integration Tests', () => {
         const session = await requestWithRetry(`/sessions/${encodeURIComponent(sessionId)}`);
         expect(session.ok).toBe(true);
         expect(session.data.session.status).toBe('completed');
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    }, 30000);
+
+    test('pd session abandon carries the stored actor credential through Sugar', async () => {
+      const slot = `session-abandon-${Date.now()}`;
+      try {
+        const begin = await requestWithRetry('/sugar/begin', {
+          method: 'POST',
+          body: {
+            purpose: 'CLI authenticated abandon',
+            identity: `cli:test:authenticated-abandon-${Date.now()}`,
+            lifecycle: 'durable',
+          },
+        });
+        expect(begin.ok).toBe(true);
+        expect(begin.data.credential).toEqual(expect.any(String));
+        writeTestCurrentContext({
+          agentId: begin.data.actorId,
+          sessionId: begin.data.sessionId,
+          purpose: 'CLI authenticated abandon',
+          identity: 'cli:test:authenticated-abandon',
+          contextSlot: slot,
+          credential: begin.data.credential,
+        });
+
+        const result = runCli(
+          ['session', 'abandon', '--session', begin.data.sessionId, '--yes', '--json'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
+        );
+        expect(result.success).toBe(true);
+        expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
+          success: true,
+          id: begin.data.sessionId,
+        }));
+        const stored = await requestWithRetry(`/sessions/${encodeURIComponent(begin.data.sessionId)}`);
+        expect(stored.data.session.status).toBe('abandoned');
       } finally {
         clearTestCurrentContext(slot);
       }
@@ -578,10 +623,10 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', firstId]);
     });
 
-    test('session done reports releasedFiles count from actual response shape', () => {
+    test('session done uses canonical stored ownership and reports releasedFiles', async () => {
       const agentId = `bug-done-agent-${Date.now()}`;
       const filePath = `src/released-${Date.now()}.ts`;
-      const sessionId = runCli([
+      const started = runCli([
         'session',
         'start',
         'Release count test',
@@ -592,14 +637,25 @@ describe('CLI Integration Tests', () => {
         '--files',
         filePath,
         '-q',
-      ]).stdout.trim();
+      ]);
+      expect(started.success).toBe(true);
+      const sessionId = started.stdout.trim();
 
+      const before = await requestWithRetry(`/sessions/${encodeURIComponent(sessionId)}`);
+      expect(before.ok).toBe(true);
+      expect(before.data.session.agentId).toEqual(expect.any(String));
+      expect(before.data.session.agentId).not.toBe(agentId);
+      expect(before.data.session.metadata.identity).toMatchObject({
+        verified: true,
+        actorId: before.data.session.agentId,
+      });
+
+      // Follow-up lifecycle commands intentionally omit the retired display
+      // alias and consume the canonical actor + credential stored by start.
       const result = runCli([
         'session',
         'done',
         'not-applicable: wrapped up',
-        '--agent',
-        agentId,
         '--skip-origin-check',
         '--reason',
         'integration test count verification',
@@ -626,7 +682,7 @@ describe('CLI Integration Tests', () => {
         '-q',
       ]).stdout.trim();
 
-      const result = runCli(['session', 'files', 'rm', filePath, '--agent', agentId]);
+      const result = runCli(['session', 'files', 'rm', filePath]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
 
@@ -648,11 +704,11 @@ describe('CLI Integration Tests', () => {
         '-q',
       ]).stdout.trim();
 
-      const claimResult = runCli(['session', 'files', 'claim', fileA, fileB, '--agent', agentId]);
+      const claimResult = runCli(['session', 'files', 'claim', fileA, fileB]);
       expect(claimResult.success).toBe(true);
       expect(claimResult.stdout).toContain(`Claimed 2 file(s) in session ${sessionId}`);
 
-      const releaseResult = runCli(['session', 'files', 'release', fileA, '--agent', agentId]);
+      const releaseResult = runCli(['session', 'files', 'release', fileA]);
       expect(releaseResult.success).toBe(true);
       expect(releaseResult.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
 
@@ -697,8 +753,6 @@ describe('CLI Integration Tests', () => {
           '1',
           '--end-line',
           '3',
-          '--agent',
-          agentId,
           '--json',
         ]);
         expect(claimResult.success).toBe(true);
@@ -723,8 +777,6 @@ describe('CLI Integration Tests', () => {
           '1',
           '--end-line',
           '3',
-          '--agent',
-          agentId,
         ]);
         expect(releaseResult.success).toBe(true);
         expect(releaseResult.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
@@ -805,8 +857,9 @@ describe('CLI Integration Tests', () => {
       expect(afterCount).toBe(0);
     });
 
-    // Bug #15: session start --json ignored --json flag, output human-readable
-    test('session start --json outputs JSON (not colored text)', () => {
+    // Bug #15: session start --json ignored --json. The canonical Sugar mint
+    // path must also retain its bearer credential without printing it.
+    test('session start --json outputs JSON without the one-time actor credential', () => {
       const agentId = `bug15-agent-${Date.now()}`;
       const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--lifecycle', 'durable', '--json']);
       expect(result.success).toBe(true);
@@ -817,12 +870,25 @@ describe('CLI Integration Tests', () => {
       expect(data.success).toBe(true);
       expect(data.id).toMatch(/^session-bug-15-test-[a-f0-9]{12}$/);
       expect(data.purpose).toBe('Bug 15 test');
+      expect(data.credential).toBeUndefined();
+      expect(result.stdout).not.toMatch(/"credential"\s*:/);
 
       // Should NOT contain ANSI escape codes
       expect(result.stdout).not.toMatch(/\x1b\[/);
 
-      // Cleanup
-      runCli(['session', 'rm', data.id]);
+      // The secret was retained in the protected context even though it was
+      // absent from stdout: a follow-up attributed lifecycle write succeeds.
+      const done = runCli([
+        'session',
+        'done',
+        'not-applicable: JSON credential retention regression',
+        '--skip-origin-check',
+        '--reason',
+        'JSON credential retention integration test',
+        '--json',
+      ]);
+      expect(done.success).toBe(true);
+      expect(JSON.parse(done.stdout).success).toBe(true);
     });
 
     // Bug #11: Channels LAST ACTIVITY showed "20508d" because relativeTime()
@@ -848,60 +914,92 @@ describe('CLI Integration Tests', () => {
       const agentId = `bug12-agent-${Date.now()}`;
       // #8877: attributed session starts require a daemon-minted credential.
       const actor = await registerTestActorVia(requestWithRetry, { alias: agentId });
+      const fixtureId = Date.now();
 
       // Create sessions with different statuses
-      const activeRes = await requestWithRetry('/sessions', {
+      const activeRes = await requestWithRetry('/sugar/begin', {
         method: 'POST',
-        body: { purpose: 'Bug 12 active test', agentId },
+        body: {
+          purpose: 'Bug 12 active test',
+          identity: `cli:test:bug12-active-${fixtureId}`,
+          lifecycle: 'durable',
+        },
         headers: actor.headers,
       });
       expect(activeRes.ok).toBe(true);
-      const activeId = activeRes.data.id;
+      const activeId = activeRes.data.sessionId;
 
-      const completedRes = await requestWithRetry('/sessions', {
+      const completedRes = await requestWithRetry('/sugar/begin', {
         method: 'POST',
-        body: { purpose: 'Bug 12 completed test', agentId },
+        body: {
+          purpose: 'Bug 12 completed test',
+          identity: `cli:test:bug12-completed-${fixtureId}`,
+          lifecycle: 'durable',
+        },
         headers: actor.headers,
       });
       expect(completedRes.ok).toBe(true);
-      const completedId = completedRes.data.id;
+      const completedId = completedRes.data.sessionId;
 
-      const completeDoneRes = await requestWithRetry(`/sessions/${completedId}`, {
-        method: 'PUT',
-        body: { status: 'completed', note: 'Done' },
+      const completeDoneRes = await requestWithRetry('/sugar/done', {
+        method: 'POST',
+        headers: actor.headers,
+        body: {
+          sessionId: completedId,
+          status: 'completed',
+          note: 'Result: status fixture complete. not-applicable: integration fixture',
+          skipOriginCheck: true,
+          skipOriginCheckReason: 'integration status fixture',
+        },
       });
       expect(completeDoneRes.ok).toBe(true);
 
-      const abandonedRes = await requestWithRetry('/sessions', {
+      const abandonedRes = await requestWithRetry('/sugar/begin', {
         method: 'POST',
-        body: { purpose: 'Bug 12 abandoned test', agentId },
+        body: {
+          purpose: 'Bug 12 abandoned test',
+          identity: `cli:test:bug12-abandoned-${fixtureId}`,
+          lifecycle: 'durable',
+        },
         headers: actor.headers,
       });
       expect(abandonedRes.ok).toBe(true);
-      const abandonedId = abandonedRes.data.id;
+      const abandonedId = abandonedRes.data.sessionId;
 
-      const abandonDoneRes = await requestWithRetry(`/sessions/${abandonedId}`, {
-        method: 'PUT',
-        body: { status: 'abandoned' },
+      const abandonDoneRes = await requestWithRetry('/sugar/done', {
+        method: 'POST',
+        headers: actor.headers,
+        body: { sessionId: abandonedId, status: 'abandoned' },
       });
       expect(abandonDoneRes.ok).toBe(true);
 
       // Without --all: should only show active sessions
-      const activeOnly = runCli(['sessions', '--agent', agentId, '--json']);
+      const activeOnly = runCli(['sessions', '--agent', actor.actorId, '--json']);
       const activeData = JSON.parse(activeOnly.stdout);
       expect(activeData.sessions.every(s => s.status === 'active')).toBe(true);
 
       // With --all: should show all statuses
-      const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--json']);
+      const allSessions = runCli(['sessions', '--agent', actor.actorId, '--all', '--json']);
       const allData = JSON.parse(allSessions.stdout);
       const statuses = new Set(allData.sessions.map(s => s.status));
       expect(statuses.has('completed')).toBe(true);
       expect(statuses.has('abandoned')).toBe(true);
 
-      // Cleanup
-      runCli(['session', 'rm', activeId]);
-      runCli(['session', 'rm', completedId]);
-      runCli(['session', 'rm', abandonedId]);
+      // Cleanup: active teardown stays on Sugar; terminal archive is an
+      // independently authenticated owner-only boundary.
+      const activeDone = await requestWithRetry('/sugar/done', {
+        method: 'POST',
+        headers: actor.headers,
+        body: { sessionId: activeId, status: 'abandoned' },
+      });
+      expect(activeDone.ok).toBe(true);
+      for (const sessionId of [activeId, completedId, abandonedId]) {
+        const archived = await requestWithRetry(`/sessions/${sessionId}`, {
+          method: 'DELETE',
+          headers: actor.headers,
+        });
+        expect(archived.ok).toBe(true);
+      }
     });
   });
 
@@ -1257,7 +1355,7 @@ describe('CLI Integration Tests', () => {
       clearTestCurrentContext(slot);
     });
 
-    test('pd whoami falls back to the stored session when the agent row is gone', async () => {
+    test('pd whoami retains canonical context after a raw deletion attempt is rejected', async () => {
       const beginResult = runCli([
         'begin',
         'Stale whoami fallback',
@@ -1271,7 +1369,8 @@ describe('CLI Integration Tests', () => {
       const beginData = JSON.parse(beginResult.stdout);
 
       const deleteRes = await requestWithRetry(`/agents/${encodeURIComponent(beginData.agentId)}`, { method: 'DELETE' });
-      expect(deleteRes.ok).toBe(true);
+      expect(deleteRes.ok).toBe(false);
+      expect(deleteRes.status).toBe(400);
 
       const result = runCli(['whoami', '--json']);
       expect(result.success).toBe(true);
@@ -1438,25 +1537,31 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Inbox CLI Commands', () => {
-    const receiverId = `rec-agent-${Date.now()}`;
-    const senderId = `send-agent-${Date.now()}`;
+    let receiver;
+    let sender;
 
-    beforeAll(() => {
-      runCli(['agent', 'register', '--agent', receiverId]);
-      runCli(['agent', 'register', '--agent', senderId]);
+    beforeAll(async () => {
+      receiver = await registerTestActorVia(request, { alias: `rec-agent-${Date.now()}` });
+      sender = await registerTestActorVia(request, { alias: `send-agent-${Date.now()}` });
     });
 
     afterAll(() => {
-      runCli(['inbox', 'clear', '--agent', receiverId]);
+      runCli(['inbox', 'read-all', '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
     });
 
     test('send, list, and show message', () => {
       // 1. Send message
-      const sendRes = runCli(['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json']);
+      const sendRes = runCli(['inbox', 'send', receiver.actorId, 'Hello Port Daddy!', '--agent', sender.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: sender.credential },
+      });
       expect(sendRes.success).toBe(true);
 
       // 2. List inbox to get message ID
-      const listRes = runCli(['inbox', 'list', '--agent', receiverId, '--json']);
+      const listRes = runCli(['inbox', 'list', '--agent', receiver.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(listRes.success).toBe(true);
       const listData = JSON.parse(listRes.stdout);
       expect(listData.messages.length).toBeGreaterThan(0);
@@ -1465,33 +1570,57 @@ describe('CLI Integration Tests', () => {
       const msgId = targetMessage.id;
 
       // 3. Show message using show subcommand
-      const showRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId]);
+      const showRes = runCli(['inbox', 'show', String(msgId), '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(showRes.success).toBe(true);
-      expect(showRes.stdout).toContain('From:      ' + senderId);
+      expect(showRes.stdout).toContain('From:      ' + sender.actorId);
       expect(showRes.stdout).toContain('Hello Port Daddy!');
 
       // 4. Show message using read subcommand alias
-      const readRes = runCli(['inbox', 'read', String(msgId), '--agent', receiverId]);
+      const readRes = runCli(['inbox', 'read', String(msgId), '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(readRes.success).toBe(true);
-      expect(readRes.stdout).toContain('From:      ' + senderId);
+      expect(readRes.stdout).toContain('From:      ' + sender.actorId);
       expect(readRes.stdout).toContain('Hello Port Daddy!');
 
       // 5. Show message with quiet option
-      const quietRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId, '-q']);
+      const quietRes = runCli(['inbox', 'show', String(msgId), '--agent', receiver.actorId, '-q'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(quietRes.success).toBe(true);
       expect(quietRes.stdout.trim()).toBe('Hello Port Daddy!');
 
       // 6. Show message with json option
-      const jsonRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId, '--json']);
+      const jsonRes = runCli(['inbox', 'show', String(msgId), '--agent', receiver.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(jsonRes.success).toBe(true);
       const jsonData = JSON.parse(jsonRes.stdout);
       expect(jsonData.id).toBe(msgId);
       expect(jsonData.content).toBe('Hello Port Daddy!');
 
       // 7. Error when message is not found
-      const notFoundRes = runCli(['inbox', 'show', '999999', '--agent', receiverId]);
+      const notFoundRes = runCli(['inbox', 'show', '999999', '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
       expect(notFoundRes.success).toBe(false);
       expect(notFoundRes.stderr).toContain('not found');
+    });
+
+    test('removed clear command is unknown and leaves inbox evidence intact', () => {
+      const clear = runCli(['inbox', 'clear', '--agent', receiver.actorId], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
+      expect(clear.success).toBe(false);
+      expect(clear.stderr).toContain('Unknown inbox subcommand');
+
+      const list = runCli(['inbox', 'list', '--agent', receiver.actorId, '--json'], {
+        env: { PD_ACTOR_CREDENTIAL: receiver.credential },
+      });
+      expect(list.success).toBe(true);
+      expect(JSON.parse(list.stdout).messages.some(message => message.content === 'Hello Port Daddy!')).toBe(true);
     });
   });
 

@@ -5,10 +5,17 @@
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { handleSub } from './messaging.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import * as ui from '../utils/ui.js';
 import { inboxMessagePreview } from '../utils/message-preview.js';
+
+function inboxOwnerHeaders(agentId: string, json: boolean = false): Record<string, string> {
+  return {
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+    'x-actor-credential': resolveCliActorCredential(agentId) ?? '',
+  };
+}
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
@@ -22,9 +29,10 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
 
   if (subcommand === 'watch' || options.watch) {
-    // Watch inbox in real-time using SSE sub system
-    const channel = `inbox:${agentId}`;
-    return handleSub(channel, options);
+    ui.error('pd inbox watch is retired; generic channel subscriptions are not inbox authority.');
+    ui.info('Use pd attention --peek for an authenticated durable read.');
+    process.exit(2);
+    return;
   }
 
   if (!subcommand || subcommand === 'list') {
@@ -34,7 +42,8 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     if (options.limit) params.append('limit', String(options.limit));
 
     const res: PdFetchResponse = await pdFetch(
-      `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? '?' + params : ''}`
+      `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? '?' + params : ''}`,
+      { headers: inboxOwnerHeaders(agentId) },
     );
     const data = await res.json();
 
@@ -84,8 +93,8 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(targetAgent)}/inbox`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: message, from: agentId })
+      headers: inboxOwnerHeaders(agentId, true),
+      body: JSON.stringify({ content: message })
     });
     const data = await res.json();
 
@@ -102,7 +111,9 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
   } else if (subcommand === 'stats') {
     // Get inbox stats
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/stats`);
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/stats`, {
+      headers: inboxOwnerHeaders(agentId),
+    });
     const data = await res.json();
 
     if (!res.ok) {
@@ -116,28 +127,11 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
       console.log(`Inbox: ${data.unread} unread / ${data.total} total`);
     }
 
-  } else if (subcommand === 'clear') {
-    // Clear inbox
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`, {
-      method: 'DELETE'
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      ui.error((data.error as string) || 'Failed to clear inbox');
-      process.exit(1);
-    }
-
-    if (isJson(options)) {
-      console.log(JSON.stringify(data, null, 2));
-    } else {
-      console.log(`Cleared ${data.deleted} message(s) from inbox`);
-    }
-
   } else if (subcommand === 'read-all') {
     // Mark all as read
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/read-all`, {
-      method: 'PUT'
+      method: 'PUT',
+      headers: inboxOwnerHeaders(agentId),
     });
     const data = await res.json();
 
@@ -160,7 +154,8 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     }
 
     const res: PdFetchResponse = await pdFetch(
-      `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`
+      `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`,
+      { headers: inboxOwnerHeaders(agentId) },
     );
     const data = await res.json();
 
@@ -189,7 +184,8 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     if (!msg.read) {
       try {
         await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/${msg.id}/read`, {
-          method: 'PUT'
+          method: 'PUT',
+          headers: inboxOwnerHeaders(agentId),
         });
       } catch (err) {
         // Silently ignore or log warning if marking as read fails
@@ -226,7 +222,6 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     console.log('  read <message-id>         Show full content of a message');
     console.log('  send <agent-id> <message> Send a message to an agent');
     console.log('  stats                     Get inbox statistics');
-    console.log('  clear                     Clear all messages');
     console.log('  read-all                  Mark all messages as read');
     console.log('');
     console.log('Options:');
@@ -239,7 +234,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
   } else {
     console.error(`Unknown inbox subcommand: ${subcommand}`);
-    console.error('Available: list, show, read, send, stats, clear, read-all');
+    console.error('Available: list, show, read, send, stats, read-all');
     process.exit(1);
   }
 }
@@ -268,7 +263,8 @@ export async function handleSent(options: CLIOptions): Promise<void> {
   if (options.limit) params.append('limit', String(options.limit));
 
   const res: PdFetchResponse = await pdFetch(
-    `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/sent${params.toString() ? '?' + params : ''}`
+    `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/sent${params.toString() ? '?' + params : ''}`,
+    { headers: inboxOwnerHeaders(agentId) },
   );
   const data = await res.json();
 

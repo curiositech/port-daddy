@@ -88,7 +88,6 @@ describe('tutorial cleanup idempotency', () => {
       '/dns/tutorial%3Adns%3Alesson9',
       '/locks/tutorial-lock',
       '/agents/tutorial-lock-agent',
-      '/agents/tutorial-bob/inbox',
       '/agents/tutorial-bob',
       '/agents/tutorial-alice',
     ]);

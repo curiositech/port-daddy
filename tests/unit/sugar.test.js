@@ -141,6 +141,25 @@ describe('sugar.begin', () => {
     expect(result.agentId).toBe('my-custom-agent');
   });
 
+  test('retired raw canonicalAgentId and identity metadata cannot mint canonical authority', () => {
+    const { sugar, sessions } = setup();
+
+    const result = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Retired canonical authority input',
+      agentId: 'trusted-direct-display-only',
+      canonicalAgentId: 'forged-canonical-actor',
+      metadata: { identity: { verified: true, actorId: 'forged-canonical-actor' } },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.agentId).toBe('trusted-direct-display-only');
+    expect(result.agentId).not.toBe('forged-canonical-actor');
+    const stored = sessions.get(result.sessionId).session;
+    expect(stored.agentId).toBe('trusted-direct-display-only');
+    expect(stored.metadata.identity).toBeUndefined();
+  });
+
   test('claims files during begin', () => {
     const { sugar } = setup();
 
@@ -329,7 +348,7 @@ describe('sugar.begin', () => {
     });
   });
 
-  test('reports file conflicts without blocking', () => {
+  test('blocks file conflicts unless force explicitly opts in', () => {
     const { sugar, sessions } = setup();
 
     // First agent claims a file
@@ -339,9 +358,19 @@ describe('sugar.begin', () => {
     });
     expect(first.success).toBe(true);
 
-    // Second agent begins with same file — should succeed with conflicts
-    const second = sugar.begin({ lifecycle: 'ephemeral',
+    const blocked = sugar.begin({ lifecycle: 'ephemeral',
       purpose: 'Second agent',
+      files: ['lib/sugar.ts'],
+    });
+    expect(blocked).toMatchObject({
+      success: false,
+      code: 'FILE_CONFLICT',
+    });
+    expect(blocked.conflicts[0].filePath).toBe('lib/sugar.ts');
+
+    // Explicit force preserves the advisory-conflict escape hatch.
+    const second = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Forced second agent',
       files: ['lib/sugar.ts'],
       force: true,
     });

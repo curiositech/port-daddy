@@ -1060,10 +1060,7 @@ interface GetActorResponse {
 }
 
 interface MessageActorOptions {
-  from?: string;
-  type?: string;
-  wake?: boolean;
-  project?: string;
+  contentType?: 'text' | 'json';
 }
 
 interface MessageActorResponse {
@@ -1072,8 +1069,12 @@ interface MessageActorResponse {
   inboxTarget: string;
   messageId: number;
   delivered: boolean;
-  woke: boolean;
-  wake?: unknown;
+  woke: false;
+  provenance?: {
+    kind: 'anonymous-external' | 'authenticated-external';
+    actorId: string | null;
+    harbor: string;
+  };
 }
 
 interface ActorInboxListOptions {
@@ -2997,19 +2998,18 @@ class PortDaddy {
   }
 
   /**
-   * Send a message to a durable actor mailbox.
-   *
-   * Use `wake: true` only when the operator also wants to hail a compatible live fleet body.
+   * Deliver bounded external content to an exact live canonical actor inbox.
+   * Sender provenance is daemon-owned and delivery never wakes a runtime.
    */
   async messageActor(actorId: string, content: unknown, options: MessageActorOptions = {}): Promise<MessageActorResponse> {
     return this._request('POST', `/actors/${encodeURIComponent(actorId)}/message`, {
       content,
-      ...options,
+      ...(options.contentType ? { contentType: options.contentType } : {}),
     }) as Promise<MessageActorResponse>;
   }
 
   /**
-   * Read recent messages from a durable actor mailbox.
+   * Read recent private messages for this client's exact credential-owned actor.
    */
   async actorInboxList(actorId: string, options: ActorInboxListOptions = {}): Promise<ActorInboxListResponse> {
     const params = new URLSearchParams();
@@ -3021,7 +3021,7 @@ class PortDaddy {
   }
 
   /**
-   * Read mailbox depth for a durable actor.
+   * Read private mailbox depth for this client's exact credential-owned actor.
    */
   async actorInboxStats(actorId: string): Promise<ActorInboxStatsResponse> {
     return this._request('GET', `/actors/${encodeURIComponent(actorId)}/inbox/stats`) as Promise<ActorInboxStatsResponse>;
@@ -3032,14 +3032,17 @@ class PortDaddy {
   // ──────────────────────────────────────────────────────────────
 
   /**
-   * Send a message to an agent's inbox.
+   * Deliver bounded external content to an exact live canonical actor inbox.
    */
-  async inboxSend(agentId: string, content: string, options: { from?: string; type?: string } = {}): Promise<InboxSendResponse> {
-    return this._request('POST', `/agents/${encodeURIComponent(agentId)}/inbox`, { content, ...options }) as Promise<InboxSendResponse>;
+  async inboxSend(agentId: string, content: unknown, options: { contentType?: 'text' | 'json' } = {}): Promise<InboxSendResponse> {
+    return this._request('POST', `/agents/${encodeURIComponent(agentId)}/inbox`, {
+      content,
+      ...(options.contentType ? { contentType: options.contentType } : {}),
+    }) as Promise<InboxSendResponse>;
   }
 
   /**
-   * List messages in an agent's inbox.
+   * List messages in this client's exact credential-owned inbox.
    */
   async inboxList(agentId: string, options: InboxListOptions = {}): Promise<InboxListResponse> {
     const params = new URLSearchParams();
@@ -3051,31 +3054,24 @@ class PortDaddy {
   }
 
   /**
-   * Get inbox statistics (total and unread counts).
+   * Get private inbox statistics for this client's exact credential-owned actor.
    */
   async inboxStats(agentId: string): Promise<InboxStatsResponse> {
     return this._request('GET', `/agents/${encodeURIComponent(agentId)}/inbox/stats`) as Promise<InboxStatsResponse>;
   }
 
   /**
-   * Mark a specific message as read.
+   * Mark one message read in this client's exact credential-owned inbox.
    */
   async inboxMarkRead(agentId: string, messageId: number): Promise<InboxMarkReadResponse> {
     return this._request('PUT', `/agents/${encodeURIComponent(agentId)}/inbox/${messageId}/read`) as Promise<InboxMarkReadResponse>;
   }
 
   /**
-   * Mark all messages in an agent's inbox as read.
+   * Mark all messages read in this client's exact credential-owned inbox.
    */
   async inboxMarkAllRead(agentId: string): Promise<InboxMarkReadResponse> {
     return this._request('PUT', `/agents/${encodeURIComponent(agentId)}/inbox/read-all`, {}) as Promise<InboxMarkReadResponse>;
-  }
-
-  /**
-   * Clear all messages from an agent's inbox.
-   */
-  async inboxClear(agentId: string): Promise<InboxClearResponse> {
-    return this._request('DELETE', `/agents/${encodeURIComponent(agentId)}/inbox`) as Promise<InboxClearResponse>;
   }
 
   /**
@@ -3948,6 +3944,15 @@ interface InboxSendResponse {
   success: boolean;
   messageId: number;
   agentId: string;
+  actorId: string;
+  inboxTarget: string;
+  delivered: true;
+  woke: false;
+  provenance: {
+    kind: 'anonymous-external' | 'authenticated-external';
+    actorId: string | null;
+    harbor: string;
+  };
 }
 
 interface InboxListResponse {
@@ -3965,11 +3970,6 @@ interface InboxStatsResponse {
 interface InboxMarkReadResponse {
   success: boolean;
   marked?: number;
-}
-
-interface InboxClearResponse {
-  success: boolean;
-  deleted: number;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -4378,7 +4378,6 @@ export type {
   InboxListResponse,
   InboxStatsResponse,
   InboxMarkReadResponse,
-  InboxClearResponse,
   ChangelogEntry,
   AddChangelogOptions,
   AddChangelogResponse,

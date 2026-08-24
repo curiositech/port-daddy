@@ -10,8 +10,16 @@ import { IS_TTY } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { inboxMessagePreview } from '../utils/message-preview.js';
+
+function inboxOwnerHeaders(agentId: string, json: boolean = false): Record<string, string> {
+  return {
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+    'x-actor-credential': resolveCliActorCredential(agentId) ?? '',
+  };
+}
 
 /**
  * Handle `pd agent <subcommand>` command
@@ -30,7 +38,6 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('  inbox                                     Read your inbox');
     console.error('  inbox send <agent-id> <message>           Send DM to another agent');
     console.error('  inbox stats                               Get inbox statistics');
-    console.error('  inbox clear                               Clear your inbox');
     console.error('  <agent-id>                                Get agent info');
     console.error('');
     console.error('Options:');
@@ -221,7 +228,8 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         if (options.limit) params.append('limit', String(options.limit));
 
         const res: PdFetchResponse = await pdFetch(
-          `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? '?' + params : ''}`
+          `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? '?' + params : ''}`,
+          { headers: inboxOwnerHeaders(agentId) },
         );
         const data = await res.json();
 
@@ -271,8 +279,8 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
 
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(targetAgent)}/inbox`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: message, from: agentId })
+          headers: inboxOwnerHeaders(agentId, true),
+          body: JSON.stringify({ content: message })
         });
         const data = await res.json();
 
@@ -289,7 +297,9 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
 
       } else if (inboxAction === 'stats') {
         // Get inbox stats
-        const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/stats`);
+        const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/stats`, {
+          headers: inboxOwnerHeaders(agentId),
+        });
         const data = await res.json();
 
         if (!res.ok) {
@@ -303,34 +313,11 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
           console.log(`Inbox: ${data.unread} unread / ${data.total} total`);
         }
 
-      } else if (inboxAction === 'clear') {
-        const ok = await requireConfirmation({
-          summary: `Inbox clear will delete every message addressed to ${agentId}. Senders will not be notified and content is not recoverable.`,
-          args: options as Record<string, unknown>,
-        });
-        if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
-        // Clear inbox
-        const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          ui.error((data.error as string) || 'Failed to clear inbox');
-          process.exit(1);
-        }
-
-        if (isJson(options)) {
-          console.log(JSON.stringify(data, null, 2));
-        } else {
-          console.log(`Cleared ${data.deleted} message(s) from inbox`);
-        }
-
       } else if (inboxAction === 'read-all') {
         // Mark all as read
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/read-all`, {
-          method: 'PUT'
+          method: 'PUT',
+          headers: inboxOwnerHeaders(agentId),
         });
         const data = await res.json();
 
@@ -347,7 +334,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
 
       } else {
         console.error(`Unknown inbox action: ${inboxAction}`);
-        console.error('Available actions: list, send, stats, clear, read-all');
+        console.error('Available actions: list, send, stats, read-all');
         process.exit(1);
       }
       break;

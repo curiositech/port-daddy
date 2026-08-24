@@ -552,7 +552,6 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'get_service': 'services',
       'health_check': 'health',
       'start_session': 'sessions',
-      'end_session': 'sessions',
       'add_note': 'notes',
       'list_sessions': 'sessions',
       'list_notes': 'notes',
@@ -658,7 +657,6 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'inbox_stats': 'inbox',
       'inbox_mark_read': 'inbox',
       'inbox_mark_all_read': 'inbox',
-      'inbox_clear': 'inbox',
 
       // Webhooks
       'webhook_add': 'webhooks',

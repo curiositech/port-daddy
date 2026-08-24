@@ -7,8 +7,14 @@
  */
 
 import { randomBytes } from 'crypto';
+import { ACTOR_REGISTRATION_AFTER_COMMIT } from './actor-souls.js';
 import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
+import {
+  VERIFIED_ACTOR_INBOX_REGISTRATION,
+  type AgentRegistrationResult,
+  type VerifiedActorInboxRegistration,
+} from './agents.js';
 
 /** How recent an agent heartbeat counts as "a live process is driving this session right now". */
 const SESSION_DRIVING_TTL_MS = 180_000;
@@ -30,18 +36,28 @@ import {
 // =============================================================================
 
 interface AgentsModule {
-  register(id: string, options?: Record<string, unknown>): Record<string, unknown>;
-  unregister(id: string): Record<string, unknown>;
+  register(id: string, options?: Record<string, unknown>): AgentRegistrationResult;
+  runCanonicalSessionRegistration(
+    effect: () => Record<string | symbol, unknown> & { success: unknown },
+  ): Record<string | symbol, unknown> & { success: unknown };
+  unregister(id: string, options?: Record<string | symbol, unknown>): Record<string, unknown>;
+  finalizeSessionAndUnregisterIfNoActiveSessions(
+    id: string,
+    finalizeSession: () => Record<string | symbol, unknown>,
+    options?: Record<string | symbol, unknown>,
+  ): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
 }
 
 interface SessionsModule {
-  start(purpose: string, options?: Record<string, unknown>): Record<string, unknown>;
-  end(id: string, options?: Record<string, unknown>): Record<string, unknown>;
+  start(purpose: string, options?: Record<string, unknown>): Record<string | symbol, unknown>;
+  end(id: string, options?: Record<string, unknown>): Record<string | symbol, unknown>;
   list(options?: Record<string, unknown>): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
+  /** Exact preflight used to preserve session-start's fail-closed conflict contract. */
+  getFileConflicts?(filePaths: string[]): Record<string, unknown>;
   /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
   resurrect?(sessionId: string): void;
   /** Shallow-merge a patch into the session's metadata JSON. Optional: older deps may not provide it. */
@@ -126,8 +142,24 @@ interface SugarDeps {
   commitments?: CommitmentsModule;
 }
 
+/**
+ * Route-only authority channel. Symbols do not survive JSON/MessagePack, so
+ * an IPC or HTTP payload cannot manufacture the daemon-verified principal.
+ */
+export interface VerifiedSugarActorBinding extends VerifiedActorInboxRegistration {
+  inboxTarget: string;
+}
+
+export const VERIFIED_SUGAR_ACTOR_BINDING: unique symbol = Symbol('verified-sugar-actor-binding');
+
 interface BeginOptions {
   purpose?: string;
+  /**
+   * Daemon-verified actor principal supplied by the HTTP identity boundary.
+   * When present it is the sole authoritative agent/session owner; `agentId`
+   * remains a display/request field for trusted direct-module callers only.
+   */
+  [VERIFIED_SUGAR_ACTOR_BINDING]?: VerifiedSugarActorBinding;
   agentId?: string;
   name?: string;
   identity?: string;
@@ -160,6 +192,7 @@ interface BeginOptions {
 }
 
 interface DoneOptions {
+  [VERIFIED_SUGAR_ACTOR_BINDING]?: VerifiedSugarActorBinding;
   agentId?: string;
   sessionId?: string;
   note?: string;
@@ -238,6 +271,83 @@ function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'eph
     : 'ephemeral';
 }
 
+function sessionMetadataRecord(raw: unknown): Record<string, unknown> | null {
+  let metadata: Record<string, unknown> | null = null;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    metadata = raw as Record<string, unknown>;
+  } else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        metadata = parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return metadata;
+}
+
+/**
+ * Read the durable semantic display identity without treating it as authority.
+ * Pre-ID0 rows stored that display value in `metadata.identity`; retaining it
+ * only for candidate detection lets the verified boundary reject a real
+ * legacy resume/takeover instead of silently creating a parallel session.
+ */
+function semanticIdentityFromMetadata(raw: unknown): string | null {
+  const metadata = sessionMetadataRecord(raw);
+  if (typeof metadata?.semanticIdentity === 'string') return metadata.semanticIdentity;
+  return typeof metadata?.identity === 'string' ? metadata.identity : null;
+}
+
+function hasVerifiedActorStamp(raw: unknown, actorId: string): boolean {
+  const metadata = sessionMetadataRecord(raw);
+  const stamp = metadata?.identity;
+  return Boolean(
+    stamp
+    && typeof stamp === 'object'
+    && !Array.isArray(stamp)
+    && (stamp as Record<string, unknown>).verified === true
+    && (stamp as Record<string, unknown>).actorId === actorId,
+  );
+}
+
+function hasVerifiedActorInboxStamp(raw: unknown, binding: VerifiedSugarActorBinding): boolean {
+  const metadata = sessionMetadataRecord(raw);
+  const stamp = metadata?.actorInbox;
+  return Boolean(
+    stamp
+    && typeof stamp === 'object'
+    && !Array.isArray(stamp)
+    && (stamp as Record<string, unknown>).verified === true
+    && (stamp as Record<string, unknown>).actorId === binding.actorId
+    && (stamp as Record<string, unknown>).harbor === binding.harbor
+    && (stamp as Record<string, unknown>).inboxTarget === binding.inboxTarget,
+  );
+}
+
+function authorityMetadata(
+  raw: Record<string, unknown> | undefined,
+  binding: VerifiedSugarActorBinding | null,
+): Record<string, unknown> {
+  const metadata = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+  // Only the symbol-bearing route boundary may persist the reserved identity
+  // slot. Direct trusted callers retain semantic metadata but cannot forge a
+  // verified stamp by passing an ordinary object field.
+  if (!binding) {
+    delete metadata.identity;
+    delete metadata.actorInbox;
+    return metadata;
+  }
+  metadata.actorInbox = {
+    verified: true,
+    actorId: binding.actorId,
+    harbor: binding.harbor,
+    inboxTarget: binding.inboxTarget,
+  };
+  return metadata;
+}
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -292,6 +402,44 @@ export function createSugar(deps: SugarDeps) {
    */
   function begin(options: BeginOptions) {
     const { purpose, identity, type, files, force } = options;
+    const rawVerifiedBinding = options[VERIFIED_SUGAR_ACTOR_BINDING];
+    let verifiedBinding: VerifiedSugarActorBinding | null = null;
+    if (rawVerifiedBinding !== undefined) {
+      const actorId = typeof rawVerifiedBinding?.actorId === 'string'
+        ? rawVerifiedBinding.actorId.trim()
+        : '';
+      const harbor = typeof rawVerifiedBinding?.harbor === 'string'
+        ? rawVerifiedBinding.harbor.trim()
+        : '';
+      const inboxTarget = typeof rawVerifiedBinding?.inboxTarget === 'string'
+        ? rawVerifiedBinding.inboxTarget.trim()
+        : '';
+      if (!actorId || !harbor || inboxTarget !== actorId) {
+        return {
+          success: false,
+          error: 'verified actor binding must select the canonical actor inbox in one harbor',
+          code: 'CANONICAL_ACTOR_BINDING_INVALID',
+        };
+      }
+      verifiedBinding = { actorId, harbor, inboxTarget };
+    }
+    const verifiedActorId = verifiedBinding?.actorId ?? null;
+
+    if (rawVerifiedBinding !== undefined && !verifiedBinding) {
+      return {
+        success: false,
+        error: 'verified actor binding is invalid',
+        code: 'CANONICAL_ACTOR_BINDING_INVALID',
+      };
+    }
+    if (verifiedActorId && !hasVerifiedActorStamp(options.metadata, verifiedActorId)) {
+      return {
+        success: false,
+        error: 'verified actor metadata stamp is missing or does not match the daemon principal',
+        code: 'SESSION_IDENTITY_STAMP_INVALID',
+      };
+    }
+    const boundaryMetadata = authorityMetadata(options.metadata, verifiedBinding);
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
@@ -321,6 +469,29 @@ export function createSugar(deps: SugarDeps) {
         worktree: worktreePolicy.worktree,
       };
     }
+
+    const registerCanonicalInbox = (displayName?: string | null): Record<string, unknown> => {
+      if (!verifiedBinding) return { success: true, skipped: true };
+      const registerOpts: Record<string | symbol, unknown> = {
+        metadata: boundaryMetadata,
+        [VERIFIED_ACTOR_INBOX_REGISTRATION]: {
+          actorId: verifiedBinding.actorId,
+          harbor: verifiedBinding.harbor,
+        },
+      };
+      if (displayName) registerOpts.name = displayName;
+      if (identity) registerOpts.identity = identity;
+      if (purpose) registerOpts.purpose = purpose;
+      if (type) registerOpts.type = type;
+      if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
+      return agents.register(verifiedBinding.inboxTarget, registerOpts);
+    };
+
+    const registrationFailure = (result: Record<string, unknown>) => ({
+      success: false,
+      error: `Agent registration failed: ${String(result.error ?? 'verified actor inbox unavailable')}`,
+      code: result.code || 'AGENT_REGISTRATION_FAILED',
+    });
 
     // =========================================================================
     // Rent-at-claim (S3): resolve the roadmap link / sidequest opt-out BEFORE
@@ -413,7 +584,7 @@ export function createSugar(deps: SugarDeps) {
             code: 'ROADMAP_ITEMS_UNAVAILABLE',
           };
         }
-        const by = options.agentId || 'pd-begin';
+        const by = verifiedActorId || options.agentId || 'pd-begin';
         if (deps.roadmapItems.slugExists(slug)) {
           // Slug collision: the item already exists (possibly in another
           // harbor). LINK to it instead of upserting — an upsert here would
@@ -452,10 +623,15 @@ export function createSugar(deps: SugarDeps) {
     // was the dual-session bug: the first session held the file claims, the
     // second could not re-claim, and the Coordination Guard then rejected the
     // commit. This mirrors the repo's claim/release idempotency discipline.
-    // Opt out with an explicit `agentId` or `force: true`.
+    // Trusted direct-module callers can opt out with an explicit `agentId`;
+    // an HTTP caller's raw agentId never reaches this point as authority.
+    // A verified actor ID preserves resume while binding the search to that
+    // one daemon-minted principal. Canonical HTTP resumes additionally require
+    // the existing session's matching daemon stamp; roster display identity is
+    // never an ownership fallback.
     const resumeParsed = identity ? parseIdentity(identity) : null;
     const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
-    if (!force && !options.agentId && resumeProject) {
+    if (!force && (!options.agentId || verifiedActorId) && resumeProject) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
@@ -472,38 +648,41 @@ export function createSugar(deps: SugarDeps) {
       // the agent's full identity is the real key.
       let match: Record<string, unknown> | undefined;
       let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
+      let unverifiedCandidateId: string | null = null;
       for (const s of activeRows) {
-        if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
-        
-        let storedIdentity: string | null = null;
-        if (s.metadata && typeof s.metadata === 'object') {
-          const metaObj = s.metadata as Record<string, unknown>;
-          if (typeof metaObj.identity === 'string') {
-            storedIdentity = metaObj.identity;
-          }
-        } else if (s.metadata && typeof s.metadata === 'string') {
-          try {
-            const parsed = JSON.parse(s.metadata);
-            if (parsed && typeof parsed.identity === 'string') {
-              storedIdentity = parsed.identity;
-            }
-          } catch (e) {}
-        }
+        if (
+          !s
+          || s.identityProject !== resumeProject
+          || typeof s.agentId !== 'string'
+        ) continue;
 
-        if (storedIdentity === identity) {
-          match = s;
-          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-          break;
-        }
+        const storedIdentity = semanticIdentityFromMetadata(s.metadata);
+        if (storedIdentity !== identity) continue;
 
-        // Fallback to agent roster
+        if (
+          verifiedBinding
+          && (
+            s.agentId !== verifiedBinding.actorId
+            || !hasVerifiedActorStamp(s.metadata, verifiedBinding.actorId)
+            || !hasVerifiedActorInboxStamp(s.metadata, verifiedBinding)
+          )
+        ) {
+          unverifiedCandidateId = typeof s.id === 'string' ? s.id : 'unknown';
+          continue;
+        }
+        match = s;
         const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-        if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-          match = s;
-          matchAgent = agentResult.agent;
-          break;
-        }
+        if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
+        break;
+      }
+
+      if (verifiedActorId && unverifiedCandidateId && !match) {
+        return {
+          success: false,
+          error: `existing session '${unverifiedCandidateId}' lacks a matching verified actor ownership stamp`,
+          code: 'SESSION_IDENTITY_UNVERIFIED',
+          sessionId: unverifiedCandidateId,
+        };
       }
 
       if (!match) {
@@ -516,46 +695,50 @@ export function createSugar(deps: SugarDeps) {
             ? ((allSessions as { sessions: Array<Record<string, unknown>> }).sessions)
             : [];
         for (const s of allRows) {
-          if (!s || s.status === 'active' || s.identityProject !== resumeProject || typeof s.agentId !== 'string') {
+          if (
+            !s
+            || s.status === 'active'
+            || s.identityProject !== resumeProject
+            || typeof s.agentId !== 'string'
+          ) {
             continue;
           }
 
-          let storedIdentity: string | null = null;
-          if (s.metadata && typeof s.metadata === 'object') {
-            const metaObj = s.metadata as Record<string, unknown>;
-            if (typeof metaObj.identity === 'string') {
-              storedIdentity = metaObj.identity;
-            }
-          } else if (s.metadata && typeof s.metadata === 'string') {
-            try {
-              const parsed = JSON.parse(s.metadata);
-              if (parsed && typeof parsed.identity === 'string') {
-                storedIdentity = parsed.identity;
-              }
-            } catch (e) {}
-          }
+          const storedIdentity = semanticIdentityFromMetadata(s.metadata);
+          if (storedIdentity !== identity) continue;
 
-          if (storedIdentity === identity) {
-            match = s;
-            const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-            if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-            break;
+          if (
+            verifiedBinding
+            && (
+              s.agentId !== verifiedBinding.actorId
+              || !hasVerifiedActorStamp(s.metadata, verifiedBinding.actorId)
+              || !hasVerifiedActorInboxStamp(s.metadata, verifiedBinding)
+            )
+          ) {
+            unverifiedCandidateId = typeof s.id === 'string' ? s.id : 'unknown';
+            continue;
           }
-
-          // Fallback to agent roster
+          match = s;
           const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-            match = s;
-            matchAgent = agentResult.agent;
-            break;
-          }
+          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
+          break;
+        }
+        if (verifiedActorId && unverifiedCandidateId && !match) {
+          return {
+            success: false,
+            error: `existing session '${unverifiedCandidateId}' lacks a matching verified actor ownership stamp`,
+            code: 'SESSION_IDENTITY_UNVERIFIED',
+            sessionId: unverifiedCandidateId,
+          };
         }
       }
 
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
         if (match.status !== 'active' && sessions.takeover) {
           // Resumption / takeover of recently closed session
-          const finalAgentId = options.agentId || match.agentId;
+          const finalAgentId = verifiedActorId || options.agentId || match.agentId;
+          const inboxRegistration = registerCanonicalInbox(purpose.trim());
+          if (!inboxRegistration.success) return registrationFailure(inboxRegistration);
           const takeoverRes = sessions.takeover(match.id, {
             agentId: finalAgentId,
             purpose: purpose.trim(),
@@ -564,6 +747,8 @@ export function createSugar(deps: SugarDeps) {
             durable: durable,
             claimFiles: true,
             metadata: {
+              ...boundaryMetadata,
+              semanticIdentity: identity || null,
               ...rentMetadata,
               takeoverReason: 'Idempotent resumption of recently closed session',
             }
@@ -609,7 +794,13 @@ export function createSugar(deps: SugarDeps) {
             activityLog.log('sugar_begin', {
               agentId: finalAgentId,
               details: 'sugar_begin_takeover_closed',
-              metadata: { sessionId: takeoverRes.successorId, predecessorSessionId: match.id, identity: identity || null },
+              metadata: {
+                ...boundaryMetadata,
+                sessionId: takeoverRes.successorId,
+                predecessorSessionId: match.id,
+                semanticIdentity: identity || null,
+                actorId: finalAgentId,
+              },
             });
             return resumed;
           }
@@ -630,12 +821,14 @@ export function createSugar(deps: SugarDeps) {
         const decision = decideBeginResume(liveness);
         if (decision.action === 'resume') {
           const resumedSessionId: string = match.id;
-          const resumedAgentId: string = match.agentId;
+          const resumedAgentId: string = verifiedActorId || match.agentId;
           const displayName =
             (typeof match.agentName === 'string' && match.agentName)
             || (typeof match.name === 'string' && match.name)
             || identity
             || 'Port Daddy Agent';
+          const inboxRegistration = registerCanonicalInbox(displayName);
+          if (!inboxRegistration.success) return registrationFailure(inboxRegistration);
           const resumed: Record<string, unknown> = {
             success: true,
             resumed: true,
@@ -662,13 +855,17 @@ export function createSugar(deps: SugarDeps) {
           // resumed session's record (the link is session state, not call state).
           // Switching rent MODE clears the other field — a session is either
           // roadmap-linked or a sidequest, never ambiguously both.
+          const resumeMetadataPatch: Record<string, unknown> = {
+            ...boundaryMetadata,
+            semanticIdentity: identity || null,
+          };
           if (Object.keys(rentMetadata).length > 0) {
             materializePendingRoadmapNew();
-            const rentPatch: Record<string, unknown> = { ...rentMetadata };
-            if (rent.roadmapLink) rentPatch.sidequestReason = undefined;
-            if (rent.sidequestReason) rentPatch.roadmapLink = undefined;
-            sessions.updateMetadata?.(resumedSessionId, rentPatch);
+            Object.assign(resumeMetadataPatch, rentMetadata);
+            if (rent.roadmapLink) resumeMetadataPatch.sidequestReason = undefined;
+            if (rent.sidequestReason) resumeMetadataPatch.roadmapLink = undefined;
           }
+          sessions.updateMetadata?.(resumedSessionId, resumeMetadataPatch);
           if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
           if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
           if (rent.roadmapCreated) resumed.roadmapCreated = true;
@@ -679,7 +876,12 @@ export function createSugar(deps: SugarDeps) {
           activityLog.log('sugar_begin', {
             agentId: resumedAgentId,
             details: 'sugar_begin_resumed',
-            metadata: { sessionId: resumedSessionId, identity: identity || null },
+            metadata: {
+              ...boundaryMetadata,
+              sessionId: resumedSessionId,
+              semanticIdentity: identity || null,
+              actorId: resumedAgentId,
+            },
           });
           return resumed;
         }
@@ -742,7 +944,7 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const worktreeMetadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+    const worktreeMetadata = mergeSessionWorktreeMetadata(boundaryMetadata, worktreePolicy.worktree, {
       requireLinkedWorktree: options.requireLinkedWorktree,
       allowMainWorktree: options.allowMainWorktree,
     });
@@ -764,26 +966,49 @@ export function createSugar(deps: SugarDeps) {
       type,
       fallback: 'Port Daddy Session',
     });
+
+    // `pd session start` now enters through this canonical ownership door.
+    // Preserve its established conflict contract: without an explicit force,
+    // do not register an agent or create a session that already conflicts.
+    if (files && files.length > 0 && !force && sessions.getFileConflicts) {
+      const conflictCheck = sessions.getFileConflicts(files);
+      const conflicts = Array.isArray(conflictCheck.conflicts) ? conflictCheck.conflicts : [];
+      if (conflicts.length > 0) {
+        return {
+          success: false,
+          error: 'File conflicts detected',
+          code: 'FILE_CONFLICT',
+          conflicts,
+        };
+      }
+    }
+
     // Generate or use provided agent ID. The suffix keeps the stable machine key
     // unique; the slug keeps `pd begin` output readable to humans.
-    const agentId = options.agentId || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
+    const agentId = verifiedActorId
+      || options.agentId
+      || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
+
+    const performCanonicalRegistration = () => {
 
     // Step 1: Register the agent
-    const registerOpts: Record<string, unknown> = {};
+    const registerOpts: Record<string | symbol, unknown> = {};
     if (name) registerOpts.name = name;
     if (identity) registerOpts.identity = identity;
     if (purpose) registerOpts.purpose = purpose;
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
     if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
+    if (verifiedBinding) {
+      registerOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
+        actorId: verifiedBinding.actorId,
+        harbor: verifiedBinding.harbor,
+      };
+    }
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {
-      return {
-        success: false,
-        error: `Agent registration failed: ${agentResult.error}`,
-        code: agentResult.code || 'AGENT_REGISTRATION_FAILED',
-      };
+      return registrationFailure(agentResult);
     }
 
     // Step 2: Start session (rollback agent on failure)
@@ -803,7 +1028,9 @@ export function createSugar(deps: SugarDeps) {
     }
     const sessionMetadata = {
       ...(metadata && typeof metadata === 'object' ? metadata : {}),
-      identity: identity || null,
+      // `identity` is reserved for the daemon's verified identity stamp.
+      // The human semantic identity is durable but non-authoritative.
+      semanticIdentity: identity || null,
     };
     sessionOpts.metadata = sessionMetadata;
     if (durable) {
@@ -812,8 +1039,19 @@ export function createSugar(deps: SugarDeps) {
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
     if (!sessionResult.success) {
-      // Rollback: unregister the agent
-      agents.unregister(agentId);
+      // Roll back only a row this begin created. Removing a pre-existing
+      // verified binding on a later session failure would make another live
+      // canonical actor unreachable.
+      if (agentResult.registered === true) {
+        const unregisterOpts: Record<string | symbol, unknown> = {};
+        if (verifiedBinding) {
+          unregisterOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
+            actorId: verifiedBinding.actorId,
+            harbor: verifiedBinding.harbor,
+          };
+        }
+        agents.unregister(agentId, unregisterOpts);
+      }
       return {
         success: false,
         error: `Session start failed: ${sessionResult.error}`,
@@ -825,7 +1063,7 @@ export function createSugar(deps: SugarDeps) {
     materializePendingRoadmapNew();
 
     // Build response
-    const response: Record<string, unknown> = {
+    const response: Record<string | symbol, unknown> & { success: true } = {
       success: true,
       agentId,
       sessionId: sessionResult.id,
@@ -856,8 +1094,7 @@ export function createSugar(deps: SugarDeps) {
     if (agentResult.salvageHint) {
       response.salvageHint = agentResult.salvageHint;
     }
-
-    activityLog.log('sugar_begin', {
+    const publishSugarBegin = () => activityLog.log('sugar_begin', {
       agentId,
       targetId: sessionTarget(identityProject, sessionResult.id as string),
       details: `Agent ${agentId} began: ${purpose.trim()}`,
@@ -865,11 +1102,31 @@ export function createSugar(deps: SugarDeps) {
         ...(metadata && typeof metadata === 'object' ? metadata : {}),
         agentId,
         sessionId: sessionResult.id as string,
-        identity: identity || null,
+        semanticIdentity: identity || null,
+        actorId: agentId,
         identityProject: identityProject || undefined,
         lifecycle,
       } as unknown as Record<string, unknown>,
     });
+    const postCommitPublishers = [
+      agentResult[ACTOR_REGISTRATION_AFTER_COMMIT],
+      sessionResult[ACTOR_REGISTRATION_AFTER_COMMIT],
+    ].filter((publisher): publisher is () => void => typeof publisher === 'function');
+    if (postCommitPublishers.length > 0) {
+      response[ACTOR_REGISTRATION_AFTER_COMMIT] = () => {
+        let firstError: unknown;
+        for (const publisher of [...postCommitPublishers, publishSugarBegin]) {
+          try {
+            publisher();
+          } catch (error) {
+            firstError ??= error;
+          }
+        }
+        if (firstError) throw firstError;
+      };
+    } else {
+      publishSugarBegin();
+    }
 
     // Auto-enroll commitment to complete session (Law 1: daemon/module derives deadline)
     if (deps.commitments) {
@@ -882,7 +1139,13 @@ export function createSugar(deps: SugarDeps) {
       });
     }
 
-    return response;
+      return response;
+    };
+
+    if (verifiedBinding) {
+      return agents.runCanonicalSessionRegistration(performCanonicalRegistration);
+    }
+    return performCanonicalRegistration();
   }
 
   /**
@@ -895,9 +1158,31 @@ export function createSugar(deps: SugarDeps) {
    *      or "not-applicable: <reason>".
    *
    * See lib/git-origin-check.ts for the motivation and details.
-   */
+  */
   function done(options: DoneOptions) {
     const { agentId, note, status = 'completed' } = options;
+    const rawVerifiedBinding = options[VERIFIED_SUGAR_ACTOR_BINDING];
+    let verifiedBinding: VerifiedSugarActorBinding | null = null;
+    if (rawVerifiedBinding !== undefined) {
+      const actorId = typeof rawVerifiedBinding?.actorId === 'string'
+        ? rawVerifiedBinding.actorId.trim()
+        : '';
+      const harbor = typeof rawVerifiedBinding?.harbor === 'string'
+        ? rawVerifiedBinding.harbor.trim()
+        : '';
+      const inboxTarget = typeof rawVerifiedBinding?.inboxTarget === 'string'
+        ? rawVerifiedBinding.inboxTarget.trim()
+        : '';
+      if (!actorId || !harbor || inboxTarget !== actorId) {
+        return {
+          success: false,
+          error: 'verified actor binding must select the canonical actor inbox in one harbor',
+          code: 'CANONICAL_ACTOR_BINDING_INVALID',
+        };
+      }
+      verifiedBinding = { actorId, harbor, inboxTarget };
+    }
+    const authoritativeAgentId = verifiedBinding?.actorId ?? agentId;
     let { sessionId } = options;
     const skipOriginCheck = options.skipOriginCheck === true;
     const skipOriginCheckReason = typeof options.skipOriginCheckReason === 'string'
@@ -905,8 +1190,8 @@ export function createSugar(deps: SugarDeps) {
       : '';
 
     // Find session by agent if not provided
-    if (!sessionId && agentId) {
-      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
+    if (!sessionId && authoritativeAgentId) {
+      const listResult = sessions.list({ agentId: authoritativeAgentId, status: 'active', allWorktrees: true });
       const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
       if (sessionsList.length > 0) {
         sessionId = sessionsList[0].id;
@@ -914,7 +1199,7 @@ export function createSugar(deps: SugarDeps) {
     }
 
     // Fallback: find most recent active session (only if no explicit agentId was given)
-    if (!sessionId && !agentId) {
+    if (!sessionId && !authoritativeAgentId) {
       const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
       const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
       if (sessionsList.length > 0) {
@@ -930,21 +1215,37 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
-    // Verify ownership: if agentId is provided and sessionId was also provided,
-    // confirm the session belongs to this agent. Prevents agent A from closing
-    // agent B's session by passing B's sessionId.
-    if (agentId && options.sessionId) {
-      const sessionInfo = sessions.get(sessionId);
-      if (sessionInfo.success && sessionInfo.session) {
-        const session = sessionInfo.session as Record<string, unknown>;
-        if (session.agentId && session.agentId !== agentId) {
-          return {
-            success: false,
-            error: `Session ${sessionId} belongs to agent ${session.agentId}, not ${agentId}`,
-            code: 'SESSION_OWNERSHIP_MISMATCH',
-          };
-        }
-      }
+    const ownershipInfo = sessions.get(sessionId);
+    const ownedSession = ownershipInfo.success && ownershipInfo.session
+      ? ownershipInfo.session as Record<string, unknown>
+      : null;
+    if (!ownedSession) {
+      return {
+        success: false,
+        error: `Session ${sessionId} was not found`,
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+    if (authoritativeAgentId && ownedSession.agentId !== authoritativeAgentId) {
+      return {
+        success: false,
+        error: `Session ${sessionId} belongs to agent ${String(ownedSession.agentId)}, not ${authoritativeAgentId}`,
+        code: 'SESSION_OWNERSHIP_MISMATCH',
+      };
+    }
+    if (
+      verifiedBinding
+      && (
+        !hasVerifiedActorStamp(ownedSession.metadata, verifiedBinding.actorId)
+        || !hasVerifiedActorInboxStamp(ownedSession.metadata, verifiedBinding)
+      )
+    ) {
+      return {
+        success: false,
+        error: `Session ${sessionId} lacks the verified canonical actor ownership stamp`,
+        code: 'SESSION_IDENTITY_UNVERIFIED',
+        sessionId,
+      };
     }
 
     // =========================================================================
@@ -1107,25 +1408,46 @@ export function createSugar(deps: SugarDeps) {
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;
 
-    // End the session
+    // End the target and make the final-inbox decision under one SQLite writer
+    // transaction. A concurrent canonical begin cannot commit between them.
     const endOpts: Record<string, unknown> = { status };
     if (effectiveNote) endOpts.note = effectiveNote;
-    const sessionResult = sessions.end(sessionId, endOpts);
-
-    if (!sessionResult.success) {
-      return {
-        success: false,
-        error: `Session end failed: ${sessionResult.error}`,
-        code: 'SESSION_END_FAILED',
-      };
-    }
-
-    // Unregister the agent
+    const effectiveAgentId = authoritativeAgentId || findAgentForSession(sessionId);
+    let sessionResult: Record<string | symbol, unknown>;
     let agentUnregistered = false;
-    const effectiveAgentId = agentId || findAgentForSession(sessionId);
     if (effectiveAgentId) {
-      const unregResult = agents.unregister(effectiveAgentId);
-      agentUnregistered = !!unregResult.unregistered;
+      const unregisterOpts: Record<string | symbol, unknown> = {};
+      if (verifiedBinding) {
+        unregisterOpts[VERIFIED_ACTOR_INBOX_REGISTRATION] = {
+          actorId: verifiedBinding.actorId,
+          harbor: verifiedBinding.harbor,
+        };
+      }
+      const finalized = agents.finalizeSessionAndUnregisterIfNoActiveSessions(
+        effectiveAgentId,
+        () => sessions.end(sessionId!, endOpts),
+        unregisterOpts,
+      );
+      if (!finalized.success) {
+        return {
+          success: false,
+          error: `Session end failed: ${String(finalized.error || 'atomic lifecycle mutation failed')}`,
+          code: typeof finalized.code === 'string' ? finalized.code : 'SESSION_END_FAILED',
+        };
+      }
+      sessionResult = finalized.mutation as Record<string | symbol, unknown>;
+      agentUnregistered = finalized.unregistered === true;
+    } else {
+      // Trusted unattributed module calls have no actor inbox to coordinate.
+      // No external route reaches this branch.
+      sessionResult = sessions.end(sessionId, endOpts);
+      if (!sessionResult.success) {
+        return {
+          success: false,
+          error: `Session end failed: ${String(sessionResult.error)}`,
+          code: 'SESSION_END_FAILED',
+        };
+      }
     }
 
     // Close associated commitments

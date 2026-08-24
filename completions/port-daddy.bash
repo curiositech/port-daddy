@@ -694,7 +694,7 @@ _port_daddy() {
     # actor / actors  [id-or-alias]  [--project P]
     # -----------------------------------------------------------------------
     actor|actors)
-      _pd_opts '--project --limit --message --from --type --wake --json --quiet'
+      _pd_opts '--project --limit --message --inbox --inbox-stats --unread --mark-read --json --quiet'
       ;;
 
     roster)
@@ -1512,10 +1512,10 @@ _port_daddy() {
 
     # -----------------------------------------------------------------------
     # inbox  <agent-id> [subcommand]
-    # Subcommands: send, stats, clear, read-all, list
+    # Subcommands: send, stats, read-all, list, show, read
     # -----------------------------------------------------------------------
     inbox)
-      local inbox_subcommands='send stats clear read-all list'
+      local inbox_subcommands='send stats read-all list show read'
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
         local w="${words[$i]}"
@@ -1540,10 +1540,10 @@ _port_daddy() {
 
       case "$subcmd" in
         send)
-          _pd_opts '--message --from'
+          _pd_opts '--agent'
           ;;
-        stats|list|read-all|clear)
-          _pd_opts ''
+        stats|list|read-all|show|read)
+          _pd_opts '--agent --unread --limit'
           ;;
         *)
           _pd_opts ''

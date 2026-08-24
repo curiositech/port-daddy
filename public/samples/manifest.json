@@ -106,20 +106,20 @@
     {
       "path": "examples/inbox/agent-dm.sh",
       "url": "/samples/files/examples/inbox/agent-dm.sh",
-      "bytes": 1805,
-      "sha256": "56416b84a5ef2d9bd3fde8234ff0df7e03831ecc8fa55f083ae90bd5168412b4"
+      "bytes": 2350,
+      "sha256": "89543f014238a98a4b1767f317dfa7411dc27360df4ef73929efa7c0f21b18fd"
     },
     {
       "path": "examples/inbox/inbox-monitor.ts",
       "url": "/samples/files/examples/inbox/inbox-monitor.ts",
-      "bytes": 1299,
-      "sha256": "13347373725a480f50b9c9176f746ffb23b21071d5ada866c3af80f311c1c295"
+      "bytes": 1529,
+      "sha256": "8fc638d32682796bf71170bbd91557c0132a39a988e3b0200454db1315516168"
     },
     {
       "path": "examples/inbox/README.md",
       "url": "/samples/files/examples/inbox/README.md",
-      "bytes": 1625,
-      "sha256": "322de200b2951648029f756c2883530729ffcf980290fecccba31ae40efbb446"
+      "bytes": 2020,
+      "sha256": "6f5d1f47be876168bff7b076f2a511ec79c713cf25312807fe14b3835fc80e3f"
     },
     {
       "path": "examples/integration/README.md",
@@ -166,8 +166,8 @@
     {
       "path": "examples/p2p-webrtc/webrtc-signaling.ts",
       "url": "/samples/files/examples/p2p-webrtc/webrtc-signaling.ts",
-      "bytes": 4565,
-      "sha256": "e414ea7b31ad29a7e8fe7b52b65a1f0fe936486d0b9498fff9cbb97e30567a86"
+      "bytes": 4604,
+      "sha256": "0422da58670804f32c540759a96878cf49b98e630e405762dfc1900217208052"
     },
     {
       "path": "examples/pd-tube/agent-responder.py",

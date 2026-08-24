@@ -12,6 +12,7 @@ import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createLocks } from '../../lib/locks.js';
 import { createCommitments } from '../../lib/commitments.js';
+import { VERIFIED_SUGAR_ACTOR_BINDING } from '../../lib/sugar.js';
 import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { sugarPlugin } from '../../routes/sugar.js';
 import { locksPlugin } from '../../routes/locks.js';
@@ -28,20 +29,29 @@ describe('identity write boundary — sugar routes', () => {
   let db;
   let souls;
   let beginCalls;
+  let doneCalls;
 
   beforeEach(async () => {
     db = createTestDb();
     souls = createTestActorSouls(db);
     beginCalls = [];
+    doneCalls = [];
     app = Fastify();
     await app.register(sugarPlugin, {
       deps: {
         sugar: {
           begin: (options) => {
             beginCalls.push(options);
-            return { success: true, agentId: options.agentId || 'generated-agent', sessionId: 'session-1' };
+            return {
+              success: true,
+              agentId: options[VERIFIED_SUGAR_ACTOR_BINDING]?.actorId || options.agentId || 'generated-agent',
+              sessionId: 'session-1',
+            };
           },
-          done: () => ({ success: true, agentId: 'generated-agent', sessionId: 'session-1', sessionStatus: 'completed' }),
+          done: (options) => {
+            doneCalls.push(options);
+            return { success: true, agentId: 'generated-agent', sessionId: 'session-1', sessionStatus: 'completed' };
+          },
           relink: () => ({ success: true, agentId: 'generated-agent', sessionId: 'session-1' }),
           whoami: () => ({ success: true }),
         },
@@ -62,7 +72,17 @@ describe('identity write boundary — sugar routes', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/sugar/begin',
-      payload: { purpose: 'fresh agent', identity: 'demo:test:alpha', lifecycle: 'durable' },
+      payload: {
+        purpose: 'fresh agent',
+        identity: 'demo:test:alpha',
+        agentId: 'caller-controlled-agent',
+        lifecycle: 'durable',
+        metadata: {
+          identity: { verified: true, actorId: 'FORGED' },
+          actorInbox: { verified: true, actorId: 'FORGED', harbor: 'victim', inboxTarget: 'victim-agent' },
+          keep: 'safe',
+        },
+      },
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
@@ -72,10 +92,25 @@ describe('identity write boundary — sugar routes', () => {
     expect(body.actorIdentity).toEqual(expect.objectContaining({ verified: true, actorId: body.actorId }));
     // The minted credential round-trips through the real souls store.
     expect(souls.verifyCredential(body.credential)).toBe(body.actorId);
+    expect(body.agentId).toBe(body.actorId);
+    expect(beginCalls[0][VERIFIED_SUGAR_ACTOR_BINDING]).toEqual({
+      actorId: body.actorId,
+      harbor: 'local',
+      inboxTarget: body.actorId,
+    });
+    expect(beginCalls[0].canonicalAgentId).toBeUndefined();
+    expect(beginCalls[0].agentId).toBeUndefined();
     // The session record was stamped with the daemon's verdict, not caller input.
     expect(beginCalls[0].metadata.identity).toEqual(
       expect.objectContaining({ verified: true, actorId: body.actorId }),
     );
+    expect(beginCalls[0].metadata.actorInbox).toEqual({
+      verified: true,
+      actorId: body.actorId,
+      harbor: 'local',
+      inboxTarget: body.actorId,
+    });
+    expect(beginCalls[0].metadata.keep).toBe('safe');
   });
 
   test('an uncredentialed begin asserting a name OWNED by a minted soul is rejected 401', async () => {
@@ -174,6 +209,13 @@ describe('identity write boundary — sugar routes', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().success).toBe(true);
+    expect(doneCalls).toHaveLength(1);
+    expect(doneCalls[0][VERIFIED_SUGAR_ACTOR_BINDING]).toEqual({
+      actorId: begin.actorId,
+      harbor: 'local',
+      inboxTarget: begin.actorId,
+    });
+    expect(doneCalls[0].agentId).toBe(begin.actorId);
   });
 
   test('/sugar/relink without a credential is rejected 401', async () => {

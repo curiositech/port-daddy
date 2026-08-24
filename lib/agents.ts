@@ -7,6 +7,7 @@
  */
 
 import type Database from 'better-sqlite3';
+import { ACTOR_REGISTRATION_AFTER_COMMIT } from './actor-souls.js';
 import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
@@ -18,6 +19,34 @@ const DEFAULT_MAX_SERVICES_PER_AGENT = 50;
 const DEFAULT_MAX_LOCKS_PER_AGENT = 20;
 
 const VALID_STATUSES = ['starting', 'ready', 'busy', 'draining'] as const;
+
+/**
+ * Server-only authority channel for binding a daemon-minted actor to its
+ * canonical inbox registration. Symbols cannot arrive through HTTP, IPC, or
+ * MessagePack, so a caller cannot manufacture this option with a body field.
+ */
+export const VERIFIED_ACTOR_INBOX_REGISTRATION: unique symbol = Symbol('verified-actor-inbox-registration');
+
+export interface VerifiedActorInboxRegistration {
+  actorId: string;
+  harbor: string;
+}
+
+export interface LiveActorInboxBinding {
+  actorId: string;
+  harbor: string;
+  inboxTarget: string;
+  boundAt: number;
+  lastHeartbeat: number;
+}
+
+export type LiveActorInboxResolution =
+  | { success: true; binding: LiveActorInboxBinding }
+  | {
+      success: false;
+      code: 'ACTOR_INBOX_UNBOUND' | 'ACTOR_INBOX_STALE';
+      error: string;
+    };
 
 // ─── Dead/Stale Threshold Ladder (SINGLE SOURCE OF TRUTH) ──────────────────
 // Adaptive reaper thresholds by agent status (operational concern).
@@ -85,9 +114,13 @@ interface AgentRow {
   status: string;
   readiness: string | null;
   progress: string | null;
+  verified_actor_id: string | null;
+  verified_actor_harbor: string | null;
+  verified_inbox_bound_at: number | null;
 }
 
 interface RegisterOptions {
+  [VERIFIED_ACTOR_INBOX_REGISTRATION]?: VerifiedActorInboxRegistration;
   name?: string | null;
   pid?: number;
   type?: string;
@@ -100,6 +133,10 @@ interface RegisterOptions {
   identity?: string | null;   // Semantic identity: project:stack:context (parsed into components)
   purpose?: string | null;    // What this agent is doing
   status?: string;            // Agent status: starting, ready, busy, draining
+}
+
+interface UnregisterOptions {
+  [VERIFIED_ACTOR_INBOX_REGISTRATION]?: VerifiedActorInboxRegistration;
 }
 
 interface ListOptions {
@@ -153,6 +190,13 @@ interface AgentFormatted {
     liveness: 'alive' | 'stale' | 'dead';
     graceRemaining: number;
   };
+  actorInboxBinding: {
+    verified: true;
+    actorId: string;
+    harbor: string;
+    inboxTarget: string;
+    boundAt: number;
+  } | null;
 }
 
 interface ResourceCheck {
@@ -169,6 +213,15 @@ interface LocksLike {
 
 interface AgentsOptions {
   semanticIndex?: SemanticIndex;
+}
+
+export interface AgentRegistrationResult extends Record<string | symbol, unknown> {
+  success: boolean;
+  registered?: boolean;
+  error?: string;
+  code?: string;
+  salvageHint?: string | null;
+  [ACTOR_REGISTRATION_AFTER_COMMIT]?: () => void;
 }
 
 /**
@@ -197,7 +250,10 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       purpose TEXT,
       status TEXT DEFAULT 'ready',
       readiness TEXT,
-      progress TEXT
+      progress TEXT,
+      verified_actor_id TEXT,
+      verified_actor_harbor TEXT,
+      verified_inbox_bound_at INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_agents_heartbeat ON agents(last_heartbeat);
@@ -217,6 +273,9 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     'ALTER TABLE agents ADD COLUMN progress TEXT',
     'ALTER TABLE agents ADD COLUMN agent_card TEXT',
     'ALTER TABLE agents ADD COLUMN skills TEXT',
+    'ALTER TABLE agents ADD COLUMN verified_actor_id TEXT',
+    'ALTER TABLE agents ADD COLUMN verified_actor_harbor TEXT',
+    'ALTER TABLE agents ADD COLUMN verified_inbox_bound_at INTEGER',
   ];
   for (const sql of migrations) {
     try { db.exec(sql); } catch { /* already exists */ }
@@ -225,11 +284,21 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   const stmts = {
     get: db.prepare('SELECT * FROM agents WHERE id = ?'),
     register: db.prepare(`
-      INSERT OR REPLACE INTO agents (id, name, pid, type, registered_at, last_heartbeat, metadata, agent_card, skills, max_services, max_locks, worktree_id, identity_project, identity_stack, identity_context, purpose, status, readiness, progress)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO agents (id, name, pid, type, registered_at, last_heartbeat, metadata, agent_card, skills, max_services, max_locks, worktree_id, identity_project, identity_stack, identity_context, purpose, status, readiness, progress, verified_actor_id, verified_actor_harbor, verified_inbox_bound_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     heartbeat: db.prepare('UPDATE agents SET last_heartbeat = ?, pid = ?, status = COALESCE(?, status), readiness = COALESCE(?, readiness), progress = COALESCE(?, progress) WHERE id = ?'),
     unregister: db.prepare('DELETE FROM agents WHERE id = ?'),
+    unregisterIfNoActiveSessions: db.prepare(`
+      DELETE FROM agents
+      WHERE id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM sessions
+          WHERE sessions.agent_id = agents.id
+            AND sessions.status = 'active'
+        )
+    `),
     list: db.prepare('SELECT * FROM agents ORDER BY last_heartbeat DESC'),
     listByWorktree: db.prepare('SELECT * FROM agents WHERE worktree_id = ? ORDER BY last_heartbeat DESC'),
     listByProject: db.prepare('SELECT * FROM agents WHERE identity_project = ? ORDER BY last_heartbeat DESC'),
@@ -286,9 +355,25 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   }
 
   /**
+   * Publish one committed agent row into the optional derived semantic index.
+   * The durable row is re-read after commit so rolled-back registration input
+   * can never leak into the cache as a successful identity.
+   */
+  function publishDurableSemanticIndex(agentId: string): void {
+    if (!semanticIndex) return;
+    const row = stmts.get.get(agentId) as AgentRow | undefined;
+    if (!row?.identity_project) return;
+    const identity = [row.identity_project, row.identity_stack, row.identity_context]
+      .filter(Boolean).join(':');
+    semanticIndex.index(identity, {
+      type: 'agent', id: row.id, identity, status: row.status,
+    }, row.id);
+  }
+
+  /**
    * Register an agent
    */
-  function register(agentId: string, options: RegisterOptions = {}) {
+  function register(agentId: string, options: RegisterOptions = {}): AgentRegistrationResult {
     if (!agentId || typeof agentId !== 'string') {
       return { success: false, error: 'agent ID must be a non-empty string' };
     }
@@ -302,6 +387,24 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     }
 
     const now = Date.now();
+    const rawInboxRegistration = options[VERIFIED_ACTOR_INBOX_REGISTRATION];
+    let inboxRegistration: VerifiedActorInboxRegistration | null = null;
+    if (rawInboxRegistration !== undefined) {
+      const actorId = typeof rawInboxRegistration?.actorId === 'string'
+        ? rawInboxRegistration.actorId.trim()
+        : '';
+      const harbor = typeof rawInboxRegistration?.harbor === 'string'
+        ? rawInboxRegistration.harbor.trim()
+        : '';
+      if (!actorId || !harbor || actorId !== agentId) {
+        return {
+          success: false,
+          error: 'verified actor inbox registration must bind this exact canonical actor and harbor',
+          code: 'ACTOR_INBOX_BINDING_INVALID',
+        };
+      }
+      inboxRegistration = { actorId, harbor };
+    }
     const {
       name = null,
       pid = process.pid,
@@ -354,6 +457,28 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
 
     const existing = stmts.get.get(agentId) as AgentRow | undefined;
 
+    if (existing?.verified_actor_id && !inboxRegistration) {
+      return {
+        success: false,
+        error: 'this agent id is reserved by a verified actor inbox registration',
+        code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+      };
+    }
+    if (
+      existing?.verified_actor_id
+      && inboxRegistration
+      && (
+        existing.verified_actor_id !== inboxRegistration.actorId
+        || existing.verified_actor_harbor !== inboxRegistration.harbor
+      )
+    ) {
+      return {
+        success: false,
+        error: 'this canonical actor inbox is already bound in another authority scope',
+        code: 'ACTOR_INBOX_BINDING_CONFLICT',
+      };
+    }
+
     try {
       const skillsValue = Array.isArray(skills) ? skills.join(',') : (skills || null);
 
@@ -376,15 +501,21 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         purpose,
         status,
         null,  // readiness (set via heartbeat)
-        null   // progress (set via heartbeat)
+        null,  // progress (set via heartbeat)
+        inboxRegistration?.actorId ?? null,
+        inboxRegistration?.harbor ?? null,
+        inboxRegistration
+          ? existing?.verified_inbox_bound_at ?? now
+          : null,
       );
 
-      // Keep trie in sync (1:N via entryId = agentId)
-      if (semanticIndex && identityProject) {
-        const identity = [identityProject, identityStack, identityContext].filter(Boolean).join(':');
-        semanticIndex.index(identity, {
-          type: 'agent', id: agentId, identity, status,
-        }, agentId);
+      // Keep the derived trie in sync only with durable state. An actor soul,
+      // inbox row, and Sugar session may be inside registerAtomically's outer
+      // transaction here. In that case carry a symbol-only projection hook;
+      // actor-souls invokes it after COMMIT and never on rollback/commit error.
+      const deferSemanticIndex = Boolean(semanticIndex && identityProject && db.inTransaction);
+      if (semanticIndex && identityProject && !deferSemanticIndex) {
+        publishDurableSemanticIndex(agentId);
       }
 
       // Check for dead agents in the same project to alert the user
@@ -395,7 +526,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         deadAgentsInProject = staleAgents.filter(a => a.id !== agentId).length;
       }
 
-      return {
+      const result: AgentRegistrationResult = {
         success: true,
         agentId,
         registered: !existing,
@@ -406,8 +537,59 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         // Unmissable HITL: held spawn approvals surface at session start.
         approvalsHint: pendingApprovalsHint(),
       };
+      if (deferSemanticIndex) {
+        result[ACTOR_REGISTRATION_AFTER_COMMIT] = () => publishDurableSemanticIndex(agentId);
+      }
+      return result;
     } catch (err) {
       return { success: false, error: (err as Error).message };
+    }
+  }
+
+  /**
+   * Serialize an existing actor's inbox refresh and session start as one
+   * writer transaction. Fresh actor registration already supplies an outer
+   * actorSouls transaction; nested callers deliberately reuse that owner and
+   * carry their projection publisher outward instead of committing early.
+   */
+  function runCanonicalSessionRegistration<
+    T extends Record<string | symbol, unknown> & { success: unknown },
+  >(effect: () => T): T | {
+    success: false;
+    error: string;
+    code: 'STORE_UNAVAILABLE';
+  } {
+    if (db.inTransaction) return effect();
+
+    const rollback = Symbol('canonical-session-registration-rollback');
+    let rejectedEffect: T | undefined;
+    const transaction = db.transaction(() => {
+      const result = effect();
+      if (result.success !== true) {
+        rejectedEffect = result;
+        throw rollback;
+      }
+      return result;
+    });
+
+    try {
+      const result = transaction.immediate();
+      const publishAfterCommit = result[ACTOR_REGISTRATION_AFTER_COMMIT];
+      if (typeof publishAfterCommit === 'function') {
+        try {
+          publishAfterCommit();
+        } catch {
+          // Cache/index/activity projections are derived and rebuildable.
+        }
+      }
+      return result;
+    } catch (error) {
+      if (error === rollback && rejectedEffect) return rejectedEffect;
+      return {
+        success: false,
+        error: 'canonical inbox and session could not be committed atomically',
+        code: 'STORE_UNAVAILABLE',
+      };
     }
   }
 
@@ -476,7 +658,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   /**
    * Unregister an agent
    */
-  function unregister(agentId: string) {
+  function unregister(agentId: string, options: UnregisterOptions = {}) {
     if (!agentId || typeof agentId !== 'string') {
       return { success: false, error: 'agent ID must be a non-empty string' };
     }
@@ -484,6 +666,25 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     const existing = stmts.get.get(agentId) as AgentRow | undefined;
     if (!existing) {
       return { success: true, unregistered: false, message: 'agent not found' };
+    }
+
+    if (existing.verified_actor_id) {
+      const release = options[VERIFIED_ACTOR_INBOX_REGISTRATION];
+      const releaseActorId = typeof release?.actorId === 'string' ? release.actorId.trim() : '';
+      const releaseHarbor = typeof release?.harbor === 'string' ? release.harbor.trim() : '';
+      if (
+        releaseActorId !== existing.verified_actor_id
+        || releaseHarbor !== existing.verified_actor_harbor
+        || releaseActorId !== agentId
+      ) {
+        return {
+          success: false,
+          unregistered: false,
+          agentId,
+          error: 'verified actor inbox release requires the matching server authority',
+          code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+        };
+      }
     }
 
     stmts.unregister.run(agentId);
@@ -501,6 +702,149 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       agentId,
       message: 'agent unregistered'
     };
+  }
+
+  /**
+   * End one canonical session and remove its inbox only if that same commit
+   * observes no other active session for the actor.
+   *
+   * This is intentionally one IMMEDIATE SQLite writer transaction. It
+   * serializes the target session mutation and final-inbox decision against
+   * actorSouls.registerAtomically(): a concurrent begin either commits first
+   * and prevents deletion, or commits after teardown and rebinds the inbox.
+   * Derived session/agent projections publish only after this transaction's
+   * COMMIT succeeds.
+   */
+  function finalizeSessionAndUnregisterIfNoActiveSessions(
+    agentId: string,
+    finalizeSession: () => Record<string | symbol, unknown>,
+    options: UnregisterOptions = {},
+  ) {
+    if (!agentId || typeof agentId !== 'string') {
+      return { success: false, error: 'agent ID must be a non-empty string' };
+    }
+    if (typeof finalizeSession !== 'function') {
+      return {
+        success: false,
+        unregistered: false,
+        agentId,
+        error: 'canonical session finalizer is required',
+        code: 'VALIDATION_ERROR',
+      };
+    }
+
+    // Nested use cannot prove the outer COMMIT before publishing derived
+    // state. Fail closed instead of silently unindexing inside that transaction.
+    if (db.inTransaction) {
+      return {
+        success: false,
+        unregistered: false,
+        agentId,
+        error: 'canonical inbox teardown requires ownership of the SQLite commit boundary',
+        code: 'POST_COMMIT_PUBLISHER_REQUIRED',
+      };
+    }
+
+    const rollback = Symbol('canonical-session-finalize-rollback');
+    let rejectedMutation: Record<string | symbol, unknown> | undefined;
+    try {
+      const finalizeIfAuthorized = db.transaction(() => {
+        const existing = stmts.get.get(agentId) as AgentRow | undefined;
+        if (existing?.verified_actor_id) {
+          const release = options[VERIFIED_ACTOR_INBOX_REGISTRATION];
+          const releaseActorId = typeof release?.actorId === 'string' ? release.actorId.trim() : '';
+          const releaseHarbor = typeof release?.harbor === 'string' ? release.harbor.trim() : '';
+          if (
+            releaseActorId !== existing.verified_actor_id
+            || releaseHarbor !== existing.verified_actor_harbor
+            || releaseActorId !== agentId
+          ) {
+            return {
+              success: false as const,
+              unregistered: false,
+              agentId,
+              error: 'verified actor inbox release requires the matching server authority',
+              code: 'ACTOR_INBOX_CREDENTIAL_REQUIRED',
+            };
+          }
+        }
+
+        const mutation = finalizeSession();
+        if (mutation.success !== true) {
+          rejectedMutation = mutation;
+          throw rollback;
+        }
+        const deletion = existing
+          ? stmts.unregisterIfNoActiveSessions.run(agentId)
+          : { changes: 0 };
+        return {
+          success: true as const,
+          mutation,
+          existing,
+          unregistered: deletion.changes === 1,
+        };
+      });
+      const result = finalizeIfAuthorized.immediate();
+      if (!result.success) return result;
+
+      const sessionPublisher = result.mutation[ACTOR_REGISTRATION_AFTER_COMMIT];
+      let projectionError: unknown;
+      if (typeof sessionPublisher === 'function') {
+        try {
+          sessionPublisher();
+        } catch (error) {
+          projectionError = error;
+        }
+      }
+      if (result.unregistered && semanticIndex && result.existing) {
+        const identity = [
+          result.existing.identity_project,
+          result.existing.identity_stack,
+          result.existing.identity_context,
+        ].filter(Boolean).join(':');
+        if (identity) {
+          try {
+            semanticIndex.unindexEntry(identity, agentId);
+          } catch (error) {
+            projectionError ??= error;
+          }
+        }
+      }
+
+      return {
+        success: true,
+        mutation: result.mutation,
+        unregistered: result.unregistered,
+        agentId,
+        retainedForActiveSessions: !result.unregistered,
+        ...(projectionError ? { projectionError: (projectionError as Error).message } : {}),
+        message: result.unregistered
+          ? 'agent unregistered'
+          : 'agent retained for active canonical sessions',
+      };
+    } catch (err) {
+      if (err === rollback) {
+        return {
+          success: false,
+          unregistered: false,
+          agentId,
+          mutation: rejectedMutation,
+          error: typeof rejectedMutation?.error === 'string'
+            ? rejectedMutation.error
+            : 'canonical session finalization failed',
+          code: typeof rejectedMutation?.code === 'string'
+            ? rejectedMutation.code
+            : 'SESSION_MUTATION_FAILED',
+        };
+      }
+      return {
+        success: false,
+        unregistered: false,
+        agentId,
+        error: (err as Error).message,
+        code: 'STORE_UNAVAILABLE',
+      };
+    }
   }
 
   /**
@@ -558,7 +902,72 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       healthAssessment: {
         liveness,
         graceRemaining
-      }
+      },
+      actorInboxBinding: agent.verified_actor_id
+        && agent.verified_actor_harbor
+        && typeof agent.verified_inbox_bound_at === 'number'
+        ? {
+            verified: true,
+            actorId: agent.verified_actor_id,
+            harbor: agent.verified_actor_harbor,
+            inboxTarget: agent.id,
+            boundAt: agent.verified_inbox_bound_at,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Resolve only a fresh, server-bound inbox registration. Session agentId,
+   * display aliases, and caller-selected targets are deliberately absent from
+   * this lookup: the canonical endpoint is the verified actor's own registry
+   * row, scoped to the harbor that authenticated it.
+   */
+  function resolveLiveActorInbox(actorId: string, harbor: string): LiveActorInboxResolution {
+    const canonicalActorId = typeof actorId === 'string' ? actorId.trim() : '';
+    const canonicalHarbor = typeof harbor === 'string' ? harbor.trim() : '';
+    if (!canonicalActorId || !canonicalHarbor) {
+      return {
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+        error: 'actor inbox lookup requires a canonical actor and harbor',
+      };
+    }
+
+    const row = stmts.get.get(canonicalActorId) as AgentRow | undefined;
+    if (
+      !row
+      || row.verified_actor_id !== canonicalActorId
+      || row.verified_actor_harbor !== canonicalHarbor
+      || typeof row.verified_inbox_bound_at !== 'number'
+    ) {
+      return {
+        success: false,
+        code: 'ACTOR_INBOX_UNBOUND',
+        error: `actor '${canonicalActorId}' has no server-bound inbox in harbor '${canonicalHarbor}'`,
+      };
+    }
+
+    // DEFAULT_AGENT_TTL is display-only. Delivery liveness uses the registry's
+    // authoritative status ladder so background agents without a heartbeat
+    // loop remain reachable until they are operationally dead.
+    if (Date.now() - row.last_heartbeat >= getDeadThresholdForStatus(row.status)) {
+      return {
+        success: false,
+        code: 'ACTOR_INBOX_STALE',
+        error: `actor '${canonicalActorId}' has no live inbox registration in harbor '${canonicalHarbor}'`,
+      };
+    }
+
+    return {
+      success: true,
+      binding: {
+        actorId: canonicalActorId,
+        harbor: canonicalHarbor,
+        inboxTarget: row.id,
+        boundAt: row.verified_inbox_bound_at,
+        lastHeartbeat: row.last_heartbeat,
+      },
     };
   }
 
@@ -813,9 +1222,12 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
 
   return {
     register,
+    runCanonicalSessionRegistration,
     heartbeat,
     unregister,
+    finalizeSessionAndUnregisterIfNoActiveSessions,
     get,
+    resolveLiveActorInbox,
     list,
     listStale,
     canClaimService,

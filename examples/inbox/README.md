@@ -1,6 +1,6 @@
 # Agent Inbox Examples
 
-The Port Daddy inbox gives every registered agent a personal message queue. Any caller can send a message; only the registered agent (or a caller that knows the agent ID) can read it.
+The Port Daddy inbox gives every daemon-minted actor a personal message queue. External callers may submit bounded content with fixed provenance, but only the exact live actor credential can read or acknowledge that inbox. Knowing an actor ID or alias grants no authority.
 
 ## When to use the inbox
 
@@ -16,7 +16,7 @@ For **broadcast** signals that any subscriber should hear, use pub/sub instead (
 
 ### `agent-dm.sh`
 
-A shell script demonstration of the full inbox lifecycle: register two agents, send a message from Alice to Bob, read Bob's inbox, mark all read, clear, and clean up.
+A shell script demonstration of the full inbox lifecycle: mint two actors in isolated context slots, send a daemon-attributed message from Alice to Bob, read Bob's inbox with Bob's stored credential, mark it read, and clean up.
 
 ```bash
 bash examples/inbox/agent-dm.sh
@@ -35,10 +35,11 @@ npx tsx examples/inbox/inbox-monitor.ts my-agent-id
 
 | HTTP | CLI | SDK |
 |------|-----|-----|
-| `POST /agents/:id/inbox` | `pd inbox send <id> <msg>` | `pd.inboxSend(id, content, opts)` |
+| `POST /agents/:id/inbox` | `pd inbox send <canonical-id> <msg>` | `pd.inboxSend(id, content)` |
 | `GET /agents/:id/inbox` | `pd inbox` | `pd.inboxList(id, opts)` |
 | `GET /agents/:id/inbox/stats` | `pd inbox stats` | `pd.inboxStats(id)` |
 | `PUT /agents/:id/inbox/read-all` | `pd inbox read-all` | `pd.inboxMarkAllRead(id)` |
-| `DELETE /agents/:id/inbox` | `pd inbox clear` | `pd.inboxClear(id)` |
 
-Full reference: [docs/sdk.md](../../docs/sdk.md) — Inbox section.
+Read and acknowledgement calls present the actor credential stored by `pd begin`. The public send path accepts only `content` plus optional `contentType`; the daemon selects sender provenance, rate limits delivery, and never wakes or controls the recipient runtime.
+
+Full reference: [docs/sdk.md](https://github.com/curiositech/port-daddy/blob/main/docs/sdk.md) — Inbox section.

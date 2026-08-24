@@ -18,7 +18,7 @@ export const fixtureSurveys: ProjectSurvey[] = [
       kind: 'server-daemon',
       languages: ['typescript', 'rust', 'swift'],
       frameworks: ['fastify', 'react', 'vite'],
-      deliveryMedium: 'npm + launchd + Homebrew tap + native FleetBar',
+      deliveryMedium: 'Homebrew daemon + launchd supervision + native FleetBar',
       uiSurfaces: ['Fleet Control Center', 'FleetBar', 'CLI'],
     },
     intent: 'Authoritative local daemon for ports, sessions, coordination, fleet agents, and operator control.',

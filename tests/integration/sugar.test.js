@@ -237,7 +237,7 @@ describe('Sugar Integration Tests', () => {
       if (agentId) await cleanupAgent(agentId);
     });
 
-    test('auto-generated agentId has expected format', async () => {
+    test('begin returns the daemon-minted actor as the canonical agentId', async () => {
       const res = await sugarBegin({
         purpose: 'Auto-ID test',
       });
@@ -247,7 +247,9 @@ describe('Sugar Integration Tests', () => {
 
       agentId = res.data.agentId;
       expect(agentId).toBeDefined();
-      expect(agentId).toMatch(/^agent-auto-id-test-[a-f0-9]{8}$/);
+      expect(agentId).toBe(res.data.actorId);
+      expect(agentId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+      expect(res.data.credential).toEqual(expect.any(String));
       expect(res.data.sessionId).toMatch(/^session-auto-id-test-[a-f0-9]{12}$/);
       expect(res.data.sessionName).toBe('Auto-ID test');
     });
@@ -349,8 +351,8 @@ describe('Sugar Integration Tests', () => {
     });
   });
 
-  describe('Whoami with reaped agent row', () => {
-    test('falls back to an explicit active session', async () => {
+  describe('Whoami with canonical agent row', () => {
+    test('retains explicit active context after raw deletion is rejected', async () => {
       const beginRes = await sugarBegin({
         purpose: 'Whoami stale agent fallback',
         agentId: `whoami-stale-${Date.now()}`,
@@ -361,7 +363,8 @@ describe('Sugar Integration Tests', () => {
       const { agentId, sessionId } = beginRes.data;
 
       const deleteRes = await request(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
-      expect(deleteRes.ok).toBe(true);
+      expect(deleteRes.ok).toBe(false);
+      expect(deleteRes.status).toBe(400);
 
       const whoamiRes = await sugarWhoami({ agentId, sessionId });
       expect(whoamiRes.ok).toBe(true);
@@ -370,7 +373,7 @@ describe('Sugar Integration Tests', () => {
       expect(whoamiRes.data.agentId).toBe(agentId);
       expect(whoamiRes.data.sessionId).toBe(sessionId);
       expect(whoamiRes.data.purpose).toBe('Whoami stale agent fallback');
-      expect(whoamiRes.data.identity).toBeNull();
+      expect(whoamiRes.data.identity).toBe('test-project:api:stale-agent');
 
       const doneRes = await sugarDone({ sessionId });
       expect(doneRes.ok).toBe(true);
@@ -463,7 +466,7 @@ describe('Sugar Integration Tests', () => {
       expect(res.data.code).toBe('NO_ACTIVE_SESSION');
     });
 
-    test('done returns 409 when explicit agentId does not own the explicit sessionId', async () => {
+    test('raw agentId cannot disown the canonical credential from its explicit sessionId', async () => {
       const beginRes = await sugarBegin({
         purpose: 'Ownership guard test',
         agentId: `owner-agent-${Date.now()}`,
@@ -477,12 +480,10 @@ describe('Sugar Integration Tests', () => {
         sessionId,
       });
 
-      expect(res.status).toBe(409);
-      expect(res.data.success).toBe(false);
-      expect(res.data.code).toBe('SESSION_OWNERSHIP_MISMATCH');
-
-      const cleanupRes = await sugarDone({ sessionId });
-      expect(cleanupRes.ok).toBe(true);
+      expect(res.ok).toBe(true);
+      expect(res.data.success).toBe(true);
+      expect(res.data.agentId).toBe(beginRes.data.actorId);
+      expect(res.data.sessionId).toBe(sessionId);
     });
 
     test('done with no body at all does not crash server', async () => {

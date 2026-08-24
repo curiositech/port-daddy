@@ -4,20 +4,21 @@
  * Poll your inbox for new messages, print them, and mark as read.
  *
  * Usage:
- *   npx tsx examples/inbox/inbox-monitor.ts <agent-id>
+ *   PORT_DADDY_ACTOR_CREDENTIAL=<credential> npx tsx examples/inbox/inbox-monitor.ts <canonical-actor-id>
  *
- * The agent must already be registered with Port Daddy:
- *   pd agent register --agent <agent-id> --purpose "..."
+ * The actor must already have a live daemon-bound inbox. An actor ID or alias
+ * alone is never read authority.
  */
 import { PortDaddy } from '../../lib/client.js';
 
 const agentId = process.argv[2];
-if (!agentId) {
-  console.error('Usage: npx tsx inbox-monitor.ts <agent-id>');
+const credential = process.env.PORT_DADDY_ACTOR_CREDENTIAL ?? process.env.PD_ACTOR_CREDENTIAL;
+if (!agentId || !credential?.trim()) {
+  console.error('Usage: PORT_DADDY_ACTOR_CREDENTIAL=<credential> npx tsx inbox-monitor.ts <canonical-actor-id>');
   process.exit(1);
 }
 
-const pd = new PortDaddy({ agentId });
+const pd = new PortDaddy({ agentId, credential });
 
 console.log(`Monitoring inbox for "${agentId}" via real-time pub/sub...`);
 console.log('Ctrl+C to stop.\n');

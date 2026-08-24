@@ -5,13 +5,15 @@ import {
 } from '../../fleet-config-ui/src/lib/inbox-targeting.ts';
 
 describe('inbox targeting helpers', () => {
-  const actor = (patch: Partial<Parameters<typeof resolveInboxAgentTargets>[0][number]>) => ({
-    id: patch.id ?? patch.inboxTarget ?? 'agent',
-    label: patch.label ?? patch.inboxTarget ?? patch.id ?? 'agent',
+  const actor = (patch: Partial<Parameters<typeof resolveInboxAgentTargets>[0][number]>) => {
+    const canonicalActorId = patch.inboxTarget ?? patch.id ?? 'agent';
+    return ({
+    id: patch.id ?? canonicalActorId,
+    label: patch.label ?? canonicalActorId,
     purpose: null,
     identity: null,
     fleetAgentName: patch.fleetAgentName ?? null,
-    inboxTarget: patch.inboxTarget ?? patch.id ?? 'agent',
+    inboxTarget: canonicalActorId,
     isConfiguredFleetAgent: patch.isConfiguredFleetAgent ?? true,
     actorKind: patch.actorKind ?? 'triggered',
     actorState: patch.actorState ?? 'idle',
@@ -21,11 +23,22 @@ describe('inbox targeting helpers', () => {
     lastActivityAt: patch.lastActivityAt ?? null,
     lastSummary: null,
     recentFiles: [],
-    registry: null,
+    registry: Object.prototype.hasOwnProperty.call(patch, 'registry')
+      ? patch.registry ?? null
+      : ({
+          id: canonicalActorId,
+          actorInboxBinding: {
+            verified: true,
+            actorId: canonicalActorId,
+            harbor: 'local',
+            inboxTarget: canonicalActorId,
+          },
+        } as never),
     spawned: null,
     salvage: null,
     sessions: [],
   });
+  };
 
   test('dedupes actor inbox targets and prioritizes live bodies first', () => {
     expect(resolveInboxAgentTargets([
@@ -36,6 +49,25 @@ describe('inbox targeting helpers', () => {
       { target: 'spark', actorState: 'running' },
       { target: 'spider', actorState: 'running' },
     ]);
+  });
+
+  test('rejects aliases and session evidence without an exact server-stamped binding', () => {
+    expect(resolveInboxAgentTargets([
+      actor({ id: 'victim-alias', inboxTarget: 'victim-alias', registry: null }),
+      actor({
+        id: 'display-name',
+        inboxTarget: 'display-name',
+        registry: ({
+          id: 'display-name',
+          actorInboxBinding: {
+            verified: true,
+            actorId: 'actor-canonical',
+            harbor: 'local',
+            inboxTarget: 'actor-canonical',
+          },
+        } as never),
+      }),
+    ])).toEqual([]);
   });
 
   test('explains when configured agents exist but the fleet is not running', () => {

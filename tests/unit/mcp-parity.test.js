@@ -87,7 +87,6 @@ const TOOL_FEATURE_MAP = {
 
   // Sessions & Notes
   'start_session': 'sessions',
-  'end_session': 'sessions',
   'add_note': 'notes',
   'list_sessions': 'sessions',
   'list_notes': 'notes',
@@ -203,7 +202,6 @@ const TOOL_FEATURE_MAP = {
   'inbox_stats': 'inbox',
   'inbox_mark_read': 'inbox',
   'inbox_mark_all_read': 'inbox',
-  'inbox_clear': 'inbox',
 
   // Webhooks
   'webhook_add': 'webhooks',
@@ -723,12 +721,13 @@ describe('MCP tool coverage quality', () => {
     expect(servicesTools).toContain('get_service');
   });
 
-  it('sessions feature should have start, end, list, and claim_files tools', () => {
+  it('sessions feature should expose reads/claims while teardown stays on authenticated Sugar', () => {
     const sessionTools = mcpToolNames.filter(t =>
       TOOL_FEATURE_MAP[t] === 'sessions'
     );
     expect(sessionTools).toContain('start_session');
-    expect(sessionTools).toContain('end_session');
+    expect(sessionTools).not.toContain('end_session');
+    expect(mcpToolNames).toContain('end_session_full');
     expect(sessionTools).toContain('list_sessions');
     expect(sessionTools).toContain('claim_files');
   });

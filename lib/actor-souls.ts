@@ -112,6 +112,43 @@ export type RegisterOutcome =
   | { ok: false; status: 'rejected';  code: 'NEWCOMER_ADMIT_LIMIT'; httpStatus: 429 }
   | { ok: false; status: 'rejected';  code: 'STORE_UNAVAILABLE'; httpStatus: 503 };
 
+export interface RegisterActorParams {
+  harbor?: string;
+  alias?: string | null;
+  credential?: string | null;
+  operatorToken?: string | null;
+  /** Server-selected admission bucket. Never copy this from request JSON. */
+  project?: string;
+  /** UTC day bucket for the admit rate-limit. */
+  day?: string;
+}
+
+/**
+ * Server-only projection hook carried by an atomic registration effect.
+ * registerAtomically invokes it only after SQLite COMMIT succeeds. Symbol
+ * properties cannot arrive through JSON/IPC and are omitted from responses.
+ */
+export const ACTOR_REGISTRATION_AFTER_COMMIT: unique symbol = Symbol('actor-registration-after-commit');
+
+interface AtomicRegistrationEffect {
+  success: unknown;
+  [ACTOR_REGISTRATION_AFTER_COMMIT]?: () => void;
+}
+
+type RegisterSuccess = Extract<RegisterOutcome, { ok: true }>;
+type RegisterFailure = Extract<RegisterOutcome, { ok: false }>;
+
+export type AtomicRegisterOutcome<T> =
+  | { ok: true; registration: RegisterSuccess; effect: T }
+  | RegisterFailure
+  | {
+      ok: false;
+      status: 'rejected';
+      code: 'REGISTRATION_EFFECT_FAILED';
+      httpStatus: 503;
+      effect?: T;
+    };
+
 export interface ResolvedActor {
   actorId: ActorId;
   soulClass: SoulClass;
@@ -390,16 +427,7 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
    * Register (POST /actors/register). Implements the exhaustive §2.2 outcome
    * table and §2.5 fail-mode semantics.
    */
-  function register(params: {
-    harbor?: string;
-    alias?: string | null;
-    credential?: string | null;
-    operatorToken?: string | null;
-    /** For the admit rate-limit — the project the newcomer will spend against. */
-    project?: string;
-    /** UTC day bucket for the admit rate-limit. */
-    day?: string;
-  }): RegisterOutcome {
+  function register(params: RegisterActorParams): RegisterOutcome {
     const harbor = params.harbor ?? defaultHarbor;
     const ts = now();
 
@@ -451,6 +479,73 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
   }
 
   /**
+   * Commit identity registration and its required server-owned boundary in one
+   * SQLite transaction. A failed effect rolls back every fresh-mint side
+   * effect (soul, alias, and newcomer-pool admission). For a credentialed
+   * existing soul the pre-existing row survives; only this attempt's touch and
+   * alias changes roll back, so an exact retry can recover idempotently.
+   */
+  function registerAtomically<T extends AtomicRegistrationEffect>(
+    params: RegisterActorParams,
+    effect: (registration: RegisterSuccess) => T,
+  ): AtomicRegisterOutcome<T> {
+    const rollback = Symbol('actor-registration-effect-rollback');
+    let rejectedRegistration: RegisterFailure | undefined;
+    let rejectedEffect: T | undefined;
+    const transaction = db.transaction((): AtomicRegisterOutcome<T> => {
+      const registration = register(params);
+      if (!registration.ok) {
+        // register() deliberately translates storage exceptions into a typed
+        // failure. Re-throw inside this outer transaction so a fault after an
+        // admission-pool increment cannot commit that partial side effect.
+        rejectedRegistration = registration;
+        throw rollback;
+      }
+
+      let effectResult: T;
+      try {
+        effectResult = effect(registration);
+      } catch {
+        throw rollback;
+      }
+      if (effectResult.success !== true) {
+        rejectedEffect = effectResult;
+        throw rollback;
+      }
+      return { ok: true, registration, effect: effectResult };
+    });
+
+    try {
+      const outcome = transaction();
+      if (outcome.ok) {
+        const afterCommit = outcome.effect[ACTOR_REGISTRATION_AFTER_COMMIT];
+        if (typeof afterCommit === 'function') {
+          try {
+            afterCommit();
+          } catch {
+            // Derived projections are deliberately non-authoritative. A cache
+            // publication failure cannot unwind an already durable identity;
+            // the next projection rebuild recovers it from SQLite.
+          }
+        }
+      }
+      return outcome;
+    } catch (error) {
+      if (error === rollback) {
+        if (rejectedRegistration) return rejectedRegistration;
+        return {
+          ok: false,
+          status: 'rejected',
+          code: 'REGISTRATION_EFFECT_FAILED',
+          httpStatus: 503,
+          ...(rejectedEffect === undefined ? {} : { effect: rejectedEffect }),
+        };
+      }
+      return { ok: false, status: 'rejected', code: 'STORE_UNAVAILABLE', httpStatus: 503 };
+    }
+  }
+
+  /**
    * Record a daemon-witnessed clean exit (called by bonds.refund). Graduation
    * out of the pool is priced in escrowed capital — each clean exit requires a
    * prior escrow of real collateral.
@@ -462,6 +557,7 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
   return {
     mint,
     register,
+    registerAtomically,
     verifyCredential,
     verifyOperatorToken,
     resolveAlias,
