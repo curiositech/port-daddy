@@ -358,7 +358,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // and `pd hm` are the CLI surfaces for status, queue, start, and stop.
     harbormaster: ['harbormaster', 'hm'],
     // transcripts: ship-run records surface. routes/transcripts.ts is the
-    // operator-facing read/delete API; `pd transcripts <list|show|cost|delete>`
+    // operator-facing read-only API; `pd transcripts <list|show|watch|cost>`
     // is its CLI surface.
     transcripts: ['transcripts', 'transcript'],
     // dispatches: HTTP surface over the dispatch queue (POST /dispatches +

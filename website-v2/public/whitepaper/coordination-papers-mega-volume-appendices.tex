@@ -1,0 +1,241 @@
+% Volume-owned synthesis, status, roadmap, concordance, and bibliography.
+% Kept separate from the orchestration root so the publication remains a
+% bounded two-chunk review even after the compiled PDF is attached.
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{part}{\textbf{\scshape Volume Appendices}}
+\begin{center}
+  \vspace*{0.3cm}
+  {\Huge\scshape\bfseries Volume Appendices\par}
+  \vspace{0.2cm}
+  {\color{hhcobalt}\rule{0.3\textwidth}{1.5pt}}\par
+  \vspace{0.4cm}
+\end{center}
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thefigure}{A.\arabic{figure}}
+\renewcommand{\thetable}{A.\arabic{table}}
+\renewcommand{\theHsection}{volume.appendix.\arabic{section}}
+\renewcommand{\theHsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}}
+\renewcommand{\theHsubsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+\renewcommand{\theHfigure}{volume.appendix.\arabic{figure}}
+\renewcommand{\theHtable}{volume.appendix.\arabic{table}}
+\renewcommand{\theHequation}{volume.appendix.\arabic{equation}}
+\renewcommand{\theHlstlisting}{volume.appendix.\arabic{lstlisting}}
+\fancyhead[L]{\small\itshape\color{hhgray} Collected-Volume Appendices}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Collected Volume}
+
+\section{Consolidated Implementation and Assurance Ledger}\label{app:volume-status}
+
+\subsection{The Five Explicit Assurance Levels}
+To avoid overclaiming systems guarantees, Port Daddy structures all enforcement into five discrete, falsifiable assurance modes:
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Level 1: Observed.} Effects may occur outside the daemon; evidence is best-effort event-logging.
+  \item \textbf{Level 2: Coordinated.} Cooperative clients coordinate explicitly via advisory claims, role leases, and registered commitments.
+  \item \textbf{Level 3: Brokered.} Sensitive credentials and selected effect channels pass through daemon-owned proxy brokers.
+  \item \textbf{Level 4: Confined.} Confined execution via OS-level primitives (Seatbelt, bubblewrap, Landlock, namespaces, cgroups) with no ambient bypass path.
+  \item \textbf{Level 5: Attested.} Hardware/TEE-attested confidential workrooms verifying runtime measurement and cryptographic key release.
+\end{enumerate}
+
+\subsection{The Six-Rung Risk Ladder}
+Defenses must not ask one mechanism to perform multiple contradictory roles. Security and economic guarantees are staged sequentially:
+$$\text{PREVENT} \;\longrightarrow\; \text{CONTAIN} \;\longrightarrow\; \text{CHECKPOINT} \;\longrightarrow\; \text{OBSERVE} \;\longrightarrow\; \text{ADJUDICATE} \;\longrightarrow\; \text{COMPENSATE}$$
+Residual risk moves down the ladder, and the underwriting market prices only what remains after structural containment.
+
+\subsection{Consolidated Mechanism Status}
+\small
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{\textwidth}{@{}p{0.21\textwidth}p{0.15\textwidth}X@{}}
+\toprule
+\textbf{Mechanism or claim} & \textbf{Grade} & \textbf{Current evidence and boundary}\\
+\midrule
+Single-writer SQLite/WAL kernel, claims, sessions, messaging & \Built & Running daemon paths, linear migration ledger (\texttt{PRAGMA user\_version}), and regression tests; durability is per-transaction typed (\texttt{PROCESS\_CRASH} vs \texttt{POWER\_LOSS}).\\
+Legibility and digest-with-zoom surfaces & \BuiltWeak & Provenance-preserving projections from raw event ledgers; why/where/why-not query substrate.\\
+Durable commitments and obligation monitor & \BuiltWeak & Durable records, daemon-derived deadlines, oracle-bound closure, and periodic overdue detection.\\
+Portable Task Capsule and successor restoration & \Designed & Content-addressed task capsule over JSON message arrays and Git SHA; provider-portable semantic resurrection.\\
+Local non-forgeable actor identity & \BuiltWeak & Daemon-minted identity bound to principal roots with aggregate exposure limits.\\
+Anchor authentication and attenuation models & \Closed & ProVerif and Kani verification of every-hop monotonic attenuation ($\text{cap}_i \subseteq \text{cap}_{i-1}$) and key-bound proof of possession.\\
+Bond ledger, escrow, and conservation slices & \BuiltWeak & 4-bucket settlement escrow (Bounty, Performance Bond, Insurer Reserve, Fees) with verified algebraic balance conservation.\\
+Cross-harbor capability transfer and settlement & \Designed & 2-of-3 Multisig Clearinghouse and witnessed anti-entropy overlay; non-custodial dispute arbitration.\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\section{Research and engineering roadmap}\label{app:volume-roadmap}
+The roadmap is organized by the kind of evidence that can close each claim. A
+proof obligation should not be disguised as a feature, and an empirical
+parameter should not be invented in prose.
+
+\subsection{Add to the papers}
+\begin{enumerate}[leftmargin=*]
+\item Add a notation and assumption concordance for identity roots, principals,
+harbors, clocks, rounds, currencies, and oracle trust.
+\item Add explicit claim-to-artifact matrices linking every closed or partial
+claim to a model, test, route, trace, or counterexample.
+\item Add deployment-calibrated case studies for attention, obligation breach,
+identity reset, partition healing, and settlement dispute.
+\item Add a comparative chapter mapping the stack to object capabilities,
+reference monitors, transparency logs, workflow engines, and agent frameworks.
+\end{enumerate}
+
+\subsection{Prove or falsify}
+\begin{enumerate}[leftmargin=*]
+\item State complete strategies, deviations, information sets, and parameter
+regions for the signaling, cartel, sponsor, judge, and correlated-equilibrium
+claims; include coalition deviations where relevant.
+\item Mechanize revocation dissemination only under an explicit graph, scheduler,
+delivery, and partition model; report expectations and tails separately.
+\item Prove the multi-currency bucket-partition invariant and characterize the
+minimal non-bypassable custody interface required for any extraction bound.
+\item Establish model-to-runtime conformance obligations for token verification,
+replay rejection, identity minting, settlement, and cross-harbor envelopes.
+\item Define the game class before stating any price-of-anarchy or welfare bound,
+then supply tight examples or counterexamples.
+\end{enumerate}
+
+\subsection{Try, measure, and add to the code}
+\begin{enumerate}[leftmargin=*]
+\item Finish a reputation-grade witnessed-outcome ledger on the shipped
+commitment substrate, with neutral-judge conflicts, appeals, and sanctions.
+\item Close actor identity at every security-relevant write boundary and test
+identity-reset laundering against shared budgets and bonds.
+\item Implement portable execution-state checkpoint/successor restoration where
+adapters permit it; grade unsupported adapters formally.
+\item Prototype HPKE-sealed relay ingress with pinned key rotation, replay
+windows, and downgrade tests.
+\item Build a small federated witness-log, revocation, custody, and settlement
+testbed; run partitions, redelivery, crash recovery, equivocation, and stale-key
+chaos experiments.
+\item Instrument false alarms, misses, review latency, breach rates, detection
+probability, slashing, judge disagreement, and identity churn before fitting the
+attention or incentive parameters used by the papers.
+\item Make roadmap and other operator projections prove which database and
+revision they summarize, then gate publication on projection/source agreement.
+\end{enumerate}
+
+\section{Notation and cross-chapter concordance}
+\begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}X@{}}
+\toprule
+\textbf{Term} & \textbf{Volume-wide meaning}\\
+\midrule
+Harbor & One local administrative and transactional authority, normally one daemon and its durable database.\\
+Principal & The human or organization whose policy and resources an agent ultimately exercises; not interchangeable with a process identity.\\
+Role & A bundle of obligations, capabilities, and authority that a spawn may fill.\\
+Person & A role instance plus continuity and a witnessed outcome history bound to an identity that cannot be freely re-picked.\\
+Oracle & An external or independently checkable reference used to close a commitment or adjudicate an outcome; its trust model must be named.\\
+Round & A model step in a dissemination or protocol analysis, not automatically a wall-clock deadline.\\
+Closed & The exact recorded model/property has been mechanically discharged; no whole-system implication is assumed without a conformance argument.\\
+\bottomrule
+\end{tabularx}
+
+\clearpage
+\section{Next-Generation Expansions}\label{app:next-generation}
+The immediate scope of Port Daddy coordination focuses on local single-writer consistency and cross-harbor token exchange. We formally outline six structural expansions necessary to advance the system from a single-tenant agent hypervisor to a multi-tenant, enterprise-grade coordination protocol.
+
+\subsection{B2B Airlock (Information Flow Control)}
+True compute-to-data execution requires moving the agent to the data rather than moving the data to the agent. A B2B Airlock extends the daemon to enforce strict Information Flow Control (IFC) via Dynamic Taint Tracking. Data loaded from a high-security zone taints the spawned process; the daemon subsequently applies strict \texttt{net:egress} denial, ensuring that the agent can compute over sensitive IP but can only exfiltrate cryptographic attestations of the result. This forms the foundation of a ``Silicon-Enforced NDA.''
+
+\subsection{The Compaction Daemon (SLM Sidecar)}
+Unbounded context windows lead to attention decay and excessive cost. The Compaction Daemon integrates an embedded, air-gapped Small Language Model (e.g., via \texttt{llama.cpp}) acting as an SLM sidecar. This sidecar continuously performs zero-cost background token compaction and generates Digest-with-Zoom hierarchical summaries. Furthermore, as an air-gapped component, it acts as the primary enforcement layer for Data Loss Prevention (DLP) scanning on outbound context windows.
+
+\subsection{Swarm Time Travel}
+Because \texttt{agentsd} manages state via an event-sourced SQLite WAL and file modifications are versioned via Git trees, the swarm's entire macroscopic state is deterministic. We propose the \texttt{agentsctl rollback} command to leverage this: by rewinding the WAL to a specific transaction boundary and checking out the corresponding Git commit, the swarm can physically ``wake up in the past'' with perfect neural and file-system continuity, allowing operators to seamlessly branch execution away from cascading hallucinations.
+
+\subsection{Agentic FinOps (Task-Level Cost Attribution)}
+High-cadence swarms require hard structural cost boundaries. Agentic FinOps shifts billing from a post-hoc dashboard to a pre-transactional firewall. The \texttt{agentsd} daemon intercepts all API usage blocks and commits micro-transactions to the primary ledger. It enforces a \texttt{max\_usd} parameter at the task level, cutting off network egress and freezing the spawn the millisecond its budget is exhausted, preventing runaway LLM billing.
+
+\subsection{Darwinian Prompts (Outcome Skill-Attribution)}
+A static prompt library cannot adapt to an evolving codebase. We propose a feedback loop where the settlement outcome of a Float Plan dictates the survivability of the prompts and tools used. If a task settles successfully, the daemon grants an Elo rating boost to the \texttt{skill\_hash} of the loaded tools. If a task fails or causes a rollback, the rating degrades. Tools that consistently solve problems are prioritized in future context-window construction.
+
+\subsection{Execution Provenance}
+To prevent ``Hollow Fleet'' arbitrage---where a contractor delegates work to an unauthorized, untrusted sub-agent swarm---the \texttt{agentsd} daemon signs all output artifact hashes using its hardware-bound Harbor Key. This attests that the work was structurally generated by the approved local daemon within the expected capability bounds, providing cryptographic proof of execution provenance.
+
+\clearpage
+\section{The Condominium Harbor and Ostrom Governance Matrix}\label{app:condominium}
+
+The treatise addresses single-operator harbors (Chapters~I--III) and federated sovereign harbors (Chapters~IV--VII). The intermediate regime is the \textbf{Condominium Harbor}: a single shared daemon and repository governed by multiple distinct principals (e.g., Alice, Bob, and Carl). 
+
+In a condominium harbor, sovereignty is replaced by a shared \textbf{charter}. The fundamental architecture preserves the kernel's single-writer discipline (one daemon serializes all transactional writes), while delegating political authority across partitioned namespaces:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Partitioned Namespace Ownership:} Principals hold exclusive write capabilities over distinct directory subtrees (e.g., Alice owns \texttt{/auth}, Bob owns \texttt{/billing}). Cross-namespace effects cannot be directly committed; they are submitted as \emph{typed proposals} that become obligations only upon the owner's cryptographic sign-off.
+\item \textbf{Tractable Conflict Detection:} General consistency checking over arbitrary logic is co-NP-hard. By restricting commitments to Horn-form invariants and interval resource claims, the daemon performs incremental consistency validation in $O(\log n)$ time per operation.
+\item \textbf{The Lookout Role:} A standing projection agent continuously runs model-checking over planned roadmap branches and invariant sets (Endsley Level-3 Situation Awareness), alerting principals to latent merge conflicts before execution.
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{@{}p{0.28\textwidth}p{0.32\textwidth}X@{}}
+\toprule
+\textbf{Ostrom Design Principle (Ostrom 1990)} & \textbf{Institutional Intent} & \textbf{Port Daddy Mechanism} \\
+\midrule
+1. Clearly defined boundaries & Exclude unauthorized appropriators & Admission gates and non-forgeable cryptographic identity roots (\S\ref{stp:sec:identity}). \\
+2. Congruence of rules & Match local conditions and costs & Newcomer probation cliffs (Thm.~\ref{stp:thm:probation-dominance}) and float-plan escrows. \\
+3. Collective-choice arrangements & Users participate in rule modification & Charter-amendment voting over governance rules (never voting on physical database truth). \\
+4. Monitoring & Accountable monitors audit conditions & Append-only witness logs, Merkle evidence trails, and the standing Lookout agent. \\
+5. Graduated sanctions & Progressive penalties for infractions & Progressive bond slashing, escalation standing debits, and reputation tombstones. \\
+6. Conflict-resolution mechanisms & Rapid, low-cost dispute adjudication & 2-of-3 multisig settlement escrow and multi-model heterogeneous judge arbitration. \\
+7. Minimal recognition of rights & External authorities respect self-rule & Principal autonomy over partitioned namespace directories and role delegation. \\
+8. Nested enterprises & Multi-tiered governance layers & Condominium harbors federating upward into global witness-log networks (Chapter~VII). \\
+\bottomrule
+\end{tabularx}
+\caption{Mapping Elinor Ostrom's 8 Design Principles for Common Pool Resource Management to the multi-principal Condominium Harbor.}
+\label{tab:ostrom}
+\end{table}
+
+\clearpage
+\section{The Clean-Room Harbor: Derek and Erin}\label{app:clean-room}
+
+The commercial apex of ``hosted trust as a product'' is the \textbf{Clean-Room Harbor}: executing a proprietary AI agent stack $S$ (owned by Erin) over a confidential corporate dataset $D$ (owned by Derek) while provably bounding exfiltration in both directions.
+
+\subsection{Information-Flow Lattice and Dual Declassification Gates}
+We define a Decentralized Label Model (DLM) lattice $\{\bot\} \le \{D\}, \{E\} \le \{D, E\}$. Derek's raw data enters labeled $\{D\}$; Erin's weights and prompts enter labeled $\{E\}$. Any computation over both inherits the join label $\{D, E\}$.
+
+The hypervisor daemon completely mediates all execution paths ($\{\mathrm{fs}, \mathrm{net}, \mathrm{exec}\}$), routing all output through exactly two auditable declassification gates:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Erin's Exit Gate ($G \to E$):} Schema-restricted aggregates only; Differential Privacy (DP) Laplace noise drawn against a metered privacy budget $\epsilon$; verbatim-span suppression against $D$'s corpus; and $c$ canary sentinels planted in $D$.
+\item \textbf{Derek's Exit Gate ($G \to D$):} Task outputs and reports only; Erin's model weights execute as a sealed enclave capability that Derek can invoke but cannot inspect or export.
+\end{enumerate}
+
+\begin{theorem}[Conditional Noninterference and Privacy Conservation]\label{thm:cleanroom}
+Under complete hypervisor mediation of all I/O channels and correct gate enforcement:
+\begin{enumerate}[nosep]
+\item \textbf{Noninterference:} No $\{D\}$-labeled information reaches Erin beyond gate-released DP aggregates, and no $\{E\}$-labeled intellectual property reaches Derek beyond task reports.
+\item \textbf{$\epsilon$-Conservation:} The cumulative privacy loss over any execution trace strictly satisfies $\sum_{i} \epsilon_i \le \mathcal{E}_{\mathrm{budget}}$.
+\item \textbf{Canary Detection Power:} With $c$ planted canaries and gate false-negative rate $\beta$, an exfiltration attempt spanning $k$ canary tokens is detected with probability $\ge 1 - \beta^k$.
+\end{enumerate}
+\end{theorem}
+
+\noindent\emph{Status.} Claim (1) is verified on a finite model (exhaustive two-run equivalence to interleaving depth 7, all secret pairs, schedule secret-independence checked separately; gate-bypass and leaky-gate mutations caught with witness traces); the unbounded form is the standard unwinding obligation. Claims (2) and (3) are carried as research-ledger items A3 (release-ledger conservation with sequential/advanced composition) and A4 (canary power with SPRT latency); their proofs are short and scheduled, and the statements above are conditioned exactly as they must be --- on complete channel mediation and correct gate enforcement, which are the residual oracles.
+
+\clearpage
+\section*{Appendix: One Spine --- Why These Mechanisms and Not Others}
+\addcontentsline{toc}{section}{Appendix: One Spine}
+
+A volume this size courts a specific failure: the \emph{potpourri}, a grab bag of clever mechanisms with no account of why these and not ten others. This appendix states the account. The system has one ontology and four theorem families; every mechanism in the volume is a corollary of exactly one family, inherits a developer obligation from it, and carries that family's boundary. A proposed feature that cannot name its row in the table below is not yet a feature.
+
+\paragraph{The ontology.} One durable object bears all trust: the \textbf{evidence-carrying work unit} --- authorized by a \emph{principal} (the delegation chain's terminus), acted on through \emph{fenced, attenuating capabilities}, advanced only by \emph{admitted evidence} over typed channels, settled once, and graded on the five assurance modes (observed, coordinated, brokered, confined, attested). Agents are transient; the work unit is the case file that outlives every clerk. Everything else in the volume exists to answer one of four questions about that object.
+
+\paragraph{The four families.}
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.26\textwidth}p{0.34\textwidth}p{0.32\textwidth}@{}}
+\hline
+\textbf{Theorem family (the question)} & \textbf{Mechanisms it licenses (corollaries)} & \textbf{Developer implication + boundary} \\
+\hline
+\emph{Legibility floors.} What must a human see? Information floor $\log_2\binom{N}{k}-\log_2\binom{m}{k}$; split-digest comonotonicity; derived regret head; the $R(\delta,f)$ frontier with adaptive zoom; paging competitiveness. & Digests with budgeted bits; \emph{dual} compaction heads (successor vs.\ operator); the attention queue's likelihood-ratio test; forced-zoom; context paging; pheromone decay. & Budget bits/opens/misses explicitly --- the exchange rates are theorems, not tuning. Two readers need two heads. Anomaly must be a \emph{calibrated} posterior; reputation may move it but never zero a catastrophic item. Boundary: zoom pays only when flags are sparse; floors price \emph{guarantees}, not vibes. \\
+\hline
+\emph{The controllability boundary.} What can be \emph{prevented} rather than detected? Regimentable iff controllable w.r.t.\ the uncontrollable alphabet (OP-2 is the DB-commit special case). & Pre-commit gates and SQL guards; the compute-to-data airlock; conflict rejection at proposal time; ticket-lock admission; the channel-not-token rule. & Classify every rule at design time: regimentable rules become gates; semantic rules (a confident lie) are detect-only \emph{forever} and must be priced by the economy, not promised by the runtime. Boundary: gate the channel, never the token; taint is containment, the gate is the guarantee. \\
+\hline
+\emph{Deterrence economics.} Why is honesty cheaper than fraud? $\rho d B \ge G$; the audit tower over $C$ disjoint cliques; the front-loaded probation cliff; declining audit schedules (reputation as amortized verification); four-bucket escrow conservation. & Slashable bonds; sealed VRF-sampled audits; heterogeneous judge pools; newcomer cliffs instead of ramps; per-bucket settlement; the 2-of-3 clearinghouse; the mutation-test market. & Size bonds to the worst one-shot gain; sample judges across principals \emph{and} model families (diversity is the mechanism, not a nicety); publish the audit schedule --- deterrence is a budget line. Boundary: sealed sampling is load-bearing; a leaked draw defeats the clique math; convention (confiscation vs.\ keep-gain) changes $\rho^\star$. \\
+\hline
+\emph{Federation without consensus.} What survives distrust between harbors? Signed witness logs; equivocation as a cocycle obstruction \emph{on cycles}; monotone (CALM) coordination-free operations; the conditional escrow bound. & Gossip with \emph{redundant} paths; sheaf-residual triage under partition; forensic attribution by signature; the multisig clearinghouse. & Topology is a security parameter: detection across an uncompared link requires a cycle through it --- provision redundancy as you would a bond. Signatures attribute; residuals only triage; vanishing residual is never an all-clear. Boundary: no global order is claimed, and none is needed. \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{The test, restated as procedure.} To admit a new mechanism: (1) name its family and the theorem it is a corollary of; (2) state the developer obligation it creates (a budget, a classification, a schedule, or a topology requirement); (3) state its boundary in the same breath as its claim, with the maturity tag the ledger requires. The eight consensus corrections, the assurance ladder, and the status tags throughout this volume are this procedure applied retroactively; this appendix is the commitment to apply it prospectively.
+\addcontentsline{toc}{section}{References}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}

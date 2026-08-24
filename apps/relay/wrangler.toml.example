@@ -32,7 +32,7 @@
 #   wrangler dev --local   (uses local D1 sqlite, local DO)
 
 name = "port-daddy-relay"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -57,6 +57,8 @@ GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 GITHUB_OWNER = "REPLACE_WITH_YOUR_GITHUB_OWNER"
 GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO"
 DEFAULT_BRANCH = "main"
+# Durable numeric GitHub id for the initial account-backed Cloud Fleet operator.
+RELAY_OPERATOR_GITHUB_USER_ID = "REPLACE_WITH_YOUR_GITHUB_USER_ID"
 
 # ---------------------------------------------------------------------------
 # Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.

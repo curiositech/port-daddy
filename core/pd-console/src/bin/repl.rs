@@ -120,6 +120,12 @@ mod planner_pane;
 mod prs_pane;
 #[path = "../roadmap_pane.rs"]
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wiring — gpui-free, hosted here so the headless test gate runs its suite.
+#[allow(dead_code)]
+#[path = "../roadmap_projection.rs"]
+mod roadmap_projection;
 #[allow(dead_code)] // parse/serve are exercised by tests; the server runs only in the gpui bin
 #[path = "../script.rs"]
 mod script; // control-socket scripting (parse + serve tests)
@@ -137,6 +143,12 @@ mod term;
 mod theme;
 #[path = "../util.rs"]
 mod util;
+// Timeline companion-window launcher (ADR-0112 path 3). The launch shell is
+// GUI-only at runtime, but its pure binary-path resolver + missing-binary
+// message are unit-tested HERE on the cheap non-gpui gate.
+#[allow(dead_code)]
+#[path = "../timeline.rs"]
+mod timeline;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]
