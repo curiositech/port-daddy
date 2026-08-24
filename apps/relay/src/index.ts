@@ -39,6 +39,36 @@
  *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
  *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
  *   POST /account/parleys/:ns/:name/:id/sign    (plain form sign; same-origin)
+ *   GET  /account/seamanship                    (HTML skill catalog; session;
+ *                                                read live from the operator's
+ *                                                own repos via their GitHub App
+ *                                                installation; G'3)
+ *   POST /account/seamanship/publish            (session, same-origin; sync the
+ *                                                operator's public listing to
+ *                                                what their SKILL.md files say)
+ *   POST /v1/seamanship/publish                 (same, JSON envelope)
+ *   POST /account/seamanship/suggest            (session, same-origin; queue an
+ *                                                Engineman suggestion run for
+ *                                                one repo; G'4)
+ *   POST /account/seamanship/approve            (session, same-origin; THE HUMAN
+ *                                                ACT — mints the single-use
+ *                                                build capability; G'6)
+ *   POST /account/seamanship/dismiss            (session, same-origin; revokes an
+ *                                                unspent build capability)
+ *   GET  /v1/seamanship/suggestions?repo=       (session; own suggestion rows)
+ *   GET  /account/seamanship/chat               (HTML Engineman chat; session;
+ *                                                nonce-scoped CSP; G'5)
+ *   GET  /v1/snipe/history                      (session; own chat history)
+ *   POST /v1/snipe/chat                         (session; capped turn, SSE)
+ *   POST /v1/snipe/clear                        (session; delete own history)
+ *   GET  /skills                                (PUBLIC directory; names +
+ *                                                descriptions of opted-in
+ *                                                skills ONLY; G'7)
+ *   GET  /v1/skills                             (same, JSON)
+ *   GET  /skills/@:login/:id                    (one published skill; the full
+ *                                                SKILL.md body needs a session
+ *                                                AND visibility: public)
+ *   GET  /v1/skills/@:login/:id                 (same, JSON)
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
@@ -152,6 +182,27 @@ import {
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
+import {
+  handleSeamanshipPage,
+  handleSeamanshipPublishForm,
+  handlePublicSkillsPage,
+  handlePublicSkillPage,
+} from './seamanship-page.js';
+import {
+  handleSeamanshipPublish,
+  handlePublicSkillsListing,
+  handlePublicSkillBody,
+} from './seamanship.js';
+import {
+  handleSnipeApprove,
+  handleSnipeDismiss,
+  handleSnipeSuggest,
+  handleSnipeSuggestionList,
+} from './snipe-builder.js';
+import { handleSnipeChat, handleSnipeClear, handleSnipeHistory } from './snipe-chat.js';
+import { handleSnipeChatPage } from './snipe-chat-page.js';
+import { makeD1CatalogReader, runSnipeSuggestionSweep } from './snipe-suggestions.js';
+import { runSnipeBuildSweep } from './snipe-builder.js';
 import {
   handleParleysIndex,
   handleParleyListPage,
@@ -499,6 +550,71 @@ export default {
     else if (pathname === '/account/shipwright' && method === 'GET') {
       response = await handleShipwrightPage(request, env);
     }
+    // ── Seamanship: the operator's skill catalog + the opt-in public listing ─
+    // The catalog is READ LIVE from the operator's own repos through their
+    // GitHub App installation — the repo is the source of truth and this Worker
+    // never mirrors the corpus. Every path that exposes a skill to anyone but
+    // its owner goes through the ONE predicate, isPublishableSkill
+    // (src/seamanship.ts, re-exporting lib/shipwright/skill-visibility.ts).
+    else if (pathname === '/account/seamanship' && method === 'GET') {
+      response = await handleSeamanshipPage(request, env);
+    }
+    else if (pathname === '/account/seamanship/publish' && method === 'POST') {
+      response = await handleSeamanshipPublishForm(request, env);
+    }
+    else if (pathname === '/v1/seamanship/publish' && method === 'POST') {
+      response = await handleSeamanshipPublish(request, env);
+    }
+    // ── Snipe (the Engineman): suggestions, the approval gate, and the chat ─
+    // The gate is structural, not conventional: approving is the ONLY act that
+    // mints a build capability (src/snipe-builder.ts), the builder's signature
+    // requires one, and the capability is single-use. No approval ⇒ no build ⇒
+    // no pull request, and a pull request the operator merges is the only way
+    // anything reaches a catalog.
+    else if (pathname === '/account/seamanship/suggest' && method === 'POST') {
+      response = await handleSnipeSuggest(request, env);
+    }
+    else if (pathname === '/account/seamanship/approve' && method === 'POST') {
+      response = await handleSnipeApprove(request, env);
+    }
+    else if (pathname === '/account/seamanship/dismiss' && method === 'POST') {
+      response = await handleSnipeDismiss(request, env);
+    }
+    else if (pathname === '/v1/seamanship/suggestions' && method === 'GET') {
+      response = await handleSnipeSuggestionList(request, env);
+    }
+    // The Engineman's chat. Runs on the SHARED turn engine (src/chat-engine.ts)
+    // — the same session gate, streaming path and DAILY SPEND CAP as every
+    // other chat surface, not a second implementation of any of them.
+    else if (pathname === '/account/seamanship/chat' && method === 'GET') {
+      response = await handleSnipeChatPage(request, env);
+    }
+    else if (pathname === '/v1/snipe/history' && method === 'GET') {
+      response = await handleSnipeHistory(request, env);
+    }
+    else if (pathname === '/v1/snipe/chat' && method === 'POST') {
+      response = await handleSnipeChat(request, env);
+    }
+    else if (pathname === '/v1/snipe/clear' && method === 'POST') {
+      response = await handleSnipeClear(request, env);
+    }
+    // PUBLIC listing. `/skills` and `/v1/skills` serve the LISTED tier only
+    // (names + descriptions). The `@login/id` forms serve a full SKILL.md body
+    // and are gated on a session AND a live `visibility: public`.
+    else if (pathname === '/skills' && method === 'GET') {
+      response = await handlePublicSkillsPage(request, env);
+    }
+    else if (pathname === '/v1/skills' && method === 'GET') {
+      response = await handlePublicSkillsListing(request, env);
+    }
+    else if (pathname.startsWith('/skills/') && method === 'GET') {
+      const qualified = decodeURIComponent(pathname.slice('/skills/'.length));
+      response = await handlePublicSkillPage(request, env, qualified);
+    }
+    else if (pathname.startsWith('/v1/skills/') && method === 'GET') {
+      const qualified = decodeURIComponent(pathname.slice('/v1/skills/'.length));
+      response = await handlePublicSkillBody(request, env, qualified);
+    }
     // ── Parley HTML surface (session + harbor-member gated; parleys-page.ts) ─
     // /account/parleys                     → redirect to a harbor (or empty state)
     // /account/parleys/:ns/:name           → that harbor's parley list
@@ -778,6 +894,34 @@ export default {
         const line =
           `[relay] mercy sweep: overall=${r.overall} remoteHarbors=${r.remoteHarborsPossible} ` +
           `opened=${r.incidentsOpened} resolved=${r.incidentsResolved} paged=${r.pagesSent}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
+      }),
+    );
+    // Snipe drainers. These are QUEUE DRAINS, not polls of operator state: a
+    // suggestion job exists because a person asked for one, and a build grant
+    // exists because a person approved something. They ride every fire so an
+    // approved suggestion becomes a pull request in minutes rather than hours;
+    // when both queues are empty each costs one indexed SELECT. Both are
+    // internally fail-safe and return counter structs.
+    ctx.waitUntil(
+      runSnipeSuggestionSweep(env, Math.floor(Date.now() / 1000), {
+        catalog: makeD1CatalogReader(env.DB),
+      }).then((r) => {
+        if (r.jobsRun === 0 && r.stuckReaped === 0 && r.errors.length === 0) return;
+        const line =
+          `[relay] snipe suggestion sweep: ran=${r.jobsRun} skipped=${r.jobsSkipped} ` +
+          `produced=${r.suggestionsProduced} reaped=${r.stuckReaped} abandoned=${r.stuckFailed}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
+      }),
+    );
+    ctx.waitUntil(
+      runSnipeBuildSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        if (r.claimed === 0 && r.errors.length === 0) return;
+        const line =
+          `[relay] snipe build sweep: claimed=${r.claimed} built=${r.built} ` +
+          `failed=${r.failed} released=${r.released}`;
         if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
         else console.log(line);
       }),
