@@ -94,6 +94,8 @@ export type ModelTier = 'low' | 'mid' | 'high';
 
 export interface AgentNode extends FleetAstNode<'agent'> {
   name:           StringNode;
+  /** Explicit false removes the declaration from the executable FleetConfig. */
+  enabled?:       BoolNode;
   prompt?:        StringNode;
   trigger?:       ChannelRefNode;
   /** Additive plural trigger list (kind:type grammar or legacy channels). */
@@ -327,6 +329,15 @@ function parseAgentMap(
   return {
     kind: 'agent', range: nodeR,
     name:          { kind: 'string', range: nameRange, value: name },
+    // `enabled` is an admission boundary, so a present-but-malformed value
+    // fails closed to false instead of silently inheriting the enabled default.
+    enabled:       m.has('enabled')
+      ? (gBool(m, 'enabled', gr) ?? {
+          kind: 'bool' as const,
+          range: gr(nodeRange(m.get('enabled', true))),
+          value: false,
+        })
+      : undefined,
     prompt:        gStr(m, 'prompt', gr),
     trigger:       extractChannelRef(gNode(m, 'trigger'),   gr),
     triggers:      extractStringList(gNode(m, 'triggers'),  gr),
@@ -570,6 +581,10 @@ export function astToConfig(ast: FleetAst): FleetConfig {
 
   const agents: FleetAgent[] = [];
   for (const [name, a] of ast.agents) {
+    // Disabled declarations remain available in the source-aware AST for
+    // inspection/editing, but never cross into the executable runtime config.
+    if (a.enabled?.value === false) continue;
+
     const agentBackendVal = a.backend?.value?.trim() || undefined;
     const defsBackendVal  = defs?.backend?.value?.trim() || undefined;
     const sameBackend     = !agentBackendVal || !defsBackendVal || agentBackendVal === defsBackendVal;
