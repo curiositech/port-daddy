@@ -931,3 +931,21 @@ sequence. Every item below is a real failure from a live demo (2026-07-12), not 
    no-emoji-as-icons rule applies to what renders, not what greps.
 6. **Never create virtual displays or modify display settings.** On-primary-screen
    window openings are allowed only with explicit operator consent, per action.
+
+## HITL escalation & event-cued execution (operator directive, 2026-08-19 — IMPORTANT)
+
+- **A question that blocks progress is asked in a way that blocks execution.** The moment
+  work is blocked on operator input — a merge policy, a deploy on the operator's side, a
+  scope decision, a spend approval — raise it through the MOST IMMEDIATE human-in-the-loop
+  structure the surface offers (`AskUserQuestion` in Claude Code sessions; the HITL
+  interruption surface elsewhere) and WAIT for the answer. Never park blocked work behind
+  timers, polling loops, silent re-arms, or "the next event will tell me."
+- **Blocked longer than one wake cycle = a blocking question.** A gate, merge, or deploy
+  waiting on operator action does not get babysat; it gets elevated as a direct question
+  the operator must answer before loads continue.
+- **Wake on events, not timers.** PR subscriptions, operator messages, and system events
+  are the wake signals. Never poll unchanged state on a schedule; never re-fetch what an
+  event would have delivered.
+- **Launch gates gate launch, not development.** Client surfaces (iOS, web account
+  sections, console, FleetBar) build in parallel against staging keys; do not serialize
+  development behind a launch gate or hold parallel-authorized waves on unrelated merges.
