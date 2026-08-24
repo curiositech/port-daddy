@@ -102,18 +102,29 @@ record_oversize() {
   rm -f "$OS_LOG.trim.$$" 2>/dev/null || true
 }
 
-# Read stdin through the budget BEFORE any shell-variable capture: `head -c`
-# physically stops once it has read EVENT_BUDGET_BYTES, so the shell never
-# holds more than that at once. A second `head -c 1` peek — reading whatever
-# is left on the same stream — is the exact byte-boundary test: empty at
-# EXACTLY the budget (nothing left to peek), non-empty at budget+1 (oversize).
-EVENT="$(head -c "$EVENT_BUDGET_BYTES" 2>/dev/null)"
-EXTRA="$(head -c 1 2>/dev/null)"
-if [ -n "$EXTRA" ]; then
+# Read stdin through the budget BEFORE any shell-variable capture, in ONE
+# bounded read into a temp file. Two SEQUENTIAL `head -c` calls sharing the
+# live stdin pipe (the original design here) is not portable: GNU coreutils'
+# `head` reads only what it is asked for from a non-seekable pipe (by design,
+# specifically to support chaining), but BSD/macOS `head` reads in larger
+# internal stdio blocks and silently discards whatever it over-read past the
+# requested count once it exits — so a second `head -c 1` on the same pipe
+# can find nothing left even when the sender wrote more, corrupting the exact
+# byte-boundary check this budget exists for (confirmed failing on the
+# macOS CI runner: 2026-08-24, `unit-tests (macos-latest, 22)`).
+# A temp file is fully seekable, so re-reading it is unaffected by either
+# implementation's pipe-buffering behavior.
+EVENT_TMP="$(mktemp 2>/dev/null || printf '%s/pd-hook-stop.%s' "${TMPDIR:-/tmp}" "$$")"
+trap 'rm -f "$EVENT_TMP"' EXIT
+head -c "$((EVENT_BUDGET_BYTES + 1))" > "$EVENT_TMP" 2>/dev/null
+CAPTURED_BYTES="$(wc -c < "$EVENT_TMP" 2>/dev/null | tr -d '[:space:]')"
+case "$CAPTURED_BYTES" in ''|*[!0-9]*) CAPTURED_BYTES=0 ;; esac
+if [ "$CAPTURED_BYTES" -gt "$EVENT_BUDGET_BYTES" ] 2>/dev/null; then
   # Oversize: never build the jq/grep pipeline over a truncated/pathological
-  # blob. Best-effort session id from the already-bounded prefix we hold (no
-  # further stdin read, no additional capture) purely for the receipt label.
-  OVERSIZE_SID="$(printf '%s' "$EVENT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  # blob. Best-effort session id from the bounded prefix (re-read from the
+  # temp file, not a second live-pipe read) purely for the receipt label.
+  OVERSIZE_SID="$(head -c "$EVENT_BUDGET_BYTES" < "$EVENT_TMP" 2>/dev/null \
+    | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
   [ -n "$OVERSIZE_SID" ] || OVERSIZE_SID=unknown
   record_oversize "$OVERSIZE_SID"
   # Drain whatever remains of the caller's write in the background so this
@@ -122,6 +133,7 @@ if [ -n "$EXTRA" ]; then
   ( cat >/dev/null 2>&1 & ) 2>/dev/null || true
   exit 0
 fi
+EVENT="$(cat "$EVENT_TMP" 2>/dev/null)"
 [ -n "$EVENT" ] || exit 0
 
 # ── 1. Vendor loop guard: a stop we already blocked must pass unconditionally ─
