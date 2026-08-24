@@ -15,7 +15,7 @@
     "body": {
       "type": "object",
       "properties": {
-        "kind": { "enum": ["claude-code", "codex-cli", "cloudflare", "ollama", "lmstudio", "custom-stdio", "custom-http", "human"] },
+        "kind": { "enum": ["claude-code", "codex-cli", "cloudflare", "ollama", "lmstudio", "custom-stdio", "custom-http", "spawner-child", "human"] },
         "provider": { "type": "string" },
         "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom"] },
         "modelName": { "type": ["string", "null"], "description": "Provider-specific resolved model name. Both tier and resolved name must be visible (ch18 C2 gate)." },

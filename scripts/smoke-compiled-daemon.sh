@@ -151,6 +151,10 @@ assert_200 "/roadmap/items?status=all" || fail=1
 assert_200 "/roadmap/items?status=now" || fail=1
 assert_200 "/roadmap/items?limit=5" || fail=1
 assert_200 "/secrets" || fail=1
+# Context continuity is FleetBar's operator proof over Agent Harbor's
+# append-only envelope/packet evidence. An empty fresh registry is a valid
+# response, but the compiled Bun runtime must register and execute the route.
+assert_200 "/agent-harbor/context-continuity?limit=1" || fail=1
 # FleetBar-polled daemon surfaces must not 404 in the packaged binary. These
 # caught live drift where route registration/order bugs were hidden by source
 # tests and only showed up in operator logs.

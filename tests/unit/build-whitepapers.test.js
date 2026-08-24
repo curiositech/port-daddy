@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -115,6 +115,7 @@ describe('reproducible whitepaper source scoping', () => {
       'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
       'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
       'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
     ]);
   });
 
@@ -161,6 +162,47 @@ describe('reproducible whitepaper source scoping', () => {
       expect(listed).toEqual(['out/alpha.pdf']);
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // The collected volume is the one paper whose body is GENERATED before
+  // pdflatex runs, so it is the only one with a Node dependency — and the TeX
+  // container ships no JavaScript runtime, which is why the workflow installs
+  // Node explicitly. If that step is ever dropped the build must say so, not
+  // produce a volume missing its generated body.
+  //
+  // This runs the guard rather than grepping for it: PATH is replaced with a
+  // directory holding only the handful of coreutils the function needs before
+  // the check, so `node` is genuinely absent. Resolving those tools at runtime
+  // keeps it working wherever node happens to live — filtering node's directory
+  // out of PATH would break on a system where node sits in /usr/bin next to
+  // mkdir.
+  test('the collected volume fails loudly when Node.js is unavailable', () => {
+    const shimBin = mkdtempSync(join(tmpdir(), 'whitepaper-no-node-'));
+    try {
+      for (const tool of ['mkdir', 'find', 'dirname', 'rm', 'cp', 'wc']) {
+        const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' });
+        const real = found.stdout.trim();
+        if (real) symlinkSync(real, join(shimBin, tool));
+      }
+
+      const result = spawnSync(
+        '/bin/bash',
+        ['-c',
+          'source "$1"; build_one website-v2/public/whitepaper coordination-papers-mega-volume.tex "$2"',
+          'whitepaper-test', buildScript, join(shimBin, 'unused.pdf')],
+        { cwd: repoRoot, encoding: 'utf8', env: { ...process.env, PATH: shimBin } },
+      );
+
+      expect(spawnSync('/bin/sh', ['-c', 'command -v node'], {
+        encoding: 'utf8', env: { ...process.env, PATH: shimBin },
+      }).stdout.trim()).toBe('');
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stderr}${result.stdout}`)
+        .toContain('Node.js is required to generate the collected-volume');
+    } finally {
+      rmSync(shimBin, { recursive: true, force: true });
     }
   });
 

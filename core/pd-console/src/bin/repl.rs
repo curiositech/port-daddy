@@ -56,6 +56,9 @@ mod editor_claims;
 #[path = "../editor_commit_gate.rs"]
 mod editor_commit_gate;
 #[allow(dead_code)]
+#[path = "../editor_input.rs"]
+mod editor_input;
+#[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
@@ -117,6 +120,12 @@ mod planner_pane;
 mod prs_pane;
 #[path = "../roadmap_pane.rs"]
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wiring — gpui-free, hosted here so the headless test gate runs its suite.
+#[allow(dead_code)]
+#[path = "../roadmap_projection.rs"]
+mod roadmap_projection;
 #[allow(dead_code)] // parse/serve are exercised by tests; the server runs only in the gpui bin
 #[path = "../script.rs"]
 mod script; // control-socket scripting (parse + serve tests)
@@ -134,6 +143,12 @@ mod term;
 mod theme;
 #[path = "../util.rs"]
 mod util;
+// Timeline companion-window launcher (ADR-0112 path 3). The launch shell is
+// GUI-only at runtime, but its pure binary-path resolver + missing-binary
+// message are unit-tested HERE on the cheap non-gpui gate.
+#[allow(dead_code)]
+#[path = "../timeline.rs"]
+mod timeline;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]
@@ -214,7 +229,10 @@ async fn drain_active_subscription(
         // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
         // per channel is the isolation; a single `window` deadline bounds the drain, and
         // either channel closing ends it — mirroring the Agent arm's `None => break`.
-        Some(Subscription::Editor { channel, coord_channel }) => {
+        Some(Subscription::Editor {
+            channel,
+            coord_channel,
+        }) => {
             let active = reg.active;
             let mut edit_rx = daemon.subscribe_channel(&channel);
             let mut coord_rx = daemon.subscribe_channel(&coord_channel);

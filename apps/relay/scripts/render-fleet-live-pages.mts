@@ -93,13 +93,33 @@ const retrying: FleetRunProjection = {
   ms: 151_000,
   logical_state: 'retrying',
   generation: 3,
-  attempt_count: 3,
+  attempt_count: 2,
   queued_at: NOW - 540,
   started_at: NOW - 510,
   last_progress_at: NOW - 25,
   expected_finish_at: NOW + 30,
   queue_ahead_estimate: 0,
-  last_error: 'Consumer lease expired after the latest checkpoint; resuming safely.',
+  last_error: 'Workers AI circuit open on attempt 2/3; queue retry scheduled in 31s',
+};
+
+const providerOutageNeutral: FleetRunProjection = {
+  ...retrying,
+  id: 'run:delivery-8872-generation-1',
+  delivery_id: 'delivery-8872-generation-1',
+  pr_number: 8872,
+  pr_url: 'https://github.com/curiositech/port-daddy/pull/8872',
+  head_sha: '4cd6cab193da628c40553b5111217b77df53323a',
+  conclusion: 'neutral',
+  logical_state: 'neutral',
+  generation: 1,
+  attempt_count: 3,
+  ms: 486_000,
+  last_progress_at: NOW - 24,
+  finished_at: NOW - 24,
+  expected_start_at: null,
+  expected_finish_at: null,
+  queue_ahead_estimate: null,
+  last_error: 'Workers AI dependency circuit remained open through 3/3 delivery attempts',
 };
 
 const superseded: FleetRunProjection = {
@@ -200,6 +220,39 @@ const finishedSteps: FleetRunStepRow[] = [
   },
 ];
 
+const retrySteps: FleetRunStepRow[] = [
+  {
+    run_id: retrying.id,
+    seq: 0,
+    kind: 'provider-circuit-open',
+    ship: 'qa',
+    title: 'Workers AI circuit opened',
+    detail: JSON.stringify({ attempt: 2, maxAttempts: 3, status: 429, code: 3040, retryable: true }),
+    created_at: NOW - 25,
+  },
+];
+
+const providerOutageNeutralSteps: FleetRunStepRow[] = [
+  {
+    run_id: providerOutageNeutral.id,
+    seq: 0,
+    kind: 'provider-circuit-open',
+    ship: 'qa',
+    title: 'Workers AI circuit opened',
+    detail: JSON.stringify({ attempt: 3, maxAttempts: 3, status: 429, code: 3040, retryable: true }),
+    created_at: NOW - 25,
+  },
+  {
+    run_id: providerOutageNeutral.id,
+    seq: 1,
+    kind: 'ship-adjudicated',
+    ship: 'qa',
+    title: 'pd-qa: adjudicated FLEET-WIDE fault — not gating this PR',
+    detail: JSON.stringify({ verdict: 'fleet', reason: 'Workers AI dependency circuit remained open through 3/3 delivery attempts' }),
+    created_at: NOW - 24,
+  },
+];
+
 const completed: FleetRunProjection = {
   ...running,
   conclusion: 'success',
@@ -215,6 +268,8 @@ const completed: FleetRunProjection = {
 writeFileSync(`${OUT}fleet-account.html`, renderRunsPage(operator, groups, { truncated: false, nowSec: NOW }));
 writeFileSync(`${OUT}fleet-receipt-queued.html`, renderFleetRunReceiptPage(queued, []));
 writeFileSync(`${OUT}fleet-receipt-running.html`, renderFleetRunReceiptPage(running, progressSteps));
+writeFileSync(`${OUT}fleet-receipt-retrying.html`, renderFleetRunReceiptPage(retrying, retrySteps));
+writeFileSync(`${OUT}fleet-receipt-provider-neutral.html`, renderFleetRunReceiptPage(providerOutageNeutral, providerOutageNeutralSteps));
 writeFileSync(`${OUT}fleet-receipt-success.html`, renderFleetRunReceiptPage(completed, finishedSteps));
 
 console.log(`rendered Cloud Fleet evidence HTML under ${OUT}`);

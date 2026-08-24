@@ -991,6 +991,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         tuple: context.tuple ? {
           id: context.tuple.id,
           harbor: context.tuple.harbor,
+          idempotencyKey: context.tuple.idempotencyKey,
           fields: context.tuple.fields,
           writtenBy: context.tuple.writtenBy,
           createdAt: context.tuple.createdAt,
@@ -1023,6 +1024,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       tuple: tuplePayload ? {
         id: typeof tuplePayload.id === 'number' ? tuplePayload.id : 0,
         harbor: typeof tuplePayload.harbor === 'string' ? tuplePayload.harbor : null,
+        idempotencyKey: typeof tuplePayload.idempotencyKey === 'string'
+          ? tuplePayload.idempotencyKey
+          : null,
         fields: Array.isArray(tuplePayload.fields) ? tuplePayload.fields : [],
         writtenBy: typeof tuplePayload.writtenBy === 'string' ? tuplePayload.writtenBy : null,
         createdAt: typeof tuplePayload.createdAt === 'number' ? tuplePayload.createdAt : tuple.createdAt,
@@ -1131,7 +1135,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   function stopRunningRecord(name: string): void {
     const record = running.get(name);
     if (!record) return;
-    if (record.interval) clearInterval(record.interval);
+    // `record.interval` may hold a setInterval handle (*/N fast path) or a
+    // setTimeout handle (absolute-schedule chain). Node treats the two clear
+    // functions interchangeably, but clear both ways so cancellation is
+    // explicitly type-correct in any runtime.
+    if (record.interval) { clearInterval(record.interval); clearTimeout(record.interval); }
     if (record.tuplePollInterval) clearInterval(record.tuplePollInterval);
     if (record.watchHandle) {
       try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
@@ -1199,6 +1207,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     if (pausedAgents.has(agent.name)) return;
     if (running.has(agent.name)) return; // already running
 
+    if (
+      agent.schedule
+      && !isAbsoluteCronSchedule(agent.schedule)
+      && !isIntervalCronSchedule(agent.schedule)
+    ) {
+      const error =
+        `unsupported cron schedule "${agent.schedule}"; supported shapes are ` +
+        '*/N * * * *, 0 */N * * *, M * * * *, and M H * * *';
+      console.error(`[Fleet] ${agent.name} not scheduled: ${error}`);
+      emit({
+        type: 'agent_failed',
+        agent: agent.name,
+        identity: agent.identity || `${project}:fleet:${agent.name}`,
+        project,
+        timestamp: Date.now(),
+        details: { error },
+      });
+      return;
+    }
+
     const record: RunningAgent = {
       name: agent.name,
       type: agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'triggered' : 'manual',
@@ -1207,14 +1235,47 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const cleanupHandles: Array<() => void> = [];
 
     if (agent.schedule) {
-      // Scheduled agent: arm the interval. Fleet daemon boot must stay cheap;
+      // Scheduled agent: arm the schedule. Fleet daemon boot must stay cheap;
       // agents that truly need a boot-time pass can opt in with run_on_start.
-      // Convert cron to ms (simplified: support */N * * * * format)
-      const intervalMs = parseCronInterval(agent.schedule);
+      const schedule = agent.schedule;
       if (agent.runOnStart) {
         void requestAgentRun(agent, { source: 'schedule' });
       }
-      record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
+      if (isAbsoluteCronSchedule(schedule)) {
+        // Fixed-clock schedule ("0 1 * * *", "15 * * * *"): a plain
+        // setInterval either coerces through parseCronInterval's
+        // DEFAULT_INTERVAL fallback (the daily-at-1am-fires-every-10-min bug;
+        // see pd-fleet.yml's dispatch-runner precondition notes) or drifts
+        // off the intended wall-clock time across days. Arm a self-re-arming
+        // setTimeout chain instead: each firing recomputes the delay to the
+        // NEXT occurrence and reschedules. The handle lives in the same
+        // `record.interval` slot the */N path below uses; stopRunningRecord
+        // clears that slot both ways (clearInterval AND clearTimeout), so the
+        // pending handle is cancelled regardless of timer type. Each re-arm
+        // reassigns `record.interval`, so the slot always holds the live
+        // pending handle — a stop between ticks cancels the chain.
+        // `scheduleNext`'s FIRST call runs synchronously inside `startAgent`,
+        // before `running.set(agent.name, record)` (below) has executed — so
+        // the stopped/running guard belongs inside the fired callback (which
+        // only ever runs later, well after this record is registered), not
+        // around the initial arm.
+        const scheduleNext = () => {
+          const delay = computeNextAbsoluteFireDelayMs(schedule);
+          if (delay === null) return; // pre-validation above makes this unreachable
+          record.interval = setTimeout(() => {
+            if (stopped || !running.has(agent.name)) return; // torn down while pending
+            void requestAgentRun(agent, { source: 'schedule' });
+            scheduleNext();
+          }, delay);
+        };
+        scheduleNext();
+      } else {
+        // Strictly validated */N step schedules keep the fixed-interval fast
+        // path. Unsupported shapes were refused above; they never inherit a
+        // plausible-looking fallback interval.
+        const intervalMs = parseCronInterval(schedule);
+        record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
+      }
     }
 
     // Resolve the agent's trigger list. `triggers:` is the canonical plural
@@ -2621,10 +2682,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
 
-export function parseCronInterval(cron: string): number {
-  const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
-  const DEFAULT_INTERVAL = 600000;  // 10 minutes
+// parseCronInterval retains its historical default for direct callers. Fleet
+// scheduling never uses that default as an admission decision: startAgent
+// validates one of the explicitly supported shapes first and fails closed on
+// everything else.
+const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
+const DEFAULT_INTERVAL = 600000;  // 10 minutes
 
+export function parseCronInterval(cron: string): number {
   const parts = cron.trim().split(/\s+/);
   if (parts.length < 5) return DEFAULT_INTERVAL;
 
@@ -2645,4 +2710,82 @@ export function parseCronInterval(cron: string): number {
   }
 
   return DEFAULT_INTERVAL;
+}
+
+/**
+ * True for the fixed-interval cron subset Fleet can implement without a
+ * calendar walker: every N minutes or every N hours. All three calendar
+ * fields must be wildcards and step values must fit the field they step.
+ * Anything else is unsupported and startAgent refuses to arm it.
+ */
+export function isIntervalCronSchedule(cron: string): boolean {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (dayOfMonth !== '*' || month !== '*' || dayOfWeek !== '*') return false;
+
+  const minuteStep = /^\*\/([1-9]\d*)$/.exec(minute);
+  if (minuteStep && hour === '*') return Number(minuteStep[1]) <= 59;
+
+  const hourStep = /^\*\/([1-9]\d*)$/.exec(hour);
+  if (minute === '0' && hourStep) return Number(hourStep[1]) <= 23;
+
+  return false;
+}
+
+/**
+ * True when `cron` is a fixed-clock schedule this module can honor with an
+ * exact next-fire computation: "M H * * *" (once a day at H:M) or
+ * "M * * * *" (once an hour at minute M), where M and H are literal
+ * integers — never a step value (the `startsWith('*​/')` patterns
+ * parseCronInterval already fast-paths above). Day-of-month, month, and
+ * day-of-week must all be `*`; a constrained day field (a weekday list,
+ * "1,15", an "L"/"W" modifier, …) would need real calendar walking this
+ * module doesn't implement, so startAgent refuses such schedules rather than
+ * firing on the wrong day.
+ */
+export function isAbsoluteCronSchedule(cron: string): boolean {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (dayOfMonth !== '*' || month !== '*' || dayOfWeek !== '*') return false;
+  if (!/^\d+$/.test(minute) || Number(minute) > 59) return false;
+  if (hour === '*') return true;
+  return /^\d+$/.test(hour) && Number(hour) <= 23;
+}
+
+/**
+ * Delay in ms from `now` to the next fire time of an isAbsoluteCronSchedule
+ * cron ("0 1 * * *" -> next 01:00; "15 * * * *" -> next :15). Returns null
+ * when `cron` isn't such a schedule — callers must treat null as unsupported,
+ * never as permission to arm a fallback timer.
+ *
+ * `now` defaults to Date.now() and exists as a parameter purely so tests can
+ * pin it; production callers always omit it.
+ *
+ * Fixed-clock computation deliberately inherits the daemon host's local
+ * `Date` disambiguation. A spring-forward target inside a gap advances by the
+ * gap, while a fall-back fold selects the earlier occurrence. This helper is
+ * not a timezone-aware calendar walker and does not enumerate both fold
+ * instants.
+ */
+export function computeNextAbsoluteFireDelayMs(cron: string, now: number = Date.now()): number | null {
+  if (!isAbsoluteCronSchedule(cron)) return null;
+  const [minuteField, hourField] = cron.trim().split(/\s+/);
+  const minute = Number(minuteField);
+
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+
+  if (hourField === '*') {
+    // "M * * * *" — fire every hour at minute M.
+    next.setMinutes(minute);
+    if (next.getTime() <= now) next.setHours(next.getHours() + 1);
+    return next.getTime() - now;
+  }
+
+  // "M H * * *" — fire once a day at H:M.
+  next.setHours(Number(hourField), minute, 0, 0);
+  if (next.getTime() <= now) next.setDate(next.getDate() + 1);
+  return next.getTime() - now;
 }

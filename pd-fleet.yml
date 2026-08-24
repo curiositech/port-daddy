@@ -85,12 +85,14 @@ fleet:
   limits:
     max_concurrent_spawns: 3
     max_spawns_per_hour: 12
-    # Daily ceiling under the new config: $5.50 if every ship runs
-    # on the cheapest cloud option for its tier (cloudflare for
+    # Forecast under the new config: $5.50 if every ship runs on the
+    # cheapest cloud option for its tier (cloudflare for
     # general, openai gpt-5-mini for code/tautology, anthropic only
     # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
     # is set and the operator is a Max subscriber, marginal cost
-    # drops to ~$0 — the cap becomes a safety net, not a forecast.
+    # drops to ~$0. $8.50/day is the configured fleet-wide settled-spend
+    # threshold checked before each launch. It is not an atomic reservation;
+    # concurrent starts can oversubscribe it.
     budget_usd_per_day: 8.50
 
   agents:
@@ -404,29 +406,33 @@ fleet:
       identity: "{project}:fleet:spark"
       telos: "Comment buildable product opportunities that can be assigned to PR-producing bots."
 
-    # ─── Dispatch runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
+    # ─── Dispatch runner (see docs/proposals/pd-nightshift.md) ───────────
     # Renamed from `nightshift-runner` per ADR-0035 -- the verb generalized. This
     # ship is the cron path for `pd dispatch`. It fires once a night at 1am,
     # pops the next proposed dispatch, and runs it autonomously in a fresh
     # worktree under ~/coding/tmp/port-daddy-dispatch-<idShort>.
     #
-    # Uncomment after:
-    #   1. operator has reviewed the first PR opened by a dispatch run,
-    #   2. the pre-receive hook denying push-to-main inside dispatch worktrees
-    #      is wired (PR #161's destructive-op shim is the current floor),
-    #   3. the fleet engine's cron parser supports absolute hour-of-day
-    #      patterns (PR #137).
+    # This reviewed declaration remains visible to config tooling but is
+    # omitted from executable FleetConfig while `enabled: false`.
+    # precondition 1 still open and unverified in-repo; nothing here attests to that review having happened.
+    # The scheduler support can land independently, but
+    # arming a producer before its first artifact has been reviewed cannot.
     #
-    # dispatch-runner:
-    #   schedule: "0 1 * * *"        # 1am daily; one tick per night
-    #   backend: custom              # runs `pd dispatch run --next --really-run`
-    #   singleton: true
-    #   cooldown_ms: 21600000        # 6h cooldown between runs
-    #   timeout: 14400000            # 4h max wall-clock per spawn
-    #   daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
-    #   prompt: "pd dispatch run --next --really-run"
-    #   identity: "{project}:fleet:dispatch-runner"
-    #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
+    # Preconditions:
+    # 1. operator has reviewed the first PR opened by a dispatch run,
+    # 2. dispatch opens a ready PR and requests independent review — never a draft PR,
+    # 3. absolute hour-of-day cron uses a wall-clock setTimeout chain — SATISFIED
+    dispatch-runner:
+      enabled: false
+      schedule: "0 1 * * *"        # 1am daily; one tick per night
+      backend: custom              # runs `pd dispatch run --next --really-run`
+      singleton: true
+      cooldown_ms: 21600000        # 6h cooldown between runs
+      timeout: 14400000            # 4h max wall-clock per spawn
+      daily_cap_usd: 10            # Review-contract metadata only; not a runtime budget authority.
+      prompt: "pd dispatch run --next --really-run"
+      identity: "{project}:fleet:dispatch-runner"
+      telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
     # ─── The Purser (DISABLED by default; uncomment to enable) ───────
     # Adversarial gatekeeper, cloud-executed by apps/fleet-executor
@@ -1129,8 +1135,10 @@ fleet:
       dedupe_window_ms: 600000
       singleton: true
       timeout: 1800000
-      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
-      # "Daily budget: $4.00" line in fleet/ships/steward.md).
+      # Desired $4/day Steward allocation beneath the fleet's configured
+      # settled-spend threshold (matches the "Daily budget: $4.00" line in
+      # fleet/ships/steward.md). Review-contract metadata only; the runtime
+      # does not parse or enforce this field.
       daily_cap_usd: 4
       allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
       prompt: |

@@ -75,6 +75,36 @@ jobs:
         run: git fetch --no-tags origin main:refs/remotes/origin/main
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
+      - name: Doc-retirement guard (retired docs stay bannered, banners stay registered)
+        # Whole-corpus, not changed-files: the failure this catches is a retired
+        # plan drifting back to reading as current, and the edit that does that
+        # need not touch the manifest. Cheap — it walks markdown and YAML only.
+        run: node scripts/doc-retirement-guard.mjs
+
+  porthole-cast-gate:
+    # Cheap, blocking companion to website-terminal-recordings' raw-text regex
+    # scan: replays every committed website-v2/public/casts/porthole/*.cast
+    # through the SAME VT interpreter the browser player uses
+    # (website-v2/src/lib/porthole/vt.ts) and scans the DECODED transcript.
+    # This closes the exact blind spot AUDIT-2026-08-18.md names for the old
+    # gate: a typed command is char-split across many separate asciicast "o"
+    # events, so a path/secret regex scanning raw file text can miss a leak
+    # that the same regex catches instantly once the bytes are reconstructed
+    # into the line a viewer would actually see. No daemon, no recorder
+    # toolchain — pure static replay of files already in the tree, so this
+    # runs in seconds and does not depend on website-terminal-recordings'
+    # multi-minute pipeline (it can be red or skipped without blocking this).
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recordings == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay every porthole cast and scan the decoded transcript
+        run: npx tsx website-v2/scripts/check-porthole-casts.mjs
 
   # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
   # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on
@@ -283,6 +313,18 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
+        if: runner.os != 'macOS'
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Run unit tests (macOS 4 GiB heap)
+        if: runner.os == 'macOS'
+        # Both recent main-branch Node 24 macOS runs reached V8's default
+        # ~2 GiB heap after more than five minutes of otherwise-passing tests.
+        # Keep the larger budget on the Jest process only, matching the
+        # required macOS Node 22 job above; setup, install, and typecheck retain
+        # their normal limits, and Linux keeps the original command unchanged.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
   integration-tests:
@@ -669,6 +711,16 @@ jobs:
       - name: cargo clippy (pd-anchor)
         run: cargo clippy -p pd-anchor --all-targets -- -D warnings
 
+      # pd-vault holds harbor key material and the sealed-payload AEAD, so it
+      # joins the strict-lint set from its first commit rather than waiting for a
+      # later sweep — an unlinted crypto crate is the one place the "sibling
+      # crates join as their sweeps land" caveat should not apply.
+      - name: cargo fmt --check (pd-vault)
+        run: cargo fmt -p pd-vault -- --check
+
+      - name: cargo clippy (pd-vault)
+        run: cargo clippy -p pd-vault --all-targets -- -D warnings
+
       - name: cargo check
         run: cargo check --workspace
 
@@ -882,6 +934,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - porthole-cast-gate
       - rust-console
       - rust-console-gpui
       - rust-kernel

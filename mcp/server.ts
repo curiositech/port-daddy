@@ -255,8 +255,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'coordination_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -476,6 +476,20 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'coordination_status',
+    description:
+      '[System] Offline-first coordination peer status (ADR-0092 section 4). ' +
+      'Returns whether federation is enabled and connected plus the project, actor, ' +
+      'stable replica id, durable room cursor, pending local outbox count, last sync, ' +
+      'and last error. A disconnected peer does not mean local coordination is ' +
+      'unavailable: the local SQLite ledger remains writable and reconverges later. ' +
+      'Read-only. Usage: coordination_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -3539,6 +3553,11 @@ async function handleTool(
 
     case 'relay_status': {
       res = await GET('/relay/status');
+      break;
+    }
+
+    case 'coordination_status': {
+      res = await GET('/coordination/status');
       break;
     }
 

@@ -64,6 +64,7 @@ PAPERS=(
   "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
   "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
   "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
+  "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
 )
 
 CHANGED_SINCE=""
@@ -91,6 +92,19 @@ BUILT=()
 # a dependency: changing fig-stp-* must not retimestamp every other PDF.
 paper_sources() {
   local srcdir="$1" roottex="$2"
+  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
+    printf '%s\n' "$srcdir/$roottex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
+      "$srcdir/coordination-papers-mega-volume-appendices.tex" \
+      "scripts/generate-mega-whitepaper.mjs"
+    paper_sources "whitepaper" "legible-swarm.tex"
+    paper_sources "whitepaper" "single-writer-kernel.tex"
+    paper_sources "$PUB" "spawn-to-person.tex"
+    paper_sources "$PUB" "harbor-economy.tex"
+    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
+    paper_sources "$PUB" "agent-transactions-whitepaper.tex"
+    paper_sources "$PUB" "federated-harbor-whitepaper.tex"
+    return
+  fi
   local pending=("$roottex")
   local seen="|" rel full ref index=0
 
@@ -147,6 +161,14 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
+
+  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
+    command -v node >/dev/null 2>&1 || {
+      echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
+      return 1
+    }
+    node scripts/generate-mega-whitepaper.mjs "$outdir" || return 1
+  fi
 
   local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"

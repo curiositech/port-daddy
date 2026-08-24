@@ -155,6 +155,49 @@ db.exec("DELETE FROM roadmap_mirror_activity WHERE user_id = 'u_rm_chk'");
 db.exec("DELETE FROM roadmap_mirror_items WHERE user_id = 'u_rm_chk'");
 db.exec("DELETE FROM users WHERE id = 'u_rm_chk'");
 
+// Harbor invites + the ADR-0122 §4 authority-epoch clock (2026-08-23):
+// single-use is CAS on consumed_at IS NULL in the Worker, but the storage
+// layer carries its own guarantees — prove each one bites, not just parses.
+const invitesSql = requireTable('harbor_invites');
+requireColumn('harbor_invites', 'token_hash');   // only the hash is ever stored
+requireColumn('harbor_invites', 'consumed_at');  // the CAS column
+requireColumn('harbor_invites', 'revoked_at');   // invariant I3: revocable
+requireColumn('harbor_invites', 'expires_at');   // invariant I3: bounded by exp
+requireColumn('harbors', 'authority_epoch');     // the membership-change clock
+if (!invitesSql.includes("role = 'member'")) {
+  throw new Error("harbor_invites.role lost its CHECK (role = 'member') — invariant I4");
+}
+db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_hi_chk', 3, 'hichk', 0)");
+db.exec("INSERT INTO harbors (id, namespace, name, pubkey, created_by, created_at) VALUES ('h_hi_chk', 'hichk', 'dock', 'ab', 'u_hi_chk', 0)");
+// A harbor row inserted WITHOUT naming the new column lands at epoch 1 — a
+// rolled-back Worker keeps writing harbors and every row still has a clock.
+const epoch = db.prepare("SELECT authority_epoch AS e FROM harbors WHERE id = 'h_hi_chk'").get().e;
+if (Number(epoch) !== 1) throw new Error(`harbors.authority_epoch default is ${epoch}, expected 1`);
+for (const bad of [
+  // an invite may only ever grant plain membership (invariant I4)
+  `INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, role, created_at, expires_at)
+     VALUES ('hi_bad', 'h_hi_chk', 'th_bad', 'u_hi_chk', 'owner', 0, 10)`,
+  // an invite without an expiry is unmintable (invariant I3)
+  `INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, created_at)
+     VALUES ('hi_bad2', 'h_hi_chk', 'th_bad2', 'u_hi_chk', 0)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('harbor_invites CHECK/NOT NULL constraints did not reject an invalid row');
+}
+// token_hash is UNIQUE: two invites can never share a bearer token.
+db.exec(`INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, created_at, expires_at)
+     VALUES ('hi_chk1', 'h_hi_chk', 'th_chk', 'u_hi_chk', 0, 10)`);
+let dupRejected = false;
+try {
+  db.exec(`INSERT INTO harbor_invites (jti, harbor_id, token_hash, invited_by, created_at, expires_at)
+     VALUES ('hi_chk2', 'h_hi_chk', 'th_chk', 'u_hi_chk', 0, 10)`);
+} catch { dupRejected = true; }
+if (!dupRejected) throw new Error('harbor_invites.token_hash UNIQUE did not reject a duplicate');
+db.exec("DELETE FROM harbor_invites WHERE harbor_id = 'h_hi_chk'");
+db.exec("DELETE FROM harbors WHERE id = 'h_hi_chk'");
+db.exec("DELETE FROM users WHERE id = 'u_hi_chk'");
+
 const tableCount = Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_schema WHERE type = 'table'").get().n);
 console.log(`relay migration chain PASS: ${migrations.length} files, ${tableCount} tables`);
 

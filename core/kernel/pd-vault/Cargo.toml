@@ -1,0 +1,49 @@
+[package]
+name = "pd-vault"
+description = "Harbor key custody, channel key derivation, and sealed-payload AEAD"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# Deliberately NO [lib] crate-type = ["cdylib"]. pd-anchor exports a C ABI because
+# the daemon must reach the macaroon gate over FFI (ADR-0054). pd-vault has no
+# caller yet: this slice builds the kernel-side primitives only, and an FFI surface
+# is the point at which key material becomes reachable from a non-kernel address
+# space. Adding one is a separate, reviewed decision — see the crate docs.
+
+[dependencies]
+# Already pinned by both workspace roots (core/kernel and core), reused verbatim so
+# the kernel keeps one copy of each crypto primitive.
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+hex.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+# New to the kernel workspace. Bare versions rather than [workspace.dependencies]
+# entries because pd-vault is their only consumer today (same precedent as
+# pd-anchor's bare `proptest = "1.4"`); promote them to the shared tables when a
+# second crate needs them.
+#
+# hkdf 0.12 is the RustCrypto generation that matches the already-pinned
+# hmac 0.12.1 + sha2 0.10.9 — it depends on nothing else, so it adds no new
+# transitive surface.
+hkdf = "0.12"
+# XChaCha20-Poly1305 (24-byte nonce, so random nonces are safe without a counter).
+chacha20poly1305 = "0.10"
+# x25519-dalek 2 rides the SAME curve25519-dalek 4.1.3 that ed25519-dalek 2.2.0
+# already pulls in, so the kernel keeps exactly one curve implementation. Any other
+# ECDH crate would make that two.
+# `static_secrets` is the (non-default) feature that exposes StaticSecret, the
+# long-lived secret type a deterministic harbor identity needs; the default
+# EphemeralSecret cannot be re-derived.
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+# Matches the only first-party zeroize pin in the tree (core/harbor-card-rs).
+zeroize = "1.8"
+# Constant-time equality for ChannelKey/SharedSecret, which is what callers get in
+# place of the byte accessors the custody law forbids. Adds no transitive surface:
+# curve25519-dalek and chacha20poly1305 already pull in this exact version.
+subtle = "2"

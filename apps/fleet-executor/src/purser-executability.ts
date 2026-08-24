@@ -16,13 +16,15 @@
  * admitted the tests were never executed.
  *
  * This module answers ONE question — "would the repo's configured test runner
- * ever execute this file, and does it load without a missing-module crash?" —
+ * ever execute this file, is it a complete syntactically valid program, and
+ * does it load without a missing-module crash?" —
  * from EVIDENCE (the repo's real jest config + its real file tree at the PR's
  * base sha), never from the ship's own testPaths declaration. Unknown or
  * unfetchable evidence is a FAILURE, not a pass: the purser never retargets on a
  * gate it could not actually verify.
  */
 
+import { parse, type ParserPlugin } from '@babel/parser';
 import type { StackedFile } from './stacked-pr.js';
 
 export type ExecutabilityResult =
@@ -35,7 +37,9 @@ export type ExecutabilityResult =
         | 'undiscoverable-path'
         | 'missing-tree-evidence'
         | 'unresolved-import'
-        | 'incompatible-runner';
+        | 'incompatible-runner'
+        | 'missing-test-registration'
+        | 'syntax-error';
       path?: string;
       specifier?: string;
     };
@@ -546,10 +550,219 @@ export interface ExecutabilityEvidence {
   packageTypeModule?: boolean | null;
 }
 
+function generatedTestParserPlugins(path: string): ParserPlugin[] {
+  const lower = path.toLowerCase();
+  const plugins: ParserPlugin[] = [];
+  if (/\.(?:ts|tsx|mts|cts)$/.test(lower)) {
+    plugins.push([
+      'typescript',
+      { disallowAmbiguousJSXLike: /\.(?:mts|cts)$/.test(lower) },
+    ]);
+  }
+  if (/\.(?:jsx|tsx)$/.test(lower)) plugins.push('jsx');
+  return plugins;
+}
+
+function generatedTestSourceType(path: string): 'module' | 'commonjs' | 'unambiguous' {
+  const lower = path.toLowerCase();
+  if (/\.(?:mjs|mts)$/.test(lower)) return 'module';
+  if (/\.(?:cjs|cts)$/.test(lower)) return 'commonjs';
+  return 'unambiguous';
+}
+
+/**
+ * Parse one generated test as a complete program without executing it.
+ *
+ * This deliberately uses an established JavaScript parser rather than trying
+ * to recognize invalid source with substrings. `errorRecovery` remains false,
+ * so placeholder bodies, truncated excerpts, and any other syntax error fail
+ * closed before sandbox or GitHub mutation code can observe the file.
+ */
+export function validateGeneratedTestSyntax(
+  file: StackedFile,
+): Extract<ExecutabilityResult, { ok: false }> | null {
+  try {
+    parse(file.contents, {
+      sourceFilename: file.path,
+      sourceType: generatedTestSourceType(file.path),
+      plugins: generatedTestParserPlugins(file.path),
+      errorRecovery: false,
+      // Validation discards the AST, so do not spend cold-start CPU attaching
+      // comments to nodes. Babel documents this as a material parse-speed win.
+      attachComment: false,
+    });
+    return null;
+  } catch (error) {
+    const parserError = error as {
+      reasonCode?: unknown;
+      loc?: { line?: unknown; column?: unknown };
+    };
+    const rawReason = typeof parserError.reasonCode === 'string'
+      ? parserError.reasonCode
+      : 'parse-error';
+    const reasonCode = rawReason.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || 'parse-error';
+    const line = typeof parserError.loc?.line === 'number' ? parserError.loc.line : null;
+    const column = typeof parserError.loc?.column === 'number' ? parserError.loc.column + 1 : null;
+    const location = line !== null && column !== null ? ` at ${line}:${column}` : '';
+    return {
+      ok: false,
+      kind: 'syntax-error',
+      path: file.path,
+      reason:
+        `${file.path} is not a complete syntactically valid test program ` +
+        `(${reasonCode}${location}) — Purser must repair its authored file before ` +
+        'any sandbox execution, branch creation, stacked PR, or PR retarget',
+    };
+  }
+}
+
+type AstRecord = Record<string, unknown>;
+
+function astRecord(value: unknown): AstRecord | null {
+  return value !== null && typeof value === 'object'
+    ? value as AstRecord
+    : null;
+}
+
+function identifierName(value: unknown): string | null {
+  const node = astRecord(value);
+  return node?.type === 'Identifier' && typeof node.name === 'string'
+    ? node.name
+    : null;
+}
+
+function stringNodeValue(value: unknown): string | null {
+  const node = astRecord(value);
+  if (
+    (node?.type === 'StringLiteral' || node?.type === 'Literal') &&
+    typeof node.value === 'string'
+  ) {
+    return node.value;
+  }
+  return null;
+}
+
+function memberChain(value: unknown): { root: string; properties: string[] } | null {
+  const node = astRecord(value);
+  const direct = identifierName(node);
+  if (direct) return { root: direct, properties: [] };
+  if (node?.type !== 'MemberExpression' && node?.type !== 'OptionalMemberExpression') {
+    return null;
+  }
+  const parent = memberChain(node.object);
+  if (!parent) return null;
+  const property = node.computed === true
+    ? stringNodeValue(node.property)
+    : identifierName(node.property);
+  if (!property) return null;
+  return { root: parent.root, properties: [...parent.properties, property] };
+}
+
+function walkAst(value: unknown, visit: (node: AstRecord) => void): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) walkAst(entry, visit);
+    return;
+  }
+  const node = astRecord(value);
+  if (!node) return;
+  if (typeof node.type === 'string') visit(node);
+  for (const [key, child] of Object.entries(node)) {
+    if (key === 'loc' || key === 'start' || key === 'end') continue;
+    walkAst(child, visit);
+  }
+}
+
+function jestTestAliases(ast: unknown): Set<string> {
+  const aliases = new Set(['it', 'test']);
+  walkAst(ast, node => {
+    if (
+      node.type !== 'ImportDeclaration' ||
+      stringNodeValue(node.source) !== '@jest/globals' ||
+      !Array.isArray(node.specifiers)
+    ) {
+      return;
+    }
+    for (const value of node.specifiers) {
+      const specifier = astRecord(value);
+      if (specifier?.type !== 'ImportSpecifier') continue;
+      const imported = identifierName(specifier.imported) ?? stringNodeValue(specifier.imported);
+      const local = identifierName(specifier.local);
+      if ((imported === 'it' || imported === 'test') && local) aliases.add(local);
+    }
+  });
+  return aliases;
+}
+
+function isEachBuilder(value: unknown, aliases: ReadonlySet<string>): boolean {
+  const node = astRecord(value);
+  const target = node?.type === 'CallExpression' || node?.type === 'OptionalCallExpression'
+    ? node.callee
+    : node?.type === 'TaggedTemplateExpression'
+      ? node.tag
+      : null;
+  const chain = memberChain(target);
+  return chain !== null &&
+    aliases.has(chain.root) &&
+    chain.properties.length > 0 &&
+    chain.properties.at(-1) === 'each' &&
+    chain.properties.slice(0, -1).every(part =>
+      part === 'concurrent' || part === 'only' || part === 'skip'
+    );
+}
+
+function isJestTestRegistrationCallee(
+  value: unknown,
+  aliases: ReadonlySet<string>,
+): boolean {
+  const direct = identifierName(value);
+  if (direct) return aliases.has(direct);
+  if (isEachBuilder(value, aliases)) return true;
+
+  const chain = memberChain(value);
+  return chain !== null &&
+    aliases.has(chain.root) &&
+    chain.properties.length > 0 &&
+    chain.properties.every(part =>
+      part === 'concurrent' ||
+      part === 'failing' ||
+      part === 'only' ||
+      part === 'skip' ||
+      part === 'todo'
+    );
+}
+
+/**
+ * Prove that a generated Jest file registers at least one test case.
+ *
+ * A syntactically valid file is not necessarily a test. PR #9778 contained a
+ * valid exported function declaration under Jest's testMatch path; Jest then
+ * stopped with "Your test suite must contain at least one test" after Fleet
+ * had already classified the sandbox exit as a product failure and retargeted
+ * the reviewed PR. Parse the program and inspect call expressions so comments,
+ * strings, and helper names cannot satisfy the gate by accident.
+ */
+export function hasJestTestRegistration(file: StackedFile): boolean {
+  const ast = parse(file.contents, {
+    sourceFilename: file.path,
+    sourceType: generatedTestSourceType(file.path),
+    plugins: generatedTestParserPlugins(file.path),
+    errorRecovery: false,
+    attachComment: false,
+  });
+  const aliases = jestTestAliases(ast);
+  let found = false;
+  walkAst(ast, node => {
+    if (found) return;
+    if (node.type !== 'CallExpression' && node.type !== 'OptionalCallExpression') return;
+    if (isJestTestRegistrationCallee(node.callee, aliases)) found = true;
+  });
+  return found;
+}
+
 /**
  * The gate itself: do these authored files live where the real test runner
- * would discover them, and do their relative imports resolve to something
- * real? FAILS CLOSED on missing evidence — a jest config or tree the executor
+ * would discover them, parse as complete programs, and have relative imports
+ * that resolve to something real? FAILS CLOSED on missing evidence — a jest config or tree the executor
  * could not fetch/parse is a REJECTION, never a silent pass. The rationale for
  * that asymmetry: a gate whose evidence is missing has proven nothing, and the
  * purser must never spend a PR's base ref on a claim it did not verify.
@@ -586,6 +799,10 @@ export function checkGeneratedTestsExecutable(
           `(testMatch: ${evidence.testMatchPatterns.join(', ')}) — the test runner would never find it`,
       };
     }
+  }
+  for (const f of files) {
+    const syntaxFailure = validateGeneratedTestSyntax(f);
+    if (syntaxFailure) return syntaxFailure;
   }
   const foreignRunnerImports = new Set(['bun:test', 'node:test', 'vitest']);
   for (const f of files) {
@@ -635,6 +852,23 @@ export function checkGeneratedTestsExecutable(
           reason: `${f.path} imports '${spec}', which does not resolve to any file in the repository or in this authored set`,
         };
       }
+    }
+  }
+  // Preserve the more actionable import/runner diagnostics above: a file can
+  // be both empty theater and unable to load, and the bounded repair loop
+  // already knows how to heal those concrete loader failures. Once loading is
+  // proven, require every authored testMatch file to register a real case.
+  for (const f of files) {
+    if (!hasJestTestRegistration(f)) {
+      return {
+        ok: false,
+        kind: 'missing-test-registration',
+        path: f.path,
+        reason:
+          `${f.path} is discoverable JavaScript but registers no Jest test or it case — ` +
+          'the generated harness would fail before exercising the reviewed code, so Purser ' +
+          'must repair its authored file before sandbox execution, branch creation, stacked PR, or PR retarget',
+      };
     }
   }
   return { ok: true };

@@ -296,6 +296,18 @@ CREATE TABLE IF NOT EXISTS user_tokens (
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
+-- Server-authorized account roles. A pdu_ token proves account identity; this
+-- table separately proves authority for Cloud Fleet's team-scoped operator
+-- reads and controls. The initial owner row is materialized from the trusted
+-- RELAY_OPERATOR_GITHUB_USER_ID var on first access.
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id    TEXT    NOT NULL REFERENCES users(id),
+  role       TEXT    NOT NULL CHECK (role IN ('operator')),
+  source     TEXT    NOT NULL,
+  granted_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role)
+);
+
 -- Per-repo agent-behavior settings, account-scoped (the /account/repos screen).
 -- One row per (user, repo full name). sitrep_end_of_turn is the launch dial;
 -- settings_json is the forward-compatible bag for the settings the screen grows
@@ -353,6 +365,26 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+
+-- Aggregate, per-ship Workers AI call stats (ADR none; see
+-- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
+-- notes). ONE row per (run_id, ship), flushed once when the ship finishes —
+-- not per Workers AI call — accumulated in memory by FleetAiCircuit.runForShip.
+CREATE TABLE IF NOT EXISTS fleet_ai_call_stats (
+  run_id          TEXT    NOT NULL,
+  ship            TEXT    NOT NULL,
+  calls           INTEGER NOT NULL DEFAULT 0,
+  ok_calls        INTEGER NOT NULL DEFAULT 0,
+  timeout_calls   INTEGER NOT NULL DEFAULT 0,
+  error_calls     INTEGER NOT NULL DEFAULT 0,
+  total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+  max_elapsed_ms  INTEGER NOT NULL DEFAULT 0,
+  deadline_ms     INTEGER NOT NULL,
+  created_at      INTEGER NOT NULL,
+  PRIMARY KEY (run_id, ship)
+);
+CREATE INDEX IF NOT EXISTS idx_fleet_ai_call_stats_ship
+  ON fleet_ai_call_stats(ship, created_at DESC);
 
 -- One Stripe customer per installation (created lazily at first checkout/portal).
 CREATE TABLE IF NOT EXISTS stripe_customers (
