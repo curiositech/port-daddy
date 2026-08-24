@@ -63,6 +63,16 @@ export function asActorId(raw: string): ActorId {
   return raw as ActorId;
 }
 
+/**
+ * Reserved newcomer-pool bucket for registrations that name no project. The
+ * doubled-underscore sentinel is a reserved key; a project literally named
+ * "__projectless__" would merely share this bucket, which is harmless (still
+ * metered). Metering projectless registrations under one shared bucket is what
+ * stops `POST /actors/register` with no `project` from minting unlimited
+ * free souls.
+ */
+export const PROJECTLESS_POOL_KEY = '__projectless__';
+
 // ─── Tunable policy constants ───────────────────────────────────────────────────
 export interface ActorSoulsConfig {
   /** Default multi-tenant scope when a caller does not name one. */
@@ -430,15 +440,21 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       //    the alias up here; every uncredentialed registration mints fresh.
 
       // 3a. Admission rate-limit: bound distinct newcomer souls per project/day.
-      const project = params.project?.trim();
-      if (project) {
-        const day = params.day ?? new Date(ts).toISOString().slice(0, 10);
-        const { soulsSeen } = poolState(project, day);
-        if (soulsSeen >= newcomerAdmitMax) {
-          return { ok: false, status: 'rejected', code: 'NEWCOMER_ADMIT_LIMIT', httpStatus: 429 };
-        }
-        bumpPoolSouls.run(project, day);
+      //     A registration with NO project must still be metered — otherwise
+      //     omitting `project` skipped the pool entirely and minted unlimited
+      //     free souls (the anti-launder floor became opt-in). Projectless
+      //     registrations share one reserved global bucket (PROJECTLESS_POOL_KEY)
+      //     so the same 429 admission path applies.
+      const trimmedProject = params.project?.trim();
+      const project = trimmedProject && trimmedProject.length > 0
+        ? trimmedProject
+        : PROJECTLESS_POOL_KEY;
+      const day = params.day ?? new Date(ts).toISOString().slice(0, 10);
+      const { soulsSeen } = poolState(project, day);
+      if (soulsSeen >= newcomerAdmitMax) {
+        return { ok: false, status: 'rejected', code: 'NEWCOMER_ADMIT_LIMIT', httpStatus: 429 };
       }
+      bumpPoolSouls.run(project, day);
 
       // 3b. Mint a fresh newcomer soul; issue a credential ONCE.
       const minted = mint({ harbor, alias: params.alias ?? null, credentialKind: 'soul-secret' });

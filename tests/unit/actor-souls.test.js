@@ -127,6 +127,34 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
     expect(over.httpStatus).toBe(429);
   });
+
+  // Defect B (#8877): a registration that omits `project` must STILL be
+  // metered. Before the fix the admission pool was keyed only when a project
+  // was supplied, so `register({})` skipped the pool entirely and minted
+  // unlimited free souls (500+ observed with no 429) — the anti-launder floor
+  // was opt-in. Projectless registrations now share one reserved global bucket.
+  test('projectless registrations are metered and 429 past the admit limit', () => {
+    const day = '2026-07-15';
+    for (let i = 0; i < 3; i++) {
+      const ok = souls.register({ day }); // no project, no alias — the bypass
+      expect(ok.ok).toBe(true);
+      expect(ok.status).toBe('minted');
+    }
+    const over = souls.register({ day });
+    expect(over.ok).toBe(false);
+    expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
+    expect(over.httpStatus).toBe(429);
+  });
+
+  test('the projectless bucket is distinct from a named project (no cross-starvation)', () => {
+    const day = '2026-07-15';
+    // Exhaust the projectless bucket.
+    for (let i = 0; i < 3; i++) expect(souls.register({ day }).ok).toBe(true);
+    expect(souls.register({ day }).code).toBe('NEWCOMER_ADMIT_LIMIT');
+    // A named project still has its own fresh allowance — projectless spend did
+    // not consume it, and a real project cannot be starved by the sentinel.
+    expect(souls.register({ project: 'proj', day }).ok).toBe(true);
+  });
 });
 
 describe('actor-souls: graduation on clean exits', () => {
