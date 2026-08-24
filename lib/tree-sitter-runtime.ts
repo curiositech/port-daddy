@@ -47,6 +47,18 @@ interface TreeSitterRuntimeManifest {
   files: TreeSitterRuntimeManifestFile[];
 }
 
+type PublishedCargoResolution =
+  | {
+    state: 'valid';
+    paths: Omit<TreeSitterRuntimeAssets, 'source'>;
+    reason: '';
+  }
+  | {
+    state: 'absent' | 'invalid';
+    paths: null;
+    reason: string;
+  };
+
 export interface TreeSitterRuntimeResolveOptions {
   /** Override the executable directory for hermetic tests. */
   execDir?: string;
@@ -151,22 +163,29 @@ function missingFiles(paths: Omit<TreeSitterRuntimeAssets, 'source'>): string[] 
  * @param publicationRoot - Executable/resource-relative native/tree-sitter root.
  * @returns Either verified runtime paths or a precise rejection reason.
  */
-function resolvePublishedCargo(publicationRoot: string): {
-  paths: Omit<TreeSitterRuntimeAssets, 'source'> | null;
-  reason: string;
-} {
+function resolvePublishedCargo(publicationRoot: string): PublishedCargoResolution {
+  let rootStat;
   try {
-    if (!existsSync(publicationRoot)) return { paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is missing` };
-    const rootStat = lstatSync(publicationRoot);
+    rootStat = lstatSync(publicationRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { state: 'absent', paths: null, reason: 'publication root is missing' };
+    }
+    return { state: 'invalid', paths: null, reason: (error as Error).message };
+  }
+
+  try {
     if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
-      return { paths: null, reason: 'publication root is not a real directory' };
+      return { state: 'invalid', paths: null, reason: 'publication root is not a real directory' };
     }
     const realRoot = realpathSync(publicationRoot);
     const pointerPath = join(realRoot, TREE_SITTER_RUNTIME_POINTER);
-    if (!existsSync(pointerPath)) return { paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is missing` };
+    if (!existsSync(pointerPath)) {
+      return { state: 'invalid', paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is missing` };
+    }
     const pointerStat = lstatSync(pointerPath);
     if (pointerStat.isSymbolicLink() || !pointerStat.isFile()) {
-      return { paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is not a regular file` };
+      return { state: 'invalid', paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is not a regular file` };
     }
 
     const manifest = JSON.parse(readFileSync(pointerPath, 'utf8')) as Partial<TreeSitterRuntimeManifest>;
@@ -177,18 +196,20 @@ function resolvePublishedCargo(publicationRoot: string): {
       !manifest.cargoDir.startsWith('cargo-') ||
       !Array.isArray(manifest.files)
     ) {
-      return { paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is malformed` };
+      return { state: 'invalid', paths: null, reason: `${TREE_SITTER_RUNTIME_POINTER} is malformed` };
     }
 
     const cargoPath = join(realRoot, manifest.cargoDir);
-    if (!existsSync(cargoPath)) return { paths: null, reason: `selected cargo is missing: ${manifest.cargoDir}` };
+    if (!existsSync(cargoPath)) {
+      return { state: 'invalid', paths: null, reason: `selected cargo is missing: ${manifest.cargoDir}` };
+    }
     const cargoStat = lstatSync(cargoPath);
     if (cargoStat.isSymbolicLink() || !cargoStat.isDirectory()) {
-      return { paths: null, reason: 'selected cargo is not a real directory' };
+      return { state: 'invalid', paths: null, reason: 'selected cargo is not a real directory' };
     }
     const realCargo = realpathSync(cargoPath);
     if (!isContained(realRoot, realCargo)) {
-      return { paths: null, reason: 'selected cargo escapes publication root' };
+      return { state: 'invalid', paths: null, reason: 'selected cargo escapes publication root' };
     }
 
     const requiredNames = [TREE_SITTER_RUNTIME_FILE, ...Object.values(TREE_SITTER_GRAMMAR_FILES)].sort();
@@ -198,6 +219,7 @@ function resolvePublishedCargo(publicationRoot: string): {
       const missing = requiredNames.filter(name => !actualNames.includes(name));
       const unexpected = actualNames.filter(name => !requiredNames.includes(name));
       return {
+        state: 'invalid',
         paths: null,
         reason: `cargo inventory mismatch: missing ${missing.join(', ') || 'none'}; ` +
           `unexpected ${unexpected.join(', ') || 'none'}`,
@@ -215,30 +237,34 @@ function resolvePublishedCargo(publicationRoot: string): {
         typeof entry.sha256 !== 'string' ||
         !/^[a-f0-9]{64}$/.test(entry.sha256)
       ) {
-        return { paths: null, reason: 'cargo receipt contains an invalid entry' };
+        return { state: 'invalid', paths: null, reason: 'cargo receipt contains an invalid entry' };
       }
       receiptByName.set(entry.name, entry as TreeSitterRuntimeManifestFile);
     }
     if (receiptByName.size !== requiredNames.length) {
-      return { paths: null, reason: 'cargo receipt does not describe the exact required inventory' };
+      return {
+        state: 'invalid',
+        paths: null,
+        reason: 'cargo receipt does not describe the exact required inventory',
+      };
     }
 
     for (const entry of entries) {
       const path = join(realCargo, entry.name);
       const receipt = receiptByName.get(entry.name)!;
       if (!entry.isFile() || entry.isSymbolicLink() || lstatSync(path).isSymbolicLink()) {
-        return { paths: null, reason: `cargo asset is not a regular file: ${entry.name}` };
+        return { state: 'invalid', paths: null, reason: `cargo asset is not a regular file: ${entry.name}` };
       }
       const sizeBytes = statSync(path).size;
       const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex');
       if (sizeBytes !== receipt.sizeBytes || sha256 !== receipt.sha256) {
-        return { paths: null, reason: `cargo asset does not match receipt: ${entry.name}` };
+        return { state: 'invalid', paths: null, reason: `cargo asset does not match receipt: ${entry.name}` };
       }
     }
 
-    return { paths: pathsForRoot(realCargo), reason: '' };
+    return { state: 'valid', paths: pathsForRoot(realCargo), reason: '' };
   } catch (error) {
-    return { paths: null, reason: (error as Error).message };
+    return { state: 'invalid', paths: null, reason: (error as Error).message };
   }
 }
 
@@ -299,7 +325,12 @@ export function resolveTreeSitterRuntimeAssets(
 
   for (const root of packagedRoots) {
     const published = resolvePublishedCargo(root);
-    if (published.paths) return { source: 'packaged', ...published.paths };
+    if (published.state === 'valid') return { source: 'packaged', ...published.paths };
+    if (published.state === 'invalid') {
+      throw new Error(
+        `[symbol-index] Tree-sitter packaged runtime rejected at ${root}: ${published.reason}`,
+      );
+    }
     inspected.push(`${root} (${published.reason})`);
   }
 

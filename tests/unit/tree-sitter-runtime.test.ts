@@ -117,6 +117,24 @@ describe('Tree-sitter runtime resolution', () => {
     })).toThrow(/tree-sitter-python\.wasm/);
   });
 
+  test('does not fall back to valid source packages when compiled cargo is tampered', () => {
+    const root = makeScratch();
+    const execDir = join(root, 'bin');
+    const packagedRoot = join(execDir, 'native', 'tree-sitter');
+    const packagedCargo = writePublishedCargo(packagedRoot, 'tampered');
+    const sourceRoot = join(root, 'packages');
+    writeCargo(sourceRoot, 'valid-source');
+
+    const runtimePath = join(packagedCargo, TREE_SITTER_RUNTIME_FILE);
+    writeFileSync(runtimePath, Buffer.alloc(readFileSync(runtimePath).byteLength, 0x78));
+
+    expect(() => resolveTreeSitterRuntimeAssets({
+      execDir,
+      resourceDir: null,
+      sourceFiles: sourceFiles(sourceRoot),
+    })).toThrow(/packaged runtime rejected.*cargo asset does not match receipt: tree-sitter\.wasm/);
+  });
+
   test('locateFile replaces only the Emscripten runtime request', () => {
     const locateFile = createTreeSitterLocateFile('/release/native/tree-sitter/tree-sitter.wasm');
 

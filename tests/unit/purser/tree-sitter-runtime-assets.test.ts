@@ -121,6 +121,41 @@ describe('compiled tree-sitter runtime packaging', () => {
     ].sort());
   });
 
+  test('a post-rename pointer fsync failure keeps the newly selected cargo', () => {
+    const { root, sourceFiles } = makeFixture();
+    const outputRoot = join(root, 'dist');
+    const first = packageTreeSitterRuntime({ repoRoot: root, outputRoot, sourceFiles });
+
+    for (const name of TREE_SITTER_RUNTIME_ASSETS) {
+      writeFileSync(sourceFiles[name], `new-wasm:${name}`);
+    }
+    let syncedDirectory = '';
+    expect(() => packageTreeSitterRuntime({
+      repoRoot: root,
+      outputRoot,
+      sourceFiles,
+      syncPointerDirectory: (path: string) => {
+        syncedDirectory = path;
+        throw new Error('simulated pointer directory fsync failure');
+      },
+    })).toThrow('simulated pointer directory fsync failure');
+
+    expect(syncedDirectory).toBe(first.publicationRoot);
+    const selectedManifest = JSON.parse(readFileSync(first.manifestPath!, 'utf8'));
+    expect(selectedManifest.cargoDir).not.toBe(basename(first.dir!));
+    const selectedDir = join(first.publicationRoot!, selectedManifest.cargoDir);
+    expect(verifyTreeSitterRuntimeCargo({
+      dir: selectedDir,
+      files: selectedManifest.files,
+      outputRoot,
+    })).toMatchObject({ dir: selectedDir, files: selectedManifest.files });
+    expect(readdirSync(first.publicationRoot!).sort()).toEqual([
+      basename(first.dir!),
+      selectedManifest.cargoDir,
+      TREE_SITTER_RUNTIME_POINTER,
+    ].sort());
+  });
+
   test('refuses a symlinked publication component instead of writing outside outputRoot', () => {
     const { root, sourceFiles } = makeFixture();
     const outputRoot = join(root, 'dist');
