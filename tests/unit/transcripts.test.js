@@ -17,7 +17,15 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
-import { createTranscripts, redactSecrets } from '../../lib/transcripts.js';
+import {
+  createTranscripts,
+  describeTranscriptArchiveArtifact,
+  redactSecrets,
+} from '../../lib/transcripts.js';
+
+function archiveSuccess(entry, locator = `test://transcripts/${entry.id}`) {
+  return { ok: true, artifact: describeTranscriptArchiveArtifact(entry, locator) };
+}
 
 describe('transcripts module', () => {
   let db;
@@ -36,6 +44,105 @@ describe('transcripts module', () => {
     if (db) db.close();
   });
 
+  describe('durable archive receipts', () => {
+    it('binds one first-terminal transition to exact artifact evidence', () => {
+      const archived = [];
+      store = createTranscripts(db, {
+        now,
+        archiveSink: {
+          archive(entry) {
+            archived.push({ id: entry.id, status: entry.status });
+            return archiveSuccess(entry);
+          },
+        },
+      });
+      const id = store.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+
+      store.finalize(id, { status: 'killed', error: 'Killed by spawner' });
+      store.finalize(id, { status: 'completed' });
+
+      expect(archived).toEqual([{ id, status: 'killed' }]);
+      expect(db.prepare(`
+        SELECT content_sha256, status, succeeded_at, artifact_locator,
+               artifact_sha256, artifact_bytes, artifact_format, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual({
+        content_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        status: 'succeeded',
+        succeeded_at: clock,
+        artifact_locator: `test://transcripts/${id}`,
+        artifact_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        artifact_bytes: expect.any(Number),
+        artifact_format: 'port-daddy.transcript-jsonl.v1',
+        attempts: 1,
+      });
+    });
+
+    it('retries a failed receipt and then skips the exact durable snapshot idempotently', () => {
+      let fail = true;
+      let calls = 0;
+      store = createTranscripts(db, {
+        now,
+        archiveSink: {
+          archive(entry) {
+            calls += 1;
+            return fail ? { ok: false, error: 'warehouse unavailable' } : archiveSuccess(entry);
+          },
+        },
+      });
+      const id = store.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      store.finalize(id, { status: 'completed' });
+      expect(store.backfillArchive()).toEqual({ archived: 0 });
+
+      fail = false;
+      expect(store.backfillArchive()).toEqual({ archived: 1 });
+      expect(store.backfillArchive()).toEqual({ archived: 1 });
+      expect(calls).toBe(3);
+      expect(db.prepare(`
+        SELECT status, last_error, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id)).toEqual({ status: 'succeeded', last_error: null, attempts: 3 });
+    });
+
+    it('retries a stale or mismatched success receipt instead of trusting it', () => {
+      let calls = 0;
+      store = createTranscripts(db, {
+        now,
+        archiveSink: {
+          archive(entry) {
+            calls += 1;
+            return archiveSuccess(entry);
+          },
+        },
+      });
+      const id = store.start({
+        ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
+      });
+      store.finalize(id, { status: 'completed' });
+      db.prepare(`
+        UPDATE fleet_transcript_archive_receipts
+           SET artifact_sha256 = ?
+         WHERE transcript_id = ?
+      `).run('f'.repeat(64), id);
+
+      expect(store.backfillArchive()).toEqual({ archived: 1 });
+      expect(calls).toBe(2);
+      const receipt = db.prepare(`
+        SELECT content_sha256, artifact_sha256, attempts
+          FROM fleet_transcript_archive_receipts
+         WHERE transcript_id = ?
+      `).get(id);
+      expect(receipt.artifact_sha256).toBe(receipt.content_sha256);
+      expect(receipt.attempts).toBe(2);
+    });
+  });
+
   // ───────────────────────────────────────────────────────────────────────────
   // Schema
   // ───────────────────────────────────────────────────────────────────────────
@@ -46,6 +153,7 @@ describe('transcripts module', () => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'fleet_transcript%'"
       ).all().map((r) => r.name).sort();
       expect(tables).toEqual([
+        'fleet_transcript_archive_receipts',
         'fleet_transcript_messages',
         'fleet_transcript_outputs',
         'fleet_transcripts',
@@ -237,16 +345,16 @@ describe('transcripts module', () => {
       expect(tx.tokens_out).toBe(350);
     });
 
-    it('finalize preserves prior values when args are null/undefined', () => {
+    it('keeps the first terminal transition authoritative', () => {
       const id = store.start({
         ship: 's', spawned_agent_id: 'a', trigger: 't', backend: 'claude', model: 'm',
       });
       store.finalize(id, { status: 'completed', cost_usd: 0.05 });
       store.finalize(id, { status: 'failed', error: 'boom' });
       const tx = store.getTranscript(id);
-      expect(tx.status).toBe('failed');
-      expect(tx.cost_usd).toBeCloseTo(0.05, 5); // preserved
-      expect(tx.error).toBe('boom');
+      expect(tx.status).toBe('completed');
+      expect(tx.cost_usd).toBeCloseTo(0.05, 5);
+      expect(tx.error).toBeNull();
     });
   });
 

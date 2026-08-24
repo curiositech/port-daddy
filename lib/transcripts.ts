@@ -23,8 +23,9 @@
  *     out of prompts).
  *   - Tool args containing string fields > 10KB are truncated to 1KB plus
  *     a SHA-256 hash for later auditability.
- *   - Append-only at the API surface. `deleteTranscript()` is a privileged
- *     operator action exposed only via the destructive-confirm CLI tier.
+ *   - The in-process spawner lifecycle is the canonical producer path.
+ *   - The current HTTP mutation bridge is not an authority boundary. CAP0/BOOT0
+ *     must supplant it with direct one-use capability redemption.
  */
 
 import { createHash } from 'node:crypto';
@@ -83,15 +84,51 @@ export interface TranscriptEntry {
   identity?: string | null;
 }
 
+export const TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT = 'port-daddy.transcript-jsonl.v1' as const;
+
+export interface TranscriptArchiveArtifact {
+  /** Sink-owned stable locator for the exact retained artifact. */
+  locator: string;
+  /** SHA-256 of the exact artifact bytes. */
+  sha256: string;
+  /** Exact byte length of the retained artifact. */
+  bytes: number;
+  /** Canonical serialization contract shared by the sink and receipt verifier. */
+  format: typeof TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT;
+}
+
+/** Canonical immutable artifact bytes: one complete JSONL record. */
+export function serializeTranscriptArchiveArtifact(entry: TranscriptEntry): Buffer {
+  return Buffer.from(`${JSON.stringify(entry)}\n`, 'utf8');
+}
+
+/** Build the artifact evidence a trusted sink returns after durable publication. */
+export function describeTranscriptArchiveArtifact(
+  entry: TranscriptEntry,
+  locator: string,
+): TranscriptArchiveArtifact {
+  const bytes = serializeTranscriptArchiveArtifact(entry);
+  return {
+    locator,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+    bytes: bytes.length,
+    format: TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT,
+  };
+}
+
 /**
  * Durable retention sink for finalized transcripts (lib/transcript-archive.ts).
- * Called fire-and-forget when a transcript reaches a terminal state, so the
+ * Called when a transcript reaches a terminal state, so the
  * record survives even if the live DB is lost. MUST NOT throw — it reports its
  * own failures loudly instead (a silent retention loss is what the directive
  * forbids).
  */
+export type TranscriptArchiveResult =
+  | { ok: true; artifact: TranscriptArchiveArtifact }
+  | { ok: false; error: string };
+
 export interface TranscriptArchiveSink {
-  archive(entry: TranscriptEntry): void;
+  archive(entry: TranscriptEntry): TranscriptArchiveResult;
 }
 
 export interface TranscriptFilter {
@@ -173,17 +210,17 @@ export interface TranscriptsModule {
   appendOutput(id: string, output: TranscriptOutput): void;
   /** Mark transcript as completed/failed/killed and finalize cost+tokens. */
   finalize(id: string, finalize: TranscriptFinalizeInput): void;
-  /** Top-level record (alternative to start/append/finalize when the whole conversation is known up-front). */
+  /** CAP0-blocked full-entry bridge; only terminal snapshots emit end/archive, without finalize's CAS. */
   recordTranscript(entry: TranscriptEntry): void;
   /** List recent transcripts (without messages — lightweight). */
   listTranscripts(filter?: TranscriptFilter): TranscriptEntry[];
   /** Get a single transcript with full messages + outputs. */
   getTranscript(id: string): TranscriptEntry | null;
-  /** Delete one transcript (destructive — gated at CLI layer). */
+  /** Legacy destructive primitive; route authority is blocked on CAP0/BOOT0. */
   deleteTranscript(id: string): boolean;
   /** Rollup cost by ship + day. */
   costRollup(opts: { since: number; until?: number }): CostRollup;
-  /** Durably re-archive every transcript in the DB (retention backfill). Returns count. */
+  /** Retry the bounded legacy archive page; final route authority is CAP0/BOOT0-blocked. */
   backfillArchive(): { archived: number };
   /** Subscribe to live transcript events (returns unsubscribe). */
   subscribe(listener: TranscriptListener): () => void;
@@ -242,9 +279,9 @@ export interface TranscriptsOptions {
   /** Max bytes for a single message content cell. Larger contents are truncated with marker. Default 256KB. */
   maxMessageContentBytes?: number;
   /**
-   * Durable retention sink. When set, every finalized transcript is written to it
-   * (fire-and-forget) so the record survives loss of the live DB. The daemon wires
-   * the always-on JSONL archive (lib/transcript-archive.ts) here by default.
+   * Durable retention sink. When set, finalized snapshots are published with
+   * exact artifact evidence outside the live DB. The daemon wires the always-on
+   * JSONL archive (lib/transcript-archive.ts) here by default.
    */
   archiveSink?: TranscriptArchiveSink;
 }
@@ -313,6 +350,33 @@ const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_fleet_transcript_outputs_transcript
      ON fleet_transcript_outputs(transcript_id, seq)`,
 
+  // Exact, retryable evidence that a canonical transcript snapshot reached a
+  // durable sink. A generic success bit is deliberately insufficient.
+  `CREATE TABLE IF NOT EXISTS fleet_transcript_archive_receipts (
+    transcript_id TEXT PRIMARY KEY,
+    content_sha256 TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempted_at INTEGER NOT NULL,
+    succeeded_at INTEGER,
+    last_error TEXT,
+    artifact_locator TEXT,
+    artifact_sha256 TEXT,
+    artifact_bytes INTEGER,
+    artifact_format TEXT,
+    attempts INTEGER NOT NULL DEFAULT 1,
+    CHECK (status IN ('succeeded', 'failed')),
+    CHECK (
+      status = 'failed' OR (
+        artifact_locator IS NOT NULL
+        AND artifact_sha256 IS NOT NULL
+        AND artifact_bytes > 0
+        AND artifact_format = 'port-daddy.transcript-jsonl.v1'
+      )
+    )
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_fleet_transcript_archive_receipts_status
+     ON fleet_transcript_archive_receipts(status, attempted_at DESC)`,
+
   // ── Fleet ship registry ────────────────────────────────────────────
   // One row per declared ship, maintained by Tender. Source of truth for
   // the suggestibility layer: health scores, recommendations, pause state.
@@ -377,6 +441,13 @@ const FLEET_TRANSCRIPT_RUNTIME_COLUMNS: Array<{ name: string; definition: string
   { name: 'requested_model', definition: 'TEXT' },
   { name: 'effective_model', definition: 'TEXT' },
   { name: 'backend_override_source', definition: "TEXT NOT NULL DEFAULT 'none'" },
+];
+
+const TRANSCRIPT_ARCHIVE_RECEIPT_RUNTIME_COLUMNS: Array<{ name: string; definition: string }> = [
+  { name: 'artifact_locator', definition: 'TEXT' },
+  { name: 'artifact_sha256', definition: 'TEXT' },
+  { name: 'artifact_bytes', definition: 'INTEGER' },
+  { name: 'artifact_format', definition: 'TEXT' },
 ];
 
 // =============================================================================
@@ -469,20 +540,6 @@ export function createTranscripts(
   const maxMessageContentBytes = options.maxMessageContentBytes ?? DEFAULT_MESSAGE_CONTENT_BYTES;
   const archiveSink = options.archiveSink;
 
-  /**
-   * Push a finalized transcript to the durable retention sink. Fire-and-forget:
-   * a sink failure must never block transcript recording or the spawn. The sink
-   * reports its own failures loudly (lib/transcript-archive.ts).
-   */
-  function archiveFinalized(entry: TranscriptEntry | null): void {
-    if (!entry || !archiveSink) return;
-    try {
-      archiveSink.archive(entry);
-    } catch {
-      // The sink owns loud failure reporting; never propagate.
-    }
-  }
-
   for (const stmt of SCHEMA_STATEMENTS) {
     db.prepare(stmt).run();
   }
@@ -493,6 +550,17 @@ export function createTranscripts(
   for (const column of FLEET_TRANSCRIPT_RUNTIME_COLUMNS) {
     if (!transcriptColumns.has(column.name)) {
       db.exec(`ALTER TABLE fleet_transcripts ADD COLUMN ${column.name} ${column.definition}`);
+    }
+  }
+  const archiveReceiptColumns = new Set(
+    (db.prepare('PRAGMA table_info(fleet_transcript_archive_receipts)')
+      .all() as Array<{ name: string }>).map((column) => column.name),
+  );
+  for (const column of TRANSCRIPT_ARCHIVE_RECEIPT_RUNTIME_COLUMNS) {
+    if (!archiveReceiptColumns.has(column.name)) {
+      db.exec(
+        `ALTER TABLE fleet_transcript_archive_receipts ADD COLUMN ${column.name} ${column.definition}`,
+      );
     }
   }
 
@@ -557,7 +625,7 @@ export function createTranscripts(
            tokens_in = COALESCE(?, tokens_in),
            tokens_out = COALESCE(?, tokens_out),
            error = COALESCE(?, error)
-     WHERE id = ?
+     WHERE id = ? AND status = 'running'
   `);
 
   const getTranscriptRowStmt = db.prepare(`SELECT * FROM fleet_transcripts WHERE id = ?`);
@@ -575,6 +643,31 @@ export function createTranscripts(
   `);
 
   const deleteTranscriptStmt = db.prepare(`DELETE FROM fleet_transcripts WHERE id = ?`);
+  const getArchiveReceiptStmt = db.prepare(`
+    SELECT content_sha256, status, attempted_at, succeeded_at, last_error,
+           artifact_locator, artifact_sha256, artifact_bytes, artifact_format,
+           attempts
+      FROM fleet_transcript_archive_receipts
+     WHERE transcript_id = ?
+  `);
+  const upsertArchiveReceiptStmt = db.prepare(`
+    INSERT INTO fleet_transcript_archive_receipts (
+      transcript_id, content_sha256, status, attempted_at,
+      succeeded_at, last_error, artifact_locator, artifact_sha256,
+      artifact_bytes, artifact_format, attempts
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    ON CONFLICT(transcript_id) DO UPDATE SET
+      content_sha256 = excluded.content_sha256,
+      status = excluded.status,
+      attempted_at = excluded.attempted_at,
+      succeeded_at = excluded.succeeded_at,
+      last_error = excluded.last_error,
+      artifact_locator = excluded.artifact_locator,
+      artifact_sha256 = excluded.artifact_sha256,
+      artifact_bytes = excluded.artifact_bytes,
+      artifact_format = excluded.artifact_format,
+      attempts = fleet_transcript_archive_receipts.attempts + 1
+  `);
 
   // In-memory subscriber registry (SSE clients wait on these).
   const subscribers = new Set<TranscriptListener>();
@@ -742,7 +835,10 @@ export function createTranscripts(
   }
 
   function finalize(id: string, fin: TranscriptFinalizeInput): void {
-    finalizeStmt.run(
+    if (fin.status === 'running') {
+      throw new Error('transcripts: finalize requires a terminal status');
+    }
+    const result = finalizeStmt.run(
       fin.status,
       fin.ended_at ?? now(),
       fin.cost_usd ?? null,
@@ -751,6 +847,16 @@ export function createTranscripts(
       fin.error ?? null,
       id,
     );
+    if (result.changes !== 1) {
+      const existing = getTranscriptRowStmt.get(id) as Record<string, unknown> | undefined;
+      if (!existing) throw new Error(`transcripts: no transcript with id "${id}"`);
+      if (existing.status === 'running') {
+        throw new Error(`transcripts: terminal transition did not update running transcript: ${id}`);
+      }
+      // A late backend completion racing a kill is an idempotent no-op. The
+      // first terminal transition owns status, end event, and archive receipt.
+      return;
+    }
     const refreshed = getTranscript(id);
     if (refreshed) emit({ type: 'end', entry: refreshed });
     archiveFinalized(refreshed);
@@ -789,8 +895,10 @@ export function createTranscripts(
       appendOutput(entry.id, o);
     }
     const refreshed = getTranscript(entry.id);
-    if (refreshed) emit({ type: 'end', entry: refreshed });
-    archiveFinalized(refreshed);
+    if (refreshed && refreshed.status !== 'running') {
+      emit({ type: 'end', entry: refreshed });
+      archiveFinalized(refreshed);
+    }
   }
 
   function getTranscript(id: string): TranscriptEntry | null {
@@ -800,6 +908,135 @@ export function createTranscripts(
     header.messages = loadMessages(id);
     header.outputs = loadOutputs(id);
     return header;
+  }
+
+  type ArchiveAttemptOutcome = 'succeeded' | 'failed' | 'skipped' | 'unavailable';
+
+  interface ArchiveReceiptRow {
+    content_sha256: string;
+    status: 'succeeded' | 'failed';
+    attempted_at: number;
+    succeeded_at: number | null;
+    last_error: string | null;
+    artifact_locator: string | null;
+    artifact_sha256: string | null;
+    artifact_bytes: number | null;
+    artifact_format: string | null;
+    attempts: number;
+  }
+
+  function archiveErrorMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    return redactSecrets(message).slice(0, 1_000);
+  }
+
+  function getArchiveReceipt(id: string): ArchiveReceiptRow | null {
+    return (getArchiveReceiptStmt.get(id) as ArchiveReceiptRow | undefined) ?? null;
+  }
+
+  function isSafeArtifactLocator(locator: unknown): locator is string {
+    return typeof locator === 'string'
+      && locator.length > 0
+      && locator.length <= 1_024
+      && locator === locator.trim()
+      && !/[\u0000-\u001f\u007f]/u.test(locator)
+      && !locator.includes('?')
+      && !locator.includes('#')
+      && !/:\/\/[^/]*@/u.test(locator);
+  }
+
+  function receiptMatchesSnapshot(
+    receipt: ArchiveReceiptRow,
+    digest: string,
+    bytes: number,
+  ): boolean {
+    return receipt.status === 'succeeded'
+      && receipt.content_sha256 === digest
+      && typeof receipt.succeeded_at === 'number'
+      && Number.isSafeInteger(receipt.succeeded_at)
+      && receipt.succeeded_at > 0
+      && isSafeArtifactLocator(receipt.artifact_locator)
+      && receipt.artifact_sha256 === digest
+      && receipt.artifact_bytes === bytes
+      && receipt.artifact_format === TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT;
+  }
+
+  function archiveOne(entry: TranscriptEntry): ArchiveAttemptOutcome {
+    if (!archiveSink) return 'unavailable';
+
+    const expected = describeTranscriptArchiveArtifact(entry, 'receipt-validation');
+    const receipt = getArchiveReceipt(entry.id);
+    if (receipt && receiptMatchesSnapshot(receipt, expected.sha256, expected.bytes)) {
+      return 'skipped';
+    }
+
+    const attemptedAt = now();
+    let result: TranscriptArchiveResult;
+    try {
+      result = archiveSink.archive(entry);
+    } catch (error) {
+      result = { ok: false, error: archiveErrorMessage(error) };
+    }
+
+    if (
+      result?.ok === true
+      && isSafeArtifactLocator(result.artifact?.locator)
+      && result.artifact.sha256 === expected.sha256
+      && result.artifact.bytes === expected.bytes
+      && result.artifact.format === TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT
+    ) {
+      upsertArchiveReceiptStmt.run(
+        entry.id,
+        expected.sha256,
+        'succeeded',
+        attemptedAt,
+        attemptedAt,
+        null,
+        result.artifact.locator,
+        result.artifact.sha256,
+        result.artifact.bytes,
+        result.artifact.format,
+      );
+      return 'succeeded';
+    }
+
+    const error = result?.ok === true
+      ? 'archive sink returned invalid or mismatched artifact evidence'
+      : result && 'error' in result
+        ? archiveErrorMessage(result.error)
+        : 'archive sink returned no success receipt';
+    upsertArchiveReceiptStmt.run(
+      entry.id,
+      expected.sha256,
+      'failed',
+      attemptedAt,
+      null,
+      error,
+      null,
+      null,
+      null,
+      null,
+    );
+    return 'failed';
+  }
+
+  /**
+   * Retention failure stays loud and retryable, but cannot rewrite an already
+   * completed spawn into a failed lifecycle transition.
+   */
+  function archiveFinalized(entry: TranscriptEntry | null): void {
+    if (!entry) return;
+    try {
+      archiveOne(entry);
+    } catch (error) {
+      try {
+        console.error(
+          `[transcripts] failed to persist archive receipt for ${entry.id}: ${archiveErrorMessage(error)}`,
+        );
+      } catch {
+        // Error reporting itself must not escape the spawn lifecycle.
+      }
+    }
   }
 
   function listTranscripts(filter: TranscriptFilter = {}): TranscriptEntry[] {
@@ -907,16 +1144,25 @@ export function createTranscripts(
   }
 
   /**
-   * Retention backfill: push every transcript currently in the DB to the archive
-   * sink, so durable retention covers history, not just runs since the sink was
-   * enabled ("log ALL transcripts"). No-op without a sink. Returns the count.
+   * Preserve the current bounded route contract while making its count honest:
+   * only terminal snapshots with an exact durable receipt count as archived.
+   * CAP0/BOOT0 owns the later authenticated, paginated mutation action.
    */
   function backfillArchive(): { archived: number } {
     if (!archiveSink) return { archived: 0 };
     let archived = 0;
-    for (const header of listTranscripts({})) {
-      archiveFinalized(getTranscript(header.id) ?? header);
-      archived += 1;
+    const rows = db.prepare(`
+      SELECT id
+        FROM fleet_transcripts
+       WHERE status <> 'running'
+       ORDER BY started_at DESC
+       LIMIT ?
+    `).all(DEFAULT_LIMIT) as Array<{ id: string }>;
+    for (const row of rows) {
+      const entry = getTranscript(row.id);
+      if (!entry) continue;
+      const outcome = archiveOne(entry);
+      if (outcome === 'succeeded' || outcome === 'skipped') archived += 1;
     }
     return { archived };
   }

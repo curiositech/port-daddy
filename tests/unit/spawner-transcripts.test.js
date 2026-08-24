@@ -23,7 +23,8 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 const { createSpawner } = await import('../../lib/spawner.js');
-const { createTranscripts } = await import('../../lib/transcripts.js');
+const { createTranscripts, describeTranscriptArchiveArtifact } =
+  await import('../../lib/transcripts.js');
 const { createTestDb } = await import('../setup-unit.js');
 
 const TEST_TELEMETRY_BYPASS = {
@@ -136,6 +137,58 @@ describe('spawner ↔ transcripts integration', () => {
     expect(tx.messages[2].content).toBe('Done — LGTM.');
     expect(tx.outputs).toHaveLength(1);
     expect(tx.outputs[0].type).toBe('message');
+  });
+
+  it('preserves an async kill as the single terminal transition and archives it exactly once', async () => {
+    const archived = [];
+    transcripts = createTranscripts(db, {
+      archiveSink: {
+        archive(entry) {
+          archived.push({ id: entry.id, status: entry.status });
+          return {
+            ok: true,
+            artifact: describeTranscriptArchiveArtifact(entry, `test://spawner/${entry.id}`),
+          };
+        },
+      },
+    });
+    let finishBackend;
+    const backendResult = new Promise((resolve) => { finishBackend = resolve; });
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => backendResult,
+      },
+    });
+
+    const pending = spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      task: 'Stay pending until the kill race is exercised.',
+      ship: 'kill-race',
+    });
+    let [agent] = spawner.list();
+    for (let attempt = 0; !agent && attempt < 50; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      [agent] = spawner.list();
+    }
+    expect(agent).toBeDefined();
+    spawner.kill(agent.agentId);
+    finishBackend({
+      output: 'late backend completion',
+      error: null,
+      inputTokens: 10,
+      outputTokens: 5,
+    });
+
+    const result = await pending;
+    expect(result.status).toBe('killed');
+    const [row] = transcripts.listTranscripts({ ship: 'kill-race' });
+    expect(row.status).toBe('killed');
+    expect(transcripts.getTranscript(row.id).error).toBe('Killed by spawner');
+    expect(archived).toEqual([{ id: row.id, status: 'killed' }]);
   });
 
   it('feeds the persisted transcript and terminal context sample through Agent Harbor', async () => {

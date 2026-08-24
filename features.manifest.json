@@ -2515,7 +2515,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
+      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). Finalized snapshots publish as private immutable content-addressed JSONL artifacts; durable receipts bind exact snapshot/artifact digest, locator, bytes, format, attempts, and outcome, and the first finalize()/spawner terminal transition wins. Full-entry recordTranscript remains the CAP0/BOOT0-blocked legacy bridge and archives only imported terminal snapshots; current POST/DELETE transcript routes are not final authority. Q1 is blocked on CAP0/BOOT0 direct one-use broker redemption; reusable credentials and caller-supplied redemption receipts are never mutation authority."
     },
     "context_health": {
       "description": "Agent context-window health and per-task token ledger \u2014 swarm-wide budget visibility (ADR-0048 P1/P3)",

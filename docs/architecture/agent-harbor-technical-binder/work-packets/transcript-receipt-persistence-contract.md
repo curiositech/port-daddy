@@ -448,10 +448,20 @@ Archive floor:
 
 ```text
 PD_TRANSCRIPT_ARCHIVE_DIR or ~/.port-daddy/transcripts/
-transcripts-YYYY-MM-DD.jsonl
+  YYYY-MM-DD/
+    transcript-<sha256>.jsonl
 ```
 
-- Each archived transcript line must be fsync'd by default.
+- Each finalized transcript is one immutable JSONL artifact. A writer uses an
+  unpredictable private temp, completes every byte, fsyncs the temp, atomically
+  publishes the content-addressed target, verifies it, and fsyncs the partition
+  and root directories before success. A failed or concurrent writer removes
+  only its own unpublished temp and cannot truncate another process's retained
+  record.
+- A success receipt binds the exact snapshot and artifact locator, SHA-256, byte
+  count, and format. Generic success or mismatched evidence is failure.
+  Archive roots/partitions are private `0700`; temp/final files are `0600`;
+  symlink and unsafe targets fail closed.
 - `PD_TRANSCRIPT_ARCHIVE=off` downgrades official-agent eligibility unless an
   equivalent durable sink is configured and visible in the compliance report.
 - Work Receipts need the same retention floor. Until a receipt archive exists,
@@ -494,11 +504,11 @@ These routes exist today and must remain honest while Agent Node APIs land:
 | `GET /transcripts/cost` | Cost rollup from transcript rows. |
 | `GET /transcripts/stream` | SSE stream of transcript start/update/end. |
 | `GET /transcripts/:id` | Full fleet transcript with messages and outputs. |
-| `POST /transcripts` | Upsert full transcript record. |
-| `POST /transcripts/:id/messages` | Append message to fleet transcript. |
-| `POST /transcripts/:id/outputs` | Append output artifact. |
-| `POST /transcripts/archive/backfill` | Re-archive DB transcript history into JSONL. |
-| `DELETE /transcripts/:id` | Destructive operator-gated delete. |
+| `POST /transcripts` | Legacy self-asserted full upsert; not trusted producer authority. |
+| `POST /transcripts/:id/messages` | Legacy unauthenticated append; not trusted producer authority. |
+| `POST /transcripts/:id/outputs` | Legacy unauthenticated append; not trusted producer authority. |
+| `POST /transcripts/archive/backfill` | Legacy unauthenticated bounded archive retry; CAP0/BOOT0 authority blocked. |
+| `DELETE /transcripts/:id` | Legacy unauthenticated destructive delete; not the accepted retention/authority boundary. |
 
 Current bridge rules:
 
@@ -508,6 +518,11 @@ Current bridge rules:
 - `/transcripts` is a fleet/run projection and may not contain the full
   canonical event chain.
 - A row with `session_id: null` is a known compliance failure for official work.
+- Transcript mutation remains blocked on CAP0/BOOT0. The final delete/backfill
+  service must redeem a one-use actor/action/resource-scoped capability directly
+  with the broker. Reusable actor credentials and caller-supplied redemption
+  receipts are never authority. Delete is live-DB pruning and additionally
+  requires an exact durable success receipt for the current terminal snapshot.
 
 ### Target official endpoints
 
