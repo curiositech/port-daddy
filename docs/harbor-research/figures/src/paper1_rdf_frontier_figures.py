@@ -87,7 +87,7 @@ def frontier_figure():
     d_inf_top = np.clip(p - f_inf, 0, 0.049)
     ax.fill_between(f_inf, 0, d_inf_top, facecolor='#e5e5e5',
                      edgecolor='none', hatch='////', zorder=0)
-    ax.text(0.0415, 0.0007, 'infeasible\n($f{<}p{-}\\delta$)', fontsize=7.3,
+    ax.text(0.0415, 0.0007, 'infeasible\n($f{<}p{-}\\delta$)', fontsize=8.0,
             color=GREY, ha='left', va='bottom', style='italic')
 
     cmap = LinearSegmentedColormap.from_list('harbor_seq', ['#ffffff', HARBORBLUE])
@@ -97,9 +97,10 @@ def frontier_figure():
     cbar.set_label('$R(\\delta,f)$  (bits/symbol)', fontsize=9.5)
     cbar.ax.tick_params(labelsize=8.5)
 
-    cs = ax.contour(F, D, R, levels=[0.05, 0.10, 0.15, 0.20, 0.25],
-                     colors=[GREY], linewidths=0.8, alpha=0.8)
-    ax.clabel(cs, fmt='%.2f', fontsize=8, colors=[GREY])
+    # thin unlabeled contour lines -- the colorbar already carries the
+    # scale; inline clabels here collided with the numeric callout boxes.
+    ax.contour(F, D, R, levels=[0.05, 0.10, 0.15, 0.20, 0.25],
+               colors=[GREY], linewidths=0.8, alpha=0.7)
 
     # crossover boundary: f = 1 - delta/p  <=>  delta = p(1-f)
     f_bound = np.linspace(0.04, 0.16, 100)
@@ -127,7 +128,7 @@ def frontier_figure():
         ax.plot(f0, d0, marker=marker, color=SHIPRED, ms=ms, zorder=5,
                  markeredgecolor='white', markeredgewidth=0.8)
         ax.annotate(label, xy=(f0, d0), xytext=(f0 + dx, d0 + dy),
-                    fontsize=7.8, ha='left', va='center',
+                    fontsize=8.2, ha='left', va='center',
                     bbox=dict(boxstyle='round,pad=0.3', facecolor='white',
                               edgecolor=SHIPRED, alpha=0.95, linewidth=0.9),
                     arrowprops=dict(arrowstyle='->', color=SHIPRED, lw=1.0))
