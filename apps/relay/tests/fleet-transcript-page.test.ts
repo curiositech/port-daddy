@@ -132,6 +132,32 @@ describe('handleFleetRunTranscriptPage', () => {
     expect(await res.text()).toContain('attempt 1');
   });
 
+  it('survives corrupt envelopes: wrong-typed content counts as malformed; garbage usage/chunk render without invented metrics', async () => {
+    const corrupt =
+      [
+        turn({ seq: 0 }),
+        turn({ seq: 1, content: 'not-an-array' }),
+        turn({ seq: 2, content: { type: 'text', text: 'object-not-array' } }),
+        turn({ seq: 3, usage: { prompt: 'NaN', completion: 20 } }),
+        turn({ seq: 4, chunk: { index: 'x', count: 2 } }),
+      ]
+        .map(t => JSON.stringify(t))
+        .join('\n') + '\n';
+    const res = await handleFleetRunTranscriptPage(
+      req(`/fleet/runs/${RUN_ID}/transcript/qa`, AUTH),
+      makeEnv({ 'v1/run/qa.2.jsonl': corrupt }),
+      RUN_ID,
+      'qa',
+    );
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('2 malformed line(s)');
+    expect(html).toContain('id="t3"'); // garbage-usage turn still renders…
+    expect(html).not.toContain('NaN in'); // …but with its metrics dropped, not invented
+    expect(html).toContain('id="t4"');
+    expect(html).not.toContain('object-not-array');
+  });
+
   it('404s on unknown ship, missing object, absent bucket, hostile names', async () => {
     expect(
       (await handleFleetRunTranscriptPage(req(`/fleet/runs/${RUN_ID}/transcript/ghost`, AUTH), env, RUN_ID, 'ghost'))
