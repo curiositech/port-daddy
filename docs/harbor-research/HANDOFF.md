@@ -31,11 +31,13 @@
 | A2 | R3 | Derived regret head / SDT fix | done | 1 | — |
 | B1 | R4 | R(δ,f) frontier + zoom advantage | done (sim + closed form; **theorem statement of zoom bound still needed**) | 1 | b1_frontier.py |
 | B3 | R5 | Hypervisor = RW controllability | done | 2, 4 | b3_controllability.py |
-| sheaf gate | R6 | Cycle-vs-cut verdict | mechanism proved; **statistical harness broken** (§3.3) | 7 | sheaf_mechanism_proof.py |
+| sheaf gate | R6 | Cycle-vs-cut verdict | mechanism proved; harness REBUILT (W8, gates PASS) | 7 | sheaf_mechanism_proof.py, sheaf_harness_v2.py |
 | B2 | R7 | Inspection tower + amortization | done | 3 | b2_tower.py |
 | C0 | R8 | Work-unit machine | done (bounded, 536 states) | 8 | c0_workunit.py |
 | C1 | R9 | Sealed-room noninterference | done (finite, depth 7) | 4 | c1_noninterference.py |
-| A3, A4, A6 | — | ε-ledger; canaries/SPRT; no-mint | **pending** | 4, 5 | — |
+| A3 | R10 | ε-conservation release ledger (exhaustive interleavings; DP seq + advanced composition) | done (W5) | 4 | a3_epsilon_ledger.py |
+| A4 | R11 | Canary power 1−β^k + hypergeometric operating curve + SPRT time-to-detection | done (W5) | 4 | a4_canary_sprt.py |
+| A6 | R12 | No-mint inheritance (transfer semantics; closure-sum phrasing refuted; 8.2× mint caught) | done (W5) | 5 / skill-econ | a6_no_mint.py |
 | B4 | — | Deontic-conflict fragment | pending | 6 | — |
 | B5, B6 | — | Engine substitution; probation cliff | pending | 5 | — |
 | B7, B8, B9 | — | Escalation signaling; specialization boundary; context paging | pending, **unscheduled** (§3.9) | 1-adjacent/6 | — |
@@ -152,3 +154,24 @@ Floor B*(N=60,k=2,m=8)=5.98 bits [V]; disjoint-readers floor 12.77 [V]; ratio 2.
 
 ### 3.9 Unscheduled backlog one-liners (proof paths in Portfolio PDF)
 B7 escalation signaling (single-crossing threshold; tuning band from measured validation rates). B8 specialization boundary (Erlang-C; breakdowns corner prices succession). B9 context paging (Landlord import + linear φ-degradation; φ shared with R1's forgeable-feature budget).
+
+---
+## 4. DELTA v3 (2026-08-19) — PR #7698 reconciled in-session
+- The treatise is now **in-repo and canonical**: sources at `whitepaper/` (legible-swarm, single-writer-kernel) and `website-v2/public/whitepaper/` (five papers + mega volume); the PAPERS table in `scripts/build-whitepapers.sh` is authoritative. W4-style edits target these files; the mega-volume PDF attachment instruction is obsolete.
+- **W4: done-pending-verification** (verification ledger: `pr7698-reconciliation.md`, same directory — corrections table, adjudications, follow-ups F1–F4).
+- **W14: executed in-session** (merge + adjudications + One Spine appendix). The One Spine appendix in the mega volume is now the admission test for any new mechanism: name your theorem family, your developer obligation, your boundary — no row, no feature.
+- **Proof debt is now blocking**: A3/A4 (asserted in the volume's cleanroom theorem), B5, B7, B8, B9; B6 discharged-as-sketch. **Revised wave order: W5 → W6 → W13 → W1–W3 → W8 → W9/W10.**
+- New tacit datum for the results skill: the duplicate-generator collision (#6368 vs #7698) — an unfiled exact-key claim conflict inside the project's own repo.
+
+---
+## 5. DELTA v4 (2026-08-23) — #9450 omnibus, artifact rescue, next-session plan
+- **Merged head under review:** the reconciliation (24052b84d) is pushed to `purser/pr-7278-tests` = PR **#9450**, now the omnibus publish vehicle. CI is red on that head with three diagnosed causes; the fix list and full resume plan live in `docs/harbor-research/plan-2026-08-23-merge-and-resume.md` (Part 0 = land #9450; Parts 1–7 = resume the program in ledger wave order W5 → W6 → W13 → W1–W3 → W8 → lifts).
+- **F4 partially discharged:** `pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (the W8-gating artifact — experiment matrix, Stage-1 COMMIT/CUT gates, three theorem candidates) and `pdf/The-Harbor-After-the-Harbor.pdf` (the rigor review behind doc1's adjudications; correctness audit + full exercise solution key + build sequence) are now committed, user-supplied renders. Only the theorem-proving-stack SotA report remains extract-only (§3.2).
+- **New stale-mechanization finding (fix before arXiv/publicity):** CI's `proofs.yml` still green-gates the VOID δ*≈0.2531 game — `proofs/economics/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says "IC holds at δ=0.26". Sync all surfaces together (plan Part 2). Also: B6's "0/4000 dominating schedules" number has NO generating script anywhere — write it.
+- **Note:** §0's "PDFs are intentionally NOT committed" is stale — commit bfc49dda1 committed all nine analysis PDFs (plus these two rescues); README.md:4 has the same stale line.
+
+---
+## 6. DELTA v5 (2026-08-24) — W5 + W8-core executed
+- **W5 done**: A3 (R10), A4 (R11), A6 (R12) — scripts + Execution Report #4 (`tex/exec4.tex`, Makefile TEXS updated), compendium/SKILL entries added. A6's portfolio phrasing was REFUTED by the sweep (γ>1/2 full-weight chains mint under budgets-without-debit; closure sum 2.44>1) and restated with transfer semantics — the sweep-first discipline locating the correct statement again. With A3/A4 executed, mega-volume `thm:cleanroom` claims 2–3 are upgradeable from "short and scheduled" (follow-up tex edit, appendices ~line 211).
+- **W8 core done**: `sheaf_harness_v2.py` — completion-residual detector; pre-registered gates PASS, verdict COMMIT. Key design finding: the spec's "uncompared" conflated RELAYED (reports gossiped, check never ran — detectable on cycles) with SEVERED (no data — free block, provably dark); the three-tier visibility model (compared/relayed/severed) is now the observability contract for Paper 7. D1/D2 reintroduction mutants caught; cut edges silent at float epsilon; v1's cut-edge "detections" confirmed as D2 artifacts. Consistency-radius theorem + Paper 7 assembly remain (W8 tail).
+- **Proof debt after W5**: blocking before arXiv: **B5, B7, B8, B9**; B6 discharged-as-sketch. Wave order: W6 → W13 → W1–W3 → W8-tail → W9/W10.

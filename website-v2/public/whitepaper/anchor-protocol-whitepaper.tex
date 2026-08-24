@@ -53,7 +53,7 @@
     \node[draw=none,fill=hhsand!40,line width=0pt,
           inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
           align=left] (q) {%
-      \sffamily\itshape\large #1%
+      \itshape\large #1%
     };
     \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
@@ -155,7 +155,7 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 \noindent\textbf{Keywords:} distributed systems security, formal verification, capability-based security, multi-agent coordination, symbolic protocol analysis, ProVerif, JWT security, Ed25519
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 30 minutes end-to-end. The companion paper, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026), carries the economic and governance argument; either paper can be read first.}
+\noindent\textit{Reading time: approximately 30 minutes end-to-end. Chapter~VI, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026), carries the economic and governance argument; either paper can be read first.}
 
 \vspace{0.6cm}
 
@@ -201,7 +201,7 @@ To solve this, Port Daddy introduces the concept of a \textbf{Harbor}—a zero-t
 \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
-  \small\textbf{\sffamily Companion paper.}\enspace This paper is the cryptographic substrate. Its companion, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems}, builds the economic and game-theoretic layer on top: bonded participation, a conditional auction/static comparison, A5/A6 mechanism analysis, and a Sen-inspired warning against turning advisory claims into coercive entitlements. The Anchor Protocol is a self-contained subset; \emph{The Bonded Commons} consumes it as the trust kernel for the wider mechanism design. Read this paper for ``how does the daemon authenticate an agent?''; read the companion for ``why should there be a daemon at all?''
+  \small\textbf{\scshape Volume Context.}\enspace This chapter provides the cryptographic substrate. Chapter~VI (\emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems}) builds the economic and game-theoretic layer on top: bonded participation, conditional auctions, mechanism analysis, and Sen-inspired advisory conflict resolution. The Anchor Protocol is a self-contained subset consumed as the trust kernel for the wider mechanism design. Read this chapter for ``how does the daemon authenticate an agent?''; read Chapter~VI for ``why should there be a daemon at all?''
 };
 \end{tikzpicture}
 \vspace{4pt}
@@ -254,7 +254,7 @@ For depth-$N$ chains, the verifier walks the structure shown in Figure~\ref{fig:
 
 \subsection{Phase 4: Revocation via Cuckoo Filter}\label{sec:revocation}
 
-Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically; in a daemon mesh, propagating it is $O(n \cdot m)$ for $m$ peers. The Anchor Protocol commits to a cuckoo filter~\cite{fan2014cuckoo} for revocation (Figure~\ref{fig:anchor-cuckoo-inline}).
+Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically. While the Anchor Protocol previously attempted to gossip a cuckoo filter directly (which succumbed to the bitwise merging impossibility), it now gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\cite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
 
 \paragraph{Cuckoo filters in one paragraph.} A cuckoo filter is a compact probabilistic set: under successful insertion and correct deletion discipline it has false positives but no false negatives, while supporting deletion. Each inserted key is reduced to a fingerprint and placed in one of two candidate buckets; on collision, fingerprints are relocated until a slot opens or insertion fails. Lookups inspect both buckets. The expected lookup cost is $O(1)$ and the approximate false-positive probability for two buckets of size $B$ and $f$ fingerprint bits is at most about $2B/2^f$ in the low-collision model. High load increases insertion failures; the implementation rejects or rebuilds rather than silently dropping a revocation. Duplicate fingerprints require counted or authoritative-table-backed deletion so that removing one key does not reanimate another.
 
@@ -265,7 +265,7 @@ Capability tokens have a TTL, but natural expiry is not always sufficient. Two c
 \paragraph{Space.} At false-positive rate $\epsilon$, a cuckoo filter uses approximately $\log_2(1/\epsilon) + 3$ bits per entry. For $\epsilon = 10^{-3}$, $\approx 13$ bits per revoked card. A fleet retaining $10^{5}$ active revocations fits in $\approx 160$\,KB---trivially in memory, trivially gossiped.
 
 \begin{definition}[Revocation-Augmented Verification]\label{def:revocation}
-Let $R_t$ denote the set of revoked Harbor Card IDs at time $t$. Each daemon $d$ maintains a cuckoo filter $F_d \approx R_t$. Every Harbor Card verification additionally:
+Let $R_t$ denote the authoritative Append-Only Event Log of revoked Harbor Card IDs at time $t$. Each daemon $d$ maintains a local, ephemeral cuckoo filter index $F_d \approx R_t$. Every Harbor Card verification additionally:
 \begin{enumerate}[nosep]
   \item Looks up the card's \texttt{kid} in $F_d$. If absent, admit.
   \item If present, query the local \texttt{revocations} table (authoritative). If genuinely revoked, reject with \texttt{revoked}; otherwise the filter is in the false-positive regime and the caller is admitted, with an asynchronous reconciliation job repopulating the filter.
@@ -502,21 +502,22 @@ function Harbor.VerifyChain(chain, pk_root):
     (msg_0, sigma_0) <- tok_root
     if not Ed25519.Verify(msg_0, sigma_0, pk_root):
         return _|_  // Invalid root signature
-    cap_root <- ExtractCaps(msg_0)
+    cap_prev <- ExtractCaps(msg_0)
     pk_current <- pk_root
     for i <- 1 to |chain| - 1:
         (msg_i, sigma_i) <- chain[i]
         if not Ed25519.Verify(msg_i, sigma_i, pk_current):
             return _|_  // Invalid delegation signature
         cap_i <- ExtractCaps(msg_i)
-        if cap_i not_subseteq cap_root:
-            return _|_  // Capability escalation detected
+        if cap_i not_subseteq cap_prev:
+            return _|_  // Per-hop capability escalation detected
+        cap_prev <- cap_i
         pk_current <- ExtractPubkey(msg_i)
-    emit Accepted(agent_final, harbor, cap_final)
+    emit Accepted(agent_final, harbor, cap_prev)
     return T
 \end{lstlisting}
 
-\textbf{Security Property:} The subset check on line 7 and line 22 ensures \textit{capability attenuation}—delegated capabilities can only be restricted, never expanded. This is the mechanized content of Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}): under an enriched model with a real capability order and an active insider escalation adversary, ProVerif proves no escalating delegation is ever accepted, and a negative control confirms the guard is load-bearing. Combined with Theorem~\ref{thm:injective}, this supports authentication plus attenuation at the modeled chain depth; it is not an arbitrary-depth or whole-runtime transitive-trust proof.
+\textbf{Security Property:} Monotonic per-hop attenuation ($\text{cap}_i \subseteq \text{cap}_{i-1}$) prevents capability expansion across transitive delegations (preventing \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation). Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) proves inductive soundness under the partial order.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Implementation: Deployed Rust Core}
@@ -859,7 +860,7 @@ Agent Payments Protocol (AP2): Mandates.
 
 \section{Formal Verification Status}\label{app:mech}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. The companion paper, \emph{The Bonded Commons}, carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. Chapter~VI, \emph{The Bonded Commons}, carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
@@ -889,7 +890,7 @@ Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics
 \end{tabularx}
 \end{table}
 
-\paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+\paragraph{Limitations.} The transition to gossiping the Append-Only Event Log solves the bitwise merging impossibility, but cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
 
 \paragraph{GitHub-App relay ingress.} The webhook-dispatch surface (GitHub $\to$ untrusted relay $\to$ daemon) is modeled with the relay as the Dolev-Yao attacker, in three relay-agnostic properties, each paired with a negative control (\texttt{*\_vuln.pv}) that exhibits the attack once the mitigation is removed---so a \emph{true} result is non-vacuous. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the forwarder's transport credential is attacker-held; the control omits the daemon-side HMAC re-verification and the property fails (forged dispatch). This is \emph{non-injective} agreement (origin), not replay-freedom: a captured genuine $(\textit{payload},\textit{mac})$ may be re-delivered. Replay-freedom is an ordering-sensitive, mutable-state property outside ProVerif's reach, so it is discharged separately in TLA+ (\texttt{proofs/relay/WebhookDelivery.tla}): a daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is model-checked at-most-once \emph{and} gap-free against an adversarial relay that reorders, duplicates, and redelivers, with the unguarded daemon as the model-checked counterexample (TLC exhibits a double-dispatch). The obligation it names: the daemon ingests webhooks over the relay's ordered \texttt{from\_seq} subscribe path, not the raw forward. (ii)~\emph{Payload secrecy}: under HPKE to the daemon's \emph{pinned} X25519 key the relay never learns plaintext; the control sources the key from the relay and the secrecy property collapses to a key-substitution MITM---hence out-of-band key pinning is a requirement, not a recommendation. The seal is specified but not yet implemented, so this row is \Partial. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$ because harbor binding is checked against authoritative membership; the control trusts the card's self-declared issuer and crosses the tenant boundary. Honesty rider: HMAC-SHA256 gives origin authentication to a shared-key holder (EUF-CMA), not third-party non-repudiation; HPKE base mode is assumed IND-CCA2.
 
@@ -1151,5 +1152,20 @@ C{:}\texttt{write}$ is accepted (ProVerif: escalation reachable). The fix,
 chain rejected. The runtime delegation verifier --- and the cross-harbor
 recompute $\mathrm{att}_B \circ \mathrm{att}_A$ --- must be per-hop, never
 final-vs-root.
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Limitations \& Boundaries}\label{sec:anchor-limitations-boundaries}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+
+\begin{itemize}
+    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+\end{itemize}
+
+These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}

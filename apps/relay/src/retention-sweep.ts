@@ -212,6 +212,13 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'web_sessions(erased)',
   );
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'user_roles(erased)',
+  );
   // Defensive: eraseUser already purged the account's Shipwright chats at
   // delete time; this catches rows soft-deleted users somehow still own so the
   // hard-delete below never orphans conversation content.
