@@ -474,6 +474,7 @@ function cloudPeerDaemonEnv(
     PORT_DADDY_DB: `${root}/registry.db`,
     PORT_DADDY_PREFIX: root,
     PORT_DADDY_SOCK: `${root}/port-daddy.sock`,
+    PORT_DADDY_PID_FILE: `${root}/daemon.pid`,
     PORT_DADDY_PORT_FILE: `${root}/daemon.port`,
     PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
     PORT_DADDY_NO_FLEET: '1',
@@ -503,12 +504,31 @@ function cloudPeerClientEnv(
   };
 }
 
-/** Accept one strict daemon-published TCP port and reject mixed stdout. */
-export function parseSandboxDaemonPublication(output: string): number | null {
-  const value = output.trim();
-  if (!/^[0-9]+$/.test(value)) return null;
-  const port = Number(value);
-  return Number.isSafeInteger(port) && port >= 1 && port <= 65535 ? port : null;
+export interface SandboxDaemonPublication {
+  port: number;
+  pid: number;
+}
+
+/** Accept only a generation-consistent daemon publication and reject mixed stdout. */
+export function parseSandboxDaemonPublication(
+  output: string,
+): SandboxDaemonPublication | null {
+  try {
+    const value = JSON.parse(output.trim()) as Record<string, unknown>;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    if (Object.keys(value).sort().join(',') !== 'pid,port') return null;
+    const { port, pid } = value;
+    if (
+      typeof port !== 'number'
+      || !Number.isSafeInteger(port)
+      || port < 1
+      || port > 65535
+    ) return null;
+    if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid < 1) return null;
+    return { port, pid };
+  } catch {
+    return null;
+  }
 }
 
 /** Accept one strict positive room cursor and reject mixed stdout. */
@@ -522,17 +542,36 @@ export function parseSandboxCoordinationCursor(output: string): number | null {
 function cloudPeerPublicationProbeCommand(root: string): string {
   const script = [
     "const fs = require('node:fs');",
-    `const path = ${JSON.stringify(`${root}/daemon.port`)};`,
+    `const portPath = ${JSON.stringify(`${root}/daemon.port`)};`,
+    `const pidPath = ${JSON.stringify(`${root}/daemon.pid`)};`,
+    'const readStrictInt = (path, max) => {',
+    "  const text = fs.readFileSync(path, 'utf8');",
+    '  const raw = text.trim();',
+    "  if (!/^[0-9]+$/.test(raw)) throw new Error('invalid publication');",
+    '  const value = Number(raw);',
+    "  if (!Number.isSafeInteger(value) || value < 1 || value > max) throw new Error('invalid publication');",
+    '  return { text, value };',
+    '};',
     'let attempts = 0;',
-    'const poll = () => {',
+    'const poll = async () => {',
     '  try {',
-    "    const value = fs.readFileSync(path, 'utf8').trim();",
-    "    if (/^[0-9]+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535) { process.stdout.write(value + '\\n'); process.exit(0); }",
+    '    const portBefore = readStrictInt(portPath, 65535);',
+    '    const pidBefore = readStrictInt(pidPath, Number.MAX_SAFE_INTEGER);',
+    "    const response = await fetch('http://127.0.0.1:' + portBefore.value + '/health');",
+    '    const health = await response.json();',
+    '    const portAfter = readStrictInt(portPath, 65535);',
+    '    const pidAfter = readStrictInt(pidPath, Number.MAX_SAFE_INTEGER);',
+    "    if (response.ok && health.status === 'ok' && health.pid === pidBefore.value",
+    '      && health.daemon && health.daemon.port === portBefore.value',
+    '      && portAfter.text === portBefore.text && pidAfter.text === pidBefore.text) {',
+    "      process.stdout.write(JSON.stringify({ port: portBefore.value, pid: pidBefore.value }) + '\\n');",
+    '      process.exit(0);',
+    '    }',
     '  } catch {}',
-    "  if (++attempts >= 120) { console.error('daemon endpoint was not published'); process.exit(1); }",
+    "  if (++attempts >= 120) { console.error('daemon identity did not converge'); process.exit(1); }",
     '  setTimeout(poll, 250);',
     '};',
-    'poll();',
+    'void poll();',
   ].join('\n');
   return `node -e ${shq(script)}`;
 }
@@ -837,18 +876,19 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         'SANDBOX startProcess returned no controllable daemon handle',
       );
     }
-    const writerPublication = await sandbox.exec(cloudPeerPublicationProbeCommand(CLOUD_PEER_ROOT), {
+    const writerPublicationResult = await sandbox.exec(cloudPeerPublicationProbeCommand(CLOUD_PEER_ROOT), {
       cwd: REPOSITORY_ROOT,
     });
-    const writerPort = execPassed(writerPublication)
-      ? parseSandboxDaemonPublication(writerPublication.stdout ?? '')
+    const writerPublication = execPassed(writerPublicationResult)
+      ? parseSandboxDaemonPublication(writerPublicationResult.stdout ?? '')
       : null;
-    if (!writerPort) {
+    if (!writerPublication) {
       return notExecuted(
-        'cloud pd daemon started but did not publish a valid TCP endpoint',
-        combinedOutput(writerPublication),
+        'cloud pd writer started but did not publish a converged runtime identity',
+        combinedOutput(writerPublicationResult),
       );
     }
+    const writerPort = writerPublication.port;
     await daemonProcess.waitForPort(writerPort, { path: '/health' });
     const writerClientEnv = cloudPeerClientEnv(writerPort);
     const identity = coordinationPeer.actorId;
@@ -932,18 +972,19 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         'SANDBOX startProcess returned no controllable witness daemon handle',
       );
     }
-    const witnessPublication = await sandbox.exec(cloudPeerPublicationProbeCommand(CLOUD_PEER_WITNESS_ROOT), {
+    const witnessPublicationResult = await sandbox.exec(cloudPeerPublicationProbeCommand(CLOUD_PEER_WITNESS_ROOT), {
       cwd: REPOSITORY_ROOT,
     });
-    const witnessPort = execPassed(witnessPublication)
-      ? parseSandboxDaemonPublication(witnessPublication.stdout ?? '')
+    const witnessPublication = execPassed(witnessPublicationResult)
+      ? parseSandboxDaemonPublication(witnessPublicationResult.stdout ?? '')
       : null;
-    if (!witnessPort) {
+    if (!witnessPublication) {
       return notExecuted(
-        'fresh cloud pd witness did not publish a valid TCP endpoint',
-        combinedOutput(witnessPublication),
+        'cloud pd witness started but did not publish a converged runtime identity',
+        combinedOutput(witnessPublicationResult),
       );
     }
+    const witnessPort = witnessPublication.port;
     await daemonProcess.waitForPort(witnessPort, { path: '/health' });
     const witnessClientEnv = cloudPeerClientEnv(witnessPort, CLOUD_PEER_WITNESS_ROOT);
     const witnessConvergence = await sandbox.exec(cloudPeerConvergenceProbeCommand(

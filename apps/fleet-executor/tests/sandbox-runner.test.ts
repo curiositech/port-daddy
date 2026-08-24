@@ -56,6 +56,10 @@ function jestSummary(
   return `${JEST_SUMMARY_MARKER}${btoa(JSON.stringify(value))}`;
 }
 
+function daemonPublication(port: number, pid: number): string {
+  return `${JSON.stringify({ port, pid })}\n`;
+}
+
 describe('buildDefaultSandboxTestCommand', () => {
   it('runs only the authored contract paths and shell-quotes each one', () => {
     expect(
@@ -240,9 +244,13 @@ describe('runTestsInSandbox', () => {
         async exec(value: string, received?: Record<string, unknown>) {
           lifecycle.push(`exec:${execCalls.length + 1}`);
           execCalls.push({ command: value, options: received });
-          if (execCalls.length === 3) return { exitCode: 0, stdout: '43123\n', stderr: '' };
+          if (execCalls.length === 3) {
+            return { exitCode: 0, stdout: daemonPublication(43123, 7101), stderr: '' };
+          }
           if (execCalls.length === 5) return { exitCode: 0, stdout: '17\n', stderr: '' };
-          if (execCalls.length === 6) return { exitCode: 0, stdout: '43124\n', stderr: '' };
+          if (execCalls.length === 6) {
+            return { exitCode: 0, stdout: daemonPublication(43124, 7102), stderr: '' };
+          }
           if (execCalls.length === 7) return { exitCode: 0, stdout: '17\n', stderr: '' };
           if (execCalls.length === 8) {
             return { exitCode: 0, stdout: 'CLOUD_PEER_WITNESS_OK session-cloud-peer\n', stderr: '' };
@@ -294,6 +302,13 @@ describe('runTestsInSandbox', () => {
     expect(outcome).toMatchObject({ executed: true, passed: true, outcomeKind: 'passed' });
     expect(execCalls[1].command).toContain('npm run build:bin');
     expect(execCalls[2].command).toContain('/work/pd-peer/daemon.port');
+    expect(execCalls[2].command).toContain('/work/pd-peer/daemon.pid');
+    expect(execCalls[2].command).toContain("'/health'");
+    expect(execCalls[2].command).toContain('health.status ===');
+    expect(execCalls[2].command).toContain('health.pid === pidBefore.value');
+    expect(execCalls[2].command).toContain('health.daemon.port === portBefore.value');
+    expect(execCalls[2].command).toContain('portAfter.text === portBefore.text');
+    expect(execCalls[2].command).toContain('pidAfter.text === pidBefore.text');
     expect(execCalls[3].command).toContain('./dist/port-daddy begin');
     expect(execCalls[3].command).toContain('--lifecycle durable');
     expect(execCalls[3].command).toContain('--files');
@@ -308,6 +323,7 @@ describe('runTestsInSandbox', () => {
     expect(execCalls[4].command).toContain('status.outbox === 0');
     expect(execCalls[4].command).toContain('status.cursor >= minimumCursor');
     expect(execCalls[5].command).toContain('/work/pd-peer-witness/daemon.port');
+    expect(execCalls[5].command).toContain('/work/pd-peer-witness/daemon.pid');
     expect(execCalls[6].command).toContain('http://127.0.0.1:43124/coordination/status');
     expect(execCalls[6].command).toContain('const minimumCursor = 17');
     expect(execCalls[7].command).toContain('sessions');
@@ -332,6 +348,7 @@ describe('runTestsInSandbox', () => {
         PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon-1',
         PORT_DADDY_COORDINATION_REPLICA: expect.stringMatching(/^fleet-peer-[0-9a-f]{24}$/),
         PORT_DADDY_PREFIX: '/work/pd-peer',
+        PORT_DADDY_PID_FILE: '/work/pd-peer/daemon.pid',
         PORT_DADDY_PORT_FILE: '/work/pd-peer/daemon.port',
       },
     });
@@ -341,6 +358,7 @@ describe('runTestsInSandbox', () => {
         PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon-2',
         PORT_DADDY_COORDINATION_REPLICA: expect.stringMatching(/^fleet-peer-[0-9a-f]{24}$/),
         PORT_DADDY_PREFIX: '/work/pd-peer-witness',
+        PORT_DADDY_PID_FILE: '/work/pd-peer-witness/daemon.pid',
         PORT_DADDY_PORT_FILE: '/work/pd-peer-witness/daemon.port',
       },
     });
@@ -448,9 +466,9 @@ describe('runTestsInSandbox', () => {
         sandboxBinding: {
           async exec() {
             calls += 1;
-            if (calls === 3) return { exitCode: 0, stdout: '43123\n' };
+            if (calls === 3) return { exitCode: 0, stdout: daemonPublication(43123, 7201) };
             if (calls === 5) return { exitCode: 0, stdout: '17\n' };
-            if (calls === 6) return { exitCode: 0, stdout: '43124\n' };
+            if (calls === 6) return { exitCode: 0, stdout: daemonPublication(43124, 7202) };
             if (calls === 7) return { exitCode: 0, stdout: '17\n' };
             if (calls === 8) return { exitCode: 0, stdout: 'CLOUD_PEER_WITNESS_OK session-cloud-peer\n' };
             return calls === 9
@@ -529,9 +547,9 @@ describe('runTestsInSandbox', () => {
       sandboxBinding: {
         async exec() {
           calls += 1;
-          if (calls === 3) return { exitCode: 0, stdout: '43123\n' };
+          if (calls === 3) return { exitCode: 0, stdout: daemonPublication(43123, 7301) };
           if (calls === 5) return { exitCode: 0, stdout: '17\n' };
-          if (calls === 6) return { exitCode: 0, stdout: '43124\n' };
+          if (calls === 6) return { exitCode: 0, stdout: daemonPublication(43124, 7302) };
           if (calls === 7) return { exitCode: 0, stdout: '17\n' };
           if (calls === 8) return { exitCode: 0, stdout: 'CLOUD_PEER_WITNESS_OK session-cloud-peer\n' };
           if (calls === 9) throw new Error('sandbox test transport lost');
@@ -572,9 +590,9 @@ describe('runTestsInSandbox', () => {
       sandboxBinding: {
         async exec() {
           calls += 1;
-          if (calls === 3) return { exitCode: 0, stdout: '43123\n' };
+          if (calls === 3) return { exitCode: 0, stdout: daemonPublication(43123, 7401) };
           if (calls === 5) return { exitCode: 0, stdout: '17\n' };
-          if (calls === 6) return { exitCode: 0, stdout: '43124\n' };
+          if (calls === 6) return { exitCode: 0, stdout: daemonPublication(43124, 7402) };
           if (calls === 7) return { exitCode: 0, stdout: '17\n' };
           return { exitCode: 0, stdout: '' };
         },
@@ -613,11 +631,17 @@ describe('cloud coordination bootstrap', () => {
     runId: 'run:delivery-123',
   };
 
-  it('accepts only strict published ports and positive room cursors', () => {
-    expect(parseSandboxDaemonPublication('43123\n')).toBe(43123);
-    expect(parseSandboxDaemonPublication('43123 trailing')).toBeNull();
-    expect(parseSandboxDaemonPublication('0')).toBeNull();
-    expect(parseSandboxDaemonPublication('65536')).toBeNull();
+  it('accepts only strict runtime identities and positive room cursors', () => {
+    expect(parseSandboxDaemonPublication(daemonPublication(43123, 7501))).toEqual({
+      port: 43123,
+      pid: 7501,
+    });
+    expect(parseSandboxDaemonPublication('43123\n')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":43123}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":0,"pid":7501}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":65536,"pid":7501}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":43123,"pid":0}')).toBeNull();
+    expect(parseSandboxDaemonPublication('{"port":43123,"pid":7501,"extra":true}')).toBeNull();
     expect(parseSandboxCoordinationCursor('17\n')).toBe(17);
     expect(parseSandboxCoordinationCursor('0')).toBeNull();
     expect(parseSandboxCoordinationCursor('17 stale')).toBeNull();
