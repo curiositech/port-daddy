@@ -24,7 +24,7 @@ OUT = '/home/user/port-daddy/docs/harbor-research/figures'
 
 
 def create_relation_map():
-    fig, ax = plt.subplots(figsize=(12, 7.6), dpi=150)
+    _, ax = plt.subplots(figsize=(12, 7.6), dpi=150)
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 10.6)
     ax.axis('off')
@@ -88,7 +88,7 @@ def erlang_c(c, rho):
 
 
 def create_regime_diagram():
-    fig, (axA, axB) = plt.subplots(1, 2, figsize=(12, 5), dpi=150)
+    _, (axA, axB) = plt.subplots(1, 2, figsize=(12, 5), dpi=150)
 
     # Panel A: exact g(rho,2) vs falsified g-tilde
     rho = np.linspace(0.02, 0.92, 300)

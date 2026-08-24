@@ -257,10 +257,11 @@ the box also explains the program's recorded wrong turn: the naive decomposition
 1/(\mu_{\mathrm{eff}}-\lambda) + W_\infty$ is refuted (it predicts $4.17$ where the truth is $8.17$ at the canary instance
 $\mu_s{=}5$, $\xi{=}0.5$), because downtime also \emph{builds queue}: the residual is amplified by
 $\mu_{\mathrm{eff}}/(\mu_{\mathrm{eff}}-\lambda) = 2.5$ there, and $1.5 + 2.5\times2.667 = 8.17$ checks by hand [verified
-arithmetic; refutation internal]. \emph{Now you try:} at the reference instance, is a sole owner with a same-day succession plan
-($\eta=2$, so $K$ recomputed with the same pool: $\eta K \approx 2\times1.0362 > 1$) ever capped? (No: $\eta K>1$ makes
-$D^\star=\infty$ --- a fast enough succession plan removes the viability ceiling entirely, leaving only the Theorem-2 premium
-test. That is what a succession plan \emph{buys}.)
+arithmetic; refutation internal]. Panel B of Figure~\ref{fig:regime} draws exactly this geometry: the floor $W_\infty$ crossing
+the pool cost line at $D^\star$. \emph{Now you try:} at the reference instance, is a sole owner with a same-day succession plan
+($\eta=2$; $K$ is unchanged at $1.0362$, so $\eta K = 2.07 > 1$) ever capped? (No: $\eta K \ge 1$ makes $D^\star=\infty$ --- a
+fast enough succession plan removes the viability ceiling entirely, leaving only the Theorem-2 premium test. That is what a
+succession plan \emph{buys}.)
 
 The implementation hazard is also priced. A cost model that forgets breakdowns entirely (plain $M/M/1$) is caught by the
 high-$\xi$ canary: at $\xi/\eta=2 \gg D^\star$, the mutant says SPECIALIST while simulation says the pool wins decisively
