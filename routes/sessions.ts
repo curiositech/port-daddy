@@ -136,13 +136,15 @@ interface SessionsRouteDeps {
    * another soul's name (403). Anonymous writes (no identity claim at all)
    * remain possible only where the route accepts unattributed writes.
    */
-  actorSouls?: IdentityVerifier | null;
+  actorSouls?: (IdentityVerifier & {
+    constants?: { defaultHarbor?: string };
+  }) | null;
   /**
    * Explicit G2/C1 injection boundary. Production server wiring remains absent
    * until the U0 authenticated actions, U1 operator surface, and Q1 gates pass.
    */
   parleyAutoTrigger?: {
-    evaluate(signal: ConflictSignal, context?: { harbor?: string }): ParleyAutoTriggerResult;
+    evaluate(signal: ConflictSignal, context: { harbor: string }): ParleyAutoTriggerResult;
   } | null;
 }
 
@@ -316,7 +318,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         });
         return;
       }
-      const result = parleyAutoTrigger.evaluate(signal, { harbor: 'fleet' });
+      const harbor = actorSouls?.constants?.defaultHarbor?.trim();
+      if (!harbor) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'automatic Parley requires the actor identity store canonical harbor',
+        });
+        return;
+      }
+      const result = parleyAutoTrigger.evaluate(signal, { harbor });
       if (result.state === 'failed') {
         logger.error('parley_auto_trigger_failed', {
           signalId: signal.signalId,

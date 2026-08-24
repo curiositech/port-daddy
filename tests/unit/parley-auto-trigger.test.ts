@@ -12,6 +12,7 @@ import {
   PARLEY_TRIGGER_BY_KIND,
 } from '../../lib/parley-auto-trigger.js';
 import { createParley } from '../../lib/parley.js';
+import { asActorId } from '../../lib/actor-souls.js';
 import {
   conflictSignalId,
   CONFLICT_SIGNAL_PRODUCERS,
@@ -65,6 +66,15 @@ function automaticSignal(overrides: Partial<ConflictSignal> = {}): ConflictSigna
   };
 }
 
+function liveParticipant(actorId: string, inboxTarget = actorId) {
+  return {
+    actorId: asActorId(actorId),
+    inboxTarget,
+    sessionId: `session:${actorId}`,
+    lineageRootSessionId: `session:${actorId}`,
+  };
+}
+
 describe('durable automatic Parley trigger', () => {
   let db: ReturnType<typeof createTestDb>;
   let tuples: ReturnType<typeof createTupleSpace>;
@@ -87,14 +97,23 @@ describe('durable automatic Parley trigger', () => {
   function service(
     tupleSpace = tuples,
     parleyService = parley,
-  ): ReturnType<typeof createParleyAutoTrigger> {
-    return createParleyAutoTrigger({
+  ) {
+    const trigger = createParleyAutoTrigger({
       tuples: tupleSpace,
       parley: parleyService,
       activityLog,
       now: () => clock,
-      resolveLiveAgent: (agentId) => live.has(agentId) ? agentId : null,
+      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
     });
+    return {
+      ...trigger,
+      evaluate(
+        candidate: ConflictSignal,
+        context: { harbor: string } = { harbor: 'fleet' },
+      ) {
+        return trigger.evaluate(candidate, context);
+      },
+    };
   }
 
   function internalFields(kind: string): unknown[][] {
@@ -122,6 +141,20 @@ describe('durable automatic Parley trigger', () => {
     });
   });
 
+  test('fails closed without an explicit canonical harbor', () => {
+    const trigger = createParleyAutoTrigger({
+      tuples,
+      parley,
+      activityLog,
+      now: () => clock,
+      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
+    });
+
+    expect((trigger.evaluate as unknown as (signal: ConflictSignal) => unknown)(automaticSignal()))
+      .toMatchObject({ state: 'failed', reason: expect.stringMatching(/explicit canonical harbor/) });
+    expect(internalFields('parley:auto:reservation')).toHaveLength(0);
+  });
+
   test('fires once and reconciles replay through a second service instance', () => {
     const signal = automaticSignal();
     const first = service().evaluate(signal, { harbor: 'port-daddy' });
@@ -147,6 +180,61 @@ describe('durable automatic Parley trigger', () => {
     expect(tuples.rd(['parley:summons', first.parleyId, '*', '*'], { harbor: 'port-daddy' })).toHaveLength(2);
     expect(inbox.list('agent-a').messages).toHaveLength(1);
     expect(inbox.list('agent-b').messages).toHaveLength(1);
+  });
+
+  test('keeps canonical actors distinct from daemon inbox targets', () => {
+    const trigger = createParleyAutoTrigger({
+      tuples,
+      parley,
+      activityLog,
+      now: () => clock,
+      resolveLiveParty: (actorId) => liveParticipant(actorId, `spawned:${actorId}`),
+    });
+
+    const result = trigger.evaluate(automaticSignal(), { harbor: 'fleet' });
+    const stored = parley.getAutomatic(automaticSignal().signalId, 'fleet')?.parley;
+
+    expect(result.state).toBe('fired');
+    expect(stored?.parties).toEqual(['agent-a', 'agent-b']);
+    expect(stored?.automatic?.participants).toEqual([
+      {
+        actorId: 'agent-a',
+        inboxTarget: 'spawned:agent-a',
+        sessionId: 'session:agent-a',
+        lineageRootSessionId: 'session:agent-a',
+      },
+      {
+        actorId: 'agent-b',
+        inboxTarget: 'spawned:agent-b',
+        sessionId: 'session:agent-b',
+        lineageRootSessionId: 'session:agent-b',
+      },
+    ]);
+    expect(inbox.list('agent-a').messages).toHaveLength(0);
+    expect(inbox.list('spawned:agent-a').messages).toHaveLength(1);
+    expect(inbox.list('spawned:agent-b').messages).toHaveLength(1);
+  });
+
+  test('refuses two actors resolved to one daemon session or inbox target', () => {
+    const trigger = createParleyAutoTrigger({
+      tuples,
+      parley,
+      activityLog,
+      now: () => clock,
+      resolveLiveParty: (actorId) => ({
+        ...liveParticipant(actorId),
+        inboxTarget: 'shared-agent',
+        sessionId: 'shared-session',
+      }),
+    });
+
+    const result = trigger.evaluate(automaticSignal(), { harbor: 'fleet' });
+
+    expect(result).toMatchObject({
+      state: 'suppressed',
+      reason: expect.stringMatching(/two distinct live daemon agent identities/),
+    });
+    expect(parley.list({ harbor: 'fleet' })).toHaveLength(0);
   });
 
   test('suppresses a new evidence signal inside the evidence-free lineage cooldown', () => {
@@ -420,11 +508,11 @@ describe('durable automatic Parley trigger', () => {
       parley: createParley({ tuples: createTupleSpace(db), agentInbox: inbox, now: () => clock }),
       activityLog,
       now: () => clock,
-      resolveLiveAgent: (agentId) => live.has(agentId) ? agentId : null,
+      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
     }).evaluate(automaticSignal({
       surface: 'lib/overflow.ts',
       evidenceRefs: ['claim:overflow:a', 'claim:overflow:b'],
-    }));
+    }), { harbor: 'fleet' });
 
     expect(capped.state).toBe('suppressed');
     expect(capped.reason).toMatch(/global cap 32/);
@@ -460,7 +548,7 @@ describe('durable automatic Parley trigger', () => {
         tuples: tuplesB,
         parley: parleyB,
         now: () => clock,
-        resolveLiveAgent: (agentId) => live.has(agentId) ? agentId : null,
+        resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
       });
       let raced: ReturnType<typeof triggerB.evaluate> | null = null;
       const interleavingParley = {
@@ -474,7 +562,7 @@ describe('durable automatic Parley trigger', () => {
         tuples: tuplesA,
         parley: interleavingParley,
         now: () => clock,
-        resolveLiveAgent: (agentId) => live.has(agentId) ? agentId : null,
+        resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
       });
 
       const winner = triggerA.evaluate(signalA, { harbor: 'race' });
@@ -507,11 +595,11 @@ describe('durable automatic Parley trigger', () => {
       tuples: indexedOnlyTuples,
       parley: indexedParley,
       now: () => clock,
-      resolveLiveAgent: (agentId) => live.has(agentId) ? agentId : null,
+      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
     });
     const signal = automaticSignal();
 
-    const result = trigger.evaluate(signal);
+    const result = trigger.evaluate(signal, { harbor: 'fleet' });
     expect(result.state).toBe('fired');
     expect(indexedParley.getAutomatic(signal.signalId, 'fleet')?.parley.parleyId)
       .toBe(result.parleyId);

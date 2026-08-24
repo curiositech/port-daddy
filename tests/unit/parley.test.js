@@ -41,7 +41,16 @@ function automaticInput(overrides = {}) {
   return {
     surface: 'lib/dispatch.ts#run',
     reason: 'two live claims resolve to the same symbol',
-    parties: ['agent-b', 'agent-a'],
+    participants: [
+      {
+        actorId: 'agent-b', inboxTarget: 'agent-b',
+        sessionId: 'session-b', lineageRootSessionId: 'session-b',
+      },
+      {
+        actorId: 'agent-a', inboxTarget: 'agent-a',
+        sessionId: 'session-a', lineageRootSessionId: 'session-a',
+      },
+    ],
     trigger: 'claim_overlap',
     harbor: 'port-daddy',
     automatic: {
@@ -145,6 +154,8 @@ describe('automatic call durability', () => {
       .toThrow(/lifecycle overrides are not accepted/);
     expect(() => automatic.callAutomatic(automaticInput({ roundLimit: 99 })))
       .toThrow(/lifecycle overrides are not accepted/);
+    expect(() => automatic.callAutomatic(automaticInput({ harbor: '' })))
+      .toThrow(/harbor is required/);
   });
 
   test('rejects an automatic call whose durable key differs from its signal identity', () => {
@@ -178,6 +189,16 @@ describe('automatic call durability', () => {
       evidenceRefs: ['claim:a', 'claim:b'],
       confidence: 0.95,
       magnitude: 2,
+      participants: [
+        {
+          actorId: 'agent-a', inboxTarget: 'agent-a',
+          sessionId: 'session-a', lineageRootSessionId: 'session-a',
+        },
+        {
+          actorId: 'agent-b', inboxTarget: 'agent-b',
+          sessionId: 'session-b', lineageRootSessionId: 'session-b',
+        },
+      ],
     });
     expect(tuples.rd(['parley:opened', first.parley.parleyId, '*'], { harbor: 'port-daddy' })).toHaveLength(1);
     expect(tuples.rd(['parley:summons', first.parley.parleyId, '*', '*'], { harbor: 'port-daddy' })).toHaveLength(2);
@@ -196,7 +217,7 @@ describe('automatic call durability', () => {
     const automatic = createParley({ tuples, agentInbox: inbox, now: () => clock });
 
     const partial = automatic.callAutomatic(automaticInput());
-    expect(partial.notificationFailures).toEqual([expect.stringMatching(/^agent-b: Inbox full/)]);
+    expect(partial.notificationFailures).toEqual([expect.stringMatching(/^agent-b via agent-b: Inbox full/)]);
     expect(inbox.list('agent-a').messages).toHaveLength(1);
     inbox.clear('agent-b');
 
@@ -216,15 +237,69 @@ describe('automatic call durability', () => {
     expect(() => automatic.callAutomatic(automaticInput({
       surface: 'lib/other.ts#run',
     }))).toThrow(/different canonical call/);
+    expect(() => automatic.callAutomatic(automaticInput({
+      participants: automaticInput().participants.map((participant, index) => (
+        index === 0 ? { ...participant, inboxTarget: 'replacement-inbox' } : participant
+      )),
+    }))).toThrow(/different canonical call/);
     expect(tuples.rd(['parley:opened', '*', '*'], { harbor: 'port-daddy' })).toHaveLength(1);
   });
 
-  test('aligns automatic key and longest-party bounds with tuple and inbox delivery keys', () => {
+  test('separates canonical actor membership from live inbox delivery on replay', () => {
+    const inbox = createAgentInbox(db);
+    const automatic = createParley({ tuples, agentInbox: inbox, now: () => clock });
+    const input = automaticInput({
+      participants: [
+        {
+          actorId: 'actor-a', inboxTarget: 'spawned-agent-a',
+          sessionId: 'session-a', lineageRootSessionId: 'root-a',
+        },
+        {
+          actorId: 'actor-b', inboxTarget: 'spawned-agent-b',
+          sessionId: 'session-b', lineageRootSessionId: 'root-b',
+        },
+      ],
+    });
+
+    const first = automatic.callAutomatic(input);
+    const replay = automatic.callAutomatic(input);
+
+    expect(first.parley.parties).toEqual(['actor-a', 'actor-b']);
+    expect(first.parley.automatic.participants).toEqual(input.participants);
+    expect(inbox.list('actor-a').messages).toHaveLength(0);
+    expect(inbox.list('spawned-agent-a').messages).toHaveLength(1);
+    expect(inbox.list('spawned-agent-b').messages).toHaveLength(1);
+    expect(replay.replayed).toBe(true);
+    expect(inbox.list('spawned-agent-a').messages).toHaveLength(1);
+  });
+
+  test('rejects duplicate automatic session or inbox identities', () => {
+    const automatic = createParley({ tuples, agentInbox: createAgentInbox(db), now: () => clock });
+    const base = automaticInput().participants;
+
+    expect(() => automatic.callAutomatic(automaticInput({
+      participants: [base[0], { ...base[1], sessionId: base[0].sessionId }],
+    }))).toThrow(/sessionIds must be distinct/);
+    expect(() => automatic.callAutomatic(automaticInput({
+      participants: [base[0], { ...base[1], inboxTarget: base[0].inboxTarget }],
+    }))).toThrow(/inboxTargets must be distinct/);
+  });
+
+  test('aligns automatic key and longest-participant bounds with tuple and inbox delivery keys', () => {
     const automatic = createParley({ tuples, agentInbox: createAgentInbox(db), now: () => clock });
     const longestKey = 'k'.repeat(MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS);
     const longestParty = 'p'.repeat(128);
     const accepted = automatic.callAutomatic(automaticInput({
-      parties: [longestParty, 'agent-b'],
+      participants: [
+        {
+          actorId: longestParty, inboxTarget: longestParty,
+          sessionId: 'session-a', lineageRootSessionId: 'session-a',
+        },
+        {
+          actorId: 'agent-b', inboxTarget: 'agent-b',
+          sessionId: 'session-b', lineageRootSessionId: 'session-b',
+        },
+      ],
       automatic: {
         ...automaticInput().automatic,
         idempotencyKey: longestKey,
@@ -241,8 +316,17 @@ describe('automatic call durability', () => {
       },
     }))).toThrow(/idempotencyKey exceeds/);
     expect(() => automatic.callAutomatic(automaticInput({
-      parties: [`${longestParty}x`, 'agent-b'],
-    }))).toThrow(/party exceeds/);
+      participants: [
+        {
+          actorId: `${longestParty}x`, inboxTarget: 'target-a',
+          sessionId: 'session-a', lineageRootSessionId: 'session-a',
+        },
+        {
+          actorId: 'agent-b', inboxTarget: 'agent-b',
+          sessionId: 'session-b', lineageRootSessionId: 'session-b',
+        },
+      ],
+    }))).toThrow(/participant identity exceeds/);
   });
 });
 

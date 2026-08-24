@@ -8,6 +8,7 @@ import {
 import {
   MAX_TUPLE_IDEMPOTENCY_KEY_CHARS,
 } from './tuples.js';
+import type { ActorId } from './actor-souls.js';
 
 interface TupleSpaceMin {
   out(
@@ -62,6 +63,18 @@ export interface AutomaticParleyMetadata {
   evidenceRefs: string[];
   confidence: number;
   magnitude: number;
+  participants: ParleyParticipant[];
+}
+
+/**
+ * Automatic membership is a daemon-minted actor identity. Inbox delivery is a
+ * separate live-session address and never grants membership by itself.
+ */
+export interface ParleyParticipant {
+  actorId: ActorId;
+  inboxTarget: string;
+  sessionId: string;
+  lineageRootSessionId: string;
 }
 
 export interface ParleyTurn {
@@ -121,10 +134,10 @@ export interface CallParleyInput {
 export interface CallAutomaticParleyInput {
   surface: string;
   reason: string;
-  parties: string[];
+  participants: ParleyParticipant[];
   trigger: Exclude<ParleyTrigger, 'operator'>;
-  harbor?: string;
-  automatic: Omit<AutomaticParleyMetadata, 'callFingerprint'>;
+  harbor: string;
+  automatic: Omit<AutomaticParleyMetadata, 'callFingerprint' | 'participants'>;
 }
 
 export interface CallAutomaticParleyResult {
@@ -186,7 +199,7 @@ export interface ParleyDeps {
   now?: () => number;
 }
 
-const DEFAULT_HARBOR = 'fleet';
+const MANUAL_DEFAULT_HARBOR = 'fleet';
 const DEFAULT_TTL_MS = 60 * 60 * 1000;
 const DEFAULT_ROUND_LIMIT = 3;
 export const AUTOMATIC_PARLEY_DEFAULTS = Object.freeze({
@@ -234,9 +247,65 @@ function hash(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex');
 }
 
-export function automaticParleyId(harbor: string | undefined, idempotencyKey: string): string {
-  const canonicalHarbor = harbor?.trim() || DEFAULT_HARBOR;
+export function automaticParleyId(harbor: string, idempotencyKey: string): string {
+  const canonicalHarbor = harbor?.trim();
+  if (!canonicalHarbor) throw new Error('automaticParleyId: harbor is required');
   return `${AUTOMATIC_PARLEY_ID_PREFIX}${hash([canonicalHarbor, idempotencyKey.trim()]).slice(0, AUTOMATIC_PARLEY_HASH_CHARS)}`;
+}
+
+function canonicalAutomaticParticipants(
+  values: ParleyParticipant[],
+): ParleyParticipant[] {
+  if (!Array.isArray(values)) {
+    throw new Error('parley.callAutomatic: participants are required');
+  }
+  const actorIds = new Set<string>();
+  const inboxTargets = new Set<string>();
+  const sessionIds = new Set<string>();
+  const participants = values.map((raw) => {
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('parley.callAutomatic: participant must be an object');
+    }
+    const actorId = typeof raw.actorId === 'string' ? raw.actorId.trim() : '';
+    const inboxTarget = typeof raw.inboxTarget === 'string' ? raw.inboxTarget.trim() : '';
+    const sessionId = typeof raw.sessionId === 'string' ? raw.sessionId.trim() : '';
+    const lineageRootSessionId = typeof raw.lineageRootSessionId === 'string'
+      ? raw.lineageRootSessionId.trim()
+      : '';
+    if (!actorId || !inboxTarget || !sessionId || !lineageRootSessionId) {
+      throw new Error(
+        'parley.callAutomatic: participant actorId, inboxTarget, sessionId, and lineageRootSessionId are required',
+      );
+    }
+    if (actorId !== raw.actorId
+      || inboxTarget !== raw.inboxTarget
+      || sessionId !== raw.sessionId
+      || lineageRootSessionId !== raw.lineageRootSessionId) {
+      throw new Error('parley.callAutomatic: participant identities must be canonical');
+    }
+    if (actorId.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars
+      || inboxTarget.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars
+      || sessionId.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars
+      || lineageRootSessionId.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars) {
+      throw new Error(
+        `parley.callAutomatic: participant identity exceeds ${CONFLICT_SIGNAL_LIMITS.maxPartyChars} characters`,
+      );
+    }
+    if (actorIds.has(actorId)) {
+      throw new Error('parley.callAutomatic: participant actorIds must be distinct');
+    }
+    if (inboxTargets.has(inboxTarget)) {
+      throw new Error('parley.callAutomatic: participant inboxTargets must be distinct');
+    }
+    if (sessionIds.has(sessionId)) {
+      throw new Error('parley.callAutomatic: participant sessionIds must be distinct');
+    }
+    actorIds.add(actorId);
+    inboxTargets.add(inboxTarget);
+    sessionIds.add(sessionId);
+    return { actorId: actorId as ActorId, inboxTarget, sessionId, lineageRootSessionId };
+  });
+  return participants.sort((a, b) => a.actorId.localeCompare(b.actorId));
 }
 
 function isPerformative(value: string): value is ParleyPerformative {
@@ -272,7 +341,7 @@ export function createParley(deps: ParleyDeps) {
 
     const parleyId = randomUUID();
     const t = now();
-    const harbor = input.harbor ?? DEFAULT_HARBOR;
+    const harbor = input.harbor ?? MANUAL_DEFAULT_HARBOR;
     const parley: ParleyRecord = {
       parleyId,
       surface,
@@ -334,13 +403,11 @@ export function createParley(deps: ParleyDeps) {
     if (!surface) throw new Error('parley.callAutomatic: surface is required');
     const reason = input.reason?.trim();
     if (!reason) throw new Error('parley.callAutomatic: reason is required');
-    const parties = canonicalSet(input.parties ?? []);
-    if (parties.length < 2) throw new Error('parley.callAutomatic: at least two parties are required');
-    if (parties.some((party) => party.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars)) {
-      throw new Error(
-        `parley.callAutomatic: party exceeds ${CONFLICT_SIGNAL_LIMITS.maxPartyChars} characters`,
-      );
+    const participants = canonicalAutomaticParticipants(input.participants);
+    if (participants.length < 2) {
+      throw new Error('parley.callAutomatic: at least two distinct participants are required');
     }
+    const parties = participants.map((participant) => participant.actorId);
     const idempotencyKey = input.automatic?.idempotencyKey;
     const signalId = input.automatic?.signalId;
     if (typeof idempotencyKey !== 'string' || !idempotencyKey.trim()) {
@@ -361,7 +428,8 @@ export function createParley(deps: ParleyDeps) {
       );
     }
     const { ttlMs, roundLimit } = AUTOMATIC_PARLEY_DEFAULTS;
-    const harbor = input.harbor?.trim() || DEFAULT_HARBOR;
+    const harbor = input.harbor?.trim();
+    if (!harbor) throw new Error('parley.callAutomatic: harbor is required');
     const evidenceRefs = canonicalSet(input.automatic.evidenceRefs ?? []);
     const metadataWithoutFingerprint = {
       idempotencyKey,
@@ -373,6 +441,7 @@ export function createParley(deps: ParleyDeps) {
       evidenceRefs,
       confidence: input.automatic.confidence,
       magnitude: input.automatic.magnitude,
+      participants,
     };
     const callFingerprint = hash([
       harbor,
@@ -423,7 +492,13 @@ export function createParley(deps: ParleyDeps) {
 
     let summonsInserted = 0;
     const notificationFailures: string[] = [];
-    for (const party of parley.parties) {
+    const storedParticipants = canonicalAutomaticParticipants(parley.automatic.participants);
+    if (JSON.stringify(storedParticipants.map((participant) => participant.actorId))
+      !== JSON.stringify(parley.parties)) {
+      throw new Error('parley.callAutomatic: stored participant membership is malformed');
+    }
+    for (const participant of storedParticipants) {
+      const party = participant.actorId;
       const summons = {
         surface: parley.surface,
         reason: parley.reason,
@@ -448,7 +523,7 @@ export function createParley(deps: ParleyDeps) {
       if (summonsResult.inserted) summonsInserted++;
 
       if (agentInbox) {
-        const result = agentInbox.internal?.sendOnce(party, {
+        const result = agentInbox.internal?.sendOnce(participant.inboxTarget, {
           kind: 'parley_summons',
           parleyId: parley.parleyId,
           ...summons,
@@ -458,7 +533,9 @@ export function createParley(deps: ParleyDeps) {
           contentType: 'json',
           deliveryKey: `parley_summons:${parley.parleyId}:${party}`,
         }) ?? { success: false, error: 'internal idempotent inbox delivery unavailable' };
-        if (!result.success) notificationFailures.push(`${party}: ${result.error ?? 'send failed'}`);
+        if (!result.success) {
+          notificationFailures.push(`${party} via ${participant.inboxTarget}: ${result.error ?? 'send failed'}`);
+        }
       }
     }
 
@@ -588,7 +665,7 @@ export function createParley(deps: ParleyDeps) {
   /** Indexed automatic lifecycle read; unrelated tuple history is never parsed. */
   function getAutomatic(
     idempotencyKey: string,
-    harbor = DEFAULT_HARBOR,
+    harbor: string,
   ): AutomaticParleyLifecycle | null {
     const opened = tuples.getByIdempotencyKey(
       `${AUTOMATIC_OPENED_KEY_PREFIX}${idempotencyKey.trim()}`,

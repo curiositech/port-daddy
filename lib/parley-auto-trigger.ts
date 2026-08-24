@@ -9,6 +9,7 @@ import {
 import type {
   CallAutomaticParleyInput,
   CallAutomaticParleyResult,
+  ParleyParticipant,
   AutomaticParleyLifecycle,
   ParleyStatus,
   ParleyTrigger,
@@ -40,7 +41,7 @@ export type ParleyAutoTriggerState =
   | 'failed';
 
 export interface ParleyAutoTriggerContext {
-  readonly harbor?: string;
+  readonly harbor: string;
 }
 
 export interface ParleyAutoTriggerResult {
@@ -81,7 +82,7 @@ interface TupleSpaceMin {
 
 interface ParleyMin {
   callAutomatic(input: CallAutomaticParleyInput): CallAutomaticParleyResult;
-  getAutomatic(idempotencyKey: string, harbor?: string): AutomaticParleyLifecycle | null;
+  getAutomatic(idempotencyKey: string, harbor: string): AutomaticParleyLifecycle | null;
 }
 
 interface ActivityLogMin {
@@ -96,8 +97,11 @@ interface ActivityLogMin {
 export interface ParleyAutoTriggerDeps {
   readonly tuples: TupleSpaceMin;
   readonly parley: ParleyMin;
-  /** Returns the exact canonical agent ID only while it owns an active daemon session. */
-  readonly resolveLiveAgent: (claimedAgentId: string) => string | null;
+  /**
+   * Resolves canonical actor membership to its current live daemon inbox. The
+   * delivery target is transport state and never substitutes for actorId.
+   */
+  readonly resolveLiveParty: (claimedActorId: string) => ParleyParticipant | null;
   readonly activityLog?: ActivityLogMin;
   readonly now?: () => number;
 }
@@ -254,16 +258,41 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
     return { state, signalId, lineageKey, decision, parleyId, reason };
   }
 
-  function resolveParties(signal: ConflictSignal): string[] | null {
-    const resolved: string[] = [];
+  function resolveParties(signal: ConflictSignal): ParleyParticipant[] | null {
+    const resolved: ParleyParticipant[] = [];
+    const inboxTargets = new Set<string>();
+    const sessionIds = new Set<string>();
     for (const party of signal.parties) {
       const claimed = party.trim();
-      const live = deps.resolveLiveAgent(claimed);
-      if (!live || live.trim() !== claimed) return null;
-      resolved.push(live.trim());
+      const live = deps.resolveLiveParty(claimed);
+      if (!live
+        || typeof live.actorId !== 'string'
+        || live.actorId.trim() !== claimed
+        || typeof live.inboxTarget !== 'string'
+        || !live.inboxTarget.trim()
+        || live.inboxTarget !== live.inboxTarget.trim()
+        || live.inboxTarget.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars
+        || typeof live.sessionId !== 'string'
+        || !live.sessionId.trim()
+        || live.sessionId !== live.sessionId.trim()
+        || live.sessionId.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars
+        || typeof live.lineageRootSessionId !== 'string'
+        || !live.lineageRootSessionId.trim()
+        || live.lineageRootSessionId !== live.lineageRootSessionId.trim()
+        || live.lineageRootSessionId.length > CONFLICT_SIGNAL_LIMITS.maxPartyChars
+        || inboxTargets.has(live.inboxTarget)
+        || sessionIds.has(live.sessionId)) return null;
+      inboxTargets.add(live.inboxTarget);
+      sessionIds.add(live.sessionId);
+      resolved.push({
+        actorId: live.actorId,
+        inboxTarget: live.inboxTarget,
+        sessionId: live.sessionId,
+        lineageRootSessionId: live.lineageRootSessionId,
+      });
     }
-    const distinct = canonicalSet(resolved);
-    return distinct.length >= 2 ? distinct : null;
+    resolved.sort((a, b) => a.actorId.localeCompare(b.actorId));
+    return resolved.length >= 2 ? resolved : null;
   }
 
   function reserveCap(
@@ -393,9 +422,9 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
 
   function evaluate(
     candidate: ConflictSignal,
-    context: ParleyAutoTriggerContext = {},
+    context: ParleyAutoTriggerContext,
   ): ParleyAutoTriggerResult {
-    let harbor = 'fleet';
+    let harbor = '';
     let candidateSignalId = 'invalid:unreadable-signal';
     let decision = invalidDecision(candidateSignalId, 'automatic evaluation failed before validation');
     let lineageKey: string | null = null;
@@ -403,7 +432,20 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
     const acquired: AcquiredReservations = { lineage: null, caps: [] };
 
     try {
-      harbor = context.harbor?.trim() || 'fleet';
+      const contextHarbor = context?.harbor?.trim();
+      if (!contextHarbor) {
+        const reason = 'automatic evaluation requires an explicit canonical harbor';
+        decision = invalidDecision(candidateSignalId, reason);
+        return {
+          state: 'failed',
+          signalId: candidateSignalId,
+          lineageKey: null,
+          decision,
+          parleyId: null,
+          reason,
+        };
+      }
+      harbor = contextHarbor;
       candidateSignalId = safeSignalId(candidate);
       decision = shouldConvene(candidate, {
         mode: 'automatic',
@@ -491,8 +533,8 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
         return emit('suppressed', effective.signalId, lineageKey, decision, decision.reason, harbor);
       }
 
-      const authoritativeParties = resolveParties(effective);
-      if (!authoritativeParties) {
+      const authoritativeParticipants = resolveParties(effective);
+      if (!authoritativeParticipants) {
         return emit(
           'suppressed',
           effective.signalId,
@@ -502,7 +544,10 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
           harbor,
         );
       }
-      effective = { ...effective, parties: authoritativeParties };
+      effective = {
+        ...effective,
+        parties: authoritativeParticipants.map((participant) => participant.actorId),
+      };
 
       if (!decision.convene) {
         return emit('evaluated', effective.signalId, lineageKey, decision, decision.reason, harbor);
@@ -673,7 +718,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
       const automatic: CallAutomaticParleyResult = deps.parley.callAutomatic({
           surface: effective.surface,
           reason: effective.reason,
-          parties: [...effective.parties],
+          participants: authoritativeParticipants,
           trigger: PARLEY_TRIGGER_BY_KIND[effective.kind],
           harbor,
           automatic: {
