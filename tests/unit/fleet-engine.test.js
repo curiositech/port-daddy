@@ -82,6 +82,7 @@ jest.unstable_mockModule('yaml', () => ({
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
 const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+const { parseFleetSource, astToConfig } = await import('../../lib/fleet-ast.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
 
@@ -404,6 +405,37 @@ test('ignores camelCase runOnStart in fleet yaml when run_on_start is false', ()
     schedule: '*/30 * * * *',
     runOnStart: false,
   }));
+});
+
+test('omits disabled and malformed-enabled agents before runtime projection', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'disabled-fleet',
+    agents: {
+      dark: {
+        enabled: false,
+        backend: 'custom',
+        prompt: 'must never run',
+        schedule: '0 1 * * *',
+      },
+      malformed: {
+        enabled: 'false',
+        backend: 'custom',
+        prompt: 'must also never run',
+        schedule: '0 1 * * *',
+      },
+      armed: {
+        enabled: true,
+        backend: 'claude-cli',
+        prompt: 'review',
+        trigger: 'git:committed',
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents.map(agent => agent.name)).toEqual(['armed']);
 });
 
 test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
@@ -2186,35 +2218,52 @@ describe('pd-fleet.yml dispatch-runner manifest (gated nightly entry)', () => {
     'utf8',
   );
   const manifest = realYamlParse(manifestRaw);
+  const runtimeConfig = astToConfig(parseFleetSource(manifestRaw));
   const runner = manifest?.fleet?.agents?.['dispatch-runner'];
   const dispatchBlock = manifestRaw.match(
-    /# dispatch-runner:[\s\S]*?# ─── The Purser/,
+    /\n    dispatch-runner:[\s\S]*?(?=\n    # ─── The Purser)/,
   )?.[0] ?? '';
 
-  test('the draft-producing entry stays disabled', () => {
-    expect(runner).toBeUndefined();
-    expect(manifestRaw).toMatch(/dispatch opens a ready PR and requests independent review/i);
-    expect(manifestRaw).toMatch(/never\s+#\s+a draft PR/i);
+  test('the reviewed runner stays declaratively disabled while operator review is open', () => {
+    expect(runner).toMatchObject({
+      enabled: false,
+      schedule: '0 1 * * *',
+      backend: 'custom',
+      singleton: true,
+      cooldown_ms: 21_600_000,
+      timeout: 14_400_000,
+      daily_cap_usd: 10,
+      prompt: 'pd dispatch run --next --really-run',
+      identity: '{project}:fleet:dispatch-runner',
+    });
+    expect(manifestRaw).toMatch(/precondition 1 still open and\s+unverified in-repo/i);
+    expect(manifestRaw).toMatch(/nothing here attests to that review having\s+happened/i);
   });
 
   test('its documented schedule satisfies the cron-parser precondition this PR closes', () => {
     // Precondition 3 in the file's own comment block: absolute hour-of-day
     // support. Executable check — the schedule must be recognized as an
     // absolute pattern (setTimeout chain), never coerced to DEFAULT_INTERVAL.
-    const documentedSchedule = /#\s+schedule:\s+"([^"]+)"/.exec(dispatchBlock)?.[1];
+    const documentedSchedule = /schedule:\s+"([^"]+)"/.exec(dispatchBlock)?.[1];
     expect(documentedSchedule).toBe('0 1 * * *');
     expect(isAbsoluteCronSchedule(documentedSchedule)).toBe(true);
     expect(computeNextAbsoluteFireDelayMs(documentedSchedule)).not.toBeNull();
   });
 
-  test('the real fleet-wide spend ceiling remains enforced in parsed config', () => {
+  test('the real fleet-wide settled-spend threshold remains configured honestly', () => {
     expect(manifest.fleet.limits.budget_usd_per_day).toBe(8.5);
-    expect(dispatchBlock).not.toContain('daily_cap_usd');
+    expect(runner.daily_cap_usd).toBe(10);
+    expect(dispatchBlock).toMatch(/review-contract metadata only; not a runtime budget authority/i);
+    expect(manifestRaw).toMatch(/configured fleet-wide settled-spend\s+# threshold checked before each launch/i);
+    expect(manifestRaw).toMatch(/not an atomic reservation;\s+# concurrent starts can oversubscribe it/i);
+    expect(manifestRaw).not.toMatch(/\$8\.50(?:\/day)?\s+ceiling/i);
+    expect(runtimeConfig.limits.budgetUsdPerDay).toBe(8.5);
+    expect(runtimeConfig.agents.map(agent => agent.name)).not.toContain('dispatch-runner');
   });
 
   test('the remaining blast-radius values stay documented beside the gate', () => {
-    expect(dispatchBlock).toMatch(/#\s+singleton:\s+true/);
-    expect(dispatchBlock).toMatch(/#\s+timeout:\s+14400000/);
-    expect(dispatchBlock).toMatch(/#\s+cooldown_ms:\s+21600000/);
+    expect(dispatchBlock).toMatch(/singleton:\s+true/);
+    expect(dispatchBlock).toMatch(/timeout:\s+14400000/);
+    expect(dispatchBlock).toMatch(/cooldown_ms:\s+21600000/);
   });
 });

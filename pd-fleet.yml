@@ -90,7 +90,9 @@ fleet:
     # general, openai gpt-5-mini for code/tautology, anthropic only
     # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
     # is set and the operator is a Max subscriber, marginal cost
-    # drops to ~$0. The enforced fleet-wide safety ceiling is $8.50/day.
+    # drops to ~$0. $8.50/day is the configured fleet-wide settled-spend
+    # threshold checked before each launch. It is not an atomic reservation;
+    # concurrent starts can oversubscribe it.
     budget_usd_per_day: 8.50
 
   agents:
@@ -410,30 +412,27 @@ fleet:
     # pops the next proposed dispatch, and runs it autonomously in a fresh
     # worktree under ~/coding/tmp/port-daddy-dispatch-<idShort>.
     #
-    # Preconditions for enabling:
-    #   1. dispatch opens a ready PR and requests independent review — never
-    #      a draft PR (the current artifact path still opens drafts),
-    #   2. the pre-receive hook denying push-to-main inside dispatch worktrees
-    #      is wired (PR #161's destructive-op shim is the current floor),
-    #   3. the fleet engine's cron parser supports absolute hour-of-day
-    #      patterns (PR #137) -- SATISFIED: parseCronInterval no longer
-    #      coerces "0 1 * * *" to DEFAULT_INTERVAL; startAgent now arms a
-    #      self-re-arming setTimeout chain for fixed-clock schedules
-    #      (isAbsoluteCronSchedule / computeNextAbsoluteFireDelayMs,
-    #      lib/fleet-engine.ts) instead of a fixed setInterval.
+    # This reviewed declaration remains visible to config tooling but is
+    # omitted from executable FleetConfig while `enabled: false`.
+    # precondition 1 still open and unverified in-repo; nothing here attests to that review having happened.
+    # The scheduler support can land independently, but
+    # arming a producer before its first artifact has been reviewed cannot.
     #
-    # Keep this dark until precondition 1 is implemented. The scheduler support
-    # can land independently; arming a known draft-PR producer cannot.
-    #
-    # dispatch-runner:
-    #   schedule: "0 1 * * *"        # 1am daily; one tick per night
-    #   backend: custom              # runs `pd dispatch run --next --really-run`
-    #   singleton: true
-    #   cooldown_ms: 21600000        # 6h cooldown between runs
-    #   timeout: 14400000            # 4h max wall-clock per spawn
-    #   prompt: "pd dispatch run --next --really-run"
-    #   identity: "{project}:fleet:dispatch-runner"
-    #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
+    # Preconditions:
+    # 1. operator has reviewed the first PR opened by a dispatch run,
+    # 2. dispatch opens a ready PR and requests independent review — never a draft PR,
+    # 3. absolute hour-of-day cron uses a wall-clock setTimeout chain — SATISFIED
+    dispatch-runner:
+      enabled: false
+      schedule: "0 1 * * *"        # 1am daily; one tick per night
+      backend: custom              # runs `pd dispatch run --next --really-run`
+      singleton: true
+      cooldown_ms: 21600000        # 6h cooldown between runs
+      timeout: 14400000            # 4h max wall-clock per spawn
+      daily_cap_usd: 10            # Review-contract metadata only; not a runtime budget authority.
+      prompt: "pd dispatch run --next --really-run"
+      identity: "{project}:fleet:dispatch-runner"
+      telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
     # ─── The Purser (DISABLED by default; uncomment to enable) ───────
     # Adversarial gatekeeper, cloud-executed by apps/fleet-executor
@@ -1136,8 +1135,10 @@ fleet:
       dedupe_window_ms: 600000
       singleton: true
       timeout: 1800000
-      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
-      # "Daily budget: $4.00" line in fleet/ships/steward.md).
+      # Desired $4/day Steward allocation beneath the fleet's configured
+      # settled-spend threshold (matches the "Daily budget: $4.00" line in
+      # fleet/ships/steward.md). Review-contract metadata only; the runtime
+      # does not parse or enforce this field.
       daily_cap_usd: 4
       allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
       prompt: |

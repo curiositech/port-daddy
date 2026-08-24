@@ -108,15 +108,18 @@ path checks the predicate at the machine's edge:
 - **cloud sync** (ADR-0115 change-event journal and `from_seq` replay) —
   non-exportable events are withheld from the outbox, not filtered by the
   reader;
-- **R2 snapshot** (ADR-0115 `VACUUM INTO` → sanitize → encrypt → upload) —
-  the builder operates on a separate private staging copy and never mutates
-  the live database. It removes non-exportable transcript payloads from that
-  copy before sealing, leaving event id, sequence, redaction state, and a
-  signed audit marker as an honest stub. It does not include a hash of the
-  withheld plaintext, which would give recipients a dictionary oracle. If
-  sanitization cannot be proved complete, snapshot upload aborts and the
-  staging copy is destroyed. A bootstrapping device renders "withheld:
-  redaction state unknown" instead of a silent hole;
+- **R2 snapshot** — this ADR supersedes ADR-0115's `VACUUM INTO` physical-copy
+  step. The builder opens the source in a consistent read transaction, creates
+  a new private database at a new path and inode, installs schema from a
+  versioned allowlist, and logically inserts only allowlisted tables, columns,
+  and exportable rows. It never copies source pages or blindly replays
+  `sqlite_master`. Non-exportable transcript rows become freshly constructed
+  stubs containing event id, sequence, redaction state, and a signed audit
+  marker; no plaintext hash is retained because that would give recipients a
+  dictionary oracle. The rebuilt database is finalized and verified before it
+  is encrypted. Any failed export or verification aborts upload and destroys
+  the staging artifacts. A bootstrapping device renders "withheld: redaction
+  state unknown" instead of a silent hole;
 - **iOS transcript tail** (ADR-0125) — the tail streams exportable events
   only; a withheld segment renders as withheld;
 - **export flows** (binder ch06 "export before delete", `pd transcripts`
@@ -214,6 +217,17 @@ an audit surface:
 4. **No vacuous pass.** Like the egress assertion's `verified` flag, an
    empty corpus or an unobservable path reports `verified: false`; a
    check that could not observe anything never reports clean.
+5. **The finalized snapshot contains no recoverable source bytes.** A hostile
+   SQLite fixture writes unique canaries into ordinary cells and large overflow
+   payloads, then updates and deletes them so copies remain in freelist pages
+   and WAL/journal history. Snapshot construction must use the §2 logical
+   rebuild, close and finalize the fresh database, remove or reject every
+   `-wal`, `-shm`, and `-journal` sidecar, and scan the exact plaintext file
+   that will be sealed. The test fails if any canary byte sequence survives,
+   if `freelist_count` is nonzero, or if schema/table/column inspection finds
+   anything outside the export allowlist. Encryption is permitted only after
+   both the logical invariant and finalized-byte scan pass. Scanning an earlier
+   staging copy is not evidence about the file that is uploaded.
 
 ### 6. Refusals are visible, bounded, and never a storm
 
@@ -263,10 +277,11 @@ ADR closes both by doctrine from `skills/responsible-logging`:
   controls. It cannot revoke plaintext, ciphertext, or keys an authorized
   recipient already copied; the redaction UI states that boundary before the
   operator confirms it.
-- **The R2 snapshot loses "byte-identical DB copy" status.** Sanitizing a
-  derived staging copy makes bootstrap snapshots honest subsets plus signed
-  stubs. The manifest authenticates which rows were withheld without exposing
-  a plaintext digest, and the gap remains renderable ("no transcript
+- **The R2 snapshot is a logical rebuild, never a sanitized physical copy.** A
+  fresh allowlisted database makes bootstrap snapshots honest subsets plus
+  signed stubs without carrying recoverable source freelist, overflow, or
+  journal pages. The manifest authenticates which rows were withheld without
+  exposing a plaintext digest, and the gap remains renderable ("no transcript
   because…" is already the binder's Milestone 1 honesty rule).
 - **A quiet failure mode is converted into a loud one.** Before this ADR,
   a scrubber regression leaked silently; after it, a scrubber regression
@@ -294,6 +309,12 @@ ADR closes both by doctrine from `skills/responsible-logging`:
   Rejected: local capture-by-default is the R6 whitehat defense; killing
   local capture degrades resume, search, memory, and accountability. The
   boundary that matters is the machine's edge, and §2 holds it.
+- **`VACUUM INTO` the source, then sanitize rows in place.** Rejected: deleting
+  or updating rows in a physical copy does not prove their prior bytes vanished
+  from freelist, overflow, WAL, or journal pages. Encryption would faithfully
+  preserve those recoverable bytes. Section 2 instead rebuilds from an explicit
+  logical allowlist and §5 scans the finalized file that will actually be
+  sealed.
 
 ## Cross-references
 

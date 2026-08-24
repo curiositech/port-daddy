@@ -140,7 +140,7 @@ kernel would provide better per ADR-0120's "one canonical implementation".
 - **Buys:** removes a verifier that is currently wrong in a way that would make
   it *reject valid events*, which is worse than having none.
 
-## Recommendation
+## Non-binding recommendation
 
 **C, with A as the immediate step.** Do A now — it is one file, it costs
 nothing, and it turns a verifier that cannot verify anything into one that
@@ -151,9 +151,14 @@ Explicitly **not** recommending B: re-signing historical events is not possible
 for any chain whose signer key has rotated, and ADR-0123's rotation design
 assumes rotation happens.
 
+This recommendation is analysis, not an accepted decision. No option in this
+ADR is authorized for implementation until the operator chooses a direction
+and the status changes from Proposed in a later decision record.
+
 ## What is NOT decided here
 
-The direction. This ADR states the problem, the measurements, and the costs.
+The direction. This ADR states the problem, the measurements, and the costs;
+it does not accept A, B, C, or D.
 The choice between A→C and D is the operator's, because it trades an
 independent cross-implementation check against the cost of maintaining two hash
 rules in every language.

@@ -189,6 +189,7 @@ The YAML supports template variables that are resolved at runtime:
 | `schedule` | string | * | Cron expression (mutually exclusive with `trigger`) |
 | `backend` | string | yes | `claude`, `ollama`, `gemini`, `aider`, `custom` |
 | `prompt` | string | yes | The task for the AI agent (supports template vars) |
+| `enabled` | bool | no | Set `false` to keep a declaration inspectable but omit it from executable runtime config (default: true; malformed values fail closed to disabled) |
 | `run_on_start` | bool | no | For scheduled agents only: fire once when the fleet starts (default: false) |
 | `worktree` | bool | no | Run in an isolated git worktree (default: false) |
 | `singleton` | bool | no | Only one instance allowed at a time (default: false) |
@@ -216,7 +217,7 @@ pd fleet ideas                 # Spark's idea notebook
 
 1. Read `pd-fleet.yml` from project root (or `--config <path>`)
 2. Validate schema, resolve template variables
-3. For each `schedule` agent: register a cron-like loop via `pd spawn`; fire immediately only when `run_on_start: true`
+3. Omit every `enabled: false` (or malformed-enabled) declaration before runtime projection; for each remaining `schedule` agent, register a cron-like loop via `pd spawn` and fire immediately only when `run_on_start: true`
 4. For each `trigger` agent: register a `pd watch` subscriber
 5. For each `watcher`: register a lightweight `pd watch --exec`
 6. Register the Dock Master as a meta-agent that monitors all the above
