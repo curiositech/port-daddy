@@ -165,7 +165,13 @@ function fsyncPath(path) {
   }
 }
 
-function writeAtomicPointer(publicationRoot, pointerPath, manifest) {
+function writeAtomicPointer(
+  publicationRoot,
+  pointerPath,
+  manifest,
+  selectionState,
+  syncPointerDirectory = fsyncPath,
+) {
   if (existsSync(pointerPath)) {
     const pointerStat = lstatSync(pointerPath);
     if (pointerStat.isSymbolicLink() || !pointerStat.isFile()) {
@@ -181,7 +187,10 @@ function writeAtomicPointer(publicationRoot, pointerPath, manifest) {
     closeSync(fd);
     fd = undefined;
     renameSync(tempPath, pointerPath);
-    fsyncPath(publicationRoot);
+    // Rename is the selection boundary. Any later durability failure must not
+    // let the caller delete cargo that current.json already points at.
+    selectionState.selected = true;
+    syncPointerDirectory(publicationRoot);
   } finally {
     if (fd !== undefined) closeSync(fd);
     rmSync(tempPath, { force: true });
@@ -201,7 +210,8 @@ function writeAtomicPointer(publicationRoot, pointerPath, manifest) {
  *
  * @param {{repoRoot: string, outputRoot: string, required?: boolean,
  *   sourceFiles?: Record<string, string>, beforeCommit?: (context: {
- *   stagedDir: string, publicationRoot: string, cargoDir: string}) => void}} options Packaging options.
+ *   stagedDir: string, publicationRoot: string, cargoDir: string}) => void,
+ *   syncPointerDirectory?: (path: string) => void}} options Packaging options.
  * @returns {{status: string, reason: string|null, dir?: string,
  *   publicationRoot?: string, manifestPath?: string,
  *   files: Array<{name: string, sizeBytes: number, sha256: string}>}}
@@ -213,6 +223,7 @@ export function packageTreeSitterRuntime(options) {
     required = true,
     sourceFiles = resolveDefaultSources(repoRoot),
     beforeCommit,
+    syncPointerDirectory,
   } = options;
   const missing = TREE_SITTER_RUNTIME_ASSETS.filter((name) => {
     const source = sourceFiles[name];
@@ -243,7 +254,7 @@ export function packageTreeSitterRuntime(options) {
   const pointerPath = join(publicationRoot, TREE_SITTER_RUNTIME_POINTER);
   let stagedDir = null;
   let publishedNewCargo = false;
-  let pointerCommitted = false;
+  const pointerSelection = { selected: false };
 
   try {
     if (existsSync(cargoDir)) {
@@ -274,8 +285,13 @@ export function packageTreeSitterRuntime(options) {
       cargoDir: basename(finalCargo.dir),
       files: finalCargo.files,
     };
-    writeAtomicPointer(publicationRoot, pointerPath, manifest);
-    pointerCommitted = true;
+    writeAtomicPointer(
+      publicationRoot,
+      pointerPath,
+      manifest,
+      pointerSelection,
+      syncPointerDirectory,
+    );
 
     const persistedManifest = JSON.parse(readFileSync(pointerPath, 'utf8'));
     if (persistedManifest.cargoDir !== manifest.cargoDir) {
@@ -295,7 +311,7 @@ export function packageTreeSitterRuntime(options) {
       files: verified.files,
     };
   } catch (error) {
-    if (publishedNewCargo && !pointerCommitted) rmSync(cargoDir, { recursive: true, force: true });
+    if (publishedNewCargo && !pointerSelection.selected) rmSync(cargoDir, { recursive: true, force: true });
     throw error;
   } finally {
     if (stagedDir) rmSync(stagedDir, { recursive: true, force: true });
