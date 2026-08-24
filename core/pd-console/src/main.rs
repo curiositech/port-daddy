@@ -26,6 +26,7 @@ mod daemon_pane;
 mod dispatch_pane;
 mod editor_claims;
 mod editor_commit_gate;
+mod editor_input;
 mod editor_pane;
 mod editor_sync;
 mod editor_wedge;
@@ -37,6 +38,8 @@ mod harbor_pane;
 mod headless_capture;
 mod health_pane;
 mod inbox_pane;
+mod interruptions;
+mod interruptions_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
@@ -80,6 +83,7 @@ use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
+use interruptions_pane::InterruptionsPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
@@ -309,10 +313,13 @@ fn main() {
     app::init_theme_from_env();
     app::init_motion_from_env();
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
-    // All fallback logic lives in DaemonClient::discover(); no literals here.
+    // Canonical daemon discovery: PORT_DADDY_URL env var → console-daemon.url →
+    // daemon.port file → the stable berth default. All fallback logic lives in
+    // DaemonClient::discover(); no literals here. Discovery is infallible now —
+    // with nothing registered the console opens against the stable berth and the
+    // panes render reachability honestly instead of panicking pre-window.
     let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery failed")
+        .expect("daemon discovery is infallible")
         .base()
         .to_string();
 
@@ -456,7 +463,7 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
         //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
-        //  24=Active Agents  25=Harbor  26=Sextant
+        //  24=Active Agents  25=Harbor  26=Sextant  27=Interruptions (HITL)
         //
         // The tuple also carries Sextant's typed snapshot (points + clusters)
         // alongside the render-agnostic blocks, so the bespoke canvas draws the
@@ -466,6 +473,7 @@ fn main() {
             Option<dispatch_pane::DispatchHead>,
             galaxy_pane::GalaxySnapshot,
             bool,
+            interruptions::HitlGate,
         )>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
         // operator action and pushes it here instead of swallowing it (`let _ =`).
@@ -483,7 +491,7 @@ fn main() {
         // edit-sync + coordination lanes into its persistent EditorPane, then pushes
         // `(bound_path, view())` here on each fold edge for the foreground to surface on
         // the Editor surface — the wedge finally shows in the RUNNING window.
-        let (editor_tx, editor_rx) = mpsc::channel::<(String, Vec<pane::Block>)>();
+        let (editor_tx, editor_rx) = mpsc::channel::<app::EditorUpdate>();
         // Sextant bus: the bg thread owns the GET /galaxy/session/:id round-trip
         // for a clicked point and streams the parsed detail (or the daemon's real
         // failure) back to the view's drawer. Mirrors the WorkPlan bus: a small
@@ -540,6 +548,7 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
+                let mut hitl        = InterruptionsPane::new(); // 27 — HITL operator interruptions
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -555,6 +564,7 @@ fn main() {
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
                         galaxy.id(),
+                        hitl.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -1051,6 +1061,52 @@ fn main() {
                                 editor = Some(pane);
                                 editor_stream = None; // resubscribe to the new file's channels
                             }
+                            app::ControlMsg::EditorLocalChange {
+                                path,
+                                frame,
+                                presence,
+                            } => {
+                                let Some(ed) = editor.as_mut().filter(|ed| ed.path_str() == path) else {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "editor change not mirrored",
+                                        format!("live lane is not bound to {path}"),
+                                    ));
+                                    continue;
+                                };
+                                let mut changed = false;
+                                if let Some(frame) = frame {
+                                    changed |= ed.ingest_local_frame(&frame);
+                                    if let Err(error) = client
+                                        .tube_send(ed.channel(), &frame, "editor")
+                                        .await
+                                    {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor delta broadcast failed",
+                                            error.to_string(),
+                                        ));
+                                    }
+                                }
+                                ed.set_local_presence(presence);
+                                let now_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .map(|duration| duration.as_millis() as i64)
+                                    .unwrap_or_default();
+                                if let Some(frame) = ed.take_presence_broadcast(now_ms) {
+                                    if let Err(error) = client.send_presence(ed.channel(), &frame).await {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor presence broadcast failed",
+                                            error.to_string(),
+                                        ));
+                                    }
+                                }
+                                if changed {
+                                    let _ = editor_tx.send(app::EditorUpdate {
+                                        path: ed.path_str().to_string(),
+                                        blocks: ed.view(),
+                                        remote_frames: Vec::new(),
+                                    });
+                                }
+                            }
                         }
                     }
 
@@ -1115,6 +1171,7 @@ fn main() {
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
+                    let _ = hitl.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1185,6 +1242,7 @@ fn main() {
                         // pushes view() to the foreground on a paint EDGE — an idle editor
                         // with live cursors sends nothing (the P2 discipline, carried here).
                         let mut editor_dirty = false;
+                        let mut remote_frames = Vec::new();
                         match ed.subscription() {
                             Some(pane::Subscription::Editor { channel, coord_channel }) => {
                                 let reopen = match &editor_stream {
@@ -1212,8 +1270,12 @@ fn main() {
                                 // frame kinds (`ingest_frame` / `ingest_presence`
                                 // are mutually exclusive); `||` short-circuits so a
                                 // frame folds through exactly one path.
-                                editor_dirty |=
-                                    ed.ingest_frame(&msg.text) || ed.ingest_presence(&msg.text);
+                                if ed.ingest_frame(&msg.text) {
+                                    editor_dirty = true;
+                                    remote_frames.push(msg.text);
+                                } else {
+                                    editor_dirty |= ed.ingest_presence(&msg.text);
+                                }
                             }
                             while let Ok(msg) = coord_rx.try_recv() {
                                 editor_dirty |= ed.ingest_claim(&msg.text);
@@ -1223,7 +1285,11 @@ fn main() {
                         // Surface the folded pane on the edge — presence cursors, claim
                         // bands, and the wedge conflict/gate Blocks now flow to the window.
                         if editor_dirty {
-                            let _ = editor_tx.send((ed.path_str().to_string(), ed.view()));
+                            let _ = editor_tx.send(app::EditorUpdate {
+                                path: ed.path_str().to_string(),
+                                blocks: ed.view(),
+                                remote_frames,
+                            });
                         }
                     }
                     let all = vec![
@@ -1254,6 +1320,7 @@ fn main() {
                         (24, live_agents.view()),
                         (25, harbor.view()),
                         (26, galaxy.view()),
+                        (27, hitl.view()),
                     ];
 
                     if tx
@@ -1262,6 +1329,7 @@ fn main() {
                             dispatch.head(),
                             galaxy.snapshot(),
                             health.is_connected(),
+                            hitl.gate(),
                         ))
                         .is_err()
                     {
@@ -1279,7 +1347,7 @@ fn main() {
                 let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected)) =
+                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected, hitl_gate)) =
                         rx.try_recv()
                     {
                         let _ = async_cx.update(|app| {
@@ -1291,6 +1359,7 @@ fn main() {
                                     dispatch_head.clone(),
                                     galaxy_snapshot.clone(),
                                     daemon_connected,
+                                    hitl_gate.clone(),
                                 ) {
                                     present_changed_frame(window, cx, &mut size_nudged);
                                 }
@@ -1334,10 +1403,10 @@ fn main() {
                     // pane blocks — presence cursors, region claims, wedge conflict/gate
                     // bands — folded into the Editor surface so the running window paints
                     // the collaboration state, not a cold file re-read.
-                    while let Ok(editor_blocks) = editor_rx.try_recv() {
+                    while let Ok(editor_update) = editor_rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.set_editor_blocks(editor_blocks.clone());
+                                view.apply_editor_update(editor_update.clone());
                                 cx.notify();
                             });
                         });

@@ -383,7 +383,7 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
     const metaCommands = new Set([
       'help', 'version', '--help', '-h', '--version', '-V', '--json', '-j', '--quiet', '-q',
       // Repeatable bridge option names extracted from REPEATABLE_FLAGS, not commands
-      'client-arg', 'codex-config',
+      'client-arg', 'codex-config', 'tag',
       // Short flag characters (from shortFlags map, not commands)
       'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch
@@ -513,6 +513,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'attest': 'attest',
       'safe_scan': 'safe',
       'relay_status': 'relay',
+      'coordination_status': 'coordination',
       'harbormaster_status': 'harbormaster',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',

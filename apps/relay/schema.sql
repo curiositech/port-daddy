@@ -10,7 +10,7 @@
 CREATE TABLE IF NOT EXISTS identities (
   daemon_fingerprint TEXT    PRIMARY KEY,
   pub_key            TEXT    NOT NULL,
-  proof_method       TEXT    NOT NULL CHECK (proof_method IN ('oidc','acme','wot')),
+  proof_method       TEXT    NOT NULL CHECK (proof_method IN ('oidc','acme','wot','operator-provisioned')),
   proof_metadata     TEXT    NOT NULL,
   expires_at         INTEGER,
   revoked            INTEGER NOT NULL DEFAULT 0,
@@ -130,6 +130,41 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
   created_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
+
+-- Durable queue-admission truth, written before the queue consumer starts.
+-- One PR can have many immutable generations as new heads arrive; only the
+-- latest queued/running generation remains active and older work is marked
+-- superseded.  Delivery id is the webhook idempotency key.
+CREATE TABLE IF NOT EXISTS fleet_run_intents (
+  delivery_id        TEXT    PRIMARY KEY,
+  repo_full_name     TEXT    NOT NULL,
+  pr_number          INTEGER NOT NULL,
+  pr_url             TEXT    NOT NULL,
+  head_sha           TEXT    NOT NULL,
+  event_type         TEXT    NOT NULL,
+  action             TEXT,
+  generation         INTEGER NOT NULL,
+  state              TEXT    NOT NULL DEFAULT 'admitting'
+                             CHECK (state IN (
+                               'admitting', 'queued', 'running', 'retrying',
+                               'superseded', 'enqueue_failed',
+                               'success', 'failure', 'neutral', 'cancelled'
+                             )),
+  attempt_count      INTEGER NOT NULL DEFAULT 0,
+  queued_at          INTEGER NOT NULL DEFAULT (unixepoch()),
+  started_at         INTEGER,
+  last_progress_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+  finished_at        INTEGER,
+  superseded_by      TEXT,
+  last_error         TEXT,
+  UNIQUE (repo_full_name, pr_number, generation)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx
+  ON fleet_run_intents (repo_full_name, pr_number, generation DESC);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_state_queued_idx
+  ON fleet_run_intents (state, queued_at ASC);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_state_finished_idx
+  ON fleet_run_intents (state, finished_at ASC);
 
 -- Immutable transcript of each step within a run.
 CREATE TABLE IF NOT EXISTS fleet_run_steps (
@@ -261,6 +296,25 @@ CREATE TABLE IF NOT EXISTS user_tokens (
 );
 CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
 
+-- Per-repo agent-behavior settings, account-scoped (the /account/repos screen).
+-- One row per (user, repo full name). sitrep_end_of_turn is the launch dial;
+-- settings_json is the forward-compatible bag for the settings the screen grows
+-- next. The account is the RECORD of cross-device intent; enforcement stays in
+-- each clone's local agent.config.json, converged via GET /v1/repo-settings.
+CREATE TABLE IF NOT EXISTS repo_settings (
+  user_id            TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name     TEXT    NOT NULL,
+  sitrep_end_of_turn TEXT    NOT NULL DEFAULT 'off'
+    CHECK (sitrep_end_of_turn IN ('off','suggest','enforce')),
+  settings_json      TEXT    NOT NULL DEFAULT '{}'
+    CHECK (json_valid(settings_json)),
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name)
+);
+CREATE INDEX IF NOT EXISTS idx_repo_settings_user
+  ON repo_settings(user_id, updated_at DESC);
+
 -- ──────────────────────────────────────────────────────────────────────────
 -- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
 --
@@ -339,9 +393,55 @@ CREATE TABLE IF NOT EXISTS mercy_health (
   at                      INTEGER NOT NULL,               -- unix seconds (sweep time)
   overall                 TEXT    NOT NULL CHECK (overall IN ('green','yellow','red')),
   remote_harbors_possible INTEGER NOT NULL,               -- 0/1 (D1 + DO channel not red)
-  subsystems_json         TEXT    NOT NULL                -- [{name,status,latencyMs,detail}]
+  subsystems_json         TEXT    NOT NULL,               -- [{name,status,latencyMs,detail}]
+  hooks_json              TEXT                            -- [{name,status,metric,detail}] per-feature hooks (X7)
 );
 CREATE INDEX IF NOT EXISTS mercy_health_at_idx ON mercy_health (at);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- MERCY HOOKS (grand-plan node x7-mercy-hooks; plan §X7; src/mercy-hooks.ts;
+-- migration 2026-08-09-z-mercy-hooks.sql).
+--
+-- mercy_hook_events        — per-feature hook ledger: hot paths (publish
+--                            quota refusals, run-report gaps) append one row
+--                            per signal; the sweep aggregates and prunes.
+-- squid_run_reconciliation — run-concluded reconciliation: one row per
+--                            executor run report, claimed-vs-received event
+--                            totals; gap != 0 is the honest loss metric
+--                            fire-and-forget telemetry cannot self-produce.
+-- mercy_slo_windows        — 5-minute SLO burn buckets (per-window request /
+--                            5xx counts, written via ctx.waitUntil); the
+--                            sweep computes multiwindow burn from them.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS mercy_hook_events (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  at       INTEGER NOT NULL,                              -- unix seconds
+  hook     TEXT    NOT NULL,                              -- e.g. 'x8_quota_exhausted'
+  severity TEXT    NOT NULL CHECK (severity IN ('info','warn','crit')),
+  detail   TEXT                                           -- operator-facing; never secrets
+);
+CREATE INDEX IF NOT EXISTS mercy_hook_events_hook_at_idx
+  ON mercy_hook_events (hook, at);
+CREATE INDEX IF NOT EXISTS mercy_hook_events_at_idx
+  ON mercy_hook_events (at);
+
+CREATE TABLE IF NOT EXISTS squid_run_reconciliation (
+  run_id      TEXT    PRIMARY KEY,                        -- 'run:<deliveryId>'
+  channel     TEXT    NOT NULL,                           -- '<relayFp>:fleet-cloud:<runId>'
+  sender      TEXT    NOT NULL,                           -- executor daemon fingerprint
+  claimed     INTEGER NOT NULL,                           -- events the executor says it sent
+  received    INTEGER NOT NULL,                           -- events rows the relay actually has
+  gap         INTEGER NOT NULL,                           -- claimed - received (loss when > 0)
+  reported_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS squid_run_reconciliation_at_idx
+  ON squid_run_reconciliation (reported_at);
+
+CREATE TABLE IF NOT EXISTS mercy_slo_windows (
+  window_start INTEGER PRIMARY KEY,                       -- unix seconds, floored to 300s
+  requests     INTEGER NOT NULL DEFAULT 0,
+  errors       INTEGER NOT NULL DEFAULT 0                 -- HTTP 5xx only (4xx are the caller's)
+);
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Shipwright chat (src/shipwright.ts) — conversational fleet-config architect.
@@ -460,6 +560,92 @@ CREATE INDEX IF NOT EXISTS harbor_memberships_member_idx
   ON harbor_memberships (member_kind, member_id);
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Roadmap command-center mirror (operator mandate 2026-08-22; PR 1)
+--
+-- A daemon PUSHES its per-repo roadmap into these tables via
+-- PUT /v1/roadmap/snapshot (pdu_ bearer); the relay stores a REPLICA the
+-- operator can read anywhere — never a second source of truth (the daemon
+-- stays the single writer). Every ingest is a FULL REPLACE per
+-- (user_id, repo_full_name) in one transactional batch. The watermark is
+-- honest: generated_at is the DAEMON's clock (unix ms, verbatim),
+-- received_at is the RELAY's clock (unix seconds). Tombstoned items
+-- (deleted_at set) are INCLUDED — a tombstone is data in a union-merged
+-- registry. Item timestamps and activity `at` are daemon-clock unix ms,
+-- passed through verbatim.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS roadmap_mirrors (
+  user_id        TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name TEXT    NOT NULL,
+  harbor         TEXT    NOT NULL,               -- daemon-declared harbor label
+  daemon_label   TEXT,                            -- which daemon pushed (display only)
+  generated_at   INTEGER NOT NULL,               -- DAEMON clock, unix ms (watermark)
+  received_at    INTEGER NOT NULL,               -- RELAY clock, unix seconds
+  item_count     INTEGER NOT NULL,
+  edge_count     INTEGER NOT NULL,
+  harbor_id      TEXT    REFERENCES harbors(id), -- resolved remote harbor, when one matches
+  PRIMARY KEY (user_id, repo_full_name)
+);
+
+-- Mirrored roadmap items, tombstones included. status mirrors the daemon's
+-- closed lane enum and is CHECK-enforced; kind/priority stay open-shaped (a
+-- newer daemon may grow the ladder — the mirror's job is fidelity).
+CREATE TABLE IF NOT EXISTS roadmap_mirror_items (
+  user_id           TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name    TEXT    NOT NULL,
+  slug              TEXT    NOT NULL,
+  harbor            TEXT    NOT NULL,
+  status            TEXT    NOT NULL
+    CHECK (status IN ('now','backlog','parked','merge','done')),
+  kind              TEXT    NOT NULL DEFAULT 'task',
+  priority          INTEGER NOT NULL DEFAULT 3,
+  summary_md        TEXT    NOT NULL,
+  description_md    TEXT,
+  assignee_id       TEXT,
+  started_at        INTEGER,
+  due_at            INTEGER,
+  estimate          INTEGER,
+  last_touched_at   INTEGER NOT NULL,
+  created_at        INTEGER NOT NULL,
+  deleted_at        INTEGER,                      -- tombstone; off the board, queryable as deleted
+  dependencies_json TEXT    NOT NULL DEFAULT '[]'
+    CHECK (json_valid(dependencies_json)),
+  notes_json        TEXT    NOT NULL DEFAULT '[]'
+    CHECK (json_valid(notes_json)),
+  PRIMARY KEY (user_id, repo_full_name, harbor, slug)
+);
+CREATE INDEX IF NOT EXISTS idx_roadmap_mirror_items_board
+  ON roadmap_mirror_items(user_id, repo_full_name, status, last_touched_at DESC);
+
+-- Mirrored graph edges: hierarchy + dependency structure between items.
+CREATE TABLE IF NOT EXISTS roadmap_mirror_edges (
+  user_id        TEXT NOT NULL REFERENCES users(id),
+  repo_full_name TEXT NOT NULL,
+  scope          TEXT NOT NULL,
+  source_id      TEXT NOT NULL,
+  edge_type      TEXT NOT NULL
+    CHECK (edge_type IN ('parent_of','depends_on')),
+  target_id      TEXT NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name, scope, source_id, edge_type, target_id)
+);
+
+-- Recent roadmap activity tail — capped (~200 per repo) at ingest AND by the
+-- retention sweep; the mirrors themselves persist (state, not history).
+CREATE TABLE IF NOT EXISTS roadmap_mirror_activity (
+  user_id        TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name TEXT    NOT NULL,
+  -- `at` is the watermark, part of the PK, and the tail/cap sort key, so it
+  -- carries an explicit typeof() + positivity CHECK: column affinity alone
+  -- would admit text or negative values, and text sorts above integers.
+  at             INTEGER NOT NULL
+    CHECK (typeof(at) = 'integer' AND at > 0),   -- daemon clock, unix ms
+  slug           TEXT    NOT NULL,
+  kind           TEXT    NOT NULL,               -- e.g. 'touch' | 'promote' | 'status'
+  by_id          TEXT,                            -- daemon-side actor id, when known
+  detail_json    TEXT,
+  PRIMARY KEY (user_id, repo_full_name, at, slug, kind)
+);
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- X3 PRESENCE + HELM v1 — presence first, the Helm without ballots
 -- (docs/proposals/relay-grand-plan.md §X3, D5/D6; src/presence.ts; migration
 -- 2026-08-04-x3-presence-helm.sql).
@@ -486,7 +672,11 @@ CREATE TABLE IF NOT EXISTS harbor_helms (
   vacant_flagged  INTEGER NOT NULL DEFAULT 0,    -- 1 after a dead-man pass found NO present successor
   seq             INTEGER NOT NULL,              -- bumps on every change; dead-man CAS guard
   updated_at      INTEGER NOT NULL,              -- unix seconds
-  updated_by      TEXT    NOT NULL               -- users.id (owner PUT) or 'relay:dead-man'
+  updated_by      TEXT    NOT NULL,              -- users.id (owner PUT) or 'relay:dead-man'
+  -- mediator-body: what a parley DEADLINE LAPSE does in this harbor.
+  -- 'lapse' = v1 plain lapse; 'first-proceeds' = the Helm's default outcome
+  -- (first claimant proceeds, second rebases) is recorded in outcome_json.
+  parley_expiry_default TEXT NOT NULL DEFAULT 'lapse' CHECK (parley_expiry_default IN ('lapse','first-proceeds'))
 );
 
 CREATE TABLE IF NOT EXISTS helm_events (
@@ -536,7 +726,13 @@ CREATE TABLE IF NOT EXISTS parleys (
   state          TEXT    NOT NULL CHECK (state IN ('open','agreed','lapsed')),
   deadline_at    INTEGER NOT NULL,               -- unix seconds; default now + 24h
   created_at     INTEGER NOT NULL,               -- unix seconds
-  resolved_at    INTEGER                         -- unix seconds when agreed/lapsed; NULL while open
+  resolved_at    INTEGER,                        -- unix seconds when agreed/lapsed; NULL while open
+  -- mediator-body (2026-08-09-mediator-body.sql): who convened this parley
+  -- ('mediator' = auto-convened on a predicted PR conflict; the proposer row
+  -- still names the FIRST CLAIMANT, a real named party, so the FK holds), and
+  -- the outcome the Helm's expiry default recorded when a lapse applied one.
+  convened_by    TEXT    NOT NULL DEFAULT 'user' CHECK (convened_by IN ('user','mediator')),
+  outcome_json   TEXT
 );
 CREATE INDEX IF NOT EXISTS parleys_harbor_idx ON parleys (harbor_id, created_at);
 
@@ -550,5 +746,69 @@ CREATE TABLE IF NOT EXISTS parley_positions (
   stance      TEXT    CHECK (stance IN ('accept','reject')),  -- NULL until signed
   position    TEXT,                              -- free text signed alongside the stance
   signed_at   INTEGER,                           -- unix seconds; NULL until signed (write-once)
+  claim_rank  INTEGER,                           -- mediator-body: claimant order (1 = first claimant); NULL on v1 parleys
   PRIMARY KEY (parley_id, party_kind, party_id)
+);
+
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- MEDIATOR BODY (grand-plan DAG node mediator-body; plan §X4 second half;
+-- src/mediator-body.ts; migration 2026-08-09-mediator-body.sql).
+--
+-- mediator_pairs    — one row per auto-convened conflict parley, keyed by
+--                     the normalized PR pair; the one-OPEN-parley-per-pair
+--                     invariant is enforced by joining to parleys.state.
+-- parley_summonses  — delivery-acknowledged summons ledger. Every summons
+--                     and every daemon response is a CHAINED, signed relay
+--                     event; its (channel, seq, hash) coordinates live here
+--                     so ledger and chain attest each other. Agent-first
+--                     (D11): only refuse/escalate (or no declared daemon)
+--                     wakes the human.
+-- parley_gates      — human approve gate before IRREVERSIBLE actions only
+--                     (merge/revert/force-push). Approve/Modify/Reject via
+--                     a named human party's session on the parleys page;
+--                     Modify's free text is the re-injection payload.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS mediator_pairs (
+  repo         TEXT    NOT NULL,               -- 'owner/name'
+  pr_lo        INTEGER NOT NULL,
+  pr_hi        INTEGER NOT NULL,
+  first_pr     INTEGER NOT NULL,               -- the FIRST CLAIMANT's PR number
+  parley_id    TEXT    NOT NULL REFERENCES parleys(id),
+  confidence   REAL    NOT NULL,               -- prediction confidence at convene
+  symbols_json TEXT    NOT NULL,               -- JSON [{file, symbol}] overlap evidence
+  created_at   INTEGER NOT NULL,
+  PRIMARY KEY (repo, pr_lo, pr_hi, parley_id)
+);
+CREATE INDEX IF NOT EXISTS mediator_pairs_parley_idx ON mediator_pairs (parley_id);
+
+CREATE TABLE IF NOT EXISTS parley_summonses (
+  id                 TEXT    PRIMARY KEY,       -- 'sm_' || randomHex(12)
+  parley_id          TEXT    NOT NULL REFERENCES parleys(id),
+  party_kind         TEXT    NOT NULL CHECK (party_kind IN ('user','daemon')),
+  party_id           TEXT    NOT NULL,          -- users.id / daemon fingerprint
+  party_label        TEXT    NOT NULL,
+  daemon_fingerprint TEXT,                      -- the daemon that speaks for this party; NULL = none declared
+  summons_channel    TEXT    NOT NULL,          -- chain channel the summons event rode
+  summons_seq        INTEGER NOT NULL,
+  summons_hash       TEXT    NOT NULL,          -- this_hash of the summons event
+  issued_at          INTEGER NOT NULL,
+  state              TEXT    NOT NULL CHECK (state IN ('summoned','acked','refused','escalated')),
+  response_channel   TEXT,                      -- chain coordinates of the daemon's response
+  response_seq       INTEGER,
+  response_hash      TEXT,
+  responded_at       INTEGER,
+  escalated_at       INTEGER                    -- set the moment a human is woken (refuse/escalate/no-daemon)
+);
+CREATE INDEX IF NOT EXISTS parley_summonses_parley_idx ON parley_summonses (parley_id);
+
+CREATE TABLE IF NOT EXISTS parley_gates (
+  parley_id        TEXT    PRIMARY KEY REFERENCES parleys(id),
+  action           TEXT    NOT NULL CHECK (action IN ('merge','revert','force-push')),
+  state            TEXT    NOT NULL CHECK (state IN ('pending','approved','modified','rejected')),
+  verdict_by       TEXT,                        -- users.id of the deciding human
+  verdict_by_label TEXT,
+  verdict_at       INTEGER,
+  modify_text      TEXT,                        -- the Modify free text (re-injection payload)
+  created_at       INTEGER NOT NULL
 );

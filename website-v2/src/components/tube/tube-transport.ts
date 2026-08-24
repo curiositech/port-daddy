@@ -32,9 +32,6 @@
  * exact command to make it real on their own machine.
  */
 
-/** The canonical loopback daemon address. */
-export const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876'
-
 /** The payload `kind` every tube message carries. */
 export const TUBE_KIND = 'tube.msg'
 
@@ -102,9 +99,10 @@ export function resolveTubeBackend(
     typeof import.meta !== 'undefined' ? import.meta.env?.VITE_PORT_DADDY_URL?.trim() : undefined
   if (env && isValidHttpUrl(env)) return { mode: 'live', baseUrl: normalizeBaseUrl(env) }
 
-  // 4. The embedded control plane is served by the daemon itself: same origin.
+  // 4. The embedded control plane is served by the daemon itself: route with
+  // a relative request, never an absolute guess at the daemon's own origin.
   if (loc?.origin && loc.pathname?.startsWith(EMBEDDED_CONTROL_PLANE_PREFIX)) {
-    return { mode: 'live', baseUrl: normalizeBaseUrl(loc.origin) }
+    return { mode: 'live', baseUrl: '' }
   }
 
   // 5. Public marketing site → deterministic simulation, no network call.
@@ -117,7 +115,7 @@ export function isTubeSimulated(daemonUrl?: string | null, location?: LocationLi
 }
 
 const msgUrl = (baseUrl: string, channel: string) =>
-  `${baseUrl.replace(/\/$/, '')}/msg/${encodeURIComponent(channel)}`
+  `${baseUrl ? baseUrl.replace(/\/$/, '') : ''}/msg/${encodeURIComponent(channel)}`
 
 // ---------------------------------------------------------------------------
 // Simulated daemon — deterministic in-memory replay of the tube protocol.

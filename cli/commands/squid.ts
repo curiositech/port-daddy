@@ -6,12 +6,13 @@ import { spawn as spawnChild, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   DEFAULT_SQUID_MAX_REQUEST_BYTES,
   listenClaudeCodexBridge,
 } from '../../lib/squid/claude-codex-bridge.js';
 import {
+  hookCommandPath,
   squidAdapters,
 } from '../../lib/squid/adapter.js';
 import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tube.js';
@@ -24,6 +25,7 @@ import {
   uninstallStatusline,
 } from '../../lib/squid/identity.js';
 import { readSquidConformance } from '../../lib/squid/conformance.js';
+import { sanitizeRoutineSquidStatusDetails } from '../../lib/squid/status-privacy.js';
 import {
   installPilotSessionStartHook,
   stagePilotSessionStartHook,
@@ -32,6 +34,17 @@ import {
 import { ensureSquidClaudeHome } from '../../lib/squid/bridge-client-home.js';
 import { squidTokens } from '../../lib/squid/terminal.js';
 import { resolveSquidAsset } from '../../lib/squid/assets.js';
+import {
+  clearSquidHookDebugEvents,
+  disableSquidHookDebug,
+  enableSquidHookDebug,
+  readSquidHookCliDebugSnapshot,
+  readSquidHookStatusSnapshot,
+  resetSquidHookHealth,
+  SQUID_HOOK_STATUS_MAX_STEPS,
+  type SquidHookDebugSnapshot,
+  type SquidHookStepState,
+} from '../../lib/squid/debug.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
 
@@ -58,7 +71,7 @@ export interface SquidBridgeConfig {
   host: string;
   port: number;
   cwd: string;
-  timeoutMs: number;
+  deadlineMs: number | undefined;
   maxRequestBytes: number;
   authToken: string | null;
   authTokenSource: 'generated' | 'explicit' | 'disabled';
@@ -102,6 +115,9 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'tap':
       handleSquidTap(options);
       return;
+    case 'debug':
+      handleSquidDebug(rest, options);
+      return;
     case 'help':
     case '--help':
     case '-h':
@@ -109,9 +125,83 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
       return;
     default:
       ui.error(`Unknown squid command: ${sub}`);
-      console.log('Use `pd squid on|off|status|tap`, or `pd hooks install` for hook-only repair.');
+      console.log('Use `pd squid on|off|status|tap|debug`, or `pd hooks install` for hook-only repair.');
       process.exitCode = 1;
       return;
+  }
+}
+
+/** Opt-in, sanitized per-session timing for the generated interactive hook gate. */
+export function handleSquidDebug(args: string[], options: CLIOptions): void {
+  const sub = args[0] ?? 'status';
+  const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
+  let snapshot: SquidHookDebugSnapshot;
+  if (sub === 'on' || sub === 'enable') {
+    snapshot = enableSquidHookDebug();
+  } else if (sub === 'off' || sub === 'disable') {
+    snapshot = disableSquidHookDebug();
+  } else if (sub === 'clear') {
+    snapshot = clearSquidHookDebugEvents();
+  } else if (sub === 'status' || sub === 'show' || sub === 'list') {
+    snapshot = readSquidHookCliDebugSnapshot({ cwd });
+  } else {
+    ui.error(`Unknown squid debug command: ${sub}`);
+    console.log('Use `pd squid debug on|off|status|clear`.');
+    process.exitCode = 1;
+    return;
+  }
+
+  // Mutations return the global snapshot; narrow it to the selected project so
+  // FleetBar and the CLI share one stable contract.
+  if (sub !== 'status' && sub !== 'show' && sub !== 'list') {
+    snapshot = readSquidHookCliDebugSnapshot({ cwd });
+  }
+  if (options.json || options.j) {
+    console.log(JSON.stringify(snapshot, null, 2));
+    return;
+  }
+  printSquidDebugSnapshot(snapshot, sub);
+}
+
+function printSquidDebugSnapshot(snapshot: SquidHookDebugSnapshot, action: string): void {
+  const c = squidTokens('stdout');
+  console.log('');
+  if (action === 'on' || action === 'enable') ui.success('Squid hook debug capture enabled');
+  else if (action === 'off' || action === 'disable') ui.success('Squid hook debug capture disabled; retained timeline is still readable');
+  else if (action === 'clear') ui.success('Squid hook debug timeline cleared');
+  else ui.info(`Squid hook debug — ${snapshot.enabled ? 'ON' : 'OFF'}`);
+  console.log(`  workspace: ${snapshot.workspace ?? 'all projects'}`);
+  console.log(`  privacy:   ${snapshot.privacy}`);
+  console.log(`  retention: bounded to ${Math.round(snapshot.retention.maxBytes / 1024 / 1024)} MiB locally`);
+  console.log('');
+  if (snapshot.sessions.length === 0) {
+    console.log(`  ${c.dim(snapshot.enabled ? 'Waiting for the next hook invocation…' : 'No retained hook invocations. Enable debug capture to begin.')}`);
+    console.log('');
+    return;
+  }
+  for (const session of snapshot.sessions) {
+    console.log(`  ${c.pilot(session.providerLabel)}  ${session.runtimeSessionId}  ${c.dim(session.workspaceLabel)}`);
+    console.log(`    ${stateGlyph(session.state)} ${session.state.toUpperCase()} · last activity ${session.lastActivityAt}`);
+    for (const step of session.steps) {
+      const finish = step.finishedAt ?? 'still running';
+      const duration = step.durationMs === null ? '' : ` · ${step.durationMs}ms`;
+      console.log(`    ${stateGlyph(step.state)} ${step.label.padEnd(8)} ${step.state.toUpperCase()}`);
+      console.log(`      actual    ${step.startedAt} → ${finish}${duration}`);
+      console.log(`      expected  by ${step.expectedBy} (${step.deadlineMs}ms)`);
+      console.log(`      ${step.description}`);
+    }
+    console.log('');
+  }
+}
+
+function stateGlyph(state: SquidHookStepState): string {
+  switch (state) {
+    case 'completed': return '✓';
+    case 'skipped': return '○';
+    case 'running': return '●';
+    case 'blocked': return '⊘';
+    case 'overdue': return '!';
+    case 'failed': return '×';
   }
 }
 
@@ -137,11 +227,12 @@ export function resolveSquidBridgeConfig(options: CLIOptions, cwdDefault = proce
   ]);
   const uniqueCodexConfig = [...new Set(codexConfig)];
   const auth = resolveSquidAuthToken(options);
+  const deadlineMs = resolveSquidDeadline(options);
   return {
     port: parseInt(String(options.port ?? process.env.PD_SQUID_BRIDGE_PORT ?? '8765'), 10),
     host: String(options.host ?? process.env.PD_SQUID_BRIDGE_HOST ?? '127.0.0.1'),
     cwd: String(options.cwd ?? options.workdir ?? cwdDefault),
-    timeoutMs: parseInt(String(options.timeout ?? options['timeout-ms'] ?? 10 * 60 * 1000), 10),
+    deadlineMs,
     maxRequestBytes: parseInt(String(
       options['max-request-bytes']
         ?? process.env.PD_SQUID_MAX_REQUEST_BYTES
@@ -295,6 +386,16 @@ export async function installHeadlessSquidHooks(
     throw new Error(`Unsupported Squid hook provider(s): ${missing.join(', ')}`);
   }
 
+  // Adapters emit only the stable ~/.port-daddy/bin contract. Stage that
+  // contract before touching provider config so a headless voyage cannot pin a
+  // versioned Homebrew Cellar path.
+  const { stageTentacles } = await import('./hooks-install.js');
+  const stableBinDir = dirname(hookCommandPath('pd-hook-prompt'));
+  const stage = stageTentacles(undefined, stableBinDir);
+  if (stage.missing.length > 0) {
+    throw new Error(`Cannot install Squid hooks; release assets missing: ${stage.missing.join(', ')}`);
+  }
+
   const results: SquidHookInstallResult[] = [];
   for (const adapter of selected) {
     await adapter.injectHooks(workspaceRoot);
@@ -304,6 +405,7 @@ export async function installHeadlessSquidHooks(
       verified: adapter.verified,
     });
   }
+  resetSquidHookHealth(dirname(stableBinDir));
   return results;
 }
 
@@ -338,7 +440,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
     port: config.port,
     host: config.host,
     cwd: config.cwd,
-    timeoutMs: config.timeoutMs,
+    deadlineMs: config.deadlineMs,
     maxRequestBytes: config.maxRequestBytes,
     authToken: config.authToken,
     codexModel: config.codexModel,
@@ -418,7 +520,9 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   if (stage.missing.length > 0) {
     problems.push(`tentacles missing on this build (${stage.missing.join(', ')}) — hooks skipped`);
   }
-  const hooks = stage.missing.length === 0 ? silentHooksInstall(undefined, { cwd }) : null;
+  const hooks = stage.missing.length === 0
+    ? silentHooksInstall(undefined, { cwd, stage, resetHealthOnSuccess: false })
+    : null;
   if (hooks && hooks.detected.length === 0) problems.push('no supported agent CLIs detected');
   if (hooks?.failures.length) problems.push(...hooks.failures.map((failure) => `hook wiring: ${failure}`));
   if (hooks && hooks.detected.length > hooks.configured) {
@@ -451,6 +555,7 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   // always downgrades the banner and the exit code, never just a log line.
   const armed = problems.length === 0;
   if (armed) {
+    resetSquidHookHealth();
     ui.success('Giant Squid harness ARMED for this project');
   } else {
     unregisterSquidProject(cwd);
@@ -528,54 +633,95 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const { tentacleBinDir } = await import('./hooks-install.js');
   const conformance = readSquidConformance(cwd, { home });
-  const matrix = readMatrixSnapshot();
+  const debug = readSquidHookStatusSnapshot({ cwd, maxSteps: SQUID_HOOK_STATUS_MAX_STEPS });
+  const health = debug.health;
+  const rawMatrix = readMatrixSnapshot();
+  const details = sanitizeRoutineSquidStatusDetails({
+    workspace: cwd,
+    providers: conformance.providers,
+    repair: conformance.repair,
+    matrix: rawMatrix,
+    debugEnabled: debug.enabled,
+  });
+  const matrix = details.matrix;
   // Preserve the FleetBar lifecycle enum while publishing the richer shared
   // conformance level used by the roster and pd-console.
-  const state = conformance.level === 'UNPROTECTED'
+  const baseState = conformance.level === 'UNPROTECTED'
     ? 'OFF'
     : conformance.level === 'PARTIAL' && conformance.detectedProviders > 0
       ? 'DEGRADED'
       : conformance.level;
+  const state = baseState !== 'OFF' && health.degraded ? 'DEGRADED' : baseState;
   const snapshot = {
     schemaVersion: 1,
     state,
     level: conformance.level,
     score: conformance.score,
-    workspace: cwd,
+    workspace: details.workspace,
     daemonAlive: conformance.daemonAlive,
+    daemonReady: conformance.daemonReady,
     tentaclesStaged: conformance.tentaclesStaged,
-    providers: conformance.providers,
+    providers: details.providers,
     identity: conformance.identity,
     capabilities: conformance.capabilities,
     missing: conformance.missing,
-    repair: conformance.repair,
+    repair: details.repair,
     truth: conformance.truth,
+    health,
     matrix,
+    debug,
+    detailsHidden: details.detailsHidden,
     value: {
       beforeTurn: 'Inject only fresh, project-relevant coordination context.',
       beforeEdit: 'Warn or block when another agent owns the target.',
-      afterTool: 'Leave a compact trace so the fleet can coordinate without transcript replay.',
+      afterTool: 'No per-tool process; session claims and notes carry cumulative outcomes.',
     },
   };
 
   if (options.json || options.j) {
     console.log(JSON.stringify(snapshot, null, 2));
-    if (conformance.level === 'PARTIAL') process.exitCode = 1;
+    if (conformance.level === 'PARTIAL' || health.degraded) process.exitCode = 1;
     return;
   }
   const c = squidTokens('stdout');
   const yes = (v: boolean, on = 'armed', off = 'not armed'): string => (v ? c.ok(`✓ ${on}`) : c.dim(`✗ ${off}`));
 
   console.log('');
-  ui.info(`Giant Squid harness — ${conformance.level} · ${conformance.score}% conformance`);
+  ui.info(`Giant Squid harness — ${state} · ${conformance.score}% conformance`);
   console.log('');
   printSquidValueCard(c);
   console.log('');
-  console.log(`  Daemon        ${conformance.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
-  console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, `staged at ${tentacleBinDir()}`, 'not fully staged — pd squid on')}`);
+  const daemonLabel = !conformance.daemonAlive
+    ? c.bad('✗ down — every hook no-ops (gate fails open)')
+    : !conformance.daemonReady
+      ? c.dim('… booting — hooks stay inert until the readiness lease matches this PID')
+      : c.ok('✓ ready');
+  console.log(`  Daemon        ${daemonLabel}`);
+  const stagedLabel = debug.enabled ? `staged at ${tentacleBinDir()}` : 'staged';
+  console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, stagedLabel, 'not fully staged — pd squid on')}`);
+  if (health.degraded) {
+    for (const circuit of health.circuits.filter((candidate) => candidate.state !== 'closed')) {
+      console.log(`  Circuit       ${c.bad(`✗ ${circuit.label} ${circuit.state.toUpperCase()}`)} — ${circuit.lastReason}; retry ${circuit.retryAt ?? 'after repair'}`);
+    }
+    console.log(`  Remediation   ${health.remediation}`);
+  }
+  console.log(`  Debug timeline ${debug.enabled ? c.ok('✓ enabled') : c.dim('off')} — ${debug.window.returnedSteps}/${debug.window.totalSteps} recent step${debug.window.totalSteps === 1 ? '' : 's'}${debug.window.truncated ? c.dim(' (bounded window)') : ''}`);
+  if (debug.enabled && debug.sessions.length > 0) {
+    const latestSteps = debug.sessions
+      .flatMap((session) => session.steps.map((step) => ({ session, step })))
+      .sort((left, right) => Date.parse(right.step.startedAt) - Date.parse(left.step.startedAt))
+      .slice(0, 5);
+    for (const { session, step } of latestSteps) {
+      const finished = step.finishedAt ? ` finished ${step.finishedAt}` : '';
+      const duration = step.durationMs === null ? '' : ` · ${step.durationMs}ms`;
+      console.log(`    ${step.label} ${session.providerLabel} ${step.state}${duration}`);
+      console.log(`      started ${step.startedAt} · expected by ${step.expectedBy}${finished}`);
+      console.log(`      ${step.description}`);
+    }
+  }
   console.log('');
   console.log('  Interactive hook wiring (config carries the pd-hook- marker):');
-  for (const target of conformance.providers) {
+  for (const target of details.providers) {
     const mark = target.wired
       ? c.ok(`${target.expectedScope} wired`)
       : target.configured
@@ -593,18 +739,27 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log('  What this actually gives the agent:');
   console.log(`    TURN   ${yes(conformance.capabilities.suggestibility, 'fresh suggestibility envelope', 'inactive')}`);
   console.log(`    EDIT   ${yes(conformance.capabilities.editProtection, 'claim/lock collision gate', 'inactive')}`);
-  console.log(`    TRACE  ${yes(conformance.capabilities.trace, 'post-tool pheromone trace', 'inactive')}`);
+  console.log(`    TRACE  ${c.ok('✓ retired — cumulative session evidence replaces per-tool processes')}`);
   console.log(`    INBOX  ${yes(conformance.capabilities.inbox, 'direct attention at SessionStart', 'manual pd attention only')}`);
   console.log(`    PARLEY ${yes(conformance.capabilities.parleyDelivery, 'turn delivery to inbox', 'daemon unavailable')}`);
   console.log(`    ${c.dim('Not claimed: automatic Parley convening, unsaved-buffer backup, or skill grafting.')}`);
   console.log('');
-  console.log(`  Ink Cloud matrix ${c.dim(`(${matrix.path})`)}:`);
+  console.log(`  Ink Cloud matrix${debug.enabled ? ` ${c.dim(`(${matrix.path})`)}` : ''}:`);
   if (!matrix.exists) {
     console.log(`    ${c.dim('no matrix yet — nothing is being injected')}`);
+  } else if (!debug.enabled) {
+    console.log(`    steering alerts   ${matrix.window.totals.alerts}`);
+    console.log(`    pheromone traces  ${matrix.window.totals.pheromones}`);
+    console.log(`    locks             ${matrix.window.totals.locks}`);
+    console.log(`    ${c.dim('retained values and paths hidden; enable Squid debug for explicit diagnostics')}`);
   } else {
-    console.log(`    steering alerts   ${matrix.alerts.length}${matrix.alerts.map((a) => `\n      ${c.bad('!')} ${a}`).join('')}`);
-    console.log(`    pheromone traces  ${matrix.pheromones.length}${matrix.pheromones.slice(0, 5).map((p) => `\n      ${c.dim(`· ${p}`)}`).join('')}${matrix.pheromones.length > 5 ? `\n      ${c.dim(`… ${matrix.pheromones.length - 5} more`)}` : ''}`);
-    console.log(`    locks             ${matrix.locks.length}${matrix.locks.map((l) => `\n      ${c.dim(`⊘ ${l}`)}`).join('')}`);
+    console.log(`    steering alerts   ${matrix.window.totals.alerts}${matrix.alerts.map((a) => `\n      ${c.bad('!')} ${a}`).join('')}${matrix.window.truncated.alerts ? `\n      ${c.dim(`… showing ${matrix.alerts.length} most recent`)}` : ''}`);
+    console.log(`    pheromone traces  ${matrix.window.totals.pheromones}${matrix.pheromones.slice(-5).map((p) => `\n      ${c.dim(`· ${p}`)}`).join('')}${matrix.window.totals.pheromones > 5 ? `\n      ${c.dim(`… showing 5 most recent`)}` : ''}`);
+    console.log(`    locks             ${matrix.window.totals.locks}${matrix.locks.map((l) => `\n      ${c.dim(`⊘ ${l}`)}`).join('')}${matrix.window.truncated.locks ? `\n      ${c.dim(`… showing ${matrix.locks.length} most recent`)}` : ''}`);
+    if (matrix.window.valueCharsTruncated.any) {
+      const clipped = matrix.window.valueCharsTruncated;
+      console.log(`    ${c.dim(`value clipping    alerts=${clipped.alerts} pheromones=${clipped.pheromones} locks=${clipped.locks} (max ${matrix.window.maxValueChars} chars)`)}`);
+    }
   }
   console.log('');
   await printBridgeProbe(options);
@@ -612,19 +767,19 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   if (conformance.missing.length > 0) {
     console.log('  Missing for full conformance:');
     for (const item of conformance.missing) console.log(`    ${c.bad('✗')} ${item}`);
-    if (conformance.repair) console.log(`  Repair: ${conformance.repair}`);
+    if (details.repair) console.log(`  Repair: ${details.repair}`);
     console.log('');
   }
   console.log(`  ${c.dim('Next-turn injection preview: pd squid tap')}`);
   console.log('');
-  if (conformance.level === 'PARTIAL') process.exitCode = 1;
+  if (conformance.level === 'PARTIAL' || health.degraded) process.exitCode = 1;
 }
 
 function printSquidValueCard(c: ReturnType<typeof squidTokens>): void {
   console.log(`  ${c.pilot('◆ PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')}`);
   console.log(`    ${c.ok('BEFORE TURN')}  fresh coordination context enters the next prompt`);
   console.log(`    ${c.warn('BEFORE EDIT')}  foreign ownership becomes visible before a collision`);
-  console.log(`    ${c.dim('AFTER TOOL')}   compact traces keep the fleet legible without replaying transcripts`);
+  console.log(`    ${c.dim('AFTER TOOL')}   no hook process; claims and notes are the cumulative record`);
 }
 
 /** Probe the local Claude⇄Codex bridge so status shows whether a pilot is live. */
@@ -700,6 +855,64 @@ function resolveSquidAuthToken(options: CLIOptions): { token: string | null; sou
     return { token: process.env.PD_SQUID_BRIDGE_TOKEN, source: 'explicit' };
   }
   return { token: `squid-${randomBytes(GENERATED_TOKEN_BYTES).toString('base64url')}`, source: 'generated' };
+}
+
+const SQUID_DEADLINE_MIN_MS = 1_000;
+const SQUID_DEADLINE_MAX_MS = 21_600_000; // 6 hours
+
+/** Reject anything but a bare, non-empty run of ASCII decimal digits (no signs, decimals, whitespace, or suffixes). */
+function isStrictAsciiDecimal(value: string): boolean {
+  return /^[0-9]+$/.test(value);
+}
+
+/** Parse a deadline value with no tolerance for ambiguity. Fails closed, naming the source and the valid range. */
+function parseStrictSquidDeadlineMs(rawValue: string, source: string): number {
+  if (!isStrictAsciiDecimal(rawValue)) {
+    throw new Error(
+      `${source} must be written as ASCII decimal digits only (no signs, decimals, whitespace, or suffixes) `
+      + `and fall in the inclusive range ${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}ms; got "${rawValue}".`,
+    );
+  }
+  const ms = Number(rawValue);
+  if (!(ms >= SQUID_DEADLINE_MIN_MS && ms <= SQUID_DEADLINE_MAX_MS)) {
+    throw new Error(
+      `${source} must be in the inclusive range ${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}ms; got ${ms}.`,
+    );
+  }
+  return ms;
+}
+
+/** Migration error for the generic --timeout/--timeout-ms bridge options removed in the deadline refactor. */
+function legacyTimeoutMigrationError(flag: string): Error {
+  return new Error(
+    `--${flag} is no longer supported by the Squid bridge (the implicit 10-minute default was removed); `
+    + 'set an explicit deadline with --deadline-ms (or the PD_SQUID_DEADLINE_MS environment variable) instead.',
+  );
+}
+
+/**
+ * Resolve the explicit deadline from CLI or environment. Fails closed on anything
+ * ambiguous: legacy --timeout/--timeout-ms are rejected outright (not silently
+ * dropped), --deadline-ms wins over the environment variable, and there is no
+ * implicit default when neither is set.
+ */
+function resolveSquidDeadline(options: CLIOptions): number | undefined {
+  if (options.timeout !== undefined) throw legacyTimeoutMigrationError('timeout');
+  if (options['timeout-ms'] !== undefined) throw legacyTimeoutMigrationError('timeout-ms');
+
+  if (options['deadline-ms'] !== undefined) {
+    if (typeof options['deadline-ms'] !== 'string') {
+      throw new Error('--deadline-ms must be passed exactly once, with a single ASCII-digit value.');
+    }
+    return parseStrictSquidDeadlineMs(options['deadline-ms'], '--deadline-ms');
+  }
+
+  if (typeof process.env.PD_SQUID_DEADLINE_MS === 'string' && process.env.PD_SQUID_DEADLINE_MS.length > 0) {
+    return parseStrictSquidDeadlineMs(process.env.PD_SQUID_DEADLINE_MS, 'PD_SQUID_DEADLINE_MS');
+  }
+
+  // No default: deadline is undefined
+  return undefined;
 }
 
 function isUsableLocalToken(token: string): boolean {
@@ -816,6 +1029,7 @@ function printHelp(): void {
   pd squid off    [--all] [--cwd <repo>]         Disarm it (hooks, statusline, /squid)
   pd squid status [--json]                       Non-diegetic readout of every surface
   pd squid tap                                   Preview the next-turn injection envelope
+  pd squid debug on|off|status|clear [--json]    Sanitized per-session hook timeline
   pd squid bridge [bridge options] [-- <client> <args...>]
   pd squid codex  [bridge options] [-- <client> <args...>]
   pd squid pro    [bridge options] [-- <client> <args...>]
@@ -831,6 +1045,9 @@ Bridge options:
   --port <n>                  Local bridge port (default: 8765)
   --host <addr>               Local bind host (default: 127.0.0.1)
   --cwd <repo>                Working directory for Codex and launched client
+  --deadline-ms <n>           Codex request deadline in milliseconds, ASCII digits only,
+                              range ${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS} (default: no limit;
+                              legacy --timeout/--timeout-ms are rejected, not silently ignored)
   --max-request-bytes <n>     Max JSON request body size (default: ${DEFAULT_SQUID_MAX_REQUEST_BYTES})
   --token <token>             Local bridge token (default: generated per run)
   --no-token                  Disable auth; loopback-only

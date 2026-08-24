@@ -22,6 +22,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { request } from '../helpers/integration-setup.js';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 
 let dir;
 let file;
@@ -49,7 +50,14 @@ afterAll(() => {
 });
 
 async function newSession(purpose, agentId) {
-  const res = await request('/sessions', { method: 'POST', body: { purpose, agentId } });
+  // #8877 / ADR-0122: attributed session starts require a daemon-minted
+  // credential; mint one per test agent through the public mint door.
+  const actor = await registerTestActorVia(request, { alias: agentId });
+  const res = await request('/sessions', {
+    method: 'POST',
+    body: { purpose, agentId },
+    headers: actor.headers,
+  });
   expect(res.ok).toBe(true);
   const id = res.data?.session?.id ?? res.data?.id ?? res.data?.sessionId;
   expect(typeof id).toBe('string');

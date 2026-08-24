@@ -28,8 +28,15 @@
  */
 
 import { timingSafeEqual } from './crypto.js';
-import { getFleetRunWithSteps, type FleetRunRow, type FleetRunStepRow } from './db.js';
+import type { FleetRunStepRow } from './db.js';
+import {
+  getFleetRunProjectionWithSteps,
+  listFleetRunGenerationsForPr,
+  type FleetRunProjection,
+  type FleetRunGenerationSummary,
+} from './fleet-run-intents.js';
 import { resolveSession, userCanReadRepo } from './auth-github.js';
+import { getRepoToken, getPrMeta, getPrDiff, type PrMeta, type PrDiff } from './github-app.js';
 import type { Env } from './types.js';
 
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,160}$/;
@@ -93,22 +100,24 @@ function esc(v: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-function htmlResponse(body: string, status: number): Response {
+function htmlResponse(body: string, status: number, refreshSeconds: number | null = null): Response {
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/html; charset=utf-8',
+    // No scripts, ever: transcript content is model output. Google Fonts is
+    // the only third-party origin (style + font files); nothing else.
+    'Content-Security-Policy':
+      "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    // Capability URLs must not end up in caches or search indexes.
+    'Cache-Control': 'no-store',
+    'X-Robots-Tag': 'noindex, nofollow',
+  };
+  if (refreshSeconds !== null) headers.Refresh = String(refreshSeconds);
   return new Response(body, {
     status,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      // No scripts, ever: transcript content is model output. Google Fonts is
-      // the only third-party origin (style + font files); nothing else.
-      'Content-Security-Policy':
-        "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      'Referrer-Policy': 'no-referrer',
-      'X-Content-Type-Options': 'nosniff',
-      // Capability URLs must not end up in caches or search indexes.
-      'Cache-Control': 'no-store',
-      'X-Robots-Tag': 'noindex, nofollow',
-    },
+    headers,
   });
 }
 
@@ -186,10 +195,35 @@ a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
 .badge.success{background:var(--health);color:var(--on-accent)}.badge.success .dot{background:var(--on-accent)}
 .badge.failure{background:var(--error);color:var(--on-accent)}.badge.failure .dot{background:var(--on-accent)}
 .badge.neutral,.badge.other{background:var(--amber);color:var(--ink)}.badge.neutral .dot,.badge.other .dot{background:var(--ink)}
+.badge.running{background:var(--cobalt);color:var(--cream)}.badge.running .dot{background:var(--cream)}
+.badge.queued{background:var(--surface-base);color:var(--text-primary)}.badge.queued .dot{background:var(--amber)}
+.badge.retrying{background:var(--amber);color:var(--ink)}.badge.retrying .dot{background:var(--error)}
+.badge.superseded{background:var(--surface-card);color:var(--text-muted);border-color:var(--hair-strong)}.badge.superseded .dot{background:var(--text-muted)}
 .rid-facts{display:flex;flex-wrap:wrap;gap:10px 12px;padding:16px 22px}
 .fact{display:inline-flex;align-items:baseline;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--text-secondary);border:1px solid var(--hair-strong);padding:5px 11px;max-width:100%;overflow:hidden}
 .fact .fk{color:var(--text-muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px}
 .fact code{color:var(--text-primary);word-break:break-all}
+.rid-title{padding:0 22px 14px;margin-top:-8px;font-size:15px;color:var(--text-secondary);line-height:1.5;word-break:break-word}
+.genstrip{padding:0 22px 16px}
+.genstrip summary{cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;color:var(--cobalt)}
+.genstrip ul{list-style:none;margin-top:8px}
+.genstrip li{padding:4px 0;font-size:13px}
+
+/* diff panel */
+.diffpanel{border:2px solid var(--border-strong);border-top:none;background:var(--surface-card);margin-bottom:44px}
+.diffpanel>summary{cursor:pointer;padding:13px 22px;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--cobalt);list-style:none}
+.diffpanel>summary::-webkit-details-marker{display:none}
+.diffpanel-body{padding:0 22px 18px}
+.diffpanel-empty{padding:13px 22px;border:2px solid var(--border-strong);border-top:none;background:var(--surface-card);margin-bottom:44px;font-size:13.5px;color:var(--text-muted)}
+.difffile{border:1px solid var(--hair-strong);margin-top:10px}
+.difffile summary{cursor:pointer;padding:8px 12px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-strong)}
+.difffile summary code{color:var(--text-primary)}
+.diffbody{overflow-x:auto;padding:10px 12px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.5;max-height:480px;overflow-y:auto;white-space:pre}
+.diffbody .df-add{color:var(--health)}
+.diffbody .df-del{color:var(--error)}
+.diffbody .df-hunk{color:var(--cobalt)}
+.diffbody .df-meta{color:var(--text-ghost)}
+.diffbody .df-ctx{color:var(--text-secondary)}
 
 /* stat ledger */
 .statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:var(--lw-weight);background:var(--hair-strong);border:2px solid var(--border-strong);border-top:none;margin-bottom:44px}
@@ -197,6 +231,10 @@ a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
 .stat .k{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted)}
 .stat .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.01em;line-height:1.05}
 .stat-money .v{color:var(--gold)}
+.live-strip{display:flex;align-items:center;gap:10px;padding:11px 18px;border:2px solid var(--border-strong);border-top:none;background:var(--surface-raised);font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--text-muted)}
+.live-strip .pulse{width:9px;height:9px;background:var(--cobalt);border:2px solid var(--border-strong);animation:fleet-pulse 1.8s ease-in-out infinite}
+@keyframes fleet-pulse{50%{opacity:.28}}
+@media (prefers-reduced-motion:reduce){.live-strip .pulse{animation:none}}
 
 /* transcript */
 .tx-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
@@ -210,6 +248,15 @@ a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
 .ship-card.fleet .ship-tick{background:var(--violet)}
 .ship-id h2{font-size:18px;font-weight:700;letter-spacing:-.01em;word-break:break-word}
 .ship-count{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.spend-badge{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--text-muted);white-space:nowrap}
+.spend-badge code{color:var(--text-secondary)}
+.ship-config{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;padding:11px 20px;border-bottom:2px solid var(--border-strong);background:var(--surface-card);font-size:13px}
+.ship-config .cfg-row{display:flex;gap:6px;align-items:baseline}
+.ship-config .cfg-k{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-ghost)}
+.ship-config .cfg-flags{display:flex;flex-wrap:wrap;gap:6px}
+.ship-config .flag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--hair-strong);color:var(--text-secondary);white-space:nowrap}
+.ship-config .flag.on{border-color:var(--cobalt);color:var(--cobalt)}
+.ship-config .cfg-link{font-size:12.5px;white-space:nowrap;margin-left:auto}
 
 .timeline{list-style:none}
 .tl-step{display:grid;grid-template-columns:34px 1fr;column-gap:2px}
@@ -266,6 +313,8 @@ li.step.tone-info{border-left-color:var(--hair-strong)}
 .finding-head .sev{font-weight:700;font-family:"IBM Plex Mono",monospace}
 .floc{font-family:"IBM Plex Mono",monospace;color:var(--text-muted);background:var(--surface-strong);padding:1px 6px;border:1px solid var(--hair-strong);word-break:break-all}
 .finding-body{margin-top:6px;color:var(--text-secondary);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.operator-action{margin-top:12px;padding:10px 12px;border-left:var(--lw-stripe) solid var(--teal);background:var(--surface-card);font-size:14px;line-height:1.55;color:var(--text-secondary)}
+.operator-action strong{color:var(--text-primary)}
 ol.breakdown{list-style:none;margin-top:8px}
 ol.breakdown li{padding:2px 0;color:var(--text-muted);font-size:13px;font-family:"IBM Plex Mono",monospace}
 details.consolidated,details.raw{margin-top:10px}
@@ -333,11 +382,26 @@ function badgeClass(conclusion: string): string {
   if (conclusion === 'success') return 'success';
   if (conclusion === 'failure') return 'failure';
   if (conclusion === 'neutral') return 'neutral';
+  if (conclusion === 'running') return 'running';
+  if (conclusion === 'queued' || conclusion === 'admitting') return 'queued';
+  if (conclusion === 'retrying') return 'retrying';
+  if (conclusion === 'superseded') return 'superseded';
+  if (conclusion === 'enqueue_failed') return 'failure';
   return 'other';
+}
+
+function stateLabel(state: string): string {
+  if (state === 'enqueue_failed') return 'needs repair';
+  return state || 'pending';
 }
 
 function fmtUtc(sec: number): string {
   return new Date(sec * 1000).toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+}
+
+/** Short clock-only form for inline step timestamps (full date is the tooltip). */
+function fmtClockUtc(sec: number): string {
+  return `${new Date(sec * 1000).toISOString().slice(11, 19)} UTC`;
 }
 
 function fmtMs(ms: number): string {
@@ -384,6 +448,18 @@ function sumDetailField(steps: FleetRunStepRow[], field: string): number | null 
 /** Render a token tile value: a real count, or an honest "not reported". */
 function tokenTileValue(total: number | null): string {
   return total == null ? 'not reported' : total.toLocaleString('en-US');
+}
+
+/**
+ * Format a USD cost for display. Fleet spend is typically sub-cent per run,
+ * so a fixed two-decimal format would round almost everything to "$0.00" —
+ * indistinguishable from genuinely free. Shows enough precision to be honest
+ * at the run's actual scale, never fewer than 2 places, never more than 6.
+ */
+function fmtUsd(usd: number): string {
+  if (usd === 0) return '$0.00';
+  const decimals = usd >= 1 ? 2 : usd >= 0.01 ? 4 : 6;
+  return `$${usd.toFixed(decimals)}`;
 }
 
 // ── Step semantics: English narratives over the raw kind/detail ──────────────
@@ -548,6 +624,89 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: '',
       };
 
+    // The contract-repair pass (fleet-executor src/repair.ts): broken output
+    // gets up to two bounded retries before the broken-ship doctrine engages.
+    case 'ship-repair': {
+      const healed = obj.healed === true;
+      return {
+        icon: '🩹',
+        tone: healed ? 'info' : 'block',
+        headline:
+          title ||
+          (healed
+            ? `${shipLabel} emitted broken output, then healed it on a repair retry.`
+            : `${shipLabel} emitted broken output and the repair retries failed too.`),
+        bodyHtml: '',
+      };
+    }
+
+    // The broken-ship marker (fleet-executor src/adjudicator.ts) — evidence
+    // for the epidemic test; the adjudication step right after it says who
+    // the breakage gates.
+    case 'ship-broken':
+      return {
+        icon: '💥',
+        tone: 'block',
+        headline: title || `${shipLabel} is broken — repair failed; adjudicating who this gates.`,
+        bodyHtml: '',
+      };
+
+    case 'ship-adjudicated': {
+      const fleetWide = (obj as { verdict?: unknown }).verdict === 'fleet';
+      return {
+        icon: '⚖️',
+        tone: fleetWide ? 'neutral' : 'block',
+        headline:
+          title ||
+          (fleetWide
+            ? `${shipLabel}'s breakage was adjudicated a FLEET-WIDE fault — tracked in one issue; not gating this PR.`
+            : `${shipLabel}'s breakage is isolated to this PR — the failure stands.`),
+        bodyHtml: `<p class="meta">${esc(
+          fleetWide
+            ? 'This is a fleet-wide adjudication, not a PR-review failure. The run resolves neutral — visible, never green — because the fault gates the fleet, not this author, who must fix it.'
+            : 'This is an isolated PR-review failure, not a fleet-wide provider outage. The breakage fails the run and remains a failing gate for this PR.',
+        )}</p><p class="operator-action"><strong>Operator action:</strong> ${esc(
+          fleetWide
+            ? 'No change is requested from the PR author. Track the fleet fault and repair or pause the affected ship in FleetBar before asking for another review.'
+            : 'Inspect this ship’s transcript and configuration; the PR remains blocked until the isolated review failure is resolved.',
+        )}</p>`,
+      };
+    }
+
+    // A FleetAiCircuit opens only for a retryable Workers AI dependency fault.
+    // This is a provider availability event, deliberately distinct from a ship's
+    // review judgement or an isolated broken-ship failure.
+    case 'provider-circuit-open': {
+      const attempt = numField(obj, 'attempt');
+      const maxAttempts = numField(obj, 'maxAttempts');
+      const hasRetryRemaining = attempt != null && maxAttempts != null && attempt < maxAttempts;
+      const status = numField(obj, 'status');
+      const code = numField(obj, 'code');
+      const providerDetail = [
+        status != null ? `HTTP ${status}` : null,
+        code != null ? `provider code ${code}` : null,
+      ].filter((value): value is string => value !== null).join(' · ');
+      const attemptLabel = attempt != null && maxAttempts != null
+        ? `delivery attempt ${attempt}/${maxAttempts}`
+        : 'this delivery attempt';
+      return {
+        icon: '!',
+        tone: 'neutral',
+        headline: `Workers AI provider circuit opened on ${attemptLabel} — provider outage, not a PR-review failure.`,
+        bodyHtml: `<p class="meta">${esc(
+          `${providerDetail ? `${providerDetail}. ` : ''}${
+            hasRetryRemaining
+              ? 'The queue has scheduled the next bounded retry.'
+              : 'The bounded provider retry budget is exhausted.'
+          }`,
+        )}</p><p class="operator-action"><strong>Operator action:</strong> ${esc(
+          hasRetryRemaining
+            ? 'No change is requested from the PR author. Let the scheduled retry run and monitor the next attempt in Cloud Fleet.'
+            : 'No change is requested from the PR author. Check Workers AI availability and the Fleet provider configuration in FleetBar before requesting a fresh review.',
+        )}</p>`,
+      };
+    }
+
     // A ship that produced NO USABLE OUTPUT (fleet-executor's
     // src/usable-output.ts). This must NEVER render as a pass: the ship ran and
     // reviewed nothing. The executor already writes an honest English title, so
@@ -563,7 +722,7 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: `<p class="meta">${esc(
           blocking
             ? 'This is a blocking ship, so the fleet check failed closed — an absent review is not an approval.'
-            : 'This is an advisory ship, so it did not fail the merge gate; it is reported here rather than counted as a pass.',
+            : 'This ship is advisory in judgment, but a ship that returned nothing is broken — the fleet check fails until it is fixed.',
         )}</p>`,
       };
     }
@@ -573,13 +732,20 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
     case 'ship-spend': {
       const reported = obj.usageReported === true;
       const calls = numField(obj, 'calls');
+      const model = typeof obj.model === 'string' ? obj.model : null;
+      const cost = numField(obj, 'costUsd');
       return {
         icon: '🧮',
         tone: 'info',
         headline: reported
           ? title || `${shipLabel} token spend recorded.`
           : `${shipLabel} made ${calls ?? 'its'} model call(s); the model reported no token usage — spend is not reported, not zero.`,
-        bodyHtml: '',
+        bodyHtml:
+          reported && (model || cost != null)
+            ? `<p class="meta">${model ? `Ran on <code>${esc(model)}</code>. ` : ''}${
+                cost != null ? `Cost this run: ${esc(fmtUsd(cost))}.` : ''
+              }</p>`
+            : '',
       };
     }
 
@@ -613,8 +779,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         }
         return {
           icon: '💡',
-          tone: 'neutral',
-          headline: `${shipLabel} ran as an ideation ship (advisory) — its proposal block was malformed.`,
+          tone: 'block',
+          headline:
+            `${shipLabel} emitted a malformed proposal block — a broken ship, so the ` +
+            `fleet check fails until it is fixed.`,
           bodyHtml: '',
         };
       }
@@ -650,24 +818,48 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       if (typeof obj.error === 'string') {
         return {
           icon: '⚖️',
-          tone: 'neutral',
+          tone: 'block',
           headline:
-            'The purser could not steel-man this PR — its contract output was malformed, ' +
-            'so it stopped honestly (advisory, no bluffed contract).',
+            'The purser could not steel-man this PR — its contract output was malformed. ' +
+            'No contract was bluffed, and the broken ship fails the fleet check until fixed.',
           bodyHtml: '',
         };
       }
       const n = numField(obj, 'obligationCount');
       const purpose = typeof obj.purpose === 'string' ? obj.purpose : '';
+      const obligations = Array.isArray(obj.obligations)
+        ? obj.obligations.filter((o): o is string => typeof o === 'string')
+        : [];
+      const purposeHtml = purpose
+        ? `<div class="finding"><div class="finding-head"><span class="floc">purpose</span></div><div class="finding-body">${esc(purpose)}</div></div>`
+        : '';
+      const obligationsHtml = obligations.length
+        ? `<div class="finding"><div class="finding-head"><span class="floc">the ${obligations.length} obligation${obligations.length === 1 ? '' : 's'} held to</span></div>` +
+          `<div class="finding-body"><ol class="breakdown">${obligations.map(o => `<li>${esc(o)}</li>`).join('')}</ol></div></div>`
+        : '';
       return {
         icon: '⚖️',
         tone: 'info',
         headline:
           `The purser steel-manned this PR into ${n ?? 'several'} testable ` +
           `obligation${n === 1 ? '' : 's'} — the strongest reading of its contract.`,
-        bodyHtml: purpose
-          ? `<div class="review"><div class="finding"><div class="finding-body">${esc(purpose)}</div></div></div>`
-          : '',
+        bodyHtml: purposeHtml || obligationsHtml ? `<div class="review">${purposeHtml}${obligationsHtml}</div>` : '',
+      };
+    }
+
+    // The steel-man contract being written into the reviewed PR's body (the PR
+    // summary) — the operator-mandated chronology of what the PR should be.
+    case 'purser-contract-posted': {
+      const posted = obj.posted === true;
+      return {
+        icon: '📜',
+        tone: posted ? 'info' : 'block',
+        headline:
+          title ||
+          (posted
+            ? 'The steel-man contract was written into the PR summary.'
+            : 'FAILED to write the steel-man contract into the PR summary.'),
+        bodyHtml: '',
       };
     }
 
@@ -675,8 +867,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       if (typeof obj.error === 'string') {
         return {
           icon: '🧪',
-          tone: 'neutral',
-          headline: `The purser's authored tests did not survive validation — ${obj.error}. Nothing was stacked.`,
+          tone: 'block',
+          headline:
+            `The purser's authored tests did not survive validation — ${obj.error}. ` +
+            `Nothing was stacked, and the broken ship fails the fleet check until fixed.`,
           bodyHtml: '',
         };
       }
@@ -804,6 +998,59 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       };
     }
 
+    // A ship's job errored (transport/AI failure) — the title the executor
+    // wrote is already a specific summary (fleet-executor's execute.ts); this
+    // case only fixes the icon/tone so an error reads as one, and adds the
+    // retry note when the failure is one the executor will retry on its own.
+    case 'ship-error': {
+      const retryable = obj.retryable === true;
+      return {
+        icon: '🛑',
+        tone: 'block',
+        headline: title || `${shipLabel} errored.`,
+        bodyHtml: retryable
+          ? `<p class="meta">This class of failure is retried automatically on the next delivery attempt.</p>`
+          : '',
+      };
+    }
+
+    // A ship whose verdict was reused from an EARLIER delivery attempt of the
+    // same PR generation, instead of re-running (ship-checkpoint.ts) — the
+    // fleet does not pay twice for the same diff when a prior attempt already
+    // has a good answer.
+    case 'ship-resumed': {
+      const verdict = typeof obj.verdict === 'string' ? obj.verdict : null;
+      const errored = obj.errored === true;
+      const findings = numField(obj, 'findings');
+      return {
+        icon: '♻️',
+        tone: errored ? 'block' : verdict === 'BLOCK' ? 'block' : 'pass',
+        headline:
+          title ||
+          `${shipLabel} reused its verdict from an earlier attempt on this same PR generation — no re-run, no repeat spend.`,
+        bodyHtml: `<p class="meta">Reused: ${esc(errored ? 'ERROR' : (verdict ?? 'done'))}${
+          findings != null ? ` · ${findings} finding${findings === 1 ? '' : 's'}` : ''
+        } (from the attempt that first ran it).</p>`,
+      };
+    }
+
+    // A ship's result was CHECKPOINTED so a retried delivery can resume past
+    // it (ship-checkpoint.ts) — the full ShipResult (verdict/findings) is
+    // already shown by that ship's own `ship-verdict` row earlier in this
+    // same attempt; this marker only proves the checkpoint was durably saved.
+    case 'ship-checkpoint': {
+      const verdict = typeof obj.verdict === 'string' ? obj.verdict : null;
+      const errored = obj.errored === true;
+      return {
+        icon: '💾',
+        tone: 'info',
+        headline:
+          `${shipLabel} checkpointed its ${errored ? 'ERROR' : (verdict ?? 'result')} — ` +
+          'a retried delivery resumes past this ship instead of paying for it again.',
+        bodyHtml: '',
+      };
+    }
+
     default:
       return { icon: '•', tone: 'info', headline: title || step.kind, bodyHtml: '' };
   }
@@ -822,7 +1069,13 @@ function nodeClass(tone: StepView['tone'], kind?: string): string {
  * escape. Carries the story-linework `.tl-*` scaffold AND the legibility test
  * hooks (`step tone-<tone>`, `.narrative`) on the same elements.
  */
-function renderStepLi(view: StepView, offsetSec: number, rawJson: string | null, kind?: string): string {
+function renderStepLi(
+  view: StepView,
+  offsetSec: number,
+  createdAtSec: number,
+  rawJson: string | null,
+  kind?: string,
+): string {
   const raw = rawJson
     ? `<details class="raw"><summary>raw step data</summary><pre>${esc(rawJson)}</pre></details>`
     : '';
@@ -832,7 +1085,7 @@ function renderStepLi(view: StepView, offsetSec: number, rawJson: string | null,
       <div class="tl-topline step-head">
         <span class="step-icon" aria-hidden="true">${view.icon}</span>
         <span class="tl-title narrative">${esc(view.headline)}</span>
-        <span class="tl-time t">+${esc(String(offsetSec))}s</span>
+        <span class="tl-time t" title="+${esc(String(offsetSec))}s into the run">${esc(fmtClockUtc(createdAtSec))}</span>
       </div>
       ${view.bodyHtml}
       ${raw}
@@ -878,7 +1131,7 @@ function renderConsolidatedMap(chunks: FleetRunStepRow[], runStartSec: number): 
       <div class="tl-topline step-head">
         <span class="step-icon" aria-hidden="true">🗺️</span>
         <span class="tl-title narrative">${esc(headline)}${emptyNote}</span>
-        <span class="tl-time t">+${esc(String(offset))}s</span>
+        <span class="tl-time t" title="+${esc(String(offset))}s into the run">${esc(fmtClockUtc(first.created_at))}</span>
       </div>
       <details class="consolidated"><summary>${esc(n === 1 ? 'Chunk detail' : `Per-chunk breakdown · ${n} steps`)}</summary>
         <ol class="breakdown">${breakdown}</ol>
@@ -918,11 +1171,133 @@ function shipOutcome(list: FleetRunStepRow[]): { text: string; tone: StepView['t
   return null;
 }
 
+/** The repo that owns every ship's actual system-prompt source (fleet/ships/*.md) — Port Daddy's own, not the reviewed repo. */
+const SHIP_DEFINITION_REPO = 'curiositech/port-daddy';
+
+/**
+ * A per-ship spend rollup from its `ship-spend` step(s): the model(s) it ran
+ * on and its total cost this run — the same fields already summed into the
+ * page's global token tiles, just kept per-ship for the ship-card header.
+ */
+function shipSpendBadge(list: FleetRunStepRow[]): string {
+  let model: string | null = null;
+  let cost: number | null = null;
+  let anyReported = false;
+  for (const s of list) {
+    if (s.kind !== 'ship-spend') continue;
+    const o = asObject(parseDetail(s));
+    if (typeof o.model === 'string') model = o.model;
+    const c = numField(o, 'costUsd');
+    if (c != null) {
+      cost = (cost ?? 0) + c;
+      anyReported = true;
+    }
+  }
+  if (!model && !anyReported) return '';
+  const parts = [model ? `<code>${esc(model)}</code>` : null, anyReported ? esc(fmtUsd(cost ?? 0)) : null].filter(
+    Boolean,
+  );
+  return parts.length ? `<span class="spend-badge">${parts.join(' · ')}</span>` : '';
+}
+
+/**
+ * Render a ship's static configuration (fleet-ship-config step, written once
+ * at run start — see execute.ts's recordShipsConfigInTranscript) as an info
+ * strip under the ship-card header: model(s), role, the permission-shaped
+ * flags an operator actually asks about (can it block? can it write files?),
+ * and a link to its real prompt source, since that prompt is never persisted
+ * per-run and Port Daddy's ships are the same definitions across every repo
+ * the fleet reviews.
+ */
+function renderShipConfigPanel(configStep: FleetRunStepRow | undefined, shipName: string): string {
+  if (!configStep) return '';
+  const o = asObject(parseDetail(configStep));
+  const cfModel = typeof o.cfModel === 'string' ? o.cfModel : null;
+  const modelRows = [
+    cfModel ? `<div class="cfg-row"><span class="cfg-k">model</span><code>${esc(cfModel)}</code></div>` : '',
+    typeof o.cfPlanModel === 'string'
+      ? `<div class="cfg-row"><span class="cfg-k">purser plan</span><code>${esc(o.cfPlanModel)}</code></div>`
+      : '',
+    typeof o.cfAuthorModel === 'string'
+      ? `<div class="cfg-row"><span class="cfg-k">purser author</span><code>${esc(o.cfAuthorModel)}</code></div>`
+      : '',
+    typeof o.cfMapModel === 'string'
+      ? `<div class="cfg-row"><span class="cfg-k">map fan-out</span><code>${esc(o.cfMapModel)}</code></div>`
+      : '',
+  ].join('');
+  const flags = [
+    `<span class="flag${o.blocking === true ? ' on' : ''}">${o.blocking === true ? 'blocking' : 'advisory'}</span>`,
+    o.needsExecution === true ? `<span class="flag on">bash/write execution</span>` : '',
+    o.purser === true ? `<span class="flag on">purser · adversarial gatekeeper</span>` : '',
+    o.ideation === true ? `<span class="flag">ideation · never blocks</span>` : '',
+    Array.isArray(o.testPaths) && o.testPaths.length
+      ? `<span class="flag">tests confined to ${esc(o.testPaths.filter((p): p is string => typeof p === 'string').join(', '))}</span>`
+      : '',
+  ].join('');
+  const link = `<a class="cfg-link" href="https://github.com/${SHIP_DEFINITION_REPO}/blob/main/fleet/ships/${encodeURIComponent(shipName)}.md">Ship definition &amp; prompt on GitHub →</a>`;
+  return `<div class="ship-config">${modelRows}<div class="cfg-flags">${flags}</div>${link}</div>`;
+}
+
+/**
+ * Consolidate the Fleet group's `delivery-attempt` / `delivery-failed` rows
+ * into ONE line — these are per-retry infrastructure markers ("Delivery
+ * attempt 1 started", "Delivery attempt 2 started", …), not deliberation, and
+ * reading them one-per-line is exactly the noise the MAP-chunk consolidation
+ * already exists to kill. Pairs each attempt with its failure (if any) so the
+ * collapsed breakdown reads as "what happened between attempts", not just a
+ * bare count.
+ */
+function renderDeliveryHistory(rows: FleetRunStepRow[], runStartSec: number): string {
+  if (rows.length === 0) return '';
+  const byAttempt = new Map<number, { started?: FleetRunStepRow; failed?: FleetRunStepRow }>();
+  for (const r of rows) {
+    const n = numField(asObject(parseDetail(r)), 'attempt') ?? 0;
+    const entry = byAttempt.get(n) ?? {};
+    if (r.kind === 'delivery-failed') entry.failed = r;
+    else entry.started = r;
+    byAttempt.set(n, entry);
+  }
+  const attempts = [...byAttempt.entries()].sort((a, b) => a[0] - b[0]);
+  const failedCount = attempts.filter(([, e]) => e.failed).length;
+  const first = rows[0];
+  if (!first) return '';
+  const offset = Math.max(0, first.created_at - runStartSec);
+  const breakdown = attempts
+    .map(([n, e]) => {
+      const time = e.started ? fmtClockUtc(e.started.created_at) : e.failed ? fmtClockUtc(e.failed.created_at) : '';
+      const failText = e.failed ? esc((asObject(parseDetail(e.failed)).error as string) ?? 'failed') : null;
+      return `<li>Attempt ${n || '?'} · ${esc(time)}${failText ? ` — FAILED: ${failText}` : ' — started'}</li>`;
+    })
+    .join('');
+  const headline =
+    attempts.length === 1
+      ? 'Delivered on the first attempt — no retries.'
+      : `Delivered across ${attempts.length} attempt${attempts.length === 1 ? '' : 's'}` +
+        (failedCount ? `, ${failedCount} of which failed before completing.` : '.');
+  return `<li class="tl-step step tone-${failedCount ? 'neutral' : 'info'}">
+    <div class="tl-rail"><span class="tl-node" aria-hidden="true"></span></div>
+    <div class="tl-body">
+      <div class="tl-topline step-head">
+        <span class="step-icon" aria-hidden="true">🔁</span>
+        <span class="tl-title narrative">${esc(headline)}</span>
+        <span class="tl-time t" title="+${esc(String(offset))}s into the run">${esc(fmtClockUtc(first.created_at))}</span>
+      </div>
+      <details class="consolidated"><summary>Per-attempt breakdown · ${attempts.length} attempt${attempts.length === 1 ? '' : 's'}</summary>
+        <ol class="breakdown">${breakdown}</ol>
+      </details>
+    </div>
+  </li>`;
+}
+
 /**
  * Group transcript steps per ship, preserving order; null ship ⇒ "Fleet".
  * Each group renders as a story-linework `.ship-card` with a `.timeline`; each
  * step (and each consolidated MAP entry) is a `.tl-step` timeline node whose
  * body is the English narrative + findings review + raw-data affordance.
+ * Per-ship groups also render a config strip (model/role/permissions, from
+ * the one-time `fleet-ship-config` step) and a spend badge in the header; the
+ * Fleet group's `delivery-attempt`/`delivery-failed` rows collapse into one
+ * consolidated entry instead of one line per retry.
  */
 function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
   const groups = new Map<string, FleetRunStepRow[]>();
@@ -938,51 +1313,193 @@ function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
     const label = isFleet ? 'Fleet' : `pd-${ship}`;
     const outcome = isFleet ? null : shipOutcome(list);
     const outcomeHtml = outcome ? `<span class="outcome tone-${outcome.tone}">${esc(outcome.text)}</span>` : '';
+    const spendHtml = isFleet ? '' : shipSpendBadge(list);
+    const configStep = isFleet ? undefined : list.find(s => s.kind === 'fleet-ship-config');
+    const configHtml = isFleet ? '' : renderShipConfigPanel(configStep, ship);
+
+    const deliveryRows = isFleet
+      ? list.filter(s => s.kind === 'delivery-attempt' || s.kind === 'delivery-failed')
+      : [];
+    const timelineSource = list.filter(
+      s =>
+        s.kind !== 'fleet-ship-config' &&
+        !(isFleet && (s.kind === 'delivery-attempt' || s.kind === 'delivery-failed')),
+    );
 
     const lis: string[] = [];
-    for (let i = 0; i < list.length; ) {
-      const cur = list[i];
+    if (deliveryRows.length) lis.push(renderDeliveryHistory(deliveryRows, runStartSec));
+    for (let i = 0; i < timelineSource.length; ) {
+      const cur = timelineSource[i];
       if (!cur) {
         i += 1;
         continue;
       }
       if (cur.kind === 'map-chunk') {
         let j = i;
-        while (j < list.length && list[j]?.kind === 'map-chunk') j += 1;
-        lis.push(renderConsolidatedMap(list.slice(i, j), runStartSec));
+        while (j < timelineSource.length && timelineSource[j]?.kind === 'map-chunk') j += 1;
+        lis.push(renderConsolidatedMap(timelineSource.slice(i, j), runStartSec));
         i = j;
       } else {
         const offset = Math.max(0, cur.created_at - runStartSec);
-        lis.push(renderStepLi(describeStep(cur, label), offset, prettyDetail(cur), cur.kind));
+        lis.push(renderStepLi(describeStep(cur, label), offset, cur.created_at, prettyDetail(cur), cur.kind));
         i += 1;
       }
     }
 
     html += `<section class="ship-card${isFleet ? ' fleet' : ''}">
       <header class="ship-head">
-        <div class="ship-id"><span class="ship-tick" aria-hidden="true"></span><h2>${esc(label)}</h2>${outcomeHtml}</div>
+        <div class="ship-id"><span class="ship-tick" aria-hidden="true"></span><h2>${esc(label)}</h2>${outcomeHtml}${spendHtml}</div>
         <span class="ship-count">${list.length} step${list.length === 1 ? '' : 's'}</span>
       </header>
+      ${configHtml}
       <ol class="timeline">${lis.join('')}</ol>
     </section>`;
   }
   return html;
 }
 
-const EMPTY_TRANSCRIPT = `<div class="empty">
-  <div class="e-title">No transcript steps recorded for this run.</div>
-  <p>This run concluded without emitting per-ship deliberation steps — either it short-circuited
-  before the fleet mapped the diff, or step recording was disabled for this delivery. The verdict
-  above is still authoritative. Re-run with <span class="cmd">pd fleet review</span> to capture a
-  full transcript.</p>
-</div>`;
+function emptyTranscript(run: FleetRunProjection): string {
+  if (['admitting', 'queued'].includes(run.logical_state)) {
+    return `<div class="empty"><div class="e-title">Waiting for a Fleet worker.</div>
+      <p>This generation is durably admitted. No ship has started yet; the page will refresh while
+      it waits${run.queue_ahead_estimate == null ? '' : ` behind approximately ${esc(run.queue_ahead_estimate)} earlier run(s)`}.</p></div>`;
+  }
+  if (run.logical_state === 'superseded') {
+    return `<div class="empty"><div class="e-title">Superseded before execution.</div>
+      <p>A newer commit became the current PR generation, so this queued delivery was acknowledged
+      without model spend.</p></div>`;
+  }
+  if (run.logical_state === 'enqueue_failed') {
+    return `<div class="empty"><div class="e-title">Queue admission needs repair.</div>
+      <p>${esc(run.last_error ?? 'The relay could not hand this generation to a Fleet worker.')}</p></div>`;
+  }
+  if (run.logical_state === 'retrying') {
+    const attempt = Number.isInteger(run.attempt_count) && run.attempt_count > 0 ? run.attempt_count : 1;
+    return `<div class="empty"><div class="e-title">Provider retry scheduled — attempt ${esc(attempt)} is complete.</div>
+      <p>A provider outage interrupted this Fleet delivery. This is not a PR-review failure, and no review conclusion has been made yet.</p>
+      ${run.last_error ? `<p class="meta">${esc(run.last_error)}</p>` : ''}
+      <p class="operator-action"><strong>Operator action:</strong> No change is requested from the PR author. Let the queue retry; if its bounded attempts exhaust, inspect Workers AI and the Fleet provider configuration in FleetBar before requesting a fresh review.</p></div>`;
+  }
+  return `<div class="empty"><div class="e-title">No transcript steps recorded for this run.</div>
+    <p>The run ended before per-ship deliberation was stored, or step recording was unavailable.
+    The state above remains authoritative.</p></div>`;
+}
 
-function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
+interface DiffFile {
+  path: string;
+  body: string;
+}
+
+/** Split a unified diff into per-file segments at `diff --git` boundaries. */
+function splitDiffByFile(diffText: string): DiffFile[] {
+  const parts = diffText.split(/(?=^diff --git )/m).filter(p => p.trim().length > 0);
+  return parts.map(part => {
+    const m = /^diff --git a\/(.+?) b\/(.+?)[\r\n]/.exec(part);
+    return { path: (m?.[2] ?? m?.[1] ?? 'unknown file').trim(), body: part };
+  });
+}
+
+/** One diff file's body as escaped, per-line-classed spans (+/- coloring, no client JS). */
+function renderDiffLines(body: string): string {
+  return body
+    .split('\n')
+    .map(line => {
+      const cls =
+        line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff --git') || line.startsWith('index ')
+          ? 'df-meta'
+          : line.startsWith('@@')
+            ? 'df-hunk'
+            : line.startsWith('+')
+              ? 'df-add'
+              : line.startsWith('-')
+                ? 'df-del'
+                : 'df-ctx';
+      return `<span class="${cls}">${esc(line)}</span>`;
+    })
+    .join('\n');
+}
+
+/**
+ * Render the PR's diff as one `<details>` per changed file — expand a file to
+ * read its full patch, never a wall of raw text. Degrades to a plain link
+ * when no diff could be fetched (private-ish failure, huge PR, transient
+ * GitHub error) rather than a broken or empty-looking page.
+ */
+function renderDiffPanel(diff: PrDiff | null, prUrl: string): string {
+  const viewLink = /^https:\/\//.test(prUrl) ? `<a href="${esc(prUrl)}">View the full diff on GitHub →</a>` : '';
+  if (!diff || !diff.text.trim()) {
+    return `<div class="diffpanel-empty">The diff could not be fetched for this receipt right now. ${viewLink}</div>`;
+  }
+  const files = splitDiffByFile(diff.text);
+  if (files.length === 0) {
+    return `<div class="diffpanel-empty">The diff came back empty. ${viewLink}</div>`;
+  }
+  const items = files
+    .map(
+      f => `<details class="difffile"><summary><code>${esc(f.path)}</code></summary>
+      <pre class="diffbody">${renderDiffLines(f.body)}</pre></details>`,
+    )
+    .join('');
+  const truncNote = diff.truncated
+    ? `<p class="meta">Diff truncated for this receipt — ${viewLink} for the complete patch.</p>`
+    : '';
+  return `<details class="diffpanel">
+    <summary>Diff — ${files.length} file${files.length === 1 ? '' : 's'} changed</summary>
+    <div class="diffpanel-body">${truncNote}${items}</div>
+  </details>`;
+}
+
+/**
+ * Render the "every session across this PR" strip — every OTHER review
+ * generation (one per push) admitted for the same repo/PR, newest first, so
+ * an operator does not need to know a delivery id to find yesterday's review
+ * of the same pull request. Empty when this is the only generation, or when
+ * the D1 read degraded (best-effort, never blocks the receipt).
+ */
+function renderGenerationsStrip(currentId: string, generations: FleetRunGenerationSummary[]): string {
+  const others = generations.filter(g => g.runId !== currentId && `intent:${g.deliveryId}` !== currentId);
+  if (others.length === 0) return '';
+  const items = others
+    .map(g => {
+      const href = `/fleet/runs/${encodeURIComponent(g.runId ?? `intent:${g.deliveryId}`)}`;
+      const when = fmtUtc(g.finishedAt ?? g.queuedAt);
+      return `<li><a href="${esc(href)}">generation ${esc(String(g.generation))} · ${esc(stateLabel(g.state))} · ${esc(when)}</a></li>`;
+    })
+    .join('');
+  return `<details class="genstrip">
+    <summary>${others.length} other review${others.length === 1 ? '' : 's'} of this PR</summary>
+    <ul class="breakdown">${items}</ul>
+  </details>`;
+}
+
+/**
+ * Render one authoritative Fleet receipt from the same projection used by the
+ * JSON operator API. The design intent is to keep visual evidence and deployed
+ * markup on one code path rather than maintaining a screenshot-only facsimile.
+ *
+ * @param run - Logical admission plus eventual transcript header.
+ * @param steps - Ordered, already-authorized transcript steps.
+ * @param prContext - Live-fetched PR title/diff (best-effort; null when
+ *   unavailable — the page still renders a complete, honest receipt).
+ * @returns A complete, script-free HTML document.
+ */
+export interface FleetRunPrContext {
+  meta: PrMeta | null;
+  diff: PrDiff | null;
+  generations: FleetRunGenerationSummary[];
+}
+
+export function renderFleetRunReceiptPage(
+  run: FleetRunProjection,
+  steps: FleetRunStepRow[],
+  prContext: FleetRunPrContext = { meta: null, diff: null, generations: [] },
+): string {
   const distinctShips = [
     ...new Set((run.ships_csv ? run.ships_csv.split(',') : []).map(s => s.trim()).filter(Boolean)),
   ];
   const inputTokens = sumDetailField(steps, 'inputTokens');
   const outputTokens = sumDetailField(steps, 'outputTokens');
+  const totalCostUsd = sumDetailField(steps, 'costUsd');
   const shipsLabel = distinctShips.length ? distinctShips.map(s => `pd-${s}`).join(', ') : '—';
   // Defense-in-depth: only ever link an https URL (a poisoned row must not
   // become a javascript: href). The repo/PR label is escaped inside the link.
@@ -990,47 +1507,99 @@ function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
   const prLink = /^https:\/\//.test(run.pr_url)
     ? `<a href="${esc(run.pr_url)}">${prLabel}</a>`
     : prLabel;
+  const active = ['admitting', 'queued', 'running', 'retrying'].includes(run.logical_state);
+  const retrying = run.logical_state === 'retrying';
+  const timingLabel = active ? 'admitted' : 'finished';
+  const timingValue = active ? run.queued_at : (run.finished_at ?? run.created_at);
+  const expected = run.expected_finish_at == null ? 'calculating' : fmtUtc(run.expected_finish_at);
+  const wallClock = run.ms > 0 ? fmtMs(run.ms) : active ? 'live' : '—';
+  const lede = active
+    ? 'Follow this review from durable admission through every delivery attempt and ship checkpoint. Queue timing is estimated; recorded steps and outcomes are receipts.'
+    : "Every review bot's pass on this PR — the files it read, the problems it raised, and the calls it made — gathered in one verifiable receipt.";
+  const accessNote = run.id.startsWith('intent:')
+    ? 'Signed-in access follows the same GitHub repository permissions as the pull request.'
+    : 'Anyone with this exact capability link can open the receipt; it shows the review, not your source.';
   const inner = `<main class="page">
     <div class="masthead">
       <span class="eyebrow">Port Daddy Fleet · review receipt</span>
       <h1 class="ko">What the fleet <span class="rec">found</span><span class="ko-over" aria-hidden="true">What the fleet <span class="rec">found</span></span></h1>
-      <span class="lede">Every review bot's pass on this PR — the files it read, the problems it raised, the calls it made. It's the same thing they posted in the comments, gathered in one place. Your code never leaves GitHub; the bots only see the diff.</span>
+      <span class="lede">${esc(lede)}</span>
     </div>
 
     <div class="receipt-id">
       <div class="rid-top">
         <div class="rid-repo">${prLink}</div>
-        <span class="badge ${badgeClass(run.conclusion)}"><span class="dot" aria-hidden="true"></span>${esc(run.conclusion || 'pending')}</span>
+        <span class="badge ${badgeClass(run.logical_state)}"><span class="dot" aria-hidden="true"></span>${esc(stateLabel(run.logical_state))}</span>
       </div>
+      ${prContext.meta ? `<div class="rid-title">${esc(prContext.meta.title)}</div>` : ''}
       <div class="rid-facts">
         <span class="fact"><span class="fk">head</span><code>${esc(run.head_sha.slice(0, 12))}</code></span>
-        <span class="fact"><span class="fk">concluded</span><code>${esc(fmtUtc(run.created_at))}</code></span>
+        <span class="fact"><span class="fk">${esc(timingLabel)}</span><code>${esc(fmtUtc(timingValue))}</code></span>
+        <span class="fact"><span class="fk">${retrying ? 'retry attempt' : 'attempts'}</span><code>${esc(run.attempt_count)}</code></span>
+        ${active ? `<span class="fact"><span class="fk">expected by</span><code>${esc(expected)}</code></span>` : ''}
         <span class="fact"><span class="fk">ships</span><code>${esc(shipsLabel)}</code></span>
+        ${
+          prContext.meta
+            ? `<span class="fact"><span class="fk">changed</span><code>${esc(prContext.meta.changedFiles)} file${prContext.meta.changedFiles === 1 ? '' : 's'}, +${esc(prContext.meta.additions)}/-${esc(prContext.meta.deletions)}</code></span>`
+            : ''
+        }
       </div>
+      ${renderGenerationsStrip(run.id, prContext.generations)}
     </div>
+
+    ${renderDiffPanel(prContext.diff, run.pr_url)}
+
+    ${active ? '<div class="live-strip"><span class="pulse" aria-hidden="true"></span>Live run · this receipt refreshes every 5 seconds while work is active</div>' : ''}
 
     <div class="statrow">
       <div class="stat"><div class="k">Agents</div><div class="v mono">${distinctShips.length}</div></div>
       <div class="stat"><div class="k">Transcript steps</div><div class="v mono">${steps.length}</div></div>
       <div class="stat"><div class="k">Input tokens</div><div class="v mono">${esc(tokenTileValue(inputTokens))}</div></div>
       <div class="stat"><div class="k">Output tokens</div><div class="v mono">${esc(tokenTileValue(outputTokens))}</div></div>
-      <div class="stat stat-money"><div class="k">Neurons</div><div class="v mono">${run.neurons == null ? '—' : run.neurons.toLocaleString('en-US')}</div></div>
-      <div class="stat"><div class="k">Wall-clock</div><div class="v mono">${esc(fmtMs(run.ms))}</div></div>
+      <div class="stat stat-money"><div class="k">Spend</div><div class="v mono">${totalCostUsd == null ? 'not reported' : esc(fmtUsd(totalCostUsd))}</div></div>
+      <div class="stat"><div class="k">Wall-clock</div><div class="v mono">${esc(wallClock)}</div></div>
     </div>
 
     <div class="tx-head">
       <span class="eyebrow">Deliberation</span>
-      <h2>The transcript</h2>
+      <h2>${active ? 'Live progress' : 'The transcript'}</h2>
     </div>
     <p class="tx-sub">Read it top to bottom. Each bot chunks the diff, weighs it, and files what it found;
     the last rows are what it posted back to GitHub.</p>
-    ${steps.length ? renderShips(steps, run.created_at) : EMPTY_TRANSCRIPT}
+    ${steps.length ? renderShips(steps, run.started_at ?? run.created_at) : emptyTranscript(run)}
 
     <footer class="receipt-foot">Run <code>${esc(run.id)}</code> · delivery <code>${esc(run.delivery_id)}</code>.
-    Anyone with this exact link can open it — it shows the review, not your source. Same contents the
-    fleet posted in the PR.</footer>
+    ${esc(accessNote)}</footer>
   </main>`;
   return shell(`${run.repo_full_name} PR #${run.pr_number} — Port Daddy Fleet`, inner);
+}
+
+/**
+ * Best-effort live context beyond the transcript: the PR's title/size/diff
+ * (fetched via the GitHub App installation, the same zero-trust mechanism
+ * every other GitHub read on the relay uses) and every other review
+ * generation of this PR. NEVER throws — a GitHub hiccup, an unconfigured App,
+ * or a pre-migration D1 without `fleet_run_intents` all degrade their own
+ * section to an honest empty state; the transcript itself is never at risk.
+ */
+async function gatherPrContext(env: Env, run: FleetRunProjection): Promise<FleetRunPrContext> {
+  const generations = run.repo_full_name
+    ? await listFleetRunGenerationsForPr(env.DB, run.repo_full_name, run.pr_number).catch(() => [])
+    : [];
+  const [owner, repo] = (run.repo_full_name ?? '').split('/');
+  if (!owner || !repo || !env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY || !env.KV) {
+    return { meta: null, diff: null, generations };
+  }
+  try {
+    const token = await getRepoToken(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY, owner, repo, env.KV);
+    const [meta, diff] = await Promise.all([
+      getPrMeta(owner, repo, run.pr_number, token),
+      getPrDiff(owner, repo, run.pr_number, token),
+    ]);
+    return { meta, diff, generations };
+  } catch {
+    return { meta: null, diff: null, generations };
+  }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -1048,7 +1617,7 @@ export async function handleFleetRunPage(
     // Fast path: operator bearer or capability token authorizes without a DB
     // fetch or GitHub round-trip.
     const tokenOk = await hasTokenAuth(request, env, runId);
-    const found = await getFleetRunWithSteps(env.DB, runId);
+    const found = await getFleetRunProjectionWithSteps(env.DB, runId);
     if (!found) return notFoundPage();
 
     if (!tokenOk) {
@@ -1061,7 +1630,9 @@ export async function handleFleetRunPage(
       if (!(await userCanReadRepo(env, session, owner, repo))) return notFoundPage();
     }
 
-    return htmlResponse(renderRunPage(found.run, found.steps), 200);
+    const active = ['admitting', 'queued', 'running', 'retrying'].includes(found.run.logical_state);
+    const prContext = await gatherPrContext(env, found.run);
+    return htmlResponse(renderFleetRunReceiptPage(found.run, found.steps, prContext), 200, active ? 5 : null);
   } catch {
     return noticePage(
       'Error — Port Daddy Fleet',

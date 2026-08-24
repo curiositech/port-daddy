@@ -23,6 +23,7 @@
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
 #        echo "<value>" | wrangler secret put GITHUB_WEBHOOK_SECRET
+#        openssl rand -hex 32 | wrangler secret put COORDINATION_MACAROON_ROOT_KEY_HEX
 #
 #   6. Deploy:
 #        wrangler deploy
@@ -43,6 +44,12 @@ JWKS_CACHE_TTL_SECONDS = "600"
 JWKS_FAIL_SOFT_SECONDS = "3600"
 REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
 RATE_LIMIT_WINDOW_MS = "60000"
+# X8 quotas (src/harbor-quota.ts): per-harbor daily budgets + the enforcement
+# switch. SHADOW BY DEFAULT — only the exact string "enforce" makes budget
+# exhaustion refuse (429 + Retry-After + credit-ledger pointer).
+QUOTA_ENFORCE = "shadow"
+HARBOR_DAILY_EVENT_BUDGET = "100000"
+HARBOR_DAILY_BYTE_BUDGET = "268435456"
 # Fleet control-plane: GitHub App + trusted ref for the config-read and save (PR)
 # endpoints. GITHUB_APP_PRIVATE_KEY is a *secret* (never committed):
 #   cat app-key.pem | wrangler secret put GITHUB_APP_PRIVATE_KEY
@@ -65,11 +72,23 @@ database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 [durable_objects]
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+  { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+  { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
 ]
 
 [[migrations]]
 tag = "v0001"
 new_classes = ["HarborChannel"]
+
+# X8 quotas: one aggregating quota DO per harbor (src/harbor-quota.ts).
+[[migrations]]
+tag = "v0002"
+new_classes = ["HarborQuota"]
+
+# ADR-0092: one CRDT coordination peer per project.
+[[migrations]]
+tag = "v0003"
+new_sqlite_classes = ["CoordinationRoom"]
 
 [[kv_namespaces]]
 # JWKS cache and pinned relay key cache
@@ -81,6 +100,11 @@ id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
 [[queues.producers]]
 binding = "FLEET_RUNS"
 queue = "fleet-runs"
+
+# Deterministic merge-group pass-through checks must not wait behind AI review.
+[[queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates"
 
 [observability]
 enabled = true

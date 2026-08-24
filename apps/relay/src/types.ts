@@ -10,12 +10,20 @@ export interface Env {
   DB: D1Database;
   // Durable Object namespace — one DO per (harbor_fingerprint, channel)
   HARBOR_CHANNEL: DurableObjectNamespace;
+  // ADR-0092: one authority-free CRDT coordination replica per project.
+  // Optional until the v0003 Durable Object migration is deployed; routes
+  // fail closed with COORDINATION_UNCONFIGURED while absent.
+  COORDINATION_ROOM?: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
-  // Queue producer — one FleetRunJob per GitHub delivery handed to the
-  // fleet-executor Worker. Optional so the relay still deploys before the
-  // 'fleet-runs' queue is provisioned; ingress guards on its presence.
+  // Queue producers — one FleetRunJob per GitHub delivery handed to the
+  // fleet-executor Worker. Substantive AI reviews stay serialized on
+  // fleet-runs. Deterministic merge-group pass-through checks use fleet-gates
+  // so a long review cannot starve GitHub's required merge-queue context.
+  // Both remain optional so the relay can start before queue provisioning;
+  // a partially provisioned routing state is recorded in the audit log.
   FLEET_RUNS?: Queue<FleetRunJob>;
+  FLEET_GATES?: Queue<FleetRunJob>;
   // Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
   // Optional so the relay still type-checks/deploys before the [ai] binding is
   // provisioned; the handlers fail closed with AI_ERROR when it is absent.
@@ -24,6 +32,9 @@ export interface Env {
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
   GITHUB_WEBHOOK_SECRET: string;          // HMAC-SHA256 secret for GitHub webhook ingress
+  // 32-byte hex root for first-party coordination macaroons. Never exposed;
+  // operator provisioning returns only caveat-scoped grants.
+  COORDINATION_MACAROON_ROOT_KEY_HEX?: string;
   // HMAC secret (>=32 chars) gating the HTML fleet run page (ADR-0101 Phase 0).
   // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
   // only opens with the operator token.
@@ -81,6 +92,21 @@ export interface Env {
   JWKS_FAIL_SOFT_SECONDS: string;
   REVOCATION_BROADCAST_TIMEOUT_MS: string;
   RATE_LIMIT_WINDOW_MS: string;
+  // X8 quotas (src/harbor-quota.ts). The aggregating per-harbor quota DO.
+  // Optional so the relay still type-checks/deploys before the binding is
+  // provisioned; while absent, the publish path falls back to the legacy
+  // HarborChannel in-memory rate limiter (rate limiting never fails open).
+  HARBOR_QUOTA?: DurableObjectNamespace;
+  // Per-harbor daily budgets, as decimal strings (vars, not secrets). Unset
+  // or unparsable values fall back to the committed defaults in
+  // harbor-quota.ts — never to "unlimited".
+  HARBOR_DAILY_EVENT_BUDGET?: string;
+  HARBOR_DAILY_BYTE_BUDGET?: string;
+  // X8 enforcement switch. ONLY the exact string 'enforce' turns budget
+  // refusal on; anything else (including unset) is SHADOW mode: over-budget
+  // traffic passes and the would-have-denied delta is recorded. The flip is
+  // a deliberate, data-backed config change — see resolveQuotaSettings.
+  QUOTA_ENFORCE?: string;
 }
 
 /**
@@ -100,6 +126,8 @@ export interface FleetRunJob {
     repository?: Record<string, unknown>;
     pull_request?: Record<string, unknown>;
     push?: Record<string, unknown>;
+    /** merge_group deliveries only: carries `head_sha` for the queue branch. */
+    merge_group?: Record<string, unknown>;
   };
 }
 

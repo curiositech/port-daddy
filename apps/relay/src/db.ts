@@ -18,7 +18,7 @@ import { randomHex } from './crypto.js';
 export interface IdentityRow {
   daemon_fingerprint: string;
   pub_key: string;
-  proof_method: 'oidc' | 'acme' | 'wot';
+  proof_method: 'oidc' | 'acme' | 'wot' | 'operator-provisioned';
   proof_metadata: string;  // JSON
   expires_at: number | null;
   revoked: number;
@@ -204,6 +204,36 @@ export async function getChainHead(
   };
 }
 
+/**
+ * Every chain head on ONE channel, across senders.
+ *
+ * Chains are per (sender, channel), so a channel can legitimately carry one
+ * head per writer — but some channels have exactly one AUTHORIZED writer
+ * (e.g. the fleet executor's per-run fleet-cloud run channels). This query is
+ * the raw material for chain-head anomaly detection: see
+ * detectChainHeadAnomalies in src/fleet-executor-identity.ts.
+ */
+export async function listChainHeadsForChannel(
+  db: D1Database,
+  channel: string
+): Promise<ChainHead[]> {
+  const rows = await db.prepare(
+    'SELECT * FROM chain_heads WHERE channel = ? ORDER BY sender ASC'
+  ).bind(channel).all<{
+    sender: string; channel: string; tip_seq: number; tip_hash: string;
+    issued_at: number; signed_head: string; anchors_json: string | null;
+  }>();
+  return rows.results.map((row) => ({
+    sender: row.sender,
+    channel: row.channel,
+    tip_seq: row.tip_seq,
+    tip_hash: row.tip_hash,
+    issued_at: row.issued_at,
+    signed_head: row.signed_head,
+    ...(row.anchors_json ? { anchors: JSON.parse(row.anchors_json) } : {}),
+  }));
+}
+
 export async function upsertChainHead(
   db: D1Database,
   head: ChainHead
@@ -264,11 +294,13 @@ export async function revokeByIssuer(
   let offset = 0;
 
   while (true) {
-    // Paginate through all OIDC identities — D1 query limit is 100k rows,
-    // so we use small pages to stay within limits and avoid timeout risk.
+    // Paginate through all issuer-scoped identities (OIDC exchanges AND
+    // operator-provisioned fleet-executor identities, whose proof_metadata
+    // records the same {issuer, jti, iat} shape) — D1 query limit is 100k
+    // rows, so we use small pages to stay within limits and avoid timeout risk.
     const rows = await db.prepare(
       `SELECT daemon_fingerprint, proof_metadata FROM identities
-       WHERE proof_method = 'oidc'
+       WHERE proof_method IN ('oidc', 'operator-provisioned')
        ORDER BY daemon_fingerprint ASC
        LIMIT ? OFFSET ?`
     ).bind(REVOKE_PAGE_SIZE, offset).all<{ daemon_fingerprint: string; proof_metadata: string }>();
@@ -781,6 +813,13 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
   // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
   await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
+  // Roadmap mirrors are the account's own pushed roadmap replicas (ADR-0101
+  // Critical-2 delete control, team tier) — all four tables die NOW too. The
+  // daemon keeps its local source of record; only the cloud replica is erased.
+  await db.prepare('DELETE FROM roadmap_mirror_items WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM roadmap_mirror_edges WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM roadmap_mirror_activity WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM roadmap_mirrors WHERE user_id = ?').bind(userId).run();
   await db
     .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
     .bind(now, userId)
@@ -959,7 +998,16 @@ export interface HelmRow {
   seq: number;
   updated_at: number;
   updated_by: string; // users.id (owner PUT) or 'relay:dead-man'
+  /**
+   * What a parley DEADLINE LAPSE does in this harbor (mediator-body):
+   * 'lapse' = v1 plain lapse; 'first-proceeds' = the Helm's default outcome
+   * (first claimant proceeds, second rebases) is applied and recorded.
+   */
+  parley_expiry_default: ParleyExpiryDefault;
 }
+
+/** The Helm's configured parley-expiry behavior. */
+export type ParleyExpiryDefault = 'lapse' | 'first-proceeds';
 
 export type HelmEventKind = 'helm_set' | 'dead_man_pass' | 'dead_man_vacant';
 
@@ -989,13 +1037,15 @@ export async function setHelm(
     seq: number;
     updatedAt: number;
     updatedBy: string;
+    /** Parley-expiry behavior for this harbor; defaults to v1's plain 'lapse'. */
+    parleyExpiryDefault?: ParleyExpiryDefault;
   },
 ): Promise<void> {
   await db
     .prepare(
       `INSERT INTO harbor_helms
-         (harbor_id, holder_kind, holder_id, holder_label, succession_json, state, vacant_flagged, seq, updated_at, updated_by)
-       VALUES (?, ?, ?, ?, ?, 'held', 0, ?, ?, ?)
+         (harbor_id, holder_kind, holder_id, holder_label, succession_json, state, vacant_flagged, seq, updated_at, updated_by, parley_expiry_default)
+       VALUES (?, ?, ?, ?, ?, 'held', 0, ?, ?, ?, ?)
        ON CONFLICT(harbor_id) DO UPDATE SET
          holder_kind = excluded.holder_kind,
          holder_id = excluded.holder_id,
@@ -1005,7 +1055,8 @@ export async function setHelm(
          vacant_flagged = 0,
          seq = excluded.seq,
          updated_at = excluded.updated_at,
-         updated_by = excluded.updated_by`,
+         updated_by = excluded.updated_by,
+         parley_expiry_default = excluded.parley_expiry_default`,
     )
     .bind(
       h.harborId,
@@ -1016,6 +1067,7 @@ export async function setHelm(
       h.seq,
       h.updatedAt,
       h.updatedBy,
+      h.parleyExpiryDefault ?? 'lapse',
     )
     .run();
 }
@@ -1115,6 +1167,10 @@ export interface ParleyRow {
   deadline_at: number;
   created_at: number;
   resolved_at: number | null;
+  /** 'mediator' when auto-convened on a predicted PR conflict (mediator-body). */
+  convened_by: 'user' | 'mediator';
+  /** JSON outcome the Helm's expiry default recorded on lapse; NULL otherwise. */
+  outcome_json: string | null;
 }
 
 export interface ParleyPositionRow {
@@ -1127,6 +1183,8 @@ export interface ParleyPositionRow {
   stance: ParleyStance | null;
   position: string | null;
   signed_at: number | null;
+  /** Claimant order on mediator pairs (1 = first claimant); NULL on v1 parleys. */
+  claim_rank: number | null;
 }
 
 export interface ParleyPartySeed {
@@ -1135,6 +1193,13 @@ export interface ParleyPartySeed {
   label: string;
   tier: string;
   isParty: boolean;
+  /**
+   * Claimant order on a mediator-convened pair (1 = first claimant, 2 =
+   * second). Omitted/undefined on every human-convened parley — the Helm's
+   * expiry default applies only where ranks exist, so v1 parleys are
+   * structurally unaffected by it.
+   */
+  claimRank?: number;
 }
 
 /**
@@ -1153,18 +1218,20 @@ export async function createParley(
     deadlineAt: number;
     createdAt: number;
     parties: ParleyPartySeed[];
+    /** 'mediator' when auto-convened on a predicted conflict; default 'user'. */
+    convenedBy?: 'user' | 'mediator';
   },
 ): Promise<void> {
   const stmts = [
     db.prepare(
-      `INSERT INTO parleys (id, harbor_id, subject, proposer_id, proposer_label, state, deadline_at, created_at, resolved_at)
-       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, NULL)`,
-    ).bind(p.id, p.harborId, p.subject, p.proposerId, p.proposerLabel, p.deadlineAt, p.createdAt),
+      `INSERT INTO parleys (id, harbor_id, subject, proposer_id, proposer_label, state, deadline_at, created_at, resolved_at, convened_by)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, NULL, ?)`,
+    ).bind(p.id, p.harborId, p.subject, p.proposerId, p.proposerLabel, p.deadlineAt, p.createdAt, p.convenedBy ?? 'user'),
     ...p.parties.map((party) =>
       db.prepare(
-        `INSERT INTO parley_positions (parley_id, party_kind, party_id, party_label, tier, is_party, stance, position, signed_at)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
-      ).bind(p.id, party.kind, party.id, party.label, party.tier, party.isParty ? 1 : 0),
+        `INSERT INTO parley_positions (parley_id, party_kind, party_id, party_label, tier, is_party, stance, position, signed_at, claim_rank)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?)`,
+      ).bind(p.id, party.kind, party.id, party.label, party.tier, party.isParty ? 1 : 0, party.claimRank ?? null),
     ),
   ];
   await db.batch(stmts);
@@ -1361,6 +1428,313 @@ export async function lapseExpiredParleys(db: D1Database, harborId: string, now:
     )
     .bind(now, harborId, now)
     .run();
+}
+
+// ── Mediator body (src/mediator-body.ts; grand-plan node mediator-body) ───────
+//
+// The prediction registry (one OPEN parley per PR pair), the
+// delivery-acknowledged summons ledger, the human approve gate, and the
+// Helm-default expiry outcome. Every state transition below is CAS-guarded on
+// the current state, mirroring the parley state machine's own discipline.
+
+export interface MediatorPairRow {
+  repo: string;
+  pr_lo: number;
+  pr_hi: number;
+  first_pr: number;
+  parley_id: string;
+  confidence: number;
+  symbols_json: string;
+  created_at: number;
+}
+
+export async function insertMediatorPair(db: D1Database, r: MediatorPairRow): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO mediator_pairs (repo, pr_lo, pr_hi, first_pr, parley_id, confidence, symbols_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(r.repo, r.pr_lo, r.pr_hi, r.first_pr, r.parley_id, r.confidence, r.symbols_json, r.created_at)
+    .run();
+}
+
+/**
+ * The one-OPEN-parley-per-PR-pair invariant's lookup: the parley id of any
+ * still-open mediator parley for this normalized pair, or null. The join to
+ * parleys.state (rather than a flag on the pair row) means a parley that
+ * agreed, lapsed, or expired frees the pair automatically — no second
+ * bookkeeping write that could be forgotten.
+ */
+export async function findOpenParleyForPair(
+  db: D1Database,
+  repo: string,
+  prLo: number,
+  prHi: number,
+): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT mp.parley_id AS parley_id FROM mediator_pairs mp
+       JOIN parleys p ON p.id = mp.parley_id
+       WHERE mp.repo = ? AND mp.pr_lo = ? AND mp.pr_hi = ? AND p.state = 'open'
+       LIMIT 1`,
+    )
+    .bind(repo, prLo, prHi)
+    .first<{ parley_id: string }>();
+  return row?.parley_id ?? null;
+}
+
+/** The pair row behind one mediator-convened parley (page + expiry rendering). */
+export async function getMediatorPairForParley(
+  db: D1Database,
+  parleyId: string,
+): Promise<MediatorPairRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM mediator_pairs WHERE parley_id = ? LIMIT 1')
+    .bind(parleyId)
+    .first<MediatorPairRow>();
+  return row ?? null;
+}
+
+export type ParleySummonsState = 'summoned' | 'acked' | 'refused' | 'escalated';
+
+export interface ParleySummonsRow {
+  id: string;
+  parley_id: string;
+  party_kind: 'user' | 'daemon';
+  party_id: string;
+  party_label: string;
+  daemon_fingerprint: string | null;
+  summons_channel: string;
+  summons_seq: number;
+  summons_hash: string;
+  issued_at: number;
+  state: ParleySummonsState;
+  response_channel: string | null;
+  response_seq: number | null;
+  response_hash: string | null;
+  responded_at: number | null;
+  escalated_at: number | null;
+}
+
+export async function insertParleySummons(db: D1Database, s: ParleySummonsRow): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO parley_summonses
+         (id, parley_id, party_kind, party_id, party_label, daemon_fingerprint,
+          summons_channel, summons_seq, summons_hash, issued_at, state,
+          response_channel, response_seq, response_hash, responded_at, escalated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      s.id, s.parley_id, s.party_kind, s.party_id, s.party_label, s.daemon_fingerprint,
+      s.summons_channel, s.summons_seq, s.summons_hash, s.issued_at, s.state,
+      s.response_channel, s.response_seq, s.response_hash, s.responded_at, s.escalated_at,
+    )
+    .run();
+}
+
+export async function getParleySummons(db: D1Database, id: string): Promise<ParleySummonsRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM parley_summonses WHERE id = ?')
+    .bind(id)
+    .first<ParleySummonsRow>();
+  return row ?? null;
+}
+
+/** All summonses of one parley, stable order (issue time, then id). */
+export async function listParleySummonses(db: D1Database, parleyId: string): Promise<ParleySummonsRow[]> {
+  const r = await db
+    .prepare('SELECT * FROM parley_summonses WHERE parley_id = ? ORDER BY issued_at ASC, id ASC')
+    .bind(parleyId)
+    .all<ParleySummonsRow>();
+  return r.results ?? [];
+}
+
+/**
+ * Record a daemon's chained response to a summons — CAS on state='summoned'
+ * so a response is WRITE-ONCE: a second response (or a response racing the
+ * first) changes nothing and returns false. `escalatedAt` is non-null exactly
+ * when the response wakes the human (refuse/escalate, doctrine D11).
+ */
+export async function resolveParleySummons(
+  db: D1Database,
+  t: {
+    id: string;
+    state: 'acked' | 'refused' | 'escalated';
+    responseChannel: string;
+    responseSeq: number;
+    responseHash: string;
+    respondedAt: number;
+    escalatedAt: number | null;
+  },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE parley_summonses SET
+         state = ?, response_channel = ?, response_seq = ?, response_hash = ?,
+         responded_at = ?, escalated_at = ?
+       WHERE id = ? AND state = 'summoned'`,
+    )
+    .bind(t.state, t.responseChannel, t.responseSeq, t.responseHash, t.respondedAt, t.escalatedAt, t.id)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+export type ParleyGateAction = 'merge' | 'revert' | 'force-push';
+export type ParleyGateState = 'pending' | 'approved' | 'modified' | 'rejected';
+
+/** The actions that count as irreversible (destructive-action policy). */
+export const IRREVERSIBLE_ACTIONS: readonly ParleyGateAction[] = ['merge', 'revert', 'force-push'];
+
+export interface ParleyGateRow {
+  parley_id: string;
+  action: ParleyGateAction;
+  state: ParleyGateState;
+  verdict_by: string | null;
+  verdict_by_label: string | null;
+  verdict_at: number | null;
+  modify_text: string | null;
+  created_at: number;
+}
+
+export async function insertParleyGate(
+  db: D1Database,
+  g: { parleyId: string; action: ParleyGateAction; createdAt: number },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO parley_gates (parley_id, action, state, verdict_by, verdict_by_label, verdict_at, modify_text, created_at)
+       VALUES (?, ?, 'pending', NULL, NULL, NULL, NULL, ?)`,
+    )
+    .bind(g.parleyId, g.action, g.createdAt)
+    .run();
+}
+
+export async function getParleyGate(db: D1Database, parleyId: string): Promise<ParleyGateRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM parley_gates WHERE parley_id = ?')
+    .bind(parleyId)
+    .first<ParleyGateRow>();
+  return row ?? null;
+}
+
+/**
+ * Record a human verdict — CAS on state='pending' so a verdict is WRITE-ONCE
+ * (the same discipline as a signed position: a decided gate is immutable).
+ * Returns false when a concurrent verdict won, or the gate was never pending.
+ */
+export async function resolveParleyGateState(
+  db: D1Database,
+  t: {
+    parleyId: string;
+    state: 'approved' | 'modified' | 'rejected';
+    verdictBy: string;
+    verdictByLabel: string;
+    verdictAt: number;
+    modifyText: string | null;
+  },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE parley_gates SET state = ?, verdict_by = ?, verdict_by_label = ?, verdict_at = ?, modify_text = ?
+       WHERE parley_id = ? AND state = 'pending'`,
+    )
+    .bind(t.state, t.verdictBy, t.verdictByLabel, t.verdictAt, t.modifyText, t.parleyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Lapse one expired parley RECORDING an outcome — the Helm-default variant of
+ * resolveParleyState. Same CAS on state='open': whichever caller (or plain
+ * lapse) wins, the parley lapses exactly once and the outcome is never
+ * overwritten onto an already-resolved artifact.
+ */
+export async function lapseParleyWithOutcome(
+  db: D1Database,
+  t: { parleyId: string; at: number; outcomeJson: string },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      "UPDATE parleys SET state = 'lapsed', resolved_at = ?, outcome_json = ? WHERE id = ? AND state = 'open'",
+    )
+    .bind(t.at, t.outcomeJson, t.parleyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Expired-but-still-open parleys of one harbor (per-parley expiry pass). */
+export async function listExpiredOpenParleys(
+  db: D1Database,
+  harborId: string,
+  now: number,
+): Promise<ParleyRow[]> {
+  const r = await db
+    .prepare("SELECT * FROM parleys WHERE harbor_id = ? AND state = 'open' AND deadline_at < ?")
+    .bind(harborId, now)
+    .all<ParleyRow>();
+  return r.results ?? [];
+}
+
+// ── Mediator kill flag (KV-backed, N6 machinery) ─────────────────────────────
+
+/**
+ * KV key holding the `kill-mediator` flag. Shared with the executor's scan
+ * gate the same way FLEET_PAUSED_KEY is: one control-plane KV namespace, one
+ * honest truth. When set, the mediator is FULLY INERT on both workers —
+ * no prediction, no convening, no summons responses, no gate verdicts.
+ */
+export const KILL_MEDIATOR_KEY = 'fleet:kill-mediator';
+
+/** Read the kill-mediator flag (same tolerant shapes as getFleetPaused). */
+export async function getMediatorKilled(kv: KVNamespace): Promise<boolean> {
+  const raw = await kv.get(KILL_MEDIATOR_KEY);
+  if (!raw) return false;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  try {
+    const parsed = JSON.parse(raw) as { killed?: boolean };
+    return parsed.killed === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Write the kill-mediator flag as structured JSON, stamping killedAt. */
+export async function setMediatorKilled(
+  kv: KVNamespace,
+  killed: boolean,
+): Promise<{ killed: boolean; killedAt: number }> {
+  const state = { killed, killedAt: Math.floor(Date.now() / 1000) };
+  await kv.put(KILL_MEDIATOR_KEY, JSON.stringify(state));
+  return state;
+}
+
+// ── Modify re-injection handoff (control-plane KV) ───────────────────────────
+
+/**
+ * KV key carrying a gate's Modify free text to the losing agent's next
+ * re-execution. Written by the relay when a human renders 'Modify'; read AND
+ * DELETED by the executor at the start of that PR's next run (consume-once).
+ * The control-plane KV is already the one namespace both workers share
+ * (fleet:paused rides it), so no new auth surface is invented for this.
+ */
+export function mediatorReinjectionKey(repo: string, pr: number): string {
+  return `mediator:reinjection:${repo}:${pr}`;
+}
+
+export interface MediatorReinjection {
+  parleyId: string;
+  repo: string;
+  pr: number;
+  action: ParleyGateAction;
+  modifyText: string;
+  decidedBy: string;
+  at: number;
+}
+
+export async function putMediatorReinjection(kv: KVNamespace, r: MediatorReinjection): Promise<void> {
+  await kv.put(mediatorReinjectionKey(r.repo, r.pr), JSON.stringify(r));
 }
 
 // ── Shipwright chat (src/shipwright.ts) ───────────────────────────────────────

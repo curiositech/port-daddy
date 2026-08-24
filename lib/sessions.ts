@@ -534,13 +534,19 @@ export function createSessions(
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
       FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
-      WHERE sn.session_id = ? ORDER BY sn.created_at ASC
+      WHERE sn.session_id = ? ORDER BY sn.created_at ASC, sn.id ASC
     `),
     getNotesBySessionAndType: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
       FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
-      WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC
+      WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC, sn.id ASC
+    `),
+    getRecentNotesBySession: db.prepare(`
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
+      FROM session_notes sn
+      JOIN sessions s ON s.id = sn.session_id
+      WHERE sn.session_id = ? ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
     `),
     countActiveFilesBySession: db.prepare(`
       SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL
@@ -1554,6 +1560,7 @@ export function createSessions(
     const projectPattern = project ? (patternToSql(project) ?? project) : null;
 
     let notes: Array<SessionNoteRow & { session_purpose?: string }>;
+    let total: number | null = null;
 
     if (sessionId) {
       // Get notes for specific session
@@ -1562,7 +1569,13 @@ export function createSessions(
         return { success: false, error: 'session not found' };
       }
 
-      if (type) {
+      if (!type && !since && !agentId && !projectPattern) {
+        // The common session-ledger and salvage path gets both an exact total
+        // and a DB-bounded tail. Avoid materializing an entire long-running
+        // session only to discard all but its newest few notes.
+        total = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
+        notes = (stmts.getRecentNotesBySession.all(sessionId, limit) as SessionNoteRow[]).reverse();
+      } else if (type) {
         notes = stmts.getNotesBySessionAndType.all(sessionId, type) as SessionNoteRow[];
       } else {
         notes = stmts.getNotesBySession.all(sessionId) as SessionNoteRow[];
@@ -1581,8 +1594,9 @@ export function createSessions(
       }
 
       // Apply limit
+      if (total === null) total = notes.length;
       if (notes.length > limit) {
-        notes = notes.slice(0, limit);
+        notes = notes.slice(Math.max(notes.length - limit, 0));
       }
     } else if (agentId || projectPattern) {
       // Get notes by agent/project pattern across sessions
@@ -1617,6 +1631,7 @@ export function createSessions(
       success: true,
       notes: notes.map(formatNote),
       count: notes.length,
+      total: total ?? notes.length,
     };
   }
 

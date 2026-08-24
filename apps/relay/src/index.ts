@@ -15,6 +15,12 @@
  *   POST /v1/fleet/optimize-prompt            (operator; rewrite a ship prompt)
  *   POST /v1/fleet/save                       (operator; commit to new branch + PR)
  *   POST /v1/fleet/pause                       (operator; toggle fleet kill switch)
+ *   POST /v1/fleet/executor-identity           (operator; provision the fleet
+ *                                               executor's Ed25519 identity +
+ *                                               hv:2 card; plan N2)
+ *   POST /v1/fleet/run-report                  (signed under the N2 card;
+ *                                               run-concluded reconciliation —
+ *                                               claimed-vs-received totals; X7)
  *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
@@ -22,6 +28,13 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/repos                         (HTML per-repo settings screen;
+ *                                                session; sitrep dial)
+ *   POST /account/repos/set                     (plain form upsert; session +
+ *                                                GitHub repo ACL)
+ *   POST /account/repos/remove                  (plain form delete; session)
+ *   GET  /v1/repo-settings                      (device read path; pdu_ bearer
+ *                                                or session cookie)
  *   GET  /account/parleys                       (HTML; session; → a harbor's list)
  *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
  *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
@@ -32,6 +45,9 @@
  *   GET  /v1/shipwright/history                 (session; own chat history)
  *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
  *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   POST /v1/shipwright/open-pr                 (session; PR into the user's own
+ *                                                installation's repo — validated
+ *                                                rosters only, server re-checks)
  *   GET  /account/billing                       (HTML billing page; session +
  *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
@@ -40,6 +56,12 @@
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   GET  /auth/status                          (session cookie → {login, avatarUrl};
  *                                               credentialed CORS for portdaddy.dev)
+ *   PUT  /v1/roadmap/snapshot                  (session/pdu; daemon pushes one
+ *                                               repo's roadmap mirror — full
+ *                                               replace; operator mandate
+ *                                               2026-08-22, PR 1)
+ *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
+ *                                               board / item detail / activity)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -52,6 +74,10 @@
  *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
  *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
  *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
+ *   PUT  /v1/harbor/card                     (signed self-report of declared capabilities; X5)
+ *   GET  /v1/harbor/directory                (public; listed/consented harbors only; X5)
+ *   GET  /v1/harbor/whois?q=                 (public; TF-IDF + demonstrated ranking; X5)
+ *   PUT  /v1/harbor/directory/weights        (operator; ranking weights — audit-logged; X5)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -60,10 +86,13 @@
  *   PUT  /v1/config/issuers/:issuer_id      (operator; acceptance criterion #1)
  *   DELETE /v1/cache/jwks/:issuer_id        (operator; acceptance criterion #3)
  *   GET  /v1/audit                           (operator; acceptance criterion #4)
+ *   GET  /v1/quotas/:harbor_fingerprint      (operator; X8 quota counters + shadow-vs-enforce delta)
  */
 
 import type { Env } from './types.js';
 import { HarborChannel } from './harbor-channel.js';
+import { HarborQuota } from './harbor-quota.js';
+import { CoordinationRoom } from './coordination-room.js';
 import {
   handleHealth,
   handleHandshake,
@@ -79,6 +108,10 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
+import { handleRunReport } from './run-report.js';
+import { recordSloSample } from './mercy-hooks.js';
+import { randomHex } from './crypto.js';
 import { handleSessionIntelIngest, handleSessionIntelPending } from './session-intel.js';
 import {
   handleFleetConfig,
@@ -120,13 +153,26 @@ import {
   handleParleyListPage,
   handleParleyDetailPage,
   handleParleySignForm,
+  handleParleyVerdictForm,
 } from './parleys-page.js';
+import {
+  handleMediatorConvene,
+  handleMediatorSummonsRespond,
+  handleMediatorToggle,
+} from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
+import {
+  handleRepoSettingsPage,
+  handleRepoSettingsSet,
+  handleRepoSettingsRemove,
+  handleRepoSettingsApi,
+} from './repo-settings-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightOpenPr,
 } from './shipwright.js';
 import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
@@ -135,6 +181,7 @@ import {
   handleStripeWebhook,
   handleBillingBalance,
   handlePortalLink,
+  handleQuotaStatus,
 } from './billing.js';
 import {
   handleCreateHarbor,
@@ -149,14 +196,28 @@ import {
   handleGetHelm,
 } from './presence.js';
 import {
+  handlePutHarborCard,
+  handleDirectory,
+  handleWhois,
+  handleSetDirectoryWeights,
+} from './directory.js';
+import {
   handleCreateParley,
   handleListParleys,
   handleGetParley,
   handleRespondParley,
 } from './parleys.js';
+import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
+import {
+  handleCoordinationGrant,
+  handleCoordinationSync,
+  parseCoordinationProject,
+} from './coordination.js';
 
-// Re-export Durable Object class for wrangler to pick up
+// Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
+export { HarborQuota };
+export { CoordinationRoom };
 
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -189,15 +250,63 @@ function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
 
+/**
+ * requestId threading (x7-mercy-hooks slice 3), done at the ONE choke point
+ * every module's response passes through instead of rewriting ~20 handler
+ * signatures: every response gains an `X-Request-Id` header, and every JSON
+ * ERROR envelope (status ≥ 400) additionally gains a `requestId` field — so a
+ * caller quoting an error can always hand the operator a correlatable id,
+ * whichever module produced the envelope. Success bodies (including SSE
+ * streams) pass through untouched.
+ */
+async function withRequestId(response: Response, requestId: string): Promise<Response> {
+  const headers = new Headers(response.headers);
+  headers.set('X-Request-Id', requestId);
+  if (response.status >= 400 && (headers.get('Content-Type') ?? '').includes('application/json')) {
+    try {
+      const body = (await response.clone().json()) as unknown;
+      if (typeof body === 'object' && body !== null && !Array.isArray(body)) {
+        (body as Record<string, unknown>).requestId = requestId;
+        return new Response(JSON.stringify(body), { status: response.status, headers });
+      }
+    } catch {
+      // Header claimed JSON but the body was not — header-only threading.
+    }
+  }
+  return new Response(response.body, { status: response.status, headers });
+}
+
+async function finalizeResponse(
+  response: Response,
+  requestId: string,
+  pathname: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const correlated = await withRequestId(response, requestId);
+  const sloSample = recordSloSample(env.DB, Date.now(), correlated.status >= 500);
+  try {
+    ctx.waitUntil(sloSample);
+  } catch {
+    void sloSample;
+  }
+  return CREDENTIALED_CORS_PATHS.has(pathname)
+    ? corsCredentialed(correlated)
+    : cors(correlated);
+}
+
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // One id per request, minted before any routing so even the INTERNAL_ERROR
+    // path carries it. The `req_` prefix keeps it recognizable in logs.
+    const requestId = `req_${randomHex(8)}`;
     const url = new URL(request.url);
     const { pathname, method } = { pathname: url.pathname, method: request.method };
 
     // CORS preflight
     if (method === 'OPTIONS') {
       const preflight = new Response(null, { status: 204 });
-      return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(preflight) : cors(preflight);
+      return finalizeResponse(preflight, requestId, pathname, env, ctx);
     }
 
     let response: Response = notFound();
@@ -229,6 +338,25 @@ export default {
       response = await handlePublish(request, env);
     }
 
+    // ── ADR-0092 cloud coordination peer ───────────────────────────────────
+    // The project is a DO routing key, not an authority boundary. Authority is
+    // the macaroon's project + actor + coordination-sync caveats.
+    else if (pathname.startsWith('/v1/coordination/')) {
+      const rest = pathname.slice('/v1/coordination/'.length);
+      const slash = rest.lastIndexOf('/');
+      const project = slash > 0 ? parseCoordinationProject(rest.slice(0, slash)) : null;
+      const action = slash > 0 ? rest.slice(slash + 1) : '';
+      if (!project) {
+        response = Response.json({ error: 'Invalid coordination project', code: 'VALIDATION_ERROR' }, { status: 400 });
+      } else if (action === 'grant' && method === 'POST') {
+        response = await handleCoordinationGrant(request, env, project);
+      } else if (action === 'sync' && method === 'POST') {
+        response = await handleCoordinationSync(request, env, project);
+      } else {
+        response = notFound();
+      }
+    }
+
     // ── GitHub webhook ingress ───────────────────────────────────────────────
     else if (pathname === '/v1/github/webhook' && method === 'POST') {
       response = await handleGithubWebhook(request, env);
@@ -249,6 +377,19 @@ export default {
     }
     else if (pathname === '/v1/fleet/save' && method === 'POST') {
       response = await handleFleetSave(request, env);
+    }
+    // Fleet-executor identity provisioning (operator; plan N2). The ONLY way
+    // an executor identity or card comes to exist — there is deliberately no
+    // bearer-token publish ingest anywhere in this router.
+    else if (pathname === '/v1/fleet/executor-identity' && method === 'POST') {
+      response = await handleProvisionFleetExecutor(request, env);
+    }
+    // Run-concluded reconciliation (x7-mercy-hooks slice 2): the executor
+    // reports its per-run event totals under its N2 card; the relay records
+    // claimed-vs-received. Signed like a publish — no bearer dialect here
+    // either.
+    else if (pathname === '/v1/fleet/run-report' && method === 'POST') {
+      response = await handleRunReport(request, env);
     }
 
     // ── Session Intelligence cloud-mining ingest (operator-gated) ────────────
@@ -317,6 +458,21 @@ export default {
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
     }
+    // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
+    // dial lives here; src/repo-settings-page.ts).
+    else if (pathname === '/account/repos' && method === 'GET') {
+      response = await handleRepoSettingsPage(request, env);
+    }
+    else if (pathname === '/account/repos/set' && method === 'POST') {
+      response = await handleRepoSettingsSet(request, env);
+    }
+    else if (pathname === '/account/repos/remove' && method === 'POST') {
+      response = await handleRepoSettingsRemove(request, env);
+    }
+    // Device-facing read path for per-repo settings (pdu_ bearer or cookie).
+    else if (pathname === '/v1/repo-settings' && method === 'GET') {
+      response = await handleRepoSettingsApi(request, env);
+    }
     // Billing storefront (session + GitHub installation ownership; ADR-0116).
     else if (pathname === '/account/billing' && method === 'GET') {
       response = await handleBillingPage(request, env);
@@ -349,9 +505,24 @@ export default {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
       } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
+      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+        response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
         response = new Response('Not Found', { status: 404 });
       }
+    }
+
+    // ── Mediator body (grand-plan node mediator-body; src/mediator-body.ts) ──
+    // Machine routes: signed chained envelopes only (delegated to the ONE
+    // publish gate); the kill toggle is operator-gated like /v1/fleet/pause.
+    else if (pathname === '/v1/mediator/convene' && method === 'POST') {
+      response = await handleMediatorConvene(request, env);
+    }
+    else if (pathname === '/v1/mediator/summons/respond' && method === 'POST') {
+      response = await handleMediatorSummonsRespond(request, env);
+    }
+    else if (pathname === '/v1/fleet/mediator' && method === 'POST') {
+      response = await handleMediatorToggle(request, env);
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
@@ -363,6 +534,9 @@ export default {
     }
     else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
       response = await handleShipwrightClear(request, env);
+    }
+    else if (pathname === '/v1/shipwright/open-pr' && method === 'POST') {
+      response = await handleShipwrightOpenPr(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
@@ -412,8 +586,37 @@ export default {
       const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
       response = await handleBillingBalance(request, env, installationId);
     }
+
+    // X8 quota counters + shadow-vs-enforce delta (operator; src/billing.ts)
+    else if (pathname.startsWith('/v1/quotas/') && method === 'GET') {
+      const harborFp = decodeURIComponent(pathname.slice('/v1/quotas/'.length));
+      response = await handleQuotaStatus(request, env, harborFp, ctx);
+    }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── X5 directory + whois (consent-first, D3; src/directory.ts) ───────────
+    else if (pathname === '/v1/harbor/card' && method === 'PUT') {
+      response = await handlePutHarborCard(request, env);
+    }
+    else if (pathname === '/v1/harbor/directory' && method === 'GET') {
+      response = await handleDirectory(env);
+    }
+    else if (pathname === '/v1/harbor/directory/weights' && method === 'PUT') {
+      response = await handleSetDirectoryWeights(request, env);
+    }
+    else if (pathname === '/v1/harbor/whois' && method === 'GET') {
+      response = await handleWhois(request, env);
+    }
+
+    // ── Roadmap command-center mirror (operator mandate 2026-08-22, PR 1;
+    // src/roadmap-mirror.ts). The daemon pushes; the account reads its own. ──
+    else if (pathname === '/v1/roadmap/snapshot' && method === 'PUT') {
+      response = await handleRoadmapSnapshotPut(request, env);
+    }
+    else if (pathname === '/v1/roadmap/mirror' && method === 'GET') {
+      response = await handleRoadmapMirrorGet(request, env);
     }
 
     // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
@@ -513,14 +716,21 @@ export default {
     } catch (e) {
       // Global fail-closed boundary: any uncaught throw (D1/KV/Durable Object
       // infra error) becomes a controlled {error,code} envelope, never a raw
-      // runtime 500. Matches the contract every handler already uses.
+      // runtime 500. Matches the contract every handler already uses. The
+      // requestId in the log line is the same one the caller receives.
+      console.error(`[relay] ${requestId} INTERNAL_ERROR ${method} ${pathname}:`, e);
       response = Response.json(
         { error: 'internal relay error', code: 'INTERNAL_ERROR' },
         { status: 500 },
       );
     }
 
-    return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(response) : cors(response);
+    // x7 slice 3 — requestId on every response (and inside every JSON error
+    // envelope), then one SLO burn sample per request via waitUntil so the
+    // write never sits on the response path. 5xx only: a caller's 4xx is not
+    // the relay burning its own budget. recordSloSample never rejects; test
+    // harnesses may pass a bare object as ctx, hence the guard.
+    return finalizeResponse(response, requestId, pathname, env, ctx);
   },
 
   // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has

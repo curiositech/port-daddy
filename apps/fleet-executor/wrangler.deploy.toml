@@ -33,6 +33,37 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for operator-grade delivery forensics. Console diagnostics include
+# bounded GitHub response status/request-id/rate-limit evidence; request
+# headers, request bodies, and the GitHub token are never recorded.
+[observability]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# CPU budget per invocation.
+#
+# WHY THIS EXISTS: without a [limits] block a Worker gets the 30-second default
+# CPU budget, and a fleet run does not fit in it. Exceeding it is not a JS
+# exception — the runtime TERMINATES the invocation, so index.ts's try/catch
+# never runs, the message is never acked, and the platform redelivers it. With
+# max_retries = 3 that is four full runs of the same PR (four sets of ship
+# comments, four times the model spend) ending in a dead-letter whose only
+# artifact is "was lost (job exhausted retries / dead-lettered)" — a red gate
+# with no cause attached, because no code in this Worker ever got to see one.
+#
+# Observed 2026-08-19 on PRs #7278, #7339, #7344 and #7377: every attempt ran
+# the ideation ships to completion (each rewrote its own edit-in-place comment,
+# four distinct versions per PR) and then vanished mid-run, ~75s of wall clock
+# apiece — far inside the 15-minute wall-clock budget for a queue consumer, and
+# consistent with hitting the CPU ceiling instead.
+#
+# 300_000 ms (5 minutes) is the platform maximum. It is a CEILING, not a
+# reservation: a run that finishes in two seconds of CPU is billed for two
+# seconds. The queue consumer above is already serialized (max_concurrency = 1),
+# so raising this cannot widen concurrent spend.
+[limits]
+cpu_ms = 300000
+
 # ---------------------------------------------------------------------------
 # Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
 [ai]
@@ -94,10 +125,17 @@ tag = "v1-purser-sandbox"
 new_sqlite_classes = ["Sandbox"]
 
 # ---------------------------------------------------------------------------
-# Queue consumer — one message per GitHub delivery, enqueued by relay.
+# Queue producer + consumer — one message per GitHub delivery, enqueued by
+# relay. Successful one-ship slices enqueue an explicit continuation before
+# acknowledging their current delivery; Cloudflare retries are reserved for
+# actual failures.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
 # follow-up handler completes the check run as 'failure' (fail-closed).
+[[queues.producers]]
+binding = "FLEET_CONTINUATIONS"
+queue = "fleet-runs"
+
 [[queues.consumers]]
 queue = "fleet-runs"
 # Fleet reviews can consume the full Worker wall-clock budget and each run has
@@ -107,6 +145,21 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
+# The consumer intentionally completes at most one new provider-heavy ship per
+# invocation, checkpoints it, enqueues the next cumulative slice, and
+# acknowledges the current message. Retries are therefore true failure
+# attempts, bounded independently of roster size.
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
@@ -129,6 +182,12 @@ max_retries = 1
 RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
+# ADR-0092 cloud sandbox daemon registration. Empty means disabled and keeps
+# current sandbox behavior. Provision a scoped
+# PORT_DADDY_COORDINATION_MACAROON Worker secret before filling these in.
+PORT_DADDY_COORDINATION_URL = ""
+PORT_DADDY_COORDINATION_PROJECT = ""
+PORT_DADDY_COORDINATION_ACTOR = ""
 # XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
 # "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
 # Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
@@ -140,3 +199,6 @@ XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
 # Secrets (documented; set via `wrangler secret put`, never committed):
 #   GITHUB_APP_PRIVATE_KEY   PEM-encoded GitHub App private key
 #   GITHUB_APP_ID            (may be a secret instead of a var if preferred)
+#   PORT_DADDY_COORDINATION_MACAROON
+#                            ADR-0092 coordination-sync grant scoped to the
+#                            configured project and cloud actor; optional.

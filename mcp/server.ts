@@ -37,6 +37,9 @@ import {
   type ClaimRegionArgs,
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
+import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
+import { governToolOutput } from '../lib/mcp-output-governor.js';
+import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -63,6 +66,16 @@ async function api(
 ): Promise<ApiResponse> {
   const url = new URL(path, DAEMON_URL);
 
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Present the one begin_session captured (or the
+  // env-injected one) on every request; harmless on reads, required on writes.
+  const actorCredential = resolveActorCredential();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (actorCredential) headers['x-actor-credential'] = actorCredential;
+
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
@@ -70,10 +83,7 @@ async function api(
         port: url.port,
         path: url.pathname + url.search,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers,
         timeout: options?.timeout ?? REQUEST_TIMEOUT,
       },
       (res) => {
@@ -245,8 +255,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'coordination_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -466,6 +476,20 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'coordination_status',
+    description:
+      '[System] Offline-first coordination peer status (ADR-0092 section 4). ' +
+      'Returns whether federation is enabled and connected plus the project, actor, ' +
+      'stable replica id, durable room cursor, pending local outbox count, last sync, ' +
+      'and last error. A disconnected peer does not mean local coordination is ' +
+      'unavailable: the local SQLite ledger remains writable and reconverges later. ' +
+      'Read-only. Usage: coordination_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -1135,7 +1159,9 @@ const TOOLS = [
       '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
       'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
-      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
+      'If this MCP process has no cached begin_session attachment and multiple sessions are active, ' +
+      'pass agent_id (from your begin_session response) or session_id to avoid AMBIGUOUS_ACTIVE_SESSION. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision", agent_id: "agent-abc123"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1150,7 +1176,14 @@ const TOOLS = [
         },
         session_id: {
           type: 'string',
-          description: 'Session ID to add note to (omit for active session or quick note)',
+          description: 'Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note.',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            'Your agent ID (from begin_session response). Disambiguates which session to write to ' +
+            'when multiple sessions are active in this worktree — otherwise omitting session_id fails ' +
+            'with AMBIGUOUS_ACTIVE_SESSION.',
         },
       },
       required: ['content'],
@@ -1193,7 +1226,7 @@ const TOOLS = [
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID (omit for recent notes)',
+          description: 'Session ID. Omit to use the session this process attached to via begin_session; if none, recent notes.',
         },
         limit: {
           type: 'number',
@@ -1214,7 +1247,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         paths: {
           type: 'array',
           items: { type: 'string' },
@@ -1236,7 +1269,6 @@ const TOOLS = [
         },
         force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
-      required: ['session_id'],
     },
   },
   {
@@ -1245,11 +1277,11 @@ const TOOLS = [
       '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
       'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
       'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
-      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
+      'Usage: claim_symbols({claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]}) — session_id optional, defaults to the session begin_session attached.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         claims: {
           type: 'array',
           description: 'Symbol claims to declare',
@@ -1266,7 +1298,7 @@ const TOOLS = [
         auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
         radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
       },
-      required: ['session_id', 'claims'],
+      required: ['claims'],
     },
   },
   {
@@ -1277,7 +1309,7 @@ const TOOLS = [
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID',
+          description: 'Session ID. Omit to use the session this process attached to via begin_session.',
         },
         files: {
           type: 'array',
@@ -1298,7 +1330,6 @@ const TOOLS = [
           },
         },
       },
-      required: ['session_id'],
     },
   },
 
@@ -1310,14 +1341,14 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         phase: {
           type: 'string',
           enum: ['planning', 'in_progress', 'testing', 'reviewing', 'completed', 'abandoned'],
           description: 'Session phase',
         },
       },
-      required: ['session_id', 'phase'],
+      required: ['phase'],
     },
   },
 
@@ -2863,7 +2894,9 @@ const TOOLS = [
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
+      'file claims, latest session note, heartbeat freshness, harness lane, and session-control affordances. ' +
+      'One call to understand the whole swarm. Output is a bounded digest (hard character budget, explicit ' +
+      'omission counters); the full-fidelity roster lives at GET /agent-roster on the daemon.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3472,22 +3505,40 @@ async function handleTool(
         } catch {
           // salvage context is best-effort — never fail begin_session over it
         }
+        // Cache this process's session so later session-scoped calls
+        // (add_note, claim_files, ...) don't need session_id/agent_id
+        // re-supplied on every call. See lib/mcp-session-cache.ts.
+        const data = res.data as Record<string, unknown>;
+        const agentId = typeof data.agentId === 'string' ? data.agentId : undefined;
+        const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
+        // #8877: begin mints (or verifies) the ADR-0040 soul; the returned
+        // credential must be cached so every later attributed write from this
+        // process presents it. NEVER echo the credential back into the tool
+        // output visible to the model transcript longer than necessary — but
+        // the begin response itself already carries it by design (returned
+        // once); we additionally keep it here for subsequent calls.
+        const mintedCredential = typeof data.credential === 'string' ? data.credential : undefined;
+        if (agentId && sessionId) setActiveSession({ agentId, sessionId, credential: mintedCredential });
       }
       break;
     }
 
     case 'end_session_full': {
       const body: Record<string, unknown> = {};
-      if (args.agent_id) body.agentId = args.agent_id;
-      if (args.session_id) body.sessionId = args.session_id;
+      const agentId = resolveAgentId(args);
+      const sessionId = resolveSessionId(args);
+      if (agentId) body.agentId = agentId;
+      if (sessionId) body.sessionId = sessionId;
       if (args.note) body.note = args.note;
       if (args.status) body.status = args.status;
       res = await POST('/sugar/done', body);
+      if (res.status >= 200 && res.status < 300) clearActiveSession();
       break;
     }
 
     case 'whoami': {
-      const qs = args.agent_id ? `?agentId=${encodeURIComponent(args.agent_id as string)}` : '';
+      const agentId = resolveAgentId(args);
+      const qs = agentId ? `?agentId=${encodeURIComponent(agentId)}` : '';
       res = await GET(`/sugar/whoami${qs}`);
       break;
     }
@@ -3510,6 +3561,11 @@ async function handleTool(
 
     case 'relay_status': {
       res = await GET('/relay/status');
+      break;
+    }
+
+    case 'coordination_status': {
+      res = await GET('/coordination/status');
       break;
     }
 
@@ -3773,8 +3829,10 @@ async function handleTool(
       const body: Record<string, unknown> = {};
       if (args.project_root) body.projectRoot = args.project_root;
       if (args.task) body.task = args.task;
-      if (args.session_id) body.sessionId = args.session_id;
-      if (args.agent_id) body.agentId = args.agent_id;
+      const preflightSessionId = resolveSessionId(args);
+      const preflightAgentId = resolveAgentId(args);
+      if (preflightSessionId) body.sessionId = preflightSessionId;
+      if (preflightAgentId) body.agentId = preflightAgentId;
       if (args.files) body.files = args.files;
       if (args.include_channels) body.includeChannels = true;
       if (args.include_tuple_hints) body.includeTupleHints = true;
@@ -3896,7 +3954,10 @@ async function handleTool(
     case 'add_note': {
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
-      if (args.session_id) body.sessionId = args.session_id;
+      const noteSessionId = resolveSessionId(args);
+      const noteAgentId = resolveAgentId(args);
+      if (noteSessionId) body.sessionId = noteSessionId;
+      if (noteAgentId) body.agentId = noteAgentId;
 
       res = await POST('/notes', body);
       break;
@@ -3919,8 +3980,9 @@ async function handleTool(
       if (args.limit) params.set('limit', String(args.limit));
       if (args.project) params.set('project', args.project as string);
       const qs = params.toString() ? `?${params.toString()}` : '';
-      if (args.session_id) {
-        res = await GET(`/sessions/${args.session_id}/notes${qs}`);
+      const listNotesSessionId = resolveSessionId(args);
+      if (listNotesSessionId) {
+        res = await GET(`/sessions/${listNotesSessionId}/notes${qs}`);
       } else {
         res = await GET(`/notes${qs}`);
       }
@@ -3928,7 +3990,15 @@ async function handleTool(
     }
 
     case 'claim_files': {
-      res = await POST(`/sessions/${args.session_id}/files`, {
+      const claimFilesSessionId = resolveSessionId(args);
+      if (!claimFilesSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await POST(`/sessions/${claimFilesSessionId}/files`, {
         files: args.paths ?? [],
         regions: args.regions,
         force: args.force,
@@ -3937,7 +4007,15 @@ async function handleTool(
     }
 
     case 'claim_symbols': {
-      res = await POST(`/sessions/${args.session_id}/symbols`, {
+      const claimSymbolsSessionId = resolveSessionId(args);
+      if (!claimSymbolsSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await POST(`/sessions/${claimSymbolsSessionId}/symbols`, {
         claims: args.claims ?? [],
         autoDeriveRadius: args.auto_derive_radius,
         radiusDepth: args.radius_depth,
@@ -3946,7 +4024,15 @@ async function handleTool(
     }
 
     case 'release_files': {
-      res = await DELETE(`/sessions/${encodeURIComponent(args.session_id as string)}/files`, {
+      const releaseFilesSessionId = resolveSessionId(args);
+      if (!releaseFilesSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await DELETE(`/sessions/${encodeURIComponent(releaseFilesSessionId)}/files`, {
         files: args.files ?? [],
         regions: args.regions,
       });
@@ -3968,7 +4054,15 @@ async function handleTool(
 
     // ── Session Phases ──────────────────────────────────────────────
     case 'set_session_phase': {
-      res = await PUT(`/sessions/${encodeURIComponent(args.session_id as string)}/phase`, {
+      const phaseSessionId = resolveSessionId(args);
+      if (!phaseSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await PUT(`/sessions/${encodeURIComponent(phaseSessionId)}/phase`, {
         phase: args.phase,
       });
       break;
@@ -4723,12 +4817,18 @@ async function handleTool(
 
     case 'active_agent_roster':
     case 'swarm_awareness': {
+      // An MCP tool result must fit in the calling agent's context window;
+      // the raw roster (full squid matrices, complete note bodies, unbounded
+      // claim lists, pretty-printed) has blown past harness token caps in
+      // production. Both paths below go through the digest layer, which
+      // shapes and hard-budgets the output. Full fidelity stays on the
+      // /agent-roster HTTP endpoint for FleetBar / Control Center.
       const project = args.project as string | undefined;
       const rosterQs = new URLSearchParams({ limit: '50' });
       if (project) rosterQs.set('project', project);
       const rosterRes = await GET(`/agent-roster?${rosterQs}`);
       if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
-        return JSON.stringify(rosterRes.data, null, 2);
+        return serializeSwarmDigest(rosterRes.data);
       }
 
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
@@ -4740,12 +4840,12 @@ async function handleTool(
         GET('/files'),
         GET(`/salvage/pending${project ? '?project=' + encodeURIComponent(project) : ''}`),
       ]);
-      return JSON.stringify({
-        active_agents: (agentsRes.data as Record<string, unknown>)?.agents ?? [],
-        sessions: (sessionsRes.data as Record<string, unknown>)?.sessions ?? [],
-        file_claims: (filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? [],
-        dead_agents: (salvageRes.data as Record<string, unknown>)?.agents ?? [],
-      }, null, 2);
+      return serializeLegacySwarmSnapshot({
+        agents: ((agentsRes.data as Record<string, unknown>)?.agents ?? []) as unknown[],
+        sessions: ((sessionsRes.data as Record<string, unknown>)?.sessions ?? []) as unknown[],
+        claims: ((filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? []) as unknown[],
+        deadAgents: ((salvageRes.data as Record<string, unknown>)?.agents ?? []) as unknown[],
+      });
     }
 
     case 'sitrep':
@@ -5142,7 +5242,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.27.0',
+    version: '3.30.2',
   },
   {
     capabilities: {
@@ -5176,8 +5276,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = await handleTool(name, (args ?? {}) as Record<string, unknown>);
+    // Universal backstop: no tool result leaves this server unbounded. Smart
+    // shaping (digests) happens per-tool; this guarantees the contract even
+    // for tools that lack one. See lib/mcp-output-governor.ts.
     return {
-      content: [{ type: 'text' as const, text: result }],
+      content: [{ type: 'text' as const, text: governToolOutput(name, result) }],
     };
   } catch (error) {
     if (error instanceof McpError) throw error;

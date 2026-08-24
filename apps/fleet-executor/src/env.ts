@@ -31,6 +31,14 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * so unit tests can omit it; absent ⇒ NOT paused (fail-safe: the gate runs).
    */
   CONTROL_KV?: KVNamespace;
+  /**
+   * Optional producer binding to the same `fleet-runs` queue this Worker
+   * consumes. A successful checkpoint sends a NEW continuation message and
+   * acknowledges the current delivery, so ordinary progress never consumes
+   * the queue's poison-message retry budget. Optional during rolling deploys;
+   * an absent binding preserves the legacy `message.retry()` continuation.
+   */
+  FLEET_CONTINUATIONS?: Queue<FleetRunJob>;
   /** Workers AI binding. */
   AI: Ai;
   /**
@@ -42,6 +50,17 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * test results. See the commented block in wrangler.toml.example.
    */
   SANDBOX?: unknown;
+  /**
+   * ADR-0092 coordination peer configuration for cloud sandboxes. These four
+   * values are all-or-nothing; the macaroon is a Worker secret and is scoped
+   * to this project, stable actor, and the coordination-sync operation. Each
+   * sandbox generates its own replica id at runtime so concurrent daemons do
+   * not share an HLC identity.
+   */
+  PORT_DADDY_COORDINATION_URL?: string;
+  PORT_DADDY_COORDINATION_PROJECT?: string;
+  PORT_DADDY_COORDINATION_ACTOR?: string;
+  PORT_DADDY_COORDINATION_MACAROON?: string;
   /**
    * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
    * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is
@@ -70,15 +89,33 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   RUN_PAGE_SECRET?: string;
   /**
    * OPTIONAL "cloud squid" coordination-event sink (src/squid-events.ts): the
-   * relay publish endpoint the executor fire-and-forgets run-started /
-   * ship-verdict / pr-stacked / run-concluded events to, on channel
-   * 'fleet-cloud'. BOTH this and RELAY_PUBLISH_TOKEN must be set or the
-   * feature is silently disabled — no fetch is ever attempted. Events are
-   * strictly best-effort: they never throw and never block or change a run.
+   * relay's POST /v1/publish endpoint the executor fire-and-forgets
+   * run-started / ship-verdict / pr-stacked / run-concluded events to, on
+   * per-run channel `<relayFp>:fleet-cloud:<runId>`. ALL of this,
+   * FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX, and FLEET_EXECUTOR_HARBOR_CARD
+   * must be set or the feature is silently disabled — no fetch is ever
+   * attempted. Events are strictly best-effort: they never throw and never
+   * block or change a run. There is NO bearer-token dialect on this stream.
    */
   RELAY_PUBLISH_URL?: string;
-  /** Bearer token sent with every squid-event POST. Secret; optional (see above). */
-  RELAY_PUBLISH_TOKEN?: string;
+  /**
+   * Ed25519 seed (64 hex chars) — the executor's publish identity (secret).
+   * Its public-key SHA-256 is the daemon fingerprint registered on the relay
+   * with proof_method='operator-provisioned' (POST /v1/fleet/executor-identity).
+   */
+  FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX?: string;
+  /**
+   * hv:2 harbor card returned by the relay's provisioning endpoint (secret):
+   * relay-signed EdDSA JWT, sub = this key's fingerprint, iss = aud = relay
+   * fingerprint, cap = [{op:'pub', channel:'<relayFp>:fleet-cloud:*',
+   * rate_per_min:120}]. Rotate via POST /v1/revoke-by-issuer + re-provision.
+   */
+  FLEET_EXECUTOR_HARBOR_CARD?: string;
+  /**
+   * OPTIONAL deployment label in the squid/1 body's sender name
+   * (`fleet-executor@<deployment>`). A var, not a secret. Default 'default'.
+   */
+  FLEET_DEPLOYMENT?: string;
   /**
    * OPTIONAL HITL escalation sink (src/interruptions.ts): the relay's
    * POST /v1/interruptions endpoint. When a ship hits a BLOCKING degradation
@@ -111,6 +148,13 @@ export interface FleetRunJob {
   repoFullName: string | null;
   installationId: number | null;
   prNumber: number | null;
+  /**
+   * Number of durable ship checkpoints that existed when this explicit
+   * continuation was produced. Relay-originated jobs omit it. The consumer
+   * uses it to keep platform retry attempts separate from successful workflow
+   * slices and to reject duplicate continuation messages after progress moves.
+   */
+  continuationSequence?: number;
   payloadMinimal: {
     sender?: Record<string, unknown>;
     repository?: Record<string, unknown>;

@@ -141,14 +141,20 @@ export interface ShipResult {
    */
   errored: boolean;
   /**
+   * Bounded, redacted cause for an errored ship. This survives checkpoints and
+   * feeds the transcript/check summary; it must never contain prompts, request
+   * bodies, credentials, or a stack trace.
+   */
+  failureReason?: string;
+  /**
    * The ship produced NO USABLE OUTPUT — see src/usable-output.ts. This is a
    * third outcome, distinct from both PASS and BLOCK: the ship ran, but what
    * came back satisfied nothing its contract asked for, so it reviewed nothing.
    *
    * It is kept SEPARATE from `errored` on purpose. `errored` means the ship's
    * job crashed or emitted a corrupt block; `noUsableOutput` means it completed
-   * and said nothing usable. They gate identically (both fail a blocking ship
-   * closed, both make an advisory ship neutral rather than green) but they read
+   * and said nothing usable. They gate identically (both are BROKEN-SHIP states
+   * and fail the run — see {@link aggregateConclusion}) but they read
    * differently to an operator, and conflating them is how the original bug —
    * "PASS · clean" for a ship that returned nothing — stayed invisible.
    */
@@ -158,6 +164,24 @@ export interface ShipResult {
    * ship found nothing; absent on legacy/test results that predate findings.
    */
   findings?: Finding[];
+  /**
+   * Set by the adjudicator (src/adjudicator.ts) when a BROKEN result's fault
+   * was judged FLEET-WIDE — the same ship is breaking across other PRs, so
+   * gating THIS author on it would punish the one party who cannot fix it.
+   * An adjudicated breakage resolves `neutral` (never success) with a tracked
+   * issue; absent, a broken result fails the run per the doctrine.
+   */
+  brokenAdjudicated?: BrokenAdjudication;
+}
+
+/** The adjudicator's verdict that a breakage is the fleet's, not the PR's. */
+export interface BrokenAdjudication {
+  /** Only fleet-scope exists today; the field keeps future scopes explicit. */
+  scope: 'fleet';
+  /** Human-legible evidence, e.g. "broken on 4 other PR(s) in the last 72h". */
+  reason: string;
+  /** The deduplicated `fleet:broken-ship` tracking issue, when filing worked. */
+  issueNumber?: number;
 }
 
 export type Conclusion = 'success' | 'failure' | 'neutral';
@@ -204,38 +228,59 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
 /**
  * Aggregate ship results into the umbrella check-run conclusion.
  *
- *   failure  — any BLOCKING ship returned BLOCK, errored, or produced no
- *              usable output
- *   neutral  — all blocking ships passed, but a non-blocking ship objected,
- *              errored, or produced no usable output
- *   success  — all blocking ships passed and no non-blocking objection
+ *   failure  — any BLOCKING ship returned BLOCK; OR any ship AT ALL — advisory
+ *              included — errored or produced no usable output (a BROKEN ship)
+ *   neutral  — every ship ran intact, all blocking ships passed, but a
+ *              non-blocking ship objected (advisory judgment stays advisory)
+ *   success  — every ship ran intact, all blocking ships passed, no advisory
+ *              objection
  *
  * Errors on a blocking ship are treated as BLOCK (fail-closed): we never let a
  * gate-keeper's failure silently pass a merge.
  *
- * NO USABLE OUTPUT (src/usable-output.ts) is gated on the same doctrine, and
- * the asymmetry is deliberate:
+ * THE BROKEN-SHIP DOCTRINE (operator ruling, 2026-08-19). "Advisory" scopes a
+ * ship's JUDGMENT, not its machinery. An advisory ship saying BLOCK is an
+ * opinion the operator chose not to gate on — that stays `neutral`. But an
+ * advisory ship that errored, returned no usable output, or emitted a
+ * malformed block did not render an opinion at all: the fleet itself is
+ * broken, and a fleet run that silently tolerates its own broken ships trains
+ * everyone to ignore the fleet. Earlier doctrine resolved these to `neutral`
+ * ("advisory paths fail open"), and the observable result was an entire run —
+ * pd-spark, pd-lookout, pd-spider returning nothing usable, pd-snipe emitting
+ * a malformed proposal block — sailing past the merge gate with nobody forced
+ * to fix anything. A broken ship now FAILS the run, whatever its blocking
+ * flag, so the breakage gets fixed in the diff that surfaced it instead of
+ * accumulating as tolerated rot.
  *
- *   - A BLOCKING ship that produced nothing did NOT clear the gate. Absence of
- *     a review is not approval, so it fails closed exactly like an error —
- *     `success` must never be returned on the strength of a reviewer that
- *     reviewed nothing.
- *   - An ADVISORY ship that produced nothing must NOT fail the merge gate
- *     (advisory paths fail open, by doctrine), but it must not be laundered
- *     into `success` either. `neutral` is the honest resolution: GitHub does
- *     not block a merge on a neutral check, and the operator still sees that
- *     the ship came back with nothing instead of a green tick it never earned.
+ * NO USABLE OUTPUT (src/usable-output.ts) is one of the broken-ship states:
+ * absence of a review is not approval, and it is not "advisory silence"
+ * either — it is a ship that reviewed nothing, and it fails the run.
+ *
+ * THE ADJUDICATION AMENDMENT (2026-08-19, the morning the doctrine deployed
+ * and reddened every open PR at once): a broken ship still fails the run —
+ * UNLESS the adjudicator (src/adjudicator.ts) has judged the breakage a
+ * FLEET-WIDE fault, evidenced by the same ship breaking across other PRs. An
+ * adjudicated breakage resolves `neutral`, never `success`: the fault stays
+ * visible on the check, the summary, and the run page, is tracked in ONE
+ * deduplicated issue, and pages the operator on first declaration — it gates
+ * the FLEET (who can fix it) instead of each PR author (who cannot). A broken
+ * ship with no adjudication — including when no evidence was available —
+ * fails the run exactly as before: without proof of an epidemic, the doctrine
+ * applies unmodified. A broken ship's verdict word is a fail-closed
+ * convention, not a judgment, so it never counts as a BLOCK on its own.
  */
 export function aggregateConclusion(results: ShipResult[]): Conclusion {
-  const blockingFailure = results.some(
-    r => r.blocking && (r.errored || r.noUsableOutput === true || r.verdict === 'BLOCK'),
-  );
-  if (blockingFailure) return 'failure';
+  const isBroken = (r: ShipResult) => r.errored || r.noUsableOutput === true;
 
-  const advisoryObjection = results.some(
-    r => !r.blocking && (r.verdict === 'BLOCK' || r.errored || r.noUsableOutput === true),
+  const brokenUnadjudicated = results.some(r => isBroken(r) && r.brokenAdjudicated == null);
+  const blockingJudgmentBlock = results.some(
+    r => r.blocking && r.verdict === 'BLOCK' && !isBroken(r),
   );
-  if (advisoryObjection) return 'neutral';
+  if (brokenUnadjudicated || blockingJudgmentBlock) return 'failure';
+
+  const advisoryObjection = results.some(r => !r.blocking && r.verdict === 'BLOCK' && !isBroken(r));
+  const adjudicatedBreakage = results.some(r => isBroken(r) && r.brokenAdjudicated != null);
+  if (advisoryObjection || adjudicatedBreakage) return 'neutral';
 
   return 'success';
 }

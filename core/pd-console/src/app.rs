@@ -21,6 +21,8 @@ use gpui::*;
 pub use crate::chat::ChatUpdate;
 use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 use crate::dispatch_pane::DispatchHead;
+use crate::editor_input::{EditorInput, TextEdit};
+use crate::editor_sync::PresenceState;
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
@@ -30,7 +32,7 @@ use crate::shell_drawer::{
 use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -186,6 +188,24 @@ pub enum ControlMsg {
         path: String,
         region: Option<(u32, u32)>,
     },
+    /// One accepted foreground keystroke as the exact incremental Loro delta,
+    /// plus its resulting caret/selection. The producer imports this frame into
+    /// its live-lane mirror and broadcasts it; it never recreates the edit.
+    EditorLocalChange {
+        path: String,
+        frame: Option<String>,
+        presence: PresenceState,
+    },
+}
+
+/// Producer-to-window editor edge. Remote frames are carried alongside the
+/// already-rendered collaboration Blocks so the foreground Loro authority stays
+/// converged before the next local keystroke.
+#[derive(Debug, Clone)]
+pub struct EditorUpdate {
+    pub path: String,
+    pub blocks: Vec<Block>,
+    pub remote_frames: Vec<String>,
 }
 
 /// A push from the daemon worker back to the Work surface. Runtime truth is a
@@ -1096,12 +1116,63 @@ impl RenderOnce for WavingFlag {
 /// lines — only the visible window is painted, scroll state rides `scroll`.
 /// This replaces the per-line `Block::Row` card path (border + rounding +
 /// margins + hover per line — the "every line is a button" bug).
+#[derive(Clone, Default)]
+struct EditorPaintState {
+    caret: Option<(u32, usize)>,
+    selection: BTreeMap<u32, std::ops::Range<usize>>,
+    marked: BTreeMap<u32, std::ops::Range<usize>>,
+}
+
+fn paint_ranges_for_text(
+    text: &str,
+    range: std::ops::Range<usize>,
+) -> BTreeMap<u32, std::ops::Range<usize>> {
+    let mut result = BTreeMap::new();
+    if range.is_empty() {
+        return result;
+    }
+    let mut line_start = 0usize;
+    for (index, raw) in text.split_inclusive('\n').enumerate() {
+        let content_len = raw.strip_suffix('\n').map_or(raw.len(), str::len);
+        let content_end = line_start + content_len;
+        let start = range.start.max(line_start).min(content_end);
+        let end = range.end.max(line_start).min(content_end);
+        if start < end {
+            result.insert((index + 1) as u32, start - line_start..end - line_start);
+        }
+        line_start += raw.len();
+        if line_start >= range.end {
+            break;
+        }
+    }
+    result
+}
+
+fn editor_paint_state(input: &EditorInput, text: &str) -> EditorPaintState {
+    let selection = input.selection();
+    let caret = selection.is_empty().then(|| {
+        let byte = input.cursor().min(text.len());
+        let line_start = text[..byte].rfind('\n').map_or(0, |ix| ix + 1);
+        let line = text[..byte].bytes().filter(|b| *b == b'\n').count() as u32 + 1;
+        (line, byte - line_start)
+    });
+    EditorPaintState {
+        caret,
+        selection: paint_ranges_for_text(text, selection),
+        marked: input
+            .marked_range()
+            .map(|range| paint_ranges_for_text(text, range))
+            .unwrap_or_default(),
+    }
+}
+
 fn render_code_buffer(
     pane_id: PaneId,
     lines: std::sync::Arc<[crate::pane::CodeLine]>,
     gutter_cols: u8,
     bands: Vec<crate::pane::CodeBand>,
     scroll: Option<UniformListScrollHandle>,
+    input: Option<EditorPaintState>,
 ) -> AnyElement {
     let t = current_theme();
     let count = lines.len();
@@ -1110,7 +1181,7 @@ fn render_code_buffer(
         count,
         move |range: std::ops::Range<usize>, _window, _cx| {
             range
-                .map(|ix| render_code_line(&lines[ix], gutter_cols, &bands))
+                .map(|ix| render_code_line(&lines[ix], gutter_cols, &bands, input.as_ref()))
                 .collect::<Vec<_>>()
         },
     )
@@ -1139,6 +1210,7 @@ fn render_code_line(
     line: &crate::pane::CodeLine,
     gutter_cols: u8,
     bands: &[crate::pane::CodeBand],
+    input: Option<&EditorPaintState>,
 ) -> AnyElement {
     let t = current_theme();
     // Last covering band wins (the pane pushes the conflict wedge last).
@@ -1167,7 +1239,33 @@ fn render_code_line(
             break;
         }
     }
+    if let Some(range) = input.and_then(|state| state.selection.get(&line.number)) {
+        highlights.push((
+            range.clone(),
+            HighlightStyle {
+                background_color: Some(tone_wash(t.accent, 0x55).into()),
+                ..Default::default()
+            },
+        ));
+    }
+    if let Some(range) = input.and_then(|state| state.marked.get(&line.number)) {
+        highlights.push((
+            range.clone(),
+            HighlightStyle {
+                underline: Some(UnderlineStyle {
+                    color: Some(rgb(t.accent_ink).into()),
+                    thickness: px(1.0),
+                    wavy: false,
+                }),
+                ..Default::default()
+            },
+        ));
+    }
     let author_tag = line.author_tag.clone();
+    let caret_col = input
+        .and_then(|state| state.caret)
+        .filter(|(number, _)| *number == line.number)
+        .map(|(_, byte)| line.text[..byte.min(line.text.len())].chars().count());
 
     div()
         .h(px(tokens::CODE_LINE_H))
@@ -1203,7 +1301,29 @@ fn render_code_line(
                 .text_color(rgb(t.tone(&line.author_tone)))
                 .when_some(author_tag, |d, tag| d.child(SharedString::new(tag))),
         )
-        .child(StyledText::new(SharedString::new(line.text.clone())).with_highlights(highlights))
+        .child(
+            div()
+                .relative()
+                .h_full()
+                .flex_1()
+                .flex()
+                .items_center()
+                .child(
+                    StyledText::new(SharedString::new(line.text.clone()))
+                        .with_highlights(highlights),
+                )
+                .when_some(caret_col, |d, column| {
+                    d.child(
+                        div()
+                            .absolute()
+                            .left(px(column as f32 * tokens::CODE_CH))
+                            .top(px(2.0))
+                            .bottom(px(2.0))
+                            .w(px(1.5))
+                            .bg(rgb(t.accent_ink)),
+                    )
+                }),
+        )
         .into_any_element()
 }
 
@@ -1230,7 +1350,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 lines
                     .iter()
                     .take(500)
-                    .map(|line| render_code_line(line, gutter_cols, &bands)),
+                    .map(|line| render_code_line(line, gutter_cols, &bands, None)),
             )
             .into_any_element(),
         Block::Header(text) => div()
@@ -1822,6 +1942,10 @@ pub struct ConsoleView {
     alerts: Vec<Alert>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
+    /// HITL interruptions gate (contract §4): open-ask count, the blocking
+    /// critical ask's title, known/unknown, and the web answer deep link.
+    /// Drives the window-wide banner and the dispatch-gate refusal.
+    hitl_gate: crate::interruptions::HitlGate,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
     /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
@@ -1925,6 +2049,8 @@ pub struct ConsoleView {
 struct EditorSurfaceState {
     pane: crate::editor_pane::EditorPane,
     scroll: UniformListScrollHandle,
+    input: EditorInput,
+    input_bounds: Option<Bounds<Pixels>>,
 }
 
 /// Stable map key for an Editor surface binding.
@@ -2071,6 +2197,7 @@ impl ConsoleView {
             control_flash: None,
             alerts: Vec::new(),
             dispatch_head: None,
+            hitl_gate: crate::interruptions::HitlGate::default(),
             reject_target: None,
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
@@ -2157,6 +2284,8 @@ impl ConsoleView {
                     EditorSurfaceState {
                         pane,
                         scroll: UniformListScrollHandle::new(),
+                        input: EditorInput::default(),
+                        input_bounds: None,
                     },
                 );
             }
@@ -2516,6 +2645,245 @@ impl ConsoleView {
     /// gpui 0.2.2 has no native input, so the root focus handle does the capturing).
     fn focused_is_chat(&self) -> bool {
         matches!(self.ws().focused_surface(), SurfaceKind::CartographerChat)
+    }
+
+    fn focused_editor_key(&self) -> Option<String> {
+        match self.ws().focused_surface() {
+            SurfaceKind::Editor { path, region } => Some(editor_key(path, *region)),
+            _ => None,
+        }
+    }
+
+    fn presence_for_editor(state: &EditorSurfaceState, text: &str) -> PresenceState {
+        let (cursor_line, cursor_col) = state.input.presence_cursor(text);
+        let (anchor_line, anchor_col) = state.input.presence_anchor(text);
+        let top_line = state.scroll.0.borrow().base_handle.logical_scroll_top().0 as u32 + 1;
+        PresenceState {
+            cursor_line,
+            cursor_col,
+            anchor_line,
+            anchor_col,
+            top_line,
+            bottom_line: top_line.saturating_add(80),
+        }
+    }
+
+    fn apply_focused_editor_edit<F>(&mut self, prepare: F, cx: &mut Context<Self>) -> bool
+    where
+        F: FnOnce(&mut EditorInput, &str) -> Option<TextEdit>,
+    {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let outcome = {
+            let Some(state) = self.editors.get_mut(&key) else {
+                return false;
+            };
+            let Some(before) = state.pane.text() else {
+                return false;
+            };
+            let prior_input = state.input.clone();
+            let Some(edit) = prepare(&mut state.input, &before) else {
+                return true;
+            };
+            match state
+                .pane
+                .apply_local_text_edit(edit.range.clone(), &edit.text)
+            {
+                Ok(frame) => {
+                    let after = state.pane.text().unwrap_or_default();
+                    state.input.reconcile(&after);
+                    let presence = Self::presence_for_editor(state, &after);
+                    state.pane.set_local_presence(presence);
+                    Ok((state.pane.path_str().to_string(), frame, presence))
+                }
+                Err(reason) => {
+                    state.input = prior_input;
+                    Err(reason)
+                }
+            }
+        };
+
+        match outcome {
+            Ok((path, frame, presence)) => {
+                // The foreground buffer paints the keystroke immediately. The
+                // producer's collaboration Blocks return after importing this
+                // exact delta; until then they must not cover the newer local view.
+                if self
+                    .editor_blocks
+                    .as_ref()
+                    .is_some_and(|(live_path, _)| live_path == &path)
+                {
+                    self.editor_blocks = None;
+                }
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::EditorLocalChange {
+                        path,
+                        frame: Some(frame),
+                        presence,
+                    });
+                }
+            }
+            Err(reason) => {
+                self.control_flash = Some(reason);
+                crate::audio::play(crate::audio::Cue::Gate);
+            }
+        }
+        cx.notify();
+        true
+    }
+
+    fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
+    where
+        F: FnOnce(&mut EditorInput, &str),
+    {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let change = {
+            let Some(state) = self.editors.get_mut(&key) else {
+                return false;
+            };
+            let Some(text) = state.pane.text() else {
+                return false;
+            };
+            update(&mut state.input, &text);
+            let presence = Self::presence_for_editor(state, &text);
+            state.pane.set_local_presence(presence);
+            (state.pane.path_str().to_string(), presence)
+        };
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::EditorLocalChange {
+                path: change.0,
+                frame: None,
+                presence: change.1,
+            });
+        }
+        cx.notify();
+        true
+    }
+
+    fn handle_editor_key(
+        &mut self,
+        key: &str,
+        modifiers: Modifiers,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let select = modifiers.shift;
+        match key {
+            "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
+            "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
+            "up" => self.move_focused_editor(|input, text| input.vertical(text, -1, select), cx),
+            "down" => self.move_focused_editor(|input, text| input.vertical(text, 1, select), cx),
+            "home" => self.move_focused_editor(|input, text| input.home(text, select), cx),
+            "end" => self.move_focused_editor(|input, text| input.end(text, select), cx),
+            "backspace" => self.apply_focused_editor_edit(
+                |input, text| {
+                    let range = input.backspace_range(text)?;
+                    Some(input.replace_bytes(text, range, ""))
+                },
+                cx,
+            ),
+            "delete" => self.apply_focused_editor_edit(
+                |input, text| {
+                    let range = input.delete_range(text)?;
+                    Some(input.replace_bytes(text, range, ""))
+                },
+                cx,
+            ),
+            "enter" => self.apply_focused_editor_edit(
+                |input, text| Some(input.replace_bytes(text, input.selection(), "\n")),
+                cx,
+            ),
+            "tab" => self.apply_focused_editor_edit(
+                |input, text| Some(input.replace_bytes(text, input.selection(), "    ")),
+                cx,
+            ),
+            "a" if modifiers.platform => {
+                self.move_focused_editor(|input, text| input.select_all(text), cx)
+            }
+            "c" if modifiers.platform => {
+                if let Some(key) = self.focused_editor_key() {
+                    if let Some(state) = self.editors.get(&key) {
+                        if let Some(text) = state.pane.text() {
+                            let range = state.input.selection();
+                            if !range.is_empty() {
+                                cx.write_to_clipboard(ClipboardItem::new_string(
+                                    text[range].to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            "x" if modifiers.platform => {
+                let copied = self.focused_editor_key().and_then(|key| {
+                    let state = self.editors.get(&key)?;
+                    let text = state.pane.text()?;
+                    let range = state.input.selection();
+                    (!range.is_empty()).then(|| text[range].to_string())
+                });
+                if let Some(text) = copied {
+                    cx.write_to_clipboard(ClipboardItem::new_string(text));
+                    self.apply_focused_editor_edit(
+                        |input, text| Some(input.replace_bytes(text, input.selection(), "")),
+                        cx,
+                    )
+                } else {
+                    true
+                }
+            }
+            "v" if modifiers.platform => {
+                let paste = cx
+                    .read_from_clipboard()
+                    .and_then(|item| item.text())
+                    .unwrap_or_default();
+                self.apply_focused_editor_edit(
+                    move |input, text| Some(input.replace_bytes(text, input.selection(), &paste)),
+                    cx,
+                )
+            }
+            "escape" => self.move_focused_editor(|input, _| input.unmark(), cx),
+            _ => false,
+        }
+    }
+
+    fn handle_editor_mouse_down(&mut self, event: &MouseDownEvent, cx: &mut Context<Self>) {
+        let Some(key) = self.focused_editor_key() else {
+            return;
+        };
+        let target = self.editors.get(&key).and_then(|state| {
+            let bounds = state.input_bounds?;
+            let text = state.pane.text()?;
+            let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+            let gutter_cols = text.lines().count().max(1).to_string().len() as f32;
+            let gutter_px =
+                2.0 + 6.0 + gutter_cols * tokens::CODE_CH + 8.0 + 2.0 * tokens::CODE_CH + 6.0;
+            let row = ((f32::from(event.position.y - bounds.top()) / tokens::CODE_LINE_H).floor()
+                as isize)
+                .max(0) as usize;
+            let column = ((f32::from(event.position.x - bounds.left()) - gutter_px)
+                / tokens::CODE_CH)
+                .floor()
+                .max(0.0) as usize;
+            let utf16 = state
+                .input
+                .utf16_index_for_line_column(&text, top + row, column);
+            Some(
+                state
+                    .input
+                    .byte_range_for_utf16(&text, &(utf16..utf16))
+                    .start,
+            )
+        });
+        if let Some(target) = target {
+            let select = event.modifiers.shift;
+            let _ = self.move_focused_editor(
+                move |input, text| input.move_to_byte(text, target, select),
+                cx,
+            );
+        }
     }
 
     /// Feed one keystroke into the chat composer. Mirrors `handle_command_key`'s
@@ -3171,6 +3539,7 @@ impl ConsoleView {
         dispatch_head: Option<DispatchHead>,
         galaxy: crate::galaxy_pane::GalaxySnapshot,
         daemon_connected: bool,
+        hitl_gate: crate::interruptions::HitlGate,
     ) -> bool {
         // First refresh dismisses the launch splash (a real visual change).
         let mut changed = !self.booted;
@@ -3189,6 +3558,10 @@ impl ConsoleView {
         }
         if self.dispatch_head != dispatch_head {
             self.dispatch_head = dispatch_head;
+            changed = true;
+        }
+        if self.hitl_gate != hitl_gate {
+            self.hitl_gate = hitl_gate;
             changed = true;
         }
 
@@ -3509,11 +3882,21 @@ impl ConsoleView {
         }
     }
 
-    /// Store the producer's latest LIVE editor blocks (P3 wire stage 2). The producer
-    /// sends only on a real fold edge (a bound-file change, a folded op/presence/claim,
-    /// or a cursor expiry), so the editor surface repaints on change, never on idle.
-    pub fn set_editor_blocks(&mut self, blocks: (String, Vec<Block>)) {
-        self.editor_blocks = Some(blocks);
+    /// Fold a producer editor edge into the window. A remote op is imported into
+    /// every foreground pane bound to the path before its collaboration Blocks
+    /// become visible, keeping the next local keystroke on the converged CRDT.
+    pub fn apply_editor_update(&mut self, update: EditorUpdate) {
+        for frame in &update.remote_frames {
+            for state in self.editors.values_mut() {
+                if state.pane.path_str() == update.path {
+                    let _ = state.pane.ingest_frame(frame);
+                    if let Some(text) = state.pane.text() {
+                        state.input.reconcile(&text);
+                    }
+                }
+            }
+        }
+        self.editor_blocks = Some((update.path, update.blocks));
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -3640,6 +4023,18 @@ impl ConsoleView {
                 .map(|s| s.scroll.clone()),
             _ => None,
         };
+        let editor_input = match surface {
+            SurfaceKind::Editor { path, region } => self
+                .editors
+                .get(&editor_key(path, *region))
+                .and_then(|state| {
+                    state
+                        .pane
+                        .text()
+                        .map(|text| editor_paint_state(&state.input, &text))
+                }),
+            _ => None,
+        };
         // The dispatch surface (focused) gets the interactive review GATE.
         // The Daemons surface renders interactive picker buttons instead of plain
         // text blocks (built here so the on_click listeners can borrow cx).
@@ -3717,6 +4112,11 @@ impl ConsoleView {
         // interrupt). Both read `/agents`, so they share the roster.
         let is_fleet_ops = matches!(nav_id_for_surface(surface), Some("fleet") | Some("cockpit"));
         let dispatch_head = self.dispatch_head.clone();
+        // HITL contract §4.3: an open CRITICAL interruption refuses new
+        // fleet-dispatch work (the review gate's Approve), showing the ask's
+        // title as the reason and deep-linking the web answer surface.
+        let hitl_critical = self.hitl_gate.critical_title.clone();
+        let hitl_link = self.hitl_gate.deep_link.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
         let fleet_flash = self.control_flash.clone();
@@ -3890,6 +4290,7 @@ impl ConsoleView {
                                         gutter_cols,
                                         bands,
                                         editor_scroll.clone(),
+                                        editor_input.clone(),
                                     ));
                                 }
                                 other => head = head.child(render_block(other, motion)),
@@ -3903,7 +4304,30 @@ impl ConsoleView {
                             .flex_col()
                             .child(head)
                             .when_some(code, |b, c| {
-                                b.child(div().flex_1().overflow_hidden().child(c))
+                                b.child(
+                                    div()
+                                        .relative()
+                                        .flex_1()
+                                        .overflow_hidden()
+                                        .cursor(CursorStyle::IBeam)
+                                        .child(c)
+                                        .when(is_focused, |surface| {
+                                            surface.child(
+                                                div()
+                                                    .absolute()
+                                                    .size_full()
+                                                    .on_mouse_down(
+                                                        MouseButton::Left,
+                                                        cx.listener(|this, event, _window, cx| {
+                                                            this.handle_editor_mouse_down(event, cx);
+                                                        }),
+                                                    )
+                                                    .child(EditorInputElement {
+                                                        view: cx.entity(),
+                                                    }),
+                                            )
+                                        }),
+                                )
                             })
                     }
                     None if is_daemons => body.children(daemon_rows),
@@ -4173,10 +4597,33 @@ impl ConsoleView {
                             .child(
                                 div()
                                     .flex()
+                                    .items_center()
                                     .gap(px(8.0))
-                                    .child(dispatch_gate_btn(
-                                        "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
-                                    ))
+                                    // HITL §4.3: while a CRITICAL ask is open, the
+                                    // console refuses to start new fleet work. The
+                                    // Approve affordance is replaced by an honest
+                                    // refusal carrying the ask's title — never a
+                                    // silently dead button.
+                                    .when_some(hitl_critical.clone(), |c, blocked_by| {
+                                        c.child(
+                                            div()
+                                                .px(px(10.0))
+                                                .py(px(4.0))
+                                                .border_1()
+                                                .border_color(rgb(current_theme().gated))
+                                                .text_color(rgb(current_theme().gated))
+                                                .text_size(px(13.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .child(format!(
+                                                    "\u{26d4} Approve blocked \u{2014} critical interruption open: {blocked_by}"
+                                                )),
+                                        )
+                                    })
+                                    .when(hitl_critical.is_none(), |c| {
+                                        c.child(dispatch_gate_btn(
+                                            "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
+                                        ))
+                                    })
                                     .child(dispatch_gate_btn(
                                         "reject", "✗ Reject…", current_theme().gated, h.id.clone(), cx,
                                     ))
@@ -4184,6 +4631,19 @@ impl ConsoleView {
                                         "cancel", "⊘ Cancel", current_theme().muted, h.id.clone(), cx,
                                     )),
                             )
+                            // Deep-link to the session-gated web answer surface
+                            // (answer/ack is never in-app by design).
+                            .when(hitl_critical.is_some(), |c| {
+                                let link = hitl_link
+                                    .clone()
+                                    .unwrap_or_else(|| "/account/interruptions".into());
+                                c.child(
+                                    div()
+                                        .text_color(rgb(current_theme().muted))
+                                        .text_size(px(13.0))
+                                        .child(format!("answer / ack \u{2192} {link}")),
+                                )
+                            })
                         })
                         .when_some(gate_flash, |c, flash| {
                             c.child(
@@ -5983,6 +6443,210 @@ impl Focusable for ConsoleView {
     }
 }
 
+impl EntityInputHandler for ConsoleView {
+    fn text_for_range(
+        &mut self,
+        range: std::ops::Range<usize>,
+        adjusted_range: &mut Option<std::ops::Range<usize>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<String> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        let (slice, adjusted) = state.input.text_for_utf16_range(&text, &range);
+        adjusted_range.replace(adjusted);
+        Some(slice)
+    }
+
+    fn selected_text_range(
+        &mut self,
+        _ignore_disabled_input: bool,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<UTF16Selection> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        Some(UTF16Selection {
+            range: state.input.selection_utf16(&text),
+            reversed: state.input.selection_reversed(),
+        })
+    }
+
+    fn marked_text_range(
+        &self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<std::ops::Range<usize>> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        state.input.marked_utf16(&text)
+    }
+
+    fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let _ = self.move_focused_editor(|input, _| input.unmark(), cx);
+    }
+
+    fn replace_text_in_range(
+        &mut self,
+        range: Option<std::ops::Range<usize>>,
+        text: &str,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let replacement = text.to_string();
+        let _ = self.apply_focused_editor_edit(
+            move |input, before| Some(input.replace(before, range, &replacement, false, None)),
+            cx,
+        );
+    }
+
+    fn replace_and_mark_text_in_range(
+        &mut self,
+        range: Option<std::ops::Range<usize>>,
+        new_text: &str,
+        new_selected_range: Option<std::ops::Range<usize>>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let replacement = new_text.to_string();
+        let _ = self.apply_focused_editor_edit(
+            move |input, before| {
+                Some(input.replace(before, range, &replacement, true, new_selected_range))
+            },
+            cx,
+        );
+    }
+
+    fn bounds_for_range(
+        &mut self,
+        range_utf16: std::ops::Range<usize>,
+        element_bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Bounds<Pixels>> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        let byte = state.input.byte_range_for_utf16(&text, &range_utf16).start;
+        let (line, column) = state.input.presence_at_byte(&text, byte);
+        let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0 as u32 + 1;
+        let visible_row = line.saturating_sub(top) as f32;
+        let gutter_cols = text.lines().count().max(1).to_string().len() as f32;
+        let gutter_px =
+            2.0 + 6.0 + gutter_cols * tokens::CODE_CH + 8.0 + 2.0 * tokens::CODE_CH + 6.0;
+        Some(Bounds::new(
+            point(
+                element_bounds.left() + px(gutter_px + column as f32 * tokens::CODE_CH),
+                element_bounds.top() + px(visible_row * tokens::CODE_LINE_H),
+            ),
+            size(px(2.0), px(tokens::CODE_LINE_H)),
+        ))
+    }
+
+    fn character_index_for_point(
+        &mut self,
+        point: Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let bounds = state.input_bounds?;
+        let text = state.pane.text()?;
+        let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+        let gutter_cols = text.lines().count().max(1).to_string().len() as f32;
+        let gutter_px =
+            2.0 + 6.0 + gutter_cols * tokens::CODE_CH + 8.0 + 2.0 * tokens::CODE_CH + 6.0;
+        let row = ((f32::from(point.y - bounds.top()) / tokens::CODE_LINE_H).floor() as isize)
+            .max(0) as usize;
+        let column = ((f32::from(point.x - bounds.left()) - gutter_px) / tokens::CODE_CH)
+            .floor()
+            .max(0.0) as usize;
+        Some(
+            state
+                .input
+                .utf16_index_for_line_column(&text, top + row, column),
+        )
+    }
+}
+
+struct EditorInputElement {
+    view: Entity<ConsoleView>,
+}
+
+impl IntoElement for EditorInputElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for EditorInputElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = Style::default();
+        style.size.width = relative(1.0).into();
+        style.size.height = relative(1.0).into();
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Self::PrepaintState {
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let focus = self.view.read(cx).focus_handle(cx);
+        window.handle_input(
+            &focus,
+            ElementInputHandler::new(bounds, self.view.clone()),
+            cx,
+        );
+        self.view.update(cx, |view, _cx| {
+            if let Some(key) = view.focused_editor_key() {
+                if let Some(state) = view.editors.get_mut(&key) {
+                    state.input_bounds = Some(bounds);
+                }
+            }
+        });
+    }
+}
+
 /// One draggable pane divider — a 6px hit-zone with a centered hairline that
 /// thickens/glows on hover; mouse-down arms a `DragState` the window handler reads.
 fn split_divider(
@@ -6769,6 +7433,9 @@ impl Render for ConsoleView {
         let lit = armed || command.is_some();
         let pane_count = self.ws().pane_count();
         let daemon_connected = self.daemon_connected;
+        // HITL banner data (contract §4.2): surfaced window-wide when any ask
+        // is open; loud red (mayday) when a critical/blocking ask is waiting.
+        let hitl_banner = self.hitl_gate.clone();
         let zoomed = self.zoomed();
         // Tab bar data (index, name, is-active).
         let tabs: Vec<(usize, String, bool)> = self
@@ -6962,6 +7629,18 @@ impl Render for ConsoleView {
                         ev.keystroke.modifiers,
                         cx,
                     );
+                } else if this.focused_editor_key().is_some() {
+                    // Printable text is delivered by GPUI's platform input
+                    // bridge (`EntityInputHandler`) so IME/dead-key composition
+                    // works. Navigation, deletion, clipboard, Enter and Tab are
+                    // commands and stay on the keydown path.
+                    if this.handle_editor_key(
+                        key.as_str(),
+                        ev.keystroke.modifiers,
+                        cx,
+                    ) {
+                        cx.stop_propagation();
+                    }
                 } else if this.focused_is_chat() {
                     // The focused chat pane captures printable keys into its composer
                     // (no native input widget) — the load-bearing "make it actually
@@ -7170,6 +7849,55 @@ impl Render for ConsoleView {
                     ),
             )
             .child(render_story_nav_bar(active_nav.as_deref(), cx))
+            // ── HITL interruptions banner (docs/hitl-interruptions.md §4): any
+            // open operator ask is surfaced window-wide within one poll (≤30 s
+            // jittered, so ≤60 s from creation). Critical/blocking asks paint
+            // MAYDAY red; clicking opens the session-gated web answer surface —
+            // answer/ack is never offered in-app by design. ──
+            .when(hitl_banner.open_count > 0, |root| {
+                let critical = hitl_banner.critical_title.clone();
+                let link = hitl_banner
+                    .deep_link
+                    .clone()
+                    .unwrap_or_else(|| "/account/interruptions".into());
+                let n = hitl_banner.open_count;
+                let is_critical = critical.is_some();
+                let text = match &critical {
+                    Some(title) => format!(
+                        "\u{26a0} {n} INTERRUPTION{} \u{2014} critical: {title} \u{2014} fleet dispatch blocked \u{00b7} click to answer",
+                        if n == 1 { "" } else { "S" },
+                    ),
+                    None => format!(
+                        "\u{26a0} {n} interruption{} awaiting a human \u{00b7} click to answer",
+                        if n == 1 { "" } else { "s" },
+                    ),
+                };
+                root.child(
+                    div()
+                        .id("hitl-banner")
+                        .w_full()
+                        .px(px(16.0))
+                        .py(px(6.0))
+                        .bg(rgb(if is_critical {
+                            current_theme().mayday
+                        } else {
+                            current_theme().gated
+                        }))
+                        .text_color(rgb(0xfbf7ef))
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::BOLD)
+                        .cursor_pointer()
+                        .child(text)
+                        .on_click(move |_ev, _window, _cx| {
+                            // Deep-link only: the web surface is where a HUMAN
+                            // session answers or acks (bearer tokens can't).
+                            if link.starts_with("http") {
+                                let _ = std::process::Command::new("open").arg(&link).spawn();
+                            }
+                        }),
+                )
+            })
             // ── Body row: clickable NAV rail (the GUI replacement for the
             // Ctrl-A <key> surface switch the operator hates) + the pane tree.
             // Click a surface name to swap the focused pane — no leader key. ──

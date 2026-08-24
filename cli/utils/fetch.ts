@@ -8,13 +8,18 @@
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
 
-import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
+import { DEFAULT_SOCK } from '../../shared/paths.js';
 import { maybeWarnNonProdPlane, isMutatingMethod, PLANE_PROBE_TIMEOUT_MS } from './plane-banner.js';
-import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
+import { resolveCliActorCredential } from './actor-credential.js';
+import { configuredDaemonUrl } from './remote-daemon.js';
+import { resolveDaemonTarget, resolveDaemonTcpTarget, resolvePublishedDaemonUrl } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
-const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
-const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+// Most legacy callers concatenate this with a relative path before handing it
+// back to pdFetch(), which resolves the actual transport independently. Keep
+// the compatibility prefix empty unless the operator selected an explicit URL;
+// manufacturing a preferred-port URL here would reintroduce a port guess.
+const PORT_DADDY_URL: string = configuredDaemonUrl(process.env)?.replace(/\/$/, '') ?? '';
 
 export { PORT_DADDY_URL, SOCK_PATH };
 
@@ -35,26 +40,41 @@ export interface FetchOptions {
   body?: string | Buffer | null;
   timeout?: number;
   transport?: 'auto' | 'tcp';
+  /** Disable launchd-window reconnect retries for optional latency-critical calls. */
+  retry?: boolean;
+  /** Abort the active socket/TCP request when a caller's total deadline expires. */
+  signal?: AbortSignal;
 }
 
 /**
  * Resolve connection target: Unix socket or TCP.
  *
- * Delegates to the ONE canonical resolver in shared/daemon-discovery. Before
+ * The design delegates to the ONE canonical resolver in shared/daemon-discovery. Before
  * this delegation, this copy ignored PORT_DADDY_SOCK entirely and checked the
  * URL before the socket — a different precedence than lib/request.ts. Now all
  * Node clients agree.
+ *
+ * @returns The selected Unix-socket or strictly published TCP target.
  */
 export function resolveTarget(): ConnectionTarget {
   return resolveDaemonTarget();
 }
 
 /**
- * Get the daemon's display URL (for status messages, dashboard links, etc.)
+ * Get the daemon's display URL (for status messages, dashboard links, etc.).
+ * The design returns an empty string when no endpoint is published so display
+ * code cannot accidentally turn the preferred allocator port into evidence.
+ *
+ * @returns An explicit/published daemon URL, or an empty fail-closed value.
  */
 export function getDaemonUrl(): string {
-  if (process.env.PORT_DADDY_URL) return process.env.PORT_DADDY_URL;
-  return `http://${LOOPBACK_TCP_HOST}:${readDaemonPort(PORT_FILE) || CANONICAL_TCP_PORT}`;
+  try {
+    return resolvePublishedDaemonUrl(configuredDaemonUrl(process.env)).replace(/\/$/, '');
+  } catch {
+    // Display callers may be initialized before the daemon publishes an
+    // endpoint. Empty is fail-closed and avoids manufacturing a preferred port.
+    return '';
+  }
 }
 
 function requestTarget(target: ConnectionTarget, path: string, options: FetchOptions): Promise<PdFetchResponse> {
@@ -62,10 +82,6 @@ function requestTarget(target: ConnectionTarget, path: string, options: FetchOpt
   const requestPath = path.startsWith('http://') || path.startsWith('https://')
     ? new URL(path).pathname + (new URL(path).search || '')
     : path;
-  const safeTarget: ConnectionTarget = target.socketPath && /^https?:\/\//.test(target.socketPath)
-    ? { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) }
-    : target;
-
   const reqHeaders: Record<string, string | number> = { ...headers };
   if (body && !reqHeaders['Content-Length']) {
     reqHeaders['Content-Length'] = Buffer.byteLength(body);
@@ -77,9 +93,10 @@ function requestTarget(target: ConnectionTarget, path: string, options: FetchOpt
       path: requestPath,
       headers: reqHeaders as http.OutgoingHttpHeaders,
       timeout,
-      ...(safeTarget.socketPath
-        ? { socketPath: safeTarget.socketPath }
-        : { host: safeTarget.host, port: safeTarget.port }),
+      signal: options.signal,
+      ...(target.socketPath
+        ? { socketPath: target.socketPath }
+        : { host: target.host, port: target.port }),
     };
     const req: ClientRequest = http.request(reqOpts, (res: IncomingMessage) => {
       const chunks: Buffer[] = [];
@@ -139,17 +156,15 @@ function isDaemonDownError(error: unknown): boolean {
 const DAEMON_RECONNECT_DELAYS_MS: readonly number[] = [200, 400, 800, 1500];
 
 function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResponse> {
+  const explicitUrl = configuredDaemonUrl(process.env);
   const target: ConnectionTarget = options.transport === 'tcp'
-    ? resolveDaemonTcpTarget(process.env.PORT_DADDY_URL)
+    ? resolveDaemonTcpTarget(explicitUrl)
     : resolveTarget();
   return requestTarget(target, path, options).catch((error: unknown) => {
-    if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
+    if (!target.socketPath || explicitUrl || !shouldFallbackFromSocket(error)) {
       throw error;
     }
-    const fallbackTarget: ConnectionTarget = {
-      host: LOOPBACK_TCP_HOST,
-      port: readDaemonPort(PORT_FILE),
-    };
+    const fallbackTarget = resolveDaemonTcpTarget(explicitUrl);
     return requestTarget(fallbackTarget, path, options);
   });
 }
@@ -189,7 +204,25 @@ export async function pdFetch(urlOrPath: string, options: FetchOptions = {}): Pr
     });
   }
 
-  const noRetry = process.env.PORT_DADDY_NO_RETRY === '1';
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Inject it centrally so every mutating pd
+  // command presents the credential `pd begin` captured — resolution order:
+  // an explicit header set by the caller wins, then the PD_ACTOR_CREDENTIAL /
+  // PORT_DADDY_ACTOR_CREDENTIAL env vars, then the per-worktree context file.
+  if (isMutatingMethod(options.method)) {
+    const existingHeaders = options.headers ?? {};
+    const hasExplicit = Object.keys(existingHeaders).some(
+      (key) => key.toLowerCase() === 'x-actor-credential',
+    );
+    if (!hasExplicit) {
+      const credential = resolveCliActorCredential();
+      if (credential) {
+        options = { ...options, headers: { ...existingHeaders, 'x-actor-credential': credential } };
+      }
+    }
+  }
+
+  const noRetry = options.retry === false || process.env.PORT_DADDY_NO_RETRY === '1';
   const delays: readonly number[] = noRetry ? [] : DAEMON_RECONNECT_DELAYS_MS;
 
   let lastError: unknown;

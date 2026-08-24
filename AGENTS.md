@@ -154,6 +154,17 @@ checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintena
 is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
 Documents`.
 
+- **Supplant, don't migrate (operator directive, 2026-08-22, VERY IMPORTANT).**
+  Port Daddy has no users yet. When a new feature or mechanism overlaps an old
+  one, the new one REPLACES the old exhaustively in the same slice: delete the
+  legacy code path, update every caller, and leave behind no compat shims, no
+  feature-flagged "legacy mode", no downgrade fallbacks, and no deprecation
+  windows. Backwards compatibility is built ONLY when the operator explicitly
+  asks for it, per surface, in their own words. Origin incident: the
+  2026-08-22 identity-write-boundary review, where a "loud legacy downgrade"
+  path that still admitted self-asserted identities was rejected — enforcement
+  is theater as long as the legacy path survives.
+
 - **Never assert a competitor/platform claim without researching and citing it
   (operator directive, VERY IMPORTANT).** Before you state what a competitor or
   external platform can or can't do — a Cloudflare/OpenAI/GitHub feature,
@@ -375,8 +386,14 @@ real question — the diff is the record, not a running commentary.
 
 `[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
 `pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
-review threads and, when a reviewer spoke last on an open, non-outdated thread,
-marks the PR red and applies the `needs-comment-replies` label. It re-runs every
+review threads and, when a reviewer spoke last on an **open** thread, marks the
+PR red and applies the `needs-comment-replies` label. Only two things clear a
+thread: a reply from you, or resolving it. **Outdated does not count.** GitHub
+marks a thread outdated the moment you push a change to the lines it points at —
+that is you *acting on the feedback*, so it is when you most owe the reviewer a
+sentence saying what you changed. The guard lists those separately ("you changed
+these lines — say what you changed, or resolve") precisely so they read as a
+report to file, not as a fresh nit. It re-runs every
 time a comment, review, or reply lands, so the label clears the moment you
 respond. It is **advisory — it does not block the merge** (a genuinely
 bot-only/no-op PR can opt out with `<!-- pr-comments-exempt: <reason> -->`). The
@@ -569,9 +586,9 @@ tracked work instead of vanishing. The mechanism:
 
 These bite every contributor session; they are not theoretical.
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean "stage
-  everything" (rare — prefer explicit paths), set `PD_SHIM_OFF=1 git add`
-  deliberately so the bypass is intentional and visible in the command.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths. If the
+  refusal is factually wrong, fix the claim/session input and publish the
+  inconsistency; an agent does not disable the guard it is meant to obey.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta`, which falls
   back to `bat`.** If `bat` is not installed, `git log` / `git show` /
   `git commit` emit `command not found: bat` and can swallow output. Run
@@ -700,6 +717,19 @@ This applies to every technical document, design doc, tutorial, blog post, ADR, 
 - Console UI screenshots on the website, tutorials, docs, blog, and launch pages must be real Port Daddy captures, not staged mockups, and they must ship as light/dark pairs that follow the active website theme. If the paired capture does not exist yet, capture it before publishing the page.
 - The public website deploy target is Cloudflare Pages project `port-daddy`, serving `port-daddy.pages.dev` and `portdaddy.dev`. Build with `npm --prefix website-v2 run build`, then deploy from `website-v2/` with `npx wrangler pages deploy dist --project-name port-daddy --branch main --commit-hash "$(git rev-parse HEAD)" --commit-message "$(git log -1 --pretty=%s)"`.
 - Deploy from a clean checkout or clean temporary worktree. If `origin/main` moved after your local website commit, deploy latest `origin/main` unless the user explicitly requested a specific commit. After deploy, smoke `https://portdaddy.dev/...` and at least one changed asset/page; for visual work, verify with Playwright or the in-app browser instead of trusting Wrangler success alone.
+
+### Domain Portfolio (owned, operator-registered 2026-08)
+
+The operator holds these domains; consult before naming/branding decisions and never suggest
+buying a name on this list:
+
+- `portdaddy.dev` — primary product site (live, Cloudflare Pages `port-daddy`).
+- `portdaddy.app` — reserved for the packaged desktop/app-store distribution surface (FleetBar/Control Center installers or app deep links).
+- `portholed.com` — Porthole: terminal capture/replay/share/test product (see `demos/porthole/PRODUCT.md`); target home for hosted cast sharing + the marketing site.
+- `harbord.ai` — Harbor brand (editor/governed-workspace surface).
+- `agentsd.ai` — agentsd greenfield scaffold (operator decision 2026-07-15): the agents-daemon brand.
+- `agentsdaemon.com` — long-form/defensive twin of agentsd.ai; redirect to agentsd.ai when live.
+
 
 ### Blog Post Hard Requirements
 

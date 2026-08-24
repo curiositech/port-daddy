@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parseFleetShips, defaultPRShips, type ShipConfig } from '../src/fleet.js';
+import { WORKERS_AI_RATES } from '../src/spend.js';
 
 /**
  * Fields NOT settable from pd-fleet.yml, each with the reason. Adding to this
@@ -62,6 +63,32 @@ describe('the config type and the config parser do not drift', () => {
     const parsed = parseFleetShips(yaml, 'pull_request');
     expect(parsed, 'the fixture must parse, or this suite proves nothing').not.toBeNull();
 
+    // A SECOND fixture, because some fields are only ever emitted for a purser
+    // ship. One reviewer fixture cannot see them, and a field this suite cannot
+    // see is a field it cannot protect -- which would make the purser's own
+    // per-step model tiers the next cfMapModel: real, and reachable by nobody.
+    // Both step models are pinned to an id that DIFFERS from the ship's own
+    // model, so each key is actually emitted -- a pin equal to cfModel resolves
+    // to "absent" by repo convention and would silently prove nothing.
+    const purserYaml = [
+      'fleet:',
+      '  agents:',
+      '    purser:',
+      '      class: purser',
+      '      trigger: pull_request',
+      '      blockWithoutSandbox: true',
+      '      testPaths: [tests/purser]',
+      '      plan_model: "@cf/openai/gpt-oss-20b"',
+      '      author_model: "@cf/openai/gpt-oss-20b"',
+      '',
+    ].join('\n');
+    const parsedPurser = parseFleetShips(purserYaml, 'pull_request');
+    expect(parsedPurser, 'the purser fixture must parse, or purser-only fields go unchecked').not.toBeNull();
+    expect(
+      [parsedPurser![0].cfPlanModel, parsedPurser![0].cfAuthorModel],
+      'the purser fixture must actually exercise plan_model/author_model, or it proves nothing',
+    ).toEqual(['@cf/openai/gpt-oss-20b', '@cf/openai/gpt-oss-20b']);
+
     // The type's field list, read from the source rather than from a value --
     // an optional field absent at runtime would otherwise vanish from the check
     // precisely when it is the one being forgotten.
@@ -74,7 +101,7 @@ describe('the config type and the config parser do not drift', () => {
     // It would go quiet exactly when someone touched the file.
     const declared = [...iface![1].matchAll(/^\s*(\w+)\??:/gm)].map(m => m[1]);
 
-    const settable = new Set(Object.keys(parsed![0]));
+    const settable = new Set([...Object.keys(parsed![0]), ...Object.keys(parsedPurser![0])]);
 
     // The extraction must account for EVERY field we already know exists --
     // both the ones the parser emits and the ones declared code-only. A count
@@ -133,9 +160,34 @@ describe('the config type and the config parser do not drift', () => {
     expect(ship.cfMapModel).toBeUndefined();
   });
 
-  it('map_model cannot pin a ship ONTO the expensive model', () => {
-    // Only the cheap id is in the honored set, so tiering is one-directional by
-    // construction: it can save money, never spend more.
+  it('a map_model pricier than the ship reduce model is dropped (economically backward)', () => {
+    // MAP repeats per chunk; REDUCE runs once. With premium ids now in the
+    // honored set (2026-08-22), the one-directional economics are enforced by
+    // deriveMapModel's rate comparison instead of the set's price ceiling: a
+    // cheap-reduce ship cannot fan out on the premium tier.
+    const yaml = [
+      'fleet:',
+      '  agents:',
+      '    demo-ship:',
+      '      trigger: pull_request',
+      '      prompt: scan this',
+      '      map_model: "@cf/openai/gpt-oss-120b"',
+      '',
+    ].join('\n');
+    const ship = parseFleetShips(yaml, 'pull_request')![0];
+    expect(ship.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(ship.cfMapModel).toBeUndefined();
+    // The economic comparison is only meaningful because both sides are
+    // priced — pin that precondition here so incomplete model data fails
+    // loudly instead of producing a false negative (pd-code-reviewer LOW).
+    expect(WORKERS_AI_RATES['@cf/qwen/qwen3-30b-a3b-fp8']).toBeDefined();
+    expect(WORKERS_AI_RATES['@cf/openai/gpt-oss-120b']).toBeDefined();
+  });
+
+  it('a map_model equal to a premium reduce model is dropped as a no-op, not honored twice', () => {
+    // A reviewer-named ship reduces on the premium tier; pinning MAP to the
+    // same id changes nothing and must not set the field (repo convention:
+    // "does this ship tier?" is answerable by reading cfMapModel).
     const yaml = [
       'fleet:',
       '  agents:',
@@ -146,6 +198,7 @@ describe('the config type and the config parser do not drift', () => {
       '',
     ].join('\n');
     const ship = parseFleetShips(yaml, 'pull_request')![0];
+    expect(ship.cfModel).toBe('@cf/openai/gpt-oss-120b');
     expect(ship.cfMapModel).toBeUndefined();
   });
 

@@ -38,6 +38,12 @@ export interface GitHubState {
     name: string;
     status?: string;
     conclusion?: string | null;
+    /**
+     * The completion summary GitHub returns under `output.summary`. The
+     * executor reads it to tell a DLQ-completed failure (dead-lettered, no
+     * verdict, must stay re-runnable) apart from one ships decided.
+     */
+    summary?: string;
     /** The commit this check belongs to. GitHub's lookup is PER-SHA. */
     headSha?: string;
   }>;
@@ -95,8 +101,21 @@ export interface GitHubState {
   prPatches: Array<{ number: number; base?: string; title?: string; body?: string }>;
   /** Labels applied via POST /issues/{n}/labels. */
   labelPosts: Array<{ number: number; labels: string[] }>;
+  /** Open issues served to GET /issues?state=open (adjudicator dedupe lookup). */
+  openIssues: Array<{ number: number; title: string; pull_request?: unknown }>;
+  /** Issues created via POST /repos/{o}/{r}/issues (adjudicator + idea capture). */
+  issuesCreated: Array<{ number: number; title: string; body: string; labels: string[] }>;
   /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
   failGitWrites403: boolean;
+  /**
+   * Recursive tree listings returned by GET /git/trees/{sha}?recursive=1, keyed
+   * by sha — evidence for the purser's executability gate (src/purser-
+   * executability.ts). An sha with no entry ⇒ the endpoint 404s ⇒
+   * fetchRepoTreePaths returns null ⇒ the gate fails closed (unknown tree,
+   * never a silent pass). Defaults seed 'BASESHA' with an empty-but-KNOWN tree
+   * so the default fixtures (which author no relative imports) verify cleanly.
+   */
+  treeFiles: Map<string, string[]>;
 
   // --- Fleet self-identity (self-review guard) -----------------------------
   /**
@@ -116,11 +135,29 @@ export interface GitHubState {
   prMerged: boolean | undefined;
 }
 
+/**
+ * Default jest config seeded at `BASESHA:jest.config.js` — a broad, realistic
+ * single-project testMatch covering the default authored-test fixture path
+ * (`tests/purser/widget.contract.test.ts`), so tests that are NOT about the
+ * executability gate itself do not have to think about it.
+ */
+const DEFAULT_JEST_CONFIG = "module.exports = { testMatch: ['<rootDir>/tests/**/*.test.{js,ts}'] };\n";
+
+/** Match GitHub's Contents API: base64 encodes UTF-8 bytes, not JS code units. */
+function utf8ToBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
 export function freshState(): GitHubState {
+  const files = new Map<string, string>();
+  files.set('BASESHA:jest.config.js', DEFAULT_JEST_CONFIG);
   return {
     records: [],
     contentsRefs: [],
-    files: new Map(),
+    files,
     tokenMints: 0,
     commentPosts: 0,
     commentPatches: 0,
@@ -150,7 +187,10 @@ export function freshState(): GitHubState {
     stackedPrs: [],
     prPatches: [],
     labelPosts: [],
+    openIssues: [],
+    issuesCreated: [],
     failGitWrites403: false,
+    treeFiles: new Map([['BASESHA', []]]),
     appSlug: 'port-daddy',
     prAuthor: { login: 'a-human', type: 'User' },
     prState: 'open',
@@ -219,7 +259,7 @@ export function installGitHubFetch(state: GitHubState): void {
       }
       const fileBody = state.files.get(`${ref}:${path}`);
       if (fileBody === undefined) return text('not found', 404);
-      return json({ encoding: 'base64', content: btoa(fileBody) });
+      return json({ type: 'file', encoding: 'base64', content: utf8ToBase64(fileBody) });
     }
 
     // --- Git Data API (purser stacked-PR machinery) ---
@@ -231,6 +271,14 @@ export function installGitHubFetch(state: GitHubState): void {
     if (/\/git\/commits\/[^/?]+$/.test(url) && method === 'GET') {
       const sha = url.slice(url.lastIndexOf('/') + 1);
       return json({ sha, tree: { sha: `tree-of-${sha}` } });
+    }
+    // --- recursive tree listing (purser executability-gate evidence) ---
+    const treeMatch = url.match(/\/git\/trees\/([^/?]+)\?recursive=1/);
+    if (treeMatch && method === 'GET') {
+      const sha = decodeURIComponent(treeMatch[1]);
+      const paths = state.treeFiles.get(sha);
+      if (!paths) return text('not found', 404);
+      return json({ sha, truncated: false, tree: paths.map(p => ({ path: p, type: 'blob' })) });
     }
     if (/\/git\/trees$/.test(url) && method === 'POST') {
       if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
@@ -354,7 +402,10 @@ export function installGitHubFetch(state: GitHubState): void {
       // which is the opposite of the truth and would hide a real re-review.
       const wanted = url.match(/\/commits\/([^/]+)\/check-runs/)?.[1] ?? '';
       return json({
-        check_runs: state.existingCheckRuns.filter(c => !c.headSha || c.headSha === wanted),
+        check_runs: state.existingCheckRuns
+          .filter(c => !c.headSha || c.headSha === wanted)
+          // Mirror GitHub's shape: the summary arrives nested under `output`.
+          .map(c => ({ ...c, output: { summary: c.summary ?? '' } })),
       });
     }
 
@@ -371,6 +422,18 @@ export function installGitHubFetch(state: GitHubState): void {
     if (/\/issues\/comments\/\d+/.test(url) && method === 'PATCH') {
       state.commentPatches += 1;
       return json({ id: 1 });
+    }
+
+    // --- list open issues (adjudicator dedupe lookup) ---
+    if (/\/issues\?state=open/.test(url) && method === 'GET') {
+      return json(state.openIssues);
+    }
+    // --- create issue (adjudicator fleet-fault tracking; ideas auto-issue) ---
+    if (/\/repos\/[^/]+\/[^/]+\/issues$/.test(url) && method === 'POST') {
+      const b = (body ?? {}) as { title?: string; body?: string; labels?: string[] };
+      const number = 9000 + state.issuesCreated.length;
+      state.issuesCreated.push({ number, title: b.title ?? '', body: b.body ?? '', labels: b.labels ?? [] });
+      return json({ number, html_url: `https://github.com/o/r/issues/${number}` });
     }
 
     // --- create check run ---
@@ -401,6 +464,9 @@ export function installGitHubFetch(state: GitHubState): void {
         // mean ships ran and decided. `neutral` is a deferral (paused,
         // lifecycle-skipped) and must stay re-runnable.
         row.conclusion = (body as { conclusion?: string })?.conclusion ?? null;
+        // …and so does the summary: the dead-letter marker travels in it, and
+        // the next delivery's guard reads it back through this same lookup.
+        row.summary = (body as { output?: { summary?: string } })?.output?.summary ?? '';
       }
       state.completed.push({
         id: Number(completeMatch[1]),
@@ -464,6 +530,8 @@ export interface CapturedStep {
   ship: unknown;
   title: unknown;
   detail: unknown;
+  /** Epoch seconds; the adjudicator's epidemic window filters on this. */
+  createdAt?: number;
 }
 
 /** Captured fleet_run_spend row (one per ship that ran). */
@@ -504,13 +572,21 @@ export interface D1Capture {
   creditTableMissing: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
+  /**
+   * When true, the NEXT logical-run upsert into `fleet_runs`
+   * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
+   * throws once, then
+   * resets to false. Simulates a transient D1 hiccup at exactly the moment
+   * recordRunStart writes, to test ensureRunRow's backstop closes the gap.
+   */
+  failNextRecordRunStartInsert: boolean;
   /** Number of `.run()` calls attempted (including the ones that threw). */
   runCalls: number;
 }
 
 /**
  * Minimal in-memory D1 stub. Recognizes the three statements the executor uses
- * (INSERT OR REPLACE INTO fleet_runs / fleet_run_steps, UPDATE fleet_runs) by
+ * (fleet_runs upsert / fleet_run_steps insert / fleet_runs update) by
  * keyword and records the bound parameters. Everything else is a no-op that
  * returns an empty result, so a stray query never blows up a test.
  */
@@ -526,6 +602,7 @@ export function memoryD1(): D1Capture {
     ledger: [],
     creditTableMissing: false,
     failAll: false,
+    failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
 
@@ -534,6 +611,14 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
+        if (
+          cap.failNextRecordRunStartInsert
+          && /INSERT INTO fleet_runs/i.test(sql)
+          && /ON CONFLICT\s*\(id\)/i.test(sql)
+        ) {
+          cap.failNextRecordRunStartInsert = false;
+          throw new Error('D1 unavailable (simulated recordRunStart failure)');
+        }
         if (/INTO fleet_run_spend/i.test(sql)) {
           cap.spend.push({
             runId: args[0],
@@ -545,18 +630,38 @@ export function memoryD1(): D1Capture {
             costUsd: Number(args[6]),
           });
         } else if (/INTO fleet_runs/i.test(sql)) {
-          runsById.set(String(args[0]), {
-            id: args[0],
-            deliveryId: args[1],
-            repo: args[2],
-            prNumber: args[3],
-            prUrl: args[4],
-            headSha: args[5],
-            shipsCsv: args[6],
-            createdAt: args[7],
-            conclusion: 'pending',
-            ms: 0,
-          });
+          // Real SQLite/D1 honors OR IGNORE, OR REPLACE, and recordRunStart's
+          // ON CONFLICT update differently. The logical-run upsert refreshes
+          // pending metadata but preserves the first timestamp and any terminal
+          // result, while ensureRunRow remains a true no-op on an existing row.
+          const isIgnore = /INSERT OR IGNORE/i.test(sql);
+          const isLogicalRunUpsert = /ON CONFLICT\s*\(id\)/i.test(sql);
+          const existing = runsById.get(String(args[0]));
+          if (isIgnore && runsById.has(String(args[0]))) {
+            // no-op, matching real D1
+          } else if (isLogicalRunUpsert && existing) {
+            if (existing.conclusion === 'pending') {
+              existing.deliveryId = args[1];
+              existing.repo = args[2];
+              existing.prNumber = args[3];
+              existing.prUrl = args[4];
+              existing.headSha = args[5];
+              if (existing.shipsCsv === '') existing.shipsCsv = args[6];
+            }
+          } else {
+            runsById.set(String(args[0]), {
+              id: args[0],
+              deliveryId: args[1],
+              repo: args[2],
+              prNumber: args[3],
+              prUrl: args[4],
+              headSha: args[5],
+              shipsCsv: args[6],
+              createdAt: args[7],
+              conclusion: 'pending',
+              ms: 0,
+            });
+          }
         } else if (/INTO fleet_run_steps/i.test(sql)) {
           cap.steps.push({
             runId: args[0],
@@ -565,17 +670,59 @@ export function memoryD1(): D1Capture {
             ship: args[3],
             title: args[4],
             detail: args[5],
+            createdAt: Number(args[6]),
           });
         } else if (/UPDATE fleet_runs/i.test(sql)) {
-          const row = runsById.get(String(args[2]));
+          const usesDurableStart = /created_at\s*\*\s*1000/i.test(sql);
+          const row = runsById.get(String(args[usesDurableStart ? 4 : 2]));
           if (row) {
             row.conclusion = String(args[0]);
-            row.ms = Number(args[1]);
+            if (usesDurableStart) {
+              const createdAtMs = Number(row.createdAt) * 1000;
+              const endMs = Number(args[1]);
+              const fallbackStartMs = Number(args[3]);
+              const durableStartMs = Number.isFinite(createdAtMs)
+                && createdAtMs > 0
+                && createdAtMs <= endMs
+                ? createdAtMs
+                : fallbackStartMs;
+              row.ms = Math.max(0, Number(args[1]) - durableStartMs);
+            } else {
+              row.ms = Number(args[1]);
+            }
           }
         }
         return { success: true, meta: {} };
       },
       async first() {
+        // Delivery-failure read-back: the newest recorded failure for one run,
+        // ordered by seq (see src/delivery-failure.ts). Served from the same
+        // `steps` array the INSERT path above appends to, so a test that writes
+        // a failure through the real code can read it back through the real code.
+        // Attempt-start count: COUNT(*) of one kind for one run (issue #7743's
+        // uncatchable-kill evidence). Matched BEFORE the generic step read-back
+        // below, which shares the FROM clause but returns a row, not a count.
+        if (/COUNT\(\*\)/i.test(sql) && /FROM fleet_run_steps/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const n = cap.steps.filter(st => st.runId === runId && st.kind === String(kind)).length;
+          return { n } as unknown as Record<string, unknown>;
+        }
+        // Guarded against JOIN queries: the adjudicator's epidemic-evidence
+        // SELECT (below) also reads fleet_run_steps but joins fleet_runs and
+        // binds a different arg shape — without this guard the generic matcher
+        // would intercept it and misparse (ship, kinds…) as (runId, kind).
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const matching = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .sort((a, b) => Number(b.seq) - Number(a.seq));
+          const row = matching[0];
+          return row
+            ? ({ seq: row.seq, title: row.title, detail: row.detail } as unknown as Record<string, unknown>)
+            : null;
+        }
         // Circuit-breaker balance read: COUNT(*) + SUM(delta_usd) for one install.
         if (/FROM credit_ledger/i.test(sql)) {
           if (cap.creditTableMissing) throw new Error('no such table: credit_ledger');
@@ -584,9 +731,42 @@ export function memoryD1(): D1Capture {
           const bal = rows.reduce((acc, r) => acc + r.deltaUsd, 0);
           return { n: rows.length, bal } as unknown as Record<string, unknown>;
         }
+        // Adjudicator epidemic evidence: DISTINCT other PRs with broken-marker
+        // steps for one ship. Bind order mirrors countOtherBrokenPrs:
+        // (ship, ...kinds, sinceSec, repoFullName, prNumber).
+        if (/FROM fleet_run_steps/i.test(sql) && /JOIN fleet_runs/i.test(sql)) {
+          const ship = String(args[0]);
+          const kindCount = (sql.match(/\?/g) ?? []).length - 4; // ship, since, repo, pr
+          const kinds = args.slice(1, 1 + kindCount).map(String);
+          const since = Number(args[1 + kindCount]);
+          const repo = String(args[2 + kindCount]);
+          const prNumber = Number(args[3 + kindCount]);
+          const prs = new Set<number>();
+          for (const s of cap.steps) {
+            if (String(s.ship) !== ship || !kinds.includes(s.kind)) continue;
+            if ((s.createdAt ?? 0) < since) continue;
+            const run = runsById.get(String(s.runId));
+            if (!run || String(run.repo) !== repo) continue;
+            const pr = Number(run.prNumber);
+            if (pr !== prNumber) prs.add(pr);
+          }
+          return { n: prs.size } as unknown as Record<string, unknown>;
+        }
         return null;
       },
       async all() {
+        // Checkpoint read-back (src/ship-checkpoint.ts): every row of one kind
+        // for one run, served from the same `steps` array the INSERT path
+        // appends to — a test that checkpoints through the real code resumes
+        // through the real code.
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const results = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .map(st => ({ ship: st.ship, detail: st.detail }));
+          return { results };
+        }
         return { results: [] };
       },
     }),
@@ -625,6 +805,15 @@ export function aiStub(opts: {
    * tests can assert on it. Omitted by default (existing tests see no usage).
    */
   usage?: { prompt_tokens: number; completion_tokens: number; cached_tokens?: number };
+  /**
+   * Per-ship CALL QUEUE: when present for a ship, each of its calls (map,
+   * reduce, or repair alike) consumes the next entry, falling back to
+   * `perShip` once drained. Lets a test model a ship that emits garbage first
+   * and heals on the repair retry (src/repair.ts).
+   */
+  perShipQueue?: Record<string, string[]>;
+  /** Hook fired after each AI call is recorded but before its response returns. */
+  onCall?: (call: AiStub['calls'][number]) => void | Promise<void>;
 }): AiStub {
   const calls: AiStub['calls'] = [];
   const withUsage = (response: string): Record<string, unknown> =>
@@ -637,6 +826,12 @@ export function aiStub(opts: {
     return null;
   };
 
+  const shipResponse = (ship: string): string => {
+    const queue = opts.perShipQueue?.[ship];
+    if (queue && queue.length > 0) return queue.shift() as string;
+    return opts.perShip[ship];
+  };
+
   const run = async (
     model: string,
     args: { messages: Array<{ role: string; content: string }>; temperature?: number },
@@ -646,19 +841,23 @@ export function aiStub(opts: {
 
     // --- REDUCE manager call ---
     if (/REDUCE manager/.test(sys)) {
-      calls.push({ model, phase: 'reduce', ship, temperature: args.temperature });
+      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature };
+      calls.push(call);
+      await opts.onCall?.(call);
       if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
       const mgr = opts.managerOutput;
       const out =
         typeof mgr === 'string' ? mgr : ship && mgr ? mgr[ship] : undefined;
-      return withUsage(out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS'));
+      return withUsage(out ?? (ship ? shipResponse(ship) : 'merged\n\nFLEET-VERDICT: PASS'));
     }
 
     // --- MAP call ---
-    calls.push({ model, phase: 'map', ship, temperature: args.temperature });
+    const call = { model, phase: 'map' as const, ship, temperature: args.temperature };
+    calls.push(call);
+    await opts.onCall?.(call);
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
-      return withUsage(opts.perShip[ship]);
+      return withUsage(shipResponse(ship));
     }
     return withUsage('no match\n\nFLEET-VERDICT: PASS');
   };

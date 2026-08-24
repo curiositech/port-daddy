@@ -24,14 +24,28 @@ PORT="${SMOKE_PORT:-19876}"
 SCRATCH_BASE="${SMOKE_SCRATCH_BASE:-$ROOT_DIR/.smoke-tmp}"
 mkdir -p "$SCRATCH_BASE"
 SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-smoke.XXXXXX")"
+# AF_UNIX paths are capped at roughly 104 bytes on macOS. Keep sockets in the
+# machine's durable coding scratch root instead of deriving them from an
+# arbitrarily deep linked worktree. This also obeys the no-/tmp operator rule.
+SOCKET_BASE="${SMOKE_SOCKET_BASE:-${HOME:?}/coding/tmp/pd-smoke-sockets}"
+mkdir -p "$SOCKET_BASE"
+SOCKET_SCRATCH="$(mktemp -d "$SOCKET_BASE/run.XXXXXX")"
 LOG="$SCRATCH/daemon.log"
+SOCK="$SOCKET_SCRATCH/pd.sock"
+IPC="$SOCKET_SCRATCH/pd.ipc"
 DAEMON_PID=""
 
 cleanup() {
   if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
   rm -rf "$SCRATCH" 2>/dev/null || true
+  rm -rf "$SOCKET_SCRATCH" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+if [ "${#SOCK}" -ge 96 ] || [ "${#IPC}" -ge 96 ]; then
+  echo "FAIL: compiled-smoke Unix socket paths must stay below 96 bytes" >&2
+  exit 1
+fi
 
 if [ ! -x "$BIN" ]; then
   echo "FAIL: compiled daemon not found at $BIN (run: npm run build:daemon:dist)" >&2
@@ -42,6 +56,8 @@ echo "Booting compiled daemon: $BIN (port $PORT, scratch $SCRATCH)"
 PORT_DADDY_PORT="$PORT" \
 PORT_DADDY_DB="$SCRATCH/registry.db" \
 PORT_DADDY_PREFIX="$SCRATCH" \
+PORT_DADDY_SOCK="$SOCK" \
+PORT_DADDY_IPC="$IPC" \
 PORT_DADDY_NO_FLEET=1 \
 PORT_DADDY_NO_FLEETBAR=1 \
 PORT_DADDY_SILENT=1 \
@@ -84,6 +100,22 @@ assert_200() {
   echo "OK: GET $path -> 200"
 }
 
+# Prove the same compiled daemon is reachable through its Unix HTTP socket;
+# TCP-only success would miss the exact transport used by interactive hooks.
+assert_socket_200() {
+  local socket_path="$1"
+  local path="$2"
+  local log_path="${3:-$LOG}"
+  local code
+  code="$(curl -s --unix-socket "$socket_path" -o /dev/null -w '%{http_code}' "http://localhost$path")"
+  if [ "$code" != "200" ]; then
+    echo "FAIL: Unix socket GET $path returned HTTP $code (expected 200)" >&2
+    tail -30 "$log_path" >&2 || true
+    return 1
+  fi
+  echo "OK: Unix socket GET $path -> 200"
+}
+
 # Assert a POST route returns an EXPECTED HTTP status (used for routes whose
 # happy path needs state we don't seed — a precise status still proves the
 # plugin is registered and reaches its store under the compiled binary).
@@ -109,10 +141,20 @@ assert_post_status() {
 # /roadmap/items is the route that 500'd with SQLITE_MISMATCH. /secrets is
 # another read-only hot route exercised for breadth. Both must be 200.
 fail=0
+if [ ! -S "$SOCK" ] || [ ! -S "$IPC" ]; then
+  echo "FAIL: compiled daemon did not bind both short Unix sockets" >&2
+  fail=1
+fi
+assert_socket_200 "$SOCK" "/health" || fail=1
+assert_socket_200 "$SOCK" "/roadmap/items?limit=1" || fail=1
 assert_200 "/roadmap/items?status=all" || fail=1
 assert_200 "/roadmap/items?status=now" || fail=1
 assert_200 "/roadmap/items?limit=5" || fail=1
 assert_200 "/secrets" || fail=1
+# Context continuity is FleetBar's operator proof over Agent Harbor's
+# append-only envelope/packet evidence. An empty fresh registry is a valid
+# response, but the compiled Bun runtime must register and execute the route.
+assert_200 "/agent-harbor/context-continuity?limit=1" || fail=1
 # FleetBar-polled daemon surfaces must not 404 in the packaged binary. These
 # caught live drift where route registration/order bugs were hidden by source
 # tests and only showed up in operator logs.
@@ -169,9 +211,13 @@ echo "Re-booting with PD_DAEMON_TIER=dev-latest to verify env-driven berth ident
 kill "$DAEMON_PID" 2>/dev/null || true
 wait "$DAEMON_PID" 2>/dev/null || true
 PORT2="$((PORT + 10))"
+SOCK2="$SOCKET_SCRATCH/p2.sock"
+IPC2="$SOCKET_SCRATCH/p2.ipc"
 PORT_DADDY_PORT="$PORT2" \
 PORT_DADDY_DB="$SCRATCH/registry2.db" \
 PORT_DADDY_PREFIX="$SCRATCH/p2" \
+PORT_DADDY_SOCK="$SOCK2" \
+PORT_DADDY_IPC="$IPC2" \
 PORT_DADDY_NO_FLEET=1 \
 PORT_DADDY_NO_FLEETBAR=1 \
 PORT_DADDY_SILENT=1 \
@@ -191,6 +237,11 @@ if [ "$ready2" -ne 1 ]; then
   cat "$SCRATCH/daemon2.log" >&2 || true
   exit 1
 fi
+if [ ! -S "$SOCK2" ] || [ ! -S "$IPC2" ]; then
+  echo "FAIL: dev-latest boot did not bind both short Unix sockets" >&2
+  exit 1
+fi
+assert_socket_200 "$SOCK2" "/health" "$SCRATCH/daemon2.log" || exit 1
 WHOAMI_JSON="$(curl -s "$BASE2/whoami")"
 if ! printf '%s' "$WHOAMI_JSON" | grep -q '"tier":"dev-latest"'; then
   echo "FAIL: PD_DAEMON_TIER=dev-latest not honored on /whoami" >&2

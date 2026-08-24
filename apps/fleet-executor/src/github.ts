@@ -182,6 +182,109 @@ export async function invalidateInstallationToken(
  */
 export const PR_FILES_PAGE_SIZE = 100;
 
+/**
+ * Hard ceiling on the raw unified diff we will hold in memory (#7743).
+ *
+ * WHY THIS EXISTS: `await res.text()` on GitHub's diff endpoint is unbounded,
+ * and a Worker has 128MB. A PR that regenerates a lockfile, vendors a
+ * dependency, or commits generated output can return a diff far larger than
+ * that, and the read dies with `exceededMemory` before any catchable error can
+ * be thrown — which is exactly the signature the dead-letters showed: ~80s of
+ * wall clock, under a second of CPU, no exception. Reading bytes off a socket
+ * costs almost no CPU, so an OOM with a flat CPU line means a large body, not
+ * heavy computation.
+ *
+ * WHY 2MB IS NOT A LOSS: the executor already truncates review input to
+ * MAX_MAP_CHUNKS_PER_SHIP × the chunk ceiling (~384KB) before it calls a
+ * model. Everything past that was being downloaded, parsed, and then thrown
+ * away. This cap discards the same bytes earlier, before they can kill the
+ * isolate.
+ */
+export const MAX_DIFF_BYTES = 2_000_000;
+
+/**
+ * Ceiling on the `/files` JSON body.
+ *
+ * Separate from {@link MAX_DIFF_BYTES} and deliberately larger: this payload
+ * repeats every file's `patch` inside JSON envelopes, so it runs bigger than
+ * the raw diff for the same change — and both are fetched CONCURRENTLY, so the
+ * peak is their sum. Bounding only one of them would leave the other able to
+ * exhaust the isolate on its own.
+ */
+export const MAX_FILES_BYTES = 4_000_000;
+
+/** What a bounded body read actually consumed. */
+export interface CappedRead {
+  /** The decoded text, at most `maxBytes` of source bytes. */
+  text: string;
+  /** Bytes actually read (equals the cap when truncated). */
+  bytes: number;
+  /** True when the body was longer than the cap and the rest was discarded. */
+  truncated: boolean;
+}
+
+/**
+ * Read a response body into text, refusing to exceed `maxBytes`.
+ *
+ * DESIGN: streams and stops, rather than buffering then trimming — trimming
+ * after the fact would require the whole body to exist in memory first, which
+ * is the very failure this prevents. The reader is cancelled on the way out so
+ * the connection is not left draining a body nobody will read.
+ *
+ * Truncation can land mid-UTF-8; `TextDecoder` emits a replacement character
+ * there, which is harmless for diff text and strictly better than an OOM.
+ *
+ * @param res - The response whose body to read.
+ * @param maxBytes - Hard ceiling on bytes consumed.
+ * @returns The text plus how much was read and whether it was cut short.
+ */
+export async function readTextCapped(res: Response, maxBytes: number): Promise<CappedRead> {
+  const body = res.body;
+  // No stream (some fakes, and empty bodies): fall back, but still bound it.
+  if (!body) {
+    const whole = await res.text();
+    const encoded = new TextEncoder().encode(whole);
+    if (encoded.byteLength <= maxBytes) {
+      return { text: whole, bytes: encoded.byteLength, truncated: false };
+    }
+    return {
+      text: new TextDecoder().decode(encoded.subarray(0, maxBytes)),
+      bytes: maxBytes,
+      truncated: true,
+    };
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  let truncated = false;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      if (bytes + value.byteLength > maxBytes) {
+        chunks.push(value.subarray(0, maxBytes - bytes));
+        bytes = maxBytes;
+        truncated = true;
+        break;
+      }
+      chunks.push(value);
+      bytes += value.byteLength;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  const joined = new Uint8Array(bytes);
+  let at = 0;
+  for (const c of chunks) {
+    joined.set(c, at);
+    at += c.byteLength;
+  }
+  return { text: new TextDecoder().decode(joined), bytes, truncated };
+}
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -244,6 +347,103 @@ export interface PRContext {
   installationId: number;
   files: PRFile[];
   diff: string;
+  /**
+   * Bytes of raw diff actually read (capped at {@link MAX_DIFF_BYTES}).
+   *
+   * INSTRUMENTATION, deliberately on the context rather than in a log line:
+   * #7743 cost two investigation cycles because a platform kill leaves no
+   * catchable error and nothing recorded the input size. Carrying the measured
+   * size forward means the transcript can state it on every run, so the next
+   * memory incident is self-diagnosing the way the delivery-attempt markers
+   * made the dead-letters self-diagnosing.
+   */
+  diffBytes: number;
+  /** True when the diff exceeded the cap and was cut short. */
+  diffTruncated: boolean;
+  /** True when the `/files` body exceeded its cap or failed to parse. */
+  filesTruncated: boolean;
+}
+
+/**
+ * A fail-closed current-head check used immediately before model work and
+ * GitHub mutations. `changed` is a normal supersession outcome; `unavailable`
+ * is infrastructure failure and must retry rather than publish against an
+ * unverified head.
+ */
+export class PullRequestHeadValidationError extends Error {
+  constructor(
+    readonly kind: 'changed' | 'unavailable',
+    readonly expectedHead: string,
+    readonly currentHead: string | null,
+    readonly boundary: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'PullRequestHeadValidationError';
+  }
+}
+
+export type PullRequestHeadGuard = (boundary: string) => Promise<void>;
+
+/**
+ * Prove that a pull request still points at the head this Fleet run reviewed.
+ *
+ * This intentionally fetches only the live PR JSON, not the diff/files bundle
+ * used by {@link fetchPRContext}. It sits on hot publication boundaries, where
+ * a cheap authoritative read is preferable to either another expensive
+ * context fetch or a stale GitHub mutation.
+ */
+export async function requireCurrentPullRequestHead(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  expectedHead: string,
+  token: string,
+  boundary: string,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    });
+  } catch (err) {
+    throw new PullRequestHeadValidationError(
+      'unavailable',
+      expectedHead,
+      null,
+      boundary,
+      `could not verify pull request head at ${boundary}: ${String(err).slice(0, 240)}`,
+    );
+  }
+  if (!res.ok) {
+    throw new PullRequestHeadValidationError(
+      'unavailable',
+      expectedHead,
+      null,
+      boundary,
+      `could not verify pull request head at ${boundary}: GitHub returned ${res.status}`,
+    );
+  }
+  const live = (await res.json()) as { head?: { sha?: unknown } | null };
+  const currentHead = typeof live.head?.sha === 'string' ? live.head.sha : null;
+  if (!currentHead) {
+    throw new PullRequestHeadValidationError(
+      'unavailable',
+      expectedHead,
+      null,
+      boundary,
+      `could not verify pull request head at ${boundary}: response omitted head.sha`,
+    );
+  }
+  if (currentHead !== expectedHead) {
+    throw new PullRequestHeadValidationError(
+      'changed',
+      expectedHead,
+      currentHead,
+      boundary,
+      `pull request head changed at ${boundary}: expected ${expectedHead}, current ${currentHead}`,
+    );
+  }
 }
 
 /**
@@ -293,8 +493,33 @@ export async function fetchPRContext(
     throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
   }
   const livePr = (await prRes.json()) as typeof eventPr;
-  const files: PRFile[] = filesRes.ok ? ((await filesRes.json()) as PRFile[]) : [];
-  const diff = diffRes.ok ? await diffRes.text() : '';
+
+  // Both bodies are bounded (#7743). They arrive concurrently, so the peak is
+  // their sum; an unbounded read of either one can kill the isolate before any
+  // catch block exists to report it.
+  let files: PRFile[] = [];
+  let filesTruncated = false;
+  if (filesRes.ok) {
+    const read = await readTextCapped(filesRes, MAX_FILES_BYTES);
+    if (read.truncated) {
+      // A truncated body is not parseable JSON. Degrade to "no file list"
+      // rather than throwing: the ships review the diff, and the mediator's
+      // line-mapping simply falls back. Silent would be worse than empty, so
+      // the flag rides along on the context.
+      filesTruncated = true;
+    } else {
+      try {
+        files = JSON.parse(read.text) as PRFile[];
+      } catch {
+        filesTruncated = true;
+      }
+    }
+  }
+
+  const diffRead = diffRes.ok
+    ? await readTextCapped(diffRes, MAX_DIFF_BYTES)
+    : { text: '', bytes: 0, truncated: false };
+  const diff = diffRead.text;
 
   return {
     owner,
@@ -323,6 +548,9 @@ export async function fetchPRContext(
     installationId: 0,
     files,
     diff,
+    diffBytes: diffRead.bytes,
+    diffTruncated: diffRead.truncated,
+    filesTruncated,
   };
 }
 
@@ -399,6 +627,100 @@ export async function fetchOpenPullRequests(
         baseRef: p.base?.ref ?? '',
         draft: p.draft === true,
       }));
+  } catch {
+    return [];
+  }
+}
+
+/** One open PR with the fields the MEDIATOR needs (src/mediator.ts). */
+export interface OpenPRDetailed {
+  number: number;
+  title: string;
+  /** PR author's GitHub login (claim identity for the conflict parley). */
+  author: string;
+  /** unix seconds — decides CLAIM order (earlier-created = first claimant). */
+  createdAt: number;
+  /** unix seconds — the recency the pair cap prioritizes by. */
+  updatedAt: number;
+  /** Head SHA the neutral check run posts against. */
+  headSha: string;
+  draft: boolean;
+}
+
+/**
+ * List the repo's open PRs WITH author/timestamps/head — the mediator's view.
+ *
+ * Separate from {@link fetchOpenPullRequests} (Lookout's slimmer shape) on
+ * purpose: Lookout's callers and prompt renderer depend on the exact OpenPR
+ * shape, and widening it for the mediator would couple two features that
+ * merely share an endpoint. Sorted by GitHub `updated desc`, which IS the
+ * recency prioritization the pair cap consumes — the first N entries are the
+ * N most recently active PRs. Best-effort: [] on any failure.
+ */
+export async function fetchOpenPullRequestsDetailed(
+  owner: string,
+  repo: string,
+  token: string,
+  limit = 100,
+): Promise<OpenPRDetailed[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=${Math.min(limit, 100)}&sort=updated&direction=desc`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{
+      number: number;
+      title: string;
+      draft?: boolean;
+      user?: { login?: string };
+      created_at?: string;
+      updated_at?: string;
+      head?: { sha?: string };
+    }>;
+    const toUnix = (s: string | undefined): number => {
+      const ms = s ? Date.parse(s) : NaN;
+      return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+    };
+    return body.map((p) => ({
+      number: p.number,
+      title: p.title ?? '',
+      author: p.user?.login ?? '',
+      createdAt: toUnix(p.created_at),
+      updatedAt: toUnix(p.updated_at),
+      headSha: p.head?.sha ?? '',
+      draft: p.draft === true,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch one PR's changed files WITH patches — the mediator's symbol source.
+ *
+ * One page only ({@link PR_FILES_PAGE_SIZE}), same truncation stance as the
+ * main PR-context fetch: a 100+-file PR yields a PARTIAL symbol set, which
+ * can only produce FEWER predicted collisions, never invented ones — the
+ * conservative direction for a feature that convenes people. Best-effort:
+ * [] on any failure.
+ */
+export async function fetchPRFilePatches(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<Array<{ filename: string; patch?: string }>> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{ filename?: string; patch?: string }>;
+    return body
+      .filter((f): f is { filename: string; patch?: string } => typeof f.filename === 'string')
+      .map((f) => (f.patch === undefined ? { filename: f.filename } : { filename: f.filename, patch: f.patch }));
   } catch {
     return [];
   }
@@ -485,6 +807,7 @@ export async function postShipComment(
   shipRole: string,
   body: string,
   token: string,
+  mutationGuard: PullRequestHeadGuard = async () => {},
 ): Promise<void> {
   if (!body.trim()) return;
 
@@ -499,6 +822,7 @@ export async function postShipComment(
   const existing = await findExistingComment(owner, repo, prNumber, shipHandle, token);
 
   if (existing) {
+    await mutationGuard(`before patch pd-${shipHandle} comment`);
     await fetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/comments/${existing}`,
       {
@@ -508,6 +832,7 @@ export async function postShipComment(
       },
     );
   } else {
+    await mutationGuard(`before post pd-${shipHandle} comment`);
     await fetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`,
       {
@@ -535,6 +860,130 @@ async function findExistingComment(
   const tag = `<!-- pd-ship:${shipHandle} -->`;
   const match = comments.find(c => c.body.includes(tag));
   return match?.id ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// PR body sections (the PR summary as a fleet-maintained record)
+
+/** GitHub rejects PR bodies longer than this (422), same cap as comments. */
+const GITHUB_PR_BODY_MAX = 65536;
+
+/**
+ * Upsert a marked section into a pull request's BODY — the PR summary.
+ *
+ * MOTIVATION / DESIGN: the PR summary is the durable chronology of what a PR
+ * is supposed to be; comments scroll away, check runs expire, but the body is
+ * what every future reader (and every PR-requirements gate) reads first. When
+ * the fleet derives something that IS that chronology — the purser's
+ * steel-manned contract and its obligations (operator mandate, 2026-08-19) —
+ * it belongs in the body, maintained by an agent, not buried in a comment.
+ *
+ * Idempotent edit-in-place: the section lives between `startMarker` and
+ * `endMarker` (HTML comments, invisible in rendered markdown). Present ⇒
+ * replaced; absent ⇒ appended. The rest of the body — the author's own words —
+ * is never touched, and a body that would exceed GitHub's hard cap is left
+ * alone entirely rather than truncating a human's prose.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param prNumber The PR whose body carries the section.
+ * @param startMarker Opening HTML-comment marker (must be unique per section).
+ * @param endMarker Closing HTML-comment marker.
+ * @param section The markdown to place between the markers.
+ * @param token Installation token (needs `pull_requests: write`).
+ * @returns true when the body already carried the section or the PATCH landed;
+ *   false on any fetch/PATCH failure or cap overflow — the caller records the
+ *   outcome in the transcript so a silent miss is impossible.
+ */
+export async function upsertPrBodySection(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  startMarker: string,
+  endMarker: string,
+  section: string,
+  token: string,
+  mutationGuard: PullRequestHeadGuard = async () => {},
+): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    });
+    if (!res.ok) return false;
+    const pr = (await res.json()) as { body?: string | null };
+    const current = pr.body ?? '';
+    const block = `${startMarker}\n${section}\n${endMarker}`;
+    const startIdx = current.indexOf(startMarker);
+    const endIdx = current.indexOf(endMarker);
+    const bothAbsent = startIdx === -1 && endIdx === -1;
+    const wellFormedPair = startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx;
+    // A body carrying only ONE of the markers, or the pair inverted, is a
+    // corrupted section (someone hand-edited it). Appending here would plant a
+    // duplicate marker, and the NEXT replace would then span from the orphan
+    // to the far marker — swallowing whatever author prose sat between them.
+    // Refuse instead; the caller transcripts the miss loudly.
+    if (!bothAbsent && !wellFormedPair) return false;
+    const next = wellFormedPair
+      ? current.slice(0, startIdx) + block + current.slice(endIdx + endMarker.length)
+      : current.trimEnd()
+        ? `${current.trimEnd()}\n\n${block}`
+        : block;
+    if (next === current) return true; // already up to date — no write needed
+    if (next.length > GITHUB_PR_BODY_MAX) return false; // never truncate a human's body
+    await mutationGuard(`before patch PR #${prNumber} body section`);
+    const patch = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      method: 'PATCH',
+      headers: ghHeaders(token),
+      body: JSON.stringify({ body: next }),
+    });
+    return patch.ok;
+  } catch (error) {
+    if (error instanceof PullRequestHeadValidationError) throw error;
+    return false;
+  }
+}
+
+/**
+ * Find an OPEN issue whose title starts with `titlePrefix`.
+ *
+ * MOTIVATION: the adjudicator (src/adjudicator.ts) tracks each fleet-wide
+ * broken-ship fault as exactly ONE issue — the dedupe key is a stable title
+ * prefix, so re-declaring the same epidemic on every affected run refreshes
+ * nothing and spams nobody. Listing is scoped by state to keep the scan small;
+ * a closed issue deliberately does NOT match, so a fault that recurs after a
+ * fix gets a fresh issue (and a fresh page) rather than resurrecting history.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param titlePrefix The stable title prefix to match (exact, case-sensitive).
+ * @param token Installation token.
+ * @returns The first matching open issue's number, or null (including on any
+ *   fetch failure — the caller then creates a fresh issue, which at worst
+ *   duplicates once rather than ever losing the tracking issue).
+ */
+export async function findOpenIssueByTitlePrefix(
+  owner: string,
+  repo: string,
+  titlePrefix: string,
+  token: string,
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=100`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const issues = (await res.json()) as Array<{ number?: number; title?: string; pull_request?: unknown }>;
+    for (const issue of issues) {
+      if (issue.pull_request) continue; // /issues lists PRs too — skip them
+      if (typeof issue.title === 'string' && issue.title.startsWith(titlePrefix)) {
+        return typeof issue.number === 'number' ? issue.number : null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -657,6 +1106,130 @@ export async function createCheckRun(
   return body.id ?? 0;
 }
 
+/** Structured evidence from the required-check completion transport. */
+export interface CheckRunCompletionResult {
+  ok: boolean;
+  diagnostic?: string;
+  retryAfterSeconds?: number;
+}
+
+/**
+ * Queue-visible failure for a required-check completion boundary.
+ *
+ * Cloudflare can honor the provider's requested delay on redelivery instead
+ * of immediately hammering a rate-limited GitHub endpoint.  The diagnostic is
+ * already bounded and never includes our request headers or body, so
+ * delivery-failure persistence can give the operator a useful remediation
+ * trail without recording the GitHub token.
+ */
+export class CheckRunCompletionError extends Error {
+  constructor(
+    message: string,
+    readonly retryAfterSeconds?: number,
+  ) {
+    super(message);
+    this.name = 'CheckRunCompletionError';
+  }
+}
+
+const CHECK_COMPLETION_MAX_ATTEMPTS = 3;
+// Long provider delays belong to the queue, not a sleeping max_concurrency=1
+// consumer. Short 1-2s transport retries stay local; rate windows release the
+// slot and return with an explicit Cloudflare redelivery delay.
+const CHECK_COMPLETION_MAX_LOCAL_DELAY_MS = 5_000;
+
+/**
+ * Complete a check run and return the transport evidence needed by the queue.
+ *
+ * A failed or disconnected PATCH is ambiguous: GitHub may have committed the
+ * terminal write before the response was lost.  Read the check back before a
+ * second mutation and accept only the exact intended terminal conclusion.
+ * Mutative retries follow GitHub's published pacing rules: never closer than
+ * one second, honor Retry-After / primary reset, and wait at least one minute
+ * for an otherwise-unqualified 403/429.  Delays too large for a bounded local
+ * retry are returned to the Cloudflare message retry boundary.
+ */
+export async function completeCheckRunDetailed(
+  owner: string,
+  repo: string,
+  checkRunId: number,
+  conclusion: 'success' | 'failure' | 'neutral',
+  summary: string,
+  token: string,
+  detailsUrl?: string | null,
+  title = 'Port Daddy Fleet',
+): Promise<CheckRunCompletionResult> {
+  if (!checkRunId) return { ok: false, diagnostic: 'missing check run id' };
+  // details_url is (re)stamped on completion too, so a run that REUSED an
+  // older check run (idempotent retry path) still links to its own page.
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title, summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
+  });
+  let nextDelayMs = 0;
+  let lastDiagnostic = 'completion PATCH did not produce a terminal response';
+  for (let attempt = 1; attempt <= CHECK_COMPLETION_MAX_ATTEMPTS; attempt++) {
+    if (nextDelayMs > CHECK_COMPLETION_MAX_LOCAL_DELAY_MS) {
+      return {
+        ok: false,
+        diagnostic: lastDiagnostic,
+        retryAfterSeconds: Math.min(43_200, Math.ceil(nextDelayMs / 1000)),
+      };
+    }
+    if (nextDelayMs > 0) await sleep(nextDelayMs);
+    let res: Response;
+    try {
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+        method: 'PATCH',
+        headers: ghHeaders(token),
+        body,
+      });
+    } catch (err) {
+      lastDiagnostic = `network error: ${boundedDiagnostic(String(err))}`;
+      console.error(
+        `[fleet-executor] completeCheckRun network error attempt=${attempt}/${CHECK_COMPLETION_MAX_ATTEMPTS} ` +
+          `check=${checkRunId}: ${lastDiagnostic}`,
+      );
+      if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, token)) {
+        return { ok: true };
+      }
+      nextDelayMs = 1000 * (2 ** (attempt - 1));
+      continue;
+    }
+    if (res.ok) return { ok: true };
+    lastDiagnostic = await checkCompletionDiagnostic(res);
+    console.error(
+      `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${CHECK_COMPLETION_MAX_ATTEMPTS} ` +
+        `check=${checkRunId} ${lastDiagnostic}`,
+    );
+    if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, token)) {
+      return { ok: true };
+    }
+    if (!isRetryableGitHubMutation(res.status)) break;
+    nextDelayMs = githubMutationRetryDelayMs(res, attempt);
+  }
+  console.error(
+    `[fleet-executor] completeCheckRun EXHAUSTED retries for check=${checkRunId} owner=${owner} repo=${repo} — ` +
+      `${lastDiagnostic}; check remains fail-closed until a future delivery or DLQ completion.`,
+  );
+  return {
+    ok: false,
+    diagnostic: lastDiagnostic,
+    ...(nextDelayMs > CHECK_COMPLETION_MAX_LOCAL_DELAY_MS
+      ? { retryAfterSeconds: Math.min(43_200, Math.ceil(nextDelayMs / 1000)) }
+      : {}),
+  };
+}
+
+/**
+ * Compatibility wrapper for callers that need only success/failure.
+ *
+ * The main queue boundary uses {@link completeCheckRunDetailed} so a provider
+ * delay and bounded diagnostic survive into durable delivery evidence.
+ */
 export async function completeCheckRun(
   owner: string,
   repo: string,
@@ -665,21 +1238,96 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
-): Promise<void> {
-  if (!checkRunId) return;
-  // details_url is (re)stamped on completion too, so a run that REUSED an
-  // older check run (idempotent retry path) still links to its own page.
-  await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-    method: 'PATCH',
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      status: 'completed',
+  title = 'Port Daddy Fleet',
+): Promise<boolean> {
+  return (
+    await completeCheckRunDetailed(
+      owner,
+      repo,
+      checkRunId,
       conclusion,
-      completed_at: new Date().toISOString(),
-      output: { title: 'Port Daddy Fleet', summary },
-      ...(detailsUrl ? { details_url: detailsUrl } : {}),
-    }),
-  });
+      summary,
+      token,
+      detailsUrl,
+      title,
+    )
+  ).ok;
+}
+
+/** Return GitHub-compliant delay for the next mutative request. */
+export function githubMutationRetryDelayMs(
+  response: Pick<Response, 'status' | 'headers'>,
+  attempt: number,
+  nowMs = Date.now(),
+): number {
+  const retryAfter = response.headers.get('retry-after');
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.max(1000, Math.ceil(seconds * 1000));
+  }
+  const remaining = response.headers.get('x-ratelimit-remaining');
+  const resetHeader = response.headers.get('x-ratelimit-reset');
+  const reset = Number(resetHeader);
+  if (remaining === '0' && resetHeader && Number.isFinite(reset)) {
+    return Math.max(1000, Math.ceil(reset * 1000 - nowMs));
+  }
+  if (response.status === 403 || response.status === 429) {
+    return 60_000 * (2 ** Math.max(0, attempt - 1));
+  }
+  return Math.max(1000, 1000 * (2 ** Math.max(0, attempt - 1)));
+}
+
+function isRetryableGitHubMutation(status: number): boolean {
+  return status === 403 || status === 408 || status === 409 || status === 429 || status >= 500;
+}
+
+async function checkRunReachedConclusion(
+  owner: string,
+  repo: string,
+  checkRunId: number,
+  conclusion: 'success' | 'failure' | 'neutral',
+  token: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return false;
+    const readback = (await res.json()) as { status?: string; conclusion?: string | null };
+    return readback.status === 'completed' && readback.conclusion === conclusion;
+  } catch {
+    return false;
+  }
+}
+
+async function checkCompletionDiagnostic(res: Response): Promise<string> {
+  const requestId = res.headers.get('x-github-request-id');
+  const retryAfter = res.headers.get('retry-after');
+  const remaining = res.headers.get('x-ratelimit-remaining');
+  const reset = res.headers.get('x-ratelimit-reset');
+  let responseBody = '';
+  try {
+    responseBody = boundedDiagnostic(await res.text());
+  } catch {
+    responseBody = '<unreadable response body>';
+  }
+  return [
+    `status=${res.status}`,
+    requestId ? `request_id=${requestId}` : '',
+    retryAfter ? `retry_after=${retryAfter}` : '',
+    remaining ? `ratelimit_remaining=${remaining}` : '',
+    reset ? `ratelimit_reset=${reset}` : '',
+    responseBody ? `body=${responseBody}` : '',
+  ].filter(Boolean).join(' ');
+}
+
+function boundedDiagnostic(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 512);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -735,18 +1383,32 @@ export async function findFleetCheckRunState(
   headSha: string,
   name: string,
   token: string,
-): Promise<{ id: number; status: string; conclusion: string | null } | null> {
+): Promise<{ id: number; status: string; conclusion: string | null; summary: string } | null> {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
   const body = (await res.json()) as {
-    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+    check_runs?: Array<{
+      id: number;
+      name: string;
+      status?: string;
+      conclusion?: string | null;
+      output?: { summary?: string | null } | null;
+    }>;
   };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   if (!match) return null;
-  return { id: match.id, status: match.status ?? '', conclusion: match.conclusion ?? null };
+  // `summary` comes back on the list endpoint and carries the DLQ handler's
+  // dead-letter marker, which is how the caller tells a gate that ships decided
+  // apart from one a lost job failed — see dead-letter-marker.ts.
+  return {
+    id: match.id,
+    status: match.status ?? '',
+    conclusion: match.conclusion ?? null,
+    summary: match.output?.summary ?? '',
+  };
 }
 
 // ---------------------------------------------------------------------------

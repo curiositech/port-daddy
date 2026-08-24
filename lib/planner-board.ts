@@ -53,6 +53,78 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Pick the tick spacing (in schedule units ≈ days) for the Gantt time axis.
+ *
+ * Why adaptive: the schedule's span varies from a couple of days to a year+,
+ * and a fixed cadence either crowds the axis with labels or leaves it bare.
+ * The ladder is calendar-shaped on purpose — day, 2-day, week, fortnight,
+ * 4-week, quarter, half-year, year — so the ticks the operator sees are the
+ * time units they plan in (days → weeks → months-ish), not arbitrary
+ * decimals. Ceiling division counts the INTERVALS the span actually needs;
+ * the chosen step is the smallest rung that keeps the axis at ≤ 8 of them.
+ * Mirror of `axis_tick_step` in `core/pd-console/src/planner_pane.rs` — the
+ * two Gantt surfaces must agree on what a tick means.
+ *
+ * @param span - Schedule makespan in units (1 unit = 1 day by convention).
+ * @returns The tick step in units, always ≥ 1.
+ */
+export function axisTickStep(span: number): number {
+  const ladder = [1, 2, 7, 14, 28, 91, 182, 364];
+  for (const step of ladder) {
+    if (Math.ceil(span / step) <= 8) return step;
+  }
+  return (Math.floor(span / (364 * 8)) + 1) * 364;
+}
+
+/** One tick of the board Gantt's time axis (see {@link axisTicks}). */
+export interface AxisTick {
+  /** Schedule offset in units from the anchor. */
+  unit: number;
+  /** Horizontal position as a percentage of the bar lane. */
+  pct: number;
+  /** Human label: `today` for unit 0, else the real `MM-DD` date. */
+  label: string;
+  /** True on the unit-0 tick — the today-marker gets distinct styling. */
+  isToday: boolean;
+}
+
+/**
+ * Compute the labeled ticks for the board Gantt's time axis.
+ *
+ * Why it exists: bars without an x-axis are only relative geometry — the
+ * operator asked for actual time units. The CPM schedule is relative
+ * (ADR-0086: no absolute-date anchor), so the axis anchors unit 0 at the
+ * render instant under the declared planning convention 1 estimate unit =
+ * 1 day: tick 0 is the today-marker and later ticks carry real UTC `MM-DD`
+ * dates at the adaptive cadence of {@link axisTickStep}. The schedule's end
+ * always gets a closing tick (its date is "when does the plan land"), even
+ * when the makespan is not a multiple of the step.
+ *
+ * @param span - Schedule makespan in units (clamped ≥ 1 by the caller).
+ * @param anchorMs - Epoch ms of unit 0 (the board's `generatedAt`).
+ * @returns Ticks ordered by unit, positions in percent of the lane.
+ */
+export function axisTicks(span: number, anchorMs: number): AxisTick[] {
+  const step = axisTickStep(span);
+  const ticks: AxisTick[] = [];
+  const push = (unit: number) => {
+    const d = new Date(anchorMs + unit * 86_400_000);
+    ticks.push({
+      unit,
+      pct: (unit / Math.max(span, 1)) * 100,
+      label:
+        unit === 0
+          ? 'today'
+          : `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`,
+      isToday: unit === 0,
+    });
+  };
+  for (let t = 0; t <= span; t += step) push(t);
+  if (span % step !== 0) push(span);
+  return ticks;
+}
+
 /** Render the whole board to a single self-contained HTML document. */
 export function renderBoard(input: BoardInput): string {
   const { plan, schedule, items, generatedAt } = input;
@@ -129,6 +201,29 @@ export function renderBoard(input: BoardInput): string {
 
   // Gantt rows ordered by earliest start then slug.
   const ganttSpan = Math.max(schedule.makespan, 1);
+  // Time axis: unit 0 anchored at the board's own generatedAt (1 est unit =
+  // 1 day), adaptive tick cadence, gridlines aligned to the same percent
+  // geometry the bars use, today-marker on the unit-0 line.
+  const ticks = axisTicks(ganttSpan, generatedAt);
+  const tickStep = axisTickStep(ganttSpan);
+  const tickAnchor = (pct: number) =>
+    pct < 4 ? '' : pct > 96 ? 'transform:translateX(-100%)' : 'transform:translateX(-50%)';
+  const axisLabels = ticks
+    // Drop the closing label (never its gridline) when it would sit on top of
+    // the previous one — a partial trailing interval can land two dates a few
+    // percent apart.
+    .filter((k, i, all) => i === 0 || k.pct - all[i - 1].pct >= 7)
+    .map(
+      (k) =>
+        `<span class="gtick${k.isToday ? ' gtoday' : ''}" style="left:${k.pct.toFixed(3)}%;${tickAnchor(k.pct)}">${esc(k.label)}</span>`,
+    )
+    .join('');
+  const gridLines = ticks
+    .map(
+      (k) =>
+        `<div class="ggridline${k.isToday ? ' gtoday-line' : ''}" style="left:${k.pct.toFixed(3)}%"></div>`,
+    )
+    .join('');
   const ganttRows = [...plan.tasks]
     .map((t) => ({ t, sn: schedById.get(t.slug!) }))
     .filter((x) => x.sn)
@@ -220,6 +315,17 @@ export function renderBoard(input: BoardInput): string {
   .crit{background:var(--gold);color:#1a1300;border-color:var(--gold)}
   .deps,.slack{font-size:13px}
   .grow{display:flex;align-items:center;gap:10px;margin:3px 0}
+  /* Time axis: label row above the bars + a gridline overlay across every
+     track, both sharing the bars' percent geometry (left:N% of the lane). */
+  .gaxis{margin:0 0 6px}
+  .gaxis-note{color:var(--muted);font-size:12px}
+  .gaxis-track{flex:1;position:relative;height:18px}
+  .gtick{position:absolute;top:1px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
+  .gtick.gtoday{color:var(--teal);font-weight:600}
+  .gantt-body{position:relative}
+  .ggrid{position:absolute;left:310px;right:0;top:0;bottom:0;pointer-events:none;z-index:2}
+  .ggridline{position:absolute;top:0;bottom:0;width:1px;background:rgba(232,237,242,.14)}
+  .ggridline.gtoday-line{width:2px;background:var(--teal);opacity:.75}
   .glabel{width:300px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:13px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
   .gtrack{flex:1;position:relative;height:18px;background:var(--panel2);border-radius:5px;overflow:hidden}
@@ -282,7 +388,13 @@ ${flagBanner}
 </div>
 <main>
   <section class="view active" id="view-tree">${epicSections}</section>
-  <section class="view" id="view-gantt">${ganttRows || '<div class="empty">no schedule</div>'}</section>
+  <section class="view" id="view-gantt">${
+    ganttRows
+      ? `<div class="grow gaxis"><div class="glabel gaxis-note">1 est unit = 1 day · ${tickStep}d ticks</div><div class="gaxis-track">${axisLabels}</div></div>
+  <div class="gantt-body"><div class="ggrid" aria-hidden="true">${gridLines}</div>
+${ganttRows}</div>`
+      : '<div class="empty">no schedule</div>'
+  }</section>
 </main>
 <script id="board-data" type="application/json">${payload}</script>
 <script>

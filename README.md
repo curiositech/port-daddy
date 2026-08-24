@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.27.0)
+# ⚓ Port Daddy (v3.30.2)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -36,7 +36,7 @@ pd pub api:ready '{"endpoints": ["/login", "/register"]}'
 pd done "Auth complete"
 ```
 
-Examples in this README assume the default local daemon URL `http://localhost:9876`. If your daemon is on a different port, check `pd status` or set `PORT_DADDY_URL` before copying the HTTP examples.
+HTTP examples in this README show the preferred local berth at `http://localhost:9876`. Runtime clients do not guess that port: they use an explicit URL, the Unix socket, or the selected daemon's published port file, and fail closed when none exists. If your daemon is elsewhere, FleetBar and `pd status` show the selected endpoint.
 
 ### ⚓ Key Primitives
 
@@ -111,7 +111,7 @@ unzip PortDaddy-FleetBar-macOS-arm64.zip
 ### 3. Verify
 
 ```bash
-pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, bosun…)
+pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, optional Bosun context…)
 pd doctor --json   # Machine-readable report with per-check severity (ok | warn | critical)
 pd doctor --ci     # CI/script mode: no prompts, exits non-zero ONLY on a CRITICAL check
 pd attest          # Honest self-report: PASS/FAIL/SKIPPED/UNKNOWN per enforced invariant
@@ -125,7 +125,7 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On a canonical macOS install, launchd is the sole lifecycle owner: `pd start`, `pd restart`, and `pd stop` control `homebrew.mxcl.port-daddy`, wait for one verified generation, and refuse a detached fallback when the launchd job is missing.
 
-`pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
+Bosun (`pd-bosun`, ADR-0036) is an optional legacy/opt-in watchdog. Since v3.28, supported installs use exactly one lifecycle supervisor — Homebrew launchd on macOS or the installed LaunchAgent/systemd service elsewhere — plus the daemon's own heartbeat writer. The release archives and Homebrew `post_install` deliberately do not install Bosun; `pd doctor` reports its absence as contextual warning, never a critical failure or repair request.
 
 ### Staying current
 
@@ -183,6 +183,12 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sideq
 
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
+After registration, `pd begin` may print up to three semantically matched live
+peers. This optional arrival hint has a 75 ms budget, excludes the new agent,
+disables reconnect retries, aborts at the total deadline, uses no lexical
+fallback, and disappears silently when semantic lookup is slow or unavailable.
+It must never turn session admission into a coordination dump.
+
 ### `pd begin` charges roadmap rent
 
 Every session must say where it sits on the roadmap — one line, at start, not at PR time. Pass exactly one of:
@@ -209,6 +215,12 @@ pd add lib/auth.ts                      # claim-aware git add (refuses files hel
 # …work…
 pd done "Auth fixed; tests green"
 ```
+
+`pd done --no-pr` is only for a genuinely ledger-only session: the worktree
+must be clean and `HEAD` must contain no commit absent from every remote ref.
+That verifier runs even when the branch itself is fully pushed. Dirty or
+unpublished repository work still fails closed; the flag cannot hide an
+unpushed change behind a “no artifact” receipt.
 
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 
@@ -265,6 +277,11 @@ pd morning                # the overnight dispatch report
 pd advise lib/sessions.ts --task "fix symbol claim conflict"
 pd preflight docs/recovery/CURRENT-WORK.md --tuples
 ```
+
+Sitrep is a bounded projection, not a database dump. Each collection reports
+its limit, returned count, and truncation state; salvage histories and text
+fields are capped. `pd sitrep --quiet` asks the daemon for the summary-only
+projection so session-start and launcher paths stay small.
 
 `pd advise` / `pd preflight` return deterministic recommendations with evidence and executable actions: session/context integrity, active claims, symbol freshness, stale salvage, declared channels, tuple-worthy facts, and true lock candidates.
 
@@ -357,7 +374,10 @@ This applies whether you confirmed interactively, used `--yes`, or were refused 
 
 ## 🗂 Command Index
 
-The full verb surface, grouped by what you're trying to do. One-liners; run `pd help <verb>` for flags. Authoritative tiers: [`cli/permission-tiers.ts`](cli/permission-tiers.ts).
+The full verb surface, grouped by what you're trying to do. One-liners; run
+`pd <verb> --help` for the precise verb page or its documented command family.
+A coverage ratchet prevents new verbs from silently falling back to generic
+help. Authoritative tiers: [`cli/permission-tiers.ts`](cli/permission-tiers.ts).
 
 **Ports & services** — `claim`/`c`, `release`/`r`, `list`/`l`, `ps`, `services`, `ports`, `url`, `env`, `find`/`f`, `scan`/`s`, `up`/`u`, `down`/`d`, `dns`, `projects`/`p`, `integration`, `wait`, `watch`
 
@@ -365,13 +385,17 @@ The full verb surface, grouped by what you're trying to do. One-liners; run `pd 
 
 **Situational awareness** — `status`, `whoami`/`w`, `look`, `sitrep`, `briefing`, `morning`, `periscope`/`sight`/`scope`, `activity`, `changelog`, `history`, `log`, `advise`/`preflight`/`compass`, `attention`, `nudge`, `swarm`, `actors`/`actor`, `agents`, `roster`, `whois`
 
+The MCP `swarm_awareness` / `active_agent_roster` tools return a **bounded digest** of the roster — compact JSON under a hard character budget, with explicit omission counters when agents, claims, or notes are capped — so a tool result always fits in the calling agent's context window. The full-fidelity roster (complete note bodies, all claims, per-provider squid detail) stays on `GET /agent-roster` for FleetBar and Control Center. This sits under a universal, tool-agnostic backstop: **every** MCP tool result passes through an output governor (`lib/mcp-output-governor.ts`) before it reaches the caller, so no tool — with or without its own digest — can overflow a harness's tool-result cap. Override the budget with `PD_MCP_MAX_OUTPUT_CHARS`.
+
+Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbols`, `release_files`, `set_session_phase`, `coordination_preflight`, `whoami`, `end_session_full`) now default `session_id`/`agent_id` to the session this MCP server process attached to via `begin_session` — `session_id` is no longer required on them (`lib/mcp-session-cache.ts`). Because `mcp/server.ts` runs over stdio (one process per client connection), that cache is already correctly scoped without any transport-level session-id header; a caller can still pass an explicit id to act on a different agent's session. This closes the `AMBIGUOUS_ACTIVE_SESSION` trap where an agent's own session id, returned moments earlier by `begin_session`, still had to be re-supplied by hand on every call.
+
 **Messaging** — `pub`/`publish`, `sub`/`subscribe`/`listen`, `broadcast`, `channels`, `tube`, `inbox`, `message`, `quorum`, `parley`
 
 **Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `skill-graft`, `harbors`, `harbor`
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
-**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`
+**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles.
 
 **Daemon & host** — `start`, `stop`, `restart`, `install`, `uninstall`, `daemon`, `dev`, `use`, `doctor`, `diagnose`, `attest`, `health`, `metrics`, `bench`, `ci-gate`, `backup`, `restore`, `cut`, `upgrade`, `self-update`, `safe`, `secret`, `guard`, `config`, `init`, `setup`, `mcp`, `relay`, `tunnel`, `webhook`/`webhooks`, `version`
 
@@ -382,6 +406,40 @@ The full verb surface, grouped by what you're trying to do. One-liners; run `pd 
 ## 📡 Multi-Agent Coordination
 
 Port Daddy is built for the "Wild West" of agentic workflows where agents hail each other ad-hoc.
+
+### Cloud coordination peer (ADR-0092)
+
+An optional per-project relay room federates sessions, append-only notes,
+advisory file claims, and project-scoped logical lock leases between local and
+cloud daemons. The room is a peer, never the authority: every daemon writes its
+own SQLite ledger while offline, keeps a durable outbox, and CRDT-merges after
+reconnection. Ports, processes, sockets, and machine-local exclusion remain
+local. Each local ledger persists its replica identity beside that outbox, so a
+daemon restart cannot strand older operations under a new sync envelope.
+Replicated lock leases are shown under coordination-scoped projection names.
+Ownership metadata and collision-safe fallback slots prevent them from
+overwriting or releasing enforcing machine-local locks, including a lock that
+already occupies a projection-shaped name.
+
+The relay exposes an operator-gated grant endpoint and a macaroon-gated sync
+endpoint. Grants are scoped to `coordination-sync` plus one project, actor, and
+expiry. A deployment enables a daemon peer only when all four settings are
+present: `PORT_DADDY_COORDINATION_URL`, `PORT_DADDY_COORDINATION_PROJECT`,
+`PORT_DADDY_COORDINATION_ACTOR`, and the managed secret
+`PORT_DADDY_COORDINATION_MACAROON`. Partial configuration is reported but does
+not prevent the local daemon from starting or accepting local work.
+Agents can inspect `coordination_status()` over MCP to distinguish a healthy
+room connection from an offline peer with locally queued work; disconnected
+never means the local coordination ledger stopped accepting writes.
+
+Cloud sandboxes use the same runtime rather than a mock coordination client:
+the executor builds the compiled binary, starts an isolated daemon with its own
+`PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and `PORT_DADDY_SOCK`, waits for health,
+and runs `pd begin` before sandbox work. It then waits until the session has
+been durably acknowledged by the room and observed through the daemon cursor.
+If an explicitly configured remote
+daemon is unavailable, the CLI reports that peer as unavailable and never
+silently starts a different local daemon or falls back to a local database.
 
 ### Swarm Radio (Pub/Sub)
 
@@ -493,6 +551,8 @@ Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, token
 Same-harness continuation is daemon-witnessed rather than inferred. All four native harnesses require UUID-shaped session identities, preventing option-shaped values from reaching their argv parsers. Claude, Codex, and Gemini require an explicit transcript reference instead of scanning an unbounded harness store; Claude JSONL and Codex `session_meta` must bind the UUID to the canonical workspace, agy must agree across its conversation-keyed brain transcript and exact `last_conversations` workspace mapping, and Gemini must agree across its project registry, project hash, UUID, explicit chat file, and canonical workspace. Evidence is opened once with no-follow semantics, read under fixed byte and entry caps, and bound to file plus workspace device/inode identity. `POST /memory/handoffs/:episodeId/continue` revalidates that witness immediately before spawn, carries the witnessed device/inode into the spawner, checks it again at the final child-process boundary, uses the canonical workspace as the child cwd, sanitizes the outgoing prompt, resolves all backend overrides, and permits native resume only when source and effective target share an adapter family with session-scoped resume support. Claude, Codex, agy, and Gemini then use their native session flags; Codex resume deliberately omits spawn-only `--sandbox` and `-C` flags. The canonical SQLite database atomically accepts each hashed idempotency key and gives every receipt a daemon-generation owner and lease. Startup recovery orphans only expired prior-generation work, accepted-to-running is a compare-and-swap that must succeed before spawn, and `success: true` is returned only after the same owner durably records `completed`; in-flight idempotent retries return HTTP 202 with `success: false` and `pending: true`. The receipt stores only hashes of the prompt and idempotency key. The sanitized prompt still enters the ordinary governed spawn transcript; its unredacted source never does. Read receipts through `GET /memory/continuations/:continuationId` or filter them with `GET /memory/continuations`.
 
 Cross-harness continuation uses the same endpoint and receipt ledger. Choose the concrete runtime with `targetBackend` and set `mode` to `auto`, `native`, or `handoff` (`auto` is the default). Auto mode restores only a compatible session-scoped native family; otherwise it starts a new target session from [`pd.agent-harbor.handoff-successor-brief.v0`](schemas/agent-harbor/v0/handoff-successor-brief.schema.json). The brief carries durable identity and predecessor lineage plus the sanitized objective, every preserved operator turn, decisions, coordination evidence, workspace state, artifacts, and compact recent context. It explicitly treats historical content as data rather than new system/tool authority, is scanned again before acceptance, and never copies the raw provider transcript. Capsule workspace paths are context, never cwd authority: a successor reuses a reverified source workspace witness, or a stateless/history-only source must supply an explicit current `targetWorkdir`; Port Daddy captures that user-owned absolute directory's device/inode identity, binds it into request idempotency, and checks it again before spawn. An explicit target cannot redirect a witnessed session into another checkout. Explicit native mode fails rather than silently switching semantics; explicit handoff mode always creates a successor, even on the same backend family.
+
+Spawner-launched bodies now feed their already-redacted transcript rows into Agent Harbor as real hash-chained conversation evidence. At run finalization the daemon emits a `ContextEnvelope` using the higher of adapter-reported usage and its persisted-transcript estimate. Crossing the compaction threshold builds and immediately revalidates a cited `CompactionPacket`; the packet is projected into the same sanitized handoff episode consumed by `POST /memory/handoffs/:episodeId/continue`, so the existing leased idempotency receipt remains the only successor path. `GET /agent-harbor/context-continuity` projects envelopes, packet head hashes, handoff episode ids, and continuation receipts for FleetBar. The Giant Squid panel shows this proof alongside hook health; it does not turn a self-reported percentage into a green status. Interactive Squid adapters still need to emit the same envelope contract before this coverage is universal.
 
 Harness portability is reported as predicates, not a marketing score. `pd backend adapters --matrix` prints the generated 17×17 native-or-handoff mechanics grid; `--probe` adds side-effect-free binary/help discovery. `GET /harness-adapters/continuation-matrix` and the read-only MCP tool `harness_continuation_matrix` keep those catalog ceilings separate from completed spawn transcripts and continuation receipts, label evidence older than seven days as stale, and leave exact live interaction unverified until a dedicated control receipt exists. Neither discovery nor an agent's self-report earns runtime conformance. The canonical response schema is [`schemas/agent-harbor/v0/harness-continuation-matrix.schema.json`](schemas/agent-harbor/v0/harness-continuation-matrix.schema.json).
 
@@ -623,7 +683,36 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
-### Giant Squid — visible, project-scoped agent coordination
+### Cloud Fleet — live run receipts
+
+The signed-in website at `/account/runs` is the operator's durable Cloud Fleet
+activity surface. It shows a PR review from webhook admission onward, before a
+queue consumer or transcript exists, and links into the live receipt at
+`/fleet/runs/:id`. Receipts distinguish one logical PR-head generation from its
+at-least-once queue delivery attempts and ship transcript steps. They expose
+queued, running, retrying, superseded, failed-admission, and terminal states,
+plus actual and estimated timestamps; active pages refresh on a bounded cadence
+and preserve reduced-motion preferences.
+
+Repeated delivery IDs are idempotent. A successfully enqueued newer head marks
+strictly older active generations superseded, and the executor checks that
+durable admission row before expensive work. Queue-ahead and expected-time
+values are explicitly D1-derived estimates, never a claim about Cloudflare's
+internal queue position. Intent-only receipts remain exportable/deletable and
+active receipts are never retention-pruned.
+
+FleetBar and the Cloud Fleet pane in `pd-console` read those same
+operator-gated receipts from the signed-in account; routine setup does not ask
+the operator for relay environment variables. Both surfaces show logical state,
+generation, delivery-attempt count, queue-ahead estimates, expected run timing,
+failures, and a timestamped durable transcript with a short explanation of each
+step. Active FleetBar runs refresh every five seconds, idle runs every twenty,
+and failures back off with jitter. The console loads static ship configuration
+once and re-reads transcript detail only when `lastProgressAt` changes; a failed
+detail read opens a bounded retry circuit instead of multiplying relay traffic.
+Per-step ETAs are shown only when the executor actually publishes one.
+
+### Giant Squid — visible controls, invisible project-scoped hooks
 
 `pd squid on` arms the complete harness for the current project. It stages the
 three local tentacles, wires every detected agent CLI in its real interactive
@@ -632,25 +721,88 @@ Pilot SessionStart steering, and `/squid` control inside Claude Code:
 
 ```bash
 pd squid on                 # full harness: Claude, Codex, Gemini, and agy
-pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
-pd squid status --json      # stable FleetBar/automation contract
+pd squid status             # state plus bounded recent timing and matrix windows
+pd squid status --json      # stable, size-bounded FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
+pd squid debug status       # sanitized per-session hook timing and deadlines
 pd squid off                # disarm this project without breaking other repos
 pd hooks install            # hook-only repair surface
 ```
+
+`pd squid status` and `pd squid debug status` share one diagnostic source.
+Status returns at most 25 recent hook steps and 20 recent values per matrix
+kind, with total/returned/truncated metadata; every step carries actual start,
+expected-by and finish times plus its short description. A large retained
+matrix or timeline therefore cannot truncate the JSON contract or queue more
+hook work merely because an operator asked what is running. When debug capture
+is off, routine status publishes only retained counts and hides archived runtime
+session identifiers plus absolute workspace/event paths; use the explicit
+`pd squid debug status` surface to inspect the retained diagnostic window.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
 user-level entries are still project-scoped at runtime: the wrapper requires a
 fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
-project registry. Outside an armed root they no-op. The prompt envelope accepts
-only fresh, exact-project traces and is capped at 12 entries / 4 KiB.
+project registry. Outside an armed root they no-op. Coordination content stays
+bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and no
+status message; the hot path reads bounded local evidence and never waits on
+the daemon or launches the full CLI. When an exact-project trace or fleet-wide
+control alert is actionable, the coordination envelope is capped at one heading
+plus two facts and 512 bytes of context, with a one-second harness deadline.
+The end-of-turn SITREP is the deliberate exception (operator doctrine,
+2026-08-22): governed by the per-repo `sitrep.endOfTurn` dial (`off` |
+`suggest` | `enforce`, default `enforce`; `PD_SITREP` env override wins, then
+`agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`),
+the prompt hook injects the end-of-turn SITREP table contract each turn — the
+harness's visible value surface, riding outside the coordination byte cap.
+`suggest` injects the contract as a suggestion; `enforce` marks a turn that
+ends without the table incomplete. Scaffold the table with `pd sitrep
+--template`. Reinstalling hooks is idempotent and migrates older duplicate
+registrations while preserving user-owned hooks. The installed graph is
+intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
+tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
+installed; session claims and notes are the cumulative outcome record.
+
+Provider configuration always calls the stable user-owned
+`~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
+Hooks do not retry. After three consecutive unexpected exits or executions over
+250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
+immediate no-ops, the next turn gets one concise remediation notice, and
+FleetBar marks Giant Squid `DEGRADED` with the affected hook, reason, timestamps,
+and retry time. One half-open probe may recover automatically; FleetBar's
+**Repair** button restages and rewires the shims and clears the latch only after
+the repair succeeds. Intentional edit denial remains `exit 2` and never counts
+against hook health. Portable latency measurement uses the external POSIX
+`/usr/bin/time -p -o` interface so dash cannot leak reserved-word timing output
+or silently report a slow hook as healthy. If that dependency is unavailable,
+the hook fails open, self-disables, and asks for FleetBar Repair.
+
+Hook reliability is treated as an integration contract, with the same evidence
+required locally, in CI on macOS and Linux, and from the compiled release:
+
+| Requirement | Bound | Verification evidence |
+|---|---:|---|
+| HOOK-R1 durable command interface | no `/Cellar/` lifecycle paths | adapter/install unit tests plus `scripts/smoke-squid-release.mjs` |
+| HOOK-R2 bounded lifecycle topology | one turn hook, one direct-edit hook, zero post-tool hooks | hook-shape, provider-adapter, and compiled-release tests |
+| HOOK-R3 fail-open containment | 3 unhealthy calls; 250 ms; no execution retry | executable wrapper failure/slow/exit-2/missing-timer tests on macOS and Linux |
+| HOOK-R4 safe recovery | 5-minute OPEN cooldown; one HALF_OPEN probe | concurrent breaker and probe tests |
+| HOOK-R5 operator remediation | `DEGRADED` plus FleetBar Repair | JSON contract and FleetBar store/UI tests |
+| HOOK-R6 artifact portability | source tree absent at runtime | compiled CLI release smoke from a staged directory |
 
 The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
-context before a turn, foreign-ownership warning or blocking before an edit,
-and a compact fleet trace after a tool. FleetBar's selected-project strip shows
-the live state and provider count and exposes Arm, Repair, and Disarm buttons;
-routine operation does not require the operator to open a terminal.
+context before a turn and foreign-ownership warning or blocking before a direct
+edit. FleetBar's selected-project strip shows
+the live state and provider count and exposes Arm, Repair, Disarm, and Inspect
+buttons; routine operation does not require the operator to open a terminal.
+Inspect opens an opt-in hook timeline grouped by agent session. Every PD TURN
+and direct PD EDIT row shows its actual start/finish, one-second expected-by
+timestamp, duration, gate outcome, and a short explanation. Overdue rows mean a
+start record missed its deadline without a completion record. Capture is off by
+default, bounded to 2 MiB of local timing events, and has no fields for argv,
+environment snapshots, prompts, tool inputs/results, stdout, or stderr. Agents can use
+`pd squid debug on|off|status|clear --json` for the same contract when repairing
+the operator surface. PD TRACE rows may remain in retained timelines from older
+three-hook installs; new installs never schedule them.
 
 ### Giant Squid — Claude-to-Codex bridge
 
@@ -854,11 +1006,11 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 
 ### Cutting a release (`pd cut`)
 
-`pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028) and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The brew tap (`curiositech/homebrew-tap`) is bumped via `publish.yml`.
+`pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028), emits GitHub/Sigstore provenance for each platform archive, and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The `curiositech/homebrew-tap` workflow discovers stable releases on a serialized schedule, verifies the tag, dual Batten imprints, archive digests, and v3.30.3+ provenance, then updates the formula without a cross-repository write token.
 
 ### Batten down the release (`pd batten`)
 
-`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
+`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the Squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd-bosun` is intentionally absent from v3.28+ single-supervisor archives. `pd batten verify --staged-dir dist` asserts each declared artifact is present, executable where required, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report. The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
 
 ### Single-binary distribution
 
@@ -949,12 +1101,13 @@ Commit this so every developer gets the same deterministic port mapping:
 
 ### Environment variables
 
-- `PORT_DADDY_URL` — daemon address (default `http://localhost:9876`)
+- `PORT_DADDY_URL` — explicit daemon-address override; otherwise clients use a real Unix socket or the selected daemon's published port and never guess `9876`
 - `PORT_DADDY_RANGE_START` — port pool start (default `3100`)
 - `PORT_DADDY_YES=1` — bypass destructive-command prompts (audited)
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
 - `PD_FLEET_*` — Conductor cost gates (see Bonds & Budgets)
 - `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` — permit a source-backed dev daemon
+- `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` — opt in to downloading the local embedding model (`Xenova/all-MiniLM-L6-v2`) from huggingface.co at runtime; by default the daemon never phones huggingface.co and, without a cached model, semantic retrieval degrades to the lexical (BM25) path labeled `degraded`. `TRANSFORMERS_OFFLINE=1` always wins and forces offline.
 
 ---
 

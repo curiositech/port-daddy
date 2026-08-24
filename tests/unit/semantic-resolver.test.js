@@ -232,6 +232,7 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     process.chdir(scratchDir);
     savedResourceDir = process.env.PORT_DADDY_RESOURCE_DIR;
     savedFallbackVar = process.env[fallbackVar];
+    delete process.env.PORT_DADDY_RESOURCE_DIR;
     delete process.env[fallbackVar];
   });
 
@@ -250,27 +251,54 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     expect(process.env[fallbackVar]).toBeUndefined();
   });
 
-  test('points the dynamic-linker fallback path at PORT_DADDY_RESOURCE_DIR/dist/native/onnxruntime-node/<platform>-<arch> when present', () => {
+  test('ignores stale build cargo in a source checkout without an explicit resource root', () => {
     const platformArch = `${process.platform}-${process.arch}`;
     const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
     mkdirSync(nativeDir, { recursive: true });
-    writeFileSync(join(nativeDir, 'libonnxruntime.fake.dylib'), 'not a real binary, just proving path resolution');
-    process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
+    writeFileSync(
+      join(nativeDir, process.platform === 'darwin' ? 'libonnxruntime.1.dylib' : 'libonnxruntime.so.1'),
+      'stale source-build cargo',
+    );
 
-    ensureOnnxRuntimeNativeLibFindable();
-
-    expect(process.env[fallbackVar]).toBe(nativeDir);
+    expect(() => ensureOnnxRuntimeNativeLibFindable()).not.toThrow();
+    expect(process.env[fallbackVar]).toBeUndefined();
   });
 
-  test('prepends to an existing fallback path instead of clobbering it', () => {
+  test('requires a pre-start loader path only on Linux', () => {
     const platformArch = `${process.platform}-${process.arch}`;
     const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
     mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(
+      join(nativeDir, process.platform === 'darwin' ? 'libonnxruntime.1.dylib' : 'libonnxruntime.so.1'),
+      'not a real binary, just proving path resolution',
+    );
     process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
-    process.env[fallbackVar] = '/some/pre-existing/path';
+
+    if (process.platform === 'darwin') {
+      expect(() => ensureOnnxRuntimeNativeLibFindable()).not.toThrow();
+    } else {
+      expect(() => ensureOnnxRuntimeNativeLibFindable()).toThrow(
+        new RegExp(`launched without ${fallbackVar}`),
+      );
+    }
+    expect(process.env[fallbackVar]).toBeUndefined();
+  });
+
+  test('accepts a packaged runtime already present in the launch environment', () => {
+    const platformArch = `${process.platform}-${process.arch}`;
+    const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
+    const alternateDir = join(scratchDir, 'named-profile', 'native', 'onnxruntime-node', platformArch);
+    mkdirSync(nativeDir, { recursive: true });
+    mkdirSync(alternateDir, { recursive: true });
+    writeFileSync(
+      join(alternateDir, process.platform === 'darwin' ? 'libonnxruntime.1.dylib' : 'libonnxruntime.so.1'),
+      'alternate packaged runtime',
+    );
+    process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
+    process.env[fallbackVar] = `${alternateDir}:/some/pre-existing/path`;
 
     ensureOnnxRuntimeNativeLibFindable();
 
-    expect(process.env[fallbackVar]).toBe(`${nativeDir}:/some/pre-existing/path`);
+    expect(process.env[fallbackVar]).toBe(`${alternateDir}:/some/pre-existing/path`);
   });
 });
