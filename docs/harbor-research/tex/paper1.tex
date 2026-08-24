@@ -219,7 +219,7 @@ Flat inspection opens $F$; adaptive halving opens at most $2k\lceil\log_2(F/k)\r
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.8\textwidth]{r4_regime.png}
-\caption{Regime diagram for the zoom advantage: open-count advantage against flagged-set density $k/F$. The advantage lives in the sparse-flagged corner ($k\ll F$, the conservative-digest regime) and inverts in the dense corner, where flat inspection wins --- both halves of the claim are load-bearing.}
+\caption{Regime diagram for the zoom advantage: the idealized open-count advantage $F/(k\log_2(F/k))$ against flagged-set density $k/F$, over the sparse-to-moderate range this digest architecture targets. The advantage is steep where flags are sparse ($k\ll F$) and falls toward parity as density grows; the plotted idealization never crosses parity, but the deployed algorithm's constant overhead does invert the ordering at higher density still, exactly as measured at $(F,k)=(100,90)$ in \S\ref{sec:zoom} ($199$ adaptive opens against $100$ flat) --- both halves of the claim are load-bearing.}
 \label{fig:r4reg}
 \end{figure}
 
