@@ -9,6 +9,7 @@
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -239,13 +240,46 @@ setTimeout(() => {
   return file;
 }
 
+/**
+ * Alive means RUNNING, not merely "still has a pid".
+ *
+ * `process.kill(pid, 0)` succeeds for a ZOMBIE — a process that has exited but
+ * whose parent has not reaped it. That distinction decides this file. The kill
+ * path signals the child before its descendants, so a descendant is an orphan
+ * at the instant it dies and reparents to init; whether it disappears from the
+ * process table in 10ms or 2s is then a property of who PID 1 is on the
+ * machine, not of the code under test. Measured reap latency in one container
+ * here: 1016-1900ms across 12 trials, against a poll budget of 20 x 50ms.
+ *
+ * So `kill(pid, 0)` alone made this suite pass or fail on the runner's init
+ * behaviour: prompt under systemd/docker-init, slow under a lazy poller, and
+ * never under a node/npm PID 1 (libuv only waitpid()s its own children).
+ * Reading the state instead asks the question the test actually means.
+ */
 async function isPidAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
-    return true;
   } catch {
-    return false;
+    return false; // gone from the table entirely
+  }
+  // Present in the table — but a zombie is dead for our purposes.
+  try {
+    if (process.platform === 'linux') {
+      // /proc/<pid>/stat: "pid (comm) STATE ...". comm can contain spaces and
+      // parens, so split on the LAST ')' rather than parsing fields in order.
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const afterComm = stat.slice(stat.lastIndexOf(')') + 1).trim();
+      return afterComm[0] !== 'Z';
+    }
+    const out = execFileSync('ps', ['-o', 'state=', '-p', String(pid)], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return out.length > 0 && out[0] !== 'Z';
+  } catch {
+    // No /proc, or ps refused: fall back to the liveness we already proved.
+    return true;
   }
 }
 

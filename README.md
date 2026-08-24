@@ -344,7 +344,6 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd agent inbox clear` — deletes all messages in the inbox
 - `pd harbor destroy <name>` — tears down a harbor and evicts everyone in it
 - `pd spawn kill <id>` — terminates a running spawned agent mid-run
-- `pd transcripts delete/rm` — removes durable agent transcripts
 - `pd restore <id>` — overwrites the live registry DB from a snapshot
 - `pd fleet down` — SIGTERMs the running fleet
 - `pd fleet panic --reason "<text>"` — SIGTERMs every running fleet agent (also requires typing `YES`)

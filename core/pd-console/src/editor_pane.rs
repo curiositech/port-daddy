@@ -295,6 +295,13 @@ impl EditorPane {
         self.buffer.as_ref()
     }
 
+    /// The most recent disk-open failure, if this pane could not establish a
+    /// buffer. Navigation code reads this before committing an Editor surface so
+    /// a permission error cannot replace the operator's current workspace.
+    pub fn load_error(&self) -> Option<&str> {
+        self.error.as_deref()
+    }
+
     /// Current buffer text for the foreground input bridge. This is a snapshot
     /// string, never retained by the input model, so the Loro document remains
     /// the sole content authority.

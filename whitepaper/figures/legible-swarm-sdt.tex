@@ -36,8 +36,8 @@
 % criterion line beta
 \draw[hhamber,very thick,dashed] (5.0,0) -- (5.0,5.55)
    node[above,text=hhink,font=\bfseries\footnotesize]{criterion $\beta$};
-\draw[->,thick,hhamber] (5.2,4.6) -- (6.0,4.6) node[right,font=\scriptsize,text=hhink]{strict};
-\draw[->,thick,hhamber] (4.8,4.6) -- (4.0,4.6) node[left,font=\scriptsize,text=hhink]{lax};
+\draw[->,thick,hhamber] (5.2,4.6) -- (6.0,4.6) node[right,font=\scriptsize,text=hhink]{lax (fewer zooms)};
+\draw[->,thick,hhamber] (4.8,4.6) -- (4.0,4.6) node[left,font=\scriptsize,text=hhink]{stringent (more zooms)};
 
 % error-region labels: miss fits inside its region; false alarm is a thin
 % sliver, so its label sits clear of the curves with one short leader.
@@ -56,13 +56,10 @@
 }
 \caption{The operator's forced-zoom decision as Signal Detection Theory
 (Def.~\ref{def:sdt}, Eq.~\ref{eq:sdt}). Most actions are safe (left curve); a few
-are dangerous (right). The operator's read places each action somewhere on the
-evidence axis; the criterion $\beta$ decides zoom-or-wave. A lax $\beta$ minimizes
-attention-seconds but maximizes \emph{misses} --- the danger-optimizing degenerate
-the naive ``seconds-per-decision'' objective rewards. A miss is irreversible damage;
-a false alarm is wasted seconds. Because $C_{\text{miss}}\gg C_{\text{fa}}$, the
-optimal criterion sits at minimal \emph{expected cost} (Eq.~\ref{eq:sdt}), well to
-the left of the throughput optimum: \emph{the miss-cost term is what forces the
+are dangerous (right). Zooming triggers when evidence of danger exceeds criterion $\beta$. Moving $\beta$ left
+is more stringent: it causes more zooms, fewer misses, and more false alarms. Moving $\beta$ right
+is more lax: it minimizes attention-seconds but increases misses. Because $C_{\text{miss}}\gg C_{\text{fa}}$, the
+optimal criterion sits well to the left of the throughput optimum: \emph{the miss-cost term is what forces the
 zoom}. Sensitivity $d'$ (curve separation) is improved by better legibility; $\beta$
 is the policy knob $p(r,s,v)$.}
 \label{fig:sdt}
