@@ -185,7 +185,7 @@ describe('Spawn-to-Person publication contract', () => {
 
     expect(chapter).toContain("status: 'Version 1.4 (collected-volume edition)'");
     expect(chapter).toContain('pages: 36');
-    expect(chapter).toContain('sizeKb: 648');
+    expect(chapter).toContain('sizeKb: 647');
     expect(catalog).toContain('Spawn-to-Person diagrams and implementation status align');
     expect(catalog).toContain("chapters: ['III']");
   });
@@ -193,7 +193,7 @@ describe('Spawn-to-Person publication contract', () => {
   test('the committed PDF is the declared 36-page, 630 KiB artifact', () => {
     const pdf = readFileSync(paths.pdf);
     expect(pdfPageCount(pdf)).toBe(36);
-    expect(Math.floor(pdf.length / 1024)).toBe(647); // catalog rounds this to 648
+    expect(Math.floor(pdf.length / 1024)).toBe(646); // catalog rounds this to 647
     expect(sha256(paths.pdf)).toBe(expectedSha256.pdf);
   });
 
