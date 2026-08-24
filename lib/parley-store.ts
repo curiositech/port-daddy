@@ -48,10 +48,18 @@ export const PARLEY_STORE_LIMITS = Object.freeze({
   maxOutboxPayloadBytes: 131_072,
   maxOutboxAttempts: 8,
   maxOutboxClaim: 100,
+  maxDueHarborsPerSweep: 64,
+  maxHarborsPerTenant: 64,
   maxRetainedRecordsPerHarbor: 1_024,
   maxRetainedSignalsPerHarbor: 8_192,
   maxRetainedTurnsPerHarbor: 16_384,
   maxRetainedOutboxPerHarbor: 8_192,
+  maxRetainedRecordsPerTenant: 1_024,
+  maxRetainedSignalsPerTenant: 8_192,
+  maxRetainedTurnsPerTenant: 16_384,
+  maxRetainedOutboxPerTenant: 8_192,
+  maxRetainedRowsPerTenant: 33_792,
+  maxRetainedBytesPerTenant: 64 * 1_024 * 1_024,
   maxOverflowIntentsPerParley: 128,
   maxTtlMs: 90 * 24 * 60 * 60 * 1000,
   retentionMs: 30 * 24 * 60 * 60 * 1000,
@@ -142,6 +150,13 @@ export interface ParleyQuotaSnapshot {
   retainedSignals: number;
   retainedTurns: number;
   retainedOutbox: number;
+}
+
+/** Tenant-wide hard ceiling shared by every caller-selected harbor shard. */
+export interface ParleyTenantQuotaSnapshot extends ParleyQuotaSnapshot {
+  harborCount: number;
+  retainedRows: number;
+  retainedBytes: number;
 }
 
 export interface ParleyStoreSnapshot {
@@ -338,7 +353,210 @@ const PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set([
 const BUDGETED_PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set([
   'propose', 'critique', 'revise', 'inform',
 ]);
+
+type QuotaCounter = 'retained_records' | 'retained_signals' | 'retained_turns' | 'retained_outbox';
+
+/**
+ * Build the SQLite expression used to charge immutable payload bytes.
+ *
+ * The purpose is a deterministic, restart-reconcilable upper ledger rather
+ * than a page-count estimate: UTF-8 text bytes plus a fixed row/storage reserve.
+ * Outbox rows additionally reserve the maximum mutable delivery error so retry
+ * bookkeeping cannot grow outside the charged amount.
+ */
+function accountedBytesSql(
+  alias: 'NEW' | 'OLD' | 'q',
+  columns: readonly string[],
+  reserveBytes = 128,
+): string {
+  return `(${reserveBytes} + ${columns.map((column) => (
+    `length(CAST(COALESCE(${alias}.${column}, '') AS BLOB))`
+  )).join(' + ')})`;
+}
+
+const QUOTA_TABLES = Object.freeze([
+  {
+    table: 'parley_records',
+    trigger: 'records',
+    counter: 'retained_records' as const,
+    perHarborMaximum: PARLEY_STORE_LIMITS.maxRetainedRecordsPerHarbor,
+    tenantMaximum: PARLEY_STORE_LIMITS.maxRetainedRecordsPerTenant,
+    columns: [
+      'tenant_id', 'harbor', 'parley_id', 'surface', 'reason', 'called_by',
+      'trigger', 'channel', 'automatic_signal_id', 'automatic_call_fingerprint',
+      'automatic_lineage_key', 'automatic_checkpoint', 'automatic_kind',
+      'automatic_shape', 'automatic_evidence_json',
+    ],
+    reserveBytes: 128,
+  },
+  {
+    table: 'parley_auto_signals',
+    trigger: 'signals',
+    counter: 'retained_signals' as const,
+    perHarborMaximum: PARLEY_STORE_LIMITS.maxRetainedSignalsPerHarbor,
+    tenantMaximum: PARLEY_STORE_LIMITS.maxRetainedSignalsPerTenant,
+    columns: [
+      'tenant_id', 'harbor', 'signal_id', 'signal_fingerprint',
+      'canonical_signal_json', 'lineage_key', 'producer_id', 'checkpoint',
+      'producer_event_key',
+    ],
+    reserveBytes: 128,
+  },
+  {
+    table: 'parley_turns',
+    trigger: 'turns',
+    counter: 'retained_turns' as const,
+    perHarborMaximum: PARLEY_STORE_LIMITS.maxRetainedTurnsPerHarbor,
+    tenantMaximum: PARLEY_STORE_LIMITS.maxRetainedTurnsPerTenant,
+    columns: [
+      'tenant_id', 'harbor', 'parley_id', 'party', 'idempotency_key',
+      'intent_fingerprint', 'performative', 'content', 'proposal_id',
+      'evidence_json', 'delivery_keys_json',
+    ],
+    reserveBytes: 128,
+  },
+  {
+    table: 'parley_notification_outbox',
+    trigger: 'outbox',
+    counter: 'retained_outbox' as const,
+    perHarborMaximum: PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor,
+    tenantMaximum: PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant,
+    columns: [
+      'tenant_id', 'harbor', 'parley_id', 'delivery_key',
+      'recipient_actor_id', 'inbox_target', 'from_actor_id', 'event_type',
+      'payload_json', 'payload_hash',
+    ],
+    reserveBytes: 128 + 4_096,
+  },
+] as const);
+
+function quotaTriggerSql(spec: (typeof QUOTA_TABLES)[number]): string {
+  const newBytes = accountedBytesSql('NEW', spec.columns, spec.reserveBytes);
+  const oldBytes = accountedBytesSql('OLD', spec.columns, spec.reserveBytes);
+  const label = spec.counter.replaceAll('_', '-');
+  const harborEmpty = `(
+    retained_records = 0 AND retained_signals = 0
+    AND retained_turns = 0 AND retained_outbox = 0
+  )`;
+  return `
+  CREATE TRIGGER trg_parley_${spec.trigger}_quota_insert
+  AFTER INSERT ON ${spec.table}
+  BEGIN
+    INSERT INTO parley_tenant_quota_ledger (tenant_id)
+    VALUES (NEW.tenant_id)
+    ON CONFLICT(tenant_id) DO NOTHING;
+    INSERT INTO parley_quota_ledger (tenant_id, harbor)
+    VALUES (NEW.tenant_id, NEW.harbor)
+    ON CONFLICT(tenant_id, harbor) DO NOTHING;
+    SELECT CASE WHEN (
+      SELECT ${spec.counter} FROM parley_quota_ledger
+      WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor
+    ) >= ${spec.perHarborMaximum}
+      THEN RAISE(ABORT, 'parley ${label} per-harbor quota reached') END;
+    SELECT CASE WHEN (
+      SELECT ${spec.counter} FROM parley_tenant_quota_ledger
+      WHERE tenant_id = NEW.tenant_id
+    ) >= ${spec.tenantMaximum}
+      THEN RAISE(ABORT, 'parley ${label} tenant quota reached') END;
+    SELECT CASE WHEN (
+      SELECT retained_rows FROM parley_tenant_quota_ledger
+      WHERE tenant_id = NEW.tenant_id
+    ) >= ${PARLEY_STORE_LIMITS.maxRetainedRowsPerTenant}
+      THEN RAISE(ABORT, 'parley retained-row tenant quota reached') END;
+    SELECT CASE WHEN (
+      SELECT retained_bytes FROM parley_tenant_quota_ledger
+      WHERE tenant_id = NEW.tenant_id
+    ) + ${newBytes} > ${PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant}
+      THEN RAISE(ABORT, 'parley retained-byte tenant quota reached') END;
+    SELECT CASE WHEN (
+      SELECT ${harborEmpty} FROM parley_quota_ledger
+      WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor
+    ) AND (
+      SELECT harbor_count FROM parley_tenant_quota_ledger
+      WHERE tenant_id = NEW.tenant_id
+    ) >= ${PARLEY_STORE_LIMITS.maxHarborsPerTenant}
+      THEN RAISE(ABORT, 'parley active-harbor tenant quota reached') END;
+    UPDATE parley_tenant_quota_ledger
+    SET harbor_count = harbor_count + CASE WHEN (
+          SELECT ${harborEmpty} FROM parley_quota_ledger
+          WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor
+        ) THEN 1 ELSE 0 END,
+        ${spec.counter} = ${spec.counter} + 1,
+        retained_rows = retained_rows + 1,
+        retained_bytes = retained_bytes + ${newBytes}
+    WHERE tenant_id = NEW.tenant_id;
+    UPDATE parley_quota_ledger
+    SET ${spec.counter} = ${spec.counter} + 1
+    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
+  END;
+
+  CREATE TRIGGER trg_parley_${spec.trigger}_quota_delete
+  BEFORE DELETE ON ${spec.table}
+  BEGIN
+    SELECT CASE WHEN COALESCE((
+      SELECT ${spec.counter} FROM parley_quota_ledger
+      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+    ), 0) < 1 THEN RAISE(ABORT, 'parley ${label} quota ledger underflow') END;
+    SELECT CASE WHEN COALESCE((
+      SELECT ${spec.counter} FROM parley_tenant_quota_ledger
+      WHERE tenant_id = OLD.tenant_id
+    ), 0) < 1 THEN RAISE(ABORT, 'parley ${label} tenant ledger underflow') END;
+    SELECT CASE WHEN COALESCE((
+      SELECT retained_rows FROM parley_tenant_quota_ledger
+      WHERE tenant_id = OLD.tenant_id
+    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-row tenant ledger underflow') END;
+    SELECT CASE WHEN COALESCE((
+      SELECT retained_bytes FROM parley_tenant_quota_ledger
+      WHERE tenant_id = OLD.tenant_id
+    ), 0) < ${oldBytes}
+      THEN RAISE(ABORT, 'parley retained-byte tenant ledger underflow') END;
+    UPDATE parley_quota_ledger
+    SET ${spec.counter} = ${spec.counter} - 1
+    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
+    UPDATE parley_tenant_quota_ledger
+    SET harbor_count = harbor_count - CASE WHEN (
+          SELECT ${harborEmpty} FROM parley_quota_ledger
+          WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+        ) THEN 1 ELSE 0 END,
+        ${spec.counter} = ${spec.counter} - 1,
+        retained_rows = retained_rows - 1,
+        retained_bytes = retained_bytes - ${oldBytes}
+    WHERE tenant_id = OLD.tenant_id;
+    DELETE FROM parley_quota_ledger
+    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
+      AND ${harborEmpty};
+  END;
+  `;
+}
+
 const SCHEMA = `
+  DROP TRIGGER IF EXISTS trg_parley_records_quota_insert;
+  DROP TRIGGER IF EXISTS trg_parley_records_quota_delete;
+  DROP TRIGGER IF EXISTS trg_parley_signals_quota_insert;
+  DROP TRIGGER IF EXISTS trg_parley_signals_quota_delete;
+  DROP TRIGGER IF EXISTS trg_parley_turns_quota_insert;
+  DROP TRIGGER IF EXISTS trg_parley_turns_quota_delete;
+  DROP TRIGGER IF EXISTS trg_parley_outbox_quota_insert;
+  DROP TRIGGER IF EXISTS trg_parley_outbox_quota_delete;
+
+  CREATE TABLE IF NOT EXISTS parley_tenant_quota_ledger (
+    tenant_id TEXT PRIMARY KEY CHECK(length(tenant_id) BETWEEN 1 AND 128),
+    harbor_count INTEGER NOT NULL DEFAULT 0
+      CHECK(harbor_count BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxHarborsPerTenant}),
+    retained_records INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_records BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedRecordsPerTenant}),
+    retained_signals INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_signals BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedSignalsPerTenant}),
+    retained_turns INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_turns BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedTurnsPerTenant}),
+    retained_outbox INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_outbox BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant}),
+    retained_rows INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_rows BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedRowsPerTenant}),
+    retained_bytes INTEGER NOT NULL DEFAULT 0
+      CHECK(retained_bytes BETWEEN 0 AND ${PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant})
+  );
+
   CREATE TABLE IF NOT EXISTS parley_quota_ledger (
     tenant_id TEXT NOT NULL CHECK(length(tenant_id) BETWEEN 1 AND 128),
     harbor TEXT NOT NULL CHECK(length(harbor) BETWEEN 1 AND 128),
@@ -605,6 +823,8 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_parley_outbox_ready
     ON parley_notification_outbox(tenant_id, harbor, state, available_at, id);
+  CREATE INDEX IF NOT EXISTS idx_parley_outbox_tenant_due
+    ON parley_notification_outbox(tenant_id, state, available_at, lease_until, harbor, id);
   CREATE INDEX IF NOT EXISTS idx_parley_outbox_retention
     ON parley_notification_outbox(tenant_id, harbor, delivered_at, id);
 
@@ -627,97 +847,7 @@ const SCHEMA = `
       ON DELETE CASCADE
   );
 
-  CREATE TRIGGER IF NOT EXISTS trg_parley_records_quota_insert
-  AFTER INSERT ON parley_records
-  BEGIN
-    INSERT INTO parley_quota_ledger (tenant_id, harbor)
-    VALUES (NEW.tenant_id, NEW.harbor)
-    ON CONFLICT(tenant_id, harbor) DO NOTHING;
-    UPDATE parley_quota_ledger
-    SET retained_records = retained_records + 1
-    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_records_quota_delete
-  BEFORE DELETE ON parley_records
-  BEGIN
-    SELECT CASE WHEN COALESCE((
-      SELECT retained_records FROM parley_quota_ledger
-      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
-    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-record quota ledger underflow') END;
-    UPDATE parley_quota_ledger
-    SET retained_records = retained_records - 1
-    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_signals_quota_insert
-  AFTER INSERT ON parley_auto_signals
-  BEGIN
-    INSERT INTO parley_quota_ledger (tenant_id, harbor)
-    VALUES (NEW.tenant_id, NEW.harbor)
-    ON CONFLICT(tenant_id, harbor) DO NOTHING;
-    UPDATE parley_quota_ledger
-    SET retained_signals = retained_signals + 1
-    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_signals_quota_delete
-  BEFORE DELETE ON parley_auto_signals
-  BEGIN
-    SELECT CASE WHEN COALESCE((
-      SELECT retained_signals FROM parley_quota_ledger
-      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
-    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-signal quota ledger underflow') END;
-    UPDATE parley_quota_ledger
-    SET retained_signals = retained_signals - 1
-    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_turns_quota_insert
-  AFTER INSERT ON parley_turns
-  BEGIN
-    INSERT INTO parley_quota_ledger (tenant_id, harbor)
-    VALUES (NEW.tenant_id, NEW.harbor)
-    ON CONFLICT(tenant_id, harbor) DO NOTHING;
-    UPDATE parley_quota_ledger
-    SET retained_turns = retained_turns + 1
-    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_turns_quota_delete
-  BEFORE DELETE ON parley_turns
-  BEGIN
-    SELECT CASE WHEN COALESCE((
-      SELECT retained_turns FROM parley_quota_ledger
-      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
-    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-turn quota ledger underflow') END;
-    UPDATE parley_quota_ledger
-    SET retained_turns = retained_turns - 1
-    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_outbox_quota_insert
-  AFTER INSERT ON parley_notification_outbox
-  BEGIN
-    INSERT INTO parley_quota_ledger (tenant_id, harbor)
-    VALUES (NEW.tenant_id, NEW.harbor)
-    ON CONFLICT(tenant_id, harbor) DO NOTHING;
-    UPDATE parley_quota_ledger
-    SET retained_outbox = retained_outbox + 1
-    WHERE tenant_id = NEW.tenant_id AND harbor = NEW.harbor;
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS trg_parley_outbox_quota_delete
-  BEFORE DELETE ON parley_notification_outbox
-  BEGIN
-    SELECT CASE WHEN COALESCE((
-      SELECT retained_outbox FROM parley_quota_ledger
-      WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor
-    ), 0) < 1 THEN RAISE(ABORT, 'parley retained-outbox quota ledger underflow') END;
-    UPDATE parley_quota_ledger
-    SET retained_outbox = retained_outbox - 1
-    WHERE tenant_id = OLD.tenant_id AND harbor = OLD.harbor;
-  END;
+  ${QUOTA_TABLES.map(quotaTriggerSql).join('\n')}
 `;
 
 function hash(value: string): string {
@@ -1162,6 +1292,66 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     };
   }
 
+  function checkedTenantQuotaSnapshot(row: {
+    harbor_count: number;
+    retained_records: number;
+    retained_signals: number;
+    retained_turns: number;
+    retained_outbox: number;
+    retained_rows: number;
+    retained_bytes: number;
+  }, label: string): ParleyTenantQuotaSnapshot {
+    const values = [
+      ['harborCount', row.harbor_count, PARLEY_STORE_LIMITS.maxHarborsPerTenant],
+      ['retainedRecords', row.retained_records, PARLEY_STORE_LIMITS.maxRetainedRecordsPerTenant],
+      ['retainedSignals', row.retained_signals, PARLEY_STORE_LIMITS.maxRetainedSignalsPerTenant],
+      ['retainedTurns', row.retained_turns, PARLEY_STORE_LIMITS.maxRetainedTurnsPerTenant],
+      ['retainedOutbox', row.retained_outbox, PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant],
+      ['retainedRows', row.retained_rows, PARLEY_STORE_LIMITS.maxRetainedRowsPerTenant],
+      ['retainedBytes', row.retained_bytes, PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant],
+    ] as const;
+    for (const [name, value, maximum] of values) {
+      if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
+        throw new Error(`parley tenant quota ledger poisoned row: ${label}.${name} is invalid`);
+      }
+    }
+    return {
+      harborCount: row.harbor_count,
+      retainedRecords: row.retained_records,
+      retainedSignals: row.retained_signals,
+      retainedTurns: row.retained_turns,
+      retainedOutbox: row.retained_outbox,
+      retainedRows: row.retained_rows,
+      retainedBytes: row.retained_bytes,
+    };
+  }
+
+  function tenantQuotaSnapshot(): ParleyTenantQuotaSnapshot {
+    const row = db.prepare(`
+      SELECT harbor_count, retained_records, retained_signals, retained_turns,
+             retained_outbox, retained_rows, retained_bytes
+      FROM parley_tenant_quota_ledger
+      WHERE tenant_id = ?
+    `).get(tenantId) as {
+      harbor_count: number;
+      retained_records: number;
+      retained_signals: number;
+      retained_turns: number;
+      retained_outbox: number;
+      retained_rows: number;
+      retained_bytes: number;
+    } | undefined;
+    return row ? checkedTenantQuotaSnapshot(row, tenantId) : {
+      harborCount: 0,
+      retainedRecords: 0,
+      retainedSignals: 0,
+      retainedTurns: 0,
+      retainedOutbox: 0,
+      retainedRows: 0,
+      retainedBytes: 0,
+    };
+  }
+
   function assertQuotaAvailable(
     harbor: string,
     deltas: Partial<ParleyQuotaSnapshot>,
@@ -1224,19 +1414,60 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         const count = (table: string): number => Number((db.prepare(`
           SELECT COUNT(*) AS count FROM ${table} WHERE tenant_id = ? AND harbor = ?
         `).get(tenantId, harbor) as { count: number }).count);
+        const bytes = QUOTA_TABLES.reduce((total, spec) => {
+          const row = db.prepare(`
+            SELECT COALESCE(SUM(${accountedBytesSql('q', spec.columns, spec.reserveBytes)}), 0) AS bytes
+            FROM ${spec.table} AS q
+            WHERE tenant_id = ? AND harbor = ?
+          `).get(tenantId, harbor) as { bytes: number };
+          return total + Number(row.bytes);
+        }, 0);
         return {
           harbor,
           retained_records: count('parley_records'),
           retained_signals: count('parley_auto_signals'),
           retained_turns: count('parley_turns'),
           retained_outbox: count('parley_notification_outbox'),
+          retained_bytes: bytes,
         };
       });
       for (const row of reconciled) checkedQuotaSnapshot(row, `${tenantId}/${row.harbor}`);
+      const tenantRow = {
+        harbor_count: reconciled.length,
+        retained_records: reconciled.reduce((total, row) => total + row.retained_records, 0),
+        retained_signals: reconciled.reduce((total, row) => total + row.retained_signals, 0),
+        retained_turns: reconciled.reduce((total, row) => total + row.retained_turns, 0),
+        retained_outbox: reconciled.reduce((total, row) => total + row.retained_outbox, 0),
+        retained_rows: reconciled.reduce((total, row) => (
+          total + row.retained_records + row.retained_signals
+          + row.retained_turns + row.retained_outbox
+        ), 0),
+        retained_bytes: reconciled.reduce((total, row) => total + row.retained_bytes, 0),
+      };
+      checkedTenantQuotaSnapshot(tenantRow, tenantId);
+      db.prepare(`
+        DELETE FROM parley_tenant_quota_ledger
+        WHERE tenant_id = ?
+      `).run(tenantId);
       db.prepare(`
         DELETE FROM parley_quota_ledger
         WHERE tenant_id = ?
       `).run(tenantId);
+      db.prepare(`
+        INSERT INTO parley_tenant_quota_ledger (
+          tenant_id, harbor_count, retained_records, retained_signals,
+          retained_turns, retained_outbox, retained_rows, retained_bytes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        tenantRow.harbor_count,
+        tenantRow.retained_records,
+        tenantRow.retained_signals,
+        tenantRow.retained_turns,
+        tenantRow.retained_outbox,
+        tenantRow.retained_rows,
+        tenantRow.retained_bytes,
+      );
       const insert = db.prepare(`
         INSERT INTO parley_quota_ledger (
           tenant_id, harbor, retained_records, retained_signals,
@@ -1891,6 +2122,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         eventType: 'parley_escalation' as const,
         payload: {
           kind: 'parley_escalation',
+          harbor: row.harbor,
           parleyId: row.parley_id,
           surface: row.surface,
           channel: row.channel,
@@ -3034,6 +3266,41 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     return transaction();
   }
 
+  /**
+   * Discover tenant-scoped harbors that have work eligible for recovery now.
+   * The tenant-wide index and hard harbor ceiling keep restart sweeps bounded;
+   * callers never need to remember which caller-selected harbor held the row.
+   */
+  function dueNotificationHarbors(options: { limit?: number } = {}): string[] {
+    const limit = options.limit ?? PARLEY_STORE_LIMITS.maxDueHarborsPerSweep;
+    if (!Number.isInteger(limit) || limit < 1 || limit > PARLEY_STORE_LIMITS.maxDueHarborsPerSweep) {
+      throw new Error(
+        `outbox due-harbor limit must be between 1 and ${PARLEY_STORE_LIMITS.maxDueHarborsPerSweep}`,
+      );
+    }
+    const at = assertFiniteTimestamp(now(), 'outbox due-harbor scan time');
+    const rows = db.prepare(`
+      SELECT harbor,
+             MIN(CASE WHEN state = 'leased' THEN lease_until ELSE available_at END) AS due_at
+      FROM parley_notification_outbox
+      WHERE tenant_id = ?
+        AND (
+          (state = 'pending' AND available_at <= ? AND attempts < ?)
+          OR (state = 'leased' AND lease_until <= ?)
+        )
+      GROUP BY harbor
+      ORDER BY due_at ASC, harbor ASC
+      LIMIT ?
+    `).all(
+      tenantId,
+      at,
+      PARLEY_STORE_LIMITS.maxOutboxAttempts,
+      at,
+      limit,
+    ) as Array<{ harbor: string }>;
+    return rows.map((row) => scope(row.harbor));
+  }
+
   function acknowledgeNotification(harborInput: string, id: number, leaseToken: string): void {
     const harbor = scope(harborInput);
     if (!Number.isSafeInteger(id) || id < 1) throw new Error('outbox id is invalid');
@@ -3217,6 +3484,10 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     return quotaSnapshot(scope(harborInput));
   }
 
+  function inspectTenantQuota(): ParleyTenantQuotaSnapshot {
+    return tenantQuotaSnapshot();
+  }
+
   return {
     tenantId,
     createManual,
@@ -3227,12 +3498,14 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     list,
     addTurn,
     markSeen,
+    dueNotificationHarbors,
     claimNotifications,
     acknowledgeNotification,
     retryNotification,
     reap,
     inspectCounts,
     inspectQuota,
+    inspectTenantQuota,
   };
 }
 

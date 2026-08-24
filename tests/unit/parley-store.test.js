@@ -671,6 +671,89 @@ describe('automatic freshness, durable tombstones, and outer transaction seam', 
 });
 
 describe('outbox leases and crash-safe retries', () => {
+  test('restart recovery drains a non-default harbor without a later request', () => {
+    withDatabasePath((path) => {
+      const recoveryHarbor = 'harbor-after-restart';
+      const seedDb = new Database(path);
+      try {
+        const seedStore = createParleyStore({ db: seedDb, tenantId: TENANT, now: () => clock });
+        const unavailableInbox = makeInbox({ fail: true });
+        const seedParley = createParley({
+          store: seedStore,
+          defaultHarbor: HARBOR,
+          agentInbox: unavailableInbox,
+          now: () => clock,
+        });
+        seedParley.call({
+          surface: 'lib/restart-recovery.ts',
+          reason: 'prove committed delivery survives restart',
+          parties: ['agent-a', 'agent-b'],
+          calledBy: 'operator',
+          harbor: recoveryHarbor,
+          ttlMs: 60_000,
+        });
+        clock += 250;
+        expect(seedStore.dueNotificationHarbors()).toEqual([recoveryHarbor]);
+      } finally {
+        seedDb.close();
+      }
+
+      const reopened = new Database(path);
+      const recoveredInbox = makeInbox();
+      try {
+        const recoveredStore = createParleyStore({ db: reopened, tenantId: TENANT, now: () => clock });
+        createParley({
+          store: recoveredStore,
+          defaultHarbor: HARBOR,
+          agentInbox: recoveredInbox,
+          now: () => clock,
+        });
+        expect(recoveredInbox.deliveries).toHaveLength(2);
+        expect(recoveredInbox.deliveries.every(({ content }) => (
+          content.harbor === recoveryHarbor
+        ))).toBe(true);
+        expect(recoveredStore.dueNotificationHarbors()).toEqual([]);
+      } finally {
+        reopened.close();
+      }
+    });
+  });
+
+  test('owned recovery scheduler retries due work and can be stopped', () => {
+    const failingInbox = makeInbox({ fail: true });
+    createManual();
+    let scheduled;
+    let cleared = false;
+    const recovering = createParley({
+      store,
+      defaultHarbor: HARBOR,
+      agentInbox: failingInbox,
+      now: () => clock,
+      notificationRecovery: {
+        intervalMs: 250,
+        setInterval(callback, delayMs) {
+          scheduled = { callback, delayMs, unref() {} };
+          return scheduled;
+        },
+        clearInterval(handle) {
+          expect(handle).toBe(scheduled);
+          cleared = true;
+        },
+      },
+    });
+    expect(scheduled.delayMs).toBe(250);
+    expect(failingInbox.deliveries).toHaveLength(2);
+
+    failingInbox.state.fail = false;
+    clock += 250;
+    scheduled.callback();
+    expect(failingInbox.successfulKeys.size).toBe(2);
+    expect(store.dueNotificationHarbors()).toEqual([]);
+
+    recovering.internal.stopNotificationRecovery();
+    expect(cleared).toBe(true);
+  });
+
   test('expired lease tokens cannot ack or retry until a fresh lease reclaims the row', () => {
     createManual();
     const [firstLease] = store.claimNotifications(HARBOR, { limit: 1, leaseMs: 1_000 });
@@ -933,14 +1016,20 @@ describe('retained quota admission and bounded terminal overflow receipts', () =
     withDatabasePath((path) => {
       const seedDb = new Database(path);
       let expected;
+      let expectedTenant;
       try {
         const seedStore = createParleyStore({ db: seedDb, tenantId: TENANT, now: () => clock });
         const record = persistManual(
           seedStore,
           manualRecord({ parleyId: 'quota-rebuild', ttlMs: null }),
         );
+        persistManual(
+          seedStore,
+          manualRecord({ harbor: 'harbor-b', parleyId: 'quota-rebuild-b', ttlMs: null }),
+        );
         seedStore.addTurn(storeTurnInput(record, { notifications: () => [] }));
         expected = seedStore.inspectQuota(HARBOR);
+        expectedTenant = seedStore.inspectTenantQuota();
         seedDb.pragma('ignore_check_constraints = ON');
         seedDb.prepare(`
           UPDATE parley_quota_ledger
@@ -955,6 +1044,16 @@ describe('retained quota admission and bounded terminal overflow receipts', () =
           TENANT,
           HARBOR,
         );
+        seedDb.prepare(`
+          UPDATE parley_tenant_quota_ledger
+          SET harbor_count = ?, retained_rows = ?, retained_bytes = ?
+          WHERE tenant_id = ?
+        `).run(
+          PARLEY_STORE_LIMITS.maxHarborsPerTenant + 1,
+          PARLEY_STORE_LIMITS.maxRetainedRowsPerTenant + 1,
+          PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant + 1,
+          TENANT,
+        );
       } finally {
         seedDb.close();
       }
@@ -963,6 +1062,73 @@ describe('retained quota admission and bounded terminal overflow receipts', () =
       try {
         const rebuilt = createParleyStore({ db: reopened, tenantId: TENANT, now: () => clock });
         expect(rebuilt.inspectQuota(HARBOR)).toEqual(expected);
+        expect(rebuilt.inspectTenantQuota()).toEqual(expectedTenant);
+      } finally {
+        reopened.close();
+      }
+    });
+  });
+
+  test('unique caller-selected harbor shards cannot evade the tenant harbor ceiling', () => {
+    for (let index = 0; index < PARLEY_STORE_LIMITS.maxHarborsPerTenant; index++) {
+      persistManual(store, manualRecord({
+        harbor: `tenant-shard-${index}`,
+        parleyId: `tenant-shard-parley-${index}`,
+        ttlMs: null,
+      }));
+    }
+    expect(store.inspectTenantQuota()).toMatchObject({
+      harborCount: PARLEY_STORE_LIMITS.maxHarborsPerTenant,
+      retainedRecords: PARLEY_STORE_LIMITS.maxHarborsPerTenant,
+      retainedRows: PARLEY_STORE_LIMITS.maxHarborsPerTenant,
+    });
+    expect(() => persistManual(store, manualRecord({
+      harbor: 'tenant-shard-overflow',
+      parleyId: 'tenant-shard-overflow',
+      ttlMs: null,
+    }))).toThrow(/active-harbor tenant quota/);
+    expect(store.inspectTenantQuota()).toMatchObject({
+      harborCount: PARLEY_STORE_LIMITS.maxHarborsPerTenant,
+      retainedRecords: PARLEY_STORE_LIMITS.maxHarborsPerTenant,
+    });
+    expect(store.inspectCounts('tenant-shard-overflow').parley_records).toBe(0);
+  });
+
+  test('restart rejects canonical rows sharded across too many harbors', () => {
+    withDatabasePath((path) => {
+      const seedDb = new Database(path);
+      try {
+        createParleyStore({ db: seedDb, tenantId: TENANT, now: () => clock });
+        seedDb.exec('DROP TRIGGER trg_parley_records_quota_insert');
+        const insert = seedDb.prepare(`
+          INSERT INTO parley_records (
+            tenant_id, harbor, parley_id, surface, reason, called_by,
+            trigger, channel, status, response_due_at, round_limit,
+            created_at, updated_at, retention_until
+          ) VALUES (?, ?, ?, 'migration-fixture', 'legacy retained row', 'operator',
+            'operator', ?, 'SUMMONED', NULL, 1, ?, ?, ?)
+        `);
+        seedDb.transaction(() => {
+          for (let index = 0; index <= PARLEY_STORE_LIMITS.maxHarborsPerTenant; index++) {
+            insert.run(
+              TENANT,
+              `legacy-shard-${index}`,
+              `legacy-shard-parley-${index}`,
+              `parley:legacy-shard-${index}`,
+              clock,
+              clock,
+              clock + PARLEY_STORE_LIMITS.retentionMs,
+            );
+          }
+        })();
+      } finally {
+        seedDb.close();
+      }
+
+      const reopened = new Database(path);
+      try {
+        expect(() => createParleyStore({ db: reopened, tenantId: TENANT, now: () => clock }))
+          .toThrow(/tenant quota ledger poisoned row:.*harborCount/);
       } finally {
         reopened.close();
       }

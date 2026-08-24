@@ -655,7 +655,12 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
 });
 // The local daemon is one tenant. CAP0 owns any future authenticated tenant
 // binding; request data must never choose this STORE0 authority.
-const parley = createParley({ db, tenantId: 'local-daemon', agentInbox });
+const parley = createParley({
+  db,
+  tenantId: 'local-daemon',
+  agentInbox,
+  notificationRecovery: {},
+});
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.

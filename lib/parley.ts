@@ -197,6 +197,12 @@ export interface ParleyDeps {
   defaultHarbor?: string;
   agentInbox?: AgentInboxMin;
   now?: () => number;
+  /** Optional scheduler override for deterministic recovery tests. */
+  notificationRecovery?: {
+    intervalMs?: number;
+    setInterval?: (callback: () => void, delayMs: number) => unknown;
+    clearInterval?: (handle: unknown) => void;
+  };
 }
 
 export interface AdmitAutomaticParleyInput {
@@ -366,6 +372,12 @@ export function createParley(deps: ParleyDeps) {
     now,
   });
   const agentInbox = deps.agentInbox;
+  const recoveryIntervalMs = deps.notificationRecovery?.intervalMs ?? 1_000;
+  if (!Number.isSafeInteger(recoveryIntervalMs)
+    || recoveryIntervalMs < 250
+    || recoveryIntervalMs > 60_000) {
+    throw new Error('createParley: notification recovery interval must be between 250 and 60000');
+  }
 
   function harbor(value?: string): string {
     const canonical = value?.trim() || defaultHarbor;
@@ -442,6 +454,7 @@ export function createParley(deps: ParleyDeps) {
       eventType: 'parley_summons',
       payload: {
         kind: 'parley_summons',
+        harbor: record.harbor,
         parleyId: record.parleyId,
         surface: record.surface,
         reason: record.reason,
@@ -782,6 +795,7 @@ export function createParley(deps: ParleyDeps) {
         eventType: 'parley_turn',
         payload: {
           kind: 'parley_turn',
+          harbor: harborName,
           parleyId,
           surface: snapshot.parley.surface,
           channel: snapshot.parley.channel,
@@ -859,8 +873,49 @@ export function createParley(deps: ParleyDeps) {
     }
   }
 
-  // Recover committed-but-unpublished notifications after daemon restart.
-  notificationDelivery(defaultHarbor);
+  function recoverDueNotifications(): {
+    harbors: string[];
+    delivered: number;
+    failures: number;
+  } {
+    const harbors = store.dueNotificationHarbors();
+    let delivered = 0;
+    let failures = 0;
+    for (const harborName of harbors) {
+      const result = notificationDelivery(harborName);
+      delivered += result.delivered.length;
+      failures += result.failures.length;
+    }
+    return { harbors, delivered, failures };
+  }
+
+  // Recover every committed-but-unpublished tenant harbor after daemon restart.
+  recoverDueNotifications();
+
+  // The owner explicitly opts into a timer and therefore owns stopping it.
+  // Startup recovery above is unconditional and remains deterministic for
+  // store-injected library/test instances.
+  const recoveryScheduler = deps.notificationRecovery ? {
+    setInterval: deps.notificationRecovery.setInterval
+      ?? ((callback: () => void, delayMs: number): unknown => globalThis.setInterval(callback, delayMs)),
+    clearInterval: deps.notificationRecovery.clearInterval
+      ?? ((handle: unknown): void => {
+        globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval>);
+      }),
+  } : null;
+  const recoveryHandle = recoveryScheduler?.setInterval(() => {
+    recoverDueNotifications();
+  }, recoveryIntervalMs) ?? null;
+  if (recoveryHandle && typeof recoveryHandle === 'object'
+    && 'unref' in recoveryHandle
+    && typeof recoveryHandle.unref === 'function') {
+    recoveryHandle.unref();
+  }
+
+  function stopNotificationRecovery(): void {
+    if (recoveryHandle === null) return;
+    recoveryScheduler?.clearInterval(recoveryHandle);
+  }
 
   return {
     call,
@@ -875,6 +930,8 @@ export function createParley(deps: ParleyDeps) {
     internal: {
       admitAutomaticInTransaction,
       drainNotifications: notificationDelivery,
+      recoverDueNotifications,
+      stopNotificationRecovery,
     },
   };
 }
