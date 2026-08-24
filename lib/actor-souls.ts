@@ -55,6 +55,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { isReservedIdentityName } from './reserved-identity-names.js';
 
 // ─── Branded principal type (ADR-0040 §8 widening boundary) ─────────────────────
 // A minted ULID *or* a migrated legacy string satisfies this via asActorId().
@@ -120,6 +121,7 @@ export type RegisterOutcome =
   | { ok: true; status: 'minted';     actorId: ActorId; soulClass: SoulClass; credential: string }
   | { ok: false; status: 'rejected';  code: 'CREDENTIAL_INVALID'; httpStatus: 401 }
   | { ok: false; status: 'rejected';  code: 'NEWCOMER_ADMIT_LIMIT'; httpStatus: 429 }
+  | { ok: false; status: 'rejected';  code: 'RESERVED_ALIAS'; httpStatus: 403 }
   | { ok: false; status: 'rejected';  code: 'STORE_UNAVAILABLE'; httpStatus: 503 };
 
 export interface ResolvedActor {
@@ -420,6 +422,20 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
         if (!actorId) {
           return { ok: false, status: 'rejected', code: 'CREDENTIAL_INVALID', httpStatus: 401 };
         }
+        // Reserved-alias guard (#8877): a valid soul-secret is still a
+        // SELF-SERVICE principal. It may re-bind a reserved authority alias
+        // (`system`, `coxswain`, …) ONLY when it is an operator-trusted soul,
+        // or already owns that exact alias (an operator provisioned it once).
+        // Otherwise this door is a laundering bypass for /sugar/begin's guard:
+        // bind `system → me`, then begin under agentId "system" passes because
+        // resolveActor("system") now points at the caller's own soul.
+        if (params.alias && isReservedIdentityName(params.alias)) {
+          const isOperator = classify(actorId, harbor) === 'operator';
+          const alreadyOwns = resolveAlias(params.alias, harbor) === actorId;
+          if (!isOperator && !alreadyOwns) {
+            return { ok: false, status: 'rejected', code: 'RESERVED_ALIAS', httpStatus: 403 };
+          }
+        }
         touchSoul.run(ts, params.alias ?? null, harbor, actorId);
         if (params.alias) upsertAlias.run(harbor, params.alias, actorId, ts);
         return { ok: true, status: 'resolved', actorId, soulClass: classify(actorId, harbor) };
@@ -438,6 +454,14 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       //    credential MUST NOT resolve to the existing id — it fails closed to a
       //    NEW newcomer (F2 impersonation guard). So we intentionally do NOT look
       //    the alias up here; every uncredentialed registration mints fresh.
+
+      // Reserved-alias guard (#8877): an uncredentialed caller is pure
+      // self-service and may NEVER bind a reserved authority alias. Refuse
+      // BEFORE minting or spending an admission slot — otherwise this door
+      // provisions `system → attacker`, poisoning /sugar/begin's guard.
+      if (params.alias && isReservedIdentityName(params.alias)) {
+        return { ok: false, status: 'rejected', code: 'RESERVED_ALIAS', httpStatus: 403 };
+      }
 
       // 3a. Admission rate-limit: bound distinct newcomer souls per project/day.
       //     A registration with NO project must still be metered — otherwise

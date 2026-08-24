@@ -194,7 +194,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
           ? 'credential did not verify'
           : outcome.code === 'NEWCOMER_ADMIT_LIMIT'
             ? 'newcomer admission limit reached for this project today'
-            : 'identity store unavailable',
+            : outcome.code === 'RESERVED_ALIAS'
+              ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
+              : 'identity store unavailable',
         code: outcome.code,
       });
     }
