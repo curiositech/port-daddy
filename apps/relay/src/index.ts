@@ -161,7 +161,11 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from './fleet-observability.js';
-import { handleFleetRunPage, handleFleetRunTranscript } from './fleet-run-page.js';
+import {
+  handleFleetRunPage,
+  handleFleetRunTranscript,
+  handleFleetRunTranscriptPage,
+} from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
@@ -506,6 +510,22 @@ export default {
     ) {
       const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcript\/([^/]+)\.jsonl$/);
       response = await handleFleetRunTranscript(
+        request,
+        env,
+        decodeURIComponent(m?.[1] ?? ''),
+        decodeURIComponent(m?.[2] ?? ''),
+      );
+    }
+
+    // ── Transcript VIEWER (HTML turn-card timeline over the same capture;
+    //    same capability scheme; Phase 2 of the RFC) ─────────────────────────
+    else if (
+      pathname.startsWith('/fleet/runs/') &&
+      method === 'GET' &&
+      /^\/fleet\/runs\/.+\/transcript\/[^/]+$/.test(pathname)
+    ) {
+      const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcript\/([^/]+)$/);
+      response = await handleFleetRunTranscriptPage(
         request,
         env,
         decodeURIComponent(m?.[1] ?? ''),

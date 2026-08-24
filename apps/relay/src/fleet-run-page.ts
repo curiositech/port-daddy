@@ -331,6 +331,35 @@ details.raw pre{margin:8px 0 0;padding:12px;overflow-x:auto;background:var(--sur
   .ship-head{padding:13px 16px}.tl-body{padding:12px 14px 14px 4px}
   .tl-step{grid-template-columns:28px 1fr}
 }
+
+/* ── raw session transcript viewer (pd-transcript.v1; Phase 2) ─────────── */
+.tvx{max-width:980px;margin:0 auto;padding:18px 16px 60px}
+.tvx-mast{background:var(--surface-raised);border:1px solid var(--surface-strong);padding:14px 16px;margin-bottom:14px}
+.tvx-mast h1{font:600 17px/1.3 "IBM Plex Sans",sans-serif;color:var(--text-primary);margin-bottom:6px}
+.tvx-facts{display:flex;flex-wrap:wrap;gap:6px 16px;font:400 12px/1.5 "IBM Plex Mono",monospace;color:var(--text-secondary)}
+.tvx-facts b{color:var(--text-primary);font-weight:600}
+.tvx-links{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 14px;font:500 12px/1.5 "IBM Plex Mono",monospace}
+.tvx-links a{color:var(--cobalt);text-decoration:none;border-bottom:1px solid var(--surface-strong)}
+.tvx-attempt-on{font-weight:700;color:var(--text-primary)}
+.turn{background:var(--surface-raised);border:1px solid var(--surface-strong);margin-bottom:10px}
+.turn-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;padding:8px 12px;border-bottom:1px solid var(--surface-strong);font:400 11.5px/1.5 "IBM Plex Mono",monospace;color:var(--text-muted)}
+.turn-kind{font-weight:700;letter-spacing:.06em;padding:1px 7px;border:1px solid var(--surface-strong)}
+.turn-system .turn-kind{color:var(--text-muted)}
+.turn-user .turn-kind{color:var(--cobalt)}
+.turn-assistant .turn-kind{color:var(--teal)}
+.turn-error .turn-kind{color:var(--error);border-color:var(--error)}
+.turn-phase{color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.turn-model code{color:var(--text-secondary)}
+.turn-anchor{margin-left:auto;color:var(--text-ghost);text-decoration:none}
+.turn-anchor:hover{color:var(--cobalt)}
+.turn-badge{color:var(--amber);font-weight:700}
+.turn-body{padding:10px 12px}
+.turn-body pre{white-space:pre-wrap;word-break:break-word;font:400 12px/1.6 "IBM Plex Mono",monospace;color:var(--text-primary);max-height:520px;overflow:auto}
+.turn-error .turn-body pre{color:var(--error)}
+.turn-body details>summary{cursor:pointer;font:500 12px/1.6 "IBM Plex Mono",monospace;color:var(--text-secondary)}
+.turn-sysref{font:400 12px/1.6 "IBM Plex Mono",monospace;color:var(--text-ghost)}
+.tvx-notice{background:var(--surface-strong);padding:10px 12px;margin-bottom:12px;font:400 12px/1.6 "IBM Plex Mono",monospace;color:var(--text-secondary)}
+:target.turn{outline:2px solid var(--cobalt)}
 `;
 
 function shell(title: string, inner: string): string {
@@ -1745,10 +1774,35 @@ async function listTranscriptLinks(
   return [...newest.values()].map(row => ({
     ship: row.ship,
     attempt: row.attempt,
+    // The HTML viewer, not the raw object: the viewer is the human surface and
+    // itself links the raw .jsonl download (docs/FLEET-SESSION-TRANSCRIPTS.md
+    // Phase 2). Machine consumers hit the .jsonl route directly.
     href:
       `/fleet/runs/${encodeURIComponent(runId)}/transcript/` +
-      `${encodeURIComponent(row.ship)}.jsonl${suffix}`,
+      `${encodeURIComponent(row.ship)}${suffix}`,
   }));
+}
+
+/**
+ * The ONE authorization rule for everything under /fleet/runs/:id — the HTML
+ * receipt, the transcript viewer, and the raw .jsonl route all accept exactly
+ * the same three credentials: operator bearer, the run's `?t=<hmac>` capability
+ * token, or a signed-in user GitHub says can read the run's repo. Shared so the
+ * surfaces can never drift apart on who may see a run's deliberations.
+ *
+ * @param request The incoming request (bearer header / `t` query / cookie).
+ * @param env Worker bindings + secrets.
+ * @param runId The run whose material is being requested.
+ * @returns true iff this viewer may see the run — false is rendered as 404.
+ */
+async function authorizedForRun(request: Request, env: Env, runId: string): Promise<boolean> {
+  if (await hasTokenAuth(request, env, runId)) return true;
+  const session = await resolveSession(request, env);
+  if (!session) return false;
+  const found = await getFleetRunProjectionWithSteps(env.DB, runId);
+  const [owner, repo] = (found?.run.repo_full_name ?? '').split('/');
+  if (!owner || !repo) return false;
+  return userCanReadRepo(env, session, owner, repo);
 }
 
 /**
@@ -1775,15 +1829,7 @@ export async function handleFleetRunTranscript(
   if (!TRANSCRIPT_SHIP_RE.test(ship)) return notFound();
   if (!env.TRANSCRIPTS) return notFound();
   try {
-    const tokenOk = await hasTokenAuth(request, env, runId);
-    if (!tokenOk) {
-      const session = await resolveSession(request, env);
-      if (!session) return notFound();
-      const found = await getFleetRunProjectionWithSteps(env.DB, runId);
-      const [owner, repo] = (found?.run.repo_full_name ?? '').split('/');
-      if (!owner || !repo) return notFound();
-      if (!(await userCanReadRepo(env, session, owner, repo))) return notFound();
-    }
+    if (!(await authorizedForRun(request, env, runId))) return notFound();
     const rows = (await listTranscriptIndexRows(env.DB, runId)).filter(r => r.ship === ship);
     if (rows.length === 0) return notFound();
     const wanted = new URL(request.url).searchParams.get('attempt');
@@ -1805,5 +1851,227 @@ export async function handleFleetRunTranscript(
     });
   } catch {
     return notFound();
+  }
+}
+
+// ── pd-transcript.v1 HTML viewer (Phase 2 — docs/FLEET-SESSION-TRANSCRIPTS.md)
+
+/** One parsed pd-transcript.v1 envelope, exactly as the executor wrote it. */
+interface ViewerTurn {
+  v: number;
+  seq: number;
+  phase: string;
+  chunk: { index: number; count: number } | null;
+  kind: string;
+  model: string;
+  ts: number;
+  latencyMs: number | null;
+  usage: { prompt: number; completion: number } | null;
+  costUsd: number | null;
+  content: Array<{ type: string; text: string }>;
+  sysRef: string | null;
+  truncated: boolean;
+}
+
+/**
+ * Parse a pd-transcript.v1 JSONL body TOLERANTLY: a malformed line or an
+ * envelope from an unknown major version is counted, never thrown — the viewer
+ * must render whatever forensic material survives, with an honest notice about
+ * what did not, because a transcript is read precisely when something already
+ * went wrong.
+ */
+function parseTranscriptJsonl(body: string): {
+  turns: ViewerTurn[];
+  badLines: number;
+  unsupportedVersion: number;
+} {
+  const turns: ViewerTurn[] = [];
+  let badLines = 0;
+  let unsupportedVersion = 0;
+  for (const line of body.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const t = JSON.parse(line) as ViewerTurn;
+      if (typeof t !== 'object' || t === null || typeof t.seq !== 'number') {
+        badLines += 1;
+        continue;
+      }
+      if (t.v !== 1) {
+        unsupportedVersion += 1;
+        continue;
+      }
+      if (!Array.isArray(t.content)) {
+        // Wrong-typed content is the same corruption class as unparseable
+        // JSON: the body cannot be rendered faithfully, so count it — the
+        // notice discloses it and the raw download still carries the bytes.
+        badLines += 1;
+        continue;
+      }
+      if (t.usage && (typeof t.usage.prompt !== 'number' || typeof t.usage.completion !== 'number')) {
+        t.usage = null;
+      }
+      if (t.chunk && (typeof t.chunk.index !== 'number' || typeof t.chunk.count !== 'number')) {
+        t.chunk = null;
+      }
+      turns.push(t);
+    } catch {
+      badLines += 1;
+    }
+  }
+  return { turns, badLines, unsupportedVersion };
+}
+
+/** Phase chip text: `MAP 3/7` for chunked turns, `PLAN`/`GATE`/… otherwise. */
+function turnPhaseLabel(t: ViewerTurn): string {
+  const base = String(t.phase ?? '').toUpperCase();
+  return t.chunk ? `${base} ${t.chunk.index + 1}/${t.chunk.count}` : base;
+}
+
+/** Render one turn card — anchored `#t{seq}`, no scripts, everything escaped. */
+function renderTurnCard(t: ViewerTurn, firstSysSeqByRef: Map<string, number>): string {
+  const kind = ['system', 'user', 'assistant', 'error'].includes(t.kind) ? t.kind : 'assistant';
+  // Belt to the parser's braces: renderTranscriptViewerPage is exported, so
+  // never trust a caller to have run parseTranscriptJsonl's shape gate.
+  const text = (Array.isArray(t.content) ? t.content : []).map(c => (typeof c?.text === 'string' ? c.text : '')).join('');
+  const usage = t.usage
+    ? `<span>${t.usage.prompt.toLocaleString('en-US')} in / ${t.usage.completion.toLocaleString('en-US')} out</span>`
+    : '';
+  const cost = typeof t.costUsd === 'number' && t.costUsd > 0 ? `<span>${fmtUsd(t.costUsd)}</span>` : '';
+  const latency =
+    typeof t.latencyMs === 'number' && t.latencyMs >= 0 ? `<span>${(t.latencyMs / 1000).toFixed(1)}s</span>` : '';
+  const truncated = t.truncated ? `<span class="turn-badge">TRUNCATED</span>` : '';
+
+  let body: string;
+  if (kind === 'system' && t.sysRef && text === '') {
+    // Dedup repeat: the full prompt lives on the first turn carrying this hash.
+    const firstSeq = firstSysSeqByRef.get(t.sysRef);
+    body =
+      firstSeq !== undefined
+        ? `<div class="turn-sysref">same system prompt as <a href="#t${firstSeq}">#t${firstSeq}</a></div>`
+        : `<div class="turn-sysref">system prompt body deduplicated (${esc(t.sysRef)})</div>`;
+  } else if (kind === 'system' || kind === 'user') {
+    // Prompts are bulky and usually context the reader already knows — folded
+    // by default, one keypress-free click away. <details> needs no scripts.
+    const label = kind === 'system' ? 'system prompt' : 'user message';
+    body = `<details><summary>${label} · ${text.length.toLocaleString('en-US')} chars</summary><pre>${esc(text)}</pre></details>`;
+  } else {
+    body = `<pre>${esc(text)}</pre>`;
+  }
+
+  return `<article class="turn turn-${kind}" id="t${t.seq}">
+  <div class="turn-head">
+    <span class="turn-kind">${kind.toUpperCase()}</span>
+    <span class="turn-phase">${esc(turnPhaseLabel(t))}</span>
+    <span class="turn-model"><code>${esc(t.model ?? '')}</code></span>
+    ${usage}${cost}${latency}${truncated}
+    <span class="t" title="+unix ${t.ts}">${fmtClockUtc(t.ts)}</span>
+    <a class="turn-anchor" href="#t${t.seq}">#t${t.seq}</a>
+  </div>
+  <div class="turn-body">${body}</div>
+</article>`;
+}
+
+/**
+ * Render the full transcript viewer page: masthead (run link, attempt chips,
+ * aggregate spend, raw download) + the turn-card timeline. Pure server-side
+ * HTML under the run page's no-script CSP — model output renders as escaped
+ * text, folding uses <details>, permalinks are plain anchors. Exported for
+ * render tests.
+ */
+export function renderTranscriptViewerPage(opts: {
+  runId: string;
+  ship: string;
+  attempt: number;
+  attempts: number[];
+  turns: ViewerTurn[];
+  badLines: number;
+  unsupportedVersion: number;
+  tokenSuffix: string;
+}): string {
+  const { runId, ship, attempt, attempts, turns, tokenSuffix } = opts;
+  const base = `/fleet/runs/${encodeURIComponent(runId)}/transcript/${encodeURIComponent(ship)}`;
+  const firstSysSeqByRef = new Map<string, number>();
+  for (const t of turns) {
+    if (t.kind === 'system' && t.sysRef && !firstSysSeqByRef.has(t.sysRef) && (t.content?.length ?? 0) > 0) {
+      firstSysSeqByRef.set(t.sysRef, t.seq);
+    }
+  }
+  const models = [...new Set(turns.filter(t => t.kind === 'assistant').map(t => t.model))];
+  const promptTokens = turns.reduce((n, t) => n + (t.usage?.prompt ?? 0), 0);
+  const completionTokens = turns.reduce((n, t) => n + (t.usage?.completion ?? 0), 0);
+  const costUsd = turns.reduce((n, t) => n + (t.costUsd ?? 0), 0);
+  const attemptChips = attempts
+    .map(a =>
+      a === attempt
+        ? `<span class="tvx-attempt-on">attempt ${a}</span>`
+        : `<a href="${base}?attempt=${a}${tokenSuffix ? `&t=${esc(tokenSuffix)}` : ''}">attempt ${a}</a>`,
+    )
+    .join('');
+  const lost =
+    opts.badLines || opts.unsupportedVersion
+      ? `<div class="tvx-notice">${opts.badLines} malformed line(s) and ${opts.unsupportedVersion} unsupported-version envelope(s) were skipped — the raw download below carries every byte.</div>`
+      : '';
+  const inner = `<main class="tvx">
+  <div class="tvx-mast">
+    <h1>pd-${esc(ship)} — raw session transcript</h1>
+    <div class="tvx-facts">
+      <span>run <b>${esc(runId)}</b></span>
+      <span><b>${turns.length}</b> turns</span>
+      <span>models <b>${esc(models.join(', ') || '—')}</b></span>
+      <span><b>${promptTokens.toLocaleString('en-US')}</b> in / <b>${completionTokens.toLocaleString('en-US')}</b> out tokens</span>
+      ${costUsd > 0 ? `<span>spend <b>${fmtUsd(costUsd)}</b></span>` : ''}
+    </div>
+    <div class="tvx-links">
+      <a href="/fleet/runs/${encodeURIComponent(runId)}${tokenSuffix ? `?t=${esc(tokenSuffix)}` : ''}">← run receipt</a>
+      ${attemptChips}
+      <a href="${base}.jsonl?attempt=${attempt}${tokenSuffix ? `&t=${esc(tokenSuffix)}` : ''}">raw pd-transcript.v1 (JSONL) ↓</a>
+    </div>
+  </div>
+  ${lost}
+  ${turns.map(t => renderTurnCard(t, firstSysSeqByRef)).join('\n')}
+</main>`;
+  return shell(`pd-${ship} transcript — ${runId}`, inner);
+}
+
+/**
+ * GET /fleet/runs/:id/transcript/:ship — the human-facing transcript viewer,
+ * under EXACTLY the run page's authorization (see {@link authorizedForRun});
+ * every failure is the same 404 the receipt and the .jsonl route give. Reads
+ * the newest attempt by default, `?attempt=N` selects an earlier one; the raw
+ * .jsonl route stays the machine surface.
+ */
+export async function handleFleetRunTranscriptPage(
+  request: Request,
+  env: Env,
+  runId: string,
+  ship: string,
+): Promise<Response> {
+  if (!RUN_ID_RE.test(runId) || runId.includes('..')) return notFoundPage();
+  if (!TRANSCRIPT_SHIP_RE.test(ship)) return notFoundPage();
+  if (!env.TRANSCRIPTS) return notFoundPage();
+  try {
+    if (!(await authorizedForRun(request, env, runId))) return notFoundPage();
+    const rows = (await listTranscriptIndexRows(env.DB, runId)).filter(r => r.ship === ship);
+    if (rows.length === 0) return notFoundPage();
+    const url = new URL(request.url);
+    const wanted = url.searchParams.get('attempt');
+    const row = wanted ? rows.find(r => String(r.attempt) === wanted) : rows[0];
+    if (!row) return notFoundPage();
+    const object = await env.TRANSCRIPTS.get(row.r2_key);
+    if (!object) return notFoundPage();
+    const parsed = parseTranscriptJsonl(await object.text());
+    const html = renderTranscriptViewerPage({
+      runId,
+      ship,
+      attempt: row.attempt,
+      attempts: rows.map(r => r.attempt),
+      turns: parsed.turns,
+      badLines: parsed.badLines,
+      unsupportedVersion: parsed.unsupportedVersion,
+      tokenSuffix: url.searchParams.get('t') ?? '',
+    });
+    return htmlResponse(html, 200);
+  } catch {
+    return notFoundPage();
   }
 }
