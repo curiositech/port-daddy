@@ -1615,6 +1615,16 @@ async function fleetTranscript(options: CLIOptions, positional: string[]): Promi
   };
   const deadline = Date.now() + 10 * 60 * 1000;
   let ledger = await fetchLedger();
+  if (follow && (!ledger || (ship && !ledger.some(t => t.ship === ship)))) {
+    // Say what the silence means BEFORE ten minutes of it: the relay's 404 is
+    // deliberately ambiguous (unknown run vs not-yet-flushed capture), so the
+    // wait must not read as a hang — and must not short-circuit either, since
+    // a live run legitimately 404s until its first ship completes.
+    ui.info(
+      `Waiting for ${ship ? `pd-${ship}'s` : "this run's"} capture (polling every 5s, up to 10m) — ` +
+        'a 404 can mean not-yet-flushed or an unknown run; Ctrl-C to stop.',
+    );
+  }
   while (follow && Date.now() < deadline && (!ledger || (ship && !ledger.some(t => t.ship === ship)))) {
     await new Promise(r => setTimeout(r, 5000));
     ledger = await fetchLedger();
