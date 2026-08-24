@@ -24,8 +24,8 @@
  *   - Tool args containing string fields > 10KB are truncated to 1KB plus
  *     a SHA-256 hash for later auditability.
  *   - The in-process spawner lifecycle is the canonical producer path.
- *   - The current HTTP mutation bridge is not an authority boundary. CAP0/BOOT0
- *     must supplant it with direct one-use capability redemption.
+ *   - Full-entry snapshot import is in-process only. It is deliberately not
+ *     exposed as an HTTP mutation boundary.
  */
 
 import { createHash } from 'node:crypto';
@@ -210,17 +210,15 @@ export interface TranscriptsModule {
   appendOutput(id: string, output: TranscriptOutput): void;
   /** Mark transcript as completed/failed/killed and finalize cost+tokens. */
   finalize(id: string, finalize: TranscriptFinalizeInput): void;
-  /** CAP0-blocked full-entry bridge; imports atomically and never reopens a terminal row. */
+  /** Trusted in-process full-entry import; atomically replaces only a running snapshot. */
   recordTranscript(entry: TranscriptEntry): void;
   /** List recent transcripts (without messages — lightweight). */
   listTranscripts(filter?: TranscriptFilter): TranscriptEntry[];
   /** Get a single transcript with full messages + outputs. */
   getTranscript(id: string): TranscriptEntry | null;
-  /** Legacy destructive primitive; route authority is blocked on CAP0/BOOT0. */
-  deleteTranscript(id: string): boolean;
   /** Rollup cost by ship + day. */
   costRollup(opts: { since: number; until?: number }): CostRollup;
-  /** Retry the bounded legacy archive page; final route authority is CAP0/BOOT0-blocked. */
+  /** Retry the bounded archive page from trusted in-process maintenance code. */
   backfillArchive(): { archived: number };
   /** Subscribe to live transcript events (returns unsubscribe). */
   subscribe(listener: TranscriptListener): () => void;
@@ -626,6 +624,13 @@ export function createTranscripts(
     VALUES (?, COALESCE((SELECT MAX(seq) + 1 FROM fleet_transcript_outputs WHERE transcript_id = ?), 0), ?, ?, ?, ?)
   `);
 
+  const deleteImportedMessagesStmt = db.prepare(`
+    DELETE FROM fleet_transcript_messages WHERE transcript_id = ?
+  `);
+  const deleteImportedOutputsStmt = db.prepare(`
+    DELETE FROM fleet_transcript_outputs WHERE transcript_id = ?
+  `);
+
   const appendOutputIfRunningStmt = db.prepare(`
     INSERT INTO fleet_transcript_outputs (transcript_id, seq, type, url, summary, created_at)
     SELECT ?, COALESCE((SELECT MAX(seq) + 1 FROM fleet_transcript_outputs WHERE transcript_id = ?), 0), ?, ?, ?, ?
@@ -659,7 +664,6 @@ export function createTranscripts(
      ORDER BY seq ASC
   `);
 
-  const deleteTranscriptStmt = db.prepare(`DELETE FROM fleet_transcripts WHERE id = ?`);
   const getArchiveReceiptStmt = db.prepare(`
     SELECT content_sha256, status, attempted_at, succeeded_at, last_error,
            artifact_locator, artifact_sha256, artifact_bytes, artifact_format,
@@ -667,23 +671,69 @@ export function createTranscripts(
       FROM fleet_transcript_archive_receipts
      WHERE transcript_id = ?
   `);
-  const upsertArchiveReceiptStmt = db.prepare(`
+  const insertArchiveSuccessReceiptStmt = db.prepare(`
     INSERT INTO fleet_transcript_archive_receipts (
       transcript_id, content_sha256, status, attempted_at,
       succeeded_at, last_error, artifact_locator, artifact_sha256,
       artifact_bytes, artifact_format, attempts
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    ON CONFLICT(transcript_id) DO UPDATE SET
-      content_sha256 = excluded.content_sha256,
-      status = excluded.status,
-      attempted_at = excluded.attempted_at,
-      succeeded_at = excluded.succeeded_at,
-      last_error = excluded.last_error,
-      artifact_locator = excluded.artifact_locator,
-      artifact_sha256 = excluded.artifact_sha256,
-      artifact_bytes = excluded.artifact_bytes,
-      artifact_format = excluded.artifact_format,
-      attempts = fleet_transcript_archive_receipts.attempts + 1
+    ) VALUES (?, ?, 'succeeded', ?, ?, NULL, ?, ?, ?, ?, 1)
+    ON CONFLICT(transcript_id) DO NOTHING
+  `);
+  const compareAndSetArchiveSuccessReceiptStmt = db.prepare(`
+    UPDATE fleet_transcript_archive_receipts
+       SET content_sha256 = ?,
+           status = 'succeeded',
+           attempted_at = ?,
+           succeeded_at = ?,
+           last_error = NULL,
+           artifact_locator = ?,
+           artifact_sha256 = ?,
+           artifact_bytes = ?,
+           artifact_format = ?,
+           attempts = attempts + 1
+     WHERE transcript_id = ?
+       AND content_sha256 IS ?
+       AND status IS ?
+       AND attempted_at IS ?
+       AND succeeded_at IS ?
+       AND last_error IS ?
+       AND artifact_locator IS ?
+       AND artifact_sha256 IS ?
+       AND artifact_bytes IS ?
+       AND artifact_format IS ?
+       AND attempts IS ?
+  `);
+  const insertArchiveFailureReceiptStmt = db.prepare(`
+    INSERT INTO fleet_transcript_archive_receipts (
+      transcript_id, content_sha256, status, attempted_at,
+      succeeded_at, last_error, artifact_locator, artifact_sha256,
+      artifact_bytes, artifact_format, attempts
+    ) VALUES (?, ?, 'failed', ?, NULL, ?, NULL, NULL, NULL, NULL, 1)
+    ON CONFLICT(transcript_id) DO NOTHING
+  `);
+  const compareAndSetArchiveFailureReceiptStmt = db.prepare(`
+    UPDATE fleet_transcript_archive_receipts
+       SET content_sha256 = ?,
+           status = 'failed',
+           attempted_at = ?,
+           succeeded_at = NULL,
+           last_error = ?,
+           artifact_locator = NULL,
+           artifact_sha256 = NULL,
+           artifact_bytes = NULL,
+           artifact_format = NULL,
+           attempts = attempts + 1
+     WHERE transcript_id = ?
+       AND content_sha256 IS ?
+       AND status IS ?
+       AND attempted_at IS ?
+       AND succeeded_at IS ?
+       AND last_error IS ?
+       AND artifact_locator IS ?
+       AND artifact_sha256 IS ?
+       AND artifact_bytes IS ?
+       AND artifact_format IS ?
+       AND attempts IS ?
   `);
 
   // In-memory subscriber registry (SSE clients wait on these).
@@ -915,15 +965,16 @@ export function createTranscripts(
       return;
     }
     const refreshed = getTranscript(id);
-    if (refreshed) emit({ type: 'end', entry: refreshed });
+    // Retain the private canonical DB snapshot before exposing any mutable
+    // event object to synchronous subscribers.
     archiveFinalized(refreshed);
+    if (refreshed) emit({ type: 'end', entry: refreshed });
   }
 
   function recordTranscript(entry: TranscriptEntry): void {
-    // The legacy full-entry bridge must still import a terminal snapshot's
-    // children, but no observer may see a terminal header before those children
-    // exist. Commit the header and content together, and never reopen a row that
-    // has already reached a terminal state.
+    // A full-entry import is a complete snapshot, not an append. Replace the
+    // children while the row is running so retries are idempotent, commit header
+    // and children together, and never reopen or rewrite a terminal row.
     const writeImport = db.transaction(() => {
       const result = upsertTranscriptStmt.run(
         entry.id,
@@ -951,6 +1002,8 @@ export function createTranscripts(
         entry.identity ?? null,
       );
       if (result.changes !== 1) throwTranscriptMutationError(entry.id);
+      deleteImportedMessagesStmt.run(entry.id);
+      deleteImportedOutputsStmt.run(entry.id);
       for (const message of entry.messages || []) {
         insertImportedMessage(entry.id, message);
       }
@@ -963,8 +1016,10 @@ export function createTranscripts(
     });
     const refreshed = writeImport();
     if (refreshed && refreshed.status !== 'running') {
-      emit({ type: 'end', entry: refreshed });
+      // The retained bytes must come from the committed private DB snapshot,
+      // before a synchronous listener can mutate its event payload.
       archiveFinalized(refreshed);
+      emit({ type: 'end', entry: refreshed });
     } else if ((entry.messages?.length ?? 0) > 0 || (entry.outputs?.length ?? 0) > 0) {
       emit({ type: 'update', entry: refreshed });
     }
@@ -1014,20 +1069,67 @@ export function createTranscripts(
       && !/:\/\/[^/]*@/u.test(locator);
   }
 
+  /**
+   * Recognize a self-consistent durable success without consulting a second,
+   * inevitably drifting SQL approximation of the locator policy.
+   *
+   * Design: the first legitimate success is immutable even if the live DB later
+   * disagrees, while malformed pseudo-success rows remain eligible for repair.
+   * @param receipt Persisted receipt row to validate.
+   * @returns Whether every field needed for a legitimate success is valid.
+   */
+  function isExactArchiveSuccessReceipt(receipt: ArchiveReceiptRow): boolean {
+    return receipt.status === 'succeeded'
+      && /^[a-f0-9]{64}$/u.test(receipt.content_sha256)
+      && Number.isSafeInteger(receipt.attempted_at)
+      && receipt.attempted_at > 0
+      && typeof receipt.succeeded_at === 'number'
+      && Number.isSafeInteger(receipt.succeeded_at)
+      && receipt.succeeded_at >= receipt.attempted_at
+      && receipt.last_error === null
+      && isSafeArtifactLocator(receipt.artifact_locator)
+      && receipt.artifact_sha256 === receipt.content_sha256
+      && typeof receipt.artifact_bytes === 'number'
+      && Number.isSafeInteger(receipt.artifact_bytes)
+      && receipt.artifact_bytes > 0
+      && receipt.artifact_format === TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT
+      && Number.isSafeInteger(receipt.attempts)
+      && receipt.attempts > 0;
+  }
+
+  /**
+   * Capture the complete observed row for a compare-and-set receipt update.
+   *
+   * Design: matching every mutable field prevents a stale process from
+   * replacing a concurrent success or rolling receipt state backward.
+   * @param receipt Exact row version observed before the attempted update.
+   * @returns Positional SQLite values in the CAS predicate's column order.
+   */
+  function archiveReceiptCasValues(
+    receipt: ArchiveReceiptRow,
+  ): Array<string | number | null> {
+    return [
+      receipt.content_sha256,
+      receipt.status,
+      receipt.attempted_at,
+      receipt.succeeded_at,
+      receipt.last_error,
+      receipt.artifact_locator,
+      receipt.artifact_sha256,
+      receipt.artifact_bytes,
+      receipt.artifact_format,
+      receipt.attempts,
+    ];
+  }
+
   function receiptMatchesSnapshot(
     receipt: ArchiveReceiptRow,
     digest: string,
     bytes: number,
   ): boolean {
-    return receipt.status === 'succeeded'
+    return isExactArchiveSuccessReceipt(receipt)
       && receipt.content_sha256 === digest
-      && typeof receipt.succeeded_at === 'number'
-      && Number.isSafeInteger(receipt.succeeded_at)
-      && receipt.succeeded_at > 0
-      && isSafeArtifactLocator(receipt.artifact_locator)
-      && receipt.artifact_sha256 === digest
-      && receipt.artifact_bytes === bytes
-      && receipt.artifact_format === TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT;
+      && receipt.artifact_bytes === bytes;
   }
 
   function archiveOne(entry: TranscriptEntry): ArchiveAttemptOutcome {
@@ -1035,8 +1137,11 @@ export function createTranscripts(
 
     const expected = describeTranscriptArchiveArtifact(entry, 'receipt-validation');
     const receipt = getArchiveReceipt(entry.id);
-    if (receipt && receiptMatchesSnapshot(receipt, expected.sha256, expected.bytes)) {
-      return 'skipped';
+    if (receipt && isExactArchiveSuccessReceipt(receipt)) {
+      if (receiptMatchesSnapshot(receipt, expected.sha256, expected.bytes)) return 'skipped';
+      throw new Error(
+        `transcripts: immutable archive success conflict for ${entry.id}; first digest ${receipt.content_sha256} differs from ${expected.sha256}`,
+      );
     }
 
     const attemptedAt = now();
@@ -1054,19 +1159,46 @@ export function createTranscripts(
       && result.artifact.bytes === expected.bytes
       && result.artifact.format === TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT
     ) {
-      upsertArchiveReceiptStmt.run(
-        entry.id,
-        expected.sha256,
-        'succeeded',
-        attemptedAt,
-        attemptedAt,
-        null,
-        result.artifact.locator,
-        result.artifact.sha256,
-        result.artifact.bytes,
-        result.artifact.format,
-      );
-      return 'succeeded';
+      let observed = receipt;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        if (!observed) {
+          const inserted = insertArchiveSuccessReceiptStmt.run(
+            entry.id,
+            expected.sha256,
+            attemptedAt,
+            attemptedAt,
+            result.artifact.locator,
+            result.artifact.sha256,
+            result.artifact.bytes,
+            result.artifact.format,
+          );
+          if (inserted.changes === 1) return 'succeeded';
+          observed = getArchiveReceipt(entry.id);
+          continue;
+        }
+
+        if (isExactArchiveSuccessReceipt(observed)) {
+          if (receiptMatchesSnapshot(observed, expected.sha256, expected.bytes)) return 'skipped';
+          throw new Error(
+            `transcripts: immutable archive success conflict for ${entry.id}; first digest ${observed.content_sha256} differs from ${expected.sha256}`,
+          );
+        }
+
+        const repaired = compareAndSetArchiveSuccessReceiptStmt.run(
+          expected.sha256,
+          attemptedAt,
+          attemptedAt,
+          result.artifact.locator,
+          result.artifact.sha256,
+          result.artifact.bytes,
+          result.artifact.format,
+          entry.id,
+          ...archiveReceiptCasValues(observed),
+        );
+        if (repaired.changes === 1) return 'succeeded';
+        observed = getArchiveReceipt(entry.id);
+      }
+      throw new Error(`transcripts: archive receipt contention for ${entry.id}`);
     }
 
     const error = result?.ok === true
@@ -1074,19 +1206,38 @@ export function createTranscripts(
       : result && 'error' in result
         ? archiveErrorMessage(result.error)
         : 'archive sink returned no success receipt';
-    upsertArchiveReceiptStmt.run(
-      entry.id,
-      expected.sha256,
-      'failed',
-      attemptedAt,
-      null,
-      error,
-      null,
-      null,
-      null,
-      null,
-    );
-    return 'failed';
+    let observed = receipt;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      if (!observed) {
+        const inserted = insertArchiveFailureReceiptStmt.run(
+          entry.id,
+          expected.sha256,
+          attemptedAt,
+          error,
+        );
+        if (inserted.changes === 1) return 'failed';
+        observed = getArchiveReceipt(entry.id);
+        continue;
+      }
+
+      if (isExactArchiveSuccessReceipt(observed)) {
+        if (receiptMatchesSnapshot(observed, expected.sha256, expected.bytes)) return 'skipped';
+        throw new Error(
+          `transcripts: immutable archive success conflict for ${entry.id}; first digest ${observed.content_sha256} differs from ${expected.sha256}`,
+        );
+      }
+
+      const failureWrite = compareAndSetArchiveFailureReceiptStmt.run(
+        expected.sha256,
+        attemptedAt,
+        error,
+        entry.id,
+        ...archiveReceiptCasValues(observed),
+      );
+      if (failureWrite.changes === 1) return 'failed';
+      observed = getArchiveReceipt(entry.id);
+    }
+    throw new Error(`transcripts: archive receipt contention for ${entry.id}`);
   }
 
   /**
@@ -1130,12 +1281,6 @@ export function createTranscripts(
     const rows = db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
     // Headers only — no messages/outputs (caller can fetch by id)
     return rows.map(rowToHeader);
-  }
-
-  function deleteTranscript(id: string): boolean {
-    const result = deleteTranscriptStmt.run(id);
-    // CASCADE drops messages and outputs via the FK ON DELETE CASCADE
-    return result.changes > 0;
   }
 
   function costRollup(opts: { since: number; until?: number }): CostRollup {
@@ -1212,11 +1357,7 @@ export function createTranscripts(
     }
   }
 
-  /**
-   * Preserve the current bounded route contract while making its count honest:
-   * only terminal snapshots with an exact durable receipt count as archived.
-   * CAP0/BOOT0 owns the later authenticated, paginated mutation action.
-   */
+  /** Only terminal snapshots with an exact durable receipt count as archived. */
   function backfillArchive(): { archived: number } {
     if (!archiveSink) return { archived: 0 };
     let archived = 0;
@@ -1359,7 +1500,6 @@ export function createTranscripts(
     recordTranscript,
     listTranscripts,
     getTranscript,
-    deleteTranscript,
     costRollup,
     subscribe,
     emit,

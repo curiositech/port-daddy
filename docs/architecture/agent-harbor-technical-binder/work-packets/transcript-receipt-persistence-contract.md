@@ -60,9 +60,9 @@ Current code already has pieces of the contract:
   per-actor/per-turn events for cost, memory, and search style uses.
 - `lib/transcript-archive.ts` writes finalized fleet transcripts to an
   append-only JSONL archive under `~/.port-daddy/transcripts/` by default.
-- `routes/transcripts.ts` exposes `/transcripts`, `/transcripts/stream`,
-  `/transcripts/:id`, write append routes, delete, cost rollup, and archive
-  backfill.
+- `routes/transcripts.ts` exposes read-only list/detail, compliance, emergency,
+  cost-rollup, and SSE views. Trusted transcript production is in-process; no
+  transcript mutation route is registered.
 - `routes/agent-cockpit.ts` exposes `/agents/:id/stream`, merging agent status,
   tube/control messages, and transcript updates for one spawned agent.
 - `routes/agent-roster.ts` and `lib/active-agent-roster.ts` build a roster from
@@ -458,15 +458,20 @@ PD_TRANSCRIPT_ARCHIVE_DIR or ~/.port-daddy/transcripts/
   and root directories before success. A failed or concurrent writer removes
   only its own unpublished temp and cannot truncate another process's retained
   record.
-- Terminal publication freezes the live header, messages, and outputs. Public
-  appends are single status-conditional writes, and the legacy full-entry import
-  commits header plus children in one transaction before emitting or archiving.
-  A child-write failure rolls the terminal row back instead of minting a receipt
+- Terminal publication freezes the live header, messages, and outputs.
+  Daemon-owned appends are single status-conditional writes, and the trusted
+  in-process full-entry importer replaces the complete running child snapshot
+  in one transaction before emitting or archiving. Retries are idempotent, and
+  a child-write failure rolls the transaction back instead of minting a receipt
   for an incomplete snapshot.
 - A success receipt binds the exact snapshot and artifact locator, SHA-256, byte
-  count, and format. Generic success or mismatched evidence is failure.
+  count, and format. Generic success or mismatched evidence is failure; an
+  interleaved late failure or different-digest success cannot overwrite the
+  first exact success. Archive bytes come from a fresh private-DB read before
+  listeners.
   Archive roots/partitions are private `0700`; temp/final files are `0600`;
-  symlink and unsafe targets fail closed.
+  every static ancestor from filesystem anchor through root/partition is
+  checked, and symlink or unsafe targets fail closed.
 - Residual limits are explicit: publication remains pathname-based rather than
   dirfd-relative, so a hostile same-UID parent/name swap is not fully excluded;
   manual backfill scans only the 50 newest terminal rows and does not
@@ -510,14 +515,11 @@ These routes exist today and must remain honest while Agent Node APIs land:
 | `GET /agents/:id/stream` | SSE stream merging status, tube/control, and transcript events. |
 | `POST /agents/:id/interrupt` | Soft control signal on `agent:<id>`. |
 | `GET /transcripts` | List operator-facing fleet transcripts. |
+| `GET /transcripts/compliance` | Read transcript coverage and flow findings. |
+| `GET /transcripts/emergency` | Read transcript-flow HITL emergency records. |
 | `GET /transcripts/cost` | Cost rollup from transcript rows. |
 | `GET /transcripts/stream` | SSE stream of transcript start/update/end. |
 | `GET /transcripts/:id` | Full fleet transcript with messages and outputs. |
-| `POST /transcripts` | Legacy self-asserted full upsert; not trusted producer authority. |
-| `POST /transcripts/:id/messages` | Legacy unauthenticated append; not trusted producer authority. |
-| `POST /transcripts/:id/outputs` | Legacy unauthenticated append; not trusted producer authority. |
-| `POST /transcripts/archive/backfill` | Legacy unauthenticated bounded archive retry; CAP0/BOOT0 authority blocked. |
-| `DELETE /transcripts/:id` | Legacy unauthenticated destructive delete; not the accepted retention/authority boundary. |
 
 Current bridge rules:
 
@@ -527,11 +529,14 @@ Current bridge rules:
 - `/transcripts` is a fleet/run projection and may not contain the full
   canonical event chain.
 - A row with `session_id: null` is a known compliance failure for official work.
-- Transcript mutation remains blocked on CAP0/BOOT0. The final delete/backfill
-  service must redeem a one-use actor/action/resource-scoped capability directly
-  with the broker. Reusable actor credentials and caller-supplied redemption
-  receipts are never authority. Delete is live-DB pruning and additionally
-  requires an exact durable success receipt for the current terminal snapshot.
+- Transcript HTTP/CLI surfaces are read-only. Full upsert, message/output append,
+  delete, and archive backfill are not registered routes, and the transcript
+  module exports no delete primitive; trusted daemon producers use the
+  in-process API. Any future delete/backfill service must be a new surface that
+  redeems a one-use actor/action/resource-scoped capability
+  directly with the broker. Reusable actor credentials and caller-supplied
+  redemption receipts are never authority. Delete is live-DB pruning and also
+  requires exact durable success for the current terminal snapshot.
 
 ### Target official endpoints
 
