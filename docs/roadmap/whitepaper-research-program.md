@@ -1,6 +1,6 @@
 # Coordination Papers Research and Implementation Program
 
-Updated: 2026-08-04
+Updated: 2026-08-05
 
 Registry authority: `roadmap_items` in harbor `port-daddy`
 
@@ -102,6 +102,20 @@ realization; **proposed** means an open research direction.
 5. Make every roadmap and status projection identify its authority source and fail
    loud on divergence; close the current fragmented-projection class rather than
    reconciling counts by hand.
+6. Make Fleet review resumable at ship and chunk boundaries: checkpoint completed
+   comments and spend, bound GitHub reads/writes, and ensure a retry cannot replay
+   every successful ship after one provider or remote-completion failure.
+7. Apply and verify the production migration for `fleet_run_spend`; fail the
+   deployment check if the executor schema and Worker code disagree.
+8. Turn single-chunk memory ceilings and empty provider responses into explicit,
+   exact-head failure receipts. A tracking label is not a substitute for a
+   completed review when review protection is waiting on Fleet.
+9. Coalesce or discard stale-head deliveries before expensive model work, and
+   make the current head SHA visible in the queue, check-run, and review receipt.
+10. Make Purser fail closed before retargeting a reviewed PR: resolve every
+    referenced path, reject binary-as-text assertions and malformed source
+    escapes, execute the generated tests in the real repository harness, and
+    preserve the original base unless that exact generated branch is green.
 
 ## Current implementation evidence
 
@@ -111,6 +125,9 @@ realization; **proposed** means an open research direction.
 | Local actor identity root | partial | `lib/actor-souls.ts`, actor registration, lookup credential, bounded newcomer pool, and budget-guard tests ship. Universal write-boundary enforcement and legacy migration do not. |
 | Execution checkpoint | partial | Recovery passes durable notes and summaries, not portable execution state. |
 | Cross-operator attestation and federation runtime | specified/proposed | Protocols and bounded models exist; the mutually sovereign deployed path and conformance chain remain open. |
+| Reproducible collected-volume publication | implemented | The deterministic generator fails closed on missing sources, cyclic imports, missing citations, and namespace collisions; the build pins source epochs and produces the seven standalone artifacts plus the collected root. Production publication still requires the receipt below. |
+| Exact-head Fleet publication review | partial | GitHub records a Fleetbot request signal and the executor rejects stale heads, but the August 5 publication run exposed one- and two-chunk memory failures, empty provider responses, replayed work, and a missing production `fleet_run_spend` table. A successful exact-head Fleet receipt remains the closure condition. |
+| Purser adversarial-test gate | partial | Purser can state a useful steel-manned contract and retarget a PR through generated tests, but publication review produced tests that parsed a PDF as HTML, referenced absent files, or used malformed TeX string escapes. The operator rejected those branches; generation is not authoritative until the candidate tests execute successfully before retargeting. |
 
 ## Exit criteria
 

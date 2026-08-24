@@ -19,6 +19,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   emitSquidEvent,
+  publishChainedEvent,
   flushSquidEvents,
   resetSquidChains,
   computeSquidEventHash,
@@ -46,9 +47,9 @@ const PUB = ed.getPublicKey(fromHexT(SEED_HEX)); // sha512Sync wired by the modu
 const FP = toHexT(sha256(PUB));
 const RELAY_FP = 'ab'.repeat(32);
 
-function makeCard(sub: string): string {
+function makeCard(sub: string, mutate?: (claims: Record<string, unknown>) => void): string {
   const header = b64url({ alg: 'EdDSA', kid: RELAY_FP });
-  const payload = b64url({
+  const claims: Record<string, unknown> = {
     hv: 2,
     sub,
     iss: RELAY_FP,
@@ -57,8 +58,10 @@ function makeCard(sub: string): string {
     exp: 9_999_999_999,
     iat: 1,
     cap: [{ op: 'pub', channel: `${RELAY_FP}:fleet-cloud:*`, rate_per_min: 120 }],
-  });
-  return `${header}.${payload}.${Buffer.from('placeholder-sig').toString('base64url')}`;
+  };
+  // Identity-rejection tests mutate exactly ONE claim of this valid fixture.
+  mutate?.(claims);
+  return `${header}.${b64url(claims)}.${Buffer.from('placeholder-sig').toString('base64url')}`;
 }
 
 const CARD = makeCard(FP);
@@ -136,6 +139,168 @@ describe('emitSquidEvent — enablement gates', () => {
     emitSquidEvent({ ...ENV, FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX: 'g'.repeat(64) }, 'run-started', PAYLOAD, true);
     await flushSquidEvents();
     expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+// ── deriveSquidIdentity — the forgery gate ───────────────────────────────────
+//
+// deriveSquidIdentity (src/squid-events.ts) is module-private and is the check
+// that decides whether a claimed executor identity may sign cloud-squid events
+// at all: it returns null unless the relay-issued card's `sub` equals the
+// fingerprint DERIVED FROM THE LOCAL SEED, the JWT body actually decodes, and
+// `iss` is a non-empty string.
+//
+// These drive it through publishChainedEvent — the one entry point that
+// reports the null return DIRECTLY (`code: 'disabled'`) instead of only
+// implying it by silence. A regression that started accepting forged cards
+// would fail here loudly rather than merely changing a fetch count.
+//
+// Each case mutates exactly ONE field of the valid fixture card, so a failure
+// names the specific check that regressed.
+
+describe('deriveSquidIdentity — rejects every card that is not this key’s', () => {
+  const PROBE_SUFFIX = 'mediator:identity-probe';
+
+  /** Derive through the awaited transport; report both observable effects. */
+  async function deriveWithCard(card: string) {
+    const fetchFn = stubFetch();
+    const res = await publishChainedEvent(
+      { ...ENV, FLEET_EXECUTOR_HARBOR_CARD: card },
+      PROBE_SUFFIX,
+      { probe: true },
+      ENV.RELAY_PUBLISH_URL,
+    );
+    await flushSquidEvents();
+    return { res, fetches: fetchFn.mock.calls.length };
+  }
+
+  /** A rejected card must BOTH report `disabled` and put nothing on the wire. */
+  async function expectRejected(card: string, why: string) {
+    const { res, fetches } = await deriveWithCard(card);
+    expect(res.code, why).toBe('disabled');
+    expect(res.ok, why).toBe(false);
+    expect(fetches, `${why} — a rejected identity must never reach the relay`).toBe(0);
+  }
+
+  it('SANITY: the unmutated fixture card DOES derive — the probe distinguishes accept from reject', async () => {
+    const { res, fetches } = await deriveWithCard(CARD);
+    expect(res.code).toBeNull();
+    expect(res.ok).toBe(true);
+    expect(res.channel).toBe(`${RELAY_FP}:${SQUID_CHANNEL_FAMILY}:${PROBE_SUFFIX}`);
+    expect(fetches).toBe(1);
+  });
+
+  // ── 1. The core forgery check: sub must equal the LOCAL key's fingerprint ──
+
+  it('rejects a card minted for a DIFFERENT key (the forgery check)', async () => {
+    // The attacker holds seed A but presents a card the relay minted for key B.
+    const otherFp = toHexT(sha256(ed.getPublicKey(fromHexT('22'.repeat(32)))));
+    expect(otherFp, 'fixture sanity: the second identity must be genuinely different').not.toBe(FP);
+    await expectRejected(makeCard(otherFp), 'sub is another key’s fingerprint');
+  });
+
+  it('rejects a sub that differs from the fingerprint only in case (strict ===, fails closed)', async () => {
+    expect(FP).not.toBe(FP.toUpperCase()); // the fingerprint really is lowercase hex
+    await expectRejected(makeCard(FP.toUpperCase()), 'sub differs only in case');
+  });
+
+  it('rejects a sub that is a prefix/truncation of the real fingerprint', async () => {
+    await expectRejected(makeCard(FP.slice(0, 32)), 'sub is truncated');
+    await expectRejected(makeCard(`${FP}00`), 'sub is over-long');
+  });
+
+  it('rejects a non-string sub that a loose comparison might have waved through', async () => {
+    for (const bogus of [null, 0, false, true, {}, [FP]]) {
+      await expectRejected(
+        makeCard(FP, (p) => {
+          p.sub = bogus;
+        }),
+        `sub is ${JSON.stringify(bogus)}`,
+      );
+    }
+  });
+
+  // ── 2. Malformed / undecodable JWT bodies ────────────────────────────────
+  // NOTE: the empty-string card is deliberately absent — it short-circuits on
+  // the env-presence check before derivation, and is covered by the
+  // enablement-gate suite above.
+
+  it('rejects a card that is not three dot-separated segments', async () => {
+    await expectRejected('not-a-jwt', 'no dots at all');
+    await expectRejected(b64url({ hv: 2 }), 'a bare base64url blob, no dots');
+    await expectRejected('header-only.', 'trailing dot, empty payload segment');
+  });
+
+  it('rejects a card whose payload segment is not decodable base64url', async () => {
+    const header = b64url({ alg: 'EdDSA', kid: RELAY_FP });
+    const sig = Buffer.from('placeholder-sig').toString('base64url');
+    await expectRejected(`${header}.!!!!.${sig}`, 'payload has non-base64url characters');
+    await expectRejected(`${header}.${'*'.repeat(8)}.${sig}`, 'payload is all invalid characters');
+  });
+
+  it('rejects a card whose payload segment is empty', async () => {
+    const header = b64url({ alg: 'EdDSA', kid: RELAY_FP });
+    const sig = Buffer.from('placeholder-sig').toString('base64url');
+    await expectRejected(`${header}..${sig}`, 'payload segment is empty');
+  });
+
+  it('rejects a card whose payload decodes but is not JSON', async () => {
+    const header = b64url({ alg: 'EdDSA', kid: RELAY_FP });
+    const sig = Buffer.from('placeholder-sig').toString('base64url');
+    const raw = (s: string) => `${header}.${Buffer.from(s).toString('base64url')}.${sig}`;
+    await expectRejected(raw('not json at all'), 'payload is plain text');
+    await expectRejected(raw('{"sub":'), 'payload is truncated JSON');
+  });
+
+  it('rejects a card whose payload is JSON but not an object', async () => {
+    const header = b64url({ alg: 'EdDSA', kid: RELAY_FP });
+    const sig = Buffer.from('placeholder-sig').toString('base64url');
+    const json = (s: string) => `${header}.${Buffer.from(s).toString('base64url')}.${sig}`;
+    await expectRejected(json('null'), 'payload is JSON null');
+    await expectRejected(json(`"${FP}"`), 'payload is a bare JSON string');
+    await expectRejected(json('[]'), 'payload is a JSON array');
+  });
+
+  // ── 3. Missing claims ────────────────────────────────────────────────────
+
+  it('rejects a card with no sub claim at all', async () => {
+    await expectRejected(
+      makeCard(FP, (p) => {
+        delete p.sub;
+      }),
+      'sub is absent',
+    );
+  });
+
+  it('rejects a card with no iss claim at all — even when sub matches', async () => {
+    // Isolates the iss check: this card passes the fingerprint comparison.
+    await expectRejected(
+      makeCard(FP, (p) => {
+        delete p.iss;
+      }),
+      'iss is absent',
+    );
+  });
+
+  it('rejects an iss that is empty or not a string — even when sub matches', async () => {
+    for (const bogus of ['', null, 0, 42, {}, [RELAY_FP]]) {
+      await expectRejected(
+        makeCard(FP, (p) => {
+          p.iss = bogus;
+        }),
+        `iss is ${JSON.stringify(bogus)}`,
+      );
+    }
+  });
+
+  // ── 4. The memo must not become a confused deputy ────────────────────────
+
+  it('the identity memo is keyed on the card: a good derivation does not license a forged card', async () => {
+    const good = await deriveWithCard(CARD);
+    expect(good.res.ok, 'precondition: the valid card derives first').toBe(true);
+    // Same seed, same isolate, memo now warm — the forged card must still fail.
+    const otherFp = toHexT(sha256(ed.getPublicKey(fromHexT('33'.repeat(32)))));
+    await expectRejected(makeCard(otherFp), 'forged card presented after a good one');
   });
 });
 

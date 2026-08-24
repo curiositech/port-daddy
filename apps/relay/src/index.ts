@@ -96,6 +96,7 @@
 import type { Env } from './types.js';
 import { HarborChannel } from './harbor-channel.js';
 import { HarborQuota } from './harbor-quota.js';
+import { CoordinationRoom } from './coordination-room.js';
 import {
   handleHealth,
   handleHandshake,
@@ -217,10 +218,16 @@ import {
   handleRespondParley,
 } from './parleys.js';
 import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
+import {
+  handleCoordinationGrant,
+  handleCoordinationSync,
+  parseCoordinationProject,
+} from './coordination.js';
 
 // Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
 export { HarborQuota };
+export { CoordinationRoom };
 
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -339,6 +346,25 @@ export default {
     // ── Publish ─────────────────────────────────────────────────────────────
     else if (pathname === '/v1/publish' && method === 'POST') {
       response = await handlePublish(request, env);
+    }
+
+    // ── ADR-0092 cloud coordination peer ───────────────────────────────────
+    // The project is a DO routing key, not an authority boundary. Authority is
+    // the macaroon's project + actor + coordination-sync caveats.
+    else if (pathname.startsWith('/v1/coordination/')) {
+      const rest = pathname.slice('/v1/coordination/'.length);
+      const slash = rest.lastIndexOf('/');
+      const project = slash > 0 ? parseCoordinationProject(rest.slice(0, slash)) : null;
+      const action = slash > 0 ? rest.slice(slash + 1) : '';
+      if (!project) {
+        response = Response.json({ error: 'Invalid coordination project', code: 'VALIDATION_ERROR' }, { status: 400 });
+      } else if (action === 'grant' && method === 'POST') {
+        response = await handleCoordinationGrant(request, env, project);
+      } else if (action === 'sync' && method === 'POST') {
+        response = await handleCoordinationSync(request, env, project);
+      } else {
+        response = notFound();
+      }
     }
 
     // ── GitHub webhook ingress ───────────────────────────────────────────────

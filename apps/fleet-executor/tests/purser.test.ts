@@ -17,6 +17,7 @@ import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executability.js';
 import { encodeFingerprint, fingerprintDiff, withAuthoredTests } from '../src/purser-rerun.js';
+import { FleetAiCircuit, FleetAiDependencyError } from '../src/ai-resilience.js';
 import {
   freshState,
   installGitHubFetch,
@@ -136,7 +137,37 @@ function freshMetrics(): PurserMetrics {
 
 /** A fake Cloudflare Sandbox instance stub (structural: just `exec`). */
 function sandboxStub(exitCode: number, output = 'test run output'): unknown {
-  return { exec: async () => ({ exitCode, stdout: output, stderr: '' }) };
+  const summary = {
+    numFailedTests: exitCode === 0 ? 0 : 1,
+    numFailedTestSuites: exitCode === 0 ? 0 : 1,
+    numPassedTests: exitCode === 0 ? 1 : 0,
+    numRuntimeErrorTestSuites: 0,
+    numTotalTests: 1,
+    success: exitCode === 0,
+  };
+  const stdout = [
+    '__PD_PURSER_TEST_STARTED__',
+    output,
+    `__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`,
+  ].join('\n');
+  return { exec: async () => ({ exitCode, stdout, stderr: '' }) };
+}
+
+function sandboxHarnessFailure(output = 'Test suite failed to run'): unknown {
+  const summary = {
+    numFailedTests: 0,
+    numFailedTestSuites: 1,
+    numPassedTests: 0,
+    numRuntimeErrorTestSuites: 1,
+    numTotalTests: 0,
+    success: false,
+  };
+  const stdout = [
+    '__PD_PURSER_TEST_STARTED__',
+    output,
+    `__PD_PURSER_JEST_SUMMARY__:${btoa(JSON.stringify(summary))}`,
+  ].join('\n');
+  return { exec: async () => ({ exitCode: 1, stdout, stderr: '' }) };
 }
 
 function purserCommentBodies(state: GitHubState): string[] {
@@ -242,6 +273,97 @@ describe('parseSteelMan — extraction tolerance (2026-08-04: 1416 chars discard
 });
 
 describe('runPurser — steel-man failure modes', () => {
+  it('propagates a silent AI deadline to the queue while provider budget remains', async () => {
+    const run = vi.fn(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    await expect(runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:deadline',
+      false,
+      new FleetAiCircuit(10),
+      1,
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({
+        status: 408,
+        code: 3007,
+        retryable: true,
+        providerCircuitOpen: true,
+        providerAttempt: 1,
+      }),
+    }));
+    expect(rec.steps.some(step => step.kind === 'ship-verdict')).toBe(false);
+  });
+
+  it('fails the Purser honestly after the final provider deadline instead of retrying forever', async () => {
+    const run = vi.fn(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:deadline',
+      false,
+      new FleetAiCircuit(10),
+      3,
+    );
+
+    expect(result).toMatchObject({
+      ship: 'purser',
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: expect.stringContaining('10ms deadline'),
+      brokenAdjudicated: {
+        scope: 'fleet',
+        reason: expect.stringContaining('3/3 provider attempts'),
+      },
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let contract repair swallow a retryable provider deadline', async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce({ response: 'I refuse to emit JSON.' })
+      .mockImplementationOnce(() => new Promise<never>(() => undefined));
+    const rec = recorder();
+
+    await expect(runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+      '',
+      'run:repair-deadline',
+      false,
+      new FleetAiCircuit(10),
+      1,
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(rec.steps.some(step => step.kind === 'ship-repair')).toBe(false);
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({ retryable: true, providerCircuitOpen: true }),
+    }));
+  });
+
   it('malformed steel-man ⇒ transcript error step, BROKEN-SHIP result, and a hard stop (no second AI call, no git writes)', async () => {
     const { ai } = seqAi(['I refuse to emit JSON.', TESTS_JSON]);
     const rec = recorder();
@@ -475,6 +597,55 @@ describe('runPurser — stacking', () => {
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain('NOT been retargeted');
     expect(bodies[0]).toContain('not executed');
+  });
+
+  it('same-repo PR, generated assertions FAIL: the reviewed PR is blocked but never retargeted', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip(),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(1, '  ✕ rejects a placeholder mismatch') }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK' });
+    expect(result.errored).not.toBe(true);
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+    const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
+    expect((step.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(
+      /did not pass/,
+    );
+  });
+
+  it('same-repo PR, generated suite loads zero tests: disables Purser as broken machinery and never retargets', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxHarnessFailure('zero tests registered') }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+    const sandboxStep = rec.steps.find(s => s.kind === 'purser-sandbox')!;
+    expect(sandboxStep.title).toContain('RUNNER ERROR');
+    expect(sandboxStep.detail).toMatchObject({ outcomeKind: 'harness-failure' });
+    const stackedStep = rec.steps.find(s => s.kind === 'purser-stacked')!;
+    expect((stackedStep.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(
+      /broken for this run/,
+    );
+    expect(purserCommentBodies(state)[0]).toContain('NO AUTHOR FAILURE CLAIMED');
   });
 
   it('fork PR: the test PR is opened + comment posted, but NO retarget', async () => {
