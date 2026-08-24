@@ -90,14 +90,18 @@
 % with shortened text: at earlier center-anchored positions and
 % full-length wording they ran into the legend, into the axis's own left
 % edge, and into each other -- real collisions and off-axis clipping found
-% by rendering the CI build. The worked-instance label sits right of its
-% own marker (0.6,-0.3), narrow enough to clear the right axis edge at
-% x=0.8 and the "strong engine pays" label at the opposite corner -- its
-% previous wide, marker-straddling placement collided with both the
-% marker and the (then-south-east) legend, also found by rendering.
-\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=north west,text width=1.3cm] at (axis cs:0.64,-0.20) {worked:\\$0.5\to0.2$};
+% by rendering the CI build. This panel's plotted width (xrange 0.8) is
+% physically narrow -- a prior fix anchored both labels growing RIGHTWARD
+% from the left, which reached the axis's own xmax=0.8 clip boundary and
+% got silently truncated mid-word (the same edge-clipping bug class as
+% fig-r2-regime.tex/fig-r4-regime.tex). Both re-anchored to grow AWAY from
+% that edge: the worked-instance label now hangs left of its own marker
+% (anchor=east, tiny, no "worked:" prefix -- the number pair is
+% self-explanatory this close to the marker), and the bottom label is
+% text-wrapped so no single line can reach xmax regardless of anchor.
+\node[seagreen,font=\tiny\bfseries,anchor=east] at (axis cs:0.57,-0.30) {$0.5\to0.2$};
 \node[shipred,font=\scriptsize\bfseries,anchor=north west] at (axis cs:0.03,0.40) {swap pays};
-\node[seagreen,font=\scriptsize\bfseries,anchor=south west] at (axis cs:0.03,-0.6) {strong engine pays};
+\node[seagreen,font=\scriptsize\bfseries,align=left,anchor=south west,text width=2.1cm] at (axis cs:0.03,-0.6) {strong engine\\pays};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}
