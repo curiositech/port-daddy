@@ -16,6 +16,6 @@ docs:
 	mkdir -p build && cp tex/*.tex build/ && cp figures/*.png build/
 	cd build && for d in $(TEXS); do pdflatex -interaction=nonstopmode $$d.tex >/dev/null; pdflatex -interaction=nonstopmode $$d.tex >/dev/null; done
 	mkdir -p pdf && cp build/*.pdf pdf/
-	@ls pdf/*.pdf
+	@ls pdf/*.pdf 2>/dev/null || (echo "no PDFs produced -- check the pdflatex log in build/" && exit 1)
 clean:
 	rm -rf build
