@@ -80,11 +80,9 @@
 % (~y=1.0-1.15) below.
 \node[font=\tiny,rotate=90,anchor=north] at (axis cs:0.394,2.3) {$\rho=(3-\sqrt5)/2$};
 \addplot[shipred,mark=x,mark size=3.0pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.1,1.15)};
-\node[shipred,font=\scriptsize,anchor=west] at (axis cs:0.115,1.02) {false-certify $r{=}1.15$};
+\node[shipred,font=\scriptsize,anchor=north west] at (axis cs:0.13,1.13) {false-certify $r{=}1.15$};
 \addplot[harborblue,mark=o,mark size=2.4pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.5,1.9)};
-\node[harborblue,font=\scriptsize,anchor=west] at (axis cs:0.53,1.78) {false-reject $r{=}1.9$};
-\node[shipred,font=\scriptsize\itshape,align=left,anchor=west] at (axis cs:0.03,1.55) {$\tilde g$ certifies,\\specialist loses};
-\node[harborblue,font=\scriptsize\itshape,align=left,anchor=west] at (axis cs:0.55,1.35) {$\tilde g$ rejects,\\specialist wins};
+\node[harborblue,font=\scriptsize,anchor=south west] at (axis cs:0.53,1.98) {false-reject $r{=}1.9$};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -125,10 +123,9 @@
 % ymax=2.6) sat inside -- not a shared-style issue, this callout is local
 % to the panel. Lower + smaller also clears the mu_s marker/label block
 % (~y=1.12-1.48) below it.
-\node[shipred,font=\tiny\bfseries,align=center] at (axis cs:0.78,2.25) {pooling wins at\\EVERY skill premium};
-\node[seagreen,font=\scriptsize,align=left,anchor=west] at (axis cs:0.03,1.05) {sole ownership viable\\if the premium clears $g_A$};
 \addplot[shipred,mark=*,mark size=2.2pt,only marks,forget plot] coordinates {(0.5244,1.3761)};
-\node[shipred,font=\scriptsize,anchor=west,align=left] at (axis cs:0.5444,1.30) {$\mu_s{=}10^8$ still loses\\($W{=}1.376{>}K$)};
+\node[shipred,font=\scriptsize,anchor=north west,align=left,fill=white,fill opacity=0.85,inner sep=1.5pt] at (axis cs:0.56,0.85) {$\mu_s{=}10^8$ still loses\\($W{=}1.376{>}K$)};
+\draw[shipred,->,thick] (axis cs:0.56,0.83) -- (axis cs:0.53,1.32);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}
