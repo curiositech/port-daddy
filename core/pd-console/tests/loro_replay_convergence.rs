@@ -56,7 +56,7 @@ mod buffer;
 #[path = "../src/editor_sync.rs"]
 mod editor_sync;
 
-use buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use buffer::{peer_id_for_identity, HarborBuffer, HistoryAction, PeerId};
 use editor_sync::{
     apply_frame, channel_for_path, decode_frame, decode_oplog_note, encode_frame,
     encode_oplog_note, OpLog,
@@ -243,7 +243,7 @@ fn peer_local_undo_redo_frames_preserve_intervening_peer_edits_and_replay_idempo
     assert_eq!(a.to_string(), "A-core-B");
 
     let undo = a
-        .undo_authored()
+        .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
         .expect("A undo succeeds")
         .expect("A has a local edit to undo");
     assert_eq!(a.to_string(), "core-B", "A undo preserves B's suffix");
@@ -270,7 +270,7 @@ fn peer_local_undo_redo_frames_preserve_intervening_peer_edits_and_replay_idempo
     assert!(a.can_redo(), "peer imports do not clear A's redo stack");
 
     let redo = a
-        .redo_authored()
+        .apply_history_governed(HistoryAction::Redo, |_, _| Ok(()))
         .expect("A redo succeeds")
         .expect("A still has redo history");
     assert!(a.to_string().contains("A-"), "redo restores A's edit");
