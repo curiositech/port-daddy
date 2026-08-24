@@ -123,41 +123,43 @@ transient infrastructure event would destroy cooperation faster than any saboteu
 could (whitepaper §7.4, `sec:crash-recovery`).
 
 **The deviation calculation.** Suppose A contemplates **F** in a round where the
-strategy says **T**. With payoffs (c, d, p) = (3, 4, 0) — cooperation, temptation,
-punishment:
+strategy says **T**. With payoffs (c, d, p) = (3, 4, 1) — cooperation, temptation,
+punishment (the corrected PD bimatrix: (T,T) = (3,3), (T,F) = (0,4),
+(F,T) = (4,0), (F,F) = (1,1)):
 
 - **One-shot gain from deviating:** d − c = 4 − 3 = **1** (paid once, this round).
-- **Cost:** three subsequent rounds of (F, F) at p = 0 instead of cooperative
-  c = 3, discounted: (c − p)·(δ + δ² + δ³) = 3·(δ + δ² + δ³).
-- **At δ = 0.9:** 3·(0.9 + 0.81 + 0.729) = 3·2.439 = **7.317**. Net payoff to the
-  deviator: 1 − 7.317 = **−6.317**, strictly negative. **Deviation is strictly
+- **Cost:** three subsequent rounds of (F, F) at p = 1 instead of cooperative
+  c = 3, discounted: (c − p)·(δ + δ² + δ³) = 2·(δ + δ² + δ³).
+- **At δ = 0.9:** 2·(0.9 + 0.81 + 0.729) = 2·2.439 = **4.878**. Net payoff to the
+  deviator: 1 − 4.878 = **−3.878**, strictly negative. **Deviation is strictly
   unprofitable.** [BUILT — §7.4]
 
-> **A note on the numbers in the brief.** An earlier framing of this argument
+> **A note on the numbers in the brief.** Earlier framings of this argument
 > circulated with "deviation gain 1 < discounted cost 8.1" and a threshold
-> "δ ≥ 0.53." Those figures do **not** match the proof on `origin/main`. The
-> grounded numbers are: discounted punishment cost **7.317** at δ = 0.9 (not 8.1),
-> and the critical threshold **δ\* ≈ 0.253** (not 0.53). This doc uses the proven
-> values. Citing the unverified figures would be exactly the overclaim this volume
-> exists to prevent.
+> "δ ≥ 0.53," and later with the non-PD bimatrix (1,4)/(4,1)/(0,0) whose
+> "δ\* ≈ 0.253" the treatise review voided (F was not dominant in that game, so
+> the trigger analysis proved nothing about it). The grounded numbers are:
+> discounted punishment cost **4.878** at δ = 0.9, and the critical threshold
+> **δ\* ≈ 0.3425**. This doc uses the proven values. Citing the voided figures
+> would be exactly the overclaim this volume exists to prevent.
 
 **The critical δ.** The general sustainability condition under a k-round graduated
-trigger with payoffs (c, d, p) = (3, 4, 0) is
+trigger with payoffs (c, d, p) = (3, 4, 1) is
 
 > one-shot gain  <  discounted punishment cost
 > d − c  <  (c − p) · δ(1 − δᵏ)/(1 − δ)
 
-Substituting d − c = 1, c − p = 3, k = 3 gives **1 < 3δ(1 + δ + δ²)**, which solves
-to **δ > δ\*₍ₖ₌₃₎ ≈ 0.253**. Under grim trigger (k → ∞) the bound is the closed form
-δ > 1/4 = 0.25 — the standard folk-theorem threshold. The three-round window adds
-barely 0.003 to the threshold: graduated trigger buys crash-tolerance almost for
+Substituting d − c = 1, c − p = 2, k = 3 gives **1 < 2δ(1 + δ + δ²)**, which solves
+to **δ > δ\*₍ₖ₌₃₎ ≈ 0.343**. Under grim trigger (k → ∞) the bound is the closed form
+δ > 1/3 ≈ 0.333 — the standard folk-theorem threshold. The three-round window adds
+barely 0.009 to the threshold: graduated trigger buys crash-tolerance almost for
 free. [BUILT — §7.4]
 
 **Mechanized in CI (G2).** This is not a paper claim. The threshold is the unique
-real root in (0,1) of the cubic **3δ³ + 3δ² + 3δ − 1 = 0** (numerically
-δ\* ≈ 0.2531), and *both* the root's existence-and-uniqueness in [0.25, 0.26] *and*
+real root in (0,1) of the cubic **2δ³ + 2δ² + 2δ − 1 = 0** (numerically
+δ\* ≈ 0.3425), and *both* the root's existence-and-uniqueness in [0.34, 0.35] *and*
 a model check that no one-shot deviation produces positive discounted payoff at
-δ = 0.26 are mechanized as **`proofs/economics/delta-threshold.z3`** (the Z3 SMT
+δ = 0.35 are mechanized as **`proofs/economics/delta-threshold.z3`** (the Z3 SMT
 proof) and **`proofs/economics/claim_signaling.tla`** (the TLA⁺ model). Both run
 unattended in CI. The equilibrium is *checked*, not asserted.
 
@@ -172,8 +174,8 @@ precondition and the equilibrium fails in a named way (whitepaper §7.4):
 |---|---|---|
 | **Observable history** | The repeated game collapses to repeated one-shot play; no trigger can fire; both play F forever. | Immutable note chain (`lib/sessions.ts`). [BUILT] |
 | **Persistent identity** | An agent who re-registers after each defection effectively faces **δ = 0**: punishment falls on a discarded identity. Cooperation is impossible. | `worktree_id` anchor (`lib/worktree.ts`). [BUILT single-operator] |
-| **δ below 0.253** | The 3-round trigger is insufficient; very short-lived principals can profitably defect once. | Bonds price these out instead (`lib/bonds.ts`; see `mechanism-design.md`). |
-| **δ below 0.25** | No trigger of any duration sustains (T, T). Only the bond mechanism deters defection. | The L3 economic layer. [DESIGNED pricer] |
+| **δ below 0.343** | The 3-round trigger is insufficient; very short-lived principals can profitably defect once. | Bonds price these out instead (`lib/bonds.ts`; see `mechanism-design.md`). |
+| **δ below 1/3** | No trigger of any duration sustains (T, T). Only the bond mechanism deters defection. | The L3 economic layer. [DESIGNED pricer] |
 
 > **This table *is* the L2/L3 boundary.** The first two rows are [BUILT] inside one
 > operator's box — observable history and persistent identity both hold, δ is high,
@@ -240,7 +242,7 @@ policy does not.
 Every other doc in this volume rests on the boundary this one proves:
 
 - `mechanism-design.md` prices the bonds that deter the short-lived defectors the
-  equilibrium *cannot* discipline (the δ < 0.253 row of §5).
+  equilibrium *cannot* discipline (the δ < 0.343 row of §5).
 - `cryptoeconomic-security.md` enumerates the attacks that become live precisely
   when the "persistent identity" precondition breaks (§5.1).
 - `context-economics.md` and `legibility.md` are the L2 read-surfaces whose value

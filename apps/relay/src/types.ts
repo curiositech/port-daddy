@@ -48,6 +48,10 @@ export interface Env {
   GITHUB_OAUTH_CLIENT_SECRET?: string;  // secret
   USER_TOKEN_WRAPPING_KEY?: string;     // secret, 32-byte hex; AES-GCM wraps the gh token
   PUBLIC_BASE_URL?: string;             // var, relay's public origin; redirect_uri base
+  // GitHub's durable numeric id for the initial Cloud Fleet operator. The
+  // matching account is materialized into user_roles on first authorized read;
+  // this is a public identifier, not an authentication secret.
+  RELAY_OPERATOR_GITHUB_USER_ID?: string;
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;
