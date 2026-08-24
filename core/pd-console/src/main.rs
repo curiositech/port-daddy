@@ -70,6 +70,7 @@ mod suggest_pane;
 mod syntax;
 mod term;
 mod theme;
+mod timeline;
 mod tokens;
 mod util;
 mod work_plan;
