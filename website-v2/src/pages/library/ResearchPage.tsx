@@ -25,14 +25,42 @@ import { findWhitePaperByChapter } from '@/data/whitePapers'
  * static scanner can see and ship every class — the same discipline the
  * rest of the design system uses (see `docsCardTone` etc. in primitives.tsx).
  */
-const RESEARCH_TONE_CLASSES: Record<ResearchTone, { badge: string; rule: string }> = {
-  primary: { badge: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]', rule: 'bg-[var(--brand-primary)]' },
-  health: { badge: 'bg-[var(--story-health)] text-[var(--story-health-foreground)]', rule: 'bg-[var(--story-health)]' },
-  rust: { badge: 'bg-[var(--story-rust)] text-[var(--story-rust-foreground)]', rule: 'bg-[var(--story-rust)]' },
-  accent: { badge: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]', rule: 'bg-[var(--brand-accent)]' },
-  violet: { badge: 'bg-[var(--story-violet)] text-[var(--story-violet-foreground)]', rule: 'bg-[var(--story-violet)]' },
-  warm: { badge: 'bg-[var(--status-warning)] text-[var(--text-inverse)]', rule: 'bg-[var(--status-warning)]' },
-  indigo: { badge: 'bg-[var(--story-indigo)] text-[var(--story-indigo-foreground)]', rule: 'bg-[var(--story-indigo)]' },
+const RESEARCH_TONE_CLASSES: Record<ResearchTone, { badge: string; rule: string; border: string }> = {
+  primary: {
+    badge: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
+    rule: 'bg-[var(--brand-primary)]',
+    border: 'border-[var(--brand-primary)]',
+  },
+  health: {
+    badge: 'bg-[var(--story-health)] text-[var(--story-health-foreground)]',
+    rule: 'bg-[var(--story-health)]',
+    border: 'border-[var(--story-health)]',
+  },
+  rust: {
+    badge: 'bg-[var(--story-rust)] text-[var(--story-rust-foreground)]',
+    rule: 'bg-[var(--story-rust)]',
+    border: 'border-[var(--story-rust)]',
+  },
+  accent: {
+    badge: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+    rule: 'bg-[var(--brand-accent)]',
+    border: 'border-[var(--brand-accent)]',
+  },
+  violet: {
+    badge: 'bg-[var(--story-violet)] text-[var(--story-violet-foreground)]',
+    rule: 'bg-[var(--story-violet)]',
+    border: 'border-[var(--story-violet)]',
+  },
+  warm: {
+    badge: 'bg-[var(--status-warning)] text-[var(--text-inverse)]',
+    rule: 'bg-[var(--status-warning)]',
+    border: 'border-[var(--status-warning)]',
+  },
+  indigo: {
+    badge: 'bg-[var(--story-indigo)] text-[var(--story-indigo-foreground)]',
+    rule: 'bg-[var(--story-indigo)]',
+    border: 'border-[var(--story-indigo)]',
+  },
 }
 
 function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
@@ -73,7 +101,7 @@ function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
       <div className="grid gap-[var(--space-4)] p-[var(--space-5)]">
         <PanelBody className="max-w-none text-[length:var(--type-panel-body-size)]">{paper.claim}</PanelBody>
 
-        <blockquote className={`border-l-4 pl-[var(--space-4)] ${tone.rule.replace('bg-', 'border-')}`}>
+        <blockquote className={`border-l-4 pl-[var(--space-4)] ${tone.border}`}>
           <p className="font-mono text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-primary)]">
             {paper.pullQuote}
           </p>

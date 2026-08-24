@@ -95,7 +95,7 @@ def amortization_figure():
     ax.grid(alpha=0.25)
     ax.legend(fontsize=9, loc='upper left', framealpha=0.92)
     ax.set_title('The amortization ladder: lifetime verification spend by '
-                 'schedule\n[internal, b2\\_tower.py]',
+                 'schedule\n[internal, b2_tower.py]',
                  fontsize=11, weight='bold', pad=10)
 
     plt.tight_layout()
