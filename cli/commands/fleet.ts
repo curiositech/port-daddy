@@ -1565,6 +1565,128 @@ function printTranscriptTurn(line: string, full: boolean): void {
   console.log('');
 }
 
+// ── pd-transcript.v1 validator (RFC "format validator tool") ────────────────
+//
+// One line = one verdict. The tolerant renderers (web viewer, this CLI's
+// printTranscriptTurn, the pd-console pane) deliberately SKIP bad lines; the
+// validator is the opposite posture — it names every violation so a producer
+// or a suspicious capture can be checked against the format's actual rules
+// (docs/FLEET-SESSION-TRANSCRIPTS.md): major version 1, closed kind/phase
+// unions, numeric monotonic seq, parts-array content, well-shaped optional
+// chunk/usage, boolean truncated.
+
+const TRANSCRIPT_KINDS = new Set(['system', 'user', 'assistant', 'error']);
+const TRANSCRIPT_PHASES = new Set([
+  'map', 'reduce', 'main', 'repair', 'steelman', 'plan', 'author', 'gate', 'purser', 'xo', 'ideation',
+]);
+
+/**
+ * Validate one parsed envelope against pd-transcript.v1.
+ *
+ * WHY a violation LIST (not a boolean): the tool exists to tell a producer
+ * exactly what to fix — one line can break several rules, and reporting only
+ * the first would take as many runs as there are defects.
+ *
+ * @param v The JSON-parsed line.
+ * @returns Every rule this envelope violates; empty means valid.
+ */
+function validateTranscriptEnvelope(v: unknown): string[] {
+  const problems: string[] = [];
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    return ['envelope is not a JSON object'];
+  }
+  const o = v as Record<string, unknown>;
+  if (o.v !== 1) problems.push(`v must be the number 1 (got ${JSON.stringify(o.v)})`);
+  if (typeof o.seq !== 'number' || !Number.isInteger(o.seq) || o.seq < 0) {
+    problems.push('seq must be a non-negative integer');
+  }
+  if (typeof o.kind !== 'string' || !TRANSCRIPT_KINDS.has(o.kind)) {
+    problems.push(`kind must be one of ${[...TRANSCRIPT_KINDS].join('|')}`);
+  }
+  if (typeof o.phase !== 'string' || !TRANSCRIPT_PHASES.has(o.phase)) {
+    problems.push(`phase must be one of ${[...TRANSCRIPT_PHASES].join('|')}`);
+  }
+  if (!Array.isArray(o.content)) {
+    problems.push('content must be a parts array');
+  } else if (
+    !o.content.every(
+      (part) =>
+        typeof part === 'object' && part !== null &&
+        (part as Record<string, unknown>).type === 'text' &&
+        typeof (part as Record<string, unknown>).text === 'string',
+    )
+  ) {
+    problems.push('every content part must be {type:"text", text:string}');
+  }
+  if (o.chunk !== null && o.chunk !== undefined) {
+    const chunk = o.chunk as Record<string, unknown>;
+    if (
+      typeof chunk !== 'object' || Array.isArray(o.chunk) ||
+      typeof chunk.index !== 'number' || typeof chunk.count !== 'number'
+    ) {
+      problems.push('chunk must be null or {index:number, count:number}');
+    }
+  }
+  if (o.usage !== null && o.usage !== undefined) {
+    const usage = o.usage as Record<string, unknown>;
+    if (
+      typeof usage !== 'object' || Array.isArray(o.usage) ||
+      typeof usage.prompt !== 'number' || typeof usage.completion !== 'number'
+    ) {
+      problems.push('usage must be null or {prompt:number, completion:number}');
+    }
+  }
+  if (typeof o.truncated !== 'boolean') problems.push('truncated must be a boolean');
+  return problems;
+}
+
+/**
+ * Validate a whole JSONL body and print the report.
+ *
+ * PURPOSE: the machine half of the format's contract — per-line verdicts plus
+ * the cross-line rule the per-envelope check cannot see (seq must strictly
+ * increase within one capture). Exit 1 on any violation so the tool composes
+ * into scripts and CI.
+ *
+ * @param body The raw JSONL text.
+ * @param label Where the bytes came from, for the report header.
+ * @returns true when every line is a valid pd-transcript.v1 envelope.
+ */
+function validateTranscriptBody(body: string, label: string): boolean {
+  const lines = body.split('\n').filter(l => l.trim());
+  let valid = 0;
+  let invalid = 0;
+  let lastSeq = -1;
+  lines.forEach((line, i) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      invalid += 1;
+      console.log(`  line ${i + 1}: INVALID — not JSON`);
+      return;
+    }
+    const problems = validateTranscriptEnvelope(parsed);
+    const seq = (parsed as Record<string, unknown>)?.seq;
+    if (typeof seq === 'number' && Number.isInteger(seq)) {
+      if (seq <= lastSeq) problems.push(`seq ${seq} does not increase past ${lastSeq}`);
+      lastSeq = Math.max(lastSeq, seq);
+    }
+    if (problems.length === 0) {
+      valid += 1;
+    } else {
+      invalid += 1;
+      console.log(`  line ${i + 1}: INVALID — ${problems.join('; ')}`);
+    }
+  });
+  if (invalid === 0) {
+    ui.success(`${label}: ${valid} envelope(s), all valid pd-transcript.v1`);
+  } else {
+    ui.error(`${label}: ${invalid} invalid line(s), ${valid} valid`);
+  }
+  return invalid === 0;
+}
+
 /**
  * `pd fleet transcript <run-id> [ship]` — the terminal surface over the
  * relay's captured ship sessions (pd-transcript.v1, RFC Phase 3).
@@ -1584,10 +1706,20 @@ function printTranscriptTurn(line: string, full: boolean): void {
  *   relay/credential configuration, or the relay's uniform 404.
  */
 async function fleetTranscript(options: CLIOptions, positional: string[]): Promise<void> {
+  // Standalone validator mode (--file): no relay, no credentials — judge a
+  // LOCAL capture (or any producer's output) against pd-transcript.v1. This
+  // is the RFC's "format validator tool", riding the same command so the
+  // format has exactly one CLI home.
+  const fileArg = (options as Record<string, unknown>).file;
+  if (typeof fileArg === 'string' && fileArg) {
+    const body = readFileSync(fileArg, 'utf-8');
+    process.exit(validateTranscriptBody(body, fileArg) ? 0 : 1);
+  }
+
   const runId = positional[0];
   const ship = positional[1];
   if (!runId) {
-    ui.error('Usage: pd fleet transcript <run-id> [ship] [--attempt N] [--raw|--full] [--follow] [--relay <url>] [--token <token>]');
+    ui.error('Usage: pd fleet transcript <run-id> [ship] [--attempt N] [--raw|--full|--validate] [--follow] [--relay <url>] [--token <token>] | --file <capture.jsonl>');
     process.exit(1);
   }
   const relay = await resolveRelayUrl(options);
@@ -1668,6 +1800,9 @@ async function fleetTranscript(options: CLIOptions, positional: string[]): Promi
     process.exit(1);
   }
   const body = await res.text();
+  if (opts.validate === true) {
+    process.exit(validateTranscriptBody(body, `pd-${ship} (${runId})`) ? 0 : 1);
+  }
   if (opts.raw === true) {
     process.stdout.write(body);
     return;
@@ -1790,6 +1925,8 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('                               (--attempt N, --raw, --full, --follow, --json;');
       console.log('                                relay via --relay/PD_RELAY_URL, credential via');
       console.log('                                --token/PD_RELAY_OPERATOR_TOKEN)');
+      console.log('  transcript ... --validate    Judge a fetched session against pd-transcript.v1');
+      console.log('  transcript --file <p.jsonl>  Validate a LOCAL capture (no relay, no credentials)');
       console.log('');
       console.log('Conductor control (ADR-0060 — operate the live fleet):');
       console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');
