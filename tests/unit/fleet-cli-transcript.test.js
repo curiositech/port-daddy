@@ -75,9 +75,11 @@ const LEDGER = {
     },
   ],
 };
+// COMPLETE pd-transcript.v1 envelopes, exactly as the producer writes them —
+// the --validate tests depend on every always-written field being present.
 const JSONL =
-  JSON.stringify({ v: 1, seq: 0, kind: 'system', phase: 'map', model: 'm', content: [{ type: 'text', text: 'You are pd-qa.' }], sysRef: 'fnv1a:aa:14' }) + '\n' +
-  JSON.stringify({ v: 1, seq: 1, kind: 'assistant', phase: 'map', model: 'm', usage: { prompt: 120, completion: 30 }, content: [{ type: 'text', text: 'FLEET-VERDICT: PASS' }] }) + '\n';
+  JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 2, seq: 0, kind: 'system', phase: 'map', chunk: null, model: 'm', ts: 1700000000, latencyMs: null, usage: null, costUsd: null, content: [{ type: 'text', text: 'You are pd-qa.' }], sysRef: 'fnv1a:aa:14', truncated: false }) + '\n' +
+  JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 2, seq: 1, kind: 'assistant', phase: 'map', chunk: null, model: 'm', ts: 1700000004, latencyMs: 900, usage: { prompt: 120, completion: 30 }, costUsd: 0.001, content: [{ type: 'text', text: 'FLEET-VERDICT: PASS' }], sysRef: null, truncated: false }) + '\n';
 
 function relayResponse(status, body, isText = false) {
   return {
@@ -183,6 +185,68 @@ describe('pd fleet transcript', () => {
 
     await expect(handleFleet(['transcript', RUN], {})).rejects.toThrow('exit:1');
     expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('indistinguishable'));
+  });
+
+  test('--validate judges a fetched session: exit 0 when clean, exit 1 naming each violation', async () => {
+    mockFetch
+      .mockResolvedValueOnce(relayResponse(200, LEDGER))
+      .mockResolvedValueOnce(relayResponse(200, JSONL, true));
+    await expect(handleFleet(['transcript', RUN, 'qa'], { validate: true })).rejects.toThrow('exit:0');
+    expect(mockUi.success).toHaveBeenCalledWith(expect.stringContaining('all valid pd-transcript.v1'));
+
+    console.log.mockClear();
+    const bad =
+      JSON.stringify({ v: 2, seq: 0, kind: 'assistant', phase: 'map', content: [], truncated: false }) + '\n' +
+      'not-json\n' +
+      JSON.stringify({ v: 1, seq: 0, kind: 'oracle', phase: 'mystery', content: 'nope', truncated: 'yes' }) + '\n' +
+      JSON.stringify({ v: 1, seq: 0, kind: 'assistant', phase: 'map', content: [], chunk: null, usage: null, truncated: false }) + '\n' +
+      JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 0, seq: -1, kind: 'assistant', phase: 'map', chunk: null, model: 'm', ts: 1700000000, latencyMs: null, usage: null, costUsd: null, content: [], sysRef: 42, truncated: false }) + '\n' +
+      JSON.stringify({ v: 1, runId: RUN, ship: 'qa', attempt: 2, kind: 'assistant', phase: 'map', chunk: [], model: 'm', ts: 1700000000, latencyMs: 'slow', usage: 'lots', costUsd: 'free', content: [], sysRef: null, truncated: false }) + '\n';
+    mockFetch
+      .mockResolvedValueOnce(relayResponse(200, LEDGER))
+      .mockResolvedValueOnce(relayResponse(200, bad, true));
+    await expect(handleFleet(['transcript', RUN, 'qa'], { validate: true })).rejects.toThrow('exit:1');
+    const report = console.log.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(report).toContain('line 1: INVALID — v must be the number 1');
+    expect(report).toContain('line 2: INVALID — not JSON');
+    expect(report).toContain('kind must be one of');
+    expect(report).toContain('phase must be one of');
+    expect(report).toContain('content must be a parts array');
+    expect(report).toContain('truncated must be a boolean');
+    expect(report).toContain('runId must be a non-empty string');
+    expect(report).toContain('model must be a non-empty string');
+    // Cross-line rule: line 4 reuses seq 0 after line 3's seq 0.
+    expect(report).toMatch(/line 4: INVALID — .*seq 0 does not increase past 0/);
+    // Boundary rules: negative seq, zero attempt, wrong-typed sysRef (line 5).
+    expect(report).toMatch(/line 5: INVALID — .*seq must be a non-negative integer/);
+    expect(report).toMatch(/line 5: INVALID — .*attempt must be a positive integer/);
+    expect(report).toMatch(/line 5: INVALID — .*sysRef must be null or a non-empty string/);
+    // Line 6: MISSING seq is a violation in its own right (never silently
+    // passed), and every nullable-telemetry shape rule fires on wrong types.
+    expect(report).toMatch(/line 6: INVALID — .*seq must be a non-negative integer/);
+    expect(report).toMatch(/line 6: INVALID — .*chunk must be null or \{index:number, count:number\}/);
+    expect(report).toMatch(/line 6: INVALID — .*usage must be null or \{prompt:number, completion:number\}/);
+    expect(report).toMatch(/line 6: INVALID — .*latencyMs must be null or a number/);
+    expect(report).toMatch(/line 6: INVALID — .*costUsd must be null or a number/);
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('6 invalid line(s), 0 valid'));
+  });
+
+  test('--file validates a local capture with no relay, no credentials, no daemon', async () => {
+    delete process.env.PD_RELAY_URL;
+    delete process.env.PD_RELAY_OPERATOR_TOKEN;
+    const os = await import('node:os');
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const file = path.join(os.tmpdir(), `pd-transcript-validate-${process.pid}.jsonl`);
+    fs.writeFileSync(file, JSONL);
+    try {
+      await expect(handleFleet(['transcript'], { file })).rejects.toThrow('exit:0');
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockPdFetch).not.toHaveBeenCalled();
+      expect(mockUi.success).toHaveBeenCalledWith(expect.stringContaining('all valid pd-transcript.v1'));
+    } finally {
+      fs.unlinkSync(file);
+    }
   });
 
   test('--attempt N is forwarded to the .jsonl route', async () => {
