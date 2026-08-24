@@ -5,6 +5,7 @@ import {
   createParley,
   MAX_AUTOMATIC_PARLEY_IDEMPOTENCY_KEY_CHARS,
 } from '../../lib/parley.js';
+import { CONFLICT_SIGNAL_LIMITS } from '../../lib/parley-trigger.js';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
 
 let db;
@@ -283,6 +284,26 @@ describe('automatic call durability', () => {
     expect(() => automatic.callAutomatic(automaticInput({
       participants: [base[0], { ...base[1], inboxTarget: base[0].inboxTarget }],
     }))).toThrow(/inboxTargets must be distinct/);
+  });
+
+  test('rejects an over-limit automatic participant set before durable side effects', () => {
+    const inbox = createAgentInbox(db);
+    const automatic = createParley({ tuples, agentInbox: inbox, now: () => clock });
+    const participants = Array.from(
+      { length: CONFLICT_SIGNAL_LIMITS.maxParties + 1 },
+      (_, index) => ({
+        actorId: `actor-${index}`,
+        inboxTarget: `inbox-${index}`,
+        sessionId: `session-${index}`,
+        lineageRootSessionId: `root-${index}`,
+      }),
+    );
+
+    expect(() => automatic.callAutomatic(automaticInput({ participants })))
+      .toThrow(`participants exceed ${CONFLICT_SIGNAL_LIMITS.maxParties}`);
+    expect(tuples.count()).toBe(0);
+    expect(inbox.stats(participants[0].inboxTarget).total).toBe(0);
+    expect(inbox.stats(participants.at(-1).inboxTarget).total).toBe(0);
   });
 
   test('aligns automatic key and longest-participant bounds with tuple and inbox delivery keys', () => {
