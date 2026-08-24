@@ -14,7 +14,7 @@ keyless FFI surface live in `core/kernel/pd-anchor/src/keystore.rs` and
 `core/kernel/pd-anchor/src/ffi.rs`. Three exports route through the kernel store
 and **never carry a key in a request or response**:
 
-- `pd_keystore_issue_grant_json` — mint a push grant; keys retained internally.
+- `pd_keystore_issue_grant_json` — mint a canonical actor-bound push grant; keys retained internally.
 - `pd_keystore_issue_discharge_json` — mint a discharge **only** when
   `verdict == "paid"`; the caveat key is read from the store, never supplied.
 - `pd_keystore_authorize_json` — verify a presented grant + discharges against
@@ -55,7 +55,7 @@ and the rent-verdict enum are stable enough to specify against today.
   wrapped in `catch_unwind`, fail-closed, JSON in / JSON out, freed via
   `pd_string_free`.
 - `core/kernel/pd-anchor/src/macaroon.rs` — `RentVerdict` (`Paid` / `RentDue` /
-  `Idle` / `Stale`), `mint_push_grant`, `discharge_rent_paid`, `verify`, and the
+  `Idle` / `Stale`), `mint_actor_bound_push_grant`, `discharge_rent_paid`, `verify`, and the
   `hmac` / `ct_eq` primitives. The discharge construction is machine-checked in
   `analyses/macaroon_discharge_v1.pv`.
 - `lib/coast-guard/compulsion.ts` — the **pure** rent evaluator
@@ -94,9 +94,9 @@ void        pd_string_free(char *ptr)
 
 Module surface (TypeScript):
 
-- `issueGrant(opts: { repo; session; expiresMs; protectedBranch }): { ok; grantId; macaroon } | { ok:false; reason }`
+- `issueGrant(opts: { repo; actor; session; expiresMs; protectedBranch }): { ok; grantId; macaroon } | { ok:false; reason }`, where `actor` is the canonical daemon-minted principal, never an alias or session id.
 - `issueDischarge(opts: { grantId; verdict: RentVerdict; nowMs; ttlMs? }): { ok; discharge|null; reason }`
-- `authorize(opts: { macaroon; discharges; ctx }): { ok; reason }`
+- `authorize(opts: { macaroon; actor; discharges; ctx }): { ok; reason }`
 
 Rules, enforced in the binding:
 
@@ -131,6 +131,7 @@ hook can find it. Add a small table via a new migration
 ```
 push_grants(
   grant_id TEXT PRIMARY KEY,   -- the kernel's grant id (opaque)
+  actor_id TEXT NOT NULL,      -- canonical daemon actor, independently of session lineage
   session_id TEXT NOT NULL,
   repo TEXT NOT NULL,
   worktree_path TEXT NOT NULL,
@@ -155,8 +156,10 @@ registered in `routes/index.ts` exactly like `attestPlugin`
 
 Three endpoints:
 
-- **`POST /push-grants`** — issue a grant for a session+worktree. Body:
-  `{ sessionId, repo, worktreePath, protectedBranch }`. Calls
+- **`POST /push-grants`** — issue a grant for a canonical actor+session+worktree. Body:
+  `{ sessionId, repo, worktreePath, protectedBranch }`; the daemon resolves the
+  authenticated session to its canonical actor and never accepts an actor from
+  this body. Calls
   `issueGrant` (FFI), persists the row from §2.2, returns `{ grantId }`.
   Idempotent per (session, worktree): if a live, unexpired grant exists, return
   it instead of minting a second.
@@ -174,7 +177,7 @@ Three endpoints:
      mints for `Paid`. (Phase 3 wraps the verdict in a signature; see §3.)
   5. If a discharge came back: `prepare_for_request`-bind it to the grant
      macaroon (done in the binding or a tiny Rust helper — see §2.5), then call
-     `authorize({ macaroon, discharges:[bound], ctx:{ op:'push', repo, branch,
+     `authorize({ macaroon, actor, discharges:[bound], ctx:{ op:'push', repo, branch,
      session, now_ms } })`. Return `{ ok, reason }` from the kernel verdict.
   6. If no discharge: return `{ ok:false, reason }` carrying the rent evaluator's
      `reason` string (which points only at the corrective action — never names a
