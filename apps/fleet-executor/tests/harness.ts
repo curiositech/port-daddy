@@ -695,6 +695,14 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        // Run-deadline read-back (getRunStartedAtSec): the logical run's TRUE
+        // first-attempt created_at, surviving every continuation/retry —
+        // served from the same runsById map the INSERT path above maintains.
+        if (/SELECT created_at FROM fleet_runs WHERE id = \?/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const row = runsById.get(String(args[0]));
+          return row ? ({ created_at: row.createdAt } as unknown as Record<string, unknown>) : null;
+        }
         // Delivery-failure read-back: the newest recorded failure for one run,
         // ordered by seq (see src/delivery-failure.ts). Served from the same
         // `steps` array the INSERT path above appends to, so a test that writes
