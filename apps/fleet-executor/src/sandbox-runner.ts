@@ -257,6 +257,7 @@ const DEFAULT_INSTALL_COMMAND =
   'npm ci --no-audit --no-fund --onnxruntime-node-install=skip';
 
 const CLOUD_PEER_ROOT = '/work/pd-peer';
+const CLOUD_PEER_WITNESS_ROOT = '/work/pd-peer-witness';
 const CLOUD_PEER_PORT = 9876;
 const REPOSITORY_ROOT = '/work/repo';
 const TEST_STARTED_MARKER = '__PD_PURSER_TEST_STARTED__';
@@ -462,15 +463,19 @@ export function buildSandboxDaemonBootstrap(
   return [
     'npm run build:bin',
     `mkdir -p ${shq(CLOUD_PEER_ROOT)}`,
+    `mkdir -p ${shq(CLOUD_PEER_WITNESS_ROOT)}`,
   ];
 }
 
-function cloudPeerDaemonEnv(peer: SandboxCoordinationPeer): Record<string, string> {
+function cloudPeerDaemonEnv(
+  peer: SandboxCoordinationPeer,
+  root = CLOUD_PEER_ROOT,
+): Record<string, string> {
   return {
     PORT_DADDY_PORT: String(CLOUD_PEER_PORT),
-    PORT_DADDY_DB: `${CLOUD_PEER_ROOT}/registry.db`,
-    PORT_DADDY_PREFIX: CLOUD_PEER_ROOT,
-    PORT_DADDY_SOCK: `${CLOUD_PEER_ROOT}/port-daddy.sock`,
+    PORT_DADDY_DB: `${root}/registry.db`,
+    PORT_DADDY_PREFIX: root,
+    PORT_DADDY_SOCK: `${root}/port-daddy.sock`,
     PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
     PORT_DADDY_NO_FLEET: '1',
     PORT_DADDY_NO_FLEETBAR: '1',
@@ -485,12 +490,12 @@ function cloudPeerDaemonEnv(peer: SandboxCoordinationPeer): Record<string, strin
   };
 }
 
-function cloudPeerClientEnv(): Record<string, string> {
+function cloudPeerClientEnv(root = CLOUD_PEER_ROOT): Record<string, string> {
   return {
     PORT_DADDY_PORT: String(CLOUD_PEER_PORT),
-    PORT_DADDY_DB: `${CLOUD_PEER_ROOT}/registry.db`,
-    PORT_DADDY_PREFIX: CLOUD_PEER_ROOT,
-    PORT_DADDY_SOCK: `${CLOUD_PEER_ROOT}/port-daddy.sock`,
+    PORT_DADDY_DB: `${root}/registry.db`,
+    PORT_DADDY_PREFIX: root,
+    PORT_DADDY_SOCK: `${root}/port-daddy.sock`,
     PORT_DADDY_BIN_OVERRIDE: `${REPOSITORY_ROOT}/dist/port-daddy`,
   };
 }
@@ -509,6 +514,53 @@ function cloudPeerConvergenceProbeCommand(): string {
     '  setTimeout(poll, 250);',
     '};',
     'void poll();',
+  ].join('\n');
+  return `node -e ${shq(script)}`;
+}
+
+function cloudPeerWitnessCommand(
+  peer: SandboxCoordinationPeer,
+  markerPath: string,
+  enrollmentNote: string,
+): string {
+  const script = [
+    "const { execFileSync } = require('node:child_process');",
+    `const project = ${JSON.stringify(peer.project)};`,
+    `const actorId = ${JSON.stringify(peer.actorId)};`,
+    `const markerPath = ${JSON.stringify(markerPath)};`,
+    `const enrollmentNote = ${JSON.stringify(enrollmentNote)};`,
+    `const purpose = ${JSON.stringify('Cloud sandbox coordination peer')};`,
+    'const run = (args) => JSON.parse(execFileSync(\'./dist/port-daddy\', args, { encoding: \'utf8\' }));',
+    'const metadata = (value) => {',
+    '  if (value && typeof value === \'object\' && !Array.isArray(value)) return value;',
+    '  if (typeof value !== \'string\') return {};',
+    '  try { const parsed = JSON.parse(value); return parsed && typeof parsed === \'object\' ? parsed : {}; } catch { return {}; }',
+    '};',
+    'let attempts = 0;',
+    'const poll = () => {',
+    '  try {',
+    "    const sessions = run(['sessions', '--project', project, '--all-worktrees', '--json']);",
+    "    const ownership = run(['who-owns', markerPath, '--json']);",
+    "    const notes = run(['notes', '--project', project, '--limit', '200', '--json']);",
+    '    const session = Array.isArray(sessions.sessions)',
+    '      ? sessions.sessions.find((value) => {',
+    '          const m = metadata(value.metadata);',
+    '          return value.purpose === purpose && (m.semanticIdentity === actorId || m.identity === actorId);',
+    '        })',
+    '      : null;',
+    '    const owned = Boolean(session && Array.isArray(ownership.owners)',
+    '      && ownership.owners.some((value) => value.sessionId === session.id));',
+    '    const noted = Boolean(session && Array.isArray(notes.notes)',
+    '      && notes.notes.some((value) => value.sessionId === session.id && value.content === enrollmentNote));',
+    '    if (session && owned && noted) {',
+    "      process.stdout.write('CLOUD_PEER_WITNESS_OK ' + session.id + '\\n');",
+    '      process.exit(0);',
+    '    }',
+    '  } catch {}',
+    "  if (++attempts >= 60) { console.error('fresh cloud peer did not read the exact session, claim, and note'); process.exit(1); }",
+    '  setTimeout(poll, 250);',
+    '};',
+    'poll();',
   ].join('\n');
   return `node -e ${shq(script)}`;
 }
@@ -787,6 +839,57 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       return notExecuted(
         'cloud pd daemon started but its coordination session was not durably acknowledged by the room',
         combinedOutput(convergenceResult),
+      );
+    }
+
+    // A non-zero room cursor proves only that *something* has existed in this
+    // project. Kill the writer and boot a second daemon against a brand-new DB
+    // and prefix. The witness must read the writer's exact session, marker
+    // claim, and note through ordinary pd commands before authored tests run.
+    await daemonProcess.kill();
+    daemonProcess = null;
+    const witnessPeer: SandboxCoordinationPeer = {
+      ...coordinationPeer,
+      replicaId: newSandboxReplicaId(),
+    };
+    daemonProcess = await sandbox.startProcess!(
+      './dist/port-daddy __daemon',
+      {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerDaemonEnv(witnessPeer, CLOUD_PEER_WITNESS_ROOT),
+      },
+    );
+    if (
+      !daemonProcess
+      || typeof daemonProcess.waitForPort !== 'function'
+      || typeof daemonProcess.kill !== 'function'
+    ) {
+      return notExecuted(
+        'SANDBOX startProcess returned no controllable witness daemon handle',
+      );
+    }
+    await daemonProcess.waitForPort(CLOUD_PEER_PORT, { path: '/health' });
+    const witnessConvergence = await sandbox.exec(cloudPeerConvergenceProbeCommand(), {
+      cwd: REPOSITORY_ROOT,
+      env: cloudPeerClientEnv(CLOUD_PEER_WITNESS_ROOT),
+    });
+    if (!execPassed(witnessConvergence)) {
+      return notExecuted(
+        'fresh cloud pd witness did not converge with the coordination room',
+        combinedOutput(witnessConvergence),
+      );
+    }
+    const witnessResult = await sandbox.exec(
+      cloudPeerWitnessCommand(coordinationPeer, markerPath, enrollmentNote),
+      {
+        cwd: REPOSITORY_ROOT,
+        env: cloudPeerClientEnv(CLOUD_PEER_WITNESS_ROOT),
+      },
+    );
+    if (!execPassed(witnessResult)) {
+      return notExecuted(
+        'fresh cloud pd witness could not read the exact session, marker claim, and enrollment note',
+        combinedOutput(witnessResult),
       );
     }
     const testResult = await sandbox.exec(`bash -lc ${shq(runner.script)}`, {
