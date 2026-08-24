@@ -1443,6 +1443,12 @@ fn render_code_segment(
 }
 
 fn compact_blame_label(blame: &crate::git_blame::BlameLine) -> String {
+    if blame.is_working_tree() {
+        return "working tree"
+            .graphemes(true)
+            .take(BLAME_COL_CHARS as usize)
+            .collect();
+    }
     let author = blame
         .author
         .split_whitespace()
@@ -4775,23 +4781,25 @@ impl ConsoleView {
                                         .overflow_hidden()
                                         .cursor(CursorStyle::IBeam)
                                         .child(c)
-                                        .when(is_focused, |surface| {
-                                            surface.child(
-                                                div()
-                                                    .absolute()
-                                                    .size_full()
-                                                    .on_mouse_down(
-                                                        MouseButton::Left,
-                                                        cx.listener(|this, event, window, cx| {
-                                                            window.focus(&this.focus_handle);
-                                                            this.handle_editor_mouse_down(event, cx);
-                                                        }),
-                                                    )
-                                                    .child(EditorInputElement {
-                                                        view: cx.entity(),
+                                        // Keep the hit-test/input layer mounted even
+                                        // while this pane is inactive. The first click
+                                        // must both focus the pane and place the caret.
+                                        .child(
+                                            div()
+                                                .absolute()
+                                                .size_full()
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    cx.listener(move |this, event, window, cx| {
+                                                        this.ws_mut().focus(id);
+                                                        window.focus(&this.focus_handle);
+                                                        this.handle_editor_mouse_down(event, cx);
                                                     }),
-                                            )
-                                        }),
+                                                )
+                                                .child(EditorInputElement {
+                                                    view: cx.entity(),
+                                                }),
+                                        ),
                                 )
                             })
                     }
@@ -7005,6 +7013,11 @@ fn render_editor_toolbar(
                 .text_color(rgb(t.muted))
                 .child(format!("SYNTAX {}", options.syntax_label)),
         )
+        .child(div().text_color(rgb(t.muted)).child(if blame_on {
+            "COLUMNS REPLICA + GIT"
+        } else {
+            "COLUMN REPLICA"
+        }))
         .child(div().flex_1())
         .child(
             div()

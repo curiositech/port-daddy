@@ -79,7 +79,7 @@ const LIGHT: Theme = Theme {
     sunken: 0xe9e2d5,
     ink: 0x121212,
     ink2: 0x403b34,
-    muted: 0x6f675a,
+    muted: 0x554f46,
     line: 0xcfc1af,
     line2: 0x8d806e,
     accent: 0x003fb8,
@@ -87,7 +87,7 @@ const LIGHT: Theme = Theme {
     engaged: 0x8c540e,
     gated: 0xaa432e,
     landed: 0x006b5f,
-    resting: 0x7e6f5c,
+    resting: 0x554f46,
     conflict: 0xbf2f2f,
     mayday: 0x8b1622,
     cobalt: 0x0055ff,
@@ -97,10 +97,10 @@ const LIGHT: Theme = Theme {
     flag_november: 0xaa432e,
     flag_lima: 0x6f675a,
     syn_keyword: 0x003fb8,
-    syn_type: 0x8c540e,
-    syn_string: 0x006b5f,
-    syn_comment: 0x6f675a,
-    syn_number: 0xaa432e,
+    syn_type: 0x5d3300,
+    syn_string: 0x004c43,
+    syn_comment: 0x554f46,
+    syn_number: 0x7a291e,
 };
 
 /// DARK — the exact story-linework console roles from `ports/port.css`.
@@ -123,7 +123,7 @@ const DARK: Theme = Theme {
     engaged: 0xcad900,
     gated: 0xe0a5ed,
     landed: 0x5fce97,
-    resting: 0x6f6a5f,
+    resting: 0xa59f93,
     conflict: 0xff7d7d,
     mayday: 0xff7d7d,
     cobalt: 0x7db4ff,
@@ -181,5 +181,94 @@ impl Theme {
     /// Faint gated wash (~14% alpha) — destructive control hover.
     pub fn gated_wash(&self) -> Rgba {
         rgba((self.gated << 8) | 0x24)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pane::{SyntaxKind, Tone};
+
+    fn srgb_channel(value: u8) -> f64 {
+        let value = f64::from(value) / 255.0;
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    }
+
+    fn luminance(color: u32) -> f64 {
+        0.2126 * srgb_channel(((color >> 16) & 0xff) as u8)
+            + 0.7152 * srgb_channel(((color >> 8) & 0xff) as u8)
+            + 0.0722 * srgb_channel((color & 0xff) as u8)
+    }
+
+    fn contrast(foreground: u32, background: u32) -> f64 {
+        let foreground = luminance(foreground);
+        let background = luminance(background);
+        (foreground.max(background) + 0.05) / (foreground.min(background) + 0.05)
+    }
+
+    fn blend(foreground: u32, background: u32, alpha: u8) -> u32 {
+        let alpha = f64::from(alpha) / 255.0;
+        [16_u32, 8, 0].into_iter().fold(0, |blended, shift| {
+            let foreground = f64::from((foreground >> shift) & 0xff);
+            let background = f64::from((background >> shift) & 0xff);
+            blended | ((foreground * alpha + background * (1.0 - alpha)).round() as u32) << shift
+        })
+    }
+
+    #[test]
+    fn editor_syntax_meets_body_text_contrast_on_surfaces_and_claim_washes() {
+        let syntax = [
+            SyntaxKind::Plain,
+            SyntaxKind::Keyword,
+            SyntaxKind::Type,
+            SyntaxKind::Str,
+            SyntaxKind::Comment,
+            SyntaxKind::Number,
+        ];
+        let tones = [
+            Tone::Default,
+            Tone::Accent,
+            Tone::Engaged,
+            Tone::Gated,
+            Tone::Resting,
+            Tone::Landed,
+            Tone::Conflicted,
+            Tone::Alarm,
+        ];
+
+        for mode in [ThemeMode::Light, ThemeMode::Dark] {
+            let theme = Theme::for_mode(mode);
+            let backgrounds = std::iter::once(theme.sunken).chain(
+                tones
+                    .iter()
+                    .map(|tone| blend(theme.tone(tone), theme.sunken, 0x2b)),
+            );
+            for background in backgrounds {
+                for kind in syntax {
+                    let ratio = contrast(theme.syntax(kind), background);
+                    assert!(
+                        ratio >= 4.5,
+                        "{mode:?} {kind:?} contrast {ratio:.2}:1 on #{background:06x}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn authorship_and_blame_labels_meet_body_text_contrast() {
+        for mode in [ThemeMode::Light, ThemeMode::Dark] {
+            let theme = Theme::for_mode(mode);
+            for foreground in [theme.muted, theme.resting, theme.engaged] {
+                assert!(
+                    contrast(foreground, theme.sunken) >= 4.5,
+                    "{mode:?} provenance color #{foreground:06x} misses 4.5:1"
+                );
+            }
+        }
     }
 }
