@@ -378,6 +378,29 @@ actually doing what it claims, not just that it is up.
 }
 ```
 
+### GET /coordination/status
+
+Read-only ADR-0092 cloud coordination peer status. A disconnected peer keeps
+accepting local sessions, notes, claims, and logical lock leases into its
+SQLite ledger and durable outbox; this endpoint reports federation progress,
+not local availability.
+
+```json
+{
+  "enabled": true,
+  "connected": true,
+  "project": "owner/repo",
+  "actorId": "cloud-runner",
+  "replicaId": "peer-01J...",
+  "cursor": 42,
+  "outbox": 0,
+  "lastSyncAt": 1787520000000,
+  "lastError": null
+}
+```
+
+MCP equivalent: `coordination_status()`.
+
 ### GET /status
 Combined daemon report. Includes build identity, metrics, detailed fleet breakdown, guardian state, and recent daemon history.
 

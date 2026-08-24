@@ -31,7 +31,8 @@ import {
   extractFencedYamlBlocks,
   validateEmittedYaml,
 } from '../src/shipwright.js';
-import { handleShipwrightPage, renderShipwrightPage } from '../src/shipwright-page.js';
+import { handleShipwrightPage, renderShipwrightPage, renderModelBoard } from '../src/shipwright-page.js';
+import { MODEL_DOSSIER, dossierLine, modelBoardPromptFragment } from '../src/model-dossier.js';
 import { handleAccountExport } from '../src/auth-github.js';
 import { eraseUser, listShipwrightMessages, type UserRow, type ShipwrightMessageRow } from '../src/db.js';
 import { runRetentionSweep, SHIPWRIGHT_RETENTION_DAYS } from '../src/retention-sweep.js';
@@ -643,3 +644,86 @@ describe('GET /account/shipwright — page', () => {
     expect(p).toContain('yaml');
   });
 });
+
+describe('shipwright — the model dossier is the single model authority (page, prompt, data)', () => {
+  it('the dossier is well-formed: verified date, non-empty note, sane economics on every row', () => {
+    expect(MODEL_DOSSIER.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(MODEL_DOSSIER.models.length).toBeGreaterThanOrEqual(20);
+    expect(MODEL_DOSSIER.excluded.length).toBeGreaterThan(0);
+    const ids = new Set<string>();
+    for (const m of MODEL_DOSSIER.models) {
+      expect(m.id, m.id).toMatch(/^@cf\//);
+      expect(ids.has(m.id), `duplicate dossier id ${m.id}`).toBe(false);
+      ids.add(m.id);
+      expect(m.inputUsdPerM, m.id).toBeGreaterThan(0);
+      expect(m.outputUsdPerM, m.id).toBeGreaterThan(0);
+      expect(m.contextTokens, m.id).toBeGreaterThanOrEqual(24_000);
+      expect(m.note.length, m.id).toBeGreaterThan(10);
+      expect(['adopted', 'bench']).toContain(m.verdict);
+      // The board's promise: adopted = carries a live fleet assignment.
+      if (m.verdict === 'adopted') expect(m.assignments.length, m.id).toBeGreaterThan(0);
+    }
+    for (const x of MODEL_DOSSIER.excluded) {
+      expect(x.reason.length, x.id).toBeGreaterThan(10);
+    }
+  });
+
+  it('the system prompt carries the board: every honored id, verbatim, plus the exact-quote law', () => {
+    const p = SHIPWRIGHT_SYSTEM_PROMPT;
+    expect(p).toContain('THE MODEL BOARD');
+    expect(p).toContain(MODEL_DOSSIER.verifiedAt);
+    for (const m of MODEL_DOSSIER.models) {
+      expect(p, `prompt is missing dossier model ${m.id}`).toContain(`'${m.id}'`);
+    }
+    // The stale hardcoded folklore this replaced must never come back.
+    expect(p).not.toContain("qwen3-30b-a3b-fp8' for general work");
+    expect(p).not.toContain('qwen2.5-coder-32b-instruct\' for code review');
+  });
+
+  it('dossierLine formats price, context, and fleet duty from the same data the page renders', () => {
+    const glm = MODEL_DOSSIER.models.find((m) => m.id === '@cf/zai-org/glm-4.7-flash')!;
+    const line = dossierLine(glm);
+    expect(line).toContain("'@cf/zai-org/glm-4.7-flash'");
+    expect(line).toContain('$0.06/$0.4 per M');
+    expect(line).toContain('131k ctx');
+    expect(line).toContain('fleet:');
+    const ds = MODEL_DOSSIER.models.find((m) => m.id === '@cf/deepseek-ai/deepseek-v4-flash-0731')!;
+    expect(dossierLine(ds)).toContain('1M ctx');
+  });
+
+  it('the prompt fragment groups adopted before bench and covers both verdicts', () => {
+    const frag = modelBoardPromptFragment();
+    const provenAt = frag.indexOf('Proven in the Port Daddy fleet:');
+    const benchAt = frag.indexOf('Also honored');
+    expect(provenAt).toBeGreaterThan(-1);
+    expect(benchAt).toBeGreaterThan(provenAt);
+  });
+
+  it('the page renders the board: every honored id, both chips, the named exclusions', () => {
+    const board = renderModelBoard();
+    expect(board).toContain(`Model board — ${MODEL_DOSSIER.models.length} reviewed Workers AI models`);
+    expect(board).toContain(MODEL_DOSSIER.verifiedAt);
+    for (const m of MODEL_DOSSIER.models) {
+      expect(board, `board is missing ${m.id}`).toContain(esc(m.id));
+    }
+    for (const x of MODEL_DOSSIER.excluded) {
+      expect(board, `board is missing exclusion ${x.id}`).toContain(esc(x.id));
+    }
+    expect(board).toContain('chip adopted');
+    expect(board).toContain('chip bench');
+    // And the full page actually carries it in the masthead.
+    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), NO_VIEW);
+    expect(html).toContain('class="board"');
+    expect(html).toContain('@cf/zai-org/glm-4.7-flash');
+  });
+});
+
+/** Same escapement the page applies — assertions compare escaped-to-escaped. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

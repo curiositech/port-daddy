@@ -20,7 +20,7 @@ loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
 // read process.env at module-init time, so this has to run first so
 // dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot
 // capture the raw env values on load. See lib/secret-env.ts.
-import { snapshotSensitiveEnv } from './lib/secret-env.js';
+import { getSecret, snapshotSensitiveEnv } from './lib/secret-env.js';
 snapshotSensitiveEnv();
 
 import Fastify from 'fastify';
@@ -46,7 +46,7 @@ import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
-import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
@@ -70,6 +70,7 @@ import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -133,6 +134,12 @@ import { clearDaemonReady, publishDaemonReady } from './lib/daemon-ready.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
+import {
+  createCoordinationPeer,
+  coordinationPeerConfigFromEnv,
+  type CoordinationPeer,
+} from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -605,6 +612,36 @@ const sessions = createSessions(db, noteEncryption, {
 });
 sessions.setActivityLog(activityLog);
 
+// ADR-0092: optional cloud coordination peer. Local SQLite remains the write
+// path regardless of configuration or network health; the peer only observes,
+// queues, and CRDT-merges. A partial/malformed configuration degrades loudly
+// without preventing the offline-first daemon from starting.
+let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
+try {
+  const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
+  if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
+    coordinationPeer = createCoordinationPeer({
+      db,
+      sessions,
+      locks,
+      config: coordinationConfig,
+      logger,
+    });
+    coordinationPeer.start();
+    logger.info('coordination_peer_started', {
+      project: coordinationConfig.project,
+      actorId: coordinationConfig.actorId,
+      url: coordinationConfig.url,
+    });
+  }
+} catch (error) {
+  logger.error('coordination_peer_configuration_invalid', {
+    error: (error as Error).message,
+  });
+}
+
 const symbolClaims = createSymbolClaims(db, {
   symbolIndex,
   agentForSession: (sessionId: string) => {
@@ -614,11 +651,7 @@ const symbolClaims = createSymbolClaims(db, {
 });
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
-  messaging.publish(`inbox:${agentId}`, {
-    ...message,
-    sender: message.from || 'SYSTEM',
-    signal: (message as any).signal || 'report'
-  });
+  messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
 const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
@@ -648,7 +681,8 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -741,6 +775,13 @@ const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 
+// Hash-chain the transcript facts the spawner already persists into Agent
+// Harbor. This is an evidence feeder, not a second transcript store.
+const spawnerHarborBridge = createSpawnerHarborBridge(db, {
+  episodicMemory,
+  logger,
+});
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -754,6 +795,7 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
+  harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
@@ -1542,6 +1584,22 @@ await registerAllRoutes(
   { pheromones, sessions, db },
 );
 
+// Read-only local readiness proof for cloud sandboxes. The macaroon never
+// leaves the daemon process; bootstrap code can still verify that its `pd
+// begin` operation received a durable room acknowledgement (outbox drained)
+// and was observed back through the room cursor.
+app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
+  enabled: false,
+  connected: false,
+  project: null,
+  actorId: null,
+  replicaId: null,
+  cursor: 0,
+  outbox: 0,
+  lastSyncAt: null,
+  lastError: null,
+});
+
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
 // =============================================================================
@@ -1645,6 +1703,7 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  try { coordinationPeer?.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}

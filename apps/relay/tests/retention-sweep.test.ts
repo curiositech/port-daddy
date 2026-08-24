@@ -96,6 +96,8 @@ describe('retention sweep', () => {
     const erasureHorizon = NOW - 30 * DAY;
     const del = calls.find((c) => c.sql.includes('DELETE FROM users WHERE deleted_at IS NOT NULL'));
     expect(del!.horizon).toBe(erasureHorizon);
+    const roles = calls.find((c) => c.sql.includes('DELETE FROM user_roles WHERE user_id IN'));
+    expect(roles!.horizon).toBe(erasureHorizon);
   });
 
   it('fails SAFE on an unset/garbage retention knob — falls back to 30d, never horizon 0', async () => {

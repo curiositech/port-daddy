@@ -96,6 +96,10 @@
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
  *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
+ *   POST /v1/harbors/:namespace/:name/invites  (member-gated; mint a single-use invite)
+ *   GET  /v1/harbors/:namespace/:name/invites  (member-gated; list invites + lifecycle)
+ *   POST /v1/harbors/:namespace/:name/invites/:jti/revoke (inviter-or-owner; revoke)
+ *   POST /v1/harbors/:namespace/:name/join     (authed; redeem an invite → member + epoch tick)
  *   POST /v1/harbors/:namespace/:name/presence (member-gated; presence heartbeat, TTL ~90s)
  *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
  *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
@@ -122,6 +126,7 @@
 import type { Env } from './types.js';
 import { HarborChannel } from './harbor-channel.js';
 import { HarborQuota } from './harbor-quota.js';
+import { CoordinationRoom } from './coordination-room.js';
 import {
   handleHealth,
   handleHandshake,
@@ -240,6 +245,12 @@ import {
   handleAddHarborMember,
 } from './harbors.js';
 import {
+  handleMintHarborInvite,
+  handleListHarborInvites,
+  handleRevokeHarborInvite,
+  handleJoinHarbor,
+} from './invites.js';
+import {
   handlePresenceBeat,
   handleGetPresence,
   handleSetHelm,
@@ -258,10 +269,16 @@ import {
   handleRespondParley,
 } from './parleys.js';
 import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
+import {
+  handleCoordinationGrant,
+  handleCoordinationSync,
+  parseCoordinationProject,
+} from './coordination.js';
 
 // Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
 export { HarborQuota };
+export { CoordinationRoom };
 
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -380,6 +397,25 @@ export default {
     // ── Publish ─────────────────────────────────────────────────────────────
     else if (pathname === '/v1/publish' && method === 'POST') {
       response = await handlePublish(request, env);
+    }
+
+    // ── ADR-0092 cloud coordination peer ───────────────────────────────────
+    // The project is a DO routing key, not an authority boundary. Authority is
+    // the macaroon's project + actor + coordination-sync caveats.
+    else if (pathname.startsWith('/v1/coordination/')) {
+      const rest = pathname.slice('/v1/coordination/'.length);
+      const slash = rest.lastIndexOf('/');
+      const project = slash > 0 ? parseCoordinationProject(rest.slice(0, slash)) : null;
+      const action = slash > 0 ? rest.slice(slash + 1) : '';
+      if (!project) {
+        response = Response.json({ error: 'Invalid coordination project', code: 'VALIDATION_ERROR' }, { status: 400 });
+      } else if (action === 'grant' && method === 'POST') {
+        response = await handleCoordinationGrant(request, env, project);
+      } else if (action === 'sync' && method === 'POST') {
+        response = await handleCoordinationSync(request, env, project);
+      } else {
+        response = notFound();
+      }
     }
 
     // ── GitHub webhook ingress ───────────────────────────────────────────────
@@ -729,6 +765,14 @@ export default {
         response = await handleGetHarbor(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'members' && method === 'POST') {
         response = await handleAddHarborMember(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'invites' && method === 'POST') {
+        response = await handleMintHarborInvite(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'invites' && method === 'GET') {
+        response = await handleListHarborInvites(request, env, ns, name);
+      } else if (ns && name && sub === 'invites' && parts.length === 5 && parts[3] && parts[4] === 'revoke' && method === 'POST') {
+        response = await handleRevokeHarborInvite(request, env, ns, name, parts[3]);
+      } else if (ns && name && parts.length === 3 && sub === 'join' && method === 'POST') {
+        response = await handleJoinHarbor(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'POST') {
         response = await handlePresenceBeat(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'GET') {

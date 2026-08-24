@@ -1435,6 +1435,7 @@
       ],
       "sdk": [],
       "routes": [
+        "GET /agent-harbor/context-continuity",
         "GET /agent-harbor/surface-gateway/capabilities",
         "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",
@@ -1851,6 +1852,23 @@
         "readme": true,
         "sdk": false
       }
+    },
+    "coordination": {
+      "description": "Offline-first per-project coordination peer with CRDT-replicated sessions, notes, advisory claims, and logical lock leases (ADR-0092)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /coordination/status"
+      ],
+      "mcp": [
+        "coordination_status"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Optional local/cloud peer status. The Durable Object room is a replica, never the authority; local daemon writes remain available offline."
     },
     "coordination_guard": {
       "description": "Project-local enforcement controls requiring active Port Daddy sessions and matching file claims before commit",
@@ -2470,7 +2488,7 @@
       "_note": "Read-only local capability read (computed from lib/coast-guard.ts, no daemon round-trip). Route + MCP follow on the same coastGuardStatus() accessor \u2014 same read-only pattern as operator_periscope."
     },
     "transcripts": {
-      "description": "Fleet ship-run transcript records \u2014 operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
+      "description": "Fleet ship-run transcript records \u2014 operator-facing read-only surface with daemon-stamped producer provenance for inspecting what a spawned worker did, what it cost, and its produced outputs.",
       "cli": [
         "transcripts",
         "transcript"
@@ -2482,12 +2500,7 @@
         "GET /transcripts/emergency",
         "GET /transcripts/cost",
         "GET /transcripts/stream",
-        "GET /transcripts/:id",
-        "POST /transcripts",
-        "POST /transcripts/:id/messages",
-        "POST /transcripts/:id/outputs",
-        "POST /transcripts/archive/backfill",
-        "DELETE /transcripts/:id"
+        "GET /transcripts/:id"
       ],
       "completions": [
         "transcripts",
@@ -2497,7 +2510,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
+      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). The CLI and HTTP plugin are read-only, no delete primitive is exported, and trusted in-process producers own start/append/finalize and complete-snapshot import. Those entry points stamp the reserved producer, INTERNAL tier, and daemon clock; caller-shaped producer fields are ignored and legacy rows remain null. Finalized snapshots publish as private immutable content-addressed JSONL artifacts; durable receipts bind exact snapshot/artifact digest, locator, bytes, format, attempts, and outcome. Terminal state freezes header/messages/outputs, the first finalize()/spawner terminal transition wins, full-entry recordTranscript atomically replaces only a running snapshot, and neither a late archive failure nor a different-digest success can overwrite the first exact success. Static symlink ancestors fail closed; the documented same-UID concurrent pathname race remains until dirfd/openat publication exists. Future destructive or backfill actions require a newly wired one-use broker-redemption boundary with no reusable-credential or caller-receipt downgrade."
     },
     "context_health": {
       "description": "Agent context-window health and per-task token ledger \u2014 swarm-wide budget visibility (ADR-0048 P1/P3)",

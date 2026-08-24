@@ -40,10 +40,27 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
   // Cloudflare Workers AI
+  ['@cf/moonshotai/kimi-k2.7-code',             { input: 0.950, output: 4.000, label: 'Cloudflare Workers AI Kimi K2.7 Code (verified live pricing page 2026-08-22; code-reviewer pin)' }],
   ['@cf/moonshotai/kimi-k2-instruct',           { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2 Instruct' }],
   ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Kimi K2.6 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Kimi K2.5 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
+  ['@cf/zai-org/glm-5.2',                       { input: 1.400, output: 4.400, label: 'Cloudflare Workers AI GLM-5.2 (verified live pricing page 2026-08-22; code-reviewer reduce)' }],
+  ['@cf/deepseek-ai/deepseek-v4-flash-0731',    { input: 0.440, output: 1.320, label: 'Cloudflare Workers AI DeepSeek V4-Flash-0731 (verified 2026-08-22; purser author tier)' }],
+  ['@cf/deepseek-ai/deepseek-v4-pro-0813',      { input: 1.320, output: 3.960, label: 'Cloudflare Workers AI DeepSeek V4-Pro-0813 (verified 2026-08-22; red-team)' }],
+  ['@cf/google/gemma-4-26b-a4b-it',             { input: 0.100, output: 0.300, label: 'Cloudflare Workers AI Gemma 4 26B A4B (verified 2026-08-22)' }],
+  // Full-universe admission rows (verified against the live pricing page
+  // 2026-08-22, PR #9249) — mirrors of apps/fleet-executor/src/spend.ts.
+  ['@cf/meta/llama-3.1-8b-instruct-fp8',        { input: 0.152, output: 0.287, label: 'Cloudflare Workers AI Llama 3.1 8B FP8' }],
+  ['@cf/meta/llama-3.2-1b-instruct',            { input: 0.027, output: 0.201, label: 'Cloudflare Workers AI Llama 3.2 1B' }],
+  ['@cf/meta/llama-3.2-3b-instruct',            { input: 0.051, output: 0.335, label: 'Cloudflare Workers AI Llama 3.2 3B' }],
+  ['@cf/meta/llama-3.2-11b-vision-instruct',    { input: 0.049, output: 0.676, label: 'Cloudflare Workers AI Llama 3.2 11B Vision' }],
+  ['@cf/qwen/qwq-32b',                          { input: 0.660, output: 1.000, label: 'Cloudflare Workers AI QwQ 32B' }],
+  ['@cf/qwen/qwen3.8-27b',                      { input: 0.450, output: 3.200, label: 'Cloudflare Workers AI Qwen 3.8 27B' }],
+  ['@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', { input: 0.497, output: 4.881, label: 'Cloudflare Workers AI DeepSeek R1 Distill Qwen 32B (XO default)' }],
+  ['@cf/ibm-granite/granite-4.0-h-micro',       { input: 0.017, output: 0.112, label: 'Cloudflare Workers AI Granite 4.0 H Micro' }],
+  ['@cf/aisingapore/gemma-sea-lion-v4-27b-it',  { input: 0.351, output: 0.555, label: 'Cloudflare Workers AI Gemma SEA-LION v4 27B' }],
+  ['@cf/mistralai/mistral-small-3.1-24b-instruct', { input: 0.351, output: 0.555, label: 'Cloudflare Workers AI Mistral Small 3.1 24B' }],
   // qwen2.5-coder-32b: the 2026-07-07 blackout hotfix pinned every ship to this,
   // the PRICIEST qwen ($0.66/$1.00 — src pricing page). No longer a default (ships
   // fell back to qwen3-30b, ~13x cheaper input), but still pinnable, so a

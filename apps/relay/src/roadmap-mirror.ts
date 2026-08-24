@@ -515,7 +515,7 @@ export async function replaceRoadmapMirror(
            (user_id, repo_full_name, harbor, slug, status, kind, priority, summary_md, description_md,
             assignee_id, started_at, due_at, estimate, last_touched_at, created_at, deleted_at,
             dependencies_json, notes_json)
-         SELECT ?1, ?2, ?3,
+         SELECT ?, ?, ?,
                 json_extract(value, '$.slug'), json_extract(value, '$.status'),
                 json_extract(value, '$.kind'), json_extract(value, '$.priority'),
                 json_extract(value, '$.summaryMd'), json_extract(value, '$.descriptionMd'),
@@ -524,7 +524,7 @@ export async function replaceRoadmapMirror(
                 json_extract(value, '$.lastTouchedAt'), json_extract(value, '$.createdAt'),
                 json_extract(value, '$.deletedAt'),
                 json_extract(value, '$.dependencies'), json_extract(value, '$.notes')
-           FROM json_each(?4)`,
+           FROM json_each(?)`,
       ).bind(userId, s.repoFullName, s.harbor, JSON.stringify(rows)),
     );
   }
@@ -532,10 +532,10 @@ export async function replaceRoadmapMirror(
     stmts.push(
       env.DB.prepare(
         `INSERT INTO roadmap_mirror_edges (user_id, repo_full_name, scope, source_id, edge_type, target_id)
-         SELECT ?1, ?2,
+         SELECT ?, ?,
                 json_extract(value, '$.scope'), json_extract(value, '$.sourceId'),
                 json_extract(value, '$.edgeType'), json_extract(value, '$.targetId')
-           FROM json_each(?3)`,
+           FROM json_each(?)`,
       ).bind(userId, s.repoFullName, JSON.stringify(rows)),
     );
   }
@@ -543,10 +543,10 @@ export async function replaceRoadmapMirror(
     stmts.push(
       env.DB.prepare(
         `INSERT INTO roadmap_mirror_activity (user_id, repo_full_name, at, slug, kind, by_id, detail_json)
-         SELECT ?1, ?2,
+         SELECT ?, ?,
                 json_extract(value, '$.at'), json_extract(value, '$.slug'), json_extract(value, '$.kind'),
                 json_extract(value, '$.byId'), json_extract(value, '$.detail')
-           FROM json_each(?3)`,
+           FROM json_each(?)`,
       ).bind(userId, s.repoFullName, JSON.stringify(rows)),
     );
   }

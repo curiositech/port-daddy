@@ -487,6 +487,52 @@ export async function userCanReadRepo(
 }
 
 /**
+ * Does the session's user have ADMIN permission on `owner/repo`, per GitHub's
+ * own judgment? Reads the same `GET /repos/:owner/:repo` response
+ * `userCanReadRepo` already makes (its `permissions.admin` field reflects the
+ * CALLING user's own access level, not the repo's public visibility), cached
+ * separately in KV for 5 minutes keyed by (user_id, repo).
+ *
+ * Why this exists: `repo_settings` writes that only affect the writer's own
+ * account (e.g. the sitrep dial) only need read access to gate against
+ * enumeration. A setting fleet-executor treats as authoritative for EVERY
+ * user of a repository — like the Workers AI call deadline — is different: a
+ * mere read-access gate would let any GitHub user who can merely see a public
+ * repository silently change execution behavior for every installation that
+ * reviews it (the DO-NOT-SHIP finding on PR #9800). Requiring admin here is
+ * the cheapest correct gate available without building a real
+ * installation-authority record; `userOwnsInstallation` was considered but
+ * would need an App-authenticated (not user-token) lookup this handler does
+ * not otherwise make, and is deliberately left as a named follow-up.
+ *
+ * @param env - Worker bindings (KV cache, used the same way as userCanReadRepo).
+ * @param session - The resolved session carrying the caller's GitHub token.
+ * @param owner - Repository owner.
+ * @param repo - Repository name.
+ * @returns True iff GitHub reports `permissions.admin: true` for this user.
+ */
+export async function userIsRepoAdmin(
+  env: Env,
+  session: ResolvedSession,
+  owner: string,
+  repo: string,
+): Promise<boolean> {
+  if (!session.ghToken) return false;
+  const cacheKey = `repo_admin:${session.user.id}:${owner}/${repo}`;
+  const cached = await env.KV.get(cacheKey);
+  if (cached === '1') return true;
+  if (cached === '0') return false;
+  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
+  let admin = false;
+  if (res.status === 200) {
+    const body = await res.json().catch(() => null) as { permissions?: { admin?: boolean } } | null;
+    admin = body?.permissions?.admin === true;
+  }
+  await env.KV.put(cacheKey, admin ? '1' : '0', { expirationTtl: 300 });
+  return admin;
+}
+
+/**
  * Does the session's user have access to GitHub App installation `installationId`?
  * GitHub is the single source of truth: `GET /user/installations` lists exactly
  * the app installations the authenticated user can act on. Fail-closed (no token
