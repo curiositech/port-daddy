@@ -11,8 +11,14 @@
 //! without changing this pane's data derivation).
 //!
 //! Item shape (v3.2x): `{ slug, summaryMd, status, dependencies: [slug], harbor,
-//! notes:[{text}], estimate? }` — `estimate` is the ADR-0086 planner column the
-//! daemon now serves; older daemons simply omit it and bars default to one unit.
+//! notes:[{text}], estimate?, startedAt?, dueAt? }` — `estimate` is the
+//! ADR-0086 planner column the daemon now serves; older daemons simply omit
+//! it and bars default to one unit. `startedAt`/`dueAt` (epoch ms, from
+//! `lib/roadmap-items.ts`) are the Gantt's wall-clock date anchors: when BOTH
+//! are present and valid on an item, its bar is drawn at its real dates
+//! instead of the CPM-relative offset (see `PlannerPane::gantt`'s
+//! date-anchoring pass); missing either field leaves the item on the
+//! relative schedule exactly as before this field pair was read.
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
@@ -34,6 +40,18 @@ struct PlannerItem {
     /// the daemon predates the field or the item was never sized; the Gantt
     /// defaults such items to one unit so every task still earns a visible bar.
     estimate: Option<i64>,
+    /// Actual start, epoch milliseconds — `lib/roadmap-items.ts`'s `startedAt`,
+    /// documented there as "the Gantt's left date anchor when present". None
+    /// when unset, non-numeric, or non-positive (`positiveOrNull` on the write
+    /// path never persists 0/negative, so a non-positive read is treated the
+    /// same as absent rather than trusted as a real date).
+    started_at: Option<i64>,
+    /// Target finish, epoch milliseconds — `dueAt`, "the Gantt's right date
+    /// anchor when present". Same validity rule as `started_at`. Only when
+    /// BOTH fields are present (and `due_at` lands after `started_at`) does
+    /// `gantt()` switch that row's bar from the CPM-relative offset to real
+    /// wall-clock geometry — see `gantt()`'s date-anchoring pass.
+    due_at: Option<i64>,
 }
 
 impl PlannerItem {
@@ -51,6 +69,13 @@ impl PlannerItem {
             .collect();
         let adr = adr_number_of(&slug, &summary, &notes_text);
         let estimate = v.get("estimate").and_then(|e| e.as_i64()).filter(|e| *e > 0);
+        // startedAt/dueAt ride the wire as JSON numbers (epoch ms) or JSON
+        // null — `lib/roadmap-items.ts` stores them as `number | null` and
+        // spreads the raw row into the `GET /roadmap/items` response with no
+        // re-encoding (confirmed in `routes/roadmap.ts`'s list handler), so
+        // `.as_i64()` is the correct extraction with no string/ISO parsing.
+        let started_at = v.get("startedAt").and_then(|e| e.as_i64()).filter(|e| *e > 0);
+        let due_at = v.get("dueAt").and_then(|e| e.as_i64()).filter(|e| *e > 0);
         Self {
             slug,
             summary,
@@ -59,6 +84,8 @@ impl PlannerItem {
             harbor: s(v, "harbor"),
             adr,
             estimate,
+            started_at,
+            due_at,
         }
     }
 }
@@ -246,10 +273,23 @@ impl PlannerPane {
     /// Returns the CPM rows sorted for display (earliest start, critical first,
     /// then slug) plus the makespan, or the scheduler's refusal reason (e.g. a
     /// dependency cycle) so the pane can report it instead of hiding it.
+    ///
+    /// Date anchoring (additive, backward-compatible): after the kernel
+    /// computes the CPM window, any row whose item carries BOTH a valid
+    /// `started_at` and `due_at` has its `start`/`finish` REPLACED with the
+    /// real wall-clock day-offsets from today (same "1 unit = 1 day, anchored
+    /// at today" convention the axis already uses — see `axis_rows`), so the
+    /// bar lines up with the same ticks a relative bar would. `critical` and
+    /// `slack` are left exactly as the kernel scheduler computed them — dates
+    /// never feed back into dependency-order math, only into where the bar is
+    /// drawn. An item missing either field, or with `due_at` not after
+    /// `started_at`, keeps the plain CPM offset unchanged (today's behavior).
     fn gantt(&self) -> Result<(Vec<GanttRow>, i64), String> {
         let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
         let mut nodes: Vec<SchedNode> = Vec::new();
         let mut est_by_slug: std::collections::HashMap<&str, i64> =
+            std::collections::HashMap::new();
+        let mut dates_by_slug: std::collections::HashMap<&str, (i64, i64)> =
             std::collections::HashMap::new();
         for it in &self.items {
             if it.status == "done" || !seen.insert(it.slug.as_str()) {
@@ -257,6 +297,11 @@ impl PlannerPane {
             }
             let est = it.estimate.unwrap_or(1).max(1);
             est_by_slug.insert(it.slug.as_str(), est);
+            if let (Some(started), Some(due)) = (it.started_at, it.due_at) {
+                if due > started {
+                    dates_by_slug.insert(it.slug.as_str(), (started, due));
+                }
+            }
             nodes.push(SchedNode {
                 id: it.slug.clone(),
                 estimate: Some(est),
@@ -300,8 +345,29 @@ impl PlannerPane {
                 critical: n.critical,
                 slack: n.slack,
                 estimate: *est_by_slug.get(n.id.as_str()).unwrap_or(&1),
+                date_anchored: false,
             })
             .collect();
+
+        // Date-anchoring pass: today is the same unit-0 the axis anchors to
+        // (`axis_rows`), so converting startedAt/dueAt to day-offsets from it
+        // keeps a wall-clock bar on the identical coordinate system a
+        // CPM-relative bar uses — the two kinds of bar share one axis, one
+        // tick ladder, one BAR_CELLS budget. Offsets are clamped to a
+        // non-negative, ≥1-unit-wide window so an overdue startedAt (in the
+        // past) or a same-day due date never produces a negative `lead` or a
+        // zero-width bar downstream in `gantt_blocks`.
+        let today = time::OffsetDateTime::now_utc().date();
+        for row in rows.iter_mut() {
+            if let Some(&(started_ms, due_ms)) = dates_by_slug.get(row.slug.as_str()) {
+                let start_u = day_offset_from(today, started_ms).max(0);
+                let finish_u = day_offset_from(today, due_ms).max(start_u + 1);
+                row.start = start_u;
+                row.finish = finish_u;
+                row.date_anchored = true;
+            }
+        }
+
         rows.sort_by(|a, b| {
             a.start
                 .cmp(&b.start)
@@ -352,7 +418,16 @@ impl PlannerPane {
                         Tone::Resting
                     },
                 });
-                let span = makespan.max(1);
+                // The render span is the CPM makespan UNLESS a date-anchored
+                // bar's real due date lands past it — the header's "makespan"
+                // stays the kernel's untouched CPM answer, but the bar lane
+                // and axis widen to fit whichever is farther out, so a
+                // wall-clock bar can never overflow BAR_CELLS the way a raw
+                // `r.finish > span` would (negative-cast/huge-repeat panic).
+                let span = rows
+                    .iter()
+                    .map(|r| r.finish)
+                    .fold(makespan.max(1), i64::max);
                 let today = time::OffsetDateTime::now_utc().date();
                 blocks.extend(axis_rows(span, today));
                 for r in rows.iter().take(MAX_ROWS) {
@@ -369,10 +444,14 @@ impl PlannerPane {
                         .get(&r.slug)
                         .map(|by| format!(" ◆ {}", trunc(by, 18)))
                         .unwrap_or_default();
+                    // Text tag, not a glyph/emoji (repo convention: no
+                    // emoji-as-icon) — "DATED" marks a bar anchored to real
+                    // startedAt/dueAt instead of the CPM-relative offset.
+                    let dated = if r.date_anchored { " DATED" } else { "" };
                     let meta = if r.critical {
-                        format!("e{} CRIT{}", r.estimate, claim)
+                        format!("e{} CRIT{}{}", r.estimate, dated, claim)
                     } else {
-                        format!("e{} s{}{}", r.estimate, r.slack, claim)
+                        format!("e{} s{}{}{}", r.estimate, r.slack, dated, claim)
                     };
                     blocks.push(Block::Row(vec![trunc(&r.slug, 30), bar, meta]));
                 }
@@ -390,6 +469,14 @@ impl PlannerPane {
 
 /// One bar of the Planner Gantt: a task's CPM window plus the fields the
 /// operator reads off the chart (estimate, slack, critical membership).
+///
+/// `start`/`finish` are day-offsets from the axis anchor (today, unit 0) — by
+/// default straight from the kernel's CPM schedule, but overridden to real
+/// wall-clock offsets when the item carries a valid `startedAt`+`dueAt` pair
+/// (see `gantt()`'s date-anchoring pass and `date_anchored`). `critical` and
+/// `slack` always come from the untouched CPM result regardless of anchoring —
+/// the kernel scheduler (ADR-0120 TCB boundary) is never consulted about real
+/// dates, only about dependency order and effort.
 #[derive(Debug)]
 struct GanttRow {
     slug: String,
@@ -398,12 +485,43 @@ struct GanttRow {
     critical: bool,
     slack: i64,
     estimate: i64,
+    /// True when `start`/`finish` were overridden with real wall-clock dates
+    /// (`startedAt`/`dueAt`) instead of the CPM-relative offset. Additive
+    /// display metadata only — never consulted for critical-path math.
+    date_anchored: bool,
 }
 
 /// Width of the Gantt bar lane in character cells — shared by the bars and the
 /// time axis so tick cells land exactly where bar starts land (both use the
 /// same `value * BAR_CELLS / span` integer mapping).
 const BAR_CELLS: i64 = 40;
+
+/// Whole-day offset of an epoch-millisecond timestamp from `today`, under the
+/// exact same "1 unit = 1 day, unit 0 = today" convention `axis_rows` already
+/// draws the axis with. Used to convert a real `startedAt`/`dueAt` (wall
+/// clock) into the same relative-unit coordinate space CPM bars live in, so a
+/// date-anchored bar and a CPM-relative bar share one axis without a second
+/// rendering code path. Negative for a timestamp before today (e.g. a task
+/// started in the past); callers clamp as needed for their own invariants —
+/// this function reports the true signed offset, it does not clamp.
+///
+/// An out-of-range timestamp (implausible after the `> 0` filter in
+/// `PlannerItem::from_value`, but defensive here since this is TCB-adjacent
+/// date math) falls back to `today` itself (offset 0) rather than panicking —
+/// a pane must degrade, never crash, on a malformed payload (see `util.rs`'s
+/// module doc: "never hard-fail decoding").
+///
+/// @param today - The axis anchor date (unit 0).
+/// @param epoch_ms - The wall-clock timestamp to place on the axis.
+/// @returns The signed day offset from `today` (why signed: a start date in
+/// the past must still report a real negative offset — the caller, not this
+/// function, decides whether/how to clamp it for rendering).
+fn day_offset_from(today: time::Date, epoch_ms: i64) -> i64 {
+    let d = time::OffsetDateTime::from_unix_timestamp(epoch_ms.div_euclid(1000))
+        .map(|dt| dt.date())
+        .unwrap_or(today);
+    (d - today).whole_days()
+}
 
 /// Pick the tick spacing (in schedule units ≈ days) for a Gantt time axis.
 ///
@@ -438,13 +556,18 @@ fn axis_tick_step(span: i64) -> i64 {
 /// raster fixed thirds, GPUI) lines the ticks up with the bars beneath.
 ///
 /// Why the axis exists: bars without an x-axis are only relative geometry —
-/// the operator asked for actual time units. The CPM schedule is relative
-/// (ADR-0086: no absolute-date anchor), so the axis anchors unit 0 at TODAY
-/// under the declared planning convention 1 estimate unit = 1 day; tick 0 is
-/// labeled `today` (the today-marker) and later ticks carry real `MM-DD`
-/// dates at the adaptive cadence of [`axis_tick_step`]. The convention is
-/// stated in the meta column so the axis never pretends to more precision
-/// than the schedule has.
+/// the operator asked for actual time units. The kernel's CPM schedule
+/// itself is still purely relative (ADR-0086: the scheduler has no
+/// absolute-date anchor, and this function never asks it for one), so the
+/// axis anchors unit 0 at TODAY under the declared planning convention 1
+/// estimate unit = 1 day; tick 0 is labeled `today` (the today-marker) and
+/// later ticks carry real `MM-DD` dates at the adaptive cadence of
+/// [`axis_tick_step`]. `gantt()`'s date-anchoring pass overrides individual
+/// BARS with real `startedAt`/`dueAt` offsets when an item has them, but
+/// every bar — anchored or relative — is placed on this SAME today-anchored
+/// axis, so "day 3" always means the same wall-clock day regardless of which
+/// kind of bar is drawn there. The convention is stated in the meta column
+/// so the axis never pretends to more precision than the schedule has.
 ///
 /// @param span - Schedule makespan in units (clamped ≥ 1 by the caller).
 /// @param today - The anchor date for unit 0 (injected so tests are stable).
@@ -851,6 +974,23 @@ mod tests {
             "slug": slug, "status": status, "summaryMd": slug,
             "dependencies": deps, "harbor": "port-daddy", "notes": [],
             "estimate": estimate,
+        }))
+    }
+
+    /// Like `item_with`, plus `startedAt`/`dueAt` (epoch ms) — the shape a
+    /// daemon serving ADR-0086 date-anchor data actually sends.
+    fn item_with_dates(
+        slug: &str,
+        status: &str,
+        deps: &[&str],
+        estimate: Option<i64>,
+        started_at: Option<i64>,
+        due_at: Option<i64>,
+    ) -> PlannerItem {
+        PlannerItem::from_value(&json!({
+            "slug": slug, "status": status, "summaryMd": slug,
+            "dependencies": deps, "harbor": "port-daddy", "notes": [],
+            "estimate": estimate, "startedAt": started_at, "dueAt": due_at,
         }))
     }
 
@@ -1265,5 +1405,153 @@ mod tests {
             |blk| matches!(blk, Block::Header(h) if h.contains("fleet") && h.contains("2 agent"))
         ));
         assert!(b.iter().any(|blk| matches!(blk, Block::Row(c) if c.iter().any(|x| x.contains("roadmap delete verb")))));
+    }
+
+    /// Epoch ms of `now + days` — the same shape `lib/roadmap-items.ts` stores
+    /// for `startedAt`/`dueAt` (see `PlannerItem::from_value`'s doc comment).
+    fn ms_days_from_now(days: i64) -> i64 {
+        (time::OffsetDateTime::now_utc() + time::Duration::days(days)).unix_timestamp() * 1000
+    }
+
+    #[test]
+    fn gantt_anchors_the_bar_to_real_dates_when_both_are_present() {
+        // "dated" carries startedAt/dueAt 3 and 8 days out; "relative" carries
+        // only an estimate and must stay on the plain CPM offset — proving
+        // the two coexist in one schedule without cross-contaminating.
+        let started = ms_days_from_now(3);
+        let due = ms_days_from_now(8);
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with_dates("dated", "now", &[], Some(1), Some(started), Some(due)),
+            item_with("relative", "now", &[], Some(1)),
+        ];
+        let (rows, _makespan) = p.gantt().expect("schedules");
+
+        let dated = rows.iter().find(|r| r.slug == "dated").unwrap();
+        assert!(
+            dated.date_anchored,
+            "startedAt+dueAt present and valid: must date-anchor"
+        );
+        assert_eq!(
+            dated.start, 3,
+            "start must be the real wall-clock day-offset, not the CPM offset"
+        );
+        assert_eq!(
+            dated.finish, 8,
+            "finish must be the real wall-clock day-offset, not the CPM offset"
+        );
+
+        let relative = rows.iter().find(|r| r.slug == "relative").unwrap();
+        assert!(
+            !relative.date_anchored,
+            "no startedAt/dueAt: must stay on the relative schedule"
+        );
+        assert_eq!(relative.start, 0);
+        assert_eq!(relative.finish, 1);
+
+        // What the operator actually sees: only the anchored row's meta
+        // column carries the DATED tag.
+        let blocks = p.gantt_blocks();
+        let meta_for = |slug: &str| -> String {
+            blocks
+                .iter()
+                .find_map(|b| match b {
+                    Block::Row(cells) if cells[0] == slug => Some(cells[2].clone()),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("no bar row for {slug}"))
+        };
+        assert!(meta_for("dated").contains("DATED"));
+        assert!(!meta_for("relative").contains("DATED"));
+    }
+
+    #[test]
+    fn gantt_falls_back_to_relative_schedule_when_dates_are_absent_regression_pin() {
+        // Backward-compat pin: an item with NO startedAt/dueAt must produce
+        // the exact same GanttRow geometry as before date-anchoring existed —
+        // this is `gantt_chains_dependencies_and_marks_critical_path`'s fixture,
+        // re-asserted here so a future change to the date-anchoring pass can
+        // never silently regress the far-more-common no-dates path.
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+            item_with("c", "backlog", &[], Some(1)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(makespan, 5);
+        assert!(
+            rows.iter().all(|r| !r.date_anchored),
+            "no item in this fixture carries startedAt/dueAt"
+        );
+        let b = rows.iter().find(|r| r.slug == "b").unwrap();
+        assert_eq!(b.start, 2);
+        assert_eq!(b.finish, 5);
+        assert!(b.critical);
+        let c = rows.iter().find(|r| r.slug == "c").unwrap();
+        assert!(!c.critical);
+        assert_eq!(c.slack, 4);
+    }
+
+    #[test]
+    fn gantt_requires_both_started_and_due_to_anchor() {
+        // Only startedAt, only dueAt, or a due date before the start date —
+        // each is a partial/invalid pair and must fall back to the CPM
+        // offset exactly like an item carrying neither field.
+        let started = ms_days_from_now(2);
+        let due = ms_days_from_now(6);
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with_dates("only-started", "now", &[], Some(1), Some(started), None),
+            item_with_dates("only-due", "now", &[], Some(1), None, Some(due)),
+            item_with_dates(
+                "due-before-started",
+                "now",
+                &[],
+                Some(1),
+                Some(due),
+                Some(started),
+            ),
+        ];
+        let (rows, _makespan) = p.gantt().expect("schedules");
+        for r in &rows {
+            assert!(
+                !r.date_anchored,
+                "{}: partial/invalid date pair must not anchor",
+                r.slug
+            );
+        }
+    }
+
+    #[test]
+    fn gantt_blocks_widen_the_render_span_for_a_date_anchored_bar_beyond_the_cpm_makespan() {
+        // A date-anchored due date can land well past the CPM makespan (the
+        // schedule only knows about effort/deps, not real dates). The bar
+        // lane must still stay inside its cell budget — the panic-safety
+        // regression pin for the render-span-widening logic in gantt_blocks
+        // (a raw `r.finish > span` would have gone negative/overflowed the
+        // usize cast on `lead`/`fill`).
+        let started = ms_days_from_now(50);
+        let due = ms_days_from_now(120);
+        let mut p = PlannerPane::default();
+        p.items = vec![item_with_dates(
+            "far-out",
+            "now",
+            &[],
+            Some(1),
+            Some(started),
+            Some(due),
+        )];
+        let blocks = p.gantt_blocks();
+        for b in &blocks {
+            if let Block::Row(cols) = b {
+                assert_eq!(cols.len(), 3);
+                assert!(
+                    cols[1].chars().count() <= 41,
+                    "bar must stay inside the 40-cell lane (+rounding): {} cells",
+                    cols[1].chars().count()
+                );
+            }
+        }
     }
 }

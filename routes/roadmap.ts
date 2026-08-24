@@ -37,7 +37,7 @@ import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-ren
 import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
 import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
-import { schedule } from '../lib/planner-schedule.js';
+import { scheduleDagPreferKernel as schedule } from '../lib/planner-schedule-ffi.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
 import {
   writePlanEdges,
@@ -307,6 +307,11 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       dependencies: r.dependencies ?? [],
       notes: (r.notes ?? []).map((n) => ({ text: n.text })),
       harbor: r.harbor,
+      // Gantt wall-clock date anchors (ADR-0086 planner columns) — carried
+      // through so `renderBoard` can date-anchor a task's bar instead of
+      // leaving every item on the CPM-relative offset (see planner-board.ts).
+      startedAt: r.startedAt,
+      dueAt: r.dueAt,
     }));
     const plan = derivePlan(items);
     if (graphEdges) {
