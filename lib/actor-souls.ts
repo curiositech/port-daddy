@@ -123,6 +123,18 @@ export interface RegisterActorParams {
   day?: string;
 }
 
+/**
+ * Server-only projection hook carried by an atomic registration effect.
+ * registerAtomically invokes it only after SQLite COMMIT succeeds. Symbol
+ * properties cannot arrive through JSON/IPC and are omitted from responses.
+ */
+export const ACTOR_REGISTRATION_AFTER_COMMIT: unique symbol = Symbol('actor-registration-after-commit');
+
+interface AtomicRegistrationEffect {
+  success: unknown;
+  [ACTOR_REGISTRATION_AFTER_COMMIT]?: () => void;
+}
+
 type RegisterSuccess = Extract<RegisterOutcome, { ok: true }>;
 type RegisterFailure = Extract<RegisterOutcome, { ok: false }>;
 
@@ -473,7 +485,7 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
    * existing soul the pre-existing row survives; only this attempt's touch and
    * alias changes roll back, so an exact retry can recover idempotently.
    */
-  function registerAtomically<T extends { success: unknown }>(
+  function registerAtomically<T extends AtomicRegistrationEffect>(
     params: RegisterActorParams,
     effect: (registration: RegisterSuccess) => T,
   ): AtomicRegisterOutcome<T> {
@@ -504,7 +516,20 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     });
 
     try {
-      return transaction();
+      const outcome = transaction();
+      if (outcome.ok) {
+        const afterCommit = outcome.effect[ACTOR_REGISTRATION_AFTER_COMMIT];
+        if (typeof afterCommit === 'function') {
+          try {
+            afterCommit();
+          } catch {
+            // Derived projections are deliberately non-authoritative. A cache
+            // publication failure cannot unwind an already durable identity;
+            // the next projection rebuild recovers it from SQLite.
+          }
+        }
+      }
+      return outcome;
     } catch (error) {
       if (error === rollback) {
         if (rejectedRegistration) return rejectedRegistration;

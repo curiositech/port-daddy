@@ -7,10 +7,12 @@
  */
 
 import { randomBytes } from 'crypto';
+import { ACTOR_REGISTRATION_AFTER_COMMIT } from './actor-souls.js';
 import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
 import {
   VERIFIED_ACTOR_INBOX_REGISTRATION,
+  type AgentRegistrationResult,
   type VerifiedActorInboxRegistration,
 } from './agents.js';
 
@@ -34,7 +36,7 @@ import {
 // =============================================================================
 
 interface AgentsModule {
-  register(id: string, options?: Record<string, unknown>): Record<string, unknown>;
+  register(id: string, options?: Record<string, unknown>): AgentRegistrationResult;
   unregister(id: string, options?: Record<string | symbol, unknown>): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
 }
@@ -1051,7 +1053,7 @@ export function createSugar(deps: SugarDeps) {
     materializePendingRoadmapNew();
 
     // Build response
-    const response: Record<string, unknown> = {
+    const response: Record<string | symbol, unknown> & { success: true } = {
       success: true,
       agentId,
       sessionId: sessionResult.id,
@@ -1081,6 +1083,10 @@ export function createSugar(deps: SugarDeps) {
     // Include salvage hint from agent registration
     if (agentResult.salvageHint) {
       response.salvageHint = agentResult.salvageHint;
+    }
+    const publishAfterCommit = agentResult[ACTOR_REGISTRATION_AFTER_COMMIT];
+    if (typeof publishAfterCommit === 'function') {
+      response[ACTOR_REGISTRATION_AFTER_COMMIT] = publishAfterCommit;
     }
 
     activityLog.log('sugar_begin', {

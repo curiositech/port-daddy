@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -17,10 +18,18 @@ describe('Sugar canonical identity persistence', () => {
   let sessions;
   let sugar;
   let actorSouls;
+  let semanticIndex;
+  let semanticIndexTransactionStates;
 
   beforeEach(async () => {
     db = createTestDb();
-    agents = createAgents(db);
+    semanticIndexTransactionStates = [];
+    semanticIndex = {
+      index: jest.fn(() => semanticIndexTransactionStates.push(db.inTransaction)),
+      unindexEntry: jest.fn(),
+      find: jest.fn(() => []),
+    };
+    agents = createAgents(db, { semanticIndex });
     sessions = createSessions(db);
     const activityLog = createActivityLog(db);
     sessions.setActivityLog(activityLog);
@@ -140,6 +149,12 @@ describe('Sugar canonical identity persistence', () => {
     expectCanonicalSession(body.sessionId, body.actorId, 'demo:test:fresh-canonical');
     expect(db.prepare("SELECT COUNT(*) AS count FROM newcomer_pool WHERE project IN ('demo', 'victim-project', 'victim-harbor')").get().count).toBe(0);
     expect(db.prepare("SELECT souls_seen FROM newcomer_pool WHERE project = 'local'").get()).toEqual({ souls_seen: 1 });
+    expect(semanticIndex.index).toHaveBeenCalledWith(
+      'demo:test:fresh-canonical',
+      expect.objectContaining({ type: 'agent', id: body.actorId }),
+      body.actorId,
+    );
+    expect(semanticIndexTransactionStates).toEqual([false]);
   });
 
   test('a failed fresh session start rolls back soul, inbox, alias, pool, and session rows', async () => {
@@ -163,6 +178,39 @@ describe('Sugar canonical identity persistence', () => {
     expect(db.prepare('SELECT COUNT(*) AS count FROM newcomer_pool').get().count).toBe(0);
     expect(db.prepare('SELECT COUNT(*) AS count FROM agents').get().count).toBe(0);
     expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count).toBe(0);
+    expect(semanticIndex.index).not.toHaveBeenCalled();
+  });
+
+  test('a deferred SQLite commit failure rolls back identity rows without publishing a ghost index entry', async () => {
+    db.pragma('foreign_keys = ON');
+    db.exec(`
+      CREATE TABLE semantic_index_commit_parent (id TEXT PRIMARY KEY);
+      CREATE TABLE semantic_index_commit_guard (
+        agent_id TEXT,
+        FOREIGN KEY (agent_id) REFERENCES semantic_index_commit_parent(id)
+          DEFERRABLE INITIALLY DEFERRED
+      );
+      CREATE TRIGGER reject_actor_commit
+      AFTER INSERT ON agents
+      BEGIN
+        INSERT INTO semantic_index_commit_guard (agent_id) VALUES (NEW.id);
+      END;
+    `);
+
+    const response = await injectBegin({
+      purpose: 'fresh commit rollback',
+      identity: 'demo:test:commit-rollback',
+      agentId: 'caller-commit-rollback',
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().code).toBe('STORE_UNAVAILABLE');
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_alias').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM newcomer_pool').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM agents').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count).toBe(0);
+    expect(semanticIndex.index).not.toHaveBeenCalled();
   });
 
   test('missing or invalid credentials cannot resume an existing canonical actor', async () => {

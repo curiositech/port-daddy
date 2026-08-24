@@ -8,7 +8,10 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import type { ActorSouls } from '../lib/actor-souls.js';
+import {
+  ACTOR_REGISTRATION_AFTER_COMMIT,
+  type ActorSouls,
+} from '../lib/actor-souls.js';
 import { VERIFIED_SUGAR_ACTOR_BINDING } from '../lib/sugar.js';
 import {
   extractActorCredential,
@@ -396,12 +399,23 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
             },
           };
           const beginResult = beginWithVerdict(verdict);
-          return {
+          const effectResult: {
+            success: boolean;
+            verdict: typeof verdict;
+            result: typeof beginResult;
+            credential: string | null;
+            [ACTOR_REGISTRATION_AFTER_COMMIT]?: () => void;
+          } = {
             success: beginResult.success === true,
             verdict,
             result: beginResult,
             credential: registration.status === 'minted' ? registration.credential : null,
           };
+          const publishAfterCommit = (beginResult as Record<string | symbol, any>)[ACTOR_REGISTRATION_AFTER_COMMIT];
+          if (typeof publishAfterCommit === 'function') {
+            effectResult[ACTOR_REGISTRATION_AFTER_COMMIT] = publishAfterCommit;
+          }
+          return effectResult;
         });
 
         if (!atomic.ok && atomic.code !== 'REGISTRATION_EFFECT_FAILED') {

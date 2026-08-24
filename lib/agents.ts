@@ -7,6 +7,7 @@
  */
 
 import type Database from 'better-sqlite3';
+import { ACTOR_REGISTRATION_AFTER_COMMIT } from './actor-souls.js';
 import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
@@ -214,6 +215,15 @@ interface AgentsOptions {
   semanticIndex?: SemanticIndex;
 }
 
+export interface AgentRegistrationResult extends Record<string | symbol, unknown> {
+  success: boolean;
+  registered?: boolean;
+  error?: string;
+  code?: string;
+  salvageHint?: string | null;
+  [ACTOR_REGISTRATION_AFTER_COMMIT]?: () => void;
+}
+
 /**
  * Initialize agent registry with database connection
  */
@@ -335,9 +345,25 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   }
 
   /**
+   * Publish one committed agent row into the optional derived semantic index.
+   * The durable row is re-read after commit so rolled-back registration input
+   * can never leak into the cache as a successful identity.
+   */
+  function publishDurableSemanticIndex(agentId: string): void {
+    if (!semanticIndex) return;
+    const row = stmts.get.get(agentId) as AgentRow | undefined;
+    if (!row?.identity_project) return;
+    const identity = [row.identity_project, row.identity_stack, row.identity_context]
+      .filter(Boolean).join(':');
+    semanticIndex.index(identity, {
+      type: 'agent', id: row.id, identity, status: row.status,
+    }, row.id);
+  }
+
+  /**
    * Register an agent
    */
-  function register(agentId: string, options: RegisterOptions = {}) {
+  function register(agentId: string, options: RegisterOptions = {}): AgentRegistrationResult {
     if (!agentId || typeof agentId !== 'string') {
       return { success: false, error: 'agent ID must be a non-empty string' };
     }
@@ -473,12 +499,13 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
           : null,
       );
 
-      // Keep trie in sync (1:N via entryId = agentId)
-      if (semanticIndex && identityProject) {
-        const identity = [identityProject, identityStack, identityContext].filter(Boolean).join(':');
-        semanticIndex.index(identity, {
-          type: 'agent', id: agentId, identity, status,
-        }, agentId);
+      // Keep the derived trie in sync only with durable state. An actor soul,
+      // inbox row, and Sugar session may be inside registerAtomically's outer
+      // transaction here. In that case carry a symbol-only projection hook;
+      // actor-souls invokes it after COMMIT and never on rollback/commit error.
+      const deferSemanticIndex = Boolean(semanticIndex && identityProject && db.inTransaction);
+      if (semanticIndex && identityProject && !deferSemanticIndex) {
+        publishDurableSemanticIndex(agentId);
       }
 
       // Check for dead agents in the same project to alert the user
@@ -489,7 +516,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         deadAgentsInProject = staleAgents.filter(a => a.id !== agentId).length;
       }
 
-      return {
+      const result: AgentRegistrationResult = {
         success: true,
         agentId,
         registered: !existing,
@@ -500,6 +527,10 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         // Unmissable HITL: held spawn approvals surface at session start.
         approvalsHint: pendingApprovalsHint(),
       };
+      if (deferSemanticIndex) {
+        result[ACTOR_REGISTRATION_AFTER_COMMIT] = () => publishDurableSemanticIndex(agentId);
+      }
+      return result;
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
