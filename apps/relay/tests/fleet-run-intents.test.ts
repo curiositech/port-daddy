@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getFleetRunProjectionWithSteps,
   listFleetRunProjections,
+  listFleetRunGenerationsForPr,
   markFleetRunIntentEnqueued,
   reserveFleetRunIntent,
   type FleetRunIntentRow,
@@ -248,5 +249,71 @@ describe('logical run projections', () => {
     expect(found?.run.logical_state).toBe('queued');
     expect(found?.run.has_transcript).toBe(false);
     expect(found?.steps).toEqual([]);
+  });
+});
+
+describe('listFleetRunGenerationsForPr', () => {
+  function joinDb(
+    rows: Array<{ delivery_id: string; generation: number; state: string; queued_at: number; finished_at: number | null; run_id: string | null }>,
+  ): D1Database {
+    return {
+      prepare: (sql: string) => {
+        let bound: unknown[] = [];
+        const stmt = {
+          bind(...values: unknown[]) {
+            bound = values;
+            return stmt;
+          },
+          async all<T>() {
+            void bound; // the real query filters in SQL; this fixture is pre-scoped to one (repo, PR)
+            if (sql.includes('LEFT JOIN fleet_runs')) {
+              return { results: rows as unknown as T[] };
+            }
+            return { results: [] as T[] };
+          },
+          async first<T>() {
+            return null as T | null;
+          },
+          async run() {
+            return { success: true, meta: { changes: 0 } };
+          },
+        };
+        return stmt as unknown as D1PreparedStatement;
+      },
+    } as unknown as D1Database;
+  }
+
+  it('returns every generation for the (repo, PR) pair, newest first, with the joined run id', async () => {
+    const db = joinDb([
+      { delivery_id: 'd2', generation: 2, state: 'success', queued_at: 200, finished_at: 240, run_id: 'run:d2' },
+      { delivery_id: 'd1', generation: 1, state: 'neutral', queued_at: 100, finished_at: 140, run_id: 'run:d1' },
+    ]);
+    const rows = await listFleetRunGenerationsForPr(db, 'curiositech/port-daddy', 8889);
+    expect(rows).toEqual([
+      { deliveryId: 'd2', generation: 2, state: 'success', queuedAt: 200, finishedAt: 240, runId: 'run:d2' },
+      { deliveryId: 'd1', generation: 1, state: 'neutral', queuedAt: 100, finishedAt: 140, runId: 'run:d1' },
+    ]);
+  });
+
+  it('a generation that never executed carries a null run id (no fleet_runs row to join)', async () => {
+    const db = joinDb([
+      { delivery_id: 'd3', generation: 3, state: 'queued', queued_at: 300, finished_at: null, run_id: null },
+    ]);
+    const rows = await listFleetRunGenerationsForPr(db, 'curiositech/port-daddy', 8889);
+    expect(rows[0]?.runId).toBeNull();
+  });
+
+  it('degrades to an empty list on a pre-migration D1 without fleet_run_intents, never throws', async () => {
+    const db = {
+      prepare: () => ({
+        bind() {
+          return this;
+        },
+        async all() {
+          throw new Error('no such table: fleet_run_intents');
+        },
+      }),
+    } as unknown as D1Database;
+    await expect(listFleetRunGenerationsForPr(db, 'curiositech/port-daddy', 8889)).resolves.toEqual([]);
   });
 });

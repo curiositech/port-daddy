@@ -4809,6 +4809,7 @@ dependencies = [
  "futures-util",
  "gpui",
  "loro",
+ "pd-anchor",
  "portable-pty",
  "proptest",
  "reqwest",
@@ -4817,6 +4818,7 @@ dependencies = [
  "serde_json",
  "time",
  "tokio",
+ "unicode-segmentation",
  "vt100",
 ]
 

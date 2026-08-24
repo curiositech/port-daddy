@@ -10,13 +10,13 @@
  * (and commit the result) whenever the roadmap shifts — a `pd-fleet.yml`
  * Cartographer trigger on `git:committed` is the intended automation.
  *
- * The snapshot is intentionally minimal (slug + status + summary): it is a
- * link-existence oracle, not a full roadmap export. The same JSON shape can be
- * served by the Cloudflare Relay later without changing the consumer.
+ * The build/guard machinery lives in `lib/roadmap-snapshot.ts` (shared with
+ * `pd roadmap chomp --emit-pr-plan`); this script is the standalone CLI
+ * wrapper that resolves the daemon URL and prints operator guidance.
  */
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
+import { buildRoadmapSnapshot, writeRoadmapSnapshot } from '../lib/roadmap-snapshot.js';
 
 const SNAPSHOT_PATH = resolve(
   process.argv[2] ?? 'docs/roadmap/roadmap.snapshot.json',
@@ -24,56 +24,27 @@ const SNAPSHOT_PATH = resolve(
 const BASE = resolveDaemonUrl().replace(/\/$/, '');
 const HARBOR = process.env.PD_HARBOR ?? 'port-daddy';
 
-interface DaemonItem {
-  slug: string;
-  status: string;
-  summaryMd?: string;
-}
-
+/**
+ * CLI entry: build the snapshot from the resolved daemon and write it.
+ *
+ * Why a thin wrapper: the guarded build/write design lives in
+ * `lib/roadmap-snapshot.ts` (shared with `pd roadmap chomp --emit-pr-plan`);
+ * this script only resolves the daemon URL and prints operator guidance.
+ *
+ * @returns Resolves after writing, or exits 1 with actionable stderr.
+ */
 async function main(): Promise<void> {
-  const url = `${BASE}/roadmap/items?status=all&harbor=${encodeURIComponent(HARBOR)}`;
-  let payload: { success?: boolean; items?: DaemonItem[]; count?: number };
+  let snapshot;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-    payload = (await res.json()) as typeof payload;
+    snapshot = await buildRoadmapSnapshot({ baseUrl: BASE, harbor: HARBOR });
   } catch (err) {
-    console.error(`✗ Could not reach the daemon at ${BASE}.`);
-    console.error(`  ${(err as Error).message}`);
-    console.error('  Start the daemon (or set PORT_DADDY_URL) and retry.');
+    console.error(`✗ ${(err as Error).message}`);
     process.exit(1);
     return;
   }
 
-  if (!payload.success || !Array.isArray(payload.items)) {
-    console.error('✗ Daemon returned an unexpected roadmap payload:', JSON.stringify(payload).slice(0, 200));
-    process.exit(1);
-    return;
-  }
-
-  const items = payload.items
-    .map((i) => ({ slug: i.slug, status: i.status, summaryMd: i.summaryMd ?? '' }))
-    .sort((a, b) => a.slug.localeCompare(b.slug));
-
-  if (items.length === 0) {
-    console.error('✗ Refusing to write an EMPTY snapshot — the daemon reported zero roadmap items.');
-    console.error('  That would trip the gate as "roadmap broken" for every PR. Aborting.');
-    process.exit(1);
-    return;
-  }
-
-  const snapshot = {
-    // generatedAt is the staleness clock the gate reads.
-    generatedAt: Date.now(),
-    harbor: HARBOR,
-    source: BASE,
-    count: items.length,
-    items,
-  };
-
-  mkdirSync(dirname(SNAPSHOT_PATH), { recursive: true });
-  writeFileSync(SNAPSHOT_PATH, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`✓ Wrote ${items.length} roadmap items to ${SNAPSHOT_PATH}`);
+  writeRoadmapSnapshot(SNAPSHOT_PATH, snapshot);
+  console.log(`✓ Wrote ${snapshot.count} roadmap items to ${SNAPSHOT_PATH}`);
   console.log('  Commit it so CI sees the current roadmap.');
 }
 

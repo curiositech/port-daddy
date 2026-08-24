@@ -56,7 +56,7 @@ describe('daemon binary launch contract', () => {
     expect(command.env?.PORT_DADDY_RESOURCE_DIR).toBe(root);
   });
 
-  test('injects the packaged macOS semantic runtime before daemon process start', () => {
+  test('keeps packaged macOS semantic runtime out of DYLD environment injection', () => {
     const root = mkdtempSync(join(tmpdir(), 'pd-daemon-native-env-'));
     const binaryPath = join(root, 'dist', 'daemon', daemonBinaryName('darwin'));
     const nativeDir = join(root, 'dist', 'native', 'onnxruntime-node', 'darwin-arm64');
@@ -65,8 +65,20 @@ describe('daemon binary launch contract', () => {
 
     expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {
       DYLD_FALLBACK_LIBRARY_PATH: '/operator/lib',
-    }, 'darwin', 'arm64')).toEqual({
-      DYLD_FALLBACK_LIBRARY_PATH: `${nativeDir}:/operator/lib`,
+    }, 'darwin', 'arm64')).toEqual({});
+  });
+
+  test('injects the packaged Linux semantic runtime before daemon process start', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-daemon-native-linux-env-'));
+    const binaryPath = join(root, 'dist', 'daemon', daemonBinaryName('linux'));
+    const nativeDir = join(root, 'dist', 'native', 'onnxruntime-node', 'linux-x64');
+    mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(join(nativeDir, 'libonnxruntime.so.1'), 'runtime');
+
+    expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {
+      LD_LIBRARY_PATH: '/operator/lib',
+    }, 'linux', 'x64')).toEqual({
+      LD_LIBRARY_PATH: `${nativeDir}:/operator/lib`,
     });
   });
 
