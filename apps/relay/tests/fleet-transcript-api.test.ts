@@ -13,8 +13,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import worker from '../src/index.js';
 import {
   handleFleetRunTranscript,
+  handleFleetRunTranscriptIndex,
   renderFleetRunReceiptPage,
 } from '../src/fleet-run-page.js';
 import type { Env } from '../src/types.js';
@@ -27,17 +29,31 @@ interface IndexRow {
   ship: string;
   attempt: number;
   r2_key: string;
+  turns?: number;
+  bytes?: number;
+  models_csv?: string;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  cost_usd?: number | null;
+  incomplete?: number;
+  created_at?: number;
 }
 
-/** Minimal Env: a D1 serving fleet_run_transcripts rows + an R2 with objects. */
+/**
+ * Minimal Env: a D1 serving fleet_run_transcripts rows + an R2 with objects.
+ * The mock honors the query's bind params — the ship-scoped variant
+ * (`AND ship = ?`) filters here exactly as the real index would, so the
+ * handlers' scoping is actually under test, not papered over.
+ */
 function makeEnv(rows: IndexRow[], objects: Record<string, string>): Env {
   const db = {
     prepare: (sql: string) => ({
       bind: (...bound: unknown[]) => ({
         all: async () => {
           if (sql.includes('fleet_run_transcripts')) {
+            const ship = sql.includes('AND ship = ?') ? bound[1] : undefined;
             const filtered = rows
-              .filter(r => bound[0] === undefined || true)
+              .filter(r => ship === undefined || r.ship === ship)
               .slice()
               .sort((a, b) => (a.ship < b.ship ? -1 : a.ship > b.ship ? 1 : b.attempt - a.attempt));
             return { results: filtered };
@@ -51,7 +67,9 @@ function makeEnv(rows: IndexRow[], objects: Record<string, string>): Env {
   };
   const bucket = {
     get: async (key: string) =>
-      key in objects ? ({ body: objects[key] } as unknown as R2ObjectBody) : null,
+      key in objects
+        ? ({ body: objects[key], text: async () => objects[key] } as unknown as R2ObjectBody)
+        : null,
   };
   return {
     DB: db,
@@ -142,6 +160,39 @@ describe('handleFleetRunTranscript', () => {
     ).toBe(404);
   });
 
+  it('slices with ?after=<seq> — only envelopes strictly beyond the watermark, seq-less lines omitted', async () => {
+    const objects = {
+      'v1/run/qa.2.jsonl':
+        '{"v":1,"seq":0}\n{"v":1,"seq":1}\nnot-json\n{"v":1,"seq":2}\n{"no-seq":true}\n',
+    };
+    const env = makeEnv([{ ship: 'qa', attempt: 2, r2_key: 'v1/run/qa.2.jsonl' }], objects);
+    const sliced = await handleFleetRunTranscript(
+      req(`/fleet/runs/${RUN_ID}/transcript/qa.jsonl?after=0`, AUTH),
+      env,
+      RUN_ID,
+      'qa',
+    );
+    expect(sliced.status).toBe(200);
+    expect(await sliced.text()).toBe('{"v":1,"seq":1}\n{"v":1,"seq":2}\n');
+    // Caught up: an empty (but 200) body, not a 404 — the transcript exists.
+    const caughtUp = await handleFleetRunTranscript(
+      req(`/fleet/runs/${RUN_ID}/transcript/qa.jsonl?after=2`, AUTH),
+      env,
+      RUN_ID,
+      'qa',
+    );
+    expect(caughtUp.status).toBe(200);
+    expect(await caughtUp.text()).toBe('');
+    // A non-numeric after is ignored — the full raw object streams.
+    const raw = await handleFleetRunTranscript(
+      req(`/fleet/runs/${RUN_ID}/transcript/qa.jsonl?after=zzz`, AUTH),
+      env,
+      RUN_ID,
+      'qa',
+    );
+    expect(await raw.text()).toContain('not-json');
+  });
+
   it('rejects path-hostile ship names and run ids before touching storage', async () => {
     const env = makeEnv(ROWS, OBJECTS);
     expect(
@@ -164,6 +215,96 @@ describe('handleFleetRunTranscript', () => {
         )
       ).status,
     ).toBe(404);
+  });
+});
+
+describe('handleFleetRunTranscriptIndex (transcripts.json — Phase 3)', () => {
+  const LEDGER: IndexRow[] = [
+    {
+      ship: 'qa', attempt: 2, r2_key: 'v1/run/qa.2.jsonl', turns: 9, bytes: 4200,
+      models_csv: '@cf/test/model', prompt_tokens: 1000, completion_tokens: 200,
+      cost_usd: 0.0031, incomplete: 0, created_at: 1_700_000_100,
+    },
+    {
+      ship: 'purser', attempt: 2, r2_key: 'v1/run/purser.2.jsonl', turns: 14, bytes: 9000,
+      models_csv: '@cf/test/model,@cf/test/plan', prompt_tokens: null, completion_tokens: null,
+      cost_usd: null, incomplete: 1, created_at: 1_700_000_090,
+    },
+  ];
+
+  it('serves the full ledger — outcome columns, split models, paths — under bearer auth', async () => {
+    const res = await handleFleetRunTranscriptIndex(
+      req(`/fleet/runs/${RUN_ID}/transcripts.json`, AUTH),
+      makeEnv(LEDGER, {}),
+      RUN_ID,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('application/json');
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    const body = (await res.json()) as {
+      runId: string;
+      transcripts: Array<Record<string, unknown>>;
+    };
+    expect(body.runId).toBe(RUN_ID);
+    expect(body.transcripts).toHaveLength(2);
+    const qa = body.transcripts.find(t => t.ship === 'qa');
+    expect(qa).toMatchObject({
+      attempt: 2, turns: 9, bytes: 4200, models: ['@cf/test/model'],
+      promptTokens: 1000, completionTokens: 200, costUsd: 0.0031, incomplete: false,
+    });
+    expect(qa?.viewerPath).toBe(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa?attempt=2`);
+    expect(qa?.jsonlPath).toBe(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa.jsonl?attempt=2`);
+    const purser = body.transcripts.find(t => t.ship === 'purser');
+    expect(purser).toMatchObject({ models: ['@cf/test/model', '@cf/test/plan'], incomplete: true });
+  });
+
+  it('ignores stray query params (?after= belongs to the .jsonl route) — full ledger, 200', async () => {
+    const res = await handleFleetRunTranscriptIndex(
+      req(`/fleet/runs/${RUN_ID}/transcripts.json?after=3&attempt=1`, AUTH),
+      makeEnv(LEDGER, {}),
+      RUN_ID,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { transcripts: unknown[] };
+    expect(body.transcripts).toHaveLength(2); // unsliced, unfiltered
+  });
+
+  it('404s indistinguishably: no credential, hostile run id, empty ledger', async () => {
+    const env = makeEnv(LEDGER, {});
+    expect(
+      (await handleFleetRunTranscriptIndex(req(`/fleet/runs/${RUN_ID}/transcripts.json`), env, RUN_ID)).status,
+    ).toBe(404);
+    expect(
+      (await handleFleetRunTranscriptIndex(req(`/x`, AUTH), env, 'run:..:up')).status,
+    ).toBe(404);
+    expect(
+      (
+        await handleFleetRunTranscriptIndex(
+          req(`/fleet/runs/${RUN_ID}/transcripts.json`, AUTH),
+          makeEnv([], {}),
+          RUN_ID,
+        )
+      ).status,
+    ).toBe(404);
+  });
+});
+
+// Router-boundary case the handler tests cannot reach: a malformed
+// percent-encoded run id makes decodeURIComponent throw, which the global
+// fail-closed boundary would answer as a 500 — but the transcript surfaces
+// answer ONE indistinguishable 404 to every failure, so the routes decode
+// fail-closed (safeDecodeSegment) and the malformed id lands in the same 404.
+describe('router: malformed percent-encoding on transcript routes', () => {
+  it('answers the uniform 404, never the global 500 boundary', async () => {
+    const env = makeEnv(ROWS, OBJECTS);
+    for (const path of [
+      '/fleet/runs/%zz/transcripts.json',
+      '/fleet/runs/%zz/transcript/qa.jsonl',
+      '/fleet/runs/%zz/transcript/qa',
+    ]) {
+      const res = await worker.fetch(req(path, AUTH), env, {} as ExecutionContext);
+      expect(res.status).toBe(404);
+    }
   });
 });
 

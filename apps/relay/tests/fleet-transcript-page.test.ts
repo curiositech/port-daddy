@@ -68,8 +68,14 @@ function makeEnv(objects: Record<string, string>): Env {
   return {
     DB: {
       prepare: (sql: string) => ({
-        bind: () => ({
-          all: async () => ({ results: sql.includes('fleet_run_transcripts') ? rows : [] }),
+        bind: (...bound: unknown[]) => ({
+          // Honors the ship-scoped bind (`AND ship = ?`) like the real index
+          // would, so the handler's D1-side scoping is genuinely under test.
+          all: async () => ({
+            results: sql.includes('fleet_run_transcripts')
+              ? rows.filter(r => !sql.includes('AND ship = ?') || r.ship === bound[1])
+              : [],
+          }),
           first: async () => null,
           run: async () => ({ success: true, meta: { changes: 0 } }),
         }),
