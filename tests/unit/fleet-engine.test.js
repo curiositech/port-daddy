@@ -2252,8 +2252,9 @@ test('skillGraft that stalls never blocks a spawn: the budget elapses and the sh
 // arming the current dispatch artifact path, which still opens draft PRs.
 // Reads the REAL pd-fleet.yml (realReadFileSync bypasses this file's fs mock).
 describe('pd-fleet.yml dispatch-runner manifest (gated nightly entry)', () => {
+  const repoRoot = realJoin(import.meta.dirname, '..', '..');
   const manifestRaw = realReadFileSync(
-    realJoin(import.meta.dirname, '..', '..', 'pd-fleet.yml'),
+    realJoin(repoRoot, 'pd-fleet.yml'),
     'utf8',
   );
   const manifest = realYamlParse(manifestRaw);
@@ -2326,9 +2327,13 @@ describe('pd-fleet.yml dispatch-runner manifest (gated nightly entry)', () => {
       ...makeConfig(),
       limits: { budgetUsdPerDay: threshold },
     };
-    const runnerWithManifestBudget = createFleetRunner(config, '/tmp/proj', {
-      costTracker: { budgetStatus },
-    });
+    const runnerWithManifestBudget = createFleetRunner(
+      config,
+      realJoin(repoRoot, '.scratch', 'fleet-budget-test'),
+      {
+        costTracker: { budgetStatus },
+      },
+    );
 
     await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
       .resolves.toEqual({ success: true });
