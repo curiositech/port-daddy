@@ -8,7 +8,7 @@
  * device tokens start working immediately after deployment.
  */
 
-import { grantUserRole, hasUserRole, resolveUserToken, type UserRow } from './db.js';
+import { grantUserRole, hasUserRole, resolveUserTokenReadOnly, type UserRow } from './db.js';
 import { hashHex } from './crypto.js';
 import { readBearerToken } from './device-flow.js';
 import { operatorOnly } from './handlers.js';
@@ -17,6 +17,10 @@ import type { Env } from './types.js';
 function json(status: number, code: string, error: string): Response {
   return Response.json({ code, error }, { status });
 }
+
+export type FleetOperatorAuthorization =
+  | { kind: 'break-glass' }
+  | { kind: 'account'; userId: string; githubUserId: number };
 
 /** Parse the configured owner id strictly; malformed config never grants. */
 function configuredOwnerGithubUserId(env: Env): number | null {
@@ -49,11 +53,15 @@ async function userIsFleetOperator(user: UserRow, env: Env): Promise<boolean> {
 /**
  * Gate Cloud Fleet reads and controls with either break-glass or account auth.
  *
- * @returns Null when authorized; otherwise a complete fail-closed response.
+ * @returns The attributable authority when allowed, otherwise a complete
+ * fail-closed response.
  */
-export async function fleetOperatorOnly(request: Request, env: Env): Promise<Response | null> {
+export async function fleetOperatorOnly(
+  request: Request,
+  env: Env,
+): Promise<Response | FleetOperatorAuthorization> {
   const breakGlassDenied = operatorOnly(request, env);
-  if (breakGlassDenied === null) return null;
+  if (breakGlassDenied === null) return { kind: 'break-glass' };
 
   // ADR-0101 grants this path specifically to user_tokens bearers. Do not
   // accept browser cookies on pause/delete controls: that would widen the CSRF
@@ -63,14 +71,16 @@ export async function fleetOperatorOnly(request: Request, env: Env): Promise<Res
 
   let user: UserRow | null;
   try {
-    user = await resolveUserToken(env.DB, hashHex(bearer), Math.floor(Date.now() / 1000));
+    user = await resolveUserTokenReadOnly(env.DB, hashHex(bearer), Math.floor(Date.now() / 1000));
   } catch {
     return json(503, 'FLEET_AUTH_UNAVAILABLE', 'Cloud Fleet authorization is temporarily unavailable');
   }
   if (!user) return breakGlassDenied;
 
   try {
-    if (await userIsFleetOperator(user, env)) return null;
+    if (await userIsFleetOperator(user, env)) {
+      return { kind: 'account', userId: user.id, githubUserId: user.github_user_id };
+    }
   } catch {
     return json(503, 'FLEET_AUTH_UNAVAILABLE', 'Cloud Fleet authorization is temporarily unavailable');
   }

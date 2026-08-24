@@ -18,7 +18,7 @@
  * writes only KV + audit.
  */
 
-import { fleetOperatorOnly } from './fleet-access.js';
+import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
 import {
   lastFleetRunAt,
   getFleetPaused,
@@ -92,8 +92,8 @@ function runForList(r: FleetRunProjection): Record<string, unknown> {
 
 /** Recent fleet runs, newest first. Each carries pr_url for hyperlinking. */
 export async function handleFleetActivity(request: Request, env: Env): Promise<Response> {
-  const denied = await fleetOperatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   const url = new URL(request.url);
   const raw = parseInt(url.searchParams.get('limit') ?? '50', 10);
@@ -115,8 +115,8 @@ export async function handleFleetRun(
   env: Env,
   runId: string,
 ): Promise<Response> {
-  const denied = await fleetOperatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   if (!runId || !isSafeRunId(runId)) {
     return fleetErr('BAD_REQUEST', 'run id required', 400);
@@ -178,8 +178,8 @@ export async function handleFleetRun(
  * (Cloudflare Queues does not yet expose depth via API) and returns null.
  */
 export async function handleFleetHealth(request: Request, env: Env): Promise<Response> {
-  const denied = await fleetOperatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   try {
     const [paused, lastAt, intentHealth] = await Promise.all([
@@ -223,8 +223,8 @@ interface PauseBody {
  * Audited.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
-  const denied = await fleetOperatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   const body = await readJson<PauseBody>(request);
   if (!body || typeof body.paused !== 'boolean') {
@@ -235,7 +235,7 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
     const state = await setFleetPaused(env.KV, body.paused);
     await appendAudit(env.DB, {
       action: body.paused ? 'fleet_pause' : 'fleet_resume',
-      detail: 'operator toggle',
+      detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
     }).catch(() => {
       /* audit is best-effort; never fail the toggle on an audit write error */
     });
@@ -258,15 +258,19 @@ export async function handleDeleteFleetRun(
   env: Env,
   runId: string,
 ): Promise<Response> {
-  const denied = await fleetOperatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
   if (!runId || !isSafeRunId(runId)) {
     return fleetErr('BAD_REQUEST', 'run id required', 400);
   }
   try {
     const removed = await deleteFleetRunProjection(env.DB, runId);
     if (removed === 0) return fleetErr('NOT_FOUND', `Run ${runId} not found`, 404);
-    await appendAudit(env.DB, { action: 'fleet_run_delete', target: runId, detail: 'operator delete' }).catch(
+    await appendAudit(env.DB, {
+      action: 'fleet_run_delete',
+      target: runId,
+      detail: operatorAuditDetail(authorization, 'delete-run'),
+    }).catch(
       () => {
         /* best-effort audit */
       },
@@ -278,6 +282,25 @@ export async function handleDeleteFleetRun(
 }
 
 // ── shared ──────────────────────────────────────────────────────────────────
+
+/** Durable actor attribution without ever copying bearer/token material. */
+function operatorAuditDetail(
+  authorization: FleetOperatorAuthorization,
+  operation: 'pause' | 'resume' | 'delete-run',
+): string {
+  return JSON.stringify(
+    authorization.kind === 'account'
+      ? {
+          source: 'account',
+          operation,
+          actor: {
+            userId: authorization.userId,
+            githubUserId: authorization.githubUserId,
+          },
+        }
+      : { source: 'break-glass', operation },
+  );
+}
 
 /** Re-hydrate a step's JSON `detail` blob; pass through non-JSON as a string. */
 function parseDetail(detail: string | null): unknown {

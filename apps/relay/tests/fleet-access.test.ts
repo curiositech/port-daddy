@@ -74,7 +74,7 @@ function env(db: D1Database, ownerId: string | null = String(OWNER_GITHUB_ID)): 
 describe('fleetOperatorOnly', () => {
   it('keeps the operator secret as break-glass access without touching account data', async () => {
     const f = fixture({ failRoles: true });
-    expect(await fleetOperatorOnly(request(BREAK_GLASS), env(f.db))).toBeNull();
+    expect(await fleetOperatorOnly(request(BREAK_GLASS), env(f.db))).toEqual({ kind: 'break-glass' });
     expect(f.writes).toEqual([]);
   });
 
@@ -95,19 +95,28 @@ describe('fleetOperatorOnly', () => {
 
   it('materializes the configured GitHub owner and accepts the existing pdu token', async () => {
     const f = fixture();
-    expect(await fleetOperatorOnly(request(PDU), env(f.db))).toBeNull();
+    expect(await fleetOperatorOnly(request(PDU), env(f.db))).toEqual({
+      kind: 'account',
+      userId: 'u_owner',
+      githubUserId: OWNER_GITHUB_ID,
+    });
     expect(f.hasOperatorRole()).toBe(true);
     const grant = f.writes.find((write) => write.sql.includes('INSERT INTO user_roles'));
     expect(grant?.bound.slice(0, 3)).toEqual(['u_owner', 'operator', 'configured-github-owner']);
 
     // The durable role remains authoritative even if bootstrap config is later
     // removed; this is a grant ledger, not a request-time identity shortcut.
-    expect(await fleetOperatorOnly(request(PDU), env(f.db, null))).toBeNull();
+    expect(await fleetOperatorOnly(request(PDU), env(f.db, null))).toMatchObject({ kind: 'account' });
+    expect(f.writes.filter((write) => write.sql.includes('UPDATE user_tokens'))).toEqual([]);
+    expect(f.writes.filter((write) => write.sql.includes('INSERT INTO user_roles'))).toHaveLength(1);
   });
 
   it('accepts an existing operator role without matching bootstrap config', async () => {
     const f = fixture({ operatorRole: true });
-    expect(await fleetOperatorOnly(request(PDU), env(f.db, '999'))).toBeNull();
+    expect(await fleetOperatorOnly(request(PDU), env(f.db, '999'))).toMatchObject({
+      kind: 'account',
+      userId: 'u_owner',
+    });
     expect(f.writes.filter((write) => write.sql.includes('INSERT INTO user_roles'))).toEqual([]);
   });
 
