@@ -104,16 +104,25 @@ describe('per-run Workers AI circuit', () => {
     expect(circuit.isOpen).toBe(true);
   });
 
-  it('can spend the deadline at most ONCE per run, which is what makes 600s fit the wall budget', async () => {
-    // THE SAFETY ARGUMENT FOR FLEET_AI_CALL_DEADLINE_MS, PINNED. A queue
-    // consumer gets ~15 minutes of wall clock; the deadline is 600s. That is
-    // only sound because the circuit opens on the first timeout and every
-    // later call is rejected WITHOUT awaiting the provider. If a future edit
-    // let a second call reach the provider after a timeout, worst-case wait
-    // would become MAX_MAP_CHUNKS_PER_SHIP × 600s — far past the budget, and
-    // the invocation would be killed mid-run with no catchable error, which
-    // is precisely the #7743 failure shape. Timing is asserted rather than
-    // call counts alone: the point is that the later calls cost no WAITING.
+  it('spends the deadline at most once per INVOCATION — the per-delivery half of the bound', async () => {
+    // WHAT THIS DOES AND DOES NOT PROVE — worth stating precisely, because
+    // conflating the two scopes is exactly the error the PR #9800 review
+    // caught. A queue consumer gets ~15 minutes of wall clock, and the
+    // per-call deadline can approach 10 minutes, so one INVOCATION only fits
+    // because the circuit opens on the first timeout and every later call is
+    // rejected WITHOUT awaiting the provider. That is the property pinned
+    // here: if a future edit let a second call reach the provider after a
+    // timeout, worst-case wait becomes MAX_MAP_CHUNKS_PER_SHIP × the
+    // deadline, past the budget, and the invocation is killed mid-run with no
+    // catchable error — the #7743 failure shape.
+    //
+    // It says NOTHING about a whole logical RUN. A run spans many deliveries
+    // (one provider-heavy ship apiece), each with a fresh circuit, so the
+    // run-level worst case is ships × attempts × deadline and needs its own
+    // ceiling. That is RUN_ABSOLUTE_DEADLINE_MS, not this.
+    //
+    // Timing is asserted rather than call counts alone: the point is that the
+    // later calls cost no WAITING, which a call-count assertion cannot show.
     const deadlineMs = 20;
     const circuit = new FleetAiCircuit(deadlineMs);
     const silent = vi.fn(() => new Promise<never>(() => undefined));
