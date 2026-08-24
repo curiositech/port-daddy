@@ -1726,7 +1726,10 @@ interface TranscriptIndexRow {
 const TRANSCRIPT_SHIP_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
 
 /**
- * Read a run's transcript index rows, newest attempt first per ship.
+ * Read a run's transcript index rows, newest attempt first per ship. Passing
+ * `ship` scopes the query in D1 (`AND ship = ?`) instead of filtering rows in
+ * the Worker — the index's PK (run_id, ship, attempt) serves it directly, which
+ * matters now that the .jsonl route has machine callers (the CLI) polling it.
  *
  * DESIGN: best-effort by contract — a pre-migration D1 (missing table) or a
  * transient failure returns `[]` and the run page simply renders no links,
@@ -1736,15 +1739,23 @@ const TRANSCRIPT_SHIP_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
 async function listTranscriptIndexRows(
   db: D1Database,
   runId: string,
+  ship?: string,
 ): Promise<TranscriptIndexRow[]> {
   try {
-    const res = await db
-      .prepare(
-        `SELECT ship, attempt, r2_key FROM fleet_run_transcripts
-         WHERE run_id = ? ORDER BY ship ASC, attempt DESC`,
-      )
-      .bind(runId)
-      .all<TranscriptIndexRow>();
+    const stmt = ship
+      ? db
+          .prepare(
+            `SELECT ship, attempt, r2_key FROM fleet_run_transcripts
+             WHERE run_id = ? AND ship = ? ORDER BY attempt DESC`,
+          )
+          .bind(runId, ship)
+      : db
+          .prepare(
+            `SELECT ship, attempt, r2_key FROM fleet_run_transcripts
+             WHERE run_id = ? ORDER BY ship ASC, attempt DESC`,
+          )
+          .bind(runId);
+    const res = await stmt.all<TranscriptIndexRow>();
     return res.results ?? [];
   } catch {
     return [];
@@ -1830,25 +1841,129 @@ export async function handleFleetRunTranscript(
   if (!env.TRANSCRIPTS) return notFound();
   try {
     if (!(await authorizedForRun(request, env, runId))) return notFound();
-    const rows = (await listTranscriptIndexRows(env.DB, runId)).filter(r => r.ship === ship);
+    const rows = await listTranscriptIndexRows(env.DB, runId, ship);
     if (rows.length === 0) return notFound();
-    const wanted = new URL(request.url).searchParams.get('attempt');
+    const url = new URL(request.url);
+    const wanted = url.searchParams.get('attempt');
     const row = wanted
       ? rows.find(r => String(r.attempt) === wanted)
       : rows[0]; // rows are newest-attempt-first
     if (!row) return notFound();
     const object = await env.TRANSCRIPTS.get(row.r2_key);
     if (!object) return notFound();
-    return new Response(object.body, {
-      status: 200,
+    const headers = {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Robots-Tag': 'noindex, nofollow',
+      'Content-Disposition': `inline; filename="${runId.replace(/[^A-Za-z0-9._-]/g, '_')}.${ship}.${row.attempt}.jsonl"`,
+    };
+    // ?after=<seq>: seq-range pagination for machine consumers (the CLI) —
+    // only envelopes with seq strictly greater than `after` are returned, so a
+    // poller re-fetches just the tail it has not seen. Non-envelope lines
+    // (malformed JSON, missing seq) are omitted from a sliced response: a
+    // machine asking for "seq > N" cannot be handed lines that HAVE no seq.
+    // The unsliced route still carries every byte.
+    const after = url.searchParams.get('after');
+    if (after !== null && /^\d+$/.test(after)) {
+      const min = Number(after);
+      const sliced = (await object.text())
+        .split('\n')
+        .filter(line => {
+          if (!line.trim()) return false;
+          try {
+            const seq = (JSON.parse(line) as { seq?: unknown }).seq;
+            return typeof seq === 'number' && seq > min;
+          } catch {
+            return false;
+          }
+        })
+        .map(line => line + '\n')
+        .join('');
+      return new Response(sliced, { status: 200, headers });
+    }
+    return new Response(object.body, { status: 200, headers });
+  } catch {
+    return notFound();
+  }
+}
+
+// ── Machine-facing transcript index (Phase 3 — docs/FLEET-SESSION-TRANSCRIPTS.md)
+
+/** One transcript's full D1 ledger row, as transcripts.json serves it. */
+interface TranscriptLedgerRow {
+  ship: string;
+  attempt: number;
+  turns: number;
+  bytes: number;
+  models_csv: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  cost_usd: number | null;
+  incomplete: number;
+  created_at: number;
+}
+
+/**
+ * GET /fleet/runs/:id/transcripts.json — the run's transcript LEDGER: every
+ * (ship, attempt) capture with its outcome columns (turns, bytes, models,
+ * token totals, cost, the incomplete flag), newest attempt first per ship.
+ * This is the machine surface the CLI lists ships from before fetching a
+ * .jsonl — the HTML receipt renders the same rows as links for humans.
+ *
+ * Authorization and failure posture are EXACTLY the run page's: the shared
+ * {@link authorizedForRun} credentials, and one indistinguishable JSON 404 for
+ * everything else — no credential, unknown run, pre-migration D1, no captures.
+ */
+export async function handleFleetRunTranscriptIndex(
+  request: Request,
+  env: Env,
+  runId: string,
+): Promise<Response> {
+  const json = (body: unknown, status: number) =>
+    new Response(JSON.stringify(body) + '\n', {
+      status,
       headers: {
-        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'X-Robots-Tag': 'noindex, nofollow',
-        'Content-Disposition': `inline; filename="${runId.replace(/[^A-Za-z0-9._-]/g, '_')}.${ship}.${row.attempt}.jsonl"`,
       },
     });
+  const notFound = () => json({ error: 'not found' }, 404);
+  if (!RUN_ID_RE.test(runId) || runId.includes('..')) return notFound();
+  try {
+    if (!(await authorizedForRun(request, env, runId))) return notFound();
+    const res = await env.DB.prepare(
+      `SELECT ship, attempt, turns, bytes, models_csv, prompt_tokens, completion_tokens,
+              cost_usd, incomplete, created_at
+       FROM fleet_run_transcripts WHERE run_id = ? ORDER BY ship ASC, attempt DESC`,
+    )
+      .bind(runId)
+      .all<TranscriptLedgerRow>();
+    const rows = res.results ?? [];
+    if (rows.length === 0) return notFound();
+    const base = `/fleet/runs/${encodeURIComponent(runId)}/transcript/`;
+    return json(
+      {
+        runId,
+        transcripts: rows.map(r => ({
+          ship: r.ship,
+          attempt: r.attempt,
+          turns: r.turns,
+          bytes: r.bytes,
+          models: r.models_csv ? r.models_csv.split(',').filter(Boolean) : [],
+          promptTokens: r.prompt_tokens,
+          completionTokens: r.completion_tokens,
+          costUsd: r.cost_usd,
+          incomplete: r.incomplete === 1,
+          createdAt: r.created_at,
+          viewerPath: `${base}${encodeURIComponent(r.ship)}?attempt=${r.attempt}`,
+          jsonlPath: `${base}${encodeURIComponent(r.ship)}.jsonl?attempt=${r.attempt}`,
+        })),
+      },
+      200,
+    );
   } catch {
     return notFound();
   }
@@ -2051,7 +2166,7 @@ export async function handleFleetRunTranscriptPage(
   if (!env.TRANSCRIPTS) return notFoundPage();
   try {
     if (!(await authorizedForRun(request, env, runId))) return notFoundPage();
-    const rows = (await listTranscriptIndexRows(env.DB, runId)).filter(r => r.ship === ship);
+    const rows = await listTranscriptIndexRows(env.DB, runId, ship);
     if (rows.length === 0) return notFoundPage();
     const url = new URL(request.url);
     const wanted = url.searchParams.get('attempt');

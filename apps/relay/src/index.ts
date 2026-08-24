@@ -164,6 +164,7 @@ import {
 import {
   handleFleetRunPage,
   handleFleetRunTranscript,
+  handleFleetRunTranscriptIndex,
   handleFleetRunTranscriptPage,
 } from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
@@ -499,6 +500,17 @@ export default {
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
       const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
       response = await handleAckInterruption(request, env, id);
+    }
+
+    // ── Transcript LEDGER (machine JSON index of every captured ship/attempt;
+    //    same capability scheme; Phase 3 of the RFC) ──────────────────────────
+    else if (
+      pathname.startsWith('/fleet/runs/') &&
+      method === 'GET' &&
+      /^\/fleet\/runs\/.+\/transcripts\.json$/.test(pathname)
+    ) {
+      const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcripts\.json$/);
+      response = await handleFleetRunTranscriptIndex(request, env, decodeURIComponent(m?.[1] ?? ''));
     }
 
     // ── Raw ship session transcript (pd-transcript.v1 JSONL; same capability

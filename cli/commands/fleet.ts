@@ -1392,6 +1392,282 @@ async function fleetPush(options: CLIOptions, action?: string): Promise<void> {
   }
 }
 
+// ─── Raw session transcripts (pd-transcript.v1 — docs/FLEET-SESSION-TRANSCRIPTS.md) ──
+//
+// `pd fleet transcript` is the terminal surface over the relay's transcript
+// read path: the transcripts.json ledger for discovery, the .jsonl object for
+// content. It talks to the RELAY (not the daemon), so URL + credential resolve
+// relay-side: --relay / PD_RELAY_URL / the daemon's configured relay_url, and
+// --token / PD_RELAY_OPERATOR_TOKEN. A `v1.<hmac>` run-page capability token
+// (pasted from a receipt link) rides the `?t=` query exactly as the web viewer
+// sends it; anything else is presented as an operator bearer.
+
+interface TranscriptLedgerEntry {
+  ship: string;
+  attempt: number;
+  turns: number;
+  bytes: number;
+  models: string[];
+  promptTokens: number | null;
+  completionTokens: number | null;
+  costUsd: number | null;
+  incomplete: boolean;
+  createdAt: number;
+  viewerPath: string;
+  jsonlPath: string;
+}
+
+/**
+ * Resolve the relay base URL the transcript surface should talk to.
+ *
+ * WHY a chain instead of one source: the transcript store lives on the relay,
+ * not the daemon, and operators reach it from three postures — an explicit
+ * `--relay` flag (ad-hoc/debugging), `PD_RELAY_URL` (CI/scripts), or the
+ * daemon's configured `relay_url` (the normal installed case, read via
+ * `/relay/status` so CLI and daemon can never disagree about which relay).
+ *
+ * @param options Parsed CLI options (reads the optional `relay` flag).
+ * @returns The relay origin without a trailing slash, or null when nothing is
+ *   configured anywhere — the caller prints the setup guidance.
+ */
+async function resolveRelayUrl(options: CLIOptions): Promise<string | null> {
+  const flag = typeof (options as Record<string, unknown>).relay === 'string'
+    ? ((options as Record<string, unknown>).relay as string)
+    : null;
+  const fromEnv = process.env.PD_RELAY_URL || null;
+  if (flag || fromEnv) return (flag || fromEnv)!.replace(/\/+$/, '');
+  try {
+    const res = await pdFetch('/relay/status');
+    if (!res.ok) return null;
+    const data = (await res.json()) as { relay_url?: string | null };
+    return data.relay_url ? data.relay_url.replace(/\/+$/, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the relay credential and decide HOW it is presented. The relay's
+ * transcript routes accept exactly two credential shapes, and the shape is
+ * the routing rule: a `v1.<hmac>` run-page capability token (pasted from a
+ * receipt link) must ride the `?t=` query — the same way the web viewer sends
+ * it — while anything else is an operator bearer for the Authorization header.
+ *
+ * @param options Parsed CLI options (reads the optional `token` flag; falls
+ *   back to PD_RELAY_OPERATOR_TOKEN / RELAY_OPERATOR_TOKEN).
+ * @returns At most one of `bearer` / `capToken`; both absent means no
+ *   credential was provided anywhere.
+ */
+function resolveRelayCredential(options: CLIOptions): { bearer?: string; capToken?: string } {
+  const raw = typeof (options as Record<string, unknown>).token === 'string'
+    ? ((options as Record<string, unknown>).token as string)
+    : process.env.PD_RELAY_OPERATOR_TOKEN || process.env.RELAY_OPERATOR_TOKEN || '';
+  if (!raw) return {};
+  return raw.startsWith('v1.') ? { capToken: raw } : { bearer: raw };
+}
+
+/**
+ * GET one relay transcript path with the resolved credential attached in its
+ * proper place (bearer header vs `?t=` query — see resolveRelayCredential).
+ *
+ * WHY 404 maps to null instead of an error: the relay deliberately makes
+ * unknown/unauthorized/not-yet-captured indistinguishable, so 404 is an
+ * expected answer the caller must phrase honestly — not a transport failure.
+ * Any other non-2xx IS a failure and exits with the status.
+ *
+ * @param relay Relay origin (no trailing slash).
+ * @param path Absolute path on the relay, may already carry a query.
+ * @param cred The resolved credential from resolveRelayCredential.
+ * @returns The successful Response, or null on the relay's uniform 404.
+ */
+async function relayTranscriptGet(
+  relay: string,
+  path: string,
+  cred: { bearer?: string; capToken?: string },
+): Promise<Response | null> {
+  const sep = path.includes('?') ? '&' : '?';
+  const url = cred.capToken ? `${relay}${path}${sep}t=${encodeURIComponent(cred.capToken)}` : `${relay}${path}`;
+  const res = await fetch(url, {
+    headers: cred.bearer ? { Authorization: `Bearer ${cred.bearer}` } : {},
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    ui.error(`Relay returned ${res.status} for ${path}`);
+    process.exit(1);
+  }
+  return res;
+}
+
+/**
+ * Format a USD cost for the ledger table. Fleet spend is typically sub-cent,
+ * so the design shows 4 decimals below $1 (2 above) and an em-dash for
+ * "not reported" — never a lying "$0.00" for a run whose model returned no
+ * usage block, mirroring the run page's honesty rule.
+ *
+ * @param v The cost in USD, or null when the model reported no usage.
+ * @returns A display string: `—`, `$0.00`, `$0.0031`, `$1.20`, …
+ */
+function fmtTranscriptCost(v: number | null): string {
+  if (v == null) return '—';
+  return v === 0 ? '$0.00' : `$${v.toFixed(v >= 1 ? 2 : 4)}`;
+}
+
+/**
+ * Print one pd-transcript.v1 envelope as a terminal turn: a header line
+ * (#t{seq} KIND PHASE model · tokens · cost · flags) and the body beneath it.
+ *
+ * DESIGN: mirrors the web viewer's reading posture — assistant/error output
+ * prints open because it is what the operator came for, while system/user
+ * prompts fold to a one-line summary (they are bulky context the reader
+ * usually already knows) unless `full` opens them; a sysRef-deduplicated
+ * repeat says so instead of pretending to be empty. An unparseable line
+ * prints as itself, truncated — the terminal never hides bytes silently.
+ *
+ * @param line One raw JSONL line from the relay.
+ * @param full Open system/user prompt bodies instead of folding them.
+ */
+function printTranscriptTurn(line: string, full: boolean): void {
+  let t: {
+    seq?: number; kind?: string; phase?: string; model?: string;
+    chunk?: { index: number; count: number } | null;
+    usage?: { prompt: number; completion: number } | null;
+    costUsd?: number | null; truncated?: boolean; sysRef?: string | null;
+    content?: Array<{ text?: string }>;
+  };
+  try {
+    t = JSON.parse(line);
+  } catch {
+    console.log(ui.dim(`  (unparseable line: ${line.slice(0, 80)}${line.length > 80 ? '…' : ''})`));
+    return;
+  }
+  const kind = String(t.kind ?? '?').toUpperCase();
+  const phase = t.chunk
+    ? `${String(t.phase ?? '').toUpperCase()} ${t.chunk.index + 1}/${t.chunk.count}`
+    : String(t.phase ?? '').toUpperCase();
+  const usage = t.usage ? ` · ${t.usage.prompt} in / ${t.usage.completion} out` : '';
+  const cost = typeof t.costUsd === 'number' && t.costUsd > 0 ? ` · ${fmtTranscriptCost(t.costUsd)}` : '';
+  const flags = t.truncated ? ' · TRUNCATED' : '';
+  console.log(`#t${t.seq ?? '?'} ${kind} ${phase} ${ui.dim(String(t.model ?? ''))}${usage}${cost}${flags}`);
+  const text = Array.isArray(t.content)
+    ? t.content.map(c => (typeof c?.text === 'string' ? c.text : '')).join('')
+    : '';
+  if ((kind === 'SYSTEM' || kind === 'USER') && !full) {
+    // Prompts are bulky context the operator usually already knows — folded to
+    // a one-line summary, exactly like the web viewer's <details>. --full opens them.
+    if (text === '' && t.sysRef) {
+      console.log(ui.dim(`  (system prompt deduplicated — same as its first ${t.sysRef} occurrence)`));
+    } else {
+      console.log(ui.dim(`  (${text.length} chars — pass --full to print)`));
+    }
+  } else if (text) {
+    console.log(text.replace(/^/gm, '  '));
+  }
+  console.log('');
+}
+
+/**
+ * `pd fleet transcript <run-id> [ship]` — the terminal surface over the
+ * relay's captured ship sessions (pd-transcript.v1, RFC Phase 3).
+ *
+ * PURPOSE: the web viewer answers "show me this session in a browser"; this
+ * answers the operator who lives in the terminal. Without a ship it lists the
+ * run's transcript LEDGER (every captured ship/attempt with turns/tokens/cost
+ * from transcripts.json); with a ship it prints that session as turn cards
+ * (--raw for the verbatim JSONL, --full to open folded prompts, --attempt N
+ * for an earlier attempt). `--follow` polls until the capture appears —
+ * honestly framed as "wait for the completed flush", because Phase 1 flushes
+ * once at ship completion, so a live mid-ship tail cannot exist yet.
+ *
+ * @param options Parsed CLI options (attempt/raw/full/follow/json/relay/token).
+ * @param positional `[runId, ship?]` after the subcommand word.
+ * @returns Resolves after printing; exits non-zero on missing input, missing
+ *   relay/credential configuration, or the relay's uniform 404.
+ */
+async function fleetTranscript(options: CLIOptions, positional: string[]): Promise<void> {
+  const runId = positional[0];
+  const ship = positional[1];
+  if (!runId) {
+    ui.error('Usage: pd fleet transcript <run-id> [ship] [--attempt N] [--raw|--full] [--follow] [--relay <url>] [--token <token>]');
+    process.exit(1);
+  }
+  const relay = await resolveRelayUrl(options);
+  if (!relay) {
+    ui.error('No relay URL: pass --relay <url>, set PD_RELAY_URL, or configure one with `pd relay url <url>`.');
+    process.exit(1);
+  }
+  const cred = resolveRelayCredential(options);
+  if (!cred.bearer && !cred.capToken) {
+    ui.error('No relay credential: pass --token <operator-bearer or v1.<hmac> run token>, or set PD_RELAY_OPERATOR_TOKEN.');
+    process.exit(1);
+  }
+  const opts = options as Record<string, unknown>;
+  const follow = opts.follow === true;
+  const ledgerPath = `/fleet/runs/${encodeURIComponent(runId)}/transcripts.json`;
+
+  // Ledger fetch, optionally polling until captures appear (--follow). Flush
+  // happens at ship completion by design (RFC Phase 1), so "follow" honestly
+  // means "wait for the completed capture", never a fake live tail.
+  const fetchLedger = async (): Promise<TranscriptLedgerEntry[] | null> => {
+    const res = await relayTranscriptGet(relay, ledgerPath, cred);
+    if (!res) return null;
+    const body = (await res.json()) as { transcripts?: TranscriptLedgerEntry[] };
+    return body.transcripts ?? [];
+  };
+  const deadline = Date.now() + 10 * 60 * 1000;
+  let ledger = await fetchLedger();
+  while (follow && Date.now() < deadline && (!ledger || (ship && !ledger.some(t => t.ship === ship)))) {
+    await new Promise(r => setTimeout(r, 5000));
+    ledger = await fetchLedger();
+  }
+  if (!ledger || (ship && !ledger.some(t => t.ship === ship))) {
+    ui.error(
+      follow
+        ? `No transcript for ${ship ? `pd-${ship} on ` : ''}${runId} within 10 minutes — transcripts flush when a ship completes.`
+        : 'Not found — unknown run/ship, nothing captured yet, or not authorized (the relay makes these indistinguishable).',
+    );
+    process.exit(1);
+  }
+
+  if (!ship) {
+    if (isJson(options)) {
+      console.log(JSON.stringify({ runId, transcripts: ledger }, null, 2));
+      return;
+    }
+    ui.info(`Captured ship sessions for ${runId}`);
+    console.log('');
+    console.log('  SHIP              ATT  TURNS  TOKENS (in/out)     COST      FLAGS');
+    for (const t of ledger) {
+      const tokens = t.promptTokens != null ? `${t.promptTokens}/${t.completionTokens ?? 0}` : 'not reported';
+      const flags = t.incomplete ? 'INCOMPLETE' : '';
+      console.log(
+        `  pd-${t.ship.padEnd(14)} ${String(t.attempt).padStart(3)}  ${String(t.turns).padStart(5)}  ${tokens.padEnd(18)}  ${fmtTranscriptCost(t.costUsd).padEnd(8)}  ${flags}`,
+      );
+    }
+    console.log('');
+    console.log(ui.dim(`  pd fleet transcript ${runId} <ship>       # print a session`));
+    return;
+  }
+
+  const wanted = typeof opts.attempt === 'string' || typeof opts.attempt === 'number' ? String(opts.attempt) : null;
+  const jsonlPath =
+    `/fleet/runs/${encodeURIComponent(runId)}/transcript/${encodeURIComponent(ship)}.jsonl` +
+    (wanted ? `?attempt=${encodeURIComponent(wanted)}` : '');
+  const res = await relayTranscriptGet(relay, jsonlPath, cred);
+  if (!res) {
+    ui.error('Not found — unknown attempt, or not authorized (indistinguishable by design).');
+    process.exit(1);
+  }
+  const body = await res.text();
+  if (opts.raw === true) {
+    process.stdout.write(body);
+    return;
+  }
+  const lines = body.split('\n').filter(l => l.trim());
+  ui.info(`pd-${ship} — raw session transcript (${lines.length} turns) · ${runId}`);
+  console.log('');
+  for (const line of lines) printTranscriptTurn(line, opts.full === true);
+}
+
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
 export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
@@ -1472,6 +1748,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetPush(_options as CLIOptions, positional[1]);
       break;
 
+    case 'transcript':
+      await fleetTranscript(_options as CLIOptions, positional.slice(1));
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -1494,6 +1774,12 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  approve <id>    Release a held spawn (hails the agent with its context)');
       console.log('  reject <id>     Refuse a held spawn (--feedback "<why>")');
       console.log('  push <status|test>  Web Push devices for approval alerts');
+      console.log('');
+      console.log('Review receipts (pd-transcript.v1 — the relay\'s captured ship sessions):');
+      console.log('  transcript <run-id> [ship]   List a run\'s captured sessions, or print one');
+      console.log('                               (--attempt N, --raw, --full, --follow, --json;');
+      console.log('                                relay via --relay/PD_RELAY_URL, credential via');
+      console.log('                                --token/PD_RELAY_OPERATOR_TOKEN)');
       console.log('');
       console.log('Conductor control (ADR-0060 — operate the live fleet):');
       console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');
