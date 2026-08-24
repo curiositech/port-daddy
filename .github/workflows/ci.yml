@@ -75,6 +75,11 @@ jobs:
         run: git fetch --no-tags origin main:refs/remotes/origin/main
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
+      - name: Doc-retirement guard (retired docs stay bannered, banners stay registered)
+        # Whole-corpus, not changed-files: the failure this catches is a retired
+        # plan drifting back to reading as current, and the edit that does that
+        # need not touch the manifest. Cheap — it walks markdown and YAML only.
+        run: node scripts/doc-retirement-guard.mjs
 
   porthole-cast-gate:
     # Cheap, blocking companion to website-terminal-recordings' raw-text regex
@@ -705,6 +710,16 @@ jobs:
 
       - name: cargo clippy (pd-anchor)
         run: cargo clippy -p pd-anchor --all-targets -- -D warnings
+
+      # pd-vault holds harbor key material and the sealed-payload AEAD, so it
+      # joins the strict-lint set from its first commit rather than waiting for a
+      # later sweep — an unlinted crypto crate is the one place the "sibling
+      # crates join as their sweeps land" caveat should not apply.
+      - name: cargo fmt --check (pd-vault)
+        run: cargo fmt -p pd-vault -- --check
+
+      - name: cargo clippy (pd-vault)
+        run: cargo clippy -p pd-vault --all-targets -- -D warnings
 
       - name: cargo check
         run: cargo check --workspace
