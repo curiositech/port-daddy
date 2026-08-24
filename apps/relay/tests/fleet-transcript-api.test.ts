@@ -257,6 +257,17 @@ describe('handleFleetRunTranscriptIndex (transcripts.json — Phase 3)', () => {
     expect(purser).toMatchObject({ models: ['@cf/test/model', '@cf/test/plan'], incomplete: true });
   });
 
+  it('ignores stray query params (?after= belongs to the .jsonl route) — full ledger, 200', async () => {
+    const res = await handleFleetRunTranscriptIndex(
+      req(`/fleet/runs/${RUN_ID}/transcripts.json?after=3&attempt=1`, AUTH),
+      makeEnv(LEDGER, {}),
+      RUN_ID,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { transcripts: unknown[] };
+    expect(body.transcripts).toHaveLength(2); // unsliced, unfiltered
+  });
+
   it('404s indistinguishably: no credential, hostile run id, empty ledger', async () => {
     const env = makeEnv(LEDGER, {});
     expect(

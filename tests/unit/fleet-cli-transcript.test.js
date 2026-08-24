@@ -155,6 +155,18 @@ describe('pd fleet transcript', () => {
     expect(fullOut).toContain('You are pd-qa.');
   });
 
+  test('--json prints the raw ledger for machine consumption, not the table', async () => {
+    mockFetch.mockResolvedValueOnce(relayResponse(200, LEDGER));
+
+    await handleFleet(['transcript', RUN], { json: true });
+
+    const output = console.log.mock.calls.map((c) => c.join(' ')).join('\n');
+    const parsed = JSON.parse(output);
+    expect(parsed.runId).toBe(RUN);
+    expect(parsed.transcripts[0]).toMatchObject({ ship: 'qa', attempt: 2, turns: 3 });
+    expect(output).not.toContain('SHIP '); // no table header in machine output
+  });
+
   test('a pasted v1.<hmac> capability token rides ?t=, not the Authorization header', async () => {
     delete process.env.PD_RELAY_OPERATOR_TOKEN;
     mockFetch.mockResolvedValueOnce(relayResponse(200, LEDGER));
