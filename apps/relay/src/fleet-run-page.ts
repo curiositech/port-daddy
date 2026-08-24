@@ -1937,7 +1937,8 @@ function renderTurnCard(t: ViewerTurn, firstSysSeqByRef: Map<string, number>): s
     ? `<span>${t.usage.prompt.toLocaleString('en-US')} in / ${t.usage.completion.toLocaleString('en-US')} out</span>`
     : '';
   const cost = typeof t.costUsd === 'number' && t.costUsd > 0 ? `<span>${fmtUsd(t.costUsd)}</span>` : '';
-  const latency = typeof t.latencyMs === 'number' ? `<span>${(t.latencyMs / 1000).toFixed(1)}s</span>` : '';
+  const latency =
+    typeof t.latencyMs === 'number' && t.latencyMs >= 0 ? `<span>${(t.latencyMs / 1000).toFixed(1)}s</span>` : '';
   const truncated = t.truncated ? `<span class="turn-badge">TRUNCATED</span>` : '';
 
   let body: string;
