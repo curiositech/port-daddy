@@ -256,8 +256,9 @@ export class ShipTranscript {
       text = text.slice(0, MAX_TURN_TEXT_CHARS);
       truncated = true;
     }
-    if (this.approxBytes >= MAX_TRANSCRIPT_BYTES && text.length > 0) {
-      // Budget exhausted: keep the turn's METADATA (seq/phase/usage stay
+    if (this.approxBytes + text.length > MAX_TRANSCRIPT_BYTES && text.length > 0) {
+      // Budget would be exceeded: enforce the ceiling BEFORE storing (never
+      // after crossing it) — keep the turn's METADATA (seq/phase/usage stay
       // forensically useful) but drop the body, explicitly marked.
       text = '';
       truncated = true;

@@ -100,6 +100,19 @@ describe('pd-transcript.v1 envelope format', () => {
     expect(turn.truncated).toBe(true);
     expect(turn.content[0].text.length).toBe(256 * 1024);
   });
+
+  it('enforces the whole-object byte budget as a TRUE ceiling (the crossing turn drops its body, keeps metadata)', () => {
+    const cap = new ShipTranscript('run:abc', 'qa', 1);
+    // 40 turns × 256KB = 10.0MB of bodies (+ per-turn overhead) — the budget
+    // must cut in BEFORE the serialized object can exceed the cap.
+    for (let i = 0; i < 41; i++) cap.recordResponse(META, { response: 'y'.repeat(256 * 1024) }, 1);
+    const turns = parsed(cap);
+    expect(turns).toHaveLength(41); // metadata for EVERY turn survives
+    const dropped = turns.filter(t => t.content.length === 0 && t.truncated);
+    expect(dropped.length).toBeGreaterThanOrEqual(1);
+    expect(cap.incomplete).toBe(true);
+    expect(cap.serialize().length).toBeLessThanOrEqual(10 * 1024 * 1024 + 41 * 512);
+  });
 });
 
 describe('secret scrub', () => {
@@ -133,10 +146,10 @@ describe('secret scrub', () => {
 
 describe('flushShipTranscript', () => {
   function mocks() {
-    const put = vi.fn(async () => ({}));
+    const put = vi.fn(async (_key: string, _body: string, _opts?: unknown) => ({}));
     const run = vi.fn(async () => ({ success: true, meta: { changes: 1 } }));
-    const bind = vi.fn(() => ({ run }));
-    const prepare = vi.fn(() => ({ bind }));
+    const bind = vi.fn((..._bound: unknown[]) => ({ run }));
+    const prepare = vi.fn((_sql: string) => ({ bind }));
     return {
       env: {
         TRANSCRIPTS: { put } as unknown as R2Bucket,
