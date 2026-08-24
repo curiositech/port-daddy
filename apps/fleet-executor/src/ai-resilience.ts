@@ -8,11 +8,18 @@
  * and queue attempts exactly when Workers AI is already out of capacity.
  */
 
+import { DEFAULT_AI_CALL_DEADLINE_MS } from '../../shared/repo-ai-settings.js';
+
 /** Queue deliveries allowed to probe a retryable Workers AI failure. */
 export const PROVIDER_MAX_DELIVERY_ATTEMPTS = 3;
 
 /**
- * Hard wall-clock budget for one Workers AI binding call.
+ * Default hard wall-clock budget for one Workers AI binding call, used only
+ * when a repository has not configured its own deadline. Re-exported from
+ * `apps/shared/repo-ai-settings.ts` (rather than a second `300_000` literal
+ * "kept in sync by comment") so there is exactly one place this number is
+ * declared — a duplicated constant with a synchronization comment is not
+ * drift prevention (pd-qa adversarial finding, PR #9800).
  *
  * Workers AI's binding does not document an AbortSignal option. Racing the
  * binding promise is therefore the local fail-fast boundary: Fleet stops
@@ -20,32 +27,39 @@ export const PROVIDER_MAX_DELIVERY_ATTEMPTS = 3;
  * The next delivery becomes the half-open probe. This bounds Fleet control
  * flow without pretending the underlying provider operation was cancelled.
  *
- * WHY 600s AND NOT 60s (2026-08-24): the original minute was a guess at "far
- * longer than a healthy call", and it turned out to be inside the provider's
- * real latency spread. Production recorded **429 deadline kills across 126
- * runs in 18 unbroken hours**, every one of them exhausting all 3 delivery
- * attempts — while other runs in the same window finished normally. A
- * provider that is *sometimes* slow and *sometimes* fine is not one this
- * boundary should be adjudicating at a minute: each kill threw away work the
- * call may well have been about to return, and cost the full retry ladder to
- * learn nothing.
- *
- * WHY 600s IS SAFE, given a 15-minute queue-consumer wall budget: the circuit
- * opens on the FIRST retryable failure and every later `run()` throws before
- * awaiting anything, so an invocation can spend this deadline at most ONCE no
- * matter how many MAP chunks remain. Worst case is ~600s of waiting plus the
- * run's own work, comfortably inside the budget — not
- * MAX_MAP_CHUNKS_PER_SHIP × 600s, which would not fit.
- *
- * THE COST, stated plainly: the consumer is serialized (max_concurrency = 1),
- * so a genuine hang now blocks the queue for ten minutes instead of one. That
- * is the deliberate trade — this value buys the slow-but-alive calls at the
- * price of making true hangs more expensive. If the deadline-kill rate does
- * not fall after this deploy, the calls are hanging rather than lagging, and
- * the answer is a smaller number plus provider-side investigation, not a
- * larger one.
+ * Raised from 60s to 5 minutes (2026-08-23): 60s was an arbitrary defensive
+ * value, not derived from any Workers AI-side limit, and it was tripping on
+ * ordinary latency for larger prompts. Operators can now configure this
+ * per-repository; this is just the floor when they haven't. See
+ * {@link RUN_ABSOLUTE_DEADLINE_MS} for the compensating run-level bound this
+ * raise required.
  */
-export const FLEET_AI_CALL_DEADLINE_MS = 600_000;
+export const FLEET_AI_CALL_DEADLINE_MS = DEFAULT_AI_CALL_DEADLINE_MS;
+
+/**
+ * Hard ceiling on how long ONE LOGICAL RUN (a PR review, spanning every
+ * Cloudflare Queue continuation and retry it takes) may run before Fleet
+ * gives up and completes the check neutral rather than continuing to spend.
+ *
+ * Design rationale: raising {@link FLEET_AI_CALL_DEADLINE_MS} to 5 minutes
+ * (configurable up to 10) without a compensating run-level bound turns a
+ * roster of ships into an unbounded retry storm — each ship's own AI calls
+ * can be retried across up to `PROVIDER_MAX_DELIVERY_ATTEMPTS` (3) queue
+ * deliveries, so a ~9-ship roster's worst case is roughly
+ * `9 ships × 3 attempts × 5–10 minutes` = 135–270 minutes with no ceiling at
+ * all. This is the DO-NOT-SHIP finding from the human adversarial review on
+ * PR #9800: a per-call deadline bounds one call; nothing bounded the run.
+ *
+ * 45 minutes is chosen to comfortably fit a legitimate large roster running
+ * slowly-but-successfully (the common case this deadline should never touch)
+ * while firmly ruling out the multi-hour pathological case. It is a flat,
+ * non-configurable constant on purpose: making it a per-repo setting would
+ * reopen the same cross-user-authority problem the deadline setting itself
+ * was flagged for (see `apps/shared/repo-ai-settings.ts`'s admin-authorization
+ * requirement) for a knob whose only honest value is "as small as the fleet's
+ * genuine worst-case legitimate runtime requires."
+ */
+export const RUN_ABSOLUTE_DEADLINE_MS = 45 * 60_000;
 
 /** Full-jitter queue backoff: 15s, 30s, 60s ceilings, capped at two minutes. */
 const PROVIDER_RETRY_BASE_SECONDS = 15;
@@ -61,6 +75,30 @@ export interface AiFailureDetail {
   code: number | null;
   retryAfterSeconds: number | null;
   retryable: boolean;
+  /**
+   * Wall-clock time the failed call actually ran before failing, in
+   * milliseconds. Distinct from the deadline itself (a timeout's
+   * `elapsedMs` is ~the deadline; a provider-rejected call's `elapsedMs` is
+   * however long the round trip took before Cloudflare replied) — this is
+   * the field that answers "how long did an agent take" for one AI call,
+   * which no fleet-facing surface showed before this existed.
+   */
+  elapsedMs: number;
+}
+
+/** Per-ship accumulator for one queue delivery's Workers AI calls. */
+export interface ShipAiCallStats {
+  ship: string;
+  calls: number;
+  okCalls: number;
+  timeoutCalls: number;
+  errorCalls: number;
+  totalElapsedMs: number;
+  maxElapsedMs: number;
+}
+
+function emptyShipAiCallStats(ship: string): ShipAiCallStats {
+  return { ship, calls: 0, okCalls: 0, timeoutCalls: 0, errorCalls: 0, totalElapsedMs: 0, maxElapsedMs: 0 };
 }
 
 const RETRYABLE_AI_CODES = new Set([3007, 3008, 3040]);
@@ -101,6 +139,8 @@ class FleetAiCallDeadlineError extends Error {
  */
 export class FleetAiCircuit {
   private openedBy: FleetAiDependencyError | null = null;
+  /** Per-ship call aggregates for this run, flushed once per ship at run end. */
+  private readonly shipStats = new Map<string, ShipAiCallStats>();
 
   constructor(private readonly deadlineMs = FLEET_AI_CALL_DEADLINE_MS) {
     if (!Number.isFinite(deadlineMs) || deadlineMs <= 0) {
@@ -144,6 +184,7 @@ export class FleetAiCircuit {
   async run<T>(call: () => Promise<T>): Promise<T> {
     if (this.openedBy) throw this.openedBy;
     let deadline: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
     try {
       const timedOut = new Promise<never>((_resolve, reject) => {
         deadline = setTimeout(
@@ -153,12 +194,69 @@ export class FleetAiCircuit {
       });
       return await Promise.race([call(), timedOut]);
     } catch (error) {
-      const wrapped = new FleetAiDependencyError(describeAiFailure(error));
+      const wrapped = new FleetAiDependencyError(describeAiFailure(error, Date.now() - startedAt));
       if (wrapped.failure.retryable) this.openedBy = wrapped;
       throw wrapped;
     } finally {
       if (deadline !== undefined) clearTimeout(deadline);
     }
+  }
+
+  /**
+   * Same call contract as {@link run}, plus in-memory aggregation keyed by
+   * `ship` — the "aggregate per ship logging" the deadline setting shipped
+   * alongside. One call site's outcome (ok / timeout / other error) and its
+   * elapsed time fold into that ship's running totals; nothing is written to
+   * D1 here (`snapshotShipStats` + a caller-owned flush do that once per ship,
+   * not once per call — see `recordShipAiCallStats` in execute.ts).
+   *
+   * Design rationale for the split: the MAP phase can invoke this once per
+   * diff chunk per ship, so a per-call D1 write would multiply write volume
+   * by chunk fan-out.
+   *
+   * @param ship - The ship name this call belongs to, for aggregation.
+   * @param call - The Workers AI call to race against the deadline.
+   * @returns Whatever {@link run} resolves to; rejects the same way.
+   */
+  async runForShip<T>(ship: string, call: () => Promise<T>): Promise<T> {
+    const stats = this.shipStats.get(ship) ?? emptyShipAiCallStats(ship);
+    this.shipStats.set(ship, stats);
+    const startedAt = Date.now();
+    try {
+      const result = await this.run(call);
+      stats.calls += 1;
+      stats.okCalls += 1;
+      const elapsed = Date.now() - startedAt;
+      stats.totalElapsedMs += elapsed;
+      stats.maxElapsedMs = Math.max(stats.maxElapsedMs, elapsed);
+      return result;
+    } catch (error) {
+      stats.calls += 1;
+      stats.errorCalls += 1;
+      const elapsedMs =
+        error instanceof FleetAiDependencyError ? error.failure.elapsedMs : Date.now() - startedAt;
+      if (error instanceof FleetAiDependencyError && error.failure.name === 'FleetAiCallDeadlineError') {
+        stats.timeoutCalls += 1;
+      }
+      stats.totalElapsedMs += elapsedMs;
+      stats.maxElapsedMs = Math.max(stats.maxElapsedMs, elapsedMs);
+      throw error;
+    }
+  }
+
+  /**
+   * Read (never clear) this run's per-ship aggregates so far. Why a plain
+   * getter rather than a drain: the caller flushes once per ship at the
+   * moment that ship finishes, but the circuit itself is shared across every
+   * ship in the run and must keep the accumulator alive for ships still to
+   * come.
+   *
+   * @param ship - The ship name to look up.
+   * @returns The accumulated stats, or null if that ship made no calls
+   *   through {@link runForShip}.
+   */
+  snapshotShipStats(ship: string): ShipAiCallStats | null {
+    return this.shipStats.get(ship) ?? null;
   }
 }
 
@@ -230,7 +328,7 @@ export function providerRetryDelaySeconds(
  * @param error - Whatever the Workers AI binding threw; shape is not trusted.
  * @returns Bounded, redacted detail carrying the retry decision.
  */
-export function describeAiFailure(error: unknown): AiFailureDetail {
+export function describeAiFailure(error: unknown, elapsedMs = 0): AiFailureDetail {
   const record = asRecord(error);
   const cause = asRecord(record?.cause);
   const rawName =
@@ -260,9 +358,15 @@ export function describeAiFailure(error: unknown): AiFailureDetail {
   const retryable = isRetryableAiFailure({ name: rawName, status, code });
   const name = sanitizeErrorText(rawName, 80) || 'WorkersAiError';
   const message = sanitizeErrorText(rawMessage, MAX_ERROR_CHARS) || 'unknown Workers AI error';
+  const safeElapsedMs = Number.isFinite(elapsedMs) && elapsedMs >= 0 ? Math.round(elapsedMs) : 0;
   const evidence = [
     status == null ? null : `HTTP ${status}`,
     code == null ? null : `code ${code}`,
+    // Surfaced here, not just in the raw ShipAiCallStats row, because this
+    // string is what actually reaches the PR check-run summary and the run
+    // page's step detail — the two places an operator asks "how long did
+    // this call actually take" without a separate query.
+    safeElapsedMs <= 0 ? null : `${safeElapsedMs}ms elapsed`,
   ].filter(Boolean).join(', ');
   const summary = `${name}${evidence ? ` (${evidence})` : ''}: ${message}`;
 
@@ -274,6 +378,7 @@ export function describeAiFailure(error: unknown): AiFailureDetail {
     code,
     retryAfterSeconds: positiveIntegerOrNull(retryAfterSeconds),
     retryable,
+    elapsedMs: safeElapsedMs,
   };
 }
 
