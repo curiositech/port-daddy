@@ -229,28 +229,29 @@ describe('runTestsInSandbox', () => {
       actorId: string;
       ttlSeconds?: number;
     }> = [];
-    let processCommand = '';
-    let processOptions: Record<string, unknown> | undefined;
-    let waitedForPort = 0;
+    const processCommands: string[] = [];
+    const processOptions: Array<Record<string, unknown> | undefined> = [];
+    const waitedForPorts: number[] = [];
     let kills = 0;
     const outcome = await runTestsInSandbox({
       sandboxBinding: {
         async exec(value: string, received?: Record<string, unknown>) {
           lifecycle.push(`exec:${execCalls.length + 1}`);
           execCalls.push({ command: value, options: received });
-          return execCalls.length === 5
+          return execCalls.length === 7
             ? { exitCode: 0, stdout: `${TEST_STARTED_MARKER}\n${jestSummary()}`, stderr: '' }
             : { exitCode: 0, stdout: '', stderr: '' };
         },
         async startProcess(value: string, received?: Record<string, unknown>) {
           lifecycle.push('start');
-          processCommand = value;
-          processOptions = received;
+          processCommands.push(value);
+          processOptions.push(received);
           return {
             async waitForPort(port: number) {
-              waitedForPort = port;
+              waitedForPorts.push(port);
             },
             async kill() {
+              lifecycle.push('kill');
               kills += 1;
             },
           };
@@ -292,21 +293,44 @@ describe('runTestsInSandbox', () => {
     expect(execCalls[3].command).toContain('/coordination/status');
     expect(execCalls[3].command).toContain('status.outbox === 0');
     expect(execCalls[3].command).toContain('status.cursor > 0');
+    expect(execCalls[4].command).toContain('/coordination/status');
+    expect(execCalls[5].command).toContain('sessions');
+    expect(execCalls[5].command).toContain('--all-worktrees');
+    expect(execCalls[5].command).toContain('who-owns');
+    expect(execCalls[5].command).toContain('markerPath');
+    expect(execCalls[5].command).toContain('notes');
+    expect(execCalls[5].command).toContain('--limit');
+    expect(execCalls[5].command).toContain('CLOUD_PEER_WITNESS_OK');
     expect(execCalls.every(call => !call.command.includes('scoped-macaroon'))).toBe(true);
     expect(
       execCalls.every(call => !JSON.stringify(call.options ?? {}).includes('scoped-macaroon')),
     ).toBe(true);
-    expect(processCommand).toBe('./dist/port-daddy __daemon');
-    expect(processCommand).not.toContain('scoped-macaroon');
-    expect(processOptions).toMatchObject({
+    expect(processCommands).toEqual([
+      './dist/port-daddy __daemon',
+      './dist/port-daddy __daemon',
+    ]);
+    expect(processCommands.every(command => !command.includes('scoped-macaroon'))).toBe(true);
+    expect(processOptions[0]).toMatchObject({
       cwd: '/work/repo',
       env: {
         PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon',
         PORT_DADDY_COORDINATION_REPLICA: expect.stringMatching(/^fleet-peer-[0-9a-f]{24}$/),
+        PORT_DADDY_PREFIX: '/work/pd-peer',
       },
     });
-    expect(waitedForPort).toBe(9876);
-    expect(kills).toBe(1);
+    expect(processOptions[1]).toMatchObject({
+      cwd: '/work/repo',
+      env: {
+        PORT_DADDY_COORDINATION_MACAROON: 'scoped-macaroon',
+        PORT_DADDY_COORDINATION_REPLICA: expect.stringMatching(/^fleet-peer-[0-9a-f]{24}$/),
+        PORT_DADDY_PREFIX: '/work/pd-peer-witness',
+      },
+    });
+    const writerReplica = (processOptions[0]?.env as Record<string, string>).PORT_DADDY_COORDINATION_REPLICA;
+    const witnessReplica = (processOptions[1]?.env as Record<string, string>).PORT_DADDY_COORDINATION_REPLICA;
+    expect(witnessReplica).not.toBe(writerReplica);
+    expect(waitedForPorts).toEqual([9876, 9876]);
+    expect(kills).toBe(2);
     expect(execCalls.every(call => !call.command.includes('/tmp'))).toBe(true);
     expect(grantCalls).toEqual([{
       project: 'curiositech/port-daddy',
@@ -397,7 +421,7 @@ describe('runTestsInSandbox', () => {
         sandboxBinding: {
           async exec() {
             calls += 1;
-            return calls === 5
+            return calls === 7
               ? { exitCode: 0, stdout: `${TEST_STARTED_MARKER}\n${jestSummary()}` }
               : { exitCode: 0 };
           },
@@ -426,9 +450,9 @@ describe('runTestsInSandbox', () => {
 
     expect(await run()).toMatchObject({ executed: true, passed: true });
     expect(await run()).toMatchObject({ executed: true, passed: true });
-    expect(replicas).toHaveLength(2);
-    expect(replicas[0]).toMatch(/^fleet-peer-[0-9a-f]{24}$/);
-    expect(replicas[1]).not.toBe(replicas[0]);
+    expect(replicas).toHaveLength(4);
+    expect(replicas.every(replica => /^fleet-peer-[0-9a-f]{24}$/.test(replica))).toBe(true);
+    expect(new Set(replicas).size).toBe(4);
   });
 
   it('fails closed before checkout when a configured binding lacks startProcess', async () => {
@@ -473,7 +497,7 @@ describe('runTestsInSandbox', () => {
       sandboxBinding: {
         async exec() {
           calls += 1;
-          if (calls === 5) throw new Error('sandbox test transport lost');
+          if (calls === 7) throw new Error('sandbox test transport lost');
           return { exitCode: 0 };
         },
         async startProcess() {
@@ -501,7 +525,7 @@ describe('runTestsInSandbox', () => {
       outcomeKind: 'not-executed',
       reason: expect.stringContaining('sandbox test transport lost'),
     });
-    expect(kills).toBe(1);
+    expect(kills).toBe(2);
   });
 });
 
@@ -554,6 +578,7 @@ describe('cloud coordination bootstrap', () => {
     const script = lines.join('\n');
     expect(script).toContain('npm run build:bin');
     expect(script).toContain('/work/pd-peer');
+    expect(script).toContain('/work/pd-peer-witness');
     expect(script).not.toContain("macaroon'with-quote");
     expect(script).not.toContain('/tmp');
   });
