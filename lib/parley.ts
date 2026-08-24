@@ -259,6 +259,11 @@ function canonicalAutomaticParticipants(
   if (!Array.isArray(values)) {
     throw new Error('parley.callAutomatic: participants are required');
   }
+  if (values.length > CONFLICT_SIGNAL_LIMITS.maxParties) {
+    throw new Error(
+      `parley.callAutomatic: participants exceed ${CONFLICT_SIGNAL_LIMITS.maxParties}`,
+    );
+  }
   const actorIds = new Set<string>();
   const inboxTargets = new Set<string>();
   const sessionIds = new Set<string>();
