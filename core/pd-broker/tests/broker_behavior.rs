@@ -506,7 +506,7 @@ fn native_operator_bootstrap_is_a_typed_refusal_not_loopback_authority() {
 }
 
 #[test]
-fn lost_action_response_replays_the_exact_reservation_after_restart_and_expiry() {
+fn expired_action_replay_refuses_after_restart_and_keeps_one_tombstone() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("state.sqlite3");
     let grant = grant();
@@ -541,17 +541,40 @@ fn lost_action_response_replays_the_exact_reservation_after_restart_and_expiry()
     drop(first);
 
     let mut restarted = broker_at(&path);
-    let replay_at_ms = capability.expires_at_ms + 1;
-    let replay = restarted.handle(
+    let expired_at_ms = capability.expires_at_ms + 1;
+    let expired = restarted.handle(
+        Request::RedeemActionCapability {
+            capability: Box::new(capability.clone()),
+            expected: Box::new(expected.clone()),
+        },
+        expired_at_ms,
+    );
+    assert!(matches!(
+        expired,
+        Response::Refused {
+            code: RefusalCode::Expired,
+            ..
+        }
+    ));
+    assert_eq!(restarted.retained_redemptions().unwrap(), 1);
+
+    // Repeated delivery after the hard wall remains a refusal. It neither
+    // recovers executable authority nor inserts a second reservation, while
+    // the original one-use fact stays durable for collision enforcement.
+    let repeated = restarted.handle(
         Request::RedeemActionCapability {
             capability: Box::new(capability),
             expected: Box::new(expected),
         },
-        replay_at_ms,
+        expired_at_ms,
     );
-    let (recovered, replayed) = reserved(replay);
-    assert!(replayed);
-    assert_eq!(recovered, original);
+    assert!(matches!(
+        repeated,
+        Response::Refused {
+            code: RefusalCode::Expired,
+            ..
+        }
+    ));
     assert_eq!(restarted.retained_redemptions().unwrap(), 1);
 }
 
