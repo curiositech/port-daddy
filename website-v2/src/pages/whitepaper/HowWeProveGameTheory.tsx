@@ -80,15 +80,15 @@ const Z3_SMT_SAMPLE = `; delta-threshold.z3 — verify the discount-factor thres
 (declare-const delta Real)
 (assert (>= delta 0))
 (assert (<= delta 1))
-(assert (= (+ (* 3 delta delta delta)
-              (* 3 delta delta)
-              (* 3 delta)
+(assert (= (+ (* 2 delta delta delta)
+              (* 2 delta delta)
+              (* 2 delta)
               (- 1))
            0))
 (check-sat)
 (get-model)
 ; Expected: sat, with delta the unique real root in (0, 1).
-; Numerically delta* ≈ 0.2531. Z3 returns in well under 100ms.`
+; Numerically delta* ≈ 0.3425. Z3 returns in well under 100ms.`
 
 const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim_signaling.tla — repeated claim-signaling under graduated trigger.
 \\* Full artifact: proofs/economics/claim_signaling.tla
@@ -100,11 +100,11 @@ EXTENDS Integers, FiniteSets, Sequences, TLC
 CONSTANTS DeltaNum, DeltaDen, Horizon, PunishmentRounds
 
 \\* Stage-game payoffs calibrated so the IC cubic is exactly
-\\* 3 delta^3 + 3 delta^2 + 3 delta - 1 = 0 (gain g = 1, loss L = 3).
+\\* 2 delta^3 + 2 delta^2 + 2 delta - 1 = 0 (gain g = 1, loss L = 2).
 PayoffFollowFollow == 3      \\* cooperative
-PayoffFollowClaim  == -2     \\* sucker
+PayoffFollowClaim  == 0      \\* sucker
 PayoffClaimFollow  == 4      \\* defector
-PayoffClaimClaim   == 0      \\* mutual claim (punishment)
+PayoffClaimClaim   == 1      \\* mutual claim (punishment)
 
 \\* Invariant: at every reachable state where the deviator has actually
 \\* deviated, their accumulated discounted score does not exceed what
@@ -683,7 +683,7 @@ export default function HowWeProveGameTheoryPage() {
                     Full file is ~250 lines including the recommendation
                     machinery, graduated-trigger logic, and{' '}
                     <code>@type:</code> annotations. The numbers — including
-                    the threshold at &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.2531 —
+                    the threshold at &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.3425 —
                     are the ones the artifact actually checks. The cubic
                     that produces &delta;<sup>&star;</sup> is independently
                     discharged by{' '}
@@ -784,8 +784,8 @@ export default function HowWeProveGameTheoryPage() {
                     over the claim-signaling stage with payoffs as above, no
                     profitable one-shot deviation exists for any discount
                     factor &delta; above the root of the cubic{' '}
-                    <code>3&delta;&sup3; + 3&delta;&sup2; + 3&delta; − 1 = 0</code>.
-                    The root is &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.2531. We
+                    <code>2&delta;&sup3; + 2&delta;&sup2; + 2&delta; − 1 = 0</code>.
+                    The root is &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.3425. We
                     could derive it by hand — Cardano&apos;s formula, the
                     discriminant, the depressed cubic, all the
                     seventeenth-century plumbing — and ask the reader to
@@ -806,7 +806,7 @@ export default function HowWeProveGameTheoryPage() {
                     cubic, asks Z3 whether the conjunction is satisfiable,
                     and asks for a witness. The full artifact follows up
                     with two more checks (push/pop): one that the witness
-                    lies in <code>[0.25, 0.26]</code>, and one for uniqueness
+                    lies in <code>[0.34, 0.35]</code>, and one for uniqueness
                     of the root in <code>[0, 1]</code>. The expected output
                     is the triple{' '}
                     <code>sat — sat — unsat</code>; CI greps for that exact
@@ -855,7 +855,7 @@ z3 cubic-root.smt2
 # sat
 # (model
 #   (define-fun d () Real
-#     (/ 7167... 28194...))   ; a rational very close to 0.2541
+#     (/ 7167... 20925...))   ; a rational very close to 0.3425
 # )`}
                         language="cli"
                         label="Z3 in your terminal"
@@ -931,7 +931,7 @@ z3 cubic-root.smt2
                       {' '}
                       <code>proofs/economics/delta-threshold.z3</code>.
                       Proves existence, location in{' '}
-                      <code>[0.25, 0.26]</code>, and uniqueness of the
+                      <code>[0.34, 0.35]</code>, and uniqueness of the
                       threshold root in <code>(0, 1)</code>.
                     </li>
                     <li>
@@ -939,8 +939,8 @@ z3 cubic-root.smt2
                       {' '}
                       <code>proofs/economics/claim_signaling.tla</code>{' '}
                       + <code>.cfg</code> + <code>sweep-delta.sh</code>.
-                      TLC verifies the IC invariant at &delta;&nbsp;=&nbsp;0.26;
-                      the sweep wrapper exercises &delta;&nbsp;&isin;&nbsp;{`{0.20, …, 0.30}`}
+                      TLC verifies the IC invariant at &delta;&nbsp;=&nbsp;0.35;
+                      the sweep wrapper exercises &delta;&nbsp;&isin;&nbsp;{`{0.30, …, 0.40}`}
                       and asserts the empirical crossover matches the
                       closed-form root.
                     </li>
@@ -1104,10 +1104,10 @@ z3 cubic-root.smt2
                   </div>
                   <ul className="space-y-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                     <li>
-                      The threshold &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.2531
+                      The threshold &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.3425
                       is the root of a specific cubic that comes out of a
                       specific stage-game calibration (gain&nbsp;=&nbsp;1,
-                      punishment loss/round&nbsp;=&nbsp;3). Other calibrations
+                      punishment loss/round&nbsp;=&nbsp;2). Other calibrations
                       give other thresholds; the artifact is honest about
                       its calibration in the file header.
                     </li>

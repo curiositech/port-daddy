@@ -76,7 +76,7 @@ jobs:
             cat delta-threshold.actual.txt
             exit 1
           fi
-          echo "PASS: delta-threshold cubic has a unique root in [0.25, 0.26]."
+          echo "PASS: delta-threshold cubic has a unique root in [0.34, 0.35]."
 
       - name: Upload Z3 output
         if: always()
@@ -190,7 +190,7 @@ jobs:
         run: |
           set -euo pipefail
           if grep -q "The outcome is: NoError" claim_signaling.apalache.log; then
-            echo "PASS: Apalache reports NoError on the IC invariant at delta=0.26."
+            echo "PASS: Apalache reports NoError on the IC invariant at delta=0.35."
           else
             echo "FAIL: Apalache did not report NoError."
             tail -100 claim_signaling.apalache.log
