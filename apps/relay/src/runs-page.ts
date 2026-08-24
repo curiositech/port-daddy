@@ -259,12 +259,16 @@ function renderRow(run: FleetRunProjection, nowSec: number): string {
       ? `generation ${run.generation ?? '—'} · replaced by a newer head`
       : run.logical_state === 'enqueue_failed'
         ? run.last_error?.trim() || 'admission record incomplete · queue handoff failed without durable error detail'
+        : run.logical_state === 'retrying'
+          ? `provider retry · attempt ${normalizedAttemptCount(run.attempt_count)} scheduled`
         : run.logical_state === 'running'
           ? `attempt ${normalizedAttemptCount(run.attempt_count)} · transcript arriving`
           : `generation ${run.generation ?? '—'} · ${fmtExpected(run.expected_finish_at)}`;
   const href = `/fleet/runs/${encodeURIComponent(run.id)}`;
   const timing = run.logical_state === 'queued' || run.logical_state === 'admitting'
     ? fmtExpected(run.expected_start_at)
+    : run.logical_state === 'retrying'
+      ? fmtExpected(run.expected_finish_at)
     : fmtMs(run.ms);
   return `<li><a class="run-row" href="${esc(href)}">
     <span class="rr-pr">#${esc(run.pr_number)}</span>

@@ -40,7 +40,12 @@
 
 import type { ExecutorEnv } from './env.js';
 import type { ShipResult } from './verdict.js';
-import { createIssue, findOpenIssueByTitlePrefix } from './github.js';
+import {
+  createIssue,
+  findOpenIssueByTitlePrefix,
+  PullRequestHeadValidationError,
+  type PullRequestHeadGuard,
+} from './github.js';
 import { emitInterruption } from './interruptions.js';
 
 /** How far back the epidemic test looks for broken-marker steps (72 h). */
@@ -137,6 +142,7 @@ export async function adjudicateBrokenShips(
     transcript: TranscriptLike;
     nowEpochSec: number;
     installationId?: number;
+    assertCurrentHead?: PullRequestHeadGuard;
   },
 ): Promise<number> {
   const repoFullName = `${opts.owner}/${opts.repo}`;
@@ -198,6 +204,7 @@ export async function adjudicateBrokenShips(
       if (existing) {
         issueNumber = existing;
       } else {
+        await opts.assertCurrentHead?.(`before pd-${r.ship} broken-ship issue mutation`);
         const issue = await createIssue(
           opts.owner,
           opts.repo,
@@ -216,6 +223,7 @@ export async function adjudicateBrokenShips(
         newlyDeclared = true;
       }
     } catch (err) {
+      if (err instanceof PullRequestHeadValidationError) throw err;
       // Issue plumbing failing must not change the adjudication itself — the
       // evidence for the epidemic is real either way.
       console.error(`[fleet-executor] broken-ship issue failed for pd-${r.ship}: ${String(err)}`);
@@ -238,6 +246,7 @@ export async function adjudicateBrokenShips(
 
     if (newlyDeclared) {
       // First declaration of THIS epidemic ⇒ one page, not one per run.
+      await opts.assertCurrentHead?.(`before pd-${r.ship} broken-ship HITL page`);
       emitInterruption(opts.env, {
         title: `Fleet epidemic: pd-${r.ship} broken across PRs on ${repoFullName}`,
         body:

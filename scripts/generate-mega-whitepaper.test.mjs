@@ -202,3 +202,62 @@ test('one paper cannot map a bibliography key to two references', () => {
     /collision\.tex: bibliography key shared maps to two references/,
   );
 });
+
+// --- ported from PR #7698 suite (features main's copy lacked tests for) ---
+
+test('standalone title, page style, and contents chrome is removed', () => {
+  const source = [
+    '\\maketitle',
+    '\\thispagestyle{empty}',
+    '\\tableofcontents',
+    '\\section{Kept}',
+    '\\appendix',
+  ].join('\n');
+
+  const cleaned = cleanStandaloneChrome(source);
+  assert.doesNotMatch(cleaned, /\\maketitle|\\thispagestyle|\\tableofcontents/);
+  assert.match(cleaned, /\\section\{Kept\}/);
+  assert.match(cleaned, /\\pdchapterappendix/);
+});
+
+test('labels and references are namespaced without rewriting TikZ labels', () => {
+  const source = [
+    '\\label{sec:contract}',
+    '\\ref{sec:contract}',
+    'label={alg:admit}',
+    'label={visual caption}',
+  ].join('\n');
+
+  assert.equal(
+    namespaceLabels(source, 'stp'),
+    [
+      '\\label{stp:sec:contract}',
+      '\\ref{stp:sec:contract}',
+      'label={stp:alg:admit}',
+      'label={visual caption}',
+    ].join('\n'),
+  );
+});
+
+test('identical local citation keys stay isolated between papers', () => {
+  const firstPaper = new Map([['shared', 'mega001']]);
+  const secondPaper = new Map([['shared', 'mega002']]);
+
+  assert.equal(rewriteCitations('\\cite{shared}', firstPaper, 'first.tex'), '\\cite{mega001}');
+  assert.equal(rewriteCitations('\\cite{shared}', secondPaper, 'second.tex'), '\\cite{mega002}');
+});
+
+test('one paper cannot map a bibliography key to two references', () => {
+  const prepared = [{
+    source: 'collision.tex',
+    references: [
+      { key: 'shared', body: 'First reference', source: 'collision.tex' },
+      { key: 'shared', body: 'Second reference', source: 'collision.tex' },
+    ],
+  }];
+
+  assert.throws(
+    () => collateReferences(prepared),
+    /collision\.tex: bibliography key shared maps to two references/,
+  );
+});

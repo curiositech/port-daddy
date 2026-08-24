@@ -9,38 +9,48 @@
 \providecolor{hhpaper}{HTML}{FBF7EF}
 \providecolor{maydayred}{HTML}{8B0000}
 
+% ─── The Three Continuity Organs ──────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\resizebox{0.97\textwidth}{!}{%
-\begin{tikzpicture}[font=\small,node distance=8mm]
-\node[stp box,text width=42mm,align=left] (o1)
-  {{\bfseries 1. MEMORY}\\[-1pt]{\scriptsize\scshape implemented}\\[4pt]
-   \emph{What happened.}\\[2pt]
-   {\footnotesize Typed episodes promoted out of transient history.}};
-\node[stp box,text width=42mm,align=left,right=of o1] (o2)
-  {{\bfseries 2. CHECKPOINT}\\[-1pt]{\scriptsize\scshape partial}\\[4pt]
-   \emph{Restorable state.}\\[2pt]
-   {\footnotesize Today the restart organ forwards a \textbf{summary, not state}.}};
-\node[stp accent box,text width=42mm,align=left,right=of o2] (o3)
-  {{\bfseries 3. OUTCOME LEDGER}\\[-1pt]{\scriptsize\scshape partial}\\[4pt]
-   \emph{Witnessed delivery.}\\[2pt]
-   {\footnotesize Append-only; closes only against an oracle the agent cannot author.}};
+\begin{tikzpicture}[
+  organ/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=7pt, text width=44mm, align=left, minimum height=28mm},
+  accentorgan/.style={organ, draw=hhcobalt, fill=hhcobalt!7},
+  repbox/.style={draw=hhcobalt, line width=0.85pt, fill=hhpaper, rounded corners=2pt, inner sep=6pt, text width=44mm, align=center},
+  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
+  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
+]
 
-\draw[stp arrow] (o1) -- (o2);
-\draw[stp arrow] (o2) -- (o3);
-\node[stp accent box,text width=42mm,below=7mm of o3] (rep)
-  {\textbf{REPUTATION}\\{\scriptsize keys on witnessed outcomes ---\\the third organ}};
-\draw[stp accent arrow] (o3) -- (rep);
-\end{tikzpicture}}
-\caption{\textbf{The three continuity organs, honestly labelled.} Memory (\BUILT)
-records what happened --- typed episodes scored by
-recency$\times$importance$\times$relevance, after Generative Agents (Park 2023);
-checkpoint (\BUILTWEAK) is meant to restore execution state but today passes only
-notes (checkpoint-of-\emph{record}, not -of-\emph{execution}; ``with teeth'' is
-\VISION); the witnessed-outcome ledger (\BUILTWEAK) has durable commitments and
-oracle-bound closure, but not neutral graded outcome events or reputation binding.
-See \S\ref{sec:organs} for the full continuity contract. It is the transitive
-Parfitian chain --- and the organ reputation keys on. The series' canonical seam sentence is
-exactly this picture in prose.}
+  \node[organ] (o1) at (-5.2, 0) {
+    \textbf{\scshape 1. Episodic Memory}\\[1pt]
+    {\scriptsize\textsc{[Implemented]}}\\[4pt]
+    \textit{What happened.}\\[2pt]
+    {\footnotesize Typed episodes scored by recency, importance, and relevance.}
+  };
+
+  \node[organ] (o2) at (0.0, 0) {
+    \textbf{\scshape 2. Checkpoint Organ}\\[1pt]
+    {\scriptsize\textsc{[Partial / Structured]}}\\[4pt]
+    \textit{Restorable state.}\\[2pt]
+    {\footnotesize Forwards structured event logs, notes, and worktree lineage.}
+  };
+
+  \node[accentorgan] (o3) at (5.2, 0) {
+    \textbf{\scshape 3. Outcome Ledger}\\[1pt]
+    {\scriptsize\textsc{[Core Implemented]}}\\[4pt]
+    \textit{Witnessed delivery.}\\[2pt]
+    {\footnotesize Append-only; closes only against machine-checkable oracles.}
+  };
+
+  \draw[flowarr] (o1) -- (o2);
+  \draw[flowarr] (o2) -- (o3);
+
+  \node[repbox, below=8mm of o3] (rep) {
+    \textbf{\scshape Multi-Dim Reputation}\\[1pt]
+    {\scriptsize Keys on witnessed outcome ledger (the third organ)}
+  };
+  \draw[accentarr] (o3) -- (rep);
+
+\end{tikzpicture}
+\caption{\textbf{The three continuity organs, honestly labelled.} Episodic memory (\BUILT) records what happened --- typed episodes promoted out of transient history. The checkpoint (\BUILTWEAK) is meant to preserve task lineage and worktree state across compaction boundaries, but today forwards a summary rather than execution state. The witnessed-outcome ledger (\BUILTWEAK) enforces non-repudiable delivery against external oracles and is the sole anchor reputation keys on; commitments and oracle closure ship, grading does not (\S\ref{sec:organs}).}
 \label{fig:organs}
 \end{figure}

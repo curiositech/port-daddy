@@ -152,3 +152,18 @@ Floor B*(N=60,k=2,m=8)=5.98 bits [V]; disjoint-readers floor 12.77 [V]; ratio 2.
 
 ### 3.9 Unscheduled backlog one-liners (proof paths in Portfolio PDF)
 B7 escalation signaling (single-crossing threshold; tuning band from measured validation rates). B8 specialization boundary (Erlang-C; breakdowns corner prices succession). B9 context paging (Landlord import + linear φ-degradation; φ shared with R1's forgeable-feature budget).
+
+---
+## 4. DELTA v3 (2026-08-19) — PR #7698 reconciled in-session
+- The treatise is now **in-repo and canonical**: sources at `whitepaper/` (legible-swarm, single-writer-kernel) and `website-v2/public/whitepaper/` (five papers + mega volume); the PAPERS table in `scripts/build-whitepapers.sh` is authoritative. W4-style edits target these files; the mega-volume PDF attachment instruction is obsolete.
+- **W4: done-pending-verification** (verification ledger: `pr7698-reconciliation.md`, same directory — corrections table, adjudications, follow-ups F1–F4).
+- **W14: executed in-session** (merge + adjudications + One Spine appendix). The One Spine appendix in the mega volume is now the admission test for any new mechanism: name your theorem family, your developer obligation, your boundary — no row, no feature.
+- **Proof debt is now blocking**: A3/A4 (asserted in the volume's cleanroom theorem), B5, B7, B8, B9; B6 discharged-as-sketch. **Revised wave order: W5 → W6 → W13 → W1–W3 → W8 → W9/W10.**
+- New tacit datum for the results skill: the duplicate-generator collision (#6368 vs #7698) — an unfiled exact-key claim conflict inside the project's own repo.
+
+---
+## 5. DELTA v4 (2026-08-23) — #9450 omnibus, artifact rescue, next-session plan
+- **Merged head under review:** the reconciliation (24052b84d) is pushed to `purser/pr-7278-tests` = PR **#9450**, now the omnibus publish vehicle. CI is red on that head with three diagnosed causes; the fix list and full resume plan live in `docs/harbor-research/plan-2026-08-23-merge-and-resume.md` (Part 0 = land #9450; Parts 1–7 = resume the program in ledger wave order W5 → W6 → W13 → W1–W3 → W8 → lifts).
+- **F4 partially discharged:** `pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (the W8-gating artifact — experiment matrix, Stage-1 COMMIT/CUT gates, three theorem candidates) and `pdf/The-Harbor-After-the-Harbor.pdf` (the rigor review behind doc1's adjudications; correctness audit + full exercise solution key + build sequence) are now committed, user-supplied renders. Only the theorem-proving-stack SotA report remains extract-only (§3.2).
+- **New stale-mechanization finding (fix before arXiv/publicity):** CI's `proofs.yml` still green-gates the VOID δ*≈0.2531 game — `proofs/economics/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says "IC holds at δ=0.26". Sync all surfaces together (plan Part 2). Also: B6's "0/4000 dominating schedules" number has NO generating script anywhere — write it.
+- **Note:** §0's "PDFs are intentionally NOT committed" is stale — commit bfc49dda1 committed all nine analysis PDFs (plus these two rescues); README.md:4 has the same stale line.
