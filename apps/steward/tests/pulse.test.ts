@@ -243,6 +243,22 @@ describe('cron handler — the outside clock', () => {
     expect(await seats.get('steward:o/one')!.getAlarm()).not.toBeNull();
   });
 
+  it('names each malformed entry in the log while still pulsing the valid ones', async () => {
+    // parseRepoRoster's rejection is unit-tested above; this pins the half that
+    // only exists end-to-end — that the cron SAYS which entry it dropped. A
+    // roster silently one seat short is the failure this whole PR exists to
+    // prevent, wearing a config typo as a disguise, so the drop has to be as
+    // loud as the empty-roster case while the rest of the roster still beats.
+    const { env, seats } = cronEnv({ STEWARD_REPOS: 'o/good, not-a-repo, a/b/c' });
+
+    await worker.scheduled({} as ScheduledController, env);
+
+    expect(errors.join('\n')).toContain('not-a-repo');
+    expect(errors.join('\n')).toContain('a/b/c');
+    expect([...seats.keys()]).toEqual(['steward:o/good']);
+    expect(await seats.get('steward:o/good')!.getAlarm()).not.toBeNull();
+  });
+
   it('logs an EMPTY roster as an error — "ran fine" and "did nothing" must not look alike', async () => {
     const { env, seats } = cronEnv({ STEWARD_REPOS: '' });
 
