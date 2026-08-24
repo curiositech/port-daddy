@@ -167,6 +167,12 @@ import {
   handleFleetRunTranscriptIndex,
   handleFleetRunTranscriptPage,
 } from './fleet-run-page.js';
+import {
+  handleFleetAppleTouchIcon,
+  handleFleetIcon192,
+  handleFleetIcon512,
+  handleFleetManifest,
+} from './fleet-pwa.js';
 import { runRetentionSweep } from './retention-sweep.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
@@ -521,6 +527,21 @@ export default {
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
       const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
       response = await handleAckInterruption(request, env, id);
+    }
+
+    // ── PWA static assets (public app metadata, no authz — Phase 5 of
+    //    docs/FLEET-SESSION-TRANSCRIPTS.md; src/fleet-pwa.ts) ────────────────
+    else if (pathname === '/fleet/manifest.webmanifest' && method === 'GET') {
+      response = handleFleetManifest();
+    }
+    else if (pathname === '/fleet/apple-touch-icon.png' && method === 'GET') {
+      response = handleFleetAppleTouchIcon();
+    }
+    else if (pathname === '/fleet/icon-192.png' && method === 'GET') {
+      response = handleFleetIcon192();
+    }
+    else if (pathname === '/fleet/icon-512.png' && method === 'GET') {
+      response = handleFleetIcon512();
     }
 
     // ── Transcript LEDGER (machine JSON index of every captured ship/attempt;

@@ -107,7 +107,8 @@ function htmlResponse(body: string, status: number, refreshSeconds: number | nul
     // the only third-party origin (style + font files); nothing else.
     'Content-Security-Policy':
       "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "font-src https://fonts.gstatic.com; manifest-src 'self'; " +
+      "base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
     // Capability URLs must not end up in caches or search indexes.
@@ -123,8 +124,16 @@ function htmlResponse(body: string, status: number, refreshSeconds: number | nul
 
 // ── story-linework design tokens (ch20; shared with account-page.ts) ─────────
 const HEAD = `<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f2eee6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PD Fleet">
+<link rel="manifest" href="/fleet/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/fleet/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Recursive:CASL,slnt,wght@1,-8,400..800&display=swap" rel="stylesheet">`;
@@ -167,11 +176,11 @@ a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 /* masthead / chrome */
-.site-header{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:14px clamp(20px,4vw,40px);background:var(--surface-base);border-bottom:2px solid var(--border-strong)}
+.site-header{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:14px clamp(20px,4vw,40px);padding-top:calc(14px + env(safe-area-inset-top,0px));background:var(--surface-base);border-bottom:2px solid var(--border-strong)}
 .sh-brand{display:flex;align-items:baseline;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--text-primary);text-decoration:none}
 .sh-mark{color:var(--cobalt);font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:19px}
 .sh-status{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--text-muted)}
-.page{max-width:74rem;margin:0 auto;padding:0 clamp(20px,4vw,40px) 88px}
+.page{max-width:74rem;margin:0 auto;padding:0 clamp(20px,4vw,40px) calc(88px + env(safe-area-inset-bottom,0px))}
 
 /* the cobalt knockout masthead — Receipts, verifiable */
 .masthead{padding:40px 0 8px}
