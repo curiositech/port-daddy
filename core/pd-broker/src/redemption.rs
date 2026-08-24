@@ -72,6 +72,19 @@ pub enum ReservationAdmission {
     ReplayOnly,
 }
 
+/// One exact broker-authenticated reservation attempt. Grouping these fields
+/// keeps the durable identity, purpose, replay admission, and server clock from
+/// drifting across positional call sites.
+pub struct ReservationRequest<'a> {
+    pub capability: &'a ActionCapability,
+    pub capability_digest: &'a str,
+    pub kind: ReservationKind,
+    pub request_digest: &'a str,
+    pub new_result_expires_at_ms: Option<i64>,
+    pub admission: ReservationAdmission,
+    pub now_ms: i64,
+}
+
 /// Broker-owned durable facts needed to reconstruct the original response.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ReservationRecord {
@@ -224,14 +237,17 @@ impl RedemptionStore {
     /// current-time admission; `ReplayOnly` can only read an existing result.
     pub fn reserve(
         &mut self,
-        capability: &ActionCapability,
-        capability_digest: &str,
-        kind: ReservationKind,
-        request_digest: &str,
-        new_result_expires_at_ms: Option<i64>,
-        admission: ReservationAdmission,
-        now_ms: i64,
+        request: ReservationRequest<'_>,
     ) -> Result<RedemptionOutcome, RedemptionError> {
+        let ReservationRequest {
+            capability,
+            capability_digest,
+            kind,
+            request_digest,
+            new_result_expires_at_ms,
+            admission,
+            now_ms,
+        } = request;
         if !is_sha256_digest(capability_digest) || !is_sha256_digest(request_digest) {
             return Err(RedemptionError::MalformedReservation);
         }
@@ -627,15 +643,16 @@ mod tests {
         admission: ReservationAdmission,
     ) -> Result<RedemptionOutcome, RedemptionError> {
         let fingerprint = capability_fingerprint(capability).unwrap();
-        store.reserve(
+        let request_digest = request_digest(capability);
+        store.reserve(ReservationRequest {
             capability,
-            &fingerprint,
-            ReservationKind::Action,
-            &request_digest(capability),
-            None,
+            capability_digest: &fingerprint,
+            kind: ReservationKind::Action,
+            request_digest: &request_digest,
+            new_result_expires_at_ms: None,
             admission,
             now_ms,
-        )
+        })
     }
 
     #[test]
