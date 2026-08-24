@@ -137,7 +137,7 @@ Roadmap-Item:
   required; a bare marker is ignored).
 -->
 
-- [ ] `changelog.d/<pr>-<slug>.md` added (or `<!-- changelog-exempt: <reason> -->` in this body)
+- [ ] `changelog.d/<pr>-<slug>.md` added (or a `changelog-exempt:` marker in this body — see the comment above for the exact syntax; do not paste a live example here or every PR self-exempts)
 - [ ] No duplicate / fragmented product path introduced (one system in production, not two). If this overlaps an existing surface, say so here and explain the consolidation.
 
 ## Adversarial review

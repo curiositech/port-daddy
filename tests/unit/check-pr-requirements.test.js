@@ -110,6 +110,22 @@ describe('check-pr-requirements guard', () => {
     expect(stderr).toMatch(/Visual surface changed/);
   });
 
+  // Regression: the changelog-fragment rule (rule 4) must not be disabled by the
+  // PR template's OWN text. An earlier draft pasted a live `<!-- changelog-exempt:
+  // <reason> -->` EXAMPLE into a checklist line; the comment scanner matched it as
+  // a real marker, so every PR opened from the template auto-exempted the changelog
+  // gate (and a live `pr-requirements-exempt` would have skipped the whole gate).
+  // The template must describe every marker in prose, never as a live comment.
+  test('the real PR template does NOT self-exempt any gate', () => {
+    const template = join(repo, '.github', 'PULL_REQUEST_TEMPLATE.md');
+    const { code, stdout, stderr } = run('--body-file', template, '--changed', 'lib/relay-client.ts');
+    // Not skipped whole-gate (no live pr-requirements-exempt), and the changelog
+    // rule actually fires for a user-visible change with no fragment.
+    expect(code).toBe(1);
+    expect(stdout).not.toMatch(/skipping/);
+    expect(stderr).toMatch(/adds no changelog fragment/);
+  });
+
   test('an exempt marker with no reason does not count', () => {
     const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many inputs here.\n<!-- visual-exempt -->';
     const { code, stderr } = run('--body', body, '--changed', 'website-v2/src/x.tsx');
