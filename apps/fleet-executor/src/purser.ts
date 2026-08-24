@@ -115,7 +115,7 @@ import {
 } from './purser-rerun.js';
 import {
   runTestsInSandbox,
-  sandboxCoordinationPeerFromEnv,
+  sandboxCoordinationEnrollmentFromEnv,
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
@@ -888,6 +888,7 @@ async function rerunExistingTests(
   files: StackedFile[],
   testPr: { number: number; url: string },
   reason: string,
+  runId: string,
   verifiedExecutability?: ExecutabilityResult,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<ShipResult> {
@@ -936,7 +937,10 @@ async function rerunExistingTests(
     headSha: prCtx.headSha,
     files,
     token,
-    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
+    coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+      project: `${prCtx.owner}/${prCtx.repo}`,
+      runId,
+    }),
   });
   await assertCurrentHead(`after pd-${ship.name} reused-tests sandbox`);
 
@@ -1125,6 +1129,7 @@ export async function runPurser(
         reused.files,
         reused.testPr,
         rerunNote ?? '',
+        runId,
         verifiedReuse,
         assertCurrentHead,
       );
@@ -1683,7 +1688,10 @@ export async function runPurser(
       headSha: prCtx.headSha,
       files,
       token,
-      coordinationPeer: sandboxCoordinationPeerFromEnv(env),
+      coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+        project: `${prCtx.owner}/${prCtx.repo}`,
+        runId,
+      }),
     });
     await assertCurrentHead(`after pd-${ship.name} authored-tests sandbox`);
     await transcript.step(

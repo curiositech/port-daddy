@@ -69,6 +69,16 @@ cpu_ms = 300000
 [ai]
 binding = "AI"
 
+# Relay's named, RPC-only ADR-0092 grant issuer. This binding is the capability:
+# Fleet supplies only a GitHub-verified project and durable run actor, while the
+# Relay keeps the macaroon root. Deploy Relay's CoordinationGrantService before
+# deploying this caller binding. Relay remains a replicated peer, not the
+# coordination ledger's authority.
+[[services]]
+binding = "COORDINATION_GRANTS"
+service = "port-daddy-relay"
+entrypoint = "CoordinationGrantService"
+
 # ---------------------------------------------------------------------------
 # KV — installation-token cache. Keyed by `github_inst_<installationId>`,
 # value `{ token, expiresAt }`, TTL set to (expiresAt - 60s). Avoids re-minting
@@ -182,12 +192,9 @@ max_retries = 1
 RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
-# ADR-0092 cloud sandbox daemon registration. Empty means disabled and keeps
-# current sandbox behavior. Provision a scoped
-# PORT_DADDY_COORDINATION_MACAROON Worker secret before filling these in.
-PORT_DADDY_COORDINATION_URL = ""
-PORT_DADDY_COORDINATION_PROJECT = ""
-PORT_DADDY_COORDINATION_ACTOR = ""
+# ADR-0092 peer transport only. Project, actor, and short-lived macaroon are
+# derived/minted per Fleet run through COORDINATION_GRANTS above.
+PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 # XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
 # "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
 # Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
@@ -199,6 +206,3 @@ XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
 # Secrets (documented; set via `wrangler secret put`, never committed):
 #   GITHUB_APP_PRIVATE_KEY   PEM-encoded GitHub App private key
 #   GITHUB_APP_ID            (may be a secret instead of a var if preferred)
-#   PORT_DADDY_COORDINATION_MACAROON
-#                            ADR-0092 coordination-sync grant scoped to the
-#                            configured project and cloud actor; optional.
