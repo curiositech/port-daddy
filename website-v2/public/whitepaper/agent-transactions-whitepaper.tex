@@ -585,6 +585,12 @@ Advisory coordination produces consistent allocation when agents share informati
   \item \textbf{Direct release.} The original claimant releases the claim. This is the equilibrium when the conflict-graph signal reaches them and the claim was precautionary.
   \item \textbf{Time-out release.} Claims carry TTLs. A claim whose holder has not heartbeated within the TTL window is released automatically; downstream agents observe the release in their next poll. This is the equilibrium for crashed or abandoned claimants.
   \item \textbf{Bonded preemption.} A blocked agent may post an additional bond---bounded by the cleanup cost of \S\ref{sec:cleanup-bound}---to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is rare by design: the bond is large enough that an agent prefers waiting to preempting unless the wait cost dominates.
+  \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
+\end{enumerate}
+
+\input{figures/fig-governance-flow}
+
+Two mechanisms sit underneath this escalation path rather than inside it: a thrashing fallback for advisory claims that never converge, and a fairness rule for the preemption queue itself.
 
 \paragraph{The Advisory Claims Paradox and Deterministic Hard-Lock Fallback.}
 Advisory claims risk an endless retry/thrashing loop if two LLM-backed agents mutually ignore advisory warnings. To break this paradox, the daemon implements a \textbf{Deterministic Hard-Lock Fallback}: if advisory conflicts on a resource exceed $k$ turns without resolution, the daemon escalates the advisory claim into an enforced POSIX file-level lock, rejecting all subsequent writes from un-holding agents until release.
@@ -600,10 +606,6 @@ CREATE TABLE claim_tickets (
 );
 \end{lstlisting}
 Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lock to the agent with the lowest \texttt{ticket\_number} where \texttt{status = 'waiting'}, changing its status to \texttt{'active'}. This guarantees fair exclusion without central scheduling.
-  \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
-\end{enumerate}
-
-\input{figures/fig-governance-flow}
 
 \paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of semantic cadence, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
@@ -1369,129 +1371,6 @@ Bond pricing is not a single open problem. It is a lattice: a cleanup-cost lower
 The infrastructure is running. The forest is building. The covenants are auditable. The sovereign is legible. The advisor is bondable. The market is open for bids.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\appendix
-
-\section{Formal Verification Status}\label{app:mech}
-
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (accompanying chapters, \S5).
-
-\renewcommand{\arraystretch}{1.15}
-\begin{table}[H]
-\centering
-\caption{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}
-\label{tab:verification-status}
-\small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.265\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.245\textwidth}@{}}
-\toprule
-\textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
-\midrule
-Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation.pv} \\
-Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
-Federated security (\S\ref{sec:federated-sovereign}) & ProVerif, 3-of-4 compromise & \Closed\ no attacker reach & \texttt{federated.pv} \\
-Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 26{,}818 states, invariant holds & \texttt{Conservation.tla} \\
-No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
-Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
-Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
-Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
-Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
-\midrule
-Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
-Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
-Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
-Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \texttt{simulation-cartel.mjs} \\
-Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \texttt{claim\_signaling.tla}, \texttt{delta-threshold.z3} \\
-Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
-\midrule
-Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
-Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet & \texttt{federated.pv} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\paragraph{Limitations.} Four mechanizations are out of scope for this paper but explicitly named so a reader can audit what is and is not proved: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). The present claims stand on the evidence stated in Table~\ref{tab:verification-status}.
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Worked Example: One Agent, All Layers}\label{app:worked}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-To make the three-layer architecture concrete, this appendix traces one agent---call it $\alpha$---through a single bounded task: \emph{``Fix the login bug in \texttt{auth.ts} and regression-test it.''} The example exercises capability issuance, advisory claims, the evidence chain, a mid-task crash, successor resumption, and final settlement. All values are illustrative rather than tuned.
-
-The architecture so far has been described layer by layer. The point of this appendix is to watch the layers \emph{compose}: how a single bounded task progresses through the system, where each layer earns its keep, and what the daemon does \emph{not} touch. The example is deliberately mundane---one small bug, one agent, one principal---because the value of the architecture should be legible in the small before it is trusted in the large.
-
-\paragraph{The task.} A principal $P$ wants an agent $\alpha$ to fix a login bug in a hypothetical file \texttt{auth.ts} and regression-test it. The acceptance criteria are stated up front:
-\begin{enumerate}[nosep,leftmargin=*,topsep=2pt]
-  \item the failing test \texttt{login.regression.test.ts} passes;
-  \item no other test regresses;
-  \item the diff touches only \texttt{auth.ts} and the test file.
-\end{enumerate}
-$P$ estimates the cleanup cost of $\alpha$'s defection or sabotage at \$5---one operator-hour at \$5/hr equivalent, since this is a local agent rather than a cloud workload. Figure~\ref{fig:worked-example} traces what follows across the three architectural layers.
-
-\input{figures/fig-worked-example}
-
-\subsubsection*{Phase A: Setup (minutes $0$--$1$)}
-
-Before $\alpha$ writes a single byte, two artifacts must exist: a capability that bounds what $\alpha$ can touch, and a bond that prices what $\alpha$ might break.
-
-\paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, accompanying chapters) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
-
-\paragraph{Step 2: Bond posting (Layer 3).} With the capability in place, the Bonded Advisor (\S\ref{sec:pricing}) quotes a bond proportional to the cleanup cost: $B_\alpha = \$5 \cdot (1 + s) = \$6$ at slope $s = 0.2$. $P$ posts \$6 into escrow. The settlement preconditions are now fixed up front: (1) acceptance criteria met $\Rightarrow$ \$6 returned, (2) partial completion $\Rightarrow$ pro-rata, (3) sabotage $\Rightarrow$ \$6 liquidated to the commons treasury. The bond is the conversion of $\alpha$'s ``character'' into a settled amount; once it is posted, the question of whether $\alpha$ is trustworthy is no longer load-bearing.
-
-\subsubsection*{Phase B: Work begins (minutes $1$--$12$)}
-
-Phase A's contracts are now in force. $\alpha$ does the work the principal hired it for, and the daemon records what happens.
-
-\paragraph{Step 3: Advisory claim (\S\ref{sec:sen}).} $\alpha$ claims \texttt{auth.ts} via \texttt{pd session files add auth.ts}. The daemon's conflict graph is empty for this path, so the claim succeeds with no conflict notification; had another agent already held the path, $\alpha$ would have been told and would have decided locally whether to coordinate or wait. The claim's TTL is bounded by the Harbor Card's---$30$ minutes---so a crashed $\alpha$ cannot squat on the file indefinitely.
-
-\paragraph{Step 4: Evidence chain begins (Layer 2).} $\alpha$ opens the work with a scope note: \emph{``Scope: \texttt{auth.ts}. Hypothesis: cookie-domain handling on subdomain login fails. Validation: \texttt{npm test login.regression}.''} The note's content hash $h_1$ chains into the session's Merkle root $R_{\text{session}}^{(1)}$, and from then on every action $\alpha$ takes---a read receipt for \texttt{auth.ts}, a diff blob for the partial fix, the stdout of the failing test run---is appended as a new entry. Five notes deep, $R_{\text{session}}^{(5)}$ is the canonical commitment to $\alpha$'s state of work. The chain is the part of the architecture that survives anything that happens next.
-
-\subsubsection*{Phase C: Crash and recovery (minutes $12$--$13$)}
-
-The crash is where the architecture stops being an abstraction. In Phase B everything went right; in Phase C something goes wrong, and the layers either earn their keep or they don't.
-
-\paragraph{Step 5: Mid-task crash (\S\ref{sec:crash-recovery}).} At minute $12$, $\alpha$'s process crashes---let's say the LLM provider timed out. The daemon's heartbeat monitor observes $\alpha$ as unresponsive after $90$~seconds and marks the session abandoned. $\alpha$'s claim on \texttt{auth.ts} releases on TTL; the evidence chain is sealed at $R_{\text{session}}^{(5)}$ and committed into the harbor root $R_{\text{harbor},\ell}$ at the next epoch boundary. \emph{Critically, no information is lost}: the partial diff, the test output, and $\alpha$'s scope note are all in the chain. The crash terminated a process; it did not terminate the work.
-
-\paragraph{Step 6: Successor agent.} $P$ spawns a fresh agent $\beta$ with a new Harbor Card and the same capability set. $\beta$'s first action is \texttt{pd salvage}: the daemon returns the abandoned session, the scope note, the partial diff, and the last test output. $\beta$ reads the scope note (``cookie-domain handling on subdomain login''), inspects the partial fix that $\alpha$ left behind, and finishes the work. The new evidence chain $R_{\text{session}}^{(\beta)}$ explicitly references $R_{\text{session}}^{(5)}$ as its salvage parent. Attribution is preserved across the identity change (\S\ref{sec:attribution-survives})---the diff that ships at minute $24$ is traceable back to the same principal $P$ that posted the bond at minute $1$, even though the agent that did most of the work is gone.
-
-\subsubsection*{Phase D: Settlement (minute $24$)}
-
-The work is done. The daemon now decides what was actually accomplished and acts on the settlement preconditions fixed in Phase A.
-
-\paragraph{Step 7: Settlement.} $\beta$'s final action is \texttt{pd done}. The daemon's acceptance-criteria checker runs the regression suite, confirms \texttt{login.regression.test.ts} passes, confirms no other test regresses, and confirms the diff is bounded to the two files declared in the Harbor Card. All three criteria met. The daemon releases \$6 from escrow to $P$, signs a settlement record over the evidence-chain root, and appends that record to the harbor Merkle forest (\S\ref{sec:merkle-forest}). The settlement is now itself an immutable, attestable artifact.
-
-\paragraph{What did each layer do?}
-\begin{itemize}[nosep]
-  \item \emph{Layer 1 (structural)} kept the agent inside the declared blast radius. The crash, the recovery, and the settlement all happened inside a capability-bounded scope. A capability error at minute~7 would have been a fast-fail, not a corrupted repository.
-  \item \emph{Layer 2 (attribution)} kept the work durable across the crash. Without the Merkle-chained evidence, $\beta$ would have started from zero; with it, $\beta$ resumed at minute~12's state.
-  \item \emph{Layer 3 (economic)} kept the principal honest in scoping. $P$ posted real collateral and recovered it on completion; had $\alpha$ (or $\beta$) sabotaged, the cleanup cost would have been pre-funded.
-\end{itemize}
-
-\paragraph{What did \emph{not} happen.} The daemon never decided which agent should hold the file, never decided whether the fix was ``good enough'' in a subjective sense, and never punished the crash. It enforced what \emph{cannot} be (Layer~1), recorded what \emph{did} happen (Layer~2), and settled against the published criteria (Layer~3). The substantive judgments---``is this scope right'', ``is this fix correct''---remained with $P$ and the acceptance-criteria checker. This is the Sen-grounded posture of \S\ref{sec:sen} made operational.
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Exercises}\label{app:exercises}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-These exercises are for instructors using this paper in a systems, mechanism-design, or multi-agent class. Solutions are not provided; the exercises are designed so that defending an answer requires engaging the paper's claims rather than recalling them.
-
-\paragraph{E1 (Definitions).} Define ``advisory claim'' and explain, in two sentences, why an advisory regime is strictly more permissive than an enforced-lock regime. Then explain why the Sen impossibility (\S\ref{sec:sen}) makes that strict permissiveness a \emph{feature}, not a bug.
-
-\paragraph{E2 (Mechanism design).} A reader proposes: ``Eliminate bonds. Use post-hoc reputation slashing instead---an agent that defects loses reputation points and is excluded from future work.'' Identify two specific failure modes of this proposal that the bonded design avoids. Hint: consider the first-mover problem and Sybil identities.
-
-\paragraph{E3 (Formal verification).} Sketch the ProVerif process for the magic-link recovery protocol (accompanying chapters, Phase~2). What is the secrecy property you would prove? What is the authentication property? Identify one attacker capability ProVerif would need to model that is not present in the Phase~1 Harbor Card model.
-
-\paragraph{E4 (Coverage-bound A5).} The A5 finding (\S\ref{sec:youle:a5}) shows that pure deposit deterrence is bounded by the auction coverage $B_T = \mu(1+s)$. Construct an attacker who exploits this bound directly. Then construct a defense---other than ``raise the deposit''---that defeats the attacker. Hint: see the composite mechanism $C_{kyc} + \text{reputation gating} + B_{dep}^{\text{per-class}}$.
-
-\paragraph{E5 (Cartel folk-theorem).} Using the A6 grid (\S\ref{sec:youle:a6}, Figure~\ref{fig:cartel-folk}), compute the minimum per-round detection probability $p_d^\star$ at $\delta = 0.99$. Then argue, qualitatively, what would change if cartel members can re-enter under fresh identities. Does the bond mechanism prevent re-entry, deter it, or merely price it?
-
-\paragraph{E6 (Capability attenuation).} An agent $\alpha$ holds a Harbor Card with \texttt{fs:write:auth.ts}, \texttt{db:read}, TTL = $15$~minutes. $\alpha$ delegates to $\beta$ a card with \texttt{fs:write:auth.ts}, TTL = $20$~minutes. The verifier rejects this delegation. Cite the specific attenuation invariant violated. Now rewrite $\beta$'s requested card to be acceptable.
-
-\paragraph{E7 (Cuckoo-filter pollution).} Sketch a pollution attack against a cuckoo filter that does \emph{not} enforce the load-factor ceiling at $0.95$. What invariant breaks? Why does the ceiling defeat it? Hint: the FP rate bound in Fan et al.~\cite{fan2014cuckoo} is conditional on the regime.
-
-\paragraph{E8 (Mechanism extension).} The competitive-insurance mechanism (\S\ref{sec:youle}) replaces a single bond price with insurer-agent bids. Propose one alternative pricing mechanism (e.g., a second-price auction with reserve, a Walrasian-style market-clearing rule, or a posted-price catalog) and argue whether it would conditionally Pareto-dominate the static escrow under the CC/NC/RP/NS assumptions of \S\ref{sec:youle:welfare}. Identify the assumption your alternative most depends on.
-
-\paragraph{E9 (Open problem).} The gossip convergence bound (the Anchor Protocol's revocation analysis) is reproduced from the standard anti-entropy analysis rather than mechanized. Identify the specific theorem from~\cite{demers1987epidemic} that would need to be ported to a proof assistant. What would change in the analysis if the daemon mesh is \emph{not} fully connected? Hint: consider gossip on a graph with bottleneck cuts.
-
-% ═══════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
 \begin{thebibliography}{99}
 
@@ -1689,6 +1568,128 @@ DataDome.
 
 \end{thebibliography}
 
+% ═══════════════════════════════════════════════════════════════════════════════
+\appendix
+
+\section{Formal Verification Status}\label{app:mech}
+
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (accompanying chapters, \S5).
+
+\renewcommand{\arraystretch}{1.15}
+\begin{table}[H]
+\centering
+\caption{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}
+\label{tab:verification-status}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.265\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.245\textwidth}@{}}
+\toprule
+\textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
+\midrule
+Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation.pv} \\
+Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
+Federated security (\S\ref{sec:federated-sovereign}) & ProVerif, 3-of-4 compromise & \Closed\ no attacker reach & \texttt{federated.pv} \\
+Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 26{,}818 states, invariant holds & \texttt{Conservation.tla} \\
+No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
+Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
+Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
+Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
+Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+\midrule
+Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
+Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
+Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
+Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \texttt{simulation-cartel.mjs} \\
+Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \texttt{claim\_signaling.tla}, \texttt{delta-threshold.z3} \\
+Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
+\midrule
+Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
+Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet & \texttt{federated.pv} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Limitations.} Four mechanizations are out of scope for this paper but explicitly named so a reader can audit what is and is not proved: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). The present claims stand on the evidence stated in Table~\ref{tab:verification-status}.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Worked Example: One Agent, All Layers}\label{app:worked}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+To make the three-layer architecture concrete, this appendix traces one agent---call it $\alpha$---through a single bounded task: \emph{``Fix the login bug in \texttt{auth.ts} and regression-test it.''} The example exercises capability issuance, advisory claims, the evidence chain, a mid-task crash, successor resumption, and final settlement. All values are illustrative rather than tuned.
+
+The architecture so far has been described layer by layer. The point of this appendix is to watch the layers \emph{compose}: how a single bounded task progresses through the system, where each layer earns its keep, and what the daemon does \emph{not} touch. The example is deliberately mundane---one small bug, one agent, one principal---because the value of the architecture should be legible in the small before it is trusted in the large.
+
+\paragraph{The task.} A principal $P$ wants an agent $\alpha$ to fix a login bug in a hypothetical file \texttt{auth.ts} and regression-test it. The acceptance criteria are stated up front:
+\begin{enumerate}[nosep,leftmargin=*,topsep=2pt]
+  \item the failing test \texttt{login.regression.test.ts} passes;
+  \item no other test regresses;
+  \item the diff touches only \texttt{auth.ts} and the test file.
+\end{enumerate}
+$P$ estimates the cleanup cost of $\alpha$'s defection or sabotage at \$5---one operator-hour at \$5/hr equivalent, since this is a local agent rather than a cloud workload. Figure~\ref{fig:worked-example} traces what follows across the three architectural layers.
+
+\input{figures/fig-worked-example}
+
+\subsubsection*{Phase A: Setup (minutes $0$--$1$)}
+
+Before $\alpha$ writes a single byte, two artifacts must exist: a capability that bounds what $\alpha$ can touch, and a bond that prices what $\alpha$ might break.
+
+\paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, accompanying chapters) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
+
+\paragraph{Step 2: Bond posting (Layer 3).} With the capability in place, the Bonded Advisor (\S\ref{sec:pricing}) quotes a bond proportional to the cleanup cost: $B_\alpha = \$5 \cdot (1 + s) = \$6$ at slope $s = 0.2$. $P$ posts \$6 into escrow. The settlement preconditions are now fixed up front: (1) acceptance criteria met $\Rightarrow$ \$6 returned, (2) partial completion $\Rightarrow$ pro-rata, (3) sabotage $\Rightarrow$ \$6 liquidated to the commons treasury. The bond is the conversion of $\alpha$'s ``character'' into a settled amount; once it is posted, the question of whether $\alpha$ is trustworthy is no longer load-bearing.
+
+\subsubsection*{Phase B: Work begins (minutes $1$--$12$)}
+
+Phase A's contracts are now in force. $\alpha$ does the work the principal hired it for, and the daemon records what happens.
+
+\paragraph{Step 3: Advisory claim (\S\ref{sec:sen}).} $\alpha$ claims \texttt{auth.ts} via \texttt{pd session files add auth.ts}. The daemon's conflict graph is empty for this path, so the claim succeeds with no conflict notification; had another agent already held the path, $\alpha$ would have been told and would have decided locally whether to coordinate or wait. The claim's TTL is bounded by the Harbor Card's---$30$ minutes---so a crashed $\alpha$ cannot squat on the file indefinitely.
+
+\paragraph{Step 4: Evidence chain begins (Layer 2).} $\alpha$ opens the work with a scope note: \emph{``Scope: \texttt{auth.ts}. Hypothesis: cookie-domain handling on subdomain login fails. Validation: \texttt{npm test login.regression}.''} The note's content hash $h_1$ chains into the session's Merkle root $R_{\text{session}}^{(1)}$, and from then on every action $\alpha$ takes---a read receipt for \texttt{auth.ts}, a diff blob for the partial fix, the stdout of the failing test run---is appended as a new entry. Five notes deep, $R_{\text{session}}^{(5)}$ is the canonical commitment to $\alpha$'s state of work. The chain is the part of the architecture that survives anything that happens next.
+
+\subsubsection*{Phase C: Crash and recovery (minutes $12$--$13$)}
+
+The crash is where the architecture stops being an abstraction. In Phase B everything went right; in Phase C something goes wrong, and the layers either earn their keep or they don't.
+
+\paragraph{Step 5: Mid-task crash (\S\ref{sec:crash-recovery}).} At minute $12$, $\alpha$'s process crashes---let's say the LLM provider timed out. The daemon's heartbeat monitor observes $\alpha$ as unresponsive after $90$~seconds and marks the session abandoned. $\alpha$'s claim on \texttt{auth.ts} releases on TTL; the evidence chain is sealed at $R_{\text{session}}^{(5)}$ and committed into the harbor root $R_{\text{harbor},\ell}$ at the next epoch boundary. \emph{Critically, no information is lost}: the partial diff, the test output, and $\alpha$'s scope note are all in the chain. The crash terminated a process; it did not terminate the work.
+
+\paragraph{Step 6: Successor agent.} $P$ spawns a fresh agent $\beta$ with a new Harbor Card and the same capability set. $\beta$'s first action is \texttt{pd salvage}: the daemon returns the abandoned session, the scope note, the partial diff, and the last test output. $\beta$ reads the scope note (``cookie-domain handling on subdomain login''), inspects the partial fix that $\alpha$ left behind, and finishes the work. The new evidence chain $R_{\text{session}}^{(\beta)}$ explicitly references $R_{\text{session}}^{(5)}$ as its salvage parent. Attribution is preserved across the identity change (\S\ref{sec:attribution-survives})---the diff that ships at minute $24$ is traceable back to the same principal $P$ that posted the bond at minute $1$, even though the agent that did most of the work is gone.
+
+\subsubsection*{Phase D: Settlement (minute $24$)}
+
+The work is done. The daemon now decides what was actually accomplished and acts on the settlement preconditions fixed in Phase A.
+
+\paragraph{Step 7: Settlement.} $\beta$'s final action is \texttt{pd done}. The daemon's acceptance-criteria checker runs the regression suite, confirms \texttt{login.regression.test.ts} passes, confirms no other test regresses, and confirms the diff is bounded to the two files declared in the Harbor Card. All three criteria met. The daemon releases \$6 from escrow to $P$, signs a settlement record over the evidence-chain root, and appends that record to the harbor Merkle forest (\S\ref{sec:merkle-forest}). The settlement is now itself an immutable, attestable artifact.
+
+\paragraph{What did each layer do?}
+\begin{itemize}[nosep]
+  \item \emph{Layer 1 (structural)} kept the agent inside the declared blast radius. The crash, the recovery, and the settlement all happened inside a capability-bounded scope. A capability error at minute~7 would have been a fast-fail, not a corrupted repository.
+  \item \emph{Layer 2 (attribution)} kept the work durable across the crash. Without the Merkle-chained evidence, $\beta$ would have started from zero; with it, $\beta$ resumed at minute~12's state.
+  \item \emph{Layer 3 (economic)} kept the principal honest in scoping. $P$ posted real collateral and recovered it on completion; had $\alpha$ (or $\beta$) sabotaged, the cleanup cost would have been pre-funded.
+\end{itemize}
+
+\paragraph{What did \emph{not} happen.} The daemon never decided which agent should hold the file, never decided whether the fix was ``good enough'' in a subjective sense, and never punished the crash. It enforced what \emph{cannot} be (Layer~1), recorded what \emph{did} happen (Layer~2), and settled against the published criteria (Layer~3). The substantive judgments---``is this scope right'', ``is this fix correct''---remained with $P$ and the acceptance-criteria checker. This is the Sen-grounded posture of \S\ref{sec:sen} made operational.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Exercises}\label{app:exercises}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+These exercises are for instructors using this paper in a systems, mechanism-design, or multi-agent class. Solutions are not provided; the exercises are designed so that defending an answer requires engaging the paper's claims rather than recalling them.
+
+\paragraph{E1 (Definitions).} Define ``advisory claim'' and explain, in two sentences, why an advisory regime is strictly more permissive than an enforced-lock regime. Then explain why the Sen impossibility (\S\ref{sec:sen}) makes that strict permissiveness a \emph{feature}, not a bug.
+
+\paragraph{E2 (Mechanism design).} A reader proposes: ``Eliminate bonds. Use post-hoc reputation slashing instead---an agent that defects loses reputation points and is excluded from future work.'' Identify two specific failure modes of this proposal that the bonded design avoids. Hint: consider the first-mover problem and Sybil identities.
+
+\paragraph{E3 (Formal verification).} Sketch the ProVerif process for the magic-link recovery protocol (accompanying chapters, Phase~2). What is the secrecy property you would prove? What is the authentication property? Identify one attacker capability ProVerif would need to model that is not present in the Phase~1 Harbor Card model.
+
+\paragraph{E4 (Coverage-bound A5).} The A5 finding (\S\ref{sec:youle:a5}) shows that pure deposit deterrence is bounded by the auction coverage $B_T = \mu(1+s)$. Construct an attacker who exploits this bound directly. Then construct a defense---other than ``raise the deposit''---that defeats the attacker. Hint: see the composite mechanism $C_{kyc} + \text{reputation gating} + B_{dep}^{\text{per-class}}$.
+
+\paragraph{E5 (Cartel folk-theorem).} Using the A6 grid (\S\ref{sec:youle:a6}, Figure~\ref{fig:cartel-folk}), compute the minimum per-round detection probability $p_d^\star$ at $\delta = 0.99$. Then argue, qualitatively, what would change if cartel members can re-enter under fresh identities. Does the bond mechanism prevent re-entry, deter it, or merely price it?
+
+\paragraph{E6 (Capability attenuation).} An agent $\alpha$ holds a Harbor Card with \texttt{fs:write:auth.ts}, \texttt{db:read}, TTL = $15$~minutes. $\alpha$ delegates to $\beta$ a card with \texttt{fs:write:auth.ts}, TTL = $20$~minutes. The verifier rejects this delegation. Cite the specific attenuation invariant violated. Now rewrite $\beta$'s requested card to be acceptable.
+
+\paragraph{E7 (Cuckoo-filter pollution).} Sketch a pollution attack against a cuckoo filter that does \emph{not} enforce the load-factor ceiling at $0.95$. What invariant breaks? Why does the ceiling defeat it? Hint: the FP rate bound in Fan et al.~\cite{fan2014cuckoo} is conditional on the regime.
+
+\paragraph{E8 (Mechanism extension).} The competitive-insurance mechanism (\S\ref{sec:youle}) replaces a single bond price with insurer-agent bids. Propose one alternative pricing mechanism (e.g., a second-price auction with reserve, a Walrasian-style market-clearing rule, or a posted-price catalog) and argue whether it would conditionally Pareto-dominate the static escrow under the CC/NC/RP/NS assumptions of \S\ref{sec:youle:welfare}. Identify the assumption your alternative most depends on.
+
+\paragraph{E9 (Open problem).} The gossip convergence bound (the Anchor Protocol's revocation analysis) is reproduced from the standard anti-entropy analysis rather than mechanized. Identify the specific theorem from~\cite{demers1987epidemic} that would need to be ported to a proof assistant. What would change in the analysis if the daemon mesh is \emph{not} fully connected? Hint: consider gossip on a graph with bottleneck cuts.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Limitations \& Boundaries}\label{sec:limitations}

@@ -43,11 +43,15 @@ A provider shuts down, and the agent's principal resurrects it from a checkpoint
 reputation come along. And at the harbor gate, a newcomer arrives with no history at all --- perhaps genuinely new, perhaps a
 sanctioned identity wearing a fresh key. Each event asks the same question: \emph{is this still the same agent, and what is it owed?}
 
-Philosophy has owned that question for twenty-four centuries and settled nothing, which is itself the data point: any mechanism
-whose safety depends on resolving the ship of Theseus is unbuildable. This paper takes the engineering exit. We never decide
-whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead what a reputation economy
-must \emph{conserve} across these events so that the sanctions it levies keep their teeth, and we prove three conservation results
---- one per door through which continuity can be abused. The root the chain hangs from is the program's prior impossibility result
+Philosophy has owned that question for twenty-four centuries without producing a fact of the matter that a mechanism could safely
+depend on. The nearest thing to a resolution is itself a dissolution: Parfit's argument that in fission cases --- his teletransporter
+duplicating into two survivors is the ancestor of every fork case in this paper --- personal identity has no determinate answer and,
+more to the point, is not what matters for survival; what matters is the pattern of psychological continuity, which can hold, and
+matter, without any yes-or-no verdict on identity ever being reached \cite{parfit}. This paper takes the same exit for a different
+substrate, and gives it teeth a ledger can enforce where a stream of experience cannot: any mechanism whose safety depends on
+resolving the ship of Theseus is unbuildable. We never decide whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead
+what a reputation economy must \emph{conserve} across these events so that the sanctions it levies keep their teeth, and we prove
+three conservation results --- one per door through which continuity can be abused. The root the chain hangs from is the program's prior impossibility result
 (whitepaper Def.~III.6.1 and its necessity theorem): a reputation mechanism is \emph{sanction-respecting} if a dishonest witnessed
 outcome reduces the score its producer can act under by some $\Delta>0$ for a non-trivial window; if fresh identities can be minted
 at zero cost, no sanction-respecting mechanism exists, because the whitewasher's accessible score never falls below a clean
@@ -362,7 +366,11 @@ conserves the same witnessed total.
 
 \section{Related work, and what is actually new}\label{sec:related}
 
-\textbf{Imported.} The unraveling logic of Theorem 2a is Akerlof's market for lemons \cite{akerlof}, run inside one identity; the
+\textbf{Imported.} The engineering exit itself is Parfit's: the idea that an identity question can be dissolved rather than
+answered, because what matters can survive independently of any verdict on identity, is his \cite{parfit} ---
+\S\ref{sec:problem}'s refusal to adjudicate forks and resurrections is that move re-run on a ledger instead of a stream of
+experience. The unraveling logic of Theorem 2a is
+Akerlof's market for lemons \cite{akerlof}, run inside one identity; the
 observation that deterrence can be bought with costly instruments only certain types will pay traces to Spence's signaling
 \cite{spence}. That zero-cost pseudonyms make sanctions void, and that newcomers must consequently pay dues, is Friedman and
 Resnick \cite{friedman-resnick}, with the replication half of the same coin as Douceur's Sybil attack \cite{douceur}. Reputations
@@ -394,6 +402,7 @@ against the cliff, plus the closed-form exchange spot check). The two new figure
 number is recomputable from the closed forms stated in the boxes with a hand calculator.
 
 \begin{thebibliography}{9}
+\bibitem{parfit} D.~Parfit. \emph{Reasons and Persons}. Oxford University Press, 1984.
 \bibitem{akerlof} G.~A. Akerlof. The market for ``lemons'': quality uncertainty and the market mechanism. \emph{Quarterly Journal
 of Economics}, 84(3):488--500, 1970.
 \bibitem{spence} M.~Spence. Job market signaling. \emph{Quarterly Journal of Economics}, 87(3):355--374, 1973.
