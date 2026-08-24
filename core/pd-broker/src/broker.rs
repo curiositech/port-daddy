@@ -569,11 +569,15 @@ impl Broker {
         if let Err(error) = self.capability_signer.authenticate(capability, expected) {
             return capability_refusal(error);
         }
-        let admission = match validate_time(capability, now_ms) {
-            Ok(()) => ReservationAdmission::AllowNew,
-            Err(CapabilityError::Expired) => ReservationAdmission::ReplayOnly,
-            Err(error) => return capability_refusal(error),
-        };
+        // Action authority ends at the capability's hard expiry wall. Unlike
+        // attenuation, an action reservation can cause the first external
+        // effect, and CAP0 has no authenticated consumer binding that could
+        // safely recover that authority after expiry. The durable nonce
+        // tombstone remains in SQLite; an expired caller simply cannot turn it
+        // back into an executable reservation response.
+        if let Err(error) = validate_time(capability, now_ms) {
+            return capability_refusal(error);
+        }
         let digest = match capability_fingerprint(capability) {
             Ok(digest) => digest,
             Err(error) => return capability_refusal(error),
@@ -588,7 +592,7 @@ impl Broker {
             kind: ReservationKind::Action,
             request_digest: &request_digest,
             new_result_expires_at_ms: None,
-            admission,
+            admission: ReservationAdmission::AllowNew,
             now_ms,
         }) {
             Ok(RedemptionOutcome::Reserved(record)) => {
