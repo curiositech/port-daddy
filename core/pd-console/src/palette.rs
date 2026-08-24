@@ -9,6 +9,7 @@
 //! so screenshots read as the app version of portdaddy.dev, not a separate product.
 
 use crate::pane::Tone;
+#[cfg(feature = "gpui")]
 use gpui::{rgba, Rgba};
 
 /// Which palette is live. Flipped by the leader command `Ctrl-A g`.
@@ -179,6 +180,7 @@ impl Theme {
     }
 
     /// Faint gated wash (~14% alpha) — destructive control hover.
+    #[cfg(feature = "gpui")]
     pub fn gated_wash(&self) -> Rgba {
         rgba((self.gated << 8) | 0x24)
     }
