@@ -17,7 +17,7 @@ Artifacts:
   `833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265`;
 - `website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf` — reproducibly generated
   35-page source artifact, SHA-256
-  `efd7a8020d9ecdb404a4bf559d2d2ed5d2d0b70dc9658cc1ce03b6fc834a06b6`.
+  `db4c59fd74047b000f2e812ce9958dd98883665de9f4a336dc66766d4f5e927d`.
 
 The checksums bind this proof record to the generated artifact at the reviewed
 head. They are expected to change if the PDF is rebuilt from a later commit,

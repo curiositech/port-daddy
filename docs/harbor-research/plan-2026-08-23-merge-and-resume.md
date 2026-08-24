@@ -38,7 +38,7 @@ Push (`git push -u origin` to the PR head branch), wait for CI + Fleet gate (do 
 ## Part 1 — Rescue the uploaded review artifacts (discharges F4)
 
 Copy into the repo and commit (on the same branch pre-merge if timing allows, else a follow-up PR on the designated branch `claude/white-paper-pr-review-uncpxg`):
-- `docs/harbor-research/pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping.pdf` (upload `e0de2c53…`) — replaces the `research/sheaf-assessment-notes.md` stub's "not yet rescued" status; contains the experiment matrix + three theorem candidates gating W8.
+- `docs/harbor-research/pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (upload `e0de2c53…`) — replaces the `research/sheaf-assessment-notes.md` stub's "not yet rescued" status; contains the experiment matrix + three theorem candidates gating W8.
 - `docs/harbor-research/pdf/The-Harbor-After-the-Harbor.pdf` (upload `312d5943…`) — the rigor review (correctness audit, exercise solution key, build sequence) cited by doc1.
 - Update `research/sheaf-assessment-notes.md`, `HANDOFF.md` (§3.7 rescue status, delta v4), and `pr7698-reconciliation.md` F4 → discharged. The remaining chat-only artifact ("Theorem-Proving Stack SotA") stays flagged — HANDOFF §3.2 already extracts its load-bearing content.
 - Fix the two documented doc inconsistencies while here: `docs/harbor-research/README.md:4` self-contradiction (PDFs *are* committed) and `HANDOFF.md:10` same claim.
@@ -53,7 +53,7 @@ The consensus Change 1 (all three reviews) landed in prose but not in the proofs
 - `agent-transactions-whitepaper.tex:1402`: internal verification table still says "IC holds at δ=0.26" — align with lines 784–801.
 - Add a unit test pinning the corrected root numerically (the repo currently pins **zero** game-theoretic numbers).
 
-Also: write the missing **B6 script** (`skills/harbor-results/scripts/b6_probation.py` or `docs/harbor-research/`): LP exchange sweep over randomized (δf<δh, Gmax), reproducing "0 dominating schedules in 4,000 draws" (currently chat-state cited at `spawn-to-person.tex:967`), seed 20260816, wired into Part 6's CI job.
+Also: write the missing **B6 script** (`skills/harbor-results/scripts/b6_probation.py`, proposed — not yet shipped): LP exchange sweep over randomized (δf<δh, Gmax), reproducing "0 dominating schedules in 4,000 draws" (currently chat-state cited at `spawn-to-person.tex:967`), seed 20260816, wired into Part 6's CI job.
 
 ## Part 3 — Wave W5: quick proofs A3 + A4 + A6 (top of the blocking register)
 
@@ -61,7 +61,7 @@ Per portfolio definitions (1-day lifts each), following `falsification-first` (s
 - **A3 — ε-conservation for the clean-room release ledger**: state machine (σ, Λ); induction proof incl. concurrent invocation under single-writer serialization; import DP sequential + advanced composition (Dwork–Rothblum–Vadhan). Script: exhaustive small-model check + mutation (gate-bypass mutant must be caught). Complete-mediation caveat stated (that's B3's assumption).
 - **A4 — canary detection power + SPRT latency**: `Pr(detect) ≥ 1−β^k` derivation; Wald SPRT expected time-to-detection; operating-curve figure. Script with seed 20260816.
 - **A6 — no-mint reputation inheritance** (pending in crosswalk): fork as lineage DAG, discounted-prior inheritance; numeric sweep for the no-mint invariant.
-- Deliverables: `skills/harbor-results/scripts/{a3_epsilon_ledger,a4_canary_sprt,a6_no_mint}.py`, compendium + SKILL.md updates (R10–R12 entries or A-code entries per house style), **Execution Report 4** (`docs/harbor-research/tex/exec4.tex`, house preamble — no microtype/lmodern), updated crosswalk + proof-debt register (A3/A4 → done ⇒ the mega volume's `thm:cleanroom` "scheduled" note can be upgraded in a follow-up tex edit).
+- Deliverables (proposed, not yet shipped): scripts a3_epsilon_ledger.py, a4_canary_sprt.py, a6_no_mint.py under `skills/harbor-results/scripts/`, compendium + SKILL.md updates (R10–R12 entries or A-code entries per house style), **Execution Report 4** (exec4.tex under `docs/harbor-research/tex/`, house preamble — no microtype/lmodern), updated crosswalk + proof-debt register (A3/A4 → done ⇒ the mega volume's `thm:cleanroom` "scheduled" note can be upgraded in a follow-up tex edit).
 - PDF rendering: no TeX in this container. Extend `docs/harbor-research/Makefile`/CI to render under the pinned `texlive@sha256:ee8ecc62…` image (same digest as whitepaper CI) — or commit tex now and render in the CI job added in Part 6. Also fix the Makefile so `make docs` actually produces the committed `pdf/` filenames (documented inconsistency #2).
 
 ## Part 4 — Wave W8 core: rebuild the sheaf statistical harness (fixing D1–D3)
@@ -80,7 +80,7 @@ The one gap the register names for "The Price of a Summary": clean statement + p
 
 ## Part 6 — CI wiring for the research estate
 
-New workflow (or job in `proofs.yml`): run `skills/harbor-results/scripts/{a7_experiment,b1_frontier,b2_tower,b3_controllability,c0_workunit,c1_noninterference,sheaf_mechanism_proof}.py` + new A3/A4/A6/B6 + `sheaf_harness_v2` — all are seconds-fast numpy/stdlib, seed-pinned. Each asserts its own headline numbers (536 states, 0/16 violations, ρ\*=0.25, signal 1.225 vs 0.000, …) and exits nonzero on drift. This closes finding #2 (strongest verification work, zero CI) and gives finding #3 (ProVerif never runs) a documented backlog note — ProVerif install is heavier; file as a follow-up, don't block.
+New workflow (or job in `proofs.yml`): run every existing script under `skills/harbor-results/scripts/` (a7_experiment, b1_frontier, b2_tower, b3_controllability, c0_workunit, c1_noninterference, sheaf_mechanism_proof) + the proposed A3/A4/A6/B6 and sheaf_harness_v2 scripts — all are seconds-fast numpy/stdlib, seed-pinned. Each asserts its own headline numbers (536 states, 0/16 violations, ρ\*=0.25, signal 1.225 vs 0.000, …) and exits nonzero on drift. This closes finding #2 (strongest verification work, zero CI) and gives finding #3 (ProVerif never runs) a documented backlog note — ProVerif install is heavier; file as a follow-up, don't block.
 
 ## Part 7 — Program continuation (scheduled, not in-session)
 

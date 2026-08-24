@@ -174,8 +174,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
     'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
-  pages: 247,
-  sizeKb: 2349,
+  pages: 264,
+  sizeKb: 2415,
   references: 202,
 }
 
