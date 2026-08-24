@@ -45,7 +45,6 @@
 import { createHash } from 'node:crypto';
 
 import {
-  encodeSealAad,
   referenceVault,
   NONCE_LEN,
   type SealAad,
