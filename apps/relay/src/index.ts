@@ -160,6 +160,18 @@ import {
   handleMediatorSummonsRespond,
   handleMediatorToggle,
 } from './mediator-body.js';
+import {
+  handleBlindSkillPublish,
+  handleBlindCapabilityMint,
+  handleBlindRunCreate,
+  handleBlindRunKey,
+  handleBlindRunSeal,
+  handleBlindRunConclude,
+  handleBlindRunFetch,
+  handleBlindSkillRuns,
+  handleBlindToggle,
+} from './blind-sessions.js';
+import { handleTrustPage } from './trust-page.js';
 import { handleRunsPage } from './runs-page.js';
 import {
   handleRepoSettingsPage,
@@ -320,6 +332,11 @@ export default {
     // ── MERCY status page (public, no secrets — src/mercy.ts) ────────────────
     else if (pathname === '/mercy' && method === 'GET') {
       response = await handleMercyStatus(env);
+    }
+
+    // ── Trust page (public; doctrine D8's crypto/policy/unbuilt table) ───────
+    else if (pathname === '/trust' && method === 'GET') {
+      response = handleTrustPage(env);
     }
 
     // ── Handshake ───────────────────────────────────────────────────────────
@@ -523,6 +540,43 @@ export default {
     }
     else if (pathname === '/v1/fleet/mediator' && method === 'POST') {
       response = await handleMediatorToggle(request, env);
+    }
+
+    // ── Blind sessions (grand-plan node blind-sessions; src/blind-sessions.ts)
+    // Machine routes carry signed chained envelopes (delegated to the ONE
+    // publish gate); the borrower routes carry an execute-only HMAC capability
+    // (ADR-0101) — no session, no bearer. The kill toggle is operator-gated.
+    else if (pathname === '/v1/blind/skills' && method === 'POST') {
+      response = await handleBlindSkillPublish(request, env);
+    }
+    else if (pathname === '/v1/blind/capabilities' && method === 'POST') {
+      response = await handleBlindCapabilityMint(request, env);
+    }
+    else if (pathname === '/v1/blind/runs' && method === 'POST') {
+      response = await handleBlindRunCreate(request, env);
+    }
+    else if (pathname.startsWith('/v1/blind/runs/') && pathname.endsWith('/key') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/blind/runs/'.length, -'/key'.length));
+      response = await handleBlindRunKey(request, env, id);
+    }
+    else if (pathname.startsWith('/v1/blind/runs/') && pathname.endsWith('/seal') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/blind/runs/'.length, -'/seal'.length));
+      response = await handleBlindRunSeal(request, env, id);
+    }
+    else if (pathname.startsWith('/v1/blind/runs/') && pathname.endsWith('/conclude') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/blind/runs/'.length, -'/conclude'.length));
+      response = await handleBlindRunConclude(request, env, id);
+    }
+    else if (pathname.startsWith('/v1/blind/runs/') && method === 'GET') {
+      const id = decodeURIComponent(pathname.slice('/v1/blind/runs/'.length));
+      response = await handleBlindRunFetch(request, env, id);
+    }
+    else if (pathname.startsWith('/v1/blind/skills/') && pathname.endsWith('/runs') && method === 'GET') {
+      const id = decodeURIComponent(pathname.slice('/v1/blind/skills/'.length, -'/runs'.length));
+      response = await handleBlindSkillRuns(request, env, id);
+    }
+    else if (pathname === '/v1/fleet/blind' && method === 'POST') {
+      response = await handleBlindToggle(request, env);
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────

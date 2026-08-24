@@ -127,6 +127,20 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** pdu_ operator token sent as the Bearer on every interruption POST. Secret. */
   INTERRUPTIONS_TOKEN?: string;
   /**
+   * OPTIONAL egress-lockdown attestation for blind sessions (src/blind-run.ts;
+   * grand-plan node blind-sessions). A var, not a secret. Blind runs execute
+   * ONLY when this is the literal string 'true' — the deploy asserts that the
+   * blind-run path has no network capability beyond the AI binding. Unset or
+   * anything else ⇒ every blind run refuses fail-closed. This is the stage
+   * KILL SWITCH: flip it off and the blind room is inert.
+   */
+  BLIND_EGRESS_LOCKED?: string;
+  /**
+   * OPTIONAL Workers AI model for blind runs. Only a `@cf/` id is honored;
+   * anything else falls back to DEFAULT_BLIND_MODEL (src/blind-run.ts).
+   */
+  BLIND_MODEL?: string;
+  /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + the append-only fleet_run_steps transcript here.
    * Optional at the type level so unit tests can omit it; all writes are

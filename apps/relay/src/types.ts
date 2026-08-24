@@ -88,6 +88,11 @@ export interface Env {
   // REJECTED (not honored) — Workers AI only, never Anthropic/Claude Code/an
   // external runner. See resolveMediatorModel.
   PARLEY_MEDIATOR_MODEL?: string;
+  // Blind sessions (grand-plan node blind-sessions; src/blind-sessions.ts).
+  // HMAC secret (>=32 chars) behind borrower capability tokens and lender read
+  // tokens. Optional: unset/short ⇒ every /v1/blind/* route answers 503
+  // BLIND_UNCONFIGURED (fail-closed — minting with a weak secret is theater).
+  BLIND_CAP_SECRET?: string;
   // Vars from wrangler.toml
   RELAY_VERSION: string;
   EVENT_RETENTION_DAYS: string;

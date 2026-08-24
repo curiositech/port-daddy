@@ -802,6 +802,45 @@ jobs:
       - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
         run: npx vitest run
 
+  fleet-executor-tests:
+    # apps/fleet-executor is a Cloudflare Worker (queue consumer) with its own
+    # tsconfig graph and vitest suite; root jest never compiles or runs it, and
+    # until now the only workflow that ran `npx vitest run` for it was
+    # deploy-fleet-executor.yml — path-gated to apps/fleet-executor/** and firing
+    # only on push to main. That is exactly the gap the blind-sessions node
+    # (grand-plan §L2) may not ship through: its adversarial harness (sandbox
+    # egress lockdown, output-exfiltration, pd-seal round trip) is THE gate, and
+    # its output-contract parity fixture (tests/fixtures/blind-output-contract-
+    # parity-vectors.json) is a byte-parity twin of apps/relay/src/blind-sessions.ts
+    # asserted from BOTH suites. A fixture asserted by only one of its two suites
+    # is not a gate. Always-run (not path-gated), same rationale as relay-tests:
+    # a shared-fixture change OUTSIDE this app must still run these assertions,
+    # and "no latest→prod until the harness passes" only holds if the harness
+    # runs on every PR, not just the deploy path.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/fleet-executor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/fleet-executor/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: vitest (incl. blind-sessions adversarial harness + output-contract parity fixture)
+        run: npx vitest run
+
   steward-tests:
     # apps/steward is the Steward's seat (ADR-0109; docs/plans/THE_FULL_WHEEL.md
     # P1) — a Cloudflare Worker with its own tsconfig graph and vitest suite
@@ -890,10 +929,12 @@ jobs:
       - brand-color-guard
       - compiled-daemon-smoke
       - doc-citation-guard
+      - fleet-executor-tests
       - fleet-ui
       - fleetbar
       - integration-tests
       - lint
+      - relay-tests
       - rust-console
       - rust-console-gpui
       - rust-kernel
