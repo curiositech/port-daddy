@@ -21,6 +21,16 @@ session_id_from_json() {
   node -e "let data=''; process.stdin.on('data', c => data += c); process.stdin.on('end', () => console.log(JSON.parse(data).sessionId));"
 }
 
+# `pd begin` mints a soul and returns its credential once. Capture it: an
+# inbox send is a credentialed write (#8877 / ADR-0122) and may only be
+# attributed to a name the presenting soul owns. Both agents share one
+# worktree context here, and Bob's `pd begin` ran last — so without pinning
+# Alice's credential explicitly, `--agent "$ALICE"` would present Bob's soul
+# and the daemon would (correctly) refuse the forged attribution.
+credential_from_json() {
+  node -e "let data=''; process.stdin.on('data', c => data += c); process.stdin.on('end', () => { const p = JSON.parse(data); console.log(p.credential || ''); });"
+}
+
 cleanup() {
   if [[ -n "$ALICE_SESSION" ]]; then
     pd done "inbox example cleanup" --agent "$ALICE" --session "$ALICE_SESSION" -q >/dev/null 2>&1 || true
@@ -34,11 +44,13 @@ trap cleanup EXIT
 echo "Agent inbox example"
 echo "-------------------"
 
-ALICE_SESSION="$(pd begin "Inbox demo sender" --agent "$ALICE" --identity examples:inbox:alice --lifecycle durable -j | session_id_from_json)"
+ALICE_BEGIN="$(pd begin "Inbox demo sender" --agent "$ALICE" --identity examples:inbox:alice --lifecycle durable -j)"
+ALICE_SESSION="$(printf '%s' "$ALICE_BEGIN" | session_id_from_json)"
+ALICE_CREDENTIAL="$(printf '%s' "$ALICE_BEGIN" | credential_from_json)"
 BOB_SESSION="$(pd begin "Inbox demo receiver" --agent "$BOB" --identity examples:inbox:bob --lifecycle durable -j | session_id_from_json)"
 
 echo "Alice sends Bob a handoff:"
-pd inbox send "$BOB" "Schema migration ready for review" --agent "$ALICE"
+PD_ACTOR_CREDENTIAL="$ALICE_CREDENTIAL" pd inbox send "$BOB" "Schema migration ready for review" --agent "$ALICE"
 
 echo ""
 echo "Bob inbox stats:"

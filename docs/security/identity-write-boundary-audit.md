@@ -60,6 +60,8 @@ names are unowned, returns the credential once).
 | `/commitments` | POST | body `ownerActorId` | Credential REQUIRED; `ownerActorId` must resolve to the credential's OWN soul (403 otherwise — no forging obligations onto a victim) | **ENFORCED (strict)** |
 | `/commitments/:id/close` | POST | commitment's stored owner | Credential REQUIRED; only the owning soul closes its obligation (403 otherwise) | **ENFORCED (strict)** |
 | `/actors/register` | POST | body `credential` / `operatorToken` / `alias` | The ADR-0040 mint itself; forged credential 401, uncredentialed mints a pooled newcomer | **ENFORCED (mint door, ADR-0040)** |
+| `/agents/:id/inbox` | POST | body `from` | Credential REQUIRED; `from` must be a name the credential's soul owns — a bound alias, or the agentId of an ACTIVE session stamped with that soul. Anything else, INCLUDING a never-minted string, is 403 `INBOX_FROM_MISMATCH`. Omitting `from` attributes the message to the minted actorId. The verdict is persisted on the row (`from_actor_id`, `from_soul_class`), which the caller cannot pre-fill | **ENFORCED (strict)** |
+| `/actors/:id/message` | POST | body `from` | Identical gate, shared verbatim via `lib/inbox-identity.ts` — this is the second door into the same `agent_inbox` table with the same `wake` → `hailAgent` path, so credentialing only `/agents/:id/inbox` would be bypassable | **ENFORCED (strict)** |
 
 ## Inventory — non-attributed / otherwise-guarded planes
 
@@ -69,8 +71,9 @@ They are listed so the boundary of this enforcement is explicit, not implied.
 
 | Route | Method | Guard | Notes |
 |---|---|---|---|
-| `/agents`, `/agents/:id/heartbeat`, DELETE `/agents/:id` | POST/DELETE | Display/liveness plane — explicitly NON-attributive per ADR-0040 (`id` is a display handle; nothing above the newcomer floor keys on it) | Roster projections must key durable truth on minted actorIds, never these handles |
-| `/agents/:id/inbox` writes | POST/PUT/DELETE | Same display plane; `from` is unverified | Message-forgery hardening belongs to the inbox plane's own slice |
+| `/agents`, `/agents/:id/heartbeat`, DELETE `/agents/:id` | POST/DELETE | Display/liveness plane — explicitly NON-attributive per ADR-0040 (`id` is a display handle) | **The old note here said "nothing above the newcomer floor keys on it". That was false.** `lib/agents.ts` `cleanup()` force-releases every lock whose `locks.owner` string matches a dead agent's display handle, bypassing the soul-level `LOCK_OWNER_MISMATCH` check that makes the lock plane ENFORCED — so producing a display handle and then withholding heartbeats destroys another soul's lock. Regression test: `tests/unit/heartbeat-lock-invariant.test.js`. Roster projections must key durable truth on minted actorIds, never these handles |
+| `/agents/:id/inbox`, `/agents/:id/sent`, `/agents/:id/inbox/stats` | GET | **NOTHING. Any loopback caller reads any agent's DMs and read receipts.** | **DEFERRED — owner: the inbox plane's read slice.** Gating reads needs an operator-class principal that no surface mints today (see below), plus credential injection on non-mutating methods in `cli/utils/fetch.ts` and the Fleet UI. Not "display plane" — an open read. |
+| `/agents/:id/inbox` (clear), `/agents/:id/inbox/read-all`, `/agents/:id/inbox/:messageId/read` | DELETE/PUT | **NOTHING. Any loopback caller wipes or silently read-marks any agent's queue** (unread → read means `pd attention` never surfaces it — censorship of the same channel this slice just credentialed) | **DEFERRED — owner: the inbox plane's read slice.** Same blocker: the operator UI and `pd agent inbox clear <other>` are LEGITIMATE cross-agent actions, so a pure owner-only rule would break them, and there is no operator-class principal to exempt. |
 | `/durable-agents`, `/durable-agents/promote`, `/durable-agents/:id/handoffs` | POST/PATCH | Loopback-only preHandler + handoff-capsule lineage checks (`PROMOTION_LINEAGE_MISMATCH`, `HANDOFF_IDENTITY_MISMATCH`) | Real daemon-side checks, different mechanism |
 | `/msg/:channel` | POST | Forward-token auth bounds the caller set; `sender` is transport labeling | Transport plane, not durable attribution |
 | `/memory/handoffs` | POST | Secret-scanned + schema-validated; lineage verified downstream at durable-roster promotion | |
@@ -96,6 +99,37 @@ parallel credential scheme):
 4. Soul-level ownership: sessions and locks store the minted `actorId` on
    the record at creation; later mutations compare the caller's verified
    soul against it, so learning a display string never grants ownership.
+5. `lib/inbox-identity.ts` — the inbox plane's sender gate, shared by both
+   doors into `agent_inbox`. It exists because **the locks-shaped check is
+   not sufficient here**: `resolveWriteIdentity` only rejects an asserted
+   name that resolves to a *different minted soul*
+   (`resolved.soulClass !== 'unknown'`), so a name that was NEVER MINTED
+   passes straight through and becomes the record's attribution — and every
+   `from` string previously in production use (`fleet-ui`, `mcp-user`,
+   `suggestion-broker`, `system-test`, `system`) was un-minted. The gate
+   therefore resolves the asserted name and requires it to land on the
+   caller's own soul, accepting two bindings: a **bound alias**, or the
+   **agentId of an ACTIVE session** whose metadata carries that soul's
+   stamp. The second binding is load-bearing: `POST /sugar/begin`
+   deliberately binds no alias (shared display strings like
+   `proj:node:dev` would lock out every other legitimate agent), so without
+   it a commitments-shaped check would 403 every real `pd inbox send`.
+
+### The inbox is not a display plane
+
+The original deferral rested on classifying `from` as display text. It is
+not. `lib/fleet-engine.ts` `buildAgentTask()` writes it into a spawned
+code-editing agent's prompt as the `- sender:` line, directly above the
+message and above *"Take one bounded pass in response to this trigger"*. An
+unverified `from` was a forged authority label on an instruction that gets
+executed. The prompt now carries the daemon's verified actor and soul class
+on their own line, and explicitly says when there is none.
+
+**What this does and does not buy.** The daemon is loopback-only and
+`POST /actors/register` mints a newcomer soul for any uncredentialed caller,
+so this does **not** stop a local process from sending mail. It stops a local
+process from sending mail **as someone else**, and puts a visible soul class
+on every instruction. It is not authentication of the local host.
 
 ## Callers migrated (no legacy path survives)
 
@@ -129,3 +163,23 @@ parallel credential scheme):
   acquire/release/extend (including `LOCK_OWNER_MISMATCH` and the deleted
   anonymous fallback), salvage claim/complete/abandon/dismiss (both route
   families), commitments create/close ownership.
+- `tests/unit/inbox-identity-boundary.test.js` — the inbox plane, both doors
+  (`POST /agents/:id/inbox` and `POST /actors/:id/message`): uncredentialed
+  401, forged 401, another soul's alias 403, **a NEVER-MINTED `from` string
+  403** (the case a locks-shaped gate admits — without it the slice would be
+  theater), `'system'` specifically refused, server-derived attribution when
+  `from` is omitted, both accepted bindings (bound alias; ACTIVE session
+  stamp), an unverified session stamp conferring nothing, verifier-down 503,
+  the caller unable to pre-fill `from_actor_id`/`from_soul_class`, and — the
+  instruction-channel proof — a rejected request never reaching `hailAgent`.
+  Plus the regression that `sugar.begin` must leave the daemon's identity
+  stamp intact, which the session binding depends on.
+- `tests/unit/heartbeat-lock-invariant.test.js` — the uncredentialed
+  heartbeat plane must not reach into the enforced lock plane. Pins the live
+  bug (`agents.cleanup` force-releasing a stamped lock on a display-string
+  match), the subtler variant where the attacker holds a real credential and
+  opens a session under the victim's display name, the fail-closed path when
+  no sessions store is wired, and the two cases that stop the fix from
+  degrading into "never release anything". Its closing note states plainly
+  what the suite does NOT enforce, and why a mechanical
+  "no projection keys on a display handle" test cannot exist here.
