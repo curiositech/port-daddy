@@ -34,8 +34,11 @@ rho_star = G / (d * B)
 def amortization_figure():
     np.random.seed(20260816)
 
-    T_measured = 200
-    T_max = 420
+    # The measured horizon in the paper's worked example IS the plotted
+    # range -- this keeps flat's Theta(T) growth from swamping the canvas
+    # and puts the pre-saturation point (t* = 333 > T = 200) exactly where
+    # a reader can see Model B still visibly climbing at the right edge.
+    T_max = 200
     t = np.arange(T_max)
 
     rho_flat = np.full(T_max, rho_star)
@@ -49,7 +52,7 @@ def amortization_figure():
     tstar = G / (r * v)               # 333.33...
     closed_B = a * G**2 / (2 * d * B * r * v)  # 41.67
 
-    fig, ax = plt.subplots(figsize=(9.5, 5.6), dpi=150)
+    fig, ax = plt.subplots(figsize=(9.2, 5.6), dpi=150)
 
     ax.plot(t, spend_flat, color=SHIPRED, lw=2.2,
              label=r'flat $\rho_t\equiv\rho^\star$:  $\Theta(T)$')
@@ -58,36 +61,26 @@ def amortization_figure():
     ax.plot(t, spend_B, color=SEAGREEN, lw=2.2,
              label=r'Model B (independent revelation $r$):  $O(1)$')
 
-    # closed-form O(1) asymptote for Model B
+    # closed-form O(1) asymptote for Model B -- drawn, but not yet reached
     ax.axhline(closed_B, color=SEAGREEN, ls=':', lw=1.3)
-    ax.text(T_max - 4, closed_B + 1.3,
-            r'$aG^2/(2dBrv)=%.2f$ (Model B limit)' % closed_B,
-            fontsize=8.5, color=SEAGREEN, ha='right')
+    ax.text(4, closed_B + 1.4,
+            r'Model B limit $aG^2/(2dBrv)=%.2f$, reached only at '
+            r'$t^\star{=}G/(rv){=}%d$ (off this range)' % (closed_B, round(tstar)),
+            fontsize=8.3, color=SEAGREEN, ha='left')
 
-    # measured horizon T=200, marked on all three curves
-    ax.axvline(T_measured, color=GREY, ls='--', lw=1.1)
-    idx = T_measured
+    # endpoints at the measured horizon, marked on all three curves
+    idx = T_max - 1
     for arr, c in ((spend_flat, SHIPRED), (spend_A, HARBORBLUE), (spend_B, SEAGREEN)):
-        ax.plot(T_measured, arr[idx], 'o', color=c, ms=6, zorder=4,
+        ax.plot(t[idx], arr[idx], 'o', color=c, ms=6, zorder=4,
                 markeredgecolor='white', markeredgewidth=0.8)
-    ax.text(T_measured + 6, 4, r'measured horizon $T{=}200$',
-            fontsize=8.5, color=GREY, ha='left', va='bottom', rotation=90)
 
-    # Model B saturation point t* = 333
-    ax.axvline(tstar, color=SEAGREEN, ls=':', lw=1.1)
+    # the pre-saturation caveat, stated on the canvas, not just in a footnote
     ax.annotate(
-        r'$t^\star=G/(rv)=%d$:' % round(tstar) + '\nModel B schedule hits 0,\n'
-        r'spend saturates at the limit',
-        xy=(tstar, closed_B), xytext=(tstar - 175, closed_B - 16),
-        fontsize=8.5, color=SEAGREEN, ha='left',
-        arrowprops=dict(arrowstyle='->', color=SEAGREEN, lw=1.1))
-
-    # the pre-saturation caveat, stated on the canvas, not just below it
-    ax.annotate(
-        'at $T{=}200 < t^\\star{=}333$: measured spend $35.08$\nis the '
-        'partial triangle, not yet the full $41.67$ limit\n'
-        '-- not error, pre-saturation',
-        xy=(T_measured, spend_B[idx]), xytext=(28, spend_B[idx] + 14),
+        r'measured at $T{=}200$: spend $%.2f$' % spend_B[idx] + '\n'
+        r'$T{=}200 < t^\star{=}%d$, so this is the' % round(tstar) + '\n'
+        r'partial triangle, not yet the $%.2f$ limit' % closed_B + '\n'
+        '-- pre-saturation, not error',
+        xy=(t[idx], spend_B[idx]), xytext=(90, 8),
         fontsize=8.5, color=SEAGREEN, ha='left',
         bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
                   edgecolor=SEAGREEN, linewidth=1),
@@ -96,7 +89,9 @@ def amortization_figure():
     ax.set_xlabel('verified-history length $t$', fontsize=10)
     ax.set_ylabel('cumulative audit spend', fontsize=10)
     ax.set_xlim(0, T_max)
-    ax.set_ylim(0, 62)
+    ax.set_ylim(0, 55)
+    ax.set_xticks(np.arange(0, 201, 25))
+    ax.set_yticks(np.arange(0, 51, 10))
     ax.grid(alpha=0.25)
     ax.legend(fontsize=9, loc='upper left', framealpha=0.92)
     ax.set_title('The amortization ladder: lifetime verification spend by '

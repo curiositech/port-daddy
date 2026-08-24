@@ -1152,6 +1152,7 @@ We catalog the estimators not because they are hard but because choosing the
 \end{itemize}
 
 % --- FIGURE 8: estimator family by signal type ---
+Figure~\ref{fig:estimators} maps each signal type to its matching estimator.
 \input{figures/fig-stp-estimator-family}
 
 \subsection{Score as telemetry; gate on predicates}
@@ -1194,6 +1195,8 @@ not. Modeling reputation as a bandit imports four assumptions that are all false
 a market.}
 
 % --- FIGURE 9: bandit assumptions vs reputation reality ---
+Figure~\ref{fig:not-bandit} lines the four bandit assumptions up against the market
+reality that breaks each.
 \input{figures/fig-stp-not-bandit}
 
 \subsection{The four broken assumptions}
@@ -1291,6 +1294,7 @@ re-collapsing quality into one Goodhart-able scalar. The open design question of
 named as a starred exercise.
 
 % --- FIGURE 10: the multi-dimensional reputation vector ---
+Figure~\ref{fig:multidim} draws the three axes and their distinct judges.
 \input{figures/fig-stp-multidim-reputation}
 
 \subsection{The neutral-judge market (the harbor's universities and rating agencies)}
@@ -1477,7 +1481,8 @@ arbitration capacity is a named open problem, below).
 
 \paragraph{Algorithmic Mode Collapse and the VRF Honeypot Solution}
 Option~A initially pushed the problem up a level: who audits the auditors? The naive recursion ``rate the raters who rate the
-raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, where a monoculture of model architectures could form a cartel of mutual validation. We cure this via two mandated mechanisms that force the recursion to terminate.
+raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, where a monoculture of model architectures could form a cartel of mutual validation. We cure this via two mandated mechanisms that force the recursion to terminate. Figure~\ref{fig:rate-raters} draws the recursion and where these two
+mechanisms are meant to arrest it.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
@@ -1562,6 +1567,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
 \end{protocol}
 
 % --- FIGURE 13: tombstone compensation on an append-only ledger ---
+Figure~\ref{fig:tombstone} draws the append-only compensation: the original entry
+stays, and a later tombstone nullifies it without mutating the ledger.
 \input{figures/fig-stp-tombstone}
 
 \subsection{S4 --- the fraudulent outcome retracted}
