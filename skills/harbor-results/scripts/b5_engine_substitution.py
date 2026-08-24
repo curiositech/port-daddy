@@ -141,7 +141,7 @@ deter_mismatch = 0      # q*W line vs best responses
 mutantA_catches = 0     # wrong threshold Dc/Dth caught by the same sweep
 mutantA_witness = None
 
-for i in range(N_SWEEP):
+for _ in range(N_SWEEP):
     tL = rng.uniform(0.10, 0.80)
     tH = tL + rng.uniform(0.05, 1.00)
     ch = rng.uniform(tL + 1e-3, tH - 1e-3)        # thetaL < cH < thetaH

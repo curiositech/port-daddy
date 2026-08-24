@@ -154,7 +154,7 @@ def sim_breakdown(lam, mu, xi, eta, n_events, rng, nb=15):
     per = n_events // nb
     areas = np.zeros(nb); times = np.zeros(nb)
     exps = rng.exponential(1.0, n_events); unis = rng.random(n_events)
-    b = 0; tb = 0.0
+    b = 0
     for k in range(n_events):
         r_srv = mu if (n > 0 and up) else 0.0
         r_ph  = xi if up else eta
