@@ -32,9 +32,10 @@ encryption.
 What is encrypted **today**:
 
 - **Session notes written while a master key is available.** Envelope
-  encryption — a daemon master key at `~/.port-daddy/master.key` (0600, never
-  in the DB), a random per-session AES-256-GCM key wrapped under it and stored
-  in `sessions.wrapped_session_key`, and a random 12-byte IV per note. The
+  encryption uses a daemon master key held in macOS Keychain when available,
+  with a 0600 `~/.port-daddy/master.key` fallback outside the database. A
+  random per-session AES-256-GCM key is wrapped under it and stored in
+  `sessions.wrapped_session_key`, with a random 12-byte IV per note. The
   Merkle chain hashes the **ciphertext**, so integrity holds without revealing
   content. Implemented and ProVerif-verified (`docs/NOTE_ENCRYPTION_DESIGN.md`).
 
