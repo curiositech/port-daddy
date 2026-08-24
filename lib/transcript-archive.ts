@@ -1,124 +1,431 @@
 /**
  * Durable transcript archive — the retention floor.
  *
- * Operator directive (2026-06-15): "ALL Port Daddy agent transcripts MUST be
- * logged to a data-warehousing solution and retained — it's OK if not the live
- * SQL table, but WE MUST RETAIN."
+ * Every finalized transcript is retained outside the live SQLite database as
+ * one immutable, day-partitioned JSONL artifact. Writers never append to a
+ * shared file: each attempt writes a private unique temp, fsyncs only after the
+ * complete byte sequence is present, then atomically publishes a deterministic
+ * content-addressed target. A failed or concurrent writer can remove only its
+ * own unpublished temp and can never truncate another retained transcript.
  *
- * Today every agent transcript lives ONLY in the live daemon SQLite DB
- * (`fleet_transcripts*`). Backups are opt-in. If that DB is deleted, corrupted, or
- * reset, every transcript is gone. This module closes that hole: an always-on,
- * append-only JSONL archive OUTSIDE the live DB. Each finalized transcript is
- * written, in full (header + messages + outputs), as one fsync'd line to a
- * day-partitioned file under `~/.port-daddy/transcripts/`. It is the durable
- * source of truth that survives any DB loss, and the on-ramp to an external
- * warehouse (S3/R2/BigQuery) — those plug in behind the same `TranscriptArchiveSink`
- * interface.
- *
- * The hot path (lib/transcripts.ts finalize/recordTranscript) calls the sink
- * fire-and-forget: a sink failure NEVER blocks a spawn, but it IS logged loudly,
- * because a silent retention failure is the one outcome the directive forbids.
+ * Successful receipts name and hash the exact artifact. The same sink interface
+ * remains the on-ramp to an approved external warehouse.
  */
 
-import { appendFileSync, mkdirSync, openSync, writeSync, fsyncSync, closeSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash, randomBytes } from 'node:crypto';
+import {
+  closeSync,
+  constants,
+  fchmodSync,
+  fstatSync,
+  fsyncSync as nodeFsyncSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeSync as nodeWriteSync,
+} from 'node:fs';
+import type { Stats } from 'node:fs';
 import { homedir } from 'node:os';
-import type { TranscriptArchiveSink, TranscriptEntry } from './transcripts.js';
+import { join, parse, resolve } from 'node:path';
+import {
+  TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT,
+  serializeTranscriptArchiveArtifact,
+} from './transcripts.js';
+import type {
+  TranscriptArchiveArtifact,
+  TranscriptArchiveSink,
+  TranscriptEntry,
+} from './transcripts.js';
 
 /** Default durable archive dir, outside the live DB so it survives DB loss. */
 export function defaultTranscriptArchiveDir(): string {
   return (
-    process.env.PD_TRANSCRIPT_ARCHIVE_DIR?.trim() ||
-    join(homedir(), '.port-daddy', 'transcripts')
+    process.env.PD_TRANSCRIPT_ARCHIVE_DIR?.trim()
+    || join(homedir(), '.port-daddy', 'transcripts')
   );
 }
 
 export interface JsonlArchiveOptions {
   /** Archive directory. Defaults to defaultTranscriptArchiveDir(). */
   dir?: string;
-  /** Date.now injector (tests). */
+  /** Date.now injector used only when a transcript has no lifecycle timestamp. */
   now?: () => number;
-  /**
-   * fsync each append so a crash can't lose the just-written line. Default true —
-   * "MUST RETAIN" wants durability over throughput, and finalize fires once per run.
-   */
-  fsync?: boolean;
   /** Sink for failure reporting (tests); defaults to console.error. */
   onError?: (message: string, err: unknown) => void;
+  /** Narrow I/O seam for adversarial partial-write, fsync, and concurrency tests. */
+  io?: {
+    writeSync?: (
+      fd: number,
+      buffer: Buffer,
+      offset: number,
+      length: number,
+      position: number | null,
+    ) => number;
+    fsyncSync?: (fd: number) => void;
+  };
 }
 
 function dayPartition(ms: number): string {
-  // UTC YYYY-MM-DD — stable, sortable, timezone-independent partitions.
   return new Date(ms).toISOString().slice(0, 10);
 }
 
+function optionalFlag(name: 'O_CLOEXEC' | 'O_DIRECTORY' | 'O_NOFOLLOW' | 'O_NONBLOCK'): number {
+  const value = (constants as unknown as Record<string, unknown>)[name];
+  return typeof value === 'number' ? value : 0;
+}
+
+function sameIdentity(left: Stats, right: Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+function assertCurrentUserOwner(stats: Stats, label: string): void {
+  if (typeof process.getuid === 'function' && stats.uid !== process.getuid()) {
+    throw new Error(`${label} is not owned by the daemon user`);
+  }
+}
+
+function assertPrivateDirectory(stats: Stats, label: string): void {
+  if (stats.isSymbolicLink() || !stats.isDirectory()) {
+    throw new Error(`${label} is not a safe archive directory`);
+  }
+  assertCurrentUserOwner(stats, label);
+}
+
+function assertPrivateFile(stats: Stats, label: string): void {
+  if (stats.isSymbolicLink() || !stats.isFile() || stats.nlink !== 1) {
+    throw new Error(`${label} is not a safe archive file`);
+  }
+  assertCurrentUserOwner(stats, label);
+}
+
+function lstatIfPresent(path: string): Stats | null {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function assertPathIdentity(path: string, expected: Stats, label: string): void {
+  const current = lstatSync(path);
+  assertPrivateDirectory(current, label);
+  if (!sameIdentity(current, expected)) {
+    throw new Error(`${label} changed during archive publication`);
+  }
+}
+
+function openPrivateDirectory(
+  path: string,
+  label: string,
+  create: 'recursive' | 'single',
+): { fd: number; identity: Stats } {
+  if (create === 'recursive') {
+    mkdirSync(path, { recursive: true, mode: 0o700 });
+  } else {
+    try {
+      mkdirSync(path, { mode: 0o700 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+  }
+
+  const before = lstatSync(path);
+  assertPrivateDirectory(before, label);
+  const fd = openSync(
+    path,
+    constants.O_RDONLY
+      | optionalFlag('O_CLOEXEC')
+      | optionalFlag('O_DIRECTORY')
+      | optionalFlag('O_NOFOLLOW')
+      | optionalFlag('O_NONBLOCK'),
+  );
+  try {
+    const opened = fstatSync(fd);
+    assertPrivateDirectory(opened, `opened ${label}`);
+    if (!sameIdentity(before, opened)) {
+      throw new Error(`${label} changed while opening`);
+    }
+    fchmodSync(fd, 0o700);
+    const secured = fstatSync(fd);
+    if ((secured.mode & 0o777) !== 0o700) {
+      throw new Error(`${label} permissions are not private`);
+    }
+    assertPathIdentity(path, opened, label);
+    return { fd, identity: opened };
+  } catch (error) {
+    closeSync(fd);
+    throw error;
+  }
+}
+
+function writeCompleteArtifact(
+  fd: number,
+  bytes: Buffer,
+  write: NonNullable<NonNullable<JsonlArchiveOptions['io']>['writeSync']>,
+): void {
+  let offset = 0;
+  while (offset < bytes.length) {
+    const remaining = bytes.length - offset;
+    const written = write(fd, bytes, offset, remaining, null);
+    if (!Number.isSafeInteger(written) || written <= 0 || written > remaining) {
+      throw new Error(
+        `transcript archive write made invalid progress (${written}/${remaining} bytes)`,
+      );
+    }
+    offset += written;
+  }
+}
+
+function openPrivateTemp(
+  path: string,
+  partitionPath: string,
+  partitionIdentity: Stats,
+): { fd: number; identity: Stats } {
+  assertPathIdentity(partitionPath, partitionIdentity, 'transcript archive partition');
+  const fd = openSync(
+    path,
+    constants.O_WRONLY
+      | constants.O_CREAT
+      | constants.O_EXCL
+      | optionalFlag('O_CLOEXEC')
+      | optionalFlag('O_NOFOLLOW')
+      | optionalFlag('O_NONBLOCK'),
+    0o600,
+  );
+  try {
+    const opened = fstatSync(fd);
+    assertPrivateFile(opened, 'opened transcript archive temp');
+    fchmodSync(fd, 0o600);
+    const secured = fstatSync(fd);
+    if ((secured.mode & 0o777) !== 0o600) {
+      throw new Error('transcript archive temp permissions are not private');
+    }
+    const named = lstatSync(path);
+    assertPrivateFile(named, 'transcript archive temp');
+    if (!sameIdentity(opened, named)) {
+      throw new Error('transcript archive temp changed while opening');
+    }
+    assertPathIdentity(partitionPath, partitionIdentity, 'transcript archive partition');
+    return { fd, identity: opened };
+  } catch (error) {
+    closeSync(fd);
+    throw error;
+  }
+}
+
+function verifyPrivateArtifact(
+  path: string,
+  expectedBytes: Buffer,
+  sync: NonNullable<NonNullable<JsonlArchiveOptions['io']>['fsyncSync']>,
+): void {
+  const before = lstatSync(path);
+  assertPrivateFile(before, 'transcript archive artifact');
+  const fd = openSync(
+    path,
+    constants.O_RDONLY
+      | optionalFlag('O_CLOEXEC')
+      | optionalFlag('O_NOFOLLOW')
+      | optionalFlag('O_NONBLOCK'),
+  );
+  try {
+    const opened = fstatSync(fd);
+    assertPrivateFile(opened, 'opened transcript archive artifact');
+    if (!sameIdentity(before, opened)) {
+      throw new Error('transcript archive artifact changed while opening');
+    }
+    fchmodSync(fd, 0o600);
+    const secured = fstatSync(fd);
+    if ((secured.mode & 0o777) !== 0o600) {
+      throw new Error('transcript archive artifact permissions are not private');
+    }
+    if (secured.size !== expectedBytes.length) {
+      throw new Error('transcript archive artifact length does not match its receipt');
+    }
+    const actual = readFileSync(fd);
+    if (!actual.equals(expectedBytes)) {
+      throw new Error('transcript archive artifact digest does not match its receipt');
+    }
+    const after = lstatSync(path);
+    assertPrivateFile(after, 'transcript archive artifact');
+    if (!sameIdentity(opened, after)) {
+      throw new Error('transcript archive artifact changed during verification');
+    }
+    sync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function unlinkOwnedTemp(
+  path: string,
+  identity: Stats,
+  partitionPath: string,
+  partitionIdentity: Stats,
+): void {
+  try {
+    assertPathIdentity(partitionPath, partitionIdentity, 'transcript archive partition');
+    const named = lstatIfPresent(path);
+    if (!named || !sameIdentity(named, identity)) return;
+    assertPrivateFile(named, 'transcript archive temp');
+    unlinkSync(path);
+  } catch {
+    // Never risk unlinking through a changed parent/name. A private orphan temp
+    // is safer than deleting an object whose identity can no longer be proven.
+  }
+}
+
 /**
- * Append-only JSONL archive. One file per UTC day:
- *   <dir>/transcripts-YYYY-MM-DD.jsonl
- * One JSON line per finalized transcript (the full TranscriptEntry).
+ * Immutable JSONL archive. One private directory per UTC day and one
+ * content-addressed, one-record artifact per finalized transcript:
+ *
+ *   <dir>/YYYY-MM-DD/transcript-<sha256>.jsonl
  */
 export function createJsonlTranscriptArchive(
   opts: JsonlArchiveOptions = {},
 ): TranscriptArchiveSink {
-  const dir = opts.dir ?? defaultTranscriptArchiveDir();
-  const now = opts.now ?? Date.now;
-  const doFsync = opts.fsync ?? true;
-  const onError =
-    opts.onError ??
-    ((message: string, err: unknown) =>
-      // Loud-fail on the failure path: retention loss must be visible.
-      console.error(`[transcript-archive] RETENTION FAILURE: ${message}`, err));
-
-  let dirReady = false;
-  function ensureDir(): void {
-    if (dirReady) return;
-    mkdirSync(dir, { recursive: true });
-    dirReady = true;
+  const dir = resolve(opts.dir ?? defaultTranscriptArchiveDir());
+  if (dir === parse(dir).root) {
+    throw new Error('transcript archive directory cannot be a filesystem root');
   }
 
+  const now = opts.now ?? Date.now;
+  const write = opts.io?.writeSync ?? nodeWriteSync;
+  const sync = opts.io?.fsyncSync ?? nodeFsyncSync;
+  const onError = opts.onError ?? ((message: string, err: unknown) => {
+    console.error(`[transcript-archive] RETENTION FAILURE: ${message}`, err);
+  });
+
   return {
-    archive(entry: TranscriptEntry): void {
+    archive(entry: TranscriptEntry) {
+      let rootFd: number | null = null;
+      let partitionFd: number | null = null;
+      let tempFd: number | null = null;
+      let tempPath: string | null = null;
+      let tempIdentity: Stats | null = null;
+      let cleanupPartitionPath: string | null = null;
+      let cleanupPartitionIdentity: Stats | null = null;
+
       try {
-        ensureDir();
-        // Partition by run end (or start, or now) — whichever timestamp we have.
+        const bytes = serializeTranscriptArchiveArtifact(entry);
+        const digest = createHash('sha256').update(bytes).digest('hex');
         const ts = entry.ended_at ?? entry.started_at ?? now();
-        const file = join(dir, `transcripts-${dayPartition(ts)}.jsonl`);
-        const line = JSON.stringify({ archived_at: now(), ...entry }) + '\n';
-        if (doFsync) {
-          const fd = openSync(file, 'a');
-          try {
-            writeSync(fd, line);
-            fsyncSync(fd);
-          } finally {
-            closeSync(fd);
-          }
-        } else {
-          appendFileSync(file, line);
+        const partitionName = dayPartition(ts);
+        const partitionPath = join(dir, partitionName);
+        const artifactName = `transcript-${digest}.jsonl`;
+        const artifactPath = join(partitionPath, artifactName);
+        const artifact: TranscriptArchiveArtifact = {
+          locator: join(partitionName, artifactName),
+          sha256: digest,
+          bytes: bytes.length,
+          format: TRANSCRIPT_ARCHIVE_ARTIFACT_FORMAT,
+        };
+
+        const root = openPrivateDirectory(dir, 'transcript archive directory', 'recursive');
+        rootFd = root.fd;
+        assertPathIdentity(dir, root.identity, 'transcript archive directory');
+
+        const partition = openPrivateDirectory(
+          partitionPath,
+          'transcript archive partition',
+          'single',
+        );
+        partitionFd = partition.fd;
+        cleanupPartitionPath = partitionPath;
+        cleanupPartitionIdentity = partition.identity;
+        assertPathIdentity(dir, root.identity, 'transcript archive directory');
+        assertPathIdentity(partitionPath, partition.identity, 'transcript archive partition');
+
+        const existing = lstatIfPresent(artifactPath);
+        if (existing) {
+          // Never overwrite or follow a pre-planted symlink/unsafe target. An
+          // exact immutable artifact is the only idempotent success case.
+          assertPrivateFile(existing, 'transcript archive artifact');
+          verifyPrivateArtifact(artifactPath, bytes, sync);
+          assertPathIdentity(partitionPath, partition.identity, 'transcript archive partition');
+          sync(partitionFd);
+          sync(rootFd);
+          return { ok: true, artifact } as const;
         }
+
+        tempPath = join(
+          partitionPath,
+          `.${artifactName}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`,
+        );
+        const temp = openPrivateTemp(tempPath, partitionPath, partition.identity);
+        tempFd = temp.fd;
+        tempIdentity = temp.identity;
+        writeCompleteArtifact(tempFd, bytes, write);
+        // A success path cannot pass this point until every artifact byte exists.
+        sync(tempFd);
+        closeSync(tempFd);
+        tempFd = null;
+
+        assertPathIdentity(dir, root.identity, 'transcript archive directory');
+        assertPathIdentity(partitionPath, partition.identity, 'transcript archive partition');
+
+        const racedArtifact = lstatIfPresent(artifactPath);
+        if (racedArtifact) {
+          // Another writer won. Accept only its byte-identical durable artifact;
+          // this writer then removes only its own private temp.
+          assertPrivateFile(racedArtifact, 'transcript archive artifact');
+          verifyPrivateArtifact(artifactPath, bytes, sync);
+          unlinkOwnedTemp(tempPath, tempIdentity, partitionPath, partition.identity);
+          tempPath = null;
+          tempIdentity = null;
+          sync(partitionFd);
+          sync(rootFd);
+          return { ok: true, artifact } as const;
+        }
+
+        // rename(2) atomically publishes the complete temp. If a final symlink
+        // appears after the precheck, rename replaces that directory entry and
+        // never follows it; subsequent identity and byte verification still
+        // fails closed on any parent/target swap.
+        renameSync(tempPath, artifactPath);
+        tempPath = null;
+        tempIdentity = null;
+
+        assertPathIdentity(dir, root.identity, 'transcript archive directory');
+        assertPathIdentity(partitionPath, partition.identity, 'transcript archive partition');
+        verifyPrivateArtifact(artifactPath, bytes, sync);
+        // Persist both the partition entry and a newly created partition name.
+        sync(partitionFd);
+        sync(rootFd);
+        return { ok: true, artifact } as const;
       } catch (err) {
-        onError(`failed to archive transcript ${entry?.id}`, err);
+        try {
+          onError(`failed to archive transcript ${entry?.id}`, err);
+        } catch {
+          // Failure reporting cannot convert a negative retention receipt into a throw.
+        }
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        } as const;
+      } finally {
+        if (tempFd !== null) {
+          try { closeSync(tempFd); } catch { /* negative receipts must not throw */ }
+        }
+        if (tempPath && tempIdentity && cleanupPartitionPath && cleanupPartitionIdentity) {
+          // A failed writer never truncates or removes the shared final artifact.
+          unlinkOwnedTemp(
+            tempPath,
+            tempIdentity,
+            cleanupPartitionPath,
+            cleanupPartitionIdentity,
+          );
+        }
+        if (partitionFd !== null) {
+          try { closeSync(partitionFd); } catch { /* negative receipts must not throw */ }
+        }
+        if (rootFd !== null) {
+          try { closeSync(rootFd); } catch { /* negative receipts must not throw */ }
+        }
       }
     },
   };
-}
-
-/**
- * Backfill: archive every transcript currently in the DB, so retention covers
- * history, not just runs from now on ("log ALL transcripts"). Idempotent at the
- * archive level only by append — callers run it once after first enabling the
- * archive. Returns the count archived.
- */
-export function backfillTranscriptArchive(
-  listTranscripts: () => TranscriptEntry[],
-  getTranscript: (id: string) => TranscriptEntry | null,
-  sink: TranscriptArchiveSink,
-): { archived: number } {
-  let archived = 0;
-  for (const header of listTranscripts()) {
-    // listTranscripts may return headers without messages/outputs — re-hydrate.
-    const full = getTranscript(header.id) ?? header;
-    sink.archive(full);
-    archived += 1;
-  }
-  return { archived };
 }

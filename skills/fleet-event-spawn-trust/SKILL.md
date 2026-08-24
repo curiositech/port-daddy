@@ -157,6 +157,11 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
 - [ ] Every file sink/trigger path goes through `containPath`.
 - [ ] Each new attack vector gets a named regression test.
 - [ ] Macaroon tool/tier caveats covered by ProVerif before they are load-bearing.
+- [ ] Durable evidence sinks publish immutable artifacts from unique private
+      temps; shared append rollback is not process-safe. Fsync only after the
+      complete write, atomically publish, clamp directories/files to least
+      privilege, reject symlink/unsafe targets, and require a receipt binding the
+      exact artifact locator/digest/size/format before pruning live evidence.
 
 ## Residual (sound fixes not yet shipped — see ADR-0093 §10)
 

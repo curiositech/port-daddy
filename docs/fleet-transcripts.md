@@ -9,7 +9,8 @@ read the conversation back via:
 - `pd transcripts show <id>` — full conversation rendered to the terminal
 - `pd transcripts watch` — live tail of new transcripts (SSE)
 - `pd transcripts cost --since 1d` — cost rollup by ship + day
-- `pd transcripts delete <id>` — destructive (confirmed)
+- `pd transcripts delete <id>` — destructive CLI bridge (confirmation is not
+  server-side authority)
 - The "Fleet Transcripts" panel in the Port Daddy dashboard
 
 The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
@@ -72,6 +73,41 @@ The HTTP surface lives at `/transcripts*`. See `routes/transcripts.ts`.
   transcripts table inherits the same restriction — `fleet_transcripts`
   contents are operator-readable only.
 
+### Durable archive
+
+- Each finalized snapshot is serialized as one JSONL record and published as
+  `<root>/YYYY-MM-DD/transcript-<sha256>.jsonl`.
+- Writers use unique `O_EXCL`/`O_NOFOLLOW` private temps, complete every byte,
+  fsync before atomic publication, verify the final bytes, and fsync the
+  partition/root directories. A failed writer removes only its own temp, so it
+  cannot truncate or erase a concurrent writer's retained record.
+- Archive roots and partitions are created or clamped to `0700`; temp and final
+  files are `0600`. Symlink, non-regular, wrong-owner, and multiply-linked
+  targets fail closed.
+- `fleet_transcript_archive_receipts` records exact snapshot and artifact
+  digests, locator, byte count, format, attempts, and success/failure. A generic
+  success bit or mismatched evidence is failure. Replays skip only an exact
+  matching success.
+- The first terminal `finalize()` transition wins. An asynchronous backend
+  completion cannot rewrite a prior kill or produce a second archive receipt.
+- `recordTranscript()` emits an `end` event and archives only when its imported
+  snapshot is terminal. It does not inherit `finalize()`'s first-terminal-wins
+  guarantee and remains the CAP0/BOOT0-blocked legacy full-entry bridge.
+
+### Write-authority blocker
+
+The current `POST`/`DELETE` routes in `routes/transcripts.ts` are a legacy,
+self-asserted bridge. They are not authenticated operator authority, including
+on real loopback or Unix transport. Do not treat CLI confirmation, peer/process
+metadata, `Host`, forwarding headers, reusable actor credentials, or a
+caller-supplied redemption receipt as permission to mutate transcripts.
+
+CAP0/BOOT0 must land before Q1 can supplant these endpoints. Delete/backfill
+must redeem a one-use action/resource/actor-scoped capability directly in the
+route/action service, and delete must also prove an exact durable archive
+receipt for the current terminal snapshot. The storage slice does not activate
+automatic Parley or make these mutation routes final.
+
 ## Schema (DDL)
 
 See `lib/transcripts.ts` `SCHEMA_STATEMENTS` for the source of truth.
@@ -118,13 +154,26 @@ CREATE TABLE fleet_transcript_outputs (
   summary TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE fleet_transcript_archive_receipts (
+  transcript_id TEXT PRIMARY KEY,
+  content_sha256 TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('succeeded', 'failed')),
+  attempted_at INTEGER NOT NULL,
+  succeeded_at INTEGER,
+  last_error TEXT,
+  artifact_locator TEXT,
+  artifact_sha256 TEXT,
+  artifact_bytes INTEGER,
+  artifact_format TEXT,
+  attempts INTEGER NOT NULL DEFAULT 1
+);
 ```
 
 ## Hooking a fleet ship into transcripts
 
-If a ship needs to record outputs the spawner can't automatically detect
-(PR comment URLs, draft PR refs, commit SHAs), call `POST
-/transcripts/:id/outputs` from the ship at the moment the artifact is
-created. The transcript id is returned to the operator as part of the SSE
-`start` event, and is also visible in `pd transcripts list` as the first
-column for the most recent run.
+Spawner-owned in-process calls are the canonical producer path. The current
+`POST /transcripts/:id/outputs` bridge can still append an output, but it is
+unauthenticated and therefore cannot establish trusted producer provenance.
+Do not add callers to that bridge while Q1 is blocked on CAP0/BOOT0; the
+authority lane must supplant it rather than preserve a downgrade.
