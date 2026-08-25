@@ -62,13 +62,27 @@ describe('fleet web app manifest', () => {
   });
 });
 
+/** PNG IHDR: width and height are big-endian u32s at byte offsets 16 and 20. */
+function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
 describe('fleet icons', () => {
-  it('every icon route answers a real PNG', async () => {
-    for (const res of [handleFleetAppleTouchIcon(), handleFleetIcon192(), handleFleetIcon512()]) {
+  it('every icon route answers a real PNG at its declared size', async () => {
+    const cases: Array<[Response, number]> = [
+      [handleFleetAppleTouchIcon(), 180],
+      [handleFleetIcon192(), 192],
+      [handleFleetIcon512(), 512],
+    ];
+    for (const [res, size] of cases) {
       expect(res.status).toBe(200);
       expect(res.headers.get('Content-Type')).toBe('image/png');
       const bytes = new Uint8Array(await res.arrayBuffer());
       expect(Array.from(bytes.slice(0, 8))).toEqual(PNG_MAGIC);
+      // The declared sizes are a contract with the manifest and the
+      // apple-touch convention — a mislabeled icon installs blurry.
+      expect(pngDimensions(bytes)).toEqual({ width: size, height: size });
     }
   });
 });
@@ -86,6 +100,28 @@ describe('router: PWA assets are public', () => {
       const res = await worker.fetch(req(path), env, {} as ExecutionContext);
       expect(res.status).toBe(200);
       expect(res.headers.get('Content-Type')).toBe(contentType);
+      // Exact cache posture on every asset: public and day-long — these are
+      // app metadata, the one thing on /fleet that is ALLOWED to cache — and
+      // nosniff so nothing reinterprets them.
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=86400');
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    }
+  });
+
+  it('the asset routes are GET-only — other methods fall through to the 404 posture', async () => {
+    const env = {} as Env;
+    for (const path of [
+      '/fleet/manifest.webmanifest',
+      '/fleet/apple-touch-icon.png',
+      '/fleet/icon-192.png',
+      '/fleet/icon-512.png',
+    ]) {
+      const res = await worker.fetch(
+        new Request(`https://relay.example${path}`, { method: 'POST' }),
+        env,
+        {} as ExecutionContext,
+      );
+      expect(res.status).toBe(404);
     }
   });
 
@@ -107,6 +143,10 @@ describe('router: PWA assets are public', () => {
     expect(html).toContain('<meta name="theme-color" content="#f2eee6" media="(prefers-color-scheme: light)">');
     expect(html).toContain('<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">');
     expect(html).toContain('<meta name="apple-mobile-web-app-title" content="PD Fleet">');
+    // viewport-fit=cover without safe-area padding would tuck content under
+    // the notch — the two ship together or not at all.
+    expect(html).toContain('env(safe-area-inset-top');
+    expect(html).toContain('env(safe-area-inset-bottom');
   });
 
   it('manifest icon srcs resolve to routes this router actually serves', async () => {
