@@ -26,15 +26,29 @@
 #
 #   2c. Arm the landing hand (OPTIONAL — presence of this secret is the
 #       switch; without it every LAND verdict logs "seat holds no landing
-#       capability" and nothing merges). Mint a SEPARATE fine-grained PAT,
+#       capability" and nothing is enqueued). Mint a SEPARATE fine-grained PAT,
 #       scoped to this one repo, with Contents: Read+Write and
 #       Pull requests: Read+Write — and NO admin/bypass rights. Non-admin is
-#       load-bearing: GitHub refuses the merge whenever branch protection
+#       load-bearing: GitHub refuses the landing whenever branch protection
 #       (required checks, reviews) is unsatisfied, so the charter's "never
 #       land over a real red" is enforced by the platform. This token is held
 #       by the seat and by nothing else — revoking it disarms landing without
 #       touching the survey eyes:
 #        wrangler secret put STEWARD_LAND_TOKEN
+#
+#       WHAT "LANDING" MEANS HERE: the seat ADDS THE PR TO THE MERGE QUEUE
+#       (GraphQL `enqueuePullRequest`), it does not merge directly. On a repo
+#       whose protection requires a queue, a direct merge is rejected outright
+#       — and where it would succeed it would bypass the protection it exists
+#       to obey. A merge authority whose landing verb skips the queue is not
+#       enforcing the repo's rules, it is outranking them. The queue merges on
+#       its own clock afterwards, so a LAND verdict in the deck log means
+#       "accepted into the queue", never "already on main".
+#
+#       The token therefore also needs whatever scope the merge queue requires
+#       for the enqueue mutation; Pull requests: Read+Write covers it today.
+#       If enqueuing starts failing with a scope error after a GitHub change,
+#       that is the permission to revisit — not Contents.
 #
 #       Protected paths (.github/workflows/, Formula/, core/kernel/,
 #       apps/relay/src/auth.ts, docs/adr/) additionally require a per-PR

@@ -443,13 +443,20 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
    operator can read is not a vital sign; it is a file. Shipping merge authority whose only
    audit surface is `wrangler d1 execute` reproduces the failure at a higher level.
 
-7. **The landing verb.** `landPr()` issues `PUT /repos/{owner}/{repo}/pulls/{n}/merge` with
-   `merge_method: squash` — a *direct merge*. This repo lands through a required merge queue
-   (proven: a direct merge attempt returns `405 Pull Request is in the merge queue`, and the
-   queue's `gh-readonly-queue/main/pr-*` branches are in the Actions history). So an armed
-   seat would be rejected or would bypass the queue. The seat must **enqueue**, not merge.
-   Until this lands, `STEWARD_LAND_TOKEN` should stay unset: the seat decides correctly and
-   is one wrong HTTP verb away from being able to act.
+7. **The landing verb — SHIPPED.** `landPr()` used to issue
+   `PUT /repos/{owner}/{repo}/pulls/{n}/merge` with `merge_method: squash` — a *direct
+   merge*. This repo lands through a required merge queue (proven: a direct merge returns
+   `405 Pull Request is in the merge queue`, and the queue's `gh-readonly-queue/main/pr-*`
+   branches are in the Actions history), so an armed seat would have been rejected or, worse,
+   would have bypassed the protection it exists to obey. It now calls GraphQL
+   `enqueuePullRequest`, verified against GitHub's published schema rather than recalled.
+
+   Two properties came out of reading that schema. **`expectedHeadOid` is passed always**,
+   though the API marks it optional: the tick judges a specific head, and between verdict and
+   enqueue the author can push — the guard makes GitHub refuse a commit the seat never
+   reviewed, turning a race into a logged failure. And **a LAND verdict now means "accepted
+   into the queue", not "merged"**; the queue lands it later on its own clock, and the deck
+   log says so rather than implying the PR is already on main.
 
 8. **Episodic wakes.** The other half of PR 1's unbuilt assumption: the relay's webhook
    receiver posts `/wake` on `pull_request` / `check_suite` events, so the seat reacts in
