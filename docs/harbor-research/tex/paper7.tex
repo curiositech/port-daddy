@@ -22,12 +22,14 @@ neighbors. Pairwise cross-checking catches a lie exactly on the links that are c
 answers \emph{only}, the next question: when can an analyst convict inconsistency across a link that was \emph{never} checked?
 The answer is a sheaf-consistency statement with a sharp topological boundary. Model the gossip graph with a cellular sheaf whose
 restriction maps are shared-prefix coordinate selections, and compute the least-squares \emph{completion residual} $r$ of the
-compared-plus-relayed data. Then (i) detection beyond pairwise comparison occurs iff the unchecked edge lies on a cycle whose
-endpoint reports are relayed to the analyst --- on a cut edge $r=0$ by algebra, and across a truly severed edge equivocation is
-provably dark; (ii) $r>0$ is sound: no global history explains the visible data, and \emph{any} offset pattern consistent with it
+compared-plus-relayed data. Then (i) for a single equivocator, detection of a split-view lie beyond pairwise comparison occurs
+iff the unchecked edge lies on a cycle of the \emph{visible} coordinate subgraph --- the compared-plus-relayed links carrying
+that coordinate --- with its endpoints' reports relayed to the analyst; on a cut edge of that subgraph $r=0$ by algebra, and
+across a truly severed edge equivocation is provably dark; (ii) $r>0$ is sound: no global history explains the visible data, and \emph{any} offset pattern consistent with it
 has norm at least $r$, with equality achieved --- $r$ is a certified lower bound on the injected lie, in closed form
-$r=|s|\sqrt{1-R_{\mathrm{eff}}(e)}$ for a single-edge lie (the harness's $1.2247$ \emph{is} $3\sqrt{1-5/6}$); (iii) the residual
-localizes to cycles through the equivocator, and computes in $\widetilde{O}(|E|\cdot L)$ via per-coordinate graph Laplacians. The
+$r=|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}$ for a single-edge lie, the effective resistance being measured in that same
+visible subgraph (the harness's $1.2247$ \emph{is} $3\sqrt{1-5/6}$); (iii) the residual
+localizes to visible cycles through the equivocator, and computes in $\widetilde{O}(|E|\cdot L)$ via per-coordinate graph Laplacians. The
 scope discipline is the signature: single equivocator (coalitions on a cycle cancel to zero, measured at $6\times10^{-15}$), no
 attribution ever (signatures attribute; cohomology localizes), and vanishing $r$ is never an all-clear. A pre-registered
 statistical harness returned verdict COMMIT with the cut-edge silence at float epsilon and the severed arm at $0/200$.
@@ -51,16 +53,17 @@ precisely this question, and the scope discipline is the paper's signature: we c
 single global history explains the visible reports --- on an exactly characterized set of topologies and visibility patterns,
 and we prove darkness everywhere else, rather than letting the word ``cohomology'' imply more.
 
-\textbf{Express lane.} One sentence per result, formal statements in the boxes. Detection beyond pairwise comparison happens
-iff the unchecked edge lies on a cycle and its endpoints' reports are relayed to the analyst --- cut edges are provably
-silent, severed edges provably dark (box in \S\ref{sec:mechanism}); the completion residual $r$ is a certified lower bound on
-the lie any adversary must have injected, with closed form $r=|s|\sqrt{1-R_{\mathrm{eff}}(e)}$ (box in \S\ref{sec:radius});
+\textbf{Express lane.} One sentence per result, formal statements in the boxes. For a single equivocator, detection beyond
+pairwise comparison happens iff the unchecked edge lies on a cycle \emph{the analyst can see} --- one built entirely from
+compared and relayed links --- and its endpoints' reports are relayed to the analyst; cut edges of that visible subgraph are
+provably silent, severed edges provably dark (box in \S\ref{sec:mechanism}); the completion residual $r$ is a certified lower bound on
+the lie any adversary must have injected, with closed form $r=|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}$ (box in \S\ref{sec:radius});
 the residual localizes to cycles through the equivocator and costs at most $L$ scalar Laplacian solves (same box); and the
 statistical harness that validated all of it was pre-registered and returned COMMIT (box in \S\ref{sec:harness}).
 
-\onebreath{The idea in one breath: honest gossip is a global section, so the disagreement data of an honest world is a
-coboundary --- and around every cycle a coboundary must sum to zero, which lets relayed-but-never-compared reports convict an
-equivocator exactly when the missing comparison closes a loop, and provably never otherwise.}
+\onebreath{The idea in one breath: if everyone is honest there is one true history behind every report, and then the
+disagreements the relays report must cancel around every loop of the gossip graph --- so a loop that fails to cancel convicts
+an equivocator across a link nobody ever checked, and where the analyst can close no loop, nothing can be seen at all.}
 
 \textbf{The analogy, mapped by relations.} Wristwatches around a table (Figure~\ref{fig:r6rel}): each adjacent pair reports
 the \emph{offset} between their watches, never the absolute times. If everyone is consistent, the offsets around the full
@@ -69,7 +72,13 @@ showing different times to different neighbors, \emph{without knowing any absolu
 check}: the rest of the loop substitutes for it. The relation that transfers, not the surface: loop-sum $=$ cocycle
 condition; missing comparison on a loop $=$ unchecked edge on a cycle; and --- the misread to preempt --- a watch at the end
 of a \emph{line} of tables can lie freely, because no loop passes through it: the telescoping argument needs the loop, and so
-does the theorem.
+does the theorem. Note also which loops count: a loop is only usable if the analyst hears about \emph{every} pair on it, so a
+table where one adjacent pair never reports is, for this argument, a line and not a loop.
+
+Those plain phrases have technical names, and \S\ref{sec:vocab} supplies them: ``one true history'' is a \emph{global
+section}, ``the disagreements that history would produce'' is a \emph{coboundary}, ``cancels around every loop'' is the
+\emph{cocycle condition}, and ``how far the reports sit from any one true history'' is the \emph{completion residual} $r$.
+Nothing in the paper needs more than those four.
 
 \input{fig-r6-relation.tex}
 
@@ -78,7 +87,8 @@ does the theorem.
 This paper borrows its machinery from applied algebraic topology, and that field's vocabulary is forbidding out of
 proportion to what it actually asks of the reader. Everything below is linear algebra on a graph. A reader who is
 comfortable with incidence matrices and least squares already has the prerequisites; what follows is a dictionary, in the
-order the terms are needed, each defined the sentence after it is named and then used immediately.
+order the terms are needed, each defined the sentence after it is named and then exercised immediately --- on the six relays
+of \S\ref{sec:problem}, so that every abstract term lands on the same concrete scene rather than on a fresh one.
 
 A \emph{cellular sheaf} on a graph is a bookkeeping device for local data that is supposed to agree along edges: it assigns
 a vector space to each vertex, a vector space to each edge, and a linear map from each vertex into each edge it touches.
@@ -88,26 +98,35 @@ its two endpoints both report, and to each (vertex, edge) pair the map that sele
 are the canonical data structure for sensor integration~\cite{robinson} is meant literally.
 
 The vertex space $\mathbb{R}^{d_v}$ is the \emph{stalk} at $v$ --- the set of values that vertex could locally hold, with no
-reference to what its neighbours hold. The maps out of it are the \emph{restriction maps}: restriction, because they cut a
-vertex's full state down to the part an edge can see. In our setting a restriction map is a coordinate selection, nothing
-more exotic --- ``report the first $k$ entries of your log,'' as a matrix.
+reference to what its neighbours hold. Relay 3 of the scene has a stalk: the five log-head entries it could report, one real
+number each, so $d_3=5$ (the harness of \S\ref{sec:harness} runs $\mathbb{R}^5$ stalks throughout). The maps out of it are
+the \emph{restriction maps}: restriction, because they cut a vertex's full state down to the part an edge can see. On the
+link between relays 3 and 4, which reconcile only their first two entries, the restriction map is the two-row matrix that
+keeps entries 1 and 2 and drops the rest. In our setting a restriction map is always a coordinate selection, nothing more
+exotic --- ``report the first $k$ entries of your log,'' as a matrix.
 
 The \emph{coboundary} $\delta$ is the operator that takes an assignment of a value to every vertex and returns, for every
 edge, the disagreement its two endpoints report there. For scalar stalks on a graph it \emph{is} the signed incidence
 matrix, and $\delta x$ is the familiar vector of differences $x_u - x_v$ along each edge. A disagreement pattern $g$ that
 equals $\delta x$ for some $x$ is called a \emph{coboundary}: it is exactly a pattern that some consistent global assignment
 would have produced. This is the paper's load-bearing definition. Honesty means the observed disagreements are a
-coboundary; equivocation means they are not.
+coboundary; equivocation means they are not. Concretely, on the six-relay ring the observable is six numbers, one per link
+--- that column of six is the object the entire apparatus operates on, and \S\ref{sec:mechanism} writes a four-relay
+instance of it out in full and checks it by hand.
 
 A \emph{global section} is such an $x$ --- one assignment of a log state to every witness that simultaneously explains every
-edge's reported disagreement. ``No global section exists'' is the formal content of ``no single history explains what
-everyone reported,'' and it is the only thing this paper ever convicts anyone of.
+edge's reported disagreement. For the six-relay scene it is six numbers, one per relay, that the auditor would have to be
+able to write down for the green table of comparisons to be honest. ``No global section exists'' is the formal content of
+``no single history explains what everyone reported,'' and it is the only thing this paper ever convicts anyone of.
 
 The \emph{cycle space} of a graph is the set of edge-weightings that circulate --- flow in equals flow out at every vertex
 --- and its dimension is the number of independent loops, written $\beta_1$. It matters because of one elementary fact: a
 coboundary summed around any cycle telescopes to zero. Walk a loop adding up $x_u - x_v$ and every term cancels. So the
 cycle space is precisely the set of directions in which an honest world \emph{cannot} have disagreement, which is why a
-nonzero component there is evidence and a nonzero component anywhere else is not.
+nonzero component there is evidence and a nonzero component anywhere else is not. The six-relay ring has $\beta_1=1$: one
+loop, so exactly one direction of evidence. The same six relays in a chain have $\beta_1=0$, no direction of evidence at
+all --- and, crucially for what follows, so does the ring once a link goes dark, because the loop the argument needs must be
+built from links the analyst can actually see.
 
 \emph{Cokernel} and $H^1$ name that same space from the algebraic side: $\operatorname{coker}(\delta)$ is what edge-data
 space has left over after you remove everything $\delta$ can produce, i.e.\ everything an honest world could have generated.
@@ -120,10 +139,15 @@ global sections $x$, and over all values the analyst cannot see, minimise the Eu
 and what $\delta x$ predicts. It is zero exactly when some honest world fits the evidence.
 
 \emph{Effective resistance} $R_{\mathrm{eff}}(e)$ is the resistance measured across edge $e$ when the graph is treated as a
-circuit of unit resistors. It appears in \S\ref{sec:radius} for a reason that is physical rather than formal: a lie on an
-edge is hard to detect exactly when the rest of the graph could have produced the same disagreement pattern by itself,
-which is the same condition as current finding an easy alternative path. On a bridge, $R_{\mathrm{eff}}=1$ and the lie hides
-completely; around a long cycle it approaches $1$ and conviction weakens like $1/\sqrt{n}$.
+circuit of unit resistors --- and, throughout this paper, measured on the \emph{visible} subgraph of \S\ref{sec:model}, since
+a detour through a link the analyst cannot see is not a detour the analyst can take. It appears in \S\ref{sec:radius} for a
+reason that is physical rather than formal: a lie on an edge is hard to detect exactly when the rest of the graph could have
+produced the same disagreement pattern by itself --- which is the condition that current finds \emph{no} cheap alternative
+path around the edge, i.e.\ \emph{high} effective resistance. On a bridge nothing routes around $e$ at all,
+$R_{\mathrm{eff}}=1$, and the lie hides completely; around a long cycle the only detour is long, $R_{\mathrm{eff}}$
+approaches $1$, and conviction weakens like $1/\sqrt{n}$. At the other end of the scale a well-connected edge has many cheap
+alternative paths, $R_{\mathrm{eff}}$ near $0$, and the lie is convicted at nearly its full size: the certified fraction is
+$\sqrt{1-R_{\mathrm{eff}}}$, largest exactly where the alternative paths are easiest.
 
 Finally the \emph{graph Laplacian} $\delta^{\!\top}\delta$ is the matrix whose linear systems compute all of the above, and
 whose near-linear-time solvers~\cite{spielman-teng} are what make the detector cheap enough to run every gossip round.
@@ -141,18 +165,33 @@ $g_e=\rho_{u,e}(\text{$u$'s report})-\rho_{v,e}(\text{$v$'s report})$. Honesty m
 $x$: then $g=\delta x$ is a coboundary of the sheaf coboundary $\delta$, and every cycle-sum of $g$ vanishes. Equivocation is
 an offset pattern $\varepsilon$ added to $q$'s per-neighbor reports; it is invisible pairwise on any edge not directly
 compared, and the question is what survives in $H^1$ --- the obstruction space $\operatorname{coker}(\delta)$, which for
-prefix restrictions decomposes per shared coordinate $c$ into the cycle spaces of the coordinate subgraphs $G_c$
-[verified framework, \cite{curry,hansen-ghrist}].
+prefix restrictions decomposes per shared coordinate $c$ into the cycle spaces of the \emph{coordinate subgraphs}
+\[
+G_c \;=\; \bigl(V,\ \{e\in E:\ c\in S_e\}\bigr)
+\]
+[verified framework, \cite{curry,hansen-ghrist}]. $G_c$ is what the \emph{federation} has: every link that carries
+coordinate $c$. What the \emph{analyst} has is smaller, and the difference carries Theorem 1 --- see $K_c$ below.
 
 \textbf{Three-tier visibility --- the observability contract.} Not every edge is equally visible to the analyst, and the
 paper's claims are stated \emph{per tier} (Figure~\ref{fig:vis}):
 \begin{itemize}
 \item \textbf{compared} --- the analyst holds the direct cross-check of the edge: pairwise detection, no cohomology needed;
 \item \textbf{relayed} --- both endpoints' reports about the edge reach the analyst by gossip, but the edge itself was never
-checked by its endpoints: this is the tier where cohomology earns its keep, and only on cycles;
+checked by its endpoints: this is the tier where cohomology earns its keep, and only on cycles of $K_c$;
 \item \textbf{severed} --- no report about the edge crosses to the analyst at all: the corresponding data block is a free
 variable of the completion, and equivocation confined there is \emph{provably dark}.
 \end{itemize}
+
+\textbf{The visible coordinate subgraph $K_c$.} Write $K$ for the compared-plus-relayed edge set --- every link the analyst
+holds a report about --- and
+\[
+K_c \;=\; \bigl(V,\ \{e\in K:\ c\in S_e\}\bigr)\ \subseteq\ G_c
+\]
+for its coordinate-$c$ part: the coordinate subgraph with the severed links deleted. Every detection statement in this paper
+is a statement about cycles of $K_c$, never of $G_c$, and the reason is one line of algebra made explicit in the detector
+below --- a severed block is a free variable, so minimising over it simply deletes its row, and a loop that runs through a
+severed link is not a loop the analyst can close. The federation's topology sets $G_c$; the observability contract sets
+$K_c$; only the second one convicts anybody.
 
 \textbf{The detector.} The \emph{completion residual} is the least-squares defect of the best global explanation of
 everything visible:
@@ -160,10 +199,24 @@ everything visible:
 r \;=\; \min_{x,\;g_{\mathrm{sev}}}\ \bigl\|\,g_K-(\delta x)\big|_K\,\bigr\|_2,
 \]
 the minimum over global sections $x$ and free severed blocks $g_{\mathrm{sev}}$, where $K$ is the compared-plus-relayed
-edge set. Honest executions give $r=0$ exactly, for every visibility pattern; $r>0$ certifies that \emph{no} global history
-explains the visible data. Equivalently $r=\|\Pi_K\,g_K\|$, the projection of the visible disagreement data onto the
-per-coordinate cycle spaces: $r^2=\sum_c\|\mathrm{Proj}_{\mathrm{cycle}(G_c)}\,g^c\|^2$
-[internal, \texttt{sheaf\_harness\_v2.py}].
+edge set. The severed blocks are wholly unconstrained, so minimising over them is exactly \emph{dropping their rows}:
+$g_{\mathrm{sev}}$ never enters the objective, and $r=\operatorname{dist}\bigl(g_K,\ \operatorname{im}\delta_K\bigr)$ for
+$\delta_K$ the coboundary restricted to visible edges. Honest executions give $r=0$ exactly, for every visibility pattern;
+$r>0$ certifies that \emph{no} global history explains the visible data. Equivalently $r=\|\Pi_K\,g_K\|$, the projection of
+the visible disagreement data onto the per-coordinate cycle spaces \emph{of the visible subgraphs}:
+\[
+r^2=\sum_c\bigl\|\mathrm{Proj}_{\mathrm{cycle}(K_c)}\,g^c\bigr\|^2,
+\qquad g^c\in\mathbb{R}^{K_c}\ \text{the coordinate-$c$ part of the visible data}
+\]
+[internal, \texttt{sheaf\_harness\_v2.py}]. The derivation is three lines and is the whole bridge from the minimization to
+Theorem 1, so it is worth stating: prefix restrictions are coordinate selections, so $\delta_K$ block-diagonalises per
+coordinate into the signed incidence operator $B_c$ of $K_c$ --- the severed rows having already dropped out; edge space
+splits orthogonally as $\mathbb{R}^{K_c}=\operatorname{im}(B_c)\oplus\ker(B_c^{\!\top})$, cut space plus cycle space; and the
+residual is what is left after removing everything an honest world could have produced, i.e.\ the component in
+$\mathrm{cycle}(K_c)$. Writing $G_c$ here instead would not merely be loose, it would fabricate detections: on $C_6$ with a
+lie of $3$ on a relayed edge and one other cycle edge severed, the residual is $1.1\times10^{-14}$ while the $G_c$ form
+reports $1.2247$ --- and reports a different value again for a different honest world, so it is not even a well-defined
+statistic [internal, \texttt{sheaf\_consistency\_radius.py}].
 
 \input{fig-paper7-visibility.tex}
 
@@ -171,44 +224,88 @@ per-coordinate cycle spaces: $r^2=\sum_c\|\mathrm{Proj}_{\mathrm{cycle}(G_c)}\,g
 kept the autopsies as named defects with reintroduction mutants. \textbf{D1:} v1 drew \emph{random orthonormal projections}
 as restriction maps; for those, $\operatorname{coker}(\delta)$ generically collapses to $0$ and the signal dies --- the
 detector only exists because shared-prefix restrictions make the cokernel isomorphic to
-$\bigoplus_c H^1(G_c)$, cycle space tensor shared coordinates. The rebuilt harness refuses D1's reintroduction by a
+$\bigoplus_c H^1(G_c)$, cycle space tensor shared coordinates (the analyst's computable version of which is
+$\bigoplus_c H^1(K_c)$ --- same statement, visible edges only). The rebuilt harness refuses D1's reintroduction by a
 structural self-check (it observed $\operatorname{coker}=0$ against $\beta_1=7$ and aborted). \textbf{D2:} v1 scored
 ``detections'' on cut and severed edges --- by silently reading hidden-edge data the analyst was not entitled to; the rebuilt
 harness flags D2's reintroduction because the mutant's ``partition'' residuals come out bit-identical to full visibility
 [internal, \texttt{sheaf\_harness\_v2.py}]. Both defects are the same lesson: the theorem is about \emph{what the analyst
 can see}, and an implementation that muddles the observability contract will manufacture either silence or false sight.
 
-\section{The mechanism: detection iff the missing edge closes a cycle}\label{sec:mechanism}
+\section{The mechanism: detection iff the missing edge closes a visible cycle}\label{sec:mechanism}
 
-\onebreath{Cohomology detects equivocation beyond pairwise comparison exactly when the uncompared
-edge lies on a cycle whose reports are relayed --- the cocycle condition substitutes for the missing comparison; on a cut
-edge there is nothing to substitute, and the residual is zero by algebra --- formal statement in the box below.}
+\onebreath{Cohomology detects a single equivocator's split-view lie beyond pairwise comparison exactly when the uncompared
+edge lies on a cycle every link of which the analyst can see --- the cocycle condition then substitutes for the missing
+comparison; where no such cycle closes there is nothing to substitute, and the residual is zero by algebra --- formal
+statement in the box below.}
 
 \begin{thebox}
-\textbf{Theorem 1 (mechanism).} In gossip of signed logs with prefix restrictions and the three-tier visibility model, the
-completion residual detects equivocation beyond pairwise comparison iff the unchecked edge lies on a cycle of its coordinate
-subgraph \emph{and} its endpoints' reports are relayed to the analyst: then $r>0$ proves no global explanation exists. On a
-cut edge $r=0$ identically --- the coboundary map of a tree (or forest) is surjective onto the visible data, so the free
-completion absorbs any lie. Across a severed edge, equivocation is provably dark: the severed block is unconstrained, and a
-consistent counterfactual world always exists.
+\textbf{Theorem 1 (mechanism).} In gossip of signed logs with prefix restrictions and the three-tier visibility model, and
+for a \emph{single equivocator} (the honest scope fixed in \S\ref{sec:radius} and \S\ref{sec:boundary}: coalitions on a
+common cycle can cancel $r$ to zero), the completion residual detects a \emph{split-view} lie beyond pairwise comparison
+iff the unchecked edge lies on a cycle of its \emph{visible} coordinate subgraph $K_c$ --- the compared-plus-relayed links
+carrying that coordinate --- \emph{and} its endpoints' reports are relayed to the analyst: then $r>0$ proves no global
+explanation exists. On a cut edge of $K_c$, $r=0$ identically --- the coboundary map of a tree (or forest) is surjective
+onto the visible data, so the free completion absorbs any lie; this one clause covers both a bridge of the federation and a
+graph cycle of $G_c$ whose other links happen to be severed. Across a severed edge, equivocation is provably dark: the
+severed block is unconstrained, and a consistent counterfactual world always exists.
 
-\textbf{Verification (minimal pair).} $C_6$ with scalar stalks, lie of size $3$ on the one uncompared cycle edge: every
-pairwise check passes, harmonic signal $1.225\ne 0$. The same lie on a bridge of the path $P_6$: signal $0.000$
-[internal, \texttt{sheaf\_mechanism\_proof.py}]. The structural identity behind the mechanism --- local consistency with no
+\emph{``Split-view'' is exact, not a hedge.} When $q$ sits on a cycle of $K_c$, the offsets invisible to the residual ---
+$\ker(\Pi_K A_q)$, in the notation of \S\ref{sec:radius} --- are precisely the \emph{uniform} ones: the same shift shown to
+every neighbor, which is a consistent alternative state and not a split view at all (\S\ref{sec:boundary}). Measured on the
+star of $q$ with all edges visible, every kernel direction lies in the uniform span to $5\times10^{-16}$, on both the
+two-path and $C_6$ topologies [internal, \texttt{sheaf\_consistency\_radius.py}].
+
+\textbf{Verification (minimal pair, plus the visibility witness).} $C_6$ with scalar stalks, lie of size $3$ on the one
+uncompared cycle edge: every pairwise check passes, harmonic signal $1.225\ne 0$. The same lie on a bridge of the path
+$P_6$: signal $0.000$ [internal, \texttt{sheaf\_mechanism\_proof.py}]. And the witness that separates $K_c$ from $G_c$:
+the same $C_6$ and the same lie of $3$ on the same relayed edge $(2,3)$, but with one \emph{other} cycle edge severed ---
+$(0,5)$ or $(4,5)$ --- gives $r=1.1\times10^{-14}$ and $1.9\times10^{-15}$. The lie edge is still on a cycle of $G_c$ and
+its endpoints are still relayed; it is no longer on a cycle of $K_c$, and the residual is float zero
+[internal, \texttt{sheaf\_consistency\_radius.py}]. The structural identity behind the mechanism --- local consistency with no
 global section --- is Abramsky--Brandenburger contextuality [verified framework, \cite{abramsky-brandenburger}]; the
 equivocator manufactures for its neighbors exactly a locally-consistent, globally-unglueable family of views.
 \end{thebox}
+
+\textbf{The cochain, by hand.} Before any general theory, the smallest complete instance, in exact quarters. Four relays
+$0,1,2,3$ in a ring, scalar stalks, one shared coordinate. The links $0\!-\!1$, $1\!-\!2$ and $2\!-\!3$ are compared and
+agree; the link $3\!-\!0$ is never compared, but both its endpoints' reports reach the analyst, so all four links are
+visible and $K_c$ is the whole ring. Relay $0$ equivocates: the head it shows across $3\!-\!0$ differs by $s=3$ from the one
+it shows relay $1$. The analyst's cochain --- the vector of edge disagreements, one number per link, the object the whole
+apparatus operates on and which the reader has not yet seen --- is
+\[
+g \;=\; (g_{01},\,g_{12},\,g_{23},\,g_{30}) \;=\; (0,\;0,\;0,\;3).
+\]
+Ask the only question this paper ever asks: is there one history $x=(x_0,x_1,x_2,x_3)$, one number per relay, whose
+differences reproduce $g$? Around the loop a coboundary must sum to zero and $g$ sums to $3$, so there is none. Least
+squares finds the closest one: $x=(0,\,0.75,\,1.5,\,2.25)$, whose coboundary is
+$\delta x=(-0.75,\,-0.75,\,-0.75,\,+2.25)$ --- and which therefore misses by exactly $0.75$ on \emph{every} link. That is
+the mechanism in one sentence: the best honest world spreads the lie evenly around the loop and still misses everywhere.
+Hence
+\[
+r=\sqrt{4\times 0.75^{2}}=1.5=\frac{|s|}{\sqrt n}=\frac{3}{\sqrt4}
+ =|s|\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}=3\sqrt{1-\tfrac34},
+\]
+three routes to the same number, none needing a calculator [verified]. Now break the loop, twice, and watch the same
+arithmetic go silent. \emph{As a chain:} the same four relays as $0\!-\!1\!-\!2\!-\!3$, the same lie of $3$ on the
+never-compared end link $2\!-\!3$ --- the assignment $x=(0,0,0,-3)$ reproduces $g=(0,0,3)$ \emph{exactly}, so $r=0$, not
+small but zero, and the reader has just built the adversary's alibi by hand. \emph{As a ring with a dark link:} keep the
+ring and the same lie on $3\!-\!0$, but let $1\!-\!2$ be \emph{severed}. Now $g_K=(g_{01},g_{23},g_{30})=(0,0,3)$ on three
+visible links, and $x=(0,0,3,3)$ reproduces it exactly: $r=0$ again. The loop is still there in $G_c$; it is gone from
+$K_c$, and the residual can only see $K_c$. This is Theorem 1's visibility clause, checkable in four numbers.
 
 \textbf{Numbers by hand.} On $C_6$, project the lie onto the cycle: the harmonic component of a single-edge offset $s$ on an
 $n$-cycle is $s/\sqrt{n}$, so the signal is $3/\sqrt{6}=1.2247$ --- the harness's $1.225$ to printed precision, and, in the
 closed form of \S\ref{sec:radius}, $3\sqrt{1-5/6}$ [verified]. On $P_6$ there is no cycle: the cycle space is zero, the
 projection is zero, the residual is zero --- not small, zero (Figure~\ref{fig:r6reg} puts the relayed-cycle, cut, and
 severed cases side by side on the same six-node graph). \emph{Now you try:} $C_8$, lie of size $2$ on the relayed
-edge --- the residual is $2/\sqrt{8}=0.7071$; the same lie on any bridge, $0$ [verified].
+edge --- the residual is $2/\sqrt{8}=0.7071$; the same lie on any bridge, $0$; and the same lie on $C_8$ with any one of the
+other seven links severed, also $0$ [verified].
 
 \textbf{The misread to preempt.} ``Cohomology sees hidden data'' is exactly what the theorem does \emph{not} say. The
 residual reads only relayed evidence, and squeezes it through the one constraint honesty imposes --- cycle-sums vanish. Where
-no cycle passes (cut edge) or no evidence arrives (severed edge), there is no constraint to violate and nothing is seen;
+no \emph{visible} cycle passes (a bridge, or a cycle broken by a severed link) or no evidence arrives at all (severed edge),
+there is no constraint to violate and nothing is seen;
 the harness's cut-edge maximum of $1.5\times10^{-13}$ over 400 trials is float epsilon, not a small detection
 [internal, \texttt{sheaf\_harness\_v2.py}]. A second misread: the detection statistic is the \emph{data} residual, never
 $\dim H^1$ --- a loopy topology has $\beta_1>0$ for purely topological reasons on honest data too, so any counting claim
@@ -243,7 +340,12 @@ cohomology-only --- pairwise blind in every trial. Severed-cycle arm: $0/200$ --
 (\texttt{single\_bridge}): max residual $1.5\times10^{-13}$ over 400 trials --- silence at float epsilon. Full visibility:
 $0$ cohomology-only detections and $200/200$ redundant (pairwise catches everything first, as it must). Expander with 3
 severed and 3 relayed edges: partition-straddling equivocator $113/200$ cohomology-only, $87$ dark --- both clauses of the
-contract live in one topology. Localization: the max-residual edge lies on a known-graph cycle $200/200$ (upgraded to
+contract live in one topology, and the dark trials split cleanly along them. Classifying all $87$: in $79$ the equivocator
+has no relayed incident link at all, so every lie lands on a severed edge and Theorem 1's relayed-reports clause fails ---
+darkness predicted; in the remaining $8$ the lie edge \emph{is} relayed and does lie on a cycle of $G_c$, but not on a cycle
+of $K_c$, because the rest of that cycle is severed. Those $8$ are the arm's only trials that distinguish the two readings
+of the cycle clause, and they are dark, which is what the $K_c$ form of Theorem 1 predicts and the $G_c$ form does not
+[internal, \texttt{sheaf\_harness\_v2.py}]. Localization: the max-residual edge lies on a known-graph cycle $200/200$ (upgraded to
 ``through the equivocator'' as a theorem in \S\ref{sec:radius}). Pre-registered gates (i) and (ii) \textbf{PASS}; verdict \textbf{COMMIT}. The rival CUT condition --- ``residual
 detections are just pairwise detections in disguise'' --- is refuted: $313$ of $1101$ residual detections across arms were
 pairwise-blind. Mutation suite: D1 reintroduction refused by the structural self-check ($\operatorname{coker}=0$ against
@@ -253,7 +355,8 @@ no-equivocator control $0/200$ [internal, \texttt{sheaf\_harness\_v2.py}].
 
 \textbf{What it buys.} The W7 mechanism proof was a two-topology existence demonstration; the harness upgrades it to a
 validated statistical detector with its false-positive behavior measured (honest and control arms identically zero), its
-blindness measured (severed arm $0/200$, the expander's $87$ dark trials), and its guards regression-tested by
+blindness measured (severed arm $0/200$, and the expander's $87$ dark trials accounted for one by one --- $79$ by the
+relayed-reports clause, $8$ by the visible-cycle clause), and its guards regression-tested by
 reintroducing the exact defects that fooled v1. The three-tier contract stopped being prose and became the experiment's
 arm structure.
 
@@ -267,7 +370,7 @@ topology's severed/relayed mix, not a universal rate. And a statistical PASS is 
 \section{The consistency radius: what $r>0$ certifies, where it points, what it costs}\label{sec:radius}
 
 \onebreath{The residual $r$ is the exact minimum lie any adversary must have injected to produce the
-visible data, it localizes to cycles through the equivocator, and it computes as at most $L$ scalar graph-Laplacian
+visible data, it localizes to \emph{visible} cycles through the equivocator, and it computes as at most $L$ scalar graph-Laplacian
 solves --- with the single-equivocator condition proved to be the honest scope, because coalition lies on a cycle can
 cancel $r$ to zero --- formal statements in the box below.}
 
@@ -275,10 +378,12 @@ cancel $r$ to zero --- formal statements in the box below.}
 \cite{robinson}; our $r$ is its least-squares form under the completion over severed blocks. The new content is that $r$ is
 not merely a distance --- it is a \emph{certificate about the adversary}: every offset pattern that could have produced the
 visible data is at least this large, and one of exactly this size exists. The topology enters through electrical network
-theory: a lie on edge $e$ hides in proportion to how well the rest of the graph can imitate it, which is the effective
-resistance $R_{\mathrm{eff}}(e)$ --- on a bridge $R_{\mathrm{eff}}=1$ and the lie hides completely; on a long cycle
+theory: a lie on edge $e$ hides in proportion to how well the rest of the \emph{visible} graph can explain it away, which is
+the effective resistance $R^{K_c}_{\mathrm{eff}}(e)$ measured in the visible coordinate subgraph $K_c$ of
+\S\ref{sec:model} --- on a bridge $R_{\mathrm{eff}}=1$ and the lie hides completely; on a long cycle
 $R_{\mathrm{eff}}\to1$ and the certified fraction $\sqrt{1-R_{\mathrm{eff}}}$ decays like $1/\sqrt{n}$
-(Figure~\ref{fig:radius}).
+(Figure~\ref{fig:radius}). Severing a link raises $R^{K_c}_{\mathrm{eff}}$ of everything that was routed around through it,
+which is the same fact as Theorem 1's visibility clause, written as a price.
 
 \begin{thebox}
 \textbf{Theorem CR-1 (soundness and achievability).} For the completion-residual detector with prefix restrictions and
@@ -289,13 +394,17 @@ with offset vector $o$ and visible-lie operator $A_q$:
 $\sigma^{+}_{\min}(\Pi_K A_q)\,\|o_\perp\|\le r\le\|o_\perp\|$, where $o_\perp$ is the component of $o$ outside
 $\ker A_q$. For a single-edge lie of size $s$ in coordinate $c$,
 \[
-r \;=\; |s|\,\sqrt{1-R^{G_c}_{\mathrm{eff}}(e)}
-\qquad\text{--- on } C_n:\ |s|/\sqrt{n};\ \text{the harness's }1.2247\ \emph{is}\ 3\sqrt{1-5/6}.
+r \;=\; |s|\,\sqrt{1-R^{K_c}_{\mathrm{eff}}(e)}
+\qquad\text{--- on } C_n:\ |s|/\sqrt{n};\ \text{the harness's }1.2247\ \emph{is}\ 3\sqrt{1-5/6},
 \]
+where the effective resistance is taken in the \emph{visible} coordinate subgraph $K_c$, not in $G_c$: on the theta graph
+($C_6$ plus a chord) with the chord severed and a lie of $3$ on a relayed cycle edge, the measured residual is
+$1.2247=3\sqrt{1-5/6}$, the $K_c$ value; the $G_c$ reading would predict $1.7928$
+[internal, \texttt{sheaf\_consistency\_radius.py}].
 
 \textbf{Theorem CR-2 (localization).} Noise-free, single equivocator: the support of the edge residual lies on cycles of
-the coordinate subgraphs through $q$ --- by the electrical-flow support argument, the harness's $200/200$ localization is
-now a theorem. With bounded noise $\eta$, localization is guaranteed while
+the visible coordinate subgraphs $K_c$ through $q$ --- by the electrical-flow support argument, the harness's $200/200$
+localization is now a theorem. With bounded noise $\eta$, localization is guaranteed while
 $2\|\eta_K\|<\max_f\|(\Pi_K\varepsilon_K)_f\|$.
 
 \textbf{Theorem CR-3 (complexity).} Because $\delta_K$ splits per shared coordinate into graph incidence operators, $r$ is
@@ -307,7 +416,9 @@ on graphs are linear algebra.)
 \textbf{Verification.} Soundness $0/600$ violations; achievability $600/600$ (a consistent pattern of norm exactly $r$
 constructed every time). The $R_{\mathrm{eff}}$ closed form is exact on $C_4$--$C_{12}$ and 200 random graphs; the
 $\sigma^{+}_{\min}$ lower bound is tight under the adversarial offset ($r/\|o_\perp\|=\sigma^{+}_{\min}=0.4082$); a
-uniform kernel lie of norm $5$ gives $r=2\times10^{-14}$ --- invisible in principle, correctly not flagged. Localization
+uniform kernel lie of norm $5$ gives $r=2\times10^{-14}$ --- a consistent alternative state rather than a split view,
+invisible in principle and correctly not flagged; and on a cycle of $K_c$ the uniform offsets are the \emph{only} such
+directions, every kernel direction of $\Pi_K A_q$ sitting in the uniform span to $5\times10^{-16}$. Localization
 $200/200$ (two-cycles topology) plus $128/128$ (severed expanders); noise boundary measured: $\ge95\%$ localization up to
 $\sigma_\eta/\sigma_{\mathrm{eq}}\approx0.1$, $76.5\%$ at $0.2$; sufficient-condition violations $0$. Timing slope versus
 $|E|$ (wall-clock, machine-dependent --- only the qualitative split reproduces across runs): conjugate gradient stays
@@ -318,7 +429,8 @@ $r\ge|s|/\sqrt{8}$, the coalition cancels to $r=6\times10^{-15}$. The D2-unmaske
 $0.839$ --- exactly the full-visibility value, caught [internal, \texttt{sheaf\_consistency\_radius.py}].
 \end{thebox}
 
-\textbf{Numbers by hand.} $C_6$: $R_{\mathrm{eff}}$ of an edge is $\tfrac{n-1}{n}=\tfrac56$ (the rest of the cycle is a
+\textbf{Numbers by hand.} $C_6$ with every link visible, so $K_c=G_c=C_6$: $R_{\mathrm{eff}}$ of an edge is
+$\tfrac{n-1}{n}=\tfrac56$ (the rest of the cycle is a
 5-edge series path in parallel with the edge), so a lie of $3$ certifies $r=3\sqrt{1/6}=1.2247$ [verified] --- the number
 the mechanism script printed a week before the closed form existed. The $\sigma^{+}_{\min}$ tightness value $0.4082$ is
 $1/\sqrt{6}$: the same geometry seen from the operator side [verified]. \emph{Now you try:} a federation ring of $12$
@@ -356,11 +468,13 @@ liar (\S\ref{sec:boundary}); signatures attribute, cohomology localizes, and a d
 cellular sheaves on graphs.
 
 \textbf{New, honestly.} No component of the mathematics is exotic: incidence matrices, cycle spaces, effective resistance,
-least squares. The contribution is the assembled result at its exact scope: (1) the mechanism boundary --- detection beyond
-pairwise iff the missing edge closes a relayed cycle, with cut-edge silence and severed darkness proved rather than
+least squares. The contribution is the assembled result at its exact scope: (1) the mechanism boundary --- for a single
+equivocator, detection beyond pairwise iff the missing edge closes a cycle the analyst can see, one built entirely from
+compared and relayed links, with cut-edge silence and severed darkness proved rather than
 observed; (2) the three-tier observability contract as the object the theorems quantify over, extracted from two named
 defects that each faked a different clause of it; (3) the certificate reading of the completion residual --- $r$ as the
-exact minimum injected lie, with the $R_{\mathrm{eff}}$ closed form tying conviction strength to federation topology; and
+exact minimum injected lie, with the $R^{K_c}_{\mathrm{eff}}$ closed form tying conviction strength to the federation
+topology \emph{the analyst can see}; and
 (4) the coalition-cancellation construction that fixes the honest scope at single-equivocator, turning what would be a
 reviewer's counterexample into the paper's own boundary statement.
 
@@ -383,12 +497,18 @@ observations --- the identical-data twin construction. The residual localizes to
 distinguish which endpoint of the offending relationship lied. Naming culprits is the signatures-and-forensics business
 \cite{sheng}, which this detector complements and must never be marketed as replacing.
 \item \emph{Vanishing $r$ is not an all-clear.} Three independent reasons: uniform (kernel) lies move every neighbor's
-view identically and are invisible in principle ($\|o\|=5$, $r=2\times10^{-14}$ [internal]); severed edges admit
+view identically and are invisible in principle ($\|o\|=5$, $r=2\times10^{-14}$ [internal]) --- such a lie is a consistent
+alternative state rather than a split view, so it falls outside what Theorem 1 quantifies over rather than contradicting it,
+and the exclusion is exact: on a cycle of $K_c$ the uniform offsets are the \emph{only} invisible ones, every kernel
+direction lying in the uniform span to $5\times10^{-16}$
+[internal, \texttt{sheaf\_consistency\_radius.py}]; severed edges admit
 consistent counterfactuals by construction; and over $\mathbb{R}$ the obstruction is abelianized, so a vanishing
 real-coefficient signal does not certify gluability in richer coefficient systems (the Car\`u gap \cite{caru}). $r=0$
 means ``no conviction from this evidence,'' never ``honest.''
 \item \emph{Severed darkness, and the noise floor.} Where no report crosses, the theorem is that nothing can be seen ---
-budget accordingly (force comparison on bridges; keep reconciliation loops short). Under measurement noise, soundness
+and the damage is not confined to the severed link itself: severing one link of a loop darkens the whole loop, because the
+cycle Theorem 1 needs must live in $K_c$ and no longer does. Budget accordingly (force comparison on bridges; keep
+reconciliation loops short; and count a loop as a loop only when every link on it reports). Under measurement noise, soundness
 needs a threshold above the honest floor $\|\Pi_K\eta\|$: the measured localization boundary is $\ge95\%$ at noise-to-lie
 ratio $0.1$ falling to $76.5\%$ at $0.2$ [internal], and below threshold the certificate reverts to ``consistent with
 noise.''
