@@ -38,6 +38,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createRoadmapSearch, type RoadmapSearch } from '../lib/roadmap-search.js';
 import type { SemanticResolver } from '../lib/semantic-resolver.js';
+import { exportRoadmapItem, RoadmapExportError, type ExportConfig, type ExportTarget, type ExportFetch } from '../lib/roadmap-export.js';
 import type {
   RoadmapItems,
   RoadmapKind,
@@ -190,7 +191,7 @@ const KIND_VALUES = new Set<RoadmapKind>([
   'bug',
   'chore',
 ]);
-const LINK_KINDS = new Set<ItemLinkKind>(['pr', 'doc', 'file', 'media']);
+const LINK_KINDS = new Set<ItemLinkKind>(['pr', 'doc', 'file', 'media', 'issue']);
 
 /** Owner display info joined from the durable-agent roster onto item reads. */
 interface OwnerInfo {
@@ -554,6 +555,77 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     const items = roadmapItems.list({ harbor, status: 'all' });
     const result = await roadmapSearch.reindexAll(items);
     return { success: true, ...result, total: items.length };
+  });
+
+  // POST /roadmap/items/:slug/export — push one roadmap item to an external
+  // tracker (lib/roadmap-export.ts). One-way, repeatable-but-not-idempotent
+  // (see that module's docblock for why); on success, records a typed `issue`
+  // link on the card (lib/planner-edges.ts) so the two records stay
+  // associated for later reads. Credentials NEVER come from the request body
+  // — only from server-side env vars — so a client can pick the target and
+  // repo/project, never smuggle in someone else's token.
+  fastify.post('/roadmap/items/:slug/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { slug?: string };
+    const slug = params.slug;
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug is required' };
+    }
+    const existing = roadmapItems.get(slug);
+    if (!existing) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const target = asString(body.target) as ExportTarget | undefined;
+    if (!target || !['github', 'linear', 'jira'].includes(target)) {
+      reply.code(400);
+      return { success: false, error: "target must be one of: 'github', 'linear', 'jira'" };
+    }
+
+    const fetchImpl: ExportFetch = (url, init) => fetch(url, init);
+    let config: ExportConfig;
+    if (target === 'github') {
+      const token = process.env.PD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
+      const repo = asString(body.repo) ?? process.env.PD_ROADMAP_EXPORT_GITHUB_REPO;
+      if (!token) { reply.code(503); return { success: false, error: 'PD_GITHUB_TOKEN (or GITHUB_TOKEN) not configured' }; }
+      if (!repo) { reply.code(400); return { success: false, error: "target 'github' requires body.repo ('owner/repo')" }; }
+      config = { target: 'github', repo, token, fetchImpl };
+    } else if (target === 'linear') {
+      const token = process.env.PD_LINEAR_TOKEN;
+      const teamId = asString(body.teamId) ?? process.env.PD_ROADMAP_EXPORT_LINEAR_TEAM_ID;
+      if (!token) { reply.code(503); return { success: false, error: 'PD_LINEAR_TOKEN not configured' }; }
+      if (!teamId) { reply.code(400); return { success: false, error: "target 'linear' requires body.teamId" }; }
+      config = { target: 'linear', teamId, token, fetchImpl };
+    } else {
+      const email = process.env.PD_JIRA_EMAIL;
+      const apiToken = process.env.PD_JIRA_API_TOKEN;
+      const baseUrl = asString(body.baseUrl) ?? process.env.PD_ROADMAP_EXPORT_JIRA_BASE_URL;
+      const projectKey = asString(body.projectKey) ?? process.env.PD_ROADMAP_EXPORT_JIRA_PROJECT_KEY;
+      if (!email || !apiToken) { reply.code(503); return { success: false, error: 'PD_JIRA_EMAIL / PD_JIRA_API_TOKEN not configured' }; }
+      if (!baseUrl || !projectKey) { reply.code(400); return { success: false, error: "target 'jira' requires body.baseUrl and body.projectKey" }; }
+      config = { target: 'jira', baseUrl, projectKey, email, apiToken, issueType: asString(body.issueType), fetchImpl };
+    }
+
+    try {
+      const result = await exportRoadmapItem(
+        { slug: existing.slug, summaryMd: existing.summaryMd, descriptionMd: existing.descriptionMd, status: existing.status, tags: existing.tags },
+        config,
+      );
+      if (graphEdges) {
+        graphEdges.remember(itemLinkEdge(slug, 'issue', result.externalId, {
+          url: result.externalUrl,
+          tracker: result.target,
+        }));
+      }
+      reply.code(201);
+      return { success: true, export: result };
+    } catch (error) {
+      const message = error instanceof RoadmapExportError ? error.message : error instanceof Error ? error.message : 'export failed';
+      reply.code(502);
+      return { success: false, error: message };
+    }
   });
 
   fastify.get('/roadmap/items', async (request: FastifyRequest) => {

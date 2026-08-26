@@ -2099,7 +2099,8 @@
         "POST /roadmap/chomp",
         "POST /roadmap/import-markdown",
         "GET /roadmap/search",
-        "POST /roadmap/reindex-search"
+        "POST /roadmap/reindex-search",
+        "POST /roadmap/items/:slug/export"
       ],
       "completions": [
         "roadmap"
@@ -2113,7 +2114,8 @@
         "roadmap_list",
         "roadmap_get",
         "roadmap_promote",
-        "roadmap_search"
+        "roadmap_search",
+        "roadmap_export"
       ]
     },
     "roadmap_activity": {

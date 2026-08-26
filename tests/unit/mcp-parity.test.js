@@ -54,6 +54,7 @@ const TOOL_FEATURE_MAP = {
   'roadmap_get': 'roadmap',
   'roadmap_promote': 'roadmap',
   'roadmap_search': 'roadmap',
+  'roadmap_export': 'roadmap',
 
   // Commitments (ADR-0041) — #199
   'commit': 'commitments',

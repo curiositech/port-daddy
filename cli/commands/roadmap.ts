@@ -224,6 +224,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'export') {
+    await handleRoadmapExport(args.slice(1), options);
+    return;
+  }
+
   if (sub === 'pop') {
     await handleRoadmapPop(args.slice(1), options);
     return;
@@ -1076,6 +1081,60 @@ async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promi
     return;
   }
   ui.success(`Reindexed ${data.indexed ?? 0}/${data.total ?? 0} item(s) (${data.skipped ?? 0} unchanged, skipped)`);
+}
+
+/**
+ * `pd roadmap export <slug> --to github|linear|jira [target-specific flags]`
+ * — push one roadmap item to an external tracker (POST
+ * /roadmap/items/:slug/export -> lib/roadmap-export.ts). Credentials are
+ * server-side env vars only (PD_GITHUB_TOKEN, PD_LINEAR_TOKEN,
+ * PD_JIRA_EMAIL/PD_JIRA_API_TOKEN) — this command never accepts a token flag.
+ */
+async function handleRoadmapExport(args: string[], options: CLIOptions): Promise<void> {
+  const slug = args[0] && !args[0].startsWith('--') ? args[0] : readOption(options, 'slug');
+  const target = readOption(options, 'to', 'target');
+  if (!slug || !target) {
+    ui.error(
+      'Usage: pd roadmap export <slug> --to github --repo owner/repo\n' +
+      '       pd roadmap export <slug> --to linear --team-id <id>\n' +
+      '       pd roadmap export <slug> --to jira --base-url <url> --project-key <KEY> [--issue-type <type>]',
+    );
+    process.exit(1);
+  }
+  if (!['github', 'linear', 'jira'].includes(target)) {
+    ui.error(`--to must be one of: github, linear, jira (got "${target}")`);
+    process.exit(1);
+  }
+
+  const body = { target };
+  if (target === 'github') Object.assign(body, { repo: readOption(options, 'repo') });
+  if (target === 'linear') Object.assign(body, { teamId: readOption(options, 'team-id', 'teamId') });
+  if (target === 'jira') {
+    Object.assign(body, {
+      baseUrl: readOption(options, 'base-url', 'baseUrl'),
+      projectKey: readOption(options, 'project-key', 'projectKey'),
+      issueType: readOption(options, 'issue-type', 'issueType'),
+    });
+  }
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items/${encodeURIComponent(slug)}/export`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    export?: { externalId: string; externalUrl: string };
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap export failed (status ${res.status})`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Exported '${slug}' to ${target}: ${data.export?.externalUrl}`);
 }
 
 async function handleRoadmapPromote(args: string[], options: CLIOptions): Promise<void> {

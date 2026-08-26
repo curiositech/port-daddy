@@ -289,7 +289,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'roadmap': {
     description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item',
-    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote', 'roadmap_search'],
+    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote', 'roadmap_search', 'roadmap_export'],
   },
   'commitments': {
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
@@ -694,6 +694,26 @@ const TOOLS = [
         limit: { type: 'number', description: 'Max candidates to return (default 5)' },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'roadmap_export',
+    description:
+      '[Roadmap] Push one roadmap item to an external tracker (GitHub Issues, Linear, or Jira). ' +
+      'One-way, repeatable push, not two-way sync. Credentials come from server env vars only. ' +
+      'Usage: roadmap_export({slug: "fix-x", target: "github", repo: "acme/widgets"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Roadmap item slug to export' },
+        target: { type: 'string', enum: ['github', 'linear', 'jira'], description: 'Which tracker' },
+        repo: { type: 'string', description: 'GitHub only: "owner/repo"' },
+        teamId: { type: 'string', description: 'Linear only: team id to file the issue under' },
+        baseUrl: { type: 'string', description: 'Jira only: e.g. https://your-org.atlassian.net' },
+        projectKey: { type: 'string', description: 'Jira only: project key, e.g. "ROAD"' },
+        issueType: { type: 'string', description: 'Jira only: issue type name (default "Task")' },
+      },
+      required: ['slug', 'target'],
     },
   },
 
@@ -3699,6 +3719,17 @@ async function handleTool(
       if (args.harbor) params.set('harbor', args.harbor as string);
       if (args.limit !== undefined) params.set('limit', String(args.limit));
       res = await GET(`/roadmap/search?${params.toString()}`);
+      break;
+    }
+
+    case 'roadmap_export': {
+      const body: Record<string, unknown> = { target: args.target };
+      if (args.repo !== undefined) body.repo = args.repo;
+      if (args.teamId !== undefined) body.teamId = args.teamId;
+      if (args.baseUrl !== undefined) body.baseUrl = args.baseUrl;
+      if (args.projectKey !== undefined) body.projectKey = args.projectKey;
+      if (args.issueType !== undefined) body.issueType = args.issueType;
+      res = await POST(`/roadmap/items/${encodeURIComponent(args.slug as string)}/export`, body);
       break;
     }
 
