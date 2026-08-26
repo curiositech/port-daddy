@@ -51,28 +51,90 @@ describe('fetchPrFiles — one page, at landing time only', () => {
   });
 });
 
-describe('landPr — squash only, never throws', () => {
-  it('a merged response returns the sha', async () => {
-    let sentBody = '';
+describe('landPr — enqueue only, never throws', () => {
+  it('ENQUEUES rather than merging, and guards with the head it judged', async () => {
+    // THE CORRECTION THIS PR EXISTS FOR. A direct merge on a queue-protected
+    // repo is rejected outright (405 "Pull Request is in the merge queue") and,
+    // where it would succeed, bypasses the protection it is supposed to obey.
+    // The mutation name and the expectedHeadOid guard are BOTH asserted: the
+    // guard is what stops the seat landing a commit it never reviewed if the
+    // author pushes between verdict and enqueue.
+    const sent: string[] = [];
     const r = await landPr({
       owner: 'o',
       repo: 'r',
       prNumber: 9,
       token: 'land-tok',
       fetchImpl: async (url, init) => {
-        expect(url).toContain('/pulls/9/merge');
-        sentBody = String(init?.body);
-        return new Response(JSON.stringify({ sha: 'abc123', merged: true }), { status: 200 });
+        expect(String(url)).toContain('/graphql');
+        const body = String(init?.body);
+        sent.push(body);
+        if (body.includes('pullRequest(number:')) {
+          return new Response(
+            JSON.stringify({ data: { repository: { pullRequest: { id: 'PR_node1', headRefOid: 'deadbeefcafe' } } } }),
+            { status: 200 },
+          );
+        }
+        return new Response(
+          JSON.stringify({ data: { enqueuePullRequest: { mergeQueueEntry: { position: 3, state: 'QUEUED' } } } }),
+          { status: 200 },
+        );
       },
     });
-    expect(r).toMatchObject({ landed: true, sha: 'abc123' });
-    expect(JSON.parse(sentBody)).toEqual({ merge_method: 'squash' });
+
+    expect(r.landed).toBe(true);
+    expect(r.sha).toBe('deadbeefcafe');
+    expect(r.reason).toContain('enqueued at position 3');
+    // Never the REST merge verb.
+    expect(sent.join(' ')).not.toContain('merge_method');
+    const mutation = sent[1] ?? '';
+    expect(mutation).toContain('enqueuePullRequest');
+    // The head the lookup returned is the head the guard uses.
+    expect(JSON.parse(mutation).variables).toMatchObject({ id: 'PR_node1', head: 'deadbeefcafe' });
+  });
+
+  it('refuses to claim a landing when the enqueue returns no queue entry', async () => {
+    // A 200 with neither an entry nor an error is not success. Recording it as
+    // one would put a landing in the merge ledger that never happened — the
+    // single worst lie this seat could tell.
+    const r = await landPr({
+      owner: 'o',
+      repo: 'r',
+      prNumber: 9,
+      token: 't',
+      fetchImpl: async (_url, init) =>
+        String(init?.body).includes('pullRequest(number:')
+          ? new Response(JSON.stringify({ data: { repository: { pullRequest: { id: 'x', headRefOid: 'h' } } } }), { status: 200 })
+          : new Response(JSON.stringify({ data: { enqueuePullRequest: { mergeQueueEntry: null } } }), { status: 200 }),
+    });
+    expect(r.landed).toBe(false);
+    expect(r.reason).toContain('no merge-queue entry');
+  });
+
+  it('treats a GraphQL 200-with-errors as failure, not success', async () => {
+    // GraphQL signals failure two ways — a bad status, and a 200 carrying an
+    // `errors` array. Honouring only the first is the classic route to
+    // recording a landing that never happened.
+    const r = await landPr({
+      owner: 'o',
+      repo: 'r',
+      prNumber: 9,
+      token: 't',
+      fetchImpl: async (_url, init) =>
+        String(init?.body).includes('pullRequest(number:')
+          ? new Response(JSON.stringify({ data: { repository: { pullRequest: { id: 'x', headRefOid: 'h' } } } }), { status: 200 })
+          : new Response(
+              JSON.stringify({ errors: [{ message: 'Head branch was modified' }] }),
+              { status: 200 },
+            ),
+    });
+    expect(r.landed).toBe(false);
+    expect(r.reason).toContain('Head branch was modified');
   });
 
   it.each([
-    [405, 'Merge commits are not allowed on this repository.'],
-    [409, 'Head branch was modified.'],
     [403, 'Resource not accessible by personal access token'],
+    [502, 'Server Error'],
   ])('a %s failure returns an honest reason carrying the status', async (status, message) => {
     const r = await landPr({
       owner: 'o',
@@ -84,6 +146,19 @@ describe('landPr — squash only, never throws', () => {
     expect(r.landed).toBe(false);
     expect(r.reason).toContain(String(status));
     expect(r.reason).toContain(message);
+  });
+
+  it('reports a PR that cannot be resolved instead of enqueuing blind', async () => {
+    const r = await landPr({
+      owner: 'o',
+      repo: 'r',
+      prNumber: 9,
+      token: 't',
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ data: { repository: { pullRequest: null } } }), { status: 200 }),
+    });
+    expect(r.landed).toBe(false);
+    expect(r.reason).toContain('#9 not found');
   });
 
   it('a network-level throw is caught into a reason, never rethrown', async () => {

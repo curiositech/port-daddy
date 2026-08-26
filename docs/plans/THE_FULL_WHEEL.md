@@ -400,7 +400,15 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
 > **Proof gate — met.** 1,200 tests green across both Workers; the fleet run on its own fix
 > PR healed, adjudicated, and narrated itself.
 
-### P1 — The Steward takes the seat (≈2 weeks · 4 PRs)
+### P1 — The Steward takes the seat (≈2 weeks · 8 PRs)
+
+> **STATUS 2026-08-26 — the seat is ALIVE.** PRs 1–4 merged; the seat was deployed,
+> commissioned, and had never executed a single instruction. One operator `POST /wake` started
+> it at 05:54:31 UTC and it immediately surveyed the repo and rendered a real verdict:
+> `Wake: drained 1 event(s) [operator ×1]. Tick: NEEDS-WORK on #6419 — required checks red on
+> head (tier 3)`. Both ledgers now hold that row, `degraded: false`, and the heartbeat is
+> self-sustaining at 6h. What remains is PRs 5–8 below: making the first beat automatic,
+> making the seat legible, and making its landing verb correct for this repo.
 
 1. Steward DO scaffold: identity, storage schema (charter, merge-ledger, deck-log), alarm
    heartbeat, wake queue from the existing webhook receiver.
@@ -410,10 +418,120 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
    "ship it" gate for protected paths.
 4. Clusterfudge state machine v1 (land-fail loop + budget tripwires), interruptions wiring,
    console-less fallback: the pinned Steward-log issue.
+5. The pulse: a cron trigger and `/pulse` watchdog that arm the seat's first alarm and
+   re-arm a lost one.
+
+   **Why this PR exists, recorded rather than smoothed over.** PR 1's scope above says "wake
+   queue from the existing webhook receiver" — the queue shipped, the receiver's dispatch did
+   not, and nothing else ever posted a wake. A Durable Object alarm re-arms itself only
+   *after* it has fired once, so the seat sat deployed and commissioned with its heartbeat
+   never started: production `steward_deck_log` held **zero rows** across PRs 1–4. Every one
+   of those PRs was green, and none of them was wrong about what it built; the gap was
+   between them, in the assumption that something upstream would knock. §5.3 already names
+   the remedy — the deck log is the vital sign, and *nobody read it*. The lesson is cheap and
+   general: a component that cannot start itself needs an owner for its first beat, and
+   "deployed" is not "alive" until the vital sign says so.
+
+6. **The console page** (`/account/steward` in `apps/relay`): read-only render of both
+   ledgers plus seat vitals, session-gated, authz'd per repo through `userCanReadRepo`.
+   Read paths shared via `apps/shared/steward-ledgers.ts` so one SELECT has one definition.
+
+   **Why this is P1 and not P4.** §10 scopes the full console — auth, per-repo shell, chat,
+   actions — four weeks away. This is the 5% of it that makes the seat legible, and P1's own
+   incident is the argument: the vital sign existed, held zero rows for four PRs, and reading
+   it required a terminal, Cloudflare credentials and knowledge of the schema. A vital sign no
+   operator can read is not a vital sign; it is a file. Shipping merge authority whose only
+   audit surface is `wrangler d1 execute` reproduces the failure at a higher level.
+
+7. **The landing verb — SHIPPED.** `landPr()` used to issue
+   `PUT /repos/{owner}/{repo}/pulls/{n}/merge` with `merge_method: squash` — a *direct
+   merge*. This repo lands through a required merge queue (proven: a direct merge returns
+   `405 Pull Request is in the merge queue`, and the queue's `gh-readonly-queue/main/pr-*`
+   branches are in the Actions history), so an armed seat would have been rejected or, worse,
+   would have bypassed the protection it exists to obey. It now calls GraphQL
+   `enqueuePullRequest`, verified against GitHub's published schema rather than recalled.
+
+   Two properties came out of reading that schema. **`expectedHeadOid` is passed always**,
+   though the API marks it optional: the tick judges a specific head, and between verdict and
+   enqueue the author can push — the guard makes GitHub refuse a commit the seat never
+   reviewed, turning a race into a logged failure. And **a LAND verdict now means "accepted
+   into the queue", not "merged"**; the queue lands it later on its own clock, and the deck
+   log says so rather than implying the PR is already on main.
+
+8. **Episodic wakes — SHIPPED.** The other half of PR 1's unbuilt assumption, now built: the
+   relay's webhook receiver POSTs `/wake` on the eight events that can change a merge verdict,
+   so the seat reacts in seconds rather than at heartbeat cadence. Dedupe was already at the
+   door (`deliveryId`), and the seat's 5s drain debounce collapses a burst into one tick.
+
+   **The wiring is a cross-script Durable Object binding, not an HTTPS call, and that is the
+   whole design.** The obvious version — `fetch('https://pd-steward.../wake')` with a bearer —
+   requires `STEWARD_ADMIN_TOKEN`, the same credential that authorizes `/ship-it`, `/charter`
+   and `/clusterfudge/ack`. Giving the relay full merge authority so it can say "something
+   happened" is a bad trade, and minting a narrower second token only moves a secret into a
+   second Worker to guard a boundary that does not exist: a DO namespace is not publicly
+   addressable, so `{ name = "STEWARD", class_name = "StewardDO", script_name = "pd-steward" }`
+   reaches the seat *inside* the trust boundary with no credential at all. Identical argument
+   to PR 5's cron — `fetch` authenticates the outside world, and this is not the outside world.
+
+   Two consequences worth stating. **The filter is an allow-list of eight events**, and its
+   exclusions carry as much weight as its inclusions: no `check_run` (≈28 per push here versus
+   a handful of suites, collapsing to the same single tick), no `edited`/`labeled`/`assigned`
+   (description churn cannot change a verdict, and a deck log full of noise is a vital sign
+   nobody reads). **And the seat is an accelerant, never a dependency** — every failure path
+   is absorbed into a `steward_wake_failed` audit row and a 204, because a 503 here would make
+   GitHub retry a delivery whose fleet enqueue already succeeded, turning a lost wake into
+   duplicate spend. A dropped wake costs latency until the next 6h beat; nothing more.
+
+#### How the seat is actually used
+
+Recorded here because a capability nobody knows how to reach is the read-poverty
+failure wearing a different hat. Two audiences, two surfaces, deliberately not the same one.
+
+**An operator, in a browser.** `https://relay.portdaddy.dev/account/steward` — session-gated by
+the existing GitHub login, authz'd per repo through `userCanReadRepo`. It answers the three
+questions chapter 10 says come first, in order: is this seat alive (a badge: beating / stopped
+beating / never woken), what has it done lately (the deck log, newest first), and why did it
+decide that (the merge ledger, every verdict with its evidence). No terminal, no credential, no
+schema knowledge. This is the surface that did not exist for the four PRs when the seat was dead
+and nobody could tell.
+
+**An agent or an operator with `curl`,** against `https://<steward-worker>/steward/{owner}/{repo}/<action>`,
+bearer `STEWARD_ADMIN_TOKEN` on every route:
+
+| Verb | Route | What it is for |
+|---|---|---|
+| `GET` | `/status` | The whole seat in one response: `commissioned`, `pendingWakes`, `lastWakeAt`, `alarmAt`, `degraded`, `landing: armed\|unarmed`, `shipItGrants`, the breaker, the rendered clusterfudge page, and the tripwire inventory. `alarmAt: null` is the signature of a stopped pulse. |
+| `POST` | `/charter` | Commission the seat, or amend its charter. Until this runs every route answers 503. |
+| `POST` | `/wake` | Hand it a stimulus. Body `{kind, deliveryId, prNumber?, detail?}`; deduped on `deliveryId`. This is what the relay's webhook now calls on its own (PR 8) — an operator calls it to force a tick *now*. |
+| `POST` | `/pulse` | Arm a cold seat's first alarm, or re-arm a lost one. A no-op on a healthy seat, which is why the cron can run hourly against a 6h heartbeat. |
+| `POST` | `/ship-it/{prNumber}` | Grant this one PR permission to land despite touching a protected path. Per-PR, never standing. |
+| `POST` | `/clusterfudge/ack` | Release a freeze. Body `{ackedBy, decision}` — both recorded, because a freeze released by nobody in particular is not a decision. |
+
+**Nothing else may write.** ADR-0109's single-writer rule means the seat alone appends to
+`steward_deck_log` and `steward_merge_ledger`; every other reader — the console page, the
+`/status` route, an operator with `wrangler d1 execute` — goes through
+`apps/shared/steward-ledgers.ts`, which is read-only by construction.
 
 > **Proof gate.** Seven days unattended on this repo: every open PR reaches merged or an
 > explicit SURFACE with a reason; zero un-charted merges; deck log complete for every wake;
 > one injected land-fail loop trips the freeze and pages.
+>
+> **Deployment state, measured 2026-08-26 via the Cloudflare API** (`workers/scripts/pd-steward/versions`).
+> The live seat is **version 9, uploaded 2026-08-23 10:39 UTC by `wrangler` from a workstation
+> — not by CI**; `deploy-steward.yml` has never produced the running build. Its declared
+> handlers are `["fetch"]` alone and its cron schedule list is empty, so PR 5's `scheduled`
+> handler is genuinely not live yet: the single deck-log row is the operator's manual wake and
+> nothing else could have written one. Bindings are `DB`, `STEWARD`, `STEWARD_ADMIN_TOKEN`,
+> `STEWARD_GITHUB_TOKEN` — no `STEWARD_LAND_TOKEN`, which is why `/status` reports
+> `landing: unarmed`. That version postdates PR 4 by three days, so `recentDeckLog` and
+> `clusterfudgePage` *are* in the running bundle; the `null null` a live `/status` returned for
+> them is not a version skew and is most consistent with the request having lost its bearer
+> (an `{"error":"unauthorized"}` body yields exactly two nulls under that `jq` filter).
+>
+> **Verification still owed before the gate can start:** confirm the cron fires by finding an
+> `all-quiet` entry written with no operator wake — impossible until a deploy carries the
+> `scheduled` handler, which the version metadata above now gives us a direct way to check
+> (`handlers` gains `"scheduled"`, `schedules` stops being empty).
 
 ### P2 — Cartographer dispatches; sailors are born (≈3 weeks · 5 PRs)
 
