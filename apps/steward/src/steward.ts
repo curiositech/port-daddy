@@ -1,5 +1,6 @@
 import { birthCharter, reviseCharter } from './charter.js';
-import { appendDeckLog, readDeckLog } from './ledgers.js';
+import { appendDeckLog } from './ledgers.js';
+import { readStewardDeckLog } from '../../shared/steward-ledgers.js';
 import { landFailKey, shipItKey, SHIPIT_PREFIX, type ShipItGrant } from './landing.js';
 import {
   ackClusterfudge,
@@ -266,7 +267,7 @@ export class StewardDO {
     const lastWakeAt = (await this.state.storage.get<number>(StewardDO.KEY_LAST_WAKE_AT)) ?? null;
     const fallback =
       (await this.state.storage.get<DeckLogEntry[]>(StewardDO.KEY_FALLBACK_LOG)) ?? [];
-    const recentLog = await readDeckLog(this.env.DB, repo, 5);
+    const recentLog = await readStewardDeckLog(this.env.DB, repo, 5);
     const grants = await this.state.storage.list<ShipItGrant>({ prefix: SHIPIT_PREFIX });
     const breaker = await readClusterfudge(this.state.storage);
     return json({

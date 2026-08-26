@@ -482,6 +482,36 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
    GitHub retry a delivery whose fleet enqueue already succeeded, turning a lost wake into
    duplicate spend. A dropped wake costs latency until the next 6h beat; nothing more.
 
+#### How the seat is actually used
+
+Recorded here because a capability nobody knows how to reach is the read-poverty
+failure wearing a different hat. Two audiences, two surfaces, deliberately not the same one.
+
+**An operator, in a browser.** `https://relay.portdaddy.dev/account/steward` — session-gated by
+the existing GitHub login, authz'd per repo through `userCanReadRepo`. It answers the three
+questions chapter 10 says come first, in order: is this seat alive (a badge: beating / stopped
+beating / never woken), what has it done lately (the deck log, newest first), and why did it
+decide that (the merge ledger, every verdict with its evidence). No terminal, no credential, no
+schema knowledge. This is the surface that did not exist for the four PRs when the seat was dead
+and nobody could tell.
+
+**An agent or an operator with `curl`,** against `https://<steward-worker>/steward/{owner}/{repo}/<action>`,
+bearer `STEWARD_ADMIN_TOKEN` on every route:
+
+| Verb | Route | What it is for |
+|---|---|---|
+| `GET` | `/status` | The whole seat in one response: `commissioned`, `pendingWakes`, `lastWakeAt`, `alarmAt`, `degraded`, `landing: armed\|unarmed`, `shipItGrants`, the breaker, the rendered clusterfudge page, and the tripwire inventory. `alarmAt: null` is the signature of a stopped pulse. |
+| `POST` | `/charter` | Commission the seat, or amend its charter. Until this runs every route answers 503. |
+| `POST` | `/wake` | Hand it a stimulus. Body `{kind, deliveryId, prNumber?, detail?}`; deduped on `deliveryId`. This is what the relay's webhook now calls on its own (PR 8) — an operator calls it to force a tick *now*. |
+| `POST` | `/pulse` | Arm a cold seat's first alarm, or re-arm a lost one. A no-op on a healthy seat, which is why the cron can run hourly against a 6h heartbeat. |
+| `POST` | `/ship-it/{prNumber}` | Grant this one PR permission to land despite touching a protected path. Per-PR, never standing. |
+| `POST` | `/clusterfudge/ack` | Release a freeze. Body `{ackedBy, decision}` — both recorded, because a freeze released by nobody in particular is not a decision. |
+
+**Nothing else may write.** ADR-0109's single-writer rule means the seat alone appends to
+`steward_deck_log` and `steward_merge_ledger`; every other reader — the console page, the
+`/status` route, an operator with `wrangler d1 execute` — goes through
+`apps/shared/steward-ledgers.ts`, which is read-only by construction.
+
 > **Proof gate.** Seven days unattended on this repo: every open PR reaches merged or an
 > explicit SURFACE with a reason; zero un-charted merges; deck log complete for every wake;
 > one injected land-fail loop trips the freeze and pages.
