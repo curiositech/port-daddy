@@ -7,9 +7,10 @@
 #   make dev        → fast (debug) build + run the window
 #   make repl       → the headless TUI console (no GPU; builds anywhere)
 #   make shots      → capture window screenshots (needs Screen Recording perm)
-#   make proof      → off-screen visual proof: per-pane stills + a video clip
+#   make proof      → exact-window visual proof: per-pane stills + motion
 #   make proof-check→ deterministic receipt/dry-run smoke for proof harness
-#   make proof-setup→ one-time virtual-display + permission setup (interactive)
+#   make ast-suggest-proof    → two deterministic native D0 visual voyages
+#   make ast-suggest-proof-ci → desktop-free D0 provenance/repeatability gate
 #   make headless-capture → Block-model PNG, NO window/display/TCC (agent-safe)
 #   make displays   → list the displays pd-console can target (for --display)
 #   make test       → cargo test (the panes/decoders)
@@ -21,7 +22,7 @@
 .DEFAULT_GOAL := run
 DEVBUILD ?= harness-roster
 
-.PHONY: run dev install devapp repl shots proof proof-check proof-setup headless-capture displays test check help
+.PHONY: run dev install devapp repl shots proof proof-check ast-suggest-proof ast-suggest-proof-ci headless-capture displays test check help
 
 run: ## Build (release) and launch the native window
 	cargo run --release --features gpui --bin pd-console
@@ -41,14 +42,17 @@ repl: ## Headless TUI console (no GPU; builds everywhere)
 shots: ## Capture window screenshots into docs/artifacts/gpui (needs Screen Recording perm)
 	./scripts/capture-gpui.sh
 
-proof: ## Off-screen visual proof — per-pane stills + a video clip on a virtual display
+proof: ## Exact-window visual proof — per-pane stills plus a short motion clip
 	./scripts/proof/capture-proof.sh
 
 proof-check: ## Deterministic dry-run receipt smoke for the proof harness
 	./scripts/proof/check-capture-proof.sh
 
-proof-setup: ## One-time setup: create a virtual display + grant Screen Recording (interactive)
-	./scripts/proof/setup-virtual-display.sh
+ast-suggest-proof: ## Two native D0 captures with fixture provenance and semantic repeatability proof
+	cd ../.. && demos/ast-suggestibility/capture.sh --native --repeat 2
+
+ast-suggest-proof-ci: ## Desktop-free D0 provenance and repeatability validation
+	cd ../.. && demos/ast-suggestibility/capture.sh --ci --repeat 2
 
 headless-capture: ## Offscreen Block-model PNG — no window/display/TCC (agent-safe). Optional OUT=<path>
 	./scripts/proof/headless-capture.sh $(OUT)

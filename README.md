@@ -1060,6 +1060,16 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
 3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) mission console. It opens on one full-window Work screen: the operator describes an outcome in plain English; the daemon persists one provider-neutral WorkIntent, admits the governed runtime, and binds the exact launch, agent, model, transcript, worktree, and PR back to that mission. Live work and current PR checks remain attached across restarts. Fleet, Sessions, Health, and other deep-truth views are secondary inspector surfaces, not competing defaults. The persistent PTY drawer remains an emergency shell for the real `pd` CLI, not an internal app adapter. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
 
+The first AST/suggestibility visual voyage is a checked-in **fixture**, never
+live-fleet evidence. From the repository root,
+`demos/ast-suggestibility/capture.sh --ci --repeat 2` runs the desktop-free
+provenance and repeatability gate. On an authorized macOS desktop, replace
+`--ci` with `--native` to drive the real Harbor pane, capture five exact-window
+states plus MP4/GIF motion, and emit per-artifact manifests. The schema reserves
+active, historical, blocked, stale, gate, interrupt, and receipt states; every
+frame visibly says `FIXTURE DATA` and binds its daemon, run, transcript, agent,
+commit, dimensions, state, and capture command.
+
 The Agent Harbor runtime-refactor target triad centers pd-console as the deep
 truth surface, FleetBar as ambient consent/status/re-entry, and Scout as
 evidence-backed intake. Those operator clients use the shared daemon contract /

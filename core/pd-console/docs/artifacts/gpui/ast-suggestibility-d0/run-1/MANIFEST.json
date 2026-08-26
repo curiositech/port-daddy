@@ -1,0 +1,52 @@
+{
+  "agentNodeId": "an-d0-cartographer",
+  "artifacts": [],
+  "captureCommand": "demos/ast-suggestibility/capture.sh --ci --repeat 2",
+  "captureMode": "ci",
+  "commit": "8d7de6c69125946b66f411d1135deaaede2e4941",
+  "daemonPort": 3997,
+  "dimensions": {
+    "height": 852,
+    "width": 1280
+  },
+  "exactWindowOnly": true,
+  "receipt": {
+    "file": "RECEIPT.json",
+    "sha256": "4ec2d972302e377234e42bb34eb6332ae9bba2a08e63a1cdfcb28118982c5497"
+  },
+  "requiredControlPanelStates": [
+    "active",
+    "historical",
+    "blocked",
+    "stale",
+    "gate",
+    "interrupt",
+    "receipt"
+  ],
+  "runId": "run-ast-suggest-d0-001",
+  "scenarioId": "ast-suggest-d0-reference-voyage",
+  "schema": "pd.ast-suggestibility.visual-proof.v1",
+  "semanticStateHashes": {
+    "active": "0923ad4e25fccc1ebcbdf337453d384260e3e6b4d56406f3ef1c8d75251443b2",
+    "baseline": "68d930c23a94376f22dcd548837dd356e288818405f2960d12d7644f4bea92eb",
+    "blocked": "7cb7f3213aed77caf456537bf8681115ea211196c1d869554f6ed289fb193c5b",
+    "gate": "07bc2de8ef7ff3e56cbdb8d83c6dea9ce1ec3100cf86a8c6b5f672fd61c170bf",
+    "receipt": "1d98bfbc4fcf3d19373a8040f1136672480d2e32fd322c4c8125db8e77982598"
+  },
+  "sourceLabel": "fixture",
+  "stateNames": [
+    "baseline",
+    "active",
+    "blocked",
+    "gate",
+    "receipt"
+  ],
+  "stateTranscriptHeadHashes": {
+    "active": "2b1153049d1d08c743ced364715eeae0f2e1d54d831849f0864a41b922f42212",
+    "baseline": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "blocked": "2ab9dd73e6d69b6245bc2e5a0c07613d434d3bd6aae7006588ed521d11f26dca",
+    "gate": "aa0b6807d148035333400889ed1168999631a790ad4227305c22320824b3ac35",
+    "receipt": "c6563f4343eb9a52704181186dbeddba95e4f0dd95dd740dcf8221f256415eea"
+  },
+  "transcriptHeadHash": "c6563f4343eb9a52704181186dbeddba95e4f0dd95dd740dcf8221f256415eea"
+}

@@ -1046,6 +1046,10 @@ probably a missed leverage opportunity.
 
 ## Maintain These Skills (standing invitation)
 
+### Native visual proof is evidence, not decoration
+
+For any native product surface, keep a desktop-free semantic/provenance test beside the macOS capture path. A shareable screenshot or clip must bind its daemon port, run and agent IDs, transcript-head hash, exact commit, source label (`real`, `fixture`, or `mock`), state names, dimensions, and capture command. Fixture and mock pixels must visibly say so; a stable Homebrew window or an unlabeled reenactment is never branch proof. Compare repeated captures by their semantic contract, not encoded-media hashes, and fail closed if a field is missing, stale, mislabeled, private, or comes from a broad-desktop capture.
+
 **This skill is yours to edit.** It is a living instruction set, not a sacred
 text, and the canonical copy lives in-repo at
 `skills/port-daddy-agent-skill/SKILL.md`. If something here misled you, is out

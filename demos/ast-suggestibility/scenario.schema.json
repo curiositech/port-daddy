@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/ast-suggestibility-voyage-v1.json",
+  "title": "Port Daddy deterministic native visual voyage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "scenarioId",
+    "title",
+    "sourceLabel",
+    "daemonPort",
+    "runId",
+    "agentNodeId",
+    "clock",
+    "canvas",
+    "requiredControlPanelStates",
+    "captureStates",
+    "motion",
+    "redaction"
+  ],
+  "properties": {
+    "schema": { "const": "pd.ast-suggestibility.voyage.v1" },
+    "scenarioId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+    "title": { "type": "string", "minLength": 8 },
+    "sourceLabel": { "enum": ["real", "fixture", "mock"] },
+    "daemonPort": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+    "runId": { "type": "string", "minLength": 3 },
+    "agentNodeId": { "type": "string", "minLength": 3 },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epoch", "frameMs"],
+      "properties": {
+        "epoch": { "type": "string", "format": "date-time" },
+        "frameMs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 640 },
+        "height": { "type": "integer", "minimum": 480 }
+      }
+    },
+    "requiredControlPanelStates": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "active" },
+        { "const": "historical" },
+        { "const": "blocked" },
+        { "const": "stale" },
+        { "const": "gate" },
+        { "const": "interrupt" },
+        { "const": "receipt" }
+      ],
+      "items": false,
+      "minItems": 7,
+      "maxItems": 7
+    },
+    "captureStates": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/captureState" }
+    },
+    "motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fps", "durationSeconds", "timeline"],
+      "properties": {
+        "fps": { "const": 24 },
+        "durationSeconds": { "type": "integer", "minimum": 4, "maximum": 30 },
+        "timeline": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["atMs", "state"],
+            "properties": {
+              "atMs": { "type": "integer", "minimum": 0 },
+              "state": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["forbiddenPatterns"],
+      "properties": {
+        "forbiddenPatterns": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "type": "string", "minLength": 2 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "captureState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "beat", "nodes", "events", "blackboard", "commands"],
+      "properties": {
+        "name": {
+          "enum": ["baseline", "active", "historical", "blocked", "stale", "gate", "interrupt", "receipt"]
+        },
+        "beat": { "type": "string", "minLength": 8 },
+        "nodes": { "type": "array", "items": { "type": "object" } },
+        "events": { "type": "array", "items": { "type": "object" } },
+        "blackboard": { "type": "array", "items": { "type": "object" } },
+        "commands": { "type": "array", "items": { "type": "object" } }
+      }
+    }
+  }
+}

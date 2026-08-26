@@ -5,14 +5,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel)"
+D0_E2E="$REPO_ROOT/demos/ast-suggestibility/proof-harness.e2e.mjs"
 HARNESS="$ROOT/scripts/proof/capture-proof.sh"
 VERIFY="$ROOT/scripts/proof/verify-artifacts.mjs"
 REAL_SAMPLE_DIR="$ROOT/docs/artifacts/gpui/2026-07-09T19-40-00Z-exact-window-fallback-smoke"
 DRY_RUN_SAMPLE_DIR="$ROOT/docs/artifacts/gpui/2026-07-09T19-58-44Z-current-head-dry-run"
 INTERVENTION_SAMPLE_DIR="$ROOT/docs/artifacts/gpui/proof-2026-07-09T19-58-44Z-exact-window-fallback-smoke"
-DEFAULT_SAMPLE_DIRS="$REAL_SAMPLE_DIR $DRY_RUN_SAMPLE_DIR $INTERVENTION_SAMPLE_DIR"
+DEFAULT_SAMPLE_DIRS="$REAL_SAMPLE_DIR $INTERVENTION_SAMPLE_DIR"
 SAMPLE_DIRS="${PD_PROOF_SAMPLE_DIRS:-${PD_PROOF_SAMPLE_DIR:-$DEFAULT_SAMPLE_DIRS}}"
-TMP_ROOT="${TMPDIR:-/tmp}"
+TMP_ROOT="${PD_PROOF_TMP_ROOT:-${HOME:?HOME is required}/coding/tmp}"
+mkdir -p "$TMP_ROOT"
 OUT="$(mktemp -d "$TMP_ROOT/pd-console-proof-check.XXXXXX")"
 trap 'rm -rf "$OUT"' EXIT
 
@@ -71,6 +74,9 @@ node "$VERIFY" "$OUT"
 # shellcheck disable=SC2086 # sample dirs are repo-controlled paths without spaces
 node "$VERIFY" $SAMPLE_DIRS
 
+expect_verify_fails "stale documented commit" "$DRY_RUN_SAMPLE_DIR"
+assert_contains "$OUT/verify-stale-documented-commit.log" "documented captureCommit"
+
 CORRUPT_MEDIA="$OUT/corrupt-media"
 cp -R "$REAL_SAMPLE_DIR" "$CORRUPT_MEDIA"
 : > "$CORRUPT_MEDIA/pane-lane.png"
@@ -102,5 +108,8 @@ fs.writeFileSync(receipt, next)
 ' "$BROAD_CAPTURE/RECEIPT.md"
 expect_verify_fails "broad capture" "$BROAD_CAPTURE"
 assert_contains "$OUT/verify-broad-capture.log" "non-window screencapture command"
+
+[[ -f "$D0_E2E" ]] || fail "missing AST/suggestibility D0 E2E"
+node --test "$D0_E2E"
 
 echo "proof-check: ok"

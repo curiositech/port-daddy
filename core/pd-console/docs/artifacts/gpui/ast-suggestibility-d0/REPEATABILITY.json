@@ -1,0 +1,32 @@
+{
+  "captureCount": 2,
+  "mediaHashesCompared": false,
+  "pass": true,
+  "reason": "semantic states and provenance contract match; encoded media hashes are intentionally non-authoritative",
+  "runs": [
+    {
+      "directory": "run-1",
+      "manifest": "MANIFEST.json",
+      "semanticStateHashes": {
+        "active": "0923ad4e25fccc1ebcbdf337453d384260e3e6b4d56406f3ef1c8d75251443b2",
+        "baseline": "68d930c23a94376f22dcd548837dd356e288818405f2960d12d7644f4bea92eb",
+        "blocked": "7cb7f3213aed77caf456537bf8681115ea211196c1d869554f6ed289fb193c5b",
+        "gate": "07bc2de8ef7ff3e56cbdb8d83c6dea9ce1ec3100cf86a8c6b5f672fd61c170bf",
+        "receipt": "1d98bfbc4fcf3d19373a8040f1136672480d2e32fd322c4c8125db8e77982598"
+      }
+    },
+    {
+      "directory": "run-2",
+      "manifest": "MANIFEST.json",
+      "semanticStateHashes": {
+        "active": "0923ad4e25fccc1ebcbdf337453d384260e3e6b4d56406f3ef1c8d75251443b2",
+        "baseline": "68d930c23a94376f22dcd548837dd356e288818405f2960d12d7644f4bea92eb",
+        "blocked": "7cb7f3213aed77caf456537bf8681115ea211196c1d869554f6ed289fb193c5b",
+        "gate": "07bc2de8ef7ff3e56cbdb8d83c6dea9ce1ec3100cf86a8c6b5f672fd61c170bf",
+        "receipt": "1d98bfbc4fcf3d19373a8040f1136672480d2e32fd322c4c8125db8e77982598"
+      }
+    }
+  ],
+  "schema": "pd.ast-suggestibility.repeatability.v1",
+  "semanticContractHash": "925559f98e82e06b1085facf35d57007c3db551fbba860577dd0f3941e76f402"
+}

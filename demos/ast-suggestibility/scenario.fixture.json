@@ -1,0 +1,334 @@
+{
+  "schema": "pd.ast-suggestibility.voyage.v1",
+  "scenarioId": "ast-suggest-d0-reference-voyage",
+  "title": "The chart notices a collision before the edit",
+  "sourceLabel": "fixture",
+  "daemonPort": 3997,
+  "runId": "run-ast-suggest-d0-001",
+  "agentNodeId": "an-d0-cartographer",
+  "clock": {
+    "epoch": "2026-08-26T18:00:00.000Z",
+    "frameMs": 250
+  },
+  "canvas": { "width": 1280, "height": 852 },
+  "requiredControlPanelStates": [
+    "active",
+    "historical",
+    "blocked",
+    "stale",
+    "gate",
+    "interrupt",
+    "receipt"
+  ],
+  "captureStates": [
+    {
+      "name": "baseline",
+      "beat": "The fixture harbor is calm and explicitly labeled before any agent boards.",
+      "nodes": [],
+      "events": [],
+      "blackboard": [],
+      "commands": []
+    },
+    {
+      "name": "active",
+      "beat": "Cartographer indexes the checkout while a semantic suggestion begins to resolve.",
+      "nodes": [
+        {
+          "schema": "pd.agent-harbor.agent-node.v0",
+          "agentNodeId": "an-d0-cartographer",
+          "identity": "ast-voyage:cartographer:reference-fixture",
+          "displayName": "Cartographer / AST voyage",
+          "class": "voyager",
+          "authority": "local",
+          "complianceLevel": "C4",
+          "complianceProbeId": "probe-d0-cartographer",
+          "witnessedLevel": "C4",
+          "transcriptFidelity": "T4",
+          "officialMode": "official",
+          "status": "active",
+          "currentSessionId": "sess-ast-suggest-d0",
+          "currentBodyId": "body-ast-suggest-d0",
+          "currentRunId": "run-ast-suggest-d0-001",
+          "workspace": {
+            "repo": "ast-suggestibility-fixture",
+            "worktree": "/fixture/ast-suggestibility/worktrees/cartographer",
+            "branch": "voyage/cartographer"
+          },
+          "provider": "cli:codex",
+          "modelTier": "strong",
+          "modelName": "fixture-model",
+          "lastHeartbeatAt": "2026-08-26T18:00:02.000Z",
+          "lastEventAt": "2s"
+        }
+      ],
+      "events": [
+        {
+          "eventId": "ev-d0-001",
+          "sessionId": "sess-ast-suggest-d0",
+          "agentNodeId": "an-d0-cartographer",
+          "bodyId": "body-ast-suggest-d0",
+          "sequence": 1,
+          "occurredAt": "18:00:00",
+          "schemaVersion": 1,
+          "kind": "operator_message",
+          "visibility": "operator",
+          "payloadJson": { "text": "Map callers before changing reconcileClaims()." },
+          "redactionState": "none",
+          "retentionPolicyId": "fixture"
+        },
+        {
+          "eventId": "ev-d0-002",
+          "sessionId": "sess-ast-suggest-d0",
+          "agentNodeId": "an-d0-cartographer",
+          "bodyId": "body-ast-suggest-d0",
+          "sequence": 2,
+          "occurredAt": "18:00:01",
+          "schemaVersion": 1,
+          "kind": "assistant_message",
+          "payloadJson": { "text": "Index stable: 42 symbols, 71 edges. Resolving the ownership neighborhood." }
+        },
+        {
+          "eventId": "ev-d0-003",
+          "sessionId": "sess-ast-suggest-d0",
+          "agentNodeId": "an-d0-cartographer",
+          "bodyId": "body-ast-suggest-d0",
+          "sequence": 3,
+          "occurredAt": "18:00:02",
+          "schemaVersion": 1,
+          "kind": "tool_call",
+          "payloadJson": { "summary": "symbol graph → reconcileClaims → 6 callers, 2 active claims" }
+        }
+      ],
+      "blackboard": [
+        {
+          "kind": "suggestion",
+          "severity": "info",
+          "title": "Two lanes are converging on claim reconciliation",
+          "detail": "Semantic evidence 0.91 · budget available · suggestion remains advisory.",
+          "status": "active",
+          "postedAt": "18:00:02",
+          "citationCount": 3,
+          "assertedBy": "fixture:semantic-coach"
+        }
+      ],
+      "commands": []
+    },
+    {
+      "name": "blocked",
+      "beat": "A second lane reaches the same symbol and pauses with the conflict fully explained.",
+      "nodes": [
+        {
+          "schema": "pd.agent-harbor.agent-node.v0",
+          "agentNodeId": "an-d0-cartographer",
+          "identity": "ast-voyage:cartographer:reference-fixture",
+          "displayName": "Cartographer / collision held",
+          "class": "voyager",
+          "authority": "local",
+          "complianceLevel": "C4",
+          "complianceProbeId": "probe-d0-cartographer",
+          "witnessedLevel": "C4",
+          "transcriptFidelity": "T4",
+          "officialMode": "official",
+          "status": "blocked",
+          "currentSessionId": "sess-ast-suggest-d0",
+          "currentBodyId": "body-ast-suggest-d0",
+          "currentRunId": "run-ast-suggest-d0-001",
+          "workspace": {
+            "repo": "ast-suggestibility-fixture",
+            "worktree": "/fixture/ast-suggestibility/worktrees/cartographer",
+            "branch": "voyage/cartographer"
+          },
+          "provider": "cli:codex",
+          "modelTier": "strong",
+          "modelName": "fixture-model",
+          "lastHeartbeatAt": "2026-08-26T18:00:04.000Z",
+          "lastEventAt": "4s"
+        }
+      ],
+      "events": [
+        {
+          "eventId": "ev-d0-004",
+          "sessionId": "sess-ast-suggest-d0",
+          "agentNodeId": "an-d0-cartographer",
+          "bodyId": "body-ast-suggest-d0",
+          "sequence": 4,
+          "occurredAt": "18:00:04",
+          "schemaVersion": 1,
+          "kind": "conflict_detected",
+          "payloadJson": { "text": "reconcileClaims() overlaps Navigator's active symbol claim; 6 callers would inherit the change." }
+        }
+      ],
+      "blackboard": [
+        {
+          "kind": "claim-conflict",
+          "severity": "high",
+          "title": "Blocking overlap at reconcileClaims()",
+          "detail": "Navigator owns the symbol. The proposed edit has not touched fixture bytes. Convene a parley or request a handoff.",
+          "status": "active",
+          "postedAt": "18:00:04",
+          "citationCount": 4,
+          "assertedBy": "fixture:conflict-preflight"
+        }
+      ],
+      "commands": []
+    },
+    {
+      "name": "gate",
+      "beat": "The write is refused before side effects and the safe next action stays visible.",
+      "nodes": [
+        {
+          "schema": "pd.agent-harbor.agent-node.v0",
+          "agentNodeId": "an-d0-cartographer",
+          "identity": "ast-voyage:cartographer:reference-fixture",
+          "displayName": "Cartographer / gate closed",
+          "class": "voyager",
+          "authority": "local",
+          "complianceLevel": "C4",
+          "complianceProbeId": "probe-d0-cartographer",
+          "witnessedLevel": "C4",
+          "transcriptFidelity": "T4",
+          "officialMode": "official",
+          "status": "blocked",
+          "currentSessionId": "sess-ast-suggest-d0",
+          "currentBodyId": "body-ast-suggest-d0",
+          "currentRunId": "run-ast-suggest-d0-001",
+          "workspace": {
+            "repo": "ast-suggestibility-fixture",
+            "worktree": "/fixture/ast-suggestibility/worktrees/cartographer",
+            "branch": "voyage/cartographer"
+          },
+          "provider": "cli:codex",
+          "modelTier": "strong",
+          "modelName": "fixture-model",
+          "lastHeartbeatAt": "2026-08-26T18:00:06.000Z",
+          "lastEventAt": "6s"
+        }
+      ],
+      "events": [
+        {
+          "eventId": "ev-d0-005",
+          "sessionId": "sess-ast-suggest-d0",
+          "agentNodeId": "an-d0-cartographer",
+          "bodyId": "body-ast-suggest-d0",
+          "sequence": 5,
+          "occurredAt": "18:00:06",
+          "schemaVersion": 1,
+          "kind": "tool_denied",
+          "payloadJson": { "detail": "write refused before side effects · owner Navigator · safe action: request symbol handoff" }
+        }
+      ],
+      "blackboard": [
+        {
+          "kind": "commit-gate",
+          "severity": "critical",
+          "title": "No bytes changed — ownership gate held",
+          "detail": "Source hash remains 41b0…8c2f. One-click parley keeps the causal chain and holder evidence attached.",
+          "status": "active",
+          "postedAt": "18:00:06",
+          "citationCount": 5,
+          "assertedBy": "fixture:coordination-guard"
+        }
+      ],
+      "commands": [
+        {
+          "schema": "pd.agent-harbor.control-command.v0",
+          "commandId": "cmd-d0-parley",
+          "agentNodeId": "an-d0-cartographer",
+          "kind": "checkpoint",
+          "requestedBy": "pd-console:operator",
+          "status": "queued",
+          "createdAt": "18:00:06"
+        }
+      ]
+    },
+    {
+      "name": "receipt",
+      "beat": "The handoff receipt closes the loop without rewriting the blocked history.",
+      "nodes": [
+        {
+          "schema": "pd.agent-harbor.agent-node.v0",
+          "agentNodeId": "an-d0-cartographer",
+          "identity": "ast-voyage:cartographer:reference-fixture",
+          "displayName": "Cartographer / handoff receipted",
+          "class": "voyager",
+          "authority": "local",
+          "complianceLevel": "C4",
+          "complianceProbeId": "probe-d0-cartographer",
+          "witnessedLevel": "C4",
+          "transcriptFidelity": "T4",
+          "officialMode": "official",
+          "status": "complete",
+          "currentSessionId": "sess-ast-suggest-d0",
+          "currentBodyId": "body-ast-suggest-d0",
+          "currentRunId": "run-ast-suggest-d0-001",
+          "workspace": {
+            "repo": "ast-suggestibility-fixture",
+            "worktree": "/fixture/ast-suggestibility/worktrees/cartographer",
+            "branch": "voyage/cartographer"
+          },
+          "provider": "cli:codex",
+          "modelTier": "strong",
+          "modelName": "fixture-model",
+          "lastHeartbeatAt": "2026-08-26T18:00:08.000Z",
+          "lastEventAt": "8s"
+        }
+      ],
+      "events": [
+        {
+          "eventId": "ev-d0-006",
+          "sessionId": "sess-ast-suggest-d0",
+          "agentNodeId": "an-d0-cartographer",
+          "bodyId": "body-ast-suggest-d0",
+          "sequence": 6,
+          "occurredAt": "18:00:08",
+          "schemaVersion": 1,
+          "kind": "receipt_sealed",
+          "payloadJson": { "text": "handoff receipt rcpt-d0-001 · owner Navigator → Cartographer · source hash preserved" }
+        }
+      ],
+      "blackboard": [
+        {
+          "kind": "receipt",
+          "severity": "info",
+          "title": "Handoff rcpt-d0-001 sealed",
+          "detail": "The original refusal remains in history; the symbol is now safe for Cartographer's successor edit.",
+          "status": "resolved",
+          "postedAt": "18:00:08",
+          "citationCount": 6,
+          "assertedBy": "fixture:receipt-ledger"
+        }
+      ],
+      "commands": [
+        {
+          "schema": "pd.agent-harbor.control-command.v0",
+          "commandId": "cmd-d0-handoff",
+          "agentNodeId": "an-d0-cartographer",
+          "kind": "checkpoint",
+          "requestedBy": "pd-console:operator",
+          "status": "acknowledged",
+          "createdAt": "18:00:08"
+        }
+      ]
+    }
+  ],
+  "motion": {
+    "fps": 24,
+    "durationSeconds": 10,
+    "timeline": [
+      { "atMs": 0, "state": "baseline" },
+      { "atMs": 1500, "state": "active" },
+      { "atMs": 3500, "state": "blocked" },
+      { "atMs": 5500, "state": "gate" },
+      { "atMs": 7500, "state": "receipt" }
+    ]
+  },
+  "redaction": {
+    "forbiddenPatterns": [
+      "/Users/",
+      "/home/",
+      "BEGIN PRIVATE KEY",
+      "ghp_",
+      "sk-"
+    ]
+  }
+}

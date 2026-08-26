@@ -1,0 +1,112 @@
+{
+  "agentNodeId": "an-d0-cartographer",
+  "beat": "A second lane reaches the same symbol and pauses with the conflict fully explained.",
+  "blackboard": [
+    {
+      "assertedBy": "fixture:conflict-preflight",
+      "citationCount": 4,
+      "detail": "Navigator owns the symbol. The proposed edit has not touched fixture bytes. Convene a parley or request a handoff.",
+      "kind": "claim-conflict",
+      "postedAt": "18:00:04",
+      "severity": "high",
+      "status": "active",
+      "title": "Blocking overlap at reconcileClaims()"
+    }
+  ],
+  "clock": {
+    "epoch": "2026-08-26T18:00:00.000Z",
+    "frameMs": 250
+  },
+  "commands": [],
+  "events": [
+    {
+      "agentNodeId": "an-d0-cartographer",
+      "bodyId": "body-ast-suggest-d0",
+      "eventId": "ev-d0-001",
+      "kind": "operator_message",
+      "occurredAt": "18:00:00",
+      "payloadJson": {
+        "text": "Map callers before changing reconcileClaims()."
+      },
+      "redactionState": "none",
+      "retentionPolicyId": "fixture",
+      "schemaVersion": 1,
+      "sequence": 1,
+      "sessionId": "sess-ast-suggest-d0",
+      "visibility": "operator"
+    },
+    {
+      "agentNodeId": "an-d0-cartographer",
+      "bodyId": "body-ast-suggest-d0",
+      "eventId": "ev-d0-002",
+      "kind": "assistant_message",
+      "occurredAt": "18:00:01",
+      "payloadJson": {
+        "text": "Index stable: 42 symbols, 71 edges. Resolving the ownership neighborhood."
+      },
+      "schemaVersion": 1,
+      "sequence": 2,
+      "sessionId": "sess-ast-suggest-d0"
+    },
+    {
+      "agentNodeId": "an-d0-cartographer",
+      "bodyId": "body-ast-suggest-d0",
+      "eventId": "ev-d0-003",
+      "kind": "tool_call",
+      "occurredAt": "18:00:02",
+      "payloadJson": {
+        "summary": "symbol graph → reconcileClaims → 6 callers, 2 active claims"
+      },
+      "schemaVersion": 1,
+      "sequence": 3,
+      "sessionId": "sess-ast-suggest-d0"
+    },
+    {
+      "agentNodeId": "an-d0-cartographer",
+      "bodyId": "body-ast-suggest-d0",
+      "eventId": "ev-d0-004",
+      "kind": "conflict_detected",
+      "occurredAt": "18:00:04",
+      "payloadJson": {
+        "text": "reconcileClaims() overlaps Navigator's active symbol claim; 6 callers would inherit the change."
+      },
+      "schemaVersion": 1,
+      "sequence": 4,
+      "sessionId": "sess-ast-suggest-d0"
+    }
+  ],
+  "roster": [
+    {
+      "agentNodeId": "an-d0-cartographer",
+      "authority": "local",
+      "class": "voyager",
+      "complianceLevel": "C4",
+      "complianceProbeId": "probe-d0-cartographer",
+      "currentBodyId": "body-ast-suggest-d0",
+      "currentRunId": "run-ast-suggest-d0-001",
+      "currentSessionId": "sess-ast-suggest-d0",
+      "displayName": "Cartographer / collision held",
+      "identity": "ast-voyage:cartographer:reference-fixture",
+      "lastEventAt": "4s",
+      "lastHeartbeatAt": "2026-08-26T18:00:04.000Z",
+      "modelName": "fixture-model",
+      "modelTier": "strong",
+      "officialMode": "official",
+      "provider": "cli:codex",
+      "schema": "pd.agent-harbor.agent-node.v0",
+      "status": "blocked",
+      "transcriptFidelity": "T4",
+      "witnessedLevel": "C4",
+      "workspace": {
+        "branch": "voyage/cartographer",
+        "repo": "ast-suggestibility-fixture",
+        "worktree": "/fixture/ast-suggestibility/worktrees/cartographer"
+      }
+    }
+  ],
+  "runId": "run-ast-suggest-d0-001",
+  "scenarioId": "ast-suggest-d0-reference-voyage",
+  "schema": "pd.ast-suggestibility.semantic-state.v1",
+  "sourceLabel": "fixture",
+  "stateName": "blocked"
+}

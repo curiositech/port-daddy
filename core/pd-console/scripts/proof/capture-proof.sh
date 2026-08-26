@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# capture-proof.sh - render visual proof of a pd-console PR onto an off-screen
-# virtual display, then capture per-pane stills plus a short video without
-# touching the operator's other windows.
+# capture-proof.sh - render visual proof from a proof-owned pd-console window,
+# then capture per-pane stills plus a short video without including the
+# operator's other windows.
 #
 # Safety contract:
-#   - pd-console launches with --display <virtual> whenever possible.
+#   - pd-console launches on an explicitly selected display.
 #   - All stills and fallback video frames use screencapture -l<windowid>.
 #   - Window lookup is filtered to the harness-launched PID.
 #   - No full-screen or display-wide capture is used by this harness.
@@ -16,7 +16,7 @@
 # Env:
 #   PD_PROOF_DRY_RUN       set 1 for deterministic receipt/manifest smoke output
 #   PD_PROOF_STAMP         deterministic stamp for artifact folder/receipt
-#   PD_PROOF_DISPLAY       virtual-display selector (index or UUID)
+#   PD_PROOF_DISPLAY       capture-display selector (index or UUID)
 #   PD_PROOF_PANES         space-separated panes to snapshot
 #   PD_PROOF_VIDEO_PANE    pane to record a clip of
 #   PD_PROOF_DURATION      video length in seconds
@@ -26,7 +26,11 @@
 #   PD_PROOF_BIN           source pd-console binary to build/copy from
 #   PD_PROOF_LAUNCH_BIN    proof-owned binary path to launch
 #   PD_PROOF_OWNER_NAME    Quartz owner name to match; defaults to launch basename
-#   PD_PROOF_ALLOW_PRIMARY set 1 only for explicit local debugging on primary
+#   PD_PROOF_ALLOW_PRIMARY set 1 only after explicit operator authorization
+#   PD_PROOF_SCENARIO_FILE deterministic scenario file for a state-driven voyage
+#   PD_PROOF_SCENARIO_STATES space-separated state names captured on one pane
+#   PD_PROOF_SCENARIO_PANE exact GPUI pane used for every scenario state
+#   PD_PROOF_STATE_DRIVER executable Node driver supporting set and play
 set -euo pipefail
 
 usage() {
@@ -61,9 +65,14 @@ DURATION="${PD_PROOF_DURATION:-10}"
 FPS="${PD_PROOF_FPS:-30}"
 SETTLE="${PD_PROOF_SETTLE:-3}"
 VIDEO_MODE="${PD_PROOF_VIDEO_MODE:-auto}"
+SCENARIO_FILE="${PD_PROOF_SCENARIO_FILE:-}"
+SCENARIO_STATES="${PD_PROOF_SCENARIO_STATES:-}"
+SCENARIO_PANE="${PD_PROOF_SCENARIO_PANE:-harbor}"
+STATE_DRIVER="${PD_PROOF_STATE_DRIVER:-}"
 DAEMON_URL=""
 
 APP_PID=""
+MOTION_PID=""
 DISPLAY_SEL="${PD_PROOF_DISPLAY:-}"
 SCK_STATUS="not attempted"
 FALLBACK_STATUS="not attempted"
@@ -146,9 +155,10 @@ pd-console windows by launched PID and exact window ID.
 
 Recommended intervention:
 
-1. Ensure a BetterDisplay or dummy-plug virtual display is available.
+1. Obtain explicit operator authorization before opening the proof-owned window
+   on the primary display and set `PD_PROOF_ALLOW_PRIMARY=1`.
 2. Grant Screen Recording permission to the terminal/app running this harness.
-3. Re-run the same command. Do not switch to display-wide or full-screen capture.
+3. Re-run the same command. Never switch to display-wide or full-screen capture.
 EOF
 }
 
@@ -176,13 +186,23 @@ write_manifest() {
     echo "- [RECEIPT.md](./RECEIPT.md)"
     echo
     echo "## Panes"
-    for p in $PANES; do
-      if [[ "$DRY_RUN" == "1" ]]; then
-        echo "- \`$p\` - [pane-$p.png](./pane-$p.png) (proposed dry-run placeholder; not generated)"
-      else
-        echo "- \`$p\` - [pane-$p.png](./pane-$p.png)"
-      fi
-    done
+    if [[ -n "$SCENARIO_STATES" ]]; then
+      for state in $SCENARIO_STATES; do
+        if [[ "$DRY_RUN" == "1" ]]; then
+          echo "- \`$SCENARIO_PANE / $state\` - [state-$state.png](./state-$state.png) (proposed dry-run placeholder; not generated)"
+        else
+          echo "- \`$SCENARIO_PANE / $state\` - [state-$state.png](./state-$state.png)"
+        fi
+      done
+    else
+      for p in $PANES; do
+        if [[ "$DRY_RUN" == "1" ]]; then
+          echo "- \`$p\` - [pane-$p.png](./pane-$p.png) (proposed dry-run placeholder; not generated)"
+        else
+          echo "- \`$p\` - [pane-$p.png](./pane-$p.png)"
+        fi
+      done
+    fi
     echo
     echo "## Video"
     if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof.mp4 "* ]]; then
@@ -190,6 +210,9 @@ write_manifest() {
     fi
     if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof.mov "* ]]; then
       echo "- [proof.mov](./proof.mov)"
+    fi
+    if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof.gif "* ]]; then
+      echo "- [proof.gif](./proof.gif)"
     fi
     if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof-window-fallback.mp4 "* ]]; then
       if [[ "$DRY_RUN" == "1" ]]; then
@@ -215,7 +238,7 @@ write_receipt() {
     echo "# pd-console visual proof receipt"
     echo
     echo "Artifact dir:"
-    echo "\`$OUT\`"
+    echo "\`$(receipt_path "$OUT")\`"
     echo
     echo "## Context"
     echo
@@ -240,9 +263,15 @@ write_receipt() {
     echo "## Artifacts"
     echo
     echo "Screenshots:"
-    for p in $PANES; do
-      echo "- \`pane-$p.png\`"
-    done
+    if [[ -n "$SCENARIO_STATES" ]]; then
+      for state in $SCENARIO_STATES; do
+        echo "- \`state-$state.png\`"
+      done
+    else
+      for p in $PANES; do
+        echo "- \`pane-$p.png\`"
+      done
+    fi
     echo
     echo "Video:"
     if [[ "${#VIDEO_ARTIFACTS[@]}" -eq 0 ]]; then
@@ -283,6 +312,15 @@ write_receipt() {
     echo 'screencapture -x -o -l"<windowid>" "$OUT/pane-<pane>.png"'
     echo '```'
     echo
+    if [[ -n "$SCENARIO_STATES" ]]; then
+      echo
+      echo "Deterministic scenario state:"
+      echo
+      echo '```sh'
+      echo "node \"$(receipt_path "$STATE_DRIVER")\" set \"<state>\" --url \"$(receipt_value "$DAEMON_URL" "<daemon-url>")\" --scenario \"$(receipt_path "$SCENARIO_FILE")\""
+      echo '```'
+    fi
+    echo
     echo "Exact-window fallback video path:"
     echo
     echo '```sh'
@@ -313,7 +351,7 @@ write_receipt() {
     fi
     echo "- Requires a logged-in macOS GUI session for real GPUI capture."
     echo "- Requires Screen Recording permission for window-only \`screencapture\` and ScreenCaptureKit."
-    echo "- Requires a virtual display for non-intrusive proof unless \`PD_PROOF_ALLOW_PRIMARY=1\` is explicitly set for local debugging."
+    echo "- Opening a proof window on the primary display requires explicit operator authorization via \`PD_PROOF_ALLOW_PRIMARY=1\`."
   } > "$OUT/RECEIPT.md"
 }
 
@@ -345,9 +383,15 @@ if [[ "$DRY_RUN" == "1" ]]; then
   FALLBACK_STATUS="planned first-class exact-window fallback"
   VIDEO_METHOD="dry-run"
   VIDEO_ARTIFACTS=("proof-window-fallback.mp4" "proof-window-fallback.gif")
-  for p in $PANES; do
-    append_window_log "$p" "<pid>" "<windowid>"
-  done
+  if [[ -n "$SCENARIO_STATES" ]]; then
+    for state in $SCENARIO_STATES; do
+      append_window_log "$SCENARIO_PANE/$state" "<pid>" "<windowid>"
+    done
+  else
+    for p in $PANES; do
+      append_window_log "$p" "<pid>" "<windowid>"
+    done
+  fi
   write_manifest
   write_receipt
   echo "dry-run proof receipt -> $OUT"
@@ -360,6 +404,12 @@ require_cmd cargo
 require_cmd screencapture
 require_cmd xcrun
 DAEMON_URL="$(resolve_daemon_url || true)"
+if [[ -n "$SCENARIO_STATES" ]]; then
+  require_cmd node
+  require_cmd ffmpeg
+  [[ -r "$SCENARIO_FILE" ]] || fail_intervention "Scenario mode requires a readable PD_PROOF_SCENARIO_FILE."
+  [[ -f "$STATE_DRIVER" ]] || fail_intervention "Scenario mode requires PD_PROOF_STATE_DRIVER."
+fi
 [[ -n "$DAEMON_URL" ]] || fail_intervention "Could not resolve the Port Daddy daemon URL from PORT_DADDY_URL, ~/.port-daddy/console-daemon.url, or ~/.port-daddy/daemon.port."
 
 if [[ ! -x "$SOURCE_BIN" ]]; then
@@ -424,8 +474,8 @@ validate_explicit_display() {
   done <<< "$listing"
 
   [[ -n "$matched" ]] || fail_intervention "PD_PROOF_DISPLAY '$selector' was not found in pd-console --list-displays. Refusing to let pd-console fall back to the primary display."
-  if display_line_is_primary "$matched"; then
-    fail_intervention "PD_PROOF_DISPLAY '$selector' resolves to the primary display. Use a virtual display selector for non-intrusive proof."
+  if display_line_is_primary "$matched" && [[ "${PD_PROOF_ALLOW_PRIMARY:-0}" != "1" ]]; then
+    fail_intervention "PD_PROOF_DISPLAY '$selector' resolves to the primary display. Set PD_PROOF_ALLOW_PRIMARY=1 only after explicit operator authorization."
   fi
 }
 
@@ -447,7 +497,7 @@ resolve_display() {
       echo "0"
       return 0
     fi
-    fail_intervention "No virtual display found. pd-console would open on the physical monitor."
+    fail_intervention "Only the primary display is available. Set PD_PROOF_ALLOW_PRIMARY=1 only after explicit operator authorization."
   fi
 
   local idx="" last="" line ox oy
@@ -470,7 +520,7 @@ resolve_display() {
 }
 
 DISPLAY_SEL="$(resolve_display)"
-echo "virtual display selector: $DISPLAY_SEL"
+echo "capture display selector: $DISPLAY_SEL"
 
 windowid() {
   if [[ -n "${APP_PID:-}" ]]; then
@@ -486,6 +536,11 @@ cleanup() {
     wait "$APP_PID" 2>/dev/null || true
   fi
   APP_PID=""
+  if [[ -n "${MOTION_PID:-}" ]] && kill -0 "$MOTION_PID" 2>/dev/null; then
+    kill "$MOTION_PID" 2>/dev/null || true
+    wait "$MOTION_PID" 2>/dev/null || true
+  fi
+  MOTION_PID=""
 }
 trap cleanup EXIT
 
@@ -514,12 +569,24 @@ wait_for_windowid() {
 capture_still() {
   local pane="$1"
   local id="$2"
-  local path="$OUT/pane-$pane.png"
+  local filename="${3:-pane-$pane.png}"
+  local path="$OUT/$filename"
   if screencapture -x -o -l"$id" "$path" && [[ -s "$path" ]]; then
-    echo "    ok pane-$pane.png (window $id)"
+    echo "    ok $filename (window $id)"
     return 0
   fi
   fail_intervention "Window-only still capture failed for pane '$pane'. Screen Recording permission may be missing."
+}
+
+
+drive_state() {
+  local state="$1"
+  node "$STATE_DRIVER" set "$state" --url "$DAEMON_URL" --scenario "$SCENARIO_FILE" >/dev/null
+}
+
+start_motion_driver() {
+  node "$STATE_DRIVER" play --url "$DAEMON_URL" --scenario "$SCENARIO_FILE" >"$OUT/motion-driver.log" 2>&1 &
+  MOTION_PID="$!"
 }
 
 build_recorder_if_needed() {
@@ -547,6 +614,11 @@ capture_sck_video() {
         -vf "scale='min(1280,iw)':-2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
         "$OUT/proof.mp4"
       [[ -s "$OUT/proof.mp4" ]] && VIDEO_ARTIFACTS+=("proof.mp4")
+      ffmpeg -y -loglevel error -i "$OUT/proof.mov" \
+        -vf "fps=6,scale=960:-1:flags=lanczos" \
+        "$OUT/proof.gif"
+      [[ -s "$OUT/proof.gif" ]] || fail_intervention "ffmpeg produced no ScreenCaptureKit GIF."
+      VIDEO_ARTIFACTS+=("proof.gif")
     fi
     return 0
   fi
@@ -603,29 +675,57 @@ capture_window_frame_video() {
 }
 
 echo "stills -> $OUT"
-for pane in $PANES; do
-  launch_pane "$pane"
-  id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for pane '$pane'."
-  append_window_log "$pane" "$APP_PID" "$id"
-  sleep "$SETTLE"
-  capture_still "$pane" "$id"
-done
+if [[ -n "$SCENARIO_STATES" ]]; then
+  for state in $SCENARIO_STATES; do
+    drive_state "$state"
+    launch_pane "$SCENARIO_PANE"
+    id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for pane '$SCENARIO_PANE' state '$state'."
+    append_window_log "$SCENARIO_PANE/$state" "$APP_PID" "$id"
+    sleep "$SETTLE"
+    capture_still "$SCENARIO_PANE" "$id" "state-$state.png"
+  done
+else
+  for pane in $PANES; do
+    launch_pane "$pane"
+    id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for pane '$pane'."
+    append_window_log "$pane" "$APP_PID" "$id"
+    sleep "$SETTLE"
+    capture_still "$pane" "$id"
+  done
+fi
 
-echo "video pane '$VIDEO_PANE' ($DURATION s @ ${FPS}fps)"
-launch_pane "$VIDEO_PANE"
-video_id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for video pane '$VIDEO_PANE'."
-append_window_log "$VIDEO_PANE-video" "$APP_PID" "$video_id"
+VIDEO_CAPTURE_PANE="$VIDEO_PANE"
+if [[ -n "$SCENARIO_STATES" ]]; then
+  VIDEO_CAPTURE_PANE="$SCENARIO_PANE"
+  first_state="${SCENARIO_STATES%% *}"
+  drive_state "$first_state"
+fi
+echo "video pane '$VIDEO_CAPTURE_PANE' ($DURATION s @ ${FPS}fps)"
+launch_pane "$VIDEO_CAPTURE_PANE"
+video_id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for video pane '$VIDEO_CAPTURE_PANE'."
+append_window_log "$VIDEO_CAPTURE_PANE-video" "$APP_PID" "$video_id"
 sleep "$SETTLE"
 
+if [[ -n "$SCENARIO_STATES" ]]; then
+  start_motion_driver
+fi
 if ! capture_sck_video "$video_id"; then
+  [[ -z "$MOTION_PID" ]] || wait "$MOTION_PID" || fail_intervention "Scenario motion driver failed during ScreenCaptureKit attempt."
+  if [[ -n "$SCENARIO_STATES" ]]; then
+    drive_state "$first_state"
+    start_motion_driver
+  fi
   capture_window_frame_video "$video_id"
 fi
+[[ -z "$MOTION_PID" ]] || wait "$MOTION_PID" || fail_intervention "Scenario motion driver failed."
 
 cleanup
 write_manifest
 write_receipt
 
-if ! compgen -G "$OUT/pane-*.png" >/dev/null; then
+if [[ -n "$SCENARIO_STATES" ]]; then
+  compgen -G "$OUT/state-*.png" >/dev/null || fail_intervention "No scenario state screenshots were captured."
+elif ! compgen -G "$OUT/pane-*.png" >/dev/null; then
   fail_intervention "No pane screenshots were captured."
 fi
 if [[ "${#VIDEO_ARTIFACTS[@]}" -eq 0 ]]; then
