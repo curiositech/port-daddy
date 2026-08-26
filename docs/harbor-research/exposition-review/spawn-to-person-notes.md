@@ -70,7 +70,7 @@ The document is, overall, unusually well-disciplined for a "popularization" — 
     **Priority:** Medium.
 
 11. **Location:** Bibliography, three entries never cited in the body: `ostrom1990` (line 1918), `hobbes1651` (line 1923), `rochettirole2003` (line 1908).
-    **Issue:** Dead bibliography entries — confirmed via full-document grep (`\cite{...ostrom1990}`, `...hobbes1651}`, `...rochettirole2003}` all return zero matches). Harmless to compile but a lint-level cleanliness issue, and Ostrom in particular (*Governing the Commons*) is a natural fit for §11's bounded-memory-as-a-commons-parameter argument and is currently wasted.
+    **Issue:** Dead bibliography entries — confirmed both by grep and by `submission_lint.py`, which independently flags all three with "is never cited - padding, or a lost `\cite`?". Harmless to compile but a lint-level cleanliness issue, and Ostrom in particular (*Governing the Commons*) is a natural fit for §11's bounded-memory-as-a-commons-parameter argument and is currently wasted.
     **Current text:** *(bibliography entries with no `\cite` anywhere in the document body)*
     **Proposed rewrite:** Either cite `ostrom1990` in §11's "Bounded memory is a design parameter, not a virtue" subsection (bounded-memory governance is exactly Ostrom's territory), or delete all three entries.
     **Priority:** Low.
@@ -110,6 +110,12 @@ The document is, overall, unusually well-disciplined for a "popularization" — 
     **Current text:** *(no change needed)*
     **Proposed rewrite:** *(none)*
     **Priority:** Low (informational).
+
+18a. **Location:** §6 (Identity), Theorem 6.3 (`thm:probation-dominance`) proof sketch, line 981.
+    **Issue:** Flagged by `submission_lint.py` ("'optimal' - optimal over what class, under what constraint set?") and worth keeping, unlike the linter's other "optimal" hits (which are citation paraphrases of Liu–Skrzypacz, already scoped by the source paper). This one is inside the paper's *own* proof sketch, and the theorem statement two paragraphs above *does* precisely scope the optimization ("minimizes the lifetime friction on honest newcomers... subject to the deterrence constraint"), but the proof's closing sentence drops the qualifier, so a reader who jumps straight to the proof (a real reading pattern for a starred/boxed result) sees an unqualified "optimal."
+    **Current text:** *"Hence, the optimal newcomer screening schedule is a sharp initial probation cliff followed by immediate graduation to full capacity."*
+    **Proposed rewrite:** *"Hence, among all schedules meeting the deterrence constraint, the one that minimizes honest newcomers' lifetime friction is a sharp initial probation cliff followed by immediate graduation to full capacity."*
+    **Priority:** Low.
 
 18. **Location:** §3.1 (Capability is not permission), the force-merge example, lines 594–603.
     **Issue:** Minor polish only — the "delete the production database" comparison is relegated to a parenthetical aside when it is at least as vivid as the force-merge example that precedes it and could stand as its own sentence for a reader skimming.
