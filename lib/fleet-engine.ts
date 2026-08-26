@@ -22,9 +22,7 @@ import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { resolveLLMBackend } from './llm-backend-resolver.js';
-import { createLLMClient } from './llm-call.js';
-import { transportToAdapter } from './coordination-judge.js';
+import { resolveSkillGraftRuntime } from './skill-graft-runtime.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
 import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
 import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex, type SkillGraftResult } from './skill-graft.js';
@@ -773,18 +771,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       // When neither holds, `createSkillGraftIndex` gets no llmClient and
       // craft() gracefully degrades to BM25-only ranking (never reintroduces
       // the vocabulary-mismatch bug as a silent "fallback").
-      const resolved = resolveLLMBackend({ actor: 'skill-graft' });
-      const usable = resolved
-        && resolved.source === 'actor-env'
-        && (resolved.backend === 'cloudflare' || resolved.backend === 'ollama')
-        ? resolved
-        : null;
-      const llmClient = usable
-        ? createLLMClient({ adapter: transportToAdapter(usable.transport), model: usable.model, timeoutMs: 15_000 })
-        : undefined;
+      const usable = resolveSkillGraftRuntime();
       skillGraftIndex = createSkillGraftIndex({
         projectRoot: projectDir,
-        llmClient,
+        llmClient: usable?.client,
         llmModel: usable?.model,
       });
     }

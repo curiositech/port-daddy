@@ -204,17 +204,11 @@ impl SseParser {
     }
 }
 
-/// Thin client for the live daemon — discovers it the canonical way (PR #261,
-/// extended for ADR-0084): `PORT_DADDY_URL`, else `~/.port-daddy/console-daemon.url`,
-/// else the TCP port the running daemon wrote to `~/.port-daddy/daemon.port`. When
-/// none of those exist (a fresh machine, or the file hasn't landed yet) the console
-/// no longer refuses to open — it falls back to the canonical stable berth
-/// (`berths::STABLE_PORT`) if something is actually listening there, else the
-/// first berth the dev-daemons registry knows about. The design intent of the
-/// final fallback: a fresh console must always open and render "daemon
-/// unreachable" state in-pane, rather than panicking before the window exists
-/// and leaving the operator with a stack trace instead of an instruction. See
-/// [`DaemonClient::discover`].
+/// Thin client for the live daemon. Startup authority is deliberately narrow:
+/// an explicit `PORT_DADDY_URL`, then the endpoint atomically published in
+/// `~/.port-daddy/daemon.port`, then the canonical stable berth. In-app berth
+/// changes are process-local; they never become an abandoned file that can pin a
+/// later launch to a dead development daemon. See [`DaemonClient::discover`].
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
@@ -234,6 +228,7 @@ pub struct DaemonClient {
 pub struct WorkSnapshot {
     pub intent: serde_json::Value,
     pub plan: Option<serde_json::Value>,
+    pub execution: Option<serde_json::Value>,
 }
 
 impl WorkSnapshot {
@@ -259,6 +254,84 @@ impl WorkSnapshot {
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
     }
+
+    fn execution_str(&self, key: &str) -> Option<&str> {
+        self.execution
+            .as_ref()
+            .and_then(|value| value.get(key))
+            .and_then(|value| value.as_str())
+            .filter(|value| !value.trim().is_empty())
+    }
+
+    pub fn execution_state(&self) -> &str {
+        self.execution_str("state").unwrap_or("not-started")
+    }
+
+    pub fn dispatch_id(&self) -> Option<&str> {
+        self.execution_str("dispatchId")
+    }
+
+    pub fn launch_id(&self) -> Option<&str> {
+        self.execution_str("launchId")
+    }
+
+    pub fn execution_agent_id(&self) -> Option<&str> {
+        self.execution_str("agentId")
+    }
+
+    pub fn transcript_id(&self) -> Option<&str> {
+        self.execution_str("transcriptId")
+    }
+
+    pub fn backend(&self) -> Option<&str> {
+        self.execution_str("backend")
+    }
+
+    pub fn model(&self) -> Option<&str> {
+        self.execution_str("model")
+    }
+
+    pub fn result_artifact(&self) -> Option<&str> {
+        self.execution_str("resultArtifact")
+    }
+
+    pub fn worktree_path(&self) -> Option<&str> {
+        self.execution_str("worktreePath")
+    }
+
+    pub fn branch(&self) -> Option<&str> {
+        self.execution_str("branch")
+    }
+
+    pub fn execution_error(&self) -> Option<&str> {
+        self.execution_str("errorMessage")
+    }
+
+    pub fn artifact_status(&self) -> Option<&serde_json::Value> {
+        self.execution
+            .as_ref()
+            .and_then(|value| value.get("artifactStatus"))
+            .filter(|value| value.is_object())
+    }
+
+    pub fn execution_fingerprint(&self) -> String {
+        let artifact_status = self
+            .artifact_status()
+            .map(serde_json::Value::to_string)
+            .unwrap_or_default();
+        [
+            self.execution_state(),
+            self.dispatch_id().unwrap_or(""),
+            self.launch_id().unwrap_or(""),
+            self.execution_agent_id().unwrap_or(""),
+            self.transcript_id().unwrap_or(""),
+            self.model().unwrap_or(""),
+            self.result_artifact().unwrap_or(""),
+            artifact_status.as_str(),
+            self.execution_error().unwrap_or(""),
+        ]
+        .join("|")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -281,6 +354,14 @@ pub struct WorkExecutionReceipt {
     pub state: String,
     pub session_id: Option<String>,
     pub worktree_path: Option<String>,
+    pub branch: Option<String>,
+    pub launch_id: Option<String>,
+    pub agent_id: Option<String>,
+    pub transcript_id: Option<String>,
+    pub backend: Option<String>,
+    pub model: Option<String>,
+    pub result_artifact: Option<String>,
+    pub error_message: Option<String>,
     pub launched_this_tick: usize,
     pub next_action: String,
 }
@@ -292,7 +373,12 @@ fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
         .cloned()
         .ok_or_else(|| anyhow!("Surface Gateway response omitted WorkIntent truth"))?;
     let plan = value.get("plan").filter(|v| v.is_object()).cloned();
-    Ok(WorkSnapshot { intent, plan })
+    let execution = value.get("execution").filter(|v| v.is_object()).cloned();
+    Ok(WorkSnapshot {
+        intent,
+        plan,
+        execution,
+    })
 }
 
 fn build_work_intent_envelope(
@@ -417,46 +503,44 @@ async fn wait_for_sse_retry<T>(
     }
 }
 
+fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> Result<String> {
+    if let Some(url) = explicit_url
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(url.trim_end_matches('/').to_string());
+    }
+    let port = published_port
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| value.parse::<u16>().ok())
+        .ok_or_else(|| {
+            anyhow!("cannot locate the Port Daddy daemon: start it or set PORT_DADDY_URL")
+        })?;
+    if port == 0 {
+        return Err(anyhow!(
+            "invalid zero port in the published daemon endpoint"
+        ));
+    }
+    Ok(format!("http://127.0.0.1:{port}"))
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
-        // Resolution order, highest priority first:
-        //   1. `PORT_DADDY_URL` env — explicit override for one launch.
-        //   2. `~/.port-daddy/console-daemon.url` — the operator's selected daemon
-        //      (a one-line URL). This is the console's "use this daemon" switch:
-        //      point it at a dev berth (e.g. http://127.0.0.1:9886) WITHOUT
-        //      clobbering the canonical daemon.port. Delete the file to fall back
-        //      to stable. The status bar shows which URL is live.
-        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon, if it
-        //      has registered by writing its port.
-        //   4. Nothing recorded anywhere: probe the canonical stable berth
-        //      (`berths::STABLE_PORT` — never hardcoded past this one named
-        //      constant) and use it if something answers; otherwise fall back to
-        //      the first berth the dev-daemons registry knows about. The console
-        //      must open with *some* selection — every pane already degrades to
-        //      "daemon unreachable" gracefully, and `u`/the picker let the
-        //      operator repoint it, so refusing to start here served no one.
-        if let Ok(url) = std::env::var("PORT_DADDY_URL") {
-            return Ok(Self::new(url));
-        }
+        // A previously selected development berth is intentionally not startup
+        // authority. PR #5722 removed that split-brain file after it stranded
+        // ordinary launches on a dead sidecar; the in-app picker still changes
+        // the current process without persisting a future surprise.
+        let explicit = std::env::var("PORT_DADDY_URL").ok();
         let home = dirs::home_dir();
-        if let Some(url) = home
-            .as_ref()
-            .map(|h| h.join(".port-daddy/console-daemon.url"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-        {
-            return Ok(Self::new(url));
-        }
-        if let Some(port) = home
+        let published_port = home
             .as_ref()
             .map(|h| h.join(".port-daddy/daemon.port"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| s.trim().parse::<u16>().ok())
-        {
-            return Ok(Self::new(format!("http://127.0.0.1:{port}")));
-        }
-        Ok(Self::new(crate::berths::default_url()))
+            .and_then(|p| std::fs::read_to_string(p).ok());
+        Ok(Self::new(discovery_base(
+            explicit.as_deref(),
+            published_port.as_deref(),
+        )?))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value
@@ -649,6 +733,38 @@ impl DaemonClient {
                 .get("worktreePath")
                 .and_then(|v| v.as_str())
                 .map(str::to_string),
+            branch: execution
+                .get("branch")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            launch_id: execution
+                .get("launchId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            agent_id: execution
+                .get("agentId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            transcript_id: execution
+                .get("transcriptId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            backend: execution
+                .get("backend")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            model: execution
+                .get("model")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            result_artifact: execution
+                .get("resultArtifact")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            error_message: execution
+                .get("errorMessage")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
             launched_this_tick: execution
                 .get("launchedThisTick")
                 .and_then(|v| v.as_u64())
@@ -680,7 +796,10 @@ impl DaemonClient {
             "issuedBy": "pd-console:operator:local",
             "issuedAt": now_iso8601(),
             "idempotencyKey": null,
-            "payload": { "limit": limit.clamp(1, 100) }
+            "payload": {
+                "limit": limit.clamp(1, 100),
+                "includeArtifactStatus": true
+            }
         });
         let response = self
             .http
@@ -993,26 +1112,20 @@ impl DaemonClient {
         Ok(())
     }
 
-    /// Convene an operator parley: `POST /parley/call`. `parties` are AGENT ids
-    /// (`fleet_transcripts.spawned_agent_id` — never transcript/session ids;
-    /// parley DMs each party via its agent inbox) and the daemon 400s below 2
-    /// distinct ids, so callers gate the affordance client-side too. Returns the
-    /// parsed body so the caller can surface `parley.parleyId` / `channel`; a
-    /// non-2xx surfaces the daemon's rejection verbatim through
-    /// [`ensure_success`] (the alert bus shows it, never a silent swallow).
+    /// Convene an operator parley: `POST /parley/call`. The request supplies
+    /// durable session ids, never caller-authored actors or inbox targets. The
+    /// daemon resolves participant authority from those sessions. Returns the
+    /// parsed response; any rejection reaches the alert bus verbatim.
     pub async fn call_parley(
         &self,
         surface: &str,
         reason: &str,
-        called_by: &str,
-        parties: &[String],
+        session_ids: &[String],
     ) -> Result<serde_json::Value> {
         let body = serde_json::json!({
             "surface": surface,
             "reason": reason,
-            "calledBy": called_by,
-            "parties": parties,
-            "trigger": "operator",
+            "sessionIds": session_ids,
         });
         let resp = self
             .http
@@ -1423,6 +1536,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn startup_discovery_prefers_explicit_then_published_stable_port() {
+        assert_eq!(
+            discovery_base(Some("  http://127.0.0.1:4123/  "), Some("4567\n"))
+                .expect("explicit endpoint"),
+            "http://127.0.0.1:4123"
+        );
+        assert_eq!(
+            discovery_base(None, Some("4567\n")).expect("published endpoint"),
+            "http://127.0.0.1:4567"
+        );
+    }
+
+    #[test]
+    fn startup_discovery_rejects_missing_invalid_and_zero_published_ports() {
+        assert!(discovery_base(None, None).is_err());
+        assert!(discovery_base(None, Some("not-a-port")).is_err());
+        assert!(discovery_base(None, Some("0")).is_err());
+    }
+
+    #[test]
+    fn startup_discovery_ignores_an_empty_explicit_override() {
+        assert_eq!(
+            discovery_base(Some("  "), Some("4567")).expect("published endpoint"),
+            "http://127.0.0.1:4567"
+        );
+    }
+
+    #[test]
     fn work_intent_envelope_has_one_creation_authority() {
         let body = build_work_intent_envelope(
             "Repair the broken receipt path",
@@ -1514,6 +1655,7 @@ mod tests {
             )["payload"]
                 .clone(),
             plan: None,
+            execution: None,
         };
         let body =
             build_work_intent_start_envelope(&snapshot, "start-token", "2026-07-12T00:00:05Z");

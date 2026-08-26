@@ -1,8 +1,11 @@
 # pd-console
 
-The GPU-native operator console for Port Daddy (ADR-0046) — a native window with a
-sidebar of panes (Fleet, Sorties, Dispatch, Sessions, Health, …), each polling the
-live daemon. There's also a headless TUI build for terminals and CI.
+The GPU-native operator console for Port Daddy (ADR-0046). It opens on one
+full-window **Work** screen: describe an outcome, watch Port Daddy admit a
+governed agent, follow that exact agent's live transcript, and open the resulting
+pull request with its current checks. Fleet, Sessions, Health, and the other deep
+truth surfaces remain available from the view launcher; they are not competing
+defaults. There's also a headless TUI build for terminals and CI.
 
 ## Quickstart
 
@@ -18,6 +21,27 @@ That's it. `make` builds the release window and opens it; `make install` updates
 the `latest` lane app without touching the production app. From the **FleetBar**
 menubar app, the popover's **Open Operator Console** button launches the operator
 lane.
+
+The normal journey needs no terminal vocabulary:
+
+1. Open pd-console.
+2. Choose **Start a mission** and describe the outcome in plain English.
+3. Stay on the Work screen while the exact agent, model, live output, files, and
+   checks arrive.
+4. Open the attached pull request from the same screen.
+
+## Mission flow
+
+![Mission-first Work screen](../../docs/artifacts/gpui/mission-first-running.png)
+
+The [three-state mission proof](../../docs/artifacts/gpui/mission-first-flow.gif)
+shows admission, live work, and delivery. These artifacts come from pd-console's
+render-agnostic `Block` model because gpui 0.2.2 does not expose Metal framebuffer
+readback. They verify the same mission data and semantic colors used by the native
+window without pretending to be a screen capture.
+
+Generate a particular proof state with `--headless-capture <path>
+--mission-state starting|in_progress|settled|failed`.
 
 | Command        | What it does |
 |----------------|--------------|
@@ -61,7 +85,8 @@ The window depends on [`gpui`](https://crates.io/crates/gpui) (Metal/macOS), whi
 an **optional** dependency: the window bin carries `required-features = ["gpui"]`, so
 the default `cargo check`/`cargo test` and the `pd-console-repl` build everywhere
 without it (that's the Linux CI gate). The window is built and verified on macOS by
-the `rust-console-gpui` CI job. Daemon discovery is canonical (`PORT_DADDY_URL` →
-`~/.port-daddy/console-daemon.url` → `~/.port-daddy/daemon.port` → the stable
-berth default), so a fresh console always opens against the canonical daemon
-address and renders reachability honestly instead of failing pre-window.
+the `rust-console-gpui` CI job. Daemon discovery is canonical: an explicit
+`PORT_DADDY_URL`, then the running daemon's atomically published
+`~/.port-daddy/daemon.port`, then the stable berth default. A stale
+development-daemon selection file is never startup authority, so closing a dev
+berth cannot strand the next ordinary launch on a dead port.

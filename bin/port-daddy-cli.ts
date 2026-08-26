@@ -787,6 +787,7 @@ Commands:
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --no-skill-warmup       Skip the detached, local-only Tool2Vec warm-up
     --no-agents             Skip Port Daddy Pilot agent definitions
     --no-harness            Skip Squid hooks and Coordination Guard
     --no-squid-hooks        Skip agent hook installation only
@@ -1390,17 +1391,22 @@ Commands:
     --body-chars <n>             Hard cap per inlined SKILL.md body
     --json                       Emit the structured SkillGraftResult
 
-  skill-graft warm               Rescan skills and precompute Tool2Vec centroids when explicitly configured
+  skill-graft warm               Reconcile a checkpointed Tool2Vec batch
+    --max-skills <n>             Bound this run (default: 32)
+    --all                        Reconcile every current-hash miss
+    --local-only                 Permit only loopback Ollama; reject cloud/remote hosts
   skill-graft reference <id> <path>
                                  Read one file from inside a skill directory
 
 This is the same lib/skill-graft.ts index used by lib/fleet-engine.ts when a
 pd-fleet.yml ship opts into skill_graft: true. Query is safe on a cold cache:
-it scans local skills and ranks via BM25 until Tool2Vec centroids are warmed.
+it scans the full user catalog and ranks via BM25 until Tool2Vec centroids are
+warmed. Setup and daemon callers are local-only. A manual warm may use an
+explicit PD_SKILL_GRAFT_BACKEND; the fleet default is never inherited.
 
 Examples:
   pd skill-graft "write tests for a flaky fleet trigger"
-  pd skill-graft warm --json
+  pd skill-graft warm --local-only --json
   pd skill-graft reference rag-retrieval-pattern-design scripts/audit.mjs`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials

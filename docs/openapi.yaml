@@ -67,6 +67,8 @@ tags:
     description: Episodic memory, session harvest, and backend-neutral continuation handoffs
   - name: harness-adapters
     description: Harness mechanics, runtime evidence, and N:N continuation compatibility
+  - name: skill-graft
+    description: Read and reconcile checkpointed Tool2Vec catalog coverage
 
 paths:
   # ===========================================================================
@@ -4878,6 +4880,61 @@ paths:
         '500':
           description: Harness evidence could not be read
 
+  /skill-graft/status:
+    get:
+      tags: [skill-graft]
+      summary: Read Tool2Vec catalog reconciliation coverage
+      operationId: getSkillGraftStatus
+      description: >
+        Scans the full user-level skill catalog and compares current content
+        hashes with the checkpointed Tool2Vec centroid cache. This read never
+        generates a centroid or calls an LLM.
+      responses:
+        '200':
+          description: Current catalog coverage and reconciler state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool2VecReconcileStatus'
+
+  /skill-graft/reconcile:
+    post:
+      tags: [skill-graft]
+      summary: Reconcile a bounded batch of Tool2Vec centroids
+      operationId: reconcileSkillGraft
+      description: >
+        Acquires the shared checkpoint lease and fills current-hash misses up
+        to the requested bound. The daemon reconciler is local-generator-only,
+        daemon readiness never waits for this work, and non-loopback requests
+        fail closed.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                maxSkills:
+                  type: integer
+                  minimum: 1
+                  maximum: 64
+                  default: 8
+      responses:
+        '200':
+          description: The caller acquired the lease and completed this batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool2VecReconcileResult'
+        '202':
+          description: Another caller owns the lease or no generator is configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool2VecReconcileResult'
+        '403':
+          description: Reconciliation is available only to loopback callers
+
   /agent-harbor/context-continuity:
     get:
       tags: [agent-harbor]
@@ -5370,6 +5427,47 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    Tool2VecReconcileStatus:
+      type: object
+      required: [state, configured, backend, generatorModel, embedderModel, catalogHash, total, current, missing, stale, coveragePct, leaseOwner, leaseExpiresAt, lastTrigger, lastStartedAt, lastCompletedAt, lastErrorKind, lastError]
+      properties:
+        state:
+          type: string
+          enum: [current, cold, reconciling, embedder-down, generator-down]
+        configured: { type: boolean }
+        backend: { type: [string, 'null'] }
+        generatorModel: { type: [string, 'null'] }
+        embedderModel: { type: string }
+        catalogHash: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        total: { type: integer, minimum: 0 }
+        current: { type: integer, minimum: 0 }
+        missing: { type: integer, minimum: 0 }
+        stale: { type: integer, minimum: 0 }
+        coveragePct: { type: number, minimum: 0, maximum: 100 }
+        leaseOwner: { type: [string, 'null'] }
+        leaseExpiresAt: { type: [integer, 'null'] }
+        lastTrigger: { type: [string, 'null'] }
+        lastStartedAt: { type: [integer, 'null'] }
+        lastCompletedAt: { type: [integer, 'null'] }
+        lastErrorKind:
+          type: [string, 'null']
+          enum: [embedder-down, generator-down, null]
+        lastError: { type: [string, 'null'] }
+
+    Tool2VecReconcileResult:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/Tool2VecReconcileStatus'
+        - type: object
+          required: [trigger, acquired, embedded, reused, removed, stoppedEarly]
+          properties:
+            trigger: { type: string }
+            acquired: { type: boolean }
+            embedded: { type: integer, minimum: 0 }
+            reused: { type: integer, minimum: 0 }
+            removed: { type: integer, minimum: 0 }
+            stoppedEarly: { type: boolean }
+
     ContextContinuityProjection:
       type: object
       additionalProperties: false
