@@ -457,7 +457,20 @@ Hansen--Ghrist \cite{hansen-ghrist}. The consistency radius --- distance from lo
 with its sup-norm corollaries --- is Robinson \cite{robinson}; our $r$ is its least-squares completion form. The
 nearly-linear Laplacian solvers behind CR-3 are the Spielman--Teng line \cite{spielman-teng}.
 
-\textbf{Adjacent, and honestly positioned.} Car\`u \cite{caru} shows the \v{C}ech-cohomological obstruction with
+\textbf{Adjacent, and honestly positioned.} Herlihy and Shavit \cite{herlihy-shavit} and, independently, Saks and
+Zaharoglou \cite{saks-zaharoglou} founded the topological line in distributed computing --- co-recipients of the 2004
+G\"odel Prize --- by characterizing which tasks have wait-free protocols via a structure-preserving map between the
+protocol's and the task's simplicial complexes of process views; Herlihy, Kozlov, and Rajsbaum
+\cite{herlihy-kozlov-rajsbaum} is the standard text. We inherit their conviction that topology is the right language for
+what a distributed system can and cannot know, but we ask a different question of a different object: not which tasks are
+solvable before execution, but what an analyst can certify \emph{after} one execution from partial, already-relayed
+evidence --- cellular sheaves with real coefficients on the gossip graph itself, not simplicial complexes of possible
+process states. PeerReview \cite{peerreview} is the systems-level ancestor of the exact scenario: witnesses cross-check
+signed logs, and a node that forks its log is caught because every authenticator it issues is eventually forwarded to a
+witness set that can compare them directly. But that guarantee rests on PeerReview's witness-set assumption --- that some
+correct node eventually obtains both sides of any comparison --- which is precisely the assumption our three-tier
+contract drops for the relayed tier: we characterize detection when no such direct comparison point exists and only
+cycle-relayed reports remain. Car\`u \cite{caru} shows the \v{C}ech-cohomological obstruction with
 abelian coefficients can vanish on contextual models --- imported here as the reason vanishing $r$ over $\mathbb{R}$ is
 never an all-clear. Sheng et al.'s BFT forensics \cite{sheng} works the attribution side: with signed protocol messages,
 equivocation yields a transferable cryptographic proof \emph{naming} the culprit, and their impossibility results bound
@@ -465,7 +478,9 @@ when. We sit deliberately on the other side of that line: cohomology reads unsig
 ``someone on these cycles lied'' from evidence no signature covers (relayed, never-compared links), and can never name the
 liar (\S\ref{sec:boundary}); signatures attribute, cohomology localizes, and a deployed federation wants both. Bach
 \cite{bach} is cited only to preempt a category error: \#P-hardness of coherent-sheaf cohomology does not touch finite
-cellular sheaves on graphs.
+cellular sheaves on graphs; the claim rests on a Semantic Scholar TLDR of the primary source rather than the source
+itself, which the primary text (institutional access blocked, see \texttt{deep-dives/BLOCKED-SOURCES-REQUESTS.md}) would
+close outright.
 
 \textbf{New, honestly.} No component of the mathematics is exotic: incidence matrices, cycle spaces, effective resistance,
 least squares. The contribution is the assembled result at its exact scope: (1) the mechanism boundary --- for a single
@@ -535,6 +550,14 @@ and machine-dependent, so the script asserts and re-asserts only the qualitative
 dense solve several times steeper), not the printed digits.
 
 \begin{thebibliography}{9}
+\bibitem{herlihy-shavit} M.~Herlihy and N.~Shavit. The topological structure of asynchronous computability. \emph{Journal
+of the ACM}, 46(6):858--923, 1999.
+\bibitem{saks-zaharoglou} M.~Saks and F.~Zaharoglou. Wait-free $k$-set agreement is impossible: the topology of public
+knowledge. \emph{SIAM Journal on Computing}, 29(5):1449--1483, 2000.
+\bibitem{herlihy-kozlov-rajsbaum} M.~Herlihy, D.~Kozlov, and S.~Rajsbaum. \emph{Distributed Computing Through
+Combinatorial Topology}. Morgan Kaufmann, 2013.
+\bibitem{peerreview} A.~Haeberlen, P.~Kouznetsov, and P.~Druschel. PeerReview: practical accountability for distributed
+systems. In \emph{Proc.\ 21st ACM Symposium on Operating Systems Principles (SOSP)}, pp.~175--188, 2007.
 \bibitem{abramsky-brandenburger} S.~Abramsky and A.~Brandenburger. The sheaf-theoretic structure of non-locality and
 contextuality. \emph{New Journal of Physics}, 13:113036, 2011.
 \bibitem{curry} J.~M. Curry. \emph{Sheaves, Cosheaves and Applications}. PhD thesis, University of Pennsylvania, 2014.
