@@ -816,6 +816,7 @@ mod tests {
                 "evidence": "Intent is durable; planner unavailable.",
                 "nodeSpecs": []
             })),
+            execution: None,
         };
         let dag = from_work_snapshot(&snapshot);
         assert_eq!(dag.title, "Consolidate work creation");
@@ -849,6 +850,7 @@ mod tests {
                     "requiresApproval": true
                 }]
             })),
+            execution: None,
         };
         let dag = from_work_snapshot(&snapshot);
         assert_eq!(dag.waves.len(), 1);

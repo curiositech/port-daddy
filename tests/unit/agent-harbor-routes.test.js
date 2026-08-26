@@ -352,7 +352,7 @@ describe('agent-harbor routes', () => {
         duplicate: false,
         intent: { intentId: 'work_intent_pd_console_test_1' },
         execution: {
-          projection: 'dispatches-compatibility',
+          projection: 'governed-mission',
           state: 'claimed',
           launchedThisTick: 1,
         },
@@ -391,6 +391,67 @@ describe('agent-harbor routes', () => {
         data: {
           intent: { intentId: 'work_intent_pd_console_test_1' },
           plan: { planId: 'work_plan_pd_console_test_1', state: 'intent-captured' },
+        },
+      });
+    });
+
+    test('rehydrates the mission artifact and current PR checks on the same snapshot', async () => {
+      await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: gatewayEnvelope(),
+      });
+      const start = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: gatewayEnvelope({
+          envelopeId: 'surface_gateway_pd_console_start_artifact',
+          correlationId: 'corr_pd_console_start_artifact',
+          operation: 'work-intent.start',
+          idempotencyKey: 'pd-console:start:work_intent_pd_console_test_1',
+          payload: gatewayEnvelope().payload,
+        }),
+      });
+      const dispatchId = start.json().execution.dispatchId;
+      deps.dispatchQueue.start(dispatchId);
+      deps.dispatchQueue.settle({
+        id: dispatchId,
+        state: 'settled',
+        resultArtifact: 'https://github.com/port-daddy/port-daddy/pull/123',
+      });
+      deps.missionArtifactStatus = jest.fn(async () => ({
+        state: 'OPEN',
+        isDraft: false,
+        mergeable: 'MERGEABLE',
+        failingChecks: [],
+        pendingChecks: ['visual-artifact'],
+        unresolvedThreads: 0,
+        threadsUnknown: false,
+        fetchError: null,
+      }));
+
+      const query = gatewayEnvelope({
+        envelopeId: 'surface_gateway_pd_console_query_artifact',
+        mode: 'query',
+        operation: 'work-intent.list',
+        idempotencyKey: null,
+        payload: { limit: 1, includeArtifactStatus: true },
+      });
+      const response = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: query,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data[0].execution).toMatchObject({
+        dispatchId,
+        state: 'settled',
+        resultArtifact: 'https://github.com/port-daddy/port-daddy/pull/123',
+        artifactStatus: {
+          state: 'OPEN',
+          mergeable: 'MERGEABLE',
+          pendingChecks: ['visual-artifact'],
         },
       });
     });

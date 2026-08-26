@@ -110,13 +110,38 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       };
     }
 
+    const dispatchId = input.plan.dispatch.id;
     const intent = planToLaunchIntent(input.plan);
+    intent.onAdmitted = (launch) => {
+      input.queue.bindExecution({ id: dispatchId, launchId: launch.id });
+    };
+    intent.onAgentStarted = (receipt) => {
+      input.queue.bindExecution({
+        id: dispatchId,
+        agentId: receipt.agentId,
+        transcriptId: receipt.transcriptId,
+        model: receipt.model,
+      });
+    };
     const r = await conductor.launch(intent);
+
+    // Fakes and older Conductor-like implementations may not invoke the live
+    // witnesses. Retain the terminal receipt as a fallback without weakening
+    // the event-time path used by the real daemon.
+    input.queue.bindExecution({
+      id: dispatchId,
+      launchId: r.launch.id,
+      agentId: r.launch.agentId,
+    });
 
     // Refused at admission (bond/ceiling/depth/breaker/main-checkout/capability):
     // the launch never spawned. Surface the refusal reason as a failure.
     if (!r.admitted) {
-      return { state: 'failed', errorMessage: r.refusedReason ?? 'refused' };
+      return {
+        state: 'failed',
+        launchId: r.launch.id,
+        errorMessage: r.refusedReason ?? 'refused',
+      };
     }
 
     // Map the launch's terminal-ish state onto the dispatch lifecycle. The
@@ -128,11 +153,18 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       case 'halted':
         // Operator halt landed on this launch → preserve the worktree/transcript
         // for the operator to salvage rather than discarding it as a failure.
-        return { state: 'salvage', errorMessage: r.launch.errorMessage ?? 'halted' };
+        return {
+          state: 'salvage',
+          launchId: r.launch.id,
+          agentId: r.launch.agentId,
+          errorMessage: r.launch.errorMessage ?? 'halted',
+        };
 
       case 'failed':
         return {
           state: 'failed',
+          launchId: r.launch.id,
+          agentId: r.launch.agentId,
           costUsd: r.launch.costUsd ?? undefined,
           errorMessage: r.launch.errorMessage,
         };
@@ -147,6 +179,8 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         if (!r.launch.resultArtifact) {
           return {
             state: 'salvage',
+            launchId: r.launch.id,
+            agentId: r.launch.agentId,
             costUsd: r.launch.costUsd ?? undefined,
             errorMessage:
               r.launch.errorMessage
@@ -155,6 +189,8 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         }
         return {
           state: 'settled',
+          launchId: r.launch.id,
+          agentId: r.launch.agentId,
           costUsd: r.launch.costUsd ?? undefined,
           resultArtifact: r.launch.resultArtifact,
         };
@@ -162,6 +198,8 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       default:
         return {
           state: 'failed',
+          launchId: r.launch.id,
+          agentId: r.launch.agentId,
           errorMessage: `unexpected launch state: ${launchState}`,
         };
     }

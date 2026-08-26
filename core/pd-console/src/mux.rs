@@ -331,24 +331,16 @@ impl Workspace {
     }
 }
 
-/// The console's first-screen workspace. Deep-linked panes are user experiences,
-/// so an explicit initial surface opens as a single full workspace; the no-arg
-/// launch opens the Planner's roadmap Gantt as the primary surface.
-///
-/// Why the Gantt leads: the operator's standing directive is that opening the
-/// console answers "what is the plan and where is it" before anything else —
-/// the roadmap schedule (critical path, claims, in-flight work) is the first
-/// screen, with the live fleet and lane as the supporting right-hand column.
+/// The console's first-screen workspace. A no-argument launch is one full-window
+/// Mission surface: tell Port Daddy what to do, then keep the resulting plan,
+/// workers, live output, artifacts, checks, and PR in that same place. The pane
+/// multiplexer remains available as an advanced workspace, but it is never the
+/// prerequisite for starting or following ordinary work.
 pub fn default_operator_workspace(initial: Option<SurfaceKind>) -> Workspace {
     if let Some(surface) = initial {
         return Workspace::new(surface);
     }
-
-    let mut ws = Workspace::new(SurfaceKind::Roadmap);
-    ws.split(Dir::Row, SurfaceKind::Fleet); // roadmap | fleet
-    ws.split(Dir::Col, SurfaceKind::AgentTranscript { agent_id: None }); // fleet / lane
-    ws.focus(1); // start on the roadmap Gantt (first leaf id)
-    ws
+    Workspace::new(SurfaceKind::Work)
 }
 
 // ── Recursive tree surgery (free fns keep the borrow checker happy) ──────────
@@ -628,12 +620,10 @@ mod tests {
     }
 
     #[test]
-    fn default_operator_workspace_without_initial_opens_overview() {
+    fn default_operator_workspace_without_initial_opens_one_mission_surface() {
         let ws = default_operator_workspace(None);
-        assert_eq!(ws.pane_count(), 3);
-        // The roadmap Gantt is the first screen — the operator's standing
-        // directive is plan-first, fleet/lane as the supporting column.
-        assert!(matches!(ws.focused_surface(), SurfaceKind::Roadmap));
+        assert_eq!(ws.pane_count(), 1);
+        assert!(matches!(ws.focused_surface(), SurfaceKind::Work));
     }
 
     #[test]
