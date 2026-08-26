@@ -74,6 +74,12 @@ RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
 # operators can retarget without a code deploy; unknown ids fail the AI call
 # with an honest AI_ERROR, they never remap silently.
 SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Daily per-user chat budget (src/chat-spend.ts), shared by EVERY conversational
+# surface the relay hosts. Plain vars, never caller input. Unset or unparsable
+# values fall back to the committed defaults — never to "unlimited", never to
+# zero — so a typo here cannot switch a protective budget off.
+CHAT_DAILY_MESSAGES = "60"
+CHAT_DAILY_TOKENS = "200000"
 # X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
 # `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
 # gives the reserved pd-mediator seat its observation behavior. While off, the
@@ -130,6 +136,15 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 # still deploys if this block is removed; handlers fail closed without it.
 [ai]
 binding = "AI"
+
+# R2 — raw ship session transcripts (pd-transcript.v1), WRITTEN by the
+# fleet-executor and only READ here (run-page links + the
+# /fleet/runs/:id/transcript/:ship.jsonl route). Env.TRANSCRIPTS is optional
+# in code; absent ⇒ transcript routes 404 and the page shows no links.
+# See docs/FLEET-SESSION-TRANSCRIPTS.md.
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
 
 # Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
 [[queues.producers]]
@@ -217,6 +232,12 @@ GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
 RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
 SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Daily per-user chat budget (src/chat-spend.ts), shared by EVERY conversational
+# surface the relay hosts. Plain vars, never caller input. Unset or unparsable
+# values fall back to the committed defaults — never to "unlimited", never to
+# zero — so a typo here cannot switch a protective budget off.
+CHAT_DAILY_MESSAGES = "60"
+CHAT_DAILY_TOKENS = "200000"
 # X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
 # `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
 # gives the reserved pd-mediator seat its observation behavior. While off, the
@@ -259,6 +280,12 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 
 # Workers AI binding — environments do NOT inherit top-level bindings, so the
 # [ai] block is repeated here on purpose (see the NOTE above).
+# Same PROD transcript bucket, read-only usage (staging runs read real
+# captures; the executor is the only writer and has no staging channel).
+[[env.latest.r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
+
 [env.latest.ai]
 binding = "AI"
 

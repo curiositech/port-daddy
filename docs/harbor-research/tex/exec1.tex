@@ -87,15 +87,11 @@ The prediction is sharp and refutable: if any real digest scheme dips below this
 A digest is an encoder $e:(\text{features})\to\{0,1\}^B$ and a fixed, data-independent decoder $d:\{0,1\}^B\to$ (an $m$-subset to open); the scheme catches $T$ iff $T\subseteq d(e(\cdot))$. We implement three encoders --- \emph{oracle} (sees the true set, addresses the best codeword its $B$ bits can reach), \emph{noisy} (SNR $\approx 1$ features), \emph{random} --- against a shared randomized-cover codebook, and measure empirical miss over $4000$ placements per point. Regime $N=60,k=2,m=8$ so the floor $B^\star=5.98$ bits is fully sweepable.
 
 \subsection{Result, and an instructive bug}
-\begin{figure}[h]
-\centering
-\includegraphics[width=\textwidth]{a7_figure.png}
-\caption{\textbf{Panel 1:} every encoder sits on or above the information floor (black); the oracle hugs it from above, the noisy and random encoders pay a premium --- the floor bounds all of them, as predicted. \textbf{Panel 2:} corrupting a fraction $\phi$ of features (the mimicry attack, Solution 6.5$^\star$) inflates the effective floor. \textbf{Panel 3:} two readers --- when their load-bearing sets are disjoint (red), the joint miss curve shifts toward the $2k$ floor at $12.8$ bits, versus the single-reader floor at $6.0$; the visual confirmation of A1's super-additive penalty.}
-\end{figure}
+\input{fig-a7-floor.tex}
 
 \noindent\textbf{Falsification test: passed.} Across the swept budgets, the oracle encoder produced \textbf{0/16} violations of the floor (a violation being an empirical miss more than a Monte-Carlo margin below the predicted minimum). The theory survives.
 
-\noindent\textbf{The bug, reported.} A first implementation gave the oracle a \emph{perfect score vector} and charged bits only for tie-resolution, producing $8/16$ spurious ``violations.'' This was a model/theory mismatch, not a refutation: the floor charges bits for \emph{identifying} the load-bearing set, while that implementation let the oracle encode identity for free. The corrected model makes $B$ a literal message length gating an encoder/decoder pair, restoring agreement. This is logged because the refute-first discipline is only honest if the near-misses are reported --- and because it is a concrete instance of the deeper point: an information bound constrains \emph{what a channel can carry}, and a simulation that smuggles information through an unpriced side channel will appear to beat it.
+\noindent\textbf{The bug, reported.} A first implementation gave the oracle a \emph{perfect score vector} and charged bits only for tie-resolution, producing $8/14$ spurious ``violations.'' This was a model/theory mismatch, not a refutation: the floor charges bits for \emph{identifying} the load-bearing set, while that implementation let the oracle encode identity for free. The corrected model makes $B$ a literal message length gating an encoder/decoder pair, restoring agreement. This is logged because the refute-first discipline is only honest if the near-misses are reported --- and because it is a concrete instance of the deeper point: an information bound constrains \emph{what a channel can carry}, and a simulation that smuggles information through an unpriced side channel will appear to beat it.
 
 \subsection{Key numbers}
 \begin{center}

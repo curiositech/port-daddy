@@ -62,9 +62,7 @@ Six results are already in hand; here is each in capsule form (one breath $+$ on
 
 \textbf{Numbers.} $G{=}10$, $d{=}0.8$, $B{=}50$: $\rho^\star = 10/40 = 0.25$ --- audit one grade in four, forever, and cheating exactly stops paying (verified: cheat payoff $=+0.000000$ at $\rho^\star$). Tower with $G_0{=}400$: at $C{=}1$, bribery keeps corruption on life support ($400\!\to\!390\!\to\!380\ldots$, bleeding only the bribe price per level); at $C{=}8$, bribery is uneconomical from level one and value collapses geometrically at $0.8^k$ ($400\!\to\!320\!\to\!256\ldots$). Amortization at $T{=}200$: flat spends $50.0$; the log schedule $25.6$ (closed form $25.5$); the $O(1)$ schedule $35.1$, saturating at $aG^2/(2dBrv)=41.7$. Both schedules pass the pointwise deviation check: maximum deviation value $\le 0$ up to float epsilon.
 
-\begin{figure}[h]\centering\includegraphics[width=\textwidth]{b2_figure.png}
-\caption{\textbf{A:} the deterrence line --- cheating's payoff crosses zero at $\rho^\star$, earlier under confiscation. \textbf{B:} the tower --- corrupt value per audit level (log scale); more cliques $C$ means bribery shuts off earlier and decay goes geometric. \textbf{C:} cumulative audit spend --- flat is linear forever; history-aware schedules bend to $\Theta(\log T)$ and $O(1)$.}
-\end{figure}
+\input{fig-b2-tower.tex}
 
 \textbf{What it buys.} Conjecture III.11.1 --- the volume's central open question --- becomes a parameterized theorem with named sufficient conditions and a measured budget. It also fuses the two external reviews' proposals into one machine: \emph{model heterogeneity} is where the $C$ disjoint cliques come from, and \emph{VRF honeypots} are the implementation of the sealed random audit at rate $\rho^\star$. Neither review had the theorem; together they were it. This is Paper 3's core, now executed.
 

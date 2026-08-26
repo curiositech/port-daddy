@@ -39,13 +39,13 @@ export const SQUID_HOOK_STATUS_MAX_STEPS = 25;
 export const SQUID_HOOK_DEBUG_CLI_MAX_BYTES = 60 * 1024;
 
 export type SquidHookProvider = 'claude' | 'codex' | 'gemini' | 'agy' | 'unknown';
-export type SquidHookPhase = 'turn' | 'edit' | 'trace';
+export type SquidHookPhase = 'turn' | 'edit' | 'trace' | 'close';
 export type SquidHookStepState = 'running' | 'overdue' | 'completed' | 'skipped' | 'blocked' | 'failed';
 export type SquidHookCircuitState = 'closed' | 'open' | 'half_open';
 
 export interface SquidHookCircuit {
   hook: string;
-  label: 'PD TURN' | 'PD EDIT' | 'PD TRACE';
+  label: 'PD TURN' | 'PD EDIT' | 'PD TRACE' | 'PD CLOSE';
   state: SquidHookCircuitState;
   consecutiveFailures: number;
   openedAt: string | null;
@@ -76,7 +76,7 @@ export interface SquidHookDebugPaths {
 export interface SquidHookDebugStep {
   id: string;
   phase: SquidHookPhase;
-  label: 'PD TURN' | 'PD EDIT' | 'PD TRACE';
+  label: 'PD TURN' | 'PD EDIT' | 'PD TRACE' | 'PD CLOSE';
   hook: string;
   state: SquidHookStepState;
   startedAt: string;
@@ -177,6 +177,7 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
     ['pd-hook-prompt', 'PD TURN'],
     ['pd-hook-pre-tool', 'PD EDIT'],
     ['pd-hook-post-tool', 'PD TRACE'],
+    ['pd-hook-stop', 'PD CLOSE'],
   ].flatMap(([hook, label]) => {
     const statePath = join(healthDir, `${hook}.state`);
     if (!existsSync(statePath)) return [];
@@ -503,7 +504,7 @@ function parseRawEvent(line: string): RawEvent | null {
   if (!/^[A-Za-z0-9._:-]{1,160}$/.test(runId) || !/^[A-Za-z0-9._:-]{1,96}$/.test(runtimeSessionId)) return null;
   const provider = parseProvider(providerRaw);
   const phase = parsePhase(phaseRaw);
-  if (!provider || !phase || !/^pd-hook-(prompt|pre-tool|post-tool)$/.test(hook)) return null;
+  if (!provider || !phase || !/^pd-hook-(prompt|pre-tool|post-tool|stop)$/.test(hook)) return null;
   const atMs = Number(atRaw);
   const deadlineMs = Number(deadlineRaw);
   if (!Number.isSafeInteger(atMs) || atMs < 0 || !Number.isSafeInteger(deadlineMs) || deadlineMs < 1 || deadlineMs > 60_000) return null;
@@ -522,7 +523,7 @@ function parseProvider(value: string): SquidHookProvider | null {
 }
 
 function parsePhase(value: string): SquidHookPhase | null {
-  return ['turn', 'edit', 'trace'].includes(value) ? value as SquidHookPhase : null;
+  return ['turn', 'edit', 'trace', 'close'].includes(value) ? value as SquidHookPhase : null;
 }
 
 function decodeWorkspace(value: string): string | null {
@@ -576,7 +577,9 @@ function describeStep(phase: SquidHookPhase, state: SquidHookStepState, outcome:
     ? 'PD TURN is gathering fresh coordination context before the agent begins this turn.'
     : phase === 'edit'
       ? 'PD EDIT is checking project ownership and destructive-command safety before mutation.'
-      : 'PD TRACE is a legacy post-tool record retained for migration diagnostics; current installs use cumulative session evidence instead.';
+      : phase === 'close'
+        ? 'PD CLOSE is verifying the end-of-turn SITREP table before the agent yields this turn.'
+        : 'PD TRACE is a legacy post-tool record retained for migration diagnostics; current installs use cumulative session evidence instead.';
   const second = state === 'running'
     ? 'It is still inside its configured deadline.'
     : state === 'overdue'
@@ -625,7 +628,7 @@ function outcomeLabel(outcome: string | null): string {
 }
 
 function phaseLabel(phase: SquidHookPhase): SquidHookDebugStep['label'] {
-  return phase === 'turn' ? 'PD TURN' : phase === 'edit' ? 'PD EDIT' : 'PD TRACE';
+  return phase === 'turn' ? 'PD TURN' : phase === 'edit' ? 'PD EDIT' : phase === 'close' ? 'PD CLOSE' : 'PD TRACE';
 }
 
 function providerLabel(provider: SquidHookProvider): string {

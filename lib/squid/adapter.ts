@@ -95,7 +95,7 @@ export interface VoyageResult {
   stderr: string;
 }
 
-export type SquidHookPurpose = 'prompt' | 'preTool' | 'postTool';
+export type SquidHookPurpose = 'prompt' | 'preTool' | 'postTool' | 'stop';
 
 export interface SquidHookMetadata {
   purpose: SquidHookPurpose;
@@ -131,6 +131,13 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
       'Legacy compatibility tentacle for retained installs and debug history; new installs use cumulative session claims and notes instead.',
     privacy: 'Does not retain full tool output or conversation transcripts.',
   },
+  stop: {
+    purpose: 'stop',
+    displayName: 'Port Daddy end-of-turn SITREP check (local)',
+    description:
+      'Checks the final assistant message at end of turn for the repo’s required SITREP table, honoring the per-repo sitrep dial: off, suggest, or a single loop-guarded enforce block.',
+    privacy: 'Reads only the final-message field from the lifecycle event; does not store the message or transcript.',
+  },
 };
 
 // ─── Tentacle locations ───────────────────────────────────────────────────────
@@ -143,7 +150,7 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
  * (where the release tarball co-locates the tentacles next to `pd`, exactly as
  * it does `pd-bosun`), then a `bin/` beside it, then the dev-from-source path.
  */
-export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
+export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop'): string {
   const found = resolveSquidAsset(join('bin', name));
   if (found) return found;
   // Nothing found — return the installed-layout path so the error names the
@@ -164,7 +171,7 @@ export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-h
  * @returns Absolute, upgrade-stable path for provider lifecycle configuration.
  */
 export function hookCommandPath(
-  name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool',
+  name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop',
   pdHome = process.env.PD_HOME?.trim() || join(homedir(), '.port-daddy'),
 ): string {
   return join(pdHome, 'bin', name);
@@ -172,7 +179,7 @@ export function hookCommandPath(
 
 /** Assert the tentacles exist and are executable; throws a clear error if not. */
 export function assertTentaclesPresent(): void {
-  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const) {
+  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const) {
     const p = tentaclePath(name);
     if (!existsSync(p)) {
       throw new Error(`[squid/adapter] missing tentacle binary: ${p}`);
@@ -203,9 +210,10 @@ function hasPortDaddyHook(group: ClaudeHookMatcher | undefined, purpose: SquidHo
   return group.name === meta.displayName && group.description === meta.description && group.privacy === meta.privacy;
 }
 
-function commandForPurpose(purpose: SquidHookPurpose): 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' {
+function commandForPurpose(purpose: SquidHookPurpose): 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop' {
   if (purpose === 'prompt') return 'pd-hook-prompt';
   if (purpose === 'preTool') return 'pd-hook-pre-tool';
+  if (purpose === 'stop') return 'pd-hook-stop';
   return 'pd-hook-post-tool';
 }
 
@@ -278,8 +286,10 @@ function diagnoseCodexHookFile(workspaceRoot: string): SquidProviderHookDiagnosi
     SQUID_HOOK_PRIVACY_NOTICE,
     SQUID_HOOK_METADATA.prompt.displayName,
     SQUID_HOOK_METADATA.preTool.displayName,
+    SQUID_HOOK_METADATA.stop.displayName,
     hookCommandPath('pd-hook-prompt'),
     hookCommandPath('pd-hook-pre-tool'),
+    hookCommandPath('pd-hook-stop'),
   ];
   const missing = required.filter((needle) => !text.includes(needle));
   if (missing.length > 0) {
@@ -297,7 +307,7 @@ function diagnoseCodexHookFile(workspaceRoot: string): SquidProviderHookDiagnosi
     binaryName: 'codex',
     configPath,
     ok: true,
-    detail: '2 decision-bearing local hooks installed with privacy comments',
+    detail: '3 decision-bearing local hooks installed with privacy comments',
     hint,
   };
 }
@@ -307,15 +317,18 @@ export function diagnoseSquidHookInstall(workspaceRoot: string): SquidProviderHo
     diagnoseJsonHookFile('claude-code', 'claude', join(workspaceRoot, '.claude', 'settings.json'), {
       UserPromptSubmit: 'prompt',
       PreToolUse: 'preTool',
+      Stop: 'stop',
     }),
     diagnoseCodexHookFile(workspaceRoot),
     diagnoseJsonHookFile('gemini', 'gemini', join(workspaceRoot, '.gemini', 'settings.json'), {
       [GEMINI_EVENT.prompt]: 'prompt',
       [GEMINI_EVENT.preTool]: 'preTool',
+      [GEMINI_EVENT.stop]: 'stop',
     }),
     diagnoseJsonHookFile('antigravity', 'agy', join(AGY_GEMINI_DIR(), 'hooks.json'), {
       UserPromptSubmit: 'prompt',
       PreToolUse: 'preTool',
+      Stop: 'stop',
     }),
   ];
 }
@@ -434,6 +447,8 @@ export class ClaudeCliSquidAdapter implements GiantSquidAdapter {
       UserPromptSubmit: claudeHookEntry(hookCommandPath('pd-hook-prompt'), 'prompt'),
       // Only a decision-bearing direct edit earns a synchronous tool hook.
       PreToolUse: claudeHookEntry(hookCommandPath('pd-hook-pre-tool'), 'preTool', CLAUDE_TOOL_MATCHER),
+      // End-of-turn SITREP closeout gate (ADR-0092 L4); loop-guarded in the tentacle.
+      Stop: claudeHookEntry(hookCommandPath('pd-hook-stop'), 'stop'),
     };
 
     for (const [event, entry] of Object.entries(wanted)) {
@@ -505,6 +520,7 @@ const GEMINI_EVENT = {
   prompt: 'BeforeAgent',
   preTool: 'BeforeTool',
   postTool: 'AfterTool',
+  stop: 'AfterAgent',
 } as const;
 
 // ─── GeminiSquidAdapter — IMPLEMENTED ─────────────────────────────────────────
@@ -558,6 +574,8 @@ export class GeminiSquidAdapter implements GiantSquidAdapter {
     const wanted: Record<string, ClaudeHookMatcher> = {
       [GEMINI_EVENT.prompt]: claudeHookEntry(hookCommandPath('pd-hook-prompt'), 'prompt'),
       [GEMINI_EVENT.preTool]: claudeHookEntry(hookCommandPath('pd-hook-pre-tool'), 'preTool', GEMINI_TOOL_MATCHER),
+      // Gemini's native end-of-turn event; the tentacle reads prompt_response.
+      [GEMINI_EVENT.stop]: claudeHookEntry(hookCommandPath('pd-hook-stop'), 'stop'),
     };
     for (const [event, entry] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];
@@ -658,6 +676,7 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
         `Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`,
         `${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`,
         `${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`,
+        `${SQUID_HOOK_METADATA.stop.displayName}: ${SQUID_HOOK_METADATA.stop.description}`,
       ],
     });
 
@@ -812,6 +831,9 @@ export class AntigravitySquidAdapter implements GiantSquidAdapter {
     const wanted: Record<string, ClaudeHookMatcher> = {
       UserPromptSubmit: claudeHookEntry(hookCommandPath('pd-hook-prompt'), 'prompt'),
       PreToolUse: claudeHookEntry(hookCommandPath('pd-hook-pre-tool'), 'preTool', AGY_TOOL_MATCHER),
+      // Registered for parity, but agy's camelCase Stop payload is OBSERVE-ONLY
+      // in the tentacle (no final-message field, no loop guard, may not fire).
+      Stop: claudeHookEntry(hookCommandPath('pd-hook-stop'), 'stop'),
     };
     for (const [event, entry] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];

@@ -1973,7 +1973,7 @@
       }
     },
     "seamanship": {
-      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. Aliases: pd skills.",
+      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index/visibility` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. `visibility <skill-id> [private|listed|public]` reads or sets one skill's tier through the shared visibility law (lib/shipwright/skill-visibility.ts); `list --visibility <tier>` filters. Aliases: pd skills.",
       "module": "cli/commands/seamanship.ts",
       "cli": [
         "seamanship",

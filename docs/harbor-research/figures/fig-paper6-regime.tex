@@ -1,0 +1,140 @@
+% Paper 6 regime diagram: exact g(rho,2) vs falsified g-tilde (Panel A) and
+% the succession price D* (Panel B), recomputed directly from
+% create_regime_diagram() in figures/src/paper6_figures.py. Curves sampled
+% at reduced density (25 pts Panel A, 20 pts Panel B) from the same closed
+% forms the script evaluates at full density (300 pts); the sample grid is
+% chosen to land exactly on the crossing point (rho=(3-sqrt5)/2 in A,
+% D*=0.34962 in B) so the shaded-region polygons meet the curves cleanly.
+% Deterministic closed-form; the script's np.random.seed(20260816) is set
+% but unused by either panel (no sampling here).
+% NOTE (flagged, not silently patched): the script defines erlang_c(c,rho)
+% but create_regime_diagram() never calls it -- Panel B's K=1.0362 is a
+% hardcoded literal (matching the paper's own by-hand computation in
+% Sec. "Numbers by hand", confirmed independently below), not derived
+% programmatically from erlang_c(). Separately, erlang_c() itself is dead
+% code under the current numpy (np.math.factorial no longer exists --
+% numpy.math was removed from the numpy release pinned in this container),
+% so if anything ever calls it as written, it raises AttributeError. Since
+% it is not on the current execution path for either PNG or this figure,
+% it does not affect the plotted data -- but it is worth a fix upstream.
+% Independent check performed for this conversion: erlang_c(4,0.20833)
+% (via math.factorial, sidestepping the numpy bug) = 0.011024, matching the
+% paper's cited C(4,0.208)=0.0110 and K=0.2+0.8362=1.0362 [verified,
+% recomputed for this conversion]. dstar=eta*K/(1-eta*K)=0.34962 (paper:
+% D*=0.350, rounded); winf(1.5*dstar)=1.37607 (paper: 1.376). All match.
+% [verified: script paper6_figures.py, deterministic closed-form]
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={utilization $\rho$},
+  ylabel={skill premium $r=\mu_s/\mu_g$},
+  title={\textbf{A} --- the exact boundary\\vs.\ the falsified one},
+  xmin=0,xmax=0.95,ymin=0.9,ymax=4.0,
+  xtick={0,0.2,0.4,0.6,0.8},
+  ytick={1.0,1.5,2.0,2.5,3.0,3.5,4.0},
+  legend pos=north west,
+]
+\addplot[draw=none,fill=shipred,fill opacity=0.18,forget plot] coordinates {
+  (0.0200,1.0396) (0.0562,1.1092) (0.0924,1.1762) (0.1286,1.2406) (0.1648,1.3024)
+  (0.2010,1.3616) (0.2372,1.4181) (0.2734,1.4720) (0.3096,1.5233) (0.3458,1.5720)
+  (0.3820,1.6180)
+  (0.3820,1.6180) (0.3458,1.5285) (0.3096,1.4484) (0.2734,1.3762) (0.2372,1.3109)
+  (0.2010,1.2515) (0.1648,1.1973) (0.1286,1.1476) (0.0924,1.1018) (0.0562,1.0595)
+  (0.0200,1.0204)
+} \closedcycle;
+\addplot[draw=none,fill=harborblue,fill opacity=0.15,forget plot] coordinates {
+  (0.3820,1.6180) (0.4204,1.7253) (0.4588,1.8478) (0.4973,1.9891) (0.5357,2.1537)
+  (0.5741,2.3481) (0.6126,2.5810) (0.6510,2.8652) (0.6894,3.2197) (0.7278,3.6744)
+  (0.7663,4.0000) (0.8047,4.0000) (0.8431,4.0000) (0.8816,4.0000) (0.9200,4.0000)
+  (0.9200,1.9936) (0.8816,1.9860) (0.8431,1.9754) (0.8047,1.9619) (0.7663,1.9454)
+  (0.7278,1.9259) (0.6894,1.9035) (0.6510,1.8782) (0.6126,1.8499) (0.5741,1.8186)
+  (0.5357,1.7844) (0.4973,1.7473) (0.4588,1.7071) (0.4204,1.6641) (0.3820,1.6180)
+} \closedcycle;
+\addplot[seagreen,thick] coordinates {
+  (0.0200,1.0396) (0.0562,1.1092) (0.0924,1.1762) (0.1286,1.2406) (0.1648,1.3024)
+  (0.2010,1.3616) (0.2372,1.4181) (0.2734,1.4720) (0.3096,1.5233) (0.3458,1.5720)
+  (0.3820,1.6180) (0.4204,1.6641) (0.4588,1.7071) (0.4973,1.7473) (0.5357,1.7844)
+  (0.5741,1.8186) (0.6126,1.8499) (0.6510,1.8782) (0.6894,1.9035) (0.7278,1.9259)
+  (0.7663,1.9454) (0.8047,1.9619) (0.8431,1.9754) (0.8816,1.9860) (0.9200,1.9936)
+};
+\addlegendentry{exact $g(\rho,2)=1+2\rho-\rho^2$}
+\addplot[shipred,thick,dashed] coordinates {
+  (0.0200,1.0204) (0.0562,1.0595) (0.0924,1.1018) (0.1286,1.1476) (0.1648,1.1973)
+  (0.2010,1.2515) (0.2372,1.3109) (0.2734,1.3762) (0.3096,1.4484) (0.3458,1.5285)
+  (0.3820,1.6180) (0.4204,1.7253) (0.4588,1.8478) (0.4973,1.9891) (0.5357,2.1537)
+  (0.5741,2.3481) (0.6126,2.5810) (0.6510,2.8652) (0.6894,3.2197) (0.7278,3.6744)
+  (0.7663,4.2786) (0.8047,5.1205) (0.8431,6.3750) (0.8816,8.4437) (0.9200,12.5000)
+};
+\addlegendentry{proposed $\tilde g=1+\rho/(1-\rho)$ (falsified)}
+\addplot[black,dotted,forget plot] coordinates {(0.381966,0.9) (0.381966,4.0)};
+% Moved off the legend: legend pos=north west with these two long
+% (math-bearing) entries renders nearly full plot width and occupies
+% roughly the top fifth of the y-range, which is exactly where this label
+% sat before (y=3.62, just under ymax=4.0) -- the crossing marker's own
+% column, not something the shared axis style touches. Lower + smaller
+% keeps it clear of both the legend above and the false-certify cluster
+% (~y=1.0-1.15) below.
+\node[font=\tiny,rotate=90,anchor=north] at (axis cs:0.394,2.3) {$\rho=(3-\sqrt5)/2$};
+\addplot[shipred,mark=x,mark size=3.0pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.1,1.15)};
+\node[shipred,font=\scriptsize,anchor=north west] at (axis cs:0.13,1.13) {false-certify $r{=}1.15$};
+\addplot[harborblue,mark=o,mark size=2.4pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.5,1.9)};
+\node[harborblue,font=\scriptsize,anchor=south west] at (axis cs:0.53,1.98) {false-reject $r{=}1.9$};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={death-rate $\times$ succession-time, $\xi/\eta$},
+  ylabel={mean response time $W$},
+  title={\textbf{B} --- the succession price\\($\eta{=}0.25$, $K{=}1.036$)},
+  xmin=0,xmax=1.0,ymin=0,ymax=2.6,
+  xtick={0,0.2,0.4,0.6,0.8,1.0},
+  ytick={0,0.5,1.0,1.5,2.0,2.5},
+  legend pos=north west,
+]
+\addplot[draw=none,fill=shipred,fill opacity=0.15,forget plot] coordinates {
+  (0.3496,1.0362) (0.3961,1.1348) (0.4425,1.2271) (0.4890,1.3136) (0.5354,1.3949)
+  (0.5819,1.4714) (0.6284,1.5435) (0.6748,1.6117) (0.7213,1.6761) (0.7677,1.7372)
+  (0.8142,1.7951) (0.8606,1.8502) (0.9071,1.9026) (0.9535,1.9524) (1.0000,2.0000)
+  (1.0000,2.6000) (0.3496,2.6000)
+} \closedcycle;
+\addplot[seagreen,thick] coordinates {
+  (0.0000,0.0000) (0.0699,0.2614) (0.1398,0.4908) (0.2098,0.6936) (0.2797,0.8743)
+  (0.3496,1.0362) (0.3961,1.1348) (0.4425,1.2271) (0.4890,1.3136) (0.5354,1.3949)
+  (0.5819,1.4714) (0.6284,1.5435) (0.6748,1.6117) (0.7213,1.6761) (0.7677,1.7372)
+  (0.8142,1.7951) (0.8606,1.8502) (0.9071,1.9026) (0.9535,1.9524) (1.0000,2.0000)
+};
+\addlegendentry{downtime floor $W_\infty=\xi/(\eta(\xi+\eta))$}
+\addplot[harborblue,thick,dashed] coordinates {(0,1.0362) (1.0,1.0362)};
+\addlegendentry{pool cost line $K=A/(w\lambda)+W_{\mathrm{pool}}$}
+\addplot[black,dotted,forget plot] coordinates {(0.34962,0) (0.34962,2.6)};
+\node[font=\scriptsize,rotate=90,anchor=south west] at (axis cs:0.3646,0.25) {$D^\star=0.350$};
+% Moved down from y=2.15: legend pos=north west with these two long entries
+% (one with a stacked fraction) renders nearly full plot width and reaches
+% down to roughly y=2.0-2.1, which the original placement (just under
+% ymax=2.6) sat inside -- not a shared-style issue, this callout is local
+% to the panel. Lower + smaller also clears the mu_s marker/label block
+% (~y=1.12-1.48) below it.
+\addplot[shipred,mark=*,mark size=2.2pt,only marks,forget plot] coordinates {(0.5244,1.3761)};
+\node[shipred,font=\scriptsize,anchor=north west,align=left,fill=white,fill opacity=0.85,inner sep=1.5pt] at (axis cs:0.56,0.85) {$\mu_s{=}10^8$ still loses\\($W{=}1.376{>}K$)};
+\draw[shipred,->,thick] (axis cs:0.56,0.83) -- (axis cs:0.53,1.32);
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{The regime diagram. Panel A: the exact boundary $g(\rho,2)=1+2\rho-\rho^2$ (solid) against the falsified proposal
+$\tilde g$ (dashed); the shaded lenses are the two error regimes --- false-certify below the crossing at $\rho=(3-\sqrt5)/2$,
+false-reject above it --- with the two refuting instances marked ($r{=}1.15$ at $\rho{=}0.1$; $r{=}1.9$ at $\rho{=}0.5$). Panel B:
+the succession price at the reference instance ($\eta{=}0.25$, $K{=}1.036$): the downtime floor $W_\infty=\xi/(\eta(\xi+\eta))$
+crosses the pool cost line at $D^\star=0.350$; to its right pooling wins at every skill premium --- the marked point is a
+$\mu_s=10^8$ specialist still losing at $\xi/\eta=1.5D^\star$ ($W=1.376>K$). Both panels regenerate from
+\texttt{b8\_specialization.py} [internal, seed 20260816].}
+\label{fig:regime}
+\end{figure}

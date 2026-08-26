@@ -308,6 +308,24 @@ List all agents. Optional query param: `active=true`.
 ### POST /agents/:id/inbox
 Send a message to an agent's inbox. Body: `{ content, from?, type? }`.
 
+**Requires a daemon-minted actor credential** (`x-actor-credential` header or
+body `credential`) — #8877 / ADR-0122. The inbox is an instruction plane: with
+`wake: true` the message becomes the `- sender:` line in a spawned agent's
+prompt, so `from` is verified, not taken on faith.
+
+- No credential → `401 IDENTITY_CREDENTIAL_REQUIRED`.
+- Invalid credential → `401 IDENTITY_CREDENTIAL_INVALID`.
+- `from` omitted → the message is attributed to your minted `actorId`. **This
+  is the recommended usage.**
+- `from` present → accepted only when it is an alias bound to your soul, or
+  the agentId of an ACTIVE session stamped with your soul (what `pd begin`
+  creates). Anything else — including a name nobody ever minted — is
+  `403 INBOX_FROM_MISMATCH`.
+
+Each stored message carries the daemon's verdict as `fromActorId` and
+`fromSoulClass`. A null `fromActorId` means a daemon-internal send, not a
+principal; do not render it as "system".
+
 ### GET /agents/:id/inbox
 Read inbox messages. Query: `?unread=true&limit=50`.
 

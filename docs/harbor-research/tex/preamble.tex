@@ -6,9 +6,13 @@
 \usepackage{enumitem}
 \usepackage{titlesec}
 \usepackage[colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \definecolor{harborblue}{RGB}{30,70,110}
 \definecolor{shipred}{RGB}{140,30,30}
-\definecolor{seagreen}{RGB}{20,90,70}
+\definecolor{seagreen}{RGB}{31,110,70}
 \titleformat{\section}{\large\bfseries\color{harborblue}}{\thesection}{0.7em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
 \newtheorem{theorem}{Theorem}
@@ -20,3 +24,45 @@
 \newtheorem*{verdict}{Verdict}
 \newtheorem*{adj}{Adjudication}
 \setlist{itemsep=1pt,topsep=2pt}
+
+% Shared native-figure styles for the harbor-research corpus (relation-maps,
+% regime diagrams, and data plots). Vector TikZ/pgfplots only -- see
+% docs/harbor-research/figures/CONVENTION.md for the house rule this follows.
+\tikzset{
+  relnode/.style={draw,rounded corners,thick,minimum width=2.6cm,minimum height=0.9cm,align=center,font=\small},
+  relarrow/.style={-{Stealth[length=2.5mm]},thick},
+  regimebox/.style={draw,thick,align=center,font=\small,inner sep=4pt},
+}
+\pgfplotsset{
+  % height is generous on purpose: a rotated ylabel string, rendered at
+  % label-font size, must fit inside the axis height without poking above
+  % the top of the axis into the title's row -- a real collision bug found
+  % by rendering the first CI build (fig-r2-regime.tex, fig-b1-frontier.tex).
+  harbor curve/.style={
+    width=0.46\textwidth,height=5.6cm,
+    axis lines=left,
+    label style={font=\scriptsize},
+    tick label style={font=\scriptsize},
+    title style={font=\small,align=center,yshift=2pt},
+    % Opaque plate under the legend: an inside-plot legend (legend pos=...)
+    % otherwise renders its text directly on top of plotted curves, which
+    % reads as noise, not data. This does not fix true text/text collisions
+    % (two annotations, or a legend square with a data marker) -- those
+    % still need a per-figure legend pos / node position choice.
+    legend style={font=\scriptsize,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
+    thick,
+  },
+  harbor bar/.style={
+    width=0.46\textwidth,height=5.6cm,
+    ybar,bar width=6pt,
+    ymode=log,log origin=infty,
+    axis lines=left,
+    label style={font=\scriptsize},
+    tick label style={font=\tiny},
+    % Long/multi-word symbolic x-tick labels (category names) collide with
+    % each other at 0deg; rotate and right-anchor so they read cleanly.
+    xticklabel style={rotate=40,anchor=east,font=\tiny,inner sep=1pt},
+    title style={font=\small,align=center,yshift=2pt},
+    legend style={font=\scriptsize,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
+  },
+}

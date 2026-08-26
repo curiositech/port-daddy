@@ -60,13 +60,7 @@ The predictable misread, preempted: the analogy does \emph{not} say internal eve
 loggable after emission. Uncontrollable means \emph{unrefusable before the fact}, not unobservable after it. (When events are
 also unobservable, a second, stricter theory applies --- \S\ref{sec:partial}.)
 
-\begin{figure}[t]\centering \includegraphics[width=0.92\textwidth]{r5_relation.png} \caption{The relation map. Base domain: a
-club's single door --- the bouncer refuses entry (controllable) but cannot refuse thought (uncontrollable). Target domain:
-the daemon's mediation boundary --- the runtime can forbid fs\_write, net\_egress, exec\_tool, git\_push, spawn\_child, and
-cannot forbid token emission, in-context reads, or internal plans. The correspondence arrows carry the theorem:
-refusable-at-the-boundary $\Leftrightarrow$ preventable (regimentable); internal $\Leftrightarrow$ detect-only forever. The
-criterion under the map, $\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$, is Ramadge--Wonham controllability [verified
-framework].} \label{fig:relation} \end{figure}
+\input{fig-r5-relation.tex}
 
 \section{The model}\label{sec:model} \paragraph{Events and the mediation boundary.} Fix a finite alphabet
 $\Sigma=\Sigma_c\uplus\Sigma_u$ of agent events. $\Sigma_c$ (\emph{controllable}) contains the events that pass through the
@@ -181,15 +175,11 @@ split. \emph{Now you try:} classify ``forbid \texttt{api\_call} after \texttt{sp
 This table is the manuscript's needed re-grading of governance rules, stated correctly: \emph{force-push, unauthorized
 egress, and out-of-scope writes are matters of structural authority and shall be prevented; a confident lie in a status
 report is semantic, uncontrollable, and shall be detected and compensated} --- by audit, reputation, and slashing, which is
-the adjacent paper's machinery, not this one's.
+the adjacent paper's machinery, not this one's. Figure~\ref{fig:regime} draws the same line as a single divider: everything
+above it gates at the mediation boundary, everything below it is detect-only forever, and the criterion on the divider is
+the whole theorem in one inequality.
 
-\begin{figure}[t]\centering \includegraphics[width=0.95\textwidth]{r5_regime.png} \caption{The regime diagram. Above the
-divider, the regimentable regime (Ramadge--Wonham controllable): forbid fs\_write / net\_egress / exec\_tool / git\_push /
-spawn, and the compound ``no egress after secret read.'' Below, detect-only forever: forbid token emission / in-context read
-/ internal plan / confident falsehood. The divider carries the criterion
-$\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$ --- no uncontrollable event exits the specification.
-Classifications reproduce from the product-automaton checker [internal, \texttt{b3\_controllability.py}].} \label{fig:regime}
-\end{figure}
+\input{fig-r5-regime.tex}
 
 \section{The compound case: gate the channel, never the token}\label{sec:compound} The last table row is the one the whole
 clean-room product line rests on, and it is the case where untrained intuition most often guesses wrong. The policy
@@ -220,11 +210,11 @@ and promises the secret does not leave. The theorem dictates the only sound arch
 model from \emph{reading} the secret (the read is uncontrollable --- and useless to forbid, since reading is the job), and it
 is impossible to prevent the model from \emph{incorporating} the secret into tokens and plans (uncontrollable again). What is
 possible --- exactly and only --- is to gate every controllable egress channel out of the room, with taint recorded from the
-moment of exposure. Gate the channel, never the token. The companion noninterference result (R9) proves from the other
+moment of exposure. Gate the channel, never the token. Paper 4's companion noninterference result proves from the other
 direction that the gate suffices: observations outside the room are identical across secrets except at declared gate
 releases. Controllability says the gate is the only place a guarantee \emph{can} live; noninterference says a guarantee
-\emph{does} live there. B3 is thus the load-bearing assumption named in the clean-room ledger results: ``all spend is
-recorded'' is precisely complete mediation of $\Sigma_c$.
+\emph{does} live there. This controllability boundary is thus the load-bearing assumption behind the clean-room ledger's
+claims elsewhere in the program: ``all spend is recorded'' is precisely complete mediation of $\Sigma_c$.
 
 \emph{Third, the special case that explains a folk theorem.} Product reviews of agent governance converged on the slogan ``a
 rule is enforceable iff it is a pure deterministic function of committed local DB state.'' That slogan is our theorem's

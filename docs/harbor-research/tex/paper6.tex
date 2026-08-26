@@ -85,15 +85,7 @@ norm \emph{system}, never the norms --- a bad policy consistently held is consis
 just produces alarms. The theorems do not abolish authority; they \emph{relocate} it, from noticing to choosing, and then hand the
 remaining authority its bill.
 
-\begin{figure}[t]\centering \includegraphics[width=0.96\textwidth]{paper6_relation.png}
-\caption{The relation map. Base domain: a working port --- collision-course detection is geometry, give-way beyond the rulebook is
-harbor traffic control's chartered call, and the sole licensed pilot is paid a premium against a pool of tug crews, with a second
-license mandated. Target domain: the agent harbor --- in-fragment conflict scanning is Horn propagation + sweep-line +
-Bellman--Ford with a polynomial witness; disjunctive obligations make conflict-freedom NP-complete, so a chartered resolver
-chooses the discharge; and a sole role owner is justified iff the skill premium clears $g_A(\rho,c)$, with no-succession viability
-capped at $D^\star$. The correspondence arrows carry the theorem content: refusable-by-rule vs decided-by-charter vs
-paid-for-by-premium.}
-\label{fig:relation}\end{figure}
+\input{fig-paper6-relation.tex}
 
 \section{Part I. The lookout is a subroutine: the fragment $\mathcal{L}_c$}\label{sec:lang}
 Cheap detection is a \emph{language-design} choice, not a discovery about deontic logic in general. The commitment language
@@ -141,9 +133,9 @@ satisfying assignment extracted from each conflict-free selection. Mutation: del
 stated statuses) misses 100 of the 885 sweep conflicts --- propagation is load-bearing at scale, not a formality [internal].
 
 \paragraph{Numbers by hand.} The mutant's canonical miss is a four-line policy a reviewer can check aloud: fact
-\texttt{deploy}; Horn rule $\texttt{deploy} \to \texttt{prod\_access}$; deontic rule $\texttt{prod\_access} \to
-\Ob(\texttt{write\_prod}, s, [5,10])$; standing $\Fb(\texttt{write\_prod}, s, [0,20])$. Propagation forces
-\texttt{prod\_access}, the obligation fires, and the sweep-line reports the $\Ob$/$\Fb$ overlap on $[5,10]\cap[0,20]=[5,10]$ ---
+\texttt{agent\_deployed}; Horn rule $\texttt{agent\_deployed} \to \texttt{prod\_access}$; deontic rule $\texttt{prod\_access} \to
+\Ob(\texttt{write\_prod}, s, [0,10])$; standing $\Fb(\texttt{write\_prod}, s, [5,15])$. Propagation forces
+\texttt{prod\_access}, the obligation fires, and the sweep-line reports the $\Ob$/$\Fb$ overlap on $[0,10]\cap[5,15]=[5,10]$ ---
 while a pairwise scanner that never propagates sees no directly stated clash and stays silent [internal, the printed witness].
 For the frontier, run the reduction on the smallest unsatisfiable formula $(x)\wedge(\neg x)$: two disjunctive obligations force
 both $\mathrm{sel}_x^{+}$ and $\mathrm{sel}_x^{-}$, firing $\Ob(\mathrm{assert}_x)$ and $\Fb(\mathrm{assert}_x)$ on identical
@@ -175,8 +167,12 @@ list --- keep the language in $\mathcal{L}_c$ and detection is a regimentable su
 disjunction and you have hired a judge, with a queue.
 
 \section{Part II. The sole owner: an inequality, not a principle}\label{sec:queue}
-The whitepaper's sole-responsibility roles (roadmap owner, test-suite curator, release avatar) trade pooled capacity for
-accountability and skill. Model the trade honestly. Requests for the invariant-critical function arrive Poisson at rate
+Part I located the one place inside conflict management where a mind is genuinely required: not to notice a contradiction but to
+choose a discharge among disjuncts the fragment cannot rank on its own. Part II asks the harbor's other standing authority
+question, about a different kind of decision entirely --- not \emph{which} candidate resolution to pick, but \emph{whether one
+designated person should be doing the picking at all} --- and it gets the same kind of answer: not a principle to invoke but a
+number to compute. The whitepaper's sole-responsibility roles (roadmap owner, test-suite curator, release avatar) trade pooled
+capacity for accountability and skill. Model the trade honestly. Requests for the invariant-critical function arrive Poisson at rate
 $\lambda$; a sole specialist serves them as an $M/M/1$ queue at rate $\mu_s$; the pooled alternative is an $M/M/c$ queue of
 generalists at rate $\mu_g$ each, utilization $\rho=\lambda/(c\mu_g)$; the skill premium is $r=\mu_s/\mu_g$. Sole ownership also
 carries an \emph{accountability value} $A$ (the worth of single-writer attribution per unit time of demand) against a waiting
@@ -217,15 +213,7 @@ The cross-validation stack behind the closed forms: Erlang-C means against discr
 grid; the 60-instance random sweep over $(\lambda,\mu_s,\mu_g,c,A,w,\xi,\eta)$ gave 55 decisive instances and \textbf{0} sign
 violations of the boundary [internal, \texttt{b8\_specialization.py}].
 
-\begin{figure}[t]\centering \includegraphics[width=0.98\textwidth]{paper6_regime.png}
-\caption{The regime diagram. Panel A: the exact boundary $g(\rho,2)=1+2\rho-\rho^2$ (solid) against the falsified proposal
-$\tilde g$ (dashed); the shaded lenses are the two error regimes --- false-certify below the crossing at $\rho=(3-\sqrt5)/2$,
-false-reject above it --- with the two refuting instances marked ($r{=}1.15$ at $\rho{=}0.1$; $r{=}1.9$ at $\rho{=}0.5$). Panel B:
-the succession price at the reference instance ($\eta{=}0.25$, $K{=}1.036$): the downtime floor $W_\infty=\xi/(\eta(\xi+\eta))$
-crosses the pool cost line at $D^\star=0.350$; to its right pooling wins at every skill premium --- the marked point is a
-$\mu_s=10^8$ specialist still losing at $\xi/\eta=1.5D^\star$ ($W=1.376>K$). Both panels regenerate from
-\texttt{b8\_specialization.py} [internal, seed 20260816].}
-\label{fig:regime}\end{figure}
+\input{fig-paper6-regime.tex}
 
 \section{The succession price: what one mortal body costs}\label{sec:succession}
 The boundary above assumes the specialist never disappears. Sole owners disappear: sessions die, containers are reaped,

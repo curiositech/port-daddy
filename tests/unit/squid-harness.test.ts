@@ -18,7 +18,7 @@
 
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync, copyFileSync, readdirSync, utimesSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -43,10 +43,11 @@ import {
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid.js';
+import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
-const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool') =>
+const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop') =>
   join(repoRoot, 'bin', n);
 
 // Isolated scratch under ~/coding/tmp (NEVER /tmp — macOS purges /tmp).
@@ -1098,6 +1099,356 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   });
 });
 
+describe('Giant Squid Harness — pd-hook-stop closeout gate (ADR-0092 L4)', () => {
+  // The Stop tentacle verifies the SITREP contract pd-hook-prompt compels. It
+  // reads the SAME sitrep dial (PD_SITREP env → agent.config.json →
+  // .portdaddy/sitrep.json → .portdaddy/project.json, default enforce), so the
+  // dial parent-walk proofs above cover resolution; these tests pin the STOP
+  // behaviors: loop guards, per-vendor payload shapes, and the block contract.
+  const TABLE_TURN = 'Work done.\n## SITREP\n| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |\n| shipped stop hook | Agent | done | #1 | none |';
+  const BARE_TURN = 'Work done, yielding without any table.';
+
+  const runStop = (event: Record<string, unknown>, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, ...event }),
+      env: { ...process.env, PD_HOME: SCRATCH, ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('enforce (default): a turn ending without the SITREP table blocks with exit 2 + the directive on stderr', () => {
+    const r = runStop({ session_id: 'stop-enforce-1', last_assistant_message: BARE_TURN });
+    expect(r.status).toBe(2);
+    // The reason IS the model's next prompt — it must state the same contract
+    // pd-hook-prompt compels, and must never be empty (Codex rejects that).
+    expect(r.stderr).toContain('SITREP enforce');
+    expect(r.stderr).toContain('| Idea / Suggestion / Remediation |');
+    expect(r.stderr).toContain('pd sitrep --template');
+    expect(r.stdout).toBe('');
+  });
+
+  test('one-shot marker: the SAME session never blocks twice inside the TTL window', () => {
+    const first = runStop({ session_id: 'stop-oneshot', last_assistant_message: BARE_TURN });
+    expect(first.status).toBe(2);
+    const second = runStop({ session_id: 'stop-oneshot', last_assistant_message: BARE_TURN });
+    expect(second.status).toBe(0);
+    expect(second.stderr).toBe('');
+    // A DIFFERENT session still owns its own one shot.
+    const other = runStop({ session_id: 'stop-other-session', last_assistant_message: BARE_TURN });
+    expect(other.status).toBe(2);
+  });
+
+  test('stop_hook_active:true short-circuits before any dial or marker work', () => {
+    const r = runStop({ session_id: 'stop-active', stop_hook_active: true, last_assistant_message: BARE_TURN });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('a SITREP-bearing final message passes silently (zero bytes, exit 0)', () => {
+    const r = runStop({ session_id: 'stop-compliant', last_assistant_message: TABLE_TURN });
+    expect(r.status).toBe(0);
+    expect(Buffer.byteLength(r.stdout)).toBe(0);
+    expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
+  test('gemini AfterAgent payload: prompt_response is the final-text source', () => {
+    const pass = runStop({ session_id: 'stop-gem-ok', prompt_response: TABLE_TURN, stop_hook_active: false });
+    expect(pass.status).toBe(0);
+    const block = runStop({ session_id: 'stop-gem-miss', prompt_response: BARE_TURN, stop_hook_active: false });
+    expect(block.status).toBe(2);
+  });
+
+  test('agy camelCase Stop payload NEVER blocks (observe-only vendor)', () => {
+    // agy carries no final-message field, no stop_hook_active guard, and a
+    // different block dialect — the tentacle must stay observe-only even when
+    // the dial is enforce and no SITREP is verifiable.
+    const r = runStop({
+      conversationId: 'agy-stop-1',
+      workspacePaths: [WORKSPACE],
+      transcriptPath: join(WORKSPACE, 'transcript.jsonl'),
+      terminationReason: 'completed',
+      fullyIdle: true,
+      executionNum: 4,
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('an empty/null final message is UNVERIFIABLE and never blocks (Codex null contract)', () => {
+    const r = runStop({ session_id: 'stop-null', last_assistant_message: null, transcript_path: null, turn_id: 't-1' });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe('');
+  });
+
+  test('dial off: the closeout gate stays silent even without a SITREP', () => {
+    const r = runStop({ session_id: 'stop-off', last_assistant_message: BARE_TURN }, { PD_SITREP: 'off' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('dial suggest: non-blocking; only the Claude provider gets structured stdout context', () => {
+    // Codex treats raw non-JSON stdout on exit 0 as invalid, so every
+    // non-Claude provider must stay byte-silent under suggest.
+    const codex = runStop({ session_id: 'stop-suggest-codex', last_assistant_message: BARE_TURN }, { PD_SITREP: 'suggest', PD_HOOK_PROVIDER: 'codex' });
+    expect(codex.status).toBe(0);
+    expect(codex.stdout).toBe('');
+
+    const claude = runStop({ session_id: 'stop-suggest-claude', last_assistant_message: BARE_TURN }, { PD_SITREP: 'suggest', PD_HOOK_PROVIDER: 'claude' });
+    expect(claude.status).toBe(0);
+    const parsed = JSON.parse(claude.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('Stop');
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('SITREP suggest');
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('| Idea / Suggestion / Remediation |');
+  });
+
+  test('garbage stdin fails open (exit 0, no output)', () => {
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: 'not json at all {{{',
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+});
+
+describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding 1, 2026-08-24)', () => {
+  // bin/pd-hook-stop used to capture the ENTIRE Stop event (including the
+  // whole final assistant message) into one unbounded shell variable, then
+  // copied it again through printf | jq and two grep passes — several full
+  // in-memory copies of a payload with no upper bound. The fix reads stdin
+  // through a hard byte budget BEFORE any shell-variable capture and fails
+  // open (with a sanitized receipt) rather than ever building the jq/grep
+  // pipeline over an oversized blob.
+  //
+  // A small overridden budget keeps these boundary fixtures tiny and fast;
+  // the separate multi-megabyte test below proves the SAME contract at the
+  // real production default (262144 bytes).
+  const BUDGET = 4096;
+  const oversizeLog = () => join(SCRATCH, 'squid', 'oversize-events.log');
+
+  // Build a Stop event whose JSON-serialized byte length is EXACTLY totalLen,
+  // padding the final assistant message field (never containing a SITREP
+  // table, so a within-budget case takes the normal "block" path — proving
+  // the budget check ran and then correctly fell through to real logic).
+  const paddedEvent = (totalLen: number, sessionId: string): string => {
+    const base = { cwd: WORKSPACE, session_id: sessionId, last_assistant_message: '' };
+    const baseLen = Buffer.byteLength(JSON.stringify(base));
+    const pad = totalLen - baseLen;
+    if (pad < 0) throw new Error('fixture too small for requested length');
+    const withPad = { ...base, last_assistant_message: 'x'.repeat(pad) };
+    const out = JSON.stringify(withPad);
+    expect(Buffer.byteLength(out)).toBe(totalLen); // fixture sanity, not the assertion under test
+    return out;
+  };
+
+  const runRaw = (input: string, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input,
+      env: { ...process.env, PD_HOME: SCRATCH, PD_SQUID_STOP_EVENT_BUDGET_BYTES: String(BUDGET), ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('exactly at budget: processes normally (no oversize receipt)', () => {
+    const r = runRaw(paddedEvent(BUDGET, 'budget-exact'));
+    expect(r.status).toBe(2); // BARE final message, no SITREP table -> normal enforce block
+    expect(r.stderr).toContain('SITREP enforce');
+    expect(existsSync(oversizeLog())).toBe(false);
+  });
+
+  test('one byte under budget: processes normally (no oversize receipt)', () => {
+    const r = runRaw(paddedEvent(BUDGET - 1, 'budget-minus-one'));
+    expect(r.status).toBe(2);
+    expect(existsSync(oversizeLog())).toBe(false);
+  });
+
+  test('one byte over budget: fails open with a sanitized oversize receipt, never blocks', () => {
+    const r = runRaw(paddedEvent(BUDGET + 1, 'budget-plus-one'));
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(existsSync(oversizeLog())).toBe(true);
+    const receipt = readFileSync(oversizeLog(), 'utf8').trim();
+    expect(receipt).toContain('pd-hook-stop');
+    expect(receipt).toContain('budget-plus-one'); // session id extracted from the bounded prefix
+    expect(receipt).toContain(String(BUDGET));
+    // The receipt is sanitized: never the event content itself.
+    expect(receipt).not.toContain('x'.repeat(64));
+  });
+
+  test('a multi-megabyte final response fails open fast at the real production budget (262144 bytes)', () => {
+    const hugeMessage = `Work done.\n## SITREP\n${'y'.repeat(5_000_000)}`;
+    const event = JSON.stringify({ cwd: WORKSPACE, session_id: 'huge-turn', last_assistant_message: hugeMessage });
+    expect(Buffer.byteLength(event)).toBeGreaterThan(5_000_000);
+    const startedAt = Date.now();
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: event,
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+    expect(elapsedMs).toBeLessThan(2_000); // no multi-copy amplification over the 5 MB payload
+    const receipt = readFileSync(oversizeLog(), 'utf8').trim();
+    expect(receipt).toContain('huge-turn');
+    expect(receipt).toContain('262144');
+  });
+
+  test('debug mode: the gate wrapper never re-buffers the full oversized event either', () => {
+    // Finding 1 also named cli/commands/hooks-install.ts's debug-mode gate
+    // wrapper: it used to capture the FULL event into `pd_input`, then piped
+    // that whole captured copy into the real tentacle — a second unbounded
+    // copy on top of the tentacle's own. Debug mode now buffers only a small
+    // bounded probe for the session-id label and streams the rest straight
+    // through, so even a multi-megabyte event stays fast and bounded.
+    const pdHome = join(SCRATCH, 'debug-oversize-home');
+    const binDir = join(pdHome, 'bin');
+    const srcBin = join(SCRATCH, 'debug-oversize-src');
+    mkdirSync(srcBin, { recursive: true });
+    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const) {
+      copyFileSync(bin(name), join(srcBin, name));
+      chmodSync(join(srcBin, name), 0o755);
+    }
+    stageTentacles(srcBin, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    writeFileSync(join(pdHome, 'daemon.pid'), '4242');
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'projects'), `${WORKSPACE}\n`);
+
+    const hugeMessage = `Work done.\n## SITREP\n${'z'.repeat(5_000_000)}`;
+    const event = JSON.stringify({ cwd: WORKSPACE, session_id: 'debug-huge-turn', last_assistant_message: hugeMessage });
+    const startedAt = Date.now();
+    const r = spawnSync(join(binDir, 'pd-hook-stop'), [], {
+      cwd: WORKSPACE,
+      input: event,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'claude' },
+      encoding: 'utf8',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(0); // this final message DOES carry a SITREP table -> compliant pass
+    expect(elapsedMs).toBeLessThan(3_000);
+    const events = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8');
+    // The debug session-id probe only ever buffers a SMALL bounded prefix
+    // (independent of the tentacle's own 256 KiB event budget), so a session
+    // id past that prefix on a 5 MB event is unparsable from the truncated
+    // JSON — the SAME documented degrade-to-$PPID fallback already used when
+    // the field is absent or unparsable, never a second unbounded capture.
+    expect(events).toMatch(/claude:\d+/);
+    expect(events).not.toContain('claude:debug-huge-turn');
+    expect(events).not.toContain('z'.repeat(64)); // the giant payload never lands in the sanitized log
+    expect(Buffer.byteLength(events)).toBeLessThan(10_000); // log stays tiny despite the 5 MB input
+  });
+});
+
+describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review finding 3, 2026-08-24)', () => {
+  // $PD_HOME/squid/stop-blocks/ bounds markers PER SESSION (one recycled only
+  // when that same session id returns) but not the directory as a WHOLE: an
+  // abandoned session id, or hundreds of synthetic ones, would grow it
+  // forever. PD_SQUID_STOP_MARKER_GC_EVERY=1 forces the (normally
+  // probabilistic) GC pass to run on every call, for a deterministic test.
+  const markerRoot = () => join(SCRATCH, 'squid', 'stop-blocks');
+
+  const seedMarkers = (count: number, ageSeconds: number): void => {
+    mkdirSync(markerRoot(), { recursive: true });
+    const stamp = new Date(Date.now() - ageSeconds * 1000);
+    for (let i = 0; i < count; i += 1) {
+      const dir = join(markerRoot(), `synthetic-session-${i}.blocked`);
+      mkdirSync(dir);
+      utimesSync(dir, stamp, stamp);
+    }
+  };
+
+  const runStop = (event: Record<string, unknown>, extraEnv: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, ...event }),
+      env: { ...process.env, PD_HOME: SCRATCH, PD_SQUID_STOP_MARKER_GC_EVERY: '1', ...extraEnv },
+      encoding: 'utf8',
+    });
+
+  test('age-based pruning: hundreds of long-abandoned session markers are collected', () => {
+    seedMarkers(300, 24 * 60 * 60); // 300 markers, all a full day old
+    expect(readdirSync(markerRoot())).toHaveLength(300);
+
+    // PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS overridden low so the day-old
+    // seeded markers are unambiguously past it (the default is 10x the 300s
+    // TTL = 3000s, which the seeded age already exceeds, but an explicit
+    // override keeps this assertion independent of that default).
+    const r = runStop(
+      { session_id: 'gc-age-trigger', last_assistant_message: 'Work done, no table.' },
+      { PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS: '3600' },
+    );
+    expect(r.status).toBe(2); // the triggering call still blocks normally
+
+    const remaining = readdirSync(markerRoot());
+    // Every seeded marker aged out; only the fresh one this call just created
+    // (plus this pass's own now-cleaned-up scratch files) should remain.
+    expect(remaining.filter((name) => name.startsWith('synthetic-session-'))).toHaveLength(0);
+    expect(remaining).toContain('gc-age-trigger.blocked');
+  });
+
+  test('hard cap: hundreds of FRESH markers (none old enough to age out) are bounded to the cap', () => {
+    seedMarkers(400, 5); // fresh markers, well under any age threshold
+    expect(readdirSync(markerRoot())).toHaveLength(400);
+
+    const r = runStop(
+      { session_id: 'gc-cap-trigger', last_assistant_message: 'Work done, no table.' },
+      { PD_SQUID_STOP_MARKER_MAX_ENTRIES: '50', PD_SQUID_STOP_MARKER_MAX_AGE_SECONDS: '999999' },
+    );
+    expect(r.status).toBe(2);
+
+    const remaining = readdirSync(markerRoot()).filter((name) => name.endsWith('.blocked'));
+    // Bounded to the cap (oldest-by-mtime evicted first) — never left to grow
+    // to the full 401 (400 seeded + this call's own marker) unboundedly.
+    expect(remaining.length).toBeLessThanOrEqual(51); // cap + this call's own fresh marker
+    expect(remaining).toContain('gc-cap-trigger.blocked');
+  });
+
+  test('GC stays well under the breaker slow budget even scanning hundreds of stale entries', () => {
+    seedMarkers(500, 24 * 60 * 60);
+    const startedAt = Date.now();
+    const r = runStop({ session_id: 'gc-perf-trigger', last_assistant_message: 'Work done, no table.' });
+    const elapsedMs = Date.now() - startedAt;
+    expect(r.status).toBe(2);
+    // The wrapper's own production breaker budget is 250ms; this ceiling is a
+    // deliberately generous multiple of that, not a tight perf assertion. The
+    // GC pass's CORRECTNESS (age pruning, hard cap) is proven by the two
+    // tests above regardless of platform speed — this test only guards
+    // against a real algorithmic blowup (e.g. an accidental O(n^2) pass),
+    // not CI hardware variance. 1_000ms was measured tight enough to fail on
+    // GitHub's macos-latest runners (1917ms observed, 2026-08-24) purely from
+    // slower subprocess/filesystem overhead there, not a logic defect. 3_000ms
+    // still left only a ~1.56x margin over that observation (review finding,
+    // 2026-08-26) — widened further to 6_000ms, which still fails fast on a
+    // real O(n^2)-style blowup (500 markers taking multiple seconds) while
+    // giving a slower or contended runner much more room before flaking.
+    expect(elapsedMs).toBeLessThan(6_000);
+  });
+
+  test('the probabilistic gate is truly off by default at PD_SQUID_STOP_MARKER_GC_EVERY=1 scale: a normal call without the override does not force a full sweep every time', () => {
+    // Sanity check that the feature is opt-in-forced only via the env
+    // override used above, not unconditionally expensive on every call.
+    seedMarkers(50, 24 * 60 * 60);
+    const r = spawnSync(bin('pd-hook-stop'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE, session_id: 'gc-default-rate', last_assistant_message: 'Work done, no table.' }),
+      env: { ...process.env, PD_HOME: SCRATCH },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    // No assertion on whether GC happened to fire this particular call (it's
+    // pid-modulo probabilistic) — only that the call itself still completes
+    // correctly with the default (non-forced) rate.
+    expect(existsSync(join(markerRoot(), 'gc-default-rate.blocked'))).toBe(true);
+  });
+});
+
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
   test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
@@ -1111,6 +1462,8 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
+    expect(settings.hooks.Stop[settings.hooks.Stop.length - 1].matcher).toBeUndefined();
     expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
@@ -1179,6 +1532,7 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('BeforeAgent')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('BeforeTool')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('AfterAgent')).toBe(hookCommandPath('pd-hook-stop'));
     expect(cfg.hooks.AfterTool).toBeUndefined();
     // The BeforeTool matcher covers direct edits but deliberately excludes shell.
     const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
@@ -1242,15 +1596,19 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/async = false/);
     expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
     expect(toml).not.toContain('/Cellar/');
-    // UserPromptSubmit is present; observational PostToolUse is deliberately absent.
+    // UserPromptSubmit and the Stop closeout gate are present; observational
+    // PostToolUse is deliberately absent.
     expect(toml).not.toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
+    expect(toml).toMatch(/\[\[hooks\.Stop\]\]/);
+    expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-stop')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
     expect(toml).not.toMatch(/async = true/);
     expect(toml).not.toContain('statusMessage');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
+    expect(toml).toContain(SQUID_HOOK_METADATA.stop.displayName);
     expect(toml).not.toContain(SQUID_HOOK_METADATA.postTool.displayName);
   });
 
@@ -1357,6 +1715,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
     expect(cfg.hooks.PostToolUse).toBeUndefined();
     // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
     const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;

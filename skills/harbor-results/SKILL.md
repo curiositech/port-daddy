@@ -67,7 +67,7 @@ flowchart TD
 
 ### The Unpriced Side Channel
 **Novice**: "My simulation's oracle knows the answer; I only charge bits for output resolution."
-**Expert**: Information bounds constrain what a channel *carries*; charge bits for *identification*, not tie-breaking. A sim that smuggles identity past the meter will appear to beat the floor (R1's 8/16 spurious violations before the fix).
+**Expert**: Information bounds constrain what a channel *carries*; charge bits for *identification*, not tie-breaking. A sim that smuggles identity past the meter will appear to beat the floor (R1's 8/14 spurious violations before the fix).
 **Detection**: Any experiment "beating" an information-theoretic bound.
 
 ### Cohomology of the Sheaf, Not the Data

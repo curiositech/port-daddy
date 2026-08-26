@@ -263,9 +263,9 @@ durable storage and serialized mutation. \emph{This paper's core.}
 ownership claims, a message bus, stigmergic markers, obligations, and policy
 enforcement. This paper specifies the implemented half of it.
 \item[Legibility (the operator).] The human-facing view that renders the swarm
-intelligible. Treated in a accompanying chapter (\emph{The Legible Swarm}).
+intelligible. Treated in an accompanying chapter (\emph{The Legible Swarm}).
 \item[Economy (the market between operators).] The cross-machine market in which
-operators trade work and reputation. Treated in a accompanying chapter (\emph{The
+operators trade work and reputation. Treated in an accompanying chapter (\emph{The
 Harbor Economy}).
 \end{description}
 
@@ -532,6 +532,10 @@ The kernel's foundational promise --- ``a write that returned success survives''
 one the pitch most invites.
 
 \input{figures/fig-swk-durability-faultclass}
+
+Figure~\ref{fig:swk-durability-faultclass} draws the split this section defends:
+the same write, judged against two different fault classes with two different
+answers.
 
 \subsection{Why one label is a lie here}
 
@@ -840,6 +844,9 @@ Sergot~\cite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
 about how strong each arm actually is --- is the security heart of the paper.
 
+Figure~\ref{fig:swk-deontic-split} lays out the three modalities and the mechanism
+behind each.
+
 \input{figures/fig-swk-deontic-split}
 
 \subsection{The deontic split}
@@ -866,7 +873,8 @@ bypassing guardrails cannot afford.
 
 \input{figures/fig-swk-reference-monitor}
 
-Here is the correction that the rest of this stack must adopt. The most seductive
+Figure~\ref{fig:swk-reference-monitor} draws the correction this section makes
+precise. Here is the correction that the rest of this stack must adopt. The most seductive
 claim one can make about a coordination policy monitor --- that it ``makes
 forbidden states physically unreachable'' --- is false as stated. The monitor is a
 \emph{subscriber to an append-only event stream of operations that have already
@@ -1167,6 +1175,9 @@ I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} 
 The strongest words a single-writer design earns are ``serializable'' and
 ``linearizable.'' They are the formal payoff of the architecture, and they are what
 make the coordination layer's typed ownership trustworthy.
+
+Figure~\ref{fig:swk-consistency-model} lays out the four assumptions and the two
+guarantees they buy.
 
 \input{figures/fig-swk-consistency-model}
 
@@ -1864,20 +1875,5 @@ Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrabl
 \newblock (Attenuation-only bearer credentials with third-party caveats --- the enforcement-gate construction.)
 
 \end{thebibliography}
-
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Limitations \& Boundaries}\label{sec:limitations}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
-
-\begin{itemize}
-    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
-    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
-\end{itemize}
-
-These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}
