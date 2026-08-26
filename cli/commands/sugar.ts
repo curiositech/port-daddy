@@ -100,11 +100,15 @@ export interface BeginRentResolution {
  * roadmap degrades silently back to the plain gate message; suggestions are
  * a convenience, not a dependency of the gate itself.
  */
-async function printRoadmapSuggestions(purpose: string, harbor: string | undefined): Promise<void> {
+export async function printRoadmapSuggestions(
+  purpose: string,
+  harbor: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<void> {
   try {
     const params = new URLSearchParams({ q: purpose, limit: '5' });
     if (harbor) params.set('harbor', harbor);
-    const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+    const res = await fetcher(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
     if (!res.ok) return;
     const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHit[] };
     const hits = data.hits ?? [];
