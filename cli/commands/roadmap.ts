@@ -1,12 +1,12 @@
 import { resolve, basename, join, relative, isAbsolute } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
 import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
 import type { ImportMarkdownResult, ChompRoadmapResult, ChompItemReport } from '../../lib/roadmap-chomp.js';
-import { buildRoadmapSnapshot, writeRoadmapSnapshot } from '../../lib/roadmap-snapshot.js';
+import { buildRoadmapSnapshot, writeRoadmapSnapshot, type RoadmapSnapshot } from '../../lib/roadmap-snapshot.js';
 import { getWorktreeInfo } from '../../lib/worktree.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
@@ -33,6 +33,21 @@ interface PopFailureResponse {
 type RoadmapItemResponse =
   | { success: true; item: RoadmapItem }
   | { success: false; error?: string };
+
+/**
+ * Read the currently-committed snapshot to reconcile against, if one exists
+ * on disk. Never throws — a missing/unparseable file just means there is
+ * nothing to reconcile against (first-ever export), not an error.
+ */
+function readPreviousSnapshot(path: string): Pick<RoadmapSnapshot, 'items'> | null {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { items?: unknown };
+    if (Array.isArray(parsed.items)) return { items: parsed.items as RoadmapSnapshot['items'] };
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -1447,6 +1462,8 @@ async function emitChompPrPlan(
       baseUrl: PORT_DADDY_URL,
       harbor,
       fetchImpl: pdFetch,
+      previousSnapshot: readPreviousSnapshot(join(ctx.rootDir, 'docs/roadmap/roadmap.snapshot.json')),
+      allowShrink: Boolean(ctx.options['allow-shrink'] ?? ctx.options.allowShrink),
     });
     writeRoadmapSnapshot(join(dir, 'roadmap.snapshot.json'), snapshot);
     snapshotNote = `${snapshot.count} item(s), harbor ${harbor}`;

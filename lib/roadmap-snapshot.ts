@@ -17,6 +17,16 @@
  *     Cloudflare Relay without changing consumers.
  *   - REFUSES an empty snapshot — zero items would trip the gate as "roadmap
  *     broken" for every PR, so emptiness is an error, never a write.
+ *   - REFUSES a snapshot that drops a large fraction of the previously
+ *     committed slugs, when the caller supplies that prior snapshot to
+ *     reconcile against. This exists because the daemon this module reads
+ *     from is not guaranteed to be a strict superset of committed history —
+ *     an ephemeral or parallel daemon instance, a DB restored from an older
+ *     backup, or a partial-loss DB all sail past the empty-snapshot guard
+ *     while still silently truncating the committed roadmap on write. The
+ *     empty-snapshot guard catches "zero"; this guard catches "much smaller
+ *     than what git already has," which is the same failure at a different
+ *     magnitude and was previously undetected by any guard or test.
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -60,6 +70,26 @@ export interface BuildRoadmapSnapshotOptions {
   timeoutMs?: number;
   /** Injectable fetch for tests / socket transport. Defaults to global fetch. */
   fetchImpl?: SnapshotFetch;
+  /**
+   * The previously committed snapshot to reconcile against, when the caller
+   * has one (read it from disk before calling — this module does no I/O of
+   * its own besides the fetch). Omit on a genuinely first-ever export; the
+   * shrink guard is a no-op with nothing to compare against.
+   */
+  previousSnapshot?: Pick<RoadmapSnapshot, 'items'> | null;
+  /**
+   * Fraction (0-1) of previously-known slugs allowed to go missing before
+   * refusing. Default 0.2 (20%) — generous enough that ordinary pruning
+   * (a handful of items marked done and later deleted) doesn't false-alarm,
+   * tight enough to catch "this daemon's history is a fraction of prod's."
+   */
+  shrinkGuardFraction?: number;
+  /**
+   * Explicit operator override for an intentional bulk deletion. Bypasses
+   * the shrink guard entirely; never set this to work around a daemon you
+   * merely haven't verified has full history.
+   */
+  allowShrink?: boolean;
 }
 
 /**
@@ -108,6 +138,28 @@ export async function buildRoadmapSnapshot(
       'Refusing to build an EMPTY snapshot — the daemon reported zero roadmap items. ' +
         'That would trip the roadmap-link gate as "roadmap broken" for every PR.',
     );
+  }
+
+  if (options.previousSnapshot && !options.allowShrink) {
+    const prevSlugs = new Set(options.previousSnapshot.items.map((i) => i.slug));
+    if (prevSlugs.size > 0) {
+      const newSlugs = new Set(items.map((i) => i.slug));
+      const missing = [...prevSlugs].filter((slug) => !newSlugs.has(slug));
+      const fraction = missing.length / prevSlugs.size;
+      const guard = options.shrinkGuardFraction ?? 0.2;
+      if (fraction > guard) {
+        throw new Error(
+          `Refusing to build a snapshot that drops ${missing.length}/${prevSlugs.size} ` +
+            `(${Math.round(fraction * 100)}%) previously-known roadmap item(s) — new count ` +
+            `${items.length} vs previous ${prevSlugs.size}. This usually means the daemon you're ` +
+            'exporting from does not have full history (an ephemeral or parallel instance, a ' +
+            'restored backup, or a partial-loss DB) — writing this snapshot would silently ' +
+            `truncate the committed roadmap. First missing slug(s): ${missing.slice(0, 5).join(', ')}` +
+            `${missing.length > 5 ? ', ...' : ''}. If this shrink is real and intended (a genuine ` +
+            'bulk deletion), pass { allowShrink: true } / --allow-shrink.',
+        );
+      }
+    }
   }
 
   return {

@@ -288,8 +288,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['spray_pheromone', 'resolve_pheromone', 'pheromone_coverage', 'read_pheromones', 'read_entity_pheromones'],
   },
   'roadmap': {
-    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
-    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote'],
+    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item',
+    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote', 'roadmap_search'],
   },
   'commitments': {
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
@@ -678,6 +678,22 @@ const TOOLS = [
         promotedBy: { type: 'string', description: 'Agent id doing the promotion (optional)' },
       },
       required: ['slug'],
+    },
+  },
+  {
+    name: 'roadmap_search',
+    description:
+      '[Roadmap] Rank roadmap items against free text (BM25 -> cosine over shared MiniLM embeddings, ' +
+      'same cascade as pd whois). Use before pd_begin when you know what you are about to work on but ' +
+      'not the exact --roadmap slug. Usage: roadmap_search({query: "fix the login timeout"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Free text describing the work' },
+        harbor: { type: 'string', description: 'Restrict to one harbor (optional)' },
+        limit: { type: 'number', description: 'Max candidates to return (default 5)' },
+      },
+      required: ['query'],
     },
   },
 
@@ -3675,6 +3691,14 @@ async function handleTool(
       if (args.status !== undefined) body.status = args.status;
       if (args.promotedBy !== undefined) body.promotedBy = args.promotedBy;
       res = await POST('/roadmap/promote', body);
+      break;
+    }
+
+    case 'roadmap_search': {
+      const params = new URLSearchParams({ q: args.query as string });
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/roadmap/search?${params.toString()}`);
       break;
     }
 
