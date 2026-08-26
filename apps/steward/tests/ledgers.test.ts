@@ -9,7 +9,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { appendDeckLog, appendMergeVerdict, readDeckLog, readMergeLedger } from '../src/ledgers.js';
+import { appendDeckLog, appendMergeVerdict } from '../src/ledgers.js';
+// The readers are shared with apps/relay; testing the seat's writes through
+// them is what proves the two halves still agree on the same rows.
+import {
+  readStewardDeckLog as readDeckLog,
+  readStewardMergeLedger as readMergeLedger,
+} from '../../shared/steward-ledgers.js';
 import { birthCharter, reviseCharter, DEFAULT_CHARTER } from '../src/charter.js';
 import { memoryD1 } from './harness.js';
 import type { DeckLogEntry, MergeLedgerEntry } from '../src/types.js';
