@@ -226,7 +226,7 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
   if (facts.projectRoot && !facts.projectArmed) missing.push('exact project root is not armed');
   if (!facts.daemonAlive) missing.push('daemon heartbeat is not fresh');
   else if (!daemonReady) missing.push('daemon readiness lease does not match the current PID');
-  if (!facts.tentaclesStaged) missing.push('prompt, pre-tool, or post-tool tentacles are not fully staged');
+  if (!facts.tentaclesStaged) missing.push('prompt, pre-tool, post-tool, or stop tentacles are not fully staged');
   if (detected.length === 0) missing.push('no supported interactive agent CLI detected');
   for (const provider of detected.filter((entry) => !entry.configured)) {
     missing.push(`${provider.name} ${provider.expectedScope} hook wiring is incomplete`);
