@@ -48,11 +48,11 @@ function esc(s: string): string {
 }
 
 function styleSpan(st: { fg: string | null; bg: string | null; b: boolean; d: boolean; i: boolean; u: boolean; inv: boolean }): string {
-  let fg = st.fg || "var(--code-text)";
+  let fg = st.fg || "var(--ph-text)";
   let bg = st.bg;
   if (st.inv) {
     const t = fg;
-    fg = bg || "var(--code-bg)";
+    fg = bg || "var(--ph-bg)";
     bg = t;
   }
   let s = `color:${fg};`;
