@@ -119,9 +119,9 @@ describe('tuples route — adversarial guard', () => {
   });
 
   test('public tuple routes cannot observe, count, poll, or take internal authority rows', async () => {
-    const key = 'parley:auto:lineage:route-isolation';
+    const key = 'coordination:internal:lineage:route-isolation';
     const authority = tuples.outOnce(
-      ['parley:auto:lineage', 'route-isolation', 'signal-1', Date.now()],
+      ['coordination:internal:lineage', 'route-isolation', 'signal-1', Date.now()],
       { harbor: 'fleet', idempotencyKey: key, internalOnly: true },
     );
     tuples.outOnce(['visible', 'payload'], {
@@ -135,14 +135,14 @@ describe('tuples route — adversarial guard', () => {
     });
     const poll = await app.inject({
       method: 'GET',
-      url: `/tuples/poll?harbor=fleet&pattern=${encodeURIComponent(JSON.stringify(['parley:auto:lineage']))}`,
+      url: `/tuples/poll?harbor=fleet&pattern=${encodeURIComponent(JSON.stringify(['coordination:internal:lineage']))}`,
     });
     const scan = await app.inject({ method: 'GET', url: '/tuples/scan?harbor=fleet' });
     const count = await app.inject({ method: 'GET', url: '/tuples/count?harbor=fleet' });
     const take = await app.inject({
       method: 'DELETE',
       url: '/tuples',
-      payload: { harbor: 'fleet', pattern: ['parley:auto:lineage'] },
+      payload: { harbor: 'fleet', pattern: ['coordination:internal:lineage'] },
     });
 
     expect(read.json().tuples).toEqual([
