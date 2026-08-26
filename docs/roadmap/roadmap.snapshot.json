@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1787528087885,
+  "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 298,
+  "count": 308,
   "items": [
+    {
+      "slug": "a-add-to-the-papers",
+      "status": "backlog",
+      "summaryMd": "A. Add to the papers"
+    },
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
@@ -580,6 +585,11 @@
       "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
     },
     {
+      "slug": "b-prove",
+      "status": "backlog",
+      "summaryMd": "B. Prove"
+    },
+    {
       "slug": "beacon-durable-agent-roster",
       "status": "backlog",
       "summaryMd": "Turn machine-local sessions into durable, meaningful named agents with system and repo remits, prompt and tool policy, episodic learning, searchable transcript lineage, and Port Daddy discovery."
@@ -633,6 +643,11 @@
       "slug": "build-integrity-spine-drift-checks",
       "status": "backlog",
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
+    },
+    {
+      "slug": "c-try-and-measure",
+      "status": "backlog",
+      "summaryMd": "C. Try and measure"
     },
     {
       "slug": "cartographer-offline-since-may",
@@ -735,9 +750,24 @@
       "summaryMd": "Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions."
     },
     {
+      "slug": "coordination-papers-research-and-implementation-program",
+      "status": "backlog",
+      "summaryMd": "Coordination Papers Research and Implementation Program"
+    },
+    {
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
       "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
+    },
+    {
+      "slug": "current-implementation-evidence",
+      "status": "backlog",
+      "summaryMd": "Current implementation evidence"
+    },
+    {
+      "slug": "d-add-to-the-code",
+      "status": "backlog",
+      "summaryMd": "D. Add to the code"
     },
     {
       "slug": "daemon-compiled-tree-sitter-wasm-crash-20260823",
@@ -828,6 +858,11 @@
       "slug": "durable-asynchronous-spawn-receipts",
       "status": "now",
       "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
+      "slug": "exit-criteria",
+      "status": "backlog",
+      "summaryMd": "Exit criteria"
     },
     {
       "slug": "feat-backend-dropdown-spawn-forecast",
@@ -1265,6 +1300,16 @@
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
     },
     {
+      "slug": "publication-receipt-contract",
+      "status": "backlog",
+      "summaryMd": "Publication receipt contract"
+    },
+    {
+      "slug": "purpose",
+      "status": "backlog",
+      "summaryMd": "Purpose"
+    },
+    {
       "slug": "readme-front-door-and-accuracy-gate",
       "status": "merge",
       "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
@@ -1338,6 +1383,11 @@
       "slug": "roadmap-reconciler-agent",
       "status": "backlog",
       "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY — headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE — pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT — deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES — tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION — coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode — until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
+    },
+    {
+      "slug": "roadmap-registry",
+      "status": "backlog",
+      "summaryMd": "Roadmap registry"
     },
     {
       "slug": "roadmap-schema-wiring",
