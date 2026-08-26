@@ -32,6 +32,7 @@ import {
   type GitHubState,
 } from './harness.js';
 import type { FleetRunJob } from '../src/env.js';
+import { decodeFleetDeliveryAttemptCursor } from '../../shared/fleet-delivery-attempt.js';
 
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
@@ -80,7 +81,7 @@ describe('a lost delivery records why it died', () => {
     const failures = db.steps.filter(s => s.kind === DELIVERY_FAILURE_KIND);
     expect(failures).toHaveLength(1);
     expect(failures[0].runId).toBe(runIdForDelivery('delivery-abc'));
-    expect(String(failures[0].title)).toContain('Delivery attempt 2 failed');
+    expect(String(failures[0].title)).toContain('Platform attempt 2 failed');
     // And a fleet_runs row exists, so the details_url a failed gate publishes
     // resolves instead of 404ing on a run that never got one.
     expect(db.runs.map(r => r.id)).toContain(runIdForDelivery('delivery-abc'));
@@ -107,7 +108,31 @@ describe('a lost delivery records why it died', () => {
 
     expect(db.steps.filter(s => s.kind === DELIVERY_FAILURE_KIND)).toHaveLength(2);
     const last = await readLastDeliveryFailure(env, runIdForDelivery('delivery-abc'));
-    expect(last).toEqual({ attempt: 3, error: 'Error: D1 unavailable' });
+    expect(last).toEqual({
+      attemptCursor: 3,
+      continuationSequence: null,
+      platformAttempt: 3,
+      attempt: 3,
+      error: 'Error: D1 unavailable',
+    });
+  });
+
+  it('records a legacy 101 cursor as continuation 1 and platform attempt 1', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryFailure(env, makeJob({ continuationSequence: 1 }), 101, new Error('timeout'));
+
+    const failure = db.steps.find(s => s.kind === DELIVERY_FAILURE_KIND);
+    expect(String(failure?.title)).toContain(
+      'Continuation 1, platform attempt 1 failed',
+    );
+    expect(String(failure?.title)).not.toContain('attempt 101');
+    expect(JSON.parse(String(failure?.detail))).toMatchObject({
+      attemptCursor: 101,
+      continuationSequence: 1,
+      platformAttempt: 1,
+      attempt: 1,
+    });
   });
 
   it('never throws out of the recorder, so a failing recorder cannot eat the retry', async () => {
@@ -290,7 +315,11 @@ describe('describeDeliveryError', () => {
 
 describe('deadLetterSummary', () => {
   it('renders an unknown attempt number without printing "attempt 0"', () => {
-    const summary = deadLetterSummary('o', 'r', 7, { attempt: 0, error: 'something' });
+    const summary = deadLetterSummary('o', 'r', 7, {
+      ...decodeFleetDeliveryAttemptCursor(0),
+      attempt: 0,
+      error: 'something',
+    });
     expect(summary).toContain('the last attempt');
     expect(summary).not.toContain('attempt 0');
   });
@@ -364,7 +393,11 @@ describe('a dead-lettered check does not strand the head SHA', () => {
       name: 'Port Daddy Fleet',
       status: 'completed',
       conclusion: 'failure',
-      summary: deadLetterSummary('erichowens', 'port-daddy', 7, { attempt: 4, error: 'boom' }),
+      summary: deadLetterSummary('erichowens', 'port-daddy', 7, {
+        ...decodeFleetDeliveryAttemptCursor(4),
+        attempt: 4,
+        error: 'boom',
+      }),
       headSha: 'HEADSHA',
     });
 
@@ -491,7 +524,11 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
   });
 
   it('names an empty cause instead of trailing a dangling colon', () => {
-    const summary = deadLetterSummary('o', 'r', 7, { attempt: 2, error: '   ' });
+    const summary = deadLetterSummary('o', 'r', 7, {
+      ...decodeFleetDeliveryAttemptCursor(2),
+      attempt: 2,
+      error: '   ',
+    });
     expect(summary).toContain('carried no readable cause');
     expect(summary).not.toMatch(/:\s*\n/);
     expect(summary).toContain(DEAD_LETTER_MARKER);

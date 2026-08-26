@@ -27,6 +27,12 @@
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { ensureRunRow } from './execute.js';
 import { DEAD_LETTER_MARKER } from './dead-letter-marker.js';
+import {
+  decodeFleetDeliveryAttemptCursor,
+  fleetDeliveryAttemptLabel,
+  readFleetDeliveryAttempt,
+  type FleetDeliveryAttempt,
+} from '../../shared/fleet-delivery-attempt.js';
 
 /** `fleet_run_steps.kind` for a failed queue delivery attempt. */
 export const DELIVERY_FAILURE_KIND = 'delivery-failed';
@@ -83,11 +89,43 @@ export function runIdForDelivery(deliveryId: string): string {
 }
 
 /** One recorded failed delivery attempt. */
-export interface DeliveryFailure {
-  /** Cloudflare's 1-based attempt counter (0 when the platform did not say). */
+export interface DeliveryFailure extends FleetDeliveryAttempt {
+  /** Backward-compatible alias for the truthful platform attempt. */
   attempt: number;
   /** One-line description of what was thrown. */
   error: string;
+}
+
+type DeliveryAttemptEvidence = FleetDeliveryAttempt | number;
+
+/**
+ * Normalize new structured evidence and cursor-only historical callers.
+ * Design intent: writers and legacy tests share one decoding boundary.
+ *
+ * @param attempt - Structured attempt truth or a legacy internal cursor.
+ * @returns A sequence/platform attempt coordinate with its storage cursor.
+ */
+function normalizeDeliveryAttempt(attempt: DeliveryAttemptEvidence): FleetDeliveryAttempt {
+  return typeof attempt === 'number'
+    ? decodeFleetDeliveryAttemptCursor(attempt)
+    : attempt;
+}
+
+/**
+ * Preserve the legacy `attempt` key while making its platform meaning explicit.
+ * Design rationale: stored evidence remains backward readable without treating
+ * the monotonic cursor as a retry count.
+ *
+ * @param attempt - Normalized delivery coordinate.
+ * @returns Transcript detail that carries both public truth and internal evidence.
+ */
+function deliveryAttemptDetail(attempt: FleetDeliveryAttempt): Record<string, unknown> {
+  return {
+    attempt: attempt.platformAttempt,
+    platformAttempt: attempt.platformAttempt,
+    continuationSequence: attempt.continuationSequence,
+    attemptCursor: attempt.attemptCursor,
+  };
 }
 
 /**
@@ -111,12 +149,12 @@ export function describeDeliveryError(err: unknown): string {
  * wrote a `fleet_runs` row would otherwise leave a step with no run to hang
  * off, and the run page would 404 on the very link the failed gate publishes.
  *
- * @param attempt Cloudflare's `message.attempts` (1-based); 0 when unknown.
+ * @param attempt Internal cursor plus truthful platform/continuation coordinates.
  */
 export async function recordDeliveryFailure(
   env: ExecutorEnv,
   job: FleetRunJob,
-  attempt: number,
+  attempt: DeliveryAttemptEvidence,
   err: unknown,
 ): Promise<void> {
   try {
@@ -129,18 +167,18 @@ export async function recordDeliveryFailure(
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
     const error = describeDeliveryError(err);
-    const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+    const deliveryAttempt = normalizeDeliveryAttempt(attempt);
     await env.DB.prepare(
       `INSERT OR REPLACE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         runId,
-        DELIVERY_FAILURE_SEQ_BASE + safeAttempt,
+        DELIVERY_FAILURE_SEQ_BASE + deliveryAttempt.attemptCursor,
         DELIVERY_FAILURE_KIND,
         null,
-        `Delivery attempt ${safeAttempt || '?'} failed: ${error}`,
-        JSON.stringify({ attempt: safeAttempt, error }),
+        `${fleetDeliveryAttemptLabel(deliveryAttempt, true)} failed: ${error}`,
+        JSON.stringify({ ...deliveryAttemptDetail(deliveryAttempt), error }),
         Math.floor(Date.now() / 1000),
       )
       .run();
@@ -165,13 +203,13 @@ export async function recordDeliveryFailure(
  *
  * @param env - Worker environment (needs DB; silently a no-op without it).
  * @param job - The fleet job being attempted.
- * @param attempt - Cloudflare's `message.attempts` (1-based); 0 when unknown.
+ * @param attempt - Internal cursor plus truthful platform/continuation coordinates.
  * @returns Resolves always; failures are logged, never thrown.
  */
 export async function recordDeliveryAttemptStart(
   env: ExecutorEnv,
   job: FleetRunJob,
-  attempt: number,
+  attempt: DeliveryAttemptEvidence,
 ): Promise<void> {
   try {
     if (!env.DB) return;
@@ -182,18 +220,18 @@ export async function recordDeliveryAttemptStart(
     const headSha = pr?.head?.sha ?? '';
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
-    const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+    const deliveryAttempt = normalizeDeliveryAttempt(attempt);
     await env.DB.prepare(
       `INSERT OR REPLACE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         runId,
-        DELIVERY_ATTEMPT_SEQ_BASE + safeAttempt,
+        DELIVERY_ATTEMPT_SEQ_BASE + deliveryAttempt.attemptCursor,
         DELIVERY_ATTEMPT_KIND,
         null,
-        `Delivery attempt ${safeAttempt || '?'} started`,
-        JSON.stringify({ attempt: safeAttempt }),
+        `${fleetDeliveryAttemptLabel(deliveryAttempt, true)} started`,
+        JSON.stringify(deliveryAttemptDetail(deliveryAttempt)),
         Math.floor(Date.now() / 1000),
       )
       .run();
@@ -213,7 +251,7 @@ export async function recordDeliveryAttemptStart(
 export async function recordDeliveryContinuation(
   env: ExecutorEnv,
   job: FleetRunJob,
-  attempt: number,
+  attempt: DeliveryAttemptEvidence,
   completedShip: string,
   remainingShips: string[],
 ): Promise<boolean> {
@@ -226,7 +264,7 @@ export async function recordDeliveryContinuation(
     const headSha = pr?.head?.sha ?? '';
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
-    const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+    const deliveryAttempt = normalizeDeliveryAttempt(attempt);
     const boundedRemaining = remainingShips.filter(Boolean).slice(0, 50);
     await env.DB.prepare(
       `INSERT OR REPLACE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
@@ -234,13 +272,13 @@ export async function recordDeliveryContinuation(
     )
       .bind(
         runId,
-        DELIVERY_CONTINUATION_SEQ_BASE + safeAttempt,
+        DELIVERY_CONTINUATION_SEQ_BASE + deliveryAttempt.attemptCursor,
         DELIVERY_CONTINUATION_KIND,
         completedShip || null,
-        `Delivery slice ${safeAttempt || '?'} completed pd-${completedShip || 'unknown'}; ` +
+        `Checkpoint slice for ${fleetDeliveryAttemptLabel(deliveryAttempt)} completed pd-${completedShip || 'unknown'}; ` +
           `${boundedRemaining.length} ship(s) remain. The next checkpointed slice was scheduled; this is progress, not a failure.`,
         JSON.stringify({
-          attempt: safeAttempt,
+          ...deliveryAttemptDetail(deliveryAttempt),
           completedShip,
           remainingShips: boundedRemaining,
         }),
@@ -345,20 +383,25 @@ export async function readLastDeliveryFailure(
 
     const record = row as Record<string, unknown>;
     const seq = Number(record.seq);
-    let attempt = Number.isFinite(seq) ? Math.max(0, seq - DELIVERY_FAILURE_SEQ_BASE) : 0;
+    const cursor = Number.isFinite(seq) ? Math.max(0, seq - DELIVERY_FAILURE_SEQ_BASE) : 0;
+    let deliveryAttempt = decodeFleetDeliveryAttemptCursor(cursor);
     let error = '';
     if (typeof record.detail === 'string' && record.detail) {
       try {
-        const parsed = JSON.parse(record.detail) as { attempt?: unknown; error?: unknown };
+        const parsed = JSON.parse(record.detail) as { error?: unknown };
         if (typeof parsed.error === 'string') error = parsed.error;
-        if (Number.isInteger(parsed.attempt)) attempt = parsed.attempt as number;
+        deliveryAttempt = readFleetDeliveryAttempt(parsed);
       } catch {
         // Malformed detail is not a reason to lose the row — fall through to title.
       }
     }
     if (!error) error = typeof record.title === 'string' ? record.title : '';
     if (!error) return null;
-    return { attempt, error };
+    return {
+      ...deliveryAttempt,
+      attempt: deliveryAttempt.platformAttempt,
+      error,
+    };
   } catch (err) {
     console.error(`[fleet-executor] reading delivery failure failed run=${runId}: ${String(err)}`);
     return null;
@@ -440,6 +483,8 @@ export function deadLetterSummary(
       `${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`
     );
   }
-  const which = failure.attempt > 0 ? `attempt ${failure.attempt}` : 'the last attempt';
+  const which = failure.platformAttempt > 0
+    ? fleetDeliveryAttemptLabel(failure)
+    : 'the last attempt';
   return `${base}\n\nLast recorded failure (${which}): ${error}${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`;
 }

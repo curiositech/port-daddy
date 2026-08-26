@@ -885,6 +885,9 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
     FLEET_TOKENS: memoryKV(),
     CONTROL_KV: memoryKV(),
     AI: aiStub({ perShip: {} }).ai,
+    FLEET_CONTINUATIONS: {
+      send: vi.fn(async () => undefined),
+    } as unknown as Queue<FleetRunJob>,
     ...over,
   };
 }

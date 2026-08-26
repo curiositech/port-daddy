@@ -10,8 +10,9 @@
 #   1. Create the installation-token KV namespace — copy id into [[kv_namespaces]]:
 #        wrangler kv namespace create FLEET_TOKENS
 #
-#   2. Create the queue + DLQ (consumer binding below):
+#   2. Create the admission queue, isolated continuation queue, and DLQ:
 #        wrangler queues create fleet-runs
+#        wrangler queues create fleet-continuations
 #        wrangler queues create fleet-runs-dlq
 #
 #   3. Set the GitHub App id (var) and private key (secret):
@@ -141,7 +142,7 @@ database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
 # follow-up handler completes the check run as 'failure' (fail-closed).
 [[queues.producers]]
 binding = "FLEET_CONTINUATIONS"
-queue = "fleet-runs"
+queue = "fleet-continuations"
 
 [[queues.consumers]]
 queue = "fleet-runs"
@@ -155,6 +156,17 @@ max_batch_timeout = 30
 # a delivery-continuation step, enqueues the next checkpointed slice, and
 # acknowledges the current message. Retries are therefore true failure
 # attempts, bounded independently of roster size.
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
+# Checkpoint continuations have their own consumer pool. They preserve the
+# main queue's serialized model-spend boundary without waiting behind unrelated
+# new runs. One-message batches and bounded retries keep replay deterministic.
+[[queues.consumers]]
+queue = "fleet-continuations"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 

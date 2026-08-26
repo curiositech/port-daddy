@@ -37,9 +37,16 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(dlq).toMatch(/^\s*max_retries\s*=\s*1\s*$/m);
   });
 
-  it('uses explicit continuation messages instead of spending failure retries on progress', () => {
+  it('routes explicit continuation messages to an isolated consumer pool', () => {
     const continuation = producerBlock(readConfig(name), 'FLEET_CONTINUATIONS');
-    expect(continuation).toMatch(/^\s*queue\s*=\s*"fleet-runs"\s*$/m);
+    expect(continuation).toMatch(/^\s*queue\s*=\s*"fleet-continuations"\s*$/m);
+
+    const consumer = consumerBlock(readConfig(name), 'fleet-continuations');
+    expect(consumer).toMatch(/^\s*max_batch_size\s*=\s*1\s*$/m);
+    expect(consumer).toMatch(/^\s*max_concurrency\s*=\s*1\s*$/m);
+    expect(consumer).toMatch(/^\s*max_batch_timeout\s*=\s*5\s*$/m);
+    expect(consumer).toMatch(/^\s*max_retries\s*=\s*3\s*$/m);
+    expect(consumer).toMatch(/^\s*dead_letter_queue\s*=\s*"fleet-runs-dlq"\s*$/m);
   });
 
   it('bounds true delivery failures independently of the ship roster', () => {

@@ -18,6 +18,7 @@ import {
   recordDeliveryContinuation,
   runIdForDelivery,
 } from '../src/delivery-failure.js';
+import { encodeFleetDeliveryAttempt } from '../../shared/fleet-delivery-attempt.js';
 
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
@@ -30,8 +31,11 @@ function fakeMessage(body: FleetRunJob, attempts = 1) {
   return { id: 'm1', timestamp: new Date(), body, attempts, ack: vi.fn(), retry: vi.fn() };
 }
 
-function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
-  return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
+function fakeBatch(
+  messages: ReturnType<typeof fakeMessage>[],
+  queue = 'fleet-runs',
+) {
+  return { queue, messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
 interface CapturingCtx extends ExecutionContext {
@@ -62,7 +66,7 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
-  it('slices a multi-ship run into visible cumulative continuations, then acks the verdict', async () => {
+  it('fails before model spend when the dedicated continuation producer is absent', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       [
@@ -75,52 +79,29 @@ describe('queue consumer', () => {
         `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
         '      blocking: true',
         '      prompt: review',
-        '    qa:',
-        '      trigger: pull_request:opened',
-        '      fallbacks:',
-        '        - backend: cloudflare',
-        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
-        '      prompt: test',
         '',
       ].join('\n'),
     );
     const kv = memoryKV();
     seedToken(kv, 42);
-    const db = memoryD1();
     const ai = aiStub({
-      perShip: {
-        'code-reviewer': 'FLEET-VERDICT: PASS',
-        qa: 'FLEET-VERDICT: PASS',
-      },
+      perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' },
     }).ai;
-    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: db.db });
+    const message = fakeMessage(makeJob(), 1);
+    await handler.queue!(
+      fakeBatch([message]),
+      makeEnv({
+        FLEET_TOKENS: kv,
+        AI: ai,
+        FLEET_CONTINUATIONS: undefined,
+      }),
+      capturingCtx(),
+    );
 
-    const first = fakeMessage(makeJob(), 1);
-    await handler.queue!(fakeBatch([first]), env, capturingCtx());
-
-    expect(first.retry).toHaveBeenCalledWith({ delaySeconds: 1 });
-    expect(first.ack).not.toHaveBeenCalled();
-    expect(state.completed).toHaveLength(0);
-    expect(db.steps.filter(step => step.kind === DELIVERY_CONTINUATION_KIND)).toHaveLength(1);
-    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
-
-    const deliveries = [first];
-    for (let attempt = 2; attempt <= 13 && deliveries.at(-1)?.ack.mock.calls.length === 0; attempt += 1) {
-      const next = fakeMessage(makeJob(), attempt);
-      await handler.queue!(fakeBatch([next]), env, capturingCtx());
-      deliveries.push(next);
-    }
-
-    const final = deliveries.at(-1)!;
-    expect(final.retry).not.toHaveBeenCalled();
-    expect(final.ack).toHaveBeenCalledTimes(1);
-    for (const slice of deliveries.slice(0, -1)) {
-      expect(slice.retry).toHaveBeenCalledWith({ delaySeconds: 1 });
-      expect(slice.ack).not.toHaveBeenCalled();
-    }
-    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc')))
-      .toBe(deliveries.length - 1);
-    expect(state.completed.at(-1)?.conclusion).toBe('success');
+    expect(message.retry).toHaveBeenCalledTimes(1);
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(ai.run).not.toHaveBeenCalled();
+    expect(state.checkRunsCreated).toBe(0);
   });
 
   it('acks successful slices and sends explicit deduplicated continuation messages', async () => {
@@ -177,7 +158,11 @@ describe('queue consumer', () => {
     expect(sequenceOne.continuationSequence).toBe(1);
 
     const second = fakeMessage(sequenceOne, 1);
-    await handler.queue!(fakeBatch([second]), env, capturingCtx());
+    await handler.queue!(
+      fakeBatch([second], 'fleet-continuations'),
+      env,
+      capturingCtx(),
+    );
 
     expect(second.ack).toHaveBeenCalledTimes(1);
     expect(second.retry).not.toHaveBeenCalled();
@@ -192,12 +177,108 @@ describe('queue consumer', () => {
 
     const callsBeforeDuplicate = vi.mocked(ai.run).mock.calls.length;
     const duplicate = fakeMessage(sequenceOne, 1);
-    await handler.queue!(fakeBatch([duplicate]), env, capturingCtx());
+    await handler.queue!(
+      fakeBatch([duplicate], 'fleet-continuations'),
+      env,
+      capturingCtx(),
+    );
 
     expect(duplicate.ack).toHaveBeenCalledTimes(1);
     expect(duplicate.retry).not.toHaveBeenCalled();
     expect(continuationSend).toHaveBeenCalledTimes(1);
     expect(vi.mocked(ai.run)).toHaveBeenCalledTimes(callsBeforeDuplicate);
+  });
+
+  it('processes an interleaved continuation while an unrelated main run is in flight', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: review',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        `          model: '@cf/qwen/qwen3-30b-a3b-fp8'`,
+        '      prompt: test',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    let releaseMain!: () => void;
+    let markMainStarted!: () => void;
+    const mainRelease = new Promise<void>((resolve) => { releaseMain = resolve; });
+    const mainStarted = new Promise<void>((resolve) => { markMainStarted = resolve; });
+    let held = false;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' },
+      onCall: async () => {
+        if (!held) {
+          held = true;
+          markMainStarted();
+          await mainRelease;
+        }
+      },
+    }).ai;
+    const continuationSend = vi.fn(async () => undefined);
+    const env = makeEnv({
+      FLEET_TOKENS: kv,
+      DB: db.db,
+      AI: ai,
+      FLEET_CONTINUATIONS: {
+        send: continuationSend,
+      } as unknown as Queue<FleetRunJob>,
+    });
+    const duplicateJob = makeJob({
+      deliveryId: 'delivery-independent-continuation',
+      continuationSequence: 1,
+    });
+    await recordDeliveryContinuation(
+      env,
+      duplicateJob,
+      encodeFleetDeliveryAttempt(1, 1),
+      'code-reviewer',
+      ['qa'],
+    );
+
+    const main = fakeMessage(makeJob({ deliveryId: 'delivery-main-in-flight' }));
+    const mainInvocation = handler.queue!(
+      fakeBatch([main], 'fleet-runs'),
+      env,
+      capturingCtx(),
+    );
+    await mainStarted;
+    expect(main.ack).not.toHaveBeenCalled();
+
+    const continuation = fakeMessage(duplicateJob);
+    await handler.queue!(
+      fakeBatch([continuation], 'fleet-continuations'),
+      env,
+      capturingCtx(),
+    );
+    expect(continuation.ack).toHaveBeenCalledTimes(1);
+    expect(continuation.retry).not.toHaveBeenCalled();
+    expect(main.ack).not.toHaveBeenCalled();
+    expect(ai.run).toHaveBeenCalledTimes(2);
+    expect(continuationSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveryId: 'delivery-independent-continuation',
+        continuationSequence: 2,
+      }),
+      { delaySeconds: 1 },
+    );
+
+    releaseMain();
+    await mainInvocation;
+    expect(main.ack).toHaveBeenCalledTimes(1);
   });
 
   it('retries an explicit continuation when its durable cursor is unavailable', async () => {
@@ -210,7 +291,7 @@ describe('queue consumer', () => {
     const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 1);
 
     await handler.queue!(
-      fakeBatch([msg]),
+      fakeBatch([msg], 'fleet-continuations'),
       makeEnv({
         DB: failingDb,
         FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,
@@ -250,7 +331,7 @@ describe('queue consumer', () => {
     const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 2);
 
     await handler.queue!(
-      fakeBatch([msg]),
+      fakeBatch([msg], 'fleet-continuations'),
       makeEnv({
         AI: ai,
         DB: db.db,
@@ -275,7 +356,7 @@ describe('queue consumer', () => {
     const msg = fakeMessage(makeJob({ continuationSequence: 1 }), 1);
 
     await handler.queue!(
-      fakeBatch([msg]),
+      fakeBatch([msg], 'fleet-continuations'),
       makeEnv({
         DB: db.db,
         FLEET_CONTINUATIONS: { send: continuationSend } as unknown as Queue<FleetRunJob>,

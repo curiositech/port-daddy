@@ -33,6 +33,7 @@ import {
   type FleetRunProjection,
 } from './fleet-run-intents.js';
 import type { Env } from './types.js';
+import { decodeFleetDeliveryAttemptCursor } from '../../shared/fleet-delivery-attempt.js';
 
 // ── Envelope helpers ──────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ async function readJson<T>(request: Request): Promise<T | null> {
 
 /** Project a stored run row into the wire shape (short SHA, ships array). */
 function runForList(r: FleetRunProjection): Record<string, unknown> {
+  const attempt = decodeFleetDeliveryAttemptCursor(r.attempt_count);
   return {
     id: r.id,
     deliveryId: r.delivery_id,
@@ -74,7 +76,10 @@ function runForList(r: FleetRunProjection): Record<string, unknown> {
     createdAt: r.created_at,
     state: r.logical_state,
     generation: r.generation,
-    attemptCount: r.attempt_count,
+    attemptCount: attempt.platformAttempt,
+    platformAttempt: attempt.platformAttempt,
+    continuationSequence: attempt.continuationSequence,
+    attemptCursor: attempt.attemptCursor,
     queuedAt: r.queued_at,
     startedAt: r.started_at,
     lastProgressAt: r.last_progress_at,
@@ -128,6 +133,7 @@ export async function handleFleetRun(
       return fleetErr('NOT_FOUND', `Run ${runId} not found`, 404);
     }
     const { run, steps } = found;
+    const attempt = decodeFleetDeliveryAttemptCursor(run.attempt_count);
     return envelope(200, {
       code: 'OK',
       error: null,
@@ -145,7 +151,10 @@ export async function handleFleetRun(
         createdAt: run.created_at,
         state: run.logical_state,
         generation: run.generation,
-        attemptCount: run.attempt_count,
+        attemptCount: attempt.platformAttempt,
+        platformAttempt: attempt.platformAttempt,
+        continuationSequence: attempt.continuationSequence,
+        attemptCursor: attempt.attemptCursor,
         queuedAt: run.queued_at,
         startedAt: run.started_at,
         lastProgressAt: run.last_progress_at,

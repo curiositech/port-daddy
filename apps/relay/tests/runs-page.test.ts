@@ -351,7 +351,7 @@ describe('GET /account/runs — live logical state', () => {
     );
     expect(html).toContain('admission record incomplete');
     expect(html).toContain('queue handoff failed without durable error detail');
-    expect(html).toContain('attempt 1 · transcript arriving');
+    expect(html).toContain('platform attempt 1 · transcript arriving');
     expect(html).not.toContain('attempt NaN');
   });
 
@@ -371,8 +371,38 @@ describe('GET /account/runs — live logical state', () => {
       { truncated: false, nowSec: 1_700_000_010 },
     );
     expect(html).toContain('badge retrying');
-    expect(html).toContain('provider retry · attempt 2 scheduled');
+    expect(html).toContain('provider retry · platform attempt 2 scheduled');
     expect(html).toContain('expected 22:14 UTC');
+  });
+
+  it('decodes a legacy continuation cursor in the run list', () => {
+    const retrying: FleetRunProjection = {
+      ...makeRun({ conclusion: 'retrying', ships_csv: '', ms: 0 }),
+      id: 'intent:continuation-retry',
+      delivery_id: 'continuation-retry',
+      logical_state: 'retrying',
+      generation: 5,
+      attempt_count: 101,
+      queued_at: 1_700_000_000,
+      started_at: 1_700_000_001,
+      last_progress_at: 1_700_000_010,
+      finished_at: null,
+      superseded_by: null,
+      last_error: 'retry scheduled',
+      expected_start_at: null,
+      expected_finish_at: null,
+      queue_ahead_estimate: 0,
+      has_transcript: false,
+    };
+    const html = renderRunsPage(
+      { id: 'u_1', github_user_id: 1, login: 'octocat', display_name: null, avatar_url: null, primary_email: null, email_verified: 0, created_at: 0, last_login_at: 0, deleted_at: null },
+      [{ repo: 'acme/widgets', runs: [retrying] }],
+      { truncated: false, nowSec: 1_700_000_010 },
+    );
+    expect(html).toContain(
+      'provider retry · continuation 1, platform attempt 1 scheduled',
+    );
+    expect(html).not.toContain('attempt 101');
   });
 });
 

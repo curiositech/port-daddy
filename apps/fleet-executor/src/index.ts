@@ -51,6 +51,10 @@ import {
   markFleetIntentRetrying,
   markFleetIntentTerminal,
 } from './run-intent.js';
+import {
+  encodeFleetDeliveryAttempt,
+  FLEET_CONTINUATION_ATTEMPT_STRIDE,
+} from '../../shared/fleet-delivery-attempt.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
@@ -66,12 +70,12 @@ const DLQ_QUEUE_NAME = 'fleet-runs-dlq';
 export const MAX_NEW_SHIPS_PER_INVOCATION = 1;
 
 /**
- * Leave enough room for Cloudflare's platform retries inside one checkpoint.
- * The resulting cursor is monotonic across explicit continuation messages,
- * whose platform `attempts` counter restarts at one.
+ * Validate the explicit checkpoint sequence before it enters cursor storage.
+ * Design intent: malformed queue bodies fail closed before model spend.
+ *
+ * @param job - Untrusted Fleet queue job.
+ * @returns A bounded positive sequence, or null for an admission delivery.
  */
-const CONTINUATION_ATTEMPT_STRIDE = 100;
-
 function continuationSequence(job: FleetRunJob): number | null {
   const value = job.continuationSequence;
   return Number.isSafeInteger(value) && (value ?? 0) > 0 && (value ?? 0) < 10_000
@@ -79,14 +83,17 @@ function continuationSequence(job: FleetRunJob): number | null {
     : null;
 }
 
-function deliveryAttemptCursor(job: FleetRunJob, platformAttempt: number): number {
-  const sequence = continuationSequence(job);
-  return sequence == null
-    ? platformAttempt
-    : sequence * CONTINUATION_ATTEMPT_STRIDE + platformAttempt;
-}
-
 export default {
+  /**
+   * Consume admission and continuation deliveries through one replay-safe
+   * implementation while Cloudflare gives each queue an isolated pool.
+   * Design intent: topology isolation must not fork idempotency semantics.
+   *
+   * @param batch - One queue batch from either dedicated consumer.
+   * @param env - Fleet bindings, including the required continuation producer.
+   * @param ctx - Worker lifetime context for best-effort telemetry drains.
+   * @returns Completion after every message is acknowledged or retried.
+   */
   async queue(
     batch: MessageBatch<FleetRunJob>,
     env: ExecutorEnv,
@@ -119,11 +126,15 @@ export default {
 
     for (const message of batch.messages) {
       const reportedAttempt = (message as unknown as { attempts?: number }).attempts;
-      const attempt = Number.isInteger(reportedAttempt) && (reportedAttempt ?? 0) > 0
+      const attempt = Number.isInteger(reportedAttempt) &&
+          (reportedAttempt ?? 0) > 0 &&
+          (reportedAttempt ?? 0) < FLEET_CONTINUATION_ATTEMPT_STRIDE
         ? reportedAttempt as number
         : 1;
       const explicitContinuation = continuationSequence(message.body);
-      const attemptCursor = deliveryAttemptCursor(message.body, attempt);
+      const deliveryAttempt = encodeFleetDeliveryAttempt(explicitContinuation, attempt);
+      const attemptCursor = deliveryAttempt.attemptCursor;
+      const continuationQueue = env.FLEET_CONTINUATIONS;
       try {
         if (
           message.body?.continuationSequence !== undefined &&
@@ -160,12 +171,12 @@ export default {
             // The previous invocation may have committed its checkpoint and
             // then failed while sending this successor. Re-sending is safe:
             // the successor itself is deduplicated against the same ledger.
-            if (!env.FLEET_CONTINUATIONS) {
+            if (!continuationQueue) {
               throw new Error(
                 `cannot repair missing continuation ${recordedSequence}: producer binding unavailable`,
               );
             }
-            await env.FLEET_CONTINUATIONS.send(
+            await continuationQueue.send(
               { ...message.body, continuationSequence: recordedSequence },
               { delaySeconds: 1 },
             );
@@ -185,6 +196,11 @@ export default {
             message.ack();
             continue;
           }
+        }
+        if (!continuationQueue) {
+          throw new Error(
+            'dedicated fleet-continuations producer binding unavailable before model spend',
+          );
         }
         const intentDecision = await beginFleetIntentAttempt(env, message.body, attemptCursor);
         if (intentDecision === 'skip') {
@@ -210,7 +226,7 @@ export default {
         await recordDeliveryAttemptStart(
           env,
           message.body,
-          attemptCursor,
+          deliveryAttempt,
         );
         const disposition = await executeFleet(message.body, env, {
           // Explicit continuations start a fresh Cloudflare delivery counter.
@@ -225,7 +241,7 @@ export default {
           const recorded = await recordDeliveryContinuation(
             env,
             message.body,
-            attemptCursor,
+            deliveryAttempt,
             disposition.completedShip,
             disposition.remainingShips,
           );
@@ -243,36 +259,25 @@ export default {
           } catch {
             void telemetryDrain;
           }
-          if (env.FLEET_CONTINUATIONS) {
-            const nextSequence = await readDeliveryContinuationCount(
-              env,
-              runIdForDelivery(message.body.deliveryId),
+          const nextSequence = await readDeliveryContinuationCount(
+            env,
+            runIdForDelivery(message.body.deliveryId),
+          );
+          if (nextSequence == null || nextSequence <= 0) {
+            throw new Error(
+              `checkpoint continuation count unavailable after pd-${disposition.completedShip}`,
             );
-            if (nextSequence == null || nextSequence <= 0) {
-              throw new Error(
-                `checkpoint continuation count unavailable after pd-${disposition.completedShip}`,
-              );
-            }
-            await env.FLEET_CONTINUATIONS.send(
-              { ...message.body, continuationSequence: nextSequence },
-              { delaySeconds: 1 },
-            );
-            console.log(
-              `[fleet-executor] continuation delivery=${message.body.deliveryId} ` +
-                `sequence=${nextSequence} completed=pd-${disposition.completedShip}; ` +
-                `acknowledging current message`,
-            );
-            message.ack();
-          } else {
-            // Rolling-deploy compatibility: code may reach an isolate before
-            // the producer binding is live. Preserve the old cumulative path
-            // until Wrangler finishes installing FLEET_CONTINUATIONS.
-            console.warn(
-              `[fleet-executor] continuation producer absent delivery=${message.body.deliveryId}; ` +
-                `falling back to platform retry`,
-            );
-            message.retry({ delaySeconds: 1 });
           }
+          await continuationQueue.send(
+            { ...message.body, continuationSequence: nextSequence },
+            { delaySeconds: 1 },
+          );
+          console.log(
+            `[fleet-executor] continuation delivery=${message.body.deliveryId} ` +
+              `sequence=${nextSequence} completed=pd-${disposition.completedShip}; ` +
+              `acknowledging current message`,
+          );
+          message.ack();
           continue;
         }
         if (disposition?.kind === 'stale-head') {
@@ -366,7 +371,7 @@ export default {
         await recordDeliveryFailure(
           env,
           message.body,
-          attemptCursor,
+          deliveryAttempt,
           durableError,
         );
         await markFleetIntentRetrying(env, message.body, attemptCursor, durableError);
