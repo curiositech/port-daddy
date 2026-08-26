@@ -106,7 +106,9 @@ describe('rendering — the failure states must read as sentences', () => {
     expect(html).toContain('NEEDS-WORK');
     expect(html).toContain('#6419');
     expect(html).toContain('required checks red on head');
-    expect(html).toContain('requested by tick');
+    // "requested by tick" was internal vocabulary that told a reader nothing;
+    // the evidence is what makes a verdict checkable, so that is what must show.
+    expect(html).toContain('Right now');
   });
 
   it('escapes hostile text from GitHub-controlled fields', () => {
@@ -148,7 +150,10 @@ describe('rendering — the failure states must read as sentences', () => {
       [seat({ deck: [deckRow({ entryKind: 'all-quiet', wakeEvents: 0, summary: 'ALL QUIET.' })] })],
       { truncated: false, nowSec: NOW },
     );
-    expect(html).toContain('all-quiet');
+    // The label reads "quiet" rather than the schema's "all-quiet": same
+    // distinction, stated in a word a reader already knows.
+    expect(html).toContain('quiet');
+    expect(html).not.toContain('woke &times;');
     expect(html).toContain('ALL QUIET.');
   });
 });

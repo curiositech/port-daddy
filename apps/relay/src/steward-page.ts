@@ -37,6 +37,11 @@ import type { UserRow } from './db.js';
 import { resolveSession, userCanReadRepo, type ResolvedSession } from './auth-github.js';
 import { HEAD, TOKENS } from './account-page.js';
 import {
+  briefFromDetail,
+  landingSentence,
+  type SeatBrief,
+} from './steward-brief.js';
+import {
   listStewardRepos,
   readStewardDeckLog,
   readStewardMergeLedger,
@@ -282,6 +287,27 @@ ${TOKENS}
 .what{font-size:14px;line-height:1.55;color:var(--text-primary);overflow-wrap:anywhere}
 .what .ev{display:block;color:var(--text-secondary);font-size:13px;margin-top:3px}
 .empty-line{font-size:14px;color:var(--text-muted);padding:8px 0 16px;line-height:1.6}
+.now{padding:18px 20px;border-bottom:2px solid var(--border-strong);background:var(--surface-base)}
+.now h2{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
+.now-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;font-size:16px;line-height:1.5;color:var(--text-primary)}
+.now-why{font-size:14px;color:var(--text-secondary);line-height:1.55;margin:6px 0 0;max-width:72ch}
+.blocked{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;padding:12px 14px;border:2px solid var(--error);background:var(--surface-card)}
+.blocked .bmark{font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--error);flex:none}
+.blocked p{margin:0;font-size:14px;line-height:1.55;color:var(--text-primary)}
+.blocked .fix{display:block;margin-top:5px;color:var(--text-secondary);font-size:13px}
+.tiers{display:flex;flex-direction:column;gap:0;margin:0 0 14px}
+.tier{display:grid;grid-template-columns:3.5rem auto 1fr;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--hair-strong)}
+.tier:first-child{border-top:none}
+.tier .n{font-family:"IBM Plex Mono",monospace;font-size:18px;font-weight:700;color:var(--text-primary);text-align:right}
+.tier .lbl{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);white-space:nowrap}
+.tier .why{font-size:14px;color:var(--text-secondary);line-height:1.5}
+.q{display:flex;flex-direction:column;gap:0;margin:0 0 6px}
+.qrow{display:grid;grid-template-columns:1.2rem 4.5rem 1fr;gap:10px;align-items:baseline;padding:5px 0;font-size:13px;line-height:1.5}
+.qrow .arrow{font-family:"IBM Plex Mono",monospace;color:var(--cobalt);font-weight:700}
+.qrow .pr{font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--text-primary)}
+.qrow .rz{color:var(--text-secondary);overflow-wrap:anywhere}
+.qrow.head .pr,.qrow.head .rz{color:var(--text-primary)}
+.qmore{font-size:13px;color:var(--text-muted);padding:8px 0 0;font-style:italic}
 .notice{max-width:52rem;margin:0 auto;padding:64px 0}
 .notice h1{font-size:clamp(28px,4vw,40px);font-weight:700;margin:14px 0 16px;letter-spacing:-.03em}
 .notice p{font-size:16px;color:var(--text-secondary);line-height:1.62;max-width:56ch}
@@ -331,12 +357,119 @@ function vitalsBadge(v: SeatVitals, nowSec: number): string {
 }
 
 /**
- * Render one seat card: vitals, deck log, merge ledger.
+ * How many docket lines to print before collapsing the rest into a count.
  *
- * DESIGN — vitals first, then the deck log, then the verdicts. That order is
- * the reading order of the question actually being asked: is it alive, what
- * has it been doing, and what did it decide. A card that led with verdicts
- * would invite trusting decisions from a seat that stopped beating days ago.
+ * Eight is "the next few things", which is what a reader can hold; the full 45
+ * is a wall that gets scrolled past. The remainder is stated as a number
+ * rather than hidden, because a truncated list that looks complete is the
+ * dishonest option.
+ */
+export const DOCKET_PREVIEW = 8;
+
+/**
+ * Render the "what is it doing right now" block.
+ *
+ * DESIGN — THIS IS THE ANSWER, THE LEDGERS ARE THE EVIDENCE. The first cut of
+ * this page led with the raw deck log and merge ledger, and a reader came away
+ * knowing the seat had a pulse and nothing about whether it was doing anything
+ * worth having. Faithful rendering of internal records is not the same as
+ * answering the question, and the question is: what is it working on, what is
+ * behind that, and is anything stopping it.
+ *
+ * The blocked banner is deliberately loud and deliberately conditional. A seat
+ * that renders correct verdicts and can execute none of them is *watching*,
+ * not working, and the ledgers cannot show the difference — a NEEDS-WORK row
+ * looks identical either way. When the seat reports it held a landing, that is
+ * the most important fact on the page and it gets the most weight, along with
+ * the operator action that clears it.
+ *
+ * @param brief - The derived brief from the newest deck-log entry.
+ * @param newest - That entry, for its summary line.
+ * @param topVerdict - The most recent verdict, when one exists.
+ * @param heldLanding - The most recent landing the seat did NOT complete.
+ * @returns Block HTML, or empty string when there is nothing yet to say.
+ */
+function renderNow(
+  brief: SeatBrief,
+  newest: StewardDeckLogRow | undefined,
+  topVerdict: StewardMergeLedgerRow | undefined,
+  heldLanding: SeatBrief['landing'],
+): string {
+  if (!newest) return '';
+  const current = brief.docket.find(d => d.current);
+  const headline = topVerdict
+    ? `Working <span class="badge ${verdictClass(topVerdict.verdict)}"><span class="dot"></span>${esc(
+        topVerdict.verdict,
+      )}</span> on <strong>#${esc(topVerdict.prNumber)}</strong>`
+    : current
+      ? `Working on <strong>#${esc(current.pr)}</strong>`
+      : `Last wake found nothing to decide`;
+  const why = topVerdict
+    ? `<p class="now-why">${esc(topVerdict.evidence)}</p>`
+    : current
+      ? `<p class="now-why">${esc(current.rationale)}</p>`
+      : '';
+
+  // Only a landing the seat did not complete is worth a banner. A successful
+  // one already shows up as a LAND verdict below, and repeating it here would
+  // spend the reader's alarm budget on good news.
+  const banner = heldLanding && !heldLanding.landed
+    ? `<div class="blocked"><span class="bmark" aria-hidden="true">!!</span><p>
+        <strong>This seat did not complete its last landing.</strong>
+        ${esc(heldLanding.reason)}
+        <span class="fix">Until this clears, the Steward can decide but not merge &mdash; every
+          LAND verdict below is a judgement it was unable to act on.</span>
+      </p></div>`
+    : '';
+
+  const tiers = brief.tiers.length
+    ? `<div class="tiers">${brief.tiers
+        .map(
+          t => `<div class="tier"><span class="n">${esc(t.count)}</span>
+        <span class="lbl">${esc(t.tier)}</span>
+        <span class="why">${esc(t.rationale.replace(/^tier\s+\d+:\s*/i, ''))}</span></div>`,
+        )
+        .join('')}</div>`
+    : '';
+
+  const preview = brief.docket.slice(0, DOCKET_PREVIEW);
+  const rest = brief.docket.length - preview.length;
+  const queue = preview.length
+    ? `<div class="q">${preview
+        .map(
+          d => `<div class="qrow${d.current ? ' head' : ''}">
+        <span class="arrow">${d.current ? '&rarr;' : ''}</span>
+        <span class="pr">#${esc(d.pr)}</span>
+        <span class="rz">${esc(d.rationale)}</span></div>`,
+        )
+        .join('')}</div>${
+        rest > 0 ? `<p class="qmore">&hellip; and ${esc(rest)} more, ranked below these.</p>` : ''
+      }`
+    : '';
+
+  const queued = brief.docket.length
+    ? `<h2>Queue &mdash; ${esc(brief.docket.length)} pull request${
+        brief.docket.length === 1 ? '' : 's'
+      }, ranked by the seat</h2>${tiers}${queue}`
+    : '';
+
+  return `<div class="now">
+    <h2>Right now</h2>
+    <div class="now-line">${headline}</div>
+    ${why}
+    ${banner}
+  </div>
+  ${queued ? `<div class="section">${queued}</div>` : ''}`;
+}
+
+/**
+ * Render one seat card: vitals, the brief, then the two ledgers as evidence.
+ *
+ * DESIGN — vitals first, then what it is doing, then the record. The badge
+ * stays at the top because a verdict from a seat that stopped beating three
+ * days ago should be read differently from a fresh one, and the reader needs
+ * that framing before the content. After that the order follows the questions
+ * an operator actually asks, in the order they ask them.
  *
  * @param seat - The loaded seat.
  * @param nowSec - Current epoch seconds.
@@ -348,13 +481,19 @@ function renderSeat(seat: SeatView, nowSec: number): string {
     ? 'no deck-log entry, ever'
     : `last beat ${relTime(nowSec, vitals.lastEntryAt)}`;
 
+  const brief = briefFromDetail(deck[0]?.detail);
+  // Scan the whole visible deck for the most recent landing, not just the
+  // newest entry: landings are rare, so the newest wake almost never has one,
+  // and "the last time it tried to merge" is the fact worth surfacing.
+  const heldLanding = deck.map(e => briefFromDetail(e.detail).landing).find(l => l !== null) ?? null;
+
   const deckRows = deck.length
     ? deck
         .map(
           e => `<div class="row">
   <span class="when">${esc(relTime(nowSec, e.createdAt))}</span>
-  <span class="kind${e.entryKind === 'all-quiet' ? ' quiet' : ''}">${esc(e.entryKind)}${
-            e.wakeEvents > 0 ? ` ×${esc(e.wakeEvents)}` : ''
+  <span class="kind${e.entryKind === 'all-quiet' ? ' quiet' : ''}">${
+            e.entryKind === 'all-quiet' ? 'quiet' : `woke &times;${esc(e.wakeEvents)}`
           }</span>
   <span class="what">${esc(e.summary)}</span>
 </div>`,
@@ -368,7 +507,7 @@ function renderSeat(seat: SeatView, nowSec: number): string {
           v => `<div class="row">
   <span class="when">${esc(relTime(nowSec, v.createdAt))}</span>
   <span class="badge ${verdictClass(v.verdict)}"><span class="dot"></span>${esc(v.verdict)}</span>
-  <span class="what">#${esc(v.prNumber)} &middot; requested by ${esc(v.requestedBy)}
+  <span class="what">#${esc(v.prNumber)}
     <span class="ev">${esc(v.evidence)}</span></span>
 </div>`,
         )
@@ -381,14 +520,15 @@ function renderSeat(seat: SeatView, nowSec: number): string {
     ${vitalsBadge(vitals, nowSec)}
     <span class="seat-meta">${esc(last)}</span>
   </div>
+  ${renderNow(brief, deck[0], ledger[0], heldLanding)}
   <div class="section">
-    <h2>Deck log &mdash; the vital sign</h2>
-    ${deckRows || `<p class="empty-line">No entries. Every wake writes exactly one entry, so an empty
-      deck log means this seat has never run &mdash; not that it has been quiet.</p>`}
+    <h2>Decisions &mdash; every verdict, with the evidence behind it</h2>
+    ${ledgerRows || `<p class="empty-line">No decisions recorded yet.</p>`}
   </div>
   <div class="section">
-    <h2>Merge ledger &mdash; every verdict</h2>
-    ${ledgerRows || `<p class="empty-line">No verdicts recorded yet.</p>`}
+    <h2>Activity &mdash; one entry per wake, always</h2>
+    ${deckRows || `<p class="empty-line">No entries. Every wake writes exactly one entry, so an empty
+      log means this seat has never run &mdash; not that it has been quiet.</p>`}
   </div>
 </section>`;
 }
@@ -428,9 +568,10 @@ export function renderStewardPage(
   <div class="masthead">
     <span class="eyebrow">Port Daddy &middot; ADR-0109</span>
     <h1>The Steward</h1>
-    <p>One seat per repository holds merge authority. Every wake writes one deck-log entry &mdash;
-      including &ldquo;all quiet&rdquo; &mdash; so a silent seat is never mistaken for a healthy one.
-      Every verdict it renders is recorded below with the evidence behind it.</p>
+    <p>The Steward is the only thing allowed to merge to <code>main</code>. It wakes, ranks every
+      open pull request, decides the top one, and records what it decided and why. Below: what it is
+      working on right now, what is queued behind that, and the full history &mdash; so you can check
+      its reasoning rather than take its word.</p>
   </div>
   ${body}
   ${truncNote}
