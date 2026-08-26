@@ -370,7 +370,7 @@ We are explicit about what is not closed.
 
 \subsection{Threat-band visualization}\label{sec:fh-threat-band-viz}
 
-Figure~\ref{fig:fh-threat-bands} lays out the threat surface as three bands: mechanized claims (teal), bounded threats (amber), and acknowledged open frontier (cobalt). The boundary between amber and cobalt shifts over time as future work mechanizes what is presently bounded. We will refer back to this figure when discussing limitations.
+Figure~\ref{fig:fh-threat-bands} lays out the threat surface as three bands, distinguished by weight rather than hue so the figure survives greyscale and colorblind rendering alike: \textbf{Stopped} (mechanized claims, heaviest fill), \textbf{Bounded} (a named threat inside a named window, lighter fill), and \textbf{Open} (acknowledged frontier, drawn in cobalt outline as the one band with no formal artifact behind it). The boundary between the Bounded and Open bands shifts left over time as future work mechanizes what is presently only bounded. We will refer back to this figure when discussing limitations.
 
 \input{figures/fig-fh-threat-bands}
 
@@ -539,6 +539,19 @@ We introduce a third party---the escrow---and require the \emph{custody ledger} 
 
 These restrictions define the desired transition system. The current artifact is a design and bounded model, not a deployed custody mechanism.
 
+% SUBMISSION-SKILL: naming conflict (soft) -- "extractable value" / "extraction bound" sit
+% one keyword-search away from Maximal Extractable Value (MEV), an established term of art
+% in the blockchain/DeFi literature (value a block proposer captures by reordering,
+% inserting, or censoring transactions; see e.g. Flashbots' MEV work and the cross-domain
+% MEV literature, arXiv:2112.01472, arXiv:2308.04159). This paper's usage is not that
+% mechanism -- it is value an escrow *operator* can steal by bypassing custody
+% restrictions, not value a block proposer extracts by reordering -- and the paper
+% elsewhere explicitly rejects the consensus/ledger substrate MEV presupposes
+% (\S\ref{sec:fh-scope}). Not a genuine collision, since no ordering authority exists
+% here to extract MEV from, but a reader arriving from the crypto/DeFi literature may
+% momentarily expect that mechanism. Gloss, don't rename: the term is plain English here,
+% not a claimed coinage; consider one clause distinguishing it from MEV on first use if a
+% security/crypto-adjacent venue is the target.
 \begin{property}[Conditional Escrow Extraction Bound]\label{thm:fh-escrow-bound}
 Assume the custody ledger (i) admits only recipients $A$ and $B$, (ii) caps the fee output at $\phi$, (iii) executes exactly one terminal transition atomically, and (iv) keeps signing and transfer authority outside the escrow operator's bypassable control. Then no allowed transition pays the escrow more than $\phi$.
 \end{property}
@@ -639,7 +652,7 @@ Controller-7's local card $C_A$ authorizes \texttt{db:migrate} against the contr
 Controller-7 invokes $\mathsf{xfer\_req}(C_A, S)$ on $D_A$. $D_A$ constructs the envelope:
 
 \[
-\mathsf{xfer\_offer}\langle C_A, \mathrm{att}_A, R_A^{(e)} \rangle \;\;\text{signed under}\;\; \mathit{sk}_A
+\mathsf{xfer\_offer}\langle C_A, \mathrm{att}_A, R_A^{(e)} \rangle \;\;\text{signed under}\;\; \mathit{sk}_A,
 \]
 
 and sends it to $D_S$ (the staging-server harbor). $D_S$ verifies the signature against $A$'s public key as recorded in the witness log, verifies that $R_A^{(e)}$ is the current epoch root for $A$, and applies its own attenuation $\mathrm{att}_S$ (``only the \texttt{controller} schema; only after a backup snapshot has been taken; only if no other migration is in flight''). The composed attenuation produces $C_S' = \mathrm{att}_S(\mathrm{att}_A(C_A))$, a card valid only at $S$, signed under $\mathit{sk}_S$.
@@ -653,7 +666,7 @@ The migration runs cleanly. Two hours later --- well after the agent has moved o
 $D_B$ (Beta's harbor) verifies the failure against its local invariants and produces a damage claim:
 
 \[
-\mathsf{cl}_B = (R_B^{(e+1)}, \mathrm{evidence})
+\mathsf{cl}_B = (R_B^{(e+1)}, \mathrm{evidence}),
 \]
 
 where the evidence is a Merkle proof that Beta's integration tests against the staging database failed because of a schema mismatch. The claim is sent to the escrow.
