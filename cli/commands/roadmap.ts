@@ -199,6 +199,16 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'search') {
+    await handleRoadmapSearch(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'reindex') {
+    await handleRoadmapReindex(args.slice(1), options);
+    return;
+  }
+
   if (sub === 'pop') {
     await handleRoadmapPop(args.slice(1), options);
     return;
@@ -961,6 +971,96 @@ async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<
     ui.error(error instanceof Error ? error.message : 'roadmap touch failed');
     process.exit(1);
   }
+}
+
+interface RoadmapSearchHitDTO {
+  slug: string;
+  harbor: string;
+  summaryMd: string;
+  status: RoadmapStatus;
+  score: number;
+  similarity: number;
+  stage: string;
+}
+
+/**
+ * `pd roadmap search <free text>` — rank roadmap items against free text via
+ * the daemon's GET /roadmap/search (lib/roadmap-search.ts). Standalone
+ * lookup; `pd begin` calls the same endpoint automatically when no
+ * --roadmap slug is given (see handleBegin in sugar.ts).
+ */
+async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise<void> {
+  const query = args.join(' ').trim() || readOption(options, 'q', 'query');
+  if (!query) {
+    ui.error('Usage: pd roadmap search <free text> [--harbor <h>] [--limit <n>]');
+    process.exit(1);
+  }
+
+  const params = new URLSearchParams({ q: query });
+  const harbor = readOption(options, 'harbor');
+  if (harbor) params.set('harbor', harbor);
+  const limit = parseLimit(options.limit, 5);
+  params.set('limit', String(limit));
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    hits?: RoadmapSearchHitDTO[];
+    degraded?: string;
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap search failed (status ${res.status})`);
+    process.exit(1);
+  }
+
+  const hits = data.hits ?? [];
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: true, hits, count: hits.length }, null, 2));
+    return;
+  }
+  if (data.degraded) {
+    ui.warn(`search index unavailable — run \`pd roadmap reindex\` on a daemon with the semantic resolver wired`);
+    return;
+  }
+  if (hits.length === 0) {
+    ui.info(`No roadmap items matched "${query}". Use --roadmap-new to draft one.`);
+    return;
+  }
+  ui.step(`Roadmap items matching "${query}":`);
+  for (const hit of hits) {
+    console.log(`  ${hit.slug}  [${hit.status}]  (${hit.stage}, score ${hit.score.toFixed(3)})`);
+    console.log(`    ${hit.summaryMd}`);
+  }
+}
+
+/**
+ * `pd roadmap reindex` — backfill/refresh the search embedding index
+ * (POST /roadmap/reindex-search). Run once after this feature ships
+ * (existing rows predate the index) and safe to re-run any time.
+ */
+async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promise<void> {
+  const harbor = readOption(options, 'harbor');
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/reindex-search`, {
+    method: 'POST',
+    body: JSON.stringify(harbor ? { harbor } : {}),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    indexed?: number;
+    skipped?: number;
+    total?: number;
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap reindex failed (status ${res.status})`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Reindexed ${data.indexed ?? 0}/${data.total ?? 0} item(s) (${data.skipped ?? 0} unchanged, skipped)`);
 }
 
 async function handleRoadmapPromote(args: string[], options: CLIOptions): Promise<void> {

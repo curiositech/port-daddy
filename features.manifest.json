@@ -2097,7 +2097,9 @@
         "POST /roadmap/promote",
         "POST /roadmap/render",
         "POST /roadmap/chomp",
-        "POST /roadmap/import-markdown"
+        "POST /roadmap/import-markdown",
+        "GET /roadmap/search",
+        "POST /roadmap/reindex-search"
       ],
       "completions": [
         "roadmap"

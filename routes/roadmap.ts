@@ -26,9 +26,18 @@
  *                                          web/console/iOS home surfaces
  *   POST   /roadmap/chomp                — general planning-doc ingestion
  *   POST   /roadmap/import-markdown      — legacy 3-pile alias over chomp
+ *   GET    /roadmap/search               — free-text -> ranked roadmap items
+ *                                          (lib/roadmap-search.ts); the
+ *                                          suggestion source for `pd begin`'s
+ *                                          rent gate when no --roadmap slug
+ *                                          is given
+ *   POST   /roadmap/reindex-search       — backfill/refresh the search index
+ *                                          from the live roadmap_items table
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createRoadmapSearch, type RoadmapSearch } from '../lib/roadmap-search.js';
+import type { SemanticResolver } from '../lib/semantic-resolver.js';
 import type {
   RoadmapItems,
   RoadmapKind,
@@ -293,6 +302,17 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // and reads join for display info. Optional for the same fixture reason as
   // graphEdges — when absent, writes skip validation and reads join null.
   const durableAgentRoster = (opts.deps as { durableAgentRoster?: DurableAgentRoster }).durableAgentRoster;
+  // Roadmap search (lib/roadmap-search.ts): same tolerant-optional pattern as
+  // graphEdges/durableAgentRoster above — unit fixtures that stand up only the
+  // {roadmapItems, roadmapPromote} pair run with search disabled rather than
+  // crashing. Requires both a DB (to persist the embedding sidecar table) and
+  // the shared semantic resolver (to compute embeddings) — the same resolver
+  // lib/whois.ts's phonebook cascade uses, not a second embedding pipeline.
+  const semanticResolverDep = (opts.deps as { semanticResolver?: SemanticResolver }).semanticResolver;
+  const roadmapSearch: RoadmapSearch | undefined =
+    db && semanticResolverDep
+      ? createRoadmapSearch(db, { resolver: semanticResolverDep, logger: fastify.log })
+      : undefined;
 
   // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
   // "roadmap is home everywhere"). One deterministic projection that the relay
@@ -485,6 +505,14 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     try {
       const item = roadmapItems.upsert(input);
       reply.code(201);
+      // Fire-and-forget: keep the search index warm without slowing the
+      // write path down or failing the upsert on an embedding hiccup. A
+      // stale/missing embedding degrades pd-begin suggestions, not correctness.
+      if (roadmapSearch) {
+        roadmapSearch.reindexItem(item).catch((error: unknown) => {
+          fastify.log.error({ error, slug: item.slug }, 'roadmap_search_reindex_after_upsert_failed');
+        });
+      }
       return { success: true, item };
     } catch (error) {
       reply.code(400);
@@ -493,6 +521,39 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         error: error instanceof Error ? error.message : 'upsert failed',
       };
     }
+  });
+
+  // GET /roadmap/search?q=<free text>&harbor=<h>&limit=<n> — rank roadmap
+  // items against free text (lib/roadmap-search.ts). The suggestion source
+  // for `pd begin`'s rent gate: when a caller doesn't already know the exact
+  // --roadmap slug, this turns their purpose text into ranked candidates
+  // instead of a bare rejection. Degrades to an empty list (never an error)
+  // when the index isn't wired (unit fixtures) or hasn't been populated yet.
+  fastify.get('/roadmap/search', async (request: FastifyRequest) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const query = asString(q.q) ?? asString(q.query);
+    if (!query) return { success: true, hits: [], count: 0 };
+    if (!roadmapSearch) return { success: true, hits: [], count: 0, degraded: 'search index unavailable' };
+
+    const harbor = asString(q.harbor);
+    const limit = asPosInt(q.limit);
+    const hits = await roadmapSearch.search(query, { harbor, limit });
+    return { success: true, hits, count: hits.length };
+  });
+
+  // POST /roadmap/reindex-search — backfill/refresh every item's embedding.
+  // Needed once after this feature ships (existing rows predate the index)
+  // and safe to re-run any time (reindexItem no-ops on an unchanged hash).
+  fastify.post('/roadmap/reindex-search', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!roadmapSearch) {
+      reply.code(503);
+      return { success: false, error: 'search index unavailable (no DB or semantic resolver wired)' };
+    }
+    const body = (request.body ?? {}) as { harbor?: unknown };
+    const harbor = asString(body.harbor);
+    const items = roadmapItems.list({ harbor, status: 'all' });
+    const result = await roadmapSearch.reindexAll(items);
+    return { success: true, ...result, total: items.length };
   });
 
   fastify.get('/roadmap/items', async (request: FastifyRequest) => {
