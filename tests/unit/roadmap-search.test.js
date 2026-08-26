@@ -262,4 +262,16 @@ describe('roadmap-search / search', () => {
     const hits = await search.search('bug fix', { limit: 1 });
     expect(hits.length).toBeLessThanOrEqual(1);
   });
+
+  it.each([0, -1, -100])('clamps a non-positive limit (%i) up to 1 rather than returning nothing or erroring', async (limit) => {
+    const search = await seeded();
+    const hits = await search.search('bug fix', { limit });
+    expect(hits.length).toBe(1);
+  });
+
+  it('clamps an oversized limit down to the 50-item cap', async () => {
+    const search = await seeded();
+    const hits = await search.search('bug fix', { limit: 10_000 });
+    expect(hits.length).toBeLessThanOrEqual(50);
+  });
 });

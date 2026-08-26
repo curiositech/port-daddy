@@ -37,6 +37,24 @@ describe('roadmap-snapshot / empty guard (pre-existing)', () => {
       buildRoadmapSnapshot({ baseUrl: 'http://x', harbor: 'port-daddy', fetchImpl: fakeFetch([]) }),
     ).rejects.toThrow(/EMPTY/);
   });
+
+  it('times out and fails loudly instead of hanging when the daemon never responds', async () => {
+    // A fetchImpl that respects the abort signal, the way a real fetch would —
+    // it must never resolve on its own, only reject when aborted.
+    const hangingFetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new Error('The operation was aborted')));
+      });
+
+    await expect(
+      buildRoadmapSnapshot({
+        baseUrl: 'http://x',
+        harbor: 'port-daddy',
+        fetchImpl: hangingFetch,
+        timeoutMs: 5, // short so the test itself doesn't hang
+      }),
+    ).rejects.toThrow(/Could not reach the daemon/);
+  });
 });
 
 describe('roadmap-snapshot / shrink guard', () => {
