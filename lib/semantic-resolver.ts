@@ -11,7 +11,7 @@ import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
 import type { TupleSpace } from './tuples.js';
 import type { SemanticAlias } from './semantic-terms.js';
-import { createGatedLoader } from './observability/gated-loader.js';
+import { createGatedLoader, type GatedLoader } from './observability/gated-loader.js';
 import type { LogGovernor } from './observability/log-governor.js';
 
 /**
@@ -680,6 +680,42 @@ function extractVector(result: EmbeddingPipelineResult | unknown): number[] {
 export interface LocalEmbedder {
   modelId: string;
   embed(texts: string[]): Promise<number[][]>;
+  /** Shared native-loader breaker state for Doctor/reconcilers. */
+  state?(): 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+}
+
+type LoadedLocalEmbedder = { modelId: string; embed(texts: string[]): Promise<number[][]> };
+
+// One loader per cache/model inside a process. The semantic resolver, Galaxy,
+// Tool2Vec, transcript search, and LLM cache all converge here instead of each
+// importing ONNX and materializing the same model independently.
+const sharedLocalEmbedderLoaders = new Map<string, GatedLoader<LoadedLocalEmbedder>>();
+
+/**
+ * Reuses one gated native-model loader per cache/model inside the process. The
+ * design prevents semantic search, Galaxy, and Tool2Vec from independently
+ * materializing the same ONNX model or multiplying loader failure storms.
+ *
+ * @param cacheDir Shared Transformers cache directory.
+ * @param modelId Canonical local embedding model identifier.
+ * @param governor Optional governed logging sink for circuit transitions.
+ * @returns The shared circuit-broken loader for this cache/model pair.
+ */
+function sharedLocalEmbedderLoader(
+  cacheDir: string,
+  modelId: string,
+  governor?: LogGovernor,
+): GatedLoader<LoadedLocalEmbedder> {
+  const key = `${cacheDir}\0${modelId}`;
+  const existing = sharedLocalEmbedderLoaders.get(key);
+  if (existing) return existing;
+  const loader = createGatedLoader(
+    () => createDefaultEmbedder(cacheDir, modelId),
+    { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
+    governor,
+  );
+  sharedLocalEmbedderLoaders.set(key, loader);
+  return loader;
 }
 
 /**
@@ -695,13 +731,14 @@ export function createLocalEmbedder(
 ): LocalEmbedder {
   const cacheDir = options.cacheDir ?? join(process.cwd(), '.cache', 'transformers');
   const modelId = options.modelId ?? DEFAULT_SEMANTIC_MODEL_ID;
-  let inner: { modelId: string; embed(texts: string[]): Promise<number[][]> } | null = null;
+  const loader = sharedLocalEmbedderLoader(cacheDir, modelId);
   return {
     modelId,
     async embed(texts: string[]): Promise<number[][]> {
-      if (!inner) inner = await createDefaultEmbedder(cacheDir, modelId);
+      const inner = await loader.get();
       return inner.embed(texts);
     },
+    state: () => loader.state(),
   };
 }
 
@@ -1010,11 +1047,13 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   // a 313 GB write storm. The gated loader wraps creation in a circuit breaker: after a few failures
   // it stops re-attempting the load (no repeated dlopen, no per-tick spam) and periodically re-probes,
   // so a genuinely transient failure still recovers.
-  const embedderLoader = createGatedLoader(
-    options.embedderFactory ?? (() => createDefaultEmbedder(cacheDir, modelId)),
-    { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
-    options.governor as LogGovernor | undefined,
-  );
+  const embedderLoader = options.embedderFactory
+    ? createGatedLoader(
+        options.embedderFactory,
+        { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
+        options.governor as LogGovernor | undefined,
+      )
+    : sharedLocalEmbedderLoader(cacheDir, modelId, options.governor as LogGovernor | undefined);
   const vectorCache = new Map<string, number[]>();
   let queue = Promise.resolve();
 
