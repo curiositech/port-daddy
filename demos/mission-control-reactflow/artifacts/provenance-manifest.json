@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-26T21:47:57.384Z",
+  "generator": "Playwright Chromium via tests/artifacts.spec.ts",
+  "viewport": {
+    "width": 1600,
+    "height": 1050
+  },
+  "source": "deterministic local fixtures; no daemon or production data",
+  "coordination": {
+    "mode": "authorized isolated recovery worktree",
+    "degraded": true,
+    "reason": "Three $12 Port Daddy dispatch attempts persisted credential:null; note and claim writes failed closed.",
+    "bypassed": false
+  },
+  "caveats": [
+    "Labels named live and recorded demonstrate provenance rendering contracts; every datum in this lab remains a fixture.",
+    "The recording proves browser interaction behavior, not GPUI parity or daemon integration.",
+    "Performance values vary by machine and are measured again by the local test suite."
+  ],
+  "files": [
+    {
+      "path": "artifacts/mission-control-dark.png",
+      "bytes": 294207,
+      "sha256": "d7d523d654cf803ee04745d765210f57633034137683f8adca8550fe20f5ca3a"
+    },
+    {
+      "path": "artifacts/mission-control-light.png",
+      "bytes": 316711,
+      "sha256": "201a0b03431246cf97651d5dd83885f9f35c136b0f173de4e0ddb942fb6162c7"
+    },
+    {
+      "path": "artifacts/mission-control-interaction.webm",
+      "bytes": 1479589,
+      "sha256": "b6cad9873bbf060629f6fcbcf91fd634c1f006921e7f7d44829a2ff1831312b1"
+    }
+  ]
+}
