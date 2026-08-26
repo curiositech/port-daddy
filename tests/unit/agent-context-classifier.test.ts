@@ -134,6 +134,58 @@ describe('agent context classifier', () => {
     expect(Math.hypot(...result.topicEmbedding)).toBeCloseTo(1, 12);
   });
 
+  test('keeps the first bounded source when exact topic-centrality scores tie', async () => {
+    const embedder = fakeEmbedder((text) => {
+      if (text === 'purpose: first source wins exact centrality tie') return [1, 0];
+      if (text === 'note: second source has the same centrality') return [0, 1];
+      return [0, 0];
+    });
+    const classifier = createAgentContextClassifier({ embedder, clock: () => 1 });
+
+    const result = await classifier.classify({
+      session,
+      purpose: 'first source wins exact centrality tie',
+      notes: ['second source has the same centrality'],
+    });
+
+    expect(result.topicTag).toBe('first source wins exact centrality tie');
+    expect(result.provenance.topicSource).toEqual({
+      kind: 'purpose',
+      index: 0,
+      semanticCentrality: 0.707107,
+    });
+  });
+
+  test('discards blank notes and claims before constructing the one embed batch', async () => {
+    const embedder = fakeEmbedder(() => [1, 0]);
+    const classifier = createAgentContextClassifier({ embedder, clock: () => 1 });
+
+    const result = await classifier.classify({
+      session,
+      purpose: 'retain only meaningful semantic sources',
+      notes: [' ', '\n\t', ' retained note ', '   '],
+      claims: [
+        { path: '   ' },
+        { path: '\n', symbolPath: 'function ignoredBecausePathIsBlank' },
+        { path: ' lib/keep.ts ', symbolPath: '  ' },
+        { path: ' lib/symbol.ts ', symbolPath: ' function retained ' },
+      ],
+    });
+
+    expect(embedder.batches).toEqual([[
+      'purpose: retain only meaningful semantic sources',
+      'note: retained note',
+      'claimed surface: lib/keep.ts',
+      'claimed surface: lib/symbol.ts#function retained',
+    ]]);
+    expect(result.provenance.input).toMatchObject({
+      sourceCount: 4,
+      noteCount: 1,
+      claimCount: 2,
+    });
+    expect(result.surfaceClaims).toEqual(['lib/keep.ts', 'lib/symbol.ts#function retained']);
+  });
+
   test('evaluates the exact stale boundary with the injected clock', async () => {
     let now = 1_000;
     const classifier = createAgentContextClassifier({
