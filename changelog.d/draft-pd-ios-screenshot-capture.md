@@ -1,0 +1,3 @@
+type: added
+
+- **`apps/pd-ios` now proves it renders, not just that it compiles.** A new `pd-ios-screenshots` CI job runs `apps/pd-ios/scripts/capture-screenshots.sh`: an ephemeral XcodeGen-assembled app target (never committed — the repo's "no .xcodeproj, no XcodeGen output" contract is unchanged) linking `PortDaddyKit`, driven through all four `RootTab` cases by a new XCUITest (`UITests/ScreenshotTests.swift`) and exported via `xcresulttool`. The four PNGs publish to a `ci-screenshots` branch and a sticky PR comment embeds them (`scripts/publish-pd-ios-screenshots.mjs`), so a reviewer sees the actual rendered UI on every PR — deterministic and offline, since `RootView` is fixture-backed by default. Informational only, not a merge gate: absent from `ci-gate`'s `needs`.

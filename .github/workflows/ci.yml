@@ -1029,6 +1029,90 @@ jobs:
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
 
+  pd-ios-screenshots:
+    # Automated visual-evidence capture for apps/pd-ios (WS-D). The pd-ios job
+    # above proves PortDaddyKit compiles and its XCTests pass — it never
+    # renders the UI or compiles the @main shim (App/PortDaddyApp.swift), so
+    # "the tests are green" has never meant "the app runs". This job runs
+    # apps/pd-ios/scripts/capture-screenshots.sh — an ephemeral XcodeGen app
+    # target linking PortDaddyKit, driven through all four RootTab cases by an
+    # XCUITest, exported via xcresulttool — and publishes the resulting PNGs
+    # so a reviewer can actually see the app render. Deterministic and
+    # offline: RootView is fixture-backed, so a cold launch needs no
+    # network/pairing/auth.
+    #
+    # Informational, not a merge gate: intentionally absent from ci-gate's
+    # needs and `continue-on-error: true`. Simulator/XcodeGen flakiness
+    # capturing a screenshot should never block a merge the pd-ios job above
+    # already proved sound.
+    runs-on: macos-latest
+    needs: [detect-changes, pd-ios]
+    if: needs.detect-changes.outputs.pd-ios == 'true'
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
+
+      - name: Capture per-tab screenshots
+        run: apps/pd-ios/scripts/capture-screenshots.sh
+
+      - name: Upload screenshots as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-ios-screenshots-${{ github.sha }}
+          path: apps/pd-ios/pd-ios-screenshots/*.png
+          retention-days: 30
+
+      - name: Publish screenshots to the ci-screenshots branch
+        if: github.event_name == 'pull_request'
+        id: publish
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          DEST="pr-${PR_NUMBER}/${SHA}"
+          WORK="${RUNNER_TEMP}/ci-screenshots-branch"
+          rm -rf "$WORK"
+          git fetch origin ci-screenshots 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/ci-screenshots; then
+            git worktree add "$WORK" origin/ci-screenshots
+            (cd "$WORK" && git checkout -B ci-screenshots)
+          else
+            git worktree add --detach "$WORK"
+            (cd "$WORK" && git checkout --orphan ci-screenshots && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          cd "$WORK"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf "pr-${PR_NUMBER}"
+          mkdir -p "$DEST"
+          cp "$GITHUB_WORKSPACE"/apps/pd-ios/pd-ios-screenshots/*.png "$DEST"/
+          git add -A "pr-${PR_NUMBER}"
+          if git diff --cached --quiet; then
+            echo "no changes to publish"
+          else
+            git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
+            git push -q origin HEAD:ci-screenshots
+          fi
+          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove --force "$WORK" || true
+
+      - name: Comment the screenshots onto the PR
+        if: github.event_name == 'pull_request' && steps.publish.outputs.dest != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_SHA: ${{ github.sha }}
+          SCREENSHOTS_DEST: ${{ steps.publish.outputs.dest }}
+        run: node scripts/publish-pd-ios-screenshots.mjs
+
   # ---------------------------------------------------------------------------
   # ci-gate: the single required check for branch protection / the merge queue.
   #
