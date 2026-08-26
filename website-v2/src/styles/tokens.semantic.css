@@ -150,6 +150,22 @@
   --code-dot-amber: #e0c04a;
   --code-dot-green: #62c47a;
 
+  /* Porthole (real terminal recordings) is a DIFFERENT surface from static
+     code blocks: --code-* above is deliberately dark-in-both-themes (a
+     code-editor convention), but a Porthole embed is chrome the operator
+     asked to actually re-theme with the page — so it gets its own token set,
+     sourced from the site's real light palette rather than a new one. Dark
+     mode below aliases back to --code-* so the dark-theme look is unchanged. */
+  --ph-bg: var(--surface-raised);
+  --ph-header-bg: var(--surface-strong);
+  --ph-text: var(--text-primary);
+  --ph-comment: var(--text-muted);
+  --ph-command: var(--text-primary);
+  --ph-prompt: var(--status-success);
+  --ph-flag: var(--brand-primary);
+  --ph-line-number: var(--text-secondary);
+  --ph-channel-scope: var(--brand-primary);
+
   /* Chart palette — Mermaid classDef tokens for docs reference architectures.
      Most chart slots map to existing brand tokens (cobalt → brand-primary,
      green → brand-accent, etc.); --chart-yellow is the lone chart-only color
@@ -260,4 +276,17 @@
   --code-channel-topic: #8fd0a7;
   --code-channel-qualifier: #c4d6f2;
   --code-channel-sep: #c4cee2;
+
+  /* Dark mode: alias straight back to --code-* so the existing dark-theme
+     Porthole look is byte-identical to before (see the light block above for
+     why Porthole gets its own tokens at all). */
+  --ph-bg: var(--code-bg);
+  --ph-header-bg: var(--code-header-bg);
+  --ph-text: var(--code-text);
+  --ph-comment: var(--code-comment);
+  --ph-command: var(--code-command);
+  --ph-prompt: var(--code-prompt);
+  --ph-flag: var(--code-flag);
+  --ph-line-number: var(--code-line-number);
+  --ph-channel-scope: var(--code-channel-scope);
 }

@@ -162,6 +162,16 @@ export function buildDaemonProfileEnv(
 
   env.PORT_DADDY_PROFILE = profile.name;
   env.PORT_DADDY_PREFIX = profile.runtimeDir;
+  // A named profile is an isolation boundary, not merely a presentation hint.
+  // Set every mutable runtime path explicitly so child processes cannot fall
+  // back to the canonical daemon's durable home if prefix inference changes or
+  // a consumer only understands the dedicated path variables.
+  env.PORT_DADDY_DB = profile.dbPath;
+  env.PORT_DADDY_SOCK = profile.sockPath;
+  env.PORT_DADDY_IPC = profile.ipcPath;
+  env.PORT_DADDY_PID_FILE = profile.pidFile;
+  env.PORT_DADDY_PORT_FILE = profile.portFile;
+  env.PORT_DADDY_HEARTBEAT_FILE = profile.heartbeatFile;
   env.PORT_DADDY_NO_FLEET = opts.enableFleet ? '0' : '1';
   env.PORT_DADDY_NO_FLEETBAR = opts.enableFleetBar ? '0' : '1';
   env.PD_ACTIVE_DAEMON = profile.name;

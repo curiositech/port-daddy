@@ -1,0 +1,3 @@
+type: fixed
+
+- **The Porthole terminal player now actually re-themes when the site does.** Its ANSI palette routed background/foreground through `--code-*` tokens, which are deliberately dark-in-both-themes (the static code-block convention `CodeBlock.tsx`/`TerminalGif` use) — so an embed stayed dark in light mode despite `theme.ts` claiming it "re-themes for free." Porthole now has its own `--ph-*` token set (`tokens.semantic.css`): real light values under `[data-theme='light']` sourced from the site's existing light palette, aliased back to `--code-*` under `[data-theme='dark']` so dark mode is unchanged.
