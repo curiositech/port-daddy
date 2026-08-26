@@ -117,6 +117,22 @@ describe('roadmap-search / reindexItem', () => {
     const result = await search.reindexItem(item({ slug: 'empty-item', summaryMd: '' }));
     expect(result.indexed).toBe(false);
   });
+
+  it('still indexes on descriptionMd alone when summaryMd is empty', async () => {
+    // itemText() falls back to descriptionMd when present — an item with a
+    // blank summary but real description text is embeddable, not skipped.
+    const db = makeDb();
+    const search = createRoadmapSearch(db, {
+      resolver: makeStubResolver(),
+    });
+    const result = await search.reindexItem(
+      item({ slug: 'description-only-item', summaryMd: '', descriptionMd: 'Fix the login bug' }),
+    );
+    expect(result.indexed).toBe(true);
+
+    const row = db.prepare('SELECT summary_md FROM roadmap_item_embeddings WHERE slug = ?').get('description-only-item');
+    expect(row).toBeTruthy();
+  });
 });
 
 describe('roadmap-search / reindexAll', () => {

@@ -139,6 +139,18 @@ describe('roadmap-snapshot / shrink guard', () => {
     expect(snapshot.count).toBe(1);
   });
 
+  it('an empty-but-well-formed previousSnapshot (items: []) skips the guard without dividing by zero', async () => {
+    // prevSlugs.size === 0 here — the guard's own zero-check must short
+    // circuit before `missing.length / prevSlugs.size` ever runs.
+    const snapshot = await buildRoadmapSnapshot({
+      baseUrl: 'http://x',
+      harbor: 'port-daddy',
+      fetchImpl: fakeFetch([item('only-item')]),
+      previousSnapshot: { items: [] },
+    });
+    expect(snapshot.count).toBe(1);
+  });
+
   it.each([
     ['items missing entirely', {}],
     ['items is null', { items: null }],
