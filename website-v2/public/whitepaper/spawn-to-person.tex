@@ -535,6 +535,24 @@ the impossibility/cost theorems, the multi-dimensional vector with a judge per
 axis, and treating the grader's incentive-compatibility as a first-class hole.}
 \label{tab:contributions}
 \end{table}
+% SUBMISSION-SKILL: naming conflict -- the "How to score quality?" row lists
+% Elo/BT/TrueSkill as the closest prior art for the vector-vs-scalar move, but a
+% quote search turned up multi-dimensional / vector reputation work specifically
+% in multi-agent trust systems that this section does not cite: Teacy, Chalkiadakis,
+% Rogers & Jennings, "Rumours and Reputation: Evaluating Multi-Dimensional Trust
+% within a Decentralised Reputation System" (a per-dimension trust-vector model for
+% agent contracts), and the more recent "TrustFlow: Topic-Aware Vector Reputation
+% Propagation for Multi-Agent Ecosystems" (arXiv 2603.19452), which states plainly
+% that "a vector representation of reputation can capture multi-domain expertise
+% that a scalar reputation score cannot." The vector-over-scalar move itself is very
+% likely not novel to this paper; what may still be new is the specific
+% judge-per-axis, neutral/bonded evaluator market of \S\ref{sec:adr0049} and
+% Protocol~\ref{proto:judge}. Recommend narrowing the contribution-table cell and
+% \S\ref{sec:adr0049}'s framing to that narrower claim, and adding these (or
+% equivalent, verified) citations to \S\ref{sec:priorart} rather than leaving
+% "multi-dimensional vector" implicitly claimed as new. Not renamed or silently
+% cited here per the bounded-scope naming check -- left as a comment for the author
+% to resolve after checking the exact bibliographic record.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The role / person distinction, made precise}\label{sec:role-person}
@@ -763,8 +781,9 @@ for salvage and republishes their unfinished work. It must be described formally
 and it is: the restart organ \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
 inherits a note about what the predecessor was doing, not the live belief state it
-was doing it with. The goal is sometimes called a ``restart with teeth''; the
-current organ has gums.
+was doing it with. The goal is sometimes called a ``checkpoint with teeth''
+(the same phrase this paper uses everywhere else for it, \S\ref{sec:open},
+Appendix~\ref{app:status}); the current organ has gums.
 
 \pitfall{Selling a summary-forwarding restart organ as real checkpointing would
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
@@ -830,7 +849,7 @@ witnessed-outcome ledger (\BUILTWEAK: commitments and oracle-bound closure, not
 neutral graded outcomes) --- and reputation keys on the richer third organ, whose
 neutral, reputation-grade form is not yet complete; the checkpoint organ is the
 weakest continuity link and
-``resurrection with teeth'' (a real execution-state checkpoint) is the literal
+``checkpoint with teeth'' (a real execution-state checkpoint) is the literal
 foundation of L3.}}
 
 \noindent Figure~\ref{fig:honest-state} is the honest-state ledger for this paper:
@@ -1267,6 +1286,18 @@ was recorded, but not that the key behind it is who it claims to be across a tru
 boundary. This is what the market paper needs and does \emph{not} yet have.
 \VISION{} (a named gap, owed to the market paper).
 \end{definition}
+% SUBMISSION-SKILL: naming conflict -- a quote search for "cross-operator
+% attestation" surfaced a close adjacent term rather than an exact prior use: the
+% IETF draft "Bilateral Attestation of Cross-Organization Agent Actions"
+% (draft-mih-agent-bilateral-attestation), which binds attestation to
+% cross-organization agent actions and explicitly notes that "the evidentiary
+% weight of a bilateral record is bounded by the binding of keys to organizations."
+% This paper does not claim to have solved or coined the term -- Def.~\ref{def:0040b}
+% names it as an unsolved dependency handed to the market paper (Chapter~IV) -- so
+% the risk here is not a false-novelty claim in \emph{this} chapter but a missed
+% citation the market paper should engage when it actually builds the mechanism.
+% Left as a comment, not adopted/glossed/renamed, since resolving it is Chapter~IV's
+% job and outside this paper's bounded-scope naming check.
 
 \pullquote{This paper depends on a \emph{local non-forgeable identity} and
 \emph{hands the market paper} the unsolved \emph{cross-operator attestation} as a
