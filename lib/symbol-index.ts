@@ -820,6 +820,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
     // needs these (see extractCallEdges). Intra-file resolution closed issue #468;
     // cross-file resolution (via importMap) is ast-a1-3.
     deps.push(...extractCallEdges(rootNode, absPath, symbols, importMap));
+    deps.push(...extractReferenceEdges(rootNode, absPath, symbols, deps));
 
     return deps;
   }
@@ -915,6 +916,20 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
     };
     walk(rootNode);
     return out;
+  }
+
+  /** Emits AST-resolved type/identifier uses, excluding calls, imports, and heritage. */
+  function extractReferenceEdges(rootNode: TSNode, absPath: string, symbols: ExtractedSymbol[], deps: ExtractedDep[]): ExtractedDep[] {
+    const local = new Map<string, string | null>();
+    for (const symbol of symbols) local.set(symbol.name, local.has(symbol.name) ? null : symbol.path);
+    const imports = new Map<string, { file: string; symbol: string }>();
+    const ancestry = (node: TSNode, type: string): boolean => { for (let current = node.parent; current; current = current.parent) if (current.type === type) return true; return false; };
+    const bindImports = (node: TSNode): void => { if (node.type === 'import_statement' || node.type === 'import_declaration') for (const specifier of node.namedChildren.flatMap(child => child.namedChildren)) { if (specifier.type !== 'import_specifier') continue; const name = specifier.childForFieldName('name')?.text; const alias = specifier.childForFieldName('alias')?.text ?? name; const edge = name && deps.find(dep => dep.type === 'imports' && dep.targetSymbol === name && isAbsolute(dep.targetFile)); if (alias && edge) imports.set(alias, { file: edge.targetFile, symbol: name! }); } for (const child of node.namedChildren) bindImports(child); };
+    bindImports(rootNode);
+    const enclosing = (line: number): string | null => symbols.filter(symbol => line >= symbol.startLine && line <= symbol.endLine).sort((a, b) => (a.endLine - a.startLine) - (b.endLine - b.startLine))[0]?.path ?? null;
+    const out: ExtractedDep[] = []; const seen = new Set<string>();
+    const walk = (node: TSNode): void => { const parent = node.parent; const excluded = !parent || ancestry(node, 'import_statement') || ancestry(node, 'import_declaration') || ancestry(node, 'class_heritage') || parent.childForFieldName('name') === node || parent.childForFieldName('property') === node || parent.childForFieldName('attribute') === node || parent.childForFieldName('function') === node || parent.childForFieldName('left') === node; if ((node.type === 'identifier' || node.type === 'type_identifier') && !excluded) { const source = enclosing(node.startPosition.row + 1); const imported = imports.get(node.text); const own = local.get(node.text); const target = imported ?? (own ? { file: absPath, symbol: own } : null); if (source && target && !(source === target.symbol && target.file === absPath)) { const key = source + '\t' + target.file + '\t' + target.symbol; if (!seen.has(key)) { seen.add(key); out.push({ sourceSymbol: source, targetFile: target.file, targetSymbol: target.symbol, type: 'references' }); } } } for (const child of node.namedChildren) walk(child); };
+    walk(rootNode); return out;
   }
 
   // Extension/index candidates for resolving a TS/JS import to a real file.
