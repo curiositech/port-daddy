@@ -1,5 +1,5 @@
 // tests/unit/purser/swiftpm-build.test.ts
-import { spawnSync, execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
