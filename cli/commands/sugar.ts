@@ -528,7 +528,7 @@ export async function handleBegin(
     // ranked candidates (lib/roadmap-search.ts) instead of a bare rejection,
     // only on the generic "none given" gate (a specific --roadmap/--sidequest
     // validation error already names the exact fix; suggestions would be noise).
-    if (rent.error === RENT_GATE_MESSAGE && purpose) {
+    if (rent.error === RENT_GATE_MESSAGE) {
       await printRoadmapSuggestions(purpose, options.harbor as string | undefined);
     }
     throw new Error(rent.error || RENT_GATE_MESSAGE);
