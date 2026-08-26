@@ -412,11 +412,14 @@ function renderNow(
 
   // Only a landing the seat did not complete is worth a banner. A successful
   // one already shows up as a LAND verdict below, and repeating it here would
-  // spend the reader's alarm budget on good news.
-  const banner = heldLanding && !heldLanding.landed
+  // spend the reader's alarm budget on good news. The blocked/not-blocked call
+  // is landingSentence's alone — deciding it a second time here is how the two
+  // copies drift, and this page has already paid that bill once.
+  const landing = landingSentence(heldLanding);
+  const banner = heldLanding && landing.blocked
     ? `<div class="blocked"><span class="bmark" aria-hidden="true">!!</span><p>
         <strong>This seat did not complete its last landing.</strong>
-        ${esc(heldLanding.reason)}
+        ${esc(landing.text)}
         <span class="fix">Until this clears, the Steward can decide but not merge &mdash; every
           LAND verdict below is a judgement it was unable to act on.</span>
       </p></div>`

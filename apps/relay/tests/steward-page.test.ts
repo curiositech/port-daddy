@@ -136,6 +136,53 @@ describe('rendering — the failure states must read as sentences', () => {
     expect(html).toContain(String(MAX_REPO_CHECKS));
   });
 
+  it('shouts when the seat reports a landing it did not complete', () => {
+    // The fact the first version of this page structurally could not express:
+    // a seat that renders correct verdicts and can execute none of them is
+    // watching, not working, and a NEEDS-WORK row looks identical either way.
+    // This also pins that renderNow still routes through landingSentence — a
+    // lint bot correctly spotted that import going unused when the blocked/
+    // not-blocked call was duplicated inline.
+    const held = JSON.stringify({
+      docket: '\u2192 #1 tier 3: red checks',
+      landing: { attempted: false, landed: false, reason: 'seat holds no landing capability' },
+    });
+    const html = renderStewardPage(USER, [seat({ deck: [deckRow({ detail: held })] })], {
+      truncated: false,
+      nowSec: NOW,
+    });
+    expect(html).toContain('did not complete its last landing');
+    expect(html).toContain('seat holds no landing capability');
+  });
+
+  it('stays quiet about a landing that succeeded', () => {
+    // A completed landing already shows as a LAND verdict below; repeating it
+    // as an alarm spends the reader's attention on good news.
+    const ok = JSON.stringify({
+      landing: { attempted: true, landed: true, reason: 'enqueued at position 1' },
+    });
+    const html = renderStewardPage(USER, [seat({ deck: [deckRow({ detail: ok })] })], {
+      truncated: false,
+      nowSec: NOW,
+    });
+    expect(html).not.toContain('did not complete its last landing');
+  });
+
+  it('surfaces the ranked queue the first version threw away', () => {
+    // Every wake writes the seat's full docket into `detail`; the original
+    // page never touched the column, hiding the single most informative thing
+    // the seat produces.
+    const withDocket = JSON.stringify({
+      docket: '\u2192 #6419 tier 3: red required checks\n  #5757 tier 3: red required checks',
+    });
+    const html = renderStewardPage(USER, [seat({ deck: [deckRow({ detail: withDocket })] })], {
+      truncated: false,
+      nowSec: NOW,
+    });
+    expect(html).toContain('2 pull requests, ranked');
+    expect(html).toContain('#5757');
+  });
+
   it('renders an honest empty state when no seat is visible', () => {
     const html = renderStewardPage(USER, [], { truncated: false, nowSec: NOW });
     expect(html).toContain('No Steward seats are visible');
