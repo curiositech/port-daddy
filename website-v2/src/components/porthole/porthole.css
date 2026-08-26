@@ -110,6 +110,19 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* Alt-screen (TUI) casts draw a real character grid — vim/tmux/htop-style
+ * box-drawing borders are glyphs designed to sit edge-to-edge in their cell.
+ * The 1.5 line-height tuned for readable scrollback prose inserts a vertical
+ * gap between every row, so those glyphs never touch their neighbor above/
+ * below and every panel border looks broken into disconnected dashes. A TUI
+ * frame needs a near-1:1 line pitch instead; normal transcript scrollback
+ * keeps the readable 1.5 (`player.ts` toggles `.ph-tui` from `VT.sawAlt`). */
+.ph-term.ph-tui {
+  line-height: 1;
+}
+.ph-term.ph-tui .ph-line {
+  min-height: 1em;
+}
 .ph-line::before {
   content: "⧉";
   position: absolute;
