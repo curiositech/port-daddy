@@ -108,11 +108,11 @@ describe('scopeSugarSessionsToCoordinationProject', () => {
     const stored = rawSessions.get(began.sessionId);
     expect(stored.session).toMatchObject({
       identityProject: 'curiositech/port-daddy',
-      metadata: expect.objectContaining({ identity: 'fleet:run:delivery-123' }),
+      metadata: expect.objectContaining({ identityString: 'fleet:run:delivery-123' }),
     });
     expect(scopedSessions.list({ status: 'active' }).sessions[0]).toMatchObject({
       identityProject: 'fleet',
-      metadata: expect.objectContaining({ identity: 'fleet:run:delivery-123' }),
+      metadata: expect.objectContaining({ identityString: 'fleet:run:delivery-123' }),
     });
   });
 

@@ -1,0 +1,60 @@
+% Paper7 CR-1 closed form: certified residual per unit lie r/|s| =
+% sqrt(1 - R_eff(e)) against the effective resistance of the lied-on edge.
+% Genuine numeric plot (a real curve, a scatter family, one marked point) so
+% pgfplots with the shared `harbor curve` style per CONVENTION.md. The main
+% curve is the literal closed form (plotted natively by pgfplots over its
+% domain, not a lookup table), matching radius_figure()'s
+% ax.plot(R, sqrt(1-R)). The cycle-family points R_eff=(n-1)/n,
+% r=1/sqrt(n) for n in {4,6,8,12} and the cut-edge point (1,0) are
+% recomputed directly (see the print check against radius_figure()'s ns/Rn/yn
+% arrays: (0.75,0.5), (0.833333,0.408248), (0.875,0.353553),
+% (0.916667,0.288675), cut edge (1,0)).
+% [verified: script paper7_figures.py]
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.92\textwidth,height=6.6cm,
+  xlabel={effective resistance $R_{\mathrm{eff}}(e)$ of the lied-on edge in its coordinate subgraph},
+  ylabel={certified residual per unit lie, $r/|s|$},
+  xmin=-0.02,xmax=1.05,ymin=-0.05,ymax=1.08,
+  xtick={0,0.2,0.4,0.6,0.8,1.0},
+  ytick={0,0.2,0.4,0.6,0.8,1.0},
+  legend pos=north east,
+  % Re-specify the harbor-curve legend plate in full (a second `legend
+  % style=` key here replaces, not merges with, the one `harbor curve`
+  % sets) -- only the font shrinks to \tiny for these long entries; the
+  % opaque white plate/border must stay or legend text sits bare on the
+  % axis again.
+  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=3pt},
+  title={CR-1 closed form: the lie the residual certifies, by topology\\{\scriptsize [verified; \texttt{sheaf\_consistency\_radius.py}]}},
+]
+\addplot[harborblue,thick,no markers,domain=0:1,samples=100] {sqrt(1-x)};
+\addlegendentry{$r/|s|=\sqrt{1-R_{\mathrm{eff}}(e)}$}
+\addplot[seagreen,only marks,mark=*,mark size=2.2pt] coordinates {
+  (0.75,0.5) (0.833333,0.408248) (0.875,0.353553) (0.916667,0.288675)
+};
+\addlegendentry{cycle family $C_n$: $R_{\mathrm{eff}}=\frac{n-1}{n}$, $r=|s|/\sqrt{n}$}
+\addplot[shipred,only marks,mark=square*,mark size=2.4pt] coordinates {(1.0,0.0)};
+\addlegendentry{cut edge: $R_{\mathrm{eff}}=1$, $r=0$ (provably silent)}
+\node[seagreen,font=\scriptsize] at (axis cs:0.79,0.555) {$C_4$};
+\node[seagreen,font=\scriptsize] at (axis cs:0.845,0.455) {$C_6$};
+\node[seagreen,font=\scriptsize] at (axis cs:0.887,0.398) {$C_8$};
+% Was (0.878,0.335): left of and just below the C_8 label above, so the two
+% collided directly. Moved further right and down, past C_8's marker along
+% the curve, matching the up-right offset used for the other three labels.
+\node[seagreen,font=\scriptsize] at (axis cs:0.935,0.330) {$C_{12}$};
+\node[seagreen,font=\scriptsize,align=left,text width=3.5cm] at (axis cs:0.20,0.75) {$C_6$, lie $s=3$:\\ $r=3\sqrt{1-5/6}=1.2247$};
+\draw[seagreen,->] (axis cs:0.30,0.62) -- (axis cs:0.80,0.44);
+\node[shipred,font=\scriptsize,align=center,text width=3.3cm] at (axis cs:0.55,0.24) {bridge / cut edge:\\ full leverage, zero residual};
+\draw[shipred,->] (axis cs:0.60,0.14) -- (axis cs:0.97,0.015);
+\end{axis}
+\end{tikzpicture}
+\caption{The CR-1 closed form: certified residual per unit lie, $r/|s|=\sqrt{1-R_{\mathrm{eff}}(e)}$,
+against the effective resistance of the lied-on edge in its coordinate subgraph. The cycle family $C_n$ sits at
+$R_{\mathrm{eff}}=\tfrac{n-1}{n}$ (the harness's $C_6$ point marked, $3\sqrt{1-5/6}=1.2247$); the cut-edge corner
+$R_{\mathrm{eff}}=1$ is provable silence [verified; closed form exact on $C_4$--$C_{12}$ and 200 random graphs,
+\texttt{sheaf\_consistency\_radius.py}].}
+\label{fig:radius}
+\end{figure}

@@ -13,6 +13,7 @@ Canon palette: harborblue #1e466e, shipred #8c1e1e, seagreen #1f6e46.
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 

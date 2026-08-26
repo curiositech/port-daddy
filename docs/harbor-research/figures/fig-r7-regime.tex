@@ -1,0 +1,51 @@
+% R7 regime diagram: the deterrence frontier rho = G/(dB) at G=10, d=0.8,
+% in the (bond B, audit rate rho) plane, B in [10,100]. Curve values
+% recomputed directly from rho_curve = clip(G/(d*B_range), 0, 1) in
+% docs/harbor-research/figures/src/r7_figures.py, lines 97-102 (sampled
+% at 13 representative B values spanning the plotted range, including
+% the B=12.5 point where the curve first drops below the rho=1 clip
+% ceiling). Marked point (50, 0.25) and the tower inset text are
+% transcribed from the script's ax.plot / ax.annotate / ax.text calls.
+% [verified: script r7_figures.py]
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.78\textwidth,height=6.2cm,
+  xlabel={bond size $B$},
+  ylabel={audit rate $\rho$},
+  title={R7 regime --- the deterrence frontier $\rho d B = G$},
+  xmin=10,xmax=100,ymin=0,ymax=1,
+  legend pos=north east,
+]
+\addplot[fill=seagreen!12,draw=none] coordinates {
+  (10,1.0) (12.5,1.0) (15,0.833333) (20,0.625) (25,0.5) (30,0.416667)
+  (40,0.3125) (50,0.25) (60,0.208333) (70,0.178571) (80,0.15625)
+  (90,0.138889) (100,0.125) (100,1.0)
+} \closedcycle;
+\addlegendentry{deterrence holds (cheating unprofitable)}
+\addplot[fill=shipred!8,draw=none] coordinates {
+  (10,1.0) (12.5,1.0) (15,0.833333) (20,0.625) (25,0.5) (30,0.416667)
+  (40,0.3125) (50,0.25) (60,0.208333) (70,0.178571) (80,0.15625)
+  (90,0.138889) (100,0.125) (100,0)
+} \closedcycle;
+\addlegendentry{cheating pays}
+\addplot[harborblue,thick] coordinates {
+  (10,1.0) (12.5,1.0) (15,0.833333) (20,0.625) (25,0.5) (30,0.416667)
+  (40,0.3125) (50,0.25) (60,0.208333) (70,0.178571) (80,0.15625)
+  (90,0.138889) (100,0.125)
+};
+\addlegendentry{$\rho = G/(dB)$}
+\addplot[only marks,mark=*,mark size=2.2pt,shipred,forget plot] coordinates {(50,0.25)};
+\node[regimebox,anchor=south west,align=left,font=\scriptsize,draw=shipred,fill=white]
+  (measnote) at (axis cs:65,0.05)
+  {measured: cheat payoff\\ exactly $0$ at $\rho^\star$\\ {[internal, \texttt{b2\_tower.py}]}};
+\draw[-{Stealth[length=2mm]},shipred,thin] (axis cs:50,0.25) -- (measnote.north);
+\node[regimebox,anchor=north west,align=left,font=\scriptsize,draw=harborblue,fill=yellow!15]
+  at (rel axis cs:0.03,0.60)
+  {tower: sealed sampling from $C$ cliques\\ $\Rightarrow$ corruption decays $(1-\rho d)^k$\\ $C=8$ collapses $\times 0.8$/level};
+\end{axis}
+\end{tikzpicture}
+\caption{The regime diagram: the deterrence frontier $\rho d B = G$ in the (bond $B$, audit rate $\rho$) plane at $G{=}10$, $d{=}0.8$. Above the curve $\rho = G/(dB)$, cheating is unprofitable; below it, cheating pays. The marked point is the running example $(B,\rho^\star) = (50, 0.25)$, where the measured cheat payoff is exactly zero [internal, \texttt{b2\_tower.py}]. The inset records the tower consequence of \S\ref{sec:tower}: sealed sampling from $C$ cliques drives surviving corrupt value down as $(1-\rho d)^k$, a $\times 0.8$-per-level collapse at $C{=}8$.}
+\label{fig:regime}
+\end{figure}

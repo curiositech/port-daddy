@@ -69,7 +69,7 @@ flowchart TD
 
 ### Trusting the Refutation
 **Novice**: "The experiment beat the bound — the theorem is wrong!"
-**Expert**: Audit the meter first. The floor's 8/16 "violations" were an oracle smuggling identity past a tie-breaking-only bit charge. Symmetric discipline: doubt apparent refutations of solid theory exactly as hard as apparent confirmations of your own claims.
+**Expert**: Audit the meter first. The floor's 8/14 "violations" were an oracle smuggling identity past a tie-breaking-only bit charge. Symmetric discipline: doubt apparent refutations of solid theory exactly as hard as apparent confirmations of your own claims.
 **Detection**: Celebration before a channel-by-channel accounting of what the decision procedure could see.
 
 ## References

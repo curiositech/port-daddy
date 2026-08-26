@@ -363,6 +363,8 @@ All three protocol phases were independently verified in ProVerif 2.05. Table~\r
 
 \begin{table}[H]
 \centering
+\caption{ProVerif results for the listed model queries. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
+\label{tab:proverif-results}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l l l@{}}
 \toprule
 \textbf{Query} & \textbf{Phase} & \textbf{Model} & \textbf{Result} \\
@@ -374,8 +376,6 @@ $\text{Accepted} \implies \text{Issued}$ & v2 (Ed25519) & \texttt{v2\_asymmetric
 $\text{Accepted}(b) \implies \text{IssuedRoot}(a) \land \text{Delegated}(a,b)$ & v3 (Delegation) & \texttt{v3\_delegation.pv} & \textbf{TRUE} \\
 \bottomrule
 \end{tabularx}
-\caption{ProVerif results for the listed model queries. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
-\label{tab:proverif-results}
 \end{table}
 
 The following is the verbatim ProVerif 2.05 output for the delegation chain query (Phase~3), the most complex property:
@@ -664,6 +664,8 @@ This is the standard threat model for symbolic protocol analysis~\cite{blanchet2
 
 \begin{table}[H]
 \centering
+\caption{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
+\label{tab:properties}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 \textbf{Property} & \textbf{Verified} & \textbf{Tool} & \textbf{Deployed} & \textbf{Reference} \\
@@ -677,8 +679,6 @@ Secret-independent source branching & Yes & Kani & Yes (FFI) & \cite{brumley2011
 Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} \\
 \bottomrule
 \end{tabular}
-\caption{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
-\label{tab:properties}
 \end{table}
 
 \subsection{Limitations}\label{sec:limitations}
@@ -858,7 +858,7 @@ Agent Payments Protocol (AP2): Mandates.
 \appendix
 % ═════════════════════════════════════════════════════════════════════════════
 
-\section{Formal Verification Status}\label{app:mech}
+\section{Formal Verification Status}\label{app:anchor-mech}
 
 \paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. Chapter~VI, \emph{The Bonded Commons}, carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 

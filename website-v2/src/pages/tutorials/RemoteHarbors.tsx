@@ -14,7 +14,7 @@ export function RemoteHarbors() {
   return (
     <TutorialLayout
       title="Multiplayer Localhost"
-      description="The swarm doesn't stop at your machine. Harbors on the relay let daemons find each other by name; invites, device pairing, and end-to-end sealing are designed-not-built and gate launch."
+      description="The swarm doesn't stop at your machine. Harbors on the relay let daemons find each other by name; invites and joining are live, device pairing and end-to-end sealing are designed-not-built and gate launch."
       number={17}
       total={21}
       level="Advanced"
@@ -29,13 +29,15 @@ export function RemoteHarbors() {
           style={{ color: "var(--text-secondary)" }}
         >
           <strong>Where this actually stands:</strong> harbors exist on the
-          relay today -- you can create one, list the ones you belong to, and
-          fetch a harbor's detail and member list. Joining a harbor by invite,
-          pairing a second device into it, and end-to-end sealing of what
-          flows between members are designed-not-built: the plan is written,
-          PRs are open, and none of it ships until full end-to-end encryption
-          is in place -- that's the gate on launching shared harbors, not on
-          building them.
+          relay today -- you can create one, list the ones you belong to,
+          fetch a harbor's detail and member list, and invite someone in: a
+          harbor owner or member mints a signed, single-use invite link, and
+          anyone signed in can redeem it to become a member. Pairing a second
+          device into a harbor, and end-to-end sealing of what flows between
+          members, are designed-not-built: the plan is written, PRs are open,
+          and none of it ships until full end-to-end encryption is in place --
+          that's the gate on letting harbor members actually exchange sealed
+          traffic, not on the invite mechanics themselves.
         </p>
 
         {/* Intro Section */}
@@ -51,9 +53,9 @@ export function RemoteHarbors() {
             on different machines -- a teammate's laptop, a cloud GPU cluster
             -- as members of a single named harbor. The relay already knows
             what a harbor is: a name in a namespace, a public key, and a
-            membership list. What it doesn't do yet is move any encrypted
-            payload between members, or let someone join without already
-            being added.
+            membership list, and a second person can now join one by invite
+            instead of being added by hand. What it doesn't do yet is move
+            any encrypted payload between members.
           </p>
           <div className="space-y-3 pt-2">
             <div className="flex items-start gap-3">
@@ -62,9 +64,10 @@ export function RemoteHarbors() {
                 className="text-[var(--brand-secondary)] mt-0.5 shrink-0"
               />
               <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
-                <strong>Designed-not-built:</strong> signed single-use invite
-                links and a <code>/join</code> endpoint, so a second person can
-                get into a harbor without an owner adding them by hand.
+                <strong>Live:</strong> signed single-use invite links and a{" "}
+                <code>/join</code> endpoint, so a second person can get into a
+                harbor by redeeming an invite instead of an owner adding them
+                by hand.
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -94,30 +97,40 @@ export function RemoteHarbors() {
 
           <p>
             The relay's harbor surface v1 is live: it ships a name, a
-            client-generated public key, and a membership list -- nothing
-            more. The relay never holds a key on a harbor's behalf; it's a
-            phone book, not a vault.
+            client-generated public key, a membership list, and now
+            invite-based join -- nothing more. The relay never holds a key on
+            a harbor's behalf; it's a phone book, not a vault.
           </p>
 
           <CodeBlock copyable={false} language="bash">
             {`# Live on the relay today
-POST /v1/harbors                          create a harbor (you supply the pubkey)
-GET  /v1/harbors                          list harbors you belong to
-GET  /v1/harbors/:namespace/:name         detail + members (member-gated)
-POST /v1/harbors/:namespace/:name/members add a member (owner-gated, by hand)`}
+POST /v1/harbors                                       create a harbor (you supply the pubkey)
+GET  /v1/harbors                                       list harbors you belong to
+GET  /v1/harbors/:namespace/:name                      detail + members (member-gated)
+POST /v1/harbors/:namespace/:name/members               add a member (owner-gated, by hand)
+POST /v1/harbors/:namespace/:name/invites                mint a single-use invite (member-gated)
+GET  /v1/harbors/:namespace/:name/invites                list invites + lifecycle (member-gated)
+POST /v1/harbors/:namespace/:name/invites/:jti/revoke     revoke an invite (inviter-or-owner)
+POST /v1/harbors/:namespace/:name/join                    redeem an invite -> member (any authed user)`}
           </CodeBlock>
 
           <p
             className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
-            Membership here is an operator-plane row -- it controls who can
-            see a harbor through this API. It is not yet the same as the
-            daemon-to-daemon admission that a real handshake would gate on;
-            that crypto plane is still designed-not-built. Discovery never
-            grants admission either way: a non-member gets the same 404 as a
-            harbor that doesn't exist, so there's no way to probe for names
-            you're not already in.
+            An invite carries no key material in either direction -- just a
+            bearer token and the harbor's name, bounded by a mandatory expiry
+            (72h default, 7d max) and revocable by its inviter or any owner
+            until redeemed. It's single-use by construction: two concurrent
+            redemptions can't both win. Membership here is still an
+            operator-plane row -- it controls who can see a harbor through
+            this API. It is not yet the same as the daemon-to-daemon
+            admission that a real handshake would gate on; that crypto plane
+            is still designed-not-built. Discovery never grants admission
+            either way: to someone without a valid invite, "no such harbor",
+            "no such invite", "expired", and "already redeemed" are all the
+            same 404, so there's no way to probe for names or invites you
+            don't already hold.
           </p>
         </section>
 
@@ -127,38 +140,43 @@ POST /v1/harbors/:namespace/:name/members add a member (owner-gated, by hand)`}
             <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Cpu className="text-[var(--brand-accent)]" size={20} />
             </div>
-            <h2 className="m-0">2. Designed-not-Built: Invites, Pairing, Sealing</h2>
+            <h2 className="m-0">2. Designed-not-Built: Device Pairing + End-to-End Sealing</h2>
           </div>
 
           <p>
-            The next slice of the plan -- not yet shipped -- adds a signed,
-            single-use invite so a harbor owner can hand someone a link
-            instead of adding them by hand, plus the key exchange that lets
-            a second device join a harbor it wasn't created on:
+            Inviting a second person into a harbor is live today -- an owner
+            or member mints an invite, and the invitee redeems it:
           </p>
 
           <CodeBlock copyable={false} language="bash">
-            {`# DESIGNED, NOT BUILT — no /join endpoint exists yet
-$ pd harbor invite --create
-# would mint a signed, single-use invite JTI
+            {`# Live today (raw relay API; no CLI wrapper yet)
+$ curl -X POST https://relay.portdaddy.dev/v1/harbors/erichowens/my-harbor/invites \\
+    -H "Authorization: Bearer $PD_TOKEN"
+{"jti": "pd-inv-7f3a-9921", "token": "…", "expiresAt": "2026-08-27T00:00:00Z"}
 
-$ pd harbor join --invite pd-inv-7f3a-9921
-# would exchange the invite for a harbor_members row + your device's card`}
+$ curl -X POST https://relay.portdaddy.dev/v1/harbors/erichowens/my-harbor/join \\
+    -H "Authorization: Bearer $PD_TOKEN" -d '{"invite": "pd-inv-7f3a-9921.…"}'
+{"member": true, "role": "member"}`}
           </CodeBlock>
 
           <p
             className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
-            Full end-to-end sealing of what members exchange -- so the relay
-            can route a harbor's traffic without reading it -- is
-            designed-not-built too, and it's the specific gate on launching
-            shared harbors. Harbors you create and use alone today are real;
-            harbors with a second person actually exchanging sealed traffic
-            are not live until that gate clears. Today, you can expose a
-            local service externally with <code>pd tunnel</code> over ngrok
-            or cloudflared, but that's one machine reaching out, not two
-            daemons coordinating as harbor members.
+            What that redemption grants is API-plane visibility, not a
+            crypto handshake -- an invite can never widen past plain
+            "member," and ownership never arrives by invite. Two things are
+            still designed-not-built: pairing a second <em>device</em> into a
+            harbor (so a laptop and a phone both authenticate as the same
+            member), and end-to-end sealing of what members exchange -- so
+            the relay can route a harbor's traffic without reading it. That
+            sealing is the specific gate on launching shared harbors. Harbors
+            you create and use alone today are real, and a second person can
+            now join one; a second person actually exchanging sealed traffic
+            with you is not live until that gate clears. Today, you can
+            expose a local service externally with <code>pd tunnel</code>{" "}
+            over ngrok or cloudflared, but that's one machine reaching out,
+            not two daemons coordinating as harbor members.
           </p>
         </section>
 
@@ -237,12 +255,12 @@ Watching deploy:events...`}
             Harbors exist. Sharing them across machines is gated on encryption, not on your calendar.
           </p>
           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-            The relay's harbor surface v1 -- create, list, get, add member --
-            is live today. Invites, device pairing, and end-to-end sealing
-            are designed-not-built, with PRs open against that plan. Launch
-            for shared harbors waits on full end-to-end encryption shipping,
-            not on a date -- this page will move each piece from
-            designed-not-built to live as it actually ships.
+            The relay's harbor surface v1 -- create, list, get, add member,
+            invite, join -- is live today. Device pairing and end-to-end
+            sealing are designed-not-built, with PRs open against that plan.
+            Launch for shared harbors waits on full end-to-end encryption
+            shipping, not on a date -- this page will move each remaining
+            piece from designed-not-built to live as it actually ships.
           </p>
         </Surface>
       </div>

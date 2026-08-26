@@ -41,7 +41,7 @@ pd begin --identity port-daddy:release-3.15.0 \
 pd note "Scope: version surfaces + CHANGELOG. Validation: binary builds + distribution-freshness test."
 pd session files add package.json package-lock.json mcp-server.json \
   .claude-plugin/plugin.json .gemini/extensions/port-daddy/gemini-extension.json \
-  mcp/server.ts website-v2/src/data/referenceCatalog.ts CHANGELOG.md
+  mcp/server.ts website-v2/src/data/referenceCatalog.ts CHANGELOG.md changelog.d/
 
 # C. Bump
 npm version minor --no-git-tag-version       # patch / minor / major
@@ -52,9 +52,13 @@ npx tsx scripts/sync-version.ts              # syncs EVERY version surface
 # website-v2/src/data/referenceCatalog.ts (PORT_DADDY_VERSION). No hand-bumps.
 # distribution-freshness.test.js fails CI if any surface drifts.
 
-# D. CHANGELOG.md
-# Rename [Unreleased] → [3.15.0] - YYYY-MM-DD, prepend a fresh [Unreleased].
-$EDITOR CHANGELOG.md
+# D. CHANGELOG.md — assembled, not hand-edited.
+# Splices every changelog.d/ fragment into a dated [3.15.0] - YYYY-MM-DD section,
+# leaves a fresh empty [Unreleased] on top, and deletes the consumed fragments.
+# --date defaults to today (UTC). Refuses if the version is already stamped, or if
+# any fragment is malformed — it never writes a partial section.
+node scripts/assemble-changelog.mjs --release 3.15.0
+git add -A changelog.d CHANGELOG.md   # picks up the deletions too
 
 # E. Validate locally
 npm ci

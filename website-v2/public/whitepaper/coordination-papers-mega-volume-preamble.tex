@@ -21,7 +21,14 @@
 \geometry{margin=2.35cm}
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{2em}
-\setcounter{tocdepth}{2}
+% Depth 1 (chapters + top-level sections only) is a deliberate choice for a
+% 264pp reference volume assembled from seven independently-structured
+% papers: at depth 2 the collected front-matter ToC runs to ~370 section AND
+% subsection headings, which reads as a text-only index rather than a map.
+% Each chapter's own reader's map / abstract is the fine-grained entry point;
+% this ToC's job is only to show the seven-chapter spine plus the volume
+% appendices.
+\setcounter{tocdepth}{1}
 \makeatletter
 \renewcommand*\l@part[2]{%
   \ifnum \c@tocdepth >-2\relax
