@@ -1090,6 +1090,16 @@ verify --- and open problem OP-5 asks which real ``done'' conditions it fails to
 capture, and whether the set can be extended without re-opening the Goodhart hole
 that free-text closure would.}
 
+% SUBMISSION-SKILL: naming conflict --- "state machine assertions" / "state
+% machines and assertions" already names an established formal-verification
+% technique (combining finite-state modeling with axiomatic/Hoare-style
+% assertions to keep state-explosion in check, distributed-systems
+% verification literature). This kernel's usage is a different object (an
+% oracle-vocabulary *kind* for commitment closure keyed to a parser-checked
+% structural property, not a general FSM-plus-assertion verification method),
+% but the label collision could mislead a formal-methods reader. Left as
+% authored; a human should decide adopt/gloss/rename before this term goes
+% further (e.g. into a companion formal chapter).
 \subsection{Extending the oracle vocabulary: State-Machine Assertions (OP-5)}
 
 The obvious way to widen what a commitment can close against is to widen the
@@ -1299,12 +1309,9 @@ guarantees they buy.
 \input{figures/fig-swk-consistency-model}
 
 \begin{theorem}[Conditional consistency model]\label{thm:consistency}
-Assume (i) every claim/lock read and write goes through one daemon and one SQLite
-database connection, (ii) transactions do not enable \texttt{read\_uncommitted},
-(iii) each successful response is sent only after commit, and (iv) no out-of-band
-writer mutates the tables. Then committed transactions admit a serial order, and
-the externally observed claim/lock operations are linearizable with commit as the
-linearization point.
+Assume the single-writer discipline holds without violation (Def.~\ref{def:single-writer}), transactions never enable \texttt{read\_uncommitted}, each successful response is sent only after commit, and no out-of-band writer mutates the tables.
+Then committed transactions admit a serial order, and the externally observed
+claim/lock operations are linearizable with commit as the linearization point.
 \end{theorem}
 
 \begin{proof}[Proof sketch]

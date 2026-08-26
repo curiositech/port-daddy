@@ -29,6 +29,10 @@
 \node[held] (held) at (74mm,0) {HELD by $a$};
 \node[st,fill=hhsand!30] (expired) at (148mm,0) {EXPIRED\\ (TTL passed)};
 
+% initial-state marker: every key starts FREE (no claim row exists)
+\draw[->,>=Latex,thick,hhebony] (-20mm,0) -- (free.west)
+  node[midway,above,font=\scriptsize,text=hhink]{initial};
+
 % acquire (atomic, exclusive)
 \draw[edge] (free) to[bend left=22]
   node[pos=0.5,above=1pt,align=center]{\textbf{acquire}\\ atomic insert (I2)} (held);
@@ -57,7 +61,9 @@
 \end{tikzpicture}%
 }
 \caption{The claim/lock lifecycle as a finite-state machine, exhibiting the four
-properties on which the coordination layer builds typed ownership. \emph{Acquire} is
+properties on which the coordination layer builds typed ownership. \textsc{Free} is
+the initial state (the marked incoming arrow): no claim row exists for a key until
+some agent acquires it. \emph{Acquire} is
 a single atomic insert against a uniqueness constraint (I2: a concurrent acquirer
 loses cleanly to a constraint violation and is handed the current holder).
 \emph{Re-claim} and \emph{release} are idempotent (I3): safe to retry, safe to
