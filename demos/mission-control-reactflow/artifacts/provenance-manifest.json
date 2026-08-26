@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-26T21:47:57.384Z",
+  "generatedAt": "2026-08-26T22:08:20.957Z",
   "generator": "Playwright Chromium via tests/artifacts.spec.ts",
   "viewport": {
     "width": 1600,
@@ -8,9 +8,10 @@
   },
   "source": "deterministic local fixtures; no daemon or production data",
   "coordination": {
-    "mode": "authorized isolated recovery worktree",
+    "mode": "actor-bound durable session in authorized isolated recovery worktree",
     "degraded": true,
-    "reason": "Three $12 Port Daddy dispatch attempts persisted credential:null; note and claim writes failed closed.",
+    "session": "session-polish-and-land-the-bounded-mission-control-reac-11d9eede390b",
+    "reason": "Three earlier $12 dispatch attempts persisted credential:null. This resume minted an actor-bound durable session, roadmap item, notes, and narrow claims without bypass. The canonical Bun daemon crashed once and recovered; sitrep, plan, and reviewer-spawn routes still returned the exact missing URL or port error, so coordination remained degraded and reviewer admission failed closed.",
     "bypassed": false
   },
   "caveats": [
@@ -21,18 +22,18 @@
   "files": [
     {
       "path": "artifacts/mission-control-dark.png",
-      "bytes": 294207,
-      "sha256": "d7d523d654cf803ee04745d765210f57633034137683f8adca8550fe20f5ca3a"
+      "bytes": 294019,
+      "sha256": "560c87feb4e1c4a6a02c7a9f870354d6de1265f2937ff52f342300af8b324a1d"
     },
     {
       "path": "artifacts/mission-control-light.png",
-      "bytes": 316711,
-      "sha256": "201a0b03431246cf97651d5dd83885f9f35c136b0f173de4e0ddb942fb6162c7"
+      "bytes": 316612,
+      "sha256": "bb6f4d8f7257a048bea444e7d8187f83025d8f374559e834bc2dc7d313ac7e91"
     },
     {
       "path": "artifacts/mission-control-interaction.webm",
-      "bytes": 1479589,
-      "sha256": "b6cad9873bbf060629f6fcbcf91fd634c1f006921e7f7d44829a2ff1831312b1"
+      "bytes": 1608402,
+      "sha256": "0af78a115a3f1ff9e8353d3fbedf21a88c79431cc38207d0a5effed1a29bc59f"
     }
   ]
 }

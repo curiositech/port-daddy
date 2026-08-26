@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowUpRight, Bot, Braces, CheckCircle2, ChevronRight, CircleDollarSign, FileCode2, GitPullRequest, ListTree, ReceiptText, ShieldCheck, TestTube2, X } from 'lucide-react';
 import { createMissionFixture } from '../lib/fixtures';
 import { useMissionStore } from '../store';
@@ -23,6 +23,15 @@ export function Inspector({ fixtureCount }: InspectorProps) {
   const runtime = useMissionStore((state) => state.runtimeById[selectedNodeId]);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const node = useMemo(() => createMissionFixture(fixtureCount).nodes.find((candidate) => candidate.id === selectedNodeId)?.data, [fixtureCount, selectedNodeId]);
+
+  useEffect(() => {
+    if (!evidence) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEvidence(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [evidence]);
 
   if (!node) return <aside className="inspector empty">Select a node to inspect it.</aside>;
 
@@ -81,7 +90,7 @@ export function Inspector({ fixtureCount }: InspectorProps) {
       </div>
 
       {evidence && (
-        <div className="evidence-popover" role="dialog" aria-label="Evidence artifact" data-testid="evidence-dialog">
+        <div className="evidence-popover" role="dialog" aria-label="Evidence artifact" aria-modal="true" data-testid="evidence-dialog">
           <button className="icon-button" onClick={() => setEvidence(null)} aria-label="Close evidence"><X size={15} /></button>
           <span className={`provenance provenance-${evidence.provenance}`}>{evidence.provenance}</span>
           <h3>{evidence.label}</h3>

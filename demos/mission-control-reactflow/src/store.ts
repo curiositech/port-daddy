@@ -73,12 +73,19 @@ export const useMissionStore = create<MissionStore>((set) => ({
   setPendingFrames: (pendingFrames) => set({ pendingFrames }),
   setLayoutMetrics: (layoutMetrics) => set({ layoutMetrics }),
   markGraphRender: () => set((state) => ({ graphRenderCount: state.graphRenderCount + 1 })),
-  reprioritize: () => set((state) => ({
-    runtimeById: {
-      ...state.runtimeById,
-      [state.selectedNodeId]: { ...state.runtimeById[state.selectedNodeId], status: 'running', progress: 34 },
-    },
-  })),
+  reprioritize: () => set((state) => {
+    const targetId = state.selectedNodeId
+      || Object.entries(state.runtimeById).find(([, runtime]) => runtime.status === 'blocked' || runtime.status === 'queued')?.[0]
+      || Object.keys(state.runtimeById)[0];
+    if (!targetId) return state;
+    return {
+      selectedNodeId: targetId,
+      runtimeById: {
+        ...state.runtimeById,
+        [targetId]: { ...(state.runtimeById[targetId] ?? baseRuntime(0)), status: 'running', progress: 34 },
+      },
+    };
+  }),
   setNodeStatus: (id, status) => set((state) => ({
     runtimeById: { ...state.runtimeById, [id]: { ...state.runtimeById[id], status } },
   })),

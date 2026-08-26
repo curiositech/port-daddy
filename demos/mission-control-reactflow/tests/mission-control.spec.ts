@@ -41,6 +41,9 @@ test('opens a node inspector and reaches evidence in one more click', async ({ p
   await page.getByTestId('evidence-ev-1-receipt').click();
   await expect(page.getByTestId('evidence-dialog')).toBeVisible();
   await expect(page.getByTestId('evidence-dialog')).toContainText('receipt://mission-control/42');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('evidence-dialog')).toBeHidden();
+  await page.getByTestId('evidence-ev-1-receipt').click();
   await page.getByRole('button', { name: 'Close evidence' }).click();
   await page.getByRole('button', { name: 'Close inspector' }).click();
   await expectUsefulHeroViewport(page);
@@ -48,6 +51,10 @@ test('opens a node inspector and reaches evidence in one more click', async ({ p
 
 test('switches deterministic fixture sizes and keeps controls operative', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Reprioritize' }).click();
+  await expect(page.getByTestId('node-inspector')).toBeVisible();
+  await expect(page.getByTestId('node-inspector').getByText('running', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close inspector' }).click();
   await page.getByRole('button', { name: 'Load 100 node stress fixture' }).click();
   await expect(page.getByText('100-node scale probe')).toBeVisible();
   await expect(page.getByTestId('performance-readout')).toContainText('LAYOUT');
@@ -59,6 +66,13 @@ test('switches deterministic fixture sizes and keeps controls operative', async 
   expect(selectedBox!.x + selectedBox!.width).toBeLessThanOrEqual(graphBox!.x + graphBox!.width + 1);
   await page.getByRole('button', { name: 'Load 200 node limit fixture' }).click();
   await expect(page.getByText('200-node scale probe')).toBeVisible();
+  await expect(page.locator('[data-testid^="mission-node-"]')).toHaveCount(200);
+  graphBox = await page.getByTestId('graph-shell').boundingBox();
+  selectedBox = await page.getByTestId('mission-node-node-199').boundingBox();
+  expect(selectedBox!.x).toBeGreaterThanOrEqual(graphBox!.x - 1);
+  expect(selectedBox!.x + selectedBox!.width).toBeLessThanOrEqual(graphBox!.x + graphBox!.width + 1);
+  expect(selectedBox!.y).toBeGreaterThanOrEqual(graphBox!.y - 1);
+  expect(selectedBox!.y + selectedBox!.height).toBeLessThanOrEqual(graphBox!.y + graphBox!.height + 1);
   await expect(page.locator('.workspace')).toHaveClass(/inspector-closed/);
   await page.getByRole('button', { name: 'Load 18 node hero fixture' }).click();
   await expectUsefulHeroViewport(page);

@@ -20,7 +20,7 @@ const manifest = {
     mode: 'actor-bound durable session in authorized isolated recovery worktree',
     degraded: true,
     session: 'session-polish-and-land-the-bounded-mission-control-reac-11d9eede390b',
-    reason: 'Three earlier $12 dispatch attempts persisted credential:null. This resume minted an actor-bound durable session, roadmap item, note, and narrow claims without bypass; the canonical Bun daemon then crashed and became unreachable before final coordination updates.',
+    reason: 'Three earlier $12 dispatch attempts persisted credential:null. This resume minted an actor-bound durable session, roadmap item, notes, and narrow claims without bypass. The canonical Bun daemon crashed once and recovered; sitrep, plan, and reviewer-spawn routes still returned the exact missing URL or port error, so coordination remained degraded and reviewer admission failed closed.',
     bypassed: false,
   },
   caveats: [
