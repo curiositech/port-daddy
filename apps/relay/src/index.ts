@@ -187,6 +187,11 @@ import {
   handleInterruptionsPage,
 } from './interruptions.js';
 import {
+  handleRegisterApnsDevice,
+  handleUnregisterApnsDevice,
+  handleListApnsDevices,
+} from './push-apns.js';
+import {
   handleGithubLogin,
   handleGithubCallback,
   handleAuthMe,
@@ -231,6 +236,7 @@ import {
   handleMediatorToggle,
 } from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
+import { handleStewardPage } from './steward-page.js';
 import {
   handleRepoSettingsPage,
   handleRepoSettingsSet,
@@ -591,6 +597,18 @@ export default {
       );
     }
 
+    // ── APNs device registry — iOS interruption pages (src/push-apns.ts) ─────
+    else if (pathname === '/v1/push/apns/devices' && method === 'POST') {
+      response = await handleRegisterApnsDevice(request, env);
+    }
+    else if (pathname === '/v1/push/apns/devices' && method === 'GET') {
+      response = await handleListApnsDevices(request, env);
+    }
+    else if (pathname.startsWith('/v1/push/apns/devices/') && method === 'DELETE') {
+      const deviceId = decodeURIComponent(pathname.slice('/v1/push/apns/devices/'.length));
+      response = await handleUnregisterApnsDevice(request, env, deviceId);
+    }
+
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
@@ -612,6 +630,12 @@ export default {
     // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
+    }
+    // The Steward's ledgers (session + GitHub repo ACL; ADR-0109). Read-only:
+    // this Worker renders the seat's deck log and merge ledger, it never
+    // writes them — single-writer merge authority is the seat's alone.
+    else if (pathname === '/account/steward' && method === 'GET') {
+      response = await handleStewardPage(request, env);
     }
     // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
     // dial lives here; src/repo-settings-page.ts).

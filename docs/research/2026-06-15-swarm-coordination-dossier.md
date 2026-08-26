@@ -1,7 +1,10 @@
 # Port Daddy Swarm Coordination Dossier
 
 **Date.** 2026-06-15
-**Status.** Research dossier plus Phase-0 implementation slice.
+**Status.** Historical research snapshot. Its tuple-backed Parley prototype was
+supplanted by STORE0's indexed tenant/harbor SQLite authority on 2026-08-24;
+tuple references below describe the June 2026 baseline and are not current
+production authority.
 **Mode.** Diataxis explanation: this document explains what Port Daddy should mean by swarm coordination, then names the next build steps.
 
 ## Executive Claim
