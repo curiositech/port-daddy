@@ -29,7 +29,7 @@
  *     magnitude and was previously undetected by any guard or test.
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 export interface RoadmapSnapshotItem {
@@ -185,4 +185,20 @@ export async function buildRoadmapSnapshot(
 export function writeRoadmapSnapshot(path: string, snapshot: RoadmapSnapshot): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
+}
+
+/**
+ * Read a previously committed snapshot for the shrink guard in
+ * {@link buildRoadmapSnapshot}. Returns null on any read/parse failure
+ * (including "no file yet") — the guard treats that as nothing to
+ * reconcile against, not an error.
+ */
+export function readPreviousSnapshot(path: string): Pick<RoadmapSnapshot, 'items'> | null {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { items?: unknown };
+    if (Array.isArray(parsed.items)) return { items: parsed.items as RoadmapSnapshot['items'] };
+    return null;
+  } catch {
+    return null;
+  }
 }

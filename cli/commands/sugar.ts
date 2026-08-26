@@ -15,6 +15,7 @@ import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, pri
 import { autoIdentityFromPackageJson } from './services.js';
 import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import * as ui from '../utils/ui.js';
 import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
 import {
@@ -92,13 +93,6 @@ export interface BeginRentResolution {
   error?: string;
 }
 
-interface RoadmapSearchHitDTO {
-  slug: string;
-  status: string;
-  summaryMd: string;
-  score: number;
-}
-
 /**
  * Best-effort: fetch roadmap items matching `purpose` (lib/roadmap-search.ts,
  * GET /roadmap/search) and print them so the rent-gate rejection carries a
@@ -112,7 +106,7 @@ async function printRoadmapSuggestions(purpose: string, harbor: string | undefin
     if (harbor) params.set('harbor', harbor);
     const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
     if (!res.ok) return;
-    const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHitDTO[] };
+    const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHit[] };
     const hits = data.hits ?? [];
     if (hits.length === 0) return;
 

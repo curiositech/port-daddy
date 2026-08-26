@@ -6,7 +6,13 @@ import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../.
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
 import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
 import type { ImportMarkdownResult, ChompRoadmapResult, ChompItemReport } from '../../lib/roadmap-chomp.js';
-import { buildRoadmapSnapshot, writeRoadmapSnapshot, type RoadmapSnapshot } from '../../lib/roadmap-snapshot.js';
+import {
+  buildRoadmapSnapshot,
+  writeRoadmapSnapshot,
+  readPreviousSnapshot,
+  type RoadmapSnapshot,
+} from '../../lib/roadmap-snapshot.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import { getWorktreeInfo } from '../../lib/worktree.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
@@ -39,16 +45,6 @@ type RoadmapItemResponse =
  * on disk. Never throws — a missing/unparseable file just means there is
  * nothing to reconcile against (first-ever export), not an error.
  */
-function readPreviousSnapshot(path: string): Pick<RoadmapSnapshot, 'items'> | null {
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { items?: unknown };
-    if (Array.isArray(parsed.items)) return { items: parsed.items as RoadmapSnapshot['items'] };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = options[key];
@@ -993,16 +989,6 @@ async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<
   }
 }
 
-interface RoadmapSearchHitDTO {
-  slug: string;
-  harbor: string;
-  summaryMd: string;
-  status: RoadmapStatus;
-  score: number;
-  similarity: number;
-  stage: string;
-}
-
 /**
  * `pd roadmap search <free text>` — rank roadmap items against free text via
  * the daemon's GET /roadmap/search (lib/roadmap-search.ts). Standalone
@@ -1025,7 +1011,7 @@ async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise
   const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
   const data = (await res.json().catch(() => ({}))) as {
     success?: boolean;
-    hits?: RoadmapSearchHitDTO[];
+    hits?: RoadmapSearchHit[];
     degraded?: string;
     error?: string;
   };

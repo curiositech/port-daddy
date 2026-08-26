@@ -14,10 +14,9 @@
  * `pd roadmap chomp --emit-pr-plan`); this script is the standalone CLI
  * wrapper that resolves the daemon URL and prints operator guidance.
  */
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
-import { buildRoadmapSnapshot, writeRoadmapSnapshot, type RoadmapSnapshot } from '../lib/roadmap-snapshot.js';
+import { buildRoadmapSnapshot, writeRoadmapSnapshot, readPreviousSnapshot } from '../lib/roadmap-snapshot.js';
 
 const cliArgs = process.argv.slice(2);
 const ALLOW_SHRINK = cliArgs.includes('--allow-shrink') || process.env.PD_ROADMAP_ALLOW_SHRINK === '1';
@@ -25,17 +24,6 @@ const positional = cliArgs.find((a) => !a.startsWith('--'));
 const SNAPSHOT_PATH = resolve(positional ?? 'docs/roadmap/roadmap.snapshot.json');
 const BASE = resolveDaemonUrl().replace(/\/$/, '');
 const HARBOR = process.env.PD_HARBOR ?? 'port-daddy';
-
-/** Read the currently-committed snapshot to reconcile against, if one exists. */
-function readPreviousSnapshot(path: string): Pick<RoadmapSnapshot, 'items'> | null {
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { items?: unknown };
-    if (Array.isArray(parsed.items)) return { items: parsed.items as RoadmapSnapshot['items'] };
-    return null;
-  } catch {
-    return null; // no committed file yet (first-ever export) — nothing to reconcile against
-  }
-}
 
 /**
  * CLI entry: build the snapshot from the resolved daemon and write it.
