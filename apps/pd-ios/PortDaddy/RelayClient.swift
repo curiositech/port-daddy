@@ -19,16 +19,24 @@ import Foundation
 // D1 ships with no pairing UI at all, so there is nothing yet that would call
 // them; the constants exist so D2 does not have to rediscover these paths.
 //
-// ── WHAT THE SERVER DOES NOT HAVE YET ────────────────────────────────────────
+// ── WHAT THIS CLIENT DOES NOT DO YET ─────────────────────────────────────────
 //
-// Three pieces of ADR-0125 v1 have no endpoint behind them. They are named
-// here as unbuilt rather than coded against a fiction, because a plausible-
-// looking client method for a route that does not exist is how a scaffold
-// starts lying about how finished it is:
+// Two of these are genuinely server-side gaps; the third (roadmap) no longer
+// is, and is named here as a client-side gap instead, for the same reason the
+// other two are named as what they are: a plausible-looking client method
+// that doesn't do what it appears to is how a scaffold starts lying about how
+// finished it is.
 //
-//   1. ROADMAP PROJECTION — no /v1/roadmap, no /account/roadmap. The
-//      projection exists as lib/roadmap-projection.ts with no route
-//      registered. `fetchRoadmapProjection` throws `.serverSideUnbuilt`.
+//   1. ROADMAP PROJECTION — `GET /roadmap/projection` is real and live
+//      (routes/roadmap.ts, landed with #9223); the gap is entirely on this
+//      side. D1 ships with no live network wiring for ANY tab — RootView
+//      never calls this client for roadmap, harbors, or interruptions, all of
+//      which render from fixtures the same way. That is not an oversight
+//      specific to roadmap; it is D1's actual scope boundary, the same one
+//      this file's own AUTH section names for pairing. `fetchRoadmapProjection`
+//      still throws `.serverSideUnbuilt` (kept for now — it is the one call
+//      site and the message says why), but the reason is "this client isn't
+//      wired to call it yet", not "the relay has no route".
 //
 //   2. REACHABILITY VERDICT — apps/relay/src/harbors.ts defers the
 //      possible|degraded|impossible|unknown verdict to v2+ in its own header.
@@ -288,15 +296,16 @@ public struct RelayClient {
         return try await send(request, as: PresenceSnapshot.self)
     }
 
-    // MARK: - Roadmap (unbuilt server-side)
+    // MARK: - Roadmap (client-side wiring not built yet — see the header note)
 
-    /// There is no route. `lib/roadmap-projection.ts` is a read model with no
-    /// HTTP registration in apps/relay/src/index.ts — not on this branch and
-    /// not on the branch the projection itself lives on. This throws rather
-    /// than returning a fixture dressed as live data.
+    /// `GET /roadmap/projection` is a real, live route (routes/roadmap.ts,
+    /// landed with #9223) — this client simply doesn't call it yet. D1 has no
+    /// live network wiring for any tab (see the header note), so this throws
+    /// rather than returning a fixture dressed as live data, same as every
+    /// other screen's fixture path being labelled a fixture.
     public func fetchRoadmapProjection() async throws -> RoadmapProjection {
         throw RelayError.serverSideUnbuilt(
-            "the relay serves no roadmap projection route yet — lib/roadmap-projection.ts has no HTTP registration"
+            "GET /roadmap/projection is live server-side, but this client build has no roadmap live-fetch wiring yet"
         )
     }
 

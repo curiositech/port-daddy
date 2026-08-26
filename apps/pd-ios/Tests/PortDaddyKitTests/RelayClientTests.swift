@@ -123,15 +123,17 @@ final class RelayClientTests: XCTestCase {
         XCTAssertFalse(RelayCredential(token: "pdu_").looksWellFormed)
     }
 
-    // MARK: - Unbuilt server pieces
+    // MARK: - Unbuilt server pieces / not-yet-wired client pieces
 
-    /// The roadmap projection has no HTTP route anywhere. The client throws
-    /// rather than returning a fixture dressed as live data — a scaffold that
-    /// silently serves its own fixture is how a demo becomes a false claim.
+    /// The roadmap projection route is real server-side (#9223); this client
+    /// just isn't wired to call it yet (D1 has no live network wiring for any
+    /// tab). It throws rather than returning a fixture dressed as live data —
+    /// a scaffold that silently serves its own fixture is how a demo becomes
+    /// a false claim.
     func testRoadmapFetchThrowsUnbuiltRatherThanReturningAFixture() async {
         do {
             _ = try await client().fetchRoadmapProjection()
-            XCTFail("fetchRoadmapProjection must not succeed — the relay has no such route")
+            XCTFail("fetchRoadmapProjection must not succeed — this client has no live-fetch wiring yet")
         } catch let error as RelayError {
             guard case .serverSideUnbuilt(let reason) = error else {
                 return XCTFail("expected .serverSideUnbuilt, got \(error)")

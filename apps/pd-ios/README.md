@@ -115,7 +115,7 @@ misleads an operator who is about to act.
 
 | gap | state |
 | --- | --- |
-| Roadmap projection endpoint | The relay serves no route. `RelayClient.fetchRoadmapProjection()` throws `.serverSideUnbuilt`; the home screen runs on a fixture and says so. |
+| Roadmap projection endpoint | The relay's route is real (`GET /roadmap/projection`, #9223) — this client just doesn't call it yet. D1 has no live network wiring for any tab; `RelayClient.fetchRoadmapProjection()` throws `.serverSideUnbuilt`, and the home screen runs on a fixture and says so. |
 | Reachability verdict endpoint | Deferred to v2+ by the relay's own harbors module. Verdicts are derived on-device from `GET /v1/harbors/:ns/:name/presence` and labelled as derived. |
 | Answer / ack from the app | Not possible, by design. The relay's `closeInterruption` requires a signed-in session and a same-origin check; a device bearer token cannot close an ask. The app deep-links to `/account/interruptions`. |
 | Pairing (ADR-0125 §3) | Not built. No control can be issued. The Keychain-backed token store lands with it. |

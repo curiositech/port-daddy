@@ -37,11 +37,13 @@ public struct RoadmapHomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: PD.Space.l) {
-                    // The relay serves no roadmap route yet. Saying so on the
-                    // screen is the whole point: a home screen full of
-                    // convincing fixture rows with no such note is how a
-                    // scaffold gets mistaken for a product.
-                    ProvenanceBar(.unbuilt(what: "the relay serves no roadmap projection route"))
+                    // The relay's roadmap route is real (#9223); this build
+                    // just doesn't call it yet — D1 ships with no live network
+                    // wiring for any tab, see RelayClient.swift's header.
+                    // Saying so on the screen is the whole point: a home
+                    // screen full of convincing fixture rows with no such note
+                    // is how a scaffold gets mistaken for a product.
+                    ProvenanceBar(.unbuilt(what: "this build has no roadmap live-fetch wiring yet"))
                     if let provenance = projection.provenance {
                         ProvenanceBar(provenance)
                     }
