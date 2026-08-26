@@ -534,3 +534,29 @@ describe('the docket walk — one opinion per PR, recorded once', () => {
     expect(res.unchanged).toBe(1);
   });
 });
+
+describe('verdict memory — the tick must never die on a bad read', () => {
+  it('re-records instead of throwing when the ledger read blows up', async () => {
+    // The promise this pins is §5.3's: a wake ALWAYS reaches its deck-log
+    // write. If reading the seat's own past verdicts could throw, runTick
+    // would die before that write and the vital sign would be lost — the seat
+    // going silent is the one failure the whole phase exists to make
+    // impossible. `readStewardMergeLedger` swallows its own errors today, so
+    // this path is unreachable through it; the guarantee is claimed at this
+    // boundary, so it is enforced at this boundary.
+    const exploding = {
+      prepare() { throw new Error('D1 unreachable'); },
+    } as unknown as D1Database;
+    const env = makeEnv({ DB: exploding, STEWARD_GITHUB_TOKEN: 'tok' });
+
+    const res = await runTick(env, REPO, NOW, undefined, async () =>
+      [pr({ number: 5, checks: 'red' })]);
+
+    expect(res.ran).toBe(true);
+    expect(res.scanned).toBe(1);
+    // Empty memory means "assume nothing was held", so the verdict is
+    // re-offered rather than suppressed. Losing a verdict to a failed read
+    // would be the unrecoverable direction.
+    expect(res.unchanged).toBe(0);
+  });
+});

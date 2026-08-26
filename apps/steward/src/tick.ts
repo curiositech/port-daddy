@@ -264,10 +264,18 @@ export async function runTick(
  * INFORMATION — the first opinion on a PR, or a changed one — and skipped
  * when the seat already holds that exact answer.
  *
- * DEGRADES TO EMPTY, NEVER THROWS: on any read failure this returns an empty
- * map, so the tick re-records rather than going silent. Duplicate rows in an
- * append-only ledger are recoverable; a seat that skips a verdict it never
- * actually held is not.
+ * DEGRADES TO EMPTY, NEVER THROWS — and enforces that here rather than
+ * inheriting it. `readStewardMergeLedger` already swallows its own errors, so
+ * this catch is unreachable today; it exists because the guarantee is claimed
+ * at THIS boundary and the function providing it lives in a different package.
+ * If that reader ever loses its try/catch, the failure would not be a bad
+ * read — it would be `runTick` throwing, the wake's deck-log write never being
+ * reached, and the seat falling silent. That is §5.3's exact failure mode, and
+ * a promise this important should not depend on a neighbour keeping its own.
+ *
+ * The empty map is the safe direction: the tick then re-records rather than
+ * going quiet. A duplicate row in an append-only ledger is recoverable; a
+ * verdict skipped because the seat wrongly believed it already held it is not.
  *
  * @param db - The D1 binding, or undefined when the seat runs unbound.
  * @param repo - `owner/repo` the seat serves.
@@ -278,9 +286,13 @@ async function lastVerdictByPr(
   repo: string,
 ): Promise<Map<number, MergeLedgerEntry['verdict']>> {
   const seen = new Map<number, MergeLedgerEntry['verdict']>();
-  const rows = await readStewardMergeLedger(db, repo, VERDICT_MEMORY);
-  // Newest first, so the FIRST row seen for a PR is its current verdict.
-  for (const r of rows) if (!seen.has(r.prNumber)) seen.set(r.prNumber, r.verdict);
+  try {
+    const rows = await readStewardMergeLedger(db, repo, VERDICT_MEMORY);
+    // Newest first, so the FIRST row seen for a PR is its current verdict.
+    for (const r of rows) if (!seen.has(r.prNumber)) seen.set(r.prNumber, r.verdict);
+  } catch (err) {
+    console.error(`[steward] verdict-memory read failed repo=${repo}: ${String(err)}`);
+  }
   return seen;
 }
 
