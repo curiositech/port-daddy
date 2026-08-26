@@ -66,6 +66,9 @@ deleted when encountered, not on a timer. The conspicuous missing state is
 \textsc{queued}: there is no wait-list and no fairness primitive, so a fast agent
 churning a hot resource can starve a slow one indefinitely --- open problem OP-1,
 which asks whether bounded-wait can be added without dragging a scheduler down into
-the kernel.}
+the kernel. \S\ref{sec:resource} specifies (but does not yet ship) a reactive
+ticket-lock that would add the missing state for cooperatively released claims;
+claims returned by the lazy sweep would still bypass it, which is why OP-1 remains
+open.}
 \label{fig:swk-claim-lifecycle}
 \end{figure}
