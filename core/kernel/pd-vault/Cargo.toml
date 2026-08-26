@@ -47,3 +47,14 @@ zeroize = "1.8"
 # place of the byte accessors the custody law forbids. Adds no transitive surface:
 # curve25519-dalek and chacha20poly1305 already pull in this exact version.
 subtle = "2"
+# AES-256-GCM for the RFC 9180 HPKE base-mode key-wrap primitive (hpke.rs):
+# ciphersuite 0x0002 in the RFC's AEAD registry, and the AEAD ADR-0123 A4/B3
+# specifies for the join-time / rotation channel-key wrap. Same RustCrypto
+# family and `aead`/`crypto-common`/`generic-array` generation as the already
+# -pinned chacha20poly1305 0.10, so this adds one crate, not a second AEAD
+# ecosystem. Deliberately NOT the `hpke` or `hpke-rs` crate: this crate's
+# established pattern (see kdf.rs, seal.rs, keys.rs) is implementing straight
+# from the RFC over primitive crates, not depending on someone else's
+# protocol-level implementation — see hpke.rs module docs for why that matters
+# here specifically.
+aes-gcm = "0.10"
