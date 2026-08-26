@@ -133,13 +133,25 @@ describe('runTick — decide and record, never throw, never land', () => {
   });
 
   it('an unarmed seat records LAND but reports it holds no landing capability', async () => {
+    // The safety property is not "it says unarmed" — it is that an unarmed
+    // seat NEVER REACHES GITHUB. A seat that called the API and then reported
+    // the token was unset would pass a reason-only assertion while doing the
+    // exact thing the gate exists to prevent, so the call count is asserted
+    // directly rather than left to `undefined as never` throwing by luck.
+    let calls = 0;
+    const countingFetch = (async (...args: unknown[]) => {
+      calls += 1;
+      void args;
+      return new Response('{}', { status: 200 });
+    }) as never;
     const env = makeEnv({ STEWARD_GITHUB_TOKEN: 'tok', DB: memoryD1().db });
-    const r = await runTick(env, REPO, NOW, undefined as never, async () => [
+    const r = await runTick(env, REPO, NOW, countingFetch, async () => [
       pr({ number: 12, approved: true, checks: 'green', mergeable: true }),
     ]);
     expect(r.verdict?.verdict).toBe('LAND');
     expect(r.landing).toMatchObject({ attempted: false, landed: false });
     expect(r.landing?.reason).toContain('no landing capability');
+    expect(calls).toBe(0);
   });
 
   it('reports a failed ledger write instead of pretending it recorded', async () => {
