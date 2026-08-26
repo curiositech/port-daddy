@@ -12,10 +12,10 @@ that the results are wrong — they are almost certainly fine — but that this
 exact *shape* of result is already published in the deontic-logic and
 policy-reasoning complexity literature, which the paper does not cite at all.
 
-**Read first**: `/home/user/port-daddy/docs/harbor-research/tex/paper6.tex`,
+**Read first from the repository root**: `docs/harbor-research/tex/paper6.tex`,
 especially Part I and its Theorem 1a/1b box, and the `\section{Related work}`.
 Then `README.md`, `reading-list.md`, `questions.md`, `skills.md` in
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-3-deontic-tractability-frontier/`.
+`docs/harbor-research/deep-dives/flag-3-deontic-tractability-frontier/`.
 
 **Note the conspicuous gap** that motivates this dive: the paper cites deontic
 logic's philosophical origins (von Wright 1951) and its classical puzzles
@@ -48,7 +48,7 @@ the combination is.
   appears to have fabricated an arXiv identifier — do not repeat that.
 
 **Deliverable**: write to
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-3-deontic-tractability-frontier/findings.md`
+`docs/harbor-research/deep-dives/flag-3-deontic-tractability-frontier/findings.md`
 following the stubbed structure. Verdict first (CLEAR / NARROW / SUBSUMED /
 CONTRADICTED / UNRESOLVED), then per-question evidence, then drafted citation
 text for the paper's existing Imported / Positioned-against / New structure.

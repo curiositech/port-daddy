@@ -8,11 +8,11 @@ absolute.
 
 You are running a citation audit on an unpublished research paper. Two jobs.
 
-**Read first**: `/home/user/port-daddy/docs/harbor-research/tex/paper7.tex`,
+**Read first from the repository root**: `docs/harbor-research/tex/paper7.tex`,
 especially its `\section{Related work: imported, adjacent, and new}` and its
 bibliography. Then `README.md`, `reading-list.md`, `questions.md`, `skills.md`
 in
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-4-topological-consensus-citation-audit/`.
+`docs/harbor-research/deep-dives/flag-4-topological-consensus-citation-audit/`.
 
 **Job 1 — resolve a suspect citation.** An earlier sweep surfaced "A Homological
 Approach to Consensus and Fault Tolerance," reportedly in a general-audience
@@ -52,7 +52,7 @@ carry.
   paper's reference list. Fetch it.
 
 **Deliverable**: write to
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-4-topological-consensus-citation-audit/findings.md`
+`docs/harbor-research/deep-dives/flag-4-topological-consensus-citation-audit/findings.md`
 following the stubbed structure. Open with the Job 1 determination, then Job 2,
 then the accuracy table, then drafted citation text for the paper's existing
 "Adjacent, and honestly positioned" paragraph.

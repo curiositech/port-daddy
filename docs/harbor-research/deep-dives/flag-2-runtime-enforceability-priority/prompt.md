@@ -9,10 +9,10 @@ You are auditing a priority risk in an unpublished research paper. Two jobs, in
 strict order: establish whether a reported competing preprint exists at all, and
 independently close a citation gap that exists regardless of the answer.
 
-**Read first**: `/home/user/port-daddy/docs/harbor-research/tex/paper2.tex` in
+**Read first from the repository root**: `docs/harbor-research/tex/paper2.tex` in
 full — it is short. Then `README.md`, `reading-list.md`, `questions.md`, and
 `skills.md` in
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-2-runtime-enforceability-priority/`.
+`docs/harbor-research/deep-dives/flag-2-runtime-enforceability-priority/`.
 
 **Job 1, gating everything else**: determine whether **arXiv:2607.22868, "What
 Can Be Enforced? A Theory of Certified Runtime Safety for Tool-Using Agents"**
@@ -44,7 +44,7 @@ real gap a referee will find. Read both and answer Q4 and Q5 in `questions.md`.
   total failure of the task.
 
 **Deliverable**: write to
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-2-runtime-enforceability-priority/findings.md`
+`docs/harbor-research/deep-dives/flag-2-runtime-enforceability-priority/findings.md`
 following the stubbed structure. Verdict first (CLEAR / NARROW / SUBSUMED /
 CONTRADICTED / UNRESOLVED), then the existence determination, then the
 comparisons, then drafted citation text.

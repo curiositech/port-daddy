@@ -11,10 +11,10 @@ determine whether a published result in economics contradicts, subsumes, or is
 simply different from a theorem the paper claims. Be adversarial toward the
 paper. A finding that the paper is wrong is a successful outcome, not a failure.
 
-**Read first**: `/home/user/port-daddy/docs/harbor-research/tex/paper3.tex`,
+**Read first from the repository root**: `docs/harbor-research/tex/paper3.tex`,
 especially `\section{The tower: bribing sealed juries from $C$ cliques}` and its
 Theorem 2 box. Then read
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-1-bonded-tower-vs-hierarchical-collusion/README.md`,
+`docs/harbor-research/deep-dives/flag-1-bonded-tower-vs-hierarchical-collusion/README.md`,
 `reading-list.md`, and `questions.md` in that folder.
 
 **The task**: answer Q1–Q8 in `questions.md`, in order, using primary sources.
@@ -39,7 +39,7 @@ may simply be wrong.
   unconfirmed" rather than producing a plausible-looking one.
 
 **Deliverable**: write your findings to
-`/home/user/port-daddy/docs/harbor-research/deep-dives/flag-1-bonded-tower-vs-hierarchical-collusion/findings.md`,
+`docs/harbor-research/deep-dives/flag-1-bonded-tower-vs-hierarchical-collusion/findings.md`,
 following the structure already stubbed in that file. Open with the verdict —
 CLEAR, NARROW, SUBSUMED, CONTRADICTED, or UNRESOLVED — then the evidence, then
 the hypothesis comparison table, then the drafted citation sentence if one is
