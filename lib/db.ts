@@ -701,7 +701,7 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // narrows to the owner. Does NOT protect against same-user process
   // adversaries; see docs/shipwright/SECURITY-ASSESSMENT.md for the full
   // threat model and follow-up items.
-  if (runIntegrityCheck) {
+  if (!options.inMemory) {
     try {
       chmodSync(path, 0o600);
     } catch (err) {
