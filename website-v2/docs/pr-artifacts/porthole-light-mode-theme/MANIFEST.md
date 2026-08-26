@@ -1,7 +1,7 @@
 # Visual artifacts — Porthole light-mode ANSI theme fix
 
 Captured headless via Playwright (`capture.mjs`, same pattern as
-`docs/artifacts/login-state/capture.mjs`) against a local `vite preview
+`website-v2/docs/artifacts/login-state/capture.mjs`) against a local `vite preview
 --port 4173` production build served from this PR's own branch
 (`claude/porthole-light-mode-theme`, commit `5e7deaea7`), with theme set
 via `localStorage['pd-theme']` through `page.addInitScript` — the real

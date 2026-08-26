@@ -2,7 +2,7 @@
  * Captures the landing page's #demos Porthole embed in both themes, proving
  * the light-mode ANSI theme fix (PR: Porthole terminal actually re-themes
  * with the page in light mode). Pattern lifted from
- * docs/artifacts/login-state/capture.mjs.
+ * website-v2/docs/artifacts/login-state/capture.mjs.
  */
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
