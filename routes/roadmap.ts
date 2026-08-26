@@ -7,20 +7,31 @@
  * endpoints to promote feedback to the roadmap, list current items,
  * or update status — all atomically and queryable.
  *
- *   POST   /roadmap/items                — upsert a roadmap item
- *   GET    /roadmap/items                — list (filter by status/harbor)
- *   GET    /roadmap/items/:slug          — fetch a specific item
- *   POST   /roadmap/items/:slug/status   — update status (audit-trailed)
+ *   POST   /roadmap/items                — upsert a roadmap item (owner validated
+ *                                          against the durable-agent roster)
+ *   GET    /roadmap/items                — list (filter by status/harbor/tag),
+ *                                          owner display info joined per item
+ *   GET    /roadmap/items/:slug          — the full Jira card: all fields + owner
+ *                                          join + links + blocks/blocked-by +
+ *                                          parent/children + planned-vs-actual
+ *   GET    /roadmap/items/:slug/links    — list the item's typed links
+ *   POST   /roadmap/items/:slug/links    — add a pr/doc/file/media link
+ *   DELETE /roadmap/items/:slug/links    — remove one typed link
+ *   POST   /roadmap/items/:slug/status   — update status (audit-trailed; the
+ *                                          'done' transition stamps completed_at)
  *   POST   /roadmap/items/:slug/touch    — refresh last_touched_at
  *   POST   /roadmap/promote              — atomic feedback→item link
  *   GET    /roadmap/projection           — read-only roadmap-home projection
  *                                          (lib/roadmap-projection.ts) for the
  *                                          web/console/iOS home surfaces
+ *   POST   /roadmap/chomp                — general planning-doc ingestion
+ *   POST   /roadmap/import-markdown      — legacy 3-pile alias over chomp
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type {
   RoadmapItems,
+  RoadmapKind,
   RoadmapStatus,
   UpsertRoadmapItemInput,
 } from '../lib/roadmap-items.js';
@@ -31,12 +42,22 @@ import {
   serializeRoadmapProjection,
 } from '../lib/roadmap-projection.js';
 import type Database from 'better-sqlite3';
-import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
+import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
+import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
-import { schedule } from '../lib/planner-schedule.js';
+import { scheduleDagPreferKernel as schedule } from '../lib/planner-schedule-ffi.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
-import { writePlanEdges } from '../lib/planner-edges.js';
+import {
+  writePlanEdges,
+  itemLinkEdge,
+  listItemLinks,
+  removeItemLink,
+  HIERARCHY_SCOPE,
+  ITEM_TYPE,
+  type ItemLinkKind,
+} from '../lib/planner-edges.js';
 import type { GraphEdges } from '../lib/graph-edges.js';
+import type { DurableAgentRoster, DurableAgentRecord } from '../lib/durable-agent-roster.js';
 import { parseAdrIdentity } from '../lib/adr-matrix.js';
 import { renderMarkdown } from '../lib/mini-markdown.js';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -59,6 +80,24 @@ interface UpsertBody {
   harbor?: unknown;
   project?: unknown;
   ttlMs?: unknown;
+  kind?: unknown;
+  priority?: unknown;
+  assigneeId?: unknown;
+  descriptionMd?: unknown;
+  startedAt?: unknown;
+  dueAt?: unknown;
+  estimate?: unknown;
+  tags?: unknown;
+  actual?: unknown;
+}
+
+interface LinkBody {
+  type?: unknown;
+  target?: unknown;
+  url?: unknown;
+  title?: unknown;
+  mime?: unknown;
+  caption?: unknown;
 }
 
 interface PromoteBody {
@@ -133,6 +172,113 @@ function harborForProject(project: string | undefined): string | undefined {
 }
 
 const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge', 'done']);
+const KIND_VALUES = new Set<RoadmapKind>([
+  'project',
+  'epic',
+  'story',
+  'task',
+  'subtask',
+  'bug',
+  'chore',
+]);
+const LINK_KINDS = new Set<ItemLinkKind>(['pr', 'doc', 'file', 'media']);
+
+/** Owner display info joined from the durable-agent roster onto item reads. */
+interface OwnerInfo {
+  agentNodeId: string;
+  slug: string;
+  displayName: string;
+  status: DurableAgentRecord['status'];
+}
+
+/** Thrown by assignee resolution; the route maps it to a 400 with the message intact. */
+class AssigneeValidationError extends Error {}
+
+/**
+ * Resolve a caller-supplied assignee to a canonical durable-roster identity.
+ *
+ * Why validate at the write boundary: `assignee_id` is a bare TEXT column, and
+ * before this slice any string ("bob", a typo'd id) was silently accepted —
+ * an owner field that cannot be dereferenced is decoration, not ownership.
+ * The design intent (2026-08-22 roadmap command-center mandate) is that the
+ * durable-agent roster is the ONE owner registry, on ADR-0119's terms:
+ * `AgentNode.agentNodeId` is the canonical durable principal and is what gets
+ * STORED; a roster slug is only a scoped display alias, so it is accepted as
+ * input sugar when it names exactly one live agent and is always resolved to
+ * the agentNodeId (an ambiguous slug is escalated to the id rather than
+ * guessed — an alias is never an authority key). Anything else is rejected
+ * with the exact registration path, so the failure teaches the fix.
+ *
+ * @param roster - The durable-agent roster module.
+ * @param value - Caller-supplied assignee: agentNodeId or roster slug.
+ * @returns The canonical agentNodeId to store.
+ * @throws AssigneeValidationError when the value names no (or >1) roster agent.
+ */
+function resolveAssignee(roster: DurableAgentRoster, value: string): string {
+  const registerHint =
+    'Register one first: pd roster create <slug> --remit <text> --instructions <text> ' +
+    '(or POST /durable-agents), then assign by its agentNodeId or slug. ' +
+    'Browse the roster: pd roster list.';
+  try {
+    return roster.get(value).agentNodeId;
+  } catch {
+    // Not a known agentNodeId — fall through to slug resolution.
+  }
+  const matches = roster
+    .list({ includeRetired: false, limit: 500 })
+    .filter((agent) => agent.profile.slug === value);
+  if (matches.length === 1) return matches[0].agentNodeId;
+  if (matches.length > 1) {
+    throw new AssigneeValidationError(
+      `assigneeId '${value}' is ambiguous across roster scopes — assign by agentNodeId ` +
+        `(${matches.map((m) => m.agentNodeId).join(', ')})`,
+    );
+  }
+  throw new AssigneeValidationError(
+    `assigneeId '${value}' is not on the durable-agent roster. ${registerHint}`,
+  );
+}
+
+/**
+ * Build a one-request owner lookup: agentNodeId → display info.
+ *
+ * Why one snapshot per request instead of roster.get per item: the roster is
+ * event-ledger backed (every get replays the agent-node stream), so a
+ * 1000-item list doing per-row lookups would be quadratic in ledger size.
+ * One list() call gives a consistent snapshot; a stored assignee that no
+ * longer resolves (retired-and-gone, pre-validation legacy text) joins as
+ * null rather than failing the read — reads must never 500 on stale owners.
+ *
+ * @param roster - The durable-agent roster module, when wired.
+ * @returns A lookup from agentNodeId to OwnerInfo (empty when no roster).
+ */
+function buildOwnerIndex(
+  roster: DurableAgentRoster | undefined,
+  log?: { warn: (msg: string) => void },
+): Map<string, OwnerInfo> {
+  const index = new Map<string, OwnerInfo>();
+  if (!roster) return index;
+  try {
+    for (const agent of roster.list({ includeRetired: true, limit: 500 })) {
+      index.set(agent.agentNodeId, {
+        agentNodeId: agent.agentNodeId,
+        slug: agent.profile.slug,
+        displayName: agent.profile.displayName,
+        status: agent.status,
+      });
+    }
+  } catch (error) {
+    // Roster read failure degrades to unjoined owners, never a failed item read
+    // — but it must leave a trace: a silently empty index looks identical to
+    // "no items have owners", which is the wrong thing to debug.
+    log?.warn(
+      `[roadmap] durable-agent roster read failed; owners will not be joined on this read: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return index;
+}
 
 export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (fastify, opts) => {
   const { roadmapItems, roadmapPromote } = opts.deps;
@@ -143,6 +289,10 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
   const db = (opts.deps as { db?: Database.Database }).db;
   const graphEdges = (opts.deps as { graphEdges?: GraphEdges }).graphEdges;
+  // Durable-agent roster: the owner registry item assignees validate against
+  // and reads join for display info. Optional for the same fixture reason as
+  // graphEdges — when absent, writes skip validation and reads join null.
+  const durableAgentRoster = (opts.deps as { durableAgentRoster?: DurableAgentRoster }).durableAgentRoster;
 
   // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
   // "roadmap is home everywhere"). One deterministic projection that the relay
@@ -178,11 +328,13 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // with their ADR title + inline ADR text (from repoRoot/docs/adr), and serves self-contained
   // HTML. Same-origin, so the board's poll + tube layer goes live (no CORS, unlike file://).
   //
-  // ADR-0086 §3 designed graph_edges to hold this hierarchy/dependency structure, but
-  // `writePlanEdges` (lib/planner-edges.ts) had zero callers — the table stayed empty forever.
-  // This is the one place a PlannerPlan is already derived from live roadmap_items, so persist it
-  // here: idempotent (replaceScope), so every render converges graph_edges to the current plan
-  // without duplicating rows. Purely a side effect — the returned HTML is unchanged either way.
+  // ADR-0086 §3 designed graph_edges to hold this hierarchy/dependency structure. This is the
+  // one place a PlannerPlan is derived from live roadmap_items, so the derived HIERARCHY is
+  // persisted here: idempotent (replaceScope), every render converges planner:hierarchy to the
+  // current plan without duplicating rows. Dependency edges are NOT written here any more —
+  // since the dependencies_json retirement they are AUTHORED truth written by
+  // lib/roadmap-items.ts upserts, and a derived replace would destroy authored edges the plan
+  // cannot see. Purely a side effect — the returned HTML is unchanged either way.
   fastify.get('/roadmap/board', async (_request: FastifyRequest, reply: FastifyReply) => {
     const rows = roadmapItems.list({ status: 'all', limit: 2000 });
     const items: MigrationItem[] = rows.map((r) => ({
@@ -192,6 +344,11 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       dependencies: r.dependencies ?? [],
       notes: (r.notes ?? []).map((n) => ({ text: n.text })),
       harbor: r.harbor,
+      // Gantt wall-clock date anchors (ADR-0086 planner columns) — carried
+      // through so `renderBoard` can date-anchor a task's bar instead of
+      // leaving every item on the CPM-relative offset (see planner-board.ts).
+      startedAt: r.startedAt,
+      dueAt: r.dueAt,
     }));
     const plan = derivePlan(items);
     if (graphEdges) {
@@ -201,8 +358,15 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         _request.log?.warn?.({ err }, 'roadmap_board_write_plan_edges_failed');
       }
     }
+    // Real ADR-0086 estimates drive the Gantt bars; an unsized item defaults to
+    // one effort unit so it still earns visible geometry (the board renders a
+    // duration chart now, not an unweighted topological-depth chart).
+    const estimateBySlug = new Map(rows.map((r) => [r.slug, r.estimate ?? 1]));
     const sched = schedule(
-      plan.tasks.map((t) => ({ id: t.slug as string, estimate: 1 })),
+      plan.tasks.map((t) => ({
+        id: t.slug as string,
+        estimate: estimateBySlug.get(t.slug as string) ?? 1,
+      })),
       plan.dependsOnEdges,
     );
     const adrs: Record<string, AdrMeta> = {};
@@ -266,6 +430,57 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     if (project) input.project = project;
     const ttlMs = asPosInt(body.ttlMs);
     if (ttlMs !== undefined) input.ttlMs = ttlMs;
+    // Planner columns (ADR-0086): omitted fields preserve the stored value in
+    // upsert; only explicitly-sent fields write through.
+    const kindRaw = asString(body.kind);
+    if (kindRaw && KIND_VALUES.has(kindRaw as RoadmapKind)) input.kind = kindRaw as RoadmapKind;
+    const priority = asNumber(body.priority);
+    if (priority !== undefined) input.priority = priority;
+    // Durable owner (2026-08-22 mandate): a set assignee must dereference into
+    // the durable-agent roster; explicit null (or '') clears; omission
+    // preserves the stored owner. Unknown owners are a 400 that names the
+    // registration path — silent acceptance of free text is what made
+    // assignee_id decoration instead of ownership.
+    if ('assigneeId' in body) {
+      const raw = body.assigneeId;
+      if (raw === null || (typeof raw === 'string' && !raw.trim())) {
+        input.assigneeId = null;
+      } else {
+        const assigneeId = asString(raw);
+        if (!assigneeId) {
+          reply.code(400);
+          return { success: false, error: 'assigneeId must be a roster agentNodeId/slug string, or null to clear' };
+        }
+        if (durableAgentRoster) {
+          try {
+            input.assigneeId = resolveAssignee(durableAgentRoster, assigneeId);
+          } catch (error) {
+            reply.code(400);
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : `assigneeId '${assigneeId}' failed roster validation`,
+            };
+          }
+        } else {
+          input.assigneeId = assigneeId;
+        }
+      }
+    }
+    const descriptionMd = asString(body.descriptionMd);
+    if (descriptionMd) input.descriptionMd = descriptionMd;
+    const startedAt = asPosInt(body.startedAt);
+    if (startedAt !== undefined) input.startedAt = startedAt;
+    const dueAt = asPosInt(body.dueAt);
+    if (dueAt !== undefined) input.dueAt = dueAt;
+    const estimate = asPosInt(body.estimate);
+    if (estimate !== undefined) input.estimate = estimate;
+    // Jira-grade fields: tags replace-when-sent ([] clears); actual mirrors
+    // estimate's units and accepts explicit null to clear.
+    const tags = asStringArray(body.tags);
+    if (tags !== undefined) input.tags = tags;
+    if ('actual' in body) {
+      input.actual = body.actual === null ? null : asPosInt(body.actual) ?? null;
+    }
 
     try {
       const item = roadmapItems.upsert(input);
@@ -285,6 +500,7 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     const project = asString(q.project);
     const harbor = asString(q.harbor) ?? harborForProject(project);
     const limit = asPosInt(q.limit);
+    const tag = asString(q.tag);
     const statusRaw = asString(q.status);
     const status =
       statusRaw === 'all'
@@ -292,10 +508,24 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         : statusRaw && STATUS_VALUES.has(statusRaw as RoadmapStatus)
           ? (statusRaw as RoadmapStatus)
           : undefined;
-    const items = roadmapItems.list({ harbor, limit, status });
+    const rows = roadmapItems.list({ harbor, limit, status, tag });
+    // Owner join: one roster snapshot per request, so every item's assignee
+    // resolves to display info without per-row ledger replays.
+    const owners = buildOwnerIndex(durableAgentRoster, request.log);
+    const items = rows.map((item) => ({
+      ...item,
+      owner: item.assigneeId ? owners.get(item.assigneeId) ?? null : null,
+    }));
     return { success: true, items, count: items.length };
   });
 
+  // GET /roadmap/items/:slug — the full Jira card (2026-08-22 mandate §6):
+  // every stored field, the owner joined from the durable-agent roster, typed
+  // links, both blocking directions (blockedBy = my dependencies; blocks =
+  // items depending on me, derived from the same data that projects into
+  // depends_on edges), hierarchy (parent/children from the persisted
+  // parent_of edges), and planned-vs-actual. Consumers that only want the raw
+  // item keep reading `.item`; the card facets ride alongside it.
   fastify.get('/roadmap/items/:slug', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { slug?: string };
     const slug = asString(params.slug);
@@ -310,7 +540,188 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       reply.code(404);
       return { success: false, error: `roadmap item '${slug}' not found` };
     }
-    return { success: true, item };
+    const owners = buildOwnerIndex(durableAgentRoster, request.log);
+    const owner = item.assigneeId ? owners.get(item.assigneeId) ?? null : null;
+    const links = graphEdges ? listItemLinks(graphEdges, slug) : [];
+    const blockedBy = [...item.dependencies].sort();
+    const blocks = roadmapItems.listDependents(slug, item.harbor).map((i) => i.slug);
+    let parent: string | null = null;
+    let children: string[] = [];
+    if (graphEdges) {
+      parent =
+        graphEdges.list({
+          scope: HIERARCHY_SCOPE,
+          edgeType: 'parent_of',
+          targetType: ITEM_TYPE,
+          targetId: slug,
+          limit: 10,
+        })[0]?.sourceId ?? null;
+      children = graphEdges
+        .list({
+          scope: HIERARCHY_SCOPE,
+          edgeType: 'parent_of',
+          sourceType: ITEM_TYPE,
+          sourceId: slug,
+          limit: 1000,
+        })
+        .map((e) => e.targetId)
+        .sort();
+    }
+    const plannedVsActual = {
+      estimate: item.estimate,
+      actual: item.actual,
+      variance: item.estimate != null && item.actual != null ? item.actual - item.estimate : null,
+      startedAt: item.startedAt,
+      dueAt: item.dueAt,
+      completedAt: item.completedAt,
+    };
+    return {
+      success: true,
+      item: { ...item, owner },
+      owner,
+      links,
+      blocks,
+      blockedBy,
+      parent,
+      children,
+      plannedVsActual,
+    };
+  });
+
+  // ── Typed item links (pr/doc/file/media) — graph_edges planner:links scope ──
+
+  /**
+   * The shared 503 for link verbs when graph_edges is not wired.
+   *
+   * Why 503 and not a silent no-op: links are durable evidence, so a daemon
+   * that cannot persist them must refuse loudly — the design intent is that a
+   * degraded fixture/deployment never fakes success on an evidence write.
+   *
+   * @param reply - The Fastify reply to mark 503.
+   * @returns The failure body naming the missing dependency.
+   */
+  const linksUnavailable = (reply: FastifyReply) => {
+    reply.code(503);
+    return { success: false, error: 'graph_edges is not wired on this daemon; item links are unavailable' };
+  };
+
+  /**
+   * Parse and validate the (type, target) pair every link verb needs.
+   *
+   * Why one shared parser: add, list-by-key, and remove all identify a link by
+   * the same (kind, target) identity the graph_edges unique index enforces, so
+   * the design keeps the validation in one place — a PR target must be a bare
+   * number (the metadata carries its URL), and unknown kinds are rejected
+   * before they can mint an untyped edge nothing renders.
+   *
+   * @param type - Candidate link kind from body or query.
+   * @param target - Candidate target id (PR number / path / URL).
+   * @returns The validated kind+target, or an `{ error }` for the 400 path.
+   */
+  const parseLinkKey = (
+    type: string | undefined,
+    target: string | undefined,
+  ): { kind: ItemLinkKind; target: string } | { error: string } => {
+    if (!type || !LINK_KINDS.has(type as ItemLinkKind)) {
+      return { error: 'type must be one of pr|doc|file|media' };
+    }
+    if (!target) {
+      return { error: 'target is required (PR number for pr; path for doc/file; path or URL for media)' };
+    }
+    if (type === 'pr') {
+      if (!/^\d+$/.test(target)) {
+        return { error: `pr link target must be a PR number, got '${target}'` };
+      }
+      // Canonicalize leading zeros: the graph_edges unique index keys on the
+      // literal target_id, so '0123' and '123' would otherwise mint two edges
+      // for the same pull request — and `unlink --pr 123` would not remove the
+      // one added as `--pr 0123`. Strip textually (not via Number) so a target
+      // beyond Number.MAX_SAFE_INTEGER cannot be silently rounded.
+      return { kind: type, target: target.replace(/^0+(?=\d)/, '') };
+    }
+    return { kind: type as ItemLinkKind, target };
+  };
+
+  fastify.get('/roadmap/items/:slug/links', async (request: FastifyRequest, reply: FastifyReply) => {
+    const slug = asString((request.params as { slug?: string }).slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    if (!graphEdges) return linksUnavailable(reply);
+    if (!roadmapItems.slugExists(slug)) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+    const links = listItemLinks(graphEdges, slug);
+    return { success: true, links, count: links.length };
+  });
+
+  fastify.post('/roadmap/items/:slug/links', async (request: FastifyRequest, reply: FastifyReply) => {
+    const slug = asString((request.params as { slug?: string }).slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    if (!graphEdges) return linksUnavailable(reply);
+    if (!roadmapItems.slugExists(slug)) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+    const body = (request.body ?? {}) as LinkBody;
+    const key = parseLinkKey(asString(body.type), asString(body.target));
+    if ('error' in key) {
+      reply.code(400);
+      return { success: false, error: key.error };
+    }
+    const metadata: Record<string, unknown> = {};
+    const url = asString(body.url);
+    if (url) metadata.url = url;
+    const title = asString(body.title);
+    if (title) metadata.title = title;
+    const mime = asString(body.mime);
+    if (mime) metadata.mime = mime;
+    const caption = asString(body.caption);
+    if (caption) metadata.caption = caption;
+    const edge = graphEdges.remember(itemLinkEdge(slug, key.kind, key.target, metadata));
+    reply.code(201);
+    return {
+      success: true,
+      link: {
+        kind: key.kind,
+        targetId: edge.targetId,
+        metadata: edge.metadata,
+        createdAt: edge.createdAt,
+        updatedAt: edge.updatedAt,
+      },
+    };
+  });
+
+  fastify.delete('/roadmap/items/:slug/links', async (request: FastifyRequest, reply: FastifyReply) => {
+    const slug = asString((request.params as { slug?: string }).slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    if (!graphEdges) return linksUnavailable(reply);
+    // Accept the (type, target) key from query OR body — DELETE bodies are
+    // legal but some clients cannot send them.
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const body = (request.body ?? {}) as LinkBody;
+    const key = parseLinkKey(
+      asString(body.type) ?? asString(q.type),
+      asString(body.target) ?? asString(q.target),
+    );
+    if ('error' in key) {
+      reply.code(400);
+      return { success: false, error: key.error };
+    }
+    const removed = removeItemLink(graphEdges, slug, key.kind, key.target);
+    if (!removed) {
+      reply.code(404);
+      return { success: false, error: `no ${key.kind} link to '${key.target}' on '${slug}'` };
+    }
+    return { success: true, removed: true };
   });
 
   fastify.delete('/roadmap/items/:slug', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -425,6 +836,82 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       }
     }
     return { success: true, markdown, count: items.length };
+  });
+
+  // POST /roadmap/chomp — general planning-doc ingestion (operator mandate
+  // 2026-08-22). Reads the named markdown docs from rootDir, extracts a
+  // project→epic→story→task tree (headings), checklist tasks, and explicit
+  // depends-on references, and upserts them into roadmap_items with the same
+  // never-clobber-enriched-rows discipline the legacy importer documented.
+  // `enrich: true` opts into one-line summary polish through the daemon's
+  // real request-shape LLM path (lib/llm-backend-resolver.ts, actor 'chomp');
+  // with no backend configured the result is deterministic extraction plus an
+  // honest `enrichment.backend: null` report — nothing is faked.
+  fastify.post('/roadmap/chomp', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const rootDir = asString(body.rootDir) ?? asString(body.root);
+    if (!rootDir) {
+      reply.code(400);
+      return { success: false, error: 'rootDir is required (repo root to read planning docs from)' };
+    }
+    const paths = asStringArray(body.paths);
+    if (!paths || paths.length === 0) {
+      reply.code(400);
+      return { success: false, error: 'paths is required (planning docs to chomp, relative to rootDir)' };
+    }
+    const statusRaw = asString(body.defaultStatus);
+    const defaultStatus =
+      statusRaw && STATUS_VALUES.has(statusRaw as RoadmapStatus)
+        ? (statusRaw as RoadmapStatus)
+        : undefined;
+    const dryRun = body.dryRun === true || body.dryRun === 'true';
+    const enrichRequested = body.enrich === true || body.enrich === 'true';
+
+    let enrich: ChompEnrichOptions | undefined;
+    let enrichmentUnavailable: { requested: true; attempted: 0; applied: 0; backend: null } | null = null;
+    if (enrichRequested) {
+      const resolved = resolveLLMBackend({ actor: 'chomp' });
+      if (resolved) {
+        enrich = {
+          transport: resolved.transport,
+          model: resolved.model,
+          label: `${resolved.backend}:${resolved.model}`,
+        };
+      } else {
+        // Honest degradation: no configured backend means deterministic-only.
+        enrichmentUnavailable = { requested: true, attempted: 0, applied: 0, backend: null };
+      }
+    }
+
+    try {
+      const result = await chompRoadmap(
+        { roadmapItems, graphEdges },
+        {
+          rootDir,
+          paths,
+          defaultStatus,
+          harbor: asString(body.harbor),
+          project: asString(body.project),
+          by: asString(body.by),
+          dryRun,
+          sourceCommit: asString(body.sourceCommit),
+          enrich,
+        },
+      );
+      if (enrichmentUnavailable) {
+        result.enrichment = enrichmentUnavailable;
+        result.warnings.push(
+          'enrich requested but no LLM backend is configured (set PD_CHOMP_BACKEND or PD_FLEET_DEFAULT_BACKEND); deterministic extraction only',
+        );
+      }
+      return { success: true, ...result };
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'chomp failed',
+      };
+    }
   });
 
   fastify.post('/roadmap/import-markdown', async (request: FastifyRequest, reply: FastifyReply) => {

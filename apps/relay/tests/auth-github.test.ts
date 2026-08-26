@@ -135,7 +135,11 @@ describe('GET /auth/github/login', () => {
     const loc = new URL(res.headers.get('Location')!);
     expect(loc.origin + loc.pathname).toBe('https://github.com/login/oauth/authorize');
     expect(loc.searchParams.get('redirect_uri')).toBe(`${BASE}/auth/github/callback`);
-    expect(loc.searchParams.get('scope')).toBe('read:user user:email');
+    // `repo` is required (not just broader-than-needed): GET /repos/:owner/:repo
+    // 404s — indistinguishable from "does not exist" — for a private repo the
+    // token's scope can't see, which is exactly what locked erichowens out of
+    // every one of their own repos on /account/repos before this fix.
+    expect(loc.searchParams.get('scope')).toBe('read:user user:email repo');
     const state = loc.searchParams.get('state')!;
     expect(state).toMatch(/^[0-9a-f]{64}$/);
     expect(kv.store.get(`oauth_state:${state}`)).toBe('1'); // stored for one-time use

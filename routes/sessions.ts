@@ -16,6 +16,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createHash } from 'node:crypto';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -23,6 +24,12 @@ import {
 } from '../lib/worktree-policy.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
+import type { Suggestions } from '../lib/suggestions.js';
+import {
+  surfaceSymbolConflictAdvice,
+  type BrokerActivityLog,
+  type BrokerInbox,
+} from '../lib/suggestion-broker.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -30,6 +37,14 @@ import {
   type IdentityVerifier,
   type IdentityWriteVerdict,
 } from '../lib/identity-write-boundary.js';
+import {
+  conflictSignalId,
+  CONFLICT_SIGNAL_LIMITS,
+  CONFLICT_SIGNAL_PRODUCERS,
+  CONFLICT_SIGNAL_SCHEMA_VERSION,
+  type ConflictSignal,
+} from '../lib/parley-trigger.js';
+import type { ParleyAutoTriggerResult } from '../lib/parley-auto-trigger.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -101,9 +116,9 @@ interface SessionsRouteDeps {
     info(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
-  activityLog: {
-    log?(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
-  };
+  activityLog: BrokerActivityLog;
+  suggestions?: Suggestions;
+  agentInbox?: BrokerInbox;
   symbolClaims?: {
     claim(
       sessionId: string,
@@ -121,11 +136,27 @@ interface SessionsRouteDeps {
    * another soul's name (403). Anonymous writes (no identity claim at all)
    * remain possible only where the route accepts unattributed writes.
    */
-  actorSouls?: IdentityVerifier | null;
+  actorSouls?: (IdentityVerifier & {
+    constants?: { defaultHarbor?: string };
+  }) | null;
+  /**
+   * Explicit G2/C1 injection boundary. Production server wiring remains absent
+   * until the U0 authenticated actions, U1 operator surface, and Q1 gates pass.
+   */
+  parleyAutoTrigger?: {
+    evaluate(signal: ConflictSignal, context: { harbor: string }): ParleyAutoTriggerResult;
+  } | null;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
 
+/**
+ * Parse the explicit lifecycle vocabulary accepted by session mutations. The design
+ * keeps validation centralized so unknown values never silently become ephemeral.
+ *
+ * @param value - Untrusted request or CLI lifecycle value.
+ * @returns Normalized lifecycle, or null when the value is not supported.
+ */
 function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
@@ -133,10 +164,13 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 }
 
 /**
- * Create sessions routes
+ * Create the sessions routes. The design keeps lifecycle, identity, claims, notes,
+ * and their new durable advice projection behind one Fastify plugin so every caller
+ * observes the same authoritative session mutation boundaries.
  *
- * @param deps - Route dependencies
- * @returns Express router with session routes
+ * @param fastify - Fastify instance receiving the route registrations.
+ * @param opts - Injected sessions and coordination dependencies.
+ * @returns Promise resolved after the route surface is registered.
  */
 
 
@@ -145,8 +179,179 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog, symbolClaims, actorSouls } = deps;
+  const {
+    sessions,
+    metrics,
+    logger,
+    activityLog,
+    symbolClaims,
+    actorSouls,
+    suggestions,
+    agentInbox,
+    parleyAutoTrigger,
+  } = deps;
 
+  interface ClaimConflictRecord {
+    filePath: string;
+    sessionId: string;
+    claimedAt: number;
+    startLine?: number | null;
+    endLine?: number | null;
+    symbolPath?: string | null;
+  }
+
+  function canonicalActorForSession(sessionId: string): string | null {
+    const result = sessions.get(sessionId) as {
+      success?: boolean;
+      session?: { status?: unknown; agentId?: unknown };
+    };
+    const session = result.session;
+    if (!result.success || session?.status !== 'active' || typeof session.agentId !== 'string') return null;
+    const storedAgentId = session.agentId.trim();
+    if (!storedAgentId || !actorSouls) return null;
+    const resolved = actorSouls.resolveActor(storedAgentId);
+    return resolved.soulClass === 'unknown' ? null : resolved.actorId;
+  }
+
+  function hasActiveCanonicalActor(actorId: string): boolean {
+    const active = sessions.list({ status: 'active', allWorktrees: true, limit: 1000 }) as {
+      sessions?: Array<{ agentId?: unknown }>;
+    };
+    return (active.sessions ?? []).some((session) => {
+      if (typeof session.agentId !== 'string' || !actorSouls) return false;
+      const resolved = actorSouls.resolveActor(session.agentId.trim());
+      return resolved.soulClass !== 'unknown' && resolved.actorId === actorId;
+    });
+  }
+
+  function claimAddress(conflict: ClaimConflictRecord): string | null {
+    if (typeof conflict.filePath !== 'string' || !conflict.filePath.trim()) return null;
+    const filePath = conflict.filePath.trim();
+    if (typeof conflict.symbolPath === 'string' && conflict.symbolPath.trim()) {
+      return `${filePath}#${conflict.symbolPath.trim()}`;
+    }
+    if (Number.isInteger(conflict.startLine) || Number.isInteger(conflict.endLine)) {
+      return `${filePath}#L${conflict.startLine ?? '*'}-${conflict.endLine ?? '*'}`;
+    }
+    return filePath;
+  }
+
+  function buildClaimConflictSignal(
+    requesterActorId: string,
+    rawConflicts: unknown[],
+  ): ConflictSignal | null {
+    if (rawConflicts.length === 0
+      || rawConflicts.length > CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs) return null;
+    const observations = rawConflicts.map((raw) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const conflict = raw as ClaimConflictRecord;
+      const address = claimAddress(conflict);
+      const party = typeof conflict.sessionId === 'string'
+        ? canonicalActorForSession(conflict.sessionId)
+        : null;
+      if (!address || !party || !Number.isSafeInteger(conflict.claimedAt) || conflict.claimedAt <= 0) {
+        return null;
+      }
+      return {
+        address,
+        party,
+        evidenceRef: `session-claim:${conflict.sessionId}:${address}:${conflict.claimedAt}`,
+      };
+    });
+    if (observations.length === 0 || observations.some((value) => value === null)) return null;
+    const complete = observations as Array<{ address: string; party: string; evidenceRef: string }>;
+    const parties = [...new Set([requesterActorId, ...complete.map((item) => item.party)])].sort();
+    const evidenceRefs = [...new Set(complete.map((item) => item.evidenceRef.trim()))].sort();
+    const addresses = [...new Set(complete.map((item) => item.address))].sort();
+    if (parties.length < 2 || evidenceRefs.length === 0 || addresses.length === 0) return null;
+    const surface = addresses.length === 1
+      ? `file-claim:${addresses[0]}`
+      : `file-claim-set:${createHash('sha256').update(JSON.stringify(addresses)).digest('hex')}`;
+    const checkpoint = 'claim' as const;
+    const kind = 'claim_overlap' as const;
+    return {
+      schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
+      signalId: conflictSignalId({ checkpoint, kind, surface, parties, evidenceRefs }),
+      kind,
+      checkpoint,
+      shape: 'contract-net',
+      parties,
+      surface,
+      magnitude: evidenceRefs.length,
+      confidence: 0.95,
+      reason: `${evidenceRefs.length} verified live file claim overlap(s)`,
+      evidenceRefs,
+      provenance: {
+        producer: CONFLICT_SIGNAL_PRODUCERS.claimConflict,
+        trustTier: 'INTERNAL',
+        producedAt: Date.now(),
+      },
+    };
+  }
+
+  function evaluateClaimConflictBestEffort(
+    verdict: IdentityWriteVerdict,
+    conflicts: unknown[],
+  ): void {
+    if (!parleyAutoTrigger || !verdict.ok || verdict.kind !== 'verified') return;
+    try {
+      if (conflicts.length === 0) return;
+      if (conflicts.length > CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: `claim conflict count exceeds bounded maximum ${CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs}`,
+          conflictsCount: conflicts.length,
+        });
+        return;
+      }
+      if (!hasActiveCanonicalActor(verdict.actorId)) {
+        logger.info('parley_auto_trigger_skipped', {
+          reason: 'verified requester has no active daemon session',
+          actorId: verdict.actorId,
+        });
+        return;
+      }
+      const signal = buildClaimConflictSignal(verdict.actorId, conflicts);
+      if (!signal) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'claim conflict did not resolve to two distinct live canonical actor identities',
+          conflictsCount: conflicts.length,
+        });
+        return;
+      }
+      const harbor = actorSouls?.constants?.defaultHarbor?.trim();
+      if (!harbor) {
+        logger.error('parley_auto_trigger_failed', {
+          reason: 'automatic Parley requires the actor identity store canonical harbor',
+        });
+        return;
+      }
+      const result = parleyAutoTrigger.evaluate(signal, { harbor });
+      if (result.state === 'failed') {
+        logger.error('parley_auto_trigger_failed', {
+          signalId: signal.signalId,
+          reason: result.reason,
+        });
+      } else {
+        logger.info('parley_auto_trigger_evaluated', {
+          signalId: signal.signalId,
+          state: result.state,
+          parleyId: result.parleyId,
+        });
+      }
+    } catch (error) {
+      logger.error('parley_auto_trigger_failed', {
+        reason: error instanceof Error ? error.message : 'unknown automatic Parley failure',
+      });
+    }
+  }
+
+  /**
+   * Map general session mutation errors to HTTP status. The intent is one stable
+   * transport contract for callers regardless of the underlying sessions method.
+   *
+   * @param result - Structured sessions-module error result.
+   * @returns HTTP status appropriate for the error code.
+   */
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'VALIDATION_ERROR':
@@ -166,6 +371,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   };
 
+  /**
+   * Map note-specific failures without treating a missing session as a validation
+   * error. The design preserves the distinction clients need for recovery flows.
+   *
+   * @param result - Structured note-write error result.
+   * @returns HTTP status appropriate for the note failure.
+   */
   const noteWriteStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'SESSION_NOT_FOUND':
@@ -179,12 +391,28 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   };
 
+  /**
+   * Read the optional agent identity header defensively. Its purpose is to normalize
+   * Fastify's string-or-array representation before identity verification.
+   *
+   * @param request - Incoming Fastify request.
+   * @returns Trimmed agent id, or null when absent or empty.
+   */
   const headerAgentId = (request: FastifyRequest): string | null => {
     const value = request.headers['x-agent-id'];
     if (Array.isArray(value)) return typeof value[0] === 'string' && value[0].trim() ? value[0].trim() : null;
     return typeof value === 'string' && value.trim() ? value.trim() : null;
   };
 
+  /**
+   * Resolve the asserted mutation agent from body or header before credential checks.
+   * The design rejects malformed assertions early while leaving authorization to the
+   * canonical identity-write boundary below.
+   *
+   * @param request - Incoming Fastify mutation request.
+   * @param bodyAgentId - Optional agent id asserted in the JSON body.
+   * @returns Normalized agent identity or a structured validation error.
+   */
   const mutationAgentId = (
     request: FastifyRequest,
     bodyAgentId: unknown,
@@ -505,6 +733,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (files && Array.isArray(files) && files.length > 0 && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
+          evaluateClaimConflictBestEffort(sessionAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
           return {
             success: false,
@@ -554,6 +783,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (!result.success) {
         reply.code(400);
         return { ...result, code: result.code || 'VALIDATION_ERROR' };
+      }
+
+      if (force && Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(sessionAgent.verdict, result.conflicts);
       }
 
       if (sessionAgent.verdict.kind !== 'anonymous') {
@@ -957,6 +1190,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (hasFiles && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
+          evaluateClaimConflictBestEffort(requestAgent.verdict, conflictCheck.conflicts);
           reply.code(409);
           return {
             success: false,
@@ -973,6 +1207,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (!result.success) {
         reply.code(errorStatus(result));
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
+      }
+
+      if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+        evaluateClaimConflictBestEffort(requestAgent.verdict, result.conflicts);
       }
 
       logger.info('session_files_claimed', {
@@ -1030,12 +1268,41 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         radiusDepth: typeof body.radiusDepth === 'number' ? body.radiusDepth : undefined,
       });
 
+      const conflicts = result.conflicts as SymbolConflict[];
+      if (conflicts.length > 0 && suggestions && agentInbox) {
+        try {
+          const sessionResult = typeof sessions.get === 'function'
+            ? sessions.get(sessionId) as {
+                session?: { agentId?: string | null; purpose?: string | null };
+              }
+            : null;
+          surfaceSymbolConflictAdvice(
+            { suggestions, inbox: agentInbox, activityLog },
+            {
+              sessionId,
+              agentId: sessionResult?.session?.agentId ?? null,
+              purpose: sessionResult?.session?.purpose ?? null,
+              conflicts,
+            },
+          );
+        } catch (error) {
+          // Advice is durable enrichment over the authoritative claim verdict. A
+          // delivery outage must be visible, but cannot rewrite blocked → allowed
+          // or warning → failed.
+          logger.error('symbol_conflict_advice_error', {
+            sessionId,
+            conflictsCount: conflicts.length,
+            error: (error as Error).message,
+          });
+        }
+      }
+
       // ast-a2-1: Claim validator pre-flight — reject blocking conflicts.
       // A blocking conflict means the symbol is already held in a way that makes
       // concurrent modification unsafe (e.g., two sessions modifying the same symbol
       // or one modifying a function another is calling). This gate makes symbol
       // conflicts predictable for the wedge rendering.
-      const blockingConflicts = (result.conflicts as SymbolConflict[]).filter(c => c.severity === 'blocking');
+      const blockingConflicts = conflicts.filter(c => c.severity === 'blocking');
       if (blockingConflicts.length > 0) {
         reply.code(409);
         return {

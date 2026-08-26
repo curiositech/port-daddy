@@ -475,17 +475,19 @@ export function createSugar(deps: SugarDeps) {
       for (const s of activeRows) {
         if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
         
+        // `identityString`, not `identity`: the latter is the daemon's
+        // reserved identity-verdict slot (lib/identity-write-boundary.ts).
         let storedIdentity: string | null = null;
         if (s.metadata && typeof s.metadata === 'object') {
           const metaObj = s.metadata as Record<string, unknown>;
-          if (typeof metaObj.identity === 'string') {
-            storedIdentity = metaObj.identity;
+          if (typeof metaObj.identityString === 'string') {
+            storedIdentity = metaObj.identityString;
           }
         } else if (s.metadata && typeof s.metadata === 'string') {
           try {
             const parsed = JSON.parse(s.metadata);
-            if (parsed && typeof parsed.identity === 'string') {
-              storedIdentity = parsed.identity;
+            if (parsed && typeof parsed.identityString === 'string') {
+              storedIdentity = parsed.identityString;
             }
           } catch (e) {}
         }
@@ -520,17 +522,19 @@ export function createSugar(deps: SugarDeps) {
             continue;
           }
 
+          // `identityString`, not `identity`: the latter is the daemon's
+          // reserved identity-verdict slot (lib/identity-write-boundary.ts).
           let storedIdentity: string | null = null;
           if (s.metadata && typeof s.metadata === 'object') {
             const metaObj = s.metadata as Record<string, unknown>;
-            if (typeof metaObj.identity === 'string') {
-              storedIdentity = metaObj.identity;
+            if (typeof metaObj.identityString === 'string') {
+              storedIdentity = metaObj.identityString;
             }
           } else if (s.metadata && typeof s.metadata === 'string') {
             try {
               const parsed = JSON.parse(s.metadata);
-              if (parsed && typeof parsed.identity === 'string') {
-                storedIdentity = parsed.identity;
+              if (parsed && typeof parsed.identityString === 'string') {
+                storedIdentity = parsed.identityString;
               }
             } catch (e) {}
           }
@@ -801,9 +805,18 @@ export function createSugar(deps: SugarDeps) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
     }
+    // `identity` is the RESERVED daemon verdict slot (lib/identity-write-boundary.ts
+    // `stampIdentityMetadata`), and routes/sugar.ts has already stamped the
+    // verified actorId into it. Writing the display `project:stack:context`
+    // string there erased the daemon's stamp on every `pd begin` session,
+    // which (a) left routes/sessions.ts' file-claim soul check with nothing to
+    // compare against for begin-created sessions and (b) removed the only
+    // daemon-witnessed display-agentId → soul binding, which the inbox sender
+    // gate needs (lib/inbox-identity.ts branch (b)). The display string keeps
+    // its own key; the verdict slot belongs to the daemon.
     const sessionMetadata = {
       ...(metadata && typeof metadata === 'object' ? metadata : {}),
-      identity: identity || null,
+      identityString: identity || null,
     };
     sessionOpts.metadata = sessionMetadata;
     if (durable) {

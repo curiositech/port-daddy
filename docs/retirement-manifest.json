@@ -1,0 +1,31 @@
+{
+  "description": "Documents formally retired by an ADR. Retirement is DEMOTION, never deletion (2026-06-05 operator rule: delete only a merged twin), so every path here must still exist and must carry a RETIRED-BY banner near its top. Enforced both ways by scripts/doc-retirement-guard.mjs: a listed doc must be bannered, and a bannered doc must be listed. The authority for WHY each is retired is the superseding ADR, not this file.",
+  "enforcedBy": "scripts/doc-retirement-guard.mjs",
+  "retired": {
+    "docs/DAEMON-MESH-ARCHITECTURE.md": {
+      "supersededBy": "ADR-0126",
+      "replacedBy": ["docs/adr/0122-harbor-authority.md", "docs/adr/0027-relay-harbor-mesh.md", "docs/adr/0049-relay-architecture.md"],
+      "reason": "Peer Raft mesh with leader election and multi-writer replication, superseded by the authority-domain model: one writer lease per harbor, authority epochs, no election."
+    },
+    "docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md": {
+      "supersededBy": "ADR-0126",
+      "replacedBy": ["docs/adr/0125-ios-operator-surface.md", "docs/proposals/relay-grand-plan.md"],
+      "reason": "Superseded by the phone surface as actually built (native SwiftUI, HITL-first). This plan also promised to update V4-DAG.md and v4.dag.yaml and never did."
+    },
+    "V4-DAG.md": {
+      "supersededBy": "ADR-0126",
+      "replacedBy": ["docs/adr/0115-database-distribution-and-sync.md"],
+      "reason": "Its critical path runs through Part XVII, the daemon sync protocol ADR-0049 rejected in its non-goals. A critical path through a rejected node orders nothing; ADR-0115 absorbed what Part XVII got right."
+    },
+    "v4.dag.yaml": {
+      "supersededBy": "ADR-0126",
+      "replacedBy": ["docs/adr/0115-database-distribution-and-sync.md"],
+      "reason": "The machine-readable twin of V4-DAG.md, encoding the same dead critical path."
+    },
+    "docs/recovery/README.md": {
+      "supersededBy": "ADR-0126",
+      "replacedBy": ["docs/roadmap/AUTHORITY.md", "docs/proposals/relay-grand-plan.md"],
+      "reason": "Claimed precedence over every other roadmap in the repo ('this directory wins') for four months after it stopped being true. The claim is revoked; the directory is retained as narrative history."
+    }
+  }
+}

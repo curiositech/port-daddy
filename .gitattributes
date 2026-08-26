@@ -4,16 +4,39 @@
 # single literal NUL in a source file — easy to write by accident as a join
 # separator — flips that detection, and then `git diff` prints
 # `Bin 7463 -> 9147 bytes` instead of code, `git blame` has nothing to
-# attribute, and `grep` skips the file silently. That happened to
+# attribute, and `grep`/ripgrep skip the file silently. That happened to
 # apps/fleet-executor/src/verdict.ts and cost real debugging time twice.
 #
-# The NUL itself is prevented by apps/fleet-executor/tests/source-is-text.test.ts.
-# This file is the second line of defence: even if one slips in, the diff stays
-# readable, so a reviewer sees the change rather than a byte count.
-*.ts   text diff
-*.tsx  text diff
-*.js   text diff
-*.mjs  text diff
-*.cjs  text diff
-*.rs   text diff
-*.json text diff
+# THE MERGE FAILURE, AND WHY NO ATTRIBUTE HERE FIXES IT.
+# The same NUL sniff is applied by git's three-way merge. When it trips, git
+# prints `Cannot merge binary files: <path>`, abandons hunk-level merging, and
+# takes one whole side. In 47964247a that is exactly what happened to
+# lib/roadmap-items.ts: "ours" was taken wholesale and #9352's ADR-0086
+# planner-column work vanished with no conflict marker and a green build. It
+# took a hand-run `git merge-file` over de-NUL'd stages (2dcd80f9f) to recover.
+#
+# It is tempting to think `merge` below prevents that. It does NOT. The binary
+# check lives inside git's built-in merge driver, ahead of the attribute, and
+# was measured to be unreachable by configuration: with a raw NUL present,
+# `text diff`, `text diff merge`, `merge=union`, and even a custom driver ALL
+# still produce `Cannot merge binary files` and still drop a side. The ONLY
+# thing that prevents the silent-loss merge is not writing the NUL — which is
+# why tests/unit/source-is-text.test.js, not this file, is the real guard.
+#
+# WHAT `merge` DOES BUY. It pins the built-in text driver for these extensions
+# so a local `merge.default` cannot redirect them. Measured: with
+# `merge.default=binary` set in a clone's config and only `text diff` here, an
+# ordinary NUL-FREE source file merges as binary and silently loses a side;
+# with `merge` set it merges normally. That is a real hole, independent of the
+# NUL problem, and this closes it.
+#
+# tests/unit/source-is-text.test.js walks every tracked file matching the
+# extensions below for raw NULs, and asserts all three attributes stay `set` —
+# so "simplifying" this file back into the broken state fails CI.
+*.ts   text diff merge
+*.tsx  text diff merge
+*.js   text diff merge
+*.mjs  text diff merge
+*.cjs  text diff merge
+*.rs   text diff merge
+*.json text diff merge

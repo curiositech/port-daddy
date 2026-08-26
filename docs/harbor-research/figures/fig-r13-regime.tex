@@ -1,0 +1,119 @@
+% R13/Theorem 2 regime: two panels, both closed forms at the worked instance
+% (theta_H=1, theta_L=0.4, c_H=0.5, c_L=0.2) recomputed directly from
+% make_r13_regime() in figures/src/paper5_figures.py. Panel A: pooled price
+% = mu*theta_H + (1-mu)*theta_L, mu_star = (c_H-theta_L)/(theta_H-theta_L)
+% = 1/6 exactly [verified: script paper5_figures.py]. Panel B: unattested
+% swap gain is the constant Delta c = 0.3; attested gain is Delta c -
+% Delta theta, flipping sign at Delta theta = 0.3, worked instance marked
+% at Delta theta = 0.6 -> gain -0.3, matching "keep 0.5 vs swap 0.2" in the
+% prose (0.5 - 0.2 = 0.3 = -(-0.3)). [verified: script paper5_figures.py]
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={committed high-engine share $\mu$},
+  ylabel={price the pool clears},
+  title={\textbf{A} --- unattested: the pool must clear $c_H$},
+  xmin=0,xmax=1,ymin=0.3,ymax=1.05,
+  % Fewer, explicit ticks: at this panel's actual rendered width (half the
+  % single-panel figures' width, inside a two-up minipage) the default
+  % 0.2-spaced ticks print with no gap between labels -- a real crowding
+  % bug found by rendering the CI build.
+  xtick={0,0.5,1},
+  legend pos=north west,
+]
+\fill[shipred,opacity=0.08] (axis cs:0,0.3) rectangle (axis cs:0.16667,1.05);
+\fill[seagreen,opacity=0.08] (axis cs:0.16667,0.3) rectangle (axis cs:1,1.05);
+\draw[black,dotted,thick] (axis cs:0.16667,0.3) -- (axis cs:0.16667,1.05);
+\addplot[harborblue,thick] coordinates {
+  (0,0.4) (0.1,0.46) (0.2,0.52) (0.3,0.58) (0.4,0.64) (0.5,0.7)
+  (0.6,0.76) (0.7,0.82) (0.8,0.88) (0.9,0.94) (1.0,1.0)
+};
+% Legend entries shortened (formula/value already in the caption and the
+% axis's own dashed-line label below): the long versions, at this panel's
+% actual width, ran the legend past the plot's right edge.
+\addlegendentry{pooled price}
+\addplot[shipred,dashed,thick] coordinates {(0,0.5) (1,0.5)};
+\addlegendentry{cost $c_H=0.5$}
+\addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.16667,0.5)};
+% Anchored directly under its own marker (not offset right into where the
+% "sellers stay" label sits) -- the two collided directly on top of one
+% another at the old positions, a real text/text overlap found by
+% rendering the CI build.
+\node[font=\scriptsize,anchor=north west] at (axis cs:0.19,0.465) {$\mu^\star=1/6$};
+\node[shipred,font=\scriptsize\bfseries,align=center,rotate=90] at (axis cs:0.1,0.66) {death spiral};
+\node[seagreen,font=\scriptsize\bfseries,align=center,anchor=south] at (axis cs:0.6,0.32) {sellers stay};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={quality gap $\Delta\theta$},
+  ylabel={one-period gain from swapping},
+  title={\textbf{B} --- attestation flips the incentive},
+  xmin=0,xmax=0.8,ymin=-0.65,ymax=0.45,
+  % See panel A: explicit, sparser ticks avoid the crowded default spacing
+  % at this panel's actual rendered width.
+  xtick={0,0.4,0.8},
+  % This panel's plotted width is only ~2cm on the page (see the bottom
+  % label's leading comment below) -- an in-plot legend for these two
+  % entries ("unattested: Delta c" / "attested: Delta c-Delta theta")
+  % cannot be made to fit at any legend pos or any readable font size
+  % without still ghosting over "flip:" or another node; four rounds of
+  % narrower/repositioned/smaller-font legend attempts each still collided
+  % on rendering the CI build. Dropped rather than patched a sixth time:
+  % the red/green convention (unattested/attested) is already established
+  % in Panel A and the rest of this paper's figures, and the caption states
+  % both quantities in words ("Delta c without attestation and
+  % Delta c-Delta theta with it").
+]
+\fill[shipred,opacity=0.08] (axis cs:0,0) rectangle (axis cs:0.8,0.45);
+\fill[seagreen,opacity=0.08] (axis cs:0,-0.65) rectangle (axis cs:0.8,0);
+\draw[black,thick] (axis cs:0,0) -- (axis cs:0.8,0);
+\addplot[shipred,thick] coordinates {(0,0.3) (0.8,0.3)};
+\addplot[seagreen,thick] coordinates {
+  (0,0.3) (0.1,0.2) (0.2,0.1) (0.3,0.0) (0.4,-0.1) (0.5,-0.2)
+  (0.6,-0.3) (0.7,-0.4) (0.8,-0.5)
+};
+\addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.3,0.0)};
+\node[font=\scriptsize,anchor=south west,text width=1.6cm,align=left] at (axis cs:0.33,0.03) {flip:\\$\Delta\theta{=}\Delta c$};
+\addplot[seagreen,only marks,mark=*,mark size=2.4pt,forget plot] coordinates {(0.6,-0.3)};
+% All annotation nodes below are re-anchored to the plot's open quadrants
+% with shortened text: at earlier center-anchored positions and
+% full-length wording they ran into the legend, into the axis's own left
+% edge, and into each other -- real collisions and off-axis clipping found
+% by rendering the CI build. This panel's plotted width for the full
+% xrange (0 to 0.8) measures out to roughly 2cm on the physical page --
+% far narrower than assumed on the first two fix attempts, both of which
+% anchored text growing RIGHTWARD from the left and got silently
+% truncated mid-word at the axis's own xmax=0.8 clip boundary (the same
+% edge-clipping bug class as fig-r2-regime.tex/fig-r4-regime.tex) --
+% "strong engine" alone (13 characters) is already wider than that whole
+% 2cm span. Both re-anchored to grow AWAY from the right edge and cut to
+% \tiny with a text width well under the plot's own physical width: the
+% worked-instance label hangs left of its own marker (anchor=east, no
+% "worked:" prefix -- the number pair is self-explanatory this close to
+% the marker), and the bottom label wraps to three short lines that each
+% individually fit.
+\node[seagreen,font=\tiny\bfseries,anchor=east] at (axis cs:0.57,-0.30) {$0.5\to0.2$};
+% "swap pays" (the top-left, y>0 region) dropped rather than fought with a
+% fifth reposition: it's already conveyed by the pink shading and the
+% caption's "swap pays exactly when Delta c > Delta theta" -- nothing is
+% lost, and it removes the only remaining occupant of the legend's footprint.
+\node[seagreen,font=\tiny\bfseries,align=left,anchor=south west,text width=1.0cm] at (axis cs:0.03,-0.6) {strong\\engine\\pays};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{Regime diagram for Theorem 2 at the worked instance. Left: unattested, the pooled price clears $c_H$ only right of
+$\mu^\star=1/6$; left of it the spiral rests at $\theta_L$. Right: the swap gain is a price-independent $\Delta c$ without
+attestation and $\Delta c-\Delta\theta$ with it --- negative exactly when the strong engine is efficient, so the market's incentive
+and the planner's rule coincide [verified; regenerated by \texttt{paper5\_figures.py}].}
+\label{fig:r13reg}
+\end{figure}
