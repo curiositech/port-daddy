@@ -182,16 +182,54 @@ which parses as "viable at *every* premium", i.e. that below $D^\star$ no premiu
 
 **Priority** — **medium**.
 
-### 11. Related work reaches nothing published after 2000
+### 11. Related work reaches nothing published after 2000 — and reproduces a documented prior failure exactly
 
 **Location** — L346–364, bibliography L394–415.
-**Issue** — Prior-art coverage. Every one of the 11 references is 1917–2000 (median 1978). Papers 2, 4 and 5 — the ones that have had a prior-art pass — each cite into the 2010s and 2020s. A "no prior statement found" claim (L362–364, correctly hedged) reads much weaker when the newest thing surveyed is 26 years old. Named suspicions only, per the brief; **none chased down, all should be checked before submission**:
-- **Temporal constraints.** The paper cites Stergiou–Koubarakis 2000 for "STP polynomial, disjunctive temporal NP-complete" but not **Dechter, Meiri & Pearl, *Temporal Constraint Networks*, AIJ 1991** — the canonical source for both the STP tractability result and the TCSP hardness result. That is the single most conspicuous gap; the L182 sentence ("the same step is familiar one formalism over") is describing DMP's result and citing its successor.
-- **Norm conflict detection.** Deontic logic is represented by von Wright 1951 and Chisholm 1963 only. There is a modern normative-MAS literature specifically about *detecting* conflicts between obligations and prohibitions over scopes and intervals (Vasconcelos/Kollingbaum/Norman on normative conflict resolution; Governatori & Rotolo on defeasible deontic logic; Ågotnes/van der Hoek/Wooldridge on normative systems). If any of it already draws a tractable/intractable line in a ground fragment, Theorem 1's novelty claim ("the *location* of the frontier", L349–350) is the claim at risk.
-- **Pooling vs. dedication.** Halfin–Whitt 1981 is cited for "economies of pooling", but Halfin–Whitt is a heavy-traffic staffing limit, not a pooling-vs-dedication comparison. The canonical citations for the actual trade-off are Smith & Whitt, *Resource sharing for efficiency in traffic systems* (BSTJ 1981) and the "pooling is not always the answer" line of work; for specialist-vs-generalist routing specifically, Gans/Koole/Mandelbaum's call-centre survey (2003) is the standard entry point. **Possible mis-citation, not just a gap** — see below.
-- **Commitment languages.** The word "commitment" is doing load-bearing work throughout, and the agent-communication literature owns that term (Singh's commitment machines, Chopra & Singh). Worth one sentence of positioning even if only to disclaim the connection.
+**Issue** — Prior-art coverage. Every one of the 11 references is 1917–2000 (median 1978). Papers 2, 4 and 5 — the ones that have had a prior-art pass — each cite into the 2010s and 2020s.
+
+The sharp version of this is not "the citations are old". It is that `references/finding-prior-art.md` opens with six real failures from the audit of seven papers in this program, and **failure #4 is this paper, verbatim**:
+
+> 4. A paper cited deontic logic's philosophical origins and nothing from the computational side of the same field — where the complexity results live.
+
+Paper 6 cites von Wright 1951 and Chisholm 1963 — the philosophical origins — and its Part I contribution *is a complexity result about deontic conflict*. This is the highest-risk item in the whole review, because it is the one failure mode the program has already written down and is repeating.
+
+Named suspicions only, per the brief; **none chased down, all should be checked before submission**:
+- **Norm conflict detection (the failure-#4 field).** There is a computational normative-MAS literature specifically about *detecting* conflicts between obligations and prohibitions over scopes and intervals (Vasconcelos/Kollingbaum/Norman on normative conflict resolution; Governatori & Rotolo on defeasible deontic logic; Ågotnes/van der Hoek/Wooldridge on normative systems; Meyer & Wieringa's *Deontic Logic in Computer Science* as the anchor volume). If any of it already draws a tractable/intractable line in a ground fragment, Theorem 1's novelty claim ("the *location* of the frontier", L349–350) is the claim at risk. Structural search per the protocol: state the result with no deontic vocabulary at all — *"ground implications plus typed interval assertions with a clash predicate; polynomial, and NP-complete once assertions may be disjunctive"* — and search that.
+- **Temporal constraints.** The paper cites Stergiou–Koubarakis 2000 for "STP polynomial, disjunctive temporal NP-complete" but not **Dechter, Meiri & Pearl, *Temporal Constraint Networks*, AIJ 1991** — the canonical source for both the STP tractability result and the TCSP hardness result. The L182 sentence ("the same step is familiar one formalism over") is describing DMP's result and citing its successor. Cheapest fix in the whole item.
+- **Pooling vs. dedication — and a whole field's vocabulary the paper never enters.** Halfin–Whitt 1981 is cited for "economies of pooling", but Halfin–Whitt is a heavy-traffic staffing limit, not a pooling-vs-dedication comparison (see F5). More structurally: the specialist-vs-pool question is *operations management's* question, and OM does not call it pooling-vs-dedication — it calls it **server flexibility** (dedicated vs. flexible servers, chaining; Jordan & Graves 1995 and successors) and, in the call-centre branch, **skill-based routing** (Gans/Koole/Mandelbaum 2003 is the standard survey). Those are the field's own controlled-vocabulary terms and none of them appears in the paper, which is the exact "searched thoroughly in your own words" shape. Venues to browse: *Management Science*, *M&SOM*, *Operations Research*, MSC 60K25/90B22.
+- **Commitment languages.** "Commitment" is doing load-bearing work throughout, and the agent-communication literature owns that term (Singh's commitment machines, Chopra & Singh). One sentence of positioning, even if only to disclaim the connection.
 
 **Proposed rewrite** — no prose to hand over yet; this is a research task. Minimally, add DMP 1991 alongside `sk00` at L182, and split the L354 "Positioned against deontic logic" sentence into "classical deontic logic" (von Wright, Chisholm, Ross) and "computational normative systems" (the modern line), with the honest sentence: "our fragment's conflict predicate is operational rather than logical, which is the point at which this literature and ours diverge."
+**Priority** — **high** (raised from medium on the strength of the failure-#4 match).
+
+### 11b. "Regimentable" is a term of art the paper uses without citing — the naming check was never run on it
+
+**Location** — L29, L208–209, L213–214, L219, L224, L373; imported from Paper 2 (whose own title is *Regimented or Enforced*).
+**Issue** — Coining a term that is already taken. `references/finding-prior-art.md`, failure #2:
+
+> 2. A paper used "regimentation" as if coining it. It is a term of art in normative multi-agent systems meaning exactly what the paper meant.
+
+Paper 6 introduces it in italics as a definition — "enforceable-by-prevention (\emph{regimentable})" (L208) — with no citation, which is precisely the "term introduced without a citation that a reader in an adjacent field might already know" detection cue. Worse, this is the *same adjacent field* (normative MAS) as failure #4 above, so a single missed literature is generating two independent defects. Note the upside the skill points out: if the term genuinely means the same thing, adopting it converts a novelty risk into a free citation of the founding work.
+**Proposed rewrite** (L208), assuming the check comes back "same sense" — the wording to use once verified:
+
+> Paper 2 proved that a safety policy over an agent's event alphabet is enforceable-by-prevention --- \emph{regimented}, in the normative-multi-agent-systems sense of a norm the institution makes impossible to violate rather than merely sanctioning after the fact~\cite{XXX} --- iff it is Ramadge--Wonham controllable
+
+If the check comes back "adjacent but different", gloss it in the same slot rather than renaming; the term is now load-bearing across two papers.
+**Priority** — **high** (a one-hour check that either buys a citation or averts a reviewer's opening sentence).
+
+### 11c. The novelty claim has a date but no search trail
+
+**Location** — L362–364.
+**Current text**:
+
+> An August-2026 survey found no prior statement of the authority question in this detection/resolution/ownership decomposition; a final lit-sweep before submission is owed --- ``not found'' is not ``proven nonexistent.''
+
+**Issue** — The hedge is exactly right and should stay. What is missing is the artifact: "a one-paragraph search trail. Which databases, which terms, which vocabularies, which fields you checked and found nothing in, and the date. PRISMA-lite. Costs nothing; **it is the missing artifact in all six failures**." As written, a referee cannot tell whether the survey entered normative MAS or operations management at all — and per 11/11b, it probably did not.
+**Proposed rewrite** — keep the sentence and append the trail:
+
+> \paragraph{Search trail.} Semantic Scholar, DBLP and arXiv full-text, August 2026, for the fragment result stated without deontic vocabulary (``ground implications with typed interval assertions and a clash predicate; polynomial, NP-complete under disjunctive assertions'') and for the queueing result stated without queueing vocabulary (``when does one fast dedicated worker beat $c$ pooled slower ones, with a value on single-writer attribution''); two rounds of backward and forward snowballing from Dowling--Gallier, Stergiou--Koubarakis and Mitrany--Avi-Itzhak; ACM CCS siblings under normative systems and under queueing theory; arXiv cross-lists cs.LO/cs.MA/cs.GT. No prior statement of the detection/resolution/ownership decomposition found. ``Not found'' is not ``proven nonexistent.''
+
+(Written as a template — **every clause of it must be true before it ships**, and per 11/11b at least the CCS and OM clauses are not true yet.)
 **Priority** — **medium-high**.
 
 ### 12. Ross's paradox is named but not cited
@@ -289,11 +327,25 @@ Listed in the order I would check them.
 
 **F6 — direction of the complexity claim vs. what the guard needs.** (Item A14.) Not a wrong statement, but the paper proves NP-completeness of the existential form and applies it to a universal (rejection) obligation. Worth confirming the intended reading is the coNP one before a referee does it for you.
 
+**F7 — one of the four verification sweeps may be structurally incapable of failing.** L271–273:
+
+> the 60-instance random sweep over $(\lambda,\mu_s,\mu_g,c,A,w,\xi,\eta)$ gave 55 decisive instances and \textbf{0} sign violations of the boundary
+
+$g_A(\rho,c)$ is *derived* by rearranging the inequality $w\lambda(W_{\mathrm{solo}}-W_{\mathrm{pool}}) \le A$ — the paper shows the two lines of algebra at L257–260. If the sweep's assertion computes the sign of $r - g_A(\rho,c)$ and compares it to the sign of that same net-cost difference evaluated from the same closed forms, then the assertion is algebraically entailed by the theorem statement printed above it and would report zero violations on a false theorem. That is the skill's "trusting a verification sweep that cannot fail" anti-pattern, with its stated detection test: *can you algebraically derive the assertion from the theorem statement?* Here, apparently yes. **Check `b8_specialization.py`: does the sign check evaluate net cost from simulation, or from the same algebra?**
+
+Two things sharpen rather than soften this. The paper's *other* three checks are genuinely independent and could have failed — the 3000-instance detection sweep runs a structurally different brute-force oracle (enumerate all $2^5$ models and intersect; exhaustive integer search over the potential box), the Erlang-C means are checked against discrete-event simulation ($|z|\le1.8$), and $W_{\mathrm{bd}}$ is cross-validated three ways (matrix-geometric to $2\times10^{-13}$, truncated CTMC to $10^{-14}$, Gillespie $|z|\le0.8$). And the falsification of $\tilde g$ *is* reported with simulation $z$-scores ($z=-15.7$, $z=+32$), which is real evidence. So the likely finding is that the 60-instance sweep is the one weak link in an otherwise strong stack, and the fix is either to re-run it against simulated net cost or to describe it honestly as an algebraic consistency check rather than as validation.
+
 ---
 
 ## Part B — Existing figures/tables: clarity audit
 
-The paper carries exactly the two Rail-B figures (relation map + regime diagram) and one table. Both figures are native-vector `.tex` per `CONVENTION.md`, both have real labels resolving cleanly (linter: 0 dangling refs), and — worth saying plainly — **both captions state their finding rather than naming their contents**, which is the Mensh–Kording rule and which most papers fail. The problems below are greyscale survival, one clipped axis, and one caption that contradicts the paper.
+The paper carries exactly the two Rail-B figures (relation map + regime diagram) and one table. Both figures are native-vector `.tex` per `CONVENTION.md`, both have real labels resolving cleanly (linter: 0 dangling refs), and — worth saying plainly — **both captions state their finding rather than naming their contents**, which is the Mensh–Kording Rule 7 test ("the title of the figure should communicate the conclusion of the analysis") and which most papers fail. Both regime panels also satisfy the regime-diagram convention of carrying a representative point *and* the boundary equation on the figure itself, so the claim is checkable at a glance. The problems below are three named failure modes from the failure-mode table (unlabelled regime, truncated axis, colour as sole channel), one caption that contradicts the paper, and one type-size floor.
+
+**Two program-level notes before the individual audits.**
+
+*Palette.* The house palette (`CONVENTION.md`) is harborblue / shipred / seagreen — and the primary contrast in both of paper 6's figures is the **red–green pair**: seagreen exact vs. shipred falsified in Panel A, seagreen floor vs. shipred marker in Panel B, harborblue base vs. seagreen target in the relation map. Protanopia/deuteranopia affect ~8% of men; with three male reviewers the chance at least one is red–green colourblind is ~22%. Paper 6 is *mostly* rescued by redundant encoding — solid-vs-dashed in both panels, headers in the relation map — with the single exception of Panel A's two shaded lenses (B2). The Okabe–Ito remedy is "replace red with magenta, or green with turquoise, rather than trying to adjust red/green directly"; since the palette is program-wide this is a `CONVENTION.md` conversation, not a paper 6 edit, and I am recording it rather than proposing a unilateral change.
+
+*Type size.* Nature's floor is 8pt figure text, never below 5–6pt. In an 11pt document `\tiny` is 6pt and `\scriptsize` is 8pt. The relation map sets **every** content cell at `\tiny` (6pt) and the correspondence labels at `\scriptsize`; the regime panels use `\scriptsize`/`\tiny` for in-plot annotations inside `0.48\textwidth` minipages. So the corpus is sitting exactly on the floor rather than above it — acceptable, but it means there is no headroom left, and any future attempt to fix a collision by shrinking text goes below the floor. **[needs render]** to confirm the tikzpicture is not additionally scaled down, which would put it under.
 
 ### B1 — `fig:relation` (`figures/fig-paper6-relation.tex`, `\input` at paper6.tex L88)
 
