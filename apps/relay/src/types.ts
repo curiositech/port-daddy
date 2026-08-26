@@ -28,6 +28,12 @@ export interface Env {
   // Optional so the relay still type-checks/deploys before the [ai] binding is
   // provisioned; the handlers fail closed with AI_ERROR when it is absent.
   AI?: Ai;
+  // R2 bucket (`fleet-transcripts`) holding raw pd-transcript.v1 session
+  // captures written by the fleet-executor — one JSONL object per (run, ship,
+  // attempt). The relay only READS it (the run page's raw-transcript links).
+  // Optional so the relay deploys before the binding is provisioned; absent ⇒
+  // transcript routes answer 404 and the run page simply shows no links.
+  TRANSCRIPTS?: R2Bucket;
   // Secrets
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
@@ -74,9 +80,27 @@ export interface Env {
   // Cloudflare Notifications bridge — see docs/mercy-oncall.md). Unset ⇒
   // incidents are still recorded in D1, but nobody is paged.
   MERCY_PAGE_WEBHOOK?: string;
+  // APNs push for operator interruptions (src/push-apns.ts). The module arms
+  // only when ALL of the key material is present; anything missing ⇒ a silent
+  // config-missing no-op, so the relay works without APNs configured.
+  APNS_AUTH_KEY?: string;    // secret — the .p8 token-auth key, PKCS#8 PEM (ES256/P-256)
+  APNS_KEY_ID?: string;      // secret — 10-char Apple key id of the .p8 key
+  APNS_TEAM_ID?: string;     // secret — 10-char Apple Developer team id
+  APNS_TOPIC?: string;       // var — iOS app bundle id (the apns-topic header)
+  APNS_HOST?: string;        // var, optional — sandbox override (api.sandbox.push.apple.com)
   // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
   // not a secret. Optional: unset ⇒ the module's committed default is used.
   SHIPWRIGHT_MODEL?: string;
+  // Model id for the Engineman's chat (src/snipe-chat.ts). A var, not a
+  // secret. Optional: unset ⇒ the relay's one committed chat default is used,
+  // resolved through the existing resolver rather than restated here.
+  SNIPE_MODEL?: string;
+  // Daily per-user chat budget (src/chat-spend.ts), shared by every
+  // conversational surface. Vars, not secrets, and NEVER caller input: nothing
+  // in a request body can reach these. Unset or unparsable values fall back to
+  // the committed defaults — never to "unlimited", and never to zero.
+  CHAT_DAILY_MESSAGES?: string;
+  CHAT_DAILY_TOKENS?: string;
   // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
   // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
   // secret. ONLY the exact string 'on' enables the pd-mediator seat's

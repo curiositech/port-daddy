@@ -6,6 +6,7 @@ R8 figure pair: Work-unit machine (harbor-exposition Rail-B)
 """
 
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch
 import numpy as np
 

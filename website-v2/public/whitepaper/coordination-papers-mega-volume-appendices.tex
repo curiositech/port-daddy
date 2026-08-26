@@ -62,6 +62,32 @@ Cross-harbor capability transfer and settlement & \Designed & 2-of-3 Multisig Cl
 \end{tabularx}
 \normalsize
 
+\section{One Spine: Why These Mechanisms and Not Others}\label{app:one-spine}
+
+A volume this size courts a specific failure: the \emph{potpourri}, a grab bag of clever mechanisms with no account of why these and not ten others. This appendix states the account. The system has one ontology and four theorem families; every mechanism in the volume is a corollary of exactly one family, inherits a developer obligation from it, and carries that family's boundary. A proposed feature that cannot name its row in the table below is not yet a feature.
+
+\paragraph{The ontology.} One durable object bears all trust: the \textbf{evidence-carrying work unit} --- authorized by a \emph{principal} (the delegation chain's terminus), acted on through \emph{fenced, attenuating capabilities}, advanced only by \emph{admitted evidence} over typed channels, settled once, and graded on the five assurance modes (observed, coordinated, brokered, confined, attested). Agents are transient; the work unit is the case file that outlives every clerk. Everything else in the volume exists to answer one of four questions about that object.
+
+\paragraph{The four families.}
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.26\textwidth}p{0.34\textwidth}p{0.32\textwidth}@{}}
+\hline
+\textbf{Theorem family (the question)} & \textbf{Mechanisms it licenses (corollaries)} & \textbf{Developer implication + boundary} \\
+\hline
+\emph{Legibility floors.} What must a human see? Information floor $\log_2\binom{N}{k}-\log_2\binom{m}{k}$; split-digest comonotonicity; derived regret head; the $R(\delta,f)$ frontier with adaptive zoom; paging competitiveness. & Digests with budgeted bits; \emph{dual} compaction heads (successor vs.\ operator); the attention queue's likelihood-ratio test; forced-zoom; context paging; pheromone decay. & Budget bits/opens/misses explicitly --- the exchange rates are theorems, not tuning. Two readers need two heads. Anomaly must be a \emph{calibrated} posterior; reputation may move it but never zero a catastrophic item. Boundary: zoom pays only when flags are sparse; floors price \emph{guarantees}, not vibes. \\
+\hline
+\emph{The controllability boundary.} What can be \emph{prevented} rather than detected? Regimentable iff controllable w.r.t.\ the uncontrollable alphabet (OP-2 is the DB-commit special case). & Pre-commit gates and SQL guards; the compute-to-data airlock; conflict rejection at proposal time; ticket-lock admission; the channel-not-token rule. & Classify every rule at design time: regimentable rules become gates; semantic rules (a confident lie) are detect-only \emph{forever} and must be priced by the economy, not promised by the runtime. Boundary: gate the channel, never the token; taint is containment, the gate is the guarantee. \\
+\hline
+\emph{Deterrence economics.} Why is honesty cheaper than fraud? $\rho d B \ge G$; the audit tower over $C$ disjoint cliques; the front-loaded probation cliff; declining audit schedules (reputation as amortized verification); four-bucket escrow conservation. & Slashable bonds; sealed VRF-sampled audits; heterogeneous judge pools; newcomer cliffs instead of ramps; per-bucket settlement; the 2-of-3 clearinghouse; the mutation-test market. & Size bonds to the worst one-shot gain; sample judges across principals \emph{and} model families (diversity is the mechanism, not a nicety); publish the audit schedule --- deterrence is a budget line. Boundary: sealed sampling is load-bearing; a leaked draw defeats the clique math; convention (confiscation vs.\ keep-gain) changes $\rho^\star$. \\
+\hline
+\emph{Federation without consensus.} What survives distrust between harbors? Signed witness logs; equivocation as a cocycle obstruction \emph{on cycles}; monotone (CALM) coordination-free operations; the conditional escrow bound. & Gossip with \emph{redundant} paths; sheaf-residual triage under partition; forensic attribution by signature; the multisig clearinghouse. & Topology is a security parameter: detection across an uncompared link requires a cycle through it --- provision redundancy as you would a bond. Signatures attribute; residuals only triage; vanishing residual is never an all-clear. Boundary: no global order is claimed, and none is needed. \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{The test, restated as procedure.} To admit a new mechanism: (1) name its family and the theorem it is a corollary of; (2) state the developer obligation it creates (a budget, a classification, a schedule, or a topology requirement); (3) state its boundary in the same breath as its claim, with the maturity tag the ledger requires. The eight consensus corrections, the assurance ladder, and the status tags throughout this volume are this procedure applied retroactively; this appendix is the commitment to apply it prospectively.
+
 \section{Research and engineering roadmap}\label{app:volume-roadmap}
 The roadmap is organized by the kind of evidence that can close each claim. A
 proof obligation should not be disguised as a feature, and an empirical
@@ -114,7 +140,7 @@ attention or incentive parameters used by the papers.
 revision they summarize, then gate publication on projection/source agreement.
 \end{enumerate}
 
-\section{Notation and cross-chapter concordance}
+\section{Notation and cross-chapter concordance}\label{app:concordance}
 \begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}X@{}}
 \toprule
 \textbf{Term} & \textbf{Volume-wide meaning}\\
@@ -131,7 +157,16 @@ Closed & The exact recorded model/property has been mechanically discharged; no 
 
 \clearpage
 \section{Next-Generation Expansions}\label{app:next-generation}
-The immediate scope of Port Daddy coordination focuses on local single-writer consistency and cross-harbor token exchange. We formally outline six structural expansions necessary to advance the system from a single-tenant agent hypervisor to a multi-tenant, enterprise-grade coordination protocol.
+\noindent\Vision{} --- every mechanism below is a design sketch, not a
+system in this volume's Consolidated Mechanism Status table
+(Appendix~\ref{app:volume-status}). The present-tense engineering language
+that follows describes an intended design, not observed behavior; per the
+claim discipline stated in the introduction, none of it should be read as a
+running guarantee until it earns a grade of its own. The immediate scope of
+Port Daddy coordination focuses on local single-writer consistency and
+cross-harbor token exchange. We outline six structural expansions that would
+be necessary to advance the system from a single-tenant agent hypervisor to a
+multi-tenant, enterprise-grade coordination protocol.
 
 \subsection{B2B Airlock (Information Flow Control)}
 True compute-to-data execution requires moving the agent to the data rather than moving the data to the agent. A B2B Airlock extends the daemon to enforce strict Information Flow Control (IFC) via Dynamic Taint Tracking. Data loaded from a high-security zone taints the spawned process; the daemon subsequently applies strict \texttt{net:egress} denial, ensuring that the agent can compute over sensitive IP but can only exfiltrate cryptographic attestations of the result. This forms the foundation of a ``Silicon-Enforced NDA.''
@@ -153,8 +188,12 @@ To prevent ``Hollow Fleet'' arbitrage---where a contractor delegates work to an 
 
 \clearpage
 \section{The Condominium Harbor and Ostrom Governance Matrix}\label{app:condominium}
+\noindent\Vision{} --- the Condominium Harbor is a proposed intermediate
+regime, not a shipped or specified mechanism; it does not yet appear in
+Appendix~\ref{app:volume-status} because there is no running or designed
+artifact to grade.
 
-The treatise addresses single-operator harbors (Chapters~I--III) and federated sovereign harbors (Chapters~IV--VII). The intermediate regime is the \textbf{Condominium Harbor}: a single shared daemon and repository governed by multiple distinct principals (e.g., Alice, Bob, and Carl). 
+The treatise addresses single-operator harbors (Chapters~I--III) and federated sovereign harbors (Chapters~IV--VII). The intermediate regime is the \textbf{Condominium Harbor}: a single shared daemon and repository governed by multiple distinct principals (e.g., Alice, Bob, and Carl).
 
 In a condominium harbor, sovereignty is replaced by a shared \textbf{charter}. The fundamental architecture preserves the kernel's single-writer discipline (one daemon serializes all transactional writes), while delegating political authority across partitioned namespaces:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
@@ -208,34 +247,8 @@ Under complete hypervisor mediation of all I/O channels and correct gate enforce
 \end{enumerate}
 \end{theorem}
 
-\noindent\emph{Status.} Claim (1) is verified on a finite model (exhaustive two-run equivalence to interleaving depth 7, all secret pairs, schedule secret-independence checked separately; gate-bypass and leaky-gate mutations caught with witness traces); the unbounded form is the standard unwinding obligation. Claims (2) and (3) are carried as research-ledger items A3 (release-ledger conservation with sequential/advanced composition) and A4 (canary power with SPRT latency); their proofs are short and scheduled, and the statements above are conditioned exactly as they must be --- on complete channel mediation and correct gate enforcement, which are the residual oracles.
+\noindent\emph{Status.} Claim (1) is verified on a finite model (exhaustive two-run equivalence to interleaving depth 7, all secret pairs, schedule secret-independence checked separately; gate-bypass and leaky-gate mutations caught with witness traces); the unbounded form is the standard unwinding obligation. Claims (2) and (3), formerly carried as research-ledger items A3 and A4, are now executed. Claim (2) is discharged by the $\epsilon$-conservation result: the release ledger's single atomic append-and-add transition keeps $\sigma = \sum_i \epsilon_i \le \mathcal{E}_{\mathrm{budget}}$ invariant over every interleaving (exhaustive check of two racing clients, all 15 reachable states, plus 2000 randomized instances, 0 violations; induction lifts to concurrency via single-writer serialization; spend-without-append and torn-write mutations caught in 1 step, the torn write driving an auditable recorded over-spend in 3; \texttt{a3\_epsilon\_ledger.py}), with the sequential vs.\ advanced (Dwork--Rothblum--Vadhan) composition crossover telling the contract which DP accounting to quote. Claim (3) is discharged by the canary power/SPRT result: the $1-\beta^k$ line is verified at $k=1,2,5$; uniform planting of $c$ canaries in $n$ spans gives the hypergeometric operating curve $\Pr(\text{detect} \mid \text{leak of } m \text{ spans})$ (at $n{=}10^4$, $c{=}100$, $\beta{=}0.2$: $0.554$ at $m{=}100$, $0.999$ at $m{=}800$; exact, approximate, and simulated agree), and Wald's SPRT prices expected alarm latency for sustained leaks (analytic 297 vs.\ simulated 359 gate outputs under leak, realized error rates at or below targets; \texttt{a4\_canary\_sprt.py}). The statements above remain conditioned exactly as they must be --- on complete channel mediation and correct gate enforcement, which are the residual oracles.
 
 \clearpage
-\section*{Appendix: One Spine --- Why These Mechanisms and Not Others}
-\addcontentsline{toc}{section}{Appendix: One Spine}
-
-A volume this size courts a specific failure: the \emph{potpourri}, a grab bag of clever mechanisms with no account of why these and not ten others. This appendix states the account. The system has one ontology and four theorem families; every mechanism in the volume is a corollary of exactly one family, inherits a developer obligation from it, and carries that family's boundary. A proposed feature that cannot name its row in the table below is not yet a feature.
-
-\paragraph{The ontology.} One durable object bears all trust: the \textbf{evidence-carrying work unit} --- authorized by a \emph{principal} (the delegation chain's terminus), acted on through \emph{fenced, attenuating capabilities}, advanced only by \emph{admitted evidence} over typed channels, settled once, and graded on the five assurance modes (observed, coordinated, brokered, confined, attested). Agents are transient; the work unit is the case file that outlives every clerk. Everything else in the volume exists to answer one of four questions about that object.
-
-\paragraph{The four families.}
-\begin{center}
-\small
-\begin{tabular}{@{}p{0.26\textwidth}p{0.34\textwidth}p{0.32\textwidth}@{}}
-\hline
-\textbf{Theorem family (the question)} & \textbf{Mechanisms it licenses (corollaries)} & \textbf{Developer implication + boundary} \\
-\hline
-\emph{Legibility floors.} What must a human see? Information floor $\log_2\binom{N}{k}-\log_2\binom{m}{k}$; split-digest comonotonicity; derived regret head; the $R(\delta,f)$ frontier with adaptive zoom; paging competitiveness. & Digests with budgeted bits; \emph{dual} compaction heads (successor vs.\ operator); the attention queue's likelihood-ratio test; forced-zoom; context paging; pheromone decay. & Budget bits/opens/misses explicitly --- the exchange rates are theorems, not tuning. Two readers need two heads. Anomaly must be a \emph{calibrated} posterior; reputation may move it but never zero a catastrophic item. Boundary: zoom pays only when flags are sparse; floors price \emph{guarantees}, not vibes. \\
-\hline
-\emph{The controllability boundary.} What can be \emph{prevented} rather than detected? Regimentable iff controllable w.r.t.\ the uncontrollable alphabet (OP-2 is the DB-commit special case). & Pre-commit gates and SQL guards; the compute-to-data airlock; conflict rejection at proposal time; ticket-lock admission; the channel-not-token rule. & Classify every rule at design time: regimentable rules become gates; semantic rules (a confident lie) are detect-only \emph{forever} and must be priced by the economy, not promised by the runtime. Boundary: gate the channel, never the token; taint is containment, the gate is the guarantee. \\
-\hline
-\emph{Deterrence economics.} Why is honesty cheaper than fraud? $\rho d B \ge G$; the audit tower over $C$ disjoint cliques; the front-loaded probation cliff; declining audit schedules (reputation as amortized verification); four-bucket escrow conservation. & Slashable bonds; sealed VRF-sampled audits; heterogeneous judge pools; newcomer cliffs instead of ramps; per-bucket settlement; the 2-of-3 clearinghouse; the mutation-test market. & Size bonds to the worst one-shot gain; sample judges across principals \emph{and} model families (diversity is the mechanism, not a nicety); publish the audit schedule --- deterrence is a budget line. Boundary: sealed sampling is load-bearing; a leaked draw defeats the clique math; convention (confiscation vs.\ keep-gain) changes $\rho^\star$. \\
-\hline
-\emph{Federation without consensus.} What survives distrust between harbors? Signed witness logs; equivocation as a cocycle obstruction \emph{on cycles}; monotone (CALM) coordination-free operations; the conditional escrow bound. & Gossip with \emph{redundant} paths; sheaf-residual triage under partition; forensic attribution by signature; the multisig clearinghouse. & Topology is a security parameter: detection across an uncompared link requires a cycle through it --- provision redundancy as you would a bond. Signatures attribute; residuals only triage; vanishing residual is never an all-clear. Boundary: no global order is claimed, and none is needed. \\
-\hline
-\end{tabular}
-\end{center}
-
-\paragraph{The test, restated as procedure.} To admit a new mechanism: (1) name its family and the theorem it is a corollary of; (2) state the developer obligation it creates (a budget, a classification, a schedule, or a topology requirement); (3) state its boundary in the same breath as its claim, with the maturity tag the ledger requires. The eight consensus corrections, the assurance ladder, and the status tags throughout this volume are this procedure applied retroactively; this appendix is the commitment to apply it prospectively.
 \addcontentsline{toc}{section}{References}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}

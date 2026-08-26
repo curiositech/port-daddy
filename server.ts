@@ -61,6 +61,7 @@ import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
+import { DaemonRelayConnection } from './lib/relay-connection.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
@@ -139,6 +140,7 @@ import {
   coordinationPeerConfigFromEnv,
   type CoordinationPeer,
 } from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -616,9 +618,11 @@ sessions.setActivityLog(activityLog);
 // queues, and CRDT-merges. A partial/malformed configuration degrades loudly
 // without preventing the offline-first daemon from starting.
 let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
 try {
   const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
   if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
     coordinationPeer = createCoordinationPeer({
       db,
       sessions,
@@ -650,7 +654,14 @@ const symbolClaims = createSymbolClaims(db, {
 const agentInbox = createAgentInbox(db, (agentId, message) => {
   messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
-const parley = createParley({ tuples, agentInbox });
+// The local daemon is one tenant. CAP0 owns any future authenticated tenant
+// binding; request data must never choose this STORE0 authority.
+const parley = createParley({
+  db,
+  tenantId: 'local-daemon',
+  agentInbox,
+  notificationRecovery: {},
+});
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -678,10 +689,22 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
+// Relay connection lifecycle (ADR-0049). Replaces the honest-disconnected
+// stub: the daemon now runs the real outbound handshake + SSE loop from
+// lib/relay-connection.ts when a relay_url is configured, and the status
+// surface reports the live state of that loop — connected only while the
+// relay has an accepted stream open. Signing stays inside harbor-tokens
+// (signHex): the connection holds a signing capability, never the key.
+const relayConnection = new DaemonRelayConnection({
+  db,
+  logger,
+  signer: (msgHex) => harborTokens.signHex(msgHex),
+});
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 
@@ -1250,7 +1273,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
     }
 
-    const agentCleanup = agents.cleanup(locks);
+    // `sessions` is what lets the reaper tell whether a dying DISPLAY handle
+    // is actually the soul that holds a stamped lock. Without it the reaper
+    // fails closed and leaves stamped locks to their TTL — correct, but it
+    // means a genuinely dead agent's locks linger, so this must stay wired.
+    // See lib/agent-soul-binding.ts and
+    // tests/unit/heartbeat-lock-invariant.test.js.
+    const agentCleanup = agents.cleanup(locks, { sessions });
     if (agentCleanup.cleaned > 0) {
       logger.info('agent_cleanup', agentCleanup);
       activityLog.log(ActivityType.AGENT_CLEANUP, {
@@ -1563,18 +1592,15 @@ await registerAllRoutes(
     daemonBerth: DAEMON_BERTH,
     plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
-    // Relay (ADR-0049) connection status. The daemon does not yet start the
-    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
-    // reports "not connected" — `pd relay status` shows disconnected even when
-    // a relay_url is configured. When the SSE manager is wired, replace this
-    // with the manager's live status getter.
-    getRelayStatus: () => ({
-      connected: false,
-      session_id: null,
-      last_handshake: null as number | null,
-      accepted_channels: [] as string[],
-      relay_version: null as string | null,
-    }),
+    // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
+    // `connected` is true only while the relay has an accepted SSE stream
+    // open to this daemon (lib/relay-connection.ts flips it on the stream's
+    // open signal and off on any error/close), so `pd relay status` reports
+    // evidence, never intent.
+    getRelayStatus: () => relayConnection.getStatus(),
+    // Lets a runtime config write (POST /relay/config) or a fresh card
+    // (POST /relay/exchange) take effect without a daemon restart.
+    notifyRelayConfigChanged: () => relayConnection.restart(),
   },
   arbiter,
   { pheromones, sessions, db },
@@ -1595,6 +1621,11 @@ app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
   lastSyncAt: null,
   lastError: null,
 });
+
+// Start the outbound relay lifecycle after routes exist: a no-op when
+// relay_url is unconfigured (state: disabled — no loop spins against
+// nothing), the real handshake + SSE + backoff loop when it is.
+relayConnection.start();
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
@@ -1699,6 +1730,9 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  // Drop the relay stream before closing the DB: a stopping daemon must not
+  // advertise (or hold) a live federation link.
+  try { relayConnection.stop(); } catch {}
   try { coordinationPeer?.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}

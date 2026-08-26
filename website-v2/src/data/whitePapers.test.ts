@@ -172,7 +172,7 @@ describe('whitepaper metadata sync', () => {
   test('audited Harbor metadata names the collected-volume edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('harbor-economy')).toMatchObject({
-      pages: 35,
+      pages: 34,
       status: 'Version 1.3 (collected-volume edition)',
     })
   })

@@ -127,6 +127,75 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
     expect(over.httpStatus).toBe(429);
   });
+
+  // Defect B (#8877): a registration that omits `project` must STILL be
+  // metered. Before the fix the admission pool was keyed only when a project
+  // was supplied, so `register({})` skipped the pool entirely and minted
+  // unlimited free souls (500+ observed with no 429) — the anti-launder floor
+  // was opt-in. Projectless registrations now share one reserved global bucket.
+  test('projectless registrations are metered and 429 past the admit limit', () => {
+    const day = '2026-07-15';
+    for (let i = 0; i < 3; i++) {
+      const ok = souls.register({ day }); // no project, no alias — the bypass
+      expect(ok.ok).toBe(true);
+      expect(ok.status).toBe('minted');
+    }
+    const over = souls.register({ day });
+    expect(over.ok).toBe(false);
+    expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
+    expect(over.httpStatus).toBe(429);
+  });
+
+  test('the projectless bucket is distinct from a named project (no cross-starvation)', () => {
+    const day = '2026-07-15';
+    // Exhaust the projectless bucket.
+    for (let i = 0; i < 3; i++) expect(souls.register({ day }).ok).toBe(true);
+    expect(souls.register({ day }).code).toBe('NEWCOMER_ADMIT_LIMIT');
+    // A named project still has its own fresh allowance — projectless spend did
+    // not consume it, and a real project cannot be starved by the sentinel.
+    expect(souls.register({ project: 'proj', day }).ok).toBe(true);
+  });
+
+  // ── Defect C (round 2): the register/alias-bind door is the SECOND way to
+  // acquire a reserved authority name, poisoning /sugar/begin's guard. A
+  // self-service caller may never bind a reserved alias; only an operator may.
+  test('DEFECT C door 2: an UNCREDENTIALED register cannot bind a reserved alias', () => {
+    const out = souls.register({ alias: 'system' });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe('RESERVED_ALIAS');
+    expect(out.httpStatus).toBe(403);
+    // Nothing was bound: `system` still resolves to no minted soul.
+    expect(souls.resolveActor('system').soulClass).toBe('unknown');
+  });
+
+  test('DEFECT C door 2: a valid NON-OPERATOR credential cannot bind a reserved alias it does not own', () => {
+    // Mint a plain newcomer, then re-present its credential asking to bind
+    // `coxswain`. A newcomer soul is still self-service — refused.
+    const minted = souls.register({ alias: 'proj:stack:worker' });
+    expect(minted.ok).toBe(true);
+    const out = souls.register({ credential: minted.credential, alias: 'coxswain' });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe('RESERVED_ALIAS');
+    expect(souls.resolveActor('coxswain').soulClass).toBe('unknown');
+  });
+
+  test('an operator-token register MAY bind a reserved alias (the only legit provisioning path)', () => {
+    const out = souls.register({ operatorToken: 'operator-shibboleth', alias: 'system' });
+    expect(out.ok).toBe(true);
+    expect(out.soulClass).toBe('operator');
+    expect(souls.resolveActor('system').actorId).toBe(out.actorId);
+    // …and that operator soul may re-present its credential to keep the alias.
+    const again = souls.register({ credential: out.credential, alias: 'system' });
+    expect(again.ok).toBe(true);
+    expect(again.status).toBe('resolved');
+  });
+
+  test('a namespaced alias still binds in every path (the guard is bare-word only)', () => {
+    expect(souls.register({ alias: 'proj:node:dev' }).ok).toBe(true);
+    const cred = souls.register({ alias: 'proj:node:other' });
+    expect(souls.register({ credential: cred.credential, alias: 'proj:node:renamed' }).ok).toBe(true);
+    expect(souls.register({ operatorToken: 'operator-shibboleth', alias: 'proj:node:op' }).ok).toBe(true);
+  });
 });
 
 describe('actor-souls: graduation on clean exits', () => {

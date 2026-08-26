@@ -692,6 +692,23 @@ checkpoint is forked into two live incarnations, which one (if either) inherits 
 reputation? Sketch a rule and the attack it invites.
 \end{exercises}
 
+\noindent\emph{Status: the branching rule of Exercise (3) now carries an executed
+no-mint theorem (research-ledger item A6). Inheritance as \textbf{transfer}, not
+copy: a derivation grants each child a discounted share $\gamma\,w_p$ of each
+source $p$'s live reputation and \emph{debits the source} the undiscounted share
+$w_p$, whence total live creditable reputation never exceeds total witnessed value
+and is nonincreasing except at witness steps (a supermartingale under derivation);
+a randomized sweep of 4{,}000 fork DAGs (chains, diamonds, multi-parent merges,
+re-derivation cycles) shows 0 violations, while the copy-full mutant --- forks
+inherit the undebited record --- mints in a 2-operation shortest crime and an
+8-way copy-fork multiplies one witnessed episode into $8.2\times$ its quorum
+weight (\texttt{a6\_no\_mint.py}, seed 20260816). One wrong turn on record: the
+budget-only phrasing (per-outcome grant budgets $\sum w \le 1$, no debiting) was
+swept before proving and \emph{refuted} --- a full-weight chain at $\gamma=0.9$ is
+budget-legal at every hop yet its closure sums to $0.9+0.81+0.729=2.44>1$, so
+budgets without debiting conserve nothing for $\gamma>\tfrac12$; the transfer
+restatement is the theorem.}
+
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The three organs of continuity}\label{sec:organs}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -964,9 +981,12 @@ Under the deterrence constraint $\sum_{t=0}^T \delta_f^t g_t \ge G_{\max}$, the 
 Consider a standard linear programming minimization of $\sum_t \delta_h^t g_t$ subject to $\sum_t \delta_f^t g_t \ge G_{\max}$ and $g_t \ge 0$. The objective-to-constraint cost ratio at period $t$ is $\frac{\delta_h^t}{\delta_f^t} = \bigl(\frac{\delta_h}{\delta_f}\bigr)^t$. Because $\delta_h > \delta_f$, this ratio is strictly increasing with $t$. By standard exchange arguments, moving holdback mass from period $t > 0$ to period $0$ relaxes the deterrence constraint while strictly decreasing the honest cost $\sum_t \delta_h^t g_t$. Hence, the optimal newcomer screening schedule is a sharp initial probation cliff followed by immediate graduation to full capacity. \qed
 \end{proof}
 
-\noindent\emph{Status: exchange argument verified numerically across randomized $(\delta_f<\delta_h,\,G_{\max})$ instances (0 dominating schedules in 4{,}000 draws); the polished LP write-up is carried as item B6 of the research ledger. Note the reversal of the deferred-compensation intuition (Lazear): here the re-payable hurdle is itself the punishment a whitewasher faces on every reset, so front-loading taxes resets, not tenure.}
+\noindent\emph{Status: exchange argument verified numerically across randomized $(\delta_f<\delta_h,\,G_{\max})$ instances (0 dominating schedules in 4{,}000 draws --- the number now regenerates from \texttt{b6\_probation.py} at seed 20260816: 76{,}000 candidate schedules tested with the deterrence constraint held tight, and the exchange step's cost ratio $(\delta_h/\delta_f)^t$ verified strictly monotone in $t$); the polished LP write-up is carried as item B6 of the research ledger. Note the reversal of the deferred-compensation intuition (Lazear): here the re-payable hurdle is itself the punishment a whitewasher faces on every reset, so front-loading taxes resets, not tenure.}
 
 % --- FIGURE 6: Sybil/whitewashing and the non-forgeable root ---
+Figure~\ref{fig:sybil} draws the two attacks a free identity enables --- whitewashing
+a sanction and Sybil-multiplying a quorum --- and the non-forgeable root that closes
+both.
 \input{figures/fig-stp-sybil-whitewash}
 
 \subsection{The principal above the actor}
@@ -1132,6 +1152,7 @@ We catalog the estimators not because they are hard but because choosing the
 \end{itemize}
 
 % --- FIGURE 8: estimator family by signal type ---
+Figure~\ref{fig:estimators} maps each signal type to its matching estimator.
 \input{figures/fig-stp-estimator-family}
 
 \subsection{Score as telemetry; gate on predicates}
@@ -1174,6 +1195,8 @@ not. Modeling reputation as a bandit imports four assumptions that are all false
 a market.}
 
 % --- FIGURE 9: bandit assumptions vs reputation reality ---
+Figure~\ref{fig:not-bandit} lines the four bandit assumptions up against the market
+reality that breaks each.
 \input{figures/fig-stp-not-bandit}
 
 \subsection{The four broken assumptions}
@@ -1271,6 +1294,7 @@ re-collapsing quality into one Goodhart-able scalar. The open design question of
 named as a starred exercise.
 
 % --- FIGURE 10: the multi-dimensional reputation vector ---
+Figure~\ref{fig:multidim} draws the three axes and their distinct judges.
 \input{figures/fig-stp-multidim-reputation}
 
 \subsection{The neutral-judge market (the harbor's universities and rating agencies)}
@@ -1457,7 +1481,8 @@ arbitration capacity is a named open problem, below).
 
 \paragraph{Algorithmic Mode Collapse and the VRF Honeypot Solution}
 Option~A initially pushed the problem up a level: who audits the auditors? The naive recursion ``rate the raters who rate the
-raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, where a monoculture of model architectures could form a cartel of mutual validation. We cure this via two mandated mechanisms that force the recursion to terminate.
+raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, where a monoculture of model architectures could form a cartel of mutual validation. We cure this via two mandated mechanisms that force the recursion to terminate. Figure~\ref{fig:rate-raters} draws the recursion and where these two
+mechanisms are meant to arrest it.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
@@ -1542,6 +1567,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
 \end{protocol}
 
 % --- FIGURE 13: tombstone compensation on an append-only ledger ---
+Figure~\ref{fig:tombstone} draws the append-only compensation: the original entry
+stays, and a later tombstone nullifies it without mutating the ledger.
 \input{figures/fig-stp-tombstone}
 
 \subsection{S4 --- the fraudulent outcome retracted}
@@ -1909,20 +1936,5 @@ Agent Payments Protocol (AP2): Mandates.
 \newblock \texttt{https://ap2-protocol.org}.
 
 \end{thebibliography}
-
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Limitations \& Boundaries}\label{sec:limitations}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
-
-\begin{itemize}
-    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
-    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \BUILTWEAK or \DESIGNED phases.
-\end{itemize}
-
-These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}

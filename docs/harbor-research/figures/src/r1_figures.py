@@ -7,8 +7,11 @@ R1 Figures: information floor and regime diagram
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
 from matplotlib.patches import Rectangle, FancyArrowPatch
 import math
+
+OUT = '/home/user/port-daddy/docs/harbor-research/figures'
 
 # House colors (from task)
 HARBORBLUE = (30/255, 70/255, 110/255)
@@ -38,66 +41,66 @@ def compute_B_star(N, k, m):
 def create_relation_map():
     """
     Create r1_relation.png - the RELATION-MAP figure.
-    Three columns: base domain | target domain | with labeled arrows.
+    Base domain (the combinatorial world of placements) vs target domain
+    (the digest channel that must name one of them) across three rows that
+    walk the whole argument: what's being counted, what the channel costs,
+    and the verified boundary instance. Every row carries a red connective
+    label describing the relation, in the house pattern.
     """
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=150)
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
+    fig, ax = plt.subplots(figsize=(12, 7.6), dpi=150)
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 10.6)
     ax.axis('off')
 
-    # Title
-    ax.text(5, 9.5, "R1 — the digest is a message; the floor is its length",
-            fontsize=11, weight='bold', ha='center', va='top')
+    ax.text(6, 10.3, "R1 — the digest is a message; the floor is its length",
+            fontsize=12, weight='bold', ha='center', va='top', color=HARBORBLUE)
 
-    # Column 1: Base Domain (left)
-    y_base = 7.5
-    box1 = Rectangle((0.2, y_base-1.2), 2.6, 2,
-                          edgecolor=HARBORBLUE, facecolor=HARBORBLUE,
-                          alpha=0.15, linewidth=1.5)
-    ax.add_patch(box1)
-    ax.text(1.5, y_base+0.5, "Base Domain", fontsize=10, weight='bold',
-            ha='center', va='center')
-    ax.text(1.5, y_base-0.3, "Shared codebook", fontsize=9, ha='center', va='center')
-    ax.text(1.5, y_base-0.7, "of flagged", fontsize=9, ha='center', va='center')
-    ax.text(1.5, y_base-1.1, "m-subsets", fontsize=9, ha='center', va='center')
+    # Base domain (left): the combinatorial world
+    ax.add_patch(Rectangle((0.2, 0.7), 3.6, 8.7, edgecolor=HARBORBLUE,
+                            facecolor=HARBORBLUE, alpha=0.12, linewidth=1.5))
+    ax.text(2.0, 9.05, "Base: where the k criticals\ncould be hiding", fontsize=11,
+            weight='bold', ha='center', va='center')
 
-    # Column 2: Target Domain (right)
-    y_target = 7.5
-    box2 = Rectangle((7.2, y_target-1.2), 2.6, 2,
-                          edgecolor=SEAGREEN, facecolor=SEAGREEN,
-                          alpha=0.15, linewidth=1.5)
-    ax.add_patch(box2)
-    ax.text(8.5, y_target+0.5, "Target Domain", fontsize=10, weight='bold',
-            ha='center', va='center')
-    ax.text(8.5, y_target-0.3, "Operator digest", fontsize=9, ha='center', va='center')
-    ax.text(8.5, y_target-0.7, "→ open budget", fontsize=9, ha='center', va='center')
-    ax.text(8.5, y_target-1.1, "→ guaranteed catch", fontsize=9, ha='center', va='center')
+    # Target domain (right): the digest channel
+    ax.add_patch(Rectangle((8.2, 0.7), 3.6, 8.7, edgecolor=SEAGREEN,
+                            facecolor=SEAGREEN, alpha=0.12, linewidth=1.5))
+    ax.text(10.0, 9.05, "Target: the digest that must\nname where to look", fontsize=11,
+            weight='bold', ha='center', va='center')
 
-    # Arrow 1: Base → Target (top)
-    arrow1 = FancyArrowPatch((2.8, y_base+0.3), (7.2, y_target+0.3),
-                            arrowstyle='->', mutation_scale=25,
-                            linewidth=1.5, color=SHIPRED, alpha=0.8)
-    ax.add_patch(arrow1)
-    ax.text(5, y_base+0.8, "selects one of C(N,k)/C(m,k) coverings",
-            fontsize=9, ha='center', va='bottom', style='italic')
+    rows = [
+        (7.4,
+         ["N artifacts total,", "k of them load-bearing:", "C(N,k) ways to place", "the k criticals among N"],
+         ["Shared codebook:", "every flagged m-subset", "covers only C(m,k) of", "those C(N,k) placements"],
+         ["one digest selects", "ONE covering"]),
+        (4.6,
+         ["A digest of B literal bits", "is a message with", "2^B distinguishable", "values — no more"],
+         ["Decoder: shared table", "of m-subsets; each", "message names one", "m-subset to open"],
+         ["zero-miss needs", "B ≥ log₂C(N,k) − log₂C(m,k)"]),
+        (1.9,
+         ["Boundary instance:", "N=60, k=2 — oracle /", "noisy / random encoders", "run against the bound"],
+         ["m=8 opened ⇒", "B* = 5.98 bits;", "0/16 floor violations", "[verified, a7_experiment.py]"],
+         ["the floor holds", "exactly, not on average"]),
+    ]
 
-    # Arrow 2: Base → Target (bottom)
-    arrow2 = FancyArrowPatch((2.8, y_base-0.5), (7.2, y_target-0.5),
-                            arrowstyle='->', mutation_scale=25,
-                            linewidth=1.5, color=SHIPRED, alpha=0.8)
-    ax.add_patch(arrow2)
-    ax.text(5, y_base-1.2, "needs log₂(C(N,k)) − log₂(C(m,k)) bits",
-            fontsize=9, ha='center', va='top', style='italic')
+    for y, base_lines, target_lines, label_lines in rows:
+        for i, s in enumerate(base_lines):
+            ax.text(2.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+        for i, s in enumerate(target_lines):
+            ax.text(10.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+        arrow = FancyArrowPatch((3.9, y - 0.15), (8.1, y - 0.15), arrowstyle='<->',
+                                 mutation_scale=20, linewidth=1.8, color=SHIPRED, alpha=0.85)
+        ax.add_patch(arrow)
+        for i, s in enumerate(label_lines):
+            ax.text(6.0, y + 0.62 - 0.38 * i, s, fontsize=9, ha='center',
+                    va='center', color=SHIPRED, weight='bold')
 
-    # Bottom note
-    ax.text(5, 2.5, "Interpretation: A B-bit digest selects which m-subset to open.",
-            fontsize=9, ha='center', va='center', style='italic', color='gray')
-    ax.text(5, 1.8, "Each covering accounts for C(m,k) of C(N,k) placements of k criticals.",
-            fontsize=9, ha='center', va='center', style='italic', color='gray')
+    ax.text(6.0, 0.25,
+            "The map carries a combinatorial fact, not scenery: each flagged m-set can only ever cover "
+            "C(m,k) of the C(N,k) ways k criticals could sit among N.",
+            fontsize=8.5, ha='center', va='center', style='italic')
 
     plt.tight_layout()
-    plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r1_relation.png',
-                dpi=150, bbox_inches='tight')
+    plt.savefig(f'{OUT}/r1_relation.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def create_regime_diagram():
@@ -112,35 +115,32 @@ def create_regime_diagram():
     fig, ax = plt.subplots(figsize=(10, 6), dpi=150)
 
     N = 60
-    m_values = np.linspace(1, N, 200)  # Start from 1 to avoid m < k issues
+    m_values = np.arange(1, N + 1)  # m is a count of opened artifacts: integers only
     x_values = m_values / N
 
-    # Compute curves for k=1, 2, 4
+    # Compute curves for k=1, 2, 4. B*(N,k,m) is a genuine step function of
+    # the integer m (C(m,k) only changes at integer m), so draw it as one:
+    # steps-post is the honest rendering, not an interpolation artifact.
     colors_k = {1: SEAGREEN, 2: HARBORBLUE, 4: SHIPRED}
 
     for k in [1, 2, 4]:
-        B_star_values = []
-        for m in m_values:
-            m_int = int(m)
-            if m_int >= k:
-                B_star_values.append(compute_B_star(N, k, m_int))
-            else:
-                B_star_values.append(float('nan'))
-        label = f'k={k}'
-        ax.plot(x_values, B_star_values, linewidth=2, color=colors_k[k], label=label)
+        B_star_values = np.array([
+            compute_B_star(N, k, m) if m >= k else float('nan')
+            for m in m_values
+        ])
+        ax.plot(x_values, B_star_values, drawstyle='steps-post',
+                linewidth=2, color=colors_k[k], label=f'k={k}')
 
-    # Shade region above k=2 curve
-    B_star_k2 = []
-    for m in m_values:
-        m_int = int(m)
-        if m_int >= 2:
-            B_star_k2.append(compute_B_star(N, 2, m_int))
-        else:
-            B_star_k2.append(float('nan'))
-    B_star_k2 = np.array(B_star_k2)
+    # Shade region above the k=2 curve: the (m/N, B) pairs where a B-bit
+    # digest actually clears the k=2 floor and a zero-miss guarantee is
+    # achievable.
+    B_star_k2 = np.array([
+        compute_B_star(N, 2, m) if m >= 2 else float('nan')
+        for m in m_values
+    ])
     max_b = np.nanmax(B_star_k2)
-    ax.fill_between(x_values, B_star_k2, max_b+2,
-                     color=HARBORBLUE, alpha=0.08, label='zero-miss guarantee possible')
+    ax.fill_between(x_values, B_star_k2, max_b + 2, step='post',
+                     color=HARBORBLUE, alpha=0.08, label='zero-miss guarantee possible (k=2)')
 
     # Mark the measured point: m/N = 8/60, B* = 5.98
     m_measured = 8

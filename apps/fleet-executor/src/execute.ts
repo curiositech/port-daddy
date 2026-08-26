@@ -80,18 +80,26 @@ import {
 } from './stacked-pr.js';
 import {
   runTestsInSandbox,
-  sandboxCoordinationPeerFromEnv,
+  sandboxCoordinationEnrollmentFromEnv,
 } from './sandbox-runner.js';
 import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
+import {
+  ShipTranscript,
+  runCaptured,
+  flushShipTranscript,
+} from './transcript-capture.js';
 import {
   describeAiFailure,
   FleetAiCircuit,
   FleetAiDependencyError,
   normalizeProviderQueueAttempt,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  RUN_ABSOLUTE_DEADLINE_MS,
+  type ShipAiCallStats,
 } from './ai-resilience.js';
+import { resolveAiCallDeadlineMs } from '../../shared/repo-ai-settings.js';
 import {
   classifyShipOutput,
   describeNoUsableOutput,
@@ -761,6 +769,37 @@ export async function ensureRunRow(
 }
 
 /**
+ * Read back this logical run's TRUE first-attempt start time.
+ *
+ * `recordRunStart`'s `ON CONFLICT` never touches `created_at`, so this column
+ * is the one place a redelivered/continued run's original wall-clock start
+ * survives — everything else in this file only ever sees "now". This is the
+ * value {@link RUN_ABSOLUTE_DEADLINE_MS} is measured against: a run that has
+ * been going, across however many queue continuations, since before that
+ * ceiling must stop rather than keep spending.
+ *
+ * Fails open (returns null) on any missing binding or read error — an
+ * absolute-deadline check that could itself break every run over a D1 hiccup
+ * would be a worse failure mode than the retry storm it exists to prevent.
+ *
+ * @param env - Worker bindings (D1).
+ * @param runId - This run's deterministic id (`run:<deliveryId>`).
+ * @returns The run's original `created_at` in epoch seconds, or null.
+ */
+async function getRunStartedAtSec(env: ExecutorEnv, runId: string): Promise<number | null> {
+  if (!env.DB) return null;
+  try {
+    const row = await env.DB.prepare(`SELECT created_at FROM fleet_runs WHERE id = ?`)
+      .bind(runId)
+      .first<{ created_at: number }>();
+    return typeof row?.created_at === 'number' ? row.created_at : null;
+  } catch (err) {
+    console.error(`[fleet-executor] getRunStartedAtSec failed run=${runId}: ${String(err)}`);
+    return null;
+  }
+}
+
+/**
  * Stamp the final conclusion + end-to-end wall-clock elapsed onto the run.
  * The durable first `created_at` is authoritative across checkpoint retries;
  * `startMs` is only a defensive fallback for a malformed legacy row. Best-effort:
@@ -928,6 +967,79 @@ async function recordShipSpend(
   }
 }
 
+/**
+ * Record ONE `fleet_ai_call_stats` row for a completed ship's Workers AI
+ * calls (best-effort, same contract as {@link recordShipSpend}). Called with
+ * whatever {@link FleetAiCircuit.snapshotShipStats} has accumulated for this
+ * ship by the time it finishes — a no-op when the ship made no AI calls
+ * through `runForShip` (e.g. it errored before reaching one, or ideation-only
+ * ships that route differently).
+ *
+ * Design rationale: one row per ship, not one per call, is the whole point —
+ * see the design note on the migration this table came from
+ * (`apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql`) for why raw
+ * per-call logging was rejected.
+ *
+ * @param env - Worker bindings (D1).
+ * @param runId - This queue delivery's run id.
+ * @param ship - The ship whose aggregate is being flushed.
+ * @param stats - The accumulated per-ship totals, or null when the ship made
+ *   no tracked AI calls.
+ * @param deadlineMs - The deadline this run's circuit was configured with,
+ *   stamped onto the row so a later reader can tell "3 timeouts at 60000ms"
+ *   apart from "3 timeouts at 300000ms" without a separate join.
+ * @returns Nothing; failures are logged and swallowed, never thrown.
+ */
+export async function recordShipAiCallStats(
+  env: ExecutorEnv,
+  runId: string,
+  ship: ShipConfig,
+  stats: ShipAiCallStats | null,
+  deadlineMs: number,
+): Promise<void> {
+  if (!env.DB || !stats || stats.calls === 0) return;
+  try {
+    // ADD on conflict, never REPLACE: `runId` is stable across every queue
+    // delivery/continuation of one logical run (`run:${deliveryId}`), and
+    // `FleetAiCircuit` is a fresh in-memory instance per invocation. A ship
+    // whose call times out on delivery 1 and succeeds on delivery 2 must
+    // report BOTH attempts — REPLACE semantics silently dropped delivery 1's
+    // timeout the moment delivery 2 flushed its own (unrelated) counters.
+    // This was a DO-NOT-SHIP finding on PR #9800: the exact failure attempts
+    // this table exists to surface were the ones it was losing.
+    await env.DB.prepare(
+      `INSERT INTO fleet_ai_call_stats
+         (run_id, ship, calls, ok_calls, timeout_calls, error_calls, total_elapsed_ms, max_elapsed_ms, deadline_ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(run_id, ship) DO UPDATE SET
+         calls = fleet_ai_call_stats.calls + excluded.calls,
+         ok_calls = fleet_ai_call_stats.ok_calls + excluded.ok_calls,
+         timeout_calls = fleet_ai_call_stats.timeout_calls + excluded.timeout_calls,
+         error_calls = fleet_ai_call_stats.error_calls + excluded.error_calls,
+         total_elapsed_ms = fleet_ai_call_stats.total_elapsed_ms + excluded.total_elapsed_ms,
+         max_elapsed_ms = MAX(fleet_ai_call_stats.max_elapsed_ms, excluded.max_elapsed_ms),
+         deadline_ms = excluded.deadline_ms`,
+    )
+      .bind(
+        runId,
+        ship.name,
+        stats.calls,
+        stats.okCalls,
+        stats.timeoutCalls,
+        stats.errorCalls,
+        stats.totalElapsedMs,
+        stats.maxElapsedMs,
+        deadlineMs,
+        nowSec(),
+      )
+      .run();
+  } catch (err) {
+    console.error(
+      `[fleet-executor] fleet_ai_call_stats insert failed run=${runId} ship=${ship.name}: ${String(err)}`,
+    );
+  }
+}
+
 const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
 /** The fleet trigger used by reviewable pull_request deliveries. */
@@ -1087,7 +1199,8 @@ export async function executeFleet(
     (options.maxNewShipsPerInvocation ?? 0) > 0
       ? options.maxNewShipsPerInvocation as number
       : Number.POSITIVE_INFINITY;
-  const aiCircuit = new FleetAiCircuit();
+  const aiCallDeadlineMs = await resolveAiCallDeadlineMs(env.DB, job.repoFullName);
+  const aiCircuit = new FleetAiCircuit(aiCallDeadlineMs);
 
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
@@ -1382,6 +1495,9 @@ export async function executeFleet(
   // failed, so every completion path below can rely on details_url resolving
   // to a real run page (see ensureRunRow's docstring).
   await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  // The run's TRUE first-attempt start, surviving every continuation/retry —
+  // see RUN_ABSOLUTE_DEADLINE_MS and the per-ship-loop check below.
+  const runStartedAtSec = await getRunStartedAtSec(env, runId);
   // Record what each ship IS (model, role, blocking/execution posture) once,
   // before any of them run — see recordShipsConfigInTranscript's docstring.
   await recordShipsConfigInTranscript(transcript, cloudShips);
@@ -1650,6 +1766,47 @@ export async function executeFleet(
       return;
     }
 
+    // Re-check the run's ABSOLUTE wall-clock budget before each ship. Raising
+    // the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
+    // compensating run-level ceiling would let a roster of retrying ships spend
+    // hours — this is the bound that stops it regardless of how many queue
+    // continuations or provider retries got the run this far. Measured against
+    // the run's TRUE first-attempt start (runStartedAtSec), not "now" relative
+    // to this invocation, so it cannot be reset by re-enqueuing a continuation.
+    // Fails open exactly like the credit/pause gates above — a broken deadline
+    // check must never itself break a run — for both a missing value AND an
+    // implausible one (non-positive, or in the future relative to "now"): the
+    // same validity shape recordRunEnd's own durable-start fallback already
+    // uses, so a malformed created_at cannot manufacture a false deadline trip
+    // any more than it can manufacture a false elapsed-time report there.
+    const runStartedAtMs = runStartedAtSec != null ? runStartedAtSec * 1000 : null;
+    if (runStartedAtMs != null && runStartedAtMs > 0 && runStartedAtMs <= Date.now()) {
+      const runElapsedMs = Date.now() - runStartedAtMs;
+      if (runElapsedMs > RUN_ABSOLUTE_DEADLINE_MS) {
+        const summary =
+          `Fleet review exceeded its ${Math.round(RUN_ABSOLUTE_DEADLINE_MS / 60_000)}-minute run budget ` +
+          `before pd-${ship.name} (${results.length} of ${orderedShips.length} ships completed) — stopping ` +
+          `rather than continuing to spend. Re-push the PR to start a fresh run.`;
+        await transcript.step(
+          'run-deadline-exceeded',
+          ship.name,
+          'Check concluded: neutral (run exceeded its absolute wall-clock budget)',
+          {
+            checkRunId,
+            conclusion: 'neutral',
+            stoppedBeforeShip: ship.name,
+            shipsCompleted: results.length,
+            shipsTotal: orderedShips.length,
+            runElapsedMs,
+            runAbsoluteDeadlineMs: RUN_ABSOLUTE_DEADLINE_MS,
+          },
+        );
+        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await recordRunEnd(env, runId, 'neutral', startMs);
+        return;
+      }
+    }
+
     // RESUME: an earlier attempt of this delivery already completed this ship.
     // Its comment is already posted (edit-in-place inside runShip), its
     // telemetry/spend rows are already written; re-running would produce the
@@ -1702,6 +1859,11 @@ export async function executeFleet(
     }
 
     const metrics = newShipMetrics();
+    // Raw session capture for this ship attempt (docs/FLEET-SESSION-TRANSCRIPTS.md):
+    // buffered per (run, ship, attempt), flushed once to R2 + the D1 index on
+    // BOTH exits below — a thrown ship still leaves its partial conversation
+    // behind, which is exactly when the forensics matter most.
+    const capture = new ShipTranscript(runId, ship.name, providerAttempt);
     let result: ShipResult;
     try {
       result = ship.purser
@@ -1718,6 +1880,7 @@ export async function executeFleet(
             aiCircuit,
             providerAttempt,
             assertCurrentHead,
+            capture,
           )
         : await runShip(
             ship,
@@ -1735,11 +1898,14 @@ export async function executeFleet(
             aiCircuit,
             providerAttempt,
             assertCurrentHead,
+            capture,
           );
       await assertCurrentHead(`after pd-${ship.name} model work, before checkpoint`);
     } catch (error) {
+      await flushShipTranscript(env, capture);
       return stopSupersededRun(error, true);
     }
+    await flushShipTranscript(env, capture);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -1753,6 +1919,9 @@ export async function executeFleet(
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
     // relay can bill per installation. Best-effort — never changes the run.
     await recordShipSpend(env, runId, ship, job.installationId, metrics);
+    // Aggregate (not per-call) Workers AI stats for this ship — see
+    // FleetAiCircuit.runForShip for why per-call D1 rows were rejected.
+    await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
     // …and the same numbers into the transcript, which is what the human-facing
     // run page actually reads for its token tiles.
     await recordShipTokensInTranscript(transcript, ship, metrics);
@@ -2112,6 +2281,12 @@ async function runShip(
   providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
   /** Fail-closed live-head proof around model work and publication. */
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  /**
+   * Raw pd-transcript.v1 session buffer for THIS ship attempt (null ⇒ capture
+   * off). Created and flushed by the orchestrator; this function only records
+   * into it via {@link runCaptured}. See docs/FLEET-SESSION-TRANSCRIPTS.md.
+   */
+  capture: ShipTranscript | null = null,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -2175,12 +2350,18 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await aiCircuit.run(() =>
-        env.AI.run(
-          mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
-          request,
-          aiOptions(env, ship.name),
-        ),
+      const res = await runCaptured(
+        capture,
+        { phase: 'map', model: mapModelFor(ship), chunk: { index: i, count: chunks.length } },
+        request,
+        () =>
+          aiCircuit.runForShip(ship.name, () =>
+            env.AI.run(
+              mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
+              request,
+              aiOptions(env, ship.name),
+            ),
+          ),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, mapModelFor(ship), res, text);
@@ -2213,7 +2394,7 @@ async function runShip(
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     if (chunks.length > 1) await assertCurrentHead(`before pd-${ship.name} REDUCE`);
-    let output = chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics, aiCircuit);
+    let output = chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics, aiCircuit, capture);
     if (chunks.length > 1) await assertCurrentHead(`after pd-${ship.name} REDUCE`);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
@@ -2236,7 +2417,7 @@ async function runShip(
         reason,
         call: async (model, system, user) => {
           await assertCurrentHead(`before pd-${ship.name} contract-repair model call`);
-          const text = await shipRepairCall(ship, env, metrics, model, system, user, aiCircuit);
+          const text = await shipRepairCall(ship, env, metrics, model, system, user, aiCircuit, capture);
           await assertCurrentHead(`after pd-${ship.name} contract-repair model call`);
           return text;
         },
@@ -2674,7 +2855,10 @@ async function maybeStackProposal(
     headSha: prCtx.headSha,
     files,
     token,
-    coordinationPeer: sandboxCoordinationPeerFromEnv(env),
+    coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+      project: `${prCtx.owner}/${prCtx.repo}`,
+      runId,
+    }),
   });
   if (sandbox.executed && sandbox.passed === false) {
     return degrade(
@@ -2787,6 +2971,8 @@ function buildStackPrBody(
  * than throwing.
  */
 async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promise<number[]> {
+  // transcript-capture: exempt (embeddings are not conversational — no
+  // forensic value, high volume; see the RFC's call-site inventory)
   const res = await aiCircuit.run(() =>
     ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
   );
@@ -2969,6 +3155,8 @@ async function reduceFindings(
   env: ExecutorEnv,
   metrics: ShipMetrics,
   aiCircuit: FleetAiCircuit,
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
 ): Promise<string> {
   const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
@@ -2992,12 +3180,18 @@ async function reduceFindings(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await aiCircuit.run(() =>
-    env.AI.run(
-      ship.cfModel as Parameters<typeof env.AI.run>[0],
-      request,
-      aiOptions(env, ship.name),
-    ),
+  const res = await runCaptured(
+    capture,
+    { phase: 'reduce', model: reduceModelFor(ship) },
+    request,
+    () =>
+      aiCircuit.runForShip(ship.name, () =>
+        env.AI.run(
+          ship.cfModel as Parameters<typeof env.AI.run>[0],
+          request,
+          aiOptions(env, ship.name),
+        ),
+      ),
   );
   const { text } = extractAiText(res);
   accumulateUsage(metrics, reduceModelFor(ship), res, text);
@@ -3035,6 +3229,8 @@ async function shipRepairCall(
   system: string,
   user: string,
   aiCircuit: FleetAiCircuit,
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
 ): Promise<string> {
   const request = {
     messages: [
@@ -3044,11 +3240,13 @@ async function shipRepairCall(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await aiCircuit.run(() =>
-    env.AI.run(
-      model as Parameters<typeof env.AI.run>[0],
-      request,
-      aiOptions(env, ship.name),
+  const res = await runCaptured(capture, { phase: 'repair', model }, request, () =>
+    aiCircuit.runForShip(ship.name, () =>
+      env.AI.run(
+        model as Parameters<typeof env.AI.run>[0],
+        request,
+        aiOptions(env, ship.name),
+      ),
     ),
   );
   const { text } = extractAiText(res);

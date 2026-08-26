@@ -123,6 +123,12 @@ mod planner_pane;
 mod prs_pane;
 #[path = "../roadmap_pane.rs"]
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wiring — gpui-free, hosted here so the headless test gate runs its suite.
+#[allow(dead_code)]
+#[path = "../roadmap_projection.rs"]
+mod roadmap_projection;
 #[allow(dead_code)] // parse/serve are exercised by tests; the server runs only in the gpui bin
 #[path = "../script.rs"]
 mod script; // control-socket scripting (parse + serve tests)

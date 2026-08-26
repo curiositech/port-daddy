@@ -113,7 +113,9 @@ export interface ParleyFixture {
   memberships: FakeMembership[];
   parleys: FakeParley[];
   positions: FakePosition[];
-  /** Set true to make every parley/position read throw (degraded-state tests). */
+  /** Set true to make every parley/position/member-list read throw
+   *  (degraded-state tests). Gate reads (harbor + role lookups) still work,
+   *  so member-gated pages reach their degraded render rather than a 404. */
   failReads: { value: boolean };
 }
 
@@ -247,6 +249,23 @@ export function makeParleyDb(): ParleyFixture {
             });
           }
           return { results: out as T[] };
+        }
+        // listHarborMembers — memberships with user logins LEFT-JOINed in.
+        // Honors failReads so the harbors page's "roster unknown" degraded
+        // state is exercisable, matching the parley read branches above.
+        if (sql.includes('FROM harbor_memberships m') && sql.includes('LEFT JOIN users u')) {
+          if (failReads.value) throw new Error('D1 read failure (simulated)');
+          const rows = memberships
+            .filter((m) => m.harbor_id === args[0])
+            .sort((a, b) => a.added_at - b.added_at || a.member_id.localeCompare(b.member_id))
+            .map((m) => ({
+              member_kind: m.member_kind,
+              member_id: m.member_id,
+              role: m.role,
+              added_at: m.added_at,
+              login: m.member_kind === 'user' ? (users.find((u) => u.id === m.member_id)?.login ?? null) : null,
+            }));
+          return { results: rows as T[] };
         }
         // listHarborsForUser
         if (sql.includes('JOIN harbor_memberships m ON m.harbor_id = h.id')) {

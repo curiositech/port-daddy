@@ -272,8 +272,9 @@ bounced (it cannot enter the merge queue):**
 
 1. **`pr-requirements-guard`** — the body needs a real `## Summary` (≥10 words of
    prose) and `## Test Plan` (≥12 words: commands + their output), plus a
-   screenshot + a GIF/recording for any visual-surface change. Self-check before
-   pushing: `npm run check:pr-requirements -- --body-file <draft.md>`.
+   screenshot + a GIF/recording for any visual-surface change, plus a **changelog
+   fragment** for any user-visible change. Self-check before pushing:
+   `npm run check:pr-requirements -- --body-file <draft.md>`.
 2. **`roadmap-link`** — the body needs exactly one `Roadmap-Item: <slug>` trailer
    (or `Roadmap-Item: none — <reason>` for a chore/docs/hotfix). No slug yet?
    `npx tsx scripts/roadmap-link.ts <pr-number>` creates the item and stamps it.
@@ -281,6 +282,17 @@ bounced (it cannot enter the merge queue):**
 The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
 headings and the trailer line, fill in the prose. Both report on `merge_group`
 as pass-throughs, so a PR that is green at PR time never hangs the queue.
+
+**Never hand-edit `CHANGELOG.md`'s `[Unreleased]` section.** It is ASSEMBLED at
+release time from one file per PR under `changelog.d/`. Write
+`changelog.d/<pr>-<slug>.md` (or `draft-<slug>.md` before you have a number) —
+format and rationale in `changelog.d/README.md`, validate with
+`npm run check:changelog`. This exists because every PR used to insert its bullet
+at the same line 11 of the same file: two branches cut from the same base conflict
+on nearly every pair, and a resolver taking "ours" silently drops the other PR's
+entry with nothing failing. One file per PR removes the conflict entirely. If a
+change genuinely ships nothing a user would notice, put
+`<!-- changelog-exempt: <reason> -->` in the body; the reason is required.
 
 **Branch protection on `main` is a ruleset** (`main merge queue`, id `17604542`),
 not classic protection — 18 required checks with `strict` off, merge queue
@@ -931,3 +943,21 @@ sequence. Every item below is a real failure from a live demo (2026-07-12), not 
    no-emoji-as-icons rule applies to what renders, not what greps.
 6. **Never create virtual displays or modify display settings.** On-primary-screen
    window openings are allowed only with explicit operator consent, per action.
+
+## HITL escalation & event-cued execution (operator directive, 2026-08-19 — IMPORTANT)
+
+- **A question that blocks progress is asked in a way that blocks execution.** The moment
+  work is blocked on operator input — a merge policy, a deploy on the operator's side, a
+  scope decision, a spend approval — raise it through the MOST IMMEDIATE human-in-the-loop
+  structure the surface offers (`AskUserQuestion` in Claude Code sessions; the HITL
+  interruption surface elsewhere) and WAIT for the answer. Never park blocked work behind
+  timers, polling loops, silent re-arms, or "the next event will tell me."
+- **Blocked longer than one wake cycle = a blocking question.** A gate, merge, or deploy
+  waiting on operator action does not get babysat; it gets elevated as a direct question
+  the operator must answer before loads continue.
+- **Wake on events, not timers.** PR subscriptions, operator messages, and system events
+  are the wake signals. Never poll unchanged state on a schedule; never re-fetch what an
+  event would have delivered.
+- **Launch gates gate launch, not development.** Client surfaces (iOS, web account
+  sections, console, FleetBar) build in parallel against staging keys; do not serialize
+  development behind a launch gate or hold parallel-authorized waves on unrelated merges.

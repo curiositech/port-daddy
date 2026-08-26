@@ -56,6 +56,11 @@ mod peek_pane;
 mod planner_pane;
 mod prs_pane;
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wires it up yet, so nothing in the gpui bin calls it either.
+#[allow(dead_code)]
+mod roadmap_projection;
 mod script;
 mod sessions_pane;
 mod shell_drawer;
