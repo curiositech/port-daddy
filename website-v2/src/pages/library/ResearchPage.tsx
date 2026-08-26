@@ -378,7 +378,7 @@ export default function ResearchLibraryPage() {
                     to="/library"
                     className="inline-flex items-center justify-between gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-4)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
                   >
-                    The seven whitepapers
+                    The seven chapters
                     <ArrowRight aria-hidden="true" size={14} />
                   </Link>
                   <Link
