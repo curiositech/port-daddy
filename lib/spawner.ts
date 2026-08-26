@@ -235,6 +235,21 @@ export interface SpawnSpec {
    * overrides so a cross-family override can never receive a foreign id.
    */
   nativeResume?: NativeResumeSpec;
+  /**
+   * In-process lifecycle witness invoked after the exact agent id and durable
+   * transcript id exist, but before the backend is allowed to run. A thrown
+   * observer error refuses backend execution under the same fail-loud posture
+   * as transcript initialization.
+   */
+  onStarted?: (receipt: SpawnStartedReceipt) => void;
+}
+
+export interface SpawnStartedReceipt {
+  agentId: string;
+  transcriptId: string | null;
+  backend: SpawnSpec['backend'];
+  model: string;
+  startedAt: number;
 }
 
 export interface SpawnResult {
@@ -2185,6 +2200,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       transcriptId = txStart(spec, runtime, agentId, startedAt);
     } catch (err) {
       transcriptStartError = (err as Error).message;
+    }
+    if (!transcriptStartError && spec.onStarted) {
+      try {
+        spec.onStarted({
+          agentId,
+          transcriptId,
+          backend: runtime.effectiveBackend,
+          model: runtime.effectiveModel,
+          startedAt,
+        });
+      } catch (err) {
+        transcriptStartError = `spawn start witness failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
     }
 
     // Transition bond: escrowed → running. The markRunning call is what
