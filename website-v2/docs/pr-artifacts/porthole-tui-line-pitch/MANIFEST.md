@@ -13,10 +13,16 @@ which replay the real casts at `demos/porthole/btop.cast` and
 | `btop-after.png` | Same cast, same seek point, **after** the fix — `.tui`/`.ph-tui` tightens the line pitch to 1.0 once `VT.sawAlt` (already-tracked alt-screen detection) goes true, and every border is now a continuous line. |
 | `lazygit-before.png` | lazygit's panel borders before the fix — same disconnection, most visible in the cumulative rightward drift of the right-edge border by row 20+. |
 | `lazygit-after.png` | Same cast, after the fix — borders read as clean rectangles, no drift. |
+| `btop-live-render.webm` | Live motion proof, fixed build: the btop tab is clicked and `recordVideo` captures the player actually drawing the cast in real time (~4.6s) — the box-drawing borders are continuous throughout, not just at a single settled frame. |
 
-All four captured against commit `9a4b54e1d` (before/after) with the same
-viewport (1200×900) and the same ~1.5s settle wait after clicking the tab,
-so the only variable between each before/after pair is the fix itself.
+All four screenshots captured against commit `9a4b54e1d` (before/after)
+with the same viewport (1200×900) and the same ~1.5s settle wait after
+clicking the tab, so the only variable between each before/after pair is
+the fix itself. The recording is captured against the fixed build only —
+the "before" state only exists in the pre-fix worktree, which isn't
+committed, so a before/after motion pair isn't possible; the live-drawing
+recording instead proves the fix holds continuously, not just at one
+cherry-picked frame.
 
 Root cause: `demos/porthole/porthole.html` and the production
 `website-v2/src/components/porthole/porthole.css` both use a line-height
