@@ -1,6 +1,12 @@
 % Revocation gossip propagation — inline in §2.4, downstream of the cuckoo
 % mechanics figure. Five panels (t=0, 30s, 60s, 90s, 120s) show the spread
 % of a single revocation across a 5-daemon mesh via anti-entropy gossip.
+%
+% Trust-boundary band reused from fig-anchor-alg-confusion.tex (house
+% convention; original in figures/diag-magic-link.tex). Here it is drawn as a
+% labelled strip rather than an enclosure, because the daemon nodes inside the
+% panels are trusted endpoints and only the links between them are not — an
+% enclosing band would invite exactly the wrong reading.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -15,24 +21,27 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\footnotesize,
+  font=\footnotesize,
   panelframe/.style={draw=hhebony,thick,rounded corners=2pt,
                      minimum width=42mm,minimum height=44mm,
                      fill=hhpaper,inner sep=2pt},
-  paneltitle/.style={font=\sffamily\bfseries,text=hhebony,anchor=north},
+  paneltitle/.style={font=\bfseries,text=hhebony,anchor=north},
   daemonClean/.style={draw=hhebony,thick,fill=hhsand,
                       circle,minimum size=7mm,inner sep=0pt,
-                      font=\sffamily\footnotesize\bfseries},
+                      font=\footnotesize\bfseries},
   daemonRevoked/.style={draw=hhcobalt,line width=1.2pt,fill=hhcobalt!30,
                         circle,minimum size=7mm,inner sep=0pt,
-                        font=\sffamily\footnotesize\bfseries,text=hhebony},
+                        font=\footnotesize\bfseries,text=hhebony},
   meshedge/.style={draw=hhink,thin,dotted},
   gossipedge/.style={->,>=Latex,thick,draw=hhcobalt},
-  timelabel/.style={font=\sffamily\bfseries\small,text=hhink,anchor=south},
-  vvlbl/.style={font=\sffamily\scriptsize\ttfamily,text=hhteal},
+  timelabel/.style={font=\bfseries\small,text=hhink,anchor=south},
+  vvlbl/.style={font=\scriptsize\ttfamily,text=hhteal},
   filterbadge/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
-                      inner sep=2pt,font=\sffamily\scriptsize,text=hhteal,
+                      inner sep=2pt,font=\scriptsize,text=hhteal,
                       align=center},
+  % ── house trust-boundary convention ──
+  untrusted/.style={draw=hhcobalt,dashed,line width=0.8pt,
+                    fill=hhcobalt!6,rounded corners=3pt},
 ]
 
 % ─── Helper: a 5-node mesh in a circle, radius 12mm, centered at (cx,cy) ──
@@ -122,14 +131,26 @@
 \node[panelframe,right=5mm of p4] (p5) {};
 \node[paneltitle] at (p5.north) {$t = 120\text{s}$};
 \meshfive{18.8}{-0.6}{1}{1}{1}{1}{1}{}
-\node[font=\sffamily\scriptsize,text=hhcobalt,
+\node[font=\scriptsize,text=hhcobalt,
       below=-1mm of p5.south,anchor=north,align=center]
   {revoked card \\ rejected everywhere};
 
+% ─── Trust boundary strip ────────────────────────────────────────────────
+\node[untrusted,inner sep=6pt,align=left,font=\footnotesize,text=hhcobalt,
+      text width=190mm,below=9mm of p3.south] (tb)
+  {{\bfseries Trust boundary.}\quad Daemons A--E are trusted endpoints. Every link
+   between them --- the dotted mesh edges and the cobalt gossip arrows alike ---
+   runs over the untrusted network of \S\ref{sec:threat-model}. On that network the
+   Dolev--Yao adversary may \emph{observe} every delta, learning which cards have
+   been revoked (see ``Privacy,'' \S\ref{sec:revocation}), and may \emph{delay,
+   drop, duplicate, or reorder} deltas --- which is why no finite worst-case
+   freshness bound is claimed here. It cannot \emph{forge} a revocation, which is
+   signed, nor \emph{un-revoke} one, which the append-only log forbids.};
+
 % ─── Legend / mechanics panel beneath all five frames ────────────────────
 \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
-      inner sep=6pt,align=left,font=\sffamily\footnotesize,
-      below=10mm of p3.south,
+      inner sep=6pt,align=left,font=\footnotesize,
+      below=4mm of tb.south,
       text width=190mm]
   {{\bfseries Mechanism.}\quad
    Each daemon maintains a cuckoo filter (8-bit fingerprints, 4 entries/bucket,
@@ -152,6 +173,8 @@ locally revokes a Harbor Card (its filter and revocation table). Anti-entropy go
 ships deltas to random peers every 30\,s. Expected $\Theta(\log m)$ propagation
 requires the stated connected reliable-round model; the panels show one possible
 execution, not a worst-case time guarantee. Version vectors make duplicate and
-reordered deltas idempotent once delivered, but do not heal an unbounded partition.}
+reordered deltas idempotent once delivered, but do not heal an unbounded partition.
+The dashed strip beneath the panels states the trust boundary the panels themselves
+cannot draw: the daemons are trusted, every wire between them is not.}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

@@ -12,12 +12,12 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   slot/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
-               fill=hhpaper,inner sep=0pt,font=\sffamily\footnotesize},
+               fill=hhpaper,inner sep=0pt,font=\footnotesize},
   empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
                 fill=hhsand,inner sep=0pt},
-  bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
+  bucketlbl/.style={font=\footnotesize\bfseries,anchor=east},
   flow/.style={->,>=Latex,thick,draw=hhcobalt},
   hashflow/.style={->,>=Latex,thick,draw=hhteal},
 ]
@@ -53,7 +53,7 @@
 \node[slot,fill=hhcobalt!75,text=white] at (b0s2) {c1};
 \draw[flow,line width=1.4pt]
   (b0s2.west) -- ++(-0.6,0)
-  node[midway,above=5mm,font=\sffamily\footnotesize,text=hhcobalt,align=center]
+  node[midway,above=5mm,font=\footnotesize,text=hhcobalt,align=center]
   {evict\\\texttt{2f}}
   -- ($(b2s2.west)+(-0.6,0)$) -- (b2s2.west);
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,

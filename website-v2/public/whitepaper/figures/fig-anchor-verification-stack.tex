@@ -19,25 +19,25 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   layer/.style={draw=hhebony,thick,rounded corners=4pt,
                 minimum width=130mm,minimum height=24mm,
                 align=left,inner sep=8pt,text width=120mm},
   tool/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=3pt,font=\sffamily\bfseries\footnotesize,text=hhamber},
+               inner sep=3pt,font=\bfseries\footnotesize,text=hhamber},
   obligation/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                     inner sep=3pt,font=\sffamily\footnotesize,text=hhcobalt,
+                     inner sep=3pt,font=\footnotesize,text=hhcobalt,
                      align=center,text width=28mm},
   evidence/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,font=\sffamily\footnotesize,text=hhteal,
+                   inner sep=3pt,font=\footnotesize,text=hhteal,
                    align=center,text width=28mm},
-  bridgelbl/.style={font=\sffamily\footnotesize\itshape,text=hhink,
+  bridgelbl/.style={font=\footnotesize\itshape,text=hhink,
                     align=center,text width=42mm},
 ]
 
 % ─── Top layer: ProVerif (symbolic, design-level) ─────────────────────────
 \node[layer,fill=hhsand!50] (top) at (0,0)
-  {{\sffamily\bfseries\large ProVerif --- Symbolic, Dolev--Yao adversary} \\[4pt]
+  {{\bfseries\large ProVerif --- Symbolic, Dolev--Yao adversary} \\[4pt]
    \textit{Verifies properties of the protocol \emph{as designed}, ignoring implementation
    details. The attacker controls the entire network.}\\[3pt]
    {\bfseries Claims:} secrecy \quad$\cdot$\quad modeled authentication
@@ -47,7 +47,7 @@
 
 % ─── Middle layer: Kani (bounded model check on Rust) ─────────────────────
 \node[layer,fill=hhsanddeep!55,below=22mm of top] (mid)
-  {{\sffamily\bfseries\large Kani --- Bounded model checking, Rust source} \\[4pt]
+  {{\bfseries\large Kani --- Bounded model checking, Rust source} \\[4pt]
    \textit{Checks bounded source properties of the \texttt{harbor-card-rs} crate;
    this is not an automatic refinement proof from the symbolic model.}\\[3pt]
    {\bfseries Claims:} memory safety \quad$\cdot$\quad
@@ -58,7 +58,7 @@
 
 % ─── Bottom layer: Runtime conformance tests ─────────────────────────────
 \node[layer,fill=hhamber!28,below=22mm of mid] (bot)
-  {{\sffamily\bfseries\large Runtime conformance --- deployed binary} \\[4pt]
+  {{\bfseries\large Runtime conformance --- deployed binary} \\[4pt]
    \textit{Executes the formally verified attack vectors against the running daemon
    (FFI-bridged Rust core + Node.js daemon).}\\[3pt]
    {\bfseries Claims:} 5 attack patterns rejected \quad$\cdot$\quad

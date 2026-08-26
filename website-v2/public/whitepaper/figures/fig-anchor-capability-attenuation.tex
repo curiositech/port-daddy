@@ -13,11 +13,11 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   capring/.style={draw=hhebony,thick,rounded corners=4pt,align=center,inner sep=6pt},
-  caplbl/.style={font=\sffamily\footnotesize,align=center},
+  caplbl/.style={font=\footnotesize,align=center},
   prin/.style={draw=hhebony,thick,fill=hhcobalt!30,rounded corners=2pt,
-               inner sep=4pt,font=\sffamily\bfseries\footnotesize,align=center},
+               inner sep=4pt,font=\bfseries\footnotesize,align=center},
   arr/.style={->,>=Latex,thick,draw=hhink},
   na/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
@@ -39,7 +39,7 @@
   {{\bfseries AgentB cap}\\\texttt{db:write}, TTL = 5m};
 % AgentA principal: outside the rings on the right; delegates the AgentA cap.
 \node[prin,right=12mm of mid.east,fill=hhsand!50] (agentA) {AgentA};
-\draw[arr] (agentA.west) -- node[above,font=\sffamily\footnotesize] {delegate}
+\draw[arr] (agentA.west) -- node[above,font=\footnotesize] {delegate}
   (mid.east);
 % AgentB principal: outside the rings below; receives the AgentB cap.
 \node[prin,below=12mm of inner.south,fill=hhamber!20] (agentB) {AgentB};
@@ -54,10 +54,10 @@
    $\bullet$ child cannot re-grant beyond child cap};
 % Daemon principal: above the invariants panel so it does not overlap it.
 \node[prin,above=8mm of invbox.north,fill=hhcobalt!30] (daemon) {Daemon};
-\draw[arr] (daemon.south west) -- node[left,font=\sffamily\footnotesize] {issue}
+\draw[arr] (daemon.south west) -- node[left,font=\footnotesize] {issue}
   (root.north east);
 % Forbidden grant attempt
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+\node[font=\footnotesize\itshape,text=hhcobalt,
       below=6mm of agentB,align=center]
   (forbid) {AgentB cannot grant \texttt{net:*} downstream};
 \draw[na] (agentB.south) -- (forbid.north);
