@@ -29,7 +29,7 @@ const CODE_PATH_RE = /\.(ts|tsx|js|jsx|mjs|cjs|rs|swift|go|py|rb|java|kt|c|h|cpp
  * gate enumerated in red-team's prompt.
  */
 const SECURITY_SURFACE_RE =
-  /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit)/i;
+  /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit|key|vault|wrap|hpke)/i;
 
 /** Test-file surface for tautology-sniffer / test-author. */
 const TEST_FILE_RE = /(\.(test|spec)\.[tj]sx?$)|((^|\/)tests?\/)|(_test\.go$)|((^|\/)test_[^/]*\.py$)/i;
