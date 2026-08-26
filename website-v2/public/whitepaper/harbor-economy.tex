@@ -1305,9 +1305,11 @@ determined; only the reserve formula is open.
 
 \input{figures/fig-cartel-game-inline}
 
-Multi-homing plus portable reputation enables cross-harbor \emph{cartels} (a rating
-cartel is the closest real-world analogue to ``the harbor's universities and rating
-agencies''). And a colluding requester$+$worker can \emph{wash-trade} fake settled
+Multi-homing plus portable reputation enables cross-harbor \emph{cartels} --- a
+rating-agency cartel is the closest real-world analogue: several independent
+principals colluding to hold a shared reputation signal artificially favorable
+rather than competing on it. And a colluding requester$+$worker can
+\emph{wash-trade} fake settled
 outcomes to mint reputation cheaply. The defense form --- cost-per-settled-outcome
 must exceed reputation's marginal value --- is circular as stated, because that
 marginal value is endogenous to the same market. The fix is a structural break:
@@ -1446,7 +1448,7 @@ Incentive-compatible arbitration capacity & incentive compatibility &
 \section{Related work}\label{sec:related}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The design borrows from five literatures, and its only originality is in how it
+The design borrows from seven literatures, and its only originality is in how it
 \emph{joins} them; this section consolidates the threads cited piecemeal above.
 
 \paragraph{Multi-sided platform markets.} The frame is Rochet \&
@@ -1511,6 +1513,16 @@ mechanism for exactly that layer; the retail protocols are evidence the layer be
 it is arriving on schedule, and hosted trust (\S\ref{sec:hosted-trust}) is what
 they will need bolted on.
 
+\paragraph{Interactive proofs and adversarial debate.} The adversarial test market
+(\S\ref{sec:adversarial-tests}) is a seventh thread, cited piecemeal there rather
+than above because it grounds a single additional mechanism rather than the market's
+core structure. It is delegated computation in the sense of Goldwasser, Kalai \&
+Rothblum~\cite{goldwasser2008} --- a resource-bounded verifier need not redo a
+prover's work --- crossed with multi-agent debate~\cite{irving2018}, where two
+adversarial reasoners are more legible to a judge than one cooperative one. Becker's
+deterrence condition~\cite{becker1968} supplies the enforcement half: a test-writer's
+expected forfeiture must match its gain from misreporting.
+
 \begin{table}[H]
 \centering
 \small
@@ -1535,6 +1547,10 @@ Agent transaction rails & UCP~\cite{ucp2026}; ACP~\cite{acp2025};
   AP2 mandates~\cite{ap2mandates2026} &
   They standardize the transaction and name trust out of scope; the harbor prices
   and enforces the trust layer they delegate away \\
+Purchased assurance & Delegated computation~\cite{goldwasser2008}; AI-safety
+  debate~\cite{irving2018} &
+  Prices assurance as $k$ independently bonded test-writers under a Becker-style
+  re-audit rate, against a mutation-testing oracle \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1568,33 +1584,41 @@ bounty plus the carry on one bond.
 
 \input{figures/fig-he-assurance}
 
+A \textbf{Becker-enforced panel} is a set of $k$ independent, conflict-free
+test-writing agents, each detecting a given flaw with probability
+$d \in (0,1)$, each posting a slashable bond $B$ to enter the market, and each
+facing a platform re-audit rate $\rho$ against a one-shot misreporting gain $G$.
+The panel size $k$ and the detection probability $d$ fix what the panel
+\emph{catches}; the triple $(G,B,\rho)$ separately fixes whether a test-writer
+is honest at all. The two questions are independent, so the paper states them
+as two results rather than one bundled claim.
+
 \begin{theorem}[Purchased Assurance Bound]\label{thm:assurance}
-Let an author-agent submit a float-plan implementation with a proposed diff. Let $k$
-independent, conflict-free test-writing agents each discover planted or latent flaws
-with independent detection probability $d \in (0,1)$. Then the probability that a
+Let an author-agent submit a float-plan implementation with a proposed diff, and
+let a Becker-enforced panel of size $k$ review it. Then the probability that a
 critical flaw survives undetected across all $k$ reviewers is bounded by
 \begin{equation}
 \Pr(\text{defect undetected}) \;\le\; (1-d)^k .
 \end{equation}
-Truthful effort is a dominant strategy for test-writers under a
-bounty-per-killed-mutant and slash-per-false-alarm contract that satisfies the
-\textbf{Becker deterrence condition} --- expected punishment must at least match the
-gain from cheating~\cite{becker1968}:
+The operator's assurance level $1-(1-d)^k$ is then a purchasable commodity
+priced at $k \cdot (\text{bounty} + \text{bond carry})$, which is what makes
+``hosted trust as a service'' a quantifiable line item rather than a slogan.
+\end{theorem}
+
+\begin{property}[Becker deterrence for the panel]\label{prop:becker-deterrence}
+Truthful effort is a dominant strategy for a Becker-enforced panel's test-writers
+exactly when expected punishment at least matches the one-shot gain from
+cheating --- the \textbf{Becker deterrence condition}~\cite{becker1968}:
 \begin{equation}\label{eq:becker}
 \rho\, d\, B \;\ge\; G ,
 \end{equation}
-where $G$ is the one-shot gain a test-writer takes by reporting a fake flaw (or
-quietly suppressing a real one) instead of working honestly, $B$ is the slashable
-bond it posted to enter the market, $d$ is the probability a re-audit detects the
-misreport, and $\rho$ is the probability the platform re-audits the report at all.
-Equivalently, the platform must commit to a re-audit rate at or above the critical
-rate $\rho^\star = G/(dB)$. The operator's assurance level $1-(1-d)^k$ is then a
-purchasable commodity priced at $k \cdot (\text{bounty} + \text{bond carry})$, which
-is what makes ``hosted trust as a service'' a quantifiable line item rather than a
-slogan.
-\end{theorem}
+equivalently, the platform must commit to a re-audit rate at or above the
+critical rate $\rho^\star = G/(dB)$. (\Designed{}; this half is imported, not
+proved here --- see the paragraph below.)
+\end{property}
 
-\noindent The deterrence half of that statement is not proved here; it is imported.
+\noindent The deterrence condition in Property~\ref{prop:becker-deterrence} is
+not proved here; it is imported.
 The companion technical paper \emph{Reputation is Amortized
 Verification}~\cite{harbor3} derives $\rho^\star = G/(dB)$ as the stage-game
 threshold of a bonded inspection game --- the same game this paper plays in
