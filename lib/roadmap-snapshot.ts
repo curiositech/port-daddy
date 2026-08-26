@@ -140,7 +140,7 @@ export async function buildRoadmapSnapshot(
     );
   }
 
-  if (options.previousSnapshot && !options.allowShrink) {
+  if (options.previousSnapshot && Array.isArray(options.previousSnapshot.items) && !options.allowShrink) {
     const prevSlugs = new Set(options.previousSnapshot.items.map((i) => i.slug));
     if (prevSlugs.size > 0) {
       const newSlugs = new Set(items.map((i) => i.slug));

@@ -12,7 +12,10 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { buildRoadmapSnapshot } from '../../lib/roadmap-snapshot.js';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { buildRoadmapSnapshot, readPreviousSnapshot } from '../../lib/roadmap-snapshot.js';
 
 function fakeFetch(items) {
   return async () => ({
@@ -134,5 +137,56 @@ describe('roadmap-snapshot / shrink guard', () => {
       allowShrink: true,
     });
     expect(snapshot.count).toBe(1);
+  });
+
+  it.each([
+    ['items missing entirely', {}],
+    ['items is null', { items: null }],
+    ['items is not an array', { items: 'not-an-array' }],
+  ])('treats a malformed previousSnapshot (%s) as nothing to reconcile against, not a crash', async (_label, malformed) => {
+    // A hand-built previousSnapshot with a bad shape must degrade to "no
+    // guard", the same as no previousSnapshot at all — never throw a raw
+    // TypeError out of `.items.map`.
+    const snapshot = await buildRoadmapSnapshot({
+      baseUrl: 'http://x',
+      harbor: 'port-daddy',
+      fetchImpl: fakeFetch([item('only-item')]),
+      previousSnapshot: malformed,
+    });
+    expect(snapshot.count).toBe(1);
+  });
+});
+
+describe('readPreviousSnapshot', () => {
+  let dir;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'roadmap-snapshot-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('returns null when the file does not exist', () => {
+    expect(readPreviousSnapshot(join(dir, 'missing.json'))).toBeNull();
+  });
+
+  it('returns null on malformed JSON instead of throwing', () => {
+    const path = join(dir, 'bad.json');
+    writeFileSync(path, '{ not valid json', 'utf8');
+    expect(readPreviousSnapshot(path)).toBeNull();
+  });
+
+  it('returns null when items is not an array', () => {
+    const path = join(dir, 'no-items.json');
+    writeFileSync(path, JSON.stringify({ count: 3 }), 'utf8');
+    expect(readPreviousSnapshot(path)).toBeNull();
+  });
+
+  it('returns the items when the file is well-formed', () => {
+    const path = join(dir, 'good.json');
+    writeFileSync(path, JSON.stringify({ items: [item('a'), item('b')] }), 'utf8');
+    expect(readPreviousSnapshot(path)).toEqual({ items: [item('a'), item('b')] });
   });
 });
