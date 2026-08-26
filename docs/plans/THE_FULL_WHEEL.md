@@ -458,18 +458,50 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
    into the queue", not "merged"**; the queue lands it later on its own clock, and the deck
    log says so rather than implying the PR is already on main.
 
-8. **Episodic wakes.** The other half of PR 1's unbuilt assumption: the relay's webhook
-   receiver posts `/wake` on `pull_request` / `check_suite` events, so the seat reacts in
-   seconds rather than at heartbeat cadence. Dedupe is already at the door (`deliveryId`).
+8. **Episodic wakes — SHIPPED.** The other half of PR 1's unbuilt assumption, now built: the
+   relay's webhook receiver POSTs `/wake` on the eight events that can change a merge verdict,
+   so the seat reacts in seconds rather than at heartbeat cadence. Dedupe was already at the
+   door (`deliveryId`), and the seat's 5s drain debounce collapses a burst into one tick.
+
+   **The wiring is a cross-script Durable Object binding, not an HTTPS call, and that is the
+   whole design.** The obvious version — `fetch('https://pd-steward.../wake')` with a bearer —
+   requires `STEWARD_ADMIN_TOKEN`, the same credential that authorizes `/ship-it`, `/charter`
+   and `/clusterfudge/ack`. Giving the relay full merge authority so it can say "something
+   happened" is a bad trade, and minting a narrower second token only moves a secret into a
+   second Worker to guard a boundary that does not exist: a DO namespace is not publicly
+   addressable, so `{ name = "STEWARD", class_name = "StewardDO", script_name = "pd-steward" }`
+   reaches the seat *inside* the trust boundary with no credential at all. Identical argument
+   to PR 5's cron — `fetch` authenticates the outside world, and this is not the outside world.
+
+   Two consequences worth stating. **The filter is an allow-list of eight events**, and its
+   exclusions carry as much weight as its inclusions: no `check_run` (≈28 per push here versus
+   a handful of suites, collapsing to the same single tick), no `edited`/`labeled`/`assigned`
+   (description churn cannot change a verdict, and a deck log full of noise is a vital sign
+   nobody reads). **And the seat is an accelerant, never a dependency** — every failure path
+   is absorbed into a `steward_wake_failed` audit row and a 204, because a 503 here would make
+   GitHub retry a delivery whose fleet enqueue already succeeded, turning a lost wake into
+   duplicate spend. A dropped wake costs latency until the next 6h beat; nothing more.
 
 > **Proof gate.** Seven days unattended on this repo: every open PR reaches merged or an
 > explicit SURFACE with a reason; zero un-charted merges; deck log complete for every wake;
 > one injected land-fail loop trips the freeze and pages.
 >
-> **Verification owed before the gate can start.** (a) Confirm the deployed Worker matches
-> `main` — a live `/status` returned `null` for `recentDeckLog` and `clusterfudgePage`, both of
-> which exist in source, which suggests the running build predates them. (b) Confirm the cron
-> fires by finding an `all-quiet` entry written with no operator wake.
+> **Deployment state, measured 2026-08-26 via the Cloudflare API** (`workers/scripts/pd-steward/versions`).
+> The live seat is **version 9, uploaded 2026-08-23 10:39 UTC by `wrangler` from a workstation
+> — not by CI**; `deploy-steward.yml` has never produced the running build. Its declared
+> handlers are `["fetch"]` alone and its cron schedule list is empty, so PR 5's `scheduled`
+> handler is genuinely not live yet: the single deck-log row is the operator's manual wake and
+> nothing else could have written one. Bindings are `DB`, `STEWARD`, `STEWARD_ADMIN_TOKEN`,
+> `STEWARD_GITHUB_TOKEN` — no `STEWARD_LAND_TOKEN`, which is why `/status` reports
+> `landing: unarmed`. That version postdates PR 4 by three days, so `recentDeckLog` and
+> `clusterfudgePage` *are* in the running bundle; the `null null` a live `/status` returned for
+> them is not a version skew and is most consistent with the request having lost its bearer
+> (an `{"error":"unauthorized"}` body yields exactly two nulls under that `jq` filter).
+>
+> **Verification still owed before the gate can start:** confirm the cron fires by finding an
+> `all-quiet` entry written with no operator wake — impossible until a deploy carries the
+> `scheduled` handler, which the version metadata above now gives us a direct way to check
+> (`handlers` gains `"scheduled"`, `schedules` stops being empty).
 
 ### P2 — Cartographer dispatches; sailors are born (≈3 weeks · 5 PRs)
 

@@ -14,6 +14,15 @@ export interface Env {
   // Optional until the v0003 Durable Object migration is deployed; routes
   // fail closed with COORDINATION_UNCONFIGURED while absent.
   COORDINATION_ROOM?: DurableObjectNamespace;
+  // The Steward's seats, bound CROSS-SCRIPT (`script_name = "pd-steward"`):
+  // the class lives in and is migrated by `apps/steward`, and the relay only
+  // ever POSTs `/wake` to it (P1 PR 8). A DO namespace is not publicly
+  // addressable, so this reaches the seat inside the trust boundary and needs
+  // no credential — which is the point: the alternative was handing the relay
+  // STEWARD_ADMIN_TOKEN, the same key that authorizes /ship-it and /charter.
+  // Optional, and deliberately absent from the `latest` environment: a staging
+  // delivery must never wake the production merge authority.
+  STEWARD?: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
   // Queue producers — one FleetRunJob per GitHub delivery handed to the
