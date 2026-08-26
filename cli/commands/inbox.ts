@@ -8,7 +8,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import * as ui from '../utils/ui.js';
-import { inboxMessagePreview } from '../utils/message-preview.js';
+import { inboxMessagePreview, inboxSenderLabel } from '../utils/message-preview.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
@@ -66,7 +66,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     for (const msg of messages) {
       const readMark = msg.read ? ' ' : '\u2709';
       const time = new Date(msg.createdAt).toISOString().slice(11, 19);
-      const from = msg.from || 'system';
+      const from = inboxSenderLabel(msg);
       console.log(`${readMark} [${time}] <${from}> ${inboxMessagePreview(msg.content)}`);
     }
     console.log('');
@@ -207,7 +207,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     }
 
     const time = new Date(msg.createdAt).toISOString();
-    const from = msg.from || 'system';
+    const from = inboxSenderLabel(msg);
 
     console.log('');
     console.log(`From:      ${from}`);

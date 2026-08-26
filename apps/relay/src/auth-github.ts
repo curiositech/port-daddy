@@ -198,6 +198,22 @@ function readSessionCookie(request: Request): string | null {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+/**
+ * The web session's OAuth scope. `repo` is required — not merely
+ * convenient — because every repo-access check this session's token backs
+ * (`userCanReadRepo`, `userIsRepoAdmin` in this file) calls
+ * `GET /repos/:owner/:repo` and treats a 404 as "not readable." GitHub
+ * returns 404 (not 403) for a private repository the token's scope can't
+ * see, which is indistinguishable from the repo not existing — so a token
+ * scoped to only `read:user user:email` silently fails every private-repo
+ * check, including a repo the user personally owns. `permissions.admin` in
+ * that same response (which `userIsRepoAdmin` reads) is also only populated
+ * for a sufficiently-scoped, authenticated request. `public_repo` alone
+ * would fix public repos but not private ones, which is exactly the
+ * lockout an operator with private repos hits.
+ */
+const WEB_SESSION_SCOPE = 'read:user user:email repo';
+
 /** GET /auth/github/login — mint single-use state, 302 to GitHub. */
 export async function handleGithubLogin(request: Request, env: Env): Promise<Response> {
   if (!loginConfigured(env)) return json(503, { code: 'LOGIN_UNCONFIGURED', error: 'GitHub login is not configured' });
@@ -209,7 +225,7 @@ export async function handleGithubLogin(request: Request, env: Env): Promise<Res
   const url = new URL(GH_AUTHORIZE);
   url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   url.searchParams.set('redirect_uri', redirectUri(env));
-  url.searchParams.set('scope', 'read:user user:email');
+  url.searchParams.set('scope', WEB_SESSION_SCOPE);
   url.searchParams.set('state', state);
   url.searchParams.set('allow_signup', 'false');
   return Response.redirect(url.toString(), 302);
@@ -484,6 +500,52 @@ export async function userCanReadRepo(
   const ok = res.status === 200;
   await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
   return ok;
+}
+
+/**
+ * Does the session's user have ADMIN permission on `owner/repo`, per GitHub's
+ * own judgment? Reads the same `GET /repos/:owner/:repo` response
+ * `userCanReadRepo` already makes (its `permissions.admin` field reflects the
+ * CALLING user's own access level, not the repo's public visibility), cached
+ * separately in KV for 5 minutes keyed by (user_id, repo).
+ *
+ * Why this exists: `repo_settings` writes that only affect the writer's own
+ * account (e.g. the sitrep dial) only need read access to gate against
+ * enumeration. A setting fleet-executor treats as authoritative for EVERY
+ * user of a repository — like the Workers AI call deadline — is different: a
+ * mere read-access gate would let any GitHub user who can merely see a public
+ * repository silently change execution behavior for every installation that
+ * reviews it (the DO-NOT-SHIP finding on PR #9800). Requiring admin here is
+ * the cheapest correct gate available without building a real
+ * installation-authority record; `userOwnsInstallation` was considered but
+ * would need an App-authenticated (not user-token) lookup this handler does
+ * not otherwise make, and is deliberately left as a named follow-up.
+ *
+ * @param env - Worker bindings (KV cache, used the same way as userCanReadRepo).
+ * @param session - The resolved session carrying the caller's GitHub token.
+ * @param owner - Repository owner.
+ * @param repo - Repository name.
+ * @returns True iff GitHub reports `permissions.admin: true` for this user.
+ */
+export async function userIsRepoAdmin(
+  env: Env,
+  session: ResolvedSession,
+  owner: string,
+  repo: string,
+): Promise<boolean> {
+  if (!session.ghToken) return false;
+  const cacheKey = `repo_admin:${session.user.id}:${owner}/${repo}`;
+  const cached = await env.KV.get(cacheKey);
+  if (cached === '1') return true;
+  if (cached === '0') return false;
+  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
+  let admin = false;
+  if (res.status === 200) {
+    const body = await res.json().catch(() => null) as { permissions?: { admin?: boolean } } | null;
+    admin = body?.permissions?.admin === true;
+  }
+  await env.KV.put(cacheKey, admin ? '1' : '0', { expirationTtl: 300 });
+  return admin;
 }
 
 /**

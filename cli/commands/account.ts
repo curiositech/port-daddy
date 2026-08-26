@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { PD_HOME } from '../../shared/paths.js';
 
-const DEFAULT_RELAY = 'https://port-daddy-relay.erich-owens.workers.dev';
+const DEFAULT_RELAY = 'https://relay.portdaddy.dev';
 const ACCOUNT_FILE = join(PD_HOME, 'account.json');
 
 interface StoredAccount {

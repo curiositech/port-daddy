@@ -1,0 +1,57 @@
+% R11 regime: canary detection operating curve (log-log), the broken-secrecy
+% boundary curve, and the measured points. Operating-curve coordinates
+% recomputed directly from the closed form in figures/src/r11_figures.py
+% (detection_curve = 1-(1-(c/n)(1-beta))^m, n=10000,c=100,beta=0.2); the
+% broken-secrecy curve is that same curve scaled by (1-rho), rho=0.3, matching
+% the script's own model. Measured points [25,50,100,200,400,800] ->
+% [0.182,0.331,0.554,0.802,0.962,0.999] verified against
+% skills/harbor-results/scripts/a4_canary_sprt.py's exact-hypergeometric
+% column, run fresh: 0.1821/0.3313/0.5535/0.8020/0.9618/0.9987 (matches to the
+% script's own rounding). The k=5 boundary numbers cited in the caption
+% (0.9997 -> 0.698) were re-run directly from a4_canary_sprt.py section (5)
+% and reproduce exactly: analytic bound 0.9997, simulated stripped power
+% 0.6978. Wald SPRT E1[N]=297, E0[N]=432 (theorem box, this section) were
+% independently re-run from the same script and reproduce as 296.9/431.9
+% analytic, 359.0/438.1 simulated -- confirming the current script (not any
+% earlier fabricated-curve version) backs every number here. [verified:
+% script r11_figures.py + a4_canary_sprt.py, seed 20260816]
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.85\textwidth,height=6.8cm,
+  xmode=log,ymode=log,
+  xlabel={leak size (spans, log scale)},
+  ylabel={probability of detection},
+  title={\textbf{R11 regime} --- the operating curve a CISO can buy, and the boundary that voids it},
+  xmin=8,xmax=1200,ymin=0.001,ymax=1.2,
+  legend pos=south east,
+]
+\addplot[gray,dotted,mark=none,forget plot] coordinates {(8,0.5) (1200,0.5)};
+\node[anchor=south west,font=\scriptsize,color=black!55] at (axis cs:9,0.52) {50\% detection};
+\addplot[harborblue,thick,mark=none] coordinates {
+  (10.0,0.07718) (14.251,0.10816) (20.309,0.15052) (28.943,0.20743) (41.246,0.28201)
+  (58.780,0.37633) (83.768,0.48974) (119.378,0.61667) (170.125,0.74500) (242.446,0.85735)
+  (345.511,0.93766) (492.388,0.98084) (701.704,0.99643) (1000.0,0.99968)
+};
+\addlegendentry{operating curve (secure)}
+\addplot[shipred,thick,dashed,mark=none] coordinates {
+  (10.0,0.05403) (14.251,0.07571) (20.309,0.10536) (28.943,0.14520) (41.246,0.19741)
+  (58.780,0.26343) (83.768,0.34282) (119.378,0.43167) (170.125,0.52150) (242.446,0.60015)
+  (345.511,0.65636) (492.388,0.68659) (701.704,0.69750) (1000.0,0.69977)
+};
+\addlegendentry{adversary strips canary list (w.p.\ 0.3)}
+\addplot[only marks,mark=*,mark size=2.3pt,color=shipred,mark options={draw=black!60,line width=0.5pt}] coordinates {
+  (25,0.182) (50,0.331) (100,0.554) (200,0.802) (400,0.962) (800,0.999)
+};
+\addlegendentry{measured [internal, \texttt{a4\_canary\_sprt.py}]}
+\end{axis}
+\end{tikzpicture}
+\caption{Regime diagram for Pillar IV: the operating curve a CISO can buy, and the boundary that
+voids it. Left: $\Pr(\text{detect})$ against leak size $m$ at density 1\%, $\beta=0.2$ --- exact, approximate, and simulated agree
+[internal, \texttt{a4\_canary\_sprt.py}]. The guarantee's load-bearing regime is secret, uniform planting: an adversary who
+obtains the canary list with probability $0.3$ and strips all of them drops measured power from $0.9997$ to $0.698$ at $k{=}5$
+[internal].}
+\label{fig:r11reg}
+\end{figure}

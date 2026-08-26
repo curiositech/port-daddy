@@ -11,6 +11,7 @@ import type { createResurrection } from '../lib/resurrection.js';
 import type { createSessions } from '../lib/sessions.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { ActorSouls } from '../lib/actor-souls.js';
+import { createInboxIdentity } from '../lib/inbox-identity.js';
 
 type AgentsManager = ReturnType<typeof createAgents>;
 type AgentInboxManager = ReturnType<typeof createAgentInbox>;
@@ -26,6 +27,11 @@ interface ActorsRouteDeps {
   fleetDaemon?: FleetDaemonManager;
   /** ADR-0040 daemon-minted actor identity store (POST /actors/register). */
   actorSouls?: ActorSouls;
+  /** Route logger — carries the structured identity-reject lines. */
+  logger?: {
+    info(msg: string, meta?: Record<string, unknown>): void;
+    error(msg: string, meta?: Record<string, unknown>): void;
+  };
 }
 
 interface RegisterActorBody {
@@ -127,6 +133,16 @@ function actorOr404(id: string, deps: ActorsRouteDeps, project?: string): ActorR
 export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = async (fastify, opts) => {
   const deps = opts.deps ?? {};
 
+  // POST /actors/:id/message is the SECOND door into the same agent_inbox
+  // table, with the same unverified `from` and the same wake → hailAgent
+  // path. Credentialing only /agents/:id/inbox would be bypassable in one
+  // line of curl, so both doors share one gate (lib/inbox-identity.ts).
+  const { requireInboxSender } = createInboxIdentity({
+    souls: deps.actorSouls,
+    sessions: deps.sessions,
+    logger: deps.logger,
+  });
+
   fastify.get('/actors', async (request: FastifyRequest<{ Querystring: ActorsQuery }>) => {
     const input = collectProjectionInput(deps, request.query ?? {});
     const actors = listActors(input)
@@ -178,7 +194,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
           ? 'credential did not verify'
           : outcome.code === 'NEWCOMER_ADMIT_LIMIT'
             ? 'newcomer admission limit reached for this project today'
-            : 'identity store unavailable',
+            : outcome.code === 'RESERVED_ALIAS'
+              ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
+              : 'identity store unavailable',
         code: outcome.code,
       });
     }
@@ -240,6 +258,20 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     }
 
     const { content, from, type, wake, project } = request.body ?? {};
+
+    // Same strict gate as POST /agents/:id/inbox, applied before the message
+    // is stored or the wake path can spawn anything. The body's `from` is
+    // dead after this point.
+    const sender = requireInboxSender(
+      request.headers as Record<string, unknown>,
+      request.body,
+      from,
+      'POST /actors/:id/message',
+    );
+    if (!sender.success) {
+      return reply.code(sender.httpStatus).send(sender.result);
+    }
+
     if (content === undefined || content === null || content === '') {
       return reply.code(400).send({
         success: false,
@@ -256,7 +288,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     }
 
     const result = deps.agentInbox.send(actor.inboxTarget, content, {
-      from: typeof from === 'string' ? from : undefined,
+      from: sender.from,
+      fromActorId: sender.fromActorId,
+      fromSoulClass: sender.fromSoulClass,
       type: typeof type === 'string' ? type : 'actor.message',
     });
     if (!result.success) {
@@ -273,7 +307,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       wakeResult = await deps.fleetDaemon.hailAgent(actor.compatibilityFleetAgent, {
         project: typeof project === 'string' ? project : undefined,
         source: 'inbox',
-        from: typeof from === 'string' ? from : null,
+        from: sender.from,
+        fromActorId: sender.fromActorId,
+        fromSoulClass: sender.fromSoulClass,
         message: content,
         messageContent: String(content),
       });

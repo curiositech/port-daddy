@@ -55,7 +55,10 @@ Current code already has pieces of the contract:
 
 - `fleet_transcripts`, `fleet_transcript_messages`, and
   `fleet_transcript_outputs` in `lib/transcripts.ts` store one operator-facing
-  run row plus chronological messages and output artifacts.
+  run row plus chronological messages and output artifacts. New rows carry a
+  daemon-stamped reserved producer, `INTERNAL` trust tier, and producer clock;
+  caller-shaped producer metadata is ignored and legacy rows remain untrusted
+  (`null`) until new daemon-owned evidence is recorded.
 - `transcript_events` in `lib/transcript-store.ts` stores append-only
   per-actor/per-turn events for cost, memory, and search style uses.
 - `lib/transcript-archive.ts` writes finalized fleet transcripts to an
@@ -407,6 +410,9 @@ Live SQLite database:
 
 - Official agents write through the daemon-owned SQLite handle, never a
   per-agent private database.
+- Producer provenance is an observed fact, not bearer authority. Only the
+  in-process lifecycle may stamp the reserved producer fields, and neither the
+  string value nor a caller-submitted copy authorizes a mutation.
 - The daemon DB path is resolved by current runtime rules:
   - with `PORT_DADDY_PREFIX`, `server.ts` passes
     `$PORT_DADDY_PREFIX/port-daddy.db`;

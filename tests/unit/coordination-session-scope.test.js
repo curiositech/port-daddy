@@ -1,5 +1,10 @@
 import { jest } from '@jest/globals';
 import { scopeSugarSessionsToCoordinationProject } from '../../lib/coordination-session-scope.js';
+import { createTestDb } from '../setup-unit.js';
+import { createAgents } from '../../lib/agents.js';
+import { createSessions } from '../../lib/sessions.js';
+import { createActivityLog } from '../../lib/activity.js';
+import { createSugar } from '../../lib/sugar.js';
 
 function sessionsStub() {
   return {
@@ -67,6 +72,48 @@ describe('scopeSugarSessionsToCoordinationProject', () => {
     expect(scoped.list().sessions[0].identityProject).toBe('fleet');
     expect(scoped.get('session-1')).toEqual({ success: true });
     expect(sessions.get).toHaveBeenCalledWith('session-1');
+  });
+
+  it('preserves Sugar semantic identity metadata while storing the row in the room', () => {
+    const db = createTestDb();
+    const agents = createAgents(db);
+    const rawSessions = createSessions(db);
+    const activityLog = createActivityLog(db);
+    rawSessions.setActivityLog(activityLog);
+    const scopedSessions = scopeSugarSessionsToCoordinationProject(
+      rawSessions,
+      'curiositech/port-daddy',
+    );
+    const sugar = createSugar({
+      agents,
+      sessions: scopedSessions,
+      activityLog,
+      gitOriginChecker: {
+        checkBranchOnOrigin: () => ({
+          ok: true,
+          branch: 'codex/cloud-peer',
+          upstream: 'origin/codex/cloud-peer',
+          ahead: 0,
+        }),
+      },
+    });
+
+    const began = sugar.begin({
+      lifecycle: 'durable',
+      identity: 'fleet:run:delivery-123',
+      purpose: 'Cloud sandbox coordination peer',
+    });
+    expect(began.success).toBe(true);
+
+    const stored = rawSessions.get(began.sessionId);
+    expect(stored.session).toMatchObject({
+      identityProject: 'curiositech/port-daddy',
+      metadata: expect.objectContaining({ identityString: 'fleet:run:delivery-123' }),
+    });
+    expect(scopedSessions.list({ status: 'active' }).sessions[0]).toMatchObject({
+      identityProject: 'fleet',
+      metadata: expect.objectContaining({ identityString: 'fleet:run:delivery-123' }),
+    });
   });
 
   it('is an identity operation when coordination is disabled', () => {

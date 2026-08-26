@@ -7,7 +7,8 @@ R10 Figures: ε-ledger conservation (A3)
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, FancyArrowPatch
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 # Set seed for deterministic output
 np.random.seed(20260816)
@@ -18,74 +19,69 @@ shipred = (140/255, 30/255, 30/255)
 seagreen = (31/255, 110/255, 70/255)
 
 # ============================================================================
-# Figure 1: RELATION-MAP (three columns)
+# Figure 1: RELATION-MAP (bank ledger ⇔ ε-release ledger, three substantive rows)
 # ============================================================================
 
-fig, ax = plt.subplots(figsize=(11, 6), dpi=150)
-ax.set_xlim(0, 11)
-ax.set_ylim(0, 6)
+fig, ax = plt.subplots(figsize=(12, 7.6), dpi=150)
+ax.set_xlim(0, 12)
+ax.set_ylim(0, 10.6)
 ax.axis('off')
 
-# Title
-ax.text(5.5, 5.7, "R10 — the privacy budget is double-entry bookkeeping",
-        fontsize=11, weight='bold', ha='center', va='top')
+ax.text(6, 10.3, "R10 — the privacy budget is double-entry bookkeeping",
+        fontsize=12, weight='bold', ha='center', va='top')
 
-# Column 1: Base Domain (double-entry bookkeeping)
-col1_x = 1.8
-col1_y = 4.0
-box1 = Rectangle((0.3, col1_y-1.5), 3.0, 2.2,
-                      edgecolor=harborblue, facecolor=harborblue,
-                      alpha=0.12, linewidth=1.5)
-ax.add_patch(box1)
-ax.text(col1_x, col1_y+0.6, "Base: Accounting", fontsize=10, weight='bold',
+# Base column (left): a bank ledger
+ax.add_patch(FancyBboxPatch((0.2, 0.7), 3.6, 8.7,
+                             boxstyle="round,pad=0,rounding_size=0.18",
+                             edgecolor=harborblue, facecolor=harborblue,
+                             alpha=0.12, linewidth=1.5))
+ax.text(2.0, 9.05, "Base: the ledger book", fontsize=11, weight='bold',
         ha='center', va='center')
-ax.text(col1_x, col1_y+0.1, "Double-entry", fontsize=9, ha='center', va='center')
-ax.text(col1_x, col1_y-0.35, "Journal (all posts)", fontsize=9, ha='center', va='center')
-ax.text(col1_x, col1_y-0.8, "Balance (cumulative sum)", fontsize=9, ha='center', va='center')
-ax.text(col1_x, col1_y-1.25, "updated in ONE stroke", fontsize=8, ha='center', va='center',
-        style='italic', color=shipred, weight='bold')
 
-# Column 2: Mapping arrows
-col2_x = 5.5
-# Arrow 1: top mapping — label sits clear above the arrow shaft
-arrow1 = FancyArrowPatch((3.3, col1_y+0.15), (6.7, col1_y+0.15),
-                        arrowstyle='<->', mutation_scale=24,
-                        linewidth=1.5, color=shipred, alpha=0.75)
-ax.add_patch(arrow1)
-ax.text(col2_x, col1_y+0.75, "one-stroke posting",
-        fontsize=9, ha='center', va='bottom', weight='bold')
-ax.text(col2_x, col1_y+0.45, "⇔ atomic append + add",
-        fontsize=9, ha='center', va='bottom', weight='bold')
-
-# Arrow 2: bottom mapping — label sits clear above the arrow shaft
-arrow2 = FancyArrowPatch((3.3, col1_y-1.15), (6.7, col1_y-1.15),
-                        arrowstyle='<->', mutation_scale=24,
-                        linewidth=1.5, color=shipred, alpha=0.75)
-ax.add_patch(arrow2)
-ax.text(col2_x, col1_y-0.55, "journal audit:",
-        fontsize=9, ha='center', va='bottom')
-ax.text(col2_x, col1_y-0.85, "Σ entries = balance ⇔ log-sum invariant",
-        fontsize=9, ha='center', va='bottom', weight='bold')
-
-# Column 3: Target Domain (privacy budget ledger)
-col3_x = 9.2
-box2 = Rectangle((7.7, col1_y-1.5), 3.0, 2.2,
-                      edgecolor=seagreen, facecolor=seagreen,
-                      alpha=0.12, linewidth=1.5)
-ax.add_patch(box2)
-ax.text(col3_x, col1_y+0.6, "Target: DP Budget", fontsize=10, weight='bold',
+# Target column (right): the release ledger (σ, Λ)
+ax.add_patch(FancyBboxPatch((8.2, 0.7), 3.6, 8.7,
+                             boxstyle="round,pad=0,rounding_size=0.18",
+                             edgecolor=seagreen, facecolor=seagreen,
+                             alpha=0.12, linewidth=1.5))
+ax.text(10.0, 9.05, "Target: the ε-release ledger", fontsize=11, weight='bold',
         ha='center', va='center')
-ax.text(col3_x, col1_y+0.1, "Release ledger Λ", fontsize=9, ha='center', va='center')
-ax.text(col3_x, col1_y-0.35, "σ = Σ_Λ εᵢ", fontsize=9, ha='center', va='center', family='monospace')
-ax.text(col3_x, col1_y-0.8, "gate: σ + εᵢ ≤ εmax", fontsize=9, ha='center', va='center', family='monospace')
-ax.text(col3_x, col1_y-1.25, "every reachable state", fontsize=8, ha='center', va='center',
-        style='italic', color=seagreen, weight='bold')
 
-# Bottom interpretive text
-ax.text(5.5, 1.8, "Every release(εᵢ) atomically appends record to Λ AND adds εᵢ to σ.",
-        fontsize=9, ha='center', va='center', style='italic', color='gray')
-ax.text(5.5, 1.3, "Auditor summing the log reproduces σ in every interleaving. Atomicity makes the budget auditable.",
-        fontsize=9, ha='center', va='center', style='italic', color='gray')
+rows = [
+    # (y, base lines, target lines, label lines, curvature)
+    (7.4,
+     ["Debit and credit post", "in a single stroke —", "no half-written entry", "is ever readable"],
+     ["release(εᵢ) atomically", "appends (εᵢ, artifact hash,", "policy hash) to Λ AND adds", "εᵢ to σ — single-writer"],
+     ["one-stroke posting", "⇔ atomic append + add"],
+     0.12),
+    (4.6,
+     ["Book-keeper refuses a", "posting that would push", "the running balance past", "the authorized credit line"],
+     ["gate refuses release(εᵢ)", "when σ + εᵢ > εmax;", "holds over every concurrent", "interleaving (induction)"],
+     ["credit-line gate", "⇔ σ + εᵢ ≤ εmax, always"],
+     -0.12),
+    (1.9,
+     ["Same ledger, two methods:", "cash-basis vs accrual give", "the identical balance a", "different certified meaning"],
+     ["sequential ⇒ (εmax,0)-DP;", "advanced (Dwork–Rothblum–", "Vadhan) pays only past the", "k≈35 composition crossover"],
+     ["accounting method", "⇔ which DP composition"],
+     0.12),
+]
+
+for y, base_lines, target_lines, label_lines, rad in rows:
+    for i, s in enumerate(base_lines):
+        ax.text(2.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+    for i, s in enumerate(target_lines):
+        ax.text(10.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+    arrow = FancyArrowPatch((3.9, y - 0.15), (8.1, y - 0.15), arrowstyle='<->',
+                             mutation_scale=20, linewidth=1.8, color=shipred, alpha=0.85,
+                             connectionstyle=f"arc3,rad={rad}")
+    ax.add_patch(arrow)
+    for i, s in enumerate(label_lines):
+        ax.text(6.0, y + 0.62 - 0.38 * i, s, fontsize=9, ha='center',
+                va='center', color=shipred, weight='bold')
+
+ax.text(6.0, 0.25,
+        "The ledger conserves the meter, not the meaning: honest per-release εᵢ is the DP mechanism's obligation "
+        "(recorded spend only — complete mediation is R5's assumption).",
+        fontsize=8.5, ha='center', va='center', style='italic')
 
 plt.tight_layout()
 plt.savefig('/home/user/port-daddy/docs/harbor-research/figures/r10_relation.png',
