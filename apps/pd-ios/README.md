@@ -46,6 +46,30 @@ xcodebuild test  -scheme PortDaddyKit -destination 'platform=iOS Simulator,name=
 CI runs the same two commands against a simulator it resolves at runtime — see
 the `pd-ios` job in `.github/workflows/ci.yml`.
 
+## Running the real app + screenshots
+
+The `pd-ios` gate above proves `PortDaddyKit` compiles and its XCTests pass. It
+does **not** render the UI or compile `App/PortDaddyApp.swift` (the `@main`
+shim) — SwiftPM cannot emit an iOS `.app`. To actually boot the app in a
+simulator and capture what it draws:
+
+```sh
+brew install xcodegen        # one-time
+apps/pd-ios/scripts/capture-screenshots.sh
+open apps/pd-ios/pd-ios-screenshots   # 01-roadmap … 04-controls
+```
+
+The script assembles a runnable app target **ephemerally** with XcodeGen (spec:
+`project.yml`), links `PortDaddyKit`, drives all four `RootTab` cases through an
+XCUITest (`UITests/ScreenshotTests.swift`), and exports one PNG per tab. The
+generated `PortDaddy.xcodeproj` is git-ignored — the checked-in contract stays
+"no `.xcodeproj`, no XcodeGen output committed"; only the spec is tracked. The
+run is deterministic and offline: `RootView` is fixture-backed by default, so a
+cold launch renders real content with no network, pairing, or auth.
+
+To open it interactively instead: `cd apps/pd-ios && xcodegen generate && open
+PortDaddy.xcodeproj`, then Run the `PortDaddy` scheme on any iPhone simulator.
+
 ## Generated fixtures — the drift gates
 
 Two files in `PortDaddy/Resources/` are generated and must not be hand-edited:
