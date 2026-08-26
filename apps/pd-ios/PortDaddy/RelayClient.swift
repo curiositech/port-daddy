@@ -189,6 +189,10 @@ public struct RelayClient {
         // back into a `/` and undoes the split-segment fix above. The routes are
         // built by RelayRoute, so what arrives here is already encoded.
         components.percentEncodedPath = path
+        // Setting `.queryItems` (the decoded [URLQueryItem] form, not
+        // `.percentEncodedQueryItems`) makes URLComponents percent-encode each
+        // item's name and value itself when `.url` is read below — this file
+        // never hand-encodes a query value.
         components.queryItems = query.isEmpty ? nil : query
         guard let url = components.url else {
             throw RelayError.transport("could not build a URL for \(path)")

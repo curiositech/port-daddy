@@ -108,9 +108,13 @@ final class RelayClientTransportTests: XCTestCase {
             return XCTFail("expected .unauthenticated, got \(unwrapped)")
         }
         XCTAssertEqual(message, "token expired")
-        // Belt and braces: it must not ALSO satisfy the generic branch, which is
-        // what a refactor collapsing the ladder would produce.
-        if case .http = unwrapped { XCTFail("401 must not surface as .http") }
+        // No separate "must not also be .http" check here: `unwrapped` is a
+        // `let` already proven `.unauthenticated` by the guard above, and a
+        // Swift enum value is exactly one case at a time, so re-testing it
+        // against `.http` after that guard can never be true. What actually
+        // guards against a refactor collapsing the ladder is the guard's own
+        // `else`: if `send` ever mapped 401 to `.http`, THAT branch is what
+        // would fail, not a second check on a value already pinned.
     }
 
     /// CROSS_ORIGIN is keyed on the relay's CODE, not the status, because the
@@ -155,7 +159,10 @@ final class RelayClientTransportTests: XCTestCase {
         XCTAssertEqual(status, 502)
         XCTAssertEqual(code, "HTTP_502")
         XCTAssertTrue(message.contains("502"), "the fallback message should name the status: \(message)")
-        if case .decoding = unwrapped { XCTFail("a non-JSON ERROR body is not a decode failure") }
+        // Same reasoning as testA401IsUnauthenticatedNotAGenericHttpError: the
+        // guard above already proved `unwrapped` is `.http`, so a value that
+        // can only ever be one case at a time cannot also match `.decoding`
+        // here — that guard's `else` is what a regression would actually trip.
     }
 
     /// The success path, so the failures above are known to be failing for the
