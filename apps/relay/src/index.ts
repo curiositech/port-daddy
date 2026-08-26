@@ -236,6 +236,7 @@ import {
   handleMediatorToggle,
 } from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
+import { handleStewardPage } from './steward-page.js';
 import {
   handleRepoSettingsPage,
   handleRepoSettingsSet,
@@ -629,6 +630,12 @@ export default {
     // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
+    }
+    // The Steward's ledgers (session + GitHub repo ACL; ADR-0109). Read-only:
+    // this Worker renders the seat's deck log and merge ledger, it never
+    // writes them — single-writer merge authority is the seat's alone.
+    else if (pathname === '/account/steward' && method === 'GET') {
+      response = await handleStewardPage(request, env);
     }
     // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
     // dial lives here; src/repo-settings-page.ts).
