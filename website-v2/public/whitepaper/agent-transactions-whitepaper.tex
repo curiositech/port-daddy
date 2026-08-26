@@ -417,7 +417,7 @@ An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\
 \begin{theorem}[Structural Scope Limitation]\label{thm:scope}
 For any delegation chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
 \[
-C(\tau_k) \subseteq C(\tau_{k-1}) \subseteq \cdots \subseteq C(\tau_0)
+C(\tau_k) \subseteq C(\tau_{k-1}) \subseteq \cdots \subseteq C(\tau_0).
 \]
 Within an execution that routes every relevant operation through the verifier, no
 accepted operation can lie outside the scope originally granted by the authority.
@@ -450,8 +450,14 @@ The choice between $I_1$ and $I_2$ is not a security decision---it is an economi
 
 Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}, under the applied-pi-calculus methodology of Blanchet~\cite{blanchet2016modeling}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
 
+% SUBMISSION-SKILL: naming conflict --- "regimentation" vs. "enforcement" is an
+% established term-of-art pair in normative multi-agent systems (Jones and
+% Sergot 1993): regimenting a norm means the associated violation cannot occur
+% at all, while enforcing a norm means a violation can occur and is sanctioned
+% after detection. That is exactly the pre-commit/post-commit distinction drawn
+% below. Resolved here by adopting and citing rather than silently coining.
 \paragraph{Regimentation vs. Enforcement (OP-2).}
-This design formalizes \textbf{Synchronous State Decidability} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
+This design formalizes \textbf{Synchronous State Decidability} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules, in the sense of Jones and Sergot's regimentation/enforcement distinction for normative systems~\cite{jonessergot1993regimentation}: a regimented norm's violation cannot occur at all, while an enforced norm's violation can occur and is sanctioned on detection. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 2: Immutable Attribution}\label{sec:attribution}
@@ -516,7 +522,7 @@ Stigmergic coordination originated in biology, where pheromones are accumulate-o
 
 \paragraph{Event-sourced pheromones.} Each entity's pheromone state is a view over an append-only event ledger. For entity $e$ and key $k$:
 \[
-\sigma_t(e,k) \;=\; \mathrm{decay}(S, t - t_0)\;\cdot\;\mathbb{1}\bigl[\text{not revoked or expired in }(t_0, t]\bigr]
+\sigma_t(e,k) \;=\; \mathrm{decay}(S, t - t_0)\;\cdot\;\mathbb{1}\bigl[\text{not revoked or expired in }(t_0, t]\bigr],
 \]
 where $S$ is the last spray strength on $k$ at time $t_0$ and $\mathrm{decay}$ is a geometric decay defined per-channel. \textbf{Revocation} is itself an event; \textbf{rename} is a rewrite-pointer event; \textbf{fork} creates a new key namespace whose provenance is traceable through the event chain.
 
@@ -540,9 +546,9 @@ This dual---mutable view, immutable substrate---is what lets coordination signal
 
 A critical property: even if an agent's identity is discarded after task completion, the \textbf{delegation chain} traces every action back to the authorizing principal. The chain is:
 \[
-\text{Principal} \xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha \xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}
+\text{Principal} \xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha \xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}.
 \]
-The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. Anonymous harm is impossible within the system, because every action chains back to someone who posted collateral.
+The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. Anonymous harm to shared state is impossible within the system, because every action chains back to someone who posted collateral; \S\ref{sec:pricing:threats} draws the corresponding line for harm from \emph{disclosure}, which this chain does not cover.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Limits of Decisive Allocation}\label{sec:sen}
@@ -593,7 +599,7 @@ Advisory claims avoid granting that unconditional veto. They do not guarantee Pa
 \begin{definition}[Advisory Consistency]\label{def:advisory}
 Under advisory claims, file claims form a conflict graph $G = (V, E)$ where vertices are active sessions and edges connect sessions with overlapping claims:
 \[
-(S_i, S_j) \in E \iff \exists f_i \in F_i, f_j \in F_j : \text{overlap}(f_i, f_j)
+(S_i, S_j) \in E \iff \exists f_i \in F_i, f_j \in F_j : \text{overlap}(f_i, f_j).
 \]
 The commons authority guarantees that every edge in $G$ is reported to both endpoints. No agent has a decisive ``personal domain'' over any file. Instead, agents receive complete information about the conflict graph and self-coordinate.
 \end{definition}
@@ -870,7 +876,7 @@ This is a floor, not a tight bound. It is observable from operations and trackab
 
 Let $s(\mathcal{F})$ be plan scope (files claimed, presence of \texttt{db:write}, production-deployment capability). Empirically, cleanup scales super-linearly with scope; coordination cost dominates the high end.
 \[
-\pi(\mathcal{F}) \;\geq\; c \cdot \bigl(1 + \alpha \cdot s(\mathcal{F})\bigr)
+\pi(\mathcal{F}) \;\geq\; c \cdot \bigl(1 + \alpha \cdot s(\mathcal{F})\bigr).
 \]
 $\alpha$ is calibrated from observed cleanup per scope unit. Low-$\alpha$ projects have simple, easily-audited work; high-$\alpha$ projects have tangled dependencies. $\alpha$ is publishable from the audit log.
 
@@ -1009,7 +1015,7 @@ An independent model specification and a Monte Carlo sweep over 36 parameter con
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figures/fig-pareto-dominance.pdf}
-  \caption{Monte Carlo comparison of competitive auction and the specified static-escrow baseline. Left: fraction of trials satisfying the code's Pareto criterion versus reputation noise $\sigma_r$ at $n=5$, split by cartel size. Right: the same criterion versus insurer count at $\sigma_r=0$ with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.}
+  \caption{The competitive auction's Pareto-dominance advantage is real but narrow: it survives moderate reputation noise and a modest cartel, then collapses once noise crosses roughly $\sigma_r=0.1$, and it shrinks as more insurers are added rather than growing. Left: fraction of trials satisfying the code's Pareto criterion versus reputation noise $\sigma_r$ at $n=5$, split by cartel size. Right: the same criterion versus insurer count at $\sigma_r=0$ with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.}
   \label{fig:pareto-mc-inline}
 \end{figure}
 
@@ -1059,7 +1065,7 @@ At $\delta=0.95$ this gives $p_d^\star\approx0.0478$, and the tested grid first 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figures/fig-cartel-folk-theorem.pdf}
-  \caption{A6 --- Repeated-game cartel calculation. Left: sustainability over the tested $(p_d,\delta)$ grid under the supplied grim-trigger payoff model; cobalt cells satisfy that model's cartel inequality and white cells do not. Black bars mark the grid crossing. Right: simulated rounds to first detection. At $\delta=0.95$ the analytical threshold is $p_d^\star\approx0.0478$ and the grid first flips at $0.05$; neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.}
+  \caption{Cartel sustainability collapses sharply once per-round detection crosses a narrow threshold: at $\delta=0.95$ the closed-form $p_d^\star\approx0.0478$ and the simulated grid first flips to ``collapses'' at $p_d=0.05$, a near-exact match. Left: sustainability over the tested $(p_d,\delta)$ grid under the supplied grim-trigger payoff model; cobalt cells satisfy that model's cartel inequality and white cells do not. Black bars mark the grid crossing. Right: simulated rounds to first detection. Neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.}
   \label{fig:cartel-folk}
 \end{figure}
 
@@ -1104,7 +1110,7 @@ Treating all coordination as one uniform ``bonded action'' misses the price-disc
 
 Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We formally introduce \textbf{Semantic Cadence} (the Causal-Density Ratio) as the primary temporal axis:
 \[
-t_{\text{cadence}} \;=\; \int_{0}^{t} \mathrm{causal\_density}(\tau)\,d\tau
+t_{\text{cadence}} \;=\; \int_{0}^{t} \mathrm{causal\_density}(\tau)\,d\tau,
 \]
 where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weighted by verified evidence-trail growth (AST changes, test executions, or committed logic).
 
@@ -1345,7 +1351,7 @@ Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes t
 \paragraph{Agentic-commerce protocols.} While this paper was in preparation, the transaction rails of an agent economy shipped as industry standards: the Universal Commerce Protocol~\cite{ucp2026} (Google/Shopify, 2026) for merchant-hosted agent-mediated retail, its platform-mediated rival the Agentic Commerce Protocol~\cite{acp2025} (OpenAI/Stripe), and the Agent Payments Protocol~\cite{ap2mandates2026}, whose signed mandate chain --- W3C Verifiable Credentials in SD-JWT form, principal~$\to$~platform~$\to$~merchant --- is the deployed sibling of our countersigned Float Plan. All three are explicit that agent \emph{trustworthiness} is out of scope; published security analyses~\cite{datadome2026} observe that they regulate how agents transact while providing no collateral, no settlement oracle, and no priced deterrent against a misbehaving agent. That gap is precisely the synthesis this paper contributes (\S\ref{sec:related} \emph{supra}): bonded participation, capability attenuation, advisory coordination, and immutable attribution. The reference implementation accordingly adopts their credential formats at the harbor boundary (SD-JWT-VC cards, JWS detached-content countersigns over JCS; ADR-0094) while keeping the bonding mechanism they lack.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Discussion and Limitations}
+\section{Discussion and Limitations}\label{sec:discussion-limitations}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 \paragraph{The commons authority is a single point of failure.} If the daemon crashes, the Leviathan falls. No new trust is established, no conflicts detected, no salvage occurs. Agents with cached Harbor Cards continue working, but the commons enters a state of nature until the daemon restarts. This is mitigated by automatic restart (launchd on macOS) but not formally bounded.
@@ -1448,6 +1454,11 @@ Amartya Sen.
 \newblock The Impossibility of a Paretian Liberal.
 \newblock \textit{Journal of Political Economy}, 78(1):152--157, 1970.
 \newblock \url{https://doi.org/10.1086/259614}
+
+\bibitem{jonessergot1993regimentation}
+Andrew J.~I. Jones and Marek Sergot.
+\newblock On the Characterisation of Law and Computer Systems: The Normative Systems Perspective.
+\newblock In \textit{Deontic Logic in Computer Science: Normative System Specification}, pages 275--307. John Wiley and Sons, 1993.
 
 \bibitem{aumann1974subjectivity}
 Robert~J. Aumann.
@@ -1751,17 +1762,17 @@ These exercises are for instructors using this paper in a systems, mechanism-des
 \paragraph{E9 (Open problem).} The gossip convergence bound (the Anchor Protocol's revocation analysis) is reproduced from the standard anti-entropy analysis rather than mechanized. Identify the specific theorem from~\cite{demers1987epidemic} that would need to be ported to a proof assistant. What would change in the analysis if the daemon mesh is \emph{not} fully connected? Hint: consider gossip on a graph with bottleneck cuts.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Limitations \& Boundaries}\label{sec:bonded-limitations-boundaries}
+\section{Scope Boundary Checklist}\label{sec:bonded-limitations-boundaries}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+Section~\ref{sec:discussion-limitations} (\emph{Discussion and Limitations}) and Appendix~\ref{app:mech}'s own limitations paragraph carry the substantive boundary discussion; this closing checklist exists so a reader who jumped straight to the appendices does not have to hunt through the body for the three bounding assumptions that recur most.
 
 \begin{itemize}
-    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
-    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+    \item \textbf{Threat model exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
 \end{itemize}
 
-These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
+None of the three is a flaw the chapter is unaware of; each is a structural reality of building zero-trust coordination on top of POSIX primitives, already priced into the hedged claims made where each mechanism was introduced.
 
 \end{document}
