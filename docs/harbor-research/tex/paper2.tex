@@ -63,6 +63,53 @@ also unobservable, a second, stricter theory applies --- \S\ref{sec:partial}.)
 
 \input{fig-r5-relation.tex}
 
+\section{The vocabulary, defined}\label{sec:vocab} The theorem is imported wholesale from supervisory control theory, a
+branch of control engineering that has been mature since the late 1980s and whose vocabulary is almost entirely unknown
+outside it. None of it is difficult. Every term below is a statement about strings and sets of strings, and a reader who is
+comfortable with regular languages already has the prerequisites. Definitions in the order they are needed, each used
+immediately after it is given.
+
+An \emph{alphabet} $\Sigma$ is just the finite set of event types the system can emit --- for us, \texttt{fs\_write},
+\texttt{net\_egress}, \texttt{model\_emit\_token} and the rest. A \emph{string} over $\Sigma$ is one possible history of an
+execution, in order. Everything in this paper is a claim about which histories can happen.
+
+A set of strings $K$ is \emph{prefix-closed} when every prefix of a member is itself a member: if the first ten events of a
+run are allowed, so are the first nine. This is a modelling choice with teeth. It says a policy can be violated only by
+\emph{doing} something, never by failing to do something --- a run that has not yet violated the policy is still legal.
+Prefix-closed languages are exactly the \emph{safety} properties in Lamport's sense: a violation has a finite witness, and
+once you have violated it you can never un-violate it. Liveness properties (``the agent eventually reports'') are not
+prefix-closed, and are out of scope for the same reason no monitor can enforce them --- there is no finite prefix at which
+you can say it failed.
+
+The \emph{plant} $L$ is the set of histories that are \emph{physically} possible, before any policy is imposed. The name is
+inherited from the factory-floor origins of the theory, where the plant was a literal plant. We take $L=\Sigma^*$: any
+interleaving of events can occur, because nothing about the hardware forbids one.
+
+A \emph{supervisor} is a function from the history so far to a set of events to disable next. The whole theorem turns on
+that function's \emph{type}: it may disable members of $\Sigma_c$ and nothing else. \emph{Controllable} events are the ones
+the supervisor can refuse, because they pass through a mediation boundary before taking effect; \emph{uncontrollable} events
+are the ones that complete before any mediator sees them. Uncontrollable does not mean invisible --- the daemon logs tokens
+after emission --- it means unrefusable before the fact.
+
+The \emph{closed loop} is the set of histories that actually occur once the supervisor is attached. A supervisor
+\emph{regiments} a policy when the closed loop equals the policy exactly: nothing forbidden happens, and nothing permitted
+is lost. That second half is easy to overlook and is half the value --- a supervisor that achieves safety by disabling
+everything is not a solution.
+
+\emph{Controllability} is then the one condition in the box of \S\ref{sec:theorem}, and in words it says: no uncontrollable
+event, occurring after a legal history, takes you out of the policy. It is a property of the policy relative to an alphabet
+split, not a property of any mechanism --- which is why no amount of engineering escapes it.
+
+When a policy fails that condition, the \emph{supremal controllable sublanguage} $\sup\mathcal{C}(K)$ is the largest
+sub-policy that satisfies it --- the best preventable approximation of an unpreventable rule. It exists because
+controllable sublanguages are closed under union, and for regular languages a fixpoint iteration computes it. This object
+is the reason the identification with control theory pays: \S\ref{sec:synthesis} uses it to prove that a ban on the model's
+internal planning has \emph{no} nontrivial preventable approximation at all.
+
+\emph{Maximal permissiveness} is the property that a synthesized supervisor disables nothing it does not have to. The
+construction in the theorem's forward direction has it by inspection, which is why regimentation costs no legal behaviour
+when the rule is controllable at all.
+
 \section{The model}\label{sec:model} \paragraph{Events and the mediation boundary.} Fix a finite alphabet
 $\Sigma=\Sigma_c\uplus\Sigma_u$ of agent events. $\Sigma_c$ (\emph{controllable}) contains the events that pass through the
 runtime's mediation boundary before taking effect, so the runtime can disable any of them at any instant: in our reference

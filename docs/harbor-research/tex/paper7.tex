@@ -73,6 +73,64 @@ does the theorem.
 
 \input{fig-r6-relation.tex}
 
+\section{The vocabulary, defined}\label{sec:vocab}
+
+This paper borrows its machinery from applied algebraic topology, and that field's vocabulary is forbidding out of
+proportion to what it actually asks of the reader. Everything below is linear algebra on a graph. A reader who is
+comfortable with incidence matrices and least squares already has the prerequisites; what follows is a dictionary, in the
+order the terms are needed, each defined the sentence after it is named and then used immediately.
+
+A \emph{cellular sheaf} on a graph is a bookkeeping device for local data that is supposed to agree along edges: it assigns
+a vector space to each vertex, a vector space to each edge, and a linear map from each vertex into each edge it touches.
+Ours assigns to witness $v$ the space $\mathbb{R}^{d_v}$ of its possible log states, to edge $e$ the space of the log prefix
+its two endpoints both report, and to each (vertex, edge) pair the map that selects the shared coordinates. The word
+``sheaf'' is doing no more work here than ``data structure with a consistency condition'' --- Robinson's slogan that sheaves
+are the canonical data structure for sensor integration~\cite{robinson} is meant literally.
+
+The vertex space $\mathbb{R}^{d_v}$ is the \emph{stalk} at $v$ --- the set of values that vertex could locally hold, with no
+reference to what its neighbours hold. The maps out of it are the \emph{restriction maps}: restriction, because they cut a
+vertex's full state down to the part an edge can see. In our setting a restriction map is a coordinate selection, nothing
+more exotic --- ``report the first $k$ entries of your log,'' as a matrix.
+
+The \emph{coboundary} $\delta$ is the operator that takes an assignment of a value to every vertex and returns, for every
+edge, the disagreement its two endpoints report there. For scalar stalks on a graph it \emph{is} the signed incidence
+matrix, and $\delta x$ is the familiar vector of differences $x_u - x_v$ along each edge. A disagreement pattern $g$ that
+equals $\delta x$ for some $x$ is called a \emph{coboundary}: it is exactly a pattern that some consistent global assignment
+would have produced. This is the paper's load-bearing definition. Honesty means the observed disagreements are a
+coboundary; equivocation means they are not.
+
+A \emph{global section} is such an $x$ --- one assignment of a log state to every witness that simultaneously explains every
+edge's reported disagreement. ``No global section exists'' is the formal content of ``no single history explains what
+everyone reported,'' and it is the only thing this paper ever convicts anyone of.
+
+The \emph{cycle space} of a graph is the set of edge-weightings that circulate --- flow in equals flow out at every vertex
+--- and its dimension is the number of independent loops, written $\beta_1$. It matters because of one elementary fact: a
+coboundary summed around any cycle telescopes to zero. Walk a loop adding up $x_u - x_v$ and every term cancels. So the
+cycle space is precisely the set of directions in which an honest world \emph{cannot} have disagreement, which is why a
+nonzero component there is evidence and a nonzero component anywhere else is not.
+
+\emph{Cokernel} and $H^1$ name that same space from the algebraic side: $\operatorname{coker}(\delta)$ is what edge-data
+space has left over after you remove everything $\delta$ can produce, i.e.\ everything an honest world could have generated.
+$H^1$ is the standard name for that quotient. The reader who prefers to think entirely in terms of ``project the observed
+disagreements onto the cycle space and see what survives'' will never be wrong in this paper; the cohomological name buys
+the connection to Curry~\cite{curry} and Hansen--Ghrist~\cite{hansen-ghrist} and costs nothing else.
+
+The \emph{completion residual} $r$ of \S\ref{sec:model} is then a least-squares problem in the ordinary sense: over all
+global sections $x$, and over all values the analyst cannot see, minimise the Euclidean distance between what was reported
+and what $\delta x$ predicts. It is zero exactly when some honest world fits the evidence.
+
+\emph{Effective resistance} $R_{\mathrm{eff}}(e)$ is the resistance measured across edge $e$ when the graph is treated as a
+circuit of unit resistors. It appears in \S\ref{sec:radius} for a reason that is physical rather than formal: a lie on an
+edge is hard to detect exactly when the rest of the graph could have produced the same disagreement pattern by itself,
+which is the same condition as current finding an easy alternative path. On a bridge, $R_{\mathrm{eff}}=1$ and the lie hides
+completely; around a long cycle it approaches $1$ and conviction weakens like $1/\sqrt{n}$.
+
+Finally the \emph{graph Laplacian} $\delta^{\!\top}\delta$ is the matrix whose linear systems compute all of the above, and
+whose near-linear-time solvers~\cite{spielman-teng} are what make the detector cheap enough to run every gossip round.
+
+\emph{One caution about a word this paper uses in two senses.} A \emph{cycle} in the graph-theoretic sense above is a loop
+of edges. It is unrelated to a cycle of gossip \emph{rounds}. Where the distinction matters we write ``graph cycle.''
+
 \section{The model and the observability contract}\label{sec:model}
 
 \textbf{The sheaf.} Fix a finite gossip graph $G=(V,E)$. Witness $v$ carries a local log state $x_v\in\mathbb{R}^{d_v}$ (its
