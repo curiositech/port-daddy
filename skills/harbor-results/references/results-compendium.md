@@ -4,7 +4,7 @@ Provenance tags: **[verified]** = externally recomputable (closed form / textboo
 
 ## R1 — Read-poverty and the information floor
 **Box.** To guarantee catching all k load-bearing artifacts among N while opening only m, any digest must carry ≥ B* = log₂C(N,k) − log₂C(m,k) bits (each flagged m-set covers only C(m,k) of C(N,k) placements).
-**Numbers.** N=60,k=2,m=8 ⇒ B*=5.98 bits [verified]. Falsification: encoder/decoder model (digest = literal B-bit message; decoder = shared codebook of m-subsets); oracle/noisy/random encoders: 0/16 floor violations [internal, a7_experiment.py]. Wrong-turn on record: 8/16 spurious violations when the meter charged bits only for tie-breaking (see l3-tacit-lessons #1).
+**Numbers.** N=60,k=2,m=8 ⇒ B*=5.98 bits [verified]. Falsification: encoder/decoder model (digest = literal B-bit message; decoder = shared codebook of m-subsets); oracle/noisy/random encoders: 0/16 floor violations [internal, a7_experiment.py]. Wrong-turn on record: 8/14 spurious violations when the meter charged bits only for tie-breaking (see l3-tacit-lessons #1).
 **Buys.** Digest-budget floor for the operator surface; the program's first falsifiable-and-survived datum. Paper 1.
 **Boundary.** Lower bound on a *zero-miss guarantee*; cheaper digests are fine at nonzero miss (R4). Worst-case combinatorial, not average-case.
 

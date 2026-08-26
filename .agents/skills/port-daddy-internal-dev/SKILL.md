@@ -320,7 +320,10 @@ Public surfaces, in approximate update order:
 3. The skill bundle (this repo's `skills/port-daddy-agent-skill/SKILL.md`, references, templates, examples).
 4. The website (`apps/website-v2/` — `/docs/cli`, `/docs/api`, `/docs/mcp`, command detail routes, screenshots).
 5. The OpenAPI spec, SDK reference, MCP tool catalog.
-6. README + CHANGELOG + the eight version surfaces in `docs/VERSIONING.md`.
+6. README + the version surfaces in `docs/VERSIONING.md`. The changelog is
+   NOT hand-edited: add `changelog.d/<pr>-<slug>.md` (see `changelog.d/README.md`)
+   and let `node scripts/assemble-changelog.mjs --release <version>` stamp
+   `CHANGELOG.md` — the release train runs it for you.
 7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
 8. **Binary smoke-test** (per `docs/RELEASING.md` §3, "local feature dev") for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
 

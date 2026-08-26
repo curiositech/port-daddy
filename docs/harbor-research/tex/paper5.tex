@@ -43,11 +43,15 @@ A provider shuts down, and the agent's principal resurrects it from a checkpoint
 reputation come along. And at the harbor gate, a newcomer arrives with no history at all --- perhaps genuinely new, perhaps a
 sanctioned identity wearing a fresh key. Each event asks the same question: \emph{is this still the same agent, and what is it owed?}
 
-Philosophy has owned that question for twenty-four centuries and settled nothing, which is itself the data point: any mechanism
-whose safety depends on resolving the ship of Theseus is unbuildable. This paper takes the engineering exit. We never decide
-whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead what a reputation economy
-must \emph{conserve} across these events so that the sanctions it levies keep their teeth, and we prove three conservation results
---- one per door through which continuity can be abused. The root the chain hangs from is the program's prior impossibility result
+Philosophy has owned that question for twenty-four centuries without producing a fact of the matter that a mechanism could safely
+depend on. The nearest thing to a resolution is itself a dissolution: Parfit's argument that in fission cases --- his teletransporter
+duplicating into two survivors is the ancestor of every fork case in this paper --- personal identity has no determinate answer and,
+more to the point, is not what matters for survival; what matters is the pattern of psychological continuity, which can hold, and
+matter, without any yes-or-no verdict on identity ever being reached \cite{parfit}. This paper takes the same exit for a different
+substrate, and gives it teeth a ledger can enforce where a stream of experience cannot: any mechanism whose safety depends on
+resolving the ship of Theseus is unbuildable. We never decide whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead
+what a reputation economy must \emph{conserve} across these events so that the sanctions it levies keep their teeth, and we prove
+three conservation results --- one per door through which continuity can be abused. The root the chain hangs from is the program's prior impossibility result
 (whitepaper Def.~III.6.1 and its necessity theorem): a reputation mechanism is \emph{sanction-respecting} if a dishonest witnessed
 outcome reduces the score its producer can act under by some $\Delta>0$ for a non-trivial window; if fresh identities can be minted
 at zero cost, no sanction-respecting mechanism exists, because the whitewasher's accessible score never falls below a clean
@@ -124,24 +128,9 @@ credits $2.44$ witnessed units where only one exists. \emph{Now you try:} at $\g
 mint under the budget-only phrasing? ($0.8+0.64+0.512=1.952>1$ --- yes, and it keeps minting for any $\gamma>1/2$; under transfer
 semantics the same chain's live total stays exactly $\le 1$ [verified].)
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.92\textwidth]{r12_relation.png}
-\caption{Relation-map for Theorem 1. Money maps to reputation by \emph{relations}: transfer's debit-on-send $\to$ the
-discount-and-split debit; the photocopier's mint $\to$ the copy-full mutant's quorum multiplication. The analogy predicts,
-correctly, where the danger sits: not in how much the child receives but in whether the source is debited.}
-\label{fig:r12rel}
-\end{figure}
+\input{fig-r12-relation.tex}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.88\textwidth]{r12_regime.png}
-\caption{Regime diagram for Theorem 1: total inherited credit from one unit-value episode along a depth-3 full-weight chain, as a
-function of the discount $\gamma$. Budget-only (copy) semantics crosses the mint line at $\gamma=1/2$ and reaches $2.44$ at
-$\gamma=0.9$ --- the refuting counterexample [internal, \texttt{a6\_no\_mint.py}]; transfer semantics holds the live total at the
-witnessed value for every $\gamma$.}
-\label{fig:r12reg}
-\end{figure}
+\input{fig-r12-regime.tex}
 
 \textbf{What it buys.} Skill-versioning's cold-start gap closes safely: \texttt{v2} warm-starts from provenance, and fraud cannot
 amplify through distillation chains. The distillation pipeline gets its economic safety proof, and the estate's export/import
@@ -198,15 +187,7 @@ $\theta_L-c_L=0.2$: the flip is $\Delta c-\Delta\theta=0.3-0.6=-0.3$ [verified] 
 to $c_H=0.7$ --- what committed share keeps the unattested pool alive? ($\mu^\star=(0.7-0.4)/0.6=0.5$: half the market must be
 committed before quality can even break even [verified].)
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.98\textwidth]{r13_regime.png}
-\caption{Regime diagram for Theorem 2 at the worked instance. Left: unattested, the pooled price clears $c_H$ only right of
-$\mu^\star=1/6$; left of it the spiral rests at $\theta_L$. Right: the swap gain is a price-independent $\Delta c$ without
-attestation and $\Delta c-\Delta\theta$ with it --- negative exactly when the strong engine is efficient, so the market's incentive
-and the planner's rule coincide [verified; regenerated by \texttt{paper5\_figures.py}].}
-\label{fig:r13reg}
-\end{figure}
+\input{fig-r13-regime.tex}
 
 \textbf{What it buys.} The buyer-facing sentence in its provable form: \emph{reputation you can trust because the engine behind it
 is attested}. The misread to preempt: attestation does not force everyone onto the expensive engine. The flip means swapping pays
@@ -313,14 +294,7 @@ holding the same deterrence with all mass at $t=5$ costs $20\cdot(0.95/0.60)^5=1
 additional deterrence [verified] (Figure~\ref{fig:b6reg}). \emph{Now you try:} same instance, mass at $t=2$ --- what does the honest newcomer pay?
 ($20\cdot(0.95/0.60)^2=20\times 2.507=50.1$ [verified].)
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.9\textwidth]{b6_figure.png}
-\caption{Regime diagram for Theorem 4: honest burden of a deterrence-tight schedule holding its gap mass at period $t$ (log
-scale). Every step later multiplies the honest tax by $\delta_h/\delta_f$ while buying zero extra deterrence; the cliff at $t=0$
-is the unique minimum [verified; regenerated by \texttt{paper5\_figures.py}].}
-\label{fig:b6reg}
-\end{figure}
+\input{fig-b6-probation.tex}
 
 \textbf{What it buys.} The harbor's onboarding rule with a proof attached: deep restriction immediately, released quickly ---
 rather than a long shallow ramp that quietly taxes every honest entrant at multiples of the deterrence it buys. This sharpens the
@@ -362,7 +336,11 @@ conserves the same witnessed total.
 
 \section{Related work, and what is actually new}\label{sec:related}
 
-\textbf{Imported.} The unraveling logic of Theorem 2a is Akerlof's market for lemons \cite{akerlof}, run inside one identity; the
+\textbf{Imported.} The engineering exit itself is Parfit's: the idea that an identity question can be dissolved rather than
+answered, because what matters can survive independently of any verdict on identity, is his \cite{parfit} ---
+\S\ref{sec:problem}'s refusal to adjudicate forks and resurrections is that move re-run on a ledger instead of a stream of
+experience. The unraveling logic of Theorem 2a is
+Akerlof's market for lemons \cite{akerlof}, run inside one identity; the
 observation that deterrence can be bought with costly instruments only certain types will pay traces to Spence's signaling
 \cite{spence}. That zero-cost pseudonyms make sanctions void, and that newcomers must consequently pay dues, is Friedman and
 Resnick \cite{friedman-resnick}, with the replication half of the same coin as Douceur's Sybil attack \cite{douceur}. Reputations
@@ -394,6 +372,7 @@ against the cliff, plus the closed-form exchange spot check). The two new figure
 number is recomputable from the closed forms stated in the boxes with a hand calculator.
 
 \begin{thebibliography}{9}
+\bibitem{parfit} D.~Parfit. \emph{Reasons and Persons}. Oxford University Press, 1984.
 \bibitem{akerlof} G.~A. Akerlof. The market for ``lemons'': quality uncertainty and the market mechanism. \emph{Quarterly Journal
 of Economics}, 84(3):488--500, 1970.
 \bibitem{spence} M.~Spence. Job market signaling. \emph{Quarterly Journal of Economics}, 87(3):355--374, 1973.

@@ -695,6 +695,9 @@ the series' single \emph{blocking} reconciliation: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
+Figure~\ref{fig:he-keystone-split} draws the two stones apart: the local root this
+paper leans on, and the cross-operator stone it does not yet have.
+
 \input{figures/fig-he-keystone-split}
 
 \subsection{Local non-forgeable identity is the keystone --- for one operator}
@@ -774,6 +777,9 @@ specified in Chapter~III and consumed here.
 The economy's single cross-boundary invariant is that internal ledger operations
 redistribute value rather than create or destroy it. This section states the
 compositional claim directly and separates it from cross-currency valuation.
+
+Figure~\ref{fig:he-conservation-functor} draws the composition claim: sequential
+traces glue, and internal operations carry zero external balance change.
 
 \input{figures/fig-he-conservation-functor}
 
@@ -926,6 +932,10 @@ Federation is where the leaderless distributed canon actually bites. Crucially, 
 federation design \emph{refuses consensus} here --- the correct reading of the
 impossibility landscape.
 
+Figure~\ref{fig:fh-topology} draws the topology this section defends: independent
+harbors linked only by gossip and a shared witness log, with no global consensus
+step.
+
 \input{figures/fig-fh-federation-topology}
 
 \subsection{No consensus, by design}
@@ -946,6 +956,9 @@ FLP): ``gossip every $\Delta$'' \emph{is} an eventual-synchrony assumption, and 
 state it as such rather than burying it.
 
 \subsection{Settlement and the cross-chain-deals lineage}\label{sec:fh-settlement}
+
+Figure~\ref{fig:fh-settlement} places this construction against the atomic-swap and
+adversarial-commerce baselines it is compared to below.
 
 \input{figures/fig-fh-settlement}
 
@@ -1027,6 +1040,9 @@ capability over $T$. If partitions are unbounded, no finite bond covers the wors
 case; the system must instead fail closed on stale roots or cap spend independently.
 (\Open{}; analogue of the cleanup lower bound.)
 \end{conjecture}
+
+Figure~\ref{fig:fh-threat-bands} bands the window Conjecture~\ref{conj:eq-bound}
+must price against the connectivity assumptions each band needs.
 
 \input{figures/fig-fh-threat-bands}
 
@@ -1183,6 +1199,9 @@ work history for partial credit to break the new-agent freeze; Phase~3 flips to
 charging the demand side once a liquidity threshold (not a calendar date) is met.
 
 \subsection{Static escrow vs.\ competitive underwriting}\label{sec:fh-equilibria}\label{sec:youle:welfare}
+
+Figure~\ref{fig:auction-inline} draws the static-bond and competitive-underwriting
+alternatives side by side.
 
 \input{figures/fig-auction-inline}
 
@@ -1358,7 +1377,7 @@ they will need bolted on.
 
 \subsection{Mechanism 9: The Adversarial Test Market and Purchased Assurance}\label{sec:adversarial-tests}
 
-Beyond labor and IP licensing, the Harbor Economy establishes an internal market for **adversarial test generation**, formalizing PR verification as an interactive proof system (delegated computation~\cite{goldwasser2008} and multi-agent debate~\cite{irving2018}).
+Beyond labor and IP licensing, the Harbor Economy establishes an internal market for \textbf{adversarial test generation}, formalizing PR verification as an interactive proof system (delegated computation~\cite{goldwasser2008} and multi-agent debate~\cite{irving2018}).
 
 \begin{theorem}[Purchased Assurance Bound]\label{thm:assurance}
 Let an author-agent submit a Float Plan implementation with a proposed diff. Let $k$ independent, conflict-free test-writing agents each discover planted or latent flaws with independent detection probability $d \in (0, 1)$. The probability that a critical flaw survives undetected across all $k$ reviewers is bounded by:
@@ -1630,20 +1649,5 @@ Commerce Protocol,'' 2026.
 \newblock \textit{arXiv preprint arXiv:1805.00899}, 2018.
 
 \end{thebibliography}
-
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Limitations \& Boundaries}\label{sec:limitations}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
-
-\begin{itemize}
-    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
-    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
-\end{itemize}
-
-These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}

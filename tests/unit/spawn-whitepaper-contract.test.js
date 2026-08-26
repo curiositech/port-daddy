@@ -18,7 +18,7 @@ const paths = {
 };
 
 const expectedSha256 = {
-  pdf: 'fba15d59c55625acd109301175926eab98271460da3ec8073eba259589cb048e',
+  pdf: 'a3f85a121b436c17a6f46e4c3d440b296c43ebf192320b665bb4a5f564701db5',
   contact: '6c5507dd28e2050ffaa5171625d0839c70b9b2b0b742261362540fe7528291ef',
   tour: '833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265',
 };
@@ -185,7 +185,7 @@ describe('Spawn-to-Person publication contract', () => {
 
     expect(chapter).toContain("status: 'Version 1.4 (collected-volume edition)'");
     expect(chapter).toContain('pages: 36');
-    expect(chapter).toContain('sizeKb: 648');
+    expect(chapter).toContain('sizeKb: 647');
     expect(catalog).toContain('Spawn-to-Person diagrams and implementation status align');
     expect(catalog).toContain("chapters: ['III']");
   });
@@ -193,7 +193,7 @@ describe('Spawn-to-Person publication contract', () => {
   test('the committed PDF is the declared 36-page, 630 KiB artifact', () => {
     const pdf = readFileSync(paths.pdf);
     expect(pdfPageCount(pdf)).toBe(36);
-    expect(Math.floor(pdf.length / 1024)).toBe(647); // catalog rounds this to 648
+    expect(Math.floor(pdf.length / 1024)).toBe(646); // catalog rounds this to 647
     expect(sha256(paths.pdf)).toBe(expectedSha256.pdf);
   });
 

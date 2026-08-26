@@ -6,6 +6,8 @@ Generates two PNG figures for the harbor-exposition Rail-B pair.
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'  # match the LaTeX body's serif face, not matplotlib's sans default
+from matplotlib.patches import FancyArrowPatch, Rectangle
 
 # Set seed for deterministic output
 np.random.seed(20260816)
@@ -23,53 +25,61 @@ rho_star = G / (d * B)  # audit rate at equilibrium = 0.25
 C = 8       # number of cliques
 
 # ============================================================================
-# Figure 1: RELATION-MAP (three columns)
+# Figure 1: RELATION-MAP (Base: one audited inspector -> Target: the tower)
 # ============================================================================
 
-fig, ax = plt.subplots(figsize=(10, 5), dpi=150)
-ax.set_xlim(0, 10)
-ax.set_ylim(0, 5)
+fig, ax = plt.subplots(figsize=(12, 7.6), dpi=150)
+ax.set_xlim(0, 12)
+ax.set_ylim(0, 10.6)
 ax.axis('off')
 
-# Column 1: Speeding (left)
-col1_x = 1.5
-ax.text(col1_x, 4.5, 'Speeding', fontsize=11, fontweight='bold', ha='center')
-ax.text(col1_x, 3.9, 'Fine F × patrol% p', fontsize=9, ha='center', style='italic')
-ax.text(col1_x, 3.4, 'Time saved ≡ benefit T', fontsize=9, ha='center')
-ax.text(col1_x, 2.9, 'Obey if:', fontsize=10, fontweight='bold', ha='center')
-ax.text(col1_x, 2.3, 'F·p ≥ T', fontsize=10, ha='center',
-        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow', alpha=0.7))
-ax.text(col1_x, 1.6, 'City need not', fontsize=9, ha='center', style='italic')
-ax.text(col1_x, 1.1, 'catch every car', fontsize=9, ha='center', style='italic')
+ax.text(6, 10.3, 'R7 — reputation is amortized verification',
+        fontsize=12, weight='bold', ha='center', va='top', color=harborblue)
 
-# Column 2: Arrows/mapping — vertical arrow shafts sit left of their labels
-# so the label text never crosses the arrow line
-col2_x = 5
-arrow_props = dict(arrowstyle='<->', lw=2, color=harborblue)
-ax.annotate('', xy=(col2_x - 0.9, 3.8), xytext=(col2_x - 0.9, 2.4),
-            arrowprops=arrow_props)
-ax.text(col2_x - 0.6, 3.1, 'expected fine\n⇔\nexpected slash',
-        fontsize=9, ha='left', va='center', weight='bold', color=harborblue)
+# Base domain (left): the single Becker inspection game
+ax.add_patch(Rectangle((0.2, 0.7), 3.6, 8.7, edgecolor=harborblue,
+                        facecolor=harborblue, alpha=0.12, linewidth=1.5))
+ax.text(2.0, 9.05, 'Base: one audited inspector', fontsize=11, weight='bold',
+        ha='center', va='center')
 
-arrow_props2 = dict(arrowstyle='<->', lw=2, color=harborblue)
-ax.annotate('', xy=(col2_x - 0.9, 1.5), xytext=(col2_x - 0.9, 1.0),
-            arrowprops=arrow_props2)
-ax.text(col2_x - 0.6, 1.25, 'patrol budget\n⇔\naudit rate ρ*',
-        fontsize=9, ha='left', va='center', weight='bold', color=harborblue)
+# Target domain (right): the sealed-sampling tower
+ax.add_patch(Rectangle((8.2, 0.7), 3.6, 8.7, edgecolor=seagreen,
+                        facecolor=seagreen, alpha=0.12, linewidth=1.5))
+ax.text(10.0, 9.05, 'Target: the inspection tower', fontsize=11, weight='bold',
+        ha='center', va='center')
 
-# Column 3: Agents (right)
-col3_x = 8.5
-ax.text(col3_x, 4.5, 'Agent honesty', fontsize=11, fontweight='bold', ha='center')
-ax.text(col3_x, 3.9, 'Bond B × audit ρ × detect d', fontsize=9, ha='center', style='italic')
-ax.text(col3_x, 3.4, 'One-shot gain G', fontsize=9, ha='center')
-ax.text(col3_x, 2.9, 'Honest if:', fontsize=10, fontweight='bold', ha='center')
-ax.text(col3_x, 2.3, 'ρ·d·B ≥ G', fontsize=10, ha='center',
-        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgreen', alpha=0.7))
-ax.text(col3_x, 1.6, 'Deterrence iff', fontsize=9, ha='center', style='italic')
-ax.text(col3_x, 1.1, 'ρ* = G/(dB)', fontsize=9, ha='center', style='italic')
+rows = [
+    # (y, base lines, target lines, connective label lines)
+    (7.4,
+     ['One-shot gain G,', 'audit prob ρ, detect d,', 'bond B posted once', 'Honest iff ρ·d·B ≥ G'],
+     ['Same threshold, sealed:', 'draw comes from C=8', 'disjoint cliques —', 'ρ* = G/(dB) unchanged'],
+     ['single audit ⇔ sealed audit', 'briber who learns the draw', 'beats the math']),
+    (4.6,
+     ['Bribe the one inspector,', 'pocket G, done —', 'no notion of "depth"'],
+     ['Bribe floor β = ρdB/level;', 'pays only if G_k > C·B,', 'else G_{k+1} = (1−ρd)G_k'],
+     ['one bribe ⇔ bribe floor', 'climbs ×C per level down', '(finite bond, unbounded depth)']),
+    (1.9,
+     ['Flat patrol forever:', 'audit spend grows', 'Θ(T) over the horizon'],
+     ['Vest the bond: ρ_t = G/(d(B+vt))', '⇒ Θ(log T) spend; add', 'whistleblowers ⇒ O(1) spend'],
+     ['flat patrol ⇔ amortized', 'ladder Θ(log T) / O(1)', '(pre-saturation caveat applies)']),
+]
 
-# Title
-fig.suptitle('R7 — honesty is priced like speeding', fontsize=11, fontweight='bold', y=0.98)
+for y, base_lines, target_lines, label_lines in rows:
+    for i, s in enumerate(base_lines):
+        ax.text(2.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+    for i, s in enumerate(target_lines):
+        ax.text(10.0, y + 0.75 - 0.42 * i, s, fontsize=8.5, ha='center', va='center')
+    arrow = FancyArrowPatch((3.9, y - 0.15), (8.1, y - 0.15), arrowstyle='<->',
+                             mutation_scale=20, linewidth=1.8, color=shipred, alpha=0.85,
+                             connectionstyle='arc3,rad=0.08')
+    ax.add_patch(arrow)
+    for i, s in enumerate(label_lines):
+        ax.text(6.0, y + 0.62 - 0.38 * i, s, fontsize=8.8, ha='center',
+                va='center', color=shipred, weight='bold')
+
+ax.text(6.0, 0.25,
+        'The tower prices depth, not detection: a finite bond, sealed against the draw, certifies unbounded levels.',
+        fontsize=8.5, ha='center', va='center', style='italic')
 
 # Save
 plt.tight_layout()

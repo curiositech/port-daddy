@@ -1440,19 +1440,45 @@ describe('CLI Integration Tests', () => {
   describe('Inbox CLI Commands', () => {
     const receiverId = `rec-agent-${Date.now()}`;
     const senderId = `send-agent-${Date.now()}`;
+    // The sender's begin + send share one isolated context slot so the
+    // daemon-minted credential `pd begin` persists is the one pdFetch attaches
+    // on the subsequent `pd inbox send`.
+    const senderSlot = `inbox-sender-${Date.now()}`;
 
     beforeAll(() => {
+      // Receiver: registered for inbox addressability. Receiving/listing/
+      // clearing your own inbox is not identity-gated — only SENDING asserts a
+      // provable sender.
       runCli(['agent', 'register', '--agent', receiverId]);
-      runCli(['agent', 'register', '--agent', senderId]);
+      // Sender: a genuinely credentialed principal. Under the credentialed
+      // inbox gate (lib/inbox-identity.ts), a bare `agent register` mints no
+      // soul, so an asserted `from` is unprovable and correctly rejected. `pd
+      // begin` mints + persists a daemon-minted ADR-0040 credential and opens
+      // an ACTIVE session bound to senderId, which is exactly the daemon-
+      // witnessed display-agentId → soul mapping the gate accepts `from:
+      // senderId` under.
+      const beginRes = runCli(
+        ['begin', '--agent', senderId, '--purpose', 'Inbox send integration', '--lifecycle', 'durable', '--json'],
+        { env: { PORT_DADDY_CONTEXT_SLOT: senderSlot } },
+      );
+      expect(beginRes.success).toBe(true);
     });
 
     afterAll(() => {
       runCli(['inbox', 'clear', '--agent', receiverId]);
+      runCli(['done', '--agent', senderId], { env: { PORT_DADDY_CONTEXT_SLOT: senderSlot } });
+      clearTestCurrentContext(senderSlot);
     });
 
     test('send, list, and show message', () => {
-      // 1. Send message
-      const sendRes = runCli(['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json']);
+      // 1. Send message — from the sender's credentialed context slot, so
+      // pdFetch attaches the credential `pd begin` persisted and the daemon
+      // accepts `from: senderId` (its active session binds that name to this
+      // soul).
+      const sendRes = runCli(
+        ['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json'],
+        { env: { PORT_DADDY_CONTEXT_SLOT: senderSlot } },
+      );
       expect(sendRes.success).toBe(true);
 
       // 2. List inbox to get message ID
