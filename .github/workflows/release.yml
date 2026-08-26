@@ -8,6 +8,11 @@ on:
       tag:
         description: 'Release tag to build binaries for (e.g. v3.14.0)'
         required: true
+      force_console:
+        description: 'Build pd-console.app even if core/pd-console is unchanged since the previous tag (e.g. after a signing-cert rotation)'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-binaries:
@@ -135,6 +140,15 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
           security delete-keychain "$KEYCHAIN" || true
 
+      # This must run after the macOS signing step. Hardened runtime strips
+      # DYLD_* without an injection entitlement, so a pre-sign native smoke can
+      # pass while the exact release binary fails. The hidden command imports
+      # onnxruntime-node but does not download or open an embedding model.
+      - name: Smoke exact release semantic runtime (post-sign on macOS)
+        env:
+          PORT_DADDY_RESOURCE_DIR: ${{ github.workspace }}
+        run: dist/pd __semantic-runtime-check
+
       # Soak the EXACT binary that ships (post-signing on macOS). v3.24.0
       # segfaulted ~68s after boot (Bun null-deref on a ~60s timer) and
       # nothing in CI had ever run the packaged binary — unit tests run from
@@ -162,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist/bin dist/hooks dist/skills dist/agents
-          for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool pd-statusline; do
+          for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool pd-hook-stop pd-statusline; do
             cp "bin/$f" "dist/bin/$f"
             chmod +x "dist/bin/$f"
           done
@@ -368,6 +382,19 @@ jobs:
     # locally verified 2026-06-20 (the real pd-console binary bundles to a valid
     # hardened-runtime Developer ID .app). Same APPLE_* secrets; no-ops unsigned
     # if the cert secret is absent so the build never breaks.
+    #
+    # CONDITIONAL since 2026-08-22 (operator ask): a release where the console's
+    # application code did not change must NOT re-cut a console binary — the
+    # rebuild would differ only in its embedded version string, costing a full
+    # Rust build + signing + notarization round to pretend something shipped.
+    # The `gate` step below compares core/pd-console (+ the packaging script)
+    # against the previous v* tag, ignoring the pure `version = "…"` churn that
+    # postversion/sync-version.ts stamps into Cargo.toml on EVERY release. When
+    # unchanged, every later step is skipped, the job still succeeds (so
+    # build-latest-json / update-homebrew gating is untouched), this release
+    # ships no console .zip, and latest.json simply omits the console entry —
+    # already a supported feed shape ("best-effort and may be absent").
+    # Consumers keep the newest console from the last release that cut one.
     runs-on: macos-latest
     permissions:
       contents: write
@@ -375,20 +402,39 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          # Full history + tags: the gate step diffs this tag against the
+          # previous release tag, so both trees must be present.
+          fetch-depth: 0
+
+      # The decision logic lives in scripts/console-release-gate.mjs — a
+      # unit-tested module (tests/unit/console-release-gate.test.js), not
+      # inline bash, so the tested code IS the shipped code. It fails open
+      # toward building: the gate saves money, it does not guard correctness,
+      # so its own malfunction must never block or skew a release.
+      - name: Decide whether the console changed since the previous release
+        id: gate
+        env:
+          CURR_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          FORCE: ${{ inputs.force_console && 'true' || 'false' }}
+        run: node scripts/console-release-gate.mjs
 
       - name: Install Rust toolchain (stable)
+        if: steps.gate.outputs.build == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust build artefacts
+        if: steps.gate.outputs.build == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core/pd-console
 
       - name: Build pd-console (--release --features gpui)
+        if: steps.gate.outputs.build == 'true'
         run: cargo build --release --features gpui --bin pd-console
         working-directory: core/pd-console
 
       - name: Package + sign + notarize pd-console.app
+        if: steps.gate.outputs.build == 'true'
         env:
           APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
@@ -434,10 +480,15 @@ jobs:
         # artifact (the .app's CFBundleShortVersionString and the binary's build
         # stamp) and fails the release if it disagrees with package.json.
         # --require-artifacts: the .app was just built here, so its absence is a
-        # real failure, not a skip.
+        # real failure, not a skip. (Skipped with the build when the gate says
+        # the console is unchanged — there is no fresh artifact to interrogate,
+        # and the carried-forward console legitimately embeds its own release's
+        # version, not this one's.)
+        if: steps.gate.outputs.build == 'true'
         run: node scripts/check-version-drift.mjs --deep --require-artifacts
 
       - name: Upload pd-console.app to release
+        if: steps.gate.outputs.build == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -453,7 +504,10 @@ jobs:
     # `releases/latest/download/latest.json` always resolves to the newest feed
     # that `pd upgrade` (and the GUI apps) poll. Gated on the daemon + FleetBar
     # builds succeeding (the same ESSENTIAL gate update-homebrew uses); the
-    # console job is best-effort and may be absent from the feed if it failed.
+    # console job is best-effort and may be absent from the feed if it failed —
+    # or if its gate deliberately skipped the build because core/pd-console was
+    # unchanged since the previous tag (the console then stays on the last
+    # release that cut one).
     needs: [build-binaries, build-fleetbar-preview, build-pd-console-app]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest

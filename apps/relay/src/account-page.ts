@@ -8,11 +8,13 @@
  *
  * HONESTY (repo law: no Potemkin). Only sections with real backing data render
  * live: the IDENTITY plate (the users row) and the LEAVING strip (real
- * /account/export + /account/delete). Devices, Receipts, Harbors, and Plan have
- * no per-user backing yet (no user_tokens table; fleet_runs are not user-scoped;
+ * /account/export + /account/delete). Devices, Receipts, and Plan have no
+ * per-user backing yet (no user_tokens table; fleet_runs are not user-scoped;
  * no per-user plan rows), so they render the design's own "empty states teach"
  * (unified-design-language law 5) — never fabricated rows. As each backend
- * lands, swap its empty state for the real query.
+ * lands, swap its empty state for the real query — Harbors did exactly that:
+ * its section is now a door into the real /account/harbors page
+ * (harbors-page.ts, backed by X2 memberships + X3 presence).
  *
  * The manual theme toggle from the mockups is intentionally dropped: it needs
  * client JS, and this page ships under a script-free CSP. `prefers-color-scheme`
@@ -281,6 +283,9 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .empty .cmd{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--teal);font-weight:600}
 /* KILO — "I wish to communicate with you": the Devices pairing flag (rule 7) */
 .flag-kilo{display:inline-block;width:28px;height:20px;flex:none;border:1px solid var(--hair-strong);align-self:center;background:linear-gradient(to right,var(--lime) 0 50%,var(--cobalt-slab) 50% 100%)}
+/* PAPA ("Blue Peter") — "all persons should report on board, the vessel is about
+   to proceed to sea": the muster flag, hoisted over the skill catalog. */
+.flag-papa{display:inline-block;width:28px;height:20px;flex:none;border:1px solid var(--hair-strong);align-self:center;background:linear-gradient(var(--flag-white),var(--flag-white)) center/50% 50% no-repeat,var(--cobalt-slab)}
 .flag-title{display:flex;align-items:center;gap:12px}
 .flag-mean{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}
 /* Receipts — the page's one color zone: a cobalt-slab masthead whose glyphs
@@ -370,12 +375,13 @@ export function renderAccountPage(
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/repos">Repo settings</a>
       <a href="/account/runs">Fleet runs</a>
+      <a href="/account/seamanship">Seamanship</a>
       <a href="/account/billing">Billing &amp; credits</a>
       <a href="/account/mercy">Mercy health</a>
       <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
-      <a href="#harbors">Harbors</a>
+      <a href="/account/harbors">Harbors</a>
       <a href="#plan">Plan &amp; caps</a>
     </nav>
     <div class="rail-foot">
@@ -443,10 +449,11 @@ export function renderAccountPage(
 
     <section class="sect" id="harbors" aria-labelledby="harbors-h">
       <div class="sect-head"><div><span class="eyebrow">Harbors</span><h2 id="harbors-h">Where your agents work</h2></div></div>
+      <a class="runs-cta" href="/account/harbors">Your harbors &rarr;</a>
       <a class="runs-cta" href="/account/parleys">Your parleys &rarr;</a>
       <div class="empty">
-        <div class="e-title">Personal harbor only.</div>
-        <p>Your local daemon is your personal harbor — you are the only authority and nothing leaves the machine unless you say so. Team and guest harbors (RBAC, scoped guest cards) surface here once membership is linked to your account.</p>
+        <div class="e-title">Your local daemon is your personal harbor.</div>
+        <p>You are the only authority there and nothing leaves the machine unless you say so. Remote harbors — the shared rooms your account belongs to — live at <a href="/account/harbors">Your harbors</a>: every membership, who is present right now, and an honest reachability verdict for each.</p>
         <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. <a href="/account/parleys">Your parleys</a> lists every one in the harbors you belong to, with each party&rsquo;s stance and signed position, and lets you sign your own.</p>
       </div>
     </section>
@@ -460,6 +467,30 @@ export function renderAccountPage(
         gated until you buy a first credit pack. <a href="/account/billing">Billing &amp; credits</a> lists your
         installations with their prepaid balances, buy buttons, and the Stripe portal. Cost caps enforced by
         <strong>your daemon</strong> still mirror here later.</p>
+      </div>
+    </section>
+
+    <section class="sect" id="seamanship" aria-labelledby="seamanship-h">
+      <div class="sect-head">
+        <div class="flag-title">
+          <i class="flag-papa" role="img" aria-label="Papa signal flag: all persons should report on board, the vessel is about to proceed to sea"></i>
+          <div><span class="eyebrow">Seamanship</span><h2 id="seamanship-h">The skills your agents reach for</h2></div>
+        </div>
+        <span class="flag-mean">Papa &mdash; report on board, we are about to sail</span>
+      </div>
+      <a class="runs-cta" href="/account/seamanship">Your seamanship &rarr;</a>
+      <div class="empty">
+        <div class="e-title">Your skills are yours, and they stay in your repos.</div>
+        <p><a href="/account/seamanship">Your seamanship</a> reads every
+        <span class="cmd">skills/&lt;id&gt;/SKILL.md</span> live from the repositories your GitHub App
+        installation can reach and lists them by repository &mdash; description, category, and the
+        companions each one declares. Nothing is copied here: the repository stays the authority and
+        this site keeps no copy of the text.</p>
+        <p>Publishing is <strong>per skill, opt-in, and written by hand</strong>: a
+        <span class="cmd">visibility: listed</span> line publishes a name and a description to the
+        <a href="/skills">public directory</a>, and <span class="cmd">visibility: public</span> opens the
+        full text to signed-in accounts. No line means private, which is where every skill starts and
+        where nearly all of them stay.</p>
       </div>
     </section>
 

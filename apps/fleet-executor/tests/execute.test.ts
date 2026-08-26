@@ -92,6 +92,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -291,6 +292,57 @@ describe('pull_request action routing', () => {
     expect(state.checkRunsCreated).toBe(0);
     expect(state.completed).toHaveLength(0);
     expect(ai.calls).toHaveLength(0);
+  });
+
+  it('cancels a run whose head changes during inference before publishing or checkpointing', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    // Eight file-sized chunks require two waves at MAP_CONCURRENCY=4. Moving
+    // the head during wave one must prevent wave two from ever spending.
+    state.prDiff = Array.from(
+      { length: 8 },
+      (_, i) =>
+        `diff --git a/src/chunk-${i}.ts b/src/chunk-${i}.ts\n` +
+        `--- a/src/chunk-${i}.ts\n` +
+        `+++ b/src/chunk-${i}.ts\n` +
+        `@@ -1 +1 @@\n-${'a'.repeat(30_000)}\n+${'b'.repeat(30_000)}\n`,
+    ).join('');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    let moved = false;
+    const ai = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('BLOCK', 'obsolete finding') },
+      onCall: () => {
+        if (!moved) {
+          moved = true;
+          state.prHeadSha = 'NEWER-DURING-AI';
+        }
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob({ action: 'synchronize', deliveryId: 'delivery-midflight-stale' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(ai.calls.length).toBeLessThanOrEqual(4);
+    expect(disposition).toMatchObject({
+      kind: 'stale-head',
+      stage: 'mid-flight',
+      expectedHead: 'HEADSHA',
+      currentHead: 'NEWER-DURING-AI',
+      modelSpendPossible: true,
+    });
+    expect((disposition as { boundary?: string }).boundary).toContain('after pd-code-reviewer MAP');
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Output computed for the superseded head was discarded');
+    expect(state.commentPosts).toBe(0);
+    expect(state.commentPatches).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.issuesCreated).toHaveLength(0);
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches).toHaveLength(0);
   });
 
   it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
@@ -1159,6 +1211,84 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed).toHaveLength(0);
     expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND).map(step => step.ship))
       .toEqual(['code-reviewer']);
+  });
+
+  it('preserves one logical start and end-to-end wall clock across checkpoint retries', async () => {
+    vi.useFakeTimers();
+    const logicalStart = new Date('2026-08-23T02:00:00.000Z');
+    vi.setSystemTime(logicalStart);
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    const first = await executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    });
+    const durableCreatedAt = Math.floor(logicalStart.getTime() / 1000);
+    expect(first).toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    expect(d1.runs).toHaveLength(1);
+    expect(Number(d1.runs[0].createdAt)).toBe(durableCreatedAt);
+    expect(d1.runs[0].conclusion).toBe('pending');
+
+    vi.setSystemTime(new Date(logicalStart.getTime() + 120_000));
+    const second = await executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    });
+
+    expect(second).toBeUndefined();
+    expect(d1.runs).toHaveLength(1);
+    expect(Number(d1.runs[0].createdAt)).toBe(durableCreatedAt);
+    expect(d1.runs[0].conclusion).toBe('success');
+    expect(d1.runs[0].ms).toBe(120_000);
+  });
+
+  it.each([
+    ['zero', 0],
+    ['future', Math.floor(new Date('2026-08-23T03:00:00.000Z').getTime() / 1000)],
+  ])('falls back to the current attempt clock for a malformed %s durable start', async (_kind, malformedCreatedAt) => {
+    vi.useFakeTimers();
+    const logicalStart = new Date('2026-08-23T02:00:00.000Z');
+    vi.setSystemTime(logicalStart);
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    await executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    });
+    d1.runs[0].createdAt = malformedCreatedAt;
+
+    vi.setSystemTime(new Date(logicalStart.getTime() + 120_000));
+    await executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    });
+
+    expect(d1.runs[0].conclusion).toBe('success');
+    expect(d1.runs[0].ms).toBe(0);
   });
 
   it('a completed run leaves one parseable checkpoint row per ship that ran', async () => {

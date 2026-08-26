@@ -360,6 +360,22 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
           if (sql.includes('FROM users WHERE id')) {
             return args[0] === baseUser.id ? baseUser : null;
           }
+          if (sql.startsWith('SELECT settings_json FROM repo_settings') && sql.includes('user_id = ?')) {
+            const [userId, repo] = args as [string, string];
+            const existing = settings.get(`${userId}\u0000${repo}`);
+            return existing ? { settings_json: existing.settings_json } : null;
+          }
+          // Repo-wide resolver (apps/shared/repo-ai-settings.ts): the
+          // most-recently-updated row across every user for this repo,
+          // regardless of who wrote it -- mirrors what fleet-executor and the
+          // admin-authority-gate check in handleRepoSettingsSet both read.
+          if (sql.startsWith('SELECT settings_json FROM repo_settings') && sql.includes('ORDER BY updated_at DESC LIMIT 1')) {
+            const [repo] = args as [string];
+            const latest = [...settings.values()]
+              .filter((r) => r.repo_full_name === repo)
+              .sort((a, b) => b.updated_at - a.updated_at)[0];
+            return latest ? { settings_json: latest.settings_json } : null;
+          }
           return null;
         },
         async all() {
@@ -380,20 +396,23 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
         },
         async run() {
           if (sql.includes('INSERT INTO repo_settings')) {
-            const [userId, repo, level, createdAt, updatedAt] = args as [string, string, SitrepLevel, number, number];
-            const key = `${userId} ${repo}`;
+            const [userId, repo, level, settingsJson, createdAt, updatedAt] = args as [
+              string, string, SitrepLevel, string, number, number,
+            ];
+            const key = `${userId}\u0000${repo}`;
             const existing = settings.get(key);
             seq += 1;
             if (existing) {
-              // ON CONFLICT: only the dial and updated_at move; created_at stays.
+              // ON CONFLICT: dial, settings_json, and updated_at move; created_at stays.
               existing.sitrep_end_of_turn = level;
+              existing.settings_json = settingsJson;
               existing.updated_at = updatedAt + seq;
             } else {
               settings.set(key, {
                 user_id: userId,
                 repo_full_name: repo,
                 sitrep_end_of_turn: level,
-                settings_json: '{}',
+                settings_json: settingsJson,
                 created_at: createdAt,
                 updated_at: updatedAt + seq,
               });
@@ -402,7 +421,7 @@ function makeDb(sessionHash: string, sealed: { enc: string; iv: string }) {
           }
           if (sql.includes('DELETE FROM repo_settings')) {
             const [userId, repo] = args as [string, string];
-            settings.delete(`${userId} ${repo}`);
+            settings.delete(`${userId}\u0000${repo}`);
             return { success: true, meta: { changes: 1 } };
           }
           return { success: true, meta: { changes: 0 } }; // last_used_at bumps etc.
@@ -446,6 +465,15 @@ function setReq(repo: string, sitrep: string): Request {
   });
 }
 
+function setReqWithDeadline(repo: string, sitrep: string, aiCallDeadlineMinutes: string): Request {
+  const body = new URLSearchParams({ repo, sitrep, aiCallDeadlineMinutes });
+  return new Request(`${BASE}/account/repos/set`, {
+    method: 'POST',
+    headers: { ...COOKIE, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+}
+
 function removeReq(repo: string): Request {
   const body = new URLSearchParams({ repo });
   return new Request(`${BASE}/account/repos/remove`, {
@@ -456,10 +484,14 @@ function removeReq(repo: string): Request {
 }
 
 /** Stub GitHub's GET /repos/:owner/:repo — readable repos answer 200, rest 404. */
-function stubRepoAccess(readable: string[]): ReturnType<typeof vi.fn> {
+function stubRepoAccess(readable: string[], adminRepos: string[] = []): ReturnType<typeof vi.fn> {
   const mock = vi.fn(async (input: RequestInfo | URL) => {
     const repo = /\/repos\/(.+)$/.exec(String(input))?.[1] ?? '';
-    return new Response('', { status: readable.includes(repo) ? 200 : 404 });
+    if (!readable.includes(repo)) return new Response('', { status: 404 });
+    return new Response(
+      JSON.stringify({ permissions: { admin: adminRepos.includes(repo) } }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   });
   vi.stubGlobal('fetch', mock);
   return mock;
@@ -519,6 +551,74 @@ describe('POST /account/repos/set — upsert round-trip', () => {
     }
     expect(fetchMock).not.toHaveBeenCalled();
     expect(settings.size).toBe(0);
+  });
+});
+
+// ── AI call deadline: admin-authority gate (DO-NOT-SHIP finding on #9800) ───
+// Unlike the sitrep dial (a per-user preference), the AI call deadline is
+// repo-wide authoritative state fleet-executor reads for EVERY installation
+// reviewing that repository — so changing it away from whatever is currently
+// effective must require GitHub admin permission on the repo, not just read
+// access. Leaving it at the already-effective value (the default, in
+// particular) never needs admin — that's the common case this session's own
+// "set it at 5 minutes" request lands in, since 5 minutes IS the default.
+describe('POST /account/repos/set — AI call deadline authority gate', () => {
+  it('a non-admin can still save the sitrep dial without touching the deadline', async () => {
+    const { env, settings } = await makeSessionEnv();
+    stubRepoAccess(['acme/widgets']); // readable, but NOT in the admin list
+    const res = await handleRepoSettingsSet(setReq('acme/widgets', 'enforce'), env);
+    expect(res.status).toBe(303);
+    expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
+    expect([...settings.values()][0]!.sitrep_end_of_turn).toBe('enforce');
+  });
+
+  it('a non-admin submitting the already-effective deadline (the default) is not blocked', async () => {
+    const { env, settings } = await makeSessionEnv();
+    stubRepoAccess(['acme/widgets']); // readable, not admin
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '5'), env);
+    expect(res.status).toBe(303);
+    expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
+    expect(JSON.parse([...settings.values()][0]!.settings_json)).toEqual({ aiCallDeadlineMs: 300_000 });
+  });
+
+  it('a non-admin trying to CHANGE the effective deadline is rejected, storing nothing', async () => {
+    const { env, settings } = await makeSessionEnv();
+    stubRepoAccess(['acme/widgets']); // readable, NOT admin
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
+    expect(res.status).toBe(303);
+    const loc = new URL(`${BASE}${res.headers.get('Location')}`);
+    expect(loc.searchParams.get('err')).toBe('1');
+    expect(loc.searchParams.get('notice')).toContain('admin');
+    expect(settings.size).toBe(0);
+  });
+
+  it('a repo admin CAN change the effective deadline', async () => {
+    const { env, settings } = await makeSessionEnv();
+    stubRepoAccess(['acme/widgets'], ['acme/widgets']); // readable AND admin
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
+    expect(res.status).toBe(303);
+    expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
+    expect(JSON.parse([...settings.values()][0]!.settings_json)).toEqual({ aiCallDeadlineMs: 600_000 });
+  });
+
+  it('a non-admin CAN re-affirm a deadline an admin already set (no change in effect)', async () => {
+    const { env, settings } = await makeSessionEnv();
+    // First, an admin sets it to 10 minutes.
+    stubRepoAccess(['acme/widgets'], ['acme/widgets']);
+    await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
+    // Now a non-admin (different session would be ideal, but the authority
+    // gate only inspects GitHub's per-call permissions response — re-stub
+    // without the repo in the admin list to simulate a caller GitHub now
+    // reports as non-admin) resubmits the SAME effective value alongside a
+    // sitrep change; it must not be blocked since nothing about the
+    // repo-wide deadline actually changes.
+    stubRepoAccess(['acme/widgets']);
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'suggest', '10'), env);
+    expect(res.status).toBe(303);
+    expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
+    const stored = [...settings.values()][0]!;
+    expect(stored.sitrep_end_of_turn).toBe('suggest');
+    expect(JSON.parse(stored.settings_json)).toEqual({ aiCallDeadlineMs: 600_000 });
   });
 });
 

@@ -186,8 +186,14 @@ lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the load-
   (`scripts/check-parity.ts`, against `features.manifest.json`) enforces this.
 - **New code, new coverage.** New lines/functions/classes get new tests; the full
   build and suite must pass and existing behavior must still work.
-- **Changelog + parsimony.** Update `CHANGELOG.md`, and don't introduce a second
-  system that duplicates an existing surface — consolidate instead, and say so.
+- **Changelog + parsimony.** Add a changelog fragment at
+  `changelog.d/<pr>-<slug>.md` — do **not** hand-edit `CHANGELOG.md`'s
+  `[Unreleased]` section, which is assembled from those fragments at release time
+  (format + rationale: `changelog.d/README.md`; validate with
+  `npm run check:changelog`). `scripts/check-pr-requirements.mjs` fails a PR that
+  changes a user-visible surface and adds no fragment; `<!-- changelog-exempt:
+  <reason> -->` in the PR body is the audited escape hatch. And don't introduce a
+  second system that duplicates an existing surface — consolidate instead, and say so.
 - **Adversarial review.** The `claude-adversarial-review` workflow runs on every
   PR assuming laziness/slop/lies/corner-cutting and ends with a
   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict; address every HIGH finding.
@@ -306,7 +312,9 @@ The entire codebase is TypeScript with strict mode enabled. Key conventions:
 Port Daddy is published as an npm package. To cut a release:
 
 1. **Update the version** in `package.json` following [semver](https://semver.org/)
-2. **Update CHANGELOG.md** with a summary of changes
+2. **Stamp CHANGELOG.md** with `node scripts/assemble-changelog.mjs --release <version>`
+   (splices the `changelog.d/` fragments into a dated section and deletes them). The
+   release train does this for you; this step is for a manual cut.
 3. **Run the full test suite**: `npm test` -- all 1255+ tests must pass
 4. **Commit the version bump**: `git commit -am "Bump to vX.Y.Z"`
 5. **Tag the release**: `git tag vX.Y.Z`

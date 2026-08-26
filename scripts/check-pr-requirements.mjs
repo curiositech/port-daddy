@@ -13,19 +13,30 @@
  *      the PR body ships visual artifacts: at least one screenshot (image) AND at
  *      least one motion artifact (GIF or screen recording). "A green build proves
  *      it compiles, not that it renders correctly."
+ *   4. If the diff touches a USER-VISIBLE surface, the PR adds a changelog fragment
+ *      under `changelog.d/`. The honour-system version of this rule already exists
+ *      and does not work: `.github/PULL_REQUEST_TEMPLATE.md` carries a "CHANGELOG.md
+ *      updated" checkbox and CONTRIBUTING.md § Changelog + parsimony states the
+ *      rule, but an unchecked checkbox blocks nothing. See
+ *      `scripts/lib/user-visible-surfaces.mjs` for the classifier and
+ *      `changelog.d/README.md` for the fragment format.
  *
  * What it deliberately does NOT do: judge whether the Summary is honest, whether
- * the Test Plan is a real proof vs. a tautology, or whether a GIF shows success
- * vs. an error. Those are judgment calls — the claude-adversarial-review workflow
- * owns them. A script that pretended to judge them would be the solutionism
- * anti-pattern check-doc-citations.mjs warns about. This checks STRUCTURE only.
+ * the Test Plan is a real proof vs. a tautology, whether a GIF shows success
+ * vs. an error, or whether a changelog fragment's prose is honest, well-scoped or
+ * correctly typed. Those are judgment calls — the claude-adversarial-review workflow
+ * and the Lookout/Documentarian role own them. A script that pretended to judge them
+ * would be the solutionism anti-pattern check-doc-citations.mjs warns about. This
+ * checks STRUCTURE and PRESENCE only.
  *
  * Inputs (CI wires the first form; the rest are for local runs + the unit test):
  *   --event-path <file>   GitHub event JSON ($GITHUB_EVENT_PATH); reads
- *                         .pull_request.body and .pull_request.number.
+ *                         .pull_request.body, .pull_request.number, .title, .user.
  *   --body-file <file>    Read the PR body from a file.
  *   --files-from <file>   Newline-delimited changed-file list (one path per line).
  *   --changed a,b,c       Comma-delimited changed-file list.
+ *   --title <s>           PR title (release-train auto-skip; normally from the event).
+ *   --author <s>          PR author login (ditto).
  * With no body source and no event, the check is a no-op (exit 0) so `npm run
  * check:pr-requirements` outside a PR does not error. CI always passes
  * --event-path on pull_request events, so enforcement only happens with a real PR.
@@ -37,17 +48,26 @@
  * visible in the body, auditable):
  *   <!-- pr-requirements-exempt: <reason> -->   skip the WHOLE gate (bots, etc.)
  *   <!-- visual-exempt: <reason> -->            skip only the visual-artifact rule
+ *   <!-- changelog-exempt: <reason> -->         skip only the changelog-fragment rule
+ *
+ * The changelog rule lives HERE rather than in its own workflow because this is the
+ * only PR workflow that listens to `edited` (pr-requirements.yml) — mandatory for a
+ * body-based exemption, or an author could pass at synchronize time and then delete
+ * the marker. The fragment FORMAT check is a separate script + ci-gate job
+ * (`scripts/assemble-changelog.mjs --check`), because that one must also run on
+ * merge-queue heads and pushes to main where there is no PR body at all.
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+// One shared definition of "a surface a user would feel" — see the module header
+// for why `ci.yml`'s detect-changes classifier is deliberately NOT the one reused.
+// VISUAL_SURFACE_RE moved there so the visual rule (3) and the changelog rule (4)
+// cannot drift apart.
+import { VISUAL_SURFACE_RE, isUserVisibleSurface } from './lib/user-visible-surfaces.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-
-// Surfaces the operator reviews by LOOKING, not by reading a green check. A change
-// under any of these requires visual artifacts in the Test Plan / Visual Proof.
-const VISUAL_SURFACE_RE = /^(core\/pd-console\/|website-v2\/|fleet-config-ui\/|public\/fleet-ui\/|public\/|dashboard\/|apps\/FleetBar\/)/
 
 // A changed file that is itself a committed image/video counts as artifact evidence
 // (you committed the screenshot/recording), independent of body links. These are
@@ -74,23 +94,35 @@ function arg(flag) {
   return i !== -1 && i + 1 < process.argv.length ? process.argv[i + 1] : null
 }
 
-/** Resolve the PR body + number from --event-path / --body-file / --body. */
+/** Resolve the PR body + number + title + author from --event-path / --body-file / --body. */
 function loadPrContext() {
   const eventPath = arg('--event-path')
   if (eventPath && existsSync(eventPath)) {
     try {
       const ev = JSON.parse(readFileSync(eventPath, 'utf8'))
       const pr = ev.pull_request
-      if (pr) return { body: pr.body ?? '', number: pr.number, source: 'event' }
+      if (pr) {
+        return {
+          body: pr.body ?? '',
+          number: pr.number,
+          title: pr.title ?? '',
+          author: pr.user?.login ?? '',
+          source: 'event',
+        }
+      }
     } catch (e) {
       console.error(`check-pr-requirements: could not parse --event-path: ${e.message}`)
       process.exit(1)
     }
   }
+  const title = arg('--title') ?? ''
+  const author = arg('--author') ?? ''
   const bodyFile = arg('--body-file')
-  if (bodyFile) return { body: readFileSync(bodyFile, 'utf8'), number: null, source: 'body-file' }
+  if (bodyFile) {
+    return { body: readFileSync(bodyFile, 'utf8'), number: null, title, author, source: 'body-file' }
+  }
   const body = arg('--body')
-  if (body != null) return { body, number: null, source: 'body' }
+  if (body != null) return { body, number: null, title, author, source: 'body' }
   return null
 }
 
@@ -140,9 +172,20 @@ function exemptMarkers(body) {
 // A loose substring match (the original bug) let the PR template's own guidance
 // comment, which names these markers, silently exempt every PR — the gate would
 // disable itself. Requiring the reason also makes the exemption auditable, not blank.
+//
+// The reason is checked against the comment's INNER text, with `<!--` and `-->`
+// stripped first. The previous form matched `\S` directly against the raw comment,
+// and `\S` happily matched the `-` of the CLOSING `-->`: `<!-- visual-exempt: -->`
+// — a marker with a completely empty reason — exempted the gate, defeating exactly
+// the "auditable, not blank" property this comment claims. `<!-- visual-exempt -->`
+// (no colon) was already correctly ignored and had a test; the colon-with-no-reason
+// form did not, which is how it survived. Found while adding rule (4).
 function hasMarker(body, name) {
-  const re = new RegExp(`^<!--\\s*${name}\\s*:\\s*\\S`, 'i')
-  return exemptMarkers(body).some((c) => re.test(c.trim()))
+  const re = new RegExp(`^${name}\\s*:\\s*\\S`, 'i')
+  return exemptMarkers(body).some((c) => {
+    const inner = c.trim().replace(/^<!--/, '').replace(/-->$/, '').trim()
+    return re.test(inner)
+  })
 }
 
 /**
@@ -268,6 +311,37 @@ function main() {
     }
   }
 
+  // (4) User-visible surface ⇒ a changelog fragment.
+  //
+  // Auto-skips are enumerated, not heuristic — a script that guessed "is this
+  // user-visible really" would be the solutionism anti-pattern this file's header
+  // warns about. Each one has a stated reason:
+  //   - tests-only: a test is not a user-visible change.
+  //   - markdown-only: docs take the exemption marker, not a changelog section
+  //     (there is deliberately no `docs` fragment type).
+  //   - the release train's own bump: NECESSARY, not cosmetic — `package.json` is
+  //     in DAEMON_PATHSPEC, and the bump commit is the one that CONSUMES fragments,
+  //     so requiring it to add one would deadlock the release.
+  if (!hasMarker(body, 'changelog-exempt')) {
+    const userVisible = files.filter(isUserVisibleSurface)
+    const testsOnly = userVisible.length > 0 && userVisible.every((f) => f.startsWith('tests/'))
+    const markdownOnly = files.length > 0 && files.every((f) => f.endsWith('.md'))
+    const isReleaseBump =
+      /^chore\(release\): bump to/.test(ctx.title || '') || ctx.author === 'port-daddy-release-train'
+    const addsFragment = files.some(
+      (f) => f.startsWith('changelog.d/') && f !== 'changelog.d/README.md',
+    )
+
+    if (userVisible.length && !testsOnly && !markdownOnly && !isReleaseBump && !addsFragment) {
+      failures.push(
+        `User-visible surface changed (${userVisible.slice(0, 5).join(', ')}${userVisible.length > 5 ? ', …' : ''}) ` +
+        'but this PR adds no changelog fragment. Create `changelog.d/<pr>-<slug>.md` ' +
+        '(format: changelog.d/README.md), or add `<!-- changelog-exempt: <reason> -->` to the ' +
+        'body if this genuinely ships nothing a user would notice.',
+      )
+    }
+  }
+
   if (failures.length) {
     console.error(`\n✗ check-pr-requirements: ${failures.length} unmet requirement(s):\n`)
     for (const f of failures) console.error(`  • ${f}`)
@@ -278,7 +352,7 @@ function main() {
     )
     process.exit(1)
   }
-  console.log('check-pr-requirements: PR description meets the contract (summary, test plan, visual artifacts).')
+  console.log('check-pr-requirements: PR meets the contract (summary, test plan, visual artifacts, changelog fragment).')
 }
 
 main()

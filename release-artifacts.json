@@ -58,6 +58,15 @@
       "minBytes": 1
     },
     {
+      "id": "pd-hook-stop",
+      "buildCmd": "cp bin/pd-hook-stop dist/bin/pd-hook-stop (POSIX shell tentacle; no build)",
+      "sourcePath": "bin/pd-hook-stop",
+      "stagedPath": "bin/pd-hook-stop",
+      "required": true,
+      "executable": true,
+      "minBytes": 1
+    },
+    {
       "id": "pd-statusline",
       "buildCmd": "cp bin/pd-statusline dist/bin/pd-statusline (staged under bin/ per lib/squid/adapter.ts tentaclePath fallback)",
       "sourcePath": "bin/pd-statusline",

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText } from 'lucide-react'
+import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText, FlaskConical } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { NestingDiagram } from '@/components/library/NestingDiagram'
 import { ReadingDag } from '@/components/library/ReadingDag'
@@ -15,17 +15,18 @@ import {
   PanelTitle,
 } from '@/components/site/primitives'
 import {
+  COLLECTED_VOLUME,
   EXPLAIN_PAPERS,
   LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
   PROVE_PAPERS,
   READING_PATHS,
-  WHITE_PAPERS,
   findWhitePaperByChapter,
   type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
 import { ThemedImage } from '@/components/site/ThemedImage'
+import { RESEARCH_PAPERS, RESEARCH_PAPER_TOTAL_PAGES } from '@/data/researchPapers'
 
 /**
  * The cross-reference relationships, in the order they read on a chapter card.
@@ -163,8 +164,6 @@ function GroupHeading({
 }
 
 export default function LibraryPage() {
-  const totalPages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -198,7 +197,7 @@ export default function LibraryPage() {
                   {[
                     { value: '04', label: 'chapters explain' },
                     { value: '03', label: 'chapters prove' },
-                    { value: String(totalPages), label: 'pages, free PDFs' },
+                    { value: String(COLLECTED_VOLUME.pages), label: 'pages, collected PDF' },
                   ].map((stat) => (
                     <div key={stat.label} className="space-y-[var(--space-1)]">
                       <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--text-primary)]">
@@ -210,6 +209,32 @@ export default function LibraryPage() {
                     </div>
                   ))}
                 </div>
+
+                <a
+                  href={COLLECTED_VOLUME.pdfPath}
+                  download
+                  className="group grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] p-[var(--space-5)] text-[var(--brand-primary-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:grid-cols-[auto_1fr_auto] sm:items-center"
+                >
+                  <span className="grid h-12 w-12 place-items-center border-2 border-current">
+                    <FileText aria-hidden="true" size={24} />
+                  </span>
+                  <span className="grid gap-[var(--space-1)]">
+                    <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
+                      Download the collected volume
+                    </span>
+                    <span className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)]">
+                      {COLLECTED_VOLUME.title}
+                    </span>
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
+                      {COLLECTED_VOLUME.pages} pages · {COLLECTED_VOLUME.references} collated references · PDF
+                    </span>
+                  </span>
+                  <ArrowDownRight
+                    aria-hidden="true"
+                    size={24}
+                    className="transition-transform group-hover:translate-x-1 group-hover:translate-y-1"
+                  />
+                </a>
 
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <a
@@ -243,6 +268,36 @@ export default function LibraryPage() {
                 </figcaption>
               </figure>
             </div>
+          </PageContainer>
+        </section>
+
+        {/* ── CTA: the research program that proves the harder theorems ── */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-6)]">
+          <PageContainer width="wide">
+            <Link
+              to="/library/research"
+              className="group grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--story-indigo)] p-[var(--space-5)] text-[var(--story-indigo-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:grid-cols-[auto_1fr_auto] sm:items-center"
+            >
+              <span className="grid h-12 w-12 place-items-center border-2 border-current">
+                <FlaskConical aria-hidden="true" size={24} />
+              </span>
+              <span className="grid gap-[var(--space-1)]">
+                <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
+                  Seven papers prove the theory
+                </span>
+                <span className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)]">
+                  Read the Harbor research library
+                </span>
+                <span className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
+                  {RESEARCH_PAPERS.length} arXiv-style papers · {RESEARCH_PAPER_TOTAL_PAGES} pages · R1–R17 discharged
+                </span>
+              </span>
+              <ArrowRight
+                aria-hidden="true"
+                size={24}
+                className="transition-transform group-hover:translate-x-1"
+              />
+            </Link>
           </PageContainer>
         </section>
 

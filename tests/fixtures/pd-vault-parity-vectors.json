@@ -1,0 +1,36 @@
+{
+  "$comment": "pd-vault known-answer vectors, v1 — copied byte-for-byte from the canonical Rust kernel crate core/kernel/pd-vault (branch claude/pd-vault-crate, PR #9313: src/kdf.rs and src/seal.rs test constants). Provenance, stated plainly (same words as the Rust source): the bytes came out of that implementation and were pasted back in; they are NOT RFC vectors. They were reproduced once during pd-vault development by a throwaway reference implementation written straight from RFC 8439 / draft-irtf-cfrg-xchacha, which is why they are believed correct rather than merely self-consistent. Per the ADR-0120 rule (no second implementation without a shared fixture), every non-Rust twin of the vault — the daemon's pure-TS reference seal in lib/pd-vault-ts.ts today, Workers or Swift later — asserts these exact vectors, so the implementations can only drift loudly.",
+  "derivation": {
+    "kdf": "channel_key = HKDF-SHA256(salt = channel_key_label, ikm = harbor_secret, info = unambiguous_encoding([channel_key_label, channel_id, u64_be(epoch)]), len = 32)",
+    "encoding": "unambiguous_encoding(components) = u32_be(count) || for each component: u32_be(len) || bytes — prefix-free, no reserved separator byte",
+    "seal": "XChaCha20-Poly1305(key = channel_key, nonce = 24 bytes, aad = unambiguous_encoding([seal_aad_label, harbor_id, channel_id, u64_be(epoch), u64_be(seq)])), ciphertext = body || 16-byte tag"
+  },
+  "labels": {
+    "channel_key_label": "pd-vault/v1/channel",
+    "seal_aad_label": "pd-vault/v1/seal"
+  },
+  "encoding_layout": {
+    "$comment": "Byte-for-byte layout pin from pd-vault lib.rs test encoding_layout_is_stable: components ['hi', 0xff00] encode as count, then len||bytes per component.",
+    "components_hex": ["6869", "ff00"],
+    "encoded_hex": "0000000200000002686900000002ff00"
+  },
+  "channel_key": {
+    "harbor_secret_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "channel_id": "harbor/alpha",
+    "epoch": 7,
+    "key_hex": "eecdca153c0521429707dd6ed523314c6faff8060928b731738214cef69b4c35",
+    "rotated_epoch": 8,
+    "rotated_key_hex": "c80f75976ac60d87e08aa8e22ce26dd74a46ea514824a4ddc518f1e956e25c5b"
+  },
+  "seal": {
+    "harbor_secret_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "harbor_id": "harbor-kat",
+    "channel_id": "harbor/alpha",
+    "epoch": 7,
+    "seq": 42,
+    "nonce_hex": "000102030405060708090a0b0c0d0e0f1011121314151617",
+    "plaintext_utf8": "pd-vault known-answer payload v1",
+    "aad_hex": "000000050000001070642d7661756c742f76312f7365616c0000000a686172626f722d6b61740000000c686172626f722f616c70686100000008000000000000000700000008000000000000002a",
+    "ciphertext_hex": "8a0df028d33f1b412d8203db5b459600c432b7718f27653b846d194c8026f07a64f66592b2ea4677a8f9269def4e41df"
+  }
+}

@@ -18,7 +18,7 @@
 
 // ─── Tentacle identity ────────────────────────────────────────────────────────
 
-export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const;
+export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const;
 export type TentacleName = (typeof TENTACLES)[number];
 
 /**
@@ -29,8 +29,14 @@ export type TentacleName = (typeof TENTACLES)[number];
  * A synchronous process after every tool multiplied a parallel Codex batch into
  * a visible queue and duplicated the cumulative evidence already carried by
  * session claims and notes.
+ *
+ * `pd-hook-stop` (ADR-0092 L4 closeout gate) IS registered: it fires once per
+ * turn on each vendor's end-of-turn event, verifies the standing SITREP
+ * contract the prompt tentacle compels, and is loop-guarded twice over
+ * (stop_hook_active plus a one-shot per-session marker), so it cannot fan out
+ * the way per-tool observation did.
  */
-export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool'] as const;
+export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-stop'] as const;
 
 /** Every interactive hook must either finish or become visibly overdue within one second. */
 export const SQUID_HOOK_DEADLINE_MS = 1_000;
@@ -111,17 +117,17 @@ export function removeJsonHooks(config: Record<string, unknown>): boolean {
 
 // ─── Claude Code ──────────────────────────────────────────────────────────────
 
-export const CLAUDE_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse' } as const;
+export const CLAUDE_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse', stop: 'Stop' } as const;
 export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
 
 // ─── Gemini CLI (native event names) ──────────────────────────────────────────
 
-export const GEMINI_EVENTS = { prompt: 'BeforeAgent', preTool: 'BeforeTool', postTool: 'AfterTool' } as const;
+export const GEMINI_EVENTS = { prompt: 'BeforeAgent', preTool: 'BeforeTool', postTool: 'AfterTool', stop: 'AfterAgent' } as const;
 export const GEMINI_TOOL_MATCHER = 'replace|write_file|edit';
 
 // ─── Antigravity (agy) — Claude-shaped engine, broad matcher ─────────────────
 
-export const AGY_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse' } as const;
+export const AGY_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', postTool: 'PostToolUse', stop: 'Stop' } as const;
 export const AGY_TOOL_MATCHER =
   'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch';
 
@@ -141,6 +147,8 @@ export function buildJsonHookMap(
   return {
     [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, timeout)],
     [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, timeout)],
+    // End-of-turn SITREP closeout gate fires unconditionally — no tool matcher.
+    [ev.stop]: [hookEntry(resolve('pd-hook-stop'), undefined, timeout)],
   };
 }
 
@@ -264,6 +272,9 @@ export function codexHooksTomlBlock(
   L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
   L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
   L.push('# Per-tool PostToolUse tracing is intentionally retired; claims and notes are cumulative.');
+  L.push('# Stop is synchronous so pd-hook-stop can verify the end-of-turn SITREP once');
+  L.push('# per turn (exit 2 + the directive on stderr; loop-guarded by stop_hook_active');
+  L.push('# plus a one-shot per-session marker).');
   L.push('');
   L.push('[[hooks.UserPromptSubmit]]');
   L.push('[[hooks.UserPromptSubmit.hooks]]');
@@ -277,6 +288,13 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
+  L.push('async = false');
+  L.push('');
+  L.push('[[hooks.Stop]]');
+  L.push('[[hooks.Stop.hooks]]');
+  L.push('type = "command"');
+  L.push(`command = ${tomlString(resolve('pd-hook-stop'))}`);
   L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);

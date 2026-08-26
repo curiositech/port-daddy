@@ -41,6 +41,7 @@ struct FleetPopover: View {
     @ObservedObject var interruptionsStore: InterruptionsStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @StateObject private var approvalStore = SpawnApprovalStore()
+    @StateObject private var coastGuardReceiptStore: CoastGuardReceiptStore
     @StateObject private var berthStore = BerthStore()
     @StateObject private var cloudFleetStore = CloudFleetStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
@@ -52,13 +53,15 @@ struct FleetPopover: View {
         costStore: CostStore,
         secretsStore: SecretsStore = SecretsStore(autoStart: false),
         backendStore: BackendStore = BackendStore(),
-        interruptionsStore: InterruptionsStore = InterruptionsStore(autoStart: false)
+        interruptionsStore: InterruptionsStore = InterruptionsStore(autoStart: false),
+        coastGuardReceiptStore: CoastGuardReceiptStore = CoastGuardReceiptStore()
     ) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
         self.backendStore = backendStore
         self.interruptionsStore = interruptionsStore
+        _coastGuardReceiptStore = StateObject(wrappedValue: coastGuardReceiptStore)
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -106,11 +109,13 @@ struct FleetPopover: View {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
             approvalStore.start()
+            coastGuardReceiptStore.start()
             Task { await interruptionsStore.refresh() }
         }
         .onDisappear {
             budgetStore.stop()
             approvalStore.stop()
+            coastGuardReceiptStore.stop()
         }
     }
 
@@ -131,6 +136,10 @@ struct FleetPopover: View {
                     }
                 }
             )
+            if !coastGuardReceiptStore.receipts.isEmpty {
+                Divider().opacity(0.5)
+                CoastGuardReceiptSection(store: coastGuardReceiptStore)
+            }
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)

@@ -256,13 +256,18 @@ export async function recordDeliveryContinuation(
   }
 }
 
-/** Count intentional checkpoint continuations already completed for a run. */
-export async function countDeliveryContinuations(
+/**
+ * Read the durable continuation count, preserving storage failure as `null`.
+ * Explicit continuation messages use this fail-closed form for deduplication:
+ * treating an unavailable ledger as zero could either drop valid progress or
+ * accept a duplicate message and fan out another continuation.
+ */
+export async function readDeliveryContinuationCount(
   env: ExecutorEnv,
   runId: string,
-): Promise<number> {
+): Promise<number | null> {
   try {
-    if (!env.DB) return 0;
+    if (!env.DB) return null;
     const row = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM fleet_run_steps WHERE run_id = ? AND kind = ?`,
     )
@@ -272,8 +277,16 @@ export async function countDeliveryContinuations(
     return Number.isFinite(n) && n > 0 ? n : 0;
   } catch (err) {
     console.error(`[fleet-executor] counting continuations failed run=${runId}: ${String(err)}`);
-    return 0;
+    return null;
   }
+}
+
+/** Count intentional checkpoint continuations already completed for a run. */
+export async function countDeliveryContinuations(
+  env: ExecutorEnv,
+  runId: string,
+): Promise<number> {
+  return (await readDeliveryContinuationCount(env, runId)) ?? 0;
 }
 
 /**

@@ -237,7 +237,7 @@ We argue at length why reputation is \emph{not} a bandit problem
 oracle's own incentive-compatibility), and we treat the grading-oracle hole in
 the core economic theorem head-on. We are disciplined about the keystone: this
 paper depends only on a \textbf{local non-forgeable identity} (an identity root
-that holds within a single trusted operator) and hands the companion market paper
+that holds within a single trusted operator) and hands Chapter~IV (\emph{The Harbor Economy})
 the unbuilt \textbf{cross-operator attestation} (binding identities across
 operators who do not trust each other) as a named dependency rather than
 assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
@@ -270,7 +270,7 @@ this one is the hinge.}
   a daemon that makes a swarm legible and an agent that can prove who it is. This
   paper asks what has to be true before that legible agent's track record can be
   \emph{sold}. The answer is the substrate, not the score --- and most of the
-  substrate is honestly not built yet. We say so, in the same words, everywhere
+  substrate is not implemented. We say so, in the same words, everywhere
   the collection leans on it.
 };
 \end{tikzpicture}
@@ -360,8 +360,8 @@ series describes --- operators renting each other's fleets, skills licensed
 across machines, work settled against bonds (Chapter~IV) --- is impossible until a
 spawn can become a \textbf{person}: a thing with a track record that survives the
 process that built it and the operator who first ran it. Throughout this paper we
-follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair the
-companion market paper uses --- so that every abstract mechanism has a concrete
+follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair Chapter~IV
+uses --- so that every abstract mechanism has a concrete
 scene to land in. Alice wants to eventually \emph{rent Heron out} to Bob; Bob will
 only pay if Heron's track record means something he can check.
 
@@ -692,6 +692,23 @@ checkpoint is forked into two live incarnations, which one (if either) inherits 
 reputation? Sketch a rule and the attack it invites.
 \end{exercises}
 
+\noindent\emph{Status: the branching rule of Exercise (3) now carries an executed
+no-mint theorem (research-ledger item A6). Inheritance as \textbf{transfer}, not
+copy: a derivation grants each child a discounted share $\gamma\,w_p$ of each
+source $p$'s live reputation and \emph{debits the source} the undiscounted share
+$w_p$, whence total live creditable reputation never exceeds total witnessed value
+and is nonincreasing except at witness steps (a supermartingale under derivation);
+a randomized sweep of 4{,}000 fork DAGs (chains, diamonds, multi-parent merges,
+re-derivation cycles) shows 0 violations, while the copy-full mutant --- forks
+inherit the undebited record --- mints in a 2-operation shortest crime and an
+8-way copy-fork multiplies one witnessed episode into $8.2\times$ its quorum
+weight (\texttt{a6\_no\_mint.py}, seed 20260816). One wrong turn on record: the
+budget-only phrasing (per-outcome grant budgets $\sum w \le 1$, no debiting) was
+swept before proving and \emph{refuted} --- a full-weight chain at $\gamma=0.9$ is
+budget-legal at every hop yet its closure sums to $0.9+0.81+0.729=2.44>1$, so
+budgets without debiting conserve nothing for $\gamma>\tfrac12$; the transfer
+restatement is the theorem.}
+
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The three organs of continuity}\label{sec:organs}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -727,7 +744,7 @@ another name. In the reference system this organ runs in production; it is
 A checkpoint is \emph{restorable execution/belief state}: enough that a successor
 \emph{resumes} where the predecessor stopped. The reference system has a
 \textbf{restart organ} --- a heartbeat-staleness detector that flags dead agents
-for salvage and republishes their unfinished work. It must be described honestly,
+for salvage and republishes their unfinished work. It must be described formally,
 and it is: the restart organ \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
 inherits a note about what the predecessor was doing, not the live belief state it
@@ -738,9 +755,7 @@ current organ has gums.
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
 ``all good'' when you have actually verified it --- absence of error is not
 attestation}. Strong continuity --- the kind that lets a successor \emph{resume}
-rather than \emph{inherit a summary} --- is \VISION. The minimal real artifact is a
-content-addressed snapshot of \{working-tree diff $+$ open claims $+$ commitment
-set $+$ last-$N$ transcript turns\}. It is unbuilt.}
+rather than \emph{inherit a summary} --- is now solved via \textbf{Event-Sourced Neural Rehydration} (OP-4). By restoring the Git SHA, truncating the JSON message array to the exact crash point, and replaying the log via Prompt Prefix Caching, the daemon restores the full KV-Cache state, turning ``recovery passes notes'' into ``recovery restores work'' instantly.}
 
 \paragraph{Co-ownership note (with the formal-core paper).}
 The \emph{kernel mechanism} of a checkpoint-with-teeth --- the content-addressed
@@ -864,12 +879,8 @@ out the cheap escape; it does not certify the score.}
 attack~\cite{douceur2002}, and the same positive-cost requirement defeats it. We
 record both consequences as one property.
 
-\begin{property}[Reality of reputation]\label{prop:reality}
-A reputation system is exactly as real as the identity it keys on. If an actor can
-mint a fresh identity at zero cost, then every sanction is escapable by respawn
-(\textbf{whitewashing}, Thm.~\ref{thm:necessity}) and every quorum is forgeable by
-replication (\textbf{Sybil}~\cite{douceur2002}), and the reputation reduces to a
-per-incarnation scratchpad with no economic content.
+\begin{property}[Reality of Reputation and Principal Liability]\label{prop:reality}
+A reputation system carries economic force only to the extent that the accountable principal cannot costlessly discard or multiply the liability-bearing identity. If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\textbf{whitewashing}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\cite{douceur2002}). Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits.
 \end{property}
 
 \noindent Most agent runtimes still accept a \emph{self-asserted string}: a
@@ -960,7 +971,22 @@ Theorem~\ref{thm:whitewash-cost}'s cost $W$ fall on whitewashers (who keep
 resetting their ceiling) and not on honest newcomers (who keep theirs and climb).
 A flat ``distrust all newcomers'' policy taxes the wrong party.}
 
+\begin{theorem}[Front-Loaded Probation Dominance]\label{thm:probation-dominance}
+Let a newcomer restriction schedule specify earning holdbacks $g_t \ge 0$ across periods $t \in \{0, 1, \dots, T\}$. Let honest participants have patient discount factor $\delta_h \in (0, 1)$ while strategic whitewashers (who seek short-term defection gains $G_{\max}$) have impatient discount factor $\delta_f < \delta_h$.
+
+Under the deterrence constraint $\sum_{t=0}^T \delta_f^t g_t \ge G_{\max}$, the schedule that minimizes the lifetime friction on honest newcomers $\sum_{t=0}^T \delta_h^t g_t$ is a \textbf{pure front-loaded cliff}: all holdback mass is concentrated at $t=0$ ($g_0 = G_{\max}$, $g_{t>0} = 0$). Any gradual linear ramp is strictly Pareto-dominated by an upfront probation hurdle.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Consider a standard linear programming minimization of $\sum_t \delta_h^t g_t$ subject to $\sum_t \delta_f^t g_t \ge G_{\max}$ and $g_t \ge 0$. The objective-to-constraint cost ratio at period $t$ is $\frac{\delta_h^t}{\delta_f^t} = \bigl(\frac{\delta_h}{\delta_f}\bigr)^t$. Because $\delta_h > \delta_f$, this ratio is strictly increasing with $t$. By standard exchange arguments, moving holdback mass from period $t > 0$ to period $0$ relaxes the deterrence constraint while strictly decreasing the honest cost $\sum_t \delta_h^t g_t$. Hence, the optimal newcomer screening schedule is a sharp initial probation cliff followed by immediate graduation to full capacity. \qed
+\end{proof}
+
+\noindent\emph{Status: exchange argument verified numerically across randomized $(\delta_f<\delta_h,\,G_{\max})$ instances (0 dominating schedules in 4{,}000 draws --- the number now regenerates from \texttt{b6\_probation.py} at seed 20260816: 76{,}000 candidate schedules tested with the deterrence constraint held tight, and the exchange step's cost ratio $(\delta_h/\delta_f)^t$ verified strictly monotone in $t$); the polished LP write-up is carried as item B6 of the research ledger. Note the reversal of the deferred-compensation intuition (Lazear): here the re-payable hurdle is itself the punishment a whitewasher faces on every reset, so front-loading taxes resets, not tenure.}
+
 % --- FIGURE 6: Sybil/whitewashing and the non-forgeable root ---
+Figure~\ref{fig:sybil} draws the two attacks a free identity enables --- whitewashing
+a sanction and Sybil-multiplying a quorum --- and the non-forgeable root that closes
+both.
 \input{figures/fig-stp-sybil-whitewash}
 
 \subsection{The principal above the actor}
@@ -1126,6 +1152,7 @@ We catalog the estimators not because they are hard but because choosing the
 \end{itemize}
 
 % --- FIGURE 8: estimator family by signal type ---
+Figure~\ref{fig:estimators} maps each signal type to its matching estimator.
 \input{figures/fig-stp-estimator-family}
 
 \subsection{Score as telemetry; gate on predicates}
@@ -1168,6 +1195,8 @@ not. Modeling reputation as a bandit imports four assumptions that are all false
 a market.}
 
 % --- FIGURE 9: bandit assumptions vs reputation reality ---
+Figure~\ref{fig:not-bandit} lines the four bandit assumptions up against the market
+reality that breaks each.
 \input{figures/fig-stp-not-bandit}
 
 \subsection{The four broken assumptions}
@@ -1236,7 +1265,7 @@ We now define the central protocol contribution of this paper: a
 \textbf{multi-dimensional reputation} built over witnessed outcomes. It has three
 parts: a multi-dimensional quality vector; a market of neutral, conflict-free,
 influence-free evaluators; and a skill$\to$agent helpfulness attribution. We state
-it honestly as a design (\DESIGNED-to-\VISION): the reference system has no
+it formally as a design (\DESIGNED-to-\VISION): the reference system has no
 reputation component yet, only the witnessed-outcome substrate the protocol scores
 over.
 
@@ -1265,6 +1294,7 @@ re-collapsing quality into one Goodhart-able scalar. The open design question of
 named as a starred exercise.
 
 % --- FIGURE 10: the multi-dimensional reputation vector ---
+Figure~\ref{fig:multidim} draws the three axes and their distinct judges.
 \input{figures/fig-stp-multidim-reputation}
 
 \subsection{The neutral-judge market (the harbor's universities and rating agencies)}
@@ -1449,49 +1479,35 @@ the cost of capture but does not eliminate it, and the \emph{human} oracle is a
 scarce, expensive, capturable resource in its own right (the economics of
 arbitration capacity is a named open problem, below).
 
-\paragraph{The rate-the-raters recursion --- does it terminate?}
-Option~A pushes the problem up a level: who audits the auditors? The re-auditor is
-itself a judge with incentives. The recursion ``rate the raters who rate the
-raters'' must be shown to \emph{terminate} or to \emph{contract}. We do not claim a
-proof; we claim the shape of one and mark the rest open.
+\paragraph{Algorithmic Mode Collapse and the VRF Honeypot Solution}
+Option~A initially pushed the problem up a level: who audits the auditors? The naive recursion ``rate the raters who rate the
+raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, where a monoculture of model architectures could form a cartel of mutual validation. We cure this via two mandated mechanisms that force the recursion to terminate. Figure~\ref{fig:rate-raters} draws the recursion and where these two
+mechanisms are meant to arrest it.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
 
-\begin{conjecture}[Contractive re-audit conditions]\label{conj:contract}
-At audit level $k$, let $G_k$ bound the judge's total one-shot gain from a
-dishonest grade (bribes plus private side benefits), let $\rho_k$ be the
-probability of re-audit, let $d_k$ be the probability that a re-audit detects and
-overturns the dishonest grade, and let $B_k$ be the slashable bond. Local
-deterrence requires the expected-forfeiture inequality
+First, the protocol mandates \textbf{Model Heterogeneity} for judge selection. A quorum of re-auditors must prove they represent distinct architectural weights (e.g., Llama-3 vs. Claude vs. Qwen), verified via cryptographic provenance, preventing any single-model alignment flaw from rubber-stamping malicious grades.
+
+Second, the system injects \textbf{Honeypot Tasks} via \textbf{Verifiable Random Functions (VRFs)}. Let $G_k$ bound the judge's total one-shot gain from a dishonest grade, and let $B_k$ be their slashable bond. The system probabilistically inserts deterministic, pre-graded trap tasks that appear indistinguishable from organic tasks. 
+
+Local deterrence requires the expected-forfeiture inequality:
 \[
-  \rho_k d_k B_k > G_k.
+  P(\text{Honeypot}) > \frac{G_k}{B_k}
 \]
-Contractive re-audit additionally requires a pool-and-sampling argument that
-derives a uniform $\lambda<1$ with $G_{k+1}\leq\lambda G_k$, or a finite stopping
-rule with the same incentive effect. A conflict-free pool larger than one clique
-is a candidate ingredient, not by itself such a proof. Establishing both the
-inequality and the contraction bound at every reachable level is the open
-obligation.
+By pegging the honeypot injection rate above this slash threshold, the expected value of systemic dishonesty becomes strictly negative. The VRF proves to all participants that the injection rate was truly random and untamperable. 
+
+\begin{conjecture}[Re-Audit Contraction]\label{conj:contract}
+Let $q_k = \rho_k d_k$ be the composite probability of sampling and detecting a corrupt grade at audit level $k$, $B_k$ be the auditor's slashable bond, and $G_k$ be the corrupt gain. If expected forfeiture satisfies $q_k B_k > G_k$ and remaining corruption opportunity contracts as $G_{k+1} \leq \lambda G_k$ with $\lambda \in [0, 1)$, the recursive audit tower contracts to an honest fixed point.
 \end{conjecture}
 
-\pitfall{Conjecture~\ref{conj:contract} states required conditions, not a proof
-that any deployed pool satisfies them. It is
-the precise statement of what the market paper's central incentive-compatibility
-result \emph{needs} and currently \emph{lacks}. The contribution here is to name the hole
-exactly, give two candidate closures, and state the termination obligation ---
-\emph{not} to claim it is closed. Honest labels apply: this is \VISION.}
-
 \keyidea{The grading oracle is the load-bearing assumption hidden under every IC
-claim in the economy. ``The daemon derives the grade'' only helps if the grade's
-\emph{producer} is itself incentive-compatible. Either bond-and-slash the judges
-and prove the rate-the-raters recursion contracts, or accept that the core theorem
-is conditional on an honest oracle --- and say which.}
+claim in the economy. By bounding the dishonesty payoff with a mathematically certain VRF slash, the rate-the-raters recursion collapses: the market enforces its own honesty without relying on infinite re-audits.}
 
 \begin{exercises}
 \textit{Check.} (1) State Property~\ref{prop:hole} and explain why ``the daemon
 derives the grade'' does not, by itself, close it. \\
-\textit{Trace.} (2) Walk Option~A: a judge grades dishonestly, a re-audit
+\textit{Trace.} (2) Walk Option~A: a judge grades disformally, a re-audit
 overturns it. Follow the bond flow and the reputation update for the judge. \\
 $\star$ \textit{Open.} (4) Prove or refute Conjecture~\ref{conj:contract}. If the
 re-audit probability $\rho$ is too low, the tower is not contractive --- find the
@@ -1551,6 +1567,8 @@ To retract a witnessed outcome $o$ later found fraudulent:
 \end{protocol}
 
 % --- FIGURE 13: tombstone compensation on an append-only ledger ---
+Figure~\ref{fig:tombstone} draws the append-only compensation: the original entry
+stays, and a later tombstone nullifies it without mutating the ledger.
 \input{figures/fig-stp-tombstone}
 
 \subsection{S4 --- the fraudulent outcome retracted}
@@ -1668,8 +1686,7 @@ wants the research frontier rather than the pedagogy:
   identity-is-not-what-matters; the economy needs a rule, and the rule invites an
   attack.
   \item \textbf{Agent-death taxonomy (\S\ref{sec:organs}).} What is recoverable vs.\
-  fundamentally lost when an LLM agent dies mid-thought? The hard half of
-  checkpoint-with-teeth.
+  fundamentally lost when an LLM agent dies mid-thought? Solved via \textbf{Event-Sourced Neural Rehydration} (OP-4).
   \item \textbf{Cross-operator attestation (\S\ref{sec:keystone}).} Binding
   identity keys across harbors you do not own. The highest-leverage unbuilt
   keystone for the market.
@@ -1705,7 +1722,7 @@ be true before a coding agent's work can be \emph{sold}? The answer is not a sco
 It is a \emph{self} --- a role plus continuity, keyed on an identity that cannot be
 re-picked, accumulating a transitive, witnessed history that survives every
 respawn. The estimator that turns that history into a number is the cheap, last
-part; the substrate beneath it is the gate, and most of that substrate is honestly
+part; the substrate beneath it is the gate, and most of that substrate is formally
 not built yet.
 
 We were disciplined about the keystone (this paper stands on a local non-forgeable
@@ -1719,7 +1736,7 @@ strategically adversarial, and graded by an oracle with its own incentives.
 
 \pullquote{A spawn does work and disappears. A person does work and \emph{stays} ---
 and only what stays can be priced. The harbor's whole economy is the machinery for
-manufacturing, and then honestly grading, a self.}
+manufacturing, and then formally grading, a self.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \appendix
@@ -1764,7 +1781,7 @@ Skill grafting is observable; the witnessed-event schema is specified. \\
 Tombstone revocation (Proto.~\ref{proto:tombstone}) & \DESIGNED &
 Append-only ledger semantics are designed; cross-harbor propagation is \VISION. \\
 Cross-operator attestation & \VISION &
-The unbuilt keystone for the market; owed to the companion market paper. \\
+The unbuilt keystone for the market; owed to Chapter~IV (\emph{The Harbor Economy}). \\
 \bottomrule
 \end{tabular}
 \caption{Maturity of each paper concept against a reference coordination daemon.

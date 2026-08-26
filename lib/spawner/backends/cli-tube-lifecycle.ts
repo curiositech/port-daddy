@@ -84,9 +84,27 @@ export function waitForCliChildProcess(
     const rememberProcessTreeAsync = (includeStdioHolders = false): Promise<void> => {
       const scan = processTreeScanTail.then(async () => {
         if (settled) return;
-        const snapshots = [await collectProcessTreePidsAsync(child.pid)];
+        // Identities FIRST, before the `ps` round trip below.
+        //
+        // rememberStdioIdentitiesAsync reads /proc/<child.pid>/fd/{1,2}, and
+        // those links exist only while the child is alive. On Linux they are
+        // the ONLY way to find a detached descendant that inherited the
+        // child's stdio: once the child exits, the ppid walk cannot reach it
+        // (it reparents to init) and the lsof fallback yields nothing,
+        // because Linux lsof does not print unix-socket peer endpoints.
+        //
+        // This used to run AFTER `await collectProcessTreePidsAsync(...)`,
+        // which spawns `ps`. Measured: a CLI that exits ~65ms after spawn
+        // against a `ps` that takes 7-54ms idle and up to 193ms under load.
+        // When `ps` lost that race the fd links were already gone, the target
+        // set stayed empty for the whole run, and the descendant was never
+        // discovered, never signalled, and leaked permanently — nothing kills
+        // it after spawnViaCliTube returns.
         if (includeStdioHolders) {
           await rememberStdioIdentitiesAsync();
+        }
+        const snapshots = [await collectProcessTreePidsAsync(child.pid)];
+        if (includeStdioHolders) {
           const stdioHolders = await collectStdioHolderPidsAsync(
             child,
             knownStdioProcTargets,
@@ -108,7 +126,16 @@ export function waitForCliChildProcess(
       processTreePollTimer = setTimeout(async () => {
         processTreePollTimer = null;
         if (settled || timedOut) return;
-        await rememberProcessTreeAsync();
+        // includeStdioHolders: true, not the default false.
+        //
+        // The first scan is the only one that could ever have captured the
+        // child's fd targets, so a single lost race used to be unrecoverable
+        // for the rest of the run. Passing true here means every poll re-reads
+        // them while the child lives, and re-sweeps /proc for holders — so a
+        // descendant spawned after the first scan (which is exactly what the
+        // fixture does: the launcher waits 50ms before spawning the survivor)
+        // is found on a later pass instead of never.
+        await rememberProcessTreeAsync(true);
         signalRememberedTree();
         scheduleProcessTreePoll();
       }, PROCESS_TREE_POLL_MS);

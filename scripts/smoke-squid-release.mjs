@@ -56,6 +56,7 @@ try {
     'bin/pd-hook-prompt',
     'bin/pd-hook-pre-tool',
     'bin/pd-hook-post-tool',
+    'bin/pd-hook-stop',
     'bin/pd-statusline',
     'hooks/sessionstart-pilot.mjs',
   ]) {
@@ -110,21 +111,26 @@ try {
   for (const config of [claudeConfig, geminiConfig, codexConfig, agyConfig]) {
     expectFile(config, join(pdHome, 'bin', 'pd-hook-prompt'));
     expectFile(config, join(pdHome, 'bin', 'pd-hook-pre-tool'));
+    expectFile(config, join(pdHome, 'bin', 'pd-hook-stop'));
     expectAbsent(config, '/Cellar/');
     expectAbsent(config, staged);
   }
 
-  // Release invariant: each provider gets one turn briefing and one direct-edit
-  // gate. The post-tool binary remains staged for safe migration/debug history,
-  // but it must never be registered into an interactive lifecycle again.
+  // Release invariant: each provider gets one turn briefing, one direct-edit
+  // gate, and one end-of-turn closeout gate. The post-tool binary remains
+  // staged for safe migration/debug history, but it must never be registered
+  // into an interactive lifecycle again.
   for (const config of [claudeConfig, geminiConfig, agyConfig]) {
     expectCount(config, 'pd-hook-prompt', 1);
     expectCount(config, 'pd-hook-pre-tool', 1);
+    expectCount(config, 'pd-hook-stop', 1);
     expectAbsent(config, 'pd-hook-post-tool');
   }
   expectCount(codexConfig, '[[hooks.UserPromptSubmit]]', 1);
   expectCount(codexConfig, '[[hooks.PreToolUse]]', 1);
   expectCount(codexConfig, '[[hooks.PreToolUse.hooks]]', 1);
+  expectCount(codexConfig, '[[hooks.Stop]]', 1);
+  expectCount(codexConfig, '[[hooks.Stop.hooks]]', 1);
   expectAbsent(codexConfig, 'pd-hook-post-tool');
   expectAbsent(codexConfig, '[[hooks.PostToolUse]]');
   expectFile(codexConfig, 'matcher = "apply_patch|Edit|Write|edit|write|str_replace_editor"');
@@ -132,7 +138,7 @@ try {
     expectAbsent(codexConfig, `matcher = "${broadTool}`);
     expectAbsent(codexConfig, `|${broadTool}`);
   }
-  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']) {
+  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop']) {
     expectFile(join(pdHome, 'bin', name), '.portdaddy');
     expectFile(join(pdHome, 'bin', 'squid', name));
   }
@@ -206,11 +212,15 @@ try {
   }
 
   // Prove the staged user-level gate is scoped to the exact armed root. A
-  // sibling Port Daddy project must stay inert even while the heartbeat is
-  // fresh and the underlying prompt tentacle has context it could emit.
+  // sibling Port Daddy project must stay inert even while one exact daemon
+  // generation is ready and the underlying prompt tentacle has context it
+  // could emit. This fixture is the release artifact's complete filesystem
+  // lease contract: PID + matching readiness marker + fresh heartbeat.
   const sibling = join(root, 'sibling-project');
   const exactRootMarker = 'exact-root-only-release-smoke';
   mkdirSync(join(sibling, '.portdaddy'), { recursive: true });
+  writeFileSync(join(pdHome, 'daemon.pid'), `${process.pid}\n`);
+  writeFileSync(join(pdHome, 'daemon.ready'), `${process.pid}\n`);
   writeFileSync(join(pdHome, 'heartbeat'), '{}\n');
   writeFileSync(
     join(pdHome, 'matrix.env'),

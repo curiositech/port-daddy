@@ -69,6 +69,13 @@ cpu_ms = 300000
 [ai]
 binding = "AI"
 
+# Relay's named, RPC-only ADR-0092 grant issuer. Deploy that named entrypoint
+# before deploying this caller binding. Fleet never stores a static macaroon.
+[[services]]
+binding = "COORDINATION_GRANTS"
+service = "port-daddy-relay"
+entrypoint = "CoordinationGrantService"
+
 # ---------------------------------------------------------------------------
 # KV — installation-token cache. Keyed by `github_inst_<installationId>`,
 # value `{ token, expiresAt }`, TTL set to (expiresAt - 60s). Avoids re-minting
@@ -125,10 +132,17 @@ database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
 # new_sqlite_classes = ["Sandbox"]
 
 # ---------------------------------------------------------------------------
-# Queue consumer — one message per GitHub delivery, enqueued by relay.
+# Queue producer + consumer — one message per GitHub delivery, enqueued by
+# relay. Successful one-ship slices enqueue an explicit continuation before
+# acknowledging their current delivery; Cloudflare retries are reserved for
+# actual failures.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
 # follow-up handler completes the check run as 'failure' (fail-closed).
+[[queues.producers]]
+binding = "FLEET_CONTINUATIONS"
+queue = "fleet-runs"
+
 [[queues.consumers]]
 queue = "fleet-runs"
 # Isolate long reviews by batch and invocation. A one-message batch alone still
@@ -138,10 +152,10 @@ max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
 # Each successful invocation runs at most one new provider-heavy ship, records
-# a delivery-continuation step, then schedules the next checkpointed slice.
-# Thirteen total attempts cover this repository's eleven-ship PR roster with
-# two attempts of bounded transient-failure headroom.
-max_retries = 12
+# a delivery-continuation step, enqueues the next checkpointed slice, and
+# acknowledges the current message. Retries are therefore true failure
+# attempts, bounded independently of roster size.
+max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
 # Required merge-group checks are deterministic and make no AI calls. Keep them
@@ -187,6 +201,11 @@ DEFAULT_BRANCH = "main"
 # copying this template verbatim never points ships at a bogus host. Fill it in
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
+
+# ADR-0092 cloud coordination peer transport. The verified repository and
+# durable Fleet run become the grant's project/actor scope at runtime. Relay
+# remains a peer, never authority: local daemon writes survive its absence.
+PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 
 # Cloud squid — fleet coordination events (src/squid-events.ts). When
 # RELAY_PUBLISH_URL (var) AND the FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX +

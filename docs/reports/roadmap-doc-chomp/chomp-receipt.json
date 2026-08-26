@@ -1,0 +1,1732 @@
+{
+  "receipt": "roadmap-chomp",
+  "generatedAt": 1787442982818,
+  "rootDir": "/home/user/port-daddy/.claude/worktrees/agent-a06ff91ffa58cb0c1",
+  "sourceCommit": "9821dc45465a670ff1fd73730fd3a39af7cebbcd",
+  "harbor": "port-daddy",
+  "docs": [
+    {
+      "path": "V4-DAG.md",
+      "format": "planning-doc",
+      "parsed": 48,
+      "missing": false
+    },
+    {
+      "path": "port-daddy-asciinema-skills-plan.md",
+      "format": "planning-doc",
+      "parsed": 73,
+      "missing": false
+    }
+  ],
+  "items": [
+    {
+      "slug": "port-daddy-v4-implementation-dag",
+      "kind": "project",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": null,
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "notation",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-0-foundations-no-v4-dependencies",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xviii-key-management-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-0-foundations-no-v4-dependencies",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-vii-semantic-trie-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-0-foundations-no-v4-dependencies",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-vi-adrs-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-0-foundations-no-v4-dependencies",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xx-structured-logging-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-0-foundations-no-v4-dependencies",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-1-harbor-enforcement-the-critical-path",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-i-harbor-first-architecture-local-v4-0-critical-path",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-1-harbor-enforcement-the-critical-path",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxi-ux-error-catalog-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-1-harbor-enforcement-the-critical-path",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-2-data-layer-can-parallel-with-tier-1-after-xviii",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xiii-harbor-kv-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-2-data-layer-can-parallel-with-tier-1-after-xviii",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xv-stigmergic-coordination-pheromones-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-2-data-layer-can-parallel-with-tier-1-after-xviii",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxvi-invariants-cross-pollination-v4-0-partial-v4-1-full",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-2-data-layer-can-parallel-with-tier-1-after-xviii",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-3-mcp-cli-surface",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-x-mcp-server-v4-tools-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-3-mcp-cli-surface",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxv-retrospective-amendments-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-3-mcp-cli-surface",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-4-sync-networking-v4-0-foundation-v4-1-full",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xvii-distributed-state-sync-protocol-v4-0-critical-path",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-4-sync-networking-v4-0-foundation-v4-1-full",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xii-trust-tiers-v4-0-schema-v4-1-enforcement",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-4-sync-networking-v4-0-foundation-v4-1-full",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "parts-ii-iii-remote-harbors-lighthouse-v4-0-basic-v4-1-full",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-4-sync-networking-v4-0-foundation-v4-1-full",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-5-advanced-features-v4-1",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-viii-socket-transport-v4-1",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-5-advanced-features-v4-1",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xiv-regions-v4-0-manual-v4-1-auto-v4-2-ast",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-5-advanced-features-v4-1",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxiii-storage-lifecycle-v4-0-basic-v4-1-full",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-5-advanced-features-v4-1",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-ix-dashboard-v4-1-partial-v4-2-full",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-5-advanced-features-v4-1",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxvii-anchors-v4-1-layer-1-v4-2-layer-2-v4-3-layer-3",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-5-advanced-features-v4-1",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "tier-6-external-documentation",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xi-website-v2-v4-0-content-v4-1-full",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-6-external-documentation",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-v-monetization-pricing-v4-1",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-6-external-documentation",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxii-market-positioning-v4-1",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-6-external-documentation",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxiv-testing-benchmarks-v4-0-partial-v4-1-full",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "tier-6-external-documentation",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "critical-path-longest-dependency-chain",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "implementation-phases",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "phase-a-foundation-build-first-in-parallel",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "implementation-phases",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "phase-b-enforcement-harbor-middleware",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "implementation-phases",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "phase-c-data-coordination",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "implementation-phases",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "phase-d-networking",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "implementation-phases",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "phase-e-polish-ship-v4-0",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "implementation-phases",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "phase-f-v4-1-post-launch",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "implementation-phases",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "dependency-matrix-adjacency-list",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "sub-dags-for-complex-nodes",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-i-sub-dag-harbor-enforcement",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "sub-dags-for-complex-nodes",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xvii-sub-dag-distributed-state-sync-protocol",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "sub-dags-for-complex-nodes",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "parts-ii-iii-sub-dag-remote-harbors-lighthouse",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "sub-dags-for-complex-nodes",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "why-other-large-nodes-don-t-need-sub-dags",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "sub-dags-for-complex-nodes",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "part-xxviii-harbor-gap-analysis-12-gaps",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "risk-nodes",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-v4-implementation-dag",
+      "dependsOn": [],
+      "tags": [
+        "v4-dag"
+      ],
+      "sourcePath": "V4-DAG.md"
+    },
+    {
+      "slug": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "kind": "project",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": null,
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "the-core-problem-we-re-solving-for-big-tech-ai-engineers",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "asciinema-scripts-6-videos",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-1-the-port-conflict-hell-1-min-30-sec",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-scripts-6-videos",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-2-enter-port-daddy-1-min",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-scripts-6-videos",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-3-multi-agent-coordination-2-min",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-scripts-6-videos",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-4-from-chaos-monorepo-to-orchestrated-symphony-2-min",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-scripts-6-videos",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-5-tunneling-share-localhost-with-the-internet-1-min-30-sec",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-scripts-6-videos",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-6-the-dashboard-real-time-coordination-1-min-30-sec",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-scripts-6-videos",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "asciinema-recording-checklist",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "technical-setup",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-recording-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "asciinema-cli-installed",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "technical-setup",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "theme-use-port-daddy-colors-navy-1e3a5f-teal-4a7c7e-cream-bg",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "technical-setup",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "font-monospace-16px-for-readability",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "technical-setup",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "speed-0-5x-0-8x-slow-enough-to-read-fast-enough-to-not-bore",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "technical-setup",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "no-terminal-bloat-clean-prompt-no-git-branches",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "technical-setup",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "recording-quality",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-recording-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "each-video-2-min-attention-span-for-engineers",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "recording-quality",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "clear-loud-typing-sounds-satisfying",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "recording-quality",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "strategic-pauses-let-output-sink-in",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "recording-quality",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "color-output-make-it-pretty",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "recording-quality",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "realistic-delays-commands-take-time-servers-start",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "recording-quality",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "distribution",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-recording-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "upload-to-asciinema-org-platform-agnostic-shareable",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "distribution",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "embed-on-portdaddy-dev",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "distribution",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "include-in-skills-sh-listing",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "distribution",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "link-from-readme",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "distribution",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "reference-in-tutorials",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "distribution",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "skills-sh-integration-agentic-skill-listing",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "what-is-skills-sh",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-integration-agentic-skill-listing",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "port-daddy-skill-listing",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-integration-agentic-skill-listing",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "the-big-tech-ai-engineer-pitch-why-port-daddy-is-necessary",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "the-reality-check",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "the-big-tech-ai-engineer-pitch-why-port-daddy-is-necessary",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "why-it-s-necessary-not-just-nice",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "the-big-tech-ai-engineer-pitch-why-port-daddy-is-necessary",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "the-ask-what-we-need",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "the-big-tech-ai-engineer-pitch-why-port-daddy-is-necessary",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "asciinema-script-details-ready-to-record",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-1-the-port-conflict-hell-90-seconds",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-script-details-ready-to-record",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "video-2-enter-port-daddy-60-seconds",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-script-details-ready-to-record",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "website-integration-skills-sh-promotion",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "faq-why-video-marketing-works-for-port-daddy",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "message-clarity-check-for-big-tech",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "don-t-say",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "message-clarity-check-for-big-tech",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "do-say",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "message-clarity-check-for-big-tech",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "don-t-say-2",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "message-clarity-check-for-big-tech",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "do-say-2",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "message-clarity-check-for-big-tech",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "don-t-say-3",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "message-clarity-check-for-big-tech",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "do-say-3",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "message-clarity-check-for-big-tech",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "the-pitch-in-30-seconds-for-skills-sh-profile",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "deliverables-checklist",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "asciinema-videos-6",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "deliverables-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "1-port-conflict-hell-90s-problem-hook",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-videos-6",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "2-enter-port-daddy-60s-solution",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-videos-6",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "3-multi-agent-coordination-120s-coordination-demo",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-videos-6",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "4-monorepo-orchestration-120s-scale-demo",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-videos-6",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "5-tunnel-demo-90s-bonus-feature",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-videos-6",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "6-dashboard-90s-visibility",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "asciinema-videos-6",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "skills-sh-profile",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "deliverables-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "create-account-and-list-port-daddy",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-profile",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "write-compelling-2-3-paragraph-description",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-profile",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "add-6-asciinema-video-links",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-profile",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "tag-with-port-management-multi-agent-agent-coordination",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-profile",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "add-installation-instructions",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-profile",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "link-to-github-npm-website",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "skills-sh-profile",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "website-portdaddy-dev-updates",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "deliverables-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "embed-all-6-asciinema-videos-in-dedicated-section",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "website-portdaddy-dev-updates",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "add-use-as-agent-skill-cta",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "website-portdaddy-dev-updates",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "link-to-skills-sh-profile",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "website-portdaddy-dev-updates",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "add-copy-paste-snippets-from-each-video",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "website-portdaddy-dev-updates",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "github-promotion",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "deliverables-checklist",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "add-skills-sh-badge-to-readme",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "github-promotion",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "link-to-asciinema-videos-from-quick-start",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "github-promotion",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "mention-use-as-claude-cursor-agent-skill",
+      "kind": "task",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "github-promotion",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    },
+    {
+      "slug": "timeline",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "port-daddy-asciinema-skills-sh-distribution-strategy",
+      "dependsOn": [],
+      "tags": [
+        "port-daddy-asciinema-skills-plan"
+      ],
+      "sourcePath": "port-daddy-asciinema-skills-plan.md"
+    }
+  ],
+  "inserted": [
+    "port-daddy-v4-implementation-dag",
+    "notation",
+    "tier-0-foundations-no-v4-dependencies",
+    "part-xviii-key-management-v4-0",
+    "part-vii-semantic-trie-v4-0",
+    "part-vi-adrs-v4-0",
+    "part-xx-structured-logging-v4-0",
+    "tier-1-harbor-enforcement-the-critical-path",
+    "part-i-harbor-first-architecture-local-v4-0-critical-path",
+    "part-xxi-ux-error-catalog-v4-0",
+    "tier-2-data-layer-can-parallel-with-tier-1-after-xviii",
+    "part-xiii-harbor-kv-v4-0",
+    "part-xv-stigmergic-coordination-pheromones-v4-0",
+    "part-xxvi-invariants-cross-pollination-v4-0-partial-v4-1-full",
+    "tier-3-mcp-cli-surface",
+    "part-x-mcp-server-v4-tools-v4-0",
+    "part-xxv-retrospective-amendments-v4-0",
+    "tier-4-sync-networking-v4-0-foundation-v4-1-full",
+    "part-xvii-distributed-state-sync-protocol-v4-0-critical-path",
+    "part-xii-trust-tiers-v4-0-schema-v4-1-enforcement",
+    "parts-ii-iii-remote-harbors-lighthouse-v4-0-basic-v4-1-full",
+    "tier-5-advanced-features-v4-1",
+    "part-viii-socket-transport-v4-1",
+    "part-xiv-regions-v4-0-manual-v4-1-auto-v4-2-ast",
+    "part-xxiii-storage-lifecycle-v4-0-basic-v4-1-full",
+    "part-ix-dashboard-v4-1-partial-v4-2-full",
+    "part-xxvii-anchors-v4-1-layer-1-v4-2-layer-2-v4-3-layer-3",
+    "tier-6-external-documentation",
+    "part-xi-website-v2-v4-0-content-v4-1-full",
+    "part-v-monetization-pricing-v4-1",
+    "part-xxii-market-positioning-v4-1",
+    "part-xxiv-testing-benchmarks-v4-0-partial-v4-1-full",
+    "critical-path-longest-dependency-chain",
+    "implementation-phases",
+    "phase-a-foundation-build-first-in-parallel",
+    "phase-b-enforcement-harbor-middleware",
+    "phase-c-data-coordination",
+    "phase-d-networking",
+    "phase-e-polish-ship-v4-0",
+    "phase-f-v4-1-post-launch",
+    "dependency-matrix-adjacency-list",
+    "sub-dags-for-complex-nodes",
+    "part-i-sub-dag-harbor-enforcement",
+    "part-xvii-sub-dag-distributed-state-sync-protocol",
+    "parts-ii-iii-sub-dag-remote-harbors-lighthouse",
+    "why-other-large-nodes-don-t-need-sub-dags",
+    "part-xxviii-harbor-gap-analysis-12-gaps",
+    "risk-nodes",
+    "port-daddy-asciinema-skills-sh-distribution-strategy",
+    "the-core-problem-we-re-solving-for-big-tech-ai-engineers",
+    "asciinema-scripts-6-videos",
+    "video-1-the-port-conflict-hell-1-min-30-sec",
+    "video-2-enter-port-daddy-1-min",
+    "video-3-multi-agent-coordination-2-min",
+    "video-4-from-chaos-monorepo-to-orchestrated-symphony-2-min",
+    "video-5-tunneling-share-localhost-with-the-internet-1-min-30-sec",
+    "video-6-the-dashboard-real-time-coordination-1-min-30-sec",
+    "asciinema-recording-checklist",
+    "technical-setup",
+    "asciinema-cli-installed",
+    "theme-use-port-daddy-colors-navy-1e3a5f-teal-4a7c7e-cream-bg",
+    "font-monospace-16px-for-readability",
+    "speed-0-5x-0-8x-slow-enough-to-read-fast-enough-to-not-bore",
+    "no-terminal-bloat-clean-prompt-no-git-branches",
+    "recording-quality",
+    "each-video-2-min-attention-span-for-engineers",
+    "clear-loud-typing-sounds-satisfying",
+    "strategic-pauses-let-output-sink-in",
+    "color-output-make-it-pretty",
+    "realistic-delays-commands-take-time-servers-start",
+    "distribution",
+    "upload-to-asciinema-org-platform-agnostic-shareable",
+    "embed-on-portdaddy-dev",
+    "include-in-skills-sh-listing",
+    "link-from-readme",
+    "reference-in-tutorials",
+    "skills-sh-integration-agentic-skill-listing",
+    "what-is-skills-sh",
+    "port-daddy-skill-listing",
+    "the-big-tech-ai-engineer-pitch-why-port-daddy-is-necessary",
+    "the-reality-check",
+    "why-it-s-necessary-not-just-nice",
+    "the-ask-what-we-need",
+    "asciinema-script-details-ready-to-record",
+    "video-1-the-port-conflict-hell-90-seconds",
+    "video-2-enter-port-daddy-60-seconds",
+    "website-integration-skills-sh-promotion",
+    "faq-why-video-marketing-works-for-port-daddy",
+    "message-clarity-check-for-big-tech",
+    "don-t-say",
+    "do-say",
+    "don-t-say-2",
+    "do-say-2",
+    "don-t-say-3",
+    "do-say-3",
+    "the-pitch-in-30-seconds-for-skills-sh-profile",
+    "deliverables-checklist",
+    "asciinema-videos-6",
+    "1-port-conflict-hell-90s-problem-hook",
+    "2-enter-port-daddy-60s-solution",
+    "3-multi-agent-coordination-120s-coordination-demo",
+    "4-monorepo-orchestration-120s-scale-demo",
+    "5-tunnel-demo-90s-bonus-feature",
+    "6-dashboard-90s-visibility",
+    "skills-sh-profile",
+    "create-account-and-list-port-daddy",
+    "write-compelling-2-3-paragraph-description",
+    "add-6-asciinema-video-links",
+    "tag-with-port-management-multi-agent-agent-coordination",
+    "add-installation-instructions",
+    "link-to-github-npm-website",
+    "website-portdaddy-dev-updates",
+    "embed-all-6-asciinema-videos-in-dedicated-section",
+    "add-use-as-agent-skill-cta",
+    "link-to-skills-sh-profile",
+    "add-copy-paste-snippets-from-each-video",
+    "github-promotion",
+    "add-skills-sh-badge-to-readme",
+    "link-to-asciinema-videos-from-quick-start",
+    "mention-use-as-claude-cursor-agent-skill",
+    "timeline"
+  ],
+  "updated": [],
+  "parentEdgesWritten": 119,
+  "skipped": {
+    "missingFiles": [],
+    "danglingDependencies": [],
+    "warnings": [
+      "port-daddy-asciinema-skills-plan.md: duplicate heading slug 'don-t-say' → 'don-t-say-2'",
+      "port-daddy-asciinema-skills-plan.md: duplicate heading slug 'do-say' → 'do-say-2'",
+      "port-daddy-asciinema-skills-plan.md: duplicate heading slug 'don-t-say' → 'don-t-say-3'",
+      "port-daddy-asciinema-skills-plan.md: duplicate heading slug 'do-say' → 'do-say-3'"
+    ]
+  },
+  "enrichment": null
+}

@@ -40,6 +40,7 @@
     "export:public": "tsx scripts/export-public-repo.ts",
     "check:public-export": "tsx scripts/export-public-repo.ts --check",
     "diagnose:node-builtin-imports": "node scripts/check-builtin-named-imports.mjs",
+    "check:changelog": "node scripts/assemble-changelog.mjs --check",
     "check:doc-citations": "node scripts/check-doc-citations.mjs",
     "check:pr-requirements": "node scripts/check-pr-requirements.mjs",
     "check:pr-comments": "node scripts/check-pr-comments-answered.mjs",
@@ -151,6 +152,8 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "@noble/hashes": "^1.7.1",
     "@swc/core": "^1.15.11",
     "@swc/jest": "^0.2.39",
     "@types/better-sqlite3": "^7.6.13",

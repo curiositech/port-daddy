@@ -4,7 +4,9 @@
     1. pr-requirements-guard → a real `## Summary` (≥10 words) and `## Test Plan`
        (≥12 words: commands + their output) below. A visual-surface change also
        needs a screenshot AND a GIF/recording (or a visual-exempt marker — see
-       the Visual Proof section / CONTRIBUTING.md).
+       the Visual Proof section / CONTRIBUTING.md). A user-visible change also
+       needs a changelog fragment at `changelog.d/<pr>-<slug>.md` (or a
+       changelog-exempt marker — see the Changelog section / changelog.d/README.md).
     2. roadmap-link → exactly one `Roadmap-Item:` trailer near the bottom: a known
        slug, or `none — <reason>` for a chore/docs/hotfix. No slug yet? Run
        `npx tsx scripts/roadmap-link.ts <pr-number>` to create + stamp it.
@@ -124,7 +126,18 @@ Roadmap-Item:
 
 ## Changelog & Parsimony
 
-- [ ] `CHANGELOG.md` (or the relevant per-section changelog) updated
+<!--
+  Do NOT edit CHANGELOG.md's [Unreleased] section by hand — it is ASSEMBLED at
+  release time from one file per PR. Add `changelog.d/<pr>-<slug>.md` (or
+  `draft-<slug>.md` before you have a number). Format spec + why:
+  changelog.d/README.md. Validate with `npm run check:changelog`.
+
+  Nothing a user would notice? Delete this guidance and add an HTML comment whose
+  FIRST token is  changelog-exempt:  followed by a one-line reason (a reason is
+  required; a bare marker is ignored).
+-->
+
+- [ ] `changelog.d/<pr>-<slug>.md` added (or a `changelog-exempt:` marker in this body — see the comment above for the exact syntax; do not paste a live example here or every PR self-exempts)
 - [ ] No duplicate / fragmented product path introduced (one system in production, not two). If this overlaps an existing surface, say so here and explain the consolidation.
 
 ## Adversarial review

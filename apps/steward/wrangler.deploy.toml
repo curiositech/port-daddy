@@ -42,7 +42,9 @@
 #        curl -X POST -H "Authorization: Bearer $STEWARD_ADMIN_TOKEN" \
 #          https://<worker>/steward/<owner>/<repo>/ship-it/<prNumber>
 #
-#   3. Deploy:
+#   3. Deploy — automatic: every push to main touching apps/steward/** deploys
+#      via .github/workflows/deploy-steward.yml (secrets above survive every
+#      deploy). For first-time provisioning or out-of-band repair:
 #        wrangler deploy --config wrangler.deploy.toml
 
 name = "pd-steward"

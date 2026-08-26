@@ -1,0 +1,64 @@
+% R9 regime: categorical grid (secret pairs x gate variants) -- no numeric
+% axes, so a plain tikzpicture grid of regimebox cells rather than pgfplots.
+% Cell text and layout traced directly from the cell_data dict and grid
+% geometry in figures/src/r9_figures.py::figure_r9_regime. [internal, script
+% r9_figures.py]
+\begin{figure}[htbp]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% Title
+% Both title and subtitle wrap to 2 lines at this text width; the original
+% 0.47cm center-to-center gap was sized for single-line text and let the
+% wrapped title's second line collide with the subtitle's first line (seen
+% in the CI render). Pushed both up with a full 2-line-tall clearance
+% between them; canvas has open space above so this costs nothing.
+\node[align=center,text width=10.5cm,font=\bfseries] at (5.5,7.95) {R9 regime --- what the gate promises, and the mutants that prove the checker sees};
+\node[align=center,text width=10.5cm,font=\small,color=black!45] at (5.5,6.9) {schedule secret-independence checked separately --- an enabledness difference is itself a channel [internal, \texttt{c1\_noninterference.py}]};
+
+% Column headers
+% Two-word headers set as one unbounded line ran into each other (e.g.
+% "Leaky-Gate Mutant" overlapped "Bypass Mutant") since adjacent column
+% centers are only 2.72cm apart. Explicit line breaks keep every line
+% comfortably narrower than the 2.6cm cell width, and the header block
+% moved up (5.55 -> 5.9) to leave clearance below the taller two-line
+% subtitle and above the grid.
+\node[font=\bfseries,align=center] at (3.2,5.9) {Honest\\Gate};
+\node[font=\bfseries,align=center] at (5.92,5.9) {Leaky-Gate\\Mutant};
+\node[font=\bfseries,align=center] at (8.64,5.9) {Bypass\\Mutant};
+
+% Row labels
+% anchor=east flushes the label's right edge to x=1.75 regardless of its
+% wrapped width; previously these were center-anchored at x=1.35, so the
+% wider second line ("unequal parity") extended past the honest-gate
+% cell's left edge (x=1.9) and sat on top of that cell's text (seen in the
+% CI render).
+\node[font=\bfseries,align=right,anchor=east] at (1.75,4.45) {$(0,2)$\\equal parity};
+\node[font=\bfseries,align=right,anchor=east] at (1.75,2.63) {$(0,1)$\\unequal parity};
+
+% Row 1: (0,2) equal parity
+\node[regimebox,draw=black,fill=seagreen,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm,text width=2.3cm,align=center] at (3.2,4.45) {\bfseries identical views\\[3pt]\small all interleavings, depth 7};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm,text width=2.3cm,align=center] at (5.92,4.45) {\bfseries\scriptsize DISTINGUISHED\\[3pt]\small caught};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm,text width=2.3cm,align=center] at (8.64,4.45) {\bfseries\scriptsize DISTINGUISHED\\[3pt]\small caught in 3 steps};
+
+% Row 2: (0,1) unequal parity
+\node[regimebox,draw=black,fill=harborblue,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm,text width=2.3cm,align=center] at (3.2,2.63) {\bfseries differs only at\\[3pt]\small gate release};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm,text width=2.3cm,align=center] at (5.92,2.63) {\bfseries\scriptsize DISTINGUISHED\\[3pt]\small caught};
+\node[regimebox,draw=black,fill=shipred,fill opacity=0.75,text=white,minimum width=2.6cm,minimum height=1.7cm,text width=2.3cm,align=center] at (8.64,2.63) {\bfseries\scriptsize DISTINGUISHED\\[3pt]\small caught in 3 steps};
+
+% Legend / interpretation strip at the bottom
+\node[regimebox,draw=black!45,fill=black!3,align=left,text width=7.6cm,minimum width=8.04cm,anchor=north west,font=\small] at (1.9,1.05) {%
+  {\color{seagreen!70!black} Seagreen (holds):} honest gate enforces identity on equal-parity secret pairs.\\[3pt]
+  {\color{harborblue} Harborblue (holds):} honest gate isolates any difference to the gate-release event only.\\[3pt]
+  {\color{shipred} Red (caught):} every mutation is caught --- it leaks information the honest gate hides.%
+};
+
+\end{tikzpicture}%
+}
+\caption{Regime diagram for Pillar I: what the gate promises, and the mutants that prove the checker
+sees. The property holds on the shaded region (equal declassified value, any interleaving); the two mutation witnesses (leaky
+gate; gate bypass) sit provably outside it, each with a concrete trace
+[internal, \texttt{c1\_noninterference.py}].}
+\label{fig:r9reg}
+\end{figure}

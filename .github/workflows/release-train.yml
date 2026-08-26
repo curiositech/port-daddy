@@ -57,6 +57,13 @@ env:
   # package.json), which was blind to routes/, mcp/, bin/, hooks/, and the
   # packaging itself — it reported "0 unreleased daemon commits" while the
   # daemon's route/tooling code churned.
+  #
+  # This list is ALSO the changelog-fragment requirement's classifier. It is
+  # mirrored in scripts/lib/user-visible-surfaces.mjs, which is the source of
+  # truth for every JS consumer; the copy stays inline here because a shell
+  # `git diff` pathspec cannot import ESM. The two cannot drift silently:
+  # tests/unit/changelog-fragments.test.js parses this block and FAILS if it
+  # stops matching the module's DAEMON_PATHSPEC export. Edit both together.
   DAEMON_PATHSPEC: >-
     server.ts lib/ cli/ shared/ routes/ mcp/ bin/ hooks/
     skills/port-daddy-agent-skill/ agents/port-daddy-pilot/
@@ -77,32 +84,6 @@ jobs:
       # Keep discovery and diagnostics on the workflow GITHUB_TOKEN. An
       # expired publishing PAT must not prevent the train from checking out
       # the repository and explaining which credential needs repair.
-
-      # PRESENCE CHECK ONLY — this step must never carry the secret VALUE.
-      # It used to write the resolved token to $GITHUB_OUTPUT and later steps
-      # read it back. GitHub redacts secrets that pass through step outputs, so
-      # the consuming step received an empty string, `git push` silently fell
-      # back to the credential helper actions/checkout installed, and the run
-      # died with "Permission to curiositech/port-daddy.git denied to
-      # github-actions[bot]" — while appearing to use a PAT. Steps that need
-      # the token now read `secrets.X || secrets.Y` directly in their own env,
-      # which is what the tag-and-publish job below always did.
-      - name: Verify a CI-triggering token exists
-        env:
-          HAS_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN != '' }}
-          HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
-        run: |
-          set -euo pipefail
-          token_source=$(node scripts/release-workflow-state.mjs require-token \
-            "$HAS_TRAIN_TOKEN" "$HAS_TAP_TOKEN") || {
-            echo "::error::Neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN is set. A PAT is REQUIRED: PRs opened and Releases published with the workflow GITHUB_TOKEN do not trigger CI or release.yml, so the train would silently stall. Create a classic PAT with repo scope and save it as RELEASE_TRAIN_TOKEN."
-            exit 1
-          }
-          if [ "$token_source" = "RELEASE_TRAIN_TOKEN" ]; then
-            echo "using RELEASE_TRAIN_TOKEN"
-          else
-            echo "::warning::RELEASE_TRAIN_TOKEN not set — falling back to HOMEBREW_TAP_TOKEN. That PAT was minted to dispatch the Homebrew tap and may not carry push rights to THIS repo; if the bump push 403s, that is why. Set a dedicated RELEASE_TRAIN_TOKEN (classic PAT, repo scope)."
-          fi
 
       - name: Hold switch — skip when the operator has paused the train
         id: hold
@@ -125,6 +106,7 @@ jobs:
           set -euo pipefail
           latest_tag=$(git describe --tags --abbrev=0)
           # Word-splitting of the pathspec is intentional.
+          # shellcheck disable=SC2086
           commits=$(git rev-list --count "$latest_tag"..HEAD -- $DAEMON_PATHSPEC)
           echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
           echo "commits=$commits" >> "$GITHUB_OUTPUT"
@@ -154,10 +136,11 @@ jobs:
           if [ -z "$bump" ]; then
             # feat commits (or breaking markers) on daemon surfaces → minor;
             # otherwise patch. Majors stay deliberate + human.
+            # shellcheck disable=SC2086
             if git log "$LATEST_TAG"..HEAD --pretty=%s -- $DAEMON_PATHSPEC | grep -qiE '^(feat|[a-z]+!)(\(|:|!)|BREAKING'; then
-              bump=minor
+              bump="minor"
             else
-              bump=patch
+              bump="patch"
             fi
           fi
           case "$bump" in patch|minor) ;; *) echo "::error::unsupported bump '$bump' (patch/minor only — majors are human-cut)"; exit 1;; esac
@@ -203,27 +186,65 @@ jobs:
         with:
           node-version: 22
 
+      # Presence is not health. GitHub expressions choose the first non-empty
+      # secret, so `A || B` permanently masks a working fallback when A is
+      # expired or under-scoped. Probe each candidate against the repository,
+      # emit only its non-secret source name, and fail before mutation when
+      # neither credential has push permission. Secret values never cross a
+      # step-output or job-environment boundary.
+      - name: Select a working release-mutation token
+        id: release_token
+        if: steps.version.outputs.next != ''
+        env:
+          RELEASE_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          token_source=$(node scripts/release-workflow-state.mjs \
+            select-live-token "$GITHUB_REPOSITORY") || {
+            echo "::error::No configured release credential proved it can push to $GITHUB_REPOSITORY. Inspect the sanitized probe warnings, then repair API availability or the repository Actions secrets before re-running the train."
+            exit 1
+          }
+          echo "source=$token_source" >> "$GITHUB_OUTPUT"
+          echo "Selected $token_source after a live repository push-permission probe."
+
       # Re-checkout only for the mutating path. This replaces checkout's
       # read-only extraheader with the PAT-backed credential immediately
       # before the commit and push that require it.
-      - name: Authenticate release mutation
-        if: steps.version.outputs.next != ''
+      - name: Authenticate release mutation with the dedicated token
+        if: steps.version.outputs.next != '' && steps.release_token.outputs.source == 'RELEASE_TRAIN_TOKEN'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN }}
+
+      - name: Authenticate release mutation with the fallback token
+        if: steps.version.outputs.next != '' && steps.release_token.outputs.source == 'HOMEBREW_TAP_TOKEN'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Open the version-bump PR with auto-merge armed
         if: steps.version.outputs.next != ''
         env:
-          # Read the secret DIRECTLY — never via a step output (redacted).
-          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          TOKEN_SOURCE: ${{ steps.release_token.outputs.source }}
+          RELEASE_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           NEXT: ${{ steps.version.outputs.next }}
           BUMP: ${{ steps.version.outputs.bump }}
           LATEST_TAG: ${{ steps.measure.outputs.latest_tag }}
           COMMITS: ${{ steps.measure.outputs.commits }}
         run: |
           set -euo pipefail
+          if [ "$TOKEN_SOURCE" = "RELEASE_TRAIN_TOKEN" ]; then
+            export GH_TOKEN="$RELEASE_TRAIN_TOKEN"
+          elif [ "$TOKEN_SOURCE" = "HOMEBREW_TAP_TOKEN" ]; then
+            export GH_TOKEN="$HOMEBREW_TAP_TOKEN"
+          else
+            echo "::error::Release token selection produced no recognized source."
+            exit 1
+          fi
           npm ci --no-audit --no-fund
           branch="release-train/v$NEXT"
           git checkout -b "$branch"
@@ -233,8 +254,20 @@ jobs:
           npx tsx scripts/sync-version.ts
           npm run check:version-drift
           # Stamp the CHANGELOG: everything under [Unreleased] becomes this
-          # version's section; a fresh empty [Unreleased] stays on top.
-          perl -0pi -e "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$NEXT] - $(date -u +%F)/m" CHANGELOG.md
+          # version's section; a fresh empty [Unreleased] stays on top. The
+          # assembler additionally splices in every changelog.d/ fragment and
+          # deletes the fragments it consumed — `git add -A` below stages both the
+          # CHANGELOG edit and those deletions into this one bump commit.
+          #
+          # This replaced a `perl -0pi -e "s/^## \[Unreleased\]/…/m"` one-liner.
+          # With zero fragments the assembler's output is BYTE-IDENTICAL to that
+          # line against the real CHANGELOG.md — asserted in
+          # tests/unit/changelog-fragments.test.js ("with zero fragments, --release
+          # is byte-identical to the perl line it replaces"), which is the safety
+          # argument for the swap. It also refuses (exit 2) rather than stamping
+          # twice, or when any fragment is malformed, so `set -euo pipefail` stops
+          # the bump instead of shipping a silently-wrong section.
+          node scripts/assemble-changelog.mjs --release "$NEXT" --date "$(date -u +%F)"
           git config user.name "port-daddy-release-train"
           git config user.email "release-train@portdaddy.dev"
           git add -A
@@ -335,28 +368,39 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Unpublished release $tag detected at exact version-transition commit $release_sha (observed by merge $MERGE_SHA)."
 
-      - name: Verify a release-publication token exists
+      - name: Select a working release-publication token
+        id: release_token
         if: steps.release.outputs.should_publish == 'true'
         env:
-          HAS_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN != '' }}
-          HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+          RELEASE_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
-          if ! node scripts/release-workflow-state.mjs require-token \
-            "$HAS_TRAIN_TOKEN" "$HAS_TAP_TOKEN" >/dev/null; then
-            echo "::error::No RELEASE_TRAIN_TOKEN or HOMEBREW_TAP_TOKEN is available to publish a recursive release event."
+          token_source=$(node scripts/release-workflow-state.mjs \
+            select-live-token "$GITHUB_REPOSITORY") || {
+            echo "::error::No configured release credential proved it can push to $GITHUB_REPOSITORY. Inspect the sanitized probe warnings, then repair API availability or the repository Actions secrets before re-running publication."
             exit 1
-          fi
+          }
+          echo "source=$token_source" >> "$GITHUB_OUTPUT"
+          echo "Selected $token_source after a live repository push-permission probe."
 
       # Re-checkout only for the mutating path. Ordinary main PRs must not
       # depend on PAT health merely to prove there is no new version to tag.
-      - name: Authenticate release publication
-        if: steps.release.outputs.should_publish == 'true'
+      - name: Authenticate release publication with the dedicated token
+        if: steps.release.outputs.should_publish == 'true' && steps.release_token.outputs.source == 'RELEASE_TRAIN_TOKEN'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.release_sha }}
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN }}
+
+      - name: Authenticate release publication with the fallback token
+        if: steps.release.outputs.should_publish == 'true' && steps.release_token.outputs.source == 'HOMEBREW_TAP_TOKEN'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.release_sha }}
+          fetch-depth: 0
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Tag the merged bump and publish the Release
         if: steps.release.outputs.should_publish == 'true'
@@ -364,14 +408,20 @@ jobs:
           # A PAT is REQUIRED here: a Release published with GITHUB_TOKEN does
           # not trigger release.yml (GitHub suppresses recursive events), so
           # binaries would never build and the tap would never roll.
-          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          TOKEN_SOURCE: ${{ steps.release_token.outputs.source }}
+          RELEASE_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
           VERSION: ${{ steps.release.outputs.version }}
           TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::No PAT available (RELEASE_TRAIN_TOKEN / HOMEBREW_TAP_TOKEN) — cannot publish a Release that triggers release.yml. Publish manually: gh release create v<version> --generate-notes"
+          if [ "$TOKEN_SOURCE" = "RELEASE_TRAIN_TOKEN" ]; then
+            export GH_TOKEN="$RELEASE_TRAIN_TOKEN"
+          elif [ "$TOKEN_SOURCE" = "HOMEBREW_TAP_TOKEN" ]; then
+            export GH_TOKEN="$HOMEBREW_TAP_TOKEN"
+          else
+            echo "::error::Release token selection produced no recognized source."
             exit 1
           fi
           if git show-ref --verify --quiet "refs/tags/$TAG"; then
