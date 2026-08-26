@@ -79,7 +79,12 @@ describe('SwiftPM build harness for apps/pd-ios', () => {
     // a moving toolchain; the invariant this test can stand behind is no real
     // error, not silence.
     expect(stderr).not.toMatch(/error:/);
-    expect(stdout).toMatch(/Build succeeded/);
+    // Xcode 26.6 on the macos-latest runner (2026-08-26) prints the terminal
+    // summary as "** BUILD SUCCEEDED **" (all caps), not "Build succeeded" —
+    // a case-sensitive match on the older casing fails a build that actually
+    // succeeded. Case-insensitive so the assertion survives Xcode picking a
+    // different capitalization again.
+    expect(stdout).toMatch(/build succeeded/i);
   });
 
   testIfXcode('Build fails when the target is changed to an executable', async () => {
