@@ -168,11 +168,12 @@
 
 \end{tikzpicture}%
 }
-\caption{Gossip-synchronized revocation across a five-daemon mesh. At $t=0$ daemon~A
-locally revokes a Harbor Card (its filter and revocation table). Anti-entropy gossip
-ships deltas to random peers every 30\,s. Expected $\Theta(\log m)$ propagation
-requires the stated connected reliable-round model; the panels show one possible
-execution, not a worst-case time guarantee. Version vectors make duplicate and
+\caption{A single revocation reaches every daemon in the mesh through anti-entropy
+gossip alone, in expected $\Theta(\log m)$ rounds under the stated connected
+reliable-round model, with no worst-case time guarantee under partition. At $t=0$
+daemon~A locally revokes a Harbor Card (its filter and revocation table); gossip
+then ships deltas to random peers every 30\,s. The panels show one possible
+execution, not a deadline. Version vectors make duplicate and
 reordered deltas idempotent once delivered, but do not heal an unbounded partition.
 The dashed strip beneath the panels states the trust boundary the panels themselves
 cannot draw: the daemons are trusted, every wire between them is not.}

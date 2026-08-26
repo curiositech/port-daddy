@@ -247,6 +247,7 @@ To support decentralized Agent-to-Agent (A2A) communication without sharing HMAC
 The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor is assigned a unique Ed25519 keypair. The Daemon issues Harbor Cards signed by the Harbor's private key. Agents use the Harbor's public key (broadcast via Port Daddy's ambient discovery service) to verify tokens presented by peers.
 \end{definition}
 
+% SUBMISSION-SKILL: naming conflict — "Biscuit" is the name of an existing, well-known capability-security authorization-token format (Eclipse Biscuit / biscuitsec.org, Couprie et al., presented at Pass the SALT 2021): public-key-signed tokens with offline attenuation, directly descended from Macaroons, structurally very close to what Phase 3 describes. This subsection uses "Biscuit" only as an informal nickname and cites neither the project nor a disambiguation. Recommend either citing the Biscuit project and stating how this protocol differs (datalog policies vs. flat capability sets; JWT envelope vs. Biscuit's own block format), or dropping the nickname in favor of the already-used "Macaroon"/"offline attenuation" vocabulary, which is unambiguous and already cited. Left as-is per submission-readiness scope (flag, not silent rename).
 \subsection{Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}
 
 Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\cite{birgisson2014macaroons}.
@@ -323,7 +324,7 @@ To prove the protocol's logical soundness against a Dolev-Yao adversary~\cite{do
 For the modeled delegation phase, ProVerif confirmed the correspondence:
 \begin{align}
 \text{Accepted}(b, h, cap) \implies& \ (\text{IssuedRoot}(a, h, cap) \land \text{Delegated}(a, b, cap)) \nonumber\\
-& \lor \ \text{IssuedRoot}(b, h, cap)
+& \lor \ \text{IssuedRoot}(b, h, cap).
 \end{align}
 The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled issuance/delegation event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
 \end{theorem}
@@ -332,7 +333,7 @@ All three protocol phases were independently verified in ProVerif 2.05. Table~\r
 
 \begin{table}[H]
 \centering
-\caption{ProVerif results for the listed model queries. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
+\caption{All five listed ProVerif queries return \textbf{TRUE} across the three modeled protocol phases. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
 \label{tab:proverif-results}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l l l@{}}
 \toprule
@@ -631,7 +632,7 @@ Table~\ref{tab:threat-closure} closes the loop on the three failure modes of \S\
 
 \begin{table}[H]
 \centering
-\caption{The three failure modes of \S\ref{sec:problem}, where each is closed, and what remains open. The residual column is deliberately non-empty in every row: no mechanism in this chapter closes its threat completely.}
+\caption{No mechanism in this chapter closes its threat completely: each of the three failure modes of \S\ref{sec:problem} is closed somewhere below, but every row's residual-risk column is deliberately non-empty.}
 \label{tab:threat-closure}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
@@ -660,7 +661,7 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 
 \begin{table}[H]
 \centering
-\caption{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
+\caption{All seven listed properties are mechanically verified, but only the three Kani-checked properties also run inside the deployed binary; the four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
 \label{tab:properties}
 \begin{tabular}{@{}lllll@{}}
 \toprule
@@ -863,7 +864,7 @@ Agent Payments Protocol (AP2): Mandates.
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Anchor Protocol verification status. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}
+\caption{Six of the twelve listed claims close at both the model and runtime level; five remain partial and one open. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}
 \label{tab:anchor-status}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.29\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
@@ -1161,7 +1162,8 @@ The formal mechanisms presented in this chapter are mathematically sound within 
 \begin{itemize}
     \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
     \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+    % SUBMISSION-SKILL: this bullet previously read "...surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing)..." — verbatim boilerplate carried over from the Bonded Commons chapter's identically-named appendix (agent-transactions-whitepaper.tex, \S\ref{sec:bonded-limitations-boundaries}). Judge markets and multi-sig routing are not Anchor Protocol concepts; retargeted to the boundaries this chapter actually names in \S\ref{sec:limitations}.
+    \item \textbf{Implementation Maturity:} While the core protocol (Harbor Cards, delegation, revocation) is \text{\textsc{implemented}} and running in production, the unbounded-depth delegation proof, machine-enforced verification-time chain-depth limits, and mandatory transport-boundary enforcement discussed in \S\ref{sec:limitations} remain \text{\textsc{partial}} or \text{\textsc{designed}}.
 \end{itemize}
 
 These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.

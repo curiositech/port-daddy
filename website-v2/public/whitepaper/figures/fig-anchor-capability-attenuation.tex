@@ -63,6 +63,6 @@
 \draw[na] (agentB.south) -- (forbid.north);
 \end{tikzpicture}%
 }
-\caption{Capability attenuation under delegation. Each child capability is a strict subset of its parent's (rights and TTL both shrink monotonically). AgentB inherits only what AgentA explicitly delegates, and cannot re-grant capabilities it does not hold. This is enforced both at issuance (parent signs over the child's attenuated claim set) and at verification (the verifier checks the chain of \texttt{is\_subset} relations).}
+\caption{Every delegated capability is a strict subset of its parent's, in both rights and TTL, so a chain of delegations can only narrow authority, never widen it. AgentB inherits only what AgentA explicitly delegates and cannot re-grant capabilities it does not hold. This is enforced both at issuance (the parent signs over the child's attenuated claim set) and at verification (the verifier checks the chain of \texttt{is\_subset} relations).}
 \label{fig:anchor-capability-attenuation}
 \end{figure}
