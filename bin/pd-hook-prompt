@@ -201,6 +201,35 @@ $PHER
 EOF
 fi
 
+# Inbox/parley awareness: message bodies never enter prompt context here. The
+# hook asks only for the unread count, consumes one of the existing two bounded
+# coordination slots, and leaves read/acknowledgement to `pd attention`.
+SELF="${PD_ACTOR:-${PD_AGENT_ID:-}}"
+DAEMON_URL="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
+case "$DAEMON_URL" in */) DAEMON_URL="${DAEMON_URL%/}" ;; esac
+if [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && command -v curl >/dev/null 2>&1; then
+  case "$SELF" in
+    *[!A-Za-z0-9._:-]*) : ;;
+    *)
+      STATS="$(curl -fsS --connect-timeout 0.10 --max-time 0.20 \
+        "${DAEMON_URL}/agents/${SELF}/inbox/stats" 2>/dev/null || true)"
+      UNREAD=""
+      if command -v jq >/dev/null 2>&1; then
+        UNREAD="$(printf '%s' "$STATS" | jq -r '.unread // empty' 2>/dev/null || true)"
+      else
+        UNREAD="$(printf '%s' "$STATS" | sed -nE 's/.*"unread"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' | head -n1)"
+      fi
+      case "$UNREAD" in
+        ''|*[!0-9]*|0) : ;;
+        *)
+          ENTRIES="${ENTRIES}- ${UNREAD} unread inbox/parley item(s); run pd attention before continuing.\n"
+          COUNT=$((COUNT + 1))
+          ;;
+      esac
+      ;;
+  esac
+fi
+
 # Coordination content: the common case stays deliberately zero bytes. Only a
 # fresh alert or an exact-project pheromone earns context, and even then the
 # envelope stays concise under the #8059 bound below.

@@ -22,6 +22,7 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
 
 import {
   setLock,
@@ -54,6 +55,18 @@ const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'p
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-selftest', `jest-${process.pid}`);
 const WORKSPACE = join(SCRATCH, 'workspace');
 const MATRIX = join(SCRATCH, 'matrix.env');
+
+function runPromptAsync(env: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolveRun) => {
+    const child = spawn(bin('pd-hook-prompt'), [], { env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk) => { stdout += String(chunk); });
+    child.stderr?.on('data', (chunk) => { stderr += String(chunk); });
+    child.on('close', (status) => resolveRun({ status, stdout, stderr }));
+    child.stdin?.end(JSON.stringify({ cwd: WORKSPACE }));
+  });
+}
 
 // Both layers honor PD_MATRIX_FILE: lib/squid/matrix.ts reads it via matrixPath()
 // and the pd-hook-* tentacles read it directly. Pointing both at ONE scratch file
@@ -628,6 +641,60 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.error).toBeUndefined();
     expect(Buffer.byteLength(r.stdout)).toBe(0);
     expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
+  test('prompt hook surfaces a bounded unread inbox/parley count without message content', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((req, res) => {
+      expect(req.url).toBe('/agents/agent_test/inbox/stats');
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ success: true, total: 9, unread: 3, secret: 'must-not-leak' }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+      expect(ctx).toContain('3 unread inbox/parley item(s)');
+      expect(ctx).toContain('pd attention');
+      expect(ctx).not.toContain('must-not-leak');
+      expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(1);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe is silent and fail-open without an actor or live daemon', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const noActor = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(noActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const down = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(down).toMatchObject({ status: 0, stdout: '', stderr: '' });
   });
 
   // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──
