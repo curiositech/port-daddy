@@ -290,10 +290,13 @@ Build: `cargo build --release --bin pd-console --features gpui` (from `core/pd-c
 `~/.port-daddy/bin/pd-console` *and* the double-clickable `~/Applications/pd-console.app`
 (embeds its own binary — does NOT read PATH). After replacing the .app binary,
 `codesign --force --deep --sign - ~/Applications/pd-console.app` or macOS rejects it.
-Launch with `PORT_DADDY_URL=http://127.0.0.1:9876` if daemon discovery panics;
-`PD_CONSOLE_THEME=light|dark` / `Ctrl-A g` for theme. Spawning from the console clears real
-guards (`task`+`identity`+`budgetUsd`+`model`+ worktree `workdir`, plus a funded project wallet +
-daily budget) — miss one and spawn "looks wired but does nothing." gpui 0.2.2 has no transform:
+Launch normally against the canonical published daemon port; use
+`PORT_DADDY_URL` only to target one explicit development berth. Startup must
+never read `~/.port-daddy/console-daemon.url`: that stale selector previously
+pinned future launches to dead berths. `PD_CONSOLE_THEME=light|dark` / `Ctrl-A
+g` controls the theme. The Work screen submits one WorkIntent and stays attached
+to the daemon's exact launch/agent/transcript receipt; never jump to “newest
+agent” or spawn directly from the view. gpui 0.2.2 has no transform:
 glow/lift = `shadow(BoxShadow)` + hover color; timelines = `with_animation`; inside `.hover(|s|…)`
 pass bare `rgb(x)` (NOT `.into()` — ambiguous). Console branch: `feat/console-tmux-multiplexer`.
 

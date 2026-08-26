@@ -851,6 +851,26 @@ describe('spawn — backend dispatch', () => {
 // =============================================================================
 
 describe('spawn — result shape', () => {
+  test('emits the exact agent identity before backend execution', async () => {
+    const onStarted = jest.fn();
+    const spawner = createSpawner();
+    setupOllamaFetchMock('result');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'test live witness',
+      onStarted,
+    });
+
+    expect(onStarted).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: result.agentId,
+      transcriptId: null,
+      backend: 'ollama',
+      model: 'llama3.1:8b',
+      startedAt: result.startedAt,
+    }));
+  });
+
   test('returns all expected fields on success', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('result');

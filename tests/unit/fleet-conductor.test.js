@@ -1263,4 +1263,30 @@ describe('ADR-0060 dispatch fold-in — mintWorktree + publishArtifact', () => {
     expect(res.admitted).toBe(false);
     expect(publishArtifact).not.toHaveBeenCalled();
   });
+
+  test('dispatch witnesses receive the admitted launch and running body before completion', async () => {
+    const seen = [];
+    const spawner = makeSpawner({ agentId: 'agent-live-7' });
+    spawner.spawn.mockImplementationOnce(async (spec) => {
+      spec.onStarted?.({
+        agentId: 'agent-live-7',
+        transcriptId: 'transcript-live-7',
+        backend: 'cli:codex',
+        model: 'gpt-5.3-codex',
+        startedAt: 42,
+      });
+      return { agentId: 'agent-live-7', status: 'completed', output: 'ok', error: null };
+    });
+    const { conductor } = makeConductor({ spawner, publishArtifact: async () => 'https://x/pr/7' });
+
+    const result = await conductor.launch({
+      ...DISPATCH_INTENT,
+      onAdmitted: (launch) => seen.push(['launch', launch.id]),
+      onAgentStarted: (receipt) => seen.push(['agent', receipt.agentId, receipt.transcriptId]),
+    });
+
+    expect(result.admitted).toBe(true);
+    expect(seen[0]).toEqual(['launch', result.launch.id]);
+    expect(seen[1]).toEqual(['agent', 'agent-live-7', 'transcript-live-7']);
+  });
 });

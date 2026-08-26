@@ -149,6 +149,10 @@ export interface SpawnAdapterInput {
 
 export interface SpawnAdapterResult {
   state: 'settled' | 'failed' | 'salvage';
+  /** Conductor launch and body identities retained for live/restart projection. */
+  launchId?: string | null;
+  agentId?: string | null;
+  transcriptId?: string | null;
   costUsd?: number;
   resultArtifact?: string | null;
   errorMessage?: string | null;
@@ -361,6 +365,14 @@ export async function runClaimedDispatch(
     const errorMessage = err instanceof Error ? err.message : String(err);
     queue.settle({ id: claimed.id, state: 'failed', errorMessage });
     return { plan: planWithClaimed, result: { state: 'failed', errorMessage } };
+  }
+  if (result.launchId || result.agentId || result.transcriptId) {
+    queue.bindExecution({
+      id: claimed.id,
+      launchId: result.launchId ?? null,
+      agentId: result.agentId ?? null,
+      transcriptId: result.transcriptId ?? null,
+    });
   }
   // If the adapter didn't already settle, close the lifecycle here.
   const current = queue.get(claimed.id);

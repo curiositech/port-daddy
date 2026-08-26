@@ -689,3 +689,32 @@ describe('migration from nightshift_intents', () => {
     freshDb.close();
   });
 });
+
+describe('runtime execution binding', () => {
+  test('persists launch, agent, and transcript identities before settlement', () => {
+    const dispatch = queue.propose({ goal: 'show the exact running body' });
+    queue.claim({
+      id: dispatch.id,
+      worktreePath: '/coding/tmp/runtime-binding',
+      branch: 'dispatch/runtime-binding',
+      sessionId: 'dispatch-worker-runtime-binding',
+    });
+    queue.start(dispatch.id);
+
+    queue.bindExecution({ id: dispatch.id, launchId: 'launch-live-1' });
+    queue.bindExecution({
+      id: dispatch.id,
+      agentId: 'spawned-live-1',
+      transcriptId: 'transcript-live-1',
+      model: 'gpt-5.3-codex',
+    });
+
+    expect(queue.get(dispatch.id)).toMatchObject({
+      launchId: 'launch-live-1',
+      agentId: 'spawned-live-1',
+      transcriptId: 'transcript-live-1',
+      model: 'gpt-5.3-codex',
+      state: 'in_progress',
+    });
+  });
+});
