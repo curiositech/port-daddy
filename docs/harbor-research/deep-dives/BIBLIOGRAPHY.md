@@ -166,9 +166,16 @@ paper whose title claim is about amortizing verification cost.
 
 ## Part 2d — Corrections required regardless of any verdict
 
-These are not citations to add. They are statements in the papers that are wrong
-or overclaimed, found by the dives, each independently checkable. They should be
-fixed whether or not anything else in this file is acted on.
+> **All seven applied 2026-08-26**, on operator sign-off, in the same commit that
+> rebuilt Paper 2's contribution paragraph. Verified after editing: every
+> citation key in `paper2.tex`, `paper3.tex` and `paper6.tex` resolves to a
+> `\bibitem` (15/15, 6/6, 11/11), braces and environments balance, and the sole
+> remaining "enforce exactly the safety properties" is the new sentence about
+> Ligatti et al., where the phrasing is correct — their theorems genuinely are
+> stated as iff. The table below is kept as the record of what was wrong and why.
+
+These are not citations to add. They are statements in the papers that were wrong
+or overclaimed, found by the dives, each independently checkable.
 
 | # | Paper | Statement | Problem | Evidence |
 |---|---|---|---|---|

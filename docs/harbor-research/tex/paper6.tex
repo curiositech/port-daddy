@@ -123,6 +123,13 @@ discharge selection exists iff the formula is satisfiable [verified: reduction r
 16/16 instances, internal, \texttt{b4\_deontic\_fragment.py}].
 \end{thebox}
 
+Read together, Theorems 1a and 1b are a \textbf{dichotomy} at a designed boundary, in the sense Schaefer~\cite{schaefer78}
+made standard for satisfiability: on one side of a single expressive choice the problem is polynomial, on the other it is
+NP-complete, and the language designer is offered nothing in between. We claim the location, not the pattern --- the same
+step is familiar one formalism over, where the simple temporal problem is polynomial and admitting disjunctions of
+difference constraints makes consistency NP-complete~\cite{sk00}. That is why $\mathcal{L}_c$'s boundary should be read as a
+price list rather than an accident of this particular fragment.
+
 \paragraph{Verification.} 3000 random in-fragment policy sets against a brute-force oracle (all $2^5$ Horn models intersected;
 pairwise overlap checks; exhaustive integer search over the complete potential box $[-\Sigma|c|,0]^V$ for the difference system):
 885 conflicts found --- 121 derivable $\bot$, 195 $\Ob$/$\Fb$ clashes, 484 claim overlaps, 213 negative temporal cycles --- of
@@ -349,5 +356,9 @@ Research}, 29(3):567--588, 1981.
 16(3):628--638, 1968.
 \bibitem{vonwright51} G.~H. von Wright. Deontic logic. \emph{Mind}, 60(237):1--15, 1951.
 \bibitem{chisholm63} R.~M. Chisholm. Contrary-to-duty imperatives and deontic logic. \emph{Analysis}, 24(2):33--36, 1963.
+\bibitem{schaefer78} T.~J. Schaefer. The complexity of satisfiability problems. In \emph{Proceedings of the 10th Annual ACM
+Symposium on Theory of Computing (STOC)}, pages 216--226, 1978.
+\bibitem{sk00} K.~Stergiou and M.~Koubarakis. Backtracking algorithms for disjunctions of temporal constraints.
+\emph{Artificial Intelligence}, 120(1):81--117, 2000.
 \end{thebibliography}
 \end{document}
