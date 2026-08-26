@@ -695,6 +695,16 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       PORT_DADDY_URL: 'http://127.0.0.1:1',
     });
     expect(down).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const remote = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'https://coordination.example.invalid',
+    });
+    expect(remote).toMatchObject({ status: 0, stdout: '', stderr: '' });
   });
 
   // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──

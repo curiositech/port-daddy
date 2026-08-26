@@ -207,7 +207,12 @@ fi
 SELF="${PD_ACTOR:-${PD_AGENT_ID:-}}"
 DAEMON_URL="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
 case "$DAEMON_URL" in */) DAEMON_URL="${DAEMON_URL%/}" ;; esac
-if [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && command -v curl >/dev/null 2>&1; then
+case "$DAEMON_URL" in
+  http://localhost:*) DAEMON_URL="http://127.0.0.1:${DAEMON_URL##*:}" ;;
+  http://127.0.0.1:*) : ;;
+  *) DAEMON_URL="" ;; # hooks never wait on DNS or a remote coordination plane
+esac
+if [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && [ -n "$DAEMON_URL" ] && command -v curl >/dev/null 2>&1; then
   case "$SELF" in
     *[!A-Za-z0-9._:-]*) : ;;
     *)
@@ -216,7 +221,7 @@ if [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && command -v c
       UNREAD=""
       if command -v jq >/dev/null 2>&1; then
         UNREAD="$(printf '%s' "$STATS" | jq -r '.unread // empty' 2>/dev/null || true)"
-      else
+      elif command -v sed >/dev/null 2>&1; then
         UNREAD="$(printf '%s' "$STATS" | sed -nE 's/.*"unread"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' | head -n1)"
       fi
       case "$UNREAD" in
