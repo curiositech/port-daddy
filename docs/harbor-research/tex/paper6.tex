@@ -87,6 +87,58 @@ remaining authority its bill.
 
 \input{fig-paper6-relation.tex}
 
+\section{The vocabulary, defined}\label{sec:vocab}
+This paper draws on two fields that share no readers. Part~I is deontic logic and complexity theory; Part~II is queueing
+theory. A reader fluent in one is very unlikely to be fluent in the other, so both dictionaries are below, in the order the
+terms are needed. Nothing here is deep; it is all notation someone else fixed decades ago.
+
+\paragraph{Part I: logic and complexity.} \emph{Deontic} logic is the logic of obligation and permission, as opposed to the
+logic of truth --- it reasons about what \emph{ought} to be, not what is. Its two operators here are $\Ob$ (obliged) and
+$\Fb$ (forbidden), and we apply them only to ground facts: an action, a scope, a time interval. A \emph{Horn rule} is an
+implication whose premise is a conjunction of atoms and whose conclusion is a single atom --- the shape almost every rules
+engine and every Prolog program already uses. A \emph{definite} Horn program has no negation, which is exactly what makes it
+cheap: its consequences can be computed by repeatedly firing whatever rules are satisfied until nothing changes, and this
+process is guaranteed to terminate at one canonical answer. That answer is the \emph{least model}, and its defining property
+is the one Theorem~1a leans on: it contains precisely the facts forced in \emph{every} consistent world, so a status it
+assigns is not one possibility among several but a certainty. \emph{Unit propagation} is the name for the firing procedure,
+and Dowling--Gallier~\cite{dg84} showed it runs in time linear in the program.
+
+A \emph{difference constraint} is an inequality of the form $x_j - x_i \le c$ over deadline variables --- ``the runbook
+update must land no more than six ticks after the deploy.'' A system of them is satisfiable exactly when its constraint
+graph contains no \emph{negative cycle}, a loop of constraints whose weights sum below zero and which therefore demands that
+some event precede itself. Bellman--Ford finds such a cycle if one exists, and hands it over as the witness. This is
+standard temporal-reasoning machinery; \S\ref{sec:related} names the literature that owns it.
+
+A problem is in \textbf{P} when some algorithm solves it in time polynomial in the input size --- the practical meaning of
+``tractable at scale.'' It is \textbf{NP-complete} when a proposed solution can be \emph{checked} in polynomial time but no
+polynomial algorithm for \emph{finding} one is known, and finding one would settle the P versus NP question. The working
+consequence, which is all Theorem~1b needs: an NP-complete check cannot be run on every proposal at commit time as the
+policy set grows. \emph{3-SAT} is the canonical NP-complete problem (is a Boolean formula in three-literal clauses
+satisfiable?), and a \emph{reduction} from it is the standard way to prove a new problem at least as hard: encode any 3-SAT
+instance as an instance of yours, so that solving yours would solve 3-SAT.
+
+A \emph{witness} is the concrete object a checker returns alongside a yes --- the derivation chain, the two clashing rules
+with their overlap, the negative cycle. Producing witnesses is a strictly stronger requirement than deciding, and it is the
+difference between a checker that says ``rejected'' and one a human can argue with.
+
+\paragraph{Part II: queueing.} An \emph{$M/M/1$ queue} is one server, arrivals landing at random at average rate $\lambda$,
+each job taking a random time averaging $1/\mu$. \emph{$M/M/c$} is the same with $c$ interchangeable servers sharing one
+line --- the airport-check-in arrangement, not the supermarket one. \emph{Utilisation} $\rho$ is the fraction of capacity in
+use; as it approaches $1$ waiting time diverges, which is the entire reason these comparisons are not obvious.
+
+The \emph{Erlang-C} formula $C(c,\rho)$ gives the probability that an arriving job finds every server busy and must wait at
+all. It is a century old~\cite{erlang17} and it is the only non-elementary ingredient in Theorem~2; everything else there is
+algebra on it.
+
+\emph{Pooling} is the practice of putting all work in one queue served by everyone, as opposed to \emph{dedicating} a
+specialist to it. The classical fact --- and the tension the paper prices --- is that pooling wins on waiting time through
+statistical smoothing, while a specialist may win on service rate through skill. The \emph{skill premium} $r = \mu_s/\mu_g$
+is how much faster the specialist is, and Theorem~2 asks exactly how large it must be to pay.
+
+Finally, a queue \emph{with breakdowns} is one whose server fails at some rate and is restored after some delay. Its
+relevance is that a sole owner is a server that can fail: sessions die, containers are reaped. Theorem~3's $W_\infty$ is the
+residual delay such a queue carries even with an infinitely fast server, which is why no amount of skill buys it back.
+
 \section{Part I. The lookout is a subroutine: the fragment $\mathcal{L}_c$}\label{sec:lang}
 Cheap detection is a \emph{language-design} choice, not a discovery about deontic logic in general. The commitment language
 $\mathcal{L}_c$ buys it by construction. A policy set in $\mathcal{L}_c$ contains: \begin{itemize}

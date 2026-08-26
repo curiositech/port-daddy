@@ -32,12 +32,59 @@
 
 \input{fig-r7-relation.tex}
 
-\textbf{Contributions.} (i) The stage-game threshold with its convention fork made explicit (\S\ref{sec:stage}) --- the same game yields $\rho^\star=0.25$ or $\rho^\star_c=0.2083$ at our running parameters depending on whether capture confiscates the gain, and quoting one without pinning the settlement rule is a reproducible way to be $17\%$ wrong. (ii) The tower-contraction theorem (\S\ref{sec:tower}): sealed sampling from $C$ disjoint cliques makes bribery uneconomical below corrupt value $C\,B$, after which corruption decays geometrically --- finite bond capital certifies unbounded audit depth, with sealing identified as load-bearing rather than hygienic. (iii) The amortization theorems (\S\ref{sec:amort}): flat auditing spends $\Theta(T)$; the loss-only-if-audited schedule spends $\Theta(\log T)$; independent revelation at rate $r$ gives $O(1)$ lifetime spend with closed form $aG^2/(2dBrv)$ --- and which of the two holds is an empirical fork, not a modeling taste. (iv) The connection to the program's repeated-game mechanization (\S\ref{sec:signaling}): the discount-factor thresholds $\delta \ge 1/3$ (grim) and $\delta^\star = 0.3425080314$ (graduated trigger), now CI-checked by Z3 and TLC/Apalache in the repository's \texttt{proofs/economics/} directory, are the same deterrence arithmetic with continuation value in place of bonds. (v) The conversion of the source volume's Conjecture III.11.1 into a parameterized theorem with a named implementation (\S\ref{sec:conjecture}). Every number is tagged [verified] (externally recomputable) or [internal] (regenerates from the bundled script \texttt{b2\_tower.py}).
+\textbf{Contributions.} (i) The stage-game threshold with its convention fork made explicit (\S\ref{sec:stage}) --- the same game yields $\rho^\star=0.25$ or $\rho^\star_c=0.2083$ at our running parameters depending on whether capture confiscates the gain, and quoting one without pinning the settlement rule is a reproducible way to be $17\%$ wrong. (ii) The tower-contraction theorem (\S\ref{sec:tower}): sealed sampling from $C$ disjoint cliques makes bribery uneconomical below corrupt value $C\,B$, after which corruption decays geometrically --- so finite bond capital certifies an audit depth logarithmic in the corrupt value, with sealing identified as load-bearing rather than hygienic and the clique multiplier priced honestly (it removes the linear bribery phase; it is not what makes the tower converge). (iii) The amortization theorems (\S\ref{sec:amort}): flat auditing spends $\Theta(T)$; the loss-only-if-audited schedule spends $\Theta(\log T)$; independent revelation at rate $r$ gives $O(1)$ lifetime spend with closed form $aG^2/(2dBrv)$ --- and which of the two holds is an empirical fork, not a modeling taste. (iv) The connection to the program's repeated-game mechanization (\S\ref{sec:signaling}): the discount-factor thresholds $\delta \ge 1/3$ (grim) and $\delta^\star = 0.3425080314$ (graduated trigger), now CI-checked by Z3 and TLC/Apalache in the repository's \texttt{proofs/economics/} directory, are the same deterrence arithmetic with continuation value in place of bonds. (v) The conversion of the source volume's Conjecture III.11.1 into a parameterized theorem with a named implementation (\S\ref{sec:conjecture}). Every number is tagged [verified] (externally recomputable) or [internal] (regenerates from the bundled script \texttt{b2\_tower.py}).
 
 \section{Related work, and what is actually new}\label{sec:related}
 The stage game is classical. Deterrence-by-expected-penalty is Becker \cite{becker1968}; the leader--follower and simultaneous inspection formulations, including the committed-inspector solution we use, are surveyed by Avenhaus, von Stengel and Zamir \cite{avz2002}, whose treatment of inspector commitment and inspectee indifference we follow. Reputation-as-equilibrium-behavior is Kreps--Wilson \cite{krepswilson1982} and Fudenberg--Levine \cite{fudenberglevine1989}: a long-lived player's continuation value disciplines short-run temptation. Batched verification of many items with few tests goes back to Dorfman's group-screening design \cite{dorfman1943}, which is the right lineage for pooled audit sampling, though we do not use pooling here.
 
 \emph{New, honestly stated:} the amortized-verification framing --- deriving the \emph{declining audit schedule} that keeps the incentive constraint exactly binding as history accumulates, and costing it end-to-end ($\Theta(T)$ vs.\ $\Theta(\log T)$ vs.\ $O(1)$, with the closed form $aG^2/(2dBrv)$); the contraction theorem for a \emph{stackable} audit tower whose auditors are themselves corruptible LLM judges, with model heterogeneity identified as the mechanism that supplies the disjoint cliques the contraction needs; and the observation that sealing the sampling draw is load-bearing (\S\ref{sec:tower}). \emph{Imported:} everything in the previous paragraph. The contribution is closing a conjecture the source volume posed, with a named implementation and a measurement obligation --- not a new solution concept.
+
+\section{The vocabulary, defined}\label{sec:vocab}
+
+This paper is economics, and its terms are cheap to define but expensive to guess at. A software reader who has never taken
+a mechanism-design course loses nothing but the dictionary; here it is, in the order the terms are needed.
+
+An \emph{inspection game} is a two-player game between someone who may cheat and someone who may check, where checking
+costs something and catching pays something. Its defining feature --- and the reason it is not simply a matter of ``audit
+more'' --- is that it typically has no equilibrium in which either player behaves predictably: if the inspector always
+checks, cheating never pays and the checks are wasted; if the inspector never checks, cheating always pays. The stable
+outcome is that both randomise, which is why every audit rate in this paper is a probability rather than a schedule.
+
+A \emph{mixed strategy} is exactly that randomisation --- a probability distribution over what to do rather than a choice.
+Two players are in a \emph{mixed equilibrium} when each is \emph{indifferent} between its options given what the other is
+doing, since a player who strictly preferred one option would simply take it. Solving for indifference is how the critical
+rates below are derived, and it is the whole technique.
+
+A player's behaviour is \emph{incentive-compatible} when honesty is at least as profitable as the alternative --- not when
+it is enforced or morally preferred. Everything this paper deters, it deters by making cheating cost more than it pays.
+
+A \emph{bond} is capital the judge posts before working and forfeits if caught cheating. It is the paper's central
+instrument, and it differs from a wage in a way that matters: a wage is paid for output and withheld for non-performance
+automatically, whereas a bond is forfeited only when a \emph{detection event} occurs. That gap --- between misbehaving and
+being caught misbehaving --- is what the audit probability $\rho$ and detection probability $d$ measure, and it is why
+$\rho d B$ rather than $B$ is the quantity a rational judge weighs. To \emph{slash} a bond is to confiscate it on
+detection; the term is borrowed from proof-of-stake systems, where it means the same thing.
+
+The two \emph{settlement conventions} of \S\ref{sec:stage} are the two natural answers to what happens to the corrupt gain
+itself when a cheat is caught. Under \emph{keep-gain} the cheater keeps $G$ and loses the bond; under \emph{confiscation}
+the cheater loses both. They are not a modelling detail --- they move the required audit budget by roughly 17\% at the
+worked parameters, which is the paper's first practical finding.
+
+A \emph{bribe floor} is the least a briber must offer a judge to make corruption worth its while: exactly the judge's
+expected forfeiture $\beta = \rho d B$. Below that, no rational judge accepts.
+
+\emph{Sealed} sampling means the briber must commit its money before learning which judge will handle the case. This is a
+hypothesis of the tower theorem, not a hygiene recommendation --- \S\ref{sec:tower} shows the entire clique multiplier
+vanishes without it.
+
+A \emph{clique} here means a pool of judges whose errors and loyalties are statistically and economically independent of
+another pool's --- distinct vendors running distinct model families. The word is borrowed from social structure, not from
+graph theory, and it carries no adjacency-matrix meaning in this paper.
+
+Finally, \emph{amortization} is the accounting sense of the word, not the algorithmic one: spreading a fixed cost over many
+uses so the per-use share falls. The paper's title claim is that a reputation \emph{is} this operation applied to
+verification cost --- the reason a long-trusted judge can be audited less is that its history has already paid for the
+confidence.
 
 \section{The stage game and the convention fork}\label{sec:stage}
 A judge grades one outcome. Cheating yields a one-shot gain $G$. The platform audits with probability $\rho$ at cost $a$ per audit; an audit detects a cheat with probability $d$; detection slashes the judge's posted bond $B$. Under the \emph{keep-gain} convention the caught cheat retains $G$ and forfeits $B$; under the \emph{confiscation} convention capture forfeits the gain as well.
