@@ -277,10 +277,28 @@ Existence, authors, venue, pages and DOI verified three ways. Abstract verbatim:
 > types of norm enforcement mechanisms by adopting well-studied supervisory
 > control theory techniques for discrete event systems…
 
-**Full text could not be obtained — `UNRESOLVED`.** Springer preview only; the
-Unpaywall/OpenAlex "GREEN OA" figshare record `27343188` returns `"files": []`
-(metadata-only, the OA flag is false); RMIT repo HTTP 202 empty; Southampton
-ePrints 401; Utrecht DSpace 500; no arXiv preprint.
+**Full text could not be obtained — `UNRESOLVED`.** Springer preview only; RMIT
+repo HTTP 202 empty; Southampton ePrints 401; Utrecht DSpace 500; no arXiv
+preprint.
+
+**The "green OA" record is confirmed metadata-only — this route is definitively
+closed.** A follow-up pass queried the figshare API directly rather than the
+landing page:
+
+```
+GET https://api.figshare.com/v2/articles/27343188
+  title:         "Norm enforcement as supervisory control"
+  defined_type:  conference contribution
+  is_embargoed:  False
+  files:         []
+GET https://api.figshare.com/v2/articles/27343188/files  ->  200  []
+```
+
+Not embargoed, not restricted — **no file was ever deposited**. Semantic Scholar
+and Unpaywall both report this record as GREEN open access, and both are wrong.
+Anyone re-attempting this should skip the OA flags entirely and go straight to
+institutional access or an author request (Sardina at RMIT, Yazdanpanah at
+Southampton).
 
 **Do not submit before someone with institutional access reads these 19 pages.**
 The remaining priority question turns on it.

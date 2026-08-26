@@ -184,6 +184,26 @@ C1–C3 and C4–C6 are independent of how any prior-art question resolves. C1 a
 matter most: they concern a paper Paper 2 already cites, so a referee who knows
 Schneider will catch them immediately.
 
+## Part 2e — What is genuinely unobtainable from here
+
+Four sources block a full close. A follow-up pass probed each by every route
+available, including the Semantic Scholar `openAccessPdf` field that found flag
+1's decisive source. **All four routes are now closed rather than untried** — do
+not spend more time probing; get institutional access or write to an author.
+
+| Source | Why it matters | Route status |
+|---|---|---|
+| Dastani, Sardina & Yazdanpanah, PRIMA 2017 | **Blocks Paper 2's submission.** Title alone makes it the remaining priority risk. | **Closed.** The figshare/RMIT record advertised as GREEN OA by both Unpaywall and Semantic Scholar returns `files: []` with `is_embargoed: False` — nothing was ever deposited. Both OA flags are wrong. Springer preview only; Southampton 401; Utrecht 500; no arXiv. Ask Sardina (RMIT) or Yazdanpanah (Southampton). |
+| Kofman & Lawarrée, *Econometrica* 1993 (published text) | Flag 1's verdict rests on the 1990 working paper; proposition and page numbers differ. | **Closed.** Semantic Scholar's only OA location is the same DSpace@MIT working paper. One JSTOR pull of `stable/2951721` closes it. (Note: `2951722` in the original reading list is wrong.) |
+| Bach, *J. Symb. Comput.* 27(4):429–433, 1999 | Load-bearing in Paper 7 — cited to pre-empt a referee's category error. | **Closed**, but the claim is now well supported. DOI corrected to `10.1006/jsco.1998.0261`; bibliographic record `verified` on Crossref and DBLP, matching `paper7.tex` exactly. Semantic Scholar's TLDR, generated from the paper, states the result concerns "a **coherent sheaf on projective space**" — Paper 7's characterization, confirmed. ScienceDirect 403s on every route despite a bronze-OA flag. |
+| Grossi, Aldewereld & Dignum, COIN II | Origin of "regimentation"; Paper 2 should attribute it. | **Closed.** Semantic Scholar reports the record CLOSED — no OA copy anywhere. Cite as origin on three independently-read attributions; do not quote. |
+
+The pattern worth keeping: **open-access flags in Unpaywall and Semantic Scholar
+are unreliable in both directions.** They reported green OA for a record with no
+file, bronze OA for a bot-blocked endpoint, and — in flag 1's case — pointed at a
+genuinely free full text that no search engine surfaced. Query the API, then
+verify the file actually downloads.
+
 ## Part 3 — Standing rules for anything added to a `.tex`
 
 1. Only `verified` entries. `probable` and `uncertain` stay in this file.

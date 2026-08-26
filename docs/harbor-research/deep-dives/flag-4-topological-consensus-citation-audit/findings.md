@@ -186,9 +186,31 @@ Symposium on Operating Systems Principles (SOSP)}, pp.~175--188, 2007.
 
 ## Open items
 
-1. **Bach 1999 content claim** — `probable`, needs institutional access to
-   *J. Symbolic Computation* to reach `verified`. Load-bearing; close before
-   submission.
+1. **Bach 1999 content claim** — still `probable`, but materially better
+   supported by a follow-up pass, and the bibliographic record is now
+   double-verified.
+
+   **DOI corrected**: `10.1006/jsco.1998.0261` (Crossref), which returns
+   *"Sheaf Cohomology is #P-hard," E. Bach, Journal of Symbolic Computation,
+   27(4):429–433, 1999* — matching `paper7.tex`'s citation exactly. Now
+   `verified` on Crossref **and** DBLP independently.
+
+   **Content**: Semantic Scholar's TLDR for this DOI, generated from the paper's
+   own text rather than from a search snippet, reads:
+
+   > It is proved that computing the dimensions of the cohomology groups of a
+   > **coherent sheaf on projective space**, specified by the kernel, image, or
+   > cokernel of a graded matrix, is hard for Valiant's complexity class #P.
+
+   That is `paper7.tex`'s characterization almost word for word — coherent
+   sheaves on projective space, which is exactly the category the paper says is
+   the wrong one for finite cellular sheaves on graphs.
+
+   **Route status: closed, not merely untried.** ScienceDirect returns HTTP 403
+   to every route (both `/pdf` endpoints and via the DOI, with browser UA and
+   Referer), despite Unpaywall reporting bronze OA at the publisher endpoint —
+   the OA flag is real but the endpoint is bot-blocked. Needs institutional
+   access or a library copy; no amount of further probing from here will get it.
 2. **Herlihy–Kozlov–Rajsbaum book details** — `probable`. Three independent
    bookseller listings agree (Morgan Kaufmann, 2013, ISBN 978-0-12-404578-1) but
    no publisher or library-catalog page was fetched; ScienceDirect blocked.
