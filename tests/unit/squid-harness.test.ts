@@ -1424,10 +1424,12 @@ describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review
     // against a real algorithmic blowup (e.g. an accidental O(n^2) pass),
     // not CI hardware variance. 1_000ms was measured tight enough to fail on
     // GitHub's macos-latest runners (1917ms observed, 2026-08-24) purely from
-    // slower subprocess/filesystem overhead there, not a logic defect — 3_000ms
-    // still catches a real blowup (500 markers taking multiple seconds would
-    // itself be a regression worth investigating) while tolerating that.
-    expect(elapsedMs).toBeLessThan(3_000);
+    // slower subprocess/filesystem overhead there, not a logic defect. 3_000ms
+    // still left only a ~1.56x margin over that observation (review finding,
+    // 2026-08-26) — widened further to 6_000ms, which still fails fast on a
+    // real O(n^2)-style blowup (500 markers taking multiple seconds) while
+    // giving a slower or contended runner much more room before flaking.
+    expect(elapsedMs).toBeLessThan(6_000);
   });
 
   test('the probabilistic gate is truly off by default at PD_SQUID_STOP_MARKER_GC_EVERY=1 scale: a normal call without the override does not force a full sweep every time', () => {
