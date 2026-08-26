@@ -123,6 +123,43 @@ one on first use.
 
 ---
 
+## Part 2b — The absence checks, reproducibly
+
+Every "the paper does not cite X" claim in these packages was produced by
+running grep against the source, not by reading and remembering. Run from
+`docs/harbor-research/tex/`, case-insensitive, extended regex:
+
+| Command | Result |
+|---|---|
+| `grep -Eic "kofman\|lawarr" paper3.tex` | 0 |
+| `grep -Eic "2607\|certified runtime\|tool-using agent" paper2.tex` | 0 |
+| `grep -Eic "halpern\|weissman\|robaldo" paper6.tex` | 0 |
+| `grep -Eic "herlihy\|rajsbaum\|kozlov\|saks\|zaharoglou" paper7.tex` | 0 |
+| `grep -Eic "peerreview\|haeberlen" paper7.tex` | 0 |
+| `grep -Eic "ligatti\|falcone\|edit automata" paper2.tex` | 0 |
+| `grep -Eic "dechter\|simple temporal" paper6.tex` | 0 |
+| `grep -Eic "schaefer\|dichotom" paper6.tex` | 0 |
+| `grep -Eic "diamond\|townsend" paper3.tex` | 0 |
+
+A row of zeros proves nothing on its own — it is equally consistent with a
+broken pattern or the wrong file. Controls, run at the same time against
+citations the papers demonstrably do carry:
+
+| Control | Result |
+|---|---|
+| `grep -Eic "ramadge" paper2.tex` | 9 |
+| `grep -Eic "becker" paper3.tex` | 3 |
+| `grep -Eic "chisholm" paper6.tex` | 2 |
+| `grep -Eic "robinson" paper7.tex` | 4 |
+
+Two of the absence rows are worth calling out because they are not about the
+four flags and were found while checking them. `paper6.tex` contains no
+occurrence of "dichotom" in any form, which is the direct evidence for the
+renaming recommendation below — the result is a dichotomy and the paper never
+says the word. And `paper3.tex` cites neither Diamond nor Townsend, so the
+costly-state-verification and delegated-monitoring lineages are absent from a
+paper whose title claim is about amortizing verification cost.
+
 ## Part 3 — Standing rules for anything added to a `.tex`
 
 1. Only `verified` entries. `probable` and `uncertain` stay in this file.
