@@ -571,7 +571,8 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       reply.code(400);
       return { success: false, error: 'slug is required' };
     }
-    const existing = roadmapItems.get(slug);
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const existing = roadmapItems.get(slug, asString(q.harbor));
     if (!existing) {
       reply.code(404);
       return { success: false, error: `roadmap item '${slug}' not found` };
