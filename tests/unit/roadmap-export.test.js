@@ -186,4 +186,57 @@ describe('roadmap-export / jira', () => {
       }),
     ).rejects.toThrow(/HTTP 400/);
   });
+
+  it('converts headings, bullet lists, and bold inline text to real ADF nodes, not literal markdown syntax', async () => {
+    let capturedBody;
+    const fetchImpl = async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return jsonResponse(201, { id: '1', key: 'ROAD-9' });
+    };
+    await exportRoadmapItem(
+      item({
+        descriptionMd:
+          '## Status\n\nThis is **important** context.\n\n- first point\n- second point with *emphasis*',
+      }),
+      {
+        target: 'jira', baseUrl: 'https://acme.atlassian.net', projectKey: 'ROAD',
+        email: 'e', apiToken: 't', fetchImpl,
+      },
+    );
+
+    const doc = capturedBody.fields.description;
+    expect(doc.type).toBe('doc');
+    // No raw markdown syntax characters should survive into any text node.
+    const allText = JSON.stringify(doc);
+    expect(allText).not.toContain('##');
+    expect(allText).not.toContain('**');
+
+    const heading = doc.content.find((n) => n.type === 'heading');
+    expect(heading).toMatchObject({ type: 'heading', attrs: { level: 2 } });
+    expect(heading.content[0].text).toBe('Status');
+
+    const paragraph = doc.content.find((n) => n.type === 'paragraph' && n.content.some((c) => c.text === 'important'));
+    expect(paragraph.content.find((c) => c.text === 'important').marks).toEqual([{ type: 'strong' }]);
+
+    const list = doc.content.find((n) => n.type === 'bulletList');
+    expect(list.content).toHaveLength(2);
+    expect(list.content[0].content[0].content[0].text).toBe('first point');
+    const emphasized = list.content[1].content[0].content.find((c) => c.marks?.[0]?.type === 'em');
+    expect(emphasized.text).toBe('emphasis');
+  });
+
+  it('never crashes on a plain descriptionMd with no markdown structure', async () => {
+    let capturedBody;
+    const fetchImpl = async (_url, init) => {
+      capturedBody = JSON.parse(init.body);
+      return jsonResponse(201, { id: '1', key: 'ROAD-10' });
+    };
+    await exportRoadmapItem(item({ descriptionMd: null }), {
+      target: 'jira', baseUrl: 'https://acme.atlassian.net', projectKey: 'ROAD',
+      email: 'e', apiToken: 't', fetchImpl,
+    });
+    const doc = capturedBody.fields.description;
+    expect(doc.type).toBe('doc');
+    expect(doc.content.length).toBeGreaterThan(0);
+  });
 });

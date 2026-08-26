@@ -177,15 +177,110 @@ export interface JiraExportConfig {
   fetchImpl: ExportFetch;
 }
 
-/** Jira Cloud's Atlassian Document Format wants a doc node, not a markdown string. */
+interface AdfTextNode {
+  type: 'text';
+  text: string;
+  marks?: Array<{ type: 'strong' | 'em' }>;
+}
+
+/**
+ * Inline bold/italic → ADF text nodes with marks. Bounded subset (same
+ * philosophy as lib/mini-markdown.ts): `**bold**` and `_italic_`/`*italic*`,
+ * no nesting, no links/code spans (descriptionMd bodies here are plain
+ * status prose, not rendered documents).
+ */
+function adfInlineText(text: string): AdfTextNode[] {
+  const nodes: AdfTextNode[] = [];
+  const re = /\*\*([^*]+)\*\*|_([^_]+)_|\*([^*]+)\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) nodes.push({ type: 'text', text: text.slice(last, m.index) });
+    if (m[1] !== undefined) nodes.push({ type: 'text', text: m[1], marks: [{ type: 'strong' }] });
+    else nodes.push({ type: 'text', text: (m[2] ?? m[3]) as string, marks: [{ type: 'em' }] });
+    last = re.lastIndex;
+  }
+  if (last < text.length) nodes.push({ type: 'text', text: text.slice(last) });
+  return nodes.length > 0 ? nodes : [{ type: 'text', text: '' }];
+}
+
+const HEADING_RE = /^(#{1,6})\s+(.*)$/;
+const BULLET_RE = /^[-*]\s+(.*)$/;
+const ORDERED_RE = /^\d+\.\s+(.*)$/;
+
+/**
+ * Jira Cloud's Atlassian Document Format wants a doc node tree, not a
+ * markdown string. Bounded line-based conversion — headings, bullet/ordered
+ * lists, and paragraphs (blank-line separated), with bold/italic inline
+ * marks — covers the roadmap descriptionMd content this actually exports
+ * (status prose with headings and bulleted call-outs). Not a spec-complete
+ * CommonMark→ADF engine: nested lists, tables, code blocks, and links pass
+ * through as plain paragraph text rather than being dropped or crashing.
+ */
 function jiraDescriptionDoc(markdown: string) {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  const content: Array<Record<string, unknown>> = [];
+  let para: string[] = [];
+  let list: { kind: 'bulletList' | 'orderedList'; items: string[] } | null = null;
+
+  const flushPara = () => {
+    if (para.length > 0) {
+      content.push({ type: 'paragraph', content: adfInlineText(para.join(' ')) });
+      para = [];
+    }
+  };
+  const flushList = () => {
+    if (list) {
+      content.push({
+        type: list.kind,
+        content: list.items.map((text) => ({
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: adfInlineText(text) }],
+        })),
+      });
+      list = null;
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    const heading = HEADING_RE.exec(line);
+    const bullet = BULLET_RE.exec(line);
+    const ordered = ORDERED_RE.exec(line);
+
+    if (!line) {
+      flushPara();
+      flushList();
+    } else if (heading) {
+      flushPara();
+      flushList();
+      content.push({ type: 'heading', attrs: { level: heading[1].length }, content: adfInlineText(heading[2]) });
+    } else if (bullet) {
+      flushPara();
+      if (!list || list.kind !== 'bulletList') {
+        flushList();
+        list = { kind: 'bulletList', items: [] };
+      }
+      list.items.push(bullet[1]);
+    } else if (ordered) {
+      flushPara();
+      if (!list || list.kind !== 'orderedList') {
+        flushList();
+        list = { kind: 'orderedList', items: [] };
+      }
+      list.items.push(ordered[1]);
+    } else {
+      flushList();
+      para.push(line);
+    }
+  }
+  flushPara();
+  flushList();
+
   return {
     type: 'doc',
     version: 1,
-    content: markdown.split('\n\n').map((paragraph) => ({
-      type: 'paragraph',
-      content: paragraph ? [{ type: 'text', text: paragraph }] : [],
-    })),
+    content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
   };
 }
 
