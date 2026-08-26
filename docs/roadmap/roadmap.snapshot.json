@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 308,
+  "count": 309,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1443,6 +1443,11 @@
       "slug": "spawner-agent-harbor-bridge-c1-witnessing",
       "status": "now",
       "summaryMd": "Bridge lib/spawner.ts agentIds into Agent Harbor as real, honestly-witnessed C1 (Transcripted) nodes via a new spawner-bridge.ts module + spawner-child AdapterKind (complianceCeiling C1). Reuses the existing event-ledger hash-chaining and transcripts.ts message log — no new hashing. kill correctly stays denied through control-gate.ts (C1 < C4 required) — the point is real evidence, not a forged grant. C2+ gateway-routing is future, separate work."
+    },
+    {
+      "slug": "squid-coordination-nudges-and-postmaster-contract",
+      "status": "now",
+      "summaryMd": "Ship bounded inbox/parley and salvage nudges; establish the authoritative Postmaster, plan-first continuity, repository digest, review-settlement, suggestion-packet, and context-pressure program without claiming the future local ship is already running."
     },
     {
       "slug": "squid-contract-harness-daemon-boot-fix",
