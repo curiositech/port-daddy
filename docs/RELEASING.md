@@ -144,6 +144,15 @@ Apple — the daemon (`pd` + `port-daddy`), the `pd-console.app`, and FleetBar.
 This is automatic on every release; **nothing to do per-release** once the secrets
 below are set. (ADR-0057; the daemon path is ADR-0028's signing recipe, finally wired.)
 
+FleetBar is an app bundle with a bundled Port Daddy payload, not a single Mach-O.
+`scripts/package-fleetbar.sh` must discover every Mach-O under `FleetBar.app`
+and sign inside-out before the app root is sealed. Apply Bun JIT entitlements only
+to the Bun-compiled `Contents/Resources/PortDaddy/port-daddy` executable; ordinary
+`.dylib` files and the `pd` launcher get hardened runtime without those
+entitlements. If Apple returns a non-`Accepted` notary status, the packager fetches
+and prints `xcrun notarytool log` before cleanup so the failing nested binary is
+visible in CI.
+
 **Repo secrets** (set once, in `Settings → Secrets and variables → Actions`):
 
 | Secret | What it is | Required? |

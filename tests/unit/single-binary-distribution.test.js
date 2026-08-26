@@ -192,6 +192,12 @@ describe('single binary distribution path', () => {
     expect(localPackager).toContain('OUT_DIR_INPUT=');
     expect(localPackager).toContain('OUT_DIR="$ROOT_DIR/$OUT_DIR_INPUT"');
     expect(previewPackager).toContain('PORT_DADDY_ENTITLEMENTS="$REPO_ROOT/scripts/entitlements/port-daddy.plist"');
+    expect(localPackager).toContain('find_nested_macho_files()');
+    expect(localPackager).toContain('sign_nested_macho_files "$APP_BUNDLE"');
+    expect(localPackager).toContain('codesign_macho "$nested"');
+    expect(localPackager).toContain('codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"');
+    expect(localPackager).toContain('submit_notarization "$APP_BUNDLE"');
+    expect(localPackager).toContain('print_notary_log "$NOTARY_REQUEST_ID"');
     expect(previewPackager).toContain('Signing bundled Port Daddy payload with Developer ID');
     expect(previewPackager).toContain('--entitlements "$PORT_DADDY_ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$PORT_DADDY_PAYLOAD_DIR/port-daddy"');
     expect(previewPackager).toContain('Signing bundled Port Daddy payload with ad-hoc identity.');

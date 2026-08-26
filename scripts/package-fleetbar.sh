@@ -63,6 +63,108 @@ cleanup() {
 }
 trap cleanup EXIT
 
+find_nested_macho_files() {
+  local root="$1"
+  find "$root" -type f -print | while IFS= read -r candidate; do
+    if file -b "$candidate" | grep -q "Mach-O"; then
+      local relative="${candidate#$root/}"
+      local slashes="${relative//[^\/]/}"
+      local depth="${#slashes}"
+      printf '%05d\t%s\n' "$((9999 - depth))" "$candidate"
+    fi
+  done | sort -t '	' -k1,1n -k2,2 | cut -f2-
+}
+
+macho_entitlements_for() {
+  local macho="$1"
+  case "$macho" in
+    "$PORT_DADDY_PAYLOAD_DIR/port-daddy")
+      printf '%s\n' "$PAYLOAD_ENTITLEMENTS"
+      ;;
+    "$APP_MACOS/FleetBar")
+      printf '%s\n' "$FLEETBAR_ENTITLEMENTS"
+      ;;
+    *)
+      printf '\n'
+      ;;
+  esac
+}
+
+codesign_macho() {
+  local macho="$1"
+  local entitlements
+  entitlements="$(macho_entitlements_for "$macho")"
+  if [[ -n "$entitlements" ]]; then
+    codesign --force --options runtime --timestamp \
+      --entitlements "$entitlements" \
+      --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$macho"
+  else
+    codesign --force --options runtime --timestamp \
+      --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$macho"
+  fi
+}
+
+sign_nested_macho_files() {
+  local app_bundle="$1"
+  while IFS= read -r nested; do
+    [[ -n "$nested" ]] || continue
+    codesign_macho "$nested"
+  done < <(find_nested_macho_files "$app_bundle")
+}
+
+print_notary_log() {
+  local request_id="$1"
+  shift
+  [[ -n "$request_id" ]] || return 0
+  echo "Fetching Apple notarization log for request $request_id..." >&2
+  xcrun notarytool log "$request_id" "$@" || true
+}
+
+json_field() {
+  local json_file="$1"
+  local field="$2"
+  node -e '
+    const fs = require("node:fs");
+    const file = process.argv[1];
+    const field = process.argv[2];
+    try {
+      const data = JSON.parse(fs.readFileSync(file, "utf8"));
+      process.stdout.write(String(data?.[field] ?? ""));
+    } catch {}
+  ' "$json_file" "$field"
+}
+
+submit_notarization() {
+  local app_bundle="$1"
+  local notary_dir="$TMP_DIR/notary"
+  local notary_zip="$notary_dir/fleetbar-notary.zip"
+  local notary_output="$notary_dir/notarytool-submit.json"
+  local NOTARY_STATUS
+  local NOTARY_REQUEST_ID
+  mkdir -p "$notary_dir"
+
+  ditto -c -k --keepParent "$app_bundle" "$notary_zip"
+  NOTARY_KC=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && NOTARY_KC=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
+  if ! xcrun notarytool submit "$notary_zip" \
+    --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" \
+    "${NOTARY_KC[@]}" \
+    --wait \
+    --timeout 20m \
+    --output-format json > "$notary_output"; then
+    NOTARY_REQUEST_ID="$(json_field "$notary_output" id)"
+    print_notary_log "$NOTARY_REQUEST_ID" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}"
+    return 1
+  fi
+
+  NOTARY_STATUS="$(json_field "$notary_output" status)"
+  NOTARY_REQUEST_ID="$(json_field "$notary_output" id)"
+  if [[ "$NOTARY_STATUS" != "Accepted" ]]; then
+    echo "Notarization failed with status: ${NOTARY_STATUS:-unknown}" >&2
+    print_notary_log "$NOTARY_REQUEST_ID" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}"
+    return 1
+  fi
+}
+
 cd "$FLEETBAR_DIR"
 swift build -c release
 
@@ -125,12 +227,10 @@ fi
 # (enforced by the adhoc-rejection guard in .github/workflows/release.yml).
 #
 # This bundle is NOT a single Mach-O like pd-console: it embeds the Port Daddy
-# payload (Contents/Resources/PortDaddy/{pd,port-daddy}) — bun-compiled binaries
-# that need bun's JIT entitlements (scripts/entitlements/port-daddy.plist), the
-# same ones the daemon release signs with. So sign INSIDE-OUT: nested bun binaries
-# first (with bun entitlements), then the SwiftUI host (empty entitlements), which
-# seals the whole bundle. --deep is wrong here (it would mis-apply one entitlement
-# set to every binary); --verify --strict below proves nothing was left unsigned.
+# payload and its native runtime libraries under Contents/Resources/PortDaddy.
+# Sign every Mach-O inside-out before sealing the app root. Bun JIT entitlements
+# belong only on the Bun-compiled port-daddy executable; ordinary dylibs and the
+# small pd launcher receive hardened runtime without Bun entitlements.
 FLEETBAR_ENTITLEMENTS="$ROOT_DIR/scripts/entitlements/fleetbar.plist"
 PAYLOAD_ENTITLEMENTS="$ROOT_DIR/scripts/entitlements/port-daddy.plist"
 IDENTITY="${PORT_DADDY_SIGN_IDENTITY:-}"
@@ -140,23 +240,16 @@ if [[ -z "$IDENTITY" ]]; then
   echo "::warning::PORT_DADDY_SIGN_IDENTITY unset — FleetBar.app is UNSIGNED (ad-hoc). Gatekeeper will quarantine it on download. Set the Developer ID secrets to sign."
 else
   KEYCHAIN_ARGS=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && KEYCHAIN_ARGS=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
-  for nested in "$PORT_DADDY_PAYLOAD_DIR/port-daddy" "$PORT_DADDY_PAYLOAD_DIR/pd"; do
-    codesign --force --options runtime --timestamp \
-      --entitlements "$PAYLOAD_ENTITLEMENTS" \
-      --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$nested"
-  done
+  sign_nested_macho_files "$APP_BUNDLE"
   codesign --force --options runtime --timestamp \
     --entitlements "$FLEETBAR_ENTITLEMENTS" \
     --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$APP_BUNDLE"
-  codesign --verify --strict --verbose=2 "$APP_BUNDLE"
+  codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
   SIGNED="true"
   echo "Signed $APP_NAME (host + embedded Port Daddy payload) with $IDENTITY"
 
   if [[ "${PORT_DADDY_SKIP_NOTARIZE:-}" != "1" && -n "${PORT_DADDY_NOTARY_PROFILE:-}" ]]; then
-    NOTARY_ZIP="$(mktemp -d)/fleetbar-notary.zip"
-    ditto -c -k --keepParent "$APP_BUNDLE" "$NOTARY_ZIP"
-    NOTARY_KC=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && NOTARY_KC=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
-    xcrun notarytool submit "$NOTARY_ZIP" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}" --wait --timeout 20m
+    submit_notarization "$APP_BUNDLE"
     xcrun stapler staple "$APP_BUNDLE"
     NOTARIZED="true"
     echo "Notarized + stapled $APP_NAME"
