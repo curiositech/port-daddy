@@ -910,38 +910,26 @@ shorthand (\textbf{Kendall 1953}~\cite{kendall1953}) for a single-server versus
 $c$-server queue with Poisson arrivals, exponential service times, and one waiting
 line served first-come-first-served} --- is the textbook way to price the trade.
 
-\begin{theorem}[Queueing Specialization Boundary]\label{thm:specialization}
-Let requests for an invariant-critical function $F$ arrive as a Poisson stream at
-rate $\lambda_F$. A sole specialist serves them as an $M/M/1$ queue at rate
-$\mu_{\mathrm{spec}}$; the pooled alternative is an $M/M/c$ queue of generalists at
-rate $\mu_{\mathrm{pool}}$ each, with utilization
-$\rho = \lambda_F/(c\,\mu_{\mathrm{pool}})<1$. Service is exponential, the
-discipline is first-come-first-served, and the objective is \emph{mean} cost ---
-mean response time, plus an accountability value $A$ per unit time of demand for
-single-writer attribution, against a waiting cost $w$ per request-hour.
+Fix the \textbf{queueing-specialization setup}: requests for an invariant-critical
+function $F$ arrive as a Poisson stream at rate $\lambda_F$; a sole specialist
+serves them as an $M/M/1$ queue at rate $\mu_{\mathrm{spec}}$, the pooled
+alternative as an $M/M/c$ queue of generalists at rate $\mu_{\mathrm{pool}}$ each
+with utilization $\rho=\lambda_F/(c\,\mu_{\mathrm{pool}})<1$ and
+first-come-first-served exponential service; and the objective is \emph{mean} cost
+--- mean response time, plus an accountability value $A$ per unit time of demand
+for single-writer attribution, against a waiting cost $w$ per request-hour. Let
+$C(c,\rho)$ be the \textbf{Erlang-C} delay probability (\textbf{Erlang
+1917}~\cite{erlang1917} --- \emph{the probability that an arriving request finds
+all $c$ servers busy and must wait, the quantity that makes a pool a pool}).
 
-Let $C(c,\rho)$ be the \textbf{Erlang-C} delay probability
-(\textbf{Erlang 1917}~\cite{erlang1917} --- \emph{the probability that an arriving
-request finds all $c$ servers busy and must wait, the quantity that makes a pool a
-pool}). Sole ownership
-weakly dominates the pool if and only if the skill premium clears
+\begin{theorem}[Queueing Specialization Boundary]\label{thm:specialization}
+Under the queueing-specialization setup, sole ownership weakly dominates the pool
+if and only if the skill premium clears
 \begin{equation}\label{eq:specboundary}
 \frac{\mu_{\mathrm{spec}}}{\mu_{\mathrm{pool}}} \;\ge\; g_A(\rho,c)
 \;=\; c\rho \;+\; \frac{1}{\,1 + \dfrac{C(c,\rho)}{c(1-\rho)}
-      + \dfrac{A\,\mu_{\mathrm{pool}}}{w\,\lambda_F}\,},
+      + \dfrac{A\,\mu_{\mathrm{pool}}}{w\,\lambda_F}\,}.
 \end{equation}
-which at $A=0$ --- pure response time, accountability priced at nothing --- reduces
-to
-\begin{equation}\label{eq:specboundary0}
-g(\rho,c) \;=\; c\rho \;+\; \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}.
-\end{equation}
-Three properties fix the shape: $g(\rho,1)=1$ (a specialist against a single
-generalist needs no premium at all), $g\to c$ as $\rho\to1$ (the boundary
-\emph{saturates} at the capacity ratio; it never diverges), and for two generalists
-it is the closed form $g(\rho,2)=1+2\rho-\rho^2$. Below the boundary, sole
-ownership buys strict single-writer accountability at an explicit latency price
-that must be budgeted rather than obscured; Eq.~\ref{eq:specboundary} is where that
-price is written down.
 \end{theorem}
 
 \noindent\Verified\ --- \emph{corrected}. An earlier draft of this paper proposed
@@ -957,6 +945,19 @@ falsification-first oversight should be legible about its own retractions: the t
 thresholds cross exactly once, so the superseded form was not merely conservative
 --- it was wrong in \emph{both} directions, and Figure~\ref{fig:specialization}
 shades the two error regions.
+
+At $A=0$ --- pure response time, accountability priced at nothing --- the boundary
+reduces to
+\begin{equation}\label{eq:specboundary0}
+g(\rho,c) \;=\; c\rho \;+\; \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}.
+\end{equation}
+Three properties fix its shape: $g(\rho,1)=1$ (a specialist against a single
+generalist needs no premium at all), $g\to c$ as $\rho\to1$ (the boundary
+\emph{saturates} at the capacity ratio; it never diverges), and for two generalists
+it is the closed form $g(\rho,2)=1+2\rho-\rho^2$. Below the boundary, sole
+ownership buys strict single-writer accountability at an explicit latency price
+that must be budgeted rather than obscured; Eq.~\ref{eq:specboundary} is where that
+price is written down.
 
 \paragraph{Numbers by hand.} The result is two lines of algebra on textbook
 formulas, which is the right way to first believe it. Sole ownership pays iff
@@ -1040,6 +1041,18 @@ teeth: the footgun guards. Here we must be precise about what a guard can and ca
 do, because the difference is the difference between a safety claim that holds and one
 that is wishful.
 
+% SUBMISSION-SKILL: naming conflict --- "regimentation" (used in this section's
+% title and below as "regiments what it can") is an established term of art in
+% normative multi-agent systems for structural, inline prevention of
+% norm-violating behavior (via mediation or hard-wiring), contrasted there with
+% monitoring/sanctioning enforcement -- the same prevention-vs.-monitoring split
+% this Property draws. The sense is compatible, not contradictory, so this reads
+% as independent convergent naming rather than an error; a human should decide
+% whether to cite the NorMAS regimentation literature (e.g. Aldewereld, Grossi,
+% Boella \& van der Torre) to adopt the term formally, gloss the borrowed sense
+% inline, or keep the current informal usage since the paper's load-bearing name
+% for this idea is already "physically unreachable" / "detect-and-compensate",
+% not "regimentation" itself.
 \begin{property}[Prevention vs.\ detection --- the reserved-phrase rule]\label{prop:regiment}
 A coordination state is \textbf{physically unreachable} --- prevented --- \emph{only}
 when a constraint forbids it \emph{inline}, before the act commits: a database
