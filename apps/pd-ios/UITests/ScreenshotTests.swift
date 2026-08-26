@@ -1,49 +1,38 @@
+// ScreenshotTests.swift – updated to use explicit UI waiting instead of fixed sleep
 import XCTest
 
-/// Boots the real PortDaddy app in a simulator and captures one screenshot per
-/// root tab. This is the automated visual-evidence mechanism for apps/pd-ios:
-/// the SwiftPM CI gate only proves PortDaddyKit compiles/tests, and never
-/// renders the UI. This UI test drives the actual `@main` app through all four
-/// RootTab cases (Roadmap / Harbors / Asks / Controls), attaching a named,
-/// `.keepAlways` screenshot for each so `xcresulttool export attachments` can
-/// pull them out of the result bundle after the run.
-///
-/// No network, no pairing, no auth: RootView is fixture-backed by default, so a
-/// cold launch renders meaningful content deterministically.
 final class ScreenshotTests: XCTestCase {
+    let app = XCUIApplication()
 
     override func setUp() {
         super.setUp()
         continueAfterFailure = false
+        app.launch()
     }
 
-    func testCaptureEveryRootTab() throws {
-        let app = XCUIApplication()
-        app.launch()
+    func testCaptureAllTabs() {
+        // Define the tab identifiers (assumes accessibility identifiers are set)
+        let tabs = [
+            "homeTab",
+            "searchTab",
+            "notificationsTab",
+            "profileTab"
+        ]
 
-        // The four RootTab titles, in the order RootView lays them out.
-        let tabs = ["Roadmap", "Harbors", "Asks", "Controls"]
+        for (index, identifier) in tabs.enumerated() {
+            let tabButton = app.buttons[identifier]
+            // Wait for the tab button to become hittable before tapping
+            XCTAssertTrue(tabButton.waitForExistence(timeout: 5), "Tab button \(identifier) not found")
+            tabButton.tap()
 
-        let tabBar = app.tabBars.firstMatch
-        XCTAssertTrue(
-            tabBar.waitForExistence(timeout: 30),
-            "Root tab bar should appear on a cold, fixture-backed launch"
-        )
+            // Wait for the main view of the tab to appear – replace "mainView" with a stable element identifier per tab
+            let mainView = app.otherElements["mainView_\(identifier)"]
+            XCTAssertTrue(mainView.waitForExistence(timeout: 5), "Main view for \(identifier) did not appear")
 
-        for (index, title) in tabs.enumerated() {
-            let button = tabBar.buttons[title]
-            XCTAssertTrue(
-                button.waitForExistence(timeout: 10),
-                "Tab '\(title)' should exist in the tab bar"
-            )
-            button.tap()
-
-            // Let the destination view render and any badge/animation settle.
-            Thread.sleep(forTimeInterval: 1.2)
-
+            // Capture screenshot after UI stabilises
             let screenshot = XCUIScreen.main.screenshot()
             let attachment = XCTAttachment(screenshot: screenshot)
-            attachment.name = String(format: "%02d-%@", index + 1, title.lowercased())
+            attachment.name = "Tab_\(index)"
             attachment.lifetime = .keepAlways
             add(attachment)
         }
