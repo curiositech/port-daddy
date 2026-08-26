@@ -198,6 +198,22 @@ function readSessionCookie(request: Request): string | null {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+/**
+ * The web session's OAuth scope. `repo` is required — not merely
+ * convenient — because every repo-access check this session's token backs
+ * (`userCanReadRepo`, `userIsRepoAdmin` in this file) calls
+ * `GET /repos/:owner/:repo` and treats a 404 as "not readable." GitHub
+ * returns 404 (not 403) for a private repository the token's scope can't
+ * see, which is indistinguishable from the repo not existing — so a token
+ * scoped to only `read:user user:email` silently fails every private-repo
+ * check, including a repo the user personally owns. `permissions.admin` in
+ * that same response (which `userIsRepoAdmin` reads) is also only populated
+ * for a sufficiently-scoped, authenticated request. `public_repo` alone
+ * would fix public repos but not private ones, which is exactly the
+ * lockout an operator with private repos hits.
+ */
+const WEB_SESSION_SCOPE = 'read:user user:email repo';
+
 /** GET /auth/github/login — mint single-use state, 302 to GitHub. */
 export async function handleGithubLogin(request: Request, env: Env): Promise<Response> {
   if (!loginConfigured(env)) return json(503, { code: 'LOGIN_UNCONFIGURED', error: 'GitHub login is not configured' });
@@ -209,7 +225,7 @@ export async function handleGithubLogin(request: Request, env: Env): Promise<Res
   const url = new URL(GH_AUTHORIZE);
   url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   url.searchParams.set('redirect_uri', redirectUri(env));
-  url.searchParams.set('scope', 'read:user user:email');
+  url.searchParams.set('scope', WEB_SESSION_SCOPE);
   url.searchParams.set('state', state);
   url.searchParams.set('allow_signup', 'false');
   return Response.redirect(url.toString(), 302);
