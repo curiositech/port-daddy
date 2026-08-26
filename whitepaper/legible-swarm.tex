@@ -1081,6 +1081,18 @@ that cry wolf}). We make escalation a \emph{costly signal} (\S\ref{sec:gates}): 
 escalation the operator dismisses debits the agent's standing, so crying wolf has a
 price.
 
+\noindent\Verified\ --- the threshold equilibrium exists and is unique: with payoff
+$\Pi_\delta(u)=b(u)-\delta w(1-V(u))$ strictly increasing in $u$, agents separate at
+$u^\star(\delta)$ solving $b(u^\star)=\delta w(1-V(u^\star))$, escalating iff
+$u\ge u^\star$ --- the Spence mold, where the dismissal debit is money only a genuine
+signal is worth risking. The free parameter $\delta$ is fit from measured validation
+rates (\texttt{instrumentation.md}), not vibes: the feasible debit set is an interval
+$[\delta_{\min},\delta_{\max}]$ trading alarm load against miss loss, and it can be
+\emph{empty} --- a tight attention budget with high miss costs admits no good debit,
+in which case the honest fix is capacity or evidence quality, not tuning. Monotone $V$
+is load-bearing throughout; a non-monotone validator breaks the separating threshold
+(item R14 of the research ledger, \texttt{b7\_escalation\_band.py}).
+
 \begin{exercises}
 \exhead{Check your understanding.}
 (4.1) Why is adversarial review (\S\ref{sec:review}) a corollary of
@@ -1832,7 +1844,23 @@ Let the context window hold $k$ active pages, with offline optimal page-replacem
 where $h \le k$ is the size of the verifiable pinned set, and $\psi \in [0, 1]$ represents the fraction of forgeable/unverified features subject to adversarial eviction. Under marking with randomized eviction, competitiveness against oblivious adversaries improves to $O(\log k)$.
 \end{theorem}
 
-\noindent\Proposed. The unweighted bound is classical; the weighted transfer and the adversarial $\psi$-degradation term are stated here as design targets, with the formal proof carried as item B9 of the research ledger (\emph{the $\psi$ budget is shared with the digest floor's forgeable-feature budget --- one number, two mechanisms}).
+\noindent\Verified\ --- \emph{upgraded from proposed}. The unweighted bound is classical
+(Sleator--Tarjan); the weighted transfer imports Young's \textsc{Landlord} unchanged.
+The adversarial term is new: with the pin oracle corrupted on $C$ consultations
+($\mathbb{E}[C]=\psi N$, oblivious, repair-on-touch), pin-augmented Landlord pays
+$\le c(P) + \tfrac{k-p}{k-h+1}\cdot\mathrm{OPT}_{h-p} + \psi N c_{\mathrm{refetch}}$ for
+every $p\le h\le k$ --- the Landlord bound on the honestly-unpinned region plus an
+\emph{additive, linear} $\psi$ term, checked against exact OPT on 122 instances (0
+violations) and against 50 corruption instances up to $\psi=0.4$ (0 violations, slope
+$22.8$ against a ceiling of $N\cdot c_{\mathrm{refetch}}=1200$, $R^2=0.994$). The guard
+is load-bearing, not decorative: dropping repair-on-touch turns one corruption into
+$\Theta(N)$ stale-serves, confirmed by mutation (item R16 of the research ledger,
+\texttt{b9\_context\_paging.py}) --- \emph{the $\psi$ budget is shared with the digest
+floor's forgeable-feature budget --- one number, two mechanisms}. Honest boundary: this
+is a mechanized sweep at seed 20260816 across small-to-moderate instances, not a
+closed-proof for every adversary class --- a stronger-than-greedy adaptive adversary
+remains untested, and unit cost density is assumed (general refetch costs need
+$c_{\mathrm{refetch}}\ge$ max-density$\times$max-size).
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
 \textbf{Pheromone decay} --- multiplying every stored coordination trace by a decay
