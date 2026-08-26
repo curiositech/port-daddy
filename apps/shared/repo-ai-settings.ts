@@ -32,8 +32,26 @@
  * per-repo/installation authority record is still out of scope here.
  */
 
-/** Default deadline for a single Workers AI binding call: 5 minutes. */
-export const DEFAULT_AI_CALL_DEADLINE_MS = 300_000;
+/**
+ * Default deadline for a single Workers AI binding call: 10 minutes.
+ *
+ * Raised from 5 minutes at operator instruction (2026-08-24) after production
+ * showed the boundary still firing: `fleet_run_steps` recorded **429 deadline
+ * kills across 126 runs in 18 unbroken hours**, every one exhausting all three
+ * delivery attempts, while other runs in the same window completed normally.
+ * That is a provider whose slow tail sits above the wall we were holding it
+ * to, not one that is down.
+ *
+ * This sets the default to {@link MAX_AI_CALL_DEADLINE_MS} — deliberately the
+ * ceiling, leaving per-repo configuration as a way to go *lower* rather than
+ * higher. That is only defensible because
+ * {@link RUN_ABSOLUTE_DEADLINE_MS} now bounds a whole logical run at 45
+ * minutes: a per-call deadline alone bounds one call, and the run-level storm
+ * (ships × attempts × deadline) is what the PR #9800 review correctly refused
+ * to ship without. With that ceiling in place, a longer per-call wait buys
+ * back slow-but-alive calls without an unbounded tail.
+ */
+export const DEFAULT_AI_CALL_DEADLINE_MS = 600_000;
 
 /** Floor: below this, ordinary model latency would trip the circuit spuriously. */
 export const MIN_AI_CALL_DEADLINE_MS = 5_000;

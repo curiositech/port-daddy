@@ -4,6 +4,14 @@
 
 Accepted for Phase 0 - 2026-06-15
 
+Authority update (STORE0, 2026-08-24): the original tuple-backed prototype has
+been supplanted. Canonical Parley records, participants, turns, exact seen
+receipts, outcomes, automatic admissions, cooldowns, and notification intents
+now live in one tenant/harbor-scoped SQLite authority in
+`lib/parley-store.ts`. Tuples, if emitted by a future observer, are
+non-authoritative projections and can never admit, mutate, settle, or resolve a
+Parley.
+
 Numbering note: 0051 is claimed by PR #316 (marketplace protocol), 0053 by
 PR #366 (out-of-band enforcement), and 0054 by PR #368 (release cadence). 0055
 is the lowest free number at time of writing.
@@ -31,7 +39,7 @@ The shipped substrate is strong enough to build on:
 | **Tube channels** | `lib/tube.ts` | Shared parley venue. |
 | **Performative envelope** | `lib/ipc-types.ts`, `lib/ipc-frame.ts` | Typed `propose`, `agree`, `refuse`, and `inform` turns. |
 | **File claims and claim watcher** | `lib/sessions.ts`, `lib/claim-watcher.ts` | The shipped overlap signal for trigger v1. |
-| **Tuple space** | `lib/tuples.ts` | Linda-style shared coordination facts for parley records. |
+| **Tuple space** | `lib/tuples.ts` | Optional Linda-style telemetry projection only; never Parley authority. |
 | **Arbiter** | `lib/arbiter.ts` | Making "ship the contested surface" unreachable once freeze is wired. |
 | **Coast Guard rent** | `lib/coast-guard/compulsion.ts` | Pricing silence and abandoned obligations. |
 | **Durable commitments** | `lib/commitments.ts`, `lib/obligation-monitor.ts` | Recording collapsed outcomes and watching adoption. |
@@ -64,8 +72,8 @@ First-use external terms:
 ## Decision
 
 Port Daddy adopts **parley** (`lib/parley.ts`) as the Phase-0 forced
-reconciliation primitive. A parley is a tuple-backed, terminating dialogue over
-a contested surface.
+reconciliation primitive. A parley is an indexed, tenant/harbor-scoped,
+transactionally persisted terminating dialogue over a contested surface.
 
 ```text
 trigger -> SUMMONED -> CONVENED -> COLLAPSED
@@ -89,11 +97,23 @@ Phase 0 intentionally ships a small, honest core:
 - `lib/swarm-coordination.ts` provides pure `evaluateSwarmFit()` and
   `tallyCouncilVotes()` reducers so swarm admission can be tested without the
   daemon.
-- `lib/parley.ts` records parleys in tuple space with `parley:opened`,
-  `parley:summons`, `parley:turn`, and `parley:outcome` tuples.
+- `lib/parley-store.ts` is the sole lifecycle authority: indexed SQLite tables
+  hold canonical records, participants, turns, exact seen receipts, outcomes,
+  automatic reservations/admissions, cooldowns, terminal evaluation receipts,
+  and a durable claim-before-hail outbox. `lib/parley.ts` is its facade. No
+  tuple event can authorize or mutate this state.
+- A transactional quota ledger bounds retained records, signals, turns, and
+  outbox rows per tenant and harbor. Ordinary admissions fail before any
+  partial write. Terminal state still commits when the retained outbox is
+  exactly full: STORE0 inserts or updates one bounded notification-overflow
+  receipt on the Parley instead of attempting an over-quota publication row.
 - `routes/parley.ts` exposes `POST /parley/call`,
   `POST /parley/respond`, `POST /parley/resolve`, `GET /parley`, and
-  `GET /parley/:id`.
+  `GET /parley/:id`. The terminal route is registered for contract continuity
+  but the production facade rejects every resolve until CAP0 authorizes and
+  redeems it. Actor-bearing call, response, and seen-receipt inputs are identity
+  integration seams, never self-asserted authority; U0 must bind or retire every
+  credentialless mutation before those routes become production-capable.
 - `cli/commands/parley.ts` exposes `pd parley fit`, `call`, `respond`,
   `resolve`, `list`, and `show`.
 - `cli/commands/roadmap.ts` adds `pd roadmap upsert` and `pd roadmap touch`,
@@ -164,7 +184,7 @@ these slugs:
 
 | Phase | Roadmap slug | Status | Description |
 |---|---|---|---|
-| 0 | `swarm-coordination-parley` | now | Fit gate, council tally, tuple-backed parley, CLI/API, manifest/completions, and guard-enforced roadmap receipts. |
+| 0 | `swarm-coordination-parley` | now | Fit gate, council tally, indexed transactional Parley authority, CLI/API, manifest/completions, and guard-enforced roadmap receipts. |
 | 1 | `parley-surface-freeze` | backlog | Guard refuses party commits on a contested surface while an open parley exists. |
 | 2 | `parley-rent-integration` | backlog | Silence past parley TTL becomes Coast Guard rent arrears. |
 | 3 | `parley-claim-overlap-trigger` | backlog | Claim overlap auto-summons a parley with debounce and cooldown. |
@@ -381,8 +401,9 @@ later.
 
 ### Revised build order (honest about the gated links)
 
-- **Phase 0 (buildable now, leans only on shipped links):** `lib/parley.ts`
-  state on `session.phase`; turns as notes (continuity-of-record);
+- **Phase 0 (buildable now, leans only on shipped links):** indexed
+  `lib/parley-store.ts` authority surfaced through `lib/parley.ts`, with
+  `session.phase` as a projection and durable store turns as the transcript;
   **deadline-driven, dormant-safe** closure; manual trigger; lifecycle
   visibility above; **every failure mode routes to operator escalation** with
   the transcript (the safety net that makes parley useful before auto-spawn or

@@ -304,8 +304,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
   },
   'knowledge': {
-    description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
+    description: 'Semantic search + symbol index — inspect Skill Graft coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['skill_graft_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
@@ -828,6 +828,17 @@ const TOOLS = [
   },
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
+  {
+    name: 'skill_graft_status',
+    description:
+      '[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. ' +
+      'Reports current, cold, reconciling, embedder-down, or generator-down ' +
+      'without generating centroids or calling an LLM. Usage: skill_graft_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
   {
     name: 'semantic_search',
     description:
@@ -3767,6 +3778,11 @@ async function handleTool(
     }
 
     // ── Knowledge (semantic search + symbol index) ──────────────────
+    case 'skill_graft_status': {
+      res = await GET('/skill-graft/status');
+      break;
+    }
+
     case 'semantic_search': {
       const params = new URLSearchParams();
       params.set('q', args.q as string);

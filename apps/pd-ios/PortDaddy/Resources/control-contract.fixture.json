@@ -1,0 +1,96 @@
+{
+  "generatedFrom": "skills/agent-control-command-contract/examples/sample-input.json",
+  "generatedBy": "scripts/generate-pd-ios-fixtures.ts",
+  "note": "Do not hand-edit. Regenerate, then make the Swift port agree.",
+  "authorizationSource": "authoritative-lease",
+  "verbs": [
+    "steer",
+    "interrupt",
+    "pause",
+    "kill",
+    "checkpoint",
+    "fork"
+  ],
+  "terminalStates": [
+    [
+      "queued",
+      "delivered",
+      "acknowledged",
+      "failed",
+      "expired",
+      "unsupported"
+    ],
+    [
+      "queued",
+      "delivered",
+      "acknowledged",
+      "failed",
+      "expired",
+      "unsupported"
+    ],
+    [
+      "queued",
+      "delivered",
+      "acknowledged",
+      "failed",
+      "expired",
+      "unsupported"
+    ],
+    [
+      "queued",
+      "delivered",
+      "acknowledged",
+      "failed",
+      "expired",
+      "unsupported"
+    ],
+    [
+      "queued",
+      "delivered",
+      "acknowledged",
+      "failed",
+      "expired",
+      "unsupported"
+    ],
+    [
+      "queued",
+      "delivered",
+      "acknowledged",
+      "failed",
+      "expired",
+      "unsupported"
+    ]
+  ],
+  "supportedVerbs": {
+    "local-same-uid": [
+      "steer",
+      "interrupt",
+      "pause",
+      "kill",
+      "checkpoint",
+      "fork"
+    ],
+    "cloudflare-remote": [
+      "steer",
+      "interrupt",
+      "kill",
+      "checkpoint"
+    ],
+    "hook-only-observed": []
+  },
+  "unsupportedVerbs": {
+    "local-same-uid": [],
+    "cloudflare-remote": [
+      "pause",
+      "fork"
+    ],
+    "hook-only-observed": [
+      "steer",
+      "interrupt",
+      "pause",
+      "kill",
+      "checkpoint",
+      "fork"
+    ]
+  }
+}

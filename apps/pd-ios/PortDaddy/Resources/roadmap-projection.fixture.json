@@ -1,0 +1,154 @@
+{
+  "v": 1,
+  "harbor": "fleet",
+  "generatedAt": 1755820800000,
+  "items": [
+    {
+      "id": "rm_0001",
+      "slug": "ios-operator-surface",
+      "title": "iOS operator surface — HITL-first v1",
+      "status": "now",
+      "priority": 1,
+      "claim": {
+        "claimedBy": "pd-ios-builder",
+        "claimedAt": 1755819000000,
+        "kind": "build",
+        "sessionId": "sess_4f2a",
+        "agentId": "agent_ios_1"
+      },
+      "receipts": [
+        { "kind": "dispatch", "at": 1755819000000, "by": "pd-ios-builder", "detail": "dispatch accepted" },
+        { "kind": "status-event", "at": 1755819600000, "by": "pd-ios-builder", "detail": "backlog -> now" },
+        { "kind": "note", "at": 1755820740000, "by": null, "detail": "scaffold compiling on the simulator gate" }
+      ],
+      "liveEvidence": {
+        "live": true,
+        "source": "popper-dispatch",
+        "dispatchId": "dsp_9c11",
+        "lastEvidenceAt": 1755820796000,
+        "ageMs": 4000,
+        "maxAgeMs": 65000,
+        "label": "live — events arriving"
+      },
+      "lastTouchedAt": 1755820796000,
+      "dependencies": []
+    },
+    {
+      "id": "rm_0002",
+      "slug": "harbor-authority",
+      "title": "Harbor authority — epochs, revocation, queued-command terminality",
+      "status": "now",
+      "priority": 2,
+      "claim": {
+        "claimedBy": "pd-authority",
+        "claimedAt": 1755700000000,
+        "kind": "build",
+        "sessionId": null,
+        "agentId": null
+      },
+      "receipts": [
+        { "kind": "status-event", "at": 1755700000000, "by": "pd-authority", "detail": "backlog -> now" }
+      ],
+      "liveEvidence": {
+        "live": false,
+        "source": "popper-dispatch",
+        "dispatchId": "dsp_71ab",
+        "lastEvidenceAt": 1755820388000,
+        "ageMs": 412000,
+        "maxAgeMs": 65000,
+        "label": "showing cached truth — last evidence 412s"
+      },
+      "lastTouchedAt": 1755820388000,
+      "dependencies": []
+    },
+    {
+      "id": "rm_0003",
+      "slug": "apns-push-for-interruptions",
+      "title": "APNs push for HITL interruptions",
+      "status": "merge",
+      "priority": 2,
+      "claim": null,
+      "receipts": [
+        { "kind": "dispatch", "at": 1755640000000, "by": "pd-relay", "detail": "dispatch accepted" }
+      ],
+      "liveEvidence": {
+        "live": false,
+        "source": "popper-dispatch",
+        "dispatchId": "dsp_5510",
+        "lastEvidenceAt": null,
+        "ageMs": null,
+        "maxAgeMs": 65000,
+        "label": "stale — dispatch trail without stream evidence"
+      },
+      "lastTouchedAt": 1755640000000,
+      "dependencies": []
+    },
+    {
+      "id": "rm_0004",
+      "slug": "roadmap-projection-route",
+      "title": "Serve the roadmap projection over HTTP",
+      "status": "backlog",
+      "priority": 3,
+      "claim": null,
+      "receipts": [],
+      "liveEvidence": {
+        "live": false,
+        "source": null,
+        "dispatchId": null,
+        "lastEvidenceAt": null,
+        "ageMs": null,
+        "maxAgeMs": 65000,
+        "label": "static — no dispatch receipt trail"
+      },
+      "lastTouchedAt": 1755600000000,
+      "dependencies": ["harbor-authority"]
+    },
+    {
+      "id": "rm_0005",
+      "slug": "vault-kernel",
+      "title": "pd-vault kernel crate — harbor key derivation",
+      "status": "backlog",
+      "priority": 4,
+      "claim": null,
+      "receipts": [
+        { "kind": "dispatch", "at": 1755500000000, "by": "pd-vault", "detail": "dispatch settled" }
+      ],
+      "liveEvidence": {
+        "live": false,
+        "source": "popper-dispatch",
+        "dispatchId": "dsp_2200",
+        "lastEvidenceAt": 1755500000000,
+        "ageMs": 320800000,
+        "maxAgeMs": 65000,
+        "label": "settled — dispatch accepted"
+      },
+      "lastTouchedAt": 1755500000000,
+      "dependencies": []
+    },
+    {
+      "id": "rm_0006",
+      "slug": "shared-harbors-launch",
+      "title": "Shared harbors launch gate",
+      "status": "parked",
+      "priority": 5,
+      "claim": null,
+      "receipts": [],
+      "liveEvidence": {
+        "live": false,
+        "source": null,
+        "dispatchId": null,
+        "lastEvidenceAt": null,
+        "ageMs": null,
+        "maxAgeMs": 65000,
+        "label": "static — no dispatch receipt trail"
+      },
+      "lastTouchedAt": 1755400000000,
+      "dependencies": ["ios-operator-surface", "harbor-authority"]
+    }
+  ],
+  "doThisNext": [
+    { "slug": "ios-operator-surface", "title": "iOS operator surface — HITL-first v1", "reason": "status-now" },
+    { "slug": "harbor-authority", "title": "Harbor authority — epochs, revocation, queued-command terminality", "reason": "status-now" },
+    { "slug": "vault-kernel", "title": "pd-vault kernel crate — harbor key derivation", "reason": "popper-next" }
+  ]
+}

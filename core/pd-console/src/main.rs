@@ -46,6 +46,7 @@ mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod maritime;
+mod mission_view;
 mod mux;
 mod notes_pane;
 mod palette;
@@ -304,7 +305,13 @@ fn main() {
                 .map(String::as_str)
                 .filter(|a| !a.starts_with('-'))
                 .unwrap_or("headless-capture.png");
-            match headless_capture::capture_to_path(out) {
+            let state = args
+                .iter()
+                .position(|a| a == "--mission-state")
+                .and_then(|index| args.get(index + 1))
+                .map(String::as_str)
+                .unwrap_or("in_progress");
+            match headless_capture::capture_state_to_path(out, state) {
                 Ok(bytes) => {
                     println!("pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)");
                     return;
@@ -321,8 +328,8 @@ fn main() {
     app::init_theme_from_env();
     app::init_motion_from_env();
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → console-daemon.url →
-    // daemon.port file → the stable berth default. All fallback logic lives in
+    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file →
+    // the stable berth default. All fallback logic lives in
     // DaemonClient::discover(); no literals here. Discovery is infallible now —
     // with nothing registered the console opens against the stable berth and the
     // panes render reachability honestly instead of panicking pre-window.
@@ -604,8 +611,11 @@ fn main() {
                 )> = None;
 
                 // Rehydrate Work truth only when its durable identity/state changes.
-                let mut latest_work_projection: Option<(String, String)> = None;
+                let mut latest_work_projection: Option<(String, String, String)> = None;
                 let mut latest_work_query_error: Option<String> = None;
+                // Once the operator starts a mission, keep following that exact
+                // WorkIntent even if another client creates newer work.
+                let mut tracked_work_intent_id: Option<String> = None;
 
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -632,14 +642,19 @@ fn main() {
                                         let correlation = receipt.correlation_id.clone();
                                         let duplicate = receipt.duplicate;
                                         let snapshot = receipt.snapshot.clone();
-                                        latest_work_projection =
-                                            Some((intent_id.clone(), state.clone()));
+                                        tracked_work_intent_id = Some(intent_id.clone());
+                                        latest_work_projection = Some((
+                                            intent_id.clone(),
+                                            state.clone(),
+                                            snapshot.execution_fingerprint(),
+                                        ));
                                         let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
                                         match client.start_work_intent(&snapshot).await {
                                             Ok(execution) => {
                                                 let runtime_state = execution.state.clone();
                                                 let execution_id = execution.dispatch_id.clone();
                                                 let launched = execution.launched_this_tick;
+                                                lane.follow_agent(execution.agent_id.as_deref());
                                                 let _ = work_tx.send(app::WorkUpdate::Execution(execution));
                                                 let _ = alert_tx.send(pane::Alert::info(
                                                     format!("WorkIntent started: {intent_id}"),
@@ -717,7 +732,11 @@ fn main() {
                                         let intent_id = receipt.snapshot.intent_id().to_string();
                                         let state = receipt.snapshot.plan_state().to_string();
                                         let snapshot = receipt.snapshot.clone();
-                                        latest_work_projection = Some((intent_id.clone(), state));
+                                        latest_work_projection = Some((
+                                            intent_id.clone(),
+                                            state,
+                                            snapshot.execution_fingerprint(),
+                                        ));
                                         let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
                                         match client.start_work_intent(&snapshot).await {
                                             Ok(execution) => {
@@ -821,6 +840,7 @@ fn main() {
                                 editor_stream = None; // and the editor's edit/coord streams
                                 latest_work_projection = None;
                                 latest_work_query_error = None;
+                                tracked_work_intent_id = None;
                             }
                             // Steer the Sextant pane's query; the next 2s refresh
                             // fetches with the new window/floor.
@@ -925,8 +945,8 @@ fn main() {
                                 match client.interrupt(&agent_id, Some("operator stop")).await {
                                     Ok(()) => {
                                         let _ = alert_tx.send(pane::Alert::info(
-                                            format!("interrupted {agent_id}"),
-                                            "operator stop sent",
+                                            format!("stop requested for {agent_id}"),
+                                            "runtime acknowledgement pending",
                                         ));
                                     }
                                     Err(e) => {
@@ -941,8 +961,8 @@ fn main() {
                             // /parley/call). Parties are agent ids the view
                             // already deduped/gated at >=2; a daemon rejection
                             // (400 body) surfaces VERBATIM on the alert bus.
-                            app::ControlMsg::GalaxyParley { surface, reason, parties } => {
-                                match client.call_parley(&surface, &reason, "operator", &parties).await {
+                            app::ControlMsg::GalaxyParley { surface, reason, session_ids } => {
+                                match client.call_parley(&surface, &reason, &session_ids).await {
                                     Ok(v) => {
                                         let parley = v.get("parley").cloned().unwrap_or_default();
                                         let parley_id = parley
@@ -958,8 +978,8 @@ fn main() {
                                         let _ = alert_tx.send(pane::Alert::info(
                                             "parley convened",
                                             format!(
-                                                "parley {parley_id} on channel {channel} · {} parties · surface {surface}",
-                                                parties.len()
+                                                "parley {parley_id} on channel {channel} · {} source sessions · surface {surface}",
+                                                session_ids.len()
                                             ),
                                         ));
                                     }
@@ -1118,14 +1138,23 @@ fn main() {
                         }
                     }
 
-                    match client.list_work_intents(1).await {
+                    let query_limit = if tracked_work_intent_id.is_some() { 100 } else { 1 };
+                    match client.list_work_intents(query_limit).await {
                         Ok(snapshots) => {
                             latest_work_query_error = None;
-                            if let Some(snapshot) = snapshots.into_iter().next() {
+                            let snapshot = match tracked_work_intent_id.as_deref() {
+                                Some(intent_id) => snapshots
+                                    .into_iter()
+                                    .find(|snapshot| snapshot.intent_id() == intent_id),
+                                None => snapshots.into_iter().next(),
+                            };
+                            if let Some(snapshot) = snapshot {
                                 let fingerprint = (
                                     snapshot.intent_id().to_string(),
                                     snapshot.plan_state().to_string(),
+                                    snapshot.execution_fingerprint(),
                                 );
+                                lane.follow_agent(snapshot.execution_agent_id());
                                 if latest_work_projection.as_ref() != Some(&fingerprint) {
                                     latest_work_projection = Some(fingerprint);
                                     let _ = work_tx.send(app::WorkUpdate::Snapshot(snapshot));

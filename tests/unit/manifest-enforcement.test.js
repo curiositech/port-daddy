@@ -540,6 +540,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_overdue_commitments': 'commitments',
       'list_nudges': 'suggestions',
       'respond_nudge': 'suggestions',
+      'skill_graft_status': 'skill_graft',
       'semantic_search': 'semantic',
       'semantic_resolve': 'semantic',
       'find_symbols': 'symbols',

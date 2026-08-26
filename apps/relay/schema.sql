@@ -806,7 +806,6 @@ CREATE TABLE IF NOT EXISTS parley_positions (
   PRIMARY KEY (parley_id, party_kind, party_id)
 );
 
-
 -- ──────────────────────────────────────────────────────────────────────────
 -- MEDIATOR BODY (grand-plan DAG node mediator-body; plan §X4 second half;
 -- src/mediator-body.ts; migration 2026-08-09-mediator-body.sql).
@@ -1029,3 +1028,26 @@ CREATE TABLE IF NOT EXISTS agent_chat_spend (
   PRIMARY KEY (agent, user_id, window_start)
 );
 CREATE INDEX IF NOT EXISTS agent_chat_spend_window_idx ON agent_chat_spend (window_start);
+-- ──────────────────────────────────────────────────────────────────────────
+-- APNs DEVICE TOKENS — iOS push registry for operator interruptions
+-- (src/push-apns.ts; migration 2026-08-20-apns-device-tokens.sql). One row
+-- per (account, device); the interruption nag sweep fans DELIVERED page
+-- decisions out to the account's live rows. An APNs 410 Unregistered (or 400
+-- BadDeviceToken) sets dead_at; re-registration clears it. `token` is
+-- globally unique — one APNs token = one live device+app instance.
+
+CREATE TABLE IF NOT EXISTS apns_device_tokens (
+  user_id      TEXT    NOT NULL,             -- account scope (users.id)
+  device_id    TEXT    NOT NULL,             -- app-chosen stable device id (e.g. identifierForVendor)
+  token        TEXT    NOT NULL,             -- hex APNs device token (lowercased)
+  platform     TEXT    NOT NULL DEFAULT 'ios'
+                       CHECK (platform IN ('ios','ipados','macos')),
+  created_at   INTEGER NOT NULL,             -- unix seconds, first registration
+  last_seen_at INTEGER NOT NULL,             -- bumped on every re-registration
+  dead_at      INTEGER,                      -- set on APNs 410/BadDeviceToken; NULL = live
+  PRIMARY KEY (user_id, device_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS apns_tokens_token_idx
+  ON apns_device_tokens (token);
+CREATE INDEX IF NOT EXISTS apns_tokens_user_live_idx
+  ON apns_device_tokens (user_id, dead_at, last_seen_at);
