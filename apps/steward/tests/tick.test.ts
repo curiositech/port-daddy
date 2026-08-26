@@ -438,3 +438,87 @@ describe('surveyOpenPrs — GitHub reads into snapshots', () => {
     ).rejects.toThrow('500');
   });
 });
+
+describe('the docket walk — one opinion per PR, recorded once', () => {
+  // WHAT THIS IS AND IS NOT. An earlier reading of production called this a
+  // head-of-line livelock: #6419 (tier 3, red, fleet-owned) sat at the docket
+  // head across two wakes and the tick judged only `docket[0]`, so the claim
+  // was that a landable PR behind it could never be reached. That claim was
+  // WRONG, and the first draft of these tests is what disproved it —
+  // `classifyPr` puts approved + green + mergeable at TIER 2, which outranks
+  // tier 3, so anything landable jumps the queue by construction. #6419 at the
+  // head means only that nothing in the repo is currently landable.
+  //
+  // Two real defects remain, and they are what these pin:
+  //   1. The seat recorded the SAME verdict for the SAME PR on every wake —
+  //      four identical rows a day, forever, in the ledger that is supposed to
+  //      be the repo's readable merge history.
+  //   2. It formed an opinion on exactly one PR, so the ledger described the
+  //      docket head rather than the repo.
+
+  const redHead = pr({ number: 6419, checks: 'red', fleetOwned: true });
+  const landable = pr({ number: 7777, checks: 'green', approved: true, mergeable: true });
+
+  it('confirms tier order already protects a landable PR — no walk required', async () => {
+    // Stated as a test so the disproved claim cannot quietly come back.
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const res = await runTick(env, REPO, NOW, undefined, async () => [redHead, landable]);
+    expect(res.verdict?.verdict).toBe('LAND');
+    expect(res.verdict?.prNumber).toBe(7777);
+    expect(d1.mergeLedger[0].pr_number).toBe(7777);
+  });
+
+  it('now forms an opinion on the whole docket, not just its head', async () => {
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const res = await runTick(env, REPO, NOW, undefined, async () =>
+      [redHead, pr({ number: 8, checks: 'red' }), pr({ number: 9, changesRequested: true })]);
+    expect(res.scanned).toBe(3);
+    expect(res.ledgered).toBe(3);
+    expect(d1.mergeLedger.map(r => r.pr_number).sort()).toEqual([8, 9, 6419].sort());
+  });
+
+  it('records a verdict once, then goes quiet while the answer is unchanged', async () => {
+    // The defect that made the ledger unreadable: identical rows every wake.
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const survey = async () => [redHead, pr({ number: 8, checks: 'red' })];
+
+    const first = await runTick(env, REPO, NOW, undefined, survey);
+    expect(first.ledgered).toBe(2);
+    const afterFirst = d1.mergeLedger.length;
+
+    const second = await runTick(env, REPO, NOW + 60_000, undefined, survey);
+    expect(second.unchanged).toBe(2);
+    expect(second.ledgered).toBe(0);
+    expect(d1.mergeLedger.length).toBe(afterFirst);
+  });
+
+  it('speaks up again the moment a verdict actually changes', async () => {
+    // Silence must mean "nothing changed", never "stopped looking".
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    await runTick(env, REPO, NOW, undefined, async () => [pr({ number: 42, checks: 'red' })]);
+    const before = d1.mergeLedger.length;
+
+    const res = await runTick(env, REPO, NOW + 60_000, undefined, async () =>
+      [pr({ number: 42, checks: 'green', approved: true, mergeable: true })]);
+    expect(res.ledgered).toBe(1);
+    expect(res.verdict?.verdict).toBe('LAND');
+    expect(d1.mergeLedger.length).toBe(before + 1);
+  });
+
+  it('reports an all-unchanged tick honestly instead of naming one PR', async () => {
+    // The old line named `docket[0]` unconditionally, so a seat with nothing
+    // new to say looked identical to one that had just decided something.
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db, STEWARD_GITHUB_TOKEN: 'survey' });
+    const survey = async () => [redHead];
+    await runTick(env, REPO, NOW, undefined, survey);
+    const res = await runTick(env, REPO, NOW + 60_000, undefined, survey);
+    expect(res.verdict).toBeUndefined();
+    expect(res.scanned).toBe(1);
+    expect(res.unchanged).toBe(1);
+  });
+});
