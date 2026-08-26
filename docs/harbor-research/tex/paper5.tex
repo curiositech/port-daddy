@@ -29,8 +29,9 @@ one lucky episode into an $8.2\times$ quorum multiplier. (2) \emph{Engine substi
 the engine actually running, so swapping in a cheap engine always pays and Akerlof's death spiral runs \emph{inside one identity};
 with attested engine ids the incentive flips to the planner's own efficiency rule at zero audit stake --- and the same three checks
 make resurrection across providers sanction-sound against its three named attacks. (3) \emph{The probation cliff}: among all
-newcomer-restriction schedules with equal power to deter whitewashing, the maximally front-loaded one uniquely minimizes the tax on
-honest newcomers --- the ramp should be a cliff. \emph{Express lane: each section opens with its idea in one breath; the formal
+newcomer-restriction schedules with equal power to deter whitewashing, the maximally front-loaded \emph{feasible} one uniquely
+minimizes the tax on honest newcomers --- the ramp should be a cliff, of positive width when the newcomer's own ceiling caps what a
+single period can hold back, and of no shape at all once the fraud gain exceeds what that ceiling can carry. \emph{Express lane: each section opens with its idea in one breath; the formal
 statement is in the box below it; a reader in a hurry needs nothing else.}
 \end{abstract}
 
@@ -44,12 +45,10 @@ reputation come along. And at the harbor gate, a newcomer arrives with no histor
 sanctioned identity wearing a fresh key. Each event asks the same question: \emph{is this still the same agent, and what is it owed?}
 
 Philosophy has owned that question for twenty-four centuries without producing a fact of the matter that a mechanism could safely
-depend on. The nearest thing to a resolution is itself a dissolution: Parfit's argument that in fission cases --- his teletransporter
-duplicating into two survivors is the ancestor of every fork case in this paper --- personal identity has no determinate answer and,
-more to the point, is not what matters for survival; what matters is the pattern of psychological continuity, which can hold, and
-matter, without any yes-or-no verdict on identity ever being reached \cite{parfit}. This paper takes the same exit for a different
-substrate, and gives it teeth a ledger can enforce where a stream of experience cannot: any mechanism whose safety depends on
-resolving the ship of Theseus is unbuildable. We never decide whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead
+depend on. We borrow exactly one thing from it and say in \S\ref{sec:related} which half we decline: Parfit's \emph{move} of
+dissolving the identity question in fission cases, so that what matters survives without any yes-or-no verdict on identity ever
+being reached \cite{parfit,parfit1971}. The design rule that licenses is flat: any mechanism whose safety depends on resolving the
+ship of Theseus is unbuildable. We never decide whether the fork ``is'' its ancestor or the resurrected agent ``is'' the deceased one. We ask instead
 what a reputation economy must \emph{conserve} across these events so that the sanctions it levies keep their teeth, and we prove
 three conservation results --- one per door through which continuity can be abused. The root the chain hangs from is the program's prior impossibility result
 (whitepaper Def.~III.6.1 and its necessity theorem): a reputation mechanism is \emph{sanction-respecting} if a dishonest witnessed
@@ -79,7 +78,7 @@ engine swap (\S\ref{sec:engine}) & unraveling; IC flip & $4000\times 8$ sweeps; 
 \texttt{b5\_engine\_substitution.py} \\
 resurrection (\S\ref{sec:resurrection}) & sanction soundness & 747-state machine; 4/4 mutants &
 \texttt{b5\_engine\_substitution.py} \\
-fresh entry (\S\ref{sec:cliff}) & cliff undominated & 76{,}000 schedules, 0 dominate &
+fresh entry (\S\ref{sec:cliff}) & cliff undominated (uncapped) & 76{,}000 schedules, 0 dominate &
 \texttt{b6\_probation.py} \\
 \bottomrule
 \end{tabular}
@@ -96,13 +95,21 @@ inheritance is dangerous: derive eight skills from one lucky episode, let each i
 now backs eight voting identities. The analogy that carries the design, mapped by relations rather than surface features
 (Figure~\ref{fig:r12rel}), is money. A bank \emph{transfer} moves \$100 by debiting the sender --- conservation is built into the
 operation; a \emph{photocopier} produces a second \$100 note and has minted. Reputation inheritance must be a transfer, and the
-theorem says that once it is, conservation survives every DAG shape an adversary can draw.
+theorem says that once it is, conservation survives every DAG shape an adversary can draw. Figure~\ref{fig:p5lineage} runs one such
+shape --- a three-way fork with a re-derivation cycle hanging off it --- through both semantics with every node's live balance
+printed on it, so the running total can be added up by eye.
 
 \textbf{The wrong turn, reported.} The program's first phrasing was budget-only: per-outcome grant fractions summing to at most
 one, the child's prior $\gamma\, w\cdot\mathrm{value}(\text{source})$, and the claim ``total inherited over the DAG's closure
 $\le$ total witnessed.'' The refute-first sweep killed it before any proof effort was spent: a full-weight chain
-$e\to a_1\to a_2\to a_3$ at $\gamma=0.9$ is budget-legal at every hop, yet its closure sums to $0.9+0.81+0.729=2.44>1$ [internal,
-\texttt{a6\_no\_mint.py}]. Budgets without debiting conserve nothing for $\gamma>\tfrac12$ (Figure~\ref{fig:r12reg}). The counterexample forced the transfer
+$e\to a_1\to a_2\to a_3$ at $\gamma=0.9$ is budget-legal at every hop, yet its closure sums to $0.9+0.81+0.729=2.439>1$ [internal,
+\texttt{a6\_no\_mint.py}]. Two thresholds live here and they are different numbers, so it is worth separating them at first use.
+\emph{This particular three-hop chain} crosses the mint line at $\gamma\approx0.5437$, the root of $\gamma+\gamma^2+\gamma^3=1$;
+the \emph{budget-only scheme in general} fails to conserve exactly above $\gamma=\tfrac12$, since without a debit the credit a
+closure can inherit is bounded by $\sum_{d\ge1}\gamma^d=\gamma/(1-\gamma)$, which exceeds the one witnessed unit precisely when
+$\gamma>\tfrac12$ --- a tight threshold in both directions, with the depth needed to realize it growing as $\gamma$ falls (two hops
+at $\gamma=0.9$, five at $\gamma=0.51$) [verified]. Budgets without debiting therefore conserve nothing for $\gamma>\tfrac12$ at
+sufficient depth (Figure~\ref{fig:r12reg}). The counterexample forced the transfer
 semantics below --- the sweep-first discipline locating the correct statement before the proof, again.
 
 \begin{thebox}
@@ -123,12 +130,15 @@ multiplication: one episode backing $8.2$ votes' worth of reputation, crossing a
 $8.2q$. Reverting the mutation restores conservation [internal].
 \end{thebox}
 
-\textbf{Numbers by hand.} The refuting chain: $0.9+0.9^2+0.9^3=0.9+0.81+0.729=2.44>1$ --- three budget-legal hops, and the closure
-credits $2.44$ witnessed units where only one exists. \emph{Now you try:} at $\gamma=0.8$, does the same full-weight chain still
-mint under the budget-only phrasing? ($0.8+0.64+0.512=1.952>1$ --- yes. Note the threshold carefully: \emph{this three-hop chain} crosses $1$ at $\gamma\approx0.5437$, the root of $\gamma+\gamma^2+\gamma^3=1$, not at $\gamma=1/2$. What is true at $\gamma>1/2$ is that \emph{some} chain mints, since $\sum_{d\ge1}\gamma^d=\gamma/(1-\gamma)>1$ there --- the depth required grows as $\gamma$ falls, needing five hops at $\gamma=0.51$ and only two at $\gamma=0.9$; under transfer
-semantics the same chain's live total stays exactly $\le 1$ [verified].)
+\textbf{Numbers by hand.} The refuting chain: $0.9+0.9^2+0.9^3=0.9+0.81+0.729=2.439>1$ --- three budget-legal hops, and the closure
+credits $2.439$ witnessed units where only one exists. \emph{Now you try:} at $\gamma=0.8$, does the same full-weight chain still
+mint under the budget-only phrasing? ($0.8+0.64+0.512=1.952>1$ --- yes, and it keeps minting all the way down to the chain's own
+threshold $\gamma\approx0.5437$; under transfer semantics the same chain's live total stays exactly $\le 1$ at every $\gamma$
+[verified].)
 
 \input{fig-r12-relation.tex}
+
+\input{fig-paper5-lineage.tex}
 
 \input{fig-r12-regime.tex}
 
@@ -164,8 +174,9 @@ and the machine that will produce the next outcome, so the record measures the w
 buyers. The one-period gain from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is \emph{price-independent}: no belief supports pooling
 on $\theta_H$, and no \emph{costless} signal exists inside the identity to separate on. Committed $\theta_H$ sellers stay in the market iff the pooled price clears their cost:
 $\mu\theta_H+(1-\mu)\theta_L\ge c_H\iff \mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; below $\mu^\star$ the death spiral runs
-inside one identity down to $\theta_L$. Deterring the swap without attestation requires an audited stake $qW\ge\Delta c$ (audit
-probability $q$, slashable stake $W$).
+inside one identity down to $\theta_L$. Deterring the swap without attestation requires an audited bond $qB\ge\Delta c$ (audit
+probability $q$, slashable bond $B$; the letter $W$ is reserved throughout this paper for total witnessed value,
+\S\ref{sec:nomint}).
 
 \textbf{Theorem 2b (the IC flip).} With daemon-attested engine ids on every witnessed outcome, reputation keys on the pair
 (principal, engine) and the swap gain becomes $\Delta c-(p_H-p_L)$; \emph{if the attested price schedule prices quality at its
@@ -175,9 +186,9 @@ consequence: under Bertrand competition on attested keys $p_\theta=c_\theta$ and
 passes through less than the full quality difference moves the flip point.
 
 \textbf{Verification.} Worked instance $\theta_H{=}1$, $\theta_L{=}0.4$, $c_H{=}0.5$, $c_L{=}0.2$: swap gain $0.3$ at every price;
-$\mu^\star=1/6\approx 0.167$; unattested deterrence stake $W^\star=\Delta c/q=0.5$ at $q=0.6$; attested payoffs keep $0.5$ vs swap
+$\mu^\star=1/6\approx 0.167$; unattested deterrence bond $B^\star=\Delta c/q=0.5$ at $q=0.6$; attested payoffs keep $0.5$ vs swap
 $0.2$ [verified]. Sweeps at seed 20260816: 4000 instances $\times$ 8 prices, 0 price-dependence violations; the $\mu^\star$ and
-$qW$ lines match simulation with 0 mismatches; 2000 heterogeneous-cost spirals are all monotone to the Akerlof fixed point
+$qB$ lines match simulation with 0 mismatches; 2000 heterogeneous-cost spirals are all monotone to the Akerlof fixed point
 ($\mu_0{=}0.5\to\mu_\infty{=}1/3$ at price $0.6$; $\mu_0{=}0.2\to 0$, price $\theta_L{=}0.4$); attested IC sign equals the
 efficiency sign in 4000/4000 draws [internal, \texttt{b5\_engine\_substitution.py}]. \textbf{Mutations:} the wrong-threshold
 mutant $\mu^\star=\Delta c/\Delta\theta$ is caught $1305\times$; the no-flip mutant (attestation without re-keying the price) is
@@ -206,7 +217,7 @@ civic-mindedness. Their paper contains no adverse-selection framing, and this on
 halves fit.
 
 \begin{boundary}
-\textbf{Honest boundary.} Two-period stylization: the strategic type has no reputational continuation value beyond the stake $W$
+\textbf{Honest boundary.} Two-period stylization: the strategic type has no reputational continuation value beyond the bond $B$
 --- a long-horizon folk-theorem analysis is out of scope, and with one the unattested deterrence line would shift. Attestation
 soundness is a deployment assumption (TEE and daemon integrity), per the program's declined-claims list --- the theorem prices what
 attestation buys, not whether your attestation is sound. And $\theta$ here is a scalar quality; multi-dimensional quality with
@@ -266,8 +277,8 @@ checkpoint restored the agent's ``experience,'' only that the ledger followed th
 \section{The front gate: the newcomer ramp is a cliff}\label{sec:cliff}
 
 \onebreath{Among all newcomer-restriction schedules with equal power to deter a short-horizon whitewasher, the one that stacks the
-whole restriction at entry --- a cliff, not a ramp --- uniquely minimizes the tax on honest newcomers, because early restriction is
-the only kind the impatient type still feels --- formal statement in the box below.}
+restriction as early as the newcomer's own ceiling can carry it --- a cliff, not a ramp --- uniquely minimizes the tax on honest
+newcomers, because early restriction is the only kind the impatient type still feels --- formal statement in the box below.}
 
 \textbf{Intuition.} Sections \ref{sec:nomint}--\ref{sec:resurrection} sealed the side doors; the front gate remains. By the
 necessity theorem, identities must cost something to abandon, and the standard instrument is a probation schedule: for the first
@@ -281,36 +292,51 @@ gentle ramp that eases the newcomer in. The instinct is wrong here, and the LP s
 so it must land where the short-horizon type still feels it --- immediately.
 
 \begin{thebox}
-\textbf{Theorem 4 (the probation cliff).} The deterrence-per-honest-cost of a unit gap at time $t$ is
-$\delta_f^t/\delta_h^t=(\delta_f/\delta_h)^t$, strictly decreasing in $t$. Exchange argument: moving gap mass from any later
-period to any earlier one, holding the deterrence constraint tight, strictly lowers $H$; iterating drives all mass to $t=0$. Hence
-the maximally front-loaded schedule $g^\star=(G_{\max},0,\dots,0)$ minimizes the honest burden, with $H(g^\star)=G_{\max}$
-exactly, and for every feasible $g$,
+\textbf{Theorem 4 (the probation cliff).} \emph{Hypotheses.} Horizon $T$; discount factors $\delta_f<\delta_h$ in $(0,1)$; gaps
+$0\le g_t\le L$, where $L$ is the per-period cap imposed by the newcomer's own economic ceiling (since $g_t$ is the amount that
+ceiling is \emph{reduced} by, it cannot exceed it); deterrence constraint $\sum_{t=0}^T\delta_f^t g_t\ge G_{\max}$; objective
+$H(g)=\sum_{t=0}^T\delta_h^t g_t$.
+
+\emph{(i) Front-loading.} The deterrence-per-honest-cost of a unit gap at time $t$ is $\delta_f^t/\delta_h^t=(\delta_f/\delta_h)^t$,
+strictly decreasing in $t$. Exchange argument: moving gap mass from any later period to any earlier one, holding the deterrence
+constraint tight, strictly lowers $H$. Because that ratio is \emph{strictly} monotone, the minimizer is the greedy fill --- saturate
+$t=0$ at the cap, then $t=1$, and so on, with at most one partially filled final period --- and it is \emph{unique} whenever the
+programme is feasible at all.
+
+\emph{(ii) The uncapped corner.} If the cap does not bind ($G_{\max}\le L$), the greedy fill collapses to the pure spike
+$g^\star=(G_{\max},0,\dots,0)$, with $H(g^\star)=G_{\max}$ exactly, and for every feasible $g$,
 \[
 H(g)\;=\;\sum_t(\delta_h/\delta_f)^t\,\delta_f^t g_t\;\ge\;\sum_t\delta_f^t g_t\;\ge\;G_{\max}\;=\;H(g^\star),
 \]
-with equality only when all mass sits at $t=0$: no feasible schedule dominates the cliff, \emph{among schedules the ceiling can
-actually carry}. That qualification is the theorem's missing hypothesis and it binds. Since $g_t$ is the amount by which a
-newcomer's economic ceiling is \emph{reduced}, it is bounded above by that ceiling: with a per-period cap $g_t\le L$, the pure
-spike $g^\star=(G_{\max},0,\dots,0)$ is infeasible whenever $G_{\max}>L$, and the constrained optimum is bang-bang --- fill
-$t=0,1,\dots,k$ to the cap --- i.e.\ a cliff of positive \emph{width} rather than a single spike. The front-loading conclusion
-survives this unchanged; the \emph{uniqueness} claim and the closed form $H(g^\star)=G_{\max}$ do not. Sharper still, total
-achievable deterrence is bounded by $\sum_t\delta_f^tL = L/(1-\delta_f)$, so the programme is infeasible \emph{at every schedule
-shape} when $G_{\max}>L/(1-\delta_f)$: at the worked instance ($\delta_f=0.60$, $G_{\max}=20$) any per-period ceiling below $8$
-makes the fraud gain undeterrable by probation alone, and the honest response is a different instrument, not a different
-schedule. Underestimate $G_{\max}$ and no shape saves you; overestimate it relative to the ceiling and no shape saves you
-either. (The LP's optimum sits at this vertex
-for \emph{every} $\delta_f<\delta_h$ --- the corner is not a knife-edge.)
+with equality only when all mass sits at $t=0$: no feasible schedule dominates the cliff. The LP's optimum sits at this vertex for
+\emph{every} $\delta_f<\delta_h$ --- the corner is not a knife-edge.
+
+\emph{(iii) The cap, and where the result stops.} When $G_{\max}>L$ the pure spike is infeasible and the unique optimum is
+bang-bang of positive \emph{width}: fill $t=0,1,\dots,k$ to the cap, where $k$ is the first period at which the deterrence
+constraint is met. What the cap costs is therefore not the front-loading conclusion, and not uniqueness, but two narrower things:
+the identification of the optimum with the pure spike, and the closed form $H(g^\star)=G_{\max}$, which becomes a strict
+underestimate. Sharper still, total achievable deterrence is bounded by $\sum_{t=0}^T\delta_f^tL = L\,(1-\delta_f^{T+1})/(1-\delta_f)
+\le L/(1-\delta_f)$, so there is \emph{no minimizer at all} --- the programme is infeasible at every schedule shape --- once
+$G_{\max}>L/(1-\delta_f)$. At the worked instance ($\delta_f=0.60$, $G_{\max}=20$, $T=10$) probation can destroy at most
+$L\cdot(1-0.6^{11})/0.4=2.4909\,L$, so any per-period ceiling below $L=8.03$ makes the fraud gain undeterrable by probation alone
+--- $L=8$ in the $T\to\infty$ relaxation $L/(1-\delta_f)$ --- and the honest response is a different instrument, not a different
+schedule [verified]. Underestimate $G_{\max}$ and no shape deters; overestimate it relative to the ceiling and no shape is
+feasible.
 
 \textbf{Verification.} Random search for a dominating schedule across 4000 random instances
 ($\delta_h\in[0.85,0.99]$, $\delta_f<\delta_h$, $T\in[6,16]$, $G_{\max}\in[1,50]$), each instance testing random gamma-shaped
 schedules plus the structured adversaries the deferred-compensation instinct suggests (uniform ramps, pure back-loads, two-point
 splits), all scaled so deterrence binds: \textbf{76{,}000 schedules, 0 dominate the cliff}; the closed form
 $H=G_{\max}(\delta_h/\delta_f)^t$ for all-mass-at-$t$ schedules matches the sweep and is strictly increasing in $t$ [internal,
-\texttt{b6\_probation.py}].
+\texttt{b6\_probation.py}]. \emph{Scope of that evidence, stated exactly:} \texttt{b6\_probation.py} draws its schedules under
+$g_t\ge0$ with no per-period cap parameter anywhere in the script, so the 76{,}000-schedule sweep is evidence for clause (ii), the
+uncapped corner, and \textbf{not} for the capped optimum of clause (iii) or the infeasibility bound. Clause (iii) currently rests on
+the closed-form exchange argument alone; adding a $g_t\le L$ clip to the sweep is an open script task, and until it lands this
+paper does not claim sweep evidence for the capped case.
 \end{thebox}
 
-\textbf{Numbers by hand.} At $\delta_h=0.95$, $\delta_f=0.60$, $G_{\max}=20$: the cliff costs the honest newcomer exactly $20$;
+\textbf{Numbers by hand.} At $\delta_h=0.95$, $\delta_f=0.60$, $G_{\max}=20$, with the ceiling wide enough not to bind ($L\ge20$,
+clause (ii)): the cliff costs the honest newcomer exactly $20$;
 holding the same deterrence with all mass at $t=5$ costs $20\cdot(0.95/0.60)^5=199.0$ --- ten times the honest tax for zero
 additional deterrence [verified] (Figure~\ref{fig:b6reg}). \emph{Now you try:} same instance, mass at $t=2$ --- what does the honest newcomer pay?
 ($20\cdot(0.95/0.60)^2=20\times 2.507=50.1$ [verified].)
@@ -328,7 +354,9 @@ whitewasher's discounting still bites, which is precisely what minimizes what ho
 \textbf{Honest boundary.} Two-type model with known discount factors: the identifying assumption is the patience gap
 $\delta_f<\delta_h$ --- a patient fraudster (one whose fraud pays off slowly) blunts the cliff's advantage, though the exchange
 inequality degrades continuously, and at $\delta_f=\delta_h$ all binding schedules cost the same. $G_{\max}$ must be an upper bound
-on the one-shot fraud gain; underestimate it and no schedule shape saves you. The schedule is committed and public --- a gate that
+on the one-shot fraud gain; underestimate it and no schedule shape saves you. The capped clause 4(iii) --- the bang-bang optimum of
+positive width and the $G_{\max}>L/(1-\delta_f)$ infeasibility bound --- carries the closed-form exchange argument only: the
+76{,}000-schedule sweep was run without a per-period cap and does not test it. The schedule is committed and public --- a gate that
 renegotiates per-newcomer reopens signaling games this model does not treat. And the search is a falsification sweep plus the
 closed-form exchange argument, not an exhaustive LP dual certificate per instance.
 \end{boundary}
@@ -389,7 +417,7 @@ it.
 
 The observation that costly instruments only certain types will pay can \emph{sort} them traces to Spence \cite{spence}; the
 deterrence instrument itself --- post a stake forfeited on misconduct, sized to the gain --- is Becker's expected-penalty
-condition \cite{becker1968}, which is also what Theorem 2a's $qW\ge\Delta c$ restates. That zero-cost pseudonyms make sanctions
+condition \cite{becker1968}, which is also what Theorem 2a's $qB\ge\Delta c$ restates. That zero-cost pseudonyms make sanctions
 void, and that newcomers must consequently pay dues, is Friedman and Resnick \cite{friedman-resnick}, with the replication half
 of the same coin as Douceur's Sybil attack \cite{douceur}; Feldman et al.\ \cite{feldman2004} quantify the resulting social cost
 against the turnover rate, finding it bites only when turnover is high --- Theorem 4 takes that penalty's \emph{level} as given
@@ -408,7 +436,8 @@ prevents; (2) the observation that engine attestation does not merely deter subs
 planner's efficiency rule at zero audit stake, plus the scope lemma --- price per (principal, engine), sanction per principal ---
 that a machine-checked migration protocol shows is load-bearing in both directions; (3) resurrection soundness as a theorem with
 three named attacks, each caught by a shortest trace when its clause is dropped; and (4) the probation-cliff optimality result,
-which sharpens ``newcomers pay dues'' into ``the dues schedule has a unique optimal shape, and it is not a ramp.'' Where a claim
+which sharpens ``newcomers pay dues'' into ``the dues schedule has a unique optimal shape, front-loaded to the newcomer's ceiling
+rather than ramped --- and a feasibility bound past which probation is the wrong instrument entirely.'' Where a claim
 rests on a bounded model or a falsification sweep rather than a general proof, the section's boundary block says so at the same
 prominence as the claim.
 
@@ -419,8 +448,11 @@ Every [internal] number regenerates from three self-contained Python scripts at 
 $8.2\times$ quorum multiplication), \texttt{b5\_engine\_substitution.py} (Theorems 2--3: the $4000\times 8$ price-independence
 sweep, threshold and stake lines against simulation, 2000 death spirals, the attested IC-sign check, the 747-state migration
 machine, and all six mutants with shortest traces), and \texttt{b6\_probation.py} (Theorem 4: 76{,}000 deterrence-tight schedules
-against the cliff, plus the closed-form exchange spot check). The two new figures regenerate deterministically from
-\texttt{figures/src/paper5\_figures.py}; the two inherited figures from \texttt{figures/src/r12\_figures.py}. Every [verified]
+against the cliff, plus the closed-form exchange spot check --- all under $g_t\ge0$ with no per-period cap, so this script covers
+Theorem 4(ii) and not the capped clause 4(iii); a $g_t\le L$ clip is the open script task). Figures~\ref{fig:r13reg} and \ref{fig:b6reg} regenerate deterministically from
+\texttt{figures/src/paper5\_figures.py}; Figures~\ref{fig:r12rel} and \ref{fig:r12reg} from
+\texttt{figures/src/r12\_figures.py}; and every balance in the lineage DAG of Figure~\ref{fig:p5lineage} is the ledger in
+\texttt{a6\_no\_mint.py} replayed operation by operation. Every [verified]
 number is recomputable from the closed forms stated in the boxes with a hand calculator.
 
 \begin{thebibliography}{9}
