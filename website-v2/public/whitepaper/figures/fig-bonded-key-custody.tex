@@ -1,0 +1,100 @@
+% Key-custody relation map — inline in §sec:federated-sovereign, just before the
+% four-part Federated Security theorem (thm:federated-security). Relation-map
+% grammar per docs/harbor-research/figures/CONVENTION.md: parties on the top band,
+% the key material each one actually holds on the middle band, and the theorem's
+% four negative clauses on the bottom band, with an arrow from each secret to the
+% clause its compromise would break. Serif body font (no \sffamily), hh palette,
+% same colour semantics as fig-bonded-three-layer (sand = custody, teal = holds
+% plaintext, cobalt = the recovery pair, red = the adversary's reach).
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  party/.style={draw=hhebony,thick,fill=hhsand,rounded corners=3pt,
+                inner sep=5pt,text width=34mm,align=center,font=\footnotesize},
+  secret/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
+                 inner sep=4pt,text width=32mm,align=center,font=\footnotesize},
+  pair/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+               inner sep=4pt,text width=24mm,align=center,font=\footnotesize},
+  clause/.style={draw=hhebony,thick,fill=hhsanddeep!70,rounded corners=2pt,
+                 inner sep=5pt,text width=34mm,align=center,font=\footnotesize},
+  cust/.style={->,>=Latex,thick,draw=hhink},
+  brk/.style={->,>=Latex,thick,draw=hhteal,dashed},
+]
+
+% ── Band 1: the four parties ────────────────────────────────────────────────
+\node[party] (D) at (0,3.6)
+  {\textbf{Daemon}\\[2pt]commons authority inside one machine; signs harbor roots};
+\node[party] (A) at (4.9,3.6)
+  {\textbf{Agent}\\[2pt]holds a Harbor Card signed by the daemon; signs actions};
+\node[party] (P) at (9.8,3.6)
+  {\textbf{Principal (user)}\\[2pt]funds Float Plans; identity is an Ed25519 keypair};
+\node[party] (K) at (14.7,3.6)
+  {\textbf{KMS}\\[2pt]custody and recovery root; stores every blob \emph{Argon2id-wrapped}, never plaintext};
+
+% ── Band 2: the key material actually held ──────────────────────────────────
+\node[secret] (s1) at (0,0.8)
+  {daemon Ed25519\\\textbf{private key}};
+\node[secret] (s2) at (4.9,0.8)
+  {harbor \textbf{session key}\\{\itshape unwrapped only on the daemon's own host}};
+\node[pair] (s3) at (8.6,0.8) {user \textbf{email}\\{\itshape recovery root}};
+\node[pair] (s4) at (11.4,0.8) {user \textbf{passphrase}\\{\itshape wraps the master}};
+\node[secret] (s5) at (14.7,0.8)
+  {KMS \textbf{witness-log}\\signature over $R_{\text{harbor},\ell}$};
+
+% Custody arrows: who holds what.
+\draw[cust] (D.south) -- (s1.north);
+\draw[cust] (D.south east) .. controls +(0.9,-1.0) and +(-1.3,1.0) .. (s2.north west);
+\draw[cust] (P.south west) -- (s3.north);
+\draw[cust] (P.south east) -- (s4.north);
+\draw[cust] (K.south) -- (s5.north);
+
+% ── Band 3: the theorem's four negative clauses ─────────────────────────────
+\node[clause] (c1) at (0,-2.9)
+  {\textbf{(i)} cannot forge a Harbor Card};
+\node[clause] (c2) at (4.9,-2.9)
+  {\textbf{(ii)} cannot read plaintext evidence};
+\node[clause] (c3) at (10.0,-2.9)
+  {\textbf{(iii)} cannot impersonate the user};
+\node[clause] (c4) at (14.7,-2.9)
+  {\textbf{(iv)} cannot roll back the Merkle forest};
+
+% Break arrows: which compromise breaks which clause.
+\draw[brk] (s1.south) -- node[right,font=\footnotesize,inner sep=2pt]
+  {breaks only with this key} (c1.north);
+\draw[brk] (s2.south) -- node[right,font=\footnotesize,inner sep=2pt]
+  {breaks only with this key} (c2.north);
+\draw[brk] (s3.south) -- (c3.north west);
+\draw[brk] (s4.south) -- (c3.north);
+\node[font=\footnotesize\bfseries,text=hhcobalt] at (10.0,-1.35)
+  {both, not either};
+\draw[brk] (s5.south) -- node[right,font=\footnotesize,inner sep=2pt]
+  {needs $\mathcal{K}$'s complicity} (c4.north);
+
+% ── The adversary's reach, and what is out of scope ─────────────────────────
+\node[draw=maydayred,thick,dashed,fill=maydayred!5,rounded corners=3pt,
+      inner sep=6pt,text width=160mm,align=center,font=\footnotesize,
+      text=hhink] at (7.35,-5.1)
+  {\textbf{\textcolor{maydayred}{Adversary of Theorem~\ref{thm:federated-security}}}\ reads
+   $\mathcal{K}$'s storage, the daemon's SQLite database, and mesh gossip ---
+   and none of those contains any box above in usable form.\\[2pt]
+   \emph{Out of scope:} an adversary with same-user code execution on the daemon's
+   host reads every box the user can read, which is why the theorem excludes it.};
+
+\end{tikzpicture}%
+}
+\caption{Who holds which key, and which compromise breaks which clause. Each of the theorem's four negative guarantees fails to exactly one custody compromise, and only clause~(iii) requires two --- email \emph{and} passphrase together, which is why the recovery pair is the one place the architecture depends on a conjunction rather than a single secret. The KMS is the only party that stores everything and can decrypt nothing; the daemon is the only party that ever holds the harbor session key unwrapped, which is precisely why the theorem must exclude the same-user adversary on the daemon's host.}
+\label{fig:bonded-key-custody}
+\end{figure}

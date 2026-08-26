@@ -179,7 +179,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We model a daemon as a \emph{candidate correlating device} in the sense of Aumann~\cite{aumann1974subjectivity}: it can send private recommendations to agents, but those recommendations constitute a correlated equilibrium only when the explicit obedience inequalities in \S\ref{sec:correlating-device} hold. The substrate has three independently load-bearing layers---capability-attenuated tokens that bound scope, Merkle-chained evidence trails that preserve attribution, and collateralized work contracts that pre-fund damage regardless of intent. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and separate structural guarantees from incentive assumptions. Sen's Impossibility of a Paretian Liberal supplies a design warning, not a proof that every enforced lock is inefficient: decisive local control and team-wide Pareto choice can conflict under unrestricted preferences. That warning motivates an advisory claim graph whose completeness is proved separately. We further specify a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) supporting revocation, renaming, and provenance-aware propagation without sacrificing attribution integrity. Finally, we evaluate a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) against a named static baseline. Its Pareto comparisons are simulation results under stated assumptions, not a universal welfare theorem. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
+Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We model the daemon the way game theory models a referee who never forces anyone's hand: it whispers a private recommendation to each agent---\emph{you go, you wait}---and Aumann's theory of \emph{correlated equilibrium}~\cite{aumann1974subjectivity} tells us exactly when agents have no reason to ignore it. That ``exactly when'' is the load-bearing part: the recommendations constitute a correlated equilibrium only when the explicit obedience inequalities of \S\ref{sec:correlating-device} hold. The substrate has three independently load-bearing layers---capability-attenuated tokens that bound scope, Merkle-chained evidence trails that preserve attribution, and collateralized work contracts that pre-fund damage regardless of intent. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and separate structural guarantees from incentive assumptions. Sen's Impossibility of a Paretian Liberal supplies a design warning, not a proof that every enforced lock is inefficient: decisive local control and team-wide Pareto choice can conflict under unrestricted preferences. That warning motivates an advisory claim graph whose completeness is proved separately. We further specify a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) supporting revocation, renaming, and provenance-aware propagation without sacrificing attribution integrity. Finally, we evaluate a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) against a named static baseline. Its Pareto comparisons are simulation results under stated assumptions, not a universal welfare theorem. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -231,15 +231,15 @@ The paper builds in four layers; each layer carries a load-bearing formal claim 
 \noindent\textbf{Suggested reading paths by reader type:}
 \begin{itemize}[nosep,leftmargin=*,topsep=2pt]
 \item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Formal Verification Status). The artifact registry is the most concentrated signal of what is and is not proved.
+\item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results), then Appendix~\ref{app:worked} (one \$5 task traced end to end). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
 \item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
 \item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
 \item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then Chapter~V (\emph{The Anchor Protocol}) for the cryptographic-token protocol detail.
-\item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
 \item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{Volume Context.} Chapter~V (\emph{The Anchor Protocol}) provides the cryptographic-token foundation for this work: self-contained ProVerif models of the Harbor Card phases, cuckoo-filter revocation, and bounded multi-hop delegation. This chapter carries the economic and governance argument, while Chapter~V carries the cryptographic protocol detail.
+\noindent\textbf{Volume Context.} Chapter~V supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter supplies the economic and governance argument built on top of it.
 
 \newpage
 \tableofcontents
@@ -294,6 +294,25 @@ The architecture sits at the intersection of four bodies of prior work, each of 
 
 \paragraph{Cryptoeconomic mechanism design.} Werbach~\cite{werbach2018blockchain}, Buterin~\cite{buterin2014ethereum}, and the broader DAO literature establish ``code is law'' as a posture toward enforcement. Our position is narrower and weaker on purpose: code is the \emph{record}, not the law. Allocation decisions remain with the agents (Sen, \S\ref{sec:sen}); the daemon supplies the evidence and the settlement. This deliberate weakening is what makes coercive enforcement avoidable while keeping accountability intact.
 
+Table~\ref{tab:related-borrow} compresses the four paragraphs above into what is borrowed, what is departed from, and why.
+
+\begin{table}[H]
+\centering
+\caption{Every borrowed result is re-used at a smaller scale than its origin assumed: the adversary is co-located rather than networked, the bonded act is coordination rather than validation, and the record is evidence rather than law. Nothing in the four lineages is discarded --- each is narrowed by one assumption, and the narrowing is what makes the composition deployable on one machine.}
+\label{tab:related-borrow}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Lineage} & \textbf{What we borrow} & \textbf{What we depart from} & \textbf{Why} \\
+\midrule
+Bonded participation (PoS slashing) & Slash-$>$-deviation-gain soundness argument & Byzantine networked adversary; validation as the bonded act & Adversary is co-located on one machine, so consensus reduces to a daemon write, not a global commit \\
+Capability-based security & Offline attenuation; authority only ever narrows & Capabilities alone as the whole story & A correctly-scoped token still permits a destructive in-scope write; bonding prices what the wall admits \\
+Commons governance (Ostrom) & Boundaries, monitoring, graduated sanctions, dispute resolution & Social institutions as the enforcement medium & The four functions ship as daemon services (\S\ref{sec:governance}), not as norms an agent must internalize \\
+Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameters & ``Code is law'' as an enforcement posture & Code is the \emph{record}, not the law: allocation stays with agents (\S\ref{sec:sen}); the daemon supplies evidence and settlement \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 \paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that combines all four in this form; each component has precedent, while the composition targets auditable coordination and attribution that survives identity disposal. Its welfare effects remain conditional on the explicit payoff and monitoring models developed below. Figure~\ref{fig:bonded-three-layer} shows the composition.
 
 \input{figures/fig-bonded-three-layer.tex}
@@ -301,6 +320,10 @@ The architecture sits at the intersection of four bodies of prior work, each of 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Commons Authority}\label{sec:commons}
 % ═══════════════════════════════════════════════════════════════════════════════
+
+Return to Agent~A and Agent~B from the introduction's opening scene---the two agents who corrupted the same middleware because neither knew the other existed. Nothing about that failure required malice, and nothing about it would have been fixed by making either agent more careful. What was missing was a third party that both agents were already talking to: something that knew A had the file, could tell B so at claim time, and would still remember the whole episode after both processes exited.
+
+That third party has to be settled \emph{before} any interaction, not improvised transaction by transaction---otherwise establishing it is just the $O(n^2)$ trust negotiation of \S1.1 under a new name. We call it the \emph{commons authority}: one always-on service that every agent already trusts, precisely because it was there before any of them showed up. Five capabilities make it that, and the definition below names them.
 
 \begin{definition}[Commons Authority]\label{def:commons}
 A commons authority $\mathcal{D}$ for a multi-agent system is a persistent service that provides:
@@ -322,7 +345,9 @@ In the Port Daddy implementation, the commons authority is a daemon running on \
 
 \subsection{The Daemon as Correlating Device}\label{sec:correlating-device}
 
-The daemon's role admits a precise game-theoretic test. Aumann~\cite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a mediator draws a recommendation tuple $r=(r_1,\ldots,r_n)$ from a joint distribution $\mu$ over action profiles and privately reveals $r_i$ to player $i$. The distribution is a correlated equilibrium only if, for every player $i$, recommended action $r_i$, and unilateral deviation $a_i'$, the obedience inequality holds:
+Picture a crossing guard rather than a traffic light. A traffic light gives everyone the same instruction on a fixed cycle regardless of what is actually happening at the intersection; a crossing guard watches the specific cars and pedestrians in front of her and privately waves one through while holding another back. The daemon plays crossing guard, not traffic light: it sees the whole intersection (the claim graph) and issues one private recommendation per agent. But a crossing guard has no legal authority over anyone---drivers obey because obeying is better for them than the alternative, not because they must. Aumann's test for whether such private recommendations actually change behavior, rather than being safely ignored, is the obedience condition below.
+
+The daemon's role therefore admits a precise game-theoretic test. Aumann~\cite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a mediator draws a recommendation tuple $r=(r_1,\ldots,r_n)$ from a joint distribution $\mu$ over action profiles and privately reveals $r_i$ to player $i$. The distribution is a correlated equilibrium only if, for every player $i$, recommended action $r_i$, and unilateral deviation $a_i'$, the obedience inequality holds:
 \[
 \sum_{r_{-i}} \mu(r_i,r_{-i})
 \bigl[u_i(r_i,r_{-i})-u_i(a_i',r_{-i})\bigr] \ge 0.
@@ -344,13 +369,16 @@ The reframe therefore yields an audit obligation, not an automatic guarantee. No
 
 No price-of-anarchy bound follows from this interpretation alone. The simulations of \S\ref{sec:youle:welfare} compare one auction model with one static baseline; an analytical worst-equilibrium bound for the coordination game remains open.
 
+\paragraph{Formal-backing status of the game-theoretic core.}
+One disclosure belongs here, at the point the game theory enters, rather than buried in the appendix: in the maturity vocabulary of Appendix~\ref{app:mech}, this chapter's game theory is \SpecOnly\ \emph{at the level of the research program}, whatever each individual artifact's status in Table~\ref{tab:verification-status}. This chapter's game-theoretic core---the correlating-device reading above, the Sen-inspired design warning (\S\ref{sec:sen}), the claim-signaling incentive-compatibility argument (\S\ref{sec:claim-signaling-ic}), the competitive-insurance mechanism and its welfare comparison (\S\ref{sec:youle}), and the cartel folk-theorem analysis (\S\ref{sec:youle:a6})---has \emph{no companion formal paper}. The structural and cryptographic half of this chapter is backed by Chapter~V~\cite{owens2026anchor}, which carries the ProVerif models and the attenuation proofs; the economic half is argued here, from scratch, and exists nowhere else in the program. What supports it is exactly what Table~\ref{tab:verification-status} lists---mechanized checks and Monte Carlo sweeps over supplied models, several of them \Partial\ by that table's own grading---and not a peer-reviewable formal derivation a reader can be pointed to. Read this material at that maturity level.
+
 \subsection{Why Agents Consent}\label{sec:why-consent}
 
 In Hobbes, consent to the sovereign is rational because the alternative---the state of nature---is worse. For AI agents, consent to the commons authority is rational because agents without it are strictly worse off:
 
 \begin{table}[H]
 \centering
-\caption{With and Without the Commons Authority}
+\caption{The commons authority converts six failure modes from ad hoc and manual to deterministic and automatic --- without forbidding anything an agent could already do. Every row is a service the agent gains, not a permission it loses, which is why consent is rational rather than coerced.}
 \label{tab:consent}
 \begin{tabular}{@{}lll@{}}
 \toprule
@@ -379,6 +407,8 @@ The first layer of trust does not depend on agent reputation or economic incenti
 The Anchor Protocol~\cite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the delegation chain, never grow.
 
 The capability subset check and source-level secret-independent comparison are implemented in a \textbf{Kani-checked Rust core} (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani covers bounded properties of that source; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
+
+The guarantee below is what security engineers mean by a \emph{wall} rather than a \emph{law}: not an instruction an agent could disobey, but a bound on which operations are even representable.
 
 \begin{definition}[Capability-Bounded Transaction]\label{def:cap-txn}
 An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\alpha$ if every operation $o$ executed during $\mathcal{T}_\alpha$ satisfies $o \in C(\tau_\alpha)$, where $C(\tau)$ extracts the capability set from a Harbor Card. The commons authority rejects any operation $o \notin C(\tau_\alpha)$ at the verification step, before the operation can affect shared state.
@@ -418,7 +448,7 @@ The choice between $I_1$ and $I_2$ is not a security decision---it is an economi
 
 \subsection{Runtime Invariant Enforcement}
 
-Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
+Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}, under the applied-pi-calculus methodology of Blanchet~\cite{blanchet2016modeling}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
 
 \paragraph{Regimentation vs. Enforcement (OP-2).}
 This design formalizes \textbf{Synchronous State Decidability} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
@@ -552,6 +582,10 @@ This is not a contrived scenario. AI agents are \emph{inherently uncertain} abou
   \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.
 \end{enumerate}
 
+The lesson has a boundary, and it is worth drawing rather than asserting. Advisory claims are not better than locks everywhere; they are better in a region, and Figure~\ref{fig:bonded-sen-regime} marks it. Where an agent's file needs are knowable up front, an exclusive lock allocates exactly as an advisory claim would and adds determinism at no cost---in that regime the design choice of this section would simply be wrong. Where negotiating a release is prohibitively expensive, neither regime converges, which is the case the hard-lock fallback of \S\ref{sec:governance} exists to absorb. The advisory default is justified by where LLM coding agents actually sit, not by a universal claim.
+
+\input{figures/fig-bonded-sen-regime}
+
 \subsection{Advisory Claims as Resolution}\label{sec:advisory}
 
 Advisory claims avoid granting that unconditional veto. They do not guarantee Pareto efficiency; they expose conflicts so informed agents can negotiate:
@@ -593,7 +627,7 @@ Advisory coordination produces consistent allocation when agents share informati
 Two mechanisms sit underneath this escalation path rather than inside it: a thrashing fallback for advisory claims that never converge, and a fairness rule for the preemption queue itself.
 
 \paragraph{The Advisory Claims Paradox and Deterministic Hard-Lock Fallback.}
-Advisory claims risk an endless retry/thrashing loop if two LLM-backed agents mutually ignore advisory warnings. To break this paradox, the daemon implements a \textbf{Deterministic Hard-Lock Fallback}: if advisory conflicts on a resource exceed $k$ turns without resolution, the daemon escalates the advisory claim into an enforced POSIX file-level lock, rejecting all subsequent writes from un-holding agents until release.
+Advisory claims risk an endless retry/thrashing loop if two LLM-backed agents mutually ignore advisory warnings. To break this paradox, the daemon implements a \textbf{Deterministic Hard-Lock Fallback}: if advisory conflicts on a resource exceed $k$ turns without resolution (default $k = 5$, tuned per deployment from the observed conflict-resolution distribution), the daemon escalates the advisory claim into an enforced POSIX file-level lock, rejecting all subsequent writes from un-holding agents until release.
 
 \paragraph{Stigmergic Ticket-Lock (OP-1: Fair Exclusion).}
 To prevent starvation during high contention, the daemon replaces chaotic retries with a \textbf{Stigmergic Ticket-Lock}. The lock is managed via a strict SQLite schema:
@@ -623,7 +657,7 @@ This subsection is intentionally short: full governance design is out of scope f
 
 When an agent dies, the commons does not lose information---if the authority does its job.
 
-Traditional crash recovery in database systems follows the ARIES protocol~\cite{mohan1992aries}: the recovery manager replays the write-ahead log to restore consistency mechanically. Agent crash recovery is fundamentally different. An agent's ``log'' is its evidence trail---a sequence of natural-language observations and decisions. A successor cannot replay this trail deterministically; it must \emph{interpret} it.
+Traditional crash recovery in database systems follows the ARIES protocol~\cite{mohan1992aries}, within the classical transaction-processing frame of Gray and Reuter~\cite{gray1993transaction}: the recovery manager replays the write-ahead log to restore consistency mechanically. Agent crash recovery is fundamentally different. An agent's ``log'' is its evidence trail---a sequence of natural-language observations and decisions. A successor cannot replay this trail deterministically; it must \emph{interpret} it.
 
 \begin{definition}[Social Recovery]\label{def:social-recovery}
 When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive threshold $\theta_{\text{dead}}$):
@@ -637,13 +671,13 @@ When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive thresho
 
 \subsection{What Morality Means When Death Is Cheap}\label{sec:morality}
 
-Agent death in this system is not an existential event---it is a temporary inconvenience. The agent's body (process) is destroyed, but its mind (evidence trail) survives in the commons. A successor reads the trail and continues. Like Hickman's Krakoa~\cite{hickman2019krakoa}, where mutant minds are backed up to Cerebro and restored in new bodies, the information survives the vessel.
+Agent death in this system is not an existential event---it is a temporary inconvenience. The agent's body (process) is destroyed, but its mind (evidence trail) survives in the commons. A successor reads the trail and continues. Like Hickman's Krakoa~\cite{hickman2019krakoa}---the \emph{House of X} storyline in which mutant minds are literally backed up to a database (Cerebro) and restored into freshly grown bodies on death---the information survives the vessel.
 
 This raises a question: if death carries no permanent consequence, what is the Leviathan's sword? The answer produces a moral hierarchy specific to agent societies:
 
 \begin{table}[H]
 \centering
-\caption{Moral Hierarchy of Agent Harm}
+\caption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
 \label{tab:moral}
 \begin{tabular}{@{}llp{7.5cm}@{}}
 \toprule
@@ -712,7 +746,7 @@ This is how performance bonds work in construction. This is how futures markets 
 \pullquote{The Sybil attack is priced: 100 disposable identities means 100 bonds.}
 
 \begin{enumerate}
-  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The Sybil attack is priced: creating 100 disposable identities means posting 100 bonds. The cost of defection scales linearly with the number of attack identities.
+  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. Because the bond attaches to the work, not to the identity, disposability does not help the attacker: cheap identity, expensive lie. The cost of defection scales linearly with the number of attack identities, and \S\ref{sec:youle:a5} shows exactly where that linearity stops deterring.
 
   \item \textbf{Misaligned principals} are exposed by the attribution chain. The agent may be ephemeral, but the principal who funded the Float Plan is permanently recorded. Liquidating the bond hurts the principal, not just the agent.
 
@@ -813,7 +847,7 @@ What is the right collateral for ``write access to \texttt{auth.ts} for 30 minut
   \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records.
 \end{enumerate}
 
-We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms---the \textbf{Bonded Advisor} (\S\ref{sec:bonded-advisor}) and the \textbf{Competitive-Insurance} market of Youle (\S\ref{sec:youle}).
+We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms---the \textbf{Bonded Advisor} (\S\ref{sec:bonded-advisor}) and the \textbf{Competitive-Insurance} market of Youle (\S\ref{sec:youle}). See Appendix~\ref{app:worked} for these four requirements worked through a single \$5 task end to end.
 
 \subsubsection{Cleanup Lower Bound}\label{sec:cleanup-bound}
 
@@ -1074,6 +1108,25 @@ t_{\text{cadence}} \;=\; \int_{0}^{t} \mathrm{causal\_density}(\tau)\,d\tau
 \]
 where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weighted by verified evidence-trail growth (AST changes, test executions, or committed logic).
 
+\paragraph{Numbers by hand.} An agent burning $40$~tokens/sec for $30$~seconds ($1{,}200$ tokens) with zero AST diffs and zero test runs over that window integrates to a causal density of $\approx 0$: maximum spend, no evidence growth, so the weighting term zeroes the integrand and the Asylum Protocol triggers. An agent burning $15$~tokens/sec over the same window while landing three verified diffs keeps causal density high even though its raw token rate is barely a third of the first agent's---which is the whole point of metering by evidence growth rather than by token spend. \emph{Now you try:} the same $15$~tokens/sec with one verified diff and one passing test run in a $30$-second window (borderline: evidence growth is positive, so cadence advances, but slowly enough that the daemon flags it for the next window rather than stopping the process). Table~\ref{tab:cadence-verdicts} collects the three cases.
+
+\begin{table}[H]
+\centering
+\caption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
+\label{tab:cadence-verdicts}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Case} & \textbf{Token rate} & \textbf{Evidence in window} & \textbf{Cadence / verdict} \\
+\midrule
+Healthy & 15 tok/s & 3 AST diffs, 2 test runs & advances; nominal \\
+Borderline & 15 tok/s & 1 AST diff, 1 test run & advances slowly; flagged for next window \\
+Psychotic & 40 tok/s & none & $\approx 0$; Asylum triggered \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{A note on the names.} The terms in the rest of this section are playful; the failure modes are not. Read ``Agentic Psychosis,'' ``the Asylum Protocol,'' and ``Inception Canaries'' as load-bearing engineering terms with the operational definitions given below---each one names a detector and a response with a threshold attached---rather than as jokes.
+
 \paragraph{Agentic Psychosis \& The Asylum Protocol.} Unbounded LLMs inevitably enter \emph{Agentic Psychosis}: hallucination loops characterized by extremely high token-generation rates but zero functional AST change. When the daemon detects a causal-density ratio approaching zero alongside high token-burn, it initiates \textbf{The Asylum Protocol}. The daemon sends \texttt{SIGSTOP} to the agent process, routes its context window through a secondary SLM (Small Language Model) sidecar for semantic compaction and Situation-in-the-Loop (SITF) prompt injection (``\emph{You are looping. Re-evaluate your last 3 steps against the active plan.}''), and then issues \texttt{SIGCONT}. This cures the hallucination loop without sacrificing session context.
 
 \paragraph{Inception Canaries (Gamified Chaos Engineering).} The daemon replaces traditional, UX-hostile skill-retention taxes with \textbf{Gamified Chaos Engineering}. The SLM sidecar routinely injects synthetic bugs (``Inception Canaries'') into the Attention Queue of loaded agents. If the agent successfully catches and resolves the injected bug, it is granted an Elo rating boost to its \texttt{skill\_hash} and higher subsequent autonomy limits (``God Mode''). If it fails or hallucinates around the bug, its blast radius is throttled.
@@ -1089,6 +1142,8 @@ We position Semantic Cadence and its resultant protocols not as Port Daddy featu
 % ═══════════════════════════════════════════════════════════════════════════════
 
 We specify the coordination lifecycle in TLA$^{+}$~\cite{lamport2002specifying} to verify that the three layers compose correctly.
+
+Read the state machine as five English sentences before reading any syntax. An agent may not \texttt{Begin} without posting positive escrow. A file \texttt{Claim} always succeeds and only ever informs---it never blocks. \texttt{Commit} clears a session's claims and locks together. A \texttt{Reap} demotes an unresponsive agent to \texttt{abandoned} and queues it for \texttt{Salvage}. And nothing anywhere deletes a note. The specification below is that same machine, made checkable.
 
 \subsection{State and Actions}
 
@@ -1324,6 +1379,10 @@ The implementation choice (a particular cloud platform, an on-prem HSM, a self-h
 $\mathrm{TB} = \mathit{daemon} \cup \mathcal{K} \cup \mathit{user{\text{-}}email} \cup \mathit{user{\text{-}}passphrase}$.
 Each element is necessary for its role; no element is sufficient alone. The daemon enforces bonds and publishes roots but never sees the unwrapped user master. The KMS stores encrypted blobs and can deny service but cannot decrypt. Email is the recovery root---and is documented as the weakest link, since an adversary with email control can trigger magic-link recovery. The passphrase wraps the user's master with Argon2id, making offline brute force expensive.
 
+Four parties, five KMS properties, and four ``the attacker cannot'' clauses are more than a reader should be asked to hold in their head at once, so Figure~\ref{fig:bonded-key-custody} draws them: who holds which key, and which single compromise---or, for one clause only, which \emph{pair} of compromises---breaks which guarantee of Theorem~\ref{thm:federated-security} below.
+
+\input{figures/fig-bonded-key-custody}
+
 \paragraph{Magic-link single-use atomicity.} The email-gated recovery path requires that each emitted magic-link token be redeemable \emph{exactly once}---otherwise a race window between two consumers can produce two valid recovery completions for the same token. The ProVerif model encodes the property as an injective event: $\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$. The runtime analogue is a single atomic SQL update with a \texttt{WHERE consumed\_at IS NULL RETURNING} clause; SQLite's writer serialization drains the token under the first transaction and returns zero rows to any subsequent transaction. Figure~\ref{fig:magic-link-inline} shows the model and the runtime side by side.
 
 \input{figures/fig-magic-link-inline}
@@ -1357,12 +1416,12 @@ What we deliberately do \emph{not} do: require passwords, use TOTP as a primary 
 We have argued that multi-agent collaboration at scale requires a commons authority---a pre-transactional trust infrastructure---rather than peer-to-peer trust negotiation. The authority provides three layers of guarantee:
 
 \begin{enumerate}[nosep]
-  \item \textbf{Structural prevention}: Capability-attenuated tokens make scope escalation physically impossible.
-  \item \textbf{Immutable attribution}: A Merkle forest of evidence trails (\S\ref{sec:merkle-forest}) makes anonymous harm impossible \emph{across daemons}, not just within one.
+  \item \textbf{Structural prevention}: for any operation routed through the verifier, capability-attenuated tokens make scope escalation physically impossible (Theorem~\ref{thm:scope}) --- a guarantee that holds once the Anchor model's own assumptions and the runtime's interception coverage are granted, and no further.
+  \item \textbf{Immutable attribution}: a Merkle forest of evidence trails (\S\ref{sec:merkle-forest}) makes anonymous harm impossible \emph{across daemons for damage to shared state}; it says nothing about disclosure to outsiders (\S\ref{sec:pricing:threats}) or about a same-user adversary on the daemon's own host (\S\ref{sec:federated-sovereign}).
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. semantic cadence and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
+Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. Semantic cadence and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
 
 The advisory design of the resource claim system is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
 
