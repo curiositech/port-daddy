@@ -223,7 +223,6 @@ export async function runTick(
       // The one case that always gets recorded and always stops the walk: a
       // landing is an action, and an action's ledger row is the record of it.
       actedLedgered = await appendMergeVerdict(env.DB, row);
-      acted = row;
       ledgered += 1;
       const landing = await executeLanding(env, owner, name, entry.pr.number, nowMs, fetchImpl, store);
       return { ran: true, docketText, verdict: row, verdictLedgered: actedLedgered, landing,
