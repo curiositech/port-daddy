@@ -400,7 +400,15 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
 > **Proof gate — met.** 1,200 tests green across both Workers; the fleet run on its own fix
 > PR healed, adjudicated, and narrated itself.
 
-### P1 — The Steward takes the seat (≈2 weeks · 5 PRs)
+### P1 — The Steward takes the seat (≈2 weeks · 8 PRs)
+
+> **STATUS 2026-08-26 — the seat is ALIVE.** PRs 1–4 merged; the seat was deployed,
+> commissioned, and had never executed a single instruction. One operator `POST /wake` started
+> it at 05:54:31 UTC and it immediately surveyed the repo and rendered a real verdict:
+> `Wake: drained 1 event(s) [operator ×1]. Tick: NEEDS-WORK on #6419 — required checks red on
+> head (tier 3)`. Both ledgers now hold that row, `degraded: false`, and the heartbeat is
+> self-sustaining at 6h. What remains is PRs 5–8 below: making the first beat automatic,
+> making the seat legible, and making its landing verb correct for this repo.
 
 1. Steward DO scaffold: identity, storage schema (charter, merge-ledger, deck-log), alarm
    heartbeat, wake queue from the existing webhook receiver.
@@ -424,9 +432,37 @@ pages; steel-man contract maintained in every PR summary; purser testPaths fixed
    general: a component that cannot start itself needs an owner for its first beat, and
    "deployed" is not "alive" until the vital sign says so.
 
+6. **The console page** (`/account/steward` in `apps/relay`): read-only render of both
+   ledgers plus seat vitals, session-gated, authz'd per repo through `userCanReadRepo`.
+   Read paths shared via `apps/shared/steward-ledgers.ts` so one SELECT has one definition.
+
+   **Why this is P1 and not P4.** §10 scopes the full console — auth, per-repo shell, chat,
+   actions — four weeks away. This is the 5% of it that makes the seat legible, and P1's own
+   incident is the argument: the vital sign existed, held zero rows for four PRs, and reading
+   it required a terminal, Cloudflare credentials and knowledge of the schema. A vital sign no
+   operator can read is not a vital sign; it is a file. Shipping merge authority whose only
+   audit surface is `wrangler d1 execute` reproduces the failure at a higher level.
+
+7. **The landing verb.** `landPr()` issues `PUT /repos/{owner}/{repo}/pulls/{n}/merge` with
+   `merge_method: squash` — a *direct merge*. This repo lands through a required merge queue
+   (proven: a direct merge attempt returns `405 Pull Request is in the merge queue`, and the
+   queue's `gh-readonly-queue/main/pr-*` branches are in the Actions history). So an armed
+   seat would be rejected or would bypass the queue. The seat must **enqueue**, not merge.
+   Until this lands, `STEWARD_LAND_TOKEN` should stay unset: the seat decides correctly and
+   is one wrong HTTP verb away from being able to act.
+
+8. **Episodic wakes.** The other half of PR 1's unbuilt assumption: the relay's webhook
+   receiver posts `/wake` on `pull_request` / `check_suite` events, so the seat reacts in
+   seconds rather than at heartbeat cadence. Dedupe is already at the door (`deliveryId`).
+
 > **Proof gate.** Seven days unattended on this repo: every open PR reaches merged or an
 > explicit SURFACE with a reason; zero un-charted merges; deck log complete for every wake;
 > one injected land-fail loop trips the freeze and pages.
+>
+> **Verification owed before the gate can start.** (a) Confirm the deployed Worker matches
+> `main` — a live `/status` returned `null` for `recentDeckLog` and `clusterfudgePage`, both of
+> which exist in source, which suggests the running build predates them. (b) Confirm the cron
+> fires by finding an `all-quiet` entry written with no operator wake.
 
 ### P2 — Cartographer dispatches; sailors are born (≈3 weeks · 5 PRs)
 
