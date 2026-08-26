@@ -12,7 +12,12 @@ import Foundation
 // takes a `pdu_` bearer first and falls back to the session cookie; a native
 // client has no cookie, so the bearer is the only credential here. The token
 // is minted by the device flow: POST /auth/device/start, then poll
-// POST /auth/device/token.
+// POST /auth/device/token. `RelayRoute.deviceStart`/`.deviceToken` name those
+// paths, but THIS client deliberately implements no methods that call them —
+// initiating and polling the device flow is the iOS pairing surface's job
+// (WS-D slice D2: QR + 4-digit, WebAuthn device card), not this scaffold's.
+// D1 ships with no pairing UI at all, so there is nothing yet that would call
+// them; the constants exist so D2 does not have to rediscover these paths.
 //
 // ── WHAT THE SERVER DOES NOT HAVE YET ────────────────────────────────────────
 //

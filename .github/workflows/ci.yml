@@ -1090,15 +1090,45 @@ jobs:
           cd "$WORK"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          rm -rf "pr-${PR_NUMBER}"
-          mkdir -p "$DEST"
-          cp "$GITHUB_WORKSPACE"/apps/pd-ios/pd-ios-screenshots/*.png "$DEST"/
-          git add -A "pr-${PR_NUMBER}"
+
+          publish_pngs() {
+            rm -rf "pr-${PR_NUMBER}"
+            mkdir -p "$DEST"
+            cp "$GITHUB_WORKSPACE"/apps/pd-ios/pd-ios-screenshots/*.png "$DEST"/
+            git add -A "pr-${PR_NUMBER}"
+          }
+
+          publish_pngs
           if git diff --cached --quiet; then
             echo "no changes to publish"
           else
             git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
-            git push -q origin HEAD:ci-screenshots
+            # Two concurrent pd-ios-screenshots jobs (this PR's own retry, or a
+            # different PR) can race for the ci-screenshots tip: a
+            # non-fast-forward push here is expected contention, not a bug.
+            # Re-sync onto the new tip and redo this job's own write — every
+            # push only ever touches this PR's own pr-<n>/ subtree, so there
+            # is nothing to merge, just a fast-forward to retry onto.
+            attempt=1
+            until git push -q origin HEAD:ci-screenshots; do
+              if [[ "$attempt" -ge 5 ]]; then
+                echo "warning: could not publish screenshots after $attempt attempts (persistent push contention); continuing" >&2
+                break
+              fi
+              echo "push contention on ci-screenshots (attempt $attempt), re-syncing and retrying" >&2
+              git fetch origin ci-screenshots
+              git reset --hard origin/ci-screenshots
+              publish_pngs
+              # A concurrent duplicate run may have already published this
+              # exact PR+sha's content onto the tip we just reset to — that is
+              # success, not a new commit to make.
+              if git diff --cached --quiet; then
+                echo "already published by a concurrent run"
+                break
+              fi
+              git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
+              attempt=$((attempt + 1))
+            done
           fi
           echo "dest=$DEST" >> "$GITHUB_OUTPUT"
           cd "$GITHUB_WORKSPACE"
