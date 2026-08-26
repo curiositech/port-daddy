@@ -125,7 +125,7 @@ $8.2q$. Reverting the mutation restores conservation [internal].
 
 \textbf{Numbers by hand.} The refuting chain: $0.9+0.9^2+0.9^3=0.9+0.81+0.729=2.44>1$ --- three budget-legal hops, and the closure
 credits $2.44$ witnessed units where only one exists. \emph{Now you try:} at $\gamma=0.8$, does the same full-weight chain still
-mint under the budget-only phrasing? ($0.8+0.64+0.512=1.952>1$ --- yes, and it keeps minting for any $\gamma>1/2$; under transfer
+mint under the budget-only phrasing? ($0.8+0.64+0.512=1.952>1$ --- yes. Note the threshold carefully: \emph{this three-hop chain} crosses $1$ at $\gamma\approx0.5437$, the root of $\gamma+\gamma^2+\gamma^3=1$, not at $\gamma=1/2$. What is true at $\gamma>1/2$ is that \emph{some} chain mints, since $\sum_{d\ge1}\gamma^d=\gamma/(1-\gamma)>1$ there --- the depth required grows as $\gamma$ falls, needing five hops at $\gamma=0.51$ and only two at $\gamma=0.9$; under transfer
 semantics the same chain's live total stays exactly $\le 1$ [verified].)
 
 \input{fig-r12-relation.tex}
@@ -160,16 +160,19 @@ to solve adverse selection by aggregating past quality \cite{mailath-samuelson};
 and the machine that will produce the next outcome, so the record measures the wrong object.
 
 \begin{thebox}
-\textbf{Theorem 2a (unraveling).} Engines $\theta_H>\theta_L$ at costs $c_H>c_L$, engine unobserved by buyers. The one-period gain
-from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is \emph{price-independent}: no belief supports pooling on $\theta_H$, and no signal
-exists inside the identity to separate on. Committed $\theta_H$ sellers stay in the market iff the pooled price clears their cost:
+\textbf{Theorem 2a (adverse selection within one identity).} Engines $\theta_H>\theta_L$ at costs $c_H>c_L$, engine unobserved by
+buyers. The one-period gain from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is \emph{price-independent}: no belief supports pooling
+on $\theta_H$, and no \emph{costless} signal exists inside the identity to separate on. Committed $\theta_H$ sellers stay in the market iff the pooled price clears their cost:
 $\mu\theta_H+(1-\mu)\theta_L\ge c_H\iff \mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; below $\mu^\star$ the death spiral runs
 inside one identity down to $\theta_L$. Deterring the swap without attestation requires an audited stake $qW\ge\Delta c$ (audit
 probability $q$, slashable stake $W$).
 
 \textbf{Theorem 2b (the IC flip).} With daemon-attested engine ids on every witnessed outcome, reputation keys on the pair
-(principal, engine) and the swap gain becomes $\Delta c-\Delta\theta$: substitution pays exactly when the cheap engine is socially
-efficient --- the planner's own rule --- at zero audit stake.
+(principal, engine) and the swap gain becomes $\Delta c-(p_H-p_L)$; \emph{if the attested price schedule prices quality at its
+full social value, $p_H-p_L=\Delta\theta$}, this is $\Delta c-\Delta\theta$: substitution pays exactly when the cheap engine is
+socially efficient --- the planner's own rule --- at zero audit stake. That pricing condition is a hypothesis, not a
+consequence: under Bertrand competition on attested keys $p_\theta=c_\theta$ and the gain collapses to zero, and any pricing that
+passes through less than the full quality difference moves the flip point.
 
 \textbf{Verification.} Worked instance $\theta_H{=}1$, $\theta_L{=}0.4$, $c_H{=}0.5$, $c_L{=}0.2$: swap gain $0.3$ at every price;
 $\mu^\star=1/6\approx 0.167$; unattested deterrence stake $W^\star=\Delta c/q=0.5$ at $q=0.6$; attested payoffs keep $0.5$ vs swap
@@ -193,6 +196,14 @@ committed before quality can even break even [verified].)
 is attested}. The misread to preempt: attestation does not force everyone onto the expensive engine. The flip means swapping pays
 exactly when $\Delta c>\Delta\theta$ --- when the cheap engine really is the better social bargain --- so attestation does not
 freeze technology choice; it aligns it. What dies is only the trade that was profitable \emph{because} it was invisible.
+
+The engineering side of this problem has a contemporaneous literature that stops exactly where Theorem 2b starts. Cai et al.\
+\cite{cai2025} formalize covert model substitution in commercial LLM APIs, show that software-only auditing is query-intensive
+and defeated by inference nondeterminism, and conclude that TEE-backed attestation is the only robust channel --- while naming
+``weak provider incentives'' as the obstacle to its adoption. That obstacle is what the IC flip removes: attestation makes
+substitution unprofitable precisely when it is inefficient, so a provider's reason to attest is price rather than
+civic-mindedness. Their paper contains no adverse-selection framing, and this one contains no detection experiments; the two
+halves fit.
 
 \begin{boundary}
 \textbf{Honest boundary.} Two-period stylization: the strategic type has no reputational continuation value beyond the stake $W$
@@ -265,8 +276,8 @@ the honest newcomer discounts at $\delta_h$ (patient --- it plans to stay), the 
 its old identity is burning, which is why it is here). Deterrence requires the schedule to destroy, in the \emph{whitewasher's}
 discounting, at least the maximum single-outcome fraud gain $G_{\max}$: $\sum_t\delta_f^t g_t\ge G_{\max}$. The same schedule taxes
 the honest type $H(g)=\sum_t\delta_h^t g_t$. Choosing the schedule is a linear program --- minimize $H$ subject to the deterrence
-constraint --- and the folklore instinct, imported from deferred-compensation wisdom \cite{lazear}, is a gentle ramp that eases the
-newcomer in. The instinct is exactly wrong here, and the LP says so: the punishment \emph{is} the ramp re-paid after every reset,
+constraint --- and the folklore instinct, of the kind one might import from deferred-compensation wisdom \cite{lazear}, is a
+gentle ramp that eases the newcomer in. The instinct is wrong here, and the LP says so: the punishment \emph{is} the ramp re-paid after every reset,
 so it must land where the short-horizon type still feels it --- immediately.
 
 \begin{thebox}
@@ -278,7 +289,17 @@ exactly, and for every feasible $g$,
 \[
 H(g)\;=\;\sum_t(\delta_h/\delta_f)^t\,\delta_f^t g_t\;\ge\;\sum_t\delta_f^t g_t\;\ge\;G_{\max}\;=\;H(g^\star),
 \]
-with equality only when all mass sits at $t=0$: no feasible schedule dominates the cliff. (The LP's optimum sits at this vertex
+with equality only when all mass sits at $t=0$: no feasible schedule dominates the cliff, \emph{among schedules the ceiling can
+actually carry}. That qualification is the theorem's missing hypothesis and it binds. Since $g_t$ is the amount by which a
+newcomer's economic ceiling is \emph{reduced}, it is bounded above by that ceiling: with a per-period cap $g_t\le L$, the pure
+spike $g^\star=(G_{\max},0,\dots,0)$ is infeasible whenever $G_{\max}>L$, and the constrained optimum is bang-bang --- fill
+$t=0,1,\dots,k$ to the cap --- i.e.\ a cliff of positive \emph{width} rather than a single spike. The front-loading conclusion
+survives this unchanged; the \emph{uniqueness} claim and the closed form $H(g^\star)=G_{\max}$ do not. Sharper still, total
+achievable deterrence is bounded by $\sum_t\delta_f^tL = L/(1-\delta_f)$, so the programme is infeasible \emph{at every schedule
+shape} when $G_{\max}>L/(1-\delta_f)$: at the worked instance ($\delta_f=0.60$, $G_{\max}=20$) any per-period ceiling below $8$
+makes the fraud gain undeterrable by probation alone, and the honest response is a different instrument, not a different
+schedule. Underestimate $G_{\max}$ and no shape saves you; overestimate it relative to the ceiling and no shape saves you
+either. (The LP's optimum sits at this vertex
 for \emph{every} $\delta_f<\delta_h$ --- the corner is not a knife-edge.)
 
 \textbf{Verification.} Random search for a dominating schedule across 4000 random instances
@@ -336,18 +357,49 @@ conserves the same witnessed total.
 
 \section{Related work, and what is actually new}\label{sec:related}
 
-\textbf{Imported.} The engineering exit itself is Parfit's: the idea that an identity question can be dissolved rather than
-answered, because what matters can survive independently of any verdict on identity, is his \cite{parfit} ---
-\S\ref{sec:problem}'s refusal to adjudicate forks and resurrections is that move re-run on a ledger instead of a stream of
-experience. The unraveling logic of Theorem 2a is
-Akerlof's market for lemons \cite{akerlof}, run inside one identity; the
-observation that deterrence can be bought with costly instruments only certain types will pay traces to Spence's signaling
-\cite{spence}. That zero-cost pseudonyms make sanctions void, and that newcomers must consequently pay dues, is Friedman and
-Resnick \cite{friedman-resnick}, with the replication half of the same coin as Douceur's Sybil attack \cite{douceur}. Reputations
-as tradeable assets attached to names --- and the resulting possibility that a name outlives the capital that earned it --- is
-Tadelis \cite{tadelis}; the value and decay of reputations under imperfect monitoring is Mailath--Samuelson
-\cite{mailath-samuelson}. The deferred-compensation instinct that Theorem 4 refutes in this setting is Lazear's \cite{lazear}.
-None of these components is ours.
+\textbf{Imported.} We take Parfit's \emph{move} and not Parfit's \emph{thesis}, and the difference is worth stating because it
+runs the other way from what one would guess. What we borrow is the dissolution \cite{parfit,parfit1971}: an identity question
+can be refused rather than answered, because what matters can survive without any verdict on identity --- \S\ref{sec:problem}'s
+refusal to adjudicate forks is that move re-run on a ledger. What we do \emph{not} borrow is his positive claim. Parfit insists
+that fission does not divide what matters: ``the relation of the original person to each of the resulting people contains all
+that interests us --- all that matters --- in any ordinary case of survival'' \cite{parfit1971}. Theorem 1 makes the inherited
+prior scarce, conserved and divisible precisely so that it \emph{must} split eight ways among eight forks. A reputation ledger is
+exactly the kind of thing Parfit argues psychological continuity is not, and that is why a ledger can be conserved where a stream
+of experience cannot.
+
+Theorem 2a's logic is Akerlof's market for lemons \cite{akerlof}, run inside one identity --- and it is one end of a continuum
+Grossman drew in 1981. His §2 shows that when quality is verifiable at negligible cost a monopolist \emph{voluntarily} discloses
+in full, because a buyer with rational expectations reads any withheld information as unfavourable \cite{grossman1981}; Milgrom
+proves the same conclusion game-theoretically --- ``at every sequential equilibrium of the sales encounter game, the salesman
+uses a strategy of full disclosure'' \cite{milgrom1981}. His §3 takes the opposite extreme, disclosure costlier than the whole
+quality spread, and lands on our Theorem 2a: ``we will have the usual `lemons' problem \dots\ each high-quality seller will want
+to be distinguished from those of average quality, but in this case there is no way for him to do so.'' So Grossman's §2/§3 pair
+\emph{is} our Theorem 2b/2a pair, indexed by a disclosure-cost parameter we do not model --- and we have accordingly renamed
+Theorem 2a, since in this literature ``the unraveling result'' names the §2 conclusion, which is full disclosure, not collapse.
+
+That renaming exposes a real question about Theorem 2b, and answering it is the sharper contribution. If unraveling holds, the
+daemon need only \emph{permit} attestation and voluntary disclosure will do the rest; our mandatory-attestation premise would be
+stronger than the economics requires. The unraveling result needs several strong hypotheses \cite{dranove-jin}, and at least two
+fail here. Attestation is not costless. And more decisively, buyers cannot detect concealment --- Milgrom is explicit that his
+result assumes the buyer ``can verify \dots\ statements like: `I have reported everything I know','' and in an agent marketplace
+a buyer cannot distinguish an agent that \emph{declines} to attest from one whose runtime \emph{cannot}. With that hypothesis
+gone, voluntary disclosure no longer unravels, which is why the daemon must furnish the attestation channel rather than merely
+allow it. What Theorem 2b then adds to disclosure theory is that attestation does not only reveal the engine, it \emph{re-prices}
+it.
+
+The observation that costly instruments only certain types will pay can \emph{sort} them traces to Spence \cite{spence}; the
+deterrence instrument itself --- post a stake forfeited on misconduct, sized to the gain --- is Becker's expected-penalty
+condition \cite{becker1968}, which is also what Theorem 2a's $qW\ge\Delta c$ restates. That zero-cost pseudonyms make sanctions
+void, and that newcomers must consequently pay dues, is Friedman and Resnick \cite{friedman-resnick}, with the replication half
+of the same coin as Douceur's Sybil attack \cite{douceur}; Feldman et al.\ \cite{feldman2004} quantify the resulting social cost
+against the turnover rate, finding it bites only when turnover is high --- Theorem 4 takes that penalty's \emph{level} as given
+by deterrence and asks the question they do not, which is what \emph{shape} it should have over time. Reputations as tradeable
+assets attached to names is Tadelis \cite{tadelis}; their value and decay under imperfect monitoring is Mailath--Samuelson
+\cite{mailath-samuelson}. None of these components is ours.
+
+\emph{One citation is owed and unresolved.} Theorem 4's foil is the deferred-compensation instinct \cite{lazear}; we have not
+been able to obtain Lazear's article, and if his contract front-loads the honest worker's implicit bond then Theorem 4 agrees
+with him rather than correcting him. We state the foil as folklore until that is checked.
 
 \textbf{New, honestly.} The contribution is the assembly for software agents, where forking, distillation, engine substitution,
 and resurrection are cheap, routine, first-class operations rather than edge cases: (1) the transfer-semantics conservation
@@ -385,6 +437,20 @@ Management Strategy}, 10(2):173--199, 2001.
 \bibitem{douceur} J.~R. Douceur. The Sybil attack. In \emph{Proc.\ 1st International Workshop on Peer-to-Peer Systems (IPTPS)},
 LNCS 2429, pp.~251--260, 2002.
 \bibitem{lazear} E.~P. Lazear. Why is there mandatory retirement? \emph{Journal of Political Economy}, 87(6):1261--1284, 1979.
+\bibitem{parfit1971} D.~Parfit. Personal identity. \emph{The Philosophical Review}, 80(1):3--27, 1971.
+\bibitem{grossman1981} S.~J. Grossman. The informational role of warranties and private disclosure about product quality.
+\emph{Journal of Law and Economics}, 24(3):461--483, 1981.
+\bibitem{milgrom1981} P.~R. Milgrom. Good news and bad news: representation theorems and applications. \emph{Bell Journal of
+Economics}, 12(2):380--391, 1981.
+\bibitem{dranove-jin} D.~Dranove and G.~Z. Jin. Quality disclosure and certification: theory and practice. \emph{Journal of
+Economic Literature}, 48(4):935--963, 2010.
+\bibitem{feldman2004} M.~Feldman, C.~Papadimitriou, J.~Chuang, and I.~Stoica. Free-riding and whitewashing in peer-to-peer
+systems. In \emph{Proc.\ ACM SIGCOMM Workshop on Practice and Theory of Incentives in Networked Systems (PINS)}, pages
+228--236, 2004.
+\bibitem{becker1968} G.~S. Becker. Crime and punishment: an economic approach. \emph{Journal of Political Economy},
+76(2):169--217, 1968.
+\bibitem{cai2025} W.~Cai, T.~Shi, X.~Zhao, and D.~Song. Are you getting what you pay for? Auditing model substitution in LLM
+APIs. arXiv:2504.04715, 2025.
 \end{thebibliography}
 
 \end{document}
