@@ -40,6 +40,7 @@ import {
   ENVELOPE_SCHEMA_ID,
 } from './envelope.js';
 import type { RelayReadableEnvelope } from './envelope.js';
+import { maybeWakeSteward } from './steward-wake.js';
 import {
   getLastEventSeq,
   insertEvent,
@@ -56,6 +57,20 @@ import {
 } from './fleet-run-intents.js';
 import type { Env, RelayEvent, ChainHead, RelayError, FleetRunJob } from './types.js';
 
+/**
+ * Build one `RelayError` response.
+ *
+ * PURPOSE: every refusal in this file goes through here so the shape stays
+ * uniform — a machine-readable `code` a caller can branch on plus a human
+ * `detail` — and no path can drift into returning a bare string or a raw
+ * status. The codes are also what the webhook tests assert against, which only
+ * works while there is exactly one place that produces them.
+ *
+ * @param code - Stable machine-readable identifier, e.g. `BAD_SIGNATURE`.
+ * @param detail - Human-readable explanation for the operator reading logs.
+ * @param status - HTTP status; defaults to 400.
+ * @returns A JSON response carrying the error body.
+ */
 function err(code: string, detail: string, status = 400): Response {
   const body: RelayError = { error: detail, code };
   return Response.json(body, { status });
@@ -102,6 +117,13 @@ const FLEET_MERGE_GROUP_ACTIONS = new Set(['checks_requested']);
  * `Port Daddy Fleet` simply absent.
  *
  * A check that cannot be produced is not a gate, it is a deadlock.
+ *
+ * The design rule that falls out of it: every REQUIRED context must have an
+ * enumerable producer, and this function is that enumeration for the fleet's.
+ *
+ * @param eventType - The `X-GitHub-Event` header value.
+ * @param action - The payload's `action`, or null for actionless events.
+ * @returns True when this delivery should produce exactly one fleet run.
  */
 function shouldEnqueueFleetRun(eventType: string, action: string | null): boolean {
   if (eventType === 'pull_request') return FLEET_PR_ACTIONS.has(action ?? '');
@@ -124,6 +146,20 @@ const PERSIST_EVENT_TYPES = new Set([
   'pull_request:labeled',
   'pull_request:unlabeled',
 ]);
+/**
+ * Does this delivery earn a D1 event row and a channel fan-out?
+ *
+ * RATIONALE — this gate governs *storage*, nothing else. It is deliberately
+ * narrower than the set of events the relay acts on: `merge_group` and
+ * `check_suite` are both "no" here yet still trigger a fleet run and a Steward
+ * wake respectively, because neither needs a durable event row to do its job.
+ * Conflating the two decisions is exactly how the merge queue once deadlocked
+ * — the noise gate silently withheld the run along with the row.
+ *
+ * @param eventType - The `X-GitHub-Event` header value.
+ * @param action - The payload's `action`, or null for actionless events.
+ * @returns True when the event should be persisted and fanned out.
+ */
 function shouldPersistEvent(eventType: string, action: string | null): boolean {
   return (
     eventType === 'pull_request' &&
@@ -133,7 +169,18 @@ function shouldPersistEvent(eventType: string, action: string | null): boolean {
 
 /**
  * Compute the canonical set of channel strings for a normalized webhook.
- * Order matters and matches the channel/normalization spec.
+ *
+ * DESIGN — BROADEST FIRST, THEN NARROWER. Order matters and matches the
+ * channel/normalization spec: a subscriber choosing `github:webhook:push`
+ * wants everything, one choosing `github:acme/widgets:push` wants a single
+ * repo, and emitting all three lets each pick its own granularity without the
+ * relay guessing. Absent facts drop their channel rather than becoming an
+ * empty segment, so a subscription string never silently matches nothing.
+ *
+ * @param event - The `X-GitHub-Event` header value.
+ * @param action - The payload's `action`, or null for actionless events.
+ * @param repoFullName - `owner/repo`, or null when the payload names no repo.
+ * @returns Channel strings, broadest first.
  */
 export function channelsForWebhook(
   event: string,
@@ -151,10 +198,18 @@ export function channelsForWebhook(
  * Mirrors the tail of handlePublish (insertEvent → upsertChainHead → DO fanout)
  * but performs NO card auth — HMAC was the gate.
  *
- * The transit body is a labeled relay_readable envelope (ADR-0123 §6, N1),
- * built per channel because seq/channel are part of the signed binding. The
- * envelope serializes into the frame's `ciphertext` slot, so chain hashing and
- * chain_verify.py are unchanged.
+ * DESIGN — WHY THE BYTES DIFFER PER CHANNEL. The transit body is a labeled
+ * relay_readable envelope (ADR-0123 §6, N1), rebuilt for each channel because
+ * `seq` and `channel` are part of the signed binding: one envelope reused
+ * across channels would carry another channel's binding and fail verification
+ * downstream. The envelope serializes into the frame's `ciphertext` slot, so
+ * chain hashing and `chain_verify.py` are unchanged by any of this.
+ *
+ * @param env - Relay environment (D1 and the HarborChannel namespace).
+ * @param channel - The single channel to publish this event on.
+ * @param webhookPayload - The normalized, already-verified GitHub event.
+ * @returns `{ok: true, seq}` on success, or `{ok: false, response}` carrying
+ *   the error response the caller should return unchanged.
  */
 async function publishGithubEventToChannel(
   env: Env,
@@ -252,19 +307,10 @@ async function publishGithubEventToChannel(
 }
 
 /**
- * POST /v1/github/webhook
- *
- * 405 — non-POST
- * 401 — missing X-Hub-Signature-256, missing secret, or signature mismatch
- * 400 — missing X-GitHub-Event, malformed body / JSON
- * 409 — chain conflict on a target channel
- * 204 — accepted; either fanned out to all channels (PR-family event) or
- *       verified-and-ignored (non-PR event: audited, nothing persisted)
- */
-/**
  * Enqueue ONE fleet run for this delivery, when the event warrants one.
  *
- * Extracted so it can be reached from BOTH exits of the handler. The
+ * PURPOSE, from the incident that produced it: extracted so it can be reached
+ * from BOTH exits of the handler. The
  * ambient-noise gate (step 6) returns 204 early for every non-PR event, which
  * silently included `merge_group` — so the merge queue's required
  * `Port Daddy Fleet` context was never produced and the queue deadlocked. A
@@ -278,6 +324,14 @@ async function publishGithubEventToChannel(
  *
  * Never throws. A queue failure is audited and swallowed — the webhook has
  * already been acknowledged, and the executor's own retry/DLQ owns durability.
+ *
+ * @param env - Relay environment; both queue producers may be unbound.
+ * @param eventType - The `X-GitHub-Event` header value.
+ * @param action - The payload's `action`, or null for actionless events.
+ * @param deliveryId - `X-GitHub-Delivery`, carried into the job for tracing.
+ * @param repoFullName - `owner/repo`, or null when the payload names no repo.
+ * @param payload - The HMAC-verified webhook body.
+ * @returns Nothing; every failure is absorbed and audited.
  */
 async function maybeEnqueueFleetRun(
   env: Env,
@@ -429,6 +483,34 @@ async function maybeEnqueueFleetRun(
   }
 }
 
+/**
+ * `POST /v1/github/webhook` — the GitHub webhook ingress gate.
+ *
+ * DESIGN — THE HMAC IS THE WHOLE AUTHENTICATION STORY. GitHub holds no relay
+ * card, so `X-Hub-Signature-256` over the *raw* body bytes is the sole gate,
+ * and every step below it runs only after that comparison passes. The body is
+ * read as bytes and parsed afterwards for exactly that reason: parsing first
+ * would verify a re-serialization rather than what GitHub signed.
+ *
+ * The rationale for the shape after the gate is fail-direction. Publishing is
+ * fail-CLOSED (503, GitHub retries) because a dropped event breaks the chain
+ * the relay's whole audit model rests on. The two hand-offs that follow —
+ * {@link maybeEnqueueFleetRun} and {@link maybeWakeSteward} — are fail-OPEN,
+ * because by then the delivery is already acknowledged and a retry would
+ * re-run work that succeeded, spending real money twice.
+ *
+ * Response codes:
+ * - 405 — non-POST
+ * - 401 — missing `X-Hub-Signature-256`, unconfigured secret, or mismatch
+ * - 400 — missing `X-GitHub-Event`, malformed body / JSON
+ * - 409 — chain conflict on a target channel
+ * - 204 — accepted; either fanned out to all channels (PR-family event) or
+ *   verified-and-ignored (non-PR event: audited, nothing persisted)
+ *
+ * @param request - The inbound GitHub delivery, signature headers included.
+ * @param env - Relay environment; queue and Steward bindings may be absent.
+ * @returns The response to hand GitHub, per the code table above.
+ */
 export async function handleGithubWebhook(request: Request, env: Env): Promise<Response> {
   // 0. Method gate (router only dispatches POST, but fail closed defensively).
   if (request.method !== 'POST') {
@@ -509,6 +591,12 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
     // NOT persisted, but merge_group still needs its fleet run: this gate
     // withholds the D1 row and the channel fan-out, not the merge-queue gate.
     await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload);
+    // Nor does it withhold the Steward's wake, and this is the path that
+    // matters most for it: `check_suite:completed` and `pull_request_review`
+    // are both "not a PR event" by the persistence gate's reckoning, yet a
+    // suite going green is the single most merge-relevant thing that happens
+    // to a PR. Ambient *noise* is what that gate withholds — this is signal.
+    await maybeWakeSteward(env, eventType, action, deliveryId, repoFullName, payload);
     return new Response(null, { status: 204 });
   }
 
@@ -537,6 +625,12 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    durability from here. installation.id / pull_request.number are read
   //    from the verified payload (no GitHub API call from the relay).
   await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload);
+
+  // 9. Wake the repo's Steward seat (P1 PR 8). Same guarded contract as the
+  //    queue hand-off above and for the same reason: the seat is an
+  //    accelerant, not a dependency. Losing a wake costs latency until the
+  //    next heartbeat; failing the delivery would cost a duplicate fleet run.
+  await maybeWakeSteward(env, eventType, action, deliveryId, repoFullName, payload);
 
   return new Response(null, { status: 204 });
 }
