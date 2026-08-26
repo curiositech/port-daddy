@@ -8,11 +8,13 @@
  *
  * HONESTY (repo law: no Potemkin). Only sections with real backing data render
  * live: the IDENTITY plate (the users row) and the LEAVING strip (real
- * /account/export + /account/delete). Devices, Receipts, Harbors, and Plan have
- * no per-user backing yet (no user_tokens table; fleet_runs are not user-scoped;
+ * /account/export + /account/delete). Devices, Receipts, and Plan have no
+ * per-user backing yet (no user_tokens table; fleet_runs are not user-scoped;
  * no per-user plan rows), so they render the design's own "empty states teach"
  * (unified-design-language law 5) — never fabricated rows. As each backend
- * lands, swap its empty state for the real query.
+ * lands, swap its empty state for the real query — Harbors did exactly that:
+ * its section is now a door into the real /account/harbors page
+ * (harbors-page.ts, backed by X2 memberships + X3 presence).
  *
  * The manual theme toggle from the mockups is intentionally dropped: it needs
  * client JS, and this page ships under a script-free CSP. `prefers-color-scheme`
@@ -379,7 +381,7 @@ export function renderAccountPage(
       <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
-      <a href="#harbors">Harbors</a>
+      <a href="/account/harbors">Harbors</a>
       <a href="#plan">Plan &amp; caps</a>
     </nav>
     <div class="rail-foot">
@@ -447,10 +449,11 @@ export function renderAccountPage(
 
     <section class="sect" id="harbors" aria-labelledby="harbors-h">
       <div class="sect-head"><div><span class="eyebrow">Harbors</span><h2 id="harbors-h">Where your agents work</h2></div></div>
+      <a class="runs-cta" href="/account/harbors">Your harbors &rarr;</a>
       <a class="runs-cta" href="/account/parleys">Your parleys &rarr;</a>
       <div class="empty">
-        <div class="e-title">Personal harbor only.</div>
-        <p>Your local daemon is your personal harbor — you are the only authority and nothing leaves the machine unless you say so. Team and guest harbors (RBAC, scoped guest cards) surface here once membership is linked to your account.</p>
+        <div class="e-title">Your local daemon is your personal harbor.</div>
+        <p>You are the only authority there and nothing leaves the machine unless you say so. Remote harbors — the shared rooms your account belongs to — live at <a href="/account/harbors">Your harbors</a>: every membership, who is present right now, and an honest reachability verdict for each.</p>
         <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. <a href="/account/parleys">Your parleys</a> lists every one in the harbors you belong to, with each party&rsquo;s stance and signed position, and lets you sign your own.</p>
       </div>
     </section>

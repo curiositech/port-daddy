@@ -69,6 +69,9 @@
  *                                                SKILL.md body needs a session
  *                                                AND visibility: public)
  *   GET  /v1/skills/@:login/:id                 (same, JSON)
+ *   GET  /account/harbors                       (HTML harbors list; session; own memberships only)
+ *   GET  /account/harbors/:ns/:name             (HTML harbor detail; session + member;
+ *                                                presence + reachability verdict)
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
@@ -221,6 +224,7 @@ import {
   handleParleySignForm,
   handleParleyVerdictForm,
 } from './parleys-page.js';
+import { handleHarborsPage, handleHarborDetailPage, harborNotFoundPage } from './harbors-page.js';
 import {
   handleMediatorConvene,
   handleMediatorSummonsRespond,
@@ -739,6 +743,42 @@ export default {
     }
     else if (pathname === '/v1/fleet/mediator' && method === 'POST') {
       response = await handleMediatorToggle(request, env);
+    }
+
+    // ── Harbors HTML surface (session + member gated; harbors-page.ts) ───────
+    // /account/harbors           → every harbor this account belongs to
+    // /account/harbors/:ns/:name → members + presence + reachability verdict
+    else if (pathname === '/account/harbors' && method === 'GET') {
+      response = await handleHarborsPage(request, env);
+    } else if (pathname.startsWith('/account/harbors/')) {
+      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). The
+      // global boundary below would catch it, but it would answer 500 for what
+      // is only a bad URL — and this surface answers 404 for everything it will
+      // not serve, so that a non-member and a nonexistent harbor are one
+      // response. An undecodable segment joins them rather than standing out.
+      let seg: string[] | null = null;
+      try {
+        seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      } catch {
+        seg = null;
+      }
+      const [hns, hname] = seg ?? [];
+      if (seg && hns && hname && seg.length === 2 && method === 'GET') {
+        response = await handleHarborDetailPage(request, env, hns, hname);
+      } else {
+        // The SAME page a nonexistent harbor gets, byte for byte — not a bare
+        // `new Response('Not Found')`. That plaintext 9-byte answer was
+        // distinguishable on sight from the real 404, which made "your escape
+        // sequence was bad" and "no such harbor" two different replies: the
+        // existence oracle the page's own text refuses to be. It also carried
+        // none of this surface's headers — no no-store, no noindex, no CSP.
+        //
+        // NOTE: the parleys branch above (the `else` at the end of the
+        // /account/parleys/ dispatch) still has the bare form and the same
+        // doctrine in parleys-page.ts. Same defect, different surface; it needs
+        // its own change and its own tests rather than a drive-by here.
+        response = harborNotFoundPage();
+      }
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
