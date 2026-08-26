@@ -1,10 +1,6 @@
-import { beforeEach, describe, expect, test } from '@jest/globals';
-import Database from 'better-sqlite3';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { createTestDb } from '../setup-unit.js';
-import { createActivityLog } from '../../lib/activity.js';
+import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
+import { asActorId } from '../../lib/actor-souls.js';
 import {
   createParleyAutoTrigger,
   parleySignalLineageKey,
@@ -12,15 +8,18 @@ import {
   PARLEY_TRIGGER_BY_KIND,
 } from '../../lib/parley-auto-trigger.js';
 import { createParley } from '../../lib/parley.js';
-import { asActorId } from '../../lib/actor-souls.js';
+import { createParleyStore, PARLEY_SIGNAL_FRESHNESS } from '../../lib/parley-store.js';
 import {
   conflictSignalId,
+  CONFLICT_SIGNAL_LIMITS,
   CONFLICT_SIGNAL_PRODUCERS,
   CONFLICT_SIGNAL_SCHEMA_VERSION,
   type ConflictSignal,
 } from '../../lib/parley-trigger.js';
-import { createTupleSpace } from '../../lib/tuples.js';
+import { createTestDb } from '../setup-unit.js';
 
+const TENANT = 'parley-auto-trigger-test';
+const DEFAULT_HARBOR = 'fleet';
 const PRODUCED_AT = 1_800_000_000_000;
 
 function automaticProducer(checkpoint: ConflictSignal['checkpoint']) {
@@ -55,13 +54,14 @@ function automaticSignal(overrides: Partial<ConflictSignal> = {}): ConflictSigna
     },
     ...overrides,
   };
+  const provenance = overrides.provenance ?? {
+    producer: automaticProducer(candidate.checkpoint),
+    trustTier: 'INTERNAL' as const,
+    producedAt: PRODUCED_AT,
+  };
   return {
     ...candidate,
-    provenance: overrides.provenance ?? {
-      producer: automaticProducer(candidate.checkpoint),
-      trustTier: 'INTERNAL',
-      producedAt: PRODUCED_AT,
-    },
+    provenance,
     signalId: overrides.signalId ?? conflictSignalId(candidate),
   };
 }
@@ -71,67 +71,87 @@ function liveParticipant(actorId: string, inboxTarget = actorId) {
     actorId: asActorId(actorId),
     inboxTarget,
     sessionId: `session:${actorId}`,
-    lineageRootSessionId: `session:${actorId}`,
+    lineageRootSessionId: `root:${actorId}`,
   };
 }
 
-describe('durable automatic Parley trigger', () => {
+describe('indexed automatic Parley trigger', () => {
   let db: ReturnType<typeof createTestDb>;
-  let tuples: ReturnType<typeof createTupleSpace>;
-  let inbox: ReturnType<typeof createAgentInbox>;
-  let parley: ReturnType<typeof createParley>;
-  let activityLog: ReturnType<typeof createActivityLog>;
-  let live: Set<string>;
   let clock: number;
+  let inbox: ReturnType<typeof createAgentInbox>;
+  let store: ReturnType<typeof createParleyStore>;
+  let parley: ReturnType<typeof createParley>;
+  let live: Map<string, string>;
+  let activities: Array<{ type: string; options: Record<string, unknown> }>;
 
   beforeEach(() => {
     db = createTestDb();
-    tuples = createTupleSpace(db);
-    inbox = createAgentInbox(db);
     clock = PRODUCED_AT;
-    parley = createParley({ tuples, agentInbox: inbox, now: () => clock });
-    activityLog = createActivityLog(db);
-    live = new Set(['agent-a', 'agent-b']);
+    inbox = createAgentInbox(db);
+    store = createParleyStore({ db, tenantId: TENANT, now: () => clock });
+    parley = createParley({
+      store,
+      defaultHarbor: DEFAULT_HARBOR,
+      agentInbox: inbox,
+      now: () => clock,
+    });
+    live = new Map([
+      ['agent-a', 'agent-a'],
+      ['agent-b', 'agent-b'],
+    ]);
+    activities = [];
   });
 
-  function service(
-    tupleSpace = tuples,
-    parleyService = parley,
-  ) {
-    const trigger = createParleyAutoTrigger({
-      tuples: tupleSpace,
-      parley: parleyService,
-      activityLog,
-      now: () => clock,
-      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
-    });
+  afterEach(() => {
+    db.close();
+  });
+
+  function activityLog() {
     return {
-      ...trigger,
-      evaluate(
-        candidate: ConflictSignal,
-        context: { harbor: string } = { harbor: 'fleet' },
-      ) {
-        return trigger.evaluate(candidate, context);
+      log(type: string, options: Record<string, unknown>) {
+        activities.push({ type, options });
       },
     };
   }
 
-  function internalFields(kind: string): unknown[][] {
-    return (db.prepare('SELECT fields FROM tuples WHERE internal_only = 1 ORDER BY id').all() as Array<{
-      fields: string;
-    }>)
-      .map((row) => JSON.parse(row.fields) as unknown[])
-      .filter((fields) => fields[0] === kind);
+  function defaultResolver(actorId: string) {
+    const inboxTarget = live.get(actorId);
+    return inboxTarget ? liveParticipant(actorId, inboxTarget) : null;
   }
 
-  test('publishes frozen server caps and maps every kind to an existing trigger', () => {
+  function service(
+    parleyService: ReturnType<typeof createParley> = parley,
+    resolveLiveParty: (actorId: string) => ReturnType<typeof liveParticipant> | null = defaultResolver,
+  ) {
+    return createParleyAutoTrigger({
+      parley: parleyService,
+      activityLog: activityLog(),
+      now: () => clock,
+      resolveLiveParty,
+    });
+  }
+
+  function count(
+    table: 'parley_auto_signals' | 'parley_auto_terminal_receipts' | 'parley_records' | 'parley_admissions',
+    harbor = DEFAULT_HARBOR,
+  ) {
+    const row = db.prepare(`
+      SELECT COUNT(*) AS count FROM ${table}
+      WHERE tenant_id = ? AND harbor = ?
+    `).get(TENANT, harbor) as { count: number };
+    return Number(row.count);
+  }
+
+  test('publishes frozen server caps and maps every kind to a supported trigger', () => {
     expect(Object.isFrozen(PARLEY_AUTO_TRIGGER_POLICY)).toBe(true);
     expect(PARLEY_AUTO_TRIGGER_POLICY).toEqual({
       maxPendingGlobal: 32,
       maxPendingPerSurface: 2,
       cooldownMs: 300_000,
-      signalRetentionMs: 2_592_000_000,
     });
+    expect(PARLEY_AUTO_TRIGGER_POLICY).not.toHaveProperty('signalRetentionMs');
+    expect(PARLEY_SIGNAL_FRESHNESS.dedupeTombstoneMs)
+      .toBeGreaterThanOrEqual(PARLEY_SIGNAL_FRESHNESS.maxProducerRetryHorizonMs);
     expect(PARLEY_TRIGGER_BY_KIND).toEqual({
       conversational_contradiction: 'detector',
       claim_overlap: 'claim_overlap',
@@ -141,548 +161,246 @@ describe('durable automatic Parley trigger', () => {
     });
   });
 
-  test('fails closed without an explicit canonical harbor', () => {
-    const trigger = createParleyAutoTrigger({
-      tuples,
-      parley,
-      activityLog,
-      now: () => clock,
-      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
-    });
-
+  test('fails closed without an explicit canonical harbor and writes nothing', () => {
+    const trigger = service();
     expect((trigger.evaluate as unknown as (signal: ConflictSignal) => unknown)(automaticSignal()))
       .toMatchObject({ state: 'failed', reason: expect.stringMatching(/explicit canonical harbor/) });
-    expect(internalFields('parley:auto:reservation')).toHaveLength(0);
+    expect(trigger.evaluate(automaticSignal(), { harbor: ' fleet ' }))
+      .toMatchObject({ state: 'failed', reason: expect.stringMatching(/explicit canonical harbor/) });
+    expect(count('parley_auto_signals')).toBe(0);
+    expect(activities).toHaveLength(0);
   });
 
-  test('fires once and reconciles replay through a second service instance', () => {
+  test('fires once and exact replay converges through a second store instance', () => {
     const signal = automaticSignal();
     const first = service().evaluate(signal, { harbor: 'port-daddy' });
-    const secondTuples = createTupleSpace(db);
-    const secondParley = createParley({ tuples: secondTuples, agentInbox: inbox, now: () => clock });
-    const replay = service(secondTuples, secondParley).evaluate({
-      ...signal,
-      reason: 'a caller tried to replace the reserved reason',
-      magnitude: 9,
-      confidence: 1,
-      provenance: { ...signal.provenance, producedAt: PRODUCED_AT + 60_000 },
-    }, { harbor: 'port-daddy' });
-
-    expect(first.state).toBe('fired');
-    expect(replay.state).toBe('replayed');
-    expect(replay.parleyId).toBe(first.parleyId);
-    const opened = tuples.rd(['parley:opened', first.parleyId, '*'], { harbor: 'port-daddy' });
-    expect(opened).toHaveLength(1);
-    expect((opened[0].fields[2] as { reason: string; automatic: { magnitude: number } })).toMatchObject({
-      reason: signal.reason,
-      automatic: { magnitude: 1 },
+    const secondStore = createParleyStore({ db, tenantId: TENANT, now: () => clock });
+    const secondParley = createParley({
+      store: secondStore,
+      defaultHarbor: DEFAULT_HARBOR,
+      agentInbox: inbox,
+      now: () => clock,
     });
-    expect(tuples.rd(['parley:summons', first.parleyId, '*', '*'], { harbor: 'port-daddy' })).toHaveLength(2);
+    const replay = service(secondParley).evaluate(signal, { harbor: 'port-daddy' });
+
+    expect(first).toMatchObject({ state: 'fired', parleyId: expect.stringMatching(/^parley-auto:/) });
+    expect(replay).toMatchObject({ state: 'replayed', parleyId: first.parleyId });
+    expect(count('parley_records', 'port-daddy')).toBe(1);
+    expect(count('parley_auto_signals', 'port-daddy')).toBe(1);
+    expect(count('parley_auto_terminal_receipts', 'port-daddy')).toBe(1);
     expect(inbox.list('agent-a').messages).toHaveLength(1);
     expect(inbox.list('agent-b').messages).toHaveLength(1);
+    expect(activities).toHaveLength(1);
   });
 
-  test('keeps canonical actors distinct from daemon inbox targets', () => {
-    const trigger = createParleyAutoTrigger({
-      tuples,
-      parley,
-      activityLog,
-      now: () => clock,
-      resolveLiveParty: (actorId) => liveParticipant(actorId, `spawned:${actorId}`),
-    });
+  test('same signal ID with changed canonical content fails instead of replaying', () => {
+    const signal = automaticSignal();
+    expect(service().evaluate(signal, { harbor: DEFAULT_HARBOR }).state).toBe('fired');
 
-    const result = trigger.evaluate(automaticSignal(), { harbor: 'fleet' });
-    const stored = parley.getAutomatic(automaticSignal().signalId, 'fleet')?.parley;
+    const mismatch = service().evaluate({
+      ...signal,
+      reason: 'the caller rewrote the reserved reason',
+      magnitude: 9,
+    }, { harbor: DEFAULT_HARBOR });
+
+    expect(mismatch).toMatchObject({ state: 'failed', reason: expect.stringMatching(/replay mismatch/) });
+    expect(count('parley_records')).toBe(1);
+    expect(count('parley_auto_terminal_receipts')).toBe(1);
+  });
+
+  test('stores canonical actors separately from live daemon inbox targets', () => {
+    live.set('agent-a', 'spawned:agent-a');
+    live.set('agent-b', 'spawned:agent-b');
+
+    const result = service().evaluate(automaticSignal(), { harbor: DEFAULT_HARBOR });
+    const stored = parley.getAutomatic(automaticSignal().signalId, DEFAULT_HARBOR)?.parley;
 
     expect(result.state).toBe('fired');
     expect(stored?.parties).toEqual(['agent-a', 'agent-b']);
     expect(stored?.automatic?.participants).toEqual([
-      {
-        actorId: 'agent-a',
-        inboxTarget: 'spawned:agent-a',
-        sessionId: 'session:agent-a',
-        lineageRootSessionId: 'session:agent-a',
-      },
-      {
-        actorId: 'agent-b',
-        inboxTarget: 'spawned:agent-b',
-        sessionId: 'session:agent-b',
-        lineageRootSessionId: 'session:agent-b',
-      },
+      liveParticipant('agent-a', 'spawned:agent-a'),
+      liveParticipant('agent-b', 'spawned:agent-b'),
     ]);
     expect(inbox.list('agent-a').messages).toHaveLength(0);
     expect(inbox.list('spawned:agent-a').messages).toHaveLength(1);
     expect(inbox.list('spawned:agent-b').messages).toHaveLength(1);
   });
 
-  test('refuses two actors resolved to one daemon session or inbox target', () => {
-    const trigger = createParleyAutoTrigger({
-      tuples,
-      parley,
-      activityLog,
-      now: () => clock,
-      resolveLiveParty: (actorId) => ({
-        ...liveParticipant(actorId),
-        inboxTarget: 'shared-agent',
-        sessionId: 'shared-session',
-      }),
-    });
+  test('suppresses ambiguous or missing live identities with a terminal receipt', () => {
+    const ambiguous = service(parley, (actorId) => ({
+      ...liveParticipant(actorId, 'shared-inbox'),
+      sessionId: 'shared-session',
+    })).evaluate(automaticSignal(), { harbor: DEFAULT_HARBOR });
 
-    const result = trigger.evaluate(automaticSignal(), { harbor: 'fleet' });
-
-    expect(result).toMatchObject({
+    expect(ambiguous).toMatchObject({
       state: 'suppressed',
-      reason: expect.stringMatching(/two distinct live daemon agent identities/),
+      parleyId: null,
+      reason: expect.stringMatching(/distinct live daemon agent identities/),
     });
-    expect(parley.list({ harbor: 'fleet' })).toHaveLength(0);
-  });
+    expect(count('parley_records')).toBe(0);
+    expect(count('parley_auto_terminal_receipts')).toBe(1);
 
-  test('suppresses a new evidence signal inside the evidence-free lineage cooldown', () => {
-    const first = automaticSignal();
-    const changedEvidence = automaticSignal({ evidenceRefs: ['claim:a', 'claim:c'] });
-
-    expect(service().evaluate(first).state).toBe('fired');
-    const suppressed = service().evaluate(changedEvidence);
-
-    expect(changedEvidence.signalId).not.toBe(first.signalId);
-    expect(suppressed.state).toBe('suppressed');
-    expect(suppressed.reason).toMatch(/cooldown/);
-    expect(parley.list()).toHaveLength(1);
-  });
-
-  test('suppresses a new same-lineage signal while the first Parley is still pending after cooldown', () => {
-    const first = automaticSignal();
-    expect(service().evaluate(first).state).toBe('fired');
-    clock += PARLEY_AUTO_TRIGGER_POLICY.cooldownMs + 1;
-
-    const later = service().evaluate(automaticSignal({ evidenceRefs: ['claim:a', 'claim:later'] }));
-    expect(later.state).toBe('suppressed');
-    expect(later.reason).toMatch(/pending automatic Parley/);
-    expect(parley.list()).toHaveLength(1);
-  });
-
-  test('reclaims a stale orphan lineage after cooldown without changing an earlier suppression', () => {
-    const orphan = automaticSignal({ evidenceRefs: ['claim:orphan:a', 'claim:orphan:b'] });
-    const lineageKey = parleySignalLineageKey(orphan);
-    tuples.outOnce(['parley:auto:lineage', lineageKey, orphan.signalId, clock], {
-      harbor: 'fleet',
-      writtenBy: 'port-daddy:parley-auto-trigger',
-      idempotencyKey: `parley:auto:lineage:${lineageKey}`,
-      internalOnly: true,
-    });
-
-    const earlySignal = automaticSignal({ evidenceRefs: ['claim:early:a', 'claim:early:b'] });
-    const early = service().evaluate(earlySignal);
-    expect(early.state).toBe('suppressed');
-    expect(early.reason).toMatch(/cooldown/);
-    expect(parley.list()).toHaveLength(0);
-
-    clock += PARLEY_AUTO_TRIGGER_POLICY.cooldownMs + 1;
-    const laterSignal = automaticSignal({ evidenceRefs: ['claim:later:a', 'claim:later:b'] });
-    const later = service().evaluate(laterSignal);
-    expect(later.state).toBe('fired');
-    expect(service().evaluate(earlySignal)).toMatchObject({
-      state: 'replayed',
-      reason: early.reason,
-    });
-    expect(tuples.getByIdempotencyKey(`parley:auto:lineage:${lineageKey}`, { harbor: 'fleet' })?.fields[2])
-      .toBe(laterSignal.signalId);
-    expect(parley.list()).toHaveLength(1);
-  });
-
-  test('suppresses a lineage with a prior terminal Parley outcome', () => {
-    const first = service().evaluate(automaticSignal());
-    parley.resolve({
-      parleyId: first.parleyId!,
-      status: 'COLLAPSED',
-      resolvedBy: 'operator',
-      decision: 'agent-a owns the surface',
-    });
-    clock += PARLEY_AUTO_TRIGGER_POLICY.cooldownMs + 1;
-
-    const later = service().evaluate(automaticSignal({ evidenceRefs: ['claim:a', 'claim:later'] }));
-    expect(later.state).toBe('suppressed');
-    expect(later.reason).toMatch(/prior terminal/);
-  });
-
-  test('replays the same signal without redelivery after its Parley is terminal', () => {
-    const signal = automaticSignal();
-    const first = service().evaluate(signal);
-    parley.resolve({
-      parleyId: first.parleyId!,
-      status: 'COLLAPSED',
-      resolvedBy: 'operator',
-      decision: 'terminal owner remains authoritative',
-    });
-
-    const replay = service().evaluate(signal);
-    expect(replay.state).toBe('replayed');
-    expect(replay.parleyId).toBe(first.parleyId);
-    expect(replay.reason).toMatch(/prior terminal/);
-    expect(tuples.rd(['parley:opened', first.parleyId, '*'])).toHaveLength(1);
-    expect(tuples.rd(['parley:summons', first.parleyId, '*', '*'])).toHaveLength(2);
-    expect(inbox.list('agent-a').messages).toHaveLength(1);
-    expect(inbox.list('agent-b').messages).toHaveLength(1);
-    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
-      .toHaveLength(0);
-  });
-
-  test('requires every party to be a distinct live canonical daemon agent identity', () => {
     live.delete('agent-b');
-    const signal = automaticSignal();
-    const result = service().evaluate(signal);
-
-    expect(result.state).toBe('suppressed');
-    expect(result.reason).toMatch(/two distinct live daemon agent identities/);
-    expect(parley.list()).toHaveLength(0);
-
-    live.add('agent-b');
-    const replay = service().evaluate({
-      ...signal,
-      reason: 'a later caller cannot replace the authoritative suppression reason',
-      magnitude: 7,
-    });
-    expect(replay.state).toBe('replayed');
-    expect(replay.reason).toBe(result.reason);
-    expect(replay.parleyId).toBe(result.parleyId);
-    expect(replay.decision).toEqual(result.decision);
-    expect(parley.list()).toHaveLength(0);
+    const missingSignal = automaticSignal({ evidenceRefs: ['claim:missing'] });
+    const missing = service().evaluate(missingSignal, { harbor: 'other-harbor' });
+    expect(missing.state).toBe('suppressed');
+    expect(count('parley_auto_terminal_receipts', 'other-harbor')).toBe(1);
   });
 
-  test.each([
-    ['circular object', () => {
-      const candidate = automaticSignal() as ConflictSignal & { self?: unknown };
-      candidate.self = candidate;
-      return candidate;
-    }],
-    ['BigInt field', () => ({ ...automaticSignal(), hostile: 1n })],
-    ['throwing signalId getter', () => {
-      const candidate = { ...automaticSignal() } as Record<string, unknown>;
-      Object.defineProperty(candidate, 'signalId', {
-        enumerable: true,
-        get: () => { throw new Error('getter escaped'); },
-      });
-      return candidate;
-    }],
-  ] as const)('keeps the service nonthrowing for a %s', (_label, makeCandidate) => {
-    let result: ReturnType<ReturnType<typeof createParleyAutoTrigger>['evaluate']> | undefined;
-    expect(() => {
-      result = service().evaluate(makeCandidate() as unknown as ConflictSignal);
-    }).not.toThrow();
-    expect(result?.state).toBe('failed');
+  test('rejects signals below structural policy without reserving authority', () => {
+    const signal = automaticSignal({ confidence: 0.1 });
+    const result = service().evaluate(signal, { harbor: DEFAULT_HARBOR });
+
+    expect(result).toMatchObject({ state: 'failed', parleyId: null });
+    expect(count('parley_auto_signals')).toBe(0);
+    expect(count('parley_auto_terminal_receipts')).toBe(0);
+    expect(count('parley_records')).toBe(0);
+    expect(activities).toEqual([]);
   });
 
-  test('fails closed on forged automatic provenance and over-limit griefing shapes', () => {
+  test('forged provenance and over-capacity inputs fail before reservations', () => {
     const forged = automaticSignal({
       provenance: {
-        producer: CONFLICT_SIGNAL_PRODUCERS.messagingDiagnostic,
-        trustTier: 'INTERNAL',
+        producer: CONFLICT_SIGNAL_PRODUCERS.claimConflict,
+        trustTier: 'ANONYMOUS_EXTERNAL',
         producedAt: PRODUCED_AT,
       },
     });
-    const forgedResult = service().evaluate(forged);
-    expect(forgedResult.state).toBe('failed');
-    expect(forgedResult.reason).toMatch(/not allowed for automatic/);
-
-    const parties = Array.from({ length: 33 }, (_, index) => `agent-${index}`);
-    for (const party of parties) live.add(party);
-    const griefing = automaticSignal({ parties });
-    const griefingResult = service().evaluate(griefing);
-    expect(griefingResult.state).toBe('failed');
-    expect(griefingResult.reason).toMatch(/parties exceed/);
-    expect(parley.list()).toHaveLength(0);
-  });
-
-  test('releases cap slots when callAutomatic throws before creating a durable Parley', () => {
-    const signal = automaticSignal();
-    const throwingParley = {
-      getAutomatic: parley.getAutomatic,
-      callAutomatic: () => { throw new Error('failed before opened record'); },
-    } as unknown as typeof parley;
-    const failed = service(tuples, throwingParley).evaluate(signal);
-
-    expect(failed.state).toBe('failed');
-    expect(failed.reason).toMatch(/failed before opened record/);
-    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
-      .toHaveLength(0);
-
-    const recovered = service().evaluate(signal);
-    expect(recovered.state).toBe('replayed');
-    expect(parley.list()).toHaveLength(1);
-  });
-
-  test.each([
-    ['lineage', (key: string) => key.startsWith('parley:auto:lineage:')],
-    ['surface cap', (key: string) => key.startsWith('parley:auto:cap:surface:')],
-    ['global cap', (key: string) => key === 'parley:auto:cap:global:0'],
-  ] as const)('compensates a pre-Parley failure at the %s reservation stage', (_stage, failsAt) => {
-    const signal = automaticSignal();
-    let injected = false;
-    const faultingTuples = {
-      ...tuples,
-      outOnce(fields: unknown[], options: Parameters<typeof tuples.outOnce>[1]) {
-        const reserved = tuples.outOnce(fields, options);
-        if (!injected && failsAt(options.idempotencyKey)) {
-          injected = true;
-          throw new Error(`injected ${_stage} reservation failure`);
-        }
-        return reserved;
-      },
-    };
-
-    const failed = service(faultingTuples as typeof tuples).evaluate(signal);
-    expect(failed.state).toBe('failed');
-    expect(failed.reason).toMatch(new RegExp(`injected ${_stage}`));
-    expect(internalFields('parley:auto:lineage').filter((fields) => fields[2] === signal.signalId))
-      .toHaveLength(0);
-    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
-      .toHaveLength(0);
-    expect(parley.list()).toHaveLength(0);
-
-    const recovered = service().evaluate(signal);
-    expect(recovered.state).toBe('replayed');
-    expect(parley.list()).toHaveLength(1);
-  });
-
-  test('replays a partial inbox failure after restart without duplicate durable records', () => {
-    for (let index = 0; index < inbox.MAX_INBOX_MESSAGES; index++) {
-      inbox.send('agent-b', `blocking-${index}`);
-    }
-    const signal = automaticSignal();
-    const partial = service().evaluate(signal);
-    expect(partial.state).toBe('failed');
-    expect(partial.reason).toMatch(/delivery incomplete/);
-    expect(inbox.list('agent-a').messages).toHaveLength(1);
-    expect(internalFields('parley:auto:cap').filter((fields) => fields[3] === signal.signalId))
-      .toHaveLength(2);
-
-    inbox.clear('agent-b');
-    const restartedTuples = createTupleSpace(db);
-    const restartedParley = createParley({ tuples: restartedTuples, agentInbox: inbox, now: () => clock });
-    const reconciled = service(restartedTuples, restartedParley).evaluate(signal);
-
-    expect(reconciled.state).toBe('replayed');
-    expect(reconciled.parleyId).toBe(partial.parleyId);
-    expect(inbox.list('agent-a').messages).toHaveLength(1);
-    expect(inbox.list('agent-b').messages).toHaveLength(1);
-    expect(tuples.rd(['parley:opened', partial.parleyId, '*'])).toHaveLength(1);
-    expect(tuples.rd(['parley:summons', partial.parleyId, '*', '*'])).toHaveLength(2);
-  });
-
-  test('enforces the durable per-surface pending cap across different lineages', () => {
-    const surface = 'lib/shared.ts';
-    const first = automaticSignal({ surface });
-    const second = automaticSignal({
-      surface,
-      kind: 'decision_contradiction',
-      checkpoint: 'quorum_vote',
-      shape: 'debate-with-judge',
-    });
-    const third = automaticSignal({
-      surface,
-      kind: 'task_convergence',
-      checkpoint: 'session_begin',
-      shape: 'contract-net',
+    const tooManyParties = automaticSignal({
+      parties: Array.from({ length: CONFLICT_SIGNAL_LIMITS.maxParties + 1 }, (_, index) => `actor-${index}`),
     });
 
-    expect(service().evaluate(first).state).toBe('fired');
-    expect(service().evaluate(second).state).toBe('fired');
-    const capped = service().evaluate(third);
-    expect(capped.state).toBe('suppressed');
-    expect(capped.reason).toMatch(/surface cap 2/);
-    expect(parley.list()).toHaveLength(2);
+    expect(service().evaluate(forged, { harbor: DEFAULT_HARBOR }).state).toBe('failed');
+    expect(service().evaluate(tooManyParties, { harbor: DEFAULT_HARBOR }).state).toBe('failed');
+    expect(count('parley_auto_signals')).toBe(0);
+    expect(count('parley_auto_terminal_receipts')).toBe(0);
   });
 
-  test('enforces the durable global pending cap', () => {
-    const trigger = service();
-    for (let index = 0; index < PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal; index++) {
-      const result = trigger.evaluate(automaticSignal({
-        surface: `lib/surface-${index}.ts`,
-        evidenceRefs: [`claim:${index}:a`, `claim:${index}:b`],
-      }));
-      expect(result.state).toBe('fired');
-    }
-
-    const capped = createParleyAutoTrigger({
-      tuples: createTupleSpace(db),
-      parley: createParley({ tuples: createTupleSpace(db), agentInbox: inbox, now: () => clock }),
-      activityLog,
-      now: () => clock,
-      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
-    }).evaluate(automaticSignal({
-      surface: 'lib/overflow.ts',
-      evidenceRefs: ['claim:overflow:a', 'claim:overflow:b'],
-    }), { harbor: 'fleet' });
-
-    expect(capped.state).toBe('suppressed');
-    expect(capped.reason).toMatch(/global cap 32/);
-    expect(parley.list()).toHaveLength(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal);
-    expect(internalFields('parley:auto:cap').filter((fields) => fields[1] === 'global'))
-      .toHaveLength(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal);
-
-    clock += 60 * 60 * 1000 + 1;
-    const reclaimed = service().evaluate(automaticSignal({
-      surface: 'lib/reclaimed-after-terminal.ts',
-      evidenceRefs: ['claim:reclaimed:a', 'claim:reclaimed:b'],
-    }));
-    expect(reclaimed.state).toBe('fired');
-    expect(parley.get(reclaimed.parleyId!)?.status).toBe('SUMMONED');
-    expect(parley.list()).toHaveLength(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal + 1);
-  });
-
-  test('atomically admits only one of two concurrent same-lineage signals across connections', () => {
-    const dir = mkdtempSync(join(process.cwd(), '.test-parley-lineage-race-'));
-    const path = join(dir, 'lineage.db');
-    const dbA = new Database(path);
-    const dbB = new Database(path);
-    try {
-      const tuplesA = createTupleSpace(dbA);
-      const tuplesB = createTupleSpace(dbB);
-      const inboxA = createAgentInbox(dbA);
-      const inboxB = createAgentInbox(dbB);
-      const parleyA = createParley({ tuples: tuplesA, agentInbox: inboxA, now: () => clock });
-      const parleyB = createParley({ tuples: tuplesB, agentInbox: inboxB, now: () => clock });
-      const signalA = automaticSignal({ evidenceRefs: ['claim:race:a', 'claim:race:b'] });
-      const signalB = automaticSignal({ evidenceRefs: ['claim:race:a', 'claim:race:c'] });
-      const triggerB = createParleyAutoTrigger({
-        tuples: tuplesB,
-        parley: parleyB,
-        now: () => clock,
-        resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
-      });
-      let raced: ReturnType<typeof triggerB.evaluate> | null = null;
-      const interleavingParley = {
-        getAutomatic: parleyA.getAutomatic,
-        callAutomatic(input: Parameters<typeof parleyA.callAutomatic>[0]) {
-          raced = triggerB.evaluate(signalB, { harbor: 'race' });
-          return parleyA.callAutomatic(input);
-        },
-      };
-      const triggerA = createParleyAutoTrigger({
-        tuples: tuplesA,
-        parley: interleavingParley,
-        now: () => clock,
-        resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
-      });
-
-      const winner = triggerA.evaluate(signalA, { harbor: 'race' });
-      expect(winner.state).toBe('fired');
-      expect(raced).toMatchObject({ state: 'suppressed' });
-      expect(raced?.reason).toMatch(/cooldown|pending automatic signal/);
-      expect(tuplesA.rd(['parley:opened', '*', '*'], { harbor: 'race' })).toHaveLength(1);
-      expect(tuplesA.rd(['parley:summons', '*', '*', '*'], { harbor: 'race' })).toHaveLength(2);
-      expect(inboxA.list('agent-a').messages).toHaveLength(1);
-      expect(inboxA.list('agent-b').messages).toHaveLength(1);
-    } finally {
-      dbA.close();
-      dbB.close();
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  test('never reaches a generic tuple scan on the automatic hot path', () => {
-    const indexedOnlyTuples = {
-      ...tuples,
-      rd: () => { throw new Error('generic rd scan reached automatic hot path'); },
-      take: () => { throw new Error('generic take scan reached automatic hot path'); },
-    };
-    const indexedParley = createParley({
-      tuples: indexedOnlyTuples,
-      agentInbox: inbox,
-      now: () => clock,
-    });
-    const trigger = createParleyAutoTrigger({
-      tuples: indexedOnlyTuples,
-      parley: indexedParley,
-      now: () => clock,
-      resolveLiveParty: (actorId) => live.has(actorId) ? liveParticipant(actorId) : null,
-    });
-    const signal = automaticSignal();
-
-    const result = trigger.evaluate(signal, { harbor: 'fleet' });
-    expect(result.state).toBe('fired');
-    expect(indexedParley.getAutomatic(signal.signalId, 'fleet')?.parley.parleyId)
-      .toBe(result.parleyId);
-  });
-
-  test('finds an active automatic lineage despite more than 1000 newer manual Parleys', () => {
-    const firstSignal = automaticSignal();
-    const first = service().evaluate(firstSignal);
-    expect(first.state).toBe('fired');
-
-    const manual = createParley({ tuples, now: () => clock });
-    for (let index = 0; index < 1001; index++) {
-      manual.call({
-        surface: `manual:${index}`,
-        reason: `manual flood ${index}`,
-        parties: ['agent-a', 'agent-b'],
-        calledBy: 'operator',
-      });
-    }
+  test('an active lineage suppresses new evidence even after its cooldown duration elapses', () => {
+    const firstSignal = automaticSignal({ evidenceRefs: ['claim:first'] });
+    const first = service().evaluate(firstSignal, { harbor: DEFAULT_HARBOR });
     clock += PARLEY_AUTO_TRIGGER_POLICY.cooldownMs + 1;
-
-    const later = service().evaluate(automaticSignal({ evidenceRefs: ['claim:new:a', 'claim:new:b'] }));
-    expect(later.state).toBe('suppressed');
-    expect(later.reason).toMatch(/pending automatic Parley/);
-    expect(later.parleyId).toBe(first.parleyId);
-    expect(tuples.rd(['parley:opened', first.parleyId, '*'])).toHaveLength(1);
-  });
-
-  test('keeps authority tuples private while preserving visible terminal activity', () => {
-    const result = service().evaluate(automaticSignal());
-    const terminal = internalFields('parley:auto:terminal')
-      .filter((fields) => fields[1] === result.signalId && fields[2] === 'fired');
-    const activity = activityLog.getRecent({ type: 'parley.auto.fired' });
-
-    expect(terminal).toHaveLength(1);
-    expect(tuples.rd(['parley:auto:terminal'])).toEqual([]);
-    expect(tuples.scan()).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ fields: expect.arrayContaining(['parley:auto:terminal']) }),
-    ]));
-    expect(tuples.take(['parley:auto:terminal'])).toEqual([]);
-    expect(activity.count).toBe(1);
-    expect(activity.entries[0].targetId).toBe(result.parleyId);
-  });
-
-  test('public tuple operations cannot erase signal or lineage authority before replay', () => {
-    const signal = automaticSignal();
-    const first = service().evaluate(signal);
-    const lineageKey = parleySignalLineageKey(signal);
+    const secondSignal = automaticSignal({ evidenceRefs: ['claim:second'] });
+    const second = service().evaluate(secondSignal, { harbor: DEFAULT_HARBOR });
 
     expect(first.state).toBe('fired');
-    expect(tuples.rd(['parley:auto:signal'])).toEqual([]);
-    expect(tuples.take(['parley:auto:signal'])).toEqual([]);
-    expect(tuples.take(['parley:auto:lineage'])).toEqual([]);
-    expect(tuples.getByIdempotencyKey(
-      `parley:auto:signal:${signal.signalId}`,
-      { harbor: 'fleet' },
-    )?.fields[2])
-      .toMatchObject({ signal: expect.objectContaining({ signalId: signal.signalId }) });
-    expect(tuples.getByIdempotencyKey(
-      `parley:auto:lineage:${lineageKey}`,
-      { harbor: 'fleet' },
-    )?.fields[2])
-      .toBe(signal.signalId);
-    expect(service().evaluate(signal)).toMatchObject({
-      state: 'replayed',
-      parleyId: first.parleyId,
+    expect(parleySignalLineageKey(firstSignal)).toBe(parleySignalLineageKey(secondSignal));
+    expect(second).toMatchObject({
+      state: 'suppressed',
+      parleyId: null,
+      reason: expect.stringMatching(/already owns this lineage/),
     });
+    expect(count('parley_records')).toBe(1);
+    expect(count('parley_auto_terminal_receipts')).toBe(2);
   });
 
-  test('bounds terminal telemetry under a replay storm', () => {
+  test('terminal lineage cooldown expires at the exact stored boundary', () => {
+    const firstSignal = automaticSignal({ evidenceRefs: ['claim:first'] });
+    const first = service().evaluate(firstSignal, { harbor: DEFAULT_HARBOR });
+    if (!first.parleyId) throw new Error('fixture did not create a Parley');
+    parley.respond({
+      harbor: DEFAULT_HARBOR,
+      parleyId: first.parleyId,
+      party: 'agent-a',
+      performative: 'refuse',
+      content: 'terminalize the exact cooldown fixture',
+      idempotencyKey: 'cooldown-fixture-refusal',
+    });
+
+    clock += PARLEY_AUTO_TRIGGER_POLICY.cooldownMs - 1;
+    const within = service().evaluate(
+      automaticSignal({ evidenceRefs: ['claim:within'] }),
+      { harbor: DEFAULT_HARBOR },
+    );
+    expect(within).toMatchObject({ state: 'suppressed', reason: expect.stringMatching(/within cooldown/) });
+
+    clock += 1;
+    const boundary = service().evaluate(
+      automaticSignal({ evidenceRefs: ['claim:boundary'] }),
+      { harbor: DEFAULT_HARBOR },
+    );
+    expect(boundary.state).toBe('fired');
+    expect(count('parley_records')).toBe(2);
+  });
+
+  test('fixed per-surface and global admission ceilings suppress excess work', () => {
+    live.set('agent-c', 'agent-c');
+    live.set('agent-d', 'agent-d');
+    const first = service().evaluate(automaticSignal({ parties: ['agent-a', 'agent-b'] }), { harbor: 'surface-cap' });
+    const second = service().evaluate(automaticSignal({ parties: ['agent-a', 'agent-c'] }), { harbor: 'surface-cap' });
+    const third = service().evaluate(automaticSignal({ parties: ['agent-a', 'agent-d'] }), { harbor: 'surface-cap' });
+
+    expect([first.state, second.state, third.state]).toEqual(['fired', 'fired', 'suppressed']);
+    expect(third.reason).toMatch(/surface cap 2 reached/);
+    expect(count('parley_records', 'surface-cap')).toBe(2);
+
+    const globalResults = Array.from({ length: PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal + 1 }, (_, index) => (
+      service().evaluate(automaticSignal({
+        surface: `lib/global-${index}.ts#run`,
+        evidenceRefs: [`claim:global-${index}`],
+      }), { harbor: 'global-cap' })
+    ));
+    expect(globalResults.slice(0, -1).every((result) => result.state === 'fired')).toBe(true);
+    expect(globalResults.at(-1)).toMatchObject({
+      state: 'suppressed',
+      reason: expect.stringMatching(/global cap 32 reached/),
+    });
+    expect(count('parley_records', 'global-cap')).toBe(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal);
+    expect(count('parley_admissions', 'global-cap')).toBe(PARLEY_AUTO_TRIGGER_POLICY.maxPendingGlobal * 2);
+  });
+
+  test('notification outage leaves committed work for crash-safe restart delivery', () => {
+    const failedDeliveries: string[] = [];
+    const failingParley = createParley({
+      store,
+      defaultHarbor: DEFAULT_HARBOR,
+      now: () => clock,
+      agentInbox: {
+        internal: {
+          sendOnce(agentId) {
+            failedDeliveries.push(agentId);
+            return { success: false, error: 'injected outage' };
+          },
+        },
+      },
+    });
+    const first = service(failingParley).evaluate(automaticSignal(), { harbor: DEFAULT_HARBOR });
+    expect(first.state).toBe('fired');
+    expect(failedDeliveries).toEqual(['agent-a', 'agent-b']);
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND state = 'pending'
+    `).get(TENANT, DEFAULT_HARBOR)).toEqual({ count: 2 });
+
+    clock += 250;
+    const recoveredInbox = createAgentInbox(db);
+    const recoveredParley = createParley({
+      store,
+      defaultHarbor: DEFAULT_HARBOR,
+      agentInbox: recoveredInbox,
+      now: () => clock,
+    });
+    const replay = service(recoveredParley).evaluate(automaticSignal(), { harbor: DEFAULT_HARBOR });
+
+    expect(replay.state).toBe('replayed');
+    expect(recoveredInbox.list('agent-a').messages).toHaveLength(1);
+    expect(recoveredInbox.list('agent-b').messages).toHaveLength(1);
+    expect(count('parley_records')).toBe(1);
+  });
+
+  test('replay storms do not duplicate terminal activity or tuple authority', () => {
+    const trigger = service();
     const signal = automaticSignal();
-    expect(service().evaluate(signal).state).toBe('fired');
+    expect(trigger.evaluate(signal, { harbor: DEFAULT_HARBOR }).state).toBe('fired');
     for (let index = 0; index < 100; index++) {
-      expect(service().evaluate(signal).state).toBe('replayed');
+      expect(trigger.evaluate(signal, { harbor: DEFAULT_HARBOR }).state).toBe('replayed');
     }
 
-    expect(internalFields('parley:auto:terminal').filter(
-      (fields) => fields[1] === signal.signalId && fields[2] === 'fired',
-    )).toHaveLength(1);
-    expect(internalFields('parley:auto:terminal').filter(
-      (fields) => fields[1] === signal.signalId && fields[2] === 'replayed',
-    )).toHaveLength(1);
-    expect(activityLog.getRecent({ type: 'parley.auto.fired' }).count).toBe(1);
-    expect(activityLog.getRecent({ type: 'parley.auto.replayed' }).count).toBe(1);
+    expect(activities).toHaveLength(1);
+    expect(count('parley_auto_terminal_receipts')).toBe(1);
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM sqlite_master
+      WHERE type = 'table' AND name = 'tuples'
+    `).get()).toEqual({ count: 0 });
   });
 });
