@@ -131,11 +131,19 @@ export interface AgentContextClassification {
   provenance: AgentContextProvenance;
 }
 
-/** Injectable dependencies and freshness policy for deterministic callers/tests. */
+/** Production freshness policy; the embedder is deliberately not selectable. */
 export interface AgentContextClassifierOptions {
-  embedder?: LocalEmbedder;
   clock?: () => number;
   staleAfterMs?: number;
+}
+
+/**
+ * @internal Deterministic test seam. Production callers must use
+ * `createAgentContextClassifier`, which always constructs the cache-gated shared
+ * MiniLM embedder. This type does not authorize alternate production providers.
+ */
+export interface AgentContextClassifierTestOptions extends AgentContextClassifierOptions {
+  embedder: LocalEmbedder;
 }
 
 /** Public classifier surface; storage/timer wiring remains a separate slice. */
@@ -526,17 +534,18 @@ function createStrictSharedMiniLMEmbedder(): LocalEmbedder {
 }
 
 /**
- * Resolve dependencies and create a local-only topical classifier. Design
- * intent: reuse the ONE shared MiniLM cache rather than createLocalEmbedder's
- * cwd-relative bare cache, preventing per-worktree model downloads.
+ * Build the classifier around an already selected embedder. Design intent:
+ * share one implementation between the production factory and its explicit
+ * deterministic test seam without reopening production provider selection.
  *
- * @param options Injected embedder, clock, and staleness TTL.
+ * @param embedder Production-selected MiniLM embedder or a deterministic test fake.
+ * @param options Clock and staleness policy.
  * @returns A classifier with deterministic classification and freshness APIs.
  */
-export function createAgentContextClassifier(
-  options: AgentContextClassifierOptions = {},
+function createAgentContextClassifierWithEmbedder(
+  embedder: LocalEmbedder,
+  options: AgentContextClassifierOptions,
 ): AgentContextClassifier {
-  const embedder = options.embedder ?? createStrictSharedMiniLMEmbedder();
   const clock = options.clock ?? Date.now;
   const staleAfterMs = options.staleAfterMs ?? DEFAULT_AGENT_CONTEXT_STALE_AFTER_MS;
   if (!Number.isFinite(staleAfterMs) || staleAfterMs <= 0) {
@@ -633,4 +642,36 @@ export function createAgentContextClassifier(
       return clock() >= classification.staleAt;
     },
   };
+}
+
+/**
+ * Create the production local-only topical classifier. The embedder is not an
+ * option: every production caller goes through the cache-presence gate and the
+ * one shared `createLocalEmbedder` MiniLM implementation. Design intent: make
+ * the one-model, no-download boundary structural rather than advisory.
+ *
+ * @param options Clock and staleness policy only.
+ * @returns A classifier backed by the cache-gated shared MiniLM embedder.
+ */
+export function createAgentContextClassifier(
+  options: AgentContextClassifierOptions = {},
+): AgentContextClassifier {
+  return createAgentContextClassifierWithEmbedder(createStrictSharedMiniLMEmbedder(), options);
+}
+
+/**
+ * @internal Create a classifier with deterministic vectors for unit tests.
+ * This explicit seam keeps fake or failing embedders out of the production
+ * factory instead of treating arbitrary `LocalEmbedder` values as authorized
+ * providers. Design intent: test semantic behavior without model or network
+ * nondeterminism while keeping production provider selection closed.
+ *
+ * @param options Required test embedder plus deterministic clock/TTL controls.
+ * @returns A classifier suitable for isolated contract tests.
+ */
+export function createAgentContextClassifierTestSeam(
+  options: AgentContextClassifierTestOptions,
+): AgentContextClassifier {
+  const { embedder, ...classifierOptions } = options;
+  return createAgentContextClassifierWithEmbedder(embedder, classifierOptions);
 }

@@ -14,6 +14,7 @@ import {
   AgentContextClassifierOutputError,
   AgentContextClassifierUnavailableError,
   createAgentContextClassifier,
+  createAgentContextClassifierTestSeam,
   type AgentContextInput,
 } from '../../lib/agent-context-classifier.js';
 import type { LocalEmbedder } from '../../lib/semantic-resolver.js';
@@ -56,7 +57,11 @@ describe('agent context classifier', () => {
       { length: AGENT_CONTEXT_LIMITS.diffHunks + 4 },
       (_, index) => `diff hunk ${index} ${'y'.repeat(AGENT_CONTEXT_LIMITS.diffHunkChars + 20)}`,
     );
-    const classifier = createAgentContextClassifier({ embedder, clock: () => 10_000, staleAfterMs: 60_000 });
+    const classifier = createAgentContextClassifierTestSeam({
+      embedder,
+      clock: () => 10_000,
+      staleAfterMs: 60_000,
+    });
 
     const result = await classifier.classify({
       session,
@@ -76,8 +81,6 @@ describe('agent context classifier', () => {
     expect(result.identity).toBe(session.identity);
     expect(result.topicTag.split(/\s+/)).toHaveLength(AGENT_CONTEXT_LIMITS.topicWords);
     expect(result.topicTag.length).toBeLessThanOrEqual(AGENT_CONTEXT_LIMITS.topicChars);
-    expect(result.topicEmbedding[0]).toBeCloseTo(0.6, 12);
-    expect(result.topicEmbedding[1]).toBeCloseTo(0.8, 12);
     expect(Math.hypot(...result.topicEmbedding)).toBeCloseTo(1, 12);
     expect(result.confidence).toBe(1);
     expect(result.surfaceClaims).toHaveLength(AGENT_CONTEXT_LIMITS.claims);
@@ -119,7 +122,7 @@ describe('agent context classifier', () => {
       ['note: central semantic topic', [1, 1]],
     ]);
     const embedder = fakeEmbedder((text) => vectors.get(text) ?? [0, 0]);
-    const classifier = createAgentContextClassifier({ embedder, clock: () => 1 });
+    const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
 
     const result = await classifier.classify({
       session,
@@ -140,7 +143,7 @@ describe('agent context classifier', () => {
       if (text === 'note: second source has the same centrality') return [0, 1];
       return [0, 0];
     });
-    const classifier = createAgentContextClassifier({ embedder, clock: () => 1 });
+    const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
 
     const result = await classifier.classify({
       session,
@@ -156,9 +159,32 @@ describe('agent context classifier', () => {
     });
   });
 
-  test('discards blank notes and claims before constructing the one embed batch', async () => {
+  test('accepts explicit empty arrays without adding sources to the embedding batch', async () => {
     const embedder = fakeEmbedder(() => [1, 0]);
-    const classifier = createAgentContextClassifier({ embedder, clock: () => 1 });
+    const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
+
+    const result = await classifier.classify({
+      session,
+      purpose: 'classify the required purpose only',
+      notes: [],
+      claims: [],
+      diffHunks: [],
+    });
+
+    expect(embedder.batches).toEqual([['purpose: classify the required purpose only']]);
+    expect(result.provenance.input).toMatchObject({
+      sourceCount: 1,
+      noteCount: 0,
+      claimCount: 0,
+      diffHunkCount: 0,
+      truncated: false,
+    });
+    expect(result.surfaceClaims).toEqual([]);
+  });
+
+  test('discards blank sources and duplicate claims before constructing the one embed batch', async () => {
+    const embedder = fakeEmbedder(() => [1, 0]);
+    const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
 
     const result = await classifier.classify({
       session,
@@ -168,8 +194,10 @@ describe('agent context classifier', () => {
         { path: '   ' },
         { path: '\n', symbolPath: 'function ignoredBecausePathIsBlank' },
         { path: ' lib/keep.ts ', symbolPath: '  ' },
+        { path: 'lib/keep.ts' },
         { path: ' lib/symbol.ts ', symbolPath: ' function retained ' },
       ],
+      diffHunks: ['  ', '\n\t'],
     });
 
     expect(embedder.batches).toEqual([[
@@ -182,13 +210,39 @@ describe('agent context classifier', () => {
       sourceCount: 4,
       noteCount: 1,
       claimCount: 2,
+      diffHunkCount: 0,
     });
     expect(result.surfaceClaims).toEqual(['lib/keep.ts', 'lib/symbol.ts#function retained']);
   });
 
+  test('normalizes each source independently of its raw magnitude', async () => {
+    const classifyWithFirstMagnitude = async (scale: number) => {
+      const embedder = fakeEmbedder((_text, index) => (
+        index === 0 ? [3 * scale, 4 * scale] : [4, -3]
+      ));
+      const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
+      return classifier.classify({
+        session,
+        purpose: 'normalization scale invariance',
+        notes: ['independent semantic evidence'],
+      });
+    };
+
+    const baseline = await classifyWithFirstMagnitude(1);
+    const scaled = await classifyWithFirstMagnitude(100);
+
+    expect(scaled.topicEmbedding).toHaveLength(baseline.topicEmbedding.length);
+    scaled.topicEmbedding.forEach((value, index) => {
+      expect(value).toBeCloseTo(baseline.topicEmbedding[index], 12);
+    });
+    expect(scaled.confidence).toBe(baseline.confidence);
+    expect(scaled.provenance.topicSource).toEqual(baseline.provenance.topicSource);
+    expect(Math.hypot(...scaled.topicEmbedding)).toBeCloseTo(1, 12);
+  });
+
   test('evaluates the exact stale boundary with the injected clock', async () => {
     let now = 1_000;
-    const classifier = createAgentContextClassifier({
+    const classifier = createAgentContextClassifierTestSeam({
       embedder: fakeEmbedder(() => [1, 0]),
       clock: () => now,
       staleAfterMs: 1_000,
@@ -208,7 +262,7 @@ describe('agent context classifier', () => {
         throw new Error('model is not cached');
       },
     };
-    const classifier = createAgentContextClassifier({ embedder });
+    const classifier = createAgentContextClassifierTestSeam({ embedder });
     const promise = classifier.classify({ session, purpose: 'local model degradation' });
 
     await expect(promise).rejects.toBeInstanceOf(AgentContextClassifierUnavailableError);
@@ -245,8 +299,20 @@ describe('agent context classifier', () => {
     expect(existsSync(cacheDir)).toBe(false);
   });
 
+  test('rejects an embedding batch whose vector count does not match its sources', async () => {
+    const embedder: LocalEmbedder = {
+      modelId: 'Xenova/broken-MiniLM',
+      async embed(): Promise<number[][]> {
+        return [];
+      },
+    };
+    const classifier = createAgentContextClassifierTestSeam({ embedder });
+
+    await expect(classifier.classify({ session, purpose: 'invalid vector count' }))
+      .rejects.toThrow('expected 1 vectors, received 0');
+  });
+
   test.each([
-    ['missing vector', []],
     ['zero vector', [[0, 0]]],
     ['non-finite vector', [[Number.NaN, 1]]],
   ])('rejects malformed embedder output: %s', async (_label, vectors) => {
@@ -256,7 +322,7 @@ describe('agent context classifier', () => {
         return vectors as number[][];
       },
     };
-    const classifier = createAgentContextClassifier({ embedder });
+    const classifier = createAgentContextClassifierTestSeam({ embedder });
 
     await expect(classifier.classify({ session, purpose: 'invalid vector contract' }))
       .rejects.toBeInstanceOf(AgentContextClassifierOutputError);
@@ -264,15 +330,26 @@ describe('agent context classifier', () => {
 
   test('rejects missing purpose or source-session identity before invoking the model', async () => {
     const embedder = fakeEmbedder(() => [1, 0]);
-    const classifier = createAgentContextClassifier({ embedder });
+    const classifier = createAgentContextClassifierTestSeam({ embedder });
     const missingPurpose: AgentContextInput = { session, purpose: '   ' };
-    const missingSession: AgentContextInput = {
-      session: { ...session, sessionId: '' },
-      purpose: 'identity must remain attributable',
-    };
 
     await expect(classifier.classify(missingPurpose)).rejects.toThrow('purpose must be a non-empty string');
-    await expect(classifier.classify(missingSession)).rejects.toThrow('sessionId must be a non-empty string');
     expect(embedder.batches).toHaveLength(0);
   });
+
+  test.each(['sessionId', 'agentId', 'identity'] as const)(
+    'rejects a blank %s before invoking the model',
+    async (field) => {
+      const embedder = fakeEmbedder(() => [1, 0]);
+      const classifier = createAgentContextClassifierTestSeam({ embedder });
+      const missingIdentity: AgentContextInput = {
+        session: { ...session, [field]: '   ' },
+        purpose: 'identity must remain attributable',
+      };
+
+      await expect(classifier.classify(missingIdentity))
+        .rejects.toThrow(`${field} must be a non-empty string`);
+      expect(embedder.batches).toHaveLength(0);
+    },
+  );
 });
