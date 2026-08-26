@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 const STABLE_VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const STABLE_TAG = /^v([0-9]+\.[0-9]+\.[0-9]+)$/;
+export const RELEASE_TRAIN_TOKEN_SOURCE = 'RELEASE_TRAIN_TOKEN';
+export const HOMEBREW_TAP_TOKEN_SOURCE = 'HOMEBREW_TAP_TOKEN';
+export const GITHUB_PERMISSION_PROBE_TIMEOUT_MS = 10_000;
 
 export function parseStableVersion(value) {
   if (!STABLE_VERSION.test(value)) {
@@ -41,9 +44,82 @@ function parseBooleanFlag(value, label) {
 }
 
 export function selectTokenSource(hasTrainToken, hasTapToken) {
-  if (parseBooleanFlag(hasTrainToken, 'hasTrainToken')) return 'RELEASE_TRAIN_TOKEN';
-  if (parseBooleanFlag(hasTapToken, 'hasTapToken')) return 'HOMEBREW_TAP_TOKEN';
+  if (parseBooleanFlag(hasTrainToken, 'hasTrainToken')) return RELEASE_TRAIN_TOKEN_SOURCE;
+  if (parseBooleanFlag(hasTapToken, 'hasTapToken')) return HOMEBREW_TAP_TOKEN_SOURCE;
   throw new Error('neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN is available');
+}
+
+/**
+ * Select the first credential whose live probe proves the capability required
+ * by the release mutation. The design returns only a source identity: returning
+ * the token itself would tempt callers to move a secret through GitHub step
+ * outputs, where masking can replace it with an empty value.
+ *
+ * Probe errors deliberately count as unusable and fall through to the next
+ * candidate. This keeps a stale preferred PAT from masking a healthy fallback
+ * while still failing closed when no candidate can be proved safe.
+ *
+ * @param {string | undefined} releaseToken - Dedicated release-train PAT.
+ * @param {string | undefined} tapToken - Fallback Homebrew-tap PAT.
+ * @param {(token: string, source: string) => boolean} canPush - Live capability probe.
+ * @returns {string} The non-secret canonical source identity.
+ */
+export function selectWorkingTokenSource(releaseToken, tapToken, canPush) {
+  if (typeof canPush !== 'function') {
+    throw new Error('canPush probe must be a function');
+  }
+  const candidates = [
+    [RELEASE_TRAIN_TOKEN_SOURCE, releaseToken],
+    [HOMEBREW_TAP_TOKEN_SOURCE, tapToken],
+  ];
+  for (const [source, token] of candidates) {
+    if (!token) continue;
+    try {
+      if (canPush(token, source)) return source;
+    } catch {
+      // A failed probe is not capability evidence. Try the bounded fallback.
+    }
+  }
+  throw new Error('neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN can push to the repository');
+}
+
+/**
+ * Probe GitHub's effective repository push permission without leaking either
+ * candidate credential to stdout, stderr, argv, or a child environment that
+ * also contains the other candidate. The purpose is authorization evidence,
+ * not token introspection: a successful read with `permissions.push == true`
+ * accounts for both the token and its actor's repository role.
+ *
+ * @param {string} token - Candidate PAT, passed only as the child GH_TOKEN.
+ * @param {string} source - Non-secret source identity used in diagnostics.
+ * @param {string} repository - GitHub owner/repository target.
+ * @returns {boolean} Whether GitHub proved effective push permission.
+ */
+export function probeRepositoryPush(token, source, repository, execFile = execFileSync) {
+  const childEnv = { ...process.env, GH_TOKEN: token };
+  delete childEnv.RELEASE_TRAIN_TOKEN;
+  delete childEnv.HOMEBREW_TAP_TOKEN;
+  try {
+    const canPush = execFile(
+      'gh',
+      ['api', `repos/${repository}`, '--jq', '.permissions.push // false'],
+      {
+        encoding: 'utf8',
+        env: childEnv,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
+      },
+    ).trim();
+    if (canPush === 'true') return true;
+    process.stderr.write(
+      `::warning::${source} is configured but lacks effective push permission for ${repository}.\n`,
+    );
+  } catch {
+    process.stderr.write(
+      `::warning::${source} probe failed; the credential may be invalid or expired, or GitHub may be unavailable or rate-limited.\n`,
+    );
+  }
+  return false;
 }
 
 export function extractFormulaVersion(source) {
@@ -142,6 +218,7 @@ function usage() {
     '  release-workflow-state.mjs formula-matches <tag> <formula-path>',
     '  release-workflow-state.mjs wait-for-formula <tag> <formula-url> [run-id]',
     '  release-workflow-state.mjs require-token <has-train-token> <has-tap-token>',
+    '  release-workflow-state.mjs select-live-token <owner/repository>',
   ].join('\n');
 }
 
@@ -204,6 +281,16 @@ async function main(args) {
     const source = selectTokenSource(
       requireArg(args, 1, 'has-train-token flag'),
       requireArg(args, 2, 'has-tap-token flag'),
+    );
+    process.stdout.write(`${source}\n`);
+    return;
+  }
+  if (command === 'select-live-token') {
+    const repository = requireArg(args, 1, 'owner/repository');
+    const source = selectWorkingTokenSource(
+      process.env.RELEASE_TRAIN_TOKEN,
+      process.env.HOMEBREW_TAP_TOKEN,
+      (token, sourceName) => probeRepositoryPush(token, sourceName, repository),
     );
     process.stdout.write(`${source}\n`);
     return;

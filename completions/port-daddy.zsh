@@ -2370,7 +2370,7 @@ _port_daddy() {
     'cg:alias for coast-guard — the Coast Guard read path'
     'relay:Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
     'suggest:Tender suggestion queue — list, approve, dismiss operator suggestions'
-    'seamanship:Skill registry — search, show, sync, outcomes, index'
+    'seamanship:Skill registry — search, show, sync, outcomes, index, visibility'
     'skills:alias for seamanship — skill registry'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'
@@ -2380,7 +2380,7 @@ _port_daddy() {
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
     # Fleet ship-run transcripts
-    'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
+    'transcripts:browse fleet ship-run transcripts (list/show/watch/cost)'
     'transcript:alias for transcripts — view a single ship-run record'
     # Squid bridge
     'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'

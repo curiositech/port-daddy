@@ -23,6 +23,7 @@
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
 #        echo "<value>" | wrangler secret put GITHUB_WEBHOOK_SECRET
+#        openssl rand -hex 32 | wrangler secret put COORDINATION_MACAROON_ROOT_KEY_HEX
 #
 #   6. Deploy:
 #        wrangler deploy
@@ -31,7 +32,7 @@
 #   wrangler dev --local   (uses local D1 sqlite, local DO)
 
 name = "port-daddy-relay"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -56,6 +57,8 @@ GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 GITHUB_OWNER = "REPLACE_WITH_YOUR_GITHUB_OWNER"
 GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO"
 DEFAULT_BRANCH = "main"
+# Durable numeric GitHub id for the initial account-backed Cloud Fleet operator.
+RELAY_OPERATOR_GITHUB_USER_ID = "REPLACE_WITH_YOUR_GITHUB_USER_ID"
 
 # ---------------------------------------------------------------------------
 # Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
@@ -72,6 +75,7 @@ database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
   { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+  { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
 ]
 
 [[migrations]]
@@ -82,6 +86,11 @@ new_classes = ["HarborChannel"]
 [[migrations]]
 tag = "v0002"
 new_classes = ["HarborQuota"]
+
+# ADR-0092: one CRDT coordination peer per project.
+[[migrations]]
+tag = "v0003"
+new_sqlite_classes = ["CoordinationRoom"]
 
 [[kv_namespaces]]
 # JWKS cache and pinned relay key cache

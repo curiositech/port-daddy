@@ -50,9 +50,7 @@ $250$ & $10$ & $250$ & $98$ & $2.5\times$ \\
 \bottomrule
 \end{tabular}
 \end{center}
-\begin{figure}[h]\centering\includegraphics[width=\textwidth]{b1_figure.png}
-\caption{\textbf{A:} zero-miss digest rate falls as the open budget $f$ grows. \textbf{B:} rate falls as miss tolerance $\delta$ grows (the slight uptick near $\delta/p\to1$ is a genuine artifact of the constraint geometry, not noise). \textbf{C:} the zoom advantage on a log scale --- adaptive inspection opens far fewer items than flat when load-bearing items are sparse in the flagged set, which is exactly the regime a miss-averse (safe) digest operates in.}
-\end{figure}
+\input{fig-b1-frontier.tex}
 
 \noindent\textbf{The honest boundary, stated.} The zoom advantage is \emph{not} universal: when a digest flags a set already dense in positives (e.g.\ $f\approx1.5p$ so most flagged items are load-bearing), group testing's overhead dominates and flat inspection is as good or better. This matters for the design claim: zoom pays when the digest is conservative (low false-negative, over-flagging to be safe), which is the safety-relevant operating point --- so the theorem supports the architecture where it counts and does not overclaim where it does not.
 

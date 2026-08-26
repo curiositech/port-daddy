@@ -1,0 +1,150 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Item detail — relay roadmap mirror</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font:14px/1.55 ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;padding:26px 30px 34px}
+.sheet{max-width:1340px;margin:0 auto}
+.disclaimer{border:1px solid #b7791f;background:#2b2011;border-left:5px solid #d69e2e;padding:12px 16px;border-radius:6px;margin-bottom:18px;color:#f0d9a8}
+.disclaimer b{color:#f6e05e}
+h1{font:600 22px/1.3 ui-sans-serif,system-ui,sans-serif;color:#e6edf3;letter-spacing:-.2px}
+h1 .n{color:#58a6ff;margin-right:10px}
+.sub{color:#8b949e;font-size:12.5px;margin-top:5px}
+.prov{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px}
+.chip{border:1px solid #30363d;background:#161b22;border-radius:999px;padding:3px 11px;font-size:11.5px;color:#8b949e}
+.chip b{color:#c9d1d9;font-weight:600}
+.chip.real{border-color:#2ea043;background:#0f2417;color:#7ee787}
+.chip.harness{border-color:#8957e5;background:#1d1428;color:#d2b4fe}
+.chip.authored{border-color:#b7791f;background:#2b2011;color:#f0d9a8}
+.card{border:1px solid #30363d;background:#0f141a;border-radius:9px;margin-bottom:16px;overflow:hidden}
+.card > .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d}
+.req{color:#e6edf3;font-size:13px}
+.req .m{color:#d2a8ff;font-weight:600}
+.req .q{color:#8b949e}
+.pill{font-size:11.5px;font-weight:700;border-radius:5px;padding:2px 8px}
+.ok{background:#0f2417;color:#7ee787;border:1px solid #2ea043}
+.err{background:#2d1416;color:#ff9492;border:1px solid #da3633}
+.warn{background:#2b2011;color:#f6e05e;border:1px solid #b7791f}
+.t{margin-left:auto;color:#6e7681;font-size:11.5px}
+.body{padding:14px}
+.note{color:#8b949e;font-size:12.5px;margin-bottom:11px}
+pre{background:#010409;border:1px solid #21262d;border-radius:6px;padding:11px 13px;overflow:auto;font-size:11.5px;color:#a5d6ff;white-space:pre-wrap;word-break:break-word}
+pre .k{color:#7ee787}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.wm{display:grid;grid-template-columns:repeat(4,auto);gap:0 26px;align-items:start;background:#010409;border:1px solid #21262d;border-radius:7px;padding:13px 15px;margin-bottom:13px}
+.wm .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#6e7681}
+.wm .val{font-size:16px;color:#e6edf3;margin:3px 0 1px}
+.wm .sub2{font-size:11px;color:#8b949e}
+.wm .stale{color:#f6e05e}
+.lanes{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+.lane{border:1px solid #21262d;border-radius:7px;background:#010409;min-height:120px}
+.lane h3{font:600 11px/1 ui-sans-serif,system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;padding:9px 10px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;color:#8b949e}
+.lane h3 .c{color:#e6edf3;background:#21262d;border-radius:4px;padding:0 6px}
+.lane.now h3{color:#7ee787}.lane.backlog h3{color:#79c0ff}.lane.parked h3{color:#8b949e}
+.lane.merge h3{color:#d2a8ff}.lane.done h3{color:#6e7681}
+.it{padding:7px 10px;border-bottom:1px solid #12171d}
+.it:last-child{border-bottom:none}
+.it .s{color:#e6edf3;font-size:11.5px;word-break:break-all}
+.it .d{color:#6e7681;font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.more{padding:7px 10px;color:#6e7681;font-size:11px;font-style:italic}
+.empty{padding:16px 10px;color:#484f58;font-size:11.5px;text-align:center;font-style:italic}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:#6e7681;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;padding:6px 9px;border-bottom:1px solid #21262d}
+td{padding:6px 9px;border-bottom:1px solid #12171d;color:#c9d1d9;vertical-align:top}
+td.slug{color:#79c0ff}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;font-size:12px}
+.kv .k2{color:#6e7681}
+.kv .v2{color:#e6edf3;word-break:break-word}
+.edge{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #12171d;font-size:12px}
+.edge:last-child{border-bottom:none}
+.edge .n1{color:#79c0ff}
+.edge .ty{color:#d2a8ff;background:#1d1428;border:1px solid #8957e5;border-radius:4px;padding:1px 7px;font-size:10.5px}
+.edge .ar{color:#6e7681}
+.tomb{border:1px solid #da3633;background:#2d1416;border-radius:7px;padding:12px 14px}
+.tomb .t2{color:#ff9492;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.foot{color:#6e7681;font-size:11px;margin-top:20px;border-top:1px solid #21262d;padding-top:11px}
+.delta{background:#010409;border:1px solid #21262d;border-radius:7px;padding:11px 13px;font-size:12px;color:#8b949e}
+.delta b{color:#e6edf3}
+.same{color:#7ee787;font-weight:700}
+h2{font:600 14px/1 ui-sans-serif,system-ui,sans-serif;color:#e6edf3;margin:0 0 10px;letter-spacing:.02em}
+</style></head><body><div class="sheet"><div class="disclaimer"><b>This slice ships no operator-visible page.</b> The relay roadmap mirror is PR 1 of 4 — a D1 replica plus two JSON endpoints. The board/item pages land in PR 3 of 4. These sheets are not a product surface and are not a mock of one: they are a layout of <b>verbatim HTTP responses</b> captured from the real Worker, recorded in <code>run-log.json</code> beside this image.</div><h1><span class="n">03</span>Item detail — edges in both directions</h1><div class="sub">The same endpoint with <code>&amp;slug=</code>: one item in full plus its edges as source AND as target. Serving only one direction would make an item lie about half its graph.</div><div class="prov"><span class="chip"><b>claude/relay-roadmap-mirror</b> @ 3841a342c</span><span class="chip">captured <b>2026-08-22T23:41:02.496Z</b></span><span class="chip real">relay src/migrations/tests at capture: <b>clean — as committed</b></span><span class="chip real">REAL WORKER — wrangler dev --local (workerd + miniflare), real migration chain</span><span class="chip authored">edges = capture-authored except the one marked derived in MANIFEST.md</span></div><div class="card"><div class="head">
+    <span class="req"><span class="m">GET</span> /v1/roadmap/mirror<span class="q">?repo=curiositech/port-daddy&amp;slug=roadmap-link-gate</span></span>
+    <span class="pill ok">HTTP 200</span>
+    <span class="t">Bearer pdu_… (account A) · 22 ms</span>
+  </div><div class="body">
+    <div class="note">Item detail — roadmap-link-gate — One item in full plus its edges in BOTH directions.</div>
+    <div class="grid2">
+          <div><h2>item</h2><div class="kv"><div class="k2">slug</div><div class="v2">roadmap-link-gate</div><div class="k2">status</div><div class="v2">now</div><div class="k2">kind</div><div class="v2">task</div><div class="k2">priority</div><div class="v2">3</div><div class="k2">harbor</div><div class="v2">port-daddy</div><div class="k2">assigneeId</div><div class="v2">null</div><div class="k2">deleted</div><div class="v2">false</div><div class="k2">deletedAt</div><div class="v2">null</div><div class="k2">lastTouchedAt</div><div class="v2">1787410330046 · 2026-08-22 14:52:10.046Z</div><div class="k2">createdAt</div><div class="v2">1787410390046 · 2026-08-22 14:53:10.046Z</div><div class="k2">startedAt</div><div class="v2">null</div><div class="k2">dueAt</div><div class="v2">null</div><div class="k2">estimate</div><div class="v2">null</div><div class="k2">dependencies</div><div class="v2">[]</div><div class="k2">notes</div><div class="v2">[]</div></div>
+            <div class="note" style="margin-top:11px"><b>summaryMd</b> (verbatim from the daemon export)</div>
+            <pre>Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror.</pre></div>
+          <div>
+            <h2>edgesOut — 1 (this item as source)</h2><div class="edge"><b class="n1">roadmap-link-gate</b><span class="ar">—</span><span class="ty">depends_on</span><span class="ar">→</span><span class="n1">adr-0090-phase-6-roadmap-snapshot-and-ci-seed</span><span class="ar" style="margin-left:auto">scope roadmap</span></div>
+            <h2 style="margin-top:16px">edgesIn — 2 (this item as target)</h2><div class="edge"><span class="n1">mcp-roadmap-receipt-parity</span><span class="ar">—</span><span class="ty">depends_on</span><span class="ar">→</span><b class="n1">roadmap-link-gate</b><span class="ar" style="margin-left:auto">scope roadmap</span></div><div class="edge"><span class="n1">roadmap-schema-wiring</span><span class="ar">—</span><span class="ty">parent_of</span><span class="ar">→</span><b class="n1">roadmap-link-gate</b><span class="ar" style="margin-left:auto">scope roadmap</span></div>
+            <h2 style="margin-top:16px">mirror header carried on every read</h2>
+            <pre>{
+  &quot;repo&quot;: &quot;curiositech/port-daddy&quot;,
+  &quot;harbor&quot;: &quot;port-daddy&quot;,
+  &quot;harborId&quot;: null,
+  &quot;daemonLabel&quot;: &quot;port-daddy-daemon&quot;,
+  &quot;generatedAt&quot;: 1787410390046,
+  &quot;receivedAt&quot;: 1787442096,
+  &quot;itemCount&quot;: 279,
+  &quot;edgeCount&quot;: 4
+}</pre>
+          </div>
+        </div>
+        <h2 style="margin-top:16px">verbatim response</h2>
+        <pre>{
+  &quot;code&quot;: &quot;OK&quot;,
+  &quot;error&quot;: null,
+  &quot;mirror&quot;: {
+    &quot;repo&quot;: &quot;curiositech/port-daddy&quot;,
+    &quot;harbor&quot;: &quot;port-daddy&quot;,
+    &quot;harborId&quot;: null,
+    &quot;daemonLabel&quot;: &quot;port-daddy-daemon&quot;,
+    &quot;generatedAt&quot;: 1787410390046,
+    &quot;receivedAt&quot;: 1787442096,
+    &quot;itemCount&quot;: 279,
+    &quot;edgeCount&quot;: 4
+  },
+  &quot;item&quot;: {
+    &quot;slug&quot;: &quot;roadmap-link-gate&quot;,
+    &quot;harbor&quot;: &quot;port-daddy&quot;,
+    &quot;status&quot;: &quot;now&quot;,
+    &quot;kind&quot;: &quot;task&quot;,
+    &quot;priority&quot;: 3,
+    &quot;summaryMd&quot;: &quot;Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror.&quot;,
+    &quot;descriptionMd&quot;: null,
+    &quot;assigneeId&quot;: null,
+    &quot;startedAt&quot;: null,
+    &quot;dueAt&quot;: null,
+    &quot;estimate&quot;: null,
+    &quot;lastTouchedAt&quot;: 1787410330046,
+    &quot;createdAt&quot;: 1787410390046,
+    &quot;deletedAt&quot;: null,
+    &quot;deleted&quot;: false,
+    &quot;dependencies&quot;: [],
+    &quot;notes&quot;: []
+  },
+  &quot;edgesOut&quot;: [
+    {
+      &quot;scope&quot;: &quot;roadmap&quot;,
+      &quot;sourceId&quot;: &quot;roadmap-link-gate&quot;,
+      &quot;edgeType&quot;: &quot;depends_on&quot;,
+      &quot;targetId&quot;: &quot;adr-0090-phase-6-roadmap-snapshot-and-ci-seed&quot;
+    }
+  ],
+  &quot;edgesIn&quot;: [
+    {
+      &quot;scope&quot;: &quot;roadmap&quot;,
+      &quot;sourceId&quot;: &quot;mcp-roadmap-receipt-parity&quot;,
+      &quot;edgeType&quot;: &quot;depends_on&quot;,
+      &quot;targetId&quot;: &quot;roadmap-link-gate&quot;
+    },
+    {
+      &quot;scope&quot;: &quot;roadmap&quot;,
+      &quot;sourceId&quot;: &quot;roadmap-schema-wiring&quot;,
+      &quot;edgeType&quot;: &quot;parent_of&quot;,
+      &quot;targetId&quot;: &quot;roadmap-link-gate&quot;
+    }
+  ]
+}</pre>
+  </div></div><div class="foot">Response recorded as step b3 in run-log.json.</div></div></body></html>

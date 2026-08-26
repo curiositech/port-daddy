@@ -1,7 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../helpers/ephemeral-daemon.js';
+import { TRANSCRIPT_PRODUCER_SPAWNER } from '../../lib/transcripts.js';
 import {
   LAUNCHD_RESTRICTED_PATH,
   actualExecutionBackend,
@@ -13,6 +14,7 @@ import {
   withFakeOpenAICompatibleServer,
   writeFakeAgyBinary,
   writeFakeClaudeBinary,
+  writeFakeCodexBinary,
 } from '../../scripts/smoke-daemon-backend-transcripts.mjs';
 
 async function getTranscriptForSpawn(daemon, backend, agentId) {
@@ -23,6 +25,11 @@ async function getTranscriptForSpawn(daemon, backend, agentId) {
 
   const full = await daemon.request(`/transcripts/${encodeURIComponent(row.id)}`);
   expect(full.ok).toBe(true);
+  expect(full.data.transcript).toEqual(expect.objectContaining({
+    producer: TRANSCRIPT_PRODUCER_SPAWNER,
+    producer_trust_tier: 'INTERNAL',
+    producer_recorded_at: expect.any(Number),
+  }));
   return full.data.transcript;
 }
 
@@ -261,60 +268,62 @@ describe('daemon backend transcript E2E smoke', () => {
     }
   });
 
-  test('transcript lookup uses real daemon transcript fixture for actual backend fallback', async () => {
+  test('transcript lookup uses the trusted spawn producer for actual backend fallback', async () => {
+    const safeScratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(safeScratchRoot, { recursive: true });
+    const tmp = mkdtempSync(join(safeScratchRoot, 'pd-backend-fallback-'));
+    const spawnWorktree = createScratchSpawnWorktree(tmp);
+    const fakeCodex = join(tmp, 'bin', 'codex');
+    writeFakeCodexBinary(fakeCodex, 'pd-codex-smoke');
+    const daemonEnv = {
+      PATH: LAUNCHD_RESTRICTED_PATH,
+      PD_USE_CLI_BACKEND: 'codex',
+      PD_CLI_CODEX_BIN: fakeCodex,
+      PD_BACKEND_TRANSCRIPT_ALLOW_FORCED_OVERRIDE: '1',
+    };
     const daemon = await startEphemeralDaemon({
       startupTimeout: 45000,
-      env: {
-        PATH: LAUNCHD_RESTRICTED_PATH,
-        PD_USE_CLI_BACKEND: 'none',
-      },
+      env: daemonEnv,
     });
-    const transcript = {
-      id: `tx-actual-${Date.now()}`,
-      ship: 'spawn:cli:codex',
-      trigger: 'spawn',
-      backend: 'cli:codex',
-      model: 'codex-cli',
-      status: 'completed',
-      spawned_agent_id: 'agent-actual',
-      started_at: Date.now(),
-      ended_at: Date.now() + 1000,
-      messages: [
-        { role: 'user', content: 'Reply with exactly: pd-codex-smoke' },
-        { role: 'assistant', content: 'pd-codex-smoke' },
-      ],
-      outputs: [{ type: 'message', summary: 'cli:codex returned 14 chars' }],
-      cost_usd: 0,
-    };
 
     try {
-      const seeded = await daemon.request('/transcripts', {
+      await seedProjectBudget(daemon, 'port-daddy');
+      const spawned = await daemon.request('/spawn', {
         method: 'POST',
-        body: transcript,
+        body: spawnBody('openai', {
+          model: 'gpt-5-nano',
+          workdir: spawnWorktree.workdir,
+        }),
+        timeout: 70000,
       });
-      expect(seeded.ok).toBe(true);
+      expect(spawned.ok).toBe(true);
 
-      await expect(fetchTranscriptForSpawn(
+      const transcript = await fetchTranscriptForSpawn(
         daemon,
-        { status: 'completed' },
+        spawned.data,
         'openai',
         'cli:codex',
-      )).resolves.toMatchObject({
-        id: transcript.id,
+      );
+      expect(transcript).toMatchObject({
         ship: 'spawn:cli:codex',
         backend: 'cli:codex',
-        spawned_agent_id: 'agent-actual',
+        spawned_agent_id: spawned.data.agentId,
         messages: expect.arrayContaining([
-          expect.objectContaining({ role: 'assistant', content: 'pd-codex-smoke' }),
+          expect.objectContaining({
+            role: 'assistant',
+            content: expect.stringContaining('pd-codex-smoke'),
+          }),
         ]),
         outputs: expect.arrayContaining([
-          expect.objectContaining({ summary: 'cli:codex returned 14 chars' }),
+          expect.objectContaining({ summary: expect.stringContaining('cli:codex') }),
         ]),
       });
     } finally {
       await daemon.cleanup();
+      spawnWorktree.cleanup();
+      rmSync(tmp, { recursive: true, force: true });
     }
-  }, 60000);
+  }, 90000);
 
   test('readback guard rejects completed-empty transcripts, missing durable outputs, and budget overruns', () => {
     expect(() => assertTranscriptReadback({

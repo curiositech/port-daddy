@@ -283,6 +283,9 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .empty .cmd{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--teal);font-weight:600}
 /* KILO — "I wish to communicate with you": the Devices pairing flag (rule 7) */
 .flag-kilo{display:inline-block;width:28px;height:20px;flex:none;border:1px solid var(--hair-strong);align-self:center;background:linear-gradient(to right,var(--lime) 0 50%,var(--cobalt-slab) 50% 100%)}
+/* PAPA ("Blue Peter") — "all persons should report on board, the vessel is about
+   to proceed to sea": the muster flag, hoisted over the skill catalog. */
+.flag-papa{display:inline-block;width:28px;height:20px;flex:none;border:1px solid var(--hair-strong);align-self:center;background:linear-gradient(var(--flag-white),var(--flag-white)) center/50% 50% no-repeat,var(--cobalt-slab)}
 .flag-title{display:flex;align-items:center;gap:12px}
 .flag-mean{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}
 /* Receipts — the page's one color zone: a cobalt-slab masthead whose glyphs
@@ -372,6 +375,7 @@ export function renderAccountPage(
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/repos">Repo settings</a>
       <a href="/account/runs">Fleet runs</a>
+      <a href="/account/seamanship">Seamanship</a>
       <a href="/account/billing">Billing &amp; credits</a>
       <a href="/account/mercy">Mercy health</a>
       <a href="/account/shipwright">Shipwright</a>
@@ -463,6 +467,30 @@ export function renderAccountPage(
         gated until you buy a first credit pack. <a href="/account/billing">Billing &amp; credits</a> lists your
         installations with their prepaid balances, buy buttons, and the Stripe portal. Cost caps enforced by
         <strong>your daemon</strong> still mirror here later.</p>
+      </div>
+    </section>
+
+    <section class="sect" id="seamanship" aria-labelledby="seamanship-h">
+      <div class="sect-head">
+        <div class="flag-title">
+          <i class="flag-papa" role="img" aria-label="Papa signal flag: all persons should report on board, the vessel is about to proceed to sea"></i>
+          <div><span class="eyebrow">Seamanship</span><h2 id="seamanship-h">The skills your agents reach for</h2></div>
+        </div>
+        <span class="flag-mean">Papa &mdash; report on board, we are about to sail</span>
+      </div>
+      <a class="runs-cta" href="/account/seamanship">Your seamanship &rarr;</a>
+      <div class="empty">
+        <div class="e-title">Your skills are yours, and they stay in your repos.</div>
+        <p><a href="/account/seamanship">Your seamanship</a> reads every
+        <span class="cmd">skills/&lt;id&gt;/SKILL.md</span> live from the repositories your GitHub App
+        installation can reach and lists them by repository &mdash; description, category, and the
+        companions each one declares. Nothing is copied here: the repository stays the authority and
+        this site keeps no copy of the text.</p>
+        <p>Publishing is <strong>per skill, opt-in, and written by hand</strong>: a
+        <span class="cmd">visibility: listed</span> line publishes a name and a description to the
+        <a href="/skills">public directory</a>, and <span class="cmd">visibility: public</span> opens the
+        full text to signed-in accounts. No line means private, which is where every skill starts and
+        where nearly all of them stay.</p>
       </div>
     </section>
 

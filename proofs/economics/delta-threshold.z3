@@ -6,24 +6,24 @@
 ; ---------------------------------------------------------------------------
 ; The closed-form argument
 ; ---------------------------------------------------------------------------
-; The repeated stage game has cooperative payoff per round = 2 (the
-; off-diagonal coordination payoff, averaged across the two correlating
-; recommendations: (3+1)/2 = 2) and one-shot deviation gain of 1 (an
-; agent that defects against a "defer" recommendation captures (3-1)=2
-; this round but then sits through three rounds of mutual-defer (0,0)
-; before the graduated trigger releases — see claim-signaling.tla).
+; The repeated stage game is the corrected prisoner's dilemma of the
+; treatise correction (harbor-research change 1): mutual truth pays 3,
+; the one-shot defector grabs 4 against a truthful opponent (sucker
+; gets 0), and mutual defection pays 1. The one-shot deviation gain is
+; therefore 4 - 3 = 1, and each round of the three-round mutual-defect
+; punishment phase costs the deviator 3 - 1 = 2 relative to staying
+; cooperative — see claim_signaling.tla.
 ;
 ; The incentive-compatibility constraint is
 ;
-;     deviation_gain  <=  delta + delta^2 + delta^3   (1)
+;     deviation_gain  <=  2 * (delta + delta^2 + delta^3)   (1)
 ;
 ; which is the discounted future surplus an agent loses by triggering
-; the three-round punishment phase. Rearranging (1) into a polynomial
-; and normalising by the per-round cooperative surplus (which is 3 —
-; one defected unit plus the lost cooperative payoff for three rounds)
-; gives the canonical cubic
+; the three-round punishment phase (per-round loss 2, the cooperative
+; payoff 3 minus the punishment payoff 1). Rearranging (1) into a
+; polynomial gives the canonical cubic
 ;
-;     3*delta^3 + 3*delta^2 + 3*delta - 1  =  0     (2)
+;     2*delta^3 + 2*delta^2 + 2*delta - 1  =  0     (2)
 ;
 ; The unique real root in (0, 1) is delta* (the IC threshold). Above
 ; delta*, cooperation is sustainable; below, the one-shot deviation
@@ -31,7 +31,7 @@
 ;
 ; This SMT script encodes (2) and asks Z3 to (i) prove a root exists
 ; in [0, 1] (sat + model), and (ii) prove that root lies in the
-; interval [0.25, 0.26]. The numerical value is delta* ≈ 0.2530765865.
+; interval [0.34, 0.35]. The numerical value is delta* ≈ 0.3425080314.
 ;
 ; Expected runtime: < 100ms.
 ; Tested with Z3 4.13+ (Homebrew installs ship 4.15.x as of 2026-05).
@@ -48,9 +48,9 @@
 ; The IC cubic. Note: SMT-LIB has no unary minus inside (= ... 0), so
 ; we write the constant term as (- 1) (a Real literal -1).
 (assert
-  (= (+ (* 3 delta delta delta)
-        (* 3 delta delta)
-        (* 3 delta)
+  (= (+ (* 2 delta delta delta)
+        (* 2 delta delta)
+        (* 2 delta)
         (- 1))
      0))
 
@@ -60,15 +60,15 @@
 (get-model)
 
 ; ---------------------------------------------------------------------------
-; Second: prove the root is in [0.25, 0.26]. We push a stricter bound
+; Second: prove the root is in [0.34, 0.35]. We push a stricter bound
 ; on top of the existing assertions, re-check, then pop. If Z3 returns
-; sat for the tighter interval, the root is in [0.25, 0.26]. If it
+; sat for the tighter interval, the root is in [0.34, 0.35]. If it
 ; returned sat above but unsat here, the root would lie outside —
 ; which would falsify the closed-form claim.
 ; ---------------------------------------------------------------------------
 (push 1)
-(assert (>= delta 0.25))
-(assert (<= delta 0.26))
+(assert (>= delta 0.34))
+(assert (<= delta 0.35))
 (check-sat)
 (get-model)
 (pop 1)
@@ -83,9 +83,9 @@
 (assert (>= delta2 0))
 (assert (<= delta2 1))
 (assert
-  (= (+ (* 3 delta2 delta2 delta2)
-        (* 3 delta2 delta2)
-        (* 3 delta2)
+  (= (+ (* 2 delta2 delta2 delta2)
+        (* 2 delta2 delta2)
+        (* 2 delta2)
         (- 1))
      0))
 (assert (not (= delta delta2)))

@@ -177,6 +177,81 @@ struct SquidHookDebugSnapshot: Codable, Equatable, Sendable {
     }
 }
 
+struct ContextContinuityCounts: Codable, Equatable, Sendable {
+    let observed: Int
+    let packetReady: Int
+    let successorRequired: Int
+    let continuing: Int
+    let completed: Int
+    let verificationFailed: Int
+}
+
+struct ContextContinuityPressure: Codable, Equatable, Sendable {
+    let band: String
+    let ratio: Double
+    let action: String
+    let windowTokens: Int
+    let usedTokensEstimate: Int
+    let estimateMode: String
+    let strategy: String
+    let selfReportDrift: [String]
+}
+
+struct ContextContinuityPacket: Codable, Equatable, Sendable {
+    let packetId: String
+    let createdAt: String
+    let validatorPassed: Bool
+    let sourceHeadEventId: String
+    let sourceHeadHash: String
+    let transcriptEventId: String?
+}
+
+struct ContextContinuationReceipt: Codable, Equatable, Sendable {
+    let id: String
+    let status: String
+    let targetAdapter: String
+    let successorRunId: String?
+    let successorSessionId: String?
+    let updatedAt: Double
+}
+
+struct ContextContinuityItem: Codable, Equatable, Sendable, Identifiable {
+    let agentNodeId: String
+    let sessionId: String
+    let runId: String?
+    let transcriptId: String?
+    let model: String?
+    let sourceAdapter: String?
+    let project: String?
+    let projectDir: String?
+    let envelopeId: String
+    let measuredAt: String
+    let pressure: ContextContinuityPressure
+    let packet: ContextContinuityPacket?
+    let handoffEpisodeId: Int?
+    let continuation: ContextContinuationReceipt?
+    let readiness: String
+
+    var id: String { envelopeId }
+}
+
+struct ContextContinuityFailure: Codable, Equatable, Sendable, Identifiable {
+    let eventId: String
+    let sessionId: String
+    let agentNodeId: String
+    let reason: String
+
+    var id: String { eventId }
+}
+
+struct ContextContinuitySnapshot: Codable, Equatable, Sendable {
+    let schemaVersion: Int
+    let capturedAt: String
+    let counts: ContextContinuityCounts
+    let items: [ContextContinuityItem]
+    let failures: [ContextContinuityFailure]
+}
+
 struct SquidCommandResult: Sendable {
     let status: Int32
     let stdout: String
@@ -225,14 +300,24 @@ enum SquidHarnessCLI {
 final class SquidHarnessStore: ObservableObject {
     @Published private(set) var snapshot: SquidHarnessSnapshot?
     @Published private(set) var debugSnapshot: SquidHookDebugSnapshot?
+    @Published private(set) var continuitySnapshot: ContextContinuitySnapshot?
     @Published private(set) var isWorking = false
     @Published private(set) var isDebugWorking = false
     @Published private(set) var message: String?
     @Published private(set) var debugMessage: String?
+    @Published private(set) var continuityMessage: String?
 
     private let runner: SquidCommandRunner
+    private let baseURL: String?
+    private let session: URLSession
 
-    init(runner: @escaping SquidCommandRunner = SquidHarnessCLI.run) {
+    init(
+        baseURL: String? = nil,
+        session: URLSession = .shared,
+        runner: @escaping SquidCommandRunner = SquidHarnessCLI.run
+    ) {
+        self.baseURL = baseURL
+        self.session = session
         self.runner = runner
     }
 
@@ -240,8 +325,11 @@ final class SquidHarnessStore: ObservableObject {
         guard let projectDir, !projectDir.isEmpty else {
             snapshot = nil
             message = nil
+            continuitySnapshot = nil
+            continuityMessage = nil
             return
         }
+        await refreshContinuity(projectDir: projectDir)
         isWorking = true
         defer { isWorking = false }
         let result = await runner(["squid", "status", "--json", "--cwd", projectDir])
@@ -263,6 +351,53 @@ final class SquidHarnessStore: ObservableObject {
             message = "\(circuit.label) disabled itself after repeated \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")) events. Choose Repair."
         } else {
             message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
+        }
+    }
+
+    func refreshContinuity(projectDir: String? = nil) async {
+        guard let baseURL,
+              var components = URLComponents(string: "\(baseURL)/agent-harbor/context-continuity") else {
+            continuitySnapshot = nil
+            continuityMessage = "Context continuity evidence is unavailable until the daemon publishes an endpoint."
+            return
+        }
+        components.queryItems = [URLQueryItem(name: "limit", value: "50")]
+        if let projectDir, !projectDir.isEmpty {
+            components.queryItems?.append(URLQueryItem(name: "projectDir", value: projectDir))
+        }
+        guard let url = components.url else {
+            continuitySnapshot = nil
+            continuityMessage = "Context continuity evidence could not address the selected project."
+            return
+        }
+        do {
+            let (data, response) = try await session.data(from: url)
+            guard let http = response as? HTTPURLResponse else {
+                continuitySnapshot = nil
+                continuityMessage = "Context continuity evidence has no daemon response."
+                return
+            }
+            if http.statusCode == 404 {
+                continuitySnapshot = nil
+                continuityMessage = "Update Port Daddy to see context envelopes and continuation receipts."
+                return
+            }
+            guard http.statusCode == 200,
+                  let decoded = try? JSONDecoder().decode(ContextContinuitySnapshot.self, from: data),
+                  decoded.schemaVersion == 1 else {
+                continuitySnapshot = nil
+                continuityMessage = "Context continuity evidence could not be verified."
+                return
+            }
+            continuitySnapshot = decoded
+            if decoded.counts.verificationFailed > 0 {
+                continuityMessage = "\(decoded.counts.verificationFailed) context proof failed verification. Inspect the evidence panel."
+            } else {
+                continuityMessage = decoded.items.isEmpty ? "No witnessed context envelopes yet." : nil
+            }
+        } catch {
+            continuitySnapshot = nil
+            continuityMessage = "Context continuity error: \(error.localizedDescription)"
         }
     }
 
@@ -351,6 +486,13 @@ struct SquidHarnessStrip: View {
     @State private var showingDebug = false
 
     private var lifecycle: SquidHarnessLifecycle { store.snapshot?.state ?? .off }
+    private var continuityColor: Color {
+        guard let counts = store.continuitySnapshot?.counts else { return Fleet.Color.dormant }
+        if counts.verificationFailed > 0 { return Fleet.Color.failure }
+        if counts.successorRequired > 0 { return Fleet.Color.failure }
+        if counts.packetReady > 0 || counts.completed > 0 { return Fleet.Color.healthy }
+        return counts.observed > 0 ? Fleet.Color.active : Fleet.Color.dormant
+    }
 
     var body: some View {
         HStack(spacing: Fleet.Space.m) {
@@ -373,6 +515,22 @@ struct SquidHarnessStrip: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+                    if let counts = store.continuitySnapshot?.counts {
+                        Text("·")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Text(
+                            counts.verificationFailed > 0
+                                ? "\(counts.verificationFailed) verification failed"
+                                : counts.successorRequired > 0
+                                    ? "\(counts.successorRequired) successor required"
+                                    : counts.packetReady > 0
+                                        ? "\(counts.packetReady) verified packet\(counts.packetReady == 1 ? "" : "s")"
+                                        : "\(counts.observed) context receipt\(counts.observed == 1 ? "" : "s")"
+                        )
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(continuityColor)
+                    }
                 }
                 Text("Before each turn: context · before each edit: collision gate · cumulative session evidence; no post-tool process")
                     .font(.caption2)
@@ -384,6 +542,12 @@ struct SquidHarnessStrip: View {
                         .foregroundStyle(lifecycle == .degraded || store.snapshot == nil ? Fleet.Color.failure : lifecycle.color)
                         .lineLimit(2)
                         .accessibilityLabel("Giant Squid status: \(message)")
+                }
+                if store.snapshot != nil, let continuityMessage = store.continuityMessage {
+                    Text(continuityMessage)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
 
@@ -440,6 +604,7 @@ struct SquidHookDebugSheet: View {
         .task {
             while !Task.isCancelled {
                 await store.refreshDebug(projectDir: projectDir)
+                await store.refreshContinuity(projectDir: projectDir)
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
@@ -535,12 +700,19 @@ struct SquidHookDebugSheet: View {
 
     @ViewBuilder
     private var content: some View {
-        if let snapshot, !snapshot.sessions.isEmpty {
+        if snapshot?.sessions.isEmpty == false
+            || store.continuitySnapshot?.items.isEmpty == false
+            || (store.continuitySnapshot?.counts.verificationFailed ?? 0) > 0 {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Fleet.Space.m) {
-                    privacyCard(snapshot)
-                    ForEach(snapshot.sessions) { session in
-                        sessionCard(session)
+                    if let continuity = store.continuitySnapshot {
+                        continuityCard(continuity)
+                    }
+                    if let snapshot {
+                        privacyCard(snapshot)
+                        ForEach(snapshot.sessions) { session in
+                            sessionCard(session)
+                        }
                     }
                 }
                 .padding(Fleet.Space.l)
@@ -563,6 +735,70 @@ struct SquidHookDebugSheet: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(Fleet.Space.xl)
         }
+    }
+
+    private func continuityCard(_ snapshot: ContextContinuitySnapshot) -> some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.m) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                    Text("Context continuity evidence")
+                        .font(.headline)
+                    Text("Append-only envelopes, cited packets, and exactly-one successor receipts")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(snapshot.counts.packetReady) VERIFIED")
+                    .font(.caption.monospaced().weight(.bold))
+                    .foregroundStyle(snapshot.counts.successorRequired > 0 || snapshot.counts.verificationFailed > 0 ? Fleet.Color.failure : Fleet.Color.healthy)
+            }
+
+            if snapshot.counts.verificationFailed > 0 {
+                Label("\(snapshot.counts.verificationFailed) context proof failed verification; no green receipt was emitted.", systemImage: "xmark.shield.fill")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Fleet.Color.failure)
+                ForEach(snapshot.failures.prefix(3)) { failure in
+                    Text("\(failure.sessionId): \(failure.reason)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            ForEach(snapshot.items.prefix(5)) { item in
+                HStack(alignment: .top, spacing: Fleet.Space.m) {
+                    Image(systemName: item.packet?.validatorPassed == true ? "checkmark.shield.fill" : "gauge.with.dots.needle.67percent")
+                        .foregroundStyle(item.readiness == "successor-required" ? Fleet.Color.failure : item.packet == nil ? Fleet.Color.active : Fleet.Color.healthy)
+                    VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                        HStack {
+                            Text(item.model ?? item.sourceAdapter ?? item.agentNodeId)
+                                .font(.callout.weight(.semibold))
+                            Text("\(Int((item.pressure.ratio * 100).rounded()))%")
+                                .font(.caption.monospaced().weight(.bold))
+                            Text(item.readiness.replacingOccurrences(of: "-", with: " ").uppercased())
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(item.packet.map { "Packet \($0.packetId) · source \($0.sourceHeadEventId)" }
+                             ?? "Envelope \(item.envelopeId) · \(item.pressure.strategy)")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        if let receipt = item.continuation {
+                            Text("Successor receipt \(receipt.id) · \(receipt.status)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .padding(Fleet.Space.m)
+        .background(Fleet.Color.active.opacity(0.08), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous).stroke(Fleet.Color.active.opacity(0.22)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Context continuity: \(snapshot.counts.observed) envelopes, \(snapshot.counts.packetReady) verified packets, \(snapshot.counts.successorRequired) successors required, \(snapshot.counts.verificationFailed) verification failures")
     }
 
     private func privacyCard(_ snapshot: SquidHookDebugSnapshot) -> some View {

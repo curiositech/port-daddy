@@ -150,8 +150,74 @@ private actor SquidHarnessVisualFixture {
     }
 }
 
+private final class ContinuitySnapshotURLProtocol: URLProtocol {
+    static let body = Data("""
+    {
+      "schemaVersion":1,
+      "capturedAt":"2026-08-23T12:00:00.000Z",
+      "counts":{"observed":2,"packetReady":1,"successorRequired":1,"continuing":0,"completed":0,"verificationFailed":0},
+      "items":[
+        {
+          "agentNodeId":"agent-codex-context-1","sessionId":"session-codex-context-1","runId":"run-codex-context-1",
+          "transcriptId":"transcript-codex-context-1","model":"gpt-5","sourceAdapter":"cli:codex",
+          "envelopeId":"ctx_codex_1","measuredAt":"2026-08-23T11:59:59.000Z",
+          "pressure":{"band":"critical","ratio":0.95,"action":"require_compaction_or_successor","windowTokens":76800,"usedTokensEstimate":72960,"estimateMode":"exact","strategy":"max-daemon-and-adapter","selfReportDrift":[]},
+          "packet":{"packetId":"cpk_codex_1","createdAt":"2026-08-23T12:00:00.000Z","validatorPassed":true,"sourceHeadEventId":"evt_transcript_head_1","sourceHeadHash":"7ac9f0e3d831e68bc59c46b2ec3a0dc8","transcriptEventId":"evt_packet_1"},
+          "handoffEpisodeId":42,"continuation":null,"readiness":"successor-required"
+        },
+        {
+          "agentNodeId":"agent-claude-context-2","sessionId":"session-claude-context-2","runId":"run-claude-context-2",
+          "transcriptId":"transcript-claude-context-2","model":"claude-sonnet-4-6","sourceAdapter":"cli:claude-code",
+          "envelopeId":"ctx_claude_2","measuredAt":"2026-08-23T11:58:00.000Z",
+          "pressure":{"band":"medium","ratio":0.63,"action":"prepare_compaction","windowTokens":120000,"usedTokensEstimate":75600,"estimateMode":"estimated","strategy":"max-daemon-and-adapter","selfReportDrift":[]},
+          "packet":null,"handoffEpisodeId":null,"continuation":null,"readiness":"observed"
+        }
+      ],
+      "failures":[]
+    }
+    """.utf8)
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
 @MainActor
 final class SquidHarnessSnapshotTests: XCTestCase {
+    func testRenderContextContinuityProofWhenRequested() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let outputDirectory = env["FLEETBAR_SQUID_SNAPSHOT_DIR"], !outputDirectory.isEmpty else {
+            throw XCTSkip("Set FLEETBAR_SQUID_SNAPSHOT_DIR to render context continuity evidence.")
+        }
+
+        let fixture = SquidHarnessVisualFixture()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ContinuitySnapshotURLProtocol.self]
+        let store = SquidHarnessStore(
+            baseURL: "https://continuity.snapshot",
+            session: URLSession(configuration: configuration)
+        ) { arguments in await fixture.run(arguments) }
+        let projectDir = "/Users/operator/coding/port-daddy"
+
+        await store.refresh(projectDir: projectDir)
+        XCTAssertEqual(store.continuitySnapshot?.counts.successorRequired, 1)
+        try render(store: store, projectDir: projectDir, path: "\(outputDirectory)/context-continuity.png")
+
+        await fixture.setDebugOverdue(false)
+        await store.refreshDebug(projectDir: projectDir)
+        let overview = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/context-continuity-detail.png")
+        await fixture.setDebugOverdue(true)
+        await store.refreshDebug(projectDir: projectDir)
+        let overdue = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/context-continuity-overdue.png")
+        try writeGIF(frames: [overview, overdue], path: "\(outputDirectory)/context-continuity.gif")
+    }
+
     func testRenderRepairToLiveProofWhenRequested() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let outputDirectory = env["FLEETBAR_SQUID_SNAPSHOT_DIR"], !outputDirectory.isEmpty else {
