@@ -618,6 +618,29 @@ describe('POST /v1/harbors/:ns/:name/wraps — post an HPKE-wrapped envelope', (
     expect(badJson.status).toBe(400);
   });
 
+  it("SPOOF CHECK: the stored row's recipient_user_id is server-derived from the device-key lookup, never the request body — a client cannot rewrite who a wrap belongs to", async () => {
+    const { db, wraps } = makeDb();
+    const spoofEnv = makeEnv(db);
+    await seedHarbors(spoofEnv);
+    await registerDevice(spoofEnv, BOB_TOKEN, 'bob-phone', PK_BOB);
+
+    const res = await handlePostHarborWrap(
+      req('/v1/harbors/alice/dock/wraps', {
+        method: 'POST',
+        token: ALICE_TOKEN,
+        // recipientUserId is not a field PostWrapBody declares or handlePostHarborWrap
+        // ever reads — but a raw JSON body can still carry it. If the handler ever
+        // regressed to trusting it (e.g. `recipientUserId: body.recipientUserId ?? owner.userId`),
+        // this would let Alice claim a wrap addressed to Bob's device as her own.
+        body: { ...goodBody(), recipientUserId: 'u_alice' },
+      }),
+      spoofEnv, 'alice', 'dock',
+    );
+    expect(res.status).toBe(201);
+    expect(wraps).toHaveLength(1);
+    expect(wraps[0]!.recipient_user_id).toBe('u_bob');
+  });
+
   it('accepts an authorityEpoch equal to the current epoch after it advances', async () => {
     // Adding carol as a second dock member ticks the epoch to 2.
     expect((await handleAddHarborMember(req('/v1/harbors/alice/dock/members', { method: 'POST', token: ALICE_TOKEN, body: { user: 'carol' } }), env, 'alice', 'dock')).status).toBe(201);
