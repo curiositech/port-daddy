@@ -256,6 +256,8 @@ export function createTool2VecReconciler(
     WHERE id = 1 AND (lease_owner IS NULL OR lease_expires_at IS NULL OR lease_expires_at <= ?)
   `);
   const renewLease = store.db.prepare(`
+    -- last_started_at is the start of this reconciliation run, not a heartbeat;
+    -- lease_expires_at alone advances while the same run retains ownership.
     UPDATE ${STATE_TABLE} SET lease_expires_at = ? WHERE id = 1 AND lease_owner = ?
   `);
   const finishLease = store.db.prepare(`

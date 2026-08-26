@@ -20,8 +20,7 @@ function isLoopbackRequest(request: FastifyRequest): boolean {
   const ip = request.ip || request.socket?.remoteAddress || '';
   return ip === '127.0.0.1'
     || ip === '::1'
-    || ip === '::ffff:127.0.0.1'
-    || ip === 'localhost';
+    || ip === '::ffff:127.0.0.1';
 }
 
 /**

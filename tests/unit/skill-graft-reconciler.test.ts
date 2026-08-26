@@ -62,6 +62,7 @@ function harness(overrides: {
   runtime?: SkillGraftRuntime;
   ownerId?: string;
   isEmbedderAvailable?: () => boolean;
+  now?: () => number;
 } = {}) {
   const db = overrides.db ?? new Database(':memory:');
   const selectedRuntime = overrides.runtime ?? successfulRuntime();
@@ -80,6 +81,7 @@ function harness(overrides: {
       store,
       ownerId: overrides.ownerId,
       isEmbedderAvailable: overrides.isEmbedderAvailable ?? (() => true),
+      now: overrides.now,
     }),
   };
 }
@@ -140,6 +142,22 @@ describe('Tool2Vec reconciler', () => {
     expect(refused.state).toBe('reconciling');
     release();
     await running;
+  });
+
+  test('lease renewal preserves the run start timestamp', async () => {
+    let clock = 1_000;
+    const selected = harness({
+      now: () => clock,
+      runtime: successfulRuntime(() => { clock += 1_000; }),
+    });
+
+    const completed = await selected.reconciler.reconcile({
+      trigger: 'timestamp-contract',
+      maxSkills: Number.POSITIVE_INFINITY,
+    });
+
+    expect(completed.lastStartedAt).toBe(1_000);
+    expect(completed.lastCompletedAt).toBe(4_000);
   });
 
   test('status distinguishes cold, embedder-down, generator-down, and current', async () => {
