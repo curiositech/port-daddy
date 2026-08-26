@@ -856,13 +856,25 @@ export function hpkeEncapBase(
  * rather than being handed it, or a caller-supplied mismatch would silently
  * break every agreement without a symptom until this line.
  *
- * No degenerate-point check here, unlike {@link hpkeEncapBase} — and that
- * asymmetry is deliberate, not a gap. On decap, `enc` is attacker-reachable
- * wire data; a distinguishing "degenerate enc" error would be exactly the
- * kind of oracle {@link hpkeOpenBase} exists to refuse. A degenerate `enc`
- * still gets rejected — as an ordinary AEAD tag failure once the resulting
- * shared secret derives the wrong key, indistinguishable from any other
- * tampered `enc`.
+ * Checked for a degenerate (low-order) `enc` the same way
+ * {@link hpkeEncapBase} checks its recipient key — not asymmetrically,
+ * matching the Rust crate, where `decap` and `encap` both route through the
+ * same contributory-agreement check. `enc` is attacker-reachable wire data,
+ * so a distinguishing "degenerate enc" error here would on its own be
+ * exactly the kind of oracle {@link hpkeOpenBase} exists to refuse — but
+ * {@link hpkeOpenBase} wraps this whole function in a try/catch that already
+ * collapses every failure mode (a thrown `BAD_KEY` here, a native OpenSSL
+ * derivation failure, a downstream AEAD tag mismatch) into the one opaque
+ * decrypt error, so the explicit check costs nothing on that front. What it
+ * buys: on the platform this was developed and tested on, Node's OpenSSL
+ * backend happens to throw natively for every standard low-order Curve25519
+ * point on this exact (private, public) call shape too — verified directly,
+ * not assumed — so today the native throw alone would already stop this.
+ * That is undocumented backend behavior, not a contract; a different
+ * Node/OpenSSL build is free to return a shared secret instead of throwing.
+ * The explicit all-zero check below is the defense that does not depend on
+ * which one it does — the same reason {@link hpkeEncapBase} keeps its own
+ * check even though its own native throw was observed too.
  *
  * @param enc The sender's serialized ephemeral public key.
  * @param recipientSecret The recipient's 32-byte raw X25519 private key.
@@ -873,7 +885,15 @@ export function hpkeEncapBase(
 export function hpkeDecapBase(enc: Uint8Array, recipientSecret: Uint8Array): Buffer {
   const skR = x25519PrivateKeyFromRaw(recipientSecret);
   const pkE = x25519PublicKeyFromRaw(enc);
-  const dh = diffieHellman({ privateKey: skR, publicKey: pkE });
+  let dh: Buffer;
+  try {
+    dh = diffieHellman({ privateKey: skR, publicKey: pkE });
+  } catch {
+    throw new VaultTsError('BAD_KEY', 'enc is a low-order point');
+  }
+  if (dh.equals(Buffer.alloc(X25519_KEY_LEN))) {
+    throw new VaultTsError('BAD_KEY', 'enc is a low-order point');
+  }
   const pkRm = x25519RawPublicKey(createPublicKey(skR));
   const kemContext = Buffer.concat([Buffer.from(enc), pkRm]);
   const sharedSecret = extractAndExpand(dh, kemContext);

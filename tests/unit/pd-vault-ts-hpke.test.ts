@@ -229,6 +229,16 @@ describe('HPKE key wrap — structural contracts', () => {
       expect((e as VaultTsError).code).toBe('BAD_KEY');
     }
   });
+
+  it('rejects a low-order (all-zero) enc on the decap/unwrap side too — not an asymmetric check', () => {
+    const recipientSecret = seqBytes(0x20, 32);
+    expect(() => hpkeDecapBase(Buffer.alloc(32, 0), recipientSecret)).toThrow(VaultTsError);
+    try {
+      hpkeDecapBase(Buffer.alloc(32, 0), recipientSecret);
+    } catch (e) {
+      expect((e as VaultTsError).code).toBe('BAD_KEY');
+    }
+  });
 });
 
 describe('encodeKeyWrapAad', () => {
@@ -435,6 +445,20 @@ describe('wrapChannelKeyForDevice / unwrapChannelKeyForDevice — self-generated
     it('a tampered AAD.keyPurpose fails to open', () => {
       const tamperedAad: KeyWrapAad = { ...KAT_AAD, keyPurpose: 'content' };
       expectOpaqueFailure(() => unwrapChannelKeyForDevice(wrapped, KAT_RECIPIENT_SECRET, tamperedAad));
+    });
+
+    it('a low-order (all-zero) enc fails to open, not as a distinguishing error — mirrors the encap-side check', () => {
+      // This is the decap-side analogue of the "rejects a low-order (all-zero)
+      // recipient public key" test above: an attacker who submits the
+      // identity point as `enc` forces the shared secret to a fixed,
+      // publicly-computable value (independent of the recipient's private
+      // key), which would let anyone precompute the derived AEAD key and
+      // forge a "valid" wrapped envelope without ever holding a legitimate
+      // sender's or recipient's secret. hpkeDecapBase now checks for this
+      // explicitly rather than relying solely on Node's (undocumented)
+      // native X25519 derivation failure for the identity point.
+      const degenerate: WrappedKey = { enc: Buffer.alloc(X25519_KEY_LEN, 0), ciphertext: wrapped.ciphertext };
+      expectOpaqueFailure(() => unwrapChannelKeyForDevice(degenerate, KAT_RECIPIENT_SECRET, KAT_AAD));
     });
 
     it('every failure mode above renders the identical message — the no-oracle invariant', () => {
