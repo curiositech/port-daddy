@@ -150,6 +150,7 @@ jobs:
       recordings: ${{ steps.filter.outputs.recordings }}
       fleetbar: ${{ steps.filter.outputs.fleetbar }}
       console: ${{ steps.filter.outputs.console }}
+      pd-ios: ${{ steps.filter.outputs.pd-ios }}
     steps:
       - id: filter
         env:
@@ -162,6 +163,7 @@ jobs:
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
             echo "console=true" >> "$GITHUB_OUTPUT"
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
@@ -170,6 +172,7 @@ jobs:
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
             echo "console=true" >> "$GITHUB_OUTPUT"
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
@@ -192,6 +195,21 @@ jobs:
             echo "console=true" >> "$GITHUB_OUTPUT"
           else
             echo "console=false" >> "$GITHUB_OUTPUT"
+          fi
+          # pd-ios (the SwiftUI operator app) depends on its own sources AND on
+          # everything it holds a hand-written port of: lib/maritime-signals.ts,
+          # the control-command contract fixture, and the relay's interruptions
+          # shape (publicShape() plus the operator_interruptions column types,
+          # which live in the feature migration and the relay baseline). Editing
+          # any of those without regenerating the iOS parity fixtures is exactly
+          # the drift this gate catches, so they trigger it. In particular a
+          # relay-only PR that retypes a column must run this job — the shape
+          # mismatch it would otherwise introduce is invisible on the relay side.
+          # ci.yml changes re-run it so the gate can be edited under test.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pd-ios=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -925,6 +943,245 @@ jobs:
       - name: Test FleetBar
         run: swift test
 
+  pd-ios:
+    # Build + unit-test the Port Daddy iOS operator app (ADR-0125).
+    #
+    # This is the FIRST xcodebuild in this repo. Every other Apple surface here
+    # is SwiftPM plus hand-assembled bundles, and `swift build` cannot target
+    # iOS at all — so the compile proof for apps/pd-ios is xcodebuild against
+    # an iOS Simulator destination, run on the same macos-latest runner and
+    # with the same "whatever Xcode the image ships" convention the fleetbar
+    # job uses. There is no .xcodeproj: xcodebuild builds the SwiftPM package's
+    # generated PortDaddyKit scheme directly.
+    #
+    # SIGNING: none, deliberately. A simulator build is unsigned, and
+    # CODE_SIGNING_ALLOWED=NO is passed so this can never start depending on a
+    # certificate. The five APPLE_* secrets in release.yml are a macOS
+    # Developer ID / notarization pair — they do not cover iOS device signing,
+    # provisioning profiles, or App Store Connect distribution. A TestFlight
+    # lane needs an Apple Distribution certificate and a provisioning profile
+    # that DO NOT EXIST in this account yet; until they do, this gate proves
+    # the app compiles and its tests pass, and nothing here ships an artifact.
+    #
+    # Path-gated via detect-changes: a non-iOS PR skips this, and a skip
+    # satisfies the required ci-gate check.
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.pd-ios == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Fixture drift gate (TypeScript -> Swift)
+        # MaritimeSignals.swift, ControlVerbs.swift and Interruptions.swift are
+        # hand-written ports of lib/maritime-signals.ts, the
+        # agent-control-command-contract fixture, and the relay's interruptions
+        # shape. This regenerates the parity fixtures from those canonical
+        # sources and fails if the checked-in copies are stale. The Swift tests
+        # then assert the ports reproduce the fixtures. Together: neither side
+        # can move without the other going red. No `bun install` is needed —
+        # the script imports two dependency-free local modules and READS the
+        # relay's source and migration as text (importing interruptions.ts
+        # would pull @noble/hashes in through crypto.ts).
+        run: bun run scripts/generate-pd-ios-fixtures.ts --check
+
+      - name: Show available schemes
+        # A diagnostic that makes a scheme-resolution failure legible instead of
+        # a wall of xcodebuild output. Never the reason a PR goes red — the
+        # build and test steps below are the gate.
+        continue-on-error: true
+        working-directory: apps/pd-ios
+        run: xcodebuild -list
+
+      - name: Resolve an iOS Simulator destination
+        # Pinning a device name breaks the moment the runner image rotates its
+        # simulators. The helper picks the newest available iPhone and fails
+        # loudly when the image has none, rather than letting xcodebuild build
+        # for something that is not an iPhone.
+        id: sim
+        run: |
+          set -euo pipefail
+          udid="$(xcrun simctl list devices available --json \
+            | python3 apps/pd-ios/scripts/resolve-simulator-destination.py)"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build PortDaddyKit for the simulator
+        working-directory: apps/pd-ios
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -scheme PortDaddyKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Test PortDaddyKit
+        working-directory: apps/pd-ios
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -scheme PortDaddyKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+  pd-ios-screenshots:
+    # Automated visual-evidence capture for apps/pd-ios (WS-D). The pd-ios job
+    # above proves PortDaddyKit compiles and its XCTests pass — it never
+    # renders the UI or compiles the @main shim (App/PortDaddyApp.swift), so
+    # "the tests are green" has never meant "the app runs". This job runs
+    # apps/pd-ios/scripts/capture-screenshots.sh — an ephemeral XcodeGen app
+    # target linking PortDaddyKit, driven through all four RootTab cases by an
+    # XCUITest, exported via xcresulttool — and publishes the resulting PNGs
+    # so a reviewer can actually see the app render. Deterministic and
+    # offline: RootView is fixture-backed, so a cold launch needs no
+    # network/pairing/auth.
+    #
+    # Informational, not a merge gate: intentionally absent from ci-gate's
+    # needs and `continue-on-error: true`. Simulator/XcodeGen flakiness
+    # capturing a screenshot should never block a merge the pd-ios job above
+    # already proved sound.
+    #
+    # No repo-write permissions here on purpose: this step compiles and runs
+    # whatever apps/pd-ios/scripts/capture-screenshots.sh is on the PR head,
+    # so it must never hold a token that can push or comment. Publishing is a
+    # separate job below.
+    runs-on: macos-latest
+    needs: [detect-changes, pd-ios]
+    if: needs.detect-changes.outputs.pd-ios == 'true'
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
+
+      - name: Capture per-tab screenshots
+        run: apps/pd-ios/scripts/capture-screenshots.sh
+
+      - name: Upload screenshots as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-ios-screenshots-${{ github.sha }}
+          path: apps/pd-ios/pd-ios-screenshots/*.png
+          retention-days: 30
+
+  pd-ios-screenshots-publish:
+    # Holds the write-scoped token the capture job above deliberately does
+    # not, so the large arbitrary-shell surface in capture-screenshots.sh
+    # (XcodeGen, xcodebuild, simulator boot — the actual PR-authored code
+    # under test) never runs with repo-write access.
+    #
+    # This job's own steps still run from the PR's own workflow version,
+    # same as the rest of this file: for a same-repo `pull_request` run (the
+    # only case that grants a write token at all — GitHub forces
+    # fork-triggered `pull_request` runs to a read-only token regardless of
+    # what's declared here), GitHub sources the whole job — permissions
+    # block included — from the PR branch itself, not the base, so pinning
+    # `actions/checkout` to a different ref cannot change what this job's
+    # own inline `run:` steps execute. Closing that residual gap needs a
+    # `workflow_run`-triggered second workflow (whose definition GitHub
+    # always reads from the default branch) — real follow-up, not done
+    # here. What this split does fix: the biggest, least-reviewable chunk
+    # of PR-controlled code (the whole XcodeGen/xcodebuild/simulator
+    # pipeline) is now read-only, leaving only this job's own small,
+    # narrowly-scoped git/gh-api logic still running with write access.
+    runs-on: ubuntu-latest
+    needs: [detect-changes, pd-ios-screenshots]
+    if: needs.detect-changes.outputs.pd-ios == 'true' && github.event_name == 'pull_request'
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the captured screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: pd-ios-screenshots-${{ github.sha }}
+          path: apps/pd-ios/pd-ios-screenshots
+
+      - name: Publish screenshots to the ci-screenshots branch
+        id: publish
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          DEST="pr-${PR_NUMBER}/${SHA}"
+          WORK="${RUNNER_TEMP}/ci-screenshots-branch"
+          rm -rf "$WORK"
+          git fetch origin ci-screenshots 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/ci-screenshots; then
+            git worktree add "$WORK" origin/ci-screenshots
+            (cd "$WORK" && git checkout -B ci-screenshots)
+          else
+            git worktree add --detach "$WORK"
+            (cd "$WORK" && git checkout --orphan ci-screenshots && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          cd "$WORK"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          publish_pngs() {
+            rm -rf "pr-${PR_NUMBER}"
+            mkdir -p "$DEST"
+            cp "$GITHUB_WORKSPACE"/apps/pd-ios/pd-ios-screenshots/*.png "$DEST"/
+            git add -A "pr-${PR_NUMBER}"
+          }
+
+          publish_pngs
+          if git diff --cached --quiet; then
+            echo "no changes to publish"
+          else
+            git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
+            # Two concurrent pd-ios-screenshots jobs (this PR's own retry, or a
+            # different PR) can race for the ci-screenshots tip: a
+            # non-fast-forward push here is expected contention, not a bug.
+            # Re-sync onto the new tip and redo this job's own write — every
+            # push only ever touches this PR's own pr-<n>/ subtree, so there
+            # is nothing to merge, just a fast-forward to retry onto.
+            attempt=1
+            until git push -q origin HEAD:ci-screenshots; do
+              if [[ "$attempt" -ge 5 ]]; then
+                echo "warning: could not publish screenshots after $attempt attempts (persistent push contention); continuing" >&2
+                break
+              fi
+              echo "push contention on ci-screenshots (attempt $attempt), re-syncing and retrying" >&2
+              git fetch origin ci-screenshots
+              git reset --hard origin/ci-screenshots
+              publish_pngs
+              # A concurrent duplicate run may have already published this
+              # exact PR+sha's content onto the tip we just reset to — that is
+              # success, not a new commit to make.
+              if git diff --cached --quiet; then
+                echo "already published by a concurrent run"
+                break
+              fi
+              git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
+              attempt=$((attempt + 1))
+            done
+          fi
+          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove --force "$WORK" || true
+
+      - name: Comment the screenshots onto the PR
+        if: steps.publish.outputs.dest != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_SHA: ${{ github.sha }}
+          SCREENSHOTS_DEST: ${{ steps.publish.outputs.dest }}
+        run: node scripts/publish-pd-ios-screenshots.mjs
+
   # ---------------------------------------------------------------------------
   # ci-gate: the single required check for branch protection / the merge queue.
   #
@@ -957,6 +1214,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - pd-ios
       - porthole-cast-gate
       - rust-console
       - rust-console-gpui
