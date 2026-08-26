@@ -13,6 +13,9 @@ import {
   renderSkillGraftContext,
   type SkillGraftIndex,
 } from '../../lib/skill-graft.js';
+import { defaultSkillCatalogRoots } from '../../lib/skill-sync.js';
+import { resolveSkillGraftRuntime } from '../../lib/skill-graft-runtime.js';
+import { createTool2VecReconciler } from '../../lib/skill-graft-reconciler.js';
 import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
@@ -22,6 +25,10 @@ interface SkillGraftCliOptions extends CLIOptions {
   'top-limit'?: string | number;
   'shortlist-limit'?: string | number;
   'body-chars'?: string | number;
+  'max-skills'?: string | number;
+  all?: boolean;
+  'local-only'?: boolean;
+  'db-dir'?: string;
 }
 
 function rootFromOptions(options: SkillGraftCliOptions): string {
@@ -37,11 +44,31 @@ function optionalPositiveInt(value: unknown): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+/**
+ * Selects the full user catalog by default while preserving explicit-root
+ * compatibility. The purpose is to warm what users can actually graft without
+ * surprising callers that intentionally scoped a project-local test catalog.
+ *
+ * @param options Parsed CLI root and directory options.
+ * @param projectRoot Resolved project root used by explicit scans.
+ * @returns Labeled catalog roots for query, reference, or reconciliation.
+ */
+function catalogRoots(options: SkillGraftCliOptions, projectRoot: string) {
+  const explicit = (typeof options.root === 'string' && options.root)
+    || (typeof options.dir === 'string' && options.dir);
+  return explicit
+    ? defaultSkillGraftRoots(projectRoot)
+    : defaultSkillCatalogRoots(projectRoot).map((root) => ({ label: root.label, path: root.path }));
+}
+
 function createIndex(options: SkillGraftCliOptions): SkillGraftIndex {
   const projectRoot = rootFromOptions(options);
+  const runtime = resolveSkillGraftRuntime();
   return createSkillGraftIndex({
     projectRoot,
-    roots: defaultSkillGraftRoots(projectRoot),
+    roots: catalogRoots(options, projectRoot),
+    llmClient: runtime?.client,
+    llmModel: runtime?.model,
     maxBodyChars: optionalPositiveInt(options['body-chars']),
     onWarning: (message) => {
       if (!isJson(options) && !isQuiet(options)) ui.warn(message);
@@ -85,20 +112,39 @@ async function handleQuery(args: string[], options: SkillGraftCliOptions): Promi
 }
 
 async function handleWarm(options: SkillGraftCliOptions): Promise<void> {
-  const index = createIndex(options);
-  const stats = await index.refresh();
+  const projectRoot = rootFromOptions(options);
+  const reconciler = createTool2VecReconciler({
+    projectRoot,
+    roots: catalogRoots(options, projectRoot),
+    dbDir: typeof options['db-dir'] === 'string' ? options['db-dir'] : undefined,
+    runtime: resolveSkillGraftRuntime(process.env, { allowRemote: !options['local-only'] }),
+    onWarning: (message) => {
+      if (!isJson(options) && !isQuiet(options)) ui.warn(message);
+    },
+  });
+  const stats = await reconciler.reconcile({
+    trigger: 'cli-warm',
+    maxSkills: options.all ? Number.POSITIVE_INFINITY : optionalPositiveInt(options['max-skills']) ?? 32,
+  });
 
   if (isJson(options)) {
     console.log(JSON.stringify(stats, null, 2));
     return;
   }
 
-  ui.success(`Skill graft catalog scanned: ${stats.scannedCount} skill(s)`);
-  if (stats.embedded || stats.reused || stats.removed) {
+  ui.success(`Skill graft catalog scanned: ${stats.total} skill(s)`);
+  if (!stats.configured) {
+    ui.info('Tool2Vec generator is not configured. Set PD_SKILL_GRAFT_BACKEND=cloudflare or ollama; Doctor will continue to report the cache as cold.');
+  } else if (!stats.acquired) {
+    ui.info('Another setup, daemon, or CLI process already owns the Tool2Vec reconcile lease; this caller left it alone.');
+  } else if (stats.embedded || stats.reused || stats.removed) {
     console.log(`  Tool2Vec centroids: embedded ${stats.embedded}, reused ${stats.reused}, removed ${stats.removed}`);
-  } else {
-    ui.info('No Tool2Vec generator configured; query ranking will use BM25 lexical matching until PD_SKILL_GRAFT_BACKEND is explicitly configured and warmed.');
   }
+  console.log(`  Coverage: ${stats.current}/${stats.total} current (${stats.coveragePct}%) · state ${stats.state}`);
+  if (stats.stoppedEarly && stats.state === 'cold') {
+    ui.info('Warm-up checkpointed this batch; daemon ticks or another `pd skill-graft warm` resume at the next missing skill.');
+  }
+  if (stats.state === 'embedder-down' || stats.state === 'generator-down') process.exitCode = 1;
 }
 
 async function handleReference(args: string[], options: SkillGraftCliOptions): Promise<void> {
@@ -110,7 +156,6 @@ async function handleReference(args: string[], options: SkillGraftCliOptions): P
   }
 
   const index = createIndex(options);
-  await index.refresh();
   const result = index.getReference(skillId, filePath);
 
   if (isJson(options)) {
@@ -132,12 +177,13 @@ function printHelp(): void {
 
 Usage:
   pd skill-graft query "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
-  pd skill-graft warm [--root <path>] [--json]
+  pd skill-graft warm [--root <path>] [--max-skills <n> | --all] [--local-only] [--json]
   pd skill-graft reference <skill-id> <path-within-skill> [--root <path>] [--json]
 
 The same lib/skill-graft.ts index is used by lib/fleet-engine.ts when a
 pd-fleet.yml ship opts into skill_graft: true. query is safe on a cold cache:
-it scans local skills and ranks via BM25 until Tool2Vec centroids are warmed.`);
+it scans the full user skill catalog and ranks via BM25 until Tool2Vec
+centroids are warmed. Warm-up is content-hash checkpointed and safe to resume.`);
 }
 
 export async function handleSkillGraft(positional: string[], options: SkillGraftCliOptions): Promise<void> {

@@ -456,7 +456,10 @@ When a client is using MCP instead of the CLI, use the matching Port Daddy MCP
 tools for claims, sessions, notes, locks, messaging, salvage, harbors, spawning,
 and service orchestration. Prefer MCP for model clients that already have it
 installed; prefer the CLI when you need shell-local git, build, or deployment
-evidence.
+evidence. `skill_graft_status()` maps to `GET /skill-graft/status` and is
+strictly read-only: it reports current-hash Tool2Vec coverage without generating
+centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
+do not add an agent-triggered MCP mutation for it.
 
 ## Operating Loop
 
