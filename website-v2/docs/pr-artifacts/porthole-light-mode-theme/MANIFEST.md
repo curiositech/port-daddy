@@ -15,3 +15,5 @@ porthole-player capture in `docs/pr-artifacts/porthole-player/`.
 
 Both captured back-to-back in the same run against the same build; only
 `localStorage['pd-theme']` differs between them.
+
+| `demos-section-theme-toggle.webm` | Live motion proof: page loads in dark mode, the real site theme toggle (`button[aria-label="Toggle color theme"]`) is clicked, and the `#demos` terminal chrome visibly flips from near-black to cream in place — no reload. Playwright's `recordVideo` captures the whole context lifetime (page load + network-idle wait included), so the original capture ran ~30s; trimmed to the last 6s (the actual load-complete-through-toggle window) with `ffmpeg -sseof -6 -c:v libvpx` re-encode, since the initial ~25s was static pre-interaction wait with nothing to see. |
