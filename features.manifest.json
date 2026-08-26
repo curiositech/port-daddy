@@ -2083,6 +2083,7 @@
         "POST /roadmap/items",
         "GET /roadmap/items",
         "GET /roadmap/board",
+      "GET /roadmap/projection",
         "GET /roadmap/items/:slug",
         "DELETE /roadmap/items/:slug",
         "GET /roadmap/items/:slug/links",
