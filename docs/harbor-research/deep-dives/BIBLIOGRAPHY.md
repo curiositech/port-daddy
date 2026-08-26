@@ -70,7 +70,11 @@ unverified mention, treat as possibly wrong or possibly nonexistent.
 
 | Citation | Confidence | Why it matters |
 |---|---|---|
-| arXiv:2607.22868, "What Can Be Enforced? A Theory of Certified Runtime Safety for Tool-Using Agents" | `uncertain` | **Existence not established.** Reported by one scout, never retrieved. `2607` would be July 2026. Verify the identifier resolves before treating this as prior art at all; a non-resolving ID is itself the finding. |
+| S. Ray. "What Can Be Enforced? A Theory of Certified Runtime Safety for Tool-Using Agents." arXiv:2607.22868, 24 Jul 2026. | `verified` — **real, cite as complementary** | **Resolved: exists.** HTTP 200; fabricated control `2607.99999` returns 404. Read in full. Criterion is safety + `Good(P) ∈ RA[T;Π]`, not controllability; contains no occurrence of `Ramadge`, `Wonham`, `supervisory`, or `uncontrollab`. Orthogonal axis — cite as adjacent contemporaneous work. |
+| **D. Basin, V. Jugé, F. Klaedtke, E. Zălinescu. "Enforceable Security Policies Revisited." ACM TISSEC 16(1):1–26, 2013. DOI 10.1145/2487222.2487225.** | `verified` — **the actual priority problem** | Read in full. Same controllable/observable alphabet split; Lemma 3.7 specializes to Paper 2's exact boxed criterion; states "In Schneider's setting, U is Σ^∞ and O equals ∅" — Paper 2's framing move, in 2013. Explicitly declines the Ramadge–Wonham identification and leaves it open, which is Paper 2's surviving delta. |
+| M. Dastani, S. Sardina, V. Yazdanpanah. "Norm Enforcement as Supervisory Control." PRIMA 2017, LNAI 10621, 330–348. DOI 10.1007/978-3-319-69131-2_20. | `UNRESOLVED` — **do not cite until read** | Existence/venue/pages/DOI verified three ways; full text unobtainable through every route tried (the OpenAlex "green OA" record is metadata-only, `"files": []`). Title and abstract suggest direct overlap. **The remaining priority question turns on it.** |
+| D. Grossi, H. Aldewereld, F. Dignum. "Ubi Lex, Ibi Poena." COIN II, 101–114. DOI 10.1007/978-3-540-74459-7_7. | `probable` — origin of "regimentation" | Canonical source of the regimentation-vs-enforcement distinction Paper 2 uses as a term of art. Full text not obtained; cite as origin per three independently-read attributions, do not quote. |
+| T. Balke. "A taxonomy for ensuring institutional compliance in utility computing." Dagstuhl Seminar Proceedings 09121, 2009. | `verified` | Draws Paper 2's alphabet split as a design taxonomy — regimenting *mental states* (white box) vs *actions* (black box) — in 2009. An LLM agent is the black-box case. |
 | J. Ligatti, L. Bauer, D. Walker. "Edit Automata: Enforcement Mechanisms for Run-time Security Policies." *IJIS* 4(1–2):2–16, 2005. | `probable` | Extends Schneider's truncation-only monitors to insertion/suppression. Paper 2's "detect-and-compensate" is close to suppression/edit territory and the paper does not cite this line. |
 | Y. Falcone, J.-C. Fernandez, L. Mounier. "What can you verify and enforce at runtime?" *STTT* 14(3):349–382, 2012. | `probable` | Titled almost exactly Paper 2's question; maps the safety-progress hierarchy to enforceability. A referee will ask about this one by name. |
 | B. Alpern and F. Schneider. "Defining Liveness." *IPL* 21(4):181–185, 1985. | `verified` (canonical) | The safety/liveness decomposition Paper 2's prefix-closure assumption rests on. |
@@ -109,7 +113,7 @@ one on first use.
 
 | Paper | Coined term | Established name | Recommendation |
 |---|---|---|---|
-| 2 | "regimentable" | *controllable* (Ramadge–Wonham) | Keep — the paper's whole point is that the two coincide, and it says so. Gloss on first use, which it already does. |
+| 2 | "regimentable" | *controllable* (Ramadge–Wonham) **and** *regimentation* (Grossi–Aldewereld–Dignum 2006; the normative-MAS term of art) | Keep, but **the word is not ours**. Normative MAS has used "regimentation" for prevention-by-design vs enforcement-by-sanction for two decades. Attribute it; do not appear to have coined it. |
 | 2 | "detect-and-compensate" | *runtime enforcement by suppression/insertion* (edit automata, Ligatti et al.) | Gloss. The coined term is clearer for the audience; add "in the edit-automata sense" once. |
 | 3 | "the tower" | *hierarchical agency* / *supervision hierarchy* (Tirole 1986) | Gloss to "hierarchical monitoring" on first use. Economists will not find "tower" searchable. |
 | 3 | "sealed sampling from C disjoint cliques" | *random monitor selection from independent pools*; cf. *collusion-proof mechanism* (Laffont–Martimort) | Gloss. "Clique" collides with its graph-theoretic meaning, which is a live confusion in a program that also does graph cohomology. Consider *pool* or *bench*. |
@@ -159,6 +163,26 @@ renaming recommendation below — the result is a dichotomy and the paper never
 says the word. And `paper3.tex` cites neither Diamond nor Townsend, so the
 costly-state-verification and delegated-monitoring lineages are absent from a
 paper whose title claim is about amortizing verification cost.
+
+## Part 2d — Corrections required regardless of any verdict
+
+These are not citations to add. They are statements in the papers that are wrong
+or overclaimed, found by the dives, each independently checkable. They should be
+fixed whether or not anything else in this file is acted on.
+
+| # | Paper | Statement | Problem | Evidence |
+|---|---|---|---|---|
+| C1 | 2 | §3: Schneider's EM "enforces **exactly** the safety properties" | **False.** Schneider proves necessity only and explicitly denies the converse. | Schneider TISSEC 3(1), p. 35, verbatim: "the converse—that all safety properties have EM enforcement mechanisms—**does not hold**." Fetched from `cs.cornell.edu/fbs/publications/EnfSecPols.pdf`, re-verified independently. |
+| C2 | 2 | §3: "Schneider's theorem is exactly what our characterization degenerates to" | **False**, following from C1. At $\Sigma_u=\emptyset$ Paper 2's theorem is strictly *stronger*; regularity silently supplies Basin's decidability and nonemptiness conditions. | Same source; corroborated by Basin et al. §1. |
+| C3 | 2 | §5: the compound case is "where untrained intuition most often guesses wrong" | **It is Schneider's own Figure 1** — the illustrative figure of a paper Paper 2 already cites. | Schneider, verbatim: "Figure 1 depicts a security automaton for a security policy that prohibits execution of Send operations after a FileRead has been executed… q_nfr… q_fr." Re-verified independently. The extracted design rule is still valid; the framing is not. |
+| C4 | 3 | §`sec:tower` / §`sec:conjecture`: $C=1$ is "linear life support" and "provably does not" supply the contraction | **False.** $C=1$ also terminates on finite bond capital. | Running the paper's own recursion at its own parameters: $C{=}1$ → 35 linear + 18 geometric = **53 levels, 2650 bond**; $C{=}8$ → **27 levels, 1350 bond**. A factor of two, not convergence-vs-divergence. Recomputed independently. The honest claim: sealed multi-clique sampling *removes the linear phase*, roughly halving certified depth. |
+| C5 | 3 | Theorem 2's $G_k > CB$ stated as an "iff" for rational bribery | **One-level iff only.** The briber's multi-level strategies are never scored by the affine-in-$c$ argument. | Conclusion survives (multi-level bribery is dominated a fortiori) but the *statement* does not. Restate as a per-level condition, or in terms of the briber's dynamic problem. |
+| C6 | 3 | "finite bond capital certifies a tower of **unbounded depth**" (abstract, express lane, contributions, §`sec:tower`) | Overstates the proof, which gives finite logarithmic depth (27 at the running parameters). | The paper's own bound $\lceil \log G_0/\log\frac{1}{1-\rho d}\rceil$. Fix in all five places. |
+| C7 | 6 | Theorem 1a/1b never called a dichotomy | Not an error — a legibility cost. | `grep -Eic "schaefer\|dichotom" paper6.tex` → 0. |
+
+C1–C3 and C4–C6 are independent of how any prior-art question resolves. C1 and C3
+matter most: they concern a paper Paper 2 already cites, so a referee who knows
+Schneider will catch them immediately.
 
 ## Part 3 — Standing rules for anything added to a `.tex`
 

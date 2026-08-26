@@ -30,20 +30,41 @@ Flags 1–3 are novelty risks: prior work may already own the result. Flag 4 was
 two things at once — a citation the sweep itself flagged as possibly fabricated,
 and a real canon (Herlihy–Shavit and successors) that Paper 7 omits entirely.
 
-## Status
+## Status — all four complete
 
 | Flag | Verdict | Summary |
 |---|---|---|
-| 1 | running | — |
-| 2 | running | — |
-| 3 | running | — |
+| 1 | **CLEAR** on the flag; two internal defects found | Kofman & Lawarrée contains **no** unbounded-collateral result — the regress is an *open question in their conclusion*, almost verbatim the question Theorem 2 answers, making them a **supporting** citation. But the falsification pass found real defects in `paper3.tex` itself: the C=1 counter-case **does not fail** (53 levels / 2650 bond vs C=8's 27 / 1350 — a factor of two, not divergence), and the `G_k > CB` "iff" is only a one-level deviation test. Also: no hierarchical-collusion citation anywhere in the paper. |
+| 2 | **NARROW** — the most consequential of the four | The preprint is **real** (arXiv:2607.22868, verified with a 404 control) but complementary, not competing. The real problem is **Basin et al., ACM TISSEC 2013** — same alphabet split, an iff characterization that specializes to Paper 2's exact criterion, Schneider named as the O=∅ case. Paper 2's surviving delta is the Ramadge–Wonham identification Basin explicitly leaves open. **Two correctness bugs**, independently re-verified: Paper 2 misstates Schneider's theorem, and its headline compound case is Schneider's own Figure 1. |
+| 3 | **NARROW** | Results survive, framing does not. The tractable-then-NP-complete *shape* is already mapped by the **Colombo Tosatto / Governatori** compliance line, at the same literals-vs-formulae boundary. $\mathcal{L}_c$ **as a combination** survives as novel, as does conflict-freedom (vs. compliance) as the decision problem. Owes Dechter–Meiri–Pearl (the STN), Stergiou–Koubarakis (STP→DTP, the closest analogue to Thm 1b), and **Gaertner et al. 2007**, which proved design-time conflict-freedom intractable in general. |
 | 4 | **CLEAR** | Suspect citation is **real but irrelevant** — excluded on relevance, not authenticity. Add Herlihy–Shavit, Saks–Zaharoglou, Herlihy–Kozlov–Rajsbaum, and PeerReview. All eight existing citations verified accurate; Bach 1999's *content* claim remains `probable` (paywalled) and is load-bearing. |
 
-One lesson already worth carrying into the remaining three: the round
-performance figures that made flag 4's citation look fabricated did not
-distinguish "fabricated" from "real but weak." Both were live hypotheses and the
-second one won. Suspicion was the right instinct; the conclusion it pointed at
-was not.
+## What the four dives taught about the sweep that spawned them
+
+These packages were written on the assumption that the earlier sweep had
+fabricated a citation. **That assumption was wrong in both places it was
+tested.** Flag 4's "suspiciously round numbers" paper is real (just weak), and
+flag 2's arXiv preprint is real (just orthogonal), confirmed with a control:
+`2607.22868` returns HTTP 200, a same-shaped fake `2607.99999` returns 404.
+
+Three lessons carry forward, and they invert the packages' original framing:
+
+1. **`uncertain` entries should be checked, not discounted.** The sweep's hit
+   rate on unverified citations is better than assumed.
+2. **A `WebFetch` block is not evidence a source does not exist.** `curl` through
+   the agent proxy reaches hosts `WebFetch` refuses; flag 1's decisive source was
+   found this way, via Semantic Scholar's `openAccessPdf` field pointing at a
+   DSpace@MIT copy no search engine surfaced. Flag 4's unresolved Bach 1999 is
+   worth retrying by that route.
+3. **The control test is the transferable technique.** An arXiv `abs` 200 proves
+   nothing on its own. One extra request settles it.
+
+And the deeper lesson: **three of the four most valuable findings came from
+places the packages did not point.** Flag 1's C=1 arithmetic defect and flag 2's
+two Schneider bugs were found by hostile reading of our own papers, not by
+literature search; flag 3's closest-on-problem citation (Gaertner et al.) came
+from a survey fetched while chasing an unrelated open item. The flags were worth
+running, but what they were *aimed at* was mostly not what they hit.
 
 ## Severity, and what each outcome means
 
