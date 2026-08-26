@@ -9,6 +9,7 @@ import {
   dbFileFamilyStamp,
   isCurrentDbIntegrityProof,
 } from '../../lib/db-integrity.js';
+import { shouldRunInProcessIntegrityCheck } from '../../lib/db.js';
 
 const roots = [];
 
@@ -51,6 +52,22 @@ describe('database integrity proof', () => {
     db.close();
 
     expect(isCurrentDbIntegrityProof(path, proof)).toBe(false);
+  });
+
+  test('skips the in-process scan only for a current out-of-process proof', () => {
+    const path = makeDb();
+    const proof = createDbIntegrityProof(path);
+
+    expect(shouldRunInProcessIntegrityCheck(path, { integrityProof: proof })).toBe(false);
+    expect(shouldRunInProcessIntegrityCheck(path, {})).toBe(true);
+
+    const db = new Database(path);
+    db.prepare('INSERT INTO proof_test (value) VALUES (?)').run('proof-is-now-stale');
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+
+    expect(shouldRunInProcessIntegrityCheck(path, { integrityProof: proof })).toBe(true);
+    expect(shouldRunInProcessIntegrityCheck(':memory:', { inMemory: true })).toBe(false);
   });
 
   test('source-mode runtimes leave the full check to initDatabase', async () => {
