@@ -15,6 +15,7 @@ import {
   stampIdentityMetadata,
   type IdentityWriteVerdict,
 } from '../lib/identity-write-boundary.js';
+import { isReservedIdentityName } from '../lib/reserved-identity-names.js';
 
 /**
  * The souls-store subset the sugar routes need. Unlike the other enforced
@@ -108,6 +109,16 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     const agentId = typeof asserted.agentId === 'string' && asserted.agentId.trim() ? asserted.agentId.trim() : null;
     const identity = typeof asserted.identity === 'string' && asserted.identity.trim() ? asserted.identity.trim() : null;
 
+    const reservedNameRejection = (name: string) => ({
+      success: false as const,
+      httpStatus: 403,
+      result: {
+        success: false,
+        error: `"${name}" is a reserved authority name and cannot be self-claimed as a display agentId; choose a namespaced name (e.g. "proj:node:dev"), or present the credential of the soul that owns "${name}"`,
+        code: 'IDENTITY_RESERVED_NAME',
+      },
+    });
+
     if (!actorSouls) {
       logger.error('identity_write_rejected', { route: 'POST /sugar/begin', code: 'IDENTITY_VERIFIER_UNAVAILABLE' });
       return {
@@ -159,9 +170,28 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         }
       }
       // A credential always yields `verified` (never anonymous) on success.
+      const verified = verdict as Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
+
+      // Reserved authority/system names (`system`, `coxswain`, …) may be
+      // claimed ONLY by the credential that already owns them (a bound alias
+      // to the SAME soul). A real credential that does not own the reserved
+      // name cannot bind it — otherwise a throwaway newcomer soul could stamp
+      // a session under `system` and launder an inbox `from: "system"`.
+      for (const name of [agentId, identity]) {
+        if (!name || !isReservedIdentityName(name)) continue;
+        if (actorSouls.resolveActor(name).actorId !== verified.actorId) {
+          logger.error('identity_write_rejected', {
+            route: 'POST /sugar/begin',
+            code: 'IDENTITY_RESERVED_NAME',
+            assertedName: name,
+            actorId: verified.actorId,
+          });
+          return reservedNameRejection(name);
+        }
+      }
       return {
         success: true,
-        verdict: verdict as Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>,
+        verdict: verified,
         mintedCredential: null,
       };
     }
@@ -186,6 +216,21 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           },
         };
       }
+    }
+
+    // A self-minted (uncredentialed) caller may never bind a reserved
+    // authority/system name. An owned reserved name was already caught by the
+    // 401 loop above (present the owner's credential); anything still reserved
+    // here is unowned, and minting a fresh soul under it would manufacture the
+    // very session binding that authorises an inbox `from: "system"`.
+    for (const name of [agentId, identity]) {
+      if (!name || !isReservedIdentityName(name)) continue;
+      logger.error('identity_write_rejected', {
+        route: 'POST /sugar/begin',
+        code: 'IDENTITY_RESERVED_NAME',
+        assertedName: name,
+      });
+      return reservedNameRejection(name);
     }
 
     // Mint a fresh newcomer soul. The identity's project scopes the shared

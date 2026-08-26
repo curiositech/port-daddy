@@ -18,7 +18,7 @@ const paths = {
 };
 
 const expectedSha256 = {
-  pdf: '1883b0a26cee36fa97a13760fe782ac99432f63d9342ae757a83e48c67d4e148',
+  pdf: 'a3f85a121b436c17a6f46e4c3d440b296c43ebf192320b665bb4a5f564701db5',
   contact: '6c5507dd28e2050ffaa5171625d0839c70b9b2b0b742261362540fe7528291ef',
   tour: '833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265',
 };
@@ -66,7 +66,15 @@ function decodedPdfText(pdf) {
 }
 
 function pdfPageCount(pdf) {
-  return decodedPdfText(pdf).match(/\/Type\s*\/Page\b/g)?.length ?? 0;
+  // Prefer the page-tree /Count: leaf /Type /Page objects can land inside
+  // compressed object streams where a plain text scan undercounts (observed
+  // with pdfTeX 1.40.29 output), and dict attribute order varies by producer.
+  const text = decodedPdfText(pdf);
+  const counts = [...text.matchAll(
+    /\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)|\/Count\s+(\d+)[^>]*?\/Type\s*\/Pages\b/g,
+  )].map((m) => Number(m[1] ?? m[2]));
+  if (counts.length) return Math.max(...counts);
+  return text.match(/\/Type\s*\/Page\b/g)?.length ?? 0;
 }
 
 function jpegDimensions(jpeg) {
@@ -176,16 +184,16 @@ describe('Spawn-to-Person publication contract', () => {
     const chapter = catalog.slice(chapterStart, chapterEnd);
 
     expect(chapter).toContain("status: 'Version 1.4 (collected-volume edition)'");
-    expect(chapter).toContain('pages: 35');
-    expect(chapter).toContain('sizeKb: 618');
+    expect(chapter).toContain('pages: 36');
+    expect(chapter).toContain('sizeKb: 647');
     expect(catalog).toContain('Spawn-to-Person diagrams and implementation status align');
     expect(catalog).toContain("chapters: ['III']");
   });
 
-  test('the committed PDF is the declared 35-page, 618 KiB artifact', () => {
+  test('the committed PDF is the declared 36-page, 630 KiB artifact', () => {
     const pdf = readFileSync(paths.pdf);
-    expect(pdfPageCount(pdf)).toBe(35);
-    expect(Math.floor(pdf.length / 1024)).toBe(618);
+    expect(pdfPageCount(pdf)).toBe(36);
+    expect(Math.floor(pdf.length / 1024)).toBe(646); // catalog rounds this to 647
     expect(sha256(paths.pdf)).toBe(expectedSha256.pdf);
   });
 

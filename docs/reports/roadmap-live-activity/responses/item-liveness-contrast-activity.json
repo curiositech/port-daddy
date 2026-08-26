@@ -1,0 +1,165 @@
+[
+  {
+    "success": true,
+    "activity": {
+      "slug": "liveness-contrast-slice",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Two work attachments off the same heartbeat: a busy agent (threshold 2.4h) and a draining one (threshold 3m). The ladder splits them.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890955,
+      "stage": "executing",
+      "dispatch": null,
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-drive-the-contrast-slice-0d6dfde2dd4a",
+          "sources": [
+            "claim",
+            "session-link"
+          ],
+          "agentId": "fleet-carpenter-08",
+          "agentName": "Carpenter",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-drive-the-contrast-slice-0d6dfde2dd4a",
+          "sessionStatus": "active",
+          "purpose": "drive the contrast slice",
+          "worktreeId": "wt-contrast-a",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441890955,
+          "idleMs": 599942,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 3,
+            "kind": "next-cut",
+            "claimedBy": "fleet-carpenter-08",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-carpenter-08",
+            "streamUrl": "/agents/fleet-carpenter-08/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-carpenter-08/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-drive-the-contrast-slice-0d6dfde2dd4a/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        },
+        {
+          "key": "session-wind-down-the-contrast-slice-fc9666639e7c",
+          "sources": [
+            "session-link"
+          ],
+          "agentId": "fleet-cooper-09",
+          "agentName": "Cooper",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-wind-down-the-contrast-slice-fc9666639e7c",
+          "sessionStatus": "active",
+          "purpose": "wind down the contrast slice",
+          "worktreeId": "wt-contrast-b",
+          "liveness": "stale",
+          "lastHeartbeatMs": 1787441890955,
+          "idleMs": 599942,
+          "staleThresholdMs": 180000,
+          "claim": null,
+          "cockpit": {
+            "steeringChannel": "agent:fleet-cooper-09",
+            "streamUrl": "/agents/fleet-cooper-09/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-cooper-09/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-wind-down-the-contrast-slice-fc9666639e7c/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 2,
+        "active": 1,
+        "stale": 1
+      }
+    }
+  },
+  {
+    "success": true,
+    "activity": {
+      "slug": "finished-session-salvage-signal",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "An unreleased claim sitting on a COMPLETED session. Liveness is done, not active — a fresh heartbeat cannot resurrect finished work.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441890955,
+      "stage": "stacked",
+      "dispatch": null,
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-finish-the-salvage-signal-slice-9cf0f09192d7",
+          "sources": [
+            "claim"
+          ],
+          "agentId": "fleet-cartographer-10",
+          "agentName": "Cartographer",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-finish-the-salvage-signal-slice-9cf0f09192d7",
+          "sessionStatus": "completed",
+          "purpose": "finish the salvage-signal slice",
+          "worktreeId": "wt-contrast-c",
+          "liveness": "done",
+          "lastHeartbeatMs": 1787441890956,
+          "idleMs": 599941,
+          "staleThresholdMs": 8640000,
+          "claim": {
+            "id": 4,
+            "kind": "next-cut",
+            "claimedBy": "fleet-cartographer-10",
+            "claimedAt": 1787441890897
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-cartographer-10",
+            "streamUrl": "/agents/fleet-cartographer-10/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-cartographer-10/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-finish-the-salvage-signal-slice-9cf0f09192d7/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 0,
+        "stale": 0
+      }
+    }
+  }
+]

@@ -271,17 +271,26 @@ describe('purser step model tiering', () => {
 
   const CHEAP = '@cf/qwen/qwen3-30b-a3b-fp8';
   const MID = '@cf/openai/gpt-oss-20b';
+  const AUTHOR = '@cf/deepseek-ai/deepseek-v4-flash-0731';
 
-  it('defaults PLAN to the cheap model and AUTHOR to the mid tier', () => {
+  it('defaults PLAN to the cheap model and AUTHOR to the agentic-coding tier', () => {
+    // Operator ruling 2026-08-22, from the live D1 record: on the gpt-oss-20b
+    // mid tier the author step ended 121 sets NON-EXECUTABLE and failed 83 of
+    // 110 rewrites in 14 days, gating the fleet neutral on 249 of 584 runs
+    // (#8870). Authoring a runnable file IS agentic coding, so the default is
+    // the tier with the strongest independent agentic-coding record
+    // (deepseek-v4-flash-0731; see AUTHOR_CF_MODEL's docblock) — while the
+    // repair rewrite deliberately stays on a DIFFERENT family (gpt-oss-120b).
     const ship = purserFrom();
     expect(ship.cfModel).toBe(CHEAP);
     expect(planOf(ship)).toBe(CHEAP);
-    expect(authorOf(ship)).toBe(MID);
+    expect(authorOf(ship)).toBe(AUTHOR);
   });
 
-  it('an explicit cheap author_model pin WINS over the mid-tier default', () => {
+  it('an explicit cheaper author_model pin WINS over the strong default', () => {
     // The operator opting back down to save money must not be silently upgraded.
     expect(authorOf(purserFrom(`author_model: '${CHEAP}'`))).toBe(CHEAP);
+    expect(authorOf(purserFrom(`author_model: '${MID}'`))).toBe(MID);
   });
 
   it('accepts the camelCase spellings operators actually write', () => {
@@ -291,7 +300,7 @@ describe('purser step model tiering', () => {
 
   it('DROPS an unknown id back to the tier default rather than remapping it', () => {
     // A nonexistent Workers AI id returns blank, not an error — the #654 outage.
-    expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(MID);
+    expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(AUTHOR);
   });
 
   it('warns, but still defaults, when the key is present and EMPTY', () => {
@@ -300,16 +309,19 @@ describe('purser step model tiering', () => {
     // mistake that produced no output at all. (pd-code-reviewer HIGH on #6813.)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(authorOf(purserFrom("author_model: ''"))).toBe(MID);
+      expect(authorOf(purserFrom("author_model: ''"))).toBe(AUTHOR);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('present but empty'));
     } finally {
       warn.mockRestore();
     }
   });
 
-  it('cannot pin a step onto the review bot model', () => {
-    // gpt-oss-120b is reached by ROLE, never by pin. The bound survives the tier.
-    expect(authorOf(purserFrom("author_model: '@cf/openai/gpt-oss-120b'"))).toBe(MID);
+  it('an explicit pin of the strong tier equals the default (and is honored, not dropped)', () => {
+    // Until 2026-08-22 a gpt-oss-120b author pin was silently dropped to the
+    // mid tier ("no pin can reach the review bot model"). That ceiling is
+    // retired: the known-good set guards existence, not price, and the strong
+    // tier IS the author default — pd-fleet.yml pins it explicitly.
+    expect(authorOf(purserFrom(`author_model: '${AUTHOR}'`))).toBe(AUTHOR);
   });
 
   it('non-purser ships get no step-model keys at all', () => {

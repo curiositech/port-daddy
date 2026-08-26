@@ -155,6 +155,30 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
+/** The bound edition is a collection of the seven chapters, not an eighth paper. */
+export interface CollectedVolume {
+  id: string
+  title: string
+  subtitle: string
+  pdfPath: string
+  date: string
+  pages: number
+  sizeKb: number
+  references: number
+}
+
+export const COLLECTED_VOLUME: CollectedVolume = {
+  id: 'coordination-papers-mega-volume',
+  title: 'The Port Daddy Coordination Papers',
+  subtitle:
+    'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
+  pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  date: 'August 2026',
+  pages: 250,
+  sizeKb: 2309,
+  references: 202,
+}
+
 /**
  * A readonly mirror of `WhitePaper` used only as the inference constraint on
  * `defineWhitePapers`. The runtime / consumer-facing type is still
@@ -233,8 +257,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 40,
-    sizeKb: 762,
+    pages: 42,
+    sizeKb: 783,
     status: 'Version 1.2 (collected-volume edition)',
     order: '01',
     chapter: 'I',
@@ -346,8 +370,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 35,
-    sizeKb: 740,
+    pages: 37,
+    sizeKb: 764,
     status: 'Version 1.2 (collected-volume edition)',
     order: '02',
     chapter: 'II',
@@ -460,8 +484,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 35,
-    sizeKb: 618,
+    pages: 36,
+    sizeKb: 647,
     status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
@@ -573,8 +597,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 31,
-    sizeKb: 869,
+    pages: 34,
+    sizeKb: 815,
     status: 'Version 1.3 (collected-volume edition)',
     order: '04',
     chapter: 'IV',
@@ -687,8 +711,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
-    pages: 25,
-    sizeKb: 837,
+    pages: 27,
+    sizeKb: 886,
     status: 'Version 1.4 (revised pre-print)',
     order: '05',
     chapter: 'V',
@@ -799,8 +823,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
-    pages: 47,
-    sizeKb: 976,
+    pages: 48,
+    sizeKb: 979,
     status: 'Version 2.7 (revised pre-print)',
     order: '06',
     chapter: 'VI',
@@ -918,8 +942,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
-    pages: 28,
-    sizeKb: 730,
+    pages: 30,
+    sizeKb: 703,
     status: 'Version 1.0 (revised pre-print)',
     order: '07',
     chapter: 'VII',
@@ -1100,6 +1124,14 @@ export interface LibraryChangelogEntry {
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-08-05',
+    date: 'August 5, 2026',
+    title: 'The seven papers publish as one audited collected volume',
+    summary:
+      'The seven chapters now publish together as a 247-page collected volume with a global introduction, coherent table of contents, implementation ledger, research roadmap, notation concordance, and 202 collated references. The companion-paper rigor pass repairs figure legibility, rechecks mathematical assumptions and cross-paper notation, and records implementation claims against repository evidence. Versions: I 1.2, II 1.2, III 1.4, IV 1.3, V 1.4, VI 2.7, VII 1.0.',
+    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+  },
   {
     dateIso: '2026-08-05',
     date: 'August 5, 2026',

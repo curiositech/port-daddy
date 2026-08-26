@@ -55,6 +55,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { isReservedIdentityName } from './reserved-identity-names.js';
 
 // ─── Branded principal type (ADR-0040 §8 widening boundary) ─────────────────────
 // A minted ULID *or* a migrated legacy string satisfies this via asActorId().
@@ -62,6 +63,16 @@ export type ActorId = string & { readonly __brand: 'actor_id' };
 export function asActorId(raw: string): ActorId {
   return raw as ActorId;
 }
+
+/**
+ * Reserved newcomer-pool bucket for registrations that name no project. The
+ * doubled-underscore sentinel is a reserved key; a project literally named
+ * "__projectless__" would merely share this bucket, which is harmless (still
+ * metered). Metering projectless registrations under one shared bucket is what
+ * stops `POST /actors/register` with no `project` from minting unlimited
+ * free souls.
+ */
+export const PROJECTLESS_POOL_KEY = '__projectless__';
 
 // ─── Tunable policy constants ───────────────────────────────────────────────────
 export interface ActorSoulsConfig {
@@ -110,6 +121,7 @@ export type RegisterOutcome =
   | { ok: true; status: 'minted';     actorId: ActorId; soulClass: SoulClass; credential: string }
   | { ok: false; status: 'rejected';  code: 'CREDENTIAL_INVALID'; httpStatus: 401 }
   | { ok: false; status: 'rejected';  code: 'NEWCOMER_ADMIT_LIMIT'; httpStatus: 429 }
+  | { ok: false; status: 'rejected';  code: 'RESERVED_ALIAS'; httpStatus: 403 }
   | { ok: false; status: 'rejected';  code: 'STORE_UNAVAILABLE'; httpStatus: 503 };
 
 export interface ResolvedActor {
@@ -410,6 +422,20 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
         if (!actorId) {
           return { ok: false, status: 'rejected', code: 'CREDENTIAL_INVALID', httpStatus: 401 };
         }
+        // Reserved-alias guard (#8877): a valid soul-secret is still a
+        // SELF-SERVICE principal. It may re-bind a reserved authority alias
+        // (`system`, `coxswain`, …) ONLY when it is an operator-trusted soul,
+        // or already owns that exact alias (an operator provisioned it once).
+        // Otherwise this door is a laundering bypass for /sugar/begin's guard:
+        // bind `system → me`, then begin under agentId "system" passes because
+        // resolveActor("system") now points at the caller's own soul.
+        if (params.alias && isReservedIdentityName(params.alias)) {
+          const isOperator = classify(actorId, harbor) === 'operator';
+          const alreadyOwns = resolveAlias(params.alias, harbor) === actorId;
+          if (!isOperator && !alreadyOwns) {
+            return { ok: false, status: 'rejected', code: 'RESERVED_ALIAS', httpStatus: 403 };
+          }
+        }
         touchSoul.run(ts, params.alias ?? null, harbor, actorId);
         if (params.alias) upsertAlias.run(harbor, params.alias, actorId, ts);
         return { ok: true, status: 'resolved', actorId, soulClass: classify(actorId, harbor) };
@@ -429,16 +455,30 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       //    NEW newcomer (F2 impersonation guard). So we intentionally do NOT look
       //    the alias up here; every uncredentialed registration mints fresh.
 
-      // 3a. Admission rate-limit: bound distinct newcomer souls per project/day.
-      const project = params.project?.trim();
-      if (project) {
-        const day = params.day ?? new Date(ts).toISOString().slice(0, 10);
-        const { soulsSeen } = poolState(project, day);
-        if (soulsSeen >= newcomerAdmitMax) {
-          return { ok: false, status: 'rejected', code: 'NEWCOMER_ADMIT_LIMIT', httpStatus: 429 };
-        }
-        bumpPoolSouls.run(project, day);
+      // Reserved-alias guard (#8877): an uncredentialed caller is pure
+      // self-service and may NEVER bind a reserved authority alias. Refuse
+      // BEFORE minting or spending an admission slot — otherwise this door
+      // provisions `system → attacker`, poisoning /sugar/begin's guard.
+      if (params.alias && isReservedIdentityName(params.alias)) {
+        return { ok: false, status: 'rejected', code: 'RESERVED_ALIAS', httpStatus: 403 };
       }
+
+      // 3a. Admission rate-limit: bound distinct newcomer souls per project/day.
+      //     A registration with NO project must still be metered — otherwise
+      //     omitting `project` skipped the pool entirely and minted unlimited
+      //     free souls (the anti-launder floor became opt-in). Projectless
+      //     registrations share one reserved global bucket (PROJECTLESS_POOL_KEY)
+      //     so the same 429 admission path applies.
+      const trimmedProject = params.project?.trim();
+      const project = trimmedProject && trimmedProject.length > 0
+        ? trimmedProject
+        : PROJECTLESS_POOL_KEY;
+      const day = params.day ?? new Date(ts).toISOString().slice(0, 10);
+      const { soulsSeen } = poolState(project, day);
+      if (soulsSeen >= newcomerAdmitMax) {
+        return { ok: false, status: 'rejected', code: 'NEWCOMER_ADMIT_LIMIT', httpStatus: 429 };
+      }
+      bumpPoolSouls.run(project, day);
 
       // 3b. Mint a fresh newcomer soul; issue a credential ONCE.
       const minted = mint({ harbor, alias: params.alias ?? null, credentialKind: 'soul-secret' });

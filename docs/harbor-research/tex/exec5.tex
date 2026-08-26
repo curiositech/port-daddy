@@ -1,0 +1,162 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{mdframed}
+\newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
+\newmdenv[backgroundcolor=red!4,linecolor=shipred,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{boundary}
+\newcommand{\onebreath}[1]{\begin{center}\emph{#1}\end{center}}
+\newcommand{\Ob}{\mathsf{O}}
+\newcommand{\Fb}{\mathsf{F}}
+
+\title{\textbf{Execution Report \#5}\\[4pt]
+\large The register runs dry\\[3pt]
+\normalsize B5 (engine substitution), B7 (escalation band), B8 (specialization boundary),\\
+B9 (context paging), B4 (deontic fragment), and the consistency-radius theorem ---\\
+the entire blocking-before-arXiv register, discharged}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Express lane.} Six items, six scripts, all green at seed 20260816: the reputation market unravels without engine attestation and flips to the planner's rule with it (\S\ref{sec:b5}); the escalation debit has a unique separating threshold and a two-walled tuning band that can be honestly empty (\S\ref{sec:b7}); the whitepaper's specialization threshold is \emph{falsified} and replaced by the exact Erlang-C boundary, with the succession rule priced (\S\ref{sec:b8}); context paging degrades only linearly under a corrupted pin oracle --- if and only if pins are re-derived on touch (\S\ref{sec:b9}); commitment-conflict detection is polynomial inside the Horn fragment and NP-complete one step outside (\S\ref{sec:b4}); and the sheaf detector's residual is now a \emph{certified lower bound} on the injected lie, with localization and complexity theorems (\S\ref{sec:cr}). With these, the proof-debt register's blocking-before-arXiv list (A3, A4, B5, B7, B8, B9) is clear. Every number is tagged [verified] (externally recomputable) or [internal] (regenerates from the named script, seed 20260816).
+
+\section{B5 --- The engine behind the reputation}\label{sec:b5}
+\textbf{The story.} An identity builds a glowing record running a strong engine, then quietly swaps a cheap one in behind the same name. Buyers see the reputation; they do not see the engine. This is the resume-button feature's named attack --- and it is Akerlof's used-car market, run \emph{inside one identity}.
+
+\onebreath{The idea in one breath: unattested, the price can never depend on the actual engine, so swapping always pays and pooling on quality dies; attest the engine on every witnessed outcome and the substitution incentive flips to the planner's own rule --- and the same three checks make resurrection across providers sanction-sound.}
+
+\begin{thebox}
+\textbf{Theorem (unraveling).} With engines $\theta_H > \theta_L$ at costs $c_H > c_L$ and the engine unobserved, the swap gain $(p-c_L)-(p-c_H)=\Delta c>0$ is price-independent: no belief supports pooling on $\theta_H$ and nothing exists to separate on. Committed $\theta_H$ sellers participate iff $\mu \ge \mu^\star = (c_H-\theta_L)/\Delta\theta$; below it the death spiral rests at $\theta_L$. Deterrence without attestation needs an audited stake $qW \ge \Delta c$.
+
+\textbf{Theorem (IC flip).} With daemon-attested engine ids, reputation keys on (principal, engine) and the swap gain becomes $\Delta c - \Delta\theta$: substitution pays iff the weak engine is socially better, at zero audit stake.
+
+\textbf{Theorem (resurrection soundness).} Sanction-respecting reputation (Def.~III.6.1) survives provider migration under (i) credential$+$continuity-witness verification, (ii) engine attestation in successor outcomes, (iii) open commitments closed or renegotiated with escrow delta --- and each dropped clause admits a shortest-trace escape: whitewash-by-resurrection, engine-history shedding, liability stranding.
+\end{thebox}
+
+\textbf{Numbers.} $\theta_H{=}1,\theta_L{=}0.4,c_H{=}0.5,c_L{=}0.2$: swap gain $0.3$ at every price, $\mu^\star = 1/6$, attested keep $0.5$ vs swap $0.2$ [verified]. Sweeps: 4000 instances $\times$ 8 prices, 0 pooling survivals; thresholds match simulation exactly; 2000 heterogeneous spirals monotone to the Akerlof fixed point ($\mu_0{=}0.5 \to 1/3$; $\mu_0{=}0.2 \to$ total unraveling); migration machine: 747 states to depth 7, \textbf{0} Def-III.6.1 violations intact; mutants caught in $1,2,2,2$ steps [internal, \texttt{b5\_engine\_substitution.py}].
+
+\textbf{The wrong turn, reported.} A first pass keyed \emph{sanctions} like scores, per (identity, engine) --- and the intact protocol failed Def.~III.6.1 in one step, no migration needed: the sibling engine key is a free escape hatch. The fix is the paper's one-liner: price per (principal, engine), sanction per principal --- one rule closing engine substitution and skill-versioning Gap \#4 together.
+
+\begin{boundary}
+\textbf{Honest boundary.} Two periods, no continuation value beyond the stake; attestation soundness is a deployment (TEE) assumption, per the declined-claims list; the migration result is bounded small-model checking of the protocol spec, which the daemon must refine; Def.~III.6.1 is score-only --- escrow enters as attribution, not conservation.
+\end{boundary}
+
+\section{B7 --- The costly-escalation debit: threshold equilibrium and its tuning band}\label{sec:b7}
+\textbf{The story.} An agent privately observes urgency $u \sim F$ on $[0,1]$; escalating surfaces the item on the operator's reserved distress lane, where it is validated with probability $V(u)$ and yields benefit $b(u)$; a \emph{dismissed} escalation debits standing by $\delta$, worth $w$ per unit of surfacing weight. Crying wolf has a price --- but what price is right?
+
+\onebreath{Monotone benefit and validation make the escalation payoff single-crossing, so a unique threshold type separates escalators from the silent; and between the alarm-fatigue wall and the distress-silencing wall the feasible debit is an interval --- possibly empty, in which case no tuning saves an under-provisioned channel.}
+
+\begin{thebox}
+\textbf{Theorem (threshold equilibrium; single crossing).} With $\Pi_\delta(u) = b(u) - \delta w\,(1 - V(u))$, monotone $b$ and $V$ make $\Pi_\delta$ strictly increasing, so with $\Pi_\delta(0)<0<\Pi_\delta(1)$ there is a unique $u^\star(\delta)$ solving $b(u^\star) = \delta w\,(1 - V(u^\star))$, and the unique best response is ``escalate iff $u \ge u^\star(\delta)$'' --- a separating equilibrium in the Spence mold. $u^\star$ is nondecreasing in $\delta$ with interior slope $w(1-V(u^\star))/\bigl(b'(u^\star) + \delta w V'(u^\star)\bigr)$. For $u \sim \mathrm{Unif}[0,1]$, $b(u)=u$, $V(u)=u$: $u^\star(\delta) = \delta w/(1+\delta w)$.
+
+\textbf{Theorem (the tuning band).} With alarm load $L(\delta) = \int_{u^\star(\delta)}^{1} [c_{\mathrm{att}} + C_{\mathrm{fa}}(1-V(u))]\,dF$ nonincreasing and miss loss $\mathrm{ML}(\delta) = C_{\mathrm{miss}}\bigl(F(u^\star(\delta)) - F(u_{\mathrm{crit}})\bigr)^{\!+}$ nondecreasing, the feasible set $\{\delta : L \le A,\ \mathrm{ML} \le M\}$ is an interval $[\delta_{\min}, \delta_{\max}]$, nonempty iff $L(\delta_{\max}) \le A$; here $u_{\mathrm{crit}} = (c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})$ is exactly R3's inspect threshold.
+\end{thebox}
+
+\textbf{Numbers.} Closed forms match bisection ($u^\star = \delta w/(1+\delta w)$; Lambert-$W$ for the exponential family) [verified]; single crossing and monotone $u^\star(\delta)$: 0/4000 violations over random monotone families; the non-monotone attack breaks the threshold in 1172/2000 draws (witness: $u=0.681$ escalates while $u=0.751$ is silent) [internal, \texttt{b7\_escalation\_band.py}]. R3's constants ($C_{\mathrm{miss}}{=}100$, $c_{\mathrm{att}}{=}1$, $C_{\mathrm{fa}}{=}5$), $w{=}1$, $M{=}1$: budget $A=3.3$ gives $\delta \in [0.035, 0.072]$; budget $A=2.0$ gives $\delta_{\min}=0.396 > \delta_{\max}=0.072$ --- \emph{empty}. The zero-debit mutant blows the fatigue budget ($L(0)=3.5$, the Cvach habituation regime); $\delta=1$ silences $0.44$ of genuine-distress mass (miss loss $44.3$) yet passes the fatigue wall alone --- one-sided tuning would miss it [internal].
+
+\begin{boundary}
+\textbf{Honest boundary.} Monotone $V$ is the condition earning its keep: non-monotone validation produces multi-interval escalation sets --- measure the validation curve before trusting any $\delta$. Empty-band regimes are real; there the fix is attention capacity or evidence quality, not tuning. Static one-shot model: no reputation dynamics of $w$, no operator strategic dismissal, no flood externality (R7/A2's job).
+\end{boundary}
+
+\section{B8 --- The specialization boundary, and the price of the succession rule}\label{sec:b8}
+\textbf{The story.} Should an invariant-critical function have one deeply skilled owner or a pool of generalists? The whitepaper proposed a threshold. The sweep ran first --- and the proposed threshold is \emph{false in both directions}: it certifies specialists who lose at low utilization and rejects specialists who win at high utilization.
+
+\onebreath{The exact boundary is Erlang-C: sole ownership pays iff the skill premium clears $g(\rho,c) = c\rho + c(1-\rho)/(c(1-\rho)+C(c,\rho))$ --- which saturates at $c$, never diverges; and once the owner's death-rate--times--succession-time product exceeds $D^\star$, no skill premium rescues sole ownership at all.}
+
+\begin{thebox}
+\textbf{Theorem (queueing specialization boundary).} Requests arrive Poisson($\lambda$); a sole specialist serves as $M/M/1$ at rate $\mu_s$, the pool as $M/M/c$ at $\mu_g$ each, utilization $\rho = \lambda/(c\mu_g)$; accountability value $A$, waiting cost $w$. With $C(c,\rho)$ the Erlang-C delay probability, sole ownership weakly dominates iff
+\[\frac{\mu_s}{\mu_g} \;\ge\; g_A(\rho,c) \;=\; c\rho + \frac{1}{\,1 + \frac{C(c,\rho)}{c(1-\rho)} + \frac{A\mu_g}{w\lambda}\,},\]
+reducing at $A=0$ to $g(\rho,c) = c\rho + \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}$, with $g(\rho,1)=1$, $g \to c$ as $\rho \to 1$, and $g(\rho,2) = 1 + 2\rho - \rho^2$ in closed form.
+
+\textbf{Theorem (price of the succession rule).} Specialist dies at rate $\xi$, succeeded after $\mathrm{Exp}(\eta)$ spin-up, work resuming, requests queueing throughout. With $\mu_{\mathrm{eff}} = \mu_s\eta/(\xi+\eta)$: $W = \bigl(1 + \mu_s\xi/(\xi+\eta)^2\bigr)/(\mu_{\mathrm{eff}} - \lambda)$ exactly, with infimum $W_\infty = \xi/(\eta(\xi+\eta))$ as $\mu_s \to \infty$: no skill buys back residual downtime. Pooling dominates at \emph{every} skill premium iff $\xi/\eta > D^\star = \eta K/(1-\eta K)$, $K = A/(w\lambda) + W_{\mathrm{pool}}$.
+\end{thebox}
+
+\textbf{Numbers.} The proposed threshold $\tilde g = 1+(c{-}1)\rho/(1{-}\rho)$ is falsified both directions: $c{=}2,\rho{=}0.1$ false-certify (sim $z=-15.7$); $c{=}2,\rho{=}0.5$ false-reject ($z=+32$); crossing at $\rho=(3-\sqrt5)/2\approx0.382$; $\tilde g$ diverges where $g$ saturates ($\rho{=}0.9,c{=}8$: $g=7.73$ vs $\tilde g=64$) [internal, \texttt{b8\_specialization.py}]. $W$ closed form vs matrix-geometric $2{\times}10^{-13}$, vs truncated CTMC $10^{-14}$, vs Gillespie $|z|\le0.8$; 60-instance sweep, 0 sign violations; succession instance $\eta=0.25$: $D^\star=0.350$, and at $\xi/\eta=2$ even $\mu_s=10^8$ loses [internal]. The breakdown-forgetting mutant is caught by the high-$\xi$ canary. A common misread to preempt: $D^\star$ does not say specialists are bad --- it prices exactly when a succession plan (large $\eta$) keeps sole ownership viable.
+
+\textbf{The wrong turn, reported.} The naive decomposition $W = 1/(\mu_{\mathrm{eff}}-\lambda) + W_\infty$ is refuted ($4.17$ vs true $8.17$ at the canary instance): downtime also builds queue, amplifying the residual by $\mu_{\mathrm{eff}}/(\mu_{\mathrm{eff}}-\lambda)$.
+
+\begin{boundary}
+\textbf{Honest boundary.} Mean-cost comparison only (no tail/SLA percentiles); FCFS, exponential everything; breakdowns-at-all-times with preemptive resume (the death/heartbeat model); $A$ and $w$ are policy prices the theorem constrains, not picks.
+\end{boundary}
+
+\section{B9 --- Context paging with an untrusted pin oracle}\label{sec:b9}
+\textbf{The story.} The resident context is a cache of spans; a feature oracle marks some spans load-bearing (pinned). The oracle is sometimes wrong --- at rate $\varphi$, the same forgeable-feature budget R1 already carries. How badly does paging degrade?
+
+\onebreath{Linearly, and only linearly: with Young's Landlord on the honestly-unpinned region and pins re-derived on every fetch, a corrupted consultation costs at most one refetch --- but trust a pin blindly and a single corrupted bit costs $\Theta(N)$.}
+
+\begin{thebox}
+\textbf{Theorem (import; Young 2002).} Landlord with cache $k$ over spans of size $s(f)$ and refetch cost $c(f)$ satisfies $\mathrm{cost}_{LL}(\sigma) \le \tfrac{k}{k-h+1}\,\mathrm{OPT}_h(\sigma)$ for every $h \le k$ --- the weighted file-caching transfer variable-size context spans need.
+
+\textbf{Theorem (linear $\varphi$-degradation).} Unit cost density $c(f)=s(f)$ (the context-window regime); honest pinned set $P$; oracle corrupted on $C$ consultations ($\mathbb{E}[C]=\varphi N$, obliviously), pins re-derived on every fetch (\emph{repair-on-touch}). Then pin-augmented Landlord pays, for every $p \le h \le k$,
+\[\mathrm{Cost} \;\le\; c(P) + \frac{k-p}{k-h+1}\,\mathrm{OPT}_{h-p}(\sigma_{\mathrm{unpinned}}) + \varphi N c_{\mathrm{refetch}},\]
+an \emph{additive}, linear $\varphi$ term: each corruption perturbs one eviction pass and is charged at most one refetch (missed pin: repair-on-touch buys it back; mis-pinned junk: the displaced volume refetches for at most $s(g) \le c_{\mathrm{refetch}}$).
+\end{thebox}
+
+\textbf{Numbers.} Import vs exact OPT (subset-DP): 122 (instance, $h$) pairs, 0 violations, cyclic thrash instances at exact equality [internal, \texttt{b9\_context\_paging.py}]. Degradation: 50 instances at $\varphi\in\{0.1,\dots,0.4\}$, all $h$, 0 violations; cost-vs-$\varphi$ slope $22.8$ vs ceiling $N c_{\mathrm{refetch}}=1200$ ($1.9\%$; $R^2=0.994$); per-corruption charge $\le 0.100\,c_{\mathrm{refetch}}$ over 120 trials. An \emph{adaptive} corruptor that sees cache state maxed at $0.778\,c_{\mathrm{refetch}}$ per corruption --- inside the bound; linearity did not break. Mutation: blind pin-trust turns \emph{one} corruption into 317 refetch-equivalents at $N{=}1920$ vs the graceful policy's exactly one refetch [internal].
+
+\textbf{The wrong turn, reported.} A corruption can \emph{help} (extra cost $<0$) when the falsely-unpinned span was crowding a thrashing working set --- the bound is one-sided by design; the final mutation scenario isolates the pin effect.
+
+\begin{boundary}
+\textbf{Honest boundary.} Unit cost density is load-bearing for the mis-pin charge. Repair-on-touch is \emph{the} load-bearing guard --- without it damage is unbounded (staleness is priced charitably at refetch cost; acting on absent load-bearing context is a correctness failure). The oblivious hypothesis was not the boundary for the additive term (greedy-adaptive stayed inside; the oblivious/adaptive gap lives in the multiplicative $O(\log k)$ of randomized marking); a stronger adaptive adversary is untested. The sweep is evidence at small scale; the second-order credit step rests on the Landlord term's slack, verified per instance.
+\end{boundary}
+
+\section{B4 --- The tractable conflict fragment and its frontier}\label{sec:b4}
+\textbf{The story.} The condominium harbor's lookout must answer, at proposal time, whether an incoming commitment conflicts with the accepted set. Cheap detection is a language-design choice: the commitment language buys it by construction.
+
+\onebreath{Inside Horn rules, ground intervals, and difference constraints, conflict detection is a polynomial, witness-producing decision; allow one disjunctive obligation and it is NP-complete --- the fragment boundary is not taste but the exact price of proposal-time checking.}
+
+\begin{thebox}
+\textbf{Theorem (membership).} In the fragment $\mathcal{L}_c$ (facts; definite Horn rules with $\bot$ heads allowed; deontic rules $\mathrm{body} \to \mathsf{M}(\mathrm{act}, s, [t_1,t_2])$, $\mathsf{M}\in\{\Ob,\Fb\}$; exclusive interval claims; difference constraints $x_j - x_i \le c$), conflict detection is decidable in $O(H + T\log T + C\log C + V\!\cdot\!E)$ with a polynomial witness per conflict: Dowling--Gallier unit propagation computes the least Horn model (= statuses forced in every model, by monotonicity); a keyed sweep-line finds every $\Ob/\Fb$ and claim overlap; Bellman--Ford returns a negative cycle iff the deadline system is infeasible.
+
+\textbf{Theorem (frontier).} Extend $\mathcal{L}_c$ with disjunctive obligations $\Ob(l_1 \vee \dots \vee l_k)$ under discharge-choice semantics: conflict-freedom is NP-complete (membership via the selection certificate; hardness from 3-SAT --- clause $\mapsto$ disjunctive obligation over selector literals, variable $\mapsto$ an $\Ob/\Fb$ pair on identical scope and interval).
+\end{thebox}
+
+\textbf{Numbers.} 3000 random in-fragment policy sets vs a brute-force oracle (all $2^5$ Horn models intersected; exhaustive integer search over the complete potential box): 885 conflicts (121 $\bot$, 195 $\Ob/\Fb$, 484 claims, 213 temporal), 149 reachable only through Horn propagation, \textbf{0 disagreements}; least model $=$ intersection-of-all-models on all 3000 [internal, \texttt{b4\_deontic\_fragment.py}]. The reduction verified both directions on 8 SAT $+$ 8 UNSAT instances, 16/16. Mutation: removing Horn propagation misses the four-line indirect witness (deploy $\to$ prod access $\to$ obliged write vs standing prohibition) and 100/885 sweep conflicts --- propagation is load-bearing at scale.
+
+\begin{boundary}
+\textbf{Honest boundary.} Completeness is relative to least-model semantics (monotone bodies; negation-as-failure leaves the fragment). Ground atoms and intervals only --- unification and symbolic endpoints coupled to difference variables are outside what is proven. The batch bound is proven; the incremental form is a constants improvement. The checker certifies the norm \emph{system}, not the norms: a bad policy consistently held is consistent.
+\end{boundary}
+
+\section{The consistency-radius theorem (W8 tail)}\label{sec:cr}
+\textbf{The story.} The R6 harness validated the completion residual $r$ statistically. What was missing was the theorem: what exactly does $r > 0$ prove, how large a lie does it certify, where does it point, and what does it cost to compute?
+
+\onebreath{$r$ is the exact minimum edge-space perturbation any adversary must have injected, it localizes to cycles through the equivocator, and it computes as at most $L$ scalar graph-Laplacian solves --- with the single-equivocator condition now proved to be the honest scope, because coalitions on a cycle can cancel to zero.}
+
+\begin{thebox}
+\textbf{Theorem CR-1 (soundness).} $r > 0$ iff no global section explains the compared$+$relayed data; honest executions give $r=0$ exactly, for every visibility pattern. Every offset pattern consistent with the data satisfies $\|\varepsilon_K\| \ge r$, with equality at the completion. Single equivocator $q$: $\sigma^{+}_{\min}(M_q)\,\mathrm{dist}(o, \ker M_q) \le r \le \mathrm{dist}(o, \ker M_q)$, and for a single-edge lie of size $s$ in coordinate $c$, $r = |s|\sqrt{1 - R^{G_c}_{\mathrm{eff}}(e)}$ --- on $C_n$, $|s|/\sqrt{n}$: the harness's $1.2247$ \emph{is} $3\sqrt{1-5/6}$.
+
+\textbf{Theorem CR-2 (localization).} Noise-free, single equivocator: the residual's support lies on cycles of the coordinate subgraphs through $q$ (electrical-flow support argument) --- the harness's 200/200 is now a theorem; with noise, guaranteed while $2\|\eta_K\| < \max_f \|(\Pi_K \varepsilon_K)_f\|$.
+
+\textbf{Theorem CR-3 (complexity).} $r$ is one sparse least-squares that decomposes into at most $L$ scalar graph-Laplacian systems: $\widetilde{O}(|E| L \log(1/\epsilon))$ with SDD solvers. (Bach's \#P-hardness concerns coherent sheaves on projective space, not finite cellular sheaves over $\mathbb{R}$.)
+\end{thebox}
+
+\textbf{Numbers.} Soundness 0/600 violations, achievability 600/600; the effective-resistance closed form exact on $C_4$--$C_{12}$ and 200 random graphs; the $\sigma^{+}_{\min}$ lower bound tight under the adversarial offset ($0.4082$); a uniform (kernel) lie of norm 5 gives $r = 2{\times}10^{-14}$ --- invisible in principle, correctly not flagged [internal, \texttt{sheaf\_consistency\_radius.py}]. Localization 200/200 (two-cycles topology) $+$ 128/128 (severed expanders); the noise boundary is measured: $\ge 95\%$ up to $\sigma_\eta/\sigma_{\mathrm{eq}} \approx 0.1$, $76.5\%$ at $0.2$. Timing slope vs $|E|$: CG $0.65$ (linear-ish), dense $1.88$. The sweep found the promised crack: two coordinated liars on a common cycle cancel to $r = 6{\times}10^{-15}$ while each alone is detectable at $|s|/\sqrt{8}$ --- the detection bound is single-equivocator; soundness ($r$ never overstates) is unconditional. The D2-reintroduction mutant fires on a severed lie exactly as CR-1(i) predicts.
+
+\begin{boundary}
+\textbf{Honest boundary.} Detection and localization are single-equivocator: coalition-coboundary lies are consistent counterfactual worlds, provably dark. $r$ attributes nothing (a $+o$ lie by $q$ toward $w$ and a $-o$ lie by $w$ toward $q$ yield identical observations --- signatures attribute, cohomology localizes). Vanishing $r$ is not an all-clear (uniform lies, severed edges, the Car\`u abelianization gap). Under noise, soundness needs a threshold above the honest floor.
+\end{boundary}
+
+\section{Program status}
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Item & Status & Headline & Feeds \\
+\midrule
+A1--A4, A6, A7, B1--B3, B6, C0, C1 & done & Execution Reports 1--4 & Papers 1--4, 8 \\
+Zoom theorem; sheaf harness & done & Paper 1 closed; verdict COMMIT & Papers 1, 7 \\
+\textbf{B5} & \textbf{done} & unraveling; IC flip; resurrection soundness & Paper 5 \\
+\textbf{B7} & \textbf{done} & threshold equilibrium; tuning band & Paper 1 orbit \\
+\textbf{B8} & \textbf{done} & exact Erlang-C boundary; $D^\star$ succession price & Paper 6 \\
+\textbf{B9} & \textbf{done} & Landlord import; linear $\varphi$-degradation & Paper 1 orbit \\
+\textbf{B4} & \textbf{done} & polynomial fragment; NP-complete frontier & Paper 6 \\
+\textbf{CR-1/2/3} & \textbf{done} & $r$ certifies, localizes, computes & Paper 7 \\
+\bottomrule
+\end{tabular}
+\end{center}
+The blocking-before-arXiv register (A3, A4, B5, B7, B8, B9) is \textbf{clear}. Remaining: Papers 5--7 assemblies (all inputs now in hand), C2 (minimum-viable take-rate), the lifts (C0 $\to$ Apalache, C1 $\to$ Isabelle), and the whitepaper folds (thm:specialization must adopt the exact $g$; the context-paging and escalation status notes upgrade to executed).
+
+\vspace{0.4em}
+\noindent\emph{Now you try.} Compute $D^\star$ for a sole-owned role in your own deployment: measure its request rate $\lambda$, the pool's service rate $\mu_g$, the role's historical death rate $\xi$ (departures, deprecations), and your successor spin-up time $1/\eta$; if $\xi/\eta$ exceeds $\eta K/(1-\eta K)$, no skill premium rescues sole ownership --- write the succession plan first.
+
+\vspace{0.4em}
+\noindent\emph{Reproducibility.} Six self-contained scripts (\texttt{b5\_engine\_substitution.py}, \texttt{b7\_escalation\_band.py}, \texttt{b8\_specialization.py}, \texttt{b9\_context\_paging.py}, \texttt{b4\_deontic\_fragment.py}, \texttt{sheaf\_consistency\_radius.py}); every [internal] number regenerates deterministically at seed 20260816, every mutation prints its witness, and each script exits nonzero on any failed check. All six run in the harbor-results-estate CI job.
+\end{document}
