@@ -1,10 +1,14 @@
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
-\usepackage{graphicx}
-\graphicspath{{../figures/}}
+% Every figure here is a native TikZ/pgfplots fragment \input'ed at point of use
+% (figures/CONVENTION.md): there is no \includegraphics anywhere in this paper, so
+% graphicx and \graphicspath are deliberately absent. The patterns library backs the
+% hatched (greyscale-safe) regime fills in fig-paper6-regime.tex.
+\usetikzlibrary{patterns}
 \usepackage{mdframed}
 \newmdenv[backgroundcolor=blue!4,linecolor=harborblue,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{thebox}
 \newmdenv[backgroundcolor=red!4,linecolor=shipred,linewidth=0.8pt,skipabove=6pt,skipbelow=6pt]{boundary}
+\newmdenv[backgroundcolor=black!3,linecolor=black!30,linewidth=0.4pt,skipabove=6pt,skipbelow=6pt]{worked}
 \newcommand{\onebreath}[1]{\begin{center}\emph{#1}\end{center}}
 \newcommand{\Ob}{\mathsf{O}}
 \newcommand{\Fb}{\mathsf{F}}
@@ -22,17 +26,19 @@ sorted into those an algorithm discharges and those a charter must pay for}
 \noindent Multi-agent governance documents hand out authorities freely: a \emph{lookout} that scans incoming commitments for
 conflicts, a \emph{sole owner} for the roadmap, the test suite, the release tag. This paper asks which of those coordination
 functions genuinely require a designated authority, and prices the ones that do. Two results. First, conflict \emph{detection} needs
-no authority at all --- inside a designed commitment fragment $\mathcal{L}_c$ (definite Horn rules with $\bot$ heads, ground deontic
-obligation/prohibition rules over scopes and intervals, exclusive interval claims, difference constraints), detection is a
-polynomial, witness-producing algorithm, $O(H + T\log T + C\log C + V\!\cdot\!E)$, validated against a brute-force oracle on 3000
-random policy sets with zero disagreements; and composed with the supervisory-control theorem of Paper 2 it is not even a role, but
+no authority at all --- inside a designed commitment fragment $\mathcal{L}_c$ (definite Horn rules plus $\bot$-headed integrity
+constraints, ground deontic obligation/prohibition rules over scopes and intervals, exclusive interval claims, difference
+constraints), detection is a polynomial, witness-producing algorithm --- $O(H + T\log T + X\log X + V\!\cdot\!E)$ in the Horn
+program size $H$, the $T$ fired deontic tokens, the $X$ exclusive claims and the deadline graph $(V,E)$ --- validated against a
+brute-force oracle on 3000 random policy sets with zero disagreements; and composed with the supervisory-control theorem of Paper 2 it is not even a role, but
 a guard: acceptance is a mediated write, so in-fragment conflict-freedom is \emph{regimentable} --- the runtime refuses the commit.
 One expressive step outside the fragment (disjunctive obligations under discharge choice), conflict-freedom is NP-complete, and
 \emph{there} an authority becomes necessary: not to notice the conflict but to choose the discharge. Second, sole \emph{ownership}
 of a role is not a principle but an inequality: a sole specialist beats a pooled swarm exactly when the skill premium clears the
 Erlang-C boundary $g_A(\rho,c)$ --- the whitepaper's proposed threshold is falsified in both directions, with the two thresholds
-crossing at $\rho=(3-\sqrt5)/2$ --- and a sole owner who can die and be succeeded is viable at \emph{any} skill premium only while
-the death-rate--times--succession-time product stays below $D^\star=\eta K/(1-\eta K)$: past that line, pooling wins even against an
+crossing at $\rho=(3-\sqrt5)/2$ --- and a sole owner who can die and be succeeded can be rescued by \emph{some} skill premium only
+while the death-rate--times--succession-time product stays below $D^\star=\eta K/(1-\eta K)$, where $K$ is the pool's cost line (its
+mean wait plus the accountability credit) and the threshold exists only when $\eta K<1$: past that line, pooling wins even against an
 infinitely skilled specialist. The slogan the two theorems earn: an authority is needed exactly where the algorithm ends, and where
 it is needed, its price is a computable number, not a vibe.
 \end{abstract}
@@ -41,9 +47,9 @@ it is needed, its price is a computable number, not a vibe.
 witness-producing (no judge consumed, and via Paper 2 the check is enforceable pre-commit by the runtime); one disjunctive
 obligation outside the fragment makes conflict-freedom NP-complete, which is where a chartered resolver must choose; and sole
 ownership of a role pays iff $\mu_s/\mu_g \ge g_A(\rho,c)$ --- exact Erlang-C form in the box of \S\ref{sec:thm-boundary} --- with
-sole-owner viability capped at $\xi/\eta \le D^\star$ absent skill limits.} Experts: read the two boxes
+sole-owner viability capped at $\xi/\eta < D^\star$ absent skill limits.} Experts: read the two boxes
 (\S\ref{sec:thm-detect}, \S\ref{sec:thm-boundary}), the succession box (\S\ref{sec:succession}), and the inventory table
-(\S\ref{sec:inventory}); the rest is scaffolding.
+(Table~\ref{tab:inventory}); the rest is scaffolding.
 
 \section{The scene: the harbor's authority inventory}\label{sec:scene}
 A harbor of coding agents runs on commitments: standing prohibitions (\emph{never write to prod}), conditional obligations
@@ -62,10 +68,13 @@ run before they were believed: the first by a 3000-instance oracle sweep with ze
 directions} before replacing it [internal, \texttt{b8\_specialization.py}].
 
 \paragraph{The idea in one breath.}
-\onebreath{An authority is needed exactly where the algorithm ends: inside a designed commitment fragment, conflict detection is a
-polynomial witness-producing decision the runtime can enforce pre-commit --- no judge; one expressive step outside, conflict-freedom
-is NP-complete and a chartered resolver must choose; and sole ownership of a role is justified not by principle but by an exact
-Erlang-C threshold on skill, payable only while the owner's death-rate--times--succession-time stays below $D^\star$.}
+\onebreath{An authority is needed exactly where the algorithm ends --- and where it is needed, its price is a computable number,
+not a vibe.}
+\noindent Three places, in this paper. Inside the fragment $\mathcal{L}_c$ the algorithm does not end, so no authority is consumed:
+conflict detection is a polynomial witness-producing decision the runtime can enforce pre-commit. One disjunction outside it the
+algorithm ends and a chartered resolver must choose the discharge, because conflict-freedom is NP-complete there. And sole
+ownership of a role is not an ending but a purchase, priced by an exact Erlang-C threshold on skill and capped by the owner's
+death-rate--times--succession-time staying below $D^\star$.
 
 \paragraph{Intuition: the working port.} Watch a real port for a day (Figure~\ref{fig:relation}). Whether two vessels are on a
 collision course is \emph{geometry} --- constant bearing, decreasing range --- computed identically by every watch officer;
@@ -87,31 +96,33 @@ remaining authority its bill.
 
 \input{fig-paper6-relation.tex}
 
-\section{The vocabulary, defined}\label{sec:vocab}
-This paper draws on two fields that share no readers. Part~I is deontic logic and complexity theory; Part~II is queueing
-theory. A reader fluent in one is very unlikely to be fluent in the other, so both dictionaries are below, in the order the
-terms are needed. Nothing here is deep; it is all notation someone else fixed decades ago.
+\section{The vocabulary of Part I}\label{sec:vocab}
+Part~I needs two dictionaries a scheduler-builder may not have: deontic logic and complexity theory. Both are below, in the order
+the terms are needed; Part~II's queueing vocabulary waits until \S\ref{sec:queue}, where it is used. Nothing here is deep; it is
+all notation someone else fixed decades ago.
 
-\paragraph{Part I: logic and complexity.} \emph{Deontic} logic is the logic of obligation and permission, as opposed to the
+\paragraph{Logic.} \emph{Deontic} logic is the logic of obligation and permission, as opposed to the
 logic of truth --- it reasons about what \emph{ought} to be, not what is. Its two operators here are $\Ob$ (obliged) and
 $\Fb$ (forbidden), and we apply them only to ground facts: an action, a scope, a time interval. A \emph{Horn rule} is an
 implication whose premise is a conjunction of atoms and whose conclusion is a single atom --- the shape almost every rules
 engine and every Prolog program already uses. A \emph{definite} Horn program has no negation, which is exactly what makes it
 cheap: its consequences can be computed by repeatedly firing whatever rules are satisfied until nothing changes, and this
-process is guaranteed to terminate at one canonical answer. That answer is the \emph{least model}, and its defining property
-is the one Theorem~1a leans on: it contains precisely the facts forced in \emph{every} consistent world, so a status it
+process is guaranteed to terminate at one canonical answer. That answer is the \emph{least model} $M$, and its defining property
+is the one Theorem~1a leans on: it contains precisely the facts forced in \emph{every} model --- and when $\bot \in M$ there are
+no consistent worlds at all, which is exactly the conflict Theorem~1a is built to report. Either way a status the least model
 assigns is not one possibility among several but a certainty. \emph{Unit propagation} is the name for the firing procedure,
 and Dowling--Gallier~\cite{dg84} showed it runs in time linear in the program.
 
-A \emph{difference constraint} is an inequality of the form $x_j - x_i \le c$ over deadline variables --- ``the runbook
+A \emph{difference constraint} is an inequality of the form $x_j - x_i \le \delta$ over deadline variables --- ``the runbook
 update must land no more than six ticks after the deploy.'' A system of them is satisfiable exactly when its constraint
 graph contains no \emph{negative cycle}, a loop of constraints whose weights sum below zero and which therefore demands that
 some event precede itself. Bellman--Ford finds such a cycle if one exists, and hands it over as the witness. This is
 standard temporal-reasoning machinery; \S\ref{sec:related} names the literature that owns it.
 
 A problem is in \textbf{P} when some algorithm solves it in time polynomial in the input size --- the practical meaning of
-``tractable at scale.'' It is \textbf{NP-complete} when a proposed solution can be \emph{checked} in polynomial time but no
-polynomial algorithm for \emph{finding} one is known, and finding one would settle the P versus NP question. The working
+``tractable at scale.'' It is \textbf{NP-complete} when it is in \textbf{NP} --- a proposed solution can be \emph{checked} in
+polynomial time --- \emph{and} every problem in NP reduces to it in polynomial time, so a polynomial algorithm for it would put
+all of NP in P and settle the P versus NP question. The working
 consequence, which is all Theorem~1b needs: an NP-complete check cannot be run on every proposal at commit time as the
 policy set grows. \emph{3-SAT} is the canonical NP-complete problem (is a Boolean formula in three-literal clauses
 satisfiable?), and a \emph{reduction} from it is the standard way to prove a new problem at least as hard: encode any 3-SAT
@@ -121,33 +132,18 @@ A \emph{witness} is the concrete object a checker returns alongside a yes --- th
 with their overlap, the negative cycle. Producing witnesses is a strictly stronger requirement than deciding, and it is the
 difference between a checker that says ``rejected'' and one a human can argue with.
 
-\paragraph{Part II: queueing.} An \emph{$M/M/1$ queue} is one server, arrivals landing at random at average rate $\lambda$,
-each job taking a random time averaging $1/\mu$. \emph{$M/M/c$} is the same with $c$ interchangeable servers sharing one
-line --- the airport-check-in arrangement, not the supermarket one. \emph{Utilisation} $\rho$ is the fraction of capacity in
-use; as it approaches $1$ waiting time diverges, which is the entire reason these comparisons are not obvious.
-
-The \emph{Erlang-C} formula $C(c,\rho)$ gives the probability that an arriving job finds every server busy and must wait at
-all. It is a century old~\cite{erlang17} and it is the only non-elementary ingredient in Theorem~2; everything else there is
-algebra on it.
-
-\emph{Pooling} is the practice of putting all work in one queue served by everyone, as opposed to \emph{dedicating} a
-specialist to it. The classical fact --- and the tension the paper prices --- is that pooling wins on waiting time through
-statistical smoothing, while a specialist may win on service rate through skill. The \emph{skill premium} $r = \mu_s/\mu_g$
-is how much faster the specialist is, and Theorem~2 asks exactly how large it must be to pay.
-
-Finally, a queue \emph{with breakdowns} is one whose server fails at some rate and is restored after some delay. Its
-relevance is that a sole owner is a server that can fail: sessions die, containers are reaped. Theorem~3's $W_\infty$ is the
-residual delay such a queue carries even with an infinitely fast server, which is why no amount of skill buys it back.
-
-\section{Part I. The lookout is a subroutine: the fragment $\mathcal{L}_c$}\label{sec:lang}
+\section{Part I. The lookout is a subroutine: the fragment $\mathcal{L}_c$}\label{sec:lang}\label{sec:thm-detect}
 Cheap detection is a \emph{language-design} choice, not a discovery about deontic logic in general. The commitment language
 $\mathcal{L}_c$ buys it by construction. A policy set in $\mathcal{L}_c$ contains: \begin{itemize}
-\item \textbf{facts} (ground atoms) and \textbf{definite Horn rules} $a_1\wedge\dots\wedge a_k \to b$, where the head $b$ may be
-the contradiction symbol $\bot$;
+\item \textbf{facts} (ground atoms), \textbf{definite Horn rules} $a_1\wedge\dots\wedge a_k \to b$ with $b$ an atom, and
+\textbf{integrity constraints} $a_1\wedge\dots\wedge a_k \to \bot$; operationally $\bot$ is carried as a distinguished atom, so
+the program is definite over the atom vocabulary extended with $\bot$, and the least-model machinery of \S\ref{sec:vocab}
+applies unchanged ---
+a derivable $\bot$ is then simply $\bot \in M$, the first of our four conflict kinds, rather than a failure of the procedure;
 \item \textbf{deontic rules} $\mathrm{body} \to \mathsf{M}(\mathrm{act}, s, [t_1,t_2])$ with $\mathsf{M}\in\{\Ob,\Fb\}$: when the
 (Horn) body holds, action $\mathrm{act}$ is obliged or forbidden on scope atoms $s$ over the ground time interval $[t_1,t_2]$;
 \item \textbf{exclusive interval claims} (\emph{resource $x$ is exclusively mine on $[t_1,t_2]$});
-\item \textbf{difference constraints} $x_j - x_i \le c$ over deadline variables.
+\item \textbf{difference constraints} $x_j - x_i \le \delta$ over deadline variables.
 \end{itemize}
 A \emph{conflict} is any of four things: derivable $\bot$; a fired $\Ob$/$\Fb$ pair on the same action with overlapping
 scope-and-interval; two exclusive claims overlapping on the same resource; or a negative cycle in the difference-constraint graph
@@ -155,14 +151,14 @@ scope-and-interval; two exclusive claims overlapping on the same resource; or a 
 negation-as-failure, monotone bodies only --- and \S\ref{sec:related} says explicitly which classical deontic puzzles are thereby
 left outside the door.
 
-\section{The detection theorem and its frontier}\label{sec:thm-detect}
+\subsection*{The detection theorem and its frontier}
 \begin{thebox}
 \textbf{Theorem 1a (membership: detection is polynomial and witness-producing).} For a policy set in $\mathcal{L}_c$ with Horn
-program size $H$, $T$ fired deontic tokens, $C$ exclusive claims, and difference-constraint graph $(V,E)$, conflict detection is
-decidable in $O(H + T\log T + C\log C + V\!\cdot\!E)$, with a polynomial witness per conflict: Dowling--Gallier unit propagation
+program size $H$, $T$ fired deontic tokens, $X$ exclusive claims, and difference-constraint graph $(V,E)$, conflict detection is
+decidable in $O(H + T\log T + X\log X + V\!\cdot\!E)$, with a polynomial witness per conflict: Dowling--Gallier unit propagation
 computes the least Horn model in $O(H)$ --- which by monotonicity equals the intersection of all models, i.e.\ exactly the
 statuses forced in \emph{every} world [verified framework, Dowling--Gallier 1984]; a keyed sweep-line over interval endpoints
-finds every $\Ob$/$\Fb$ clash and claim overlap in $O(T\log T + C\log C)$; Bellman--Ford returns a negative cycle iff the deadline
+finds every $\Ob$/$\Fb$ clash and claim overlap in $O(T\log T + X\log X)$; Bellman--Ford returns a negative cycle iff the deadline
 system is infeasible, in $O(V\!\cdot\!E)$. The witnesses are, respectively: a derivation chain, the two fired rules with their
 overlap interval, the two claims, and the negative cycle.
 
@@ -175,27 +171,38 @@ discharge selection exists iff the formula is satisfiable [verified: reduction r
 16/16 instances, internal, \texttt{b4\_deontic\_fragment.py}].
 \end{thebox}
 
+\input{fig-paper6-dichotomy.tex}
+
 Read together, Theorems 1a and 1b are a \textbf{dichotomy} at a designed boundary, in the sense Schaefer~\cite{schaefer78}
 made standard for satisfiability: on one side of a single expressive choice the problem is polynomial, on the other it is
-NP-complete, and the language designer is offered nothing in between. We claim the location, not the pattern --- the same
+NP-complete, and the language designer is offered nothing in between (Figure~\ref{fig:dichotomy} lays the fragment out feature by
+feature, with the algorithm and the cost term each one buys). We claim the location, not the pattern --- the same
 step is familiar one formalism over, where the simple temporal problem is polynomial and admitting disjunctions of
-difference constraints makes consistency NP-complete~\cite{sk00}. That is why $\mathcal{L}_c$'s boundary should be read as a
+difference constraints makes consistency NP-complete~\cite{dmp91,sk00}. That is why $\mathcal{L}_c$'s boundary should be read as a
 price list rather than an accident of this particular fragment.
 
 \paragraph{Verification.} 3000 random in-fragment policy sets against a brute-force oracle (all $2^5$ Horn models intersected;
-pairwise overlap checks; exhaustive integer search over the complete potential box $[-\Sigma|c|,0]^V$ for the difference system):
-885 conflicts found --- 121 derivable $\bot$, 195 $\Ob$/$\Fb$ clashes, 484 claim overlaps, 213 negative temporal cycles --- of
-which 149 are reachable \emph{only} through Horn propagation; \textbf{0 disagreements} with the oracle, and least model $=$
+pairwise overlap checks; exhaustive integer search over the complete potential box $[-\Sigma|\delta|,0]^V$ for the difference
+system): \textbf{885 of the 3000 policy sets carried at least one conflict} --- 121 of them a derivable $\bot$, 195 an
+$\Ob$/$\Fb$ clash, 484 a claim overlap, 213 a negative temporal cycle. Those four counts are per-policy-set booleans and they
+\emph{overlap}: 764 sets carry exactly one kind of conflict, 114 carry two, 7 carry three, which is why the four sum to
+$764+2(114)+3(7)=1013$ rather than to 885. \textbf{0 disagreements} with the oracle, and least model $=$
 intersection-of-all-models on all 3000 [internal, \texttt{b4\_deontic\_fragment.py}, seed 20260816]. The 3-SAT reduction was
 verified in both directions on 8 satisfiable and 8 unsatisfiable random instances ($n{=}4$, $m{=}7$--$28$), 16/16, with the
-satisfying assignment extracted from each conflict-free selection. Mutation: deleting Horn propagation (checking only directly
-stated statuses) misses 100 of the 885 sweep conflicts --- propagation is load-bearing at scale, not a formality [internal].
+satisfying assignment extracted from each conflict-free selection. Mutation: 149 of the 885 sets contain a conflict reachable
+\emph{only} through Horn propagation, and in 100 of those that is the set's \emph{only} conflict, so deleting propagation
+(checking only directly stated statuses) flips the verdict to conflict-free outright; the other 49 are still caught, because
+the mutant computes claim overlaps and deadline cycles identically. Propagation is load-bearing at scale, not a formality ---
+and the two numbers differ by exactly the sets a second, unrelated conflict rescues [internal].
 
-\paragraph{Numbers by hand.} The mutant's canonical miss is a four-line policy a reviewer can check aloud: fact
+\begin{worked}
+\noindent\textbf{Numbers by hand} \emph{(worked example --- skippable; the argument resumes at \S\ref{sec:regiment}).} The
+mutant's canonical miss is a four-line policy a reviewer can check aloud: fact
 \texttt{agent\_deployed}; Horn rule $\texttt{agent\_deployed} \to \texttt{prod\_access}$; deontic rule $\texttt{prod\_access} \to
 \Ob(\texttt{write\_prod}, s, [0,10])$; standing $\Fb(\texttt{write\_prod}, s, [5,15])$. Propagation forces
 \texttt{prod\_access}, the obligation fires, and the sweep-line reports the $\Ob$/$\Fb$ overlap on $[0,10]\cap[5,15]=[5,10]$ ---
 while a pairwise scanner that never propagates sees no directly stated clash and stays silent [internal, the printed witness].
+Figure~\ref{fig:witness} draws exactly this instance, and what the propagation-free mutant sees in its place.
 For the frontier, run the reduction on the smallest unsatisfiable formula $(x)\wedge(\neg x)$: two disjunctive obligations force
 both $\mathrm{sel}_x^{+}$ and $\mathrm{sel}_x^{-}$, firing $\Ob(\mathrm{assert}_x)$ and $\Fb(\mathrm{assert}_x)$ on identical
 scope and interval --- every selection conflicts, matching unsatisfiability [verified: two lines]. \emph{Now you try:} facts
@@ -203,10 +210,14 @@ $\{\texttt{audit\_open}\}$; rules $\texttt{audit\_open} \to \texttt{vault\_acces
 \Ob(\texttt{read\_ledger}, s, [2,6])$; standing $\Fb(\texttt{read\_ledger}, s, [4,9])$. Conflict? (Yes: propagation forces
 \texttt{vault\_access}, the obligation fires, and the overlap is $[4,6]$ --- a two-hop indirect conflict, exactly the species the
 mutant misses.)
+\end{worked}
+
+\input{fig-paper6-witness.tex}
 
 \section{Composition with Paper 2: the lookout is not even a role}\label{sec:regiment}
-Paper 2 proved that a safety policy over an agent's event alphabet is enforceable-by-prevention (\emph{regimentable}) iff it is
-Ramadge--Wonham controllable --- no uncontrollable event carries a legal history out of the policy --- and its design rule was:
+Paper 2 proved that a safety policy over an agent's event alphabet is enforceable-by-prevention --- \emph{regimented}, in the
+normative-systems sense of a norm the institution makes impossible to violate rather than merely sanctioning after the
+fact~\cite{js93} --- iff it is Ramadge--Wonham controllable --- no uncontrollable event carries a legal history out of the policy --- and its design rule was:
 uncontrollable events in a policy's \emph{condition} are free; only uncontrollable events in its \emph{prohibition} are fatal.
 Now compose. In the harbor, \emph{acceptance of a commitment is a mediated write}: the accepted set lives in the single-writer
 store, and the acceptance event is a member of $\Sigma_c$, the controllable alphabet. The policy \emph{``never accept a proposal
@@ -225,7 +236,25 @@ there unless P$=$NP. The frontier is thus the exact line where authority re-ente
 list --- keep the language in $\mathcal{L}_c$ and detection is a regimentable subroutine; buy the expressive convenience of
 disjunction and you have hired a judge, with a queue.
 
-\section{Part II. The sole owner: an inequality, not a principle}\label{sec:queue}
+\section{Part II. The sole owner: an inequality, not a principle}\label{sec:queue}\label{sec:thm-boundary}
+
+\paragraph{The vocabulary of Part II: queueing.} An \emph{$M/M/1$ queue} is one server, arrivals landing at random at average
+rate $\lambda$, each job taking a random time averaging $1/\mu$. \emph{$M/M/c$} is the same with $c$ interchangeable servers
+sharing one line --- the airport-check-in arrangement, not the supermarket one. \emph{Utilisation} $\rho$ is the fraction of
+capacity in use; as it approaches $1$ waiting time diverges, which is the entire reason these comparisons are not obvious.
+The \emph{Erlang-C} formula $C(c,\rho)$ gives the probability that an arriving job finds every server busy and must wait at
+all. It is a century old~\cite{erlang17} and it is the only non-elementary ingredient in Theorem~2; everything else there is
+algebra on it. \emph{Pooling} is the practice of putting all work in one queue served by everyone, as opposed to
+\emph{dedicating} a specialist to it. The classical fact --- and the tension the paper prices --- is that pooling wins on
+waiting time through statistical smoothing, while a specialist may win on service rate through skill. The \emph{skill premium}
+$r = \mu_s/\mu_g$ is how much faster the specialist is, and Theorem~2 asks exactly how large it must be to pay. Four prices ride
+along: the \emph{accountability value} $A$ (the worth of single-writer attribution per unit time of demand), the \emph{waiting
+cost} $w$ per request-hour, the specialist's \emph{death rate} $\xi$, and the \emph{succession rate} $\eta$ (mean spin-up
+$1/\eta$); $K = A/(w\lambda) + W_{\mathrm{pool}}$ is the shorthand for the pool's cost line the two theorems compare against.
+Finally, a queue \emph{with breakdowns} is one whose server fails at some rate and is restored after some delay. Its
+relevance is that a sole owner is a server that can fail: sessions die, containers are reaped. Theorem~3's $W_\infty$ is the
+residual delay such a queue carries even with an infinitely fast server, which is why no amount of skill buys it back.
+
 Part I located the one place inside conflict management where a mind is genuinely required: not to notice a contradiction but to
 choose a discharge among disjuncts the fragment cannot rank on its own. Part II asks the harbor's other standing authority
 question, about a different kind of decision entirely --- not \emph{which} candidate resolution to pick, but \emph{whether one
@@ -234,11 +263,10 @@ number to compute. The whitepaper's sole-responsibility roles (roadmap owner, te
 capacity for accountability and skill. Model the trade honestly. Requests for the invariant-critical function arrive Poisson at rate
 $\lambda$; a sole specialist serves them as an $M/M/1$ queue at rate $\mu_s$; the pooled alternative is an $M/M/c$ queue of
 generalists at rate $\mu_g$ each, utilization $\rho=\lambda/(c\mu_g)$; the skill premium is $r=\mu_s/\mu_g$. Sole ownership also
-carries an \emph{accountability value} $A$ (the worth of single-writer attribution per unit time of demand) against a waiting
-cost $w$ per request-hour. The whitepaper proposed the threshold $\tilde g = 1+(c-1)\rho/(1-\rho)$ and marked it \emph{status:
+carries the accountability value $A$ against the waiting cost $w$ just defined. The whitepaper proposed the threshold $\tilde g = 1+(c-1)\rho/(1-\rho)$ and marked it \emph{status:
 proposed}. The sweep ran before the belief formed --- and falsified $\tilde g$ in both directions.
 
-\section{The specialization boundary}\label{sec:thm-boundary}
+\subsection*{The specialization boundary}
 \begin{thebox}
 \textbf{Theorem 2 (queueing specialization boundary).} With $C(c,\rho)$ the Erlang-C delay probability, sole ownership weakly
 dominates the pool in net cost iff the skill premium clears
@@ -254,7 +282,9 @@ $\rho=(3-\sqrt5)/2\approx0.382$, and where $g$ saturates $\tilde g$ diverges ($\
 [internal, \texttt{b8\_specialization.py}, seed 20260816].
 \end{thebox}
 
-\paragraph{Numbers by hand.} The theorem is two lines of algebra on textbook formulas, which is the right way to first believe
+\begin{worked}
+\noindent\textbf{Numbers by hand} \emph{(worked example --- skippable; the cross-validation stack resumes below).} The theorem
+is two lines of algebra on textbook formulas, which is the right way to first believe
 it. Sole ownership pays iff $w\lambda(W_{\mathrm{solo}}-W_{\mathrm{pool}}) \le A$, i.e.\ $1/(\mu_s-\lambda) \le W_{\mathrm{pool}}
 + A/(w\lambda)$; invert and divide by $\mu_g$, using $\lambda/\mu_g = c\rho$ and $\mu_g W_{\mathrm{pool}} = 1 +
 C(c,\rho)/(c(1-\rho))$, and $g_A$ falls out [verified]. For $c=2$ the Erlang-C value is $C(2,\rho)=2\rho^2/(1+\rho)$, so
@@ -267,10 +297,13 @@ $W_{\mathrm{solo}}=1/0.9=1.111 < W_{\mathrm{pool}}=4/3$ [verified]. Setting $1+2
 $\rho^2-3\rho+1=0$: the thresholds cross at $\rho=(3-\sqrt5)/2$, which is why the falsification runs in \emph{both} directions
 --- Figure~\ref{fig:regime}, Panel A, shades the two error lenses [verified]. \emph{Now you try:} at $c{=}2$, $\rho{=}0.3$, does $r=1.5$ justify a sole owner? ($g(0.3,2)=1+0.6-0.09=1.51$ --- no,
 by a hair; $\tilde g=1.43$ would have said yes. The flattering threshold flatters exactly below the crossing.)
+\end{worked}
 
 The cross-validation stack behind the closed forms: Erlang-C means against discrete-event simulation, $|z|\le1.8$ across the
-grid; the 60-instance random sweep over $(\lambda,\mu_s,\mu_g,c,A,w,\xi,\eta)$ gave 55 decisive instances and \textbf{0} sign
-violations of the boundary [internal, \texttt{b8\_specialization.py}].
+grid; and the 60-instance random sweep over $(\lambda,\mu_s,\mu_g,c,A,w,\xi,\eta)$, which compares the closed-form decision
+against net cost computed from \emph{simulation} --- FCFS discrete-event for the pool, Gillespie CTMC for the breakdown
+specialist, no closed form entering the simulated side --- gave 55 decisive instances and \textbf{0} sign violations of the
+boundary [internal, \texttt{b8\_specialization.py}].
 
 \input{fig-paper6-regime.tex}
 
@@ -286,16 +319,24 @@ owner's mean response time is exactly
 \[ W_{\mathrm{bd}} \;=\; \frac{1+\mu_s\xi/(\xi+\eta)^2}{\mu_{\mathrm{eff}}-\lambda}
 \;=\; \frac{1}{\mu_{\mathrm{eff}}-\lambda} \;+\; \frac{\mu_{\mathrm{eff}}}{\mu_{\mathrm{eff}}-\lambda}\,W_\infty,
 \qquad W_\infty=\frac{\xi}{\eta(\xi+\eta)}, \]
-decreasing in $\mu_s$ with infimum $W_\infty$: \emph{no amount of skill buys back residual downtime}. Consequently, with
-$K = A/(w\lambda) + W_{\mathrm{pool}}$ the pool's cost line, pooling dominates at \emph{every} skill premium iff
-\[ \frac{\xi}{\eta} \;>\; D^\star \;=\; \frac{\eta K}{1-\eta K}, \]
-and $D^\star$ is the price of the succession rule: a sole role without a succession plan (small $\eta$) is viable only while its
-death-rate--times--succession-time product stays below $D^\star$ [verified: $W_\infty(\xi^\star)=K$ at
+decreasing in $\mu_s$ with infimum $W_\infty$, \emph{never attained}: \emph{no amount of skill buys back residual downtime}.
+Consequently, with $K = A/(w\lambda) + W_{\mathrm{pool}}$ the pool's cost line, pooling dominates at \emph{every} finite skill
+premium iff the floor has already reached that line, $W_\infty \ge K$ --- equivalently, \emph{provided} $\eta K < 1$, iff
+\[ \frac{\xi}{\eta} \;\ge\; D^\star \;=\; \frac{\eta K}{1-\eta K}. \]
+The inequality is non-strict because the infimum is unattained: at $\xi/\eta = D^\star$ exactly, $W_\infty = K$ but
+$W_{\mathrm{bd}}(\mu_s) > W_\infty$ for every finite $\mu_s$, so pooling still dominates there. The domain condition is not
+decoration: $W_\infty < 1/\eta$ for every $\xi$, so when $\eta K \ge 1$ the floor never reaches the cost line, there is no cap at
+all ($D^\star = +\infty$), and only the Theorem-2 premium test binds --- the closed form returns a negative number outside its
+domain and must not be read there as a threshold. So $D^\star$ is the price of the succession rule: a sole role without a
+succession plan (small $\eta$) is viable only while its
+death-rate--times--succession-time product stays strictly below $D^\star$ [verified: $W_\infty(\xi^\star)=K$ at
 $\xi^\star=D^\star\eta$ is one line of algebra; closed form checked against matrix-geometric solution to $2\times10^{-13}$,
 truncated CTMC to $10^{-14}$, Gillespie simulation $|z|\le0.8$, internal, \texttt{b8\_specialization.py}].
 \end{thebox}
 
-\paragraph{Numbers by hand.} Reference instance: $\lambda{=}1$, $c{=}4$, $\mu_g{=}1.2$ (so $\rho=0.208$), $A{=}0.2$, $w{=}1$,
+\begin{worked}
+\noindent\textbf{Numbers by hand} \emph{(worked example --- skippable).} Reference instance --- the release-tag owner, metered
+over a week: $\lambda{=}1$, $c{=}4$, $\mu_g{=}1.2$ (so $\rho=0.208$), $A{=}0.2$, $w{=}1$,
 $\eta{=}0.25$. Erlang-C gives $C(4,0.208)=0.0110$, so $W_{\mathrm{pool}}=1/1.2+0.0110/(4\cdot1.2\cdot0.792)=0.8362$ and
 $K=0.2+0.8362=1.0362$ [verified: four-function-calculator arithmetic on the boxed formulas]; then $\eta K = 0.2591$ and
 $D^\star = 0.2591/0.7409 = 0.350$ [verified]. Just past the line, at $\xi/\eta = 1.5\,D^\star$, an absurdly skilled specialist
@@ -305,14 +346,17 @@ the box also explains the program's recorded wrong turn: the naive decomposition
 $\mu_s{=}5$, $\xi{=}0.5$), because downtime also \emph{builds queue}: the residual is amplified by
 $\mu_{\mathrm{eff}}/(\mu_{\mathrm{eff}}-\lambda) = 2.5$ there, and $1.5 + 2.5\times2.667 = 8.17$ checks by hand [verified
 arithmetic; refutation internal]. Panel B of Figure~\ref{fig:regime} draws exactly this geometry: the floor $W_\infty$ crossing
-the pool cost line at $D^\star$. \emph{Now you try:} at the reference instance, is a sole owner with a same-day succession plan
-($\eta=2$; $K$ is unchanged at $1.0362$, so $\eta K = 2.07 > 1$) ever capped? (No: $\eta K \ge 1$ makes $D^\star=\infty$ --- a
-fast enough succession plan removes the viability ceiling entirely, leaving only the Theorem-2 premium test. That is what a
-succession plan \emph{buys}.)
+the pool cost line at $D^\star$, with the actual $W_{\mathrm{bd}}$ at a finite $\mu_s$ drawn above it, so the un-attainedness of
+the infimum is visible rather than asserted. \emph{Now you try:} at the reference instance, is a sole owner with a same-day
+succession plan ($\eta=2$; $K$ is unchanged at $1.0362$, so $\eta K = 2.07 > 1$) ever capped? (No: $\eta K \ge 1$ puts the pool's
+cost line above the floor's own ceiling $1/\eta$, so no $\xi$ triggers the cap --- $D^\star = \infty$ by the box's domain clause,
+not by its closed form, which has left its domain. A fast enough succession plan removes the viability ceiling entirely, leaving
+only the Theorem-2 premium test. That is what a succession plan \emph{buys}.)
+\end{worked}
 
 The implementation hazard is also priced. A cost model that forgets breakdowns entirely (plain $M/M/1$) is caught by the
 high-$\xi$ canary: at $\xi/\eta=2 \gg D^\star$, the mutant says SPECIALIST while simulation says the pool wins decisively
-($\Delta C = -7.06 \pm 0.16$); at low $\xi$ the mutant is indistinguishable --- so the canary, not routine testing, is what makes
+($\Delta\mathcal{C} = -7.06 \pm 0.16$, the net-cost difference); at low $\xi$ the mutant is indistinguishable --- so the canary, not routine testing, is what makes
 the omission visible [internal, \texttt{b8\_specialization.py}].
 
 The predictable misread, preempted: $D^\star$ does not say specialists are bad, and Theorem 2 does not say pooling is the
@@ -320,42 +364,74 @@ default truth. Together they say sole ownership is a \emph{purchase}: below the 
 congestion cost and the honest ledger entry is ``we pay latency $w\lambda(W_{\mathrm{solo}}-W_{\mathrm{pool}})-A$ per unit time
 for accountability''; above $D^\star$ the purchase is unavailable at any price until the succession plan (larger $\eta$) is
 bought first. Every quantity in both tests --- $\lambda$, $\mu_s$, $\mu_g$, $\xi$, $\eta$ --- is daemon-metered, so the harbor
-can re-grade its roles from telemetry rather than from taste.
+can re-grade its roles from telemetry rather than from taste. One caveat travels with the word \emph{exact} in this paper's
+subtitle: the number is exact in the queueing parameters and only as good as $A$ and $w$ in the policy ones. The theorem prices
+accountability \emph{given} a price for accountability; it does not pick that price, and boundary item (v) says so again.
 
 \section{The authority inventory, priced}\label{sec:inventory}
-The two parts assemble into the answer to the title question:
+The two parts assemble into the answer to the title question, and Table~\ref{tab:inventory} is that answer in one screen.
 
-\begin{center}\begin{tabular}{@{}p{0.36\textwidth}p{0.2\textwidth}p{0.36\textwidth}@{}}
+\begin{table}[t]\centering
+\caption{The authority inventory, priced. Rows 1--2 delete an authority the governance document assumed it needed --- in-fragment
+detection is an algorithm and, composed with Paper~2, a runtime guard. Rows 3--4 locate the authority no theorem removes:
+choosing a discharge, and choosing the norms. Rows 5--6 keep the authority and hand it an invoice, in quantities the daemon
+already meters.}
+\label{tab:inventory}
+\begin{tabular}{@{}p{0.36\textwidth}p{0.2\textwidth}p{0.36\textwidth}@{}}
 \toprule
-Coordination function & Authority needed? & What it costs \\
+Coordination function & Authority needed? & What it costs, and to whom \\
 \midrule
-In-fragment conflict detection & none (algorithm) & $O(H+T\log T+C\log C+V\!\cdot\!E)$ per batch, witness included \\
+In-fragment conflict detection & none (algorithm) & $O(H+T\log T+X\log X+V\!\cdot\!E)$ per batch, witness included \\
 In-fragment conflict enforcement & none (runtime guard) & mediated acceptance write; regimentable via Paper 2 \\
 Conflict-freedom with disjunctive obligations & chartered resolver & NP-complete check, or a judge who chooses the discharge \\
 Priority, waiver, norm amendment & chartered, irreducibly & outside every checker; the charter's residual job \\
 Sole ownership of a role & conditional & justified iff $r \ge g_A(\rho,c)$; otherwise a priced latency purchase \\
-Sole ownership without succession & conditional, capped & viable only while $\xi/\eta \le D^\star = \eta K/(1-\eta K)$ \\
+Sole ownership without succession & conditional, capped & viable only while $\xi/\eta < D^\star = \eta K/(1-\eta K)$, and only
+where $\eta K<1$ \\
 \bottomrule
-\end{tabular}\end{center}
+\end{tabular}
+\end{table}
 
-\noindent The first two rows delete an authority the governance document thought it needed; the third and fourth rows locate the
-authority that is genuinely irreducible; the last two rows keep the authority but hand it an invoice. That is the paper's claim in
-institutional terms: a well-designed harbor spends judgment \emph{only} where theorems certify judgment is required, and meters
-what the remaining judgment costs.
+\noindent That is the paper's claim in institutional terms: a well-designed harbor spends judgment \emph{only} where theorems
+certify judgment is required, and meters what the remaining judgment costs.
+
+\paragraph{What it buys, concretely.} Two things ship from Table~\ref{tab:inventory}. The first two rows are a schema rule for the
+commitment language: as long as proposals stay inside $\mathcal{L}_c$, the acceptance path needs no reviewer role at all --- the
+daemon's mediated write refuses the commit and attaches the witness, and the charter can delete the lookout it was about to
+appoint. The last two rows are a role-grading rule: $\lambda$, $\mu_s$, $\mu_g$, $\xi$ and $\eta$ are all already metered per
+role, so a harbor can compute $r$ and $g_A(\rho,c)$ for each of its sole-responsibility roles on a schedule, demote the ones that
+stopped clearing the boundary, and price a succession plan by exactly how much $\eta$ it buys.
 
 \section{Related work}\label{sec:related}
 \textbf{Imported.} Linear-time Horn satisfiability and unit propagation are Dowling--Gallier~\cite{dg84}; we import the algorithm
 and the least-model property unchanged, and our fragment is \emph{designed} so that it applies. NP-completeness machinery is
 Cook and Karp~\cite{cook71,karp72}; the reduction in Theorem 1b is standard 3-SAT gadgetry, and the contribution is only the
 \emph{location} of the frontier --- discharge-choice disjunction --- in a commitment language a scheduler would actually want.
-The regimentation composition imports Ramadge--Wonham supervisory control~\cite{rw87} via Paper 2. On the queueing side, the
-Erlang-C delay formula is a century old~\cite{erlang17}, the economies of pooling in many-server queues are classical folklore
-sharpened by Halfin--Whitt~\cite{hw81}, and queues with server breakdowns descend from Mitrany--Avi-Itzhak~\cite{ma68}; Theorem 3's
+The temporal half of the dichotomy is Dechter, Meiri and Pearl~\cite{dmp91}, who established both the polynomial simple temporal
+problem and the NP-hardness of the disjunctive temporal problem; Stergiou--Koubarakis~\cite{sk00} is the algorithmic successor we
+cite alongside it. The regimentation composition imports Ramadge--Wonham supervisory control~\cite{rw87} via Paper 2, and uses
+\emph{regimentation} in Jones and Sergot's~\cite{js93} sense. On the queueing side, the
+Erlang-C delay formula is a century old~\cite{erlang17}; the economies of pooling are classical --- Smith and
+Whitt~\cite{sw81} established the resource-sharing comparison of one shared multi-server queue against dedicated ones (and the
+heterogeneity caveat under which sharing can \emph{hurt}), which is the ancestor of Theorem 2's finite-$c$ pooled-vs-dedicated
+form, while Halfin--Whitt~\cite{hw81} sharpened the many-server scaling regime in which the economy is usually quantified ---
+and queues with server breakdowns descend from Mitrany--Avi-Itzhak~\cite{ma68}; Theorem 3's
 $W_{\mathrm{bd}}$ is in that lineage. \textbf{Positioned against deontic logic.} The fragment is ground and operator-nesting-free:
-conflicts are defined operationally ($\Ob$ vs $\Fb$ on overlapping scope and interval), not as theoremhood in standard deontic
-logic~\cite{vonwright51}, and the classical paradoxes --- Ross's paradox, Chisholm's contrary-to-duty puzzle~\cite{chisholm63} ---
-simply cannot be \emph{stated} in $\mathcal{L}_c$: that is a designed retreat, declared rather than hidden, and it is what the
-tractability is paid for with. \textbf{New, honestly.} No component algorithm or queueing formula above is ours. The
+conflicts are defined operationally ($\Ob$ vs $\Fb$ on overlapping scope and interval), not as theoremhood in classical deontic
+logic~\cite{vonwright51}, and the classical paradoxes --- Ross's paradox~\cite{ross41}, Chisholm's contrary-to-duty
+puzzle~\cite{chisholm63} --- simply cannot be \emph{stated} in $\mathcal{L}_c$: that is a designed retreat, declared rather than
+hidden, and it is what the tractability is paid for with. \textbf{Positioned against computational normative systems.} The
+adjacent literature that owns \emph{detecting} conflicts between obligations and prohibitions is not the philosophical one: it is
+the normative-multi-agent-systems line collected in Meyer and Wieringa~\cite{mw93} and pursued in the normative-conflict work of
+Vasconcelos, Kollingbaum and Norman~\cite{vkn09}, whose conflict predicate is, like ours, operational rather than logical --- and
+that is the point at which their line and ours converge rather than diverge. \textbf{Where the prior-art search is not yet
+discharged, said plainly.} We have not run a systematic pass against three literatures this result sits inside: (i) the
+computational normative-MAS conflict-detection line above, where a tractable/intractable line may already have been drawn in some
+ground fragment, which is the claim of Theorem~1 most at risk; (ii) operations management's own vocabulary for the
+specialist-versus-pool question, which is not called pooling-vs-dedication there but \emph{server flexibility} and, in the
+call-centre branch, \emph{skill-based routing} (Gans, Koole and Mandelbaum~\cite{gkm03} is the standard survey and the right
+entry point); and (iii) the agent-communication literature's own use of \emph{commitment}. Naming these is not a substitute for
+searching them, and no claim below should be read as surviving a search that has not been run. \textbf{New, honestly.} No component algorithm or queueing formula above is ours. The
 contributions are: the fragment/frontier pair as an exact price list for commitment-language design; the composition making
 in-fragment conflict-freedom regimentable rather than merely checkable; the falsification and replacement of the whitepaper's
 specialization threshold by the exact $g_A(\rho,c)$ with its $c{=}2$ closed form and crossing point; and the succession criterion
@@ -379,7 +455,14 @@ sufficient skill escape the $W_\infty$ floor, so the model choice is load-bearin
 record and priced: the naive $W_{\mathrm{bd}}$ decomposition is refuted ($4.17$ vs $8.17$), and the whitepaper's $\tilde g$ was
 falsified by this program's own sweep --- the correction, not the original, is what ships. (viii) The inventory covers detection,
 resolution, and ownership; other authority functions (charter amendment, dispute appeal, norm authorship) are chartered by
-construction and no theorem here bears on them.
+construction and no theorem here bears on them. (ix) The oracle validation is on \emph{small} instances: the brute-force
+comparison intersects all $2^5$ Horn models and searches an integer potential box exhaustively, so 3000 disagreement-free runs
+certify the algorithm's agreement with the semantics on five-atom programs, not its behaviour at production policy-set size ---
+the complexity bound, not the sweep, is what covers scale. (x) Theorem 3's threshold $D^\star$ presupposes $\eta K < 1$. Where
+the succession plan is fast enough that $K \ge 1/\eta$, the downtime floor never reaches the pool's cost line and there is no
+viability cap to state: the criterion does not apply, rather than being satisfied. (xi) The prior-art position is partial by
+declaration: three adjacent literatures named in \S\ref{sec:related} have not been systematically searched, and the novelty
+claim is scoped accordingly.
 \end{boundary}
 
 \vspace{0.4em} \noindent\emph{Reproducibility.} Every [internal] number regenerates from two self-contained scripts at seed
@@ -388,10 +471,12 @@ least-model check, 16/16 reduction verification, Horn-propagation mutation) and
 \texttt{skills/harbor-results/scripts/b8\_specialization.py} (falsification instances, Erlang-C vs DES, matrix-geometric /
 CTMC / Gillespie cross-validation of $W_{\mathrm{bd}}$, 60-instance sign sweep, $D^\star$ instance, breakdown-forgetting
 mutation canary). Every [verified] number is a closed form or short derivation restated in this paper's boxes and checkable by
-hand or from the cited literature. The two figures regenerate from
-\texttt{docs/harbor-research/figures/src/paper6\_figures.py}.
+hand or from the cited literature. Figures~\ref{fig:relation} and~\ref{fig:regime} are native TikZ/pgfplots fragments whose
+plotted coordinates regenerate from \texttt{docs/harbor-research/figures/src/paper6\_figures.py}; the boundary and $D^\star$
+results they draw are \texttt{b8\_specialization.py}'s. Figures~\ref{fig:dichotomy} and~\ref{fig:witness} are structural
+diagrams carrying no plotted data --- every complexity term and interval in them is restated from the boxes above.
 
-\begin{thebibliography}{9}
+\begin{thebibliography}{99}
 \bibitem{dg84} W.~F. Dowling and J.~H. Gallier. Linear-time algorithms for testing the satisfiability of propositional Horn
 formulae. \emph{Journal of Logic Programming}, 1(3):267--284, 1984.
 \bibitem{cook71} S.~A. Cook. The complexity of theorem-proving procedures. In \emph{Proceedings of the 3rd Annual ACM Symposium
@@ -404,12 +489,26 @@ on Control and Optimization}, 25(1):206--230, 1987.
 telephone exchanges. \emph{Elektroteknikeren}, 13:5--13, 1917.
 \bibitem{hw81} S.~Halfin and W.~Whitt. Heavy-traffic limits for queues with many exponential servers. \emph{Operations
 Research}, 29(3):567--588, 1981.
+\bibitem{sw81} D.~R. Smith and W.~Whitt. Resource sharing for efficiency in traffic systems. \emph{Bell System Technical
+Journal}, 60(1):39--55, 1981.
+\bibitem{gkm03} N.~Gans, G.~Koole, and A.~Mandelbaum. Telephone call centers: tutorial, review, and research prospects.
+\emph{Manufacturing \& Service Operations Management}, 5(2):79--141, 2003.
 \bibitem{ma68} I.~L. Mitrany and B.~Avi-Itzhak. A many-server queue with service interruptions. \emph{Operations Research},
 16(3):628--638, 1968.
 \bibitem{vonwright51} G.~H. von Wright. Deontic logic. \emph{Mind}, 60(237):1--15, 1951.
+\bibitem{ross41} A.~Ross. Imperatives and logic. \emph{Theoria}, 7:53--71, 1941.
 \bibitem{chisholm63} R.~M. Chisholm. Contrary-to-duty imperatives and deontic logic. \emph{Analysis}, 24(2):33--36, 1963.
+\bibitem{mw93} J.-J.~Ch. Meyer and R.~J. Wieringa, editors. \emph{Deontic Logic in Computer Science: Normative System
+Specification}. Wiley, 1993.
+\bibitem{js93} A.~J.~I. Jones and M.~Sergot. On the characterisation of law and computer systems: the normative systems
+perspective. In J.-J.~Ch. Meyer and R.~J. Wieringa, editors, \emph{Deontic Logic in Computer Science: Normative System
+Specification}, pages 275--307. Wiley, 1993.
+\bibitem{vkn09} W.~W. Vasconcelos, M.~J. Kollingbaum, and T.~J. Norman. Normative conflict resolution in multi-agent systems.
+\emph{Autonomous Agents and Multi-Agent Systems}, 19(2):124--152, 2009.
 \bibitem{schaefer78} T.~J. Schaefer. The complexity of satisfiability problems. In \emph{Proceedings of the 10th Annual ACM
 Symposium on Theory of Computing (STOC)}, pages 216--226, 1978.
+\bibitem{dmp91} R.~Dechter, I.~Meiri, and J.~Pearl. Temporal constraint networks. \emph{Artificial Intelligence},
+49(1--3):61--95, 1991.
 \bibitem{sk00} K.~Stergiou and M.~Koubarakis. Backtracking algorithms for disjunctions of temporal constraints.
 \emph{Artificial Intelligence}, 120(1):81--117, 2000.
 \end{thebibliography}
