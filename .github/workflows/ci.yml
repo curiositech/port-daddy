@@ -1074,15 +1074,24 @@ jobs:
 
   pd-ios-screenshots-publish:
     # Holds the write-scoped token the capture job above deliberately does
-    # not. Everything this job runs is checked out from the PR's BASE ref,
-    # never the head — a PR cannot alter what runs here by editing this
-    # workflow file or scripts/publish-pd-ios-screenshots.mjs on its own
-    # branch, so a same-repo PR (the only case where `pull_request` grants a
-    # write token at all — GitHub forces fork-triggered `pull_request` runs
-    # to a read-only token regardless of what's declared here) can't turn
-    # this job into arbitrary code execution with repo-write access. It only
-    # ever touches its own PR's `pr-<n>/` subtree on the orphan
-    # `ci-screenshots` branch and posts one sticky comment on its own PR.
+    # not, so the large arbitrary-shell surface in capture-screenshots.sh
+    # (XcodeGen, xcodebuild, simulator boot — the actual PR-authored code
+    # under test) never runs with repo-write access.
+    #
+    # This job's own steps still run from the PR's own workflow version,
+    # same as the rest of this file: for a same-repo `pull_request` run (the
+    # only case that grants a write token at all — GitHub forces
+    # fork-triggered `pull_request` runs to a read-only token regardless of
+    # what's declared here), GitHub sources the whole job — permissions
+    # block included — from the PR branch itself, not the base, so pinning
+    # `actions/checkout` to a different ref cannot change what this job's
+    # own inline `run:` steps execute. Closing that residual gap needs a
+    # `workflow_run`-triggered second workflow (whose definition GitHub
+    # always reads from the default branch) — real follow-up, not done
+    # here. What this split does fix: the biggest, least-reviewable chunk
+    # of PR-controlled code (the whole XcodeGen/xcodebuild/simulator
+    # pipeline) is now read-only, leaving only this job's own small,
+    # narrowly-scoped git/gh-api logic still running with write access.
     runs-on: ubuntu-latest
     needs: [detect-changes, pd-ios-screenshots]
     if: needs.detect-changes.outputs.pd-ios == 'true' && github.event_name == 'pull_request'
@@ -1092,8 +1101,6 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
 
       - name: Download the captured screenshots
         uses: actions/download-artifact@v4
