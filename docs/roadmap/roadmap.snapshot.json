@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787528087885,
+  "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 298,
+  "count": 308,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1493,6 +1493,56 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "a-add-to-the-papers",
+      "status": "backlog",
+      "summaryMd": "A. Add to the papers"
+    },
+    {
+      "slug": "b-prove",
+      "status": "backlog",
+      "summaryMd": "B. Prove"
+    },
+    {
+      "slug": "c-try-and-measure",
+      "status": "backlog",
+      "summaryMd": "C. Try and measure"
+    },
+    {
+      "slug": "coordination-papers-research-and-implementation-program",
+      "status": "backlog",
+      "summaryMd": "Coordination Papers Research and Implementation Program"
+    },
+    {
+      "slug": "current-implementation-evidence",
+      "status": "backlog",
+      "summaryMd": "Current implementation evidence"
+    },
+    {
+      "slug": "d-add-to-the-code",
+      "status": "backlog",
+      "summaryMd": "D. Add to the code"
+    },
+    {
+      "slug": "exit-criteria",
+      "status": "backlog",
+      "summaryMd": "Exit criteria"
+    },
+    {
+      "slug": "publication-receipt-contract",
+      "status": "backlog",
+      "summaryMd": "Publication receipt contract"
+    },
+    {
+      "slug": "purpose",
+      "status": "backlog",
+      "summaryMd": "Purpose"
+    },
+    {
+      "slug": "roadmap-registry",
+      "status": "backlog",
+      "summaryMd": "Roadmap registry"
     }
   ]
 }
