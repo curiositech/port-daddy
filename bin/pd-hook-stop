@@ -354,6 +354,8 @@ gc_stop_markers() {
     # 500-entry sweep take 9-21 seconds on a loaded macOS host, defeating the
     # hook breaker despite the bulk stat above. Marker names are sanitized
     # session ids (no whitespace), so a bounded xargs batch is safe here.
+    # Concurrent collectors use PID-scoped manifests; overlapping rmdir calls
+    # are intentionally idempotent and a loser simply observes ENOENT.
     [ ! -s "$GC_STALE" ] || xargs -n 100 rmdir < "$GC_STALE" 2>/dev/null || true
     SURVIVOR_COUNT="$(wc -l < "$GC_SURVIVORS" 2>/dev/null | tr -d '[:space:]')"
     case "$SURVIVOR_COUNT" in ''|*[!0-9]*) SURVIVOR_COUNT=0 ;; esac

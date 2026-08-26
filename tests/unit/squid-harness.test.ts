@@ -140,7 +140,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   function pathWithoutJq(): string {
     const dir = join(SCRATCH, 'no-jq-bin');
     mkdirSync(dir, { recursive: true });
-    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3']) {
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3', 'curl']) {
       const target = join(dir, name);
       if (!existsSync(target)) symlinkSync(commandPath(name), target);
     }
@@ -705,6 +705,83 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       PORT_DADDY_URL: 'https://coordination.example.invalid',
     });
     expect(remote).toMatchObject({ status: 0, stdout: '', stderr: '' });
+  });
+
+  test('prompt inbox probe rejects malformed actors and ignores malformed or timed-out responses', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    let requests = 0;
+    const server = createServer((_req, res) => {
+      requests += 1;
+      if (requests === 1) {
+        res.setHeader('content-type', 'application/json');
+        res.end('{"unread":"not-a-number"}');
+        return;
+      }
+      setTimeout(() => res.end('{"unread":4}'), 500);
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    const daemonUrl = `http://127.0.0.1:${(address as { port: number }).port}`;
+    try {
+      const malformedActor = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent/../../secret',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+      expect(requests).toBe(0);
+
+      const malformedJson = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedJson).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+      const timedOut = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(timedOut).toMatchObject({ status: 0, stdout: '', stderr: '' });
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe parses numeric unread count without jq', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((_req, res) => res.end('{"unread":2}'));
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PATH: pathWithoutJq(),
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain('2 unread inbox/parley item(s)');
+    } finally {
+      server.close();
+    }
   });
 
   // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──
