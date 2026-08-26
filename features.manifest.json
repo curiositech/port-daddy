@@ -1757,14 +1757,17 @@
       }
     },
     "skill_graft": {
-      "description": "Native local skill-graft index and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index.",
+      "description": "Native local skill-graft index, checkpointed Tool2Vec catalog reconciler, and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
       "module": "lib/skill-graft.ts",
       "cli": [
         "skill-graft",
         "skillgraft"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /skill-graft/status",
+        "POST /skill-graft/reconcile"
+      ],
       "completions": [
         "skill-graft",
         "skillgraft"

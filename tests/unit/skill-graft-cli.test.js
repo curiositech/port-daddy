@@ -70,10 +70,18 @@ test('pd skill-graft shorthand query renders guidance and lexical fallback note'
 });
 
 test('pd skill-graft warm scans without requiring an LLM backend', async () => {
-  await handleSkillGraft(['warm'], { root, json: true });
+  await handleSkillGraft(['warm'], { root, json: true, 'local-only': true, 'db-dir': root });
 
   const body = JSON.parse(logs.join('\n'));
-  expect(body).toEqual({ scannedCount: 2, embedded: 0, reused: 0, removed: 0 });
+  expect(body).toEqual(expect.objectContaining({
+    total: 2,
+    current: 0,
+    configured: false,
+    acquired: false,
+    embedded: 0,
+    reused: 0,
+    removed: 0,
+  }));
 });
 
 test('pd skill-graft reference reads only files contained by the skill directory', async () => {
