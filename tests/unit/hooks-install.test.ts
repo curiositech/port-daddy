@@ -87,21 +87,27 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     }
   });
 
-  test('gemini uses native turn/edit event names without shell or after-tool fan-out', () => {
+  test('gemini uses native turn/edit/stop event names without shell or after-tool fan-out', () => {
     const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
-    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool']);
+    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool', 'AfterAgent']);
     expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
+    expect(GEMINI_EVENTS.stop).toBe('AfterAgent');
     expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
     expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
+    expect(map.AfterAgent[0].matcher).toBeUndefined(); // closeout gate has no matcher
     expect(map.BeforeAgent[0].hooks[0].timeout).toBe(1000);
+    expect(map.AfterAgent[0].hooks[0].timeout).toBe(1000); // Gemini timeouts are ms
   });
 
-  test('claude/agy use only UserPromptSubmit and direct PreToolUse', () => {
+  test('claude/agy use only UserPromptSubmit, direct PreToolUse, and Stop', () => {
     for (const v of ['claude', 'agy'] as const) {
       const map = buildJsonHookMap(v, (n) => `/x/${n}`);
-      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse']);
+      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'Stop']);
       expect(JSON.stringify(map)).not.toContain('statusMessage');
       expect(map.UserPromptSubmit[0].hooks[0].timeout).toBe(1);
+      expect(map.Stop[0].matcher).toBeUndefined(); // fires on every turn end
+      expect(map.Stop[0].hooks[0].command).toBe('/x/pd-hook-stop');
+      expect(map.Stop[0].hooks[0].timeout).toBe(1); // Claude/agy timeouts are seconds
     }
   });
 
@@ -110,7 +116,7 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(JSON.stringify(map)).not.toContain('statusMessage');
   });
 
-  test('codex TOML budgets one turn hook plus direct edits and no per-tool trace', () => {
+  test('codex TOML budgets one turn hook, direct edits, and one closeout gate — no per-tool trace', () => {
     const toml = codexHooksTomlBlock((n) => `/abs/${n}`);
     expect(toml).toContain(CODEX_PD_MARKER);
     expect(toml).toContain(`matcher = "${CODEX_TOOL_MATCHER}"`);
@@ -119,15 +125,20 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(toml).not.toContain('async = true');
     const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'));
     expect(pre).toContain('async = false');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
+    expect(toml).toContain('[[hooks.Stop]]');
+    expect(toml).toContain('[[hooks.Stop.hooks]]');
+    expect(toml).toContain('command = "/abs/pd-hook-stop"');
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
     expect(toml).not.toContain('statusMessage');
+    // The end fence must stay LAST so removal never touches user tables below.
+    expect(toml.indexOf('[[hooks.Stop]]')).toBeLessThan(toml.indexOf('PD_SQUID_TENTACLES_END'));
   });
 
   test('a read-only six-tool Codex batch schedules zero PD tool hooks', () => {
     const readOnlyBatch = ['Bash', 'exec_command', 'shell', 'shell_command', 'unified_exec', 'run_shell_command'];
     const matcher = new RegExp(`^(?:${CODEX_TOOL_MATCHER})$`);
     expect(readOnlyBatch.filter((tool) => matcher.test(tool))).toEqual([]);
-    expect(REGISTERED_TENTACLES).toEqual(['pd-hook-prompt', 'pd-hook-pre-tool']);
+    expect(REGISTERED_TENTACLES).toEqual(['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-stop']);
   });
 });
 
@@ -639,6 +650,184 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({
       state: 'open', lastReason: 'timer_missing', lastExitCode: 126,
     });
+  });
+
+  // ── review finding 2 (2026-08-24): the gate must own the child deadline ────
+  // Before this fix, the wrapper only ever measured elapsed time AFTER a
+  // synchronous child returned. A hard-killed or genuinely hung child could
+  // vanish without the breaker ever recording a failure. These three tests
+  // pin the required scenarios: a hang past the deadline, a child that
+  // actively ignores TERM and needs forced escalation, and a simulated
+  // host-style forced termination the wrapper never initiated itself. All
+  // three assert the breaker receipt is written and the failure counter
+  // increments — not just that the wrapper eventually returns.
+  const writeHeartbeatingHook = (path: string, heartbeatFile: string, ignoreTerm: boolean): void => {
+    writeFileSync(path, [
+      '#!/bin/sh',
+      ignoreTerm ? "trap '' TERM" : '',
+      'i=0',
+      'while [ "$i" -lt 300 ]; do',
+      `  printf 'beat %s\\n' "$i" >> '${heartbeatFile}' 2>/dev/null`,
+      '  sleep 0.05',
+      '  i=$((i + 1))',
+      'done',
+      '',
+    ].join('\n'), { mode: 0o755 });
+  };
+
+  const heartbeatCount = (path: string): number =>
+    existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(Boolean).length : 0;
+
+  test('a genuinely hung child (default TERM handling) is caught at the wrapper\'s own deadline, not measured after the fact', () => {
+    const pdHome = join(SANDBOX, 'watchdog-hang-home');
+    const binDir = join(pdHome, 'bin');
+    const heartbeatFile = join(pdHome, 'child-heartbeat');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeHeartbeatingHook(join(binDir, 'squid', 'pd-hook-prompt'), heartbeatFile, false);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_DEADLINE_MS: '150',
+      PD_HOOK_FAILURE_THRESHOLD: '99',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+
+    const startedAt = Date.now();
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], { cwd: REPO, env, input: '{}', encoding: 'utf8' });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(out).toBe(''); // fails open
+    // Returns near its own 150ms deadline (plus a bounded kill grace period),
+    // never anywhere close to the ~15s the fake hook would otherwise run.
+    expect(elapsedMs).toBeLessThan(2_000);
+    const health = readSquidHookHealth(pdHome);
+    expect(health.circuits[0]).toMatchObject({ hook: 'pd-hook-prompt', lastReason: 'timeout', lastExitCode: 124 });
+    expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);
+
+    const countAtReturn = heartbeatCount(heartbeatFile);
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        // The child was actually terminated (not merely abandoned as an
+        // orphan): its heartbeat stops growing shortly after the wrapper
+        // returns, instead of continuing for the full ~15s it was coded for.
+        expect(heartbeatCount(heartbeatFile)).toBeLessThanOrEqual(countAtReturn + 1);
+        resolve();
+      }, 400);
+    });
+  });
+
+  test('a child that actively ignores TERM is escalated to a forced kill, and the timeout receipt still lands', () => {
+    const pdHome = join(SANDBOX, 'watchdog-ignores-term-home');
+    const binDir = join(pdHome, 'bin');
+    const heartbeatFile = join(pdHome, 'child-heartbeat');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeHeartbeatingHook(join(binDir, 'squid', 'pd-hook-prompt'), heartbeatFile, true);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_DEADLINE_MS: '150',
+      PD_HOOK_FAILURE_THRESHOLD: '99',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+
+    const startedAt = Date.now();
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], { cwd: REPO, env, input: '{}', encoding: 'utf8' });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(out).toBe('');
+    // Bounded by the deadline plus the escalation grace windows, not the ~15s
+    // hang — proves the forced-kill path actually ran, not just the TERM.
+    expect(elapsedMs).toBeLessThan(3_000);
+    const health = readSquidHookHealth(pdHome);
+    expect(health.circuits[0]).toMatchObject({ hook: 'pd-hook-prompt', lastReason: 'timeout', lastExitCode: 124 });
+    expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);
+
+    const countAtReturn = heartbeatCount(heartbeatFile);
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        expect(heartbeatCount(heartbeatFile)).toBeLessThanOrEqual(countAtReturn + 1);
+        resolve();
+      }, 400);
+    });
+  });
+
+  test('a simulated host-style forced termination of the child (SIGKILL delivered by an external actor, not the wrapper) still lands a failure receipt', async () => {
+    const pdHome = join(SANDBOX, 'watchdog-host-kill-home');
+    const binDir = join(pdHome, 'bin');
+    const pidFile = join(pdHome, 'child-pid');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    // `exec sleep` folds the fake hook and the process actually killed into
+    // ONE pid, so an external SIGKILL against it is unambiguous — this is
+    // deliberately NOT going through the wrapper's own TERM/KILL escalation
+    // at all; something else (simulating an OOM killer / host reaper) kills
+    // the child before the wrapper's deadline even elapses.
+    writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), [
+      '#!/bin/sh',
+      `echo $$ > '${pidFile}'`,
+      'exec sleep 5',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_DEADLINE_MS: '800',
+      PD_HOOK_FAILURE_THRESHOLD: '99',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+
+    const startedAt = Date.now();
+    const child = spawn(join(binDir, 'pd-hook-prompt'), [], { cwd: REPO, env, stdio: ['pipe', 'ignore', 'ignore'] });
+    const exited = new Promise<number | null>((resolve, reject) => {
+      child.on('error', reject);
+      child.on('exit', (code) => resolve(code));
+    });
+    child.stdin.end('{}');
+
+    // Poll for the fake hook's pid file rather than sleeping a fixed guess,
+    // then deliver the external kill — simulating a host/OOM-killer style
+    // forced termination the wrapper never initiated itself — well before
+    // the wrapper's own 800ms deadline would otherwise fire on its own.
+    const killedPid = await new Promise<number | null>((resolve) => {
+      let attempts = 0;
+      const poll = () => {
+        if (existsSync(pidFile)) {
+          const pid = Number(readFileSync(pidFile, 'utf8').trim());
+          if (Number.isInteger(pid) && pid > 0) {
+            try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
+            resolve(pid);
+            return;
+          }
+        }
+        attempts += 1;
+        if (attempts > 40) { resolve(null); return; } // ~800ms of polling budget
+        setTimeout(poll, 20);
+      };
+      poll();
+    });
+    expect(killedPid).not.toBeNull(); // the fake hook's pid was actually found and killed externally
+
+    await exited;
+    const elapsedMs = Date.now() - startedAt;
+    expect(elapsedMs).toBeLessThan(3_000); // never anywhere near the full 5s sleep
+    const health = readSquidHookHealth(pdHome);
+    expect(health.circuits[0].hook).toBe('pd-hook-prompt');
+    // Either the wrapper's own deadline caught it (reason "timeout") or it
+    // detected the child's signal death via the timer's exit status first
+    // (reason "exit_<128+signal>") — either way a receipt landed and the
+    // counter moved, which is the exact gap this finding closes.
+    expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);
   });
 
   test('intentional edit blocks never count as hook failures', () => {

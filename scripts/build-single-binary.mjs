@@ -261,6 +261,7 @@ function stageSquidReleaseAssets(releaseDir) {
     'pd-hook-prompt',
     'pd-hook-pre-tool',
     'pd-hook-post-tool',
+    'pd-hook-stop',
     'pd-statusline',
   ];
   const binDir = join(releaseDir, 'bin');

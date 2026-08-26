@@ -326,6 +326,39 @@ AGCODE=$?
 if [ "$AGCODE" -eq 0 ]; then ok "[agy] EXIT 0 on unlocked path"; else bad "[agy] expected exit 0 unlocked, got $AGCODE"; fi
 
 echo ""
+echo "== pd-hook-stop closeout gate (ADR-0092 L4) =="
+# End-of-turn SITREP verification. Default dial is enforce; the block contract
+# is exit 2 + the SITREP directive on stderr (never empty — codex rejects
+# that), loop-guarded by stop_hook_active plus a one-shot per-session marker.
+STOP_REPO="$SCRATCH/stop-repo"
+mkdir -p "$STOP_REPO"
+STOPERR="$(printf '{"session_id":"st-1","cwd":"%s","last_assistant_message":"done, no table"}' "$STOP_REPO" \
+  | "$BIN/pd-hook-stop" 2>&1 >/dev/null)"
+STOPCODE=$?
+if [ "$STOPCODE" -eq 2 ]; then ok "[stop] enforce blocks a SITREP-less turn (exit 2)"; else bad "[stop] expected exit 2, got $STOPCODE"; fi
+case "$STOPERR" in *'SITREP'*'| Idea / Suggestion / Remediation |'*) ok "[stop] stderr carries the SITREP directive";; *) bad "[stop] directive missing: $STOPERR";; esac
+printf '{"session_id":"st-1","cwd":"%s","last_assistant_message":"still no table"}' "$STOP_REPO" \
+  | "$BIN/pd-hook-stop" >/dev/null 2>&1
+STOPCODE=$?
+if [ "$STOPCODE" -eq 0 ]; then ok "[stop] one-shot marker suppresses a second block for the same session"; else bad "[stop] expected exit 0 on second stop, got $STOPCODE"; fi
+printf '{"session_id":"st-2","cwd":"%s","stop_hook_active":true,"last_assistant_message":"no table"}' "$STOP_REPO" \
+  | "$BIN/pd-hook-stop" >/dev/null 2>&1
+STOPCODE=$?
+if [ "$STOPCODE" -eq 0 ]; then ok "[stop] stop_hook_active:true short-circuits (vendor loop guard)"; else bad "[stop] expected exit 0 on stop_hook_active, got $STOPCODE"; fi
+printf '{"session_id":"st-3","cwd":"%s","last_assistant_message":"## SITREP\\n| Idea / Suggestion / Remediation | Source | Status |\\n| row | Agent | done |"}' "$STOP_REPO" \
+  | "$BIN/pd-hook-stop" >/dev/null 2>&1
+STOPCODE=$?
+if [ "$STOPCODE" -eq 0 ]; then ok "[stop] SITREP-bearing final message passes"; else bad "[stop] expected exit 0 on compliant turn, got $STOPCODE"; fi
+printf '{"conversationId":"agy-st","workspacePaths":["%s"],"terminationReason":"completed","fullyIdle":true,"executionNum":2}' "$STOP_REPO" \
+  | "$BIN/pd-hook-stop" >/dev/null 2>&1
+STOPCODE=$?
+if [ "$STOPCODE" -eq 0 ]; then ok "[stop] agy camelCase Stop payload is observe-only (never blocks)"; else bad "[stop] expected exit 0 on agy payload, got $STOPCODE"; fi
+printf '{"session_id":"st-4","cwd":"%s","last_assistant_message":null,"transcript_path":null}' "$STOP_REPO" \
+  | "$BIN/pd-hook-stop" >/dev/null 2>&1
+STOPCODE=$?
+if [ "$STOPCODE" -eq 0 ]; then ok "[stop] null final message is unverifiable → never blocks (codex contract)"; else bad "[stop] expected exit 0 on null message, got $STOPCODE"; fi
+
+echo ""
 echo "== G5: K=8 concurrent appends (Jamie Madrox) =="
 B8=$(grep -c '^PD_PHEROMONE_' "$MATRIX" 2>/dev/null || echo 0)
 i=0
