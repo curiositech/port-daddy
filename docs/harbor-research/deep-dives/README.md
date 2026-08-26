@@ -26,9 +26,24 @@ genuinely does not engage the work named:
 | 3 | Paper 6, `paper6.tex` | The complexity-of-compliance-checking line | `grep -i "halpern\|weissman\|robaldo"` → no match |
 | 4 | Paper 7, `paper7.tex` | Combinatorial topology of distributed computing | `grep -i "herlihy\|rajsbaum\|kozlov"` → no match |
 
-Flags 1–3 are novelty risks: prior work may already own the result. Flag 4 is
+Flags 1–3 are novelty risks: prior work may already own the result. Flag 4 was
 two things at once — a citation the sweep itself flagged as possibly fabricated,
 and a real canon (Herlihy–Shavit and successors) that Paper 7 omits entirely.
+
+## Status
+
+| Flag | Verdict | Summary |
+|---|---|---|
+| 1 | running | — |
+| 2 | running | — |
+| 3 | running | — |
+| 4 | **CLEAR** | Suspect citation is **real but irrelevant** — excluded on relevance, not authenticity. Add Herlihy–Shavit, Saks–Zaharoglou, Herlihy–Kozlov–Rajsbaum, and PeerReview. All eight existing citations verified accurate; Bach 1999's *content* claim remains `probable` (paywalled) and is load-bearing. |
+
+One lesson already worth carrying into the remaining three: the round
+performance figures that made flag 4's citation look fabricated did not
+distinguish "fabricated" from "real but weak." Both were live hypotheses and the
+second one won. Suspicion was the right instinct; the conclusion it pointed at
+was not.
 
 ## Severity, and what each outcome means
 

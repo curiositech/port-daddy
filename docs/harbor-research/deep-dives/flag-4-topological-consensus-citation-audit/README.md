@@ -1,5 +1,25 @@
 # Flag 4 — a suspect citation, and a canon that is missing
 
+> **RESOLVED 2026-08-26 — verdict CLEAR. See `findings.md`.**
+>
+> Problem A resolved against the framing below: the citation is **real, not
+> fabricated** (R. Poornima, *Bol. Soc. Paran. Mat.* (3s.) 2026(44) 3:1–5,
+> DOI 10.5269/bspm.80121, read in full). It is excluded for irrelevance
+> instead — a thin five-page piece with no bearing on Paper 7. Two details
+> below were also wrong: the earlier sweep dropped the title's subtitle
+> ("…in Decentralized Sensor Networks"), and the society is *Paranaense*, not
+> *Brasileira*.
+>
+> Problems B and C confirmed: Herlihy–Shavit, Saks–Zaharoglou, the
+> Herlihy–Kozlov–Rajsbaum text, and PeerReview should all be added. The
+> PeerReview positioning turned out stronger than anticipated — its
+> Assumption 6 is exactly what Paper 7's relayed tier drops.
+>
+> The text below is preserved as the brief the dive was run against.
+
+---
+
+
 **Paper**: 7, *The Cohomology of Equivocation*
 (`docs/harbor-research/tex/paper7.tex`)
 
