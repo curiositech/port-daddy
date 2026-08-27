@@ -271,6 +271,11 @@ export class PortholePlayer {
       const el = this.lineEls.pop();
       el?.remove();
     }
+    // Alt-screen (TUI) casts need a near-1:1 line pitch for box-drawing
+    // borders to connect between rows — see porthole.css's `.ph-tui` rule.
+    // `sawAlt` flips true mid-stream the moment the cast enters alt-screen,
+    // so this checks it every frame rather than once at load.
+    this.term.classList.toggle("ph-tui", this.vt.sawAlt);
     if (!this.vt.dirty.size) return;
     for (const r of this.vt.dirty) {
       if (r < this.vt.lines.length) this.renderLine(r);

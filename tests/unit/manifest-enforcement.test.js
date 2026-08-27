@@ -530,6 +530,8 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'roadmap_list': 'roadmap',
       'roadmap_get': 'roadmap',
       'roadmap_promote': 'roadmap',
+      'roadmap_search': 'roadmap',
+      'roadmap_export': 'roadmap',
       'call_parley': 'parley',
       'list_parleys': 'parley',
       'get_parley': 'parley',
