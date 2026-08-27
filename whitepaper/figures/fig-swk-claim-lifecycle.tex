@@ -1,80 +1,87 @@
-% Figure — the claim/lock lifecycle as a finite-state machine, exhibiting the
-% four properties on which typed ownership is built: atomic-exclusive acquire,
-% idempotent re-claim, idempotent release, lazy TTL sweep. The missing QUEUED
-% state (open problem OP-1, fairness) is discussed in the caption.
+% Figure — claim lifecycle as a transition ledger. States show the durable row;
+% the lower ledger carries transition semantics so labels never sit on arrows.
 
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{swkink}{HTML}{282522}
+\providecolor{swkgrid}{HTML}{AAA69E}
+\providecolor{swkground}{HTML}{F8F6F1}
+\providecolor{swkteal}{HTML}{1D6B62}
+\providecolor{swkumber}{HTML}{8A5A24}
+\providecolor{swksoft}{HTML}{E9E5DD}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!30,
-             minimum width=28mm,minimum height=12mm,align=center,font=\bfseries\footnotesize},
-  held/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=10pt,
-               minimum width=32mm,minimum height=14mm,align=center,font=\bfseries\footnotesize},
-  edge/.style={->,>=Latex,thick,hhebony,font=\scriptsize},
-  selfedge/.style={->,>=Latex,thick,hhteal,font=\scriptsize},
-]
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \path[use as bounding box] (-.25,-2.02) rectangle (13.75,4.25);
 
-\node[st] (free) at (0,0) {FREE};
-\node[held] (held) at (74mm,0) {HELD by $a$};
-\node[st,fill=hhsand!30] (expired) at (148mm,0) {EXPIRED\\ (TTL passed)};
+  \node[anchor=west,font=\footnotesize\bfseries] at (.15,3.88)
+    {One key's durable claim row};
+  \draw[swkink,line width=.55pt] (.05,3.60) -- (13.65,3.60);
 
-% initial-state marker: every key starts FREE (no claim row exists)
-\draw[->,>=Latex,thick,hhebony] (-20mm,0) -- (free.west)
-  node[midway,above,font=\scriptsize,text=hhink]{initial};
+  % State records differ by their durable representation, not just a noun label.
+  \node[draw=swkink,fill=white,minimum width=3.05cm,minimum height=1.25cm,
+        align=center,font=\footnotesize] (free) at (2.00,2.62)
+    {\textbf{FREE}\\[-1pt]\scriptsize no row for key $k$};
+  \node[draw=swkteal,line width=.8pt,fill=swkteal!8,minimum width=3.55cm,
+        minimum height=1.25cm,align=center,font=\footnotesize] (held) at (6.85,2.62)
+    {\textbf{HELD by $a$}\\[-1pt]\scriptsize $(k,\,a,\,\mathrm{expires\_at})$};
+  \node[draw=swkgrid,line width=.65pt,fill=swksoft,minimum width=3.05cm,
+        minimum height=1.25cm,align=center,font=\footnotesize] (expired) at (11.65,2.62)
+    {\textbf{EXPIRED}\\[-1pt]\scriptsize stale row remains};
 
-% acquire (atomic, exclusive)
-\draw[edge] (free) to[bend left=22]
-  node[pos=0.5,above=1pt,align=center]{\textbf{acquire}\\ atomic insert (I2)} (held);
+  \draw[->,>=Latex,swkteal,line width=.9pt] (free.east) -- (held.west);
+  \draw[->,>=Latex,swkink,line width=.7pt] (held.east) -- (expired.west);
+  \node[font=\scriptsize\itshape,align=center] at (4.43,1.85)
+    {atomic insertion under a unique key};
+  \node[font=\scriptsize\itshape,align=center] at (9.25,1.85)
+    {time passes \texttt{expires\_at}};
 
-% re-claim self-loop above held
-\draw[selfedge] (held.north) to[out=115,in=65,looseness=7] (held.north);
-\node[align=center,font=\scriptsize,above=11mm of held]
-  {\textbf{re-claim} by $a$ (I3): idempotent};
+  % A transition ledger makes idempotence, error handling, and lazy recovery
+  % comparable without the crossed self-loops of a conventional state chart.
+  \node[anchor=west,font=\footnotesize\bfseries] at (.15,1.48)
+    {Transition ledger};
+  \draw[swkink,line width=.55pt] (.05,1.25) -- (13.65,1.25);
+  \foreach \y in {.65,.05,-.55,-1.15,-1.75} {
+    \draw[swkgrid!75,line width=.3pt] (.05,\y) -- (13.65,\y);
+  }
+  \foreach \x in {2.45,5.35,8.95,11.30} {
+    \draw[swkgrid!75,line width=.3pt] (\x,1.25) -- (\x,-1.75);
+  }
+  \node[anchor=west,font=\scriptsize\bfseries] at (.18,.95) {operation};
+  \node[anchor=west,font=\scriptsize\bfseries] at (2.62,.95) {from $\to$ to};
+  \node[anchor=west,font=\scriptsize\bfseries] at (5.52,.95) {durable effect};
+  \node[anchor=west,font=\scriptsize\bfseries] at (9.12,.95) {result};
+  \node[anchor=west,font=\scriptsize\bfseries] at (11.47,.95) {invariant};
 
-% concurrent-loser self-loop below free
-\draw[selfedge,hhcobalt] (free.south) to[out=-115,in=-65,looseness=7] (free.south);
-\node[align=center,font=\scriptsize,text=hhink,below=10mm of free,text width=42mm]
-  {concurrent acquire loses cleanly;\\ handed the holder (I2)};
+  \node[anchor=west,font=\scriptsize\bfseries,text=swkteal] at (.18,.35) {acquire($a$)};
+  \node[anchor=west,font=\scriptsize] at (2.62,.35) {free $\to$ held};
+  \node[anchor=west,font=\scriptsize] at (5.52,.35) {INSERT row};
+  \node[anchor=west,font=\scriptsize] at (9.12,.35) {holder $a$};
+  \node[anchor=west,font=\scriptsize] at (11.47,.35) {I2 unique};
 
-% release (idempotent)
-\draw[edge] (held) to[bend left=22]
-  node[pos=0.5,below=1pt,align=center]{\textbf{release} by $a$ (I3): idempotent} (free);
+  \node[anchor=west,font=\scriptsize\bfseries] at (.18,-.25) {re-claim($a$)};
+  \node[anchor=west,font=\scriptsize] at (2.62,-.25) {held $\to$ held};
+  \node[anchor=west,font=\scriptsize] at (5.52,-.25) {same row};
+  \node[anchor=west,font=\scriptsize] at (9.12,-.25) {success again};
+  \node[anchor=west,font=\scriptsize] at (11.47,-.25) {I3 idem.};
 
-% TTL expiry
-\draw[edge] (held) -- node[above,align=center]{TTL\\ elapses} (expired);
+  \node[anchor=west,font=\scriptsize\bfseries] at (.18,-.85) {release($a$)};
+  \node[anchor=west,font=\scriptsize] at (2.62,-.85) {held $\to$ free};
+  \node[anchor=west,font=\scriptsize] at (5.52,-.85) {DELETE row};
+  \node[anchor=west,font=\scriptsize] at (9.12,-.85) {success again};
+  \node[anchor=west,font=\scriptsize] at (11.47,-.85) {I3 idem.};
 
-% lazy sweep back to FREE
-\draw[edge,hhteal] (expired) to[out=-90,in=-90,looseness=0.55]
-  node[pos=0.5,below=1pt,align=center,text=hhink]{\textbf{lazy sweep} on next read (I4)} (free);
-
-\end{tikzpicture}%
-}
-\caption{The claim/lock lifecycle as a finite-state machine, exhibiting the four
-properties on which the coordination layer builds typed ownership. \textsc{Free} is
-the initial state (the marked incoming arrow): no claim row exists for a key until
-some agent acquires it. \emph{Acquire} is
-a single atomic insert against a uniqueness constraint (I2: a concurrent acquirer
-loses cleanly to a constraint violation and is handed the current holder).
-\emph{Re-claim} and \emph{release} are idempotent (I3): safe to retry, safe to
-double. Expiry is \emph{lazy-swept} on the next read (I4) --- expired rows are
-deleted when encountered, not on a timer. The conspicuous missing state is
-\textsc{queued}: there is no wait-list and no fairness primitive, so a fast agent
-churning a hot resource can starve a slow one indefinitely --- open problem OP-1,
-which asks whether bounded-wait can be added without dragging a scheduler down into
-the kernel. \S\ref{sec:resource} specifies (but does not yet ship) a reactive
-ticket-lock that would add the missing state for cooperatively released claims;
-claims returned by the lazy sweep would still bypass it, which is why OP-1 remains
-open.}
+  \node[anchor=west,font=\scriptsize\bfseries,text=swkumber] at (.18,-1.45) {next read};
+  \node[anchor=west,font=\scriptsize] at (2.62,-1.45) {expired $\to$ free};
+  \node[anchor=west,font=\scriptsize] at (5.52,-1.45) {DELETE stale row};
+  \node[anchor=west,font=\scriptsize] at (9.12,-1.45) {key available};
+  \node[anchor=west,font=\scriptsize] at (11.47,-1.45) {I4 lazy};
+\end{tikzpicture}
+\caption{The claim lifecycle is a three-state durable-row model with a separate
+transition ledger.  Atomic acquisition makes one row the unique holder (I2); a
+same-actor re-claim and release are idempotent (I3); and an expired row returns to
+free only when a later read deletes it (I4).  There is deliberately no \textsc{queued}
+state: the kernel has no fairness primitive, so a fast agent can repeatedly win a
+hot resource.  That missing state is open problem OP-1, not an invisible property of
+the diagram.}
 \label{fig:swk-claim-lifecycle}
 \end{figure}
