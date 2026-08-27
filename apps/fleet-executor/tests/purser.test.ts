@@ -1426,6 +1426,60 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
+  it('lets the sole malformed survivor consume the residual shared repair call', async () => {
+    seedRealJestConfig();
+    const firstPath = 'tests/unit/purser/exhausted-sibling.test.ts';
+    const survivorPath = 'tests/unit/purser/sole-survivor.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          { path: firstPath, intent: 'consume two bounded repairs before being dropped' },
+          { path: survivorPath, intent: 'use the residual shared repair call' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const malformed = (name: string) =>
+      `\`\`\`ts\nfunction ${name}( {\ntest('still malformed', () => true);\n\`\`\``;
+    const healed = [
+      '```ts',
+      "test('sole survivor executes', () => expect(true).toBe(true));",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      malformed('firstDraft'),
+      malformed('survivorDraft'),
+      malformed('firstRepairOne'),
+      malformed('firstRepairTwo'),
+      malformed('survivorRepairOne'),
+      malformed('survivorRepairTwo'),
+      healed,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(9);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      step.title.includes(`HEALED ${survivorPath}`)
+    )).toMatchObject({
+      detail: expect.objectContaining({ attempts: 3, repairNumber: 5 }),
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('#9789: two malformed escalation rewrites still fail closed without sandbox or stack effects', async () => {
     seedRealJestConfig();
     const malformedTests = [

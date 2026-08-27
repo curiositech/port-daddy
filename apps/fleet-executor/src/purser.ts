@@ -1664,6 +1664,7 @@ export async function runPurser(
       toSpecifier: string;
       matchedTreePath: string;
     }> = [];
+    let droppedExhaustedSibling = false;
     while (
       !executability.ok &&
       executability.kind === 'unresolved-import' &&
@@ -1816,18 +1817,25 @@ export async function runPurser(
       }
       const exhaustedPath = executability.path;
       const exhaustedAttempts = authoredRepairAttempts.get(exhaustedPath) ?? 0;
+      const canUseResidualBudgetForSoleSurvivor =
+        droppedExhaustedSibling &&
+        files.length === 1 &&
+        authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS;
       if (
         authoredRepairCalls >= MAX_AUTHORED_REPAIR_CALLS ||
-        exhaustedAttempts >= MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
+        (exhaustedAttempts >= MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE &&
+          !canUseResidualBudgetForSoleSurvivor)
       ) {
         // Preserve partial evidence without allowing one exhausted generated
         // file to strand a later sibling that still has repair budget. Drop
         // only the exhausted file, re-run the trusted gate, then continue this
-        // same bounded loop against the next diagnosis. A sole file remains a
-        // hard failure, and the shared absolute call cap never grows.
+        // same bounded loop against the next diagnosis. A sole survivor may
+        // consume any residual shared call budget before remaining a hard
+        // failure; the shared absolute cap never grows.
         if (files.length <= 1) break;
         const droppedReason = executability.reason;
         files = files.filter(file => file.path !== exhaustedPath);
+        droppedExhaustedSibling = true;
         authorFailures.push({ path: exhaustedPath, reason: droppedReason });
         executability = checkGeneratedTestsExecutable(files, evidence);
         await transcript.step(
