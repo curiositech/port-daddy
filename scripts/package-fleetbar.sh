@@ -5,6 +5,49 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FLEETBAR_TEST_MODE="${PORT_DADDY_FLEETBAR_TEST_MODE:-0}"
 FLEETBAR_TEST_FIXTURE_ROOT="${PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT:-}"
+
+canonical_fixture_child() {
+  local label="$1"
+  local expected_type="$2"
+  local candidate="$3"
+  local canonical
+
+  if [[ ! -e "$candidate" ]]; then
+    echo "FleetBar test fixture $label is missing: $candidate" >&2
+    exit 1
+  fi
+  canonical="$(realpath "$candidate")" || {
+    echo "FleetBar test fixture $label could not be canonicalized: $candidate" >&2
+    exit 1
+  }
+  case "$canonical" in
+    "$FLEETBAR_TEST_FIXTURE_ROOT"/*) ;;
+    *)
+      echo "FleetBar test fixture $label escapes the approved fixture root: $candidate -> $canonical" >&2
+      exit 1
+      ;;
+  esac
+  case "$expected_type" in
+    directory)
+      [[ -d "$canonical" ]] || {
+        echo "FleetBar test fixture $label must be a directory: $canonical" >&2
+        exit 1
+      }
+      ;;
+    file)
+      [[ -f "$canonical" ]] || {
+        echo "FleetBar test fixture $label must be a regular file: $canonical" >&2
+        exit 1
+      }
+      ;;
+    *)
+      echo "Internal error: unsupported fixture type $expected_type" >&2
+      exit 1
+      ;;
+  esac
+  printf '%s\n' "$canonical"
+}
+
 if [[ "$FLEETBAR_TEST_MODE" == "1" ]]; then
   if [[ -z "$FLEETBAR_TEST_FIXTURE_ROOT" || ! -d "$FLEETBAR_TEST_FIXTURE_ROOT" ]]; then
     echo "FleetBar test mode requires an existing PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT" >&2
@@ -18,9 +61,9 @@ if [[ "$FLEETBAR_TEST_MODE" == "1" ]]; then
       exit 1
       ;;
   esac
-  FLEETBAR_DIR="$FLEETBAR_TEST_FIXTURE_ROOT/apps/FleetBar"
-  FLEETBAR_TEST_PAYLOAD_SOURCE="$FLEETBAR_TEST_FIXTURE_ROOT/payload-source"
-  RELEASE_BIN="$FLEETBAR_TEST_FIXTURE_ROOT/release-bin/FleetBar"
+  FLEETBAR_DIR="$(canonical_fixture_child "apps/FleetBar" directory "$FLEETBAR_TEST_FIXTURE_ROOT/apps/FleetBar")"
+  FLEETBAR_TEST_PAYLOAD_SOURCE="$(canonical_fixture_child "payload-source" directory "$FLEETBAR_TEST_FIXTURE_ROOT/payload-source")"
+  RELEASE_BIN="$(canonical_fixture_child "release-bin/FleetBar" file "$FLEETBAR_TEST_FIXTURE_ROOT/release-bin/FleetBar")"
   TMP_DIR="$FLEETBAR_TEST_FIXTURE_ROOT/tmp"
   rm -rf "$TMP_DIR"
   mkdir -p "$TMP_DIR"
@@ -104,7 +147,9 @@ trap cleanup EXIT
 find_nested_macho_files() {
   local root="$1"
   find "$root" -type f -print | while IFS= read -r candidate; do
-    if file -b "$candidate" | grep -q "Mach-O"; then
+    local description
+    description="$(file -b "$candidate")"
+    if [[ "$description" == *"Mach-O"* ]]; then
       local relative="${candidate#$root/}"
       local slashes="${relative//[^\/]/}"
       local depth="${#slashes}"
@@ -144,10 +189,16 @@ codesign_macho() {
 
 sign_nested_macho_files() {
   local app_bundle="$1"
+  local macho_list="$TMP_DIR/nested-machos.txt"
+  find_nested_macho_files "$app_bundle" > "$macho_list"
+  if [[ ! -s "$macho_list" ]]; then
+    echo "FleetBar signing refused: no Mach-O files were discovered in $app_bundle" >&2
+    return 1
+  fi
   while IFS= read -r nested; do
     [[ -n "$nested" ]] || continue
     codesign_macho "$nested"
-  done < <(find_nested_macho_files "$app_bundle")
+  done < "$macho_list"
 }
 
 print_notary_log() {

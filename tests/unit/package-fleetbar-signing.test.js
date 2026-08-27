@@ -35,6 +35,7 @@ describe('FleetBar release signing coverage', () => {
   let outputDir;
   let releaseBinary;
   let logPath;
+  let escapeRoot;
 
   beforeEach(() => {
     mkdirSync(SCRATCH_ROOT, { recursive: true });
@@ -45,6 +46,7 @@ describe('FleetBar release signing coverage', () => {
     outputDir = join(root, 'dist');
     releaseBinary = join(root, 'release-bin', 'FleetBar');
     logPath = join(root, 'tool-calls.log');
+    escapeRoot = undefined;
 
     mkdirSync(fakeBinDir, { recursive: true });
     mkdirSync(join(fakeFleetBarDir, 'FleetBar', 'Resources'), { recursive: true });
@@ -93,6 +95,12 @@ set -euo pipefail
 printf 'codesign|%s\\n' "$*" >> '${logPath}'
 exit 0
 `);
+    writeExecutableScript(join(fakeBinDir, 'file'), `#!/usr/bin/env bash
+set -euo pipefail
+description="$(/usr/bin/file "$@")"
+printf 'file|%s|%s\\n' "$*" "$description" >> '${logPath}'
+printf '%s\\n' "$description"
+`);
     writeExecutableScript(join(fakeBinDir, 'ditto'), `#!/usr/bin/env bash
 set -euo pipefail
 printf 'ditto|%s\\n' "$*" >> '${logPath}'
@@ -113,6 +121,7 @@ exit 0
 
   afterEach(() => {
     rmSync(root, { recursive: true, force: true });
+    if (escapeRoot) rmSync(escapeRoot, { recursive: true, force: true });
   });
 
   macTest('discovers nested Mach-O payloads, signs inside-out, and logs rejected notarization results', () => {
@@ -144,6 +153,7 @@ exit 0
     const lines = readFileSync(logPath, 'utf8').trim().split(/\r?\n/).filter(Boolean);
     const parsed = lines.map(parseLoggedCommand);
     const codesignCalls = parsed.filter((call) => call.command === 'codesign');
+    const fileCalls = parsed.filter((call) => call.command === 'file');
     const signCalls = codesignCalls.filter((call) => !call.args.includes('--verify'));
     const verifyCall = codesignCalls.find((call) => call.args.includes('--verify'));
     const xcrunCalls = parsed.filter((call) => call.command === 'xcrun');
@@ -178,6 +188,8 @@ exit 0
     const portDaddyEntitlements = join(process.cwd(), 'scripts', 'entitlements', 'port-daddy.plist');
     const fleetbarEntitlements = join(process.cwd(), 'scripts', 'entitlements', 'fleetbar.plist');
 
+    expect(fileCalls.some((call) => call.rawArgs.startsWith(`-b ${nestedDylib}|`))).toBe(true);
+    expect(lines.find((line) => line.includes(nestedDylib) && line.startsWith('file|'))).toContain('Mach-O');
     expect(signCalls.map((call) => call.args.at(-1))).toEqual([
       nestedDylib,
       payloadPd,
@@ -253,6 +265,54 @@ exit 0
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('must be contained under');
+    expect(existsSync(logPath)).toBe(false);
+  });
+
+  macTest('fails closed before app sealing when no Mach-O file is discovered', () => {
+    const scriptPath = join(process.cwd(), 'scripts', 'package-fleetbar.sh');
+    writeExecutableScript(join(fakeBinDir, 'file'), `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' 'ASCII text'
+`);
+    const result = spawnSync('bash', [scriptPath, join(root, 'out-no-mach-o')], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        PATH: `${NODE_22_BIN}:${fakeBinDir}:${process.env.PATH}`,
+        PORT_DADDY_FLEETBAR_TEST_MODE: '1',
+        PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT: root,
+        PORT_DADDY_SIGN_IDENTITY: 'Developer ID Application: Test (ABCDE12345)',
+        PORT_DADDY_NOTARY_PROFILE: 'pd-notary',
+      },
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('signing refused: no Mach-O files were discovered');
+    const toolCalls = existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
+    expect(toolCalls).not.toContain('codesign|');
+    expect(toolCalls).not.toContain('notarytool submit');
+  });
+
+  macTest('rejects a consumed fixture child whose symlink escapes the approved root', () => {
+    const scriptPath = join(process.cwd(), 'scripts', 'package-fleetbar.sh');
+    escapeRoot = mkdtempSync(join(SCRATCH_ROOT, 'pd-fleetbar-signing-escape-'));
+    rmSync(payloadSourceDir, { recursive: true, force: true });
+    symlinkSync(escapeRoot, payloadSourceDir, 'dir');
+
+    const result = spawnSync('bash', [scriptPath, join(root, 'out-escaped-child')], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        PATH: `${NODE_22_BIN}:${fakeBinDir}:${process.env.PATH}`,
+        PORT_DADDY_FLEETBAR_TEST_MODE: '1',
+        PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT: root,
+      },
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('payload-source escapes the approved fixture root');
     expect(existsSync(logPath)).toBe(false);
   });
 });
