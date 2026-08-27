@@ -1355,6 +1355,55 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(0);
   });
 
+  it('repairs a discoverable file that registers no Jest test before sandbox or stacking', async () => {
+    seedRealJestConfig();
+    const testPath = 'tests/unit/purser/registration.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const missingRegistration = [
+      '```ts',
+      'export const stableVersion = "3.30.3";',
+      '```',
+    ].join('\n');
+    const repairedFile = [
+      '```ts',
+      "test('registers the release contract', () => {",
+      "  expect('3.30.3').toBe('3.30.3');",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, plan, missingRegistration, repairedFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining(`HEALED ${testPath}`),
+      detail: expect.objectContaining({
+        originalError: expect.stringContaining('registers no Jest test or it case'),
+        attempts: 1,
+        repairNumber: 1,
+      }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
+      executed: true,
+      passed: true,
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('authors with trusted Jest evidence and repairs three incompatible siblings before stacking', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');

@@ -1654,7 +1654,8 @@ export async function runPurser(
       !executability.ok &&
       (executability.kind === 'syntax-error' ||
         executability.kind === 'unresolved-import' ||
-        executability.kind === 'incompatible-runner') &&
+        executability.kind === 'incompatible-runner' ||
+        executability.kind === 'missing-test-registration') &&
       executability.path &&
       authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS &&
       (authoredRepairAttempts.get(executability.path) ?? 0) <
