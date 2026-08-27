@@ -6,7 +6,6 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
@@ -31,12 +30,11 @@
    \scriptsize operator queue\\[-1pt]
    \scriptsize \emph{regret} (Eq.~\ref{eq:regret})};
 
-% These are the formal directions.  The painted wakes beneath them are atmosphere,
-% not a substitute for a claimed causal relation.
+% These are the formal directions; the connectors carry the complete relation.
 \draw[route,hhteal] (shared.east) to[out=18,in=180] (discovery.west);
 \draw[route,hhcobalt] (shared.east) to[out=-18,in=180] (attention.west);
 \end{tikzpicture}
-\caption{\textbf{One shared candidate chart supports two noninterchangeable readings.}
+\caption{\textbf{One shared candidate substrate supports two noninterchangeable readings.}
 Both rankers draw from the same live substrate and apply the same recency decay;
 the discovery route asks which collaborator is most capable, while the attention
 route asks which item is most dangerous to ignore.  The paths split because
