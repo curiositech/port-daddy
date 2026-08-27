@@ -3,7 +3,36 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FLEETBAR_DIR="$ROOT_DIR/apps/FleetBar"
+FLEETBAR_TEST_MODE="${PORT_DADDY_FLEETBAR_TEST_MODE:-0}"
+FLEETBAR_TEST_FIXTURE_ROOT="${PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT:-}"
+if [[ "$FLEETBAR_TEST_MODE" == "1" ]]; then
+  if [[ -z "$FLEETBAR_TEST_FIXTURE_ROOT" || ! -d "$FLEETBAR_TEST_FIXTURE_ROOT" ]]; then
+    echo "FleetBar test mode requires an existing PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT" >&2
+    exit 1
+  fi
+  FLEETBAR_TEST_FIXTURE_ROOT="$(cd "$FLEETBAR_TEST_FIXTURE_ROOT" && pwd -P)"
+  case "$FLEETBAR_TEST_FIXTURE_ROOT" in
+    "$HOME/coding/tmp/"*) ;;
+    *)
+      echo "FleetBar test fixture root must be contained under $HOME/coding/tmp" >&2
+      exit 1
+      ;;
+  esac
+  FLEETBAR_DIR="$FLEETBAR_TEST_FIXTURE_ROOT/apps/FleetBar"
+  FLEETBAR_TEST_PAYLOAD_SOURCE="$FLEETBAR_TEST_FIXTURE_ROOT/payload-source"
+  RELEASE_BIN="$FLEETBAR_TEST_FIXTURE_ROOT/release-bin/FleetBar"
+  TMP_DIR="$FLEETBAR_TEST_FIXTURE_ROOT/tmp"
+  rm -rf "$TMP_DIR"
+  mkdir -p "$TMP_DIR"
+else
+  if [[ -n "$FLEETBAR_TEST_FIXTURE_ROOT" ]]; then
+    echo "PORT_DADDY_FLEETBAR_TEST_FIXTURE_ROOT requires PORT_DADDY_FLEETBAR_TEST_MODE=1" >&2
+    exit 1
+  fi
+  FLEETBAR_DIR="$ROOT_DIR/apps/FleetBar"
+  FLEETBAR_TEST_PAYLOAD_SOURCE=""
+  TMP_DIR="$(mktemp -d)"
+fi
 OUT_DIR_INPUT="${1:-"$ROOT_DIR/website-v2/public/downloads"}"
 if [[ "$OUT_DIR_INPUT" = /* ]]; then
   OUT_DIR="$OUT_DIR_INPUT"
@@ -14,7 +43,6 @@ ARCH="${PORT_DADDY_FLEETBAR_ARCH:-$(uname -m)}"
 ZIP_NAME="${PORT_DADDY_FLEETBAR_ZIP:-PortDaddy-FleetBar-macOS-${ARCH}.zip}"
 APP_NAME="FleetBar.app"
 APP_ICON_SRC="$FLEETBAR_DIR/FleetBar/Resources/FleetBarIcon.icns"
-TMP_DIR="$(mktemp -d)"
 
 fleetbar_bun_target() {
   case "$ARCH" in
@@ -31,20 +59,8 @@ fleetbar_bun_target() {
   esac
 }
 
-bundle_port_daddy_payload() {
-  local payload_dir="$1"
-  local target
-  target="$(fleetbar_bun_target)"
-
-  mkdir -p "$payload_dir"
-  echo "Building bundled Port Daddy payload ($target) with embedded Rust core..."
-  node "$ROOT_DIR/scripts/build-single-binary.mjs" --target="$target" --outfile="$payload_dir/pd"
-
-  if [[ ! -x "$payload_dir/pd" || ! -x "$payload_dir/port-daddy" || ! -f "$payload_dir/port-daddy-manifest.json" ]]; then
-    echo "Bundled Port Daddy payload is incomplete in $payload_dir" >&2
-    exit 1
-  fi
-
+validate_port_daddy_manifest() {
+  local manifest_path="$1"
   node -e '
     const fs = require("node:fs");
     const manifestPath = process.argv[1];
@@ -55,7 +71,29 @@ bundle_port_daddy_payload() {
     if (manifest.smoke?.daemon?.arbiter?.enforcerLoaded !== true) {
       throw new Error("expected packaged Port Daddy smoke to load the native Arbiter enforcer");
     }
-  ' "$payload_dir/port-daddy-manifest.json"
+  ' "$manifest_path"
+}
+
+bundle_port_daddy_payload() {
+  local payload_dir="$1"
+  local target
+  target="$(fleetbar_bun_target)"
+
+  mkdir -p "$payload_dir"
+  if [[ "$FLEETBAR_TEST_MODE" == "1" ]]; then
+    cp -R "$FLEETBAR_TEST_PAYLOAD_SOURCE/." "$payload_dir/"
+  else
+    echo "Building bundled Port Daddy payload ($target) with embedded Rust core..."
+    node "$ROOT_DIR/scripts/build-single-binary.mjs" --target="$target" --outfile="$payload_dir/pd"
+  fi
+
+  if [[ ! -x "$payload_dir/pd" || ! -x "$payload_dir/port-daddy" || ! -f "$payload_dir/port-daddy-manifest.json" ]]; then
+    echo "Bundled Port Daddy payload is incomplete in $payload_dir" >&2
+    exit 1
+  fi
+
+  chmod +x "$payload_dir/pd" "$payload_dir/port-daddy"
+  validate_port_daddy_manifest "$payload_dir/port-daddy-manifest.json"
 }
 
 cleanup() {
@@ -165,10 +203,11 @@ submit_notarization() {
   fi
 }
 
-cd "$FLEETBAR_DIR"
-swift build -c release
-
-RELEASE_BIN="$(find "$FLEETBAR_DIR/.build" -path "*/release/FleetBar" -type f | head -n 1)"
+if [[ "$FLEETBAR_TEST_MODE" != "1" ]]; then
+  cd "$FLEETBAR_DIR"
+  swift build -c release
+  RELEASE_BIN="$(find "$FLEETBAR_DIR/.build" -path "*/release/FleetBar" -type f | head -n 1)"
+fi
 if [[ -z "$RELEASE_BIN" || ! -f "$RELEASE_BIN" ]]; then
   echo "FleetBar release binary not found under $FLEETBAR_DIR/.build" >&2
   exit 1
