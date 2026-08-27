@@ -37,7 +37,11 @@ Read this binder as a layered source of truth, not as a pile of equal notes:
    is the Wave 2 Lane A work packet that binds ADR-0100 to implementation
    lanes: no quiet aliases, one Surface Gateway, `harbor_events` as cold ledger,
    `pd-supervisor` as duty boundary, and local/cloud authority labels.
-10. Implementation truth must eventually move from prose into ADRs, schemas,
+10. [28 Postmaster, Context Pressure, And Review Coordination](./28-postmaster-context-and-review-coordination.md)
+   defines the bounded hook lifecycle, plan-first continuation, repository PR
+   digests, suggestion packets, Fleetbot settlement, and the future Postmaster
+   role without claiming that local ship is already running.
+11. Implementation truth must eventually move from prose into ADRs, schemas,
    tests, events, and runtime projections. A section is not "real" until the
    matching proof gate passes.
 
@@ -239,6 +243,11 @@ Work Receipt:
   the eager tool2vec build step + skill-usage logging, subagent context
   partitioning, and the `pd doctor`/`pd setup`/`pd packet`/pane tooling to prove
   it.
+- [28 Postmaster, Context Pressure, And Review Coordination](./28-postmaster-context-and-review-coordination.md):
+  the authoritative delivery contract for inbox/parley and salvage nudges,
+  hook-lifecycle receipts, PR/review digests, roadmap/doc/AST suggestions,
+  Fleetbot author-reviewer settlement, plan-first compaction, context-clustered
+  successor workgroups, and the gated future Postmaster ship.
 - [Work packet: Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md):
   the Wave 2 Lane A authority packet for implementation lanes: destructive
   legacy entry disposition, local/cloud authority, `harbor_events`, Surface
