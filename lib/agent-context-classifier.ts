@@ -266,8 +266,11 @@ function roundScore(value: number): number {
  * @param field Human-readable field name for errors.
  * @returns The trimmed exact identifier.
  */
-function requireIdentity(value: string, field: keyof AgentContextSessionIdentity): string {
-  const trimmed = value?.trim();
+function requireIdentity(value: unknown, field: keyof AgentContextSessionIdentity): string {
+  if (typeof value !== 'string') {
+    throw new TypeError(`Agent context ${field} must be a non-empty string`);
+  }
+  const trimmed = value.trim();
   if (!trimmed) throw new TypeError(`Agent context ${field} must be a non-empty string`);
   if (trimmed.length > AGENT_CONTEXT_LIMITS.identityChars) {
     throw new RangeError(`Agent context ${field} exceeds ${AGENT_CONTEXT_LIMITS.identityChars} characters`);

@@ -182,6 +182,31 @@ describe('agent context classifier', () => {
     expect(result.surfaceClaims).toEqual([]);
   });
 
+  test.each([
+    ['omitted', {}],
+    ['null', { notes: null, claims: null, diffHunks: null }],
+  ])('treats %s optional collections as empty', async (_label, collections) => {
+    const embedder = fakeEmbedder(() => [1, 0]);
+    const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
+    const input = {
+      session,
+      purpose: 'optional collections remain an empty semantic batch',
+      ...collections,
+    } as unknown as AgentContextInput;
+
+    const result = await classifier.classify(input);
+
+    expect(embedder.batches).toEqual([[
+      'purpose: optional collections remain an empty semantic batch',
+    ]]);
+    expect(result.provenance.input).toMatchObject({
+      sourceCount: 1,
+      noteCount: 0,
+      claimCount: 0,
+      diffHunkCount: 0,
+    });
+  });
+
   test('discards blank sources and duplicate claims before constructing the one embed batch', async () => {
     const embedder = fakeEmbedder(() => [1, 0]);
     const classifier = createAgentContextClassifierTestSeam({ embedder, clock: () => 1 });
@@ -195,6 +220,8 @@ describe('agent context classifier', () => {
         { path: '\n', symbolPath: 'function ignoredBecausePathIsBlank' },
         { path: ' lib/keep.ts ', symbolPath: '  ' },
         { path: 'lib/keep.ts' },
+        { path: 'lib/keep.ts', symbolPath: null },
+        { path: 'lib/keep.ts', symbolPath: undefined },
         { path: ' lib/symbol.ts ', symbolPath: ' function retained ' },
       ],
       diffHunks: ['  ', '\n\t'],
@@ -352,4 +379,17 @@ describe('agent context classifier', () => {
       expect(embedder.batches).toHaveLength(0);
     },
   );
+
+  test('rejects a non-string identity with the classifier validation error', async () => {
+    const embedder = fakeEmbedder(() => [1, 0]);
+    const classifier = createAgentContextClassifierTestSeam({ embedder });
+    const invalidIdentity = {
+      session: { ...session, agentId: 42 },
+      purpose: 'identity types remain explicit at the JavaScript boundary',
+    } as unknown as AgentContextInput;
+
+    await expect(classifier.classify(invalidIdentity))
+      .rejects.toThrow('agentId must be a non-empty string');
+    expect(embedder.batches).toHaveLength(0);
+  });
 });
