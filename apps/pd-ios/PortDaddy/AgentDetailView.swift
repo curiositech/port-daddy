@@ -36,6 +36,8 @@ public struct AgentDetailView: View {
             }
             .padding(PD.Space.l)
         }
+        .scrollContentBackground(.hidden)
+        .background(PD.Chrome.base)
         .navigationTitle(agent.name)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -78,7 +80,7 @@ public struct AgentDetailView: View {
                 fact("ctx", "\(ctx)%")
             }
             if let cost = agent.costLabel {
-                fact("cost", cost, tint: PD.Palette.warning)
+                fact("cost", cost, tint: PD.Palette.gold)
             }
             Spacer(minLength: 0)
         }
@@ -159,21 +161,16 @@ public struct AgentDetailView: View {
 /// steady dot when it is not — the state reads either way.
 private struct LiveTailBadge: View {
     let reduceMotion: Bool
-    @State private var pulse = false
 
     var body: some View {
-        HStack(spacing: PD.Space.xs) {
-            Circle()
-                .fill(PD.color(for: .claimActive))
-                .frame(width: 8, height: 8)
-                .opacity(reduceMotion ? 1 : (pulse ? 0.35 : 1))
-                .animation(reduceMotion ? nil : .easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
+        HStack(spacing: PD.Space.s) {
+            LiveDot(color: PD.color(for: .claimActive))
+                .padding(.leading, 3)   // room for the ring's overshoot
             Text("LIVE — events arriving")
                 .font(PDFont.caption.weight(.semibold))
                 .tracking(1)
                 .foregroundStyle(PD.color(for: .claimActive))
         }
-        .onAppear { if !reduceMotion { pulse = true } }
         .accessibilityLabel("Live — events arriving")
     }
 }

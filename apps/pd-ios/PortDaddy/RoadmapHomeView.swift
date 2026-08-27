@@ -60,6 +60,8 @@ public struct RoadmapHomeView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Roadmap")
             .toolbar {
                 // Harbors is not a top-level tab in the intent-first IA, but it

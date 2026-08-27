@@ -73,6 +73,8 @@ public struct AgentsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Agents")
         }
         // One colour zone per view (ch20): Agents runs cobalt.
@@ -114,8 +116,14 @@ public struct AgentRow: View {
             Text(agent.initials)
                 .font(PDFont.subheadline.weight(.bold))
                 .frame(width: 34, height: 34)
-                .background(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).fill(PD.Chrome.card))
-                .overlay(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).fill(PD.Chrome.cardRaised))
+                .overlay(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).stroke(PD.Chrome.border, lineWidth: PD.Line.hairline))
+                // Running agents carry the live pulse — the lw-pulse ring.
+                .overlay(alignment: .topTrailing) {
+                    if agent.state == .claimActive {
+                        LiveDot(color: PD.color(for: agent.state)).offset(x: 3, y: -3)
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(agent.name)

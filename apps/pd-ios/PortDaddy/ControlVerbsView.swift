@@ -86,6 +86,8 @@ public struct ControlVerbsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Controls")
         }
     }

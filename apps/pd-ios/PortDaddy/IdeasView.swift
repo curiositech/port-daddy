@@ -60,6 +60,8 @@ public struct IdeasView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Ideas")
         }
         // One colour zone per view (ch20): Ideas runs violet.

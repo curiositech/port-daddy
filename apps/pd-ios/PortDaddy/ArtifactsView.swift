@@ -95,10 +95,12 @@ public struct ArtifactsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Artifacts")
         }
         // One colour zone per view (ch20): Artifacts runs teal.
-        .tint(PD.Palette.healthy)
+        .tint(PD.Palette.teal)
     }
 }
 
