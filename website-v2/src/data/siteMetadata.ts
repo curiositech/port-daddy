@@ -401,6 +401,7 @@ const docsFeatureRoutes = [
   ['features/tuples', 'Tuples'],
   ['features/arbiter', 'Arbiter'],
   ['features/relay-pki', 'Relay PKI'],
+  ['features/doctrine', 'Evidence-led Doctrine'],
 ] as const
 
 const sdkRoutes = [

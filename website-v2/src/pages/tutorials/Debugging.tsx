@@ -16,7 +16,7 @@ export function Debugging() {
       title="Debug Coordination Failures"
       description="Use harbor activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted."
       number={6}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="14 min read"
       prev={{ title: "Map a Monorepo Harbor", href: "/tutorials/monorepo" }}

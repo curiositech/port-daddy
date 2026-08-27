@@ -461,6 +461,76 @@ strictly read-only: it reports current-hash Tool2Vec coverage without generating
 centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
 do not add an agent-triggered MCP mutation for it.
 
+## Empirically Earned Doctrine — advisory evidence, not agent personality
+
+When a recurring engineering choice looks worth reusing, do not turn one
+successful transcript into a standing instruction or label an agent
+"cautious." Capture a **falsifiable, cited choice rule** through `pd doctrine`:
+
+```bash
+pd doctrine record-episode --input @episode.json
+pd doctrine harvest --input @harvest.json
+pd doctrine propose --input @candidate.json
+pd doctrine preregister --input @experiment.json
+pd doctrine run <experiment-id> --input @treatment-run.json
+pd doctrine admit <candidate-id> --input @admission.json
+pd doctrine orders --input @next-decision.json
+pd doctrine application <retrieval-id> --input @response.json
+pd doctrine outcome <application-id> --input @verified-outcome.json
+pd doctrine contest <doctrine-id> --input @contradiction.json
+pd doctrine supersede <doctrine-id> --input @supersession.json
+pd doctrine retire <doctrine-id> --input @retirement.json
+```
+
+Each input names `projectDir` and immutable citations. Mutations use the
+daemon-minted actor credential already held by the agent session; the daemon
+derives persisted `actorId` and the admission reviewer rather than trusting body
+claims. The chain is one append-only Harbor evidence stream:
+
+```text
+episode → candidate → preregistered experiment → advisory order receipt
+        → follow/adapt/reject → verified outcome or contest
+```
+
+Use this only for a decision rule that could lose. A candidate must say when to
+prefer what over which alternative, why, and under what exceptions. Use Skill
+Graft to discover a relevant procedural skill, but keep a `skillRefs` entry as a
+projection citation — a skill file is not canonical evidence and is never an
+automatic admission path.
+
+**Factual fidelity is a gate.** Record unmatched or prompt-only replays as
+evidence about a failed reconstruction, not causal proof. Doctrine admission
+requires a preregistered experiment with both matched factual control and
+matched treatment runs. Both arms need a replay context with the same model,
+model version, harness, worktree, environment, and checkpoint; their
+`replicaId`s must differ. A first-cycle admission is always provisional, not
+caller-driven promotion to established. Repeated samples from one checkpoint
+are also not independent fleet cases.
+
+**Orders are advisory.** `pd doctrine orders` creates a decision-time receipt
+showing what the agent was presented; it does not merge, block, resolve a
+review thread, or enforce a policy. Record whether the agent followed, adapted,
+or rejected the packet, then record a later outcome only when a verifier or
+reviewer can cite it. A well-supported rejection is valuable contrary evidence;
+contest it rather than overwriting history. The operator reviews and contests
+this chain in pd-console's Doctrine pane, not by managing a CLI workflow.
+Records are project-bound and immutable. To revise an admitted rule, propose a
+same-project, same-class successor candidate, then explicitly supersede the old
+active revision; admission never changes an existing candidate's doctrine ID.
+Use a stable ID and idempotency key only for a retry of the same record. In
+particular, a retrieval key may not be reused for a different project, decision
+ID, or decision class.
+
+MCP has the same full loop: `record_doctrine_episode`,
+`harvest_doctrine_episodes`, `propose_doctrine_candidate`,
+`preregister_doctrine_experiment`, `record_doctrine_treatment_run`,
+`admit_doctrine_candidate`, `doctrine_orders`, `record_doctrine_application`,
+`record_doctrine_outcome`, `contest_doctrine`, `supersede_doctrine`, and
+`retire_doctrine`; `doctrine_list`, `doctrine_get`, `doctrine_harvest_list`,
+and `doctrine_harvest_get` are audit reads. Its write tools expose no actor or
+reviewer identity input; the bridge presents the same daemon-minted credential,
+which is the only attribution and admission-review authority.
+
 ## Operating Loop
 
 Run the loop in order. Skip only when the task is truly trivial.
@@ -845,11 +915,31 @@ pd tube <channel> --reply "<body>"      # inline reply, auto-correlated, keep li
 pd tube <channel> --once                # one poll-pass, then exit
 ```
 
+### Empirically earned doctrine — CASE-13 evidence loop
+
+`pd doctrine` turns a cited recurring decision into an auditable, advisory
+chain: episode → candidate → preregistered experiment → retrieval receipt →
+agent response → verified outcome or contest. The canonical facts append to
+the Agent Harbor `doctrine-evidence` stream; skills and memory remain
+projections. `pd doctrine orders --input @decision.json` writes a receipt of
+what an agent actually saw, but it cannot merge, block, or enforce a policy.
+
+Admission requires matched factual control and treatment runs from a
+preregistered experiment with compatible replay contexts and distinct replica
+IDs. Prompt-only, unmatched, drifted, or same-replica replay is retained as a
+fidelity result but cannot establish doctrine; first-cycle admission is
+provisional only. The practical CASE-13 procedure is documented in
+`docs/tutorials/case-13-doctrine-cycle.md`.
+MCP and SDK callers use the same ledger and should record follow, adapt, or
+reject before attaching a cited outcome. The operator reviews this in the
+pd-console Doctrine pane.
+
 ### Design-stage ADRs (NOT shipped — do not depend on)
 
 These are accepted-design or in-flight ADRs. Reference them for direction;
 do not document their verbs as if they ship today: **marketplace** (ADR-0051),
-**trajectory export + RL loop** (ADR-0052), and **out-of-band enforcement /
+the remaining **trajectory export + RL loop** work (ADR-0052, partially
+superseded by the shipped doctrine evidence vertical), and **out-of-band enforcement /
 "DOM DADDY"** (ADR-0053, in-flight) which moves enforcement out of in-band
 git-hook shims to branch-protection / cred-broker layers. A release-cadence +
 Rust-surface ADR (ADR-0054) is being written in parallel; once it lands it is

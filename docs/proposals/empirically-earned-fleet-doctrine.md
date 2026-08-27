@@ -1,11 +1,60 @@
 # Empirically Earned Fleet Doctrine
 
-**Status:** Proposed founding architecture
+**Status:** In implementation — the CASE-13 evidence vertical slice is source-backed; the wider research, federation, and evaluation program remains proposed
 
 **Roadmap item:** `codex-doctrine-hypertree`
 
 **Scope:** Port Daddy-wide institutional learning, including transcripts, agent-to-agent deliberation, skills, memory, experiments, dispatch, and decision-time guidance
 **Decision:** Build one evidence-bearing doctrine loop that absorbs the useful parts of ADR-0052 and the closed agent-downtime RFC, while retaining transcripts, notes, tuples, episodic memory, semantic graph, Parley, and skills as specialized projections rather than rival memories.
+
+## Implementation note: the CASE-13 vertical slice
+
+The first implementation deliberately closes one narrow loop before claiming a
+fleet-learning program:
+
+```text
+cited decision episode
+  → falsifiable candidate
+  → preregistered experiment + recorded control/treatment runs
+  → advisory doctrine admission
+  → decision-time retrieval receipt
+  → follow/adapt/reject application
+  → verified outcome or contest
+```
+
+These facts append to the existing Agent Harbor `doctrine-evidence` stream;
+the detail, list, and retrieval views are rebuilt from that immutable evidence
+rather than maintained as a second doctrine database. The initial retrieval
+policy is deliberately narrow: exact, structured decision-class matching in one
+project. It is an auditable first decision surface, not a claim that semantic
+matching or universal relevance has been solved.
+
+The slice refuses admission without a preregistered experiment containing both
+a **matched factual control** and a **matched treatment**. Each run carries a
+replay context — model, model version, harness, worktree, environment,
+checkpoint, and replica ID. The paired factual arms must match on every context
+field except `replicaId`, which must differ. A prompt-only, unmatched, drifted,
+or same-replica replay is retained as evidence about replay fidelity, but cannot
+establish doctrine. The system also records sham arms when supplied, but it does
+not yet create forks, randomize agents, score causal intervals, or infer a
+population-level result. Those remain gates for the war-game laboratory.
+
+Every mutation is attributed from a daemon-minted credential, not a caller's
+claimed actor or reviewer. Evidence entities are immutable and project-bound;
+stable IDs and idempotency keys return canonical retry receipts rather than
+rewriting history. Retrieval is retry-safe only for the same project, decision
+ID, and exact decision class. The first successful admission is always a
+provisional advisory revision. A caller cannot promote it to established, and a
+changed doctrine identity requires a separately proposed successor and an
+explicit supersession event.
+
+The operational walkthrough is
+[`docs/tutorials/case-13-doctrine-cycle.md`](../tutorials/case-13-doctrine-cycle.md).
+It is intentionally candid about what a supplied CASE-13 chain proves and
+what still needs an independently faithful experiment. The companion
+[`CASE-13 experiment design`](../research/case-13-experiment-design.md) makes
+the discriminating 2 × 2 experiment, pseudo-replication boundary, and safe
+advisory-encouragement field test explicit.
 
 ## Abstract
 
@@ -188,6 +237,11 @@ These scores are calibrated summaries with links to the observations that genera
 
 ### 3.3 Lifecycle and admission
 
+The following is the target research-program lifecycle, not a claim that every
+transition is implemented today. The source-backed CASE-13 contract implements
+candidate evidence through first-cycle provisional admission only; a later,
+explicit promotion gate would be required before `Established` is reachable.
+
 ```mermaid
 stateDiagram-v2
   [*] --> Candidate
@@ -203,7 +257,7 @@ stateDiagram-v2
   Deprecated --> Experimental: explicit revalidation
 ```
 
-Admission requirements:
+Target-program admission requirements beyond the current vertical slice:
 
 1. **Candidate:** one concrete decision episode, observable cue, action contrast, mechanism hypothesis, and falsifiable exception.
 2. **Experimental:** provenance complete; no train/test leakage; outcome taxonomy fixed before replay.
@@ -213,6 +267,23 @@ Admission requirements:
 6. **Deprecated:** remains queryable with rationale and descendants; it is excluded from default guidance.
 
 No doctrine directly becomes an enforced policy. Enforcement requires a separate ADR naming authority, operator control, safety analysis, and rollback. Doctrine is advisory by default.
+
+### 3.5 Supersession boundary
+
+This proposal now **supersedes ADR-0052 as the top-level institutional-learning
+architecture**. It does not erase the useful downstream work in ADR-0052:
+
+| ADR-0052 concern | Doctrine-program disposition |
+| --- | --- |
+| Exportable, redacted episode records | Retained as a downstream consumer of the canonical evidence ledger. |
+| Verified outcomes and synthetic evaluation | Retained as experimental and outcome evidence, with factual-fidelity and interference gates added. |
+| Prompt, SFT, preference, and RL consumers | Retained only after a doctrine has evidence, retrieval attribution, and held-out evaluation; they never become canonical truth. |
+| Reward-first coordination policy | Supplanted. A reward rubric cannot stand in for a falsifiable doctrine, contrary evidence, or a decision-time receipt. |
+| Trajectory exporter as the sole load-bearing learning surface | Supplanted. The evidence ledger owns facts; exporters are rebuildable views. |
+
+The corresponding ADR carries a reciprocal note. This removes an ambiguous
+choice of canonical learner without pretending that the unbuilt export or RL
+experiments were deleted from history.
 
 ## 4. The doctrine cycle
 
@@ -295,7 +366,9 @@ Repeated forks from one checkpoint estimate **within-checkpoint model variance**
 
 ### 4.4 Sailing Orders: progressive disclosure at decision time
 
-Doctrine only lives if it is retrieved automatically at a relevant decision surface. Initial decision classes:
+**Target program, not current CASE-13 behavior.** The source-backed CASE-13 slice requires an explicit `POST /doctrine/orders` request with a project directory and exact structured decision class. It writes a durable retrieval receipt and returns only qualifying provisional or established packets. It does **not** yet auto-trigger retrieval, rank by hybrid search, compute disclosure scores, or expose a `Deprecated` lifecycle status.
+
+The target program would retrieve doctrine automatically at a relevant decision surface. Initial decision classes:
 
 - `integration.merge`
 - `verification.close`
@@ -320,11 +393,11 @@ Material disagreement: Evidence school predicts a lower burden when receipts alr
 [Open 2 supporting episodes] [Open experiment] [Dismiss for this decision]
 ```
 
-Retrieval uses the repository's shared hybrid search policy: structured filters plus BM25 and the canonical local embedder, fused and reranked. Every returned ID is validated against the candidate set. Below the confidence floor, Port Daddy says it has no relevant doctrine.
+The target program would use the repository's shared hybrid search policy: structured filters plus BM25 and the canonical local embedder, fused and reranked. Every returned ID would be validated against the candidate set. Below the confidence floor, Port Daddy would say it has no relevant doctrine.
 
-Retrieval is read-only with respect to doctrine lifecycle. It cannot invent a retirement flag or convert an offensive recommendation into a forced defensive change. A packet is withdrawn only when the canonical revision is already `Contested` or `Deprecated`, or when a source tombstone invalidates its minimum evidence; those transitions are ledger events emitted by the authority defined in Section 3.4. Deprecated material remains available as labeled history, never as an active recommendation.
+Current retrieval is read-only with respect to doctrine lifecycle. It cannot invent a retirement flag or convert an offensive recommendation into a forced defensive change. The current ledger excludes contested and retired revisions. The target program may add a labeled historical-deprecation state or source-tombstone handling only through the authority defined in Section 3.4; neither is represented as shipped CASE-13 behavior here.
 
-Every packet emits a `doctrine_retrieval` receipt linking doctrine revision, decision ID, rank, score components, disclosure depth, and agent-visible text. The agent may follow, adapt, reject, or ignore it. The choice is recorded without moral language.
+Every current retrieval emits a durable receipt linking the exact decision, project scope, and returned doctrine IDs. The target program would additionally record rank, score components, disclosure depth, and agent-visible text. The agent may follow, adapt, reject, or ignore a packet; that choice is recorded without moral language.
 
 ### 4.5 Sea Trials and After-Action Board
 
@@ -450,7 +523,7 @@ Large artifacts live in R2; queryable federated projections live in D1; transpor
 | Skills | **Retain as executable procedural projections** | A doctrine may derive or revise a skill. Skills cite doctrine/evidence IDs; successful skill use feeds the ledger. |
 | Actor souls and reputation | **Complete before persona experiments** | Wire live registration and clean-exit graduation; bind personas to base actors; use demonstrated outcomes in discovery. |
 | Pheromones/file heat | **Narrow** | Keep ephemeral contention signals. Do not use them as doctrinal evidence without durable source receipts. |
-| FleetBar/dashboard | **Make the operator surface** | Doctrine inbox, evidence explorer, experiment approvals, contest/deprecate controls, and hackathon expo belong here. No routine operator CLI. |
+| pd-console | **Make the deep operator surface** | Doctrine inbox, evidence explorer, experiment approvals, contest/deprecate controls, and hackathon expo belong here; no routine operator CLI. |
 
 This program targets the accepted Agent Harbor creation chain: `WorkIntent → WorkPlan → AgentNode → AnodeAdapter`. It does not add a second launch or identity path. Canonical doctrine, experiment, retrieval, and outcome facts append to the existing `harbor_events` ledger; doctrine tables, episodic memory, graph edges, briefings, and search indexes are rebuildable projections. The `schemas/agent-harbor/v0` freeze is amended once, in its owning binder wave, rather than independently by this program. Rust remains limited to security primitives under ADR-0120; doctrine product logic stays in TypeScript.
 
@@ -537,19 +610,19 @@ Parallel branches:
 - [ ] Persist preregistration and every treatment receipt.
 - [ ] Build a synthetic planted-cause suite and at least three real ambiguous cases.
 
-**Gate:** recover planted causes with calibrated intervals; refuse causal claims when factual replay fidelity fails.
+**Gate:** recover planted causes with calibrated intervals; refuse causal claims when factual replay fidelity fails. The CASE-13 implementation enforces the smaller admission precursor now: one matched factual control and one matched treatment are required before an advisory doctrine can be admitted, their model/model-version/harness/worktree/environment/checkpoint fields must agree, and their replica IDs must differ. It does not satisfy this laboratory gate by itself.
 
 ### Wave 4 — doctrine admission and decision-time pilot
 
-- [ ] Build candidate review in FleetBar: evidence, contradiction, experiment, boundary, and status.
-- [ ] Admit only provisional advisory doctrine.
+- [x] Build candidate review in pd-console: evidence, contradiction, experiment, boundary, status, and the closed receipt trail.
+- [x] Admit only first-cycle provisional advisory doctrine; do not expose caller-driven established promotion.
 - [ ] Add decision-class detection at selected hooks.
 - [ ] Retrieve a maximum three doctrines with disagreement preserved.
 - [ ] Emit retrieval and agent-response receipts.
 - [ ] Run a safe randomized-encouragement pilot on non-security, reversible decisions.
 - [ ] Randomize at a non-interfering cluster boundary and reserve clean holdout clusters protected from treatment-derived evidence contamination.
 
-**Gate:** doctrine exposure improves a preregistered quality metric without increasing operator corrections, cost, or cycle time beyond limits; all effects include uncertainty.
+**Gate:** doctrine exposure improves a preregistered quality metric without increasing operator corrections, cost, or cycle time beyond limits; all effects include uncertainty. The CASE-13 vertical slice closes receipt → response → outcome attribution, but has not run this randomized-encouragement pilot.
 
 ### Wave 5 — continuous revision and skills
 
@@ -560,13 +633,13 @@ Parallel branches:
 - [ ] Measure whether the skill improves held-out tasks before promotion.
 - [ ] Retire duplicate skill-harvest and memory-retrieval paths once the shared loop proves parity.
 
-**Gate:** at least one doctrine is strengthened, one boundary is narrowed, and one doctrine is deprecated from real feedback; no status change lacks source evidence.
+**Gate:** at least one doctrine is strengthened, one boundary is narrowed, and one doctrine is retired from real feedback; no status change lacks source evidence.
 
 ### Wave 6 — multi-agent expertise, downtime R&D, and hackathons
 
 - [ ] Complete live actor-soul registration and clean-exit graduation.
 - [ ] Add demonstrated-capability discovery with independence/effective-N metadata.
-- [ ] Ship bounded research-charter proposals and operator approvals in FleetBar.
+- [ ] Ship bounded research-charter proposals and operator approvals in pd-console.
 - [ ] Run independent brainwriting before team formation.
 - [ ] Isolate personas by worktree, budget, context, and receipts; roll outcomes to base actors.
 - [ ] Run one internal hackathon with externally judged artifacts.
@@ -592,7 +665,7 @@ Port Daddy has already paid the expensive cost of instrumentation. The marginal 
 
 ### Blue-team reconciliation
 
-The architecture succeeds only if it is an organizing contract over existing primitives. ADR-0118 owns harness truth. ADR-0052 supplies much of the episode and evaluation machinery. Episodic memory remains a projection. Parley remains the disagreement protocol. Skills remain executable doctrine projections. FleetBar remains the operator surface. Relay remains transport. Rust remains the security boundary per ADR-0120. Any implementation that creates parallel transcript, memory, search, identity, or approval systems violates the design.
+The architecture succeeds only if it is an organizing contract over existing primitives. ADR-0118 owns harness truth. ADR-0052 supplies much of the episode and evaluation machinery. Episodic memory remains a projection. Parley remains the disagreement protocol. Skills remain executable doctrine projections. pd-console owns deep doctrine evidence review. Relay remains transport. Rust remains the security boundary per ADR-0120. Any implementation that creates parallel transcript, memory, search, identity, or approval systems violates the design.
 
 ### Red-team strongest case
 
@@ -629,10 +702,12 @@ Kill the pilot if doctrine exposure increases defect rate, operator correction b
 
 ## 12. Proof checklist
 
-- [ ] Every doctrine revision links supporting and contradicting evidence.
-- [ ] Every causal claim links a preregistered experiment and factual-fidelity result.
-- [ ] Every decision-time packet emits an agent-visible retrieval receipt.
-- [ ] Every attributed outcome links to the decision and retrieval that preceded it.
+- [x] The CASE-13 ledger can link an episode, candidate, preregistered experiment, treatment receipts, retrieval receipt, application, outcome, and contest in one read-back chain.
+- [x] Admission refuses a candidate unless it has a preregistered experiment with matched factual control and treatment runs whose replay contexts match except for distinct replica IDs; first-cycle admission is provisional only.
+- [x] Every CASE-13 decision-time packet emits an agent-visible retrieval receipt.
+- [x] Every CASE-13 attributed outcome links to an application and the retrieval that preceded it.
+- [ ] Every doctrine revision links supporting and contradicting evidence across independent cases.
+- [ ] Every causal claim links a preregistered experiment and factual-fidelity result with calibrated analysis.
 - [ ] Synthetic, observational, and production evidence remain separate dimensions.
 - [ ] Model, harness, prompt, tool, project, and environment provenance are queryable.
 - [ ] Multi-agent effective N is reported alongside nominal N.
@@ -643,7 +718,7 @@ Kill the pilot if doctrine exposure increases defect rate, operator correction b
 - [ ] Source deletion creates transitive tombstones in derived doctrine and skills.
 - [ ] Retrieval refuses low-confidence matches.
 - [ ] Doctrine is advisory unless a separate accepted ADR grants enforcement authority.
-- [ ] FleetBar exposes review, contest, deprecate, approve, and kill controls.
+- [x] pd-console exposes deep review, retrieve, apply, outcome, and contest controls; later program waves may add deprecate/approval controls there.
 - [ ] No autonomous research starts without proven isolation, budget, and operator policy.
 - [ ] A complete cold-start path works with zero doctrine.
 - [ ] The system can be disabled without disabling transcripts, notes, or ordinary Port Daddy coordination.
@@ -673,9 +748,9 @@ Kill the pilot if doctrine exposure increases defect rate, operator correction b
 
 | Axis | Covered now | Remaining proof owner |
 | --- | --- | --- |
-| Customer/deployment | Single developer, local harbor, multi-harbor federation, offline operation, model-server-backed agents | Product owner must validate FleetBar workflows with a real operator study |
+| Customer/deployment | Single developer, local harbor, multi-harbor federation, offline operation, model-server-backed agents | Product owner must validate pd-console doctrine workflows with a real operator study |
 | Technical contingency | Missing transcript fidelity, replay failure, model drift, privacy deletion, stale doctrine, low-confidence retrieval, cloud outage, budget exhaustion | Each implementation wave owns fault-injection tests before its gate |
-| Architecture consistency | Harness boundary, SQLite authority, graph projection, Relay transport, Durable Object atoms, FleetBar operator surface, Rust security boundary | Architect of Record must reconcile every implementation PR against this RFC and ADR-0120 |
+| Architecture consistency | Harness boundary, SQLite authority, graph projection, Relay transport, Durable Object atoms, pd-console deep operator surface, Rust security boundary | Architect of Record must reconcile every implementation PR against this RFC and ADR-0120 |
 
 ### Ambition archaeology
 

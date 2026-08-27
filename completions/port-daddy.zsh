@@ -2074,6 +2074,110 @@ _pd_cmd_memory() {
   esac
 }
 
+_pd_cmd_doctrine() {
+  local -a doctrine_subcmds
+  doctrine_subcmds=(
+    'status:show evidence-stream counts and advisory state'
+    'candidates:list candidate and admitted doctrine revisions'
+    'show:show the complete evidence chain for one doctrine id'
+    'orders:retrieve advisory orders and create a decision-time receipt'
+    'record-episode:append a cited historical decision episode'
+    'propose:append a falsifiable doctrine candidate'
+    'preregister:declare a candidate-linked control and treatment experiment'
+    'run:append a factual control, treatment, or sham run'
+    'admit:admit a candidate after its factual-fidelity gate passes'
+    'application:record follow, adapt, or reject for an order receipt'
+    'outcome:append a verifier-backed outcome for an application'
+    'contest:append contrary evidence and stop active retrieval'
+    'help:show doctrine help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'doctrine subcommand' doctrine_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        status)
+          _arguments \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        candidates)
+          _arguments \
+            '--status[candidate status filter]:status:(candidate provisional established contested)' \
+            '--dir[project directory filter]:path:_files -/' \
+            '--project-dir[project directory filter]:path:_files -/' \
+            '--decision-class[structured decision class filter]:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        show)
+          _arguments \
+            '1:doctrine id:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        orders)
+          _arguments \
+            '--input[cited decision JSON or @file]:JSON input:_files' \
+            '--decision-id[override decision id]:' \
+            '--decision-class[override structured decision class]:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        record-episode|propose|preregister)
+          _arguments \
+            '--input[cited evidence JSON or @file]:JSON input:_files' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        run)
+          _arguments \
+            '1:experiment id:' \
+            '--input[cited treatment-run JSON or @file]:JSON input:_files' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        admit)
+          _arguments \
+            '1:candidate id:' \
+            '--input[cited admission JSON or @file]:JSON input:_files' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        application)
+          _arguments \
+            '1:retrieval receipt id:' \
+            '--input[cited application JSON or @file]:JSON input:_files' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        outcome)
+          _arguments \
+            '1:application id:' \
+            '--input[cited outcome JSON or @file]:JSON input:_files' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        contest)
+          _arguments \
+            '1:doctrine id:' \
+            '--input[cited contradiction JSON or @file]:JSON input:_files' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'doctrine subcommand' doctrine_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_ideas() {
   local -a ideas_subcmds
   ideas_subcmds=(
@@ -2404,6 +2508,7 @@ _port_daddy() {
     'skillgraft:alias for skill-graft'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
+    'doctrine:record, test, retrieve, and revise cited advisory decision evidence'
     # Artifact harvest provenance (slice S4a)
     'booty:harvest artifacts into the blob store with provenance'
     'ideas:search the canonical ideas trove and local residue'
@@ -2582,6 +2687,7 @@ _port_daddy() {
         graph)                  _pd_cmd_graph ;;
         booty)                  _pd_cmd_booty ;;
         memory)                 _pd_cmd_memory ;;
+        doctrine)               _pd_cmd_doctrine ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;
         parley)                 _pd_cmd_parley ;;

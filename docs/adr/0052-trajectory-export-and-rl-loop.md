@@ -2,7 +2,24 @@
 
 ## Status
 
-Proposed
+Partially superseded by [`Empirically Earned Fleet Doctrine`](../proposals/empirically-earned-fleet-doctrine.md).
+
+The doctrine proposal is now the canonical architecture for institutional
+learning: cited decision episodes, falsifiable candidates, preregistered
+experiments, advisory retrieval receipts, agent response, and verified outcome
+belong in one append-only Harbor evidence stream. The CASE-13 vertical slice
+implements that chain in source without claiming an automatic causal learner.
+
+This ADR remains authoritative for the **unbuilt downstream work** that does
+not conflict with that ownership: redacted trajectory export, honest outcome
+labeling, synthetic evaluation, scaffold optimization, SFT/preference datasets,
+and conditional RL experiments. Those consumers must read from the doctrine
+evidence contract rather than become a second canonical learner.
+
+The change is a supplanting boundary, not a historical rewrite: reward-first
+policy optimization and an exporter-as-canonical-store are retired as the
+organizing architecture; the exporter and evaluation work remain valuable
+projections and experiments.
 
 ## Context
 

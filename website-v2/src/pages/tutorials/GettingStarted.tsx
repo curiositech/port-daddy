@@ -9,7 +9,7 @@ export function GettingStarted() {
       title="Install and Verify the Daemon"
       description="Install the daemon, open FleetBar, join the project harbor, and confirm it is running before asking agents to work."
       number={2}
-      total={21}
+      total={22}
       level="Beginner"
       readTime="5 min read"
       prev={{ title: "Start Inside a Harbor", href: "/tutorials/harbors" }}

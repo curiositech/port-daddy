@@ -400,6 +400,10 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Learning** — `help`, `learn`, `tutorial`, `demo`, `hints`
 
+| Command | Purpose |
+| --- | --- |
+| `pd doctrine` | Capture cited decision episodes, preregister and challenge candidates, retrieve advisory doctrine for a structured decision, then record the agent response and verified outcome or contest. |
+
 ---
 
 ## 📡 Multi-Agent Coordination
@@ -569,6 +573,56 @@ Spawner-launched bodies now feed their already-redacted transcript rows into Age
 Harness portability is reported as predicates, not a marketing score. `pd backend adapters --matrix` prints the generated 17×17 native-or-handoff mechanics grid; `--probe` adds side-effect-free binary/help discovery. `GET /harness-adapters/continuation-matrix` and the read-only MCP tool `harness_continuation_matrix` keep those catalog ceilings separate from completed spawn transcripts and continuation receipts, label evidence older than seven days as stale, and leave exact live interaction unverified until a dedicated control receipt exists. Neither discovery nor an agent's self-report earns runtime conformance. The canonical response schema is [`schemas/agent-harbor/v0/harness-continuation-matrix.schema.json`](schemas/agent-harbor/v0/harness-continuation-matrix.schema.json).
 
 The durable roster composes those primitives into long-lived named people. `POST /durable-agents` mints an opaque AgentNode principal with a scoped human alias; `POST /durable-agents/promote` requires a sanitized handoff episode whose source session matches the native harness session being promoted; `GET /durable-agents/search` uses BM25 + the shared MiniLM model with reciprocal-rank fusion; and `pd roster continue` passes that same AgentNode id through the existing continuation receipt ledger while choosing any catalog backend. Profile revisions remain append-only facts. Permission and trigger fields remain visibly declaration-only until a runtime can prove enforcement. The canonical profile contract is [`pd.agent-harbor.durable-agent-profile.v0`](schemas/agent-harbor/v0/durable-agent-profile.schema.json); architecture is ADR-0119.
+
+### Empirically earned doctrine — the CASE-13 evidence loop
+
+Port Daddy can now keep one narrow learning chain intact: a cited decision
+episode becomes a falsifiable candidate, a preregistered experiment records
+factual control and treatment runs, and an admitted **advisory** doctrine can
+be retrieved at a later comparable decision. The retrieval receipt records that
+an agent saw the packet; follow, adapt, and reject are all first-class
+responses; a later verified outcome or contest returns to the same append-only
+Harbor evidence stream.
+
+```bash
+pd doctrine status
+pd doctrine candidates --status provisional --decision-class integration.merge
+pd doctrine orders --input @next-merge-decision.json
+pd doctrine application doctrine-retrieval_... --input @agent-response.json
+pd doctrine outcome doctrine-application_... --input @verified-outcome.json
+```
+
+This is not a personality system and does not make merge decisions or enforce a
+rule. Every doctrine mutation is attributed by a daemon-minted
+`x-actor-credential`; it derives the writer and admission reviewer rather than
+trusting a body `actorId` or `reviewerId`. Admission refuses prompt-only,
+unmatched, drifted, or same-replica replays. The candidate's own preregistered
+experiment needs a matched factual control and treatment with the same model,
+model version, harness, worktree, environment, and checkpoint, and with distinct
+replica IDs. The first admission is always provisional; it is not caller-driven
+promotion to established guidance.
+
+Records are immutable and project-bound. A changed doctrine needs a new successor
+candidate and explicit supersession, not a rewritten doctrine ID. Stable IDs and
+idempotency keys make a retry return the original receipt; a retrieval key cannot
+be repurposed across project, decision ID, or decision class. The first retrieval
+policy is intentionally exact and structured by project plus decision class; it
+does not claim a fleet has learned from every transcript. The operator reviews
+the deep evidence chain in the `Doctrine` pane of pd-console; the CLI, SDK, and
+MCP tools expose the same evidence for agents and automation. See the
+[CASE-13 tutorial](docs/tutorials/case-13-doctrine-cycle.md), the
+[CASE-13 experiment design](docs/research/case-13-experiment-design.md), and the
+[doctrine architecture](docs/proposals/empirically-earned-fleet-doctrine.md).
+
+MCP clients traverse the same loop with `record_doctrine_episode`,
+`harvest_doctrine_episodes`, `propose_doctrine_candidate`,
+`preregister_doctrine_experiment`, `record_doctrine_treatment_run`,
+`admit_doctrine_candidate`, `doctrine_orders`, `record_doctrine_application`,
+`record_doctrine_outcome`, `contest_doctrine`, `supersede_doctrine`, and
+`retire_doctrine`; `doctrine_list`, `doctrine_get`, `doctrine_harvest_list`, and
+`doctrine_harvest_get` are audit reads. The bridge carries the same daemon-minted
+credential for writes, so an MCP call cannot turn prompt-only replay into active
+guidance or self-assert an identity.
 
 ### Artifact Harvest (Booty)
 
@@ -1171,7 +1225,9 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [`docs/DELEGATION-MODES.md`](docs/DELEGATION-MODES.md) — spawn vs agent vs sortie vs fleet, and what harbors are
 - [`docs/adr/`](docs/adr/) — 90+ architecture decision records; start with 0019 (fleet YAML), 0035 (memory tiers), 0037 (backup), 0045 (attest), 0050 (Coast Guard), 0057 (unified distribution), 0060 (fleet conductor), 0062 (auto-freshness), 0084 (daemon berths), 0088 (host safety), 0093 (event-spawn trust)
 - [`docs/patterns/coordination-cookbook.md`](docs/patterns/coordination-cookbook.md) — recipes for common swarm shapes
-- [`docs/tutorials/`](docs/tutorials/) — hands-on tutorials (`pd-tube`, PKI relay)
+- [`docs/tutorials/case-13-doctrine-cycle.md`](docs/tutorials/case-13-doctrine-cycle.md) — cited episode → experiment → advisory retrieval → outcome/contest walkthrough
+- [`docs/proposals/empirically-earned-fleet-doctrine.md`](docs/proposals/empirically-earned-fleet-doctrine.md) — evidence-led doctrine architecture, gates, and supersession boundary for ADR-0052
+- [`docs/tutorials/`](docs/tutorials/) — hands-on tutorials (`pd-tube`, PKI relay, CASE-13 doctrine cycle)
 - [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md) — launchd, Bosun, supervision integrity
 - [`docs/RELEASING.md`](docs/RELEASING.md) / [`docs/VERSIONING.md`](docs/VERSIONING.md) — the release contract
 - [`docs/SECURITY_SOUNDNESS.md`](docs/SECURITY_SOUNDNESS.md) — what is and is not defended

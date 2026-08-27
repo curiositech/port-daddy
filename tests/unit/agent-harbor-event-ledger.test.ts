@@ -261,6 +261,7 @@ describe('agent-harbor event ledger', () => {
       expect(appendEvent(db, { streamType: 'cost-accrual-event', payload: fixture('cost-accrual-event') }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'compliance-probe-result', payload: fixture('compliance-probe-result') }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'work-receipt', payload: fixture('work-receipt') }).duplicate).toBe(false);
+      expect(appendEvent(db, { streamType: 'doctrine-evidence', payload: fixture('doctrine-evidence') }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'agent-node', payload: fixture('agent-node') }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'agent-run', payload: fixture('agent-run') }).duplicate).toBe(false);
     });

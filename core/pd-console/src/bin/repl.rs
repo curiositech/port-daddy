@@ -13,6 +13,7 @@
 //!                             interrupt/checkpoint/successor/retire)
 //!   :edit <path>              open the Harbor Editor on a file and drain its
 //!                             live edit-sync + coordination channels (P3)
+//!   :doctrine [command]        inspect or append CASE-13 evidence receipts
 //!   :quit
 
 #[path = "../active_agents_pane.rs"]
@@ -49,6 +50,8 @@ mod cloud_fleet_pane;
 mod cockpit_pane;
 #[path = "../dispatch_pane.rs"]
 mod dispatch_pane;
+#[path = "../doctrine_pane.rs"]
+mod doctrine_pane;
 #[allow(dead_code)]
 #[path = "../editor_claims.rs"]
 mod editor_claims;
@@ -161,6 +164,7 @@ use active_agents_pane::ActiveAgentsPane;
 use agent::DaemonClient;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
+use doctrine_pane::{DoctrineCommand, DoctrinePane};
 use fleet_pane::FleetPane;
 use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
@@ -194,7 +198,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":work <goal> · :planner · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
+            ":work <goal> · :planner · :roster · :lane · :harbor · :doctrine · :edit <path> · :quit",
             Sem::Muted
         )
     );
@@ -303,6 +307,17 @@ async fn main() -> Result<()> {
         println!("planner capture written: {path}");
         return Ok(());
     }
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-doctrine") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-doctrine requires a <path.png>"))?;
+        let mut pane = DoctrinePane::new();
+        pane.refresh(&daemon).await?;
+        let png = headless_capture::render_blocks(&pane.view(), &theme::DARK, 1180).to_png();
+        std::fs::write(path, &png)?;
+        println!("doctrine capture written: {path}");
+        return Ok(());
+    }
 
     banner(&style, daemon.base());
 
@@ -319,6 +334,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(GalaxyPane::new()));
     reg.register(Box::new(interruptions_pane::InterruptionsPane::new()));
     reg.register(Box::new(PlannerPane::new()));
+    reg.register(Box::new(DoctrinePane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -511,6 +527,33 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":doctrine" || line.starts_with(":doctrine ") {
+            // The deep operator evidence surface: a single real daemon ledger
+            // behind CLI, SDK, MCP, GPUI, and this headless proof. No local state
+            // is fabricated here; failed mutations remain visibly refused.
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "doctrine")
+                .unwrap_or(0);
+            if let Err(e) = reg.refresh_active(&daemon).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(rest) = line.strip_prefix(":doctrine ") {
+                match DoctrineCommand::parse(rest) {
+                    Ok(command) => match reg
+                        .mutate_active(&daemon, SurfaceAction::Doctrine { command })
+                        .await
+                    {
+                        Ok(()) => ok(&style, "doctrine receipt recorded — advisory evidence only"),
+                        Err(e) => err(&style, &format!("doctrine command refused: {e}")),
+                    },
+                    Err(e) => err(&style, &e),
+                }
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":lineage" {
             // RCP-14 discourse argument graph for PD_LINEAGE_CHANNEL (default
             // "discourse"). Refresh + render one tick of the lineage surface.
@@ -658,7 +701,7 @@ async fn main() -> Result<()> {
         } else {
             err(
                 &style,
-                "unknown command; use :work <goal>, :planner, :roster, :lane, :harbor, or :quit",
+                "unknown command; use :work <goal>, :planner, :roster, :lane, :harbor, :doctrine, or :quit",
             );
         }
     }

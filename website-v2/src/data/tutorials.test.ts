@@ -35,6 +35,7 @@ const FILE_TO_SLUG: Record<string, string> = {
   'Pheromone.tsx': 'pheromone',
   'Primitives.tsx': 'primitives',
   'PdTube.tsx': 'pd-tube',
+  'DoctrineCycle.tsx': 'doctrine-cycle',
 }
 
 function tutorialForFile(file: string) {

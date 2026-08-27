@@ -817,6 +817,160 @@ await pd.arbiterTestInvariant('NOTE_MONOTONICITY');
 
 ---
 
+## Empirically Earned Doctrine (CASE-13)
+
+The doctrine SDK preserves an append-only evidence loop for a conditional
+decision rule. It is advisory: it never grants merge authority, blocks a change,
+or treats a transcript as proof that a fleet has learned. The canonical store is
+the Agent Harbor `doctrine-evidence` event stream.
+
+Every mutation needs a daemon-minted actor credential. Give the client its
+credential directly or set `PORT_DADDY_ACTOR_CREDENTIAL`; it is sent as
+`x-actor-credential`. The public SDK write inputs intentionally omit `actorId`,
+and admission inputs omit `reviewerId`: the daemon derives both from that
+credential rather than trusting a caller-supplied identity. Every write still
+needs `projectDir` and one or more durable `citations`.
+
+```typescript
+const pd = new PortDaddy({
+  credential: process.env.PORT_DADDY_ACTOR_CREDENTIAL,
+});
+
+const evidence = {
+  projectDir: '/workspace/app',
+  citations: ['pr:482', 'ci:482'],
+};
+
+const replay = {
+  model: 'the-original-model',
+  modelVersion: 'exact-checkpoint-version',
+  harness: 'the-original-harness',
+  worktree: '/workspace/app',
+  environment: 'named-dev-berth',
+  checkpoint: 'fork:case-13:before-merge',
+};
+
+// 1. Record what happened, then propose a falsifiable explanation.
+const episode = await pd.recordDoctrineEpisode({
+  ...evidence,
+  decisionClass: 'integration.merge',
+  summary: 'A green change remained unmerged because one bot review thread was unresolved.',
+  historicalAction: 'held merge',
+  alternatives: ['merge after checking the thread', 'ask for a technical response'],
+  cues: ['CI green', 'one unresolved bot-review thread'],
+  fidelity: 'T0',
+});
+
+const candidate = await pd.proposeDoctrineCandidate({
+  ...evidence,
+  episodeId: episode.episode.episodeId,
+  decisionClass: 'integration.merge',
+  title: 'Independent evidence, not thread state',
+  when: 'a merge is otherwise ready and a review thread remains unresolved',
+  prefer: 'inspect independent technical evidence before treating the thread state as a veto',
+  over: 'blocking solely because the review interface has an unresolved thread',
+  because: 'a thread is a process signal; an independent defect claim is evidence',
+  unless: ['the thread contains an unaddressed technical finding'],
+});
+
+// 2. Preregister and run compatible, independently executed factual arms.
+const experiment = await pd.preregisterDoctrineExperiment({
+  ...evidence,
+  candidateId: candidate.candidate.candidateId,
+  hypothesis: 'Independent technical evidence, rather than unresolved-thread state alone, changes the merge decision.',
+  primaryOutcome: 'whether the agent holds, merges, or requests a technical response',
+  control: 'unresolved thread without independent technical evidence',
+  treatment: 'unresolved thread with independent technical evidence',
+});
+
+await pd.recordDoctrineTreatmentRun(experiment.experiment.experimentId, {
+  ...evidence,
+  arm: 'control',
+  action: 'merge after checking the thread',
+  outcome: 'thread state alone did not block the merge',
+  fidelity: 'matched',
+  replayContext: { ...replay, replicaId: 'control-01' },
+});
+
+await pd.recordDoctrineTreatmentRun(experiment.experiment.experimentId, {
+  ...evidence,
+  arm: 'treatment',
+  action: 'request a technical response before merge',
+  outcome: 'independent evidence changed the decision',
+  fidelity: 'matched',
+  replayContext: { ...replay, replicaId: 'treatment-01' },
+});
+
+// 3. The daemon stamps the first admitted revision as provisional.
+const admission = await pd.admitDoctrine(candidate.candidate.candidateId, {
+  ...evidence,
+  experimentId: experiment.experiment.experimentId,
+});
+
+// 4. Retrieve before a comparable decision, then preserve the response.
+const orders = await pd.retrieveDoctrineOrders({
+  ...evidence,
+  id: 'doctrine-retrieval:merge-483',
+  idempotencyKey: 'case-13:merge-483:orders',
+  decisionId: 'merge-483',
+  decisionClass: 'integration.merge',
+});
+
+const application = await pd.recordDoctrineApplication(orders.receipt.id, {
+  ...evidence,
+  doctrineId: admission.doctrine.doctrineId,
+  response: 'adapt',
+  decision: 'Asked for a technical reply, then merged after the finding was addressed.',
+});
+
+await pd.recordDoctrineOutcome(application.application.applicationId, {
+  ...evidence,
+  verdict: 'inconclusive',
+  summary: 'No regression was found, but this single application does not establish a fleet-wide effect.',
+  verifiedBy: 'ci:483:verified',
+  citations: ['ci:483:verified'],
+});
+```
+
+| Method | Purpose |
+|--------|---------|
+| `pd.doctrineStatus()` | Inspect counts and the canonical Harbor-store status. |
+| `pd.listDoctrineCandidates(options?)` / `pd.getDoctrine(id)` | List or inspect candidates and admitted revisions without applying advice. |
+| `pd.listDoctrineHarvests(options?)` / `pd.getDoctrineHarvest(id)` | List or inspect frozen recurring-observation harvests. |
+| `pd.recordDoctrineEpisode(input)` / `pd.harvestDoctrineEpisodes(input)` | Append a concrete decision episode or freeze an exact-class, cited observation set. |
+| `pd.proposeDoctrineCandidate(input)` | Propose a conditional, falsifiable candidate grounded in an episode. |
+| `pd.preregisterDoctrineExperiment(input)` | Define the control, treatment, primary outcome, and optional sham before results. |
+| `pd.recordDoctrineTreatmentRun(experimentId, input)` | Append one replay arm with required replay context and fidelity. |
+| `pd.admitDoctrine(candidateId, input)` | Append a first-cycle, provisional advisory revision after the hard factual-fidelity gate passes. |
+| `pd.retrieveDoctrineOrders(input)` | Retrieve exact structured decision-class matches and append a decision-time receipt. |
+| `pd.recordDoctrineApplication(retrievalId, input)` | Record whether the agent followed, adapted, or rejected a packet it actually saw. |
+| `pd.recordDoctrineOutcome(applicationId, input)` | Attach a later verifier-backed outcome. |
+| `pd.contestDoctrine(id, input)` | Preserve contrary evidence and remove a contested packet from active retrieval without deleting history. |
+| `pd.supersedeDoctrine(id, input)` / `pd.retireDoctrine(id, input)` | Retire an active revision in favor of an explicitly linked successor, or retire it without deleting evidence. |
+
+**Factual-fidelity gate:** prompt-only or mismatched replay may be recorded for
+research, but cannot admit doctrine. The candidate's own preregistered
+experiment must contain one matched `control` and one matched `treatment`; both
+must carry `replayContext` with the same `model`, `modelVersion`, `harness`,
+`worktree`, `environment`, and `checkpoint`, but distinct `replicaId` values.
+The first admission is always `provisional`; callers cannot promote it to
+`established`.
+
+**Identity, binding, and retries:** records are project-bound and immutable.
+A doctrine ID cannot be rewritten at admission: revise through a separately
+proposed successor candidate, then supersede the older active revision. Stable
+`id` and `idempotencyKey` values make retries return the original durable receipt.
+For retrieval, the key may only be retried with the same project, decision ID,
+and exact decision class; otherwise the daemon rejects it. Current retrieval is
+exact by `projectDir` and structured `decisionClass`, not a semantic or lexical
+fallback.
+
+See the [CASE-13 doctrine-cycle tutorial](tutorials/case-13-doctrine-cycle.md)
+for the operator workflow and the [proposal](proposals/empirically-earned-fleet-doctrine.md)
+for the broader research program.
+
+---
+
 ## Error Handling
 
 ```javascript

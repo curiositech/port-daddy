@@ -285,6 +285,24 @@ const TOOL_FEATURE_MAP = {
   'memory_episodes': 'memory',
   'memory_stats': 'memory',
 
+  // Empirically earned doctrine: advisory packets plus retrieval/application/outcome receipts.
+  'doctrine_list': 'doctrine',
+  'doctrine_get': 'doctrine',
+  'doctrine_harvest_list': 'doctrine',
+  'doctrine_harvest_get': 'doctrine',
+  'record_doctrine_episode': 'doctrine',
+  'harvest_doctrine_episodes': 'doctrine',
+  'propose_doctrine_candidate': 'doctrine',
+  'preregister_doctrine_experiment': 'doctrine',
+  'record_doctrine_treatment_run': 'doctrine',
+  'admit_doctrine_candidate': 'doctrine',
+  'doctrine_orders': 'doctrine',
+  'record_doctrine_application': 'doctrine',
+  'record_doctrine_outcome': 'doctrine',
+  'contest_doctrine': 'doctrine',
+  'supersede_doctrine': 'doctrine',
+  'retire_doctrine': 'doctrine',
+
   // Feedback (central agentic-feedback primitive)
   'drop_feedback': 'feedback',
   'submit_visual_task': 'visual_tasks',
@@ -653,6 +671,19 @@ describe('Manifest features --> MCP tools (routed features need MCP coverage)', 
 const KNOWN_GENERIC_ROUTES = new Set([
   'POST /harvest/session/:param',   // routes/harvest.ts — Fastify generic syntax
   'POST /custodian/approvals/:param', // routes/custodian.ts — Fastify generic syntax
+  'POST /doctrine/episodes', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/harvests', // routes/doctrine.ts — Fastify generic syntax
+  'GET /doctrine/harvests/:param', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/candidates', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/experiments', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/orders', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/experiments/:param/runs', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/candidates/:param/admit', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/retrievals/:param/application', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/applications/:param/outcome', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/:param/contest', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/:param/supersede', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/:param/retire', // routes/doctrine.ts — Fastify generic syntax
   'GET /harbors',                   // routes/harbors.ts — Fastify generic syntax
   'GET /harbors/:param',            // routes/harbors.ts — Fastify generic syntax
   'POST /harbors/:param/check',     // routes/harbors.ts — Fastify generic syntax
@@ -736,6 +767,35 @@ describe('MCP tool coverage quality', () => {
     expect(sessionTools).toContain('claim_files');
   });
 
+  it('doctrine MCP tools require replay provenance and use daemon-derived attribution', () => {
+    const toolBlock = (tool) => {
+      const start = mcpContent.indexOf(`name: '${tool}'`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const next = mcpContent.indexOf("\n  {\n    name:", start + 1);
+      return mcpContent.slice(start, next === -1 ? undefined : next);
+    };
+
+    const factualRun = toolBlock('record_doctrine_treatment_run');
+    expect(factualRun).toContain('replay_context');
+    expect(factualRun).toContain("'model_version'");
+    expect(factualRun).toContain("'checkpoint'");
+    expect(factualRun).toContain("'replica_id'");
+    expect(factualRun).not.toContain('actor_id');
+
+    const admission = toolBlock('admit_doctrine_candidate');
+    expect(admission).toContain('provisional advisory only');
+    expect(admission).not.toContain('reviewer_id');
+    expect(admission).not.toContain("'established'");
+    expect(admission).not.toContain('actor_id');
+
+    const handlerStart = mcpContent.indexOf("case 'record_doctrine_treatment_run':");
+    const handlerEnd = mcpContent.indexOf("case 'contest_doctrine':", handlerStart);
+    const handler = mcpContent.slice(handlerStart, handlerEnd);
+    expect(handler).toContain('replayContext: args.replay_context');
+    expect(handler).not.toContain('actorId: args.actor_id');
+    expect(handler).not.toContain('reviewerId: args.reviewer_id');
+  });
+
   it('notes feature should have add and list tools', () => {
     const noteTools = mcpToolNames.filter(t =>
       TOOL_FEATURE_MAP[t] === 'notes'
@@ -810,7 +870,7 @@ describe('MCP tiered tool loading', () => {
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
     'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
-    'context', 'harvest', 'custodian',
+    'context', 'harvest', 'custodian', 'doctrine',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

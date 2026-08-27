@@ -24,6 +24,7 @@ mod cockpit_pane;
 mod conductor_pane;
 mod daemon_pane;
 mod dispatch_pane;
+mod doctrine_pane;
 mod editor_claims;
 mod editor_commit_gate;
 mod editor_input;
@@ -87,6 +88,7 @@ use cockpit_pane::CockpitPane;
 use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
+use doctrine_pane::DoctrinePane;
 use fleet_pane::FleetPane;
 use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
@@ -564,6 +566,7 @@ fn main() {
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
                 let mut hitl        = InterruptionsPane::new(); // 27 — HITL operator interruptions
+                let mut doctrine    = DoctrinePane::new();      // 28 — CASE-13 evidence ledger
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -580,6 +583,7 @@ fn main() {
                         harbor.id(),
                         galaxy.id(),
                         hitl.id(),
+                        doctrine.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -1075,6 +1079,29 @@ fn main() {
                                     }
                                 }
                             }
+                            // CASE-13 evidence-loop control. Doctrine is a deep
+                            // console surface: this mutates only the shared Agent
+                            // Harbor receipt ledger and remains advisory by contract.
+                            app::ControlMsg::Doctrine { command } => {
+                                let summary = format!("{command:?}");
+                                match doctrine
+                                    .mutate(&client, SurfaceAction::Doctrine { command })
+                                    .await
+                                {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "doctrine receipt recorded",
+                                            format!("{summary}; the advisory ledger will refresh shortly"),
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "doctrine command refused",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
                             // Bind the live Harbor Editor lane to a file (wire stage 1):
                             // build a persistent EditorPane on this path + operator
                             // identity, load its Loro buffer, and force a (re)subscribe so
@@ -1209,6 +1236,7 @@ fn main() {
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
                     let _ = hitl.refresh(&client).await;
+                    let _ = doctrine.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1358,6 +1386,7 @@ fn main() {
                         (25, harbor.view()),
                         (26, galaxy.view()),
                         (27, hitl.view()),
+                        (28, doctrine.view()),
                     ];
 
                     if tx

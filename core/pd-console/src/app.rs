@@ -180,6 +180,11 @@ pub enum ControlMsg {
         verb: String,
         argument: Option<String>,
     },
+    /// Record a doctrine read/write through the background daemon owner. This
+    /// is the deep evidence surface, not a second local store or a shell-out.
+    Doctrine {
+        command: crate::doctrine_pane::DoctrineCommand,
+    },
     /// Bind the producer's live Harbor Editor lane to a file (P3 wire stage 1). Sent
     /// when the operator opens an `Editor` surface (FileTree click / `:edit <path>`).
     /// The producer constructs a persistent [`crate::editor_pane::EditorPane`] on this
@@ -274,6 +279,9 @@ pub enum CmdKind {
     /// Steer the Harbor's selected Agent Node (ch18 C3). Buffer is the steer
     /// message injected before the node's next turn. → `POST /agent-nodes/:id/control`.
     HarborSteer,
+    /// CASE-13 evidence-loop operator grammar. The detailed grammar is parsed
+    /// by DoctrineCommand before anything reaches the daemon.
+    Doctrine,
     /// The operator verb palette (vim-`:` style). Buffer is `<verb> <args>`; the
     /// first token selects an operator write, the rest are its arguments. One
     /// keybinding (`Ctrl-A :`) reaches every write without exhausting the
@@ -300,6 +308,7 @@ impl CmdKind {
             CmdKind::InterruptAgent => "interrupt (agent id)",
             CmdKind::GalaxyParley => "parley reason",
             CmdKind::HarborSteer => "steer node (message)",
+            CmdKind::Doctrine => "doctrine",
             CmdKind::Verb => ":",
         }
     }
@@ -346,7 +355,10 @@ impl CmdKind {
             CmdKind::HarborSteer => {
                 "guidance for the selected node — injected before its next turn…".to_string()
             }
-            CmdKind::Verb => "work/note/begin/done/claim/release/kill/interrupt …".to_string(),
+            CmdKind::Doctrine => {
+                "logbook/harvest/induce/war-game/run/retrieve/apply/outcome/supersede …".to_string()
+            }
+            CmdKind::Verb => "work/note/begin/done/claim/release/kill/interrupt/doctrine …".to_string(),
         }
     }
 }
@@ -3401,7 +3413,7 @@ impl ConsoleView {
                     )
                 } else {
                     format!(
-                        "unknown verb '{verb}' — try work/note/begin/done/claim/release/kill/interrupt"
+                        "unknown verb '{verb}' — try work/note/begin/done/claim/release/kill/interrupt/doctrine"
                     )
                 });
             }
@@ -3602,6 +3614,23 @@ impl ConsoleView {
                 });
                 self.control_flash =
                     Some("steer queued — watch the node's transcript for the guidance turn".into());
+            }
+            CmdKind::Doctrine => {
+                match crate::doctrine_pane::DoctrineCommand::parse(&text) {
+                    Ok(command) => {
+                        let _ = tx.send(ControlMsg::Doctrine { command });
+                        self.control_flash = Some(
+                            "doctrine command sent — inspect the ledger and HITL receipt".into(),
+                        );
+                        self.ws_mut().swap_surface(SurfaceKind::Panel {
+                            nav: "doctrine".into(),
+                        });
+                    }
+                    Err(error) => {
+                        self.control_flash = Some(error);
+                        crate::audio::play(crate::audio::Cue::Error);
+                    }
+                }
             }
             // AddPane, UseDaemon, and Verb are handled locally above
             // (early return) — never reach here.
@@ -6610,6 +6639,7 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         "interrupt" | "stop" => CmdKind::InterruptAgent,
         "cartographer" | "chat" => CmdKind::Cartographer,
         "lane" | "message" | "steer" => CmdKind::LaneMessage,
+        "doctrine" => CmdKind::Doctrine,
         "pane" | "addpane" => CmdKind::AddPane,
         _ => return None,
     };
@@ -9112,6 +9142,11 @@ mod add_pane_tests {
                 "lane keep going but open the diff first",
                 CmdKind::LaneMessage,
                 "keep going but open the diff first",
+            ),
+            (
+                "doctrine retrieve decision-13 integration.merge",
+                CmdKind::Doctrine,
+                "retrieve decision-13 integration.merge",
             ),
             (
                 "attach core/pd-console/src/main.rs",

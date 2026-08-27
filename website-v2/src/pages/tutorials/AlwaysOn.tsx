@@ -8,7 +8,7 @@ export function AlwaysOn() {
       title="Run Event-Triggered Agents"
       description="Combine pd spawn and pd watch so agents react to channel events automatically across Ollama, Codex, Claude, Gemini, Aider, and custom backends."
       number={12}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: "Sugar Commands", href: "/tutorials/sugar" }}

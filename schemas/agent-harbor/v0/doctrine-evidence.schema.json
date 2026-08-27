@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/doctrine-evidence.schema.json",
+  "title": "DoctrineEvidence",
+  "description": "Append-only evidence event for empirically earned fleet doctrine. A doctrine is advisory by default; lifecycle changes are separate immutable events.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "eventId",
+    "idempotencyKey",
+    "kind",
+    "entityId",
+    "occurredAt",
+    "projectDir",
+    "actorId",
+    "citations",
+    "payload"
+  ],
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.doctrine-evidence.v0" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "decision_episode_recorded",
+        "doctrine_harvested",
+        "doctrine_candidate_induced",
+        "experiment_preregistered",
+        "treatment_run_recorded",
+        "doctrine_revision_admitted",
+        "doctrine_retrieved",
+        "doctrine_applied",
+        "outcome_recorded",
+        "doctrine_contested",
+        "doctrine_superseded",
+        "doctrine_retired"
+      ]
+    },
+    "entityId": { "type": "string", "minLength": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "projectDir": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string" },
+    "runId": { "type": "string" },
+    "citations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "replayContext": {
+          "type": "object",
+          "required": [
+            "model",
+            "modelVersion",
+            "harness",
+            "worktree",
+            "environment",
+            "checkpoint",
+            "replicaId"
+          ],
+          "properties": {
+            "model": { "type": "string", "minLength": 1 },
+            "modelVersion": { "type": "string", "minLength": 1 },
+            "harness": { "type": "string", "minLength": 1 },
+            "worktree": { "type": "string", "minLength": 1 },
+            "environment": { "type": "string", "minLength": 1 },
+            "checkpoint": { "type": "string", "minLength": 1 },
+            "replicaId": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

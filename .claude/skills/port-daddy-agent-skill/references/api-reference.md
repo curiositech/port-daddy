@@ -1242,6 +1242,67 @@ Summarize graph edges for a project.
 
 ---
 
+## Empirically Earned Doctrine (CASE-13)
+
+The doctrine API preserves a cited, append-only chain of decision episode →
+candidate → preregistered experiment → advisory retrieval receipt → application
+→ verified outcome or contest. It is **advisory only**: no endpoint merges,
+blocks, resolves a review thread, or changes enforcement. The canonical source
+is the Agent Harbor `doctrine-evidence` stream; list and detail responses are
+rebuildable views of that evidence.
+
+Every doctrine mutation requires the daemon-minted `x-actor-credential` header,
+plus `projectDir` and non-empty `citations` in its body. The daemon derives the
+persisted `actorId` and admission reviewer from the credential; caller-supplied
+identity claims are not authoritative. Optional provenance (`sessionId`, `runId`,
+and model/harness/worktree metadata) should be supplied when available. An
+otherwise valid record without a citation is rejected.
+
+### Read endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /doctrine/status` | Counts episodes and doctrine states; declares the advisory canonical store. |
+| `GET /doctrine/episodes?projectDir=&decisionClass=` | Lists captured decision episodes. |
+| `GET /doctrine/harvests?projectDir=&decisionClass=` / `GET /doctrine/harvests/:id` | Lists or reads frozen recurring-observation harvests. |
+| `GET /doctrine/candidates?status=&projectDir=&decisionClass=` | Lists candidates and admitted revisions. |
+| `GET /doctrine/:id` | Reads a doctrine with its episode, experiment, retrievals, applications, and outcomes. |
+| `GET /doctrine/experiments/:id` | Reads a preregistered experiment and its treatment-run receipts. |
+
+### Write endpoints
+
+| Endpoint | Required decision |
+| --- | --- |
+| `POST /doctrine/episodes` | Record the observed decision, alternatives, cues, and stated historical action. |
+| `POST /doctrine/harvests` | Freeze at least two cited, same-project, exact-class decision episodes as observation evidence. |
+| `POST /doctrine/candidates` | Propose a falsifiable `when / prefer / over / because / unless` rule for one episode. |
+| `POST /doctrine/experiments` | Preregister a candidate's hypothesis, control, treatment, primary outcome, and optional sham. |
+| `POST /doctrine/experiments/:id/runs` | Append a control, treatment, or sham run with `fidelity: matched | mismatched | not-run`. |
+| `POST /doctrine/candidates/:id/admit` | Admit an advisory doctrine after the factual-fidelity gate passes. |
+| `POST /doctrine/orders` | Retrieve relevant advisory doctrine and append the decision-time receipt. |
+| `POST /doctrine/retrievals/:id/application` | Record that the agent followed, adapted, or rejected what it actually saw. |
+| `POST /doctrine/applications/:id/outcome` | Attach a later `helped | harmed | inconclusive` outcome and its verifier. |
+| `POST /doctrine/:id/contest` | Surface contrary evidence without deleting the original evidence trail. |
+| `POST /doctrine/:id/supersede` / `POST /doctrine/:id/retire` | Retire an active predecessor in favor of an explicitly linked active successor, or retire without deleting evidence. |
+
+Admission refuses a candidate unless its own preregistered experiment has both
+a matched factual control and matched treatment run. Each run requires
+`replayContext` with model, model version, harness, worktree, environment,
+checkpoint, and replica ID; paired factual arms must match on the first six and
+have distinct replica IDs. Prompt-only, unmatched, drifted, or same-replica
+replay is retained as a fidelity observation but cannot establish a doctrine.
+The first admission is always provisional; established promotion requires a
+future explicit gate. Records are immutable and project-bound: successor
+candidates and supersession replace in-place rewrites. `id` and
+`idempotencyKey` retry the original record; a retrieval key may only retry the
+same project, decision ID, and exact decision class.
+`POST /doctrine/orders` intentionally writes a receipt, including when it finds
+no active doctrine: knowing that an agent saw no guidance is part of later
+outcome attribution. Contested and retired doctrine remain history, but are not
+returned as active orders.
+
+---
+
 ## Skill Graft
 
 ### GET /skill-graft/status

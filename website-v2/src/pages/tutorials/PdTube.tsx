@@ -17,11 +17,11 @@ export function PdTube() {
       title="PD Tube"
       description="The single command that turns any local UI, hook, or webhook into an event your running agent can answer in one shell call. Block-once-and-return makes the agent loop work."
       number={21}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="9 min read"
       prev={{ title: 'Walk the 11 Product Primitives', href: '/tutorials/primitives' }}
-      next={undefined}
+      next={{ title: 'Test a Decision Rule Before Reusing It', href: '/tutorials/doctrine-cycle' }}
     >
       <div className="space-y-12">
         <section className="space-y-4">

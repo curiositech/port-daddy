@@ -82,3 +82,4 @@ export * from './skill-graft.js';
 export * from './plan.js';
 export * from './suggest.js';
 export * from './seamanship.js';
+export * from './doctrine.js';

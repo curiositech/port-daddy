@@ -514,6 +514,12 @@ pub enum SurfaceAction {
         verb: String,
         argument: Option<String>,
     },
+    /// Append a CASE-13 doctrine receipt through the daemon-owned Agent Harbor
+    /// ledger. The console can inspect and record evidence, but never turn an
+    /// advisory packet into a merge, deploy, spend, or irreversible approval.
+    Doctrine {
+        command: crate::doctrine_pane::DoctrineCommand,
+    },
 }
 
 /// What a surface wants to watch live, instead of (or alongside) 2s polling.

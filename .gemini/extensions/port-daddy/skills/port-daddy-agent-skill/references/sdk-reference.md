@@ -467,6 +467,90 @@ Count tuples, optionally scoped to a harbor.
 
 ---
 
+## Empirically Earned Doctrine
+
+The SDK exposes the CASE-13 evidence loop as typed methods over the same
+append-only Harbor `doctrine-evidence` stream used by the CLI and MCP. The deep
+operator surface is pd-console's Doctrine pane. It is **advisory**: retrieval returns cited guidance and a receipt;
+it never authorizes a merge, policy, review-thread action, or enforcement
+change.
+
+```js
+const pd = new PortDaddy({ credential: process.env.PORT_DADDY_ACTOR_CREDENTIAL })
+
+const episode = await pd.recordDoctrineEpisode({
+  projectDir: process.cwd(),
+  citations: ['github:pull:CASE-13#review-thread-7'],
+  decisionClass: 'integration.merge',
+  summary: 'Steward withheld a green merge while one bot thread was unresolved.',
+  historicalAction: 'withheld merge',
+})
+
+const candidate = await pd.proposeDoctrineCandidate({
+  projectDir: process.cwd(),
+  citations: ['github:pull:CASE-13#review-thread-7'],
+  episodeId: episode.episode.episodeId,
+  decisionClass: 'integration.merge',
+  title: 'Independent technical evidence carries merge-blocking weight',
+  when: 'an otherwise-ready merge has an unresolved review thread',
+  prefer: 'inspect independent technical evidence',
+  over: 'treating thread state as a veto',
+  because: 'thread state is a proxy, not the proposed mechanism',
+})
+
+const packet = await pd.retrieveDoctrineOrders({
+  projectDir: process.cwd(),
+  citations: ['receipt:decision:PR-9844:pre-merge'],
+  decisionId: 'decision:PR-9844:merge',
+  decisionClass: 'integration.merge',
+})
+// packet.receipt is durable evidence that the agent saw this advisory.
+```
+
+### Read methods
+
+- `pd.doctrineStatus()` — inspect counts and canonical-store status.
+- `pd.listDoctrineCandidates(options?)` — filter by `status`, `projectDir`, or
+  `decisionClass`; this never applies guidance.
+- `pd.getDoctrine(doctrineId)` — read the linked episode, experiment, receipts,
+  applications, and outcomes.
+- `pd.listDoctrineHarvests(options?)` / `pd.getDoctrineHarvest(harvestId)` —
+  inspect frozen recurring-observation evidence.
+
+### Evidence and decision-time methods
+
+- `pd.recordDoctrineEpisode(input)`
+- `pd.harvestDoctrineEpisodes(input)`
+- `pd.proposeDoctrineCandidate(input)`
+- `pd.preregisterDoctrineExperiment(input)`
+- `pd.recordDoctrineTreatmentRun(experimentId, input)`
+- `pd.admitDoctrine(candidateId, input)`
+- `pd.retrieveDoctrineOrders(input)`
+- `pd.recordDoctrineApplication(retrievalId, input)`
+- `pd.recordDoctrineOutcome(applicationId, input)`
+- `pd.contestDoctrine(doctrineId, input)`
+- `pd.supersedeDoctrine(doctrineId, input)` / `pd.retireDoctrine(doctrineId, input)`
+
+Every public write input includes `projectDir` and non-empty `citations`; the
+SDK sends its daemon-minted credential as `x-actor-credential`, and the daemon
+derives the persisted writer and admission reviewer. Do not supply `actorId` or
+`reviewerId` as authority claims. Admission refuses prompt-only, unmatched,
+drifted, or same-replica reconstructions: the candidate's preregistered
+experiment needs matched factual control and treatment runs with the same model,
+model version, harness, worktree, environment, and checkpoint but distinct
+`replicaId`s. First-cycle admission is provisional only.
+
+An application must name a doctrine actually present in the same-project
+retrieval receipt, so outcome attribution cannot be silently attached to advice
+the agent never saw. A contest preserves the original event history and removes
+the doctrine from active advisory retrieval. Entities are immutable and
+project-bound: create a successor candidate and explicitly supersede the prior
+revision instead of rewriting its ID. Stable IDs and idempotency keys return the
+canonical receipt for the same request; retrieval retries must retain project,
+decision ID, and exact decision class.
+
+---
+
 ## IPC Fast Paths
 
 The following methods automatically use the Binary IPC channel when the daemon's IPC socket is available at `~/.port-daddy/daemon.ipc`. No code changes needed — the SDK detects and uses IPC transparently.

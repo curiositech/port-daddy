@@ -10,7 +10,7 @@ export function Monorepo() {
       title="Map a Monorepo Harbor"
       description="Scan a large repo, detect service boundaries, register them inside the harbor, and bring the local stack up and down cleanly."
       number={5}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="10 min read"
       prev={{

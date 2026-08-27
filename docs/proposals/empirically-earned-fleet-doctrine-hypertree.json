@@ -18,7 +18,7 @@
     {"id":"C2","kind":"branch","title":"Experiment registry, clustered assignment, and anti-pseudoreplication statistics","parallelGroup":"W3"},
     {"id":"C3","kind":"branch","title":"Synthetic and real ambiguity suite","parallelGroup":"W3"},
     {"id":"W4","kind":"wave","title":"Admission and decision-time pilot","dependsOn":["W3"],"children":["D1","D2"],"gate":"Safe advisory pilot improves preregistered quality metric"},
-    {"id":"D1","kind":"branch","title":"FleetBar doctrine review","parallelGroup":"W4"},
+    {"id":"D1","kind":"branch","title":"pd-console doctrine review","parallelGroup":"W4"},
     {"id":"D2","kind":"branch","title":"Decision-class retrieval and receipts","parallelGroup":"W4"},
     {"id":"W5","kind":"wave","title":"Continuous revision and skills","dependsOn":["W4"],"gate":"Real outcomes strengthen, narrow, and deprecate doctrine"},
     {"id":"W6","kind":"wave","title":"Multi-agent expertise and hackathons","dependsOn":["W5"],"children":["F1","F2","F3"],"gate":"Bounded exercise produces useful artifact without identity or autonomy violation"},

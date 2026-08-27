@@ -581,11 +581,31 @@ impl DaemonClient {
     }
 
     /// Attach the actor credential (when held) to an outgoing request.
-    fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    ///
+    /// Deep operator panes use this rather than inventing an actor label in a
+    /// JSON body. The daemon is still the authority: it verifies this bearer
+    /// credential and derives the durable actor id for every attributed write.
+    pub fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match self.actor_credential() {
             Some(credential) => req.header("x-actor-credential", credential),
             None => req,
         }
+    }
+
+    /// A display-only hint for the currently held credential's actor id.
+    ///
+    /// This is never used as authority — callers still attach the complete
+    /// credential above and the daemon verifies it. Keeping the secret out of
+    /// the operator surface makes the pane's attribution state legible without
+    /// leaking a reusable capability.
+    pub fn actor_id_hint(&self) -> Option<String> {
+        self.actor_credential()
+            .and_then(|credential| {
+                credential
+                    .split_once('.')
+                    .map(|(actor_id, _)| actor_id.to_string())
+            })
+            .filter(|actor_id| !actor_id.is_empty())
     }
 
     pub fn base(&self) -> &str {

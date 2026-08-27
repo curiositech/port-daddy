@@ -10,7 +10,7 @@ export function MultiAgentOrchestration() {
       title="Multi-Agent Coordination"
       description="Two agents, one harbor, visible handoffs. File claims show intent, session notes preserve context, and channels carry agent-to-agent signals."
       number={4}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="8 min read"
       prev={{

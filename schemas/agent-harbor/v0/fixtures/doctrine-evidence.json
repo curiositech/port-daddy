@@ -1,0 +1,17 @@
+{
+  "schema": "pd.agent-harbor.doctrine-evidence.v0",
+  "eventId": "doctrine-event_fixture_01",
+  "idempotencyKey": "doctrine-fixture:episode:1",
+  "kind": "decision_episode_recorded",
+  "entityId": "episode_fixture_01",
+  "occurredAt": "2026-08-26T12:00:00.000Z",
+  "projectDir": "/repo/port-daddy",
+  "actorId": "agent:steward",
+  "sessionId": "session_fixture_01",
+  "citations": ["receipt:fixture:case13"],
+  "payload": {
+    "decisionClass": "integration.merge",
+    "summary": "A merge was held because a review thread remained unresolved.",
+    "historicalAction": "hold"
+  }
+}

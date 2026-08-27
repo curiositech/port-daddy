@@ -7,6 +7,45 @@ pull request with its current checks. Fleet, Sessions, Health, and the other dee
 truth surfaces remain available from the view launcher; they are not competing
 defaults. There's also a headless TUI build for terminals and CI.
 
+## Doctrine evidence
+
+The native `Doctrine` pane is the deep operator surface for the CASE-13 evidence
+loop. It reads `/doctrine/status`, candidates, and a selected doctrine detail
+from the daemon, then appends the full logbook → Admiralty harvest → candidate
+→ war-game → advisory orders → captain response → after-action → immutable
+successor trail through that same daemon contract. Use the native command
+palette (`Ctrl-A :`, then `doctrine …`) or the headless twin's `:doctrine …`
+grammar; neither surface shells out to the CLI or MCP.
+
+The first four logbook records deliberately take a typed JSON evidence envelope
+rather than pretending an experiment can be safely collapsed into a few text
+fields. The console requires `projectDir` and at least one citation, stamps its
+own `pd-console` provenance, and lets the daemon validate the rest:
+
+```text
+doctrine logbook :: <JSON cited episode>
+doctrine harvest :: <JSON cited observation from two or more episodes>
+doctrine induce :: <JSON cited falsifiable candidate>
+doctrine war-game :: <JSON preregistered experiment>
+doctrine run <experiment-id> :: <JSON factual control/treatment/sham arm>
+doctrine admit <candidate-id> <experiment-id>
+doctrine retrieve <decision-id> <decision-class>
+doctrine apply <retrieval-id> <doctrine-id> <follow|adapt|reject> <decision>
+doctrine outcome <application-id> <doctrine-id> <helped|harmed|inconclusive> <verifier-id> :: <evidence>
+doctrine supersede <old-doctrine-id> <successor-doctrine-id> :: <reason>
+doctrine retire <doctrine-id> <reason>
+```
+
+Every write carries the daemon-minted identity already held by pd-console. Start
+a pd-console session first (or launch it with its credential); the pane never
+accepts a typed `actorId` as attribution.
+
+`harvest` is a cited, immutable observation rather than auto-generated lore;
+it must become a reviewed, falsifiable candidate before a war game can admit
+advisory doctrine. `supersede` and `retire` never rewrite the historical
+receipt chain, and neither changes merge, deployment, spend, or policy
+authority.
+
 ## Quickstart
 
 ```bash

@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'roster' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' 'suggest' 'seamanship' 'skills' \
+    'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'doctrine' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' 'suggest' 'seamanship' 'skills' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -187,6 +187,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a skillgraft -d 'Alias for skill-graft'
     complete -c $prog -n __pd_needs_command -a booty -d 'Harvest artifacts into the blob store with provenance'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
+    complete -c $prog -n __pd_needs_command -a doctrine -d 'Record and test cited advisory decision doctrine'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
     complete -c $prog -n __pd_needs_command -a roadmap -d 'Show and write the roadmap_items DB-of-record'
     complete -c $prog -n __pd_needs_command -a quorum -d 'Propose, vote, list, or inspect swarm proposals'
@@ -961,6 +962,18 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l limit -x -d 'Max episodes'
     complete -c $prog -n "__pd_using_command memory" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command memory" -s q -l quiet -d 'Suppress output'
+
+    # doctrine — citations and factual-fidelity gates are carried in --input JSON.
+    complete -c $prog -n "__pd_using_command doctrine" -x -a 'status candidates show orders record-episode propose preregister run admit application outcome contest help' -d 'Doctrine subcommand'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from candidates" -l status -x -a 'candidate provisional established contested' -d 'Candidate status filter'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from candidates" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from candidates" -l project-dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from candidates" -l decision-class -x -d 'Structured decision class filter'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from orders" -l decision-id -x -d 'Override decision id in JSON input'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from orders" -l decision-class -x -d 'Override structured decision class'
+    complete -c $prog -n "__pd_using_command doctrine; and __fish_seen_subcommand_from orders record-episode propose preregister run admit application outcome contest" -l input -r -d 'Cited JSON object or @path/to/evidence.json'
+    complete -c $prog -n "__pd_using_command doctrine" -s j -l json -d 'Output JSON'
+    complete -c $prog -n "__pd_using_command doctrine" -s q -l quiet -d 'Suppress output'
 
     # ideas
     complete -c $prog -n "__pd_using_command ideas" -x -a 'list search show help'

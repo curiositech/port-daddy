@@ -8,7 +8,7 @@ export function SessionPhases() {
       title="Model Session Phases"
       description="Move work through planning, implementation, review, and done states with phase-aware recovery and handoff evidence."
       number={9}
-      total={21}
+      total={22}
       level="Advanced"
       readTime="15 min read"
       prev={{ title: "Resolve Services by Name", href: "/tutorials/dns" }}
