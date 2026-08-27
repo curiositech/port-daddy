@@ -1740,11 +1740,42 @@ export async function runPurser(
         executability.kind === 'unresolved-import' ||
         executability.kind === 'incompatible-runner' ||
         executability.kind === 'missing-test-registration') &&
-      executability.path &&
-      authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS &&
-      (authoredRepairAttempts.get(executability.path) ?? 0) <
-        MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
+      executability.path
     ) {
+      const exhaustedPath = executability.path;
+      const exhaustedAttempts = authoredRepairAttempts.get(exhaustedPath) ?? 0;
+      if (
+        authoredRepairCalls >= MAX_AUTHORED_REPAIR_CALLS ||
+        exhaustedAttempts >= MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
+      ) {
+        // Preserve partial evidence without allowing one exhausted generated
+        // file to strand a later sibling that still has repair budget. Drop
+        // only the exhausted file, re-run the trusted gate, then continue this
+        // same bounded loop against the next diagnosis. A sole file remains a
+        // hard failure, and the shared absolute call cap never grows.
+        if (files.length <= 1) break;
+        const droppedReason = executability.reason;
+        files = files.filter(file => file.path !== exhaustedPath);
+        authorFailures.push({ path: exhaustedPath, reason: droppedReason });
+        executability = checkGeneratedTestsExecutable(files, evidence);
+        await transcript.step(
+          'purser-author-repair',
+          ship.name,
+          `pd-${ship.name}: exhausted malformed file DROPPED ${exhaustedPath}`,
+          {
+            path: exhaustedPath,
+            strategy: 'bounded-partial-executability',
+            attempts: exhaustedAttempts,
+            repairCalls: authoredRepairCalls,
+            reason: droppedReason,
+            survivors: files.map(file => file.path),
+            result: executability.ok
+              ? 'trusted executability gate passed on survivors'
+              : executability.reason,
+          },
+        );
+        continue;
+      }
       // #8313: discovery-aware planning healed the filenames, then an authored
       // file nested at tests/unit/purser imported ../../scripts/... as though
       // it lived one directory higher. The trusted gate caught it, but throwing
@@ -1901,41 +1932,6 @@ export async function runPurser(
           result: repairReason,
           attempts: repairAttempt,
           repairNumber: authoredRepairCalls,
-        },
-      );
-    }
-    // Preserve the partial-success contract through executability repair too.
-    // Once one generated file has exhausted its per-file attempts (or the
-    // shared absolute repair budget), it must not discard safe siblings that
-    // can still execute and challenge the PR. Drop only that generated file,
-    // name the loss in the transcript, and re-run the same trusted gate on the
-    // survivors. A sole remaining file is never dropped: that path still fails
-    // closed, so Purser cannot claim evidence when it authored none.
-    while (
-      !executability.ok &&
-      executability.path &&
-      files.length > 1 &&
-      (authoredRepairCalls >= MAX_AUTHORED_REPAIR_CALLS ||
-        (authoredRepairAttempts.get(executability.path) ?? 0) >=
-          MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE)
-    ) {
-      const droppedPath = executability.path;
-      const droppedReason = executability.reason;
-      files = files.filter(file => file.path !== droppedPath);
-      authorFailures.push({ path: droppedPath, reason: droppedReason });
-      executability = checkGeneratedTestsExecutable(files, evidence);
-      await transcript.step(
-        'purser-author-repair',
-        ship.name,
-        `pd-${ship.name}: exhausted malformed file DROPPED ${droppedPath}`,
-        {
-          path: droppedPath,
-          strategy: 'bounded-partial-executability',
-          attempts: authoredRepairAttempts.get(droppedPath) ?? 0,
-          repairCalls: authoredRepairCalls,
-          reason: droppedReason,
-          survivors: files.map(file => file.path),
-          result: executability.ok ? 'trusted executability gate passed on survivors' : executability.reason,
         },
       );
     }

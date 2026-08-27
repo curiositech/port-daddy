@@ -1278,31 +1278,39 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
-  it('drops one exhausted malformed generated file while executing a valid sibling', async () => {
+  it('drops sequential exhausted malformed files while executing a valid sibling', async () => {
     seedRealJestConfig();
-    const brokenPath = 'tests/unit/purser/malformed-generated.test.ts';
+    const firstBrokenPath = 'tests/unit/purser/malformed-generated-a.test.ts';
+    const secondBrokenPath = 'tests/unit/purser/malformed-generated-b.test.ts';
     const validPath = 'tests/unit/purser/valid-generated.test.ts';
     const plan = [
       '```json',
       JSON.stringify({
         files: [
-          { path: brokenPath, intent: 'grill malformed generation' },
+          { path: firstBrokenPath, intent: 'grill first malformed generation' },
+          { path: secondBrokenPath, intent: 'grill second malformed generation' },
           { path: validPath, intent: 'retain valid adversarial evidence' },
         ],
       }),
       '```',
     ].join('\n');
-    const malformed = '```ts\nexport function broken() { ... }\n```';
+    const firstMalformed = '```ts\nexport function brokenA() { ... }\n```';
+    const secondMalformed = '```ts\nexport function brokenB() { ... }\n```';
     const valid = '```ts\ntest("valid sibling", () => expect(true).toBe(true));\n```';
-    const malformedRepairOne = '```ts\nconst value: = 1;\ntest("still bad", () => value);\n```';
-    const malformedRepairTwo = '```ts\nfunction nope( {\ntest("still bad", () => true);\n```';
+    const firstRepairOne = '```ts\nconst valueA: = 1;\ntest("still bad A", () => valueA);\n```';
+    const firstRepairTwo = '```ts\nfunction nopeA( {\ntest("still bad A", () => true);\n```';
+    const secondRepairOne = '```ts\nconst valueB: = 1;\ntest("still bad B", () => valueB);\n```';
+    const secondRepairTwo = '```ts\nfunction nopeB( {\ntest("still bad B", () => true);\n```';
     const { ai } = seqAi([
       STEELMAN_JSON,
       plan,
-      malformed,
+      firstMalformed,
+      secondMalformed,
       valid,
-      malformedRepairOne,
-      malformedRepairTwo,
+      firstRepairOne,
+      firstRepairTwo,
+      secondRepairOne,
+      secondRepairTwo,
     ]);
     const rec = recorder();
 
@@ -1316,12 +1324,21 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     );
 
     expect(result).toMatchObject({ verdict: 'PASS', errored: false });
-    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(6);
-    expect(rec.steps.find(step =>
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(9);
+    const drops = rec.steps.filter(step =>
       step.kind === 'purser-author-repair' &&
       (step.detail as { strategy?: string }).strategy === 'bounded-partial-executability'
-    )).toMatchObject({
-      title: expect.stringContaining(`DROPPED ${brokenPath}`),
+    );
+    expect(drops).toHaveLength(2);
+    expect(drops[0]).toMatchObject({
+      title: expect.stringContaining(`DROPPED ${firstBrokenPath}`),
+      detail: expect.objectContaining({
+        attempts: 2,
+        survivors: [secondBrokenPath, validPath],
+      }),
+    });
+    expect(drops[1]).toMatchObject({
+      title: expect.stringContaining(`DROPPED ${secondBrokenPath}`),
       detail: expect.objectContaining({
         attempts: 2,
         survivors: [validPath],
