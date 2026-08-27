@@ -169,7 +169,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
     pages: 14,
-    sizeKb: 324,
+    sizeKb: 325,
     claim:
       'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
     pullQuote:
