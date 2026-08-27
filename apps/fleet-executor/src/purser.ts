@@ -1479,6 +1479,91 @@ export async function runPurser(
       authorFailures = authored.failures;
     }
 
+    // Initial authoring and later executability repair share ONE absolute
+    // rewrite budget. A blank/refusal response used to be terminal before the
+    // escalation tier was ever tried, even though malformed source authored a
+    // few lines later was allowed the full bounded repair path. That asymmetry
+    // caused #9892 generation 13 to fail after its sole planned file returned
+    // no usable content.
+    //
+    // Give each failed planned file the same escalation opportunity, but debit
+    // it from the existing MAX_AUTHORED_REPAIR_CALLS / per-file caps. No retry
+    // or deadline constant grows, and a sole file that still authors nothing
+    // remains a hard failure.
+    const authoredRepairAttempts = new Map<string, number>();
+    let authoredRepairCalls = 0;
+    for (const initialFailure of [...authorFailures]) {
+      const planned = plan.find(item => item.path === initialFailure.path);
+      if (!planned) continue;
+      while (
+        authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS &&
+        (authoredRepairAttempts.get(planned.path) ?? 0) <
+          MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
+      ) {
+        const repairAttempt = (authoredRepairAttempts.get(planned.path) ?? 0) + 1;
+        authoredRepairAttempts.set(planned.path, repairAttempt);
+        authoredRepairCalls += 1;
+        const rescued = await authorTestFiles(
+          [planned],
+          async (path, intent) => {
+            const call = await purserAiCall(
+              ship,
+              env,
+              fileAuthorSystemPrompt(
+                ship,
+                steel,
+                { path, intent },
+                graftText,
+                authoringEvidence ?? evidence!,
+                initialFailure.reason,
+              ),
+              prBlock(prCtx),
+              TESTS_MAX_TOKENS,
+              metrics,
+              aiCircuit,
+              REPAIR_ESCALATION_MODEL,
+              assertCurrentHead,
+              capture,
+              'author',
+            );
+            return call.text;
+          },
+        );
+        if (rescued.files.length === 1) {
+          files.push(rescued.files[0]);
+          authorFailures = authorFailures.filter(failure => failure.path !== planned.path);
+          await transcript.step(
+            'purser-author-repair',
+            ship.name,
+            `pd-${ship.name}: empty authored file HEALED ${planned.path}`,
+            {
+              path: planned.path,
+              strategy: 'bounded-empty-author-escalation',
+              attempts: repairAttempt,
+              repairNumber: authoredRepairCalls,
+            },
+          );
+          break;
+        }
+        const reason = rescued.failures[0]?.reason ?? 'repair emitted no usable file';
+        authorFailures = authorFailures.map(failure =>
+          failure.path === planned.path ? { path: planned.path, reason } : failure,
+        );
+        await transcript.step(
+          'purser-author-repair',
+          ship.name,
+          `pd-${ship.name}: empty authored file repair FAILED ${planned.path}`,
+          {
+            path: planned.path,
+            strategy: 'bounded-empty-author-escalation',
+            result: reason,
+            attempts: repairAttempt,
+            repairNumber: authoredRepairCalls,
+          },
+        );
+      }
+    }
+
     if (files.length === 0) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring FAILED`, {
         error: 'no planned file authored usable contents',
@@ -1649,8 +1734,6 @@ export async function runPurser(
         },
       );
     }
-    const authoredRepairAttempts = new Map<string, number>();
-    let authoredRepairCalls = 0;
     while (
       !executability.ok &&
       (executability.kind === 'syntax-error' ||
@@ -1818,6 +1901,41 @@ export async function runPurser(
           result: repairReason,
           attempts: repairAttempt,
           repairNumber: authoredRepairCalls,
+        },
+      );
+    }
+    // Preserve the partial-success contract through executability repair too.
+    // Once one generated file has exhausted its per-file attempts (or the
+    // shared absolute repair budget), it must not discard safe siblings that
+    // can still execute and challenge the PR. Drop only that generated file,
+    // name the loss in the transcript, and re-run the same trusted gate on the
+    // survivors. A sole remaining file is never dropped: that path still fails
+    // closed, so Purser cannot claim evidence when it authored none.
+    while (
+      !executability.ok &&
+      executability.path &&
+      files.length > 1 &&
+      (authoredRepairCalls >= MAX_AUTHORED_REPAIR_CALLS ||
+        (authoredRepairAttempts.get(executability.path) ?? 0) >=
+          MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE)
+    ) {
+      const droppedPath = executability.path;
+      const droppedReason = executability.reason;
+      files = files.filter(file => file.path !== droppedPath);
+      authorFailures.push({ path: droppedPath, reason: droppedReason });
+      executability = checkGeneratedTestsExecutable(files, evidence);
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        `pd-${ship.name}: exhausted malformed file DROPPED ${droppedPath}`,
+        {
+          path: droppedPath,
+          strategy: 'bounded-partial-executability',
+          attempts: authoredRepairAttempts.get(droppedPath) ?? 0,
+          repairCalls: authoredRepairCalls,
+          reason: droppedReason,
+          survivors: files.map(file => file.path),
+          result: executability.ok ? 'trusted executability gate passed on survivors' : executability.reason,
         },
       );
     }
