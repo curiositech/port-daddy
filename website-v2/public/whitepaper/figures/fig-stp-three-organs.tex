@@ -1,56 +1,54 @@
-% Fig 4 — the three continuity organs with honest labels: memory BUILT, checkpoint PARTIAL, ledger PARTIAL.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
+% Fig 4 — the three continuity organs, drawn in the shared `stp box` visual grammar.
+% Maturity labels use the paper's \BUILT / \BUILTWEAK macros so the in-figure label
+% and the caption cannot drift apart.
 
 % ─── The Three Continuity Organs ──────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  organ/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=7pt, text width=44mm, align=left, minimum height=28mm},
-  accentorgan/.style={organ, draw=hhcobalt, fill=hhcobalt!7},
-  repbox/.style={draw=hhcobalt, line width=0.85pt, fill=hhpaper, rounded corners=2pt, inner sep=6pt, text width=44mm, align=center},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
-]
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
 
-  \node[organ] (o1) at (-5.2, 0) {
-    \textbf{\scshape 1. Episodic Memory}\\[1pt]
-    {\scriptsize\textsc{[Implemented]}}\\[4pt]
+  \node[stp box,text width=44mm,align=left,minimum height=26mm] (o1) at (-5.2,0) {
+    \textbf{\scshape 1. Episodic memory}\\[1pt]
+    {\scriptsize\BUILT}\\[4pt]
     \textit{What happened.}\\[2pt]
     {\footnotesize Typed episodes scored by recency, importance, and relevance.}
   };
 
-  \node[organ] (o2) at (0.0, 0) {
-    \textbf{\scshape 2. Checkpoint Organ}\\[1pt]
-    {\scriptsize\textsc{[Partial / Structured]}}\\[4pt]
+  \node[stp box,text width=44mm,align=left,minimum height=26mm] (o2) at (0,0) {
+    \textbf{\scshape 2. Checkpoint organ}\\[1pt]
+    {\scriptsize\BUILTWEAK}\\[4pt]
     \textit{Restorable state.}\\[2pt]
-    {\footnotesize Forwards structured event logs, notes, and worktree lineage.}
+    {\footnotesize Forwards a summary and worktree lineage --- not execution state.}
   };
 
-  \node[accentorgan] (o3) at (5.2, 0) {
-    \textbf{\scshape 3. Outcome Ledger}\\[1pt]
-    {\scriptsize\textsc{[Core Implemented]}}\\[4pt]
+  \node[stp accent box,text width=44mm,align=left,minimum height=26mm] (o3) at (5.2,0) {
+    \textbf{\scshape 3. Outcome ledger}\\[1pt]
+    {\scriptsize\BUILTWEAK}\\[4pt]
     \textit{Witnessed delivery.}\\[2pt]
-    {\footnotesize Append-only; closes only against machine-checkable oracles.}
+    {\footnotesize Commitments close against oracles; neutral grading does not ship.}
   };
 
-  \draw[flowarr] (o1) -- (o2);
-  \draw[flowarr] (o2) -- (o3);
+  \draw[stp arrow] (o1) -- (o2);
+  \draw[stp arrow] (o2) -- (o3);
 
-  \node[repbox, below=8mm of o3] (rep) {
-    \textbf{\scshape Multi-Dim Reputation}\\[1pt]
-    {\scriptsize Keys on witnessed outcome ledger (the third organ)}
+  \node[stp box,text width=44mm,below=9mm of o3] (rep) {
+    \textbf{\scshape Multi-dim reputation}\\[1pt]
+    {\scriptsize\DESIGNED}\\[2pt]
+    {\scriptsize Keys on the witnessed-outcome ledger (the third organ)}
   };
-  \draw[accentarr] (o3) -- (rep);
+  \draw[stp accent arrow] (o3) -- (rep);
 
-\end{tikzpicture}
-\caption{\textbf{The three continuity organs, honestly labelled.} Episodic memory (\BUILT) records what happened --- typed episodes promoted out of transient history. The checkpoint (\BUILTWEAK) is meant to preserve task lineage and worktree state across compaction boundaries, but today forwards a summary rather than execution state. The witnessed-outcome ledger (\BUILTWEAK) enforces non-repudiable delivery against external oracles and is the sole anchor reputation keys on; commitments and oracle closure ship, grading does not (\S\ref{sec:organs}).}
+\end{tikzpicture}}
+\caption{\textbf{The three continuity organs, honestly labelled.} Episodic memory
+(\BUILT) records what happened --- typed episodes promoted out of transient history.
+The checkpoint (\BUILTWEAK) is meant to preserve task lineage and worktree state
+across compaction boundaries, but today forwards a summary rather than execution
+state. The witnessed-outcome ledger (\BUILTWEAK) is the sole anchor reputation keys
+on --- the accented box --- and it is only partial: durable commitments and
+oracle-bound closure ship, neutral graded outcomes and sanctions do not
+(\S\ref{sec:organs}). Each organ's in-figure grade is set from the same
+\BUILT/\BUILTWEAK/\DESIGNED\ macros the body text uses, so the picture and the prose
+cannot disagree.}
 \label{fig:organs}
 \end{figure}

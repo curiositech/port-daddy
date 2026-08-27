@@ -146,9 +146,12 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
+\emph{Agents sharing one machine cannot be trusted to behave, so the Anchor Protocol makes every agent prove cryptographically which capabilities it holds and for how long --- a claim proved symbolically about the protocol, and checked mechanically against the Rust code that actually runs. Express lane: that sentence is the claim; Theorem~\ref{thm:injective} and Theorem~\ref{thm:attn-sound} are the formal statements, and \S\ref{sec:limitations} is where they stop. A reader in a hurry needs nothing else.}
+
+\medskip\noindent
 As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports.
 
-This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop delegation chains inspired by Macaroons~\cite{birgisson2014macaroons}. ProVerif~\cite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks bounded memory-safety and source-level control-flow properties of the Rust core; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time. The multi-hop proof is also structurally bounded, distinct from ProVerif's unbounded-session quantification. Section~\ref{sec:limitations} records those boundaries explicitly.
+This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop delegation chains inspired by Macaroons~\cite{birgisson2014macaroons}. ProVerif~\cite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks bounded memory-safety and source-level control-flow properties of the Rust core; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time, and the multi-hop proof is structurally bounded rather than session-unbounded --- Section~\ref{sec:limitations} records those boundaries explicitly.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -164,7 +167,7 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.1cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{PORT DADDY COORDINATION PAPERS\hfill CHAPTER~V~OF~VII}}\\[5pt]
+  {\scshape\bfseries\footnotesize\textcolor{hhebony}{Port Daddy Coordination Papers\hfill Chapter~V~of~VII}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
   {\color{hhcobalt}\textbf{V.~The Anchor Protocol \textnormal{(this chapter)}.}}~Authentication, delegation, attenuation, and revocation inside one harbor.\\[4pt]
   \textbf{VI.~The Bonded Commons.}~Evidence, bonding, advisory claims, and the incentive conditions for cooperation.\\[4pt]
@@ -181,10 +184,12 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 \newpage
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Introduction: The ``Local Swarm'' Problem}
+\section{What problem this solves}\label{sec:problem}
 % ═════════════════════════════════════════════════════════════════════════════
 
-In a multi-agent development environment, agents operate concurrently to read files, spin up test servers, and execute commands. This introduces three critical threat vectors on \texttt{localhost}:
+\textbf{The scene.} It is 2\,a.m.\ and your laptop is running four coding-agent sessions at once: one refactoring the auth module, one running the test suite against a local Postgres, one building a preview deployment, and one you started an hour ago and forgot about. All four are agents. All four can read your files, bind ports, and run shell commands with your full user permissions --- and none of them can tell, from the outside, which of the other three is behaving. Nothing on the machine distinguishes the forgotten session from a process that has quietly replaced it.
+
+That is the local swarm problem. In a multi-agent development environment, agents operate concurrently to read files, spin up test servers, and execute commands, and this introduces three concrete failure modes on \texttt{localhost}:
 
 \begin{enumerate}
   \item \textbf{Port Squatting (The ``Ghost in the Harbor''):} If Agent A crashes, a malicious or malfunctioning Agent B can bind to Agent A's previously assigned port, intercepting traffic meant for A.
@@ -194,7 +199,11 @@ In a multi-agent development environment, agents operate concurrently to read fi
   \item \textbf{Privilege Escalation:} A ``Reviewer'' agent delegated by a ``Coder'' agent should not possess the rights to initiate production deployments, yet local environments rarely enforce principle-of-least-privilege between processes.
 \end{enumerate}
 
-To solve this, Port Daddy introduces the concept of a \textbf{Harbor}—a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\cite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\cite{saltzer1975protection}.
+\paragraph{The idea in one breath.} \emph{Every agent on the machine carries a short-lived, cryptographically signed card that names exactly what it may do; anything it hands to a child is strictly smaller; and any card can be withdrawn before it expires.} Everything that follows is that sentence made precise, then mechanically checked.
+
+To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}---a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\cite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\cite{saltzer1975protection}. This protocol sits in a specific lineage --- Macaroons for delegation, ProVerif and Tamarin for symbolic verification, the JWT algorithm-confusion literature for the Phase~1 hardening, and the emerging agentic-commerce credential profiles for the envelope --- traced in full in Appendix~\ref{app:related}, which a reader following the argument rather than the citations can skip entirely.
+
+\paragraph{How to read this chapter.} \S\ref{sec:architecture} is the protocol: four phases, each closing a hole the previous one left open. \S\ref{sec:correct} is the evidence: three verification layers, what each one proves, and what it hands the next. \S\ref{sec:adversary} is the honest accounting: the adversary we assume, the properties that survive it, and where the guarantees stop. Figure~\ref{fig:anchor-verification-stack} is the map for \S\ref{sec:correct}; Table~\ref{tab:threat-closure} closes the loop on the three failure modes just listed.
 
 \vspace{4pt}
 \noindent\begin{tikzpicture}
@@ -207,7 +216,7 @@ To solve this, Port Daddy introduces the concept of a \textbf{Harbor}—a zero-t
 \vspace{4pt}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The Anchor Protocol Architecture}
+\section{The Anchor Protocol Architecture}\label{sec:architecture}
 % ═════════════════════════════════════════════════════════════════════════════
 
 The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Figure~\ref{fig:anchor-four-phases}).
@@ -238,6 +247,7 @@ To support decentralized Agent-to-Agent (A2A) communication without sharing HMAC
 The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor is assigned a unique Ed25519 keypair. The Daemon issues Harbor Cards signed by the Harbor's private key. Agents use the Harbor's public key (broadcast via Port Daddy's ambient discovery service) to verify tokens presented by peers.
 \end{definition}
 
+% SUBMISSION-SKILL: naming conflict — "Biscuit" is the name of an existing, well-known capability-security authorization-token format (Eclipse Biscuit / biscuitsec.org, Couprie et al., presented at Pass the SALT 2021): public-key-signed tokens with offline attenuation, directly descended from Macaroons, structurally very close to what Phase 3 describes. This subsection uses "Biscuit" only as an informal nickname and cites neither the project nor a disambiguation. Recommend either citing the Biscuit project and stating how this protocol differs (datalog policies vs. flat capability sets; JWT envelope vs. Biscuit's own block format), or dropping the nickname in favor of the already-used "Macaroon"/"offline attenuation" vocabulary, which is unambiguous and already cited. Left as-is per submission-readiness scope (flag, not silent rename).
 \subsection{Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}
 
 Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\cite{birgisson2014macaroons}.
@@ -252,9 +262,11 @@ For depth-$N$ chains, the verifier walks the structure shown in Figure~\ref{fig:
 
 \input{figures/fig-anchor-delegation-inline}
 
-\subsection{Phase 4: Revocation via Cuckoo Filter}\label{sec:revocation}
+\subsection{Withdrawing a card before it expires}\label{sec:revocation}
 
-Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically. While the Anchor Protocol previously attempted to gossip a cuckoo filter directly (which succumbed to the bitwise merging impossibility), it now gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\cite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
+Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically. While the Anchor Protocol previously attempted to gossip cuckoo filters directly between daemons --- merging two peers' filters by OR-ing their bit arrays --- it now gossips an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks. To maintain $O(1)$ read performance, each daemon continually projects its event log into a local, ephemeral cuckoo filter~\cite{fan2014cuckoo} (Figure~\ref{fig:anchor-cuckoo-inline}).
+
+\paragraph{Why filters cannot be merged bitwise.} The abandoned design failed for a structural reason worth stating plainly, because it is the reason the log exists. Two cuckoo filters cannot be safely combined by OR-ing their bit arrays. A fingerprint's final resting bucket is not a function of the key alone: it is the first candidate bucket $i_1$ if that bucket had a free slot at insertion time, and otherwise the alternate $i_2$ reached by evicting some other fingerprint --- so occupancy depends on insertion order and eviction history, not just on the set of keys. Peer~$A$ may hold fingerprint \texttt{c1} in bucket $i_0$ while peer~$B$, having inserted a different key first, holds the same \texttt{c1} in bucket $i_3$. The bitwise union contains both placements, which no single consistent filter state could have produced: subsequent deletions then remove the wrong occupancy and can \emph{reanimate} a revoked card --- a false negative, the one error a revocation gate must never make. Gossiping the append-only log of \texttt{kid}s and rebuilding each daemon's filter locally sidesteps the problem entirely, because set union over identifiers is well defined where union over their lossy encodings is not.
 
 \paragraph{Cuckoo filters in one paragraph.} A cuckoo filter is a compact probabilistic set: under successful insertion and correct deletion discipline it has false positives but no false negatives, while supporting deletion. Each inserted key is reduced to a fingerprint and placed in one of two candidate buckets; on collision, fingerprints are relocated until a slot opens or insertion fails. Lookups inspect both buckets. The expected lookup cost is $O(1)$ and the approximate false-positive probability for two buckets of size $B$ and $f$ fingerprint bits is at most about $2B/2^f$ in the low-collision model. High load increases insertion failures; the implementation rejects or rebuilds rather than silently dropping a revocation. Duplicate fingerprints require counted or authoritative-table-backed deletion so that removing one key does not reanimate another.
 
@@ -288,63 +300,21 @@ A revoked card cannot be un-revoked within its TTL. If an operator decides the r
 Under the complete-overlay, uniform-peer, reliable-round model above, a revocation disseminates to all $m$ daemons in expected $\Theta(\Delta\log m)$ time. No finite worst-case freshness bound holds under an unbounded partition.
 \end{property}
 
-\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Theorem~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. The card lifecycle gains a state ($\textit{valid} \to \textit{revoked} \to \textit{expired}$) modeled as an additional transition.
+\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Theorem~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. The card lifecycle gains a state ($\textit{valid} \to \textit{revoked} \to \textit{expired}$) modeled as an additional transition (Figure~\ref{fig:anchor-card-lifecycle}).
+
+\input{figures/fig-anchor-card-lifecycle}
 
 \paragraph{Privacy.} A Dolev-Yao adversary observing all gossip traffic learns the revoked-card IDs, leaking which agents have been disciplined. For an organization's own daemons, this is acceptable audit transparency. Stronger privacy is available by encoding revocations as salted hashes $H(\texttt{kid}, \texttt{salt})$ where the salt rotates daily, stored encrypted under a harbor session key.
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Related Work}
-% ═════════════════════════════════════════════════════════════════════════════
-
-\subsection{Formal Verification of Security Protocols}
-
-Formal verification of cryptographic protocols has matured significantly over the past two decades. Following the seminal work by Lowe~\cite{lowe1997hierarchy} on authentication hierarchies and the Dolev-Yao model~\cite{dolev1983security}, several automated tools have been developed:
-
-\begin{itemize}
-  \item \textbf{ProVerif}~\cite{blanchet2016modeling}: An automatic symbolic protocol verifier supporting an unbounded number of sessions, used to verify TLS 1.3~\cite{cremers2017comprehensive}, Signal~\cite{kobeissi2017automated}, and WireGuard.
-  
-  \item \textbf{Tamarin}~\cite{meier2013tamarin}: A state-of-the-art protocol verifier that supports equational properties and inductive proofs, used for analyzing 5G authentication~\cite{basin2018formal}.
-  
-  \item \textbf{CryptoVerif}~\cite{blanchet2007cryptoverif}: A computationally-sound protocol verifier that provides proofs in the computational model rather than the symbolic model.
-\end{itemize}
-
-Our work builds on these foundations, applying established verification techniques to the novel domain of local multi-agent coordination.
-
-\subsection{Capability-Based Authorization}
-
-Capability-based security dates back to Dennis and Van Horn's seminal 1966 paper on programming semantics for multiprogrammed computations~\cite{dennis1966programming}. Recent work by Birgisson et al.~\cite{birgisson2014macaroons} introduced Macaroons, which use chained HMACs for decentralized delegation with contextual caveats. The Anchor Protocol's delegation chains (Section~\ref{sec:delegation}) are inspired by Macaroons but adapted for JWT-based identity in local development environments.
-
-\subsection{JWT Security}
-
-JSON Web Tokens have been the subject of extensive security analysis. Algorithm confusion attacks were first systematically studied by McLean~\cite{mclean2015critical}, with subsequent vulnerabilities documented in CVE-2015-9235~\cite{cve20159235} (HS256/RS256 confusion), CVE-2018-1000531~\cite{cve20181000531} (``none'' algorithm), and CVE-2023-48238~\cite{cve202348238} (generic algorithm confusion). Our protocol implements the defense recommended by the IETF JWT Best Current Practices~\cite{ietf2024jwtbcp}: strict algorithm whitelisting and key separation.
-
-\subsection{Credential Formats in Agentic Commerce}
-
-Since this protocol was first specified, the agentic-payments industry has
-converged on a concrete credential dialect: the Agent Payments
-Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
-Protocol~\cite{ucp2026} (Google/Shopify, 2026), carries its authorization
-mandates as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb for
-principal proof, JWS detached-content signatures (RFC~7515 Appendix~F) over
-JCS-canonicalized payloads (RFC~8785) for counterparty authorization, with
-ES256 as the recommended algorithm and keys published as JWK sets in a
-\texttt{/.well-known} profile. The reference implementation migrates the
-Harbor Card envelope to this profile (\texttt{hv:~3}, ADR-0094) so that
-external verifiers need no bespoke SDK. The migration is deliberately
-envelope-only: the delegation-chain semantics, the attenuation invariant of
-Theorem~\ref{thm:injective}, and the ProVerif obligations are independent of
-the serialization, though the key-binding construction of SD-JWT+kb adds a
-binding obligation the model must re-discharge. The JWT hardening above
-(strict algorithm whitelisting, key separation) transfers unchanged --- SD-JWT
-is a JWT profile, not a departure from one.
-
-% ═════════════════════════════════════════════════════════════════════════════
-\section{Formal Verification Strategy}
+\section{How we know it is correct}\label{sec:correct}
 % ═════════════════════════════════════════════════════════════════════════════
 
 Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Microsoft (Project Everest~\cite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Figure~\ref{fig:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
 
 \input{figures/fig-anchor-verification-stack}
+
+\paragraph{Figure~\ref{fig:anchor-verification-stack} is this section's map.} Read it top-to-bottom for what is proved about the design; read the cobalt down-arrows for what each layer hands the next as an obligation it cannot discharge itself; read the teal up-arrows for what has actually been checked about the running code. The two centre labels are the only places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are drawn as labelled bridges rather than as inference lines.
 
 \subsection{Symbolic Analysis with ProVerif}
 
@@ -354,7 +324,7 @@ To prove the protocol's logical soundness against a Dolev-Yao adversary~\cite{do
 For the modeled delegation phase, ProVerif confirmed the correspondence:
 \begin{align}
 \text{Accepted}(b, h, cap) \implies& \ (\text{IssuedRoot}(a, h, cap) \land \text{Delegated}(a, b, cap)) \nonumber\\
-& \lor \ \text{IssuedRoot}(b, h, cap)
+& \lor \ \text{IssuedRoot}(b, h, cap).
 \end{align}
 The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled issuance/delegation event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
 \end{theorem}
@@ -363,7 +333,7 @@ All three protocol phases were independently verified in ProVerif 2.05. Table~\r
 
 \begin{table}[H]
 \centering
-\caption{ProVerif results for the listed model queries. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
+\caption{All five listed ProVerif queries return \textbf{TRUE} across the three modeled protocol phases. Session replication is unbounded where the model uses replication; delegation-chain structure remains bounded as stated in \S\ref{sec:limitations}.}
 \label{tab:proverif-results}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l l l@{}}
 \toprule
@@ -401,7 +371,7 @@ Formal models establish properties of their abstractions. At runtime, Port Daddy
   \item \texttt{HEARTBEAT\_FRESHNESS}: Flags stale heartbeats as early warning for agent death.
 \end{enumerate}
 
-Violations are logged and can trigger the ``man overboard'' salvage protocol. Because this path observes committed events, it detects and compensates; only a pre-commit native guard can prevent a transition. The Arbiter API provides visibility, not a proof that every security-relevant operation was mediated.
+Violations are logged and can trigger the ``man overboard'' salvage protocol: the daemon revokes the offending agent's active Harbor Cards (\S\ref{sec:revocation}), releases any locks and port reservations it held, and, for supervised sessions, notifies the parent agent or the human operator. Because this path observes \emph{committed} events, it detects and compensates; only a pre-commit native guard can prevent a transition in the first place. The Arbiter API provides visibility, not a proof that every security-relevant operation was mediated.
 
 \subsection{Implementation Verification}
 
@@ -415,13 +385,11 @@ Using the \textbf{Kani} Rust Verifier~\cite{aws2022kani}, we performed bounded m
 The Rust comparator uses no source-level branch on secret byte values, and Kani checks that bounded control-flow property. This is useful evidence but not a hardware-level constant-time proof: compiler transformations, memory behavior, and microarchitecture remain outside the model.
 \end{property}
 
-% ═════════════════════════════════════════════════════════════════════════════
-\section{Verification Algorithms}\label{sec:algorithms}
-% ═════════════════════════════════════════════════════════════════════════════
+\subsection{The procedures, precisely}\label{sec:algorithms}
 
-In this section, we present the verification algorithms in pseudocode format, following the notation used in protocol verification literature~\cite{blanchet2016modeling,lowe1997hierarchy}. These algorithms correspond to the formal ProVerif models in Appendix~\ref{app:proverif}.
+The three phases are restated here as pseudocode, for the reader who wants the exact procedure rather than the narrative. Nothing new is claimed in this subsection: it is the same three phases written so that each line has a visible counterpart in the formal ProVerif models of Appendix~\ref{app:proverif}, in the notation used in the protocol-verification literature~\cite{blanchet2016modeling,lowe1997hierarchy}.
 
-\subsection{Phase 1: Symmetric HS256 with Algorithm Pinning}
+\subsubsection{Phase 1: Symmetric HS256 with Algorithm Pinning}
 
 Algorithm~\ref{alg:symmetric} presents the secure verification procedure that is immune to algorithm confusion attacks (CVE-2015-9235~\cite{cve20159235}).
 
@@ -450,7 +418,7 @@ function Harbor.VerifyToken(tok, expected_harbor):
 
 \textbf{Security Property:} The algorithm ignores the user-provided $alg_{header}$ (line 15), preventing algorithm confusion attacks where an attacker sets $alg = \text{``none''}$ or attempts HS256/RS256 confusion~\cite{mclean2015critical}.
 
-\subsection{Phase 2: Asymmetric Ed25519}
+\subsubsection{Phase 2: Asymmetric Ed25519}
 
 Algorithm~\ref{alg:asymmetric} presents the Ed25519-based verification. This phase removes the need for shared HMAC secrets between distributed Harbors.
 
@@ -479,7 +447,7 @@ function Harbor.VerifyToken(tok, pk_h, expected_harbor):
 
 \textbf{Security Property:} The secrecy of $sk_{harbor}$ and the unforgeability of Ed25519~\cite{bernstein2012high} ensure that only the legitimate Daemon can issue valid Harbor Cards.
 
-\subsection{Phase 3: Multi-hop Delegation}\label{sec:delegation}
+\subsubsection{Phase 3: Multi-hop Delegation}\label{sec:delegation}
 
 Algorithm~\ref{alg:delegation} presents the delegation chain verification, inspired by Macaroons~\cite{birgisson2014macaroons}.
 
@@ -520,7 +488,7 @@ function Harbor.VerifyChain(chain, pk_root):
 \textbf{Security Property:} Monotonic per-hop attenuation ($\text{cap}_i \subseteq \text{cap}_{i-1}$) prevents capability expansion across transitive delegations (preventing \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation). Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) proves inductive soundness under the partial order.
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Implementation: Deployed Rust Core}
+\section{The verified code is the running code}\label{sec:implementation}
 % ═════════════════════════════════════════════════════════════════════════════
 
 The verified cryptographic core is not a reference implementation---it is the \textbf{deployed production code}. The open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library (\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's runtime-enforcement (Arbiter) module.
@@ -645,10 +613,10 @@ The stubbing strategy deserves explanation: \texttt{proof\_verify\_logic\_only} 
 The build output at \texttt{target/kani/aarch64-apple-darwin/debug} contains the CBMC intermediate representations used by Kani's bounded model checker.
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Security Analysis}
+\section{What the adversary can do, and what it cannot}\label{sec:adversary}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\subsection{Threat Model}
+\subsection{Threats this takes seriously}\label{sec:threat-model}
 
 We assume a \textbf{Dolev-Yao adversary}~\cite{dolev1983security} who:
 \begin{itemize}
@@ -658,13 +626,42 @@ We assume a \textbf{Dolev-Yao adversary}~\cite{dolev1983security} who:
   \item May corrupt legitimate agents (but not all simultaneously)
 \end{itemize}
 
-This is the standard threat model for symbolic protocol analysis~\cite{blanchet2016modeling}.
+This is the standard threat model for symbolic protocol analysis~\cite{blanchet2016modeling}. Every figure in this chapter that shows a message leaving daemon or verifier authority marks the region this adversary controls with the same dashed band (Figures~\ref{fig:anchor-alg-confusion}, \ref{fig:anchor-delegation-inline}, and~\ref{fig:anchor-revocation-gossip}); figures without a band --- the phase progression, the attenuation rings, the cuckoo mechanics, the card lifecycle, the verification stack --- show structure inside one trust domain, where the boundary would be decoration rather than a claim.
+
+Table~\ref{tab:threat-closure} closes the loop on the three failure modes of \S\ref{sec:problem}: each is named there, addressed somewhere in between, and carries a residual risk stated here rather than left for the reader to reconstruct.
+
+\begin{table}[H]
+\centering
+\caption{No mechanism in this chapter closes its threat completely: each of the three failure modes of \S\ref{sec:problem} is closed somewhere below, but every row's residual-risk column is deliberately non-empty.}
+\label{tab:threat-closure}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Threat (\S\ref{sec:problem})} & \textbf{Closed where} & \textbf{By what mechanism} & \textbf{Residual risk} \\
+\midrule
+Port squatting (``Ghost in the Harbor'') &
+\S\ref{sec:correct}, Arbiter invariant \texttt{PID\_SQUATTING} &
+Cards bind to the connecting process via the daemon's socket-credential check; the Arbiter flags a port claimed by a PID other than its holder &
+Detection is post-commit, and the binding is an OS check outside the ProVerif model. See \S\ref{sec:limitations}, ``A program is not a person'' \\
+\addlinespace
+Resource contention (shared-state corruption) &
+Appendix~\ref{sec:anchor-limitations-boundaries}; SQLite single-writer &
+One writer per harbor, WAL checkpointing, and \texttt{LOCK\_OWNER\_VALID} in the Arbiter &
+Enforced by the storage layer, not proved in this chapter; measurable I/O cost \\
+\addlinespace
+Privilege escalation across delegation &
+\S\ref{sec:delegation}; Theorem~\ref{thm:attn-sound} &
+Per-hop capability attenuation, checked at issuance and re-checked at verification, mechanized against an insider escalation adversary &
+Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-time policy check, not a verification-time invariant \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Security Properties}
 
 \begin{table}[H]
 \centering
-\caption{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
+\caption{All seven listed properties are mechanically verified, but only the three Kani-checked properties also run inside the deployed binary; the four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
 \label{tab:properties}
 \begin{tabular}{@{}lllll@{}}
 \toprule
@@ -681,17 +678,19 @@ Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} 
 \end{tabular}
 \end{table}
 
-\subsection{Limitations}\label{sec:limitations}
+\subsection{Where this stops}\label{sec:limitations}
 
 \begin{enumerate}
   \item \textbf{Delegation-chain depth.} The symbolic proof of delegation soundness (Table~\ref{tab:anchor-status}, ``\texttt{chain-replay.pv}'') is machine-checked at the chain depth realized in deployment (depth~3); it is \emph{not} a proof for unbounded chain length. ProVerif's unbounded-session guarantee quantifies over the number of protocol \emph{sessions}, not over the number of hops in a single delegation chain, which is a fixed structural bound in the modeled process. Extending the proof to unbounded depth (via recursive replication of the delegation process) is future work. The current depth bound is a \emph{spawn-time} policy check (\texttt{assessDelegation} in \texttt{lib/tube-spawner-router.ts}, \texttt{HARD\_MAX\_DELEGATION\_DEPTH}\,=\,8, default~4) applied when a spawn request arrives; it is \emph{not} a verification-time invariant. The cryptographic chain verifier (\texttt{lib/delegation-chain.ts}) accepts arbitrary chain depth, and the attenuation monitor (\texttt{lib/cap-attenuation-monitor.ts}) enforces only per-hop capability monotonicity---not total depth. Machine-enforced depth at verification time is a planned hardening item.
-  \item \textbf{PID Binding:} The ``Ghost in the Harbor'' scenario requires binding tokens to the requesting PID, which is handled at the OS level.
-  \item \textbf{Local Transport Security:} On multi-user systems, local unix sockets or loopback TLS should be used to prevent local bearer token sniffing.
+  \item \textbf{A program is not a person.} A Harbor Card authenticates a \emph{capability holder}, not a human and not, by itself, a process. The ``Ghost in the Harbor'' scenario of \S\ref{sec:problem} is really a PID-binding gap: nothing in the token cryptography stops a \emph{different} process from presenting a card whose original bearer has died, because the card says what may be done, not who is doing it. Port Daddy binds cards to the connecting process outside the token, via the daemon's socket-credential check at connection time (\texttt{SO\_PEERCRED} on Linux, \texttt{LOCAL\_PEERCRED}/\texttt{getpeereid} on macOS). Two consequences follow, and both are boundaries rather than guarantees. First, this is enforced by the operating system, not proved by ProVerif: the symbolic model has no notion of a process, so a daemon build that skips or mis-orders the check is unprotected regardless of card validity, and no query in Table~\ref{tab:proverif-results} would notice. Second, the check is only as strong as what it compares. Walk the concrete case: Agent~A holds a card and is running as PID~4021. It crashes at $t$. Three seconds later the OS reuses 4021 for an unrelated Agent~B, which presents A's card scavenged from a shared temp file. A credential check that compares \emph{only} the numeric PID admits B --- the numbers match. The deployed check therefore compares the peer credential against the socket-connection identity established at card issuance and re-validates process start-time, so a reused PID with a later start-time is rejected; a build that compares the bare PID has an open reuse race. That start-time comparison is a runtime conformance test, not a mechanized proof, and it is listed as such rather than as closed.
+  \item \textbf{\texttt{localhost} is a real network.} \texttt{localhost} is not a trust boundary. On a shared or multi-user machine any local process --- including one belonging to a different user, or a browser page pointed at \texttt{127.0.0.1} --- can open a TCP connection to a loopback port, and a bearer token sent in the clear over loopback is exactly as interceptable as one sent over the open internet: the Dolev--Yao adversary of \S\ref{sec:threat-model} is not a hypothetical here but the account sharing your build box. Concretely, a card with a 15-minute TTL sniffed off loopback at minute~1 grants its holder fourteen minutes of the victim agent's full capability set, and revocation (\S\ref{sec:revocation}) can shorten that window only after somebody notices. The recommended deployment is a Unix domain socket whose parent directory is mode \texttt{0700} and owned by the daemon's own user, so that the filesystem, not the protocol, excludes other users; loopback TLS with a pinned daemon certificate is the alternative where cross-user sharing is genuinely required. The Anchor Protocol does not currently \emph{enforce} either: the daemon will speak to whatever transport it is configured with. This is therefore an operational obligation on the deployer, and one of the few places in this chapter where a wrong configuration silently voids a property the rest of the chapter proves.
 \end{enumerate}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{Conclusion}
+\section{Proofs are leverage, not decoration}\label{sec:conclusion}
 % ═════════════════════════════════════════════════════════════════════════════
+
+A proof is decoration when it is about a model nobody deploys, or when its scope is quietly larger in the prose than in the tool output. It is leverage when it lets you delete a defensive check you would otherwise have had to write, and when the thing proved is the thing that runs. That is the test this chapter has tried to hold itself to: the Kani harnesses run against the same \texttt{harbor-card-rs} crate the daemon loads at runtime; the ProVerif attenuation model was rewritten (Appendix~\ref{app:phase3}, \S\ref{sec:attn-soundness}) once a reviewer showed the original could not even \emph{express} the attack it claimed to exclude; and every claim whose mechanization is partial or absent is marked \Partial\ or \Open\ in Table~\ref{tab:anchor-status} rather than rounded up.
 
 The Anchor Protocol replaces several hope-based assumptions with explicit, checkable obligations. It combines:
 
@@ -701,7 +700,7 @@ The Anchor Protocol replaces several hope-based assumptions with explicit, check
   \item Capability-based delegation (inspired by Macaroons~\cite{birgisson2014macaroons})
 \end{itemize}
 
-Together these artifacts support a bounded assurance case for the modeled and tested surfaces. They do not certify the entire daemon, every delegation depth, or every side channel.
+Together these artifacts support a bounded assurance case for the modeled and tested surfaces. They do not certify the entire daemon, every delegation depth, or every side channel --- and \S\ref{sec:limitations} says so in the same voice as the claims, because a boundary stated only in a footnote is decoration too.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
@@ -865,7 +864,7 @@ Agent Payments Protocol (AP2): Mandates.
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Anchor Protocol verification status. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}
+\caption{Six of the twelve listed claims close at both the model and runtime level; five remain partial and one open. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}
 \label{tab:anchor-status}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.29\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
@@ -890,7 +889,7 @@ Mechanized gossip-convergence bound & --- & \Open\ standard expected asymptotics
 \end{tabularx}
 \end{table}
 
-\paragraph{Limitations.} The transition to gossiping the Append-Only Event Log solves the bitwise merging impossibility, but cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+\paragraph{Limitations.} The transition to gossiping the Append-Only Event Log removes the unsound filter merge described in \S\ref{sec:revocation} (``Why filters cannot be merged bitwise''), but cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
 
 \paragraph{GitHub-App relay ingress.} The webhook-dispatch surface (GitHub $\to$ untrusted relay $\to$ daemon) is modeled with the relay as the Dolev-Yao attacker, in three relay-agnostic properties, each paired with a negative control (\texttt{*\_vuln.pv}) that exhibits the attack once the mitigation is removed---so a \emph{true} result is non-vacuous. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the forwarder's transport credential is attacker-held; the control omits the daemon-side HMAC re-verification and the property fails (forged dispatch). This is \emph{non-injective} agreement (origin), not replay-freedom: a captured genuine $(\textit{payload},\textit{mac})$ may be re-delivered. Replay-freedom is an ordering-sensitive, mutable-state property outside ProVerif's reach, so it is discharged separately in TLA+ (\texttt{proofs/relay/WebhookDelivery.tla}): a daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is model-checked at-most-once \emph{and} gap-free against an adversarial relay that reorders, duplicates, and redelivers, with the unguarded daemon as the model-checked counterexample (TLC exhibits a double-dispatch). The obligation it names: the daemon ingests webhooks over the relay's ordered \texttt{from\_seq} subscribe path, not the raw forward. (ii)~\emph{Payload secrecy}: under HPKE to the daemon's \emph{pinned} X25519 key the relay never learns plaintext; the control sources the key from the relay and the secrecy property collapses to a key-substitution MITM---hence out-of-band key pinning is a requirement, not a recommendation. The seal is specified but not yet implemented, so this row is \Partial. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$ because harbor binding is checked against authoritative membership; the control trusts the card's self-declared issuer and crosses the tenant boundary. Honesty rider: HMAC-SHA256 gives origin authentication to a shared-key holder (EUF-CMA), not third-party non-repudiation; HPKE base mode is assumed IND-CCA2.
 
@@ -1163,9 +1162,60 @@ The formal mechanisms presented in this chapter are mathematically sound within 
 \begin{itemize}
     \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
     \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
-    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+    % SUBMISSION-SKILL: this bullet previously read "...surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing)..." — verbatim boilerplate carried over from the Bonded Commons chapter's identically-named appendix (agent-transactions-whitepaper.tex, \S\ref{sec:bonded-limitations-boundaries}). Judge markets and multi-sig routing are not Anchor Protocol concepts; retargeted to the boundaries this chapter actually names in \S\ref{sec:limitations}.
+    \item \textbf{Implementation Maturity:} While the core protocol (Harbor Cards, delegation, revocation) is \text{\textsc{implemented}} and running in production, the unbounded-depth delegation proof, machine-enforced verification-time chain-depth limits, and mandatory transport-boundary enforcement discussed in \S\ref{sec:limitations} remain \text{\textsc{partial}} or \text{\textsc{designed}}.
 \end{itemize}
 
 These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Further reading and prior art}\label{app:related}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This appendix traces the lineage the main text points at in \S\ref{sec:problem}. It is placed here rather than between the protocol description and the verification argument so that the chapter's narrative thread is not cut in half by a literature review; nothing in \S\S\ref{sec:architecture}--\ref{sec:conclusion} depends on reading it. The most immediately consequential subsection --- the credential-format migration now under way --- comes first.
+
+\subsection{Credential Formats in Agentic Commerce}\label{app:credential-formats}
+
+Since this protocol was first specified, the agentic-payments industry has
+converged on a concrete credential dialect: the Agent Payments
+Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
+Protocol~\cite{ucp2026} (Google/Shopify, 2026), carries its authorization
+mandates as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb for
+principal proof, JWS detached-content signatures (RFC~7515 Appendix~F) over
+JCS-canonicalized payloads (RFC~8785) for counterparty authorization, with
+ES256 as the recommended algorithm and keys published as JWK sets in a
+\texttt{/.well-known} profile. The reference implementation migrates the
+Harbor Card envelope to this profile (\texttt{hv:~3}, ADR-0094) so that
+external verifiers need no bespoke SDK. The migration is deliberately
+envelope-only: the delegation-chain semantics, the attenuation invariant of
+Theorem~\ref{thm:injective}, and the ProVerif obligations are independent of
+the serialization, though the key-binding construction of SD-JWT+kb adds a
+binding obligation the model must re-discharge. The JWT hardening below
+(strict algorithm whitelisting, key separation) transfers unchanged --- SD-JWT
+is a JWT profile, not a departure from one. The chapter's keywords name the
+protocol's JWT lineage; SD-JWT is where that lineage currently lands, not a
+departure from it.
+
+\subsection{Formal Verification of Security Protocols}
+
+Formal verification of cryptographic protocols has matured significantly over the past two decades. Following the seminal work by Lowe~\cite{lowe1997hierarchy} on authentication hierarchies and the Dolev-Yao model~\cite{dolev1983security}, several automated tools have been developed:
+
+\begin{itemize}
+  \item \textbf{ProVerif}~\cite{blanchet2016modeling}: An automatic symbolic protocol verifier supporting an unbounded number of sessions, used to verify TLS 1.3~\cite{cremers2017comprehensive}, Signal~\cite{kobeissi2017automated}, and WireGuard. The 2.05 series used here adds the lemma, induction, and subsumption machinery described by Blanchet et al.~\cite{blanchet2017proverif}.
+
+  \item \textbf{Tamarin}~\cite{meier2013tamarin}: A state-of-the-art protocol verifier that supports equational properties and inductive proofs, used for analyzing 5G authentication~\cite{basin2018formal}.
+
+  \item \textbf{CryptoVerif}~\cite{blanchet2007cryptoverif}: A computationally-sound protocol verifier that provides proofs in the computational model rather than the symbolic model.
+\end{itemize}
+
+Our work builds on these foundations, applying established verification techniques to the novel domain of local multi-agent coordination. Barbosa et al.~\cite{barbosa2021sok} survey the wider computer-aided-cryptography landscape and, in particular, the gap between symbolic and computational guarantees that \S\ref{sec:limitations} declines to paper over.
+
+\subsection{Capability-Based Authorization}
+
+Capability-based security dates back to Dennis and Van Horn's seminal 1966 paper on programming semantics for multiprogrammed computations~\cite{dennis1966programming}. Recent work by Birgisson et al.~\cite{birgisson2014macaroons} introduced Macaroons, which use chained HMACs for decentralized delegation with contextual caveats. The Anchor Protocol's delegation chains (\S\ref{sec:delegation}) are inspired by Macaroons but adapted for JWT-based identity in local development environments.
+
+\subsection{JWT Security}
+
+JSON Web Tokens have been the subject of extensive security analysis. Algorithm confusion attacks were first systematically studied by McLean~\cite{mclean2015critical}, with subsequent vulnerabilities documented in CVE-2015-9235~\cite{cve20159235} (HS256/RS256 confusion), CVE-2018-1000531~\cite{cve20181000531} (``none'' algorithm), and CVE-2023-48238~\cite{cve202348238} (generic algorithm confusion). Our protocol implements the defense recommended by the IETF JWT Best Current Practices~\cite{ietf2024jwtbcp}: strict algorithm whitelisting and key separation.
 
 \end{document}

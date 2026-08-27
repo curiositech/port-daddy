@@ -13,43 +13,43 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   stagebox/.style={draw=hhebony,thick,rounded corners=3pt,
                 inner sep=6pt,minimum width=34mm,minimum height=22mm,
                 align=center},
   esc/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  trig/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
+  trig/.style={font=\footnotesize\itshape,text=hhcobalt,
                align=center,text width=19mm},
   term/.style={draw=hhebony,thick,fill=hhteal!25,rounded corners=3pt,
                inner sep=8pt,align=left,minimum width=130mm,
-               font=\sffamily\footnotesize},
+               font=\footnotesize},
   flow/.style={->,>=Latex,line width=1.2pt,draw=hhebony},
-  costlbl/.style={font=\sffamily\footnotesize,align=center},
+  costlbl/.style={font=\footnotesize,align=center},
 ]
 % Four stage boxes; wide gaps so trigger labels fit cleanly above the arrow.
 \node[stagebox,fill=hhsand!70] (s1) at (0,0) {%
-  \sffamily\bfseries\footnotesize Stage 1\\[2pt]
-  \sffamily\bfseries\small Direct release\\[3pt]
-  \sffamily\itshape\footnotesize claimant releases\\
-  \sffamily\itshape\footnotesize the claim%
+  \bfseries\footnotesize Stage 1\\[2pt]
+  \bfseries\small Direct release\\[3pt]
+  \itshape\footnotesize claimant releases\\
+  \itshape\footnotesize the claim%
 };
 \node[stagebox,fill=hhsanddeep!70,right=28mm of s1] (s2) {%
-  \sffamily\bfseries\footnotesize Stage 2\\[2pt]
-  \sffamily\bfseries\small Time-out\\[3pt]
-  \sffamily\itshape\footnotesize TTL expires,\\
-  \sffamily\itshape\footnotesize auto-release%
+  \bfseries\footnotesize Stage 2\\[2pt]
+  \bfseries\small Time-out\\[3pt]
+  \itshape\footnotesize TTL expires,\\
+  \itshape\footnotesize auto-release%
 };
 \node[stagebox,fill=hhamber!40,right=28mm of s2] (s3) {%
-  \sffamily\bfseries\footnotesize Stage 3\\[2pt]
-  \sffamily\bfseries\small Bonded preemption\\[3pt]
-  \sffamily\itshape\footnotesize blocked agent posts\\
-  \sffamily\itshape\footnotesize $B_{\mathrm{preempt}}$%
+  \bfseries\footnotesize Stage 3\\[2pt]
+  \bfseries\small Bonded preemption\\[3pt]
+  \itshape\footnotesize blocked agent posts\\
+  \itshape\footnotesize $B_{\mathrm{preempt}}$%
 };
 \node[stagebox,fill=hhteal!35,right=28mm of s3] (s4) {%
-  \sffamily\bfseries\footnotesize Stage 4\\[2pt]
-  \sffamily\bfseries\small Human escalation\\[3pt]
-  \sffamily\itshape\footnotesize via \texttt{request}\\
-  \sffamily\itshape\footnotesize channel%
+  \bfseries\footnotesize Stage 4\\[2pt]
+  \bfseries\small Human escalation\\[3pt]
+  \itshape\footnotesize via \texttt{request}\\
+  \itshape\footnotesize channel%
 };
 % Cost annotation below each stage box.
 \node[costlbl,below=2mm of s1.south] (c1) {\textbf{cost} 0};

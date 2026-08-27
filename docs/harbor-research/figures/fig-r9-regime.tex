@@ -1,4 +1,4 @@
-% R9 regime: categorical grid (secret pairs x gate variants) -- no numeric
+% Pillar I (Noninterference) regime: categorical grid (secret pairs x gate variants) -- no numeric
 % axes, so a plain tikzpicture grid of regimebox cells rather than pgfplots.
 % Cell text and layout traced directly from the cell_data dict and grid
 % geometry in figures/src/r9_figures.py::figure_r9_regime. [internal, script
@@ -14,7 +14,7 @@
 % wrapped title's second line collide with the subtitle's first line (seen
 % in the CI render). Pushed both up with a full 2-line-tall clearance
 % between them; canvas has open space above so this costs nothing.
-\node[align=center,text width=10.5cm,font=\bfseries] at (5.5,7.95) {R9 regime --- what the gate promises, and the mutants that prove the checker sees};
+\node[align=center,text width=10.5cm,font=\bfseries] at (5.5,7.95) {Pillar I (Noninterference) --- what the gate promises, and the mutants that prove the checker sees};
 \node[align=center,text width=10.5cm,font=\small,color=black!45] at (5.5,6.9) {schedule secret-independence checked separately --- an enabledness difference is itself a channel [internal, \texttt{c1\_noninterference.py}]};
 
 % Column headers
