@@ -224,12 +224,28 @@ describe('release workflow state', () => {
   });
 
   test('accepts only plain stable versions and v-prefixed stable tags', () => {
-    expect(parseStableVersion('3.29.0')).toEqual([3, 29, 0]);
+    expect(parseStableVersion('3.29.0')).toEqual([3n, 29n, 0n]);
     expect(stableVersionFromTag('v3.29.0')).toBe('3.29.0');
-    for (const invalid of ['3.29', '3.29.0-rc.1', 'v3.29.0', '']) {
+    for (const invalid of [
+      '3.29',
+      '3.29.0-rc.1',
+      'v3.29.0',
+      '03.29.0',
+      '3.029.0',
+      '3.29.00',
+      '',
+    ]) {
       expect(() => parseStableVersion(invalid)).toThrow('not a stable x.y.z version');
     }
-    for (const invalid of ['3.29.0', 'v3.29', 'v3.29.0-rc.1', '']) {
+    for (const invalid of [
+      '3.29.0',
+      'v3.29',
+      'v3.29.0-rc.1',
+      'v03.29.0',
+      'v3.029.0',
+      'v3.29.00',
+      '',
+    ]) {
       expect(() => stableVersionFromTag(invalid)).toThrow('not a stable vx.y.z tag');
     }
   });
@@ -239,6 +255,9 @@ describe('release workflow state', () => {
     expect(compareStableVersions('3.29.1', '3.29.0')).toBeGreaterThan(0);
     expect(compareStableVersions('3.29.0', '3.29.0')).toBe(0);
     expect(compareStableVersions('3.28.99', '3.29.0')).toBeLessThan(0);
+    expect(
+      compareStableVersions('9007199254740992.0.0', '9007199254740993.0.0'),
+    ).toBeLessThan(0);
   });
 
   test('selects the newest stable tag after excluding prereleases first', () => {
@@ -249,6 +268,11 @@ describe('release workflow state', () => {
       'v3.29.9',
     ])).toBe('v3.30.2');
     expect(latestStableTag(['v3.30.2-rc.1', 'v3.30.2-beta.1'])).toBe(null);
+    expect(latestStableTag([
+      'v9007199254740992.0.0',
+      'v9007199254740993.0.0',
+      'v09007199254740994.0.0',
+    ])).toBe('v9007199254740993.0.0');
   });
 
   test('queries git with the exact tag-list contract and returns no prerelease-only fallback', () => {
