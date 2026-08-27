@@ -1,0 +1,37 @@
+% Self-contained publication figure. Compile directly with pdflatex.
+\documentclass[tikz,border=3pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+% Standalone's preview page can use a non-scalable font in minimal TeX installs.
+% Protrusion is still useful; disable expansion so the template compiles there too.
+\microtypesetup{expansion=false}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\usetikzlibrary{arrows.meta,backgrounds,calc,fit,matrix,positioning,shapes.geometric}
+
+\definecolor{FigureInk}{HTML}{243447}
+\definecolor{FigurePaper}{HTML}{FBF8F2}
+\definecolor{FigureMist}{HTML}{E8EEF0}
+\definecolor{FigureAccent}{HTML}{176B63}
+\definecolor{FigureWarn}{HTML}{A66A16}
+\tikzset{
+  figure node/.style={draw=FigureInk, rounded corners=2pt, fill=white, text=FigureInk,
+    align=center, inner xsep=8pt, inner ysep=6pt, minimum height=10mm},
+  figure band/.style={draw=FigureInk!55, fill=FigureMist, rounded corners=2pt,
+    text=FigureInk, align=center, inner xsep=8pt, inner ysep=5pt},
+  figure accent/.style={draw=FigureAccent, fill=FigureAccent!8, text=FigureInk},
+  figure warning/.style={draw=FigureWarn, fill=FigureWarn!8, text=FigureInk},
+  figure flow/.style={-{Stealth[length=2.4mm,width=1.7mm]}, line width=.7pt, draw=FigureInk},
+  figure relation/.style={-{Stealth[length=2.4mm,width=1.7mm]}, line width=.7pt, draw=FigureAccent},
+  figure note/.style={font=\footnotesize, text=FigureInk, align=left},
+}
+\begin{document}
+\begin{tikzpicture}[font=\small]
+  % Define a deliberate grid/lane system before placing content.
+  \node[figure band, text width=38mm] (source) at (0,0) {Source artefact\\\footnotesize named evidence};
+  \node[figure node, figure accent, text width=38mm, right=13mm of source] (review) {Review action\\\footnotesize traceable decision};
+  \node[figure band, text width=38mm, right=13mm of review] (outcome) {Outcome record\\\footnotesize auditable result};
+  \draw[figure relation] (source) -- node[above,figure note]{short, semantic relation} (review);
+  \draw[figure flow] (review) -- (outcome);
+\end{tikzpicture}
+\end{document}
