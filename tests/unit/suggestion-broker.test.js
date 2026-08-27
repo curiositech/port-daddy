@@ -5,6 +5,7 @@ import {
   rangesOverlap,
   overlapPayloadHash,
   runOverlapScan,
+  runClaimTreeTroubleScan,
 } from '../../lib/suggestion-broker.js';
 
 function claim(sessionId, filePath, opts = {}) {
@@ -253,5 +254,41 @@ describe('runOverlapScan', () => {
     } finally {
       db2.close();
     }
+  });
+});
+
+describe('runClaimTreeTroubleScan', () => {
+  let db;
+  let suggestions;
+  let sent;
+  let inbox;
+
+  beforeEach(() => {
+    db = createTestDb();
+    suggestions = createSuggestions(db, { now: () => 1000 });
+    sent = [];
+    inbox = { send(agentId, content, options) { sent.push({ agentId, content, options }); return { success: true }; } };
+  });
+  afterEach(() => db.close());
+
+  test('delivers one COORDINATE state and Mermaid ego graph to each live claimant', () => {
+    const claims = [
+      { ...claim('s1', 'lib/x.ts', { agentId: 'agent-1' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+      { ...claim('s2', 'lib/x.ts', { agentId: 'agent-2' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+    ];
+    const result = runClaimTreeTroubleScan({ sessions: { listAllActiveClaims: () => ({ success: true, claims, count: 2 }) }, suggestions, inbox });
+    expect(result).toMatchObject({ pairs: 1, surfaced: 2, delivered: 2 });
+    expect(sent.map(item => item.content.state)).toEqual(['COORDINATE', 'COORDINATE']);
+    expect(sent[0].content.mermaid).toContain('flowchart LR');
+    expect(sent[0].content.mermaid).toContain('COORDINATE');
+  });
+
+  test('does not notify when precise claims share a file but do not collide', () => {
+    const claims = [
+      { ...claim('s1', 'lib/x.ts', { agentId: 'agent-1', symbolPath: 'A.one' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+      { ...claim('s2', 'lib/x.ts', { agentId: 'agent-2', symbolPath: 'A.two' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+    ];
+    const result = runClaimTreeTroubleScan({ sessions: { listAllActiveClaims: () => ({ success: true, claims, count: 2 }) }, suggestions, inbox });
+    expect(result).toMatchObject({ pairs: 1, surfaced: 0, delivered: 0 });
   });
 });
