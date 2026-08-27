@@ -803,6 +803,37 @@ async function printBridgeProbe(options: CLIOptions): Promise<void> {
  * inject into the next turn from this cwd (the Suggestibility Envelope), by
  * running the real staged tentacle.
  */
+export interface SquidTapEnvelope {
+  context: string | null;
+  eventName: string | null;
+  structured: boolean;
+}
+
+/** Decode the provider transport without changing the context bytes. The
+ * old preview printed this JSON wrapper verbatim, which proved that a shell
+ * script ran but concealed what the model actually saw. */
+export function decodeSquidTapEnvelope(raw: string): SquidTapEnvelope {
+  const trimmed = raw.trim();
+  if (!trimmed) return { context: null, eventName: null, structured: false };
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      hookSpecificOutput?: { hookEventName?: unknown; additionalContext?: unknown };
+    };
+    const hook = parsed.hookSpecificOutput;
+    if (hook && typeof hook.additionalContext === 'string') {
+      return {
+        context: hook.additionalContext,
+        eventName: typeof hook.hookEventName === 'string' ? hook.hookEventName : null,
+        structured: true,
+      };
+    }
+  } catch {
+    // Other harness adapters may emit text directly. It is still model-facing
+    // context, but the preview labels the missing structured envelope.
+  }
+  return { context: trimmed, eventName: null, structured: false };
+}
+
 function handleSquidTap(options: CLIOptions): void {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -827,15 +858,39 @@ function handleSquidTap(options: CLIOptions): void {
     return;
   }
   const D = '\x1b[2m', Z = '\x1b[0m';
+  const envelope = decodeSquidTapEnvelope(out);
+  const c = squidTokens('stdout');
+  const publicPath = (value: string): string => {
+    const normalizedHome = home.replace(/\/$/, '');
+    return normalizedHome && (value === normalizedHome || value.startsWith(`${normalizedHome}/`))
+      ? `~${value.slice(normalizedHome.length)}`
+      : value;
+  };
   console.log('');
-  ui.info('Suggestibility Envelope — what the next turn would receive');
-  console.log(`  ${D}source: ${tentacle}${Z}`);
-  console.log(`  ${D}cwd:    ${cwd}${Z}`);
+  console.log(ui.renderLineworkPanel({
+    title: 'Harnessed Context',
+    subtitle: envelope.eventName ? `${envelope.eventName}.additionalContext` : 'direct adapter context',
+    tone: 'info',
+    zone: 'model sees this before its next decision',
+    rows: [
+      { state: 'confirmed', label: 'delivery', text: envelope.structured ? 'structured hook envelope decoded' : 'direct text fallback', colorText: true },
+      { state: 'active', label: 'audience', text: 'agent model context — not shell stdout', colorText: true },
+      { state: 'info', label: 'source', text: publicPath(tentacle) },
+      { state: 'info', label: 'cwd', text: publicPath(cwd) },
+    ],
+    footer: 'the block below is the exact injected context, transport wrapper removed',
+    colorLevel: ui.lineworkColorLevel('stdout'),
+  }));
   console.log('');
-  if (out.trim().length === 0) {
-    console.log(`  ${D}(empty — no steering alerts, no pheromone traces near this directory)${Z}`);
+  if (!envelope.context) {
+    console.log(`  ${D}(empty — no steering alerts, inbox work, or nearby pheromone traces)${Z}`);
   } else {
-    for (const line of out.trimEnd().split('\n')) console.log(`  ${line}`);
+    console.log(`  ${c.pilot('◆ PORT DADDY HARNESS')} ${c.dim('BEGIN MODEL CONTEXT')}`);
+    for (const line of envelope.context.trimEnd().split('\n')) {
+      const section = /^\[[A-Z][A-Z\s—-]+\]/.test(line.trim());
+      console.log(`  ${c.pilot('▌')} ${section ? c.warn(line) : line}`);
+    }
+    console.log(`  ${c.pilot('◆ PORT DADDY HARNESS')} ${c.dim('END MODEL CONTEXT')}`);
   }
   console.log('');
 }

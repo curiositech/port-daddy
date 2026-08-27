@@ -56,4 +56,31 @@ describe('PortholePlayer alt-screen line pitch', () => {
     expect(term.classList.contains('ph-tui')).toBe(false)
     player.destroy()
   })
+
+  it('renders an explicit broken-axis marker for real quiet time', async () => {
+    mockFetch(castText([[1, 'before\r\n'], [121, 'after']]))
+    const player = new PortholePlayer(root, { reducedMotion: true })
+    await player.load('/fake.cast')
+
+    const marker = root.querySelector<HTMLButtonElement>('.ph-cut-marker')
+    expect(marker).not.toBeNull()
+    expect(marker?.getAttribute('aria-label')).toContain('Jump cut')
+    expect(root.querySelector('.ph-provenance')?.textContent).toContain('121.0s real')
+    expect(root.querySelector('.ph-provenance')?.textContent).toContain('declared jump cut')
+    player.destroy()
+  })
+
+  it('rewinds the active scene before replaying it', async () => {
+    mockFetch(castText([[0.1, 'first\r\n'], [1, 'last']]))
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    const player = new PortholePlayer(root, { reducedMotion: true })
+    await player.load('/fake.cast')
+
+    const term = root.querySelector('.ph-term')!
+    expect(term.textContent).toContain('last')
+    root.querySelector<HTMLButtonElement>('[aria-label="Restart from the beginning"]')?.click()
+    expect(term.textContent).not.toContain('last')
+    player.destroy()
+  })
 })

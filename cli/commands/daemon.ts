@@ -7,6 +7,7 @@
 import { join } from 'node:path';
 import { closeSync, existsSync, openSync, readFileSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
+import { homedir } from 'node:os';
 import http from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
@@ -82,6 +83,13 @@ export async function runDaemonInProcess(): Promise<never> {
 
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const PROFILE_STARTUP_TIMEOUT_MS = 30000;
+
+/** Keep local daemon provenance legible without printing a user's full home path. */
+export function displayDaemonPath(path: string, home = process.env.HOME || homedir()): string {
+  const normalizedHome = home.replace(/\/+$/, '');
+  if (path === normalizedHome) return '~';
+  return path.startsWith(`${normalizedHome}/`) ? `~/${path.slice(normalizedHome.length + 1)}` : path;
+}
 
 interface DaemonCommandOptions {
   [key: string]: unknown;
@@ -573,9 +581,9 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
         console.log(JSON.stringify({ success: true, profile: state }, null, 2));
       } else {
         ui.success(`Daemon profile "${profile.name}" running (PID ${state.pid})`);
-        console.log(`  Runtime: ${state.runtimeDir}`);
-        console.log(`  Socket: ${state.socketPath}`);
-        console.log(`  Log: ${profile.logFile}`);
+        console.log(`  Runtime: ${displayDaemonPath(state.runtimeDir)}`);
+        console.log(`  Socket: ${displayDaemonPath(state.socketPath)}`);
+        console.log(`  Log: ${displayDaemonPath(profile.logFile)}`);
         console.log(`  URL: ${profileUrl(state) ?? '-'}`);
         console.log(`  Use: eval "$(pd daemon env ${profile.name})"`);
       }

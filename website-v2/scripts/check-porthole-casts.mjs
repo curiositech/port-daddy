@@ -68,8 +68,10 @@ for (const file of files) {
     fail(`${file}: zero events — an empty payoff shipped as a "recording"`);
     continue;
   }
-  if (cast.cols !== 100 || cast.rows !== 28) {
-    fail(`${file}: recorded at ${cast.cols}x${cast.rows}, capture doctrine requires 100x28 (a mismatched geometry is how the legacy corpus got corrupted typed lines)`);
+  const command = typeof cast.head.command === "string" ? cast.head.command : "";
+  const expectedGeometry = command.includes("drive-tmux") ? [120, 34] : [100, 28];
+  if (cast.cols !== expectedGeometry[0] || cast.rows !== expectedGeometry[1]) {
+    fail(`${file}: recorded at ${cast.cols}x${cast.rows}, capture doctrine requires ${expectedGeometry[0]}x${expectedGeometry[1]} for this scene type (a mismatched geometry is how the legacy corpus got corrupted typed lines)`);
   }
   if (cast.duration <= 0) {
     fail(`${file}: non-positive duration (${cast.duration})`);

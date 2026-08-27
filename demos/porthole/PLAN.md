@@ -16,7 +16,8 @@ The "unicode char + color + timestamp" format the operator asked for **exists**:
   plus `m` markers and `x` exit-status — so the site can honestly render "exited 0".
   Spec: https://docs.asciinema.org/manual/asciicast/v3/
 - **v2↔v3 gotcha:** v2 timestamps are absolute, v3 are deltas. Parse both (prototype does).
-- **Capture doctrine:** `asciinema rec --window-size 100x28 -c <driver>` — pinned size means no
+- **Capture doctrine:** single-shell evidence uses `asciinema rec --window-size 100x28 -c <driver>`;
+  real split-pane/tmux evidence uses the separately pinned `120x34`. Pinned profiles mean no
   `r` resize events; typing simulated, **output 100% real**, zero filtering, zero `sed -n '1,18p'`.
   `demos/porthole/drive.sh` is the reference driver. Never pass `-I` (records keystrokes/secrets).
 - Keep VHS `.tape` files as the *driver/DSL* for reproducible CI demos, but record them to `.cast`,

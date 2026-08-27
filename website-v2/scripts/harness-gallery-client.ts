@@ -1,0 +1,101 @@
+import { PortholePlayer } from '../src/lib/porthole/player';
+
+interface GalleryScene {
+  id: string;
+  label: string;
+  station: string;
+  locus: string;
+  seed: string;
+  intervention: string;
+  proof: string;
+  authority: string;
+  format: string;
+  hash: string;
+}
+
+interface GalleryData {
+  scenes: GalleryScene[];
+  casts: Record<string, string>;
+}
+
+const encoded = document.querySelector<HTMLScriptElement>('#gallery-data')?.textContent;
+if (!encoded) throw new Error('Harness gallery data is missing');
+const gallery = JSON.parse(encoded) as GalleryData;
+const tabs = document.querySelector<HTMLElement>('#scene-tabs')!;
+const playerRoot = document.querySelector<HTMLElement>('#player-root')!;
+const themeButton = document.querySelector<HTMLButtonElement>('#theme-toggle')!;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let active = 0;
+let player: PortholePlayer | null = null;
+let castUrl: string | null = null;
+
+function text(id: string, value: string): void {
+  const element = document.getElementById(id);
+  if (element) element.textContent = value;
+}
+
+function setTheme(theme: 'light' | 'dark'): void {
+  document.documentElement.dataset.theme = theme;
+  themeButton.setAttribute('aria-label', `Use ${theme === 'dark' ? 'light' : 'dark'} theme`);
+}
+
+async function activate(index: number): Promise<void> {
+  active = (index + gallery.scenes.length) % gallery.scenes.length;
+  const scene = gallery.scenes[active];
+  for (const [buttonIndex, button] of [...tabs.querySelectorAll<HTMLButtonElement>('[role="tab"]')].entries()) {
+    const selected = buttonIndex === active;
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  }
+
+  text('scene-number', String(active + 1).padStart(2, '0'));
+  text('scene-title', scene.label);
+  text('scene-station', scene.station);
+  text('scene-locus', scene.locus);
+  text('scene-seed', scene.seed);
+  text('scene-intervention', scene.intervention);
+  text('scene-proof', scene.proof);
+  text('scene-authority', scene.authority);
+  text('scene-format', scene.format);
+  text('scene-hash', scene.hash.slice(0, 12));
+
+  player?.destroy();
+  if (castUrl) URL.revokeObjectURL(castUrl);
+  playerRoot.replaceChildren();
+  castUrl = URL.createObjectURL(new Blob([gallery.casts[scene.id]], { type: 'application/x-asciicast' }));
+  player = new PortholePlayer(playerRoot, { reducedMotion, autoplay: !reducedMotion });
+  await player.load(castUrl);
+  const title = playerRoot.querySelector<HTMLElement>('.ph-title b');
+  if (title) title.textContent = `pd · ${scene.station}`;
+}
+
+for (const [index, scene] of gallery.scenes.entries()) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.role = 'tab';
+  button.id = `scene-tab-${scene.id}`;
+  button.setAttribute('aria-controls', 'player-root');
+  button.setAttribute('aria-selected', String(index === 0));
+  button.tabIndex = index === 0 ? 0 : -1;
+  button.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><strong>${scene.station}</strong><small>${scene.format}</small>`;
+  button.addEventListener('click', () => void activate(index));
+  button.addEventListener('keydown', (event) => {
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const target = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? gallery.scenes.length - 1
+        : active + (event.key === 'ArrowRight' ? 1 : -1);
+    void activate(target).then(() => tabs.querySelectorAll<HTMLButtonElement>('[role="tab"]')[active]?.focus());
+  });
+  tabs.appendChild(button);
+}
+
+themeButton.addEventListener('click', () => {
+  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+});
+setTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+void activate(0);
+
