@@ -236,7 +236,8 @@ describe('single binary distribution path', () => {
 
     expect(fleetbarJob).toContain('xcrun notarytool store-credentials pd-notary');
     expect(fleetbarJob).not.toContain('if xcrun notarytool store-credentials');
-    expect(fleetbarJob).not.toContain('PORT_DADDY_SKIP_NOTARIZE');
+    expect(fleetbarJob).toContain('unset PORT_DADDY_SKIP_NOTARIZE');
+    expect(fleetbarJob).not.toContain('export PORT_DADDY_SKIP_NOTARIZE');
     expect(fleetbarJob).not.toContain('ships unsigned');
     expect(fleetbarJob).toContain('manifest.unsigned !== false || manifest.notarized !== true');
     expect(fleetbarJob).toContain('codesign --verify --deep --strict');
