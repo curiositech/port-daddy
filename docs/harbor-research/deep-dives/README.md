@@ -1,10 +1,14 @@
-# Deep dives: the four priority flags
+# Deep dives: prior-art and falsification audits of the harbor-research papers
 
-Four open questions about the harbor-research papers that a literature sweep
-raised and that direct inspection of the `.tex` sources could not close. Each
-folder is a self-contained work package: what the paper claims, what the
-competing literature may already say, the sources to read, the questions a read
-has to answer, the prompt to run it, and a `findings.md` the reader fills in.
+Two kinds of dive live under this directory. The original four (`flag-N-*`) are
+**planned dives**: open questions a literature sweep raised, each dispatched as
+a self-contained work package — what the paper claims, what the competing
+literature may already say, the sources to read, the questions a read has to
+answer, the prompt to run it, and a `findings.md` the reader fills in. The later
+two (`paperN-*`) are **direct dives**: a full read-plus-falsification pass run
+in one session against a single paper, with no separate planning brief — see
+"The two dive patterns" below for when each applies and what a folder needs to
+have under it.
 
 ## Why these four and not the whole sweep
 
@@ -66,6 +70,21 @@ literature search; flag 3's closest-on-problem citation (Gaertner et al.) came
 from a survey fetched while chasing an unrelated open item. The flags were worth
 running, but what they were *aimed at* was mostly not what they hit.
 
+## The direct dives: paper 4 and paper 5
+
+Run 2026-08-26, after the four flags closed. Rather than dispatch a planning
+brief for a specific named risk, these two ran the same read-plus-falsification
+discipline directly against a whole paper in one session pass, verdict scoped
+per-theorem rather than per-flag. Each folder holds only `README.md` (this
+index entry, one level down) and `findings.md` — see "The two dive patterns"
+below for why that's the right shape for this kind, not a gap against the
+flag-N layout.
+
+| Dive | Paper | Verdict | Summary |
+|---|---|---|---|
+| `paper4-sealed-harbor` | 4, *The Sealed Harbor* (`paper4.tex`) | **NARROW**, one boxed corollary **CONTRADICTED** | Every theorem is a narrower-scoped instance of existing work (delimited/gradual release, a privacy filter, a Ryoan-style budget) that the paper mostly pre-concedes — but the ε-conservation corollary applies the DRV advanced-composition bound to an adaptively-parameterised filter, which Rogers–Roth–Ullman–Vadhan 2016 prove invalid for exactly that model. Fix before anything else in the paper. |
+| `paper5-continuity-without-metaphysics` | 5, *Continuity Without Metaphysics* (`paper5.tex`) | **NARROW** | No literature proves the four theorems, but Theorem 2a is misnamed — it's Akerlof's lemons result (pooling/collapse), not Grossman–Milgrom unraveling (full disclosure) — and the falsification pass alone found ten internal defects, two contradicted by the paper's own arithmetic (starting with a γ>1/2 crossing claim the paper's own figure data puts at γ≈0.5437). |
+
 ## Severity, and what each outcome means
 
 Each dive ends in one of four verdicts. Write the verdict at the top of
@@ -102,7 +121,12 @@ is first.
    is the distinguishing hypothesis" is the most valuable outcome and the one to
    expect most often.
 
-## Layout
+## The two dive patterns
+
+**Planned dive** (`flag-N-<slug>/`) — use when the risk is narrow and specific
+enough to hand to a separately-dispatched agent (or a future session) with no
+other context: a single named competing result, a single suspect citation. The
+brief has to stand alone, so it needs all six files.
 
 ```
 flag-N-<slug>/
@@ -114,6 +138,25 @@ flag-N-<slug>/
   findings.md       filled in by the dive; verdict first, then evidence
 ```
 
-`BIBLIOGRAPHY.md` holds the consolidated citation register across all four, plus
-the cross-disciplinary renaming register — terms the papers coined that already
-have established names in other fields.
+**Direct dive** (`paperN-<slug>/`) — use when the calling session runs the
+read-plus-falsification pass itself, in one sitting, against a whole paper
+rather than one named risk. There is no separate brief to write because nothing
+is being handed off — `prompt.md`/`questions.md`/`reading-list.md`/`skills.md`
+would just restate what `findings.md` already answers. Two files are correct
+here, not a gap against the planned-dive layout:
+
+```
+paperN-<slug>/
+  README.md         one-paragraph index entry: paper, verdict, one-line summary
+  findings.md       verdict first (per claim, if the paper has several), then evidence
+```
+
+Write `TEMPLATE.md` in this directory before starting a new dive of either
+kind — it has copy-pasteable skeletons for both patterns and the rule for
+choosing between them.
+
+`BIBLIOGRAPHY.md` holds the consolidated citation register across the four
+planned dives, plus the cross-disciplinary renaming register — terms the papers
+coined that already have established names in other fields. A citation
+surfaced by a direct dive that should move into the register goes there too;
+`BIBLIOGRAPHY.md` is corpus-wide, not per-flag.

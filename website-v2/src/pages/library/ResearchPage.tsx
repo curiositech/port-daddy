@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, FileText, Sigma } from 'lucide-react'
+import { ArrowLeft, ArrowRight, FileText, SearchCheck, Sigma } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { SevenProofsFigure } from '@/components/library/SevenProofsFigure'
 import {
@@ -15,6 +15,7 @@ import {
   RESEARCH_PAPERS,
   RESEARCH_PAPER_TOTAL_PAGES,
   RESULT_LEDGER,
+  type DiveVerdict,
   type ResearchPaper,
   type ResearchTone,
 } from '@/data/researchPapers'
@@ -62,6 +63,18 @@ const RESEARCH_TONE_CLASSES: Record<ResearchTone, { badge: string; rule: string;
     rule: 'bg-[var(--story-indigo)]',
     border: 'border-[var(--story-indigo)]',
   },
+}
+
+/**
+ * Plain-English gloss for each dive verdict — see
+ * `docs/harbor-research/deep-dives/README.md`'s "Severity, and what each
+ * outcome means" for the authoritative definitions this restates.
+ */
+const DIVE_VERDICT_GLOSS: Record<DiveVerdict, string> = {
+  CLEAR: 'genuinely different from the prior work found',
+  NARROW: 'survives with a narrower scope than first stated',
+  SUBSUMED: 'prior work already proves this',
+  CONTRADICTED: 'prior work proved this false — since corrected',
 }
 
 function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
@@ -122,6 +135,30 @@ function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
             <p className="mt-[var(--space-1)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
               — {paper.chapterWhy}
             </p>
+          </div>
+        ) : null}
+
+        {paper.priorArtDive ? (
+          <div className="border-2 border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-4)]">
+            <span className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              <SearchCheck aria-hidden="true" size={14} />
+              Prior-art dive · {paper.priorArtDive.verdict}
+            </span>
+            <p className="mt-[var(--space-1)] text-[length:var(--type-panel-body-compact-size)] italic leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
+              {DIVE_VERDICT_GLOSS[paper.priorArtDive.verdict]}
+            </p>
+            <p className="mt-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+              {paper.priorArtDive.summary}
+            </p>
+            <a
+              href={`https://github.com/curiositech/port-daddy/blob/main/docs/harbor-research/deep-dives/${paper.priorArtDive.findingsPath}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-[var(--space-2)] inline-flex items-center gap-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
+            >
+              Read the dive’s findings
+              <ArrowRight aria-hidden="true" size={12} />
+            </a>
           </div>
         ) : null}
 

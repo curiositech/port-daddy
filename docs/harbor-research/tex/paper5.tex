@@ -27,7 +27,9 @@ forks, merges, chains, or re-derivation cycles pushes total live creditable repu
 correct statement was forced by a counterexample that refuted the naive budget-only phrasing, and the copy-mutant it forbids turns
 one lucky episode into an $8.2\times$ quorum multiplier. (2) \emph{Engine substitution}: unattested, the price can never depend on
 the engine actually running, so swapping in a cheap engine always pays and Akerlof's death spiral runs \emph{inside one identity};
-with attested engine ids the incentive flips to the planner's own efficiency rule at zero audit stake --- and the same three checks
+with attested engine ids the incentive flips to the planner's own efficiency rule at zero audit stake \emph{whenever the attested
+price schedule passes through the full quality difference} --- a hypothesis on the pricing regime, not a consequence of
+attestation, and we name where it fails (Bertrand pricing on attested keys) --- and the same three checks
 make resurrection across providers sanction-sound against its three named attacks. (3) \emph{The probation cliff}: among all
 newcomer-restriction schedules with equal power to deter whitewashing, the maximally front-loaded \emph{feasible} one uniquely
 minimizes the tax on honest newcomers --- the ramp should be a cliff, of positive width when the newcomer's own ceiling caps what a
@@ -159,8 +161,9 @@ historical grants is a reporting choice, not a safety hole.
 \section{Engine swaps: Akerlof inside one identity}\label{sec:engine}
 
 \onebreath{Unattested, the price can never depend on the engine actually running, so swapping always pays and pooling on quality
-dies by Akerlof's spiral inside a single identity; attest the engine on every witnessed outcome and the substitution incentive
-flips to the planner's own efficiency rule at zero audit stake --- formal statements in the box below.}
+dies by Akerlof's spiral inside a single identity; attest the engine on every witnessed outcome and, provided the attested price
+schedule passes through the full quality difference, the substitution incentive flips to the planner's own efficiency rule at
+zero audit stake --- formal statements in the box below.}
 
 \textbf{The scene, resumed.} An identity builds a glowing record running a strong engine $\theta_H$, then quietly swaps in a cheap
 engine $\theta_L$ behind the same name. Buyers see the reputation; they do not see the engine. This is the used-car market of
@@ -432,8 +435,9 @@ with him rather than correcting him. We state the foil as folklore until that is
 \textbf{New, honestly.} The contribution is the assembly for software agents, where forking, distillation, engine substitution,
 and resurrection are cheap, routine, first-class operations rather than edge cases: (1) the transfer-semantics conservation
 theorem for reputation inheritance, with the refuted budget-only phrasing reported and the $8.2\times$ copy-fork exhibit of what it
-prevents; (2) the observation that engine attestation does not merely deter substitution but \emph{flips} its incentive to the
-planner's efficiency rule at zero audit stake, plus the scope lemma --- price per (principal, engine), sanction per principal ---
+prevents; (2) the observation that engine attestation does not merely deter substitution but, under a stated pricing hypothesis,
+\emph{flips} its incentive to the planner's efficiency rule at zero audit stake --- with the Bertrand case, where the flip
+collapses, named --- plus the scope lemma --- price per (principal, engine), sanction per principal ---
 that a machine-checked migration protocol shows is load-bearing in both directions; (3) resurrection soundness as a theorem with
 three named attacks, each caught by a shortest trace when its clause is dropped; and (4) the probation-cliff optimality result,
 which sharpens ``newcomers pay dues'' into ``the dues schedule has a unique optimal shape, front-loaded to the newcomer's ceiling
