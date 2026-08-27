@@ -18,6 +18,48 @@ struct ClaimEntry {
     claimed_at_ms: i64,
 }
 
+/// A bounded ego graph projected by the suggestibility layer. The console does
+/// not reinterpret the classifier: it paints the daemon's state and action.
+#[derive(Debug, Clone)]
+struct TroubleEntry {
+    state: String,
+    file_path: String,
+    other_session: String,
+    action: String,
+}
+
+impl TroubleEntry {
+    fn from_value(v: &Value) -> Option<Self> {
+        if s(v, "kind") != "claim-tree-trouble" {
+            return None;
+        }
+        let payload = v.get("payload")?;
+        let state = s(payload, "state");
+        if state.is_empty() {
+            return None;
+        }
+        Some(Self {
+            state,
+            file_path: s(payload, "filePath"),
+            other_session: payload
+                .get("other")
+                .map(|other| s(other, "sessionId"))
+                .unwrap_or_default(),
+            action: s(payload, "action"),
+        })
+    }
+}
+
+fn trouble_tone(state: &str) -> Tone {
+    match state {
+        "COORDINATE" => Tone::Conflicted,
+        "RESCUE" => Tone::Gated,
+        "VERIFY" | "INSPECT" | "RECONCILE" => Tone::Accent,
+        "WATCH" => Tone::Engaged,
+        _ => Tone::Resting,
+    }
+}
+
 impl ClaimEntry {
     fn from_value(v: &Value) -> Self {
         Self {
@@ -41,6 +83,7 @@ fn tail_path(p: &str, max_chars: usize) -> String {
 
 pub struct ClaimsPane {
     claims: Vec<ClaimEntry>,
+    trouble: Vec<TroubleEntry>,
     last_error: Option<String>,
 }
 
@@ -48,6 +91,7 @@ impl Default for ClaimsPane {
     fn default() -> Self {
         Self {
             claims: Vec::new(),
+            trouble: Vec::new(),
             last_error: None,
         }
     }
@@ -73,6 +117,33 @@ impl Pane for ClaimsPane {
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return blocks;
+        }
+
+        if !self.trouble.is_empty() {
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header("Claim-tree trouble radar".into()));
+            blocks.push(Block::KeyVal(
+                "legend".into(),
+                "you  →  claimed surface  →  finite-state action".into(),
+            ));
+            for trouble in &self.trouble {
+                let tone = trouble_tone(&trouble.state);
+                blocks.push(Block::Flag {
+                    letter: trouble.state.chars().next().unwrap_or('!'),
+                    label: format!("{} · {}", trouble.state, tail_path(&trouble.file_path, 42)),
+                    tone,
+                });
+                blocks.push(Block::Row(vec![
+                    "you".into(),
+                    "→".into(),
+                    tail_path(&trouble.file_path, 32),
+                    "→".into(),
+                    trunc(&trouble.other_session, 20),
+                ]));
+                if !trouble.action.is_empty() {
+                    blocks.push(Block::KeyVal("next".into(), trouble.action.clone()));
+                }
+            }
         }
 
         if self.claims.is_empty() {
@@ -131,6 +202,22 @@ impl Pane for ClaimsPane {
                             .iter()
                             .map(ClaimEntry::from_value)
                             .collect();
+                        let suggestions_url =
+                            format!("{}/suggestions?status=pending&limit=12", daemon.base());
+                        match daemon.http_client().get(&suggestions_url).send().await {
+                            Ok(resp) if resp.status().is_success() => {
+                                match resp.json::<Value>().await {
+                                    Ok(data) => {
+                                        self.trouble = arr(&data, "suggestions")
+                                            .iter()
+                                            .filter_map(TroubleEntry::from_value)
+                                            .collect()
+                                    }
+                                    Err(_) => self.trouble.clear(),
+                                }
+                            }
+                            _ => self.trouble.clear(),
+                        }
                     }
                 },
             }
@@ -187,5 +274,28 @@ mod tests {
         let b = p.view();
         let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();
         assert_eq!(rows, 1);
+    }
+
+    #[test]
+    fn renders_a_colored_ego_graph_for_claim_tree_trouble() {
+        let mut p = ClaimsPane::default();
+        p.trouble = vec![TroubleEntry {
+            state: "COORDINATE".into(),
+            file_path: "lib/claim-tree-trouble.ts".into(),
+            other_session: "session-other".into(),
+            action: "open a parley".into(),
+        }];
+        let blocks = p.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::Flag {
+                letter: 'C',
+                tone: Tone::Conflicted,
+                ..
+            }
+        )));
+        assert!(blocks
+            .iter()
+            .any(|block| matches!(block, Block::Row(row) if row.iter().any(|cell| cell == "→"))));
     }
 }

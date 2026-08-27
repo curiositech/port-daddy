@@ -16,6 +16,9 @@ function claim(sessionId, filePath, agentId) {
     endLine: null,
     symbol: null,
     symbolPath: null,
+    repoId: 'port-daddy',
+    worldKind: 'worktree',
+    worldId: 'wt-a',
   };
 }
 
@@ -42,7 +45,7 @@ function buildApp(claims = []) {
 }
 
 describe('suggestions routes', () => {
-  test('POST /suggestions/scan detects overlap, surfaces + delivers, then lists per agent', async () => {
+  test('POST /suggestions/scan projects a claim-tree collision, surfaces + delivers, then lists per agent', async () => {
     const { app, sent } = buildApp([
       claim('s1', 'lib/x.ts', 'agent-1'),
       claim('s2', 'lib/x.ts', 'agent-2'),
@@ -50,7 +53,7 @@ describe('suggestions routes', () => {
 
     const scan = await app.inject({ method: 'POST', url: '/suggestions/scan' });
     expect(scan.statusCode).toBe(200);
-    expect(scan.json()).toMatchObject({ success: true, overlaps: 1, surfaced: 2, delivered: 2 });
+    expect(scan.json()).toMatchObject({ success: true, pairs: 1, surfaced: 2, delivered: 2 });
     expect(sent.map((m) => m.agentId).sort()).toEqual(['agent-1', 'agent-2']);
 
     const list = await app.inject({ method: 'GET', url: '/suggestions?agentId=agent-1&status=pending' });
@@ -58,6 +61,7 @@ describe('suggestions routes', () => {
     const body = list.json();
     expect(body.count).toBe(1);
     expect(body.suggestions[0].payload.other.agentId).toBe('agent-2');
+    expect(body.suggestions[0].payload.state).toBe('COORDINATE');
 
     await app.close();
   });
@@ -96,7 +100,7 @@ describe('suggestions routes', () => {
     const mute = await app.inject({
       method: 'POST',
       url: '/suggestions/mute',
-      payload: { agentId: 'agent-1', kind: 'claim-overlap-headsup', durationMs: 3600_000 },
+      payload: { agentId: 'agent-1', kind: 'claim-tree-trouble', durationMs: 3600_000 },
     });
     expect(mute.statusCode).toBe(200);
 

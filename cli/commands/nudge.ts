@@ -30,6 +30,9 @@ interface NudgePayload {
   filePath?: string;
   message?: string;
   other?: { agentId?: string | null; sessionId?: string; purpose?: string };
+  state?: string;
+  action?: string;
+  mermaid?: string;
 }
 
 interface Nudge {
@@ -56,7 +59,7 @@ export async function handleNudge(args: string[], options: CLIOptions): Promise<
       return;
     }
     ui.success(
-      `Scan complete: ${data.overlaps} overlap(s), ${data.surfaced} surfaced, ${data.suppressed} suppressed, ${data.delivered} delivered.`,
+      `Scan complete: ${data.pairs ?? 0} shared-surface pair(s), ${data.surfaced} claim-tree trouble nudge(s), ${data.suppressed} suppressed, ${data.delivered} delivered.`,
     );
     return;
   }
@@ -113,7 +116,10 @@ export async function handleNudge(args: string[], options: CLIOptions): Promise<
     const p = n.payload || {};
     const headline = p.message || `${n.kind} on ${p.filePath ?? '?'}`;
     console.log(`  [${n.id}]  ${n.kind}`);
+    if (p.state) console.log(`    state: ${p.state}`);
     console.log(`    ${headline}`);
+    if (p.action) console.log(`    next: ${p.action}`);
+    if (options.mermaid && p.mermaid) console.log(`\n${p.mermaid}`);
     console.log(`    → pd nudge accept ${n.id}   |   pd nudge decline ${n.id}\n`);
   }
 }
