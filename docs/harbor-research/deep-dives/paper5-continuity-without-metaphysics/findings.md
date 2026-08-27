@@ -154,16 +154,39 @@ genuinely Paper 5's. A referee finds this in one search.
 
 ## Open items
 
-1. **Lizzeri.** A. Lizzeri, "Information Revelation and Certification
-   Intermediaries," *RAND Journal of Economics* 30(3):214–231, Summer 1999
-   (title/venue/pages confirmed via RePEc/EconPapers/JSTOR `stable/2556078` —
-   note: issue number corrected from "30(2)" to 30(3), the Summer 1999 issue)
-   — `UNRESOLVED`, not OA by any route tried 2026-08-27 (SSRN, Princeton
-   collaborate profile, JSTOR abstract page all checked; no self-archived copy
-   found). Potentially **adverse** to Theorem 2b: a monopoly certifier may
-   optimally publish coarse pass/fail rather than the full engine id, which
-   would collapse the (principal, engine) price keys the theorem depends on.
-   Highest-priority pull.
+1. **2026-08-27 update: `verified`, full text obtained (user-provided PDF —
+   the Northwestern CMS-EMS Discussion Paper No. 1094 working-paper version,
+   May 1994; the published RAND text is *RAND Journal of Economics*
+   30(3):214–231, Summer 1999, issue number corrected from the original
+   "30(2)"; read in full, all sections and proofs, 32 pages).**
+
+   **Verdict: not adverse after all — the "adverse" read assumed the wrong
+   market structure for Theorem 2b's mechanism.** Lizzeri's pooling result
+   (§2, Theorems 1–2: a monopoly certification intermediary optimally
+   discloses *nothing* and extracts all surplus, whenever E(t)<1/2) requires
+   the certifier to be a **profit-maximizing agent choosing its own
+   disclosure rule** to maximize rent extraction. Paper 5's daemon is not
+   that: engine attestation is mandatory and full by protocol design
+   ("attest the engine on every witnessed outcome"), not a policy the daemon
+   optimizes over. Lizzeri's own §4 (reservation value depends on type)
+   reinforces this from a second angle — even a profit-maximizing monopolist
+   cannot sustain full pooling once agents have a real type-dependent outside
+   option (Theorem 7: high types get individually revealed regardless).
+   Neither channel by which the pooling result could bite actually applies
+   here.
+
+   **What the paper *does* contribute**, and where it was wired in
+   (`paper5.tex`, the unraveling-hypothesis paragraph after Theorem 2b, plus
+   a new `\bibitem{lizzeri99}`): a *third* reason voluntary attestation would
+   not suffice, alongside the two already argued (costly attestation; Dye's
+   can't-vs-won't-decline indistinguishability). Even a competitive *market*
+   for attestation need not unravel to full disclosure — Lizzeri's oligopoly
+   result (§3) shows full revelation requires either infinitely many
+   competing certifiers or zero entry costs; any positive, sequential entry
+   cost sustains a pooling monopoly indefinitely (his own remark on Theorem
+   4). A protocol-mandated daemon sidesteps this by not being a
+   profit-maximizing intermediary in the first place — its incentive to pool
+   never arises.
 2. **Lazear.** E. P. Lazear, "Why Is There Mandatory Retirement?," *Journal of
    Political Economy* 87(6):1261–1284, 1979 (DOI 10.1086/260835; title/venue
    confirmed via IDEAS/RePEc and the journal's own abstract page) —
