@@ -1090,10 +1090,12 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     const step = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
     expect(step).toBeDefined();
     expect((step!.detail as { error: string }).error).toMatch(/does not resolve to any file/);
-    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
-    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[1]).toMatchObject({
       title: expect.stringContaining('FAILED'),
-      detail: expect.objectContaining({ attempts: 1 }),
+      detail: expect.objectContaining({ attempts: 2 }),
     });
     expect(state.stackedPrs).toHaveLength(0);
     // No retarget PATCH — the only PR PATCH allowed here is the steel-man
@@ -1101,7 +1103,392 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
-  it('#9760: malformed authored source fails before sandbox, stacking, or retarget side effects', async () => {
+  it('#9789: a second bounded escalation rewrite heals when the first rewrite is still malformed', async () => {
+    seedRealJestConfig();
+    const malformedTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/release-token-fallback.test.js',
+          contents: 'export function parseStableVersion(value) { ... }',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const firstRepairWithEvolvedError = [
+      '```js',
+      "const { helper } = require('../missing-support');",
+      "test('first repair is syntactically complete', () => { helper(); });",
+      '```',
+    ].join('\n');
+    const completeRepair = [
+      '```js',
+      "test('complete source reaches the trusted runner', () => {",
+      '  expect(1).toBe(1);',
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      malformedTests,
+      firstRepairWithEvolvedError,
+      completeRepair,
+    ]);
+    const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'PASS', stderr: '' }));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: { exec: sandboxExec } as unknown }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[0]).toMatchObject({
+      title: expect.stringContaining('FAILED'),
+      detail: expect.objectContaining({
+        attempts: 1,
+        result: expect.stringContaining('does not resolve to any file'),
+      }),
+    });
+    expect(repairSteps[1]).toMatchObject({
+      title: expect.stringContaining('HEALED'),
+      detail: expect.objectContaining({ attempts: 2 }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
+      .toBeUndefined();
+    const secondRepairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[3][1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(secondRepairRequest.messages[0].content).toContain(
+      'does not resolve to any file',
+    );
+    expect(secondRepairRequest.messages[0].content).toContain(
+      "test('first repair is syntactically complete'",
+    );
+    expect(secondRepairRequest.messages[0].content).toContain('<rejected-draft>');
+    expect(secondRepairRequest.messages[1].content).toContain('Target path: tests/unit/release-token-fallback.test.js');
+    expect(secondRepairRequest.messages[1].content).toContain('- src/widget.ts');
+    expect(secondRepairRequest.messages[1].content).not.toContain('## Diff');
+    expect(sandboxExec).toHaveBeenCalledTimes(1);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('#9893: deterministically heals an import introduced by the first model rewrite without spending the second call', async () => {
+    seedRealJestConfig();
+    state.treeFiles.set('BASESHA', ['scripts/release-workflow-state.mjs']);
+    const testPath = 'tests/unit/purser/prerelease-exclusion.test.js';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [{ path: testPath, intent: 'exclude prerelease tags from stable selection' }],
+      }),
+      '```',
+    ].join('\n');
+    const missingRegistration = [
+      '```js',
+      "export const candidate = 'v3.30.3';",
+      '```',
+    ].join('\n');
+    const firstRewriteWithShallowImport = [
+      '```js',
+      "import { latestStableTag } from '../../scripts/release-workflow-state.mjs';",
+      "test('excludes prereleases', () => expect(latestStableTag(['v3.30.3-rc.1', 'v3.30.2'])).toBe('v3.30.2'));",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      missingRegistration,
+      firstRewriteWithShallowImport,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx({
+        files: [{
+          filename: 'scripts/release-workflow-state.mjs',
+          status: 'modified',
+          additions: 3,
+          deletions: 1,
+        }],
+      }),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    // Steel-man + plan + initial author + exactly one model rewrite. The
+    // trusted-tree repair handles the evolved import failure locally.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy ===
+        'trusted-tree-relative-import-after-model-rewrite'
+    )).toMatchObject({
+      title: expect.stringContaining('HEALED'),
+      detail: expect.objectContaining({
+        attempts: 0,
+        fromSpecifier: '../../scripts/release-workflow-state.mjs',
+        toSpecifier: '../../../scripts/release-workflow-state.mjs',
+      }),
+    });
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(step.title)
+    )).toBeUndefined();
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('#9892: rescues a no-content initial author with the existing bounded escalation budget', async () => {
+    seedRealJestConfig();
+    const testPath = 'tests/unit/purser/signing-discovery-edge-cases.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'grill nested Mach-O discovery' }] }),
+      '```',
+    ].join('\n');
+    const rescuedFile = [
+      '```ts',
+      "test('discovers nested Mach-O files', () => {",
+      "  expect(['native/libonnxruntime.dylib']).toHaveLength(1);",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, plan, 'I cannot provide the requested file.', rescuedFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy === 'bounded-empty-author-escalation'
+    )).toMatchObject({
+      title: expect.stringContaining(`HEALED ${testPath}`),
+      detail: expect.objectContaining({ attempts: 1, repairNumber: 1 }),
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('drops sequential exhausted malformed files while executing a valid sibling', async () => {
+    seedRealJestConfig();
+    const firstBrokenPath = 'tests/unit/purser/malformed-generated-a.test.ts';
+    const secondBrokenPath = 'tests/unit/purser/malformed-generated-b.test.ts';
+    const validPath = 'tests/unit/purser/valid-generated.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          { path: firstBrokenPath, intent: 'grill first malformed generation' },
+          { path: secondBrokenPath, intent: 'grill second malformed generation' },
+          { path: validPath, intent: 'retain valid adversarial evidence' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const firstMalformed = '```ts\nexport function brokenA() { ... }\n```';
+    const secondMalformed = '```ts\nexport function brokenB() { ... }\n```';
+    const valid = '```ts\ntest("valid sibling", () => expect(true).toBe(true));\n```';
+    const firstRepairOne = '```ts\nconst valueA: = 1;\ntest("still bad A", () => valueA);\n```';
+    const firstRepairTwo = '```ts\nfunction nopeA( {\ntest("still bad A", () => true);\n```';
+    const secondRepairOne = '```ts\nconst valueB: = 1;\ntest("still bad B", () => valueB);\n```';
+    const secondRepairTwo = '```ts\nfunction nopeB( {\ntest("still bad B", () => true);\n```';
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      firstMalformed,
+      secondMalformed,
+      valid,
+      firstRepairOne,
+      firstRepairTwo,
+      secondRepairOne,
+      secondRepairTwo,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(9);
+    const drops = rec.steps.filter(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy === 'bounded-partial-executability'
+    );
+    expect(drops).toHaveLength(2);
+    expect(drops[0]).toMatchObject({
+      title: expect.stringContaining(`DROPPED ${firstBrokenPath}`),
+      detail: expect.objectContaining({
+        attempts: 2,
+        survivors: [secondBrokenPath, validPath],
+      }),
+    });
+    expect(drops[1]).toMatchObject({
+      title: expect.stringContaining(`DROPPED ${secondBrokenPath}`),
+      detail: expect.objectContaining({
+        attempts: 2,
+        survivors: [validPath],
+        result: 'trusted executability gate passed on survivors',
+      }),
+    });
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(step.title)
+    )).toBeUndefined();
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('reapplies trusted zero-model repair after the global model budget drops an exhausted sibling', async () => {
+    seedRealJestConfig();
+    const target = 'apps/fleet-executor/src/purser-executability.ts';
+    state.treeFiles.set('BASESHA', [target]);
+    const brokenPaths = [
+      'tests/unit/purser/exhaust-budget-a.test.ts',
+      'tests/unit/purser/exhaust-budget-b.test.ts',
+      'tests/unit/purser/exhaust-budget-c.test.ts',
+    ];
+    const repairablePath = 'tests/unit/purser/repair-after-budget.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          ...brokenPaths.map(path => ({ path, intent: `consume bounded repair budget for ${path}` })),
+          { path: repairablePath, intent: 'verify trusted import repair survives exhausted model budget' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const malformed = (name: string) => `\`\`\`ts\nfunction ${name}( {\ntest('still malformed', () => true);\n\`\`\``;
+    const repairable = [
+      '```ts',
+      "import { checkGeneratedTestsExecutable } from '../../apps/fleet-executor/src/purser-executability';",
+      "test('loads the trusted gate', () => expect(checkGeneratedTestsExecutable).toBeDefined());",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      malformed('brokenA'),
+      malformed('brokenB'),
+      malformed('brokenC'),
+      repairable,
+      malformed('repairA1'),
+      malformed('repairA2'),
+      malformed('repairB1'),
+      malformed('repairB2'),
+      malformed('repairC1'),
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx({ files: [{ filename: target, status: 'modified', additions: 3, deletions: 1 }] }),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(11);
+    expect(rec.steps.filter(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy === 'bounded-partial-executability'
+    )).toHaveLength(3);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy ===
+        'trusted-tree-relative-import-after-sibling-drop'
+    )).toMatchObject({
+      title: expect.stringContaining(`HEALED ${repairablePath}`),
+      detail: expect.objectContaining({
+        attempts: 0,
+        fromSpecifier: '../../apps/fleet-executor/src/purser-executability',
+        toSpecifier: '../../../apps/fleet-executor/src/purser-executability.ts',
+      }),
+    });
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(step.title)
+    )).toBeUndefined();
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('lets the sole malformed survivor consume the residual shared repair call', async () => {
+    seedRealJestConfig();
+    const firstPath = 'tests/unit/purser/exhausted-sibling.test.ts';
+    const survivorPath = 'tests/unit/purser/sole-survivor.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          { path: firstPath, intent: 'consume two bounded repairs before being dropped' },
+          { path: survivorPath, intent: 'use the residual shared repair call' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const malformed = (name: string) =>
+      `\`\`\`ts\nfunction ${name}( {\ntest('still malformed', () => true);\n\`\`\``;
+    const healed = [
+      '```ts',
+      "test('sole survivor executes', () => expect(true).toBe(true));",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      malformed('firstDraft'),
+      malformed('survivorDraft'),
+      malformed('firstRepairOne'),
+      malformed('firstRepairTwo'),
+      malformed('survivorRepairOne'),
+      malformed('survivorRepairTwo'),
+      healed,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(9);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      step.title.includes(`HEALED ${survivorPath}`)
+    )).toMatchObject({
+      detail: expect.objectContaining({ attempts: 3, repairNumber: 5 }),
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('#9789: two malformed escalation rewrites still fail closed without sandbox or stack effects', async () => {
     seedRealJestConfig();
     const malformedTests = [
       '```json',
@@ -1119,7 +1506,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       '… (diff truncated...)',
       '```',
     ].join('\n');
-    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair]);
+    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair, malformedRepair]);
     const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'should not run', stderr: '' }));
     const rec = recorder();
 
@@ -1133,12 +1520,11 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     );
 
     expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
-    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[1]).toMatchObject({
       title: expect.stringContaining('FAILED'),
-      detail: expect.objectContaining({
-        originalError: expect.stringContaining('not a complete syntactically valid test program'),
-        attempts: 1,
-      }),
+      detail: expect.objectContaining({ attempts: 2 }),
     });
     expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
       .toBeDefined();
@@ -1190,6 +1576,151 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
+  it('deterministically removes a redundant Vitest import when every binding is a trusted Jest global', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const testPath = 'tests/unit/purser/jest-globals.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const authoredFile = [
+      '```ts',
+      "import { describe, it, expect, beforeEach } from 'vitest';",
+      "describe('release contract', () => {",
+      "  beforeEach(() => undefined);",
+      "  it('runs under Jest', () => expect(true).toBe(true));",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, plan, authoredFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining(`HEALED ${testPath}`),
+      detail: expect.objectContaining({
+        strategy: 'trusted-jest-global-import-removal',
+        attempts: 0,
+        removedBindings: ['describe', 'it', 'expect', 'beforeEach'],
+      }),
+    });
+    expect(state.blobsCreated).toBe(1);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('does not rewrite Vitest-only bindings under Jest evidence', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const testPath = 'tests/unit/purser/vitest-only.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const authoredFile = [
+      '```ts',
+      "import { describe, it, expect, vi } from 'vitest';",
+      "describe('release contract', () => it('mocks', () => expect(vi.fn()).toBeDefined()));",
+      '```',
+    ].join('\n');
+    const stillIncompatible = [
+      '```ts',
+      "import { test } from 'node:test';",
+      "test('contract', () => {});",
+      '```',
+    ].join('\n');
+    const malformedRepair = ['```ts', 'if (', '```'].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      authoredFile,
+      stillIncompatible,
+      malformedRepair,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    const repairs = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairs).toHaveLength(2);
+    expect(repairs[0]).toMatchObject({
+      detail: expect.objectContaining({ originalError: expect.stringContaining("imports 'vitest'") }),
+    });
+    expect(repairs.some(step =>
+      (step.detail as { strategy?: string }).strategy === 'trusted-jest-global-import-removal'
+    )).toBe(false);
+    expect(state.stackedPrs).toHaveLength(0);
+  });
+
+  it('repairs a discoverable file that registers no Jest test before sandbox or stacking', async () => {
+    seedRealJestConfig();
+    const testPath = 'tests/unit/purser/registration.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const missingRegistration = [
+      '```ts',
+      'export const stableVersion = "3.30.3";',
+      '```',
+    ].join('\n');
+    const repairedFile = [
+      '```ts',
+      "test('registers the release contract', () => {",
+      "  expect('3.30.3').toBe('3.30.3');",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, plan, missingRegistration, repairedFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining(`HEALED ${testPath}`),
+      detail: expect.objectContaining({
+        originalError: expect.stringContaining('registers no Jest test or it case'),
+        attempts: 1,
+        repairNumber: 1,
+      }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
+      executed: true,
+      passed: true,
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('authors with trusted Jest evidence and repairs three incompatible siblings before stacking', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');
@@ -1235,7 +1766,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
 
     expect(result).toMatchObject({ verdict: 'PASS', errored: false });
     const calls = (ai.run as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(8);
+    expect(calls).toHaveLength(5);
     for (const callIndex of [2, 3, 4]) {
       const request = calls[callIndex][1] as {
         messages: Array<{ role: string; content: string }>;
@@ -1255,16 +1786,20 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(repairSteps).toHaveLength(3);
     for (const [index, step] of repairSteps.entries()) {
       expect(step).toMatchObject({
-        title: expect.stringContaining(`HEALED ${paths[index]}`),
-        detail: expect.objectContaining({ repairNumber: index + 1 }),
+        detail: expect.objectContaining({
+          strategy: 'trusted-jest-global-import-removal',
+          attempts: 0,
+          path: paths[index],
+          removedBindings: ['describe', 'it', 'expect'],
+        }),
       });
       const resultDetail = (step.detail as { result: string }).result;
       if (index < paths.length - 1) {
         expect(resultDetail).toContain(
-          `next failing sibling: ${paths[index + 1]} imports 'vitest'`,
+          `${paths[index + 1]} imports 'vitest'`,
         );
       } else {
-        expect(resultDetail).toBe('trusted executability gate passed after one rewrite');
+        expect(resultDetail).toBe('trusted executability gate passed after deterministic rewrite');
       }
     }
     expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
