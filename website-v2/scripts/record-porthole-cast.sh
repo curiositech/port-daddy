@@ -26,7 +26,9 @@ fi
 SLUG="$1"
 shift
 
-DRIVER="$(mktemp /tmp/porthole-drive-XXXXXX.sh)"
+SCRATCH_ROOT="${PORT_DADDY_SCRATCH_ROOT:-$HOME/coding/tmp}"
+mkdir -p "$SCRATCH_ROOT"
+DRIVER="$(mktemp "$SCRATCH_ROOT/porthole-drive-XXXXXX.sh")"
 trap 'rm -f "$DRIVER"' EXIT
 
 {
