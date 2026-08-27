@@ -1,6 +1,4 @@
-% Figure I.8 — the split ranker.  The painterly sea chart is an original,
-% nontextual field-journal plate; all semantics, labels, and directional arrows
-% below remain source-owned and reviewable.
+% Figure I.8 — shared candidate substrate, distinct scoring heads.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -14,36 +12,29 @@
 \centering
 \begin{tikzpicture}[
   font=\footnotesize,
-  labelplate/.style={fill=hhpaper!92,draw=none,rounded corners=1pt,
-                     align=center,inner sep=2pt,text width=28mm,text=hhink},
+  labelplate/.style={fill=hhpaper,draw=hhink!72,line width=.55pt,rounded corners=1pt,
+                     align=center,inner sep=3pt,text width=34mm,text=hhink},
   route/.style={-{Latex[length=2mm]},line width=1.05pt},
 ]
-% The generated image carries only the concrete relation-map setting. It has no
-% text, values, arrows, or claims that could silently drift from the paper.
-\node[inner sep=0] (chart) {\includegraphics[width=0.67\textwidth]{figures/assets/legible-swarm-split-ranker-sea-chart.jpg}};
-
-% The cartouches in the nontextual plate receive source-owned labels.  The three
-% labels are compact enough to preserve the relationship rather than repeat the
-% surrounding theorem and caption as prose.
-\node[labelplate] (shared) at ($(chart.center)+(-2.42,1.34)$)
-  {\textbf{SHARED CHART}\\[-1pt]
+\node[labelplate,minimum height=30mm] (shared) at (-3.0,0)
+  {\textbf{SHARED SUBSTRATE}\\[-1pt]
    \scriptsize candidate pool\\[-1pt]
    \scriptsize + recency decay};
-\node[labelplate] (discovery) at ($(chart.center)+(2.24,0.72)$)
+\foreach \x/\y in {-3.6/.7,-3.0/.7,-2.4/.7,-3.6/.2,-3.0/.2,-2.4/.2,-3.6/-.3,-3.0/-.3,-2.4/-.3}
+  {\fill[hhteal!72] (\x,\y) circle (1.15pt);}
+\node[labelplate] (discovery) at (3.0,1.65)
   {\textbf{DISCOVERY}\\[-1pt]
    \scriptsize agent $\rightarrow$ agent\\[-1pt]
    \scriptsize \emph{fit} (Eq.~\ref{eq:fit})};
-\node[labelplate] (attention) at ($(chart.center)+(2.24,-2.52)$)
+\node[labelplate] (attention) at (3.0,-1.65)
   {\textbf{ATTENTION}\\[-1pt]
-   \scriptsize watchkeeper's queue\\[-1pt]
+   \scriptsize operator queue\\[-1pt]
    \scriptsize \emph{regret} (Eq.~\ref{eq:regret})};
 
 % These are the formal directions.  The painted wakes beneath them are atmosphere,
 % not a substitute for a claimed causal relation.
-\draw[route,hhteal] ($(shared.south east)+(0.10,-0.10)$)
-  to[out=-9,in=179] ($(discovery.west)+(-0.05,0)$);
-\draw[route,hhcobalt] ($(shared.south east)+(0.10,-0.45)$)
-  to[out=-25,in=174] ($(attention.west)+(-0.05,0)$);
+\draw[route,hhteal] (shared.east) to[out=18,in=180] (discovery.west);
+\draw[route,hhcobalt] (shared.east) to[out=-18,in=180] (attention.west);
 \end{tikzpicture}
 \caption{\textbf{One shared candidate chart supports two noninterchangeable readings.}
 Both rankers draw from the same live substrate and apply the same recency decay;

@@ -1,3 +1,3 @@
 type: changed
 
-- **The Legible Swarm now has an original, source-owned visual system.** Seven Chapter I figures now use precise readable diagrams and maritime field-journal plates, the signal plot and cascade reserve clear space for labels, the authority route is provided as a Mermaid graph, the collected volume builds with the same figure assets as the standalone paper, and the Anchor Protocol appendix cross-reference resolves in both editions.
+- **The Legible Swarm now has a compact, source-owned visual system.** Seven Chapter I figures use precise readable diagrams with aligned roles, reserved label bands, and no generated semantic plates; the signal plot keeps explanation outside the data field, the authority route remains available as Mermaid source, and both the standalone paper and collected volume build from the same reviewable figure geometry.

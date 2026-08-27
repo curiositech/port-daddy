@@ -1,7 +1,4 @@
-% Figure 4 — the four questions as a compact pre-departure log.
-% The generated field-journal image supplies atmosphere only.  Every question,
-% obligation, order marker, and the "may sail" condition is typeset below so the
-% paper, rather than a raster image, owns the claim.
+% Figure I.4 — a gated admission path. All semantics are source-controlled.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -13,29 +10,34 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  loglabel/.style={fill=hhpaper,fill opacity=.93,text opacity=1,rounded corners=1pt,
-                   align=left,inner sep=2.5pt,font=\footnotesize,text=hhink,text width=33mm},
-  launch/.style={fill=hhebony,fill opacity=.94,text opacity=1,rounded corners=1pt,
-                 align=center,inner sep=3pt,font=\scriptsize\bfseries\color{hhpaper},text width=42mm},
+  question/.style={draw=hhink,line width=.65pt,rounded corners=1.5pt,fill=hhsand!22,
+    minimum width=57mm,minimum height=13mm,inner sep=3pt,align=left,font=\footnotesize,text=hhink},
+  obligation/.style={draw=hhteal,line width=.7pt,rounded corners=1.5pt,fill=hhpaper,
+    minimum width=56mm,minimum height=13mm,inner sep=3pt,align=left,font=\footnotesize,text=hhink},
+  route/.style={-{Latex[length=1.7mm]},line width=.8pt,hhink},
+  bind/.style={-{Latex[length=1.7mm]},line width=.8pt,hhteal},
+  tag/.style={font=\scriptsize\scshape,text=hhamber,fill=hhpaper,inner sep=1.2pt},
 ]
-\node[inner sep=0] (log) {\includegraphics[width=.82\textwidth]{figures/assets/legible-swarm-four-questions-log.jpg}};
-
-\node[loglabel] at ($(log.south west)!0.84!(log.north east)$)
-  {\textbf{1. Irreversible act?}\\\emph{Force a zoom.}};
-\node[loglabel] at ($(log.south west)!0.62!(log.north east)$)
-  {\textbf{2. Admin or m\^etis?}\\\emph{Link m\^etis verbatim.}};
-\node[loglabel] at ($(log.south west)!0.40!(log.north east)$)
-  {\textbf{3. Can it lie?}\\\emph{Zoom to the artifact.}};
-\node[loglabel] at ($(log.south west)!0.18!(log.north east)$)
-  {\textbf{4. Named reason?}\\\emph{Make authority legible.}};
-\node[launch] at ([yshift=4mm]log.south)
-  {\textsc{Clear to sail: all four hold}};
+  \node[question] (q1) {\textbf{1. Irreversible act?}};
+  \node[obligation,right=16mm of q1] (o1) {\textbf{Force a zoom}\\one keystroke from artifact};
+  \node[question,below=7mm of q1] (q2) {\textbf{2. Administrative or m\^etis?}};
+  \node[obligation,right=16mm of q2] (o2) {\textbf{Link m\^etis verbatim}\\do not flatten local knowledge};
+  \node[question,below=7mm of q2] (q3) {\textbf{3. Can the summary lie?}};
+  \node[obligation,right=16mm of q3] (o3) {\textbf{Zoom to the artifact}\\not merely to narration};
+  \node[question,below=7mm of q3] (q4) {\textbf{4. Is authority legible?}};
+  \node[obligation,right=16mm of q4] (o4) {\textbf{Name the reason}\\each act carries a cause};
+  \foreach \q/\o in {q1/o1,q2/o2,q3/o3,q4/o4} {\draw[bind] (\q.east)--(\o.west);}
+  \draw[route] (q1.south) -- node[tag,right] {then} (q2.north);
+  \draw[route] (q2.south) -- node[tag,right] {then} (q3.north);
+  \draw[route] (q3.south) -- node[tag,right] {then} (q4.north);
+  \node[draw=hhamber,line width=.8pt,rounded corners=1.5pt,fill=hhamber!12,
+    minimum width=57mm,minimum height=11mm,below=7mm of q4,inner sep=3pt,
+    align=center,font=\footnotesize\bfseries,text=hhink] (pass) {RENDER THE SURFACE};
+  \draw[route] (q4.south) -- (pass.north);
 \end{tikzpicture}
-\caption{A pre-departure log for a read-surface: it may sail only after four ordered
-checks bind four obligations --- forced zoom for irreversible action, a verbatim link
-for m\^etis, an artifact-targeted zoom for a fallible summary, and a named reason for
-authority. The voyage metaphor records the sequence; it does not add a fifth rule.
-The procedure is the operational form of the one law (Def.~\ref{def:zoom}) and the legible-sovereign rule
+\caption{The four design questions are an ordered admission path. Each question binds a
+specific obligation; a read-surface is rendered only after all four hold. This is the
+operational form of the one law (Def.~\ref{def:zoom}) and the legible-sovereign rule
 (Prop.~\ref{prop:legible-sovereign}).}
 \label{fig:four-questions}
 \end{figure}

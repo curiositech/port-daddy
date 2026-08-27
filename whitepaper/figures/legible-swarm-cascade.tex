@@ -1,5 +1,4 @@
-% Figure 10 — a compaction failure is a current, not four isolated boxes.  A
-% breakwater at any station diverts it; the durable-artifact break is decisive.
+% Figure 10 — compaction failure is a causal ladder; every intervention can halt it.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -19,30 +18,21 @@
   cure/.style={draw=none,align=left,font=\footnotesize,text width=43mm,text=hhink},
   current/.style={-{Latex[length=2.1mm]},line width=1.1pt,hhamber},
   remedy/.style={-{Latex[length=1.8mm]},line width=.9pt,hhteal},
-  breakwater/.style={line width=1.2pt,hhteal},
+  stopbar/.style={line width=1.2pt,hhteal},
 ]
-  % The pale watercourse carries the visual claim: it only becomes a cascade
-  % when it passes every station.  The labels are intentionally off the line.
   \fill[hhsand!18] (.2,.25) rectangle (14.7,9.05);
-  \draw[hhsanddeep!55,line width=12pt,line cap=round]
-    (1.20,8.35) .. controls (.70,7.25) and (2.75,6.65) .. (1.48,5.67)
-    .. controls (.55,4.82) and (2.85,4.07) .. (1.55,3.20)
-    .. controls (.65,2.52) and (2.55,1.55) .. (1.50,.75);
-  \draw[current]
-    (1.20,8.35) .. controls (.70,7.25) and (2.75,6.65) .. (1.48,5.67)
-    .. controls (.55,4.82) and (2.85,4.07) .. (1.55,3.20)
-    .. controls (.65,2.52) and (2.55,1.55) .. (1.50,.75);
+  \draw[current] (1.40,8.20) -- (1.40,.75);
   \node[anchor=south,font=\scriptsize\scshape,text=hhamber] at (1.18,8.48)
-    {failure current};
-  \node[anchor=north,font=\scriptsize\itshape,text=hhamber] at (1.48,.55)
+    {failure chain};
+  \node[anchor=north,font=\scriptsize\itshape,text=hhamber] at (1.40,.55)
     {digest replaces source};
 
   \foreach \y/\n in {7.25/1,5.15/2,3.08/3,1.02/4}{
     \fill[hhamber] (2.25,\y) circle (3.3pt);
     \node[font=\scriptsize\bfseries,text=hhpaper] at (2.25,\y) {\n};
     \draw[remedy] (6.35,\y) -- (7.40,\y);
-    \draw[breakwater] (6.97,\y-.30) -- (7.27,\y+.30);
-    \draw[breakwater] (7.17,\y-.30) -- (7.47,\y+.30);
+    \draw[stopbar] (6.97,\y-.30) -- (7.27,\y+.30);
+    \draw[stopbar] (7.17,\y-.30) -- (7.47,\y+.30);
   }
 
   \node[failure,anchor=west] at (2.65,7.25)
@@ -66,15 +56,15 @@
     {\textbf{Keep the zoom path}\\a terminal cannot over-render};
 
   \node[font=\scriptsize\scshape,text=hhteal,anchor=south] at (7.12,8.42)
-    {a breakwater at any station};
+    {an intervention can stop the cascade};
   \node[font=\scriptsize\itshape,text=hhgray,align=center] at (11.05,.30)
     {the third break is load-bearing:\\durable, addressable artifacts};
 \end{tikzpicture}%
 }
-\caption{Context degradation is a current that becomes a cascade only when it
-passes every breakwater.  Rot pressures compaction; naive compaction loses the
+\caption{Context degradation becomes a cascade only when each stage is left untreated.
+Rot pressures compaction; naive compaction loses the
 middle; recursive summaries fabricate; and the operator-facing digest finally
-replaces its source.  Any intervention stops the run, but the load-bearing one
+replaces its source. Any intervention stops the run, but the load-bearing one
 is station~3: \emph{compact from durable artifacts}, so every new reading can
 be checked against an addressable claim, note, episode, or diff rather than a
 prior summary.  Cost and truth fail together on this surface.}
