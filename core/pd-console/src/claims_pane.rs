@@ -298,4 +298,13 @@ mod tests {
             .iter()
             .any(|block| matches!(block, Block::Row(row) if row.iter().any(|cell| cell == "→"))));
     }
+
+    #[test]
+    fn ignores_claim_tree_trouble_without_a_state() {
+        let malformed = json!({
+            "kind": "claim-tree-trouble",
+            "payload": { "filePath": "lib/auth.ts", "state": "" }
+        });
+        assert!(TroubleEntry::from_value(&malformed).is_none());
+    }
 }
