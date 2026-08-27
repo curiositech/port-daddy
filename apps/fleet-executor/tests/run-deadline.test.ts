@@ -58,13 +58,16 @@ function seedStaleRun(d1: ReturnType<typeof memoryD1>, runId: string, createdAtS
 }
 
 let state: GitHubState;
+const TEST_NOW_MS = Date.parse('2026-08-27T02:00:00Z');
 
 beforeEach(() => {
+  vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW_MS);
   state = freshState();
   installGitHubFetch(state);
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
