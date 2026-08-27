@@ -1,62 +1,91 @@
-% Figure — the single-writer serialization. Many client processes + the daemon
-% funnel through one writer; SQLite's file lock + a busy-wait serialize all
-% mutations. One decider => no agreement to reach (FLP sidestepped, not solved);
-% that whole argument, and the cross-machine boundary, live in the caption.
+% Figure — the single-writer discipline.  The visual claim is temporal: many
+% requests may arrive together, but one daemon admits them to an ordered write
+% ledger.  The file lock is a backstop; the daemon queue determines the order.
 
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{swkink}{HTML}{282522}
+\providecolor{swkmuted}{HTML}{DCD9D2}
+\providecolor{swkground}{HTML}{F8F6F1}
+\providecolor{swkteal}{HTML}{1D6B62}
+\providecolor{swkumber}{HTML}{8A5A24}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[
+  x=1cm,
+  y=1cm,
   font=\small,
-  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
-              minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
-  daemon/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
-                 minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
-  db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
-             aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
+  lane/.style={draw=swkink!35,line width=.35pt},
+  packet/.style={draw=swkink,fill=swkground,rounded corners=1.5pt,
+                 minimum width=8mm,minimum height=5mm,inner sep=1.5pt},
+  queue/.style={draw=swkteal,fill=swkteal!10,rounded corners=1.2pt,
+                minimum width=10mm,minimum height=4.8mm,inner sep=1.2pt},
+  commit/.style={draw=swkink,fill=swkmuted!55,minimum width=10mm,
+                 minimum height=6.5mm,inner sep=1.2pt},
+  arrow/.style={->,>=Latex,line width=.7pt,draw=swkink},
+  focusarrow/.style={->,>=Latex,line width=.9pt,draw=swkteal}
 ]
+  % Fixed canvas and three deliberately separate reading territories.
+  \path[use as bounding box] (-1.2,-1.45) rectangle (14.2,5.35);
 
-% ─── Many clients on the left ─────────────────────────────────────────────
-\node[cli] (c1) at (0,2.4) {command line};
-\node[cli] (c2) at (0,1.2) {command line};
-\node[cli] (c3) at (0,0)   {agent (tool bridge)};
-\node[cli] (c4) at (0,-1.2){agent (binary IPC)};
-\node[cli] (c5) at (0,-2.4){background worker};
+  \node[font=\bfseries] at (2.05,5.0) {arrival lanes};
+  \node[font=\bfseries] at (6.60,5.0) {FIFO queue};
+  \node[font=\bfseries] at (10.95,5.0) {commit ledger};
+  \draw[swkink!45,line width=.45pt] (0.25,4.65) -- (4.05,4.65);
+  \draw[swkink!45,line width=.45pt] (5.05,4.65) -- (8.15,4.65);
+  \draw[swkink!45,line width=.45pt] (8.95,4.65) -- (13.10,4.65);
 
-% ─── The single daemon (sole write connection) ────────────────────────────
-\node[daemon] (d) at (58mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
-  {\footnotesize\normalfont two transports over Unix sockets}};
+  % The shaded band marks concurrency, rather than calling attention to a
+  % decorative central node.
+  \fill[swkumber!14] (2.25,1.18) rectangle (3.28,4.18);
+  \node[font=\scriptsize\itshape,text=swkumber,align=center]
+    at (2.765,.78) {overlapping\\arrival window};
 
-\foreach \c in {c1,c2,c3,c4,c5} {
-  \draw[->,>=Latex,hhebony] (\c.east) -- (d.west);
-}
+  % Five source lanes.  Labels stay in the left gutter; request IDs are the
+  % only text carried by their data marks.
+  \foreach \label/\y/\start/\finish/\id in {
+    CLI\,1/4.00/.55/3.52/A,
+    CLI\,2/3.40/1.06/3.74/B,
+    agent bridge/2.80/1.70/3.45/C,
+    binary IPC/2.20/2.14/3.88/D,
+    background worker/1.60/2.35/3.67/E}
+  {
+    \node[anchor=east,font=\footnotesize] at (.30,\y) {\label};
+    \draw[lane] (.48,\y) -- (4.05,\y);
+    \draw[line width=2.15pt,draw=swkink!65] (\start,\y) -- (\finish,\y);
+    \node[packet] at ({(\start+\finish)/2},\y) {$r_{\id}$};
+  }
 
-% ─── The single file ──────────────────────────────────────────────────────
-\node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
-\draw[<->,>=Latex,line width=1.2pt,hhcobalt] (d.east) -- (file.west);
-\node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
-  at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
+  % The queue preserves the only order that matters for the figure.
+  \foreach \id/\y in {A/4.00,B/3.40,C/2.80,D/2.20,E/1.60} {
+    \node[queue] (q\id) at (6.60,\y) {$r_{\id}$};
+    \draw[arrow] (4.12,\y) -- (q\id.west);
+  }
+  \draw[focusarrow] (7.25,4.15) -- (7.25,1.43);
+  \node[anchor=west,font=\scriptsize\itshape,text=swkteal]
+    at (7.40,2.80) {FIFO dequeue};
 
-\end{tikzpicture}%
-}
-\caption{The single-writer serialization, the cleanest thing about the layer.
-Dozens of command-line invocations and agents funnel through \emph{one} writer ---
-the daemon, the sole holder of a read--write connection --- and SQLite's OS-level
-file lock plus a bounded busy-wait serialize all mutations. Because there is exactly
-one decider, there is no agreement to reach: the consensus impossibility of
-Fischer--Lynch--Paterson does not bite --- it is \emph{sidestepped}, not solved, and
-on one machine the system is CP with a central coordinator. This is not a gap; it is
-the layer's defining discipline. The boundary is exact: the instant a \emph{second}
-daemon shares this file, the assumption breaks and you have a distributed problem
---- which belongs to the cross-machine economy layer, not here.}
+  % A ledger is the output grammar: it makes seriality inspectable at a glance.
+  \node[anchor=west,font=\footnotesize\itshape] at (8.95,4.15)
+    {sole write connection};
+  \draw[focusarrow] (7.65,1.60) -| (8.95,.55);
+  \foreach \id/\x in {A/9.45,B/10.47,C/11.49,D/12.51,E/13.53} {
+    \node[commit] (c\id) at (\x,.55) {$r_{\id}$};
+  }
+  \draw[arrow] (8.85,-.05) -- (14.08,-.05);
+  \node[anchor=west,font=\footnotesize] at (14.10,-.05) {commit order};
+  \node[font=\footnotesize\itshape,align=center] at (11.50,-.72)
+    {one SQLite WAL ledger};
+
+  % The backstop lives in a dedicated annotation band, not on a connector.
+  \draw[swkink!45,line width=.45pt] (.25,-1.05) -- (13.95,-1.05);
+  \node[font=\footnotesize\itshape,text=swkumber]
+    at (7.10,-1.30) {SQLite file lock: rejects an accidental second writer.};
+\end{tikzpicture}
+\caption{Many requests may arrive in overlapping intervals, but the daemon assigns one
+admission order and commits that order to a single SQLite write-ahead log.  The queue,
+not a visual hub, is the operative serialization point; the OS-level file lock is the
+backstop if a second writer ever appears.  With one decider on one machine, there is no
+distributed agreement problem to solve: the boundary becomes a distributed problem only
+when another daemon is permitted to write the same state.}
 \label{fig:swk-single-writer}
 \end{figure}
