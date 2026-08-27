@@ -31,8 +31,10 @@ Reputation estimator (BT / Elo / TrueSkill / EigenTrust) &
   \S\ref{sec:substrate}; design specified, nothing scores yet \\
 Multi-dimensional reputation, neutral judges & \VISION &
   \S\ref{sec:adr0049}, Protos.~\ref{proto:judge},~\ref{proto:skill} \\
-Grading-oracle incentive-compatibility (Conj.~\ref{conj:contract}) & \VISION &
-  \S\ref{sec:oracle}; named hole, two candidate closures, no proof \\
+Grading-oracle incentive-compatibility (Thm.~\ref{thm:tower-imported}) & \DESIGNED &
+  \S\ref{sec:oracle}; recursion closed by the companion paper ($\lambda{=}1{-}\rho d$), mechanism not deployed \\
+Honest root + audit telemetry for the tower & \VISION &
+  \S\ref{sec:oracle}; what the contraction theorem does \emph{not} supply \\
 Tombstone revocation of outcomes & \DESIGNED &
   \S\ref{sec:revoke}, Proto.~\ref{proto:tombstone}; convergence is the market paper's job \\
 \bottomrule

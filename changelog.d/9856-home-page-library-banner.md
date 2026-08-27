@@ -1,0 +1,3 @@
+type: added
+
+- **The home page now names and links both seven-part collections.** A thin `LibraryBanner` strip below the nav, above the hero, gives "the Volume" (VII prose chapters, `/library`) and "the Proofs" (7 arXiv-style papers, `/library/research`) their own short names and real page counts, so neither reads as an undifferentiated "seven papers" the way the `/library` page itself did before the 2026-08-26 naming fix; building it surfaced real page-count drift against the committed PDFs — `agent-transactions-whitepaper.pdf` (52→53pp) and all seven `research/paperN.pdf`s (70→100pp total, stale since this session's polish and prior-art passes) — now corrected in `whitePapers.ts`, `researchPapers.ts`, and three stale pinned assertions in `whitePapers.test.ts`.
