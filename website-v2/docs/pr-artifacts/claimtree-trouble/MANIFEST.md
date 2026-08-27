@@ -2,7 +2,7 @@
 
 Captured headlessly from this branch's production build at `/docs/concepts/claim-tree`.
 The figure is the same bounded ego graph introduced in the docs: `session-you`
-and `session-other` converge on `lib/auth.ts`, producing the explicit
+and `session-other` converge on the synthetic lib/auth.ts surface, producing the explicit
 `COORDINATE` state and its next action.
 
 | Artifact | Shows |
