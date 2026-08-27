@@ -227,9 +227,13 @@ export interface SpawnAdapterInput {
 
 export interface SpawnAdapterResult {
   state: 'settled' | 'failed' | 'salvage';
+  /** Durable Conductor launch identity, available once admission succeeds. */
+  launchId?: string | null;
   costUsd?: number;
   resultArtifact?: string | null;
   errorMessage?: string | null;
+  /** Transcript identity when the adapter can observe it at launch time. */
+  transcriptId?: string | null;
   /**
    * The agent id the body ran as, when the adapter knows it.
    *
