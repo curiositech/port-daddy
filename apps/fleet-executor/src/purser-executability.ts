@@ -487,14 +487,18 @@ function replaceImportSpecifier(source: string, from: string, to: string): strin
  *
  * This is deliberately narrower than module resolution: stripping the leading
  * `./` and `../` segments must identify exactly one existing path (including
- * the same extension/index variants used by the executability gate). Ambiguous
- * or absent targets return null and leave the bounded model rewrite as the
- * fallback. The caller re-runs both path safety and executability afterward.
+ * the same extension/index variants used by the executability gate). When a
+ * monorepo has multiple package-prefixed suffix matches, exactly one may be
+ * selected only if it is also an exact path in the reviewed PR's changed-file
+ * set. Both evidence sets must agree; ambiguous, absent, or untrusted hints
+ * return null and leave the bounded model rewrite as the fallback. The caller
+ * re-runs both path safety and executability afterward.
  */
 export function repairMisrootedRelativeImport(
   files: StackedFile[],
   failure: ExecutabilityResult,
   repoTreePaths: Set<string> | null,
+  prChangedPaths: ReadonlySet<string> = new Set(),
 ): TrustedTreeImportRepair | null {
   if (
     failure.ok ||
@@ -513,13 +517,26 @@ export function repairMisrootedRelativeImport(
   if (!rootRelative || rootRelative.split('/').some(segment => segment === '.' || segment === '..')) {
     return null;
   }
-  const matches = [...new Set(
-    resolveJoinedCandidates(rootRelative)
-      .filter(candidate => repoTreePaths.has(candidate)),
+  const rootCandidates = resolveJoinedCandidates(rootRelative);
+  const rootMatches = [...new Set(
+    rootCandidates.filter(candidate => repoTreePaths.has(candidate)),
   )];
+  const changedSuffixMatches = [...new Set(
+    [...prChangedPaths].filter(changedPath =>
+      repoTreePaths.has(changedPath) &&
+      rootCandidates.some(candidate =>
+        changedPath === candidate || changedPath.endsWith(`/${candidate}`),
+      ),
+    ),
+  )];
+  const matches = rootMatches.length === 1
+    ? rootMatches
+    : changedSuffixMatches.length === 1
+      ? changedSuffixMatches
+      : [];
   if (matches.length !== 1) return null;
 
-  const toSpecifier = relativeModuleSpecifier(failure.path, rootRelative);
+  const toSpecifier = relativeModuleSpecifier(failure.path, matches[0]);
   if (toSpecifier === failure.specifier) return null;
   const filesAfter = files.map(file => {
     if (file.path !== failure.path) return file;

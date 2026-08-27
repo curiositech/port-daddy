@@ -1588,6 +1588,7 @@ export async function runPurser(
         files,
         executability,
         evidence.repoTreePaths,
+        new Set(prCtx.files.map(file => file.filename)),
       );
       if (!repair) break;
       const candidateSafety = validateStackedFiles(repair.files);

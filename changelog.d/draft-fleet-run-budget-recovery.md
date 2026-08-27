@@ -1,3 +1,4 @@
 type: fixed
 
 - **Fleet reviews now have enough bounded time to reach their final blocking reviewer.** The default nine-ship roster previously had a 45-minute logical-run ceiling equal to nine five-minute AI calls, leaving no time for queue continuations or checkpoint delivery; exact-head reviews for PRs #9892 and #9893 consequently ended neutral after 46-50 minutes before Purser. The ceiling is now 75 minutes, preserving a hard retry-storm bound while adding 30 minutes of orchestration allowance, with a regression at the observed 50-minute boundary.
+- **Purser repairs monorepo-relative imports only when two trusted sources agree.** If a generated test names an ambiguous package suffix, Fleet may now rewrite it only when the repository tree and the reviewed PR's exact changed-file list identify one path; absent, conflicting, or untrusted hints still fail closed before sandbox execution.
