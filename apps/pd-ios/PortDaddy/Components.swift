@@ -33,14 +33,14 @@ public struct SignalChip: View {
     public var body: some View {
         HStack(spacing: PD.Space.xs) {
             Text(letter)
-                .font(.caption.weight(.bold))
+                .font(PDFont.caption.weight(.bold))
                 .frame(minWidth: 16)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
                 .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(PD.color(for: state).opacity(0.22)))
                 .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(PD.color(for: state), lineWidth: 1))
             Text(label)
-                .font(.caption.weight(.semibold))
+                .font(PDFont.caption.weight(.semibold))
         }
         .foregroundStyle(PD.color(for: state))
         .padding(.horizontal, PD.Space.s)
@@ -102,7 +102,7 @@ public struct ProvenanceBar: View {
             Image(systemName: provenance.systemImage)
                 .imageScale(.small)
             Text(provenance.text)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
@@ -137,9 +137,9 @@ public struct EmptyStateView: View {
                 .font(.system(size: 34, weight: .light))
                 .foregroundStyle(PD.Chrome.tertiaryText)
             Text(title)
-                .font(.headline)
+                .font(PDFont.headline)
             Text(message)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -170,15 +170,15 @@ public struct UnknownNotice: View {
         VStack(alignment: .leading, spacing: PD.Space.m) {
             SignalChip(state: .idle, text: "unknown")
             Text(title)
-                .font(.headline)
+                .font(PDFont.headline)
             Text(reason)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             if let retry {
                 Button(action: retry) {
                     Label("Try again", systemImage: "arrow.clockwise")
-                        .font(.body)
+                        .font(PDFont.body)
                         .frame(minHeight: PD.minimumTapTarget)
                 }
                 .buttonStyle(.bordered)
@@ -211,10 +211,10 @@ public struct SectionCard<Content: View>: View {
         VStack(alignment: .leading, spacing: PD.Space.m) {
             VStack(alignment: .leading, spacing: PD.Space.xs) {
                 Text(title)
-                    .font(.headline)
+                    .font(PDFont.headline)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.subheadline)
+                        .font(PDFont.subheadline)
                         .foregroundStyle(PD.Chrome.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -225,5 +225,35 @@ public struct SectionCard<Content: View>: View {
         .padding(PD.Space.l)
         .background(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).fill(PD.Chrome.card))
         .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
+    }
+}
+
+/// The ch20 signature: four L-shaped corner ticks instead of a full frame — the
+/// mark of "the one live panel". Fractional linework (1.5px ticks over a
+/// hairline fill) reads as an instrument bracket, not a card border.
+public struct BracketCorners: View {
+    let color: Color
+    let length: CGFloat
+    let lineWidth: CGFloat
+
+    public init(color: Color = PD.Chrome.strongBorder, length: CGFloat = 12, lineWidth: CGFloat = 1.5) {
+        self.color = color
+        self.length = length
+        self.lineWidth = lineWidth
+    }
+
+    public var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height, L = min(length, min(w, h) / 2)
+            Path { p in
+                p.move(to: CGPoint(x: 0, y: L)); p.addLine(to: .zero); p.addLine(to: CGPoint(x: L, y: 0))
+                p.move(to: CGPoint(x: w - L, y: 0)); p.addLine(to: CGPoint(x: w, y: 0)); p.addLine(to: CGPoint(x: w, y: L))
+                p.move(to: CGPoint(x: 0, y: h - L)); p.addLine(to: CGPoint(x: 0, y: h)); p.addLine(to: CGPoint(x: L, y: h))
+                p.move(to: CGPoint(x: w - L, y: h)); p.addLine(to: CGPoint(x: w, y: h)); p.addLine(to: CGPoint(x: w, y: h - L))
+            }
+            .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .square))
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

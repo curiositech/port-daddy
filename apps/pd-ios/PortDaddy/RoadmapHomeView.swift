@@ -125,10 +125,10 @@ public struct RoadmapHomeView: View {
                     ForEach(entries) { entry in
                         VStack(alignment: .leading, spacing: PD.Space.xs) {
                             Text(entry.title)
-                                .font(.body.weight(.semibold))
+                                .font(PDFont.body.weight(.semibold))
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(entry.reason.explanation)
-                                .font(.subheadline)
+                                .font(PDFont.subheadline)
                                 .foregroundStyle(PD.Chrome.secondaryText)
                         }
                         .frame(maxWidth: .infinity, minHeight: PD.minimumTapTarget, alignment: .leading)
@@ -153,11 +153,11 @@ public struct RoadmapItemRow: View {
         VStack(alignment: .leading, spacing: PD.Space.s) {
             HStack(alignment: .top, spacing: PD.Space.s) {
                 Text(item.title)
-                    .font(.body.weight(.semibold))
+                    .font(PDFont.body.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(PDFont.caption.weight(.semibold))
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
 
@@ -169,13 +169,13 @@ public struct RoadmapItemRow: View {
             // The projection's own sentence, verbatim. The chip above says
             // whether to trust it; this says what the server actually knows.
             Text(item.liveEvidence.label)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let claim = item.claim {
                 Text("Claimed by \(claim.claimedBy)")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
         }
@@ -214,12 +214,12 @@ public struct RoadmapItemDetailView: View {
                             text: item.liveEvidence.displayState.label
                         )
                         Text(item.liveEvidence.label)
-                            .font(.subheadline)
+                            .font(PDFont.subheadline)
                             .foregroundStyle(PD.Chrome.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                         if let age = item.liveEvidence.evidenceAge {
                             Text("Last evidence \(RelativeAge.short(age)) ago — the projection's freshness window is \(RelativeAge.short(item.liveEvidence.maxAgeMs / 1000)).")
-                                .font(.subheadline)
+                                .font(PDFont.subheadline)
                                 .foregroundStyle(PD.Chrome.tertiaryText)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -231,7 +231,7 @@ public struct RoadmapItemDetailView: View {
                         VStack(alignment: .leading, spacing: PD.Space.xs) {
                             ForEach(item.dependencies, id: \.self) { dependency in
                                 Text(dependency)
-                                    .font(.body)
+                                    .font(PDFont.body)
                             }
                         }
                     }
@@ -252,10 +252,10 @@ public struct RoadmapItemDetailView: View {
                                         .foregroundStyle(PD.Chrome.secondaryText)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(pair.element.detail)
-                                            .font(.body)
+                                            .font(PDFont.body)
                                             .fixedSize(horizontal: false, vertical: true)
                                         Text(pair.element.by ?? "unattributed")
-                                            .font(.subheadline)
+                                            .font(PDFont.subheadline)
                                             .foregroundStyle(PD.Chrome.tertiaryText)
                                     }
                                 }

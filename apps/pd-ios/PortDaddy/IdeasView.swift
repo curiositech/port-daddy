@@ -62,13 +62,15 @@ public struct IdeasView: View {
             }
             .navigationTitle("Ideas")
         }
+        // One colour zone per view (ch20): Ideas runs violet.
+        .tint(PD.Palette.signal)
     }
 
     @ViewBuilder
     private func exploring(topic: String, chat: [ChatMessage]) -> some View {
         VStack(alignment: .leading, spacing: PD.Space.m) {
             Label("Exploring · \(topic)", systemImage: "bubble.left.and.bubble.right")
-                .font(.subheadline.weight(.semibold))
+                .font(PDFont.subheadline.weight(.semibold))
                 .foregroundStyle(PD.Chrome.secondaryText)
 
             VStack(spacing: PD.Space.s) {
@@ -81,14 +83,14 @@ public struct IdeasView: View {
             // disabled so the promise is.
             HStack(spacing: PD.Space.s) {
                 Text("Chat isn't built yet")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, PD.Space.m)
                     .frame(minHeight: PD.minimumTapTarget)
                     .overlay(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
+                    .font(PDFont.title2)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
             .opacity(0.7)
@@ -111,23 +113,23 @@ public struct IdeaCard: View {
         VStack(alignment: .leading, spacing: PD.Space.s) {
             HStack(spacing: PD.Space.xs) {
                 Image(systemName: "lightbulb.fill")
-                    .font(.caption.weight(.semibold))
+                    .font(PDFont.caption.weight(.semibold))
                 Text("NEW IDEA")
-                    .font(.caption.weight(.bold))
+                    .font(PDFont.caption.weight(.bold))
                     .tracking(1)
                 Spacer(minLength: 0)
                 Text("from \(idea.source)")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
             }
             .foregroundStyle(zone)
 
             Text(idea.title)
-                .font(.body.weight(.semibold))
+                .font(PDFont.body.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(idea.why)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -139,7 +141,7 @@ public struct IdeaCard: View {
             .padding(.top, PD.Space.xs)
 
             Label("Promote, discuss and dismiss aren't wired yet — Snipe's suggestion job is unbuilt.", systemImage: "hammer")
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.color(for: .blocked))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -158,9 +160,9 @@ public struct IdeaCard: View {
     private func ideaAction(_ title: String, systemImage: String, prominent: Bool = false) -> some View {
         HStack(spacing: PD.Space.xs) {
             Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
+                .font(PDFont.caption.weight(.semibold))
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(PDFont.subheadline.weight(.semibold))
                 .lineLimit(1)
         }
         .foregroundStyle(prominent ? zone : PD.Chrome.secondaryText)
@@ -195,12 +197,12 @@ public struct ChatBubble: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !isYou {
                     Text(message.author.uppercased())
-                        .font(.caption2.weight(.bold))
+                        .font(PDFont.caption2.weight(.bold))
                         .tracking(0.6)
                         .foregroundStyle(PD.Chrome.tertiaryText)
                 }
                 Text(message.text)
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(isYou ? Color.white : PD.Chrome.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }

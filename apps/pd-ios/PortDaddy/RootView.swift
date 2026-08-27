@@ -50,6 +50,9 @@ public struct RootView: View {
     @State private var inbox: Loadable<InterruptionListResponse>
 
     public init(inbox: Loadable<InterruptionListResponse>? = nil) {
+        // Register the bundled IBM Plex faces + nav-bar chrome before the first
+        // view renders. Idempotent.
+        PDFonts.registerIfNeeded()
         // Fixture-backed by default so previews and a fresh simulator launch
         // both render the real layout. The provenance bar inside each screen
         // states that it is a fixture — there is no unlabelled path.

@@ -55,11 +55,11 @@ public struct AgentDetailView: View {
 
             if let lineage = agent.lineage {
                 Label("durable · \(lineage)", systemImage: "shield.lefthalf.filled")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
             } else {
                 Label("ephemeral · not resumed", systemImage: "hare")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
 
@@ -88,10 +88,10 @@ public struct AgentDetailView: View {
     private func fact(_ key: String, _ value: String, tint: Color? = nil) -> some View {
         HStack(spacing: PD.Space.xs) {
             Text(key)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.tertiaryText)
             Text(value)
-                .font(.subheadline.weight(.semibold))
+                .font(PDFont.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(tint ?? PD.Chrome.secondaryText)
         }
@@ -102,16 +102,16 @@ public struct AgentDetailView: View {
         VStack(alignment: .leading, spacing: PD.Space.s) {
             HStack(spacing: PD.Space.xs) {
                 Text("Transcript")
-                    .font(.headline)
+                    .font(PDFont.headline)
                 Spacer(minLength: 0)
                 Text("\(agent.transcript.count) events")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
 
             if agent.transcript.isEmpty {
                 Text("No events yet.")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             } else {
                 VStack(alignment: .leading, spacing: PD.Space.s) {
@@ -124,7 +124,9 @@ public struct AgentDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.l)
         .background(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).fill(PD.Chrome.card))
-        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
+        // The transcript is "the one live panel" — instrument brackets, not a
+        // card border, mark it as the thing that is actually streaming.
+        .overlay(BracketCorners().padding(5))
     }
 
     @ViewBuilder
@@ -142,7 +144,7 @@ public struct AgentDetailView: View {
                     Image(systemName: "hammer")
                         .imageScale(.small)
                     Text("Issuing controls needs device pairing, which is not built yet.")
-                        .font(.subheadline)
+                        .font(PDFont.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                 }
@@ -167,7 +169,7 @@ private struct LiveTailBadge: View {
                 .opacity(reduceMotion ? 1 : (pulse ? 0.35 : 1))
                 .animation(reduceMotion ? nil : .easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
             Text("LIVE — events arriving")
-                .font(.caption.weight(.semibold))
+                .font(PDFont.caption.weight(.semibold))
                 .tracking(1)
                 .foregroundStyle(PD.color(for: .claimActive))
         }
@@ -192,15 +194,15 @@ public struct TranscriptRow: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: PD.Space.s) {
                 Text(event.timestamp)
-                    .font(.caption.monospaced())
+                    .font(PDFont.monoCaption)
                     .foregroundStyle(PD.Chrome.tertiaryText)
                 Text(event.kind.label)
-                    .font(.caption.weight(.bold))
+                    .font(PDFont.caption.weight(.bold))
                     .tracking(0.6)
                     .foregroundStyle(kindColor)
             }
             Text(event.text)
-                .font(.subheadline.monospaced())
+                .font(PDFont.monoSubheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -235,7 +237,7 @@ public struct AgentControlRow: View {
             Image(systemName: systemImage)
                 .imageScale(.medium)
             Text(title)
-                .font(.body.weight(.semibold))
+                .font(PDFont.body.weight(.semibold))
             Spacer(minLength: 0)
         }
         .foregroundStyle(prominent ? PD.Chrome.secondaryText : PD.Chrome.tertiaryText)
