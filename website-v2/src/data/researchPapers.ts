@@ -78,8 +78,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Price of a Summary',
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
-    pages: 12,
-    sizeKb: 726,
+    pages: 16,
+    sizeKb: 451,
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
@@ -96,8 +96,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Regimented or Enforced',
     subtitle: 'The Controllability Boundary for Agent Governance',
     pdfPath: '/research/paper2.pdf',
-    pages: 9,
-    sizeKb: 364,
+    pages: 13,
+    sizeKb: 362,
     claim:
       'Whether a governance rule can be prevented before it happens or only caught after is decided by one theorem, not by how hard the runtime tries.',
     pullQuote:
@@ -120,8 +120,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Reputation is Amortized Verification',
     subtitle: 'Inspection Games for Agent Economies',
     pdfPath: '/research/paper3.pdf',
-    pages: 9,
-    sizeKb: 390,
+    pages: 12,
+    sizeKb: 343,
     claim:
       'A bonded judge stays honest exactly when audit-rate times damages clears the bribe — and stacking judges on judges holds at any depth on a finite bond, not an infinite one.',
     pullQuote:
@@ -144,8 +144,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Sealed Harbor',
     subtitle: 'Mutually Confidential Computation with Explicit, Gated, Bounded Releases',
     pdfPath: '/research/paper4.pdf',
-    pages: 12,
-    sizeKb: 566,
+    pages: 17,
+    sizeKb: 406,
     claim:
       'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
     pullQuote:
@@ -168,8 +168,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Continuity Without Metaphysics',
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
-    pages: 10,
-    sizeKb: 500,
+    pages: 14,
+    sizeKb: 324,
     claim:
       'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
     pullQuote:
@@ -192,8 +192,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'What Needs an Authority',
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
-    pages: 9,
-    sizeKb: 467,
+    pages: 14,
+    sizeKb: 419,
     claim:
       'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
     pullQuote:
@@ -216,8 +216,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Cohomology of Equivocation',
     subtitle: 'Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency',
     pdfPath: '/research/paper7.pdf',
-    pages: 9,
-    sizeKb: 546,
+    pages: 14,
+    sizeKb: 466,
     claim:
       'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
     pullQuote:
