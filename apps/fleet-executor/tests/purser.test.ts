@@ -1171,6 +1171,74 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
+  it('#9893: deterministically heals an import introduced by the first model rewrite without spending the second call', async () => {
+    seedRealJestConfig();
+    state.treeFiles.set('BASESHA', ['scripts/release-workflow-state.mjs']);
+    const testPath = 'tests/unit/purser/prerelease-exclusion.test.js';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [{ path: testPath, intent: 'exclude prerelease tags from stable selection' }],
+      }),
+      '```',
+    ].join('\n');
+    const missingRegistration = [
+      '```js',
+      "export const candidate = 'v3.30.3';",
+      '```',
+    ].join('\n');
+    const firstRewriteWithShallowImport = [
+      '```js',
+      "import { latestStableTag } from '../../scripts/release-workflow-state.mjs';",
+      "test('excludes prereleases', () => expect(latestStableTag(['v3.30.3-rc.1', 'v3.30.2'])).toBe('v3.30.2'));",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      missingRegistration,
+      firstRewriteWithShallowImport,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx({
+        files: [{
+          filename: 'scripts/release-workflow-state.mjs',
+          status: 'modified',
+          additions: 3,
+          deletions: 1,
+        }],
+      }),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    // Steel-man + plan + initial author + exactly one model rewrite. The
+    // trusted-tree repair handles the evolved import failure locally.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy ===
+        'trusted-tree-relative-import-after-model-rewrite'
+    )).toMatchObject({
+      title: expect.stringContaining('HEALED'),
+      detail: expect.objectContaining({
+        attempts: 0,
+        fromSpecifier: '../../scripts/release-workflow-state.mjs',
+        toSpecifier: '../../../scripts/release-workflow-state.mjs',
+      }),
+    });
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(step.title)
+    )).toBeUndefined();
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('#9789: two malformed escalation rewrites still fail closed without sandbox or stack effects', async () => {
     seedRealJestConfig();
     const malformedTests = [

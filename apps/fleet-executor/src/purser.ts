@@ -1724,7 +1724,60 @@ export async function runPurser(
         if (!candidateSafety.ok) {
           repairReason = candidateSafety.reason;
         } else {
-          const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          let candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          let installedDeterministicCandidate = false;
+          // A model rewrite can legitimately evolve one trusted failure into
+          // another. In #9893 the first bounded rewrite added a real Jest test
+          // (healing missing registration) but rooted its import as though the
+          // generated file lived one directory higher. The deterministic
+          // trusted-tree healer had already run before that rewrite, so the old
+          // loop spent its final AI call rewriting a path we can prove locally
+          // and received malformed source back.
+          //
+          // Re-run the same fail-closed deterministic repair after a safe model
+          // rewrite. This consumes no model call, does not widen the retry or
+          // deadline budget, and still requires one unambiguous repository-tree
+          // match corroborated by the PR's exact changed-file list.
+          if (!candidateExecutability.ok && candidateExecutability.kind === 'unresolved-import') {
+            const deterministicRepair = repairMisrootedRelativeImport(
+              candidate,
+              candidateExecutability,
+              evidence.repoTreePaths,
+              new Set(prCtx.files.map(file => file.filename)),
+            );
+            if (deterministicRepair) {
+              const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+              if (deterministicSafety.ok) {
+                files = deterministicRepair.files;
+                installedDeterministicCandidate = true;
+                deterministicRepairs.push({
+                  path: deterministicRepair.path,
+                  fromSpecifier: deterministicRepair.fromSpecifier,
+                  toSpecifier: deterministicRepair.toSpecifier,
+                  matchedTreePath: deterministicRepair.matchedTreePath,
+                });
+                candidateExecutability = checkGeneratedTestsExecutable(files, evidence);
+                await transcript.step(
+                  'purser-author-repair',
+                  ship.name,
+                  candidateExecutability.ok
+                    ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                    : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+                  {
+                    strategy: 'trusted-tree-relative-import-after-model-rewrite',
+                    attempts: 0,
+                    path: deterministicRepair.path,
+                    fromSpecifier: deterministicRepair.fromSpecifier,
+                    toSpecifier: deterministicRepair.toSpecifier,
+                    matchedTreePath: deterministicRepair.matchedTreePath,
+                    result: candidateExecutability.ok
+                      ? 'trusted executability gate passed after deterministic rewrite'
+                      : candidateExecutability.reason,
+                  },
+                );
+              }
+            }
+          }
           // Keep a safe rewrite even when it has not fully healed yet. The
           // first #9789 production retry changed a syntax error into a precise
           // unresolved-import error, but the old branch discarded both the
@@ -1732,7 +1785,13 @@ export async function runPurser(
           // saw the stale source and stale error. Advancing the candidate here
           // lets the next bounded attempt target the current failure while the
           // same trusted gate still decides whether the file may execute.
-          files = candidate;
+          if (installedDeterministicCandidate) {
+            // A post-model deterministic repair already installed the healed
+            // candidate above. Preserve it rather than restoring the shallow
+            // model-authored import.
+          } else {
+            files = candidate;
+          }
           executability = candidateExecutability;
           if (
             candidateExecutability.ok ||
