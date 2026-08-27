@@ -1351,6 +1351,81 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
+  it('reapplies trusted zero-model repair after the global model budget drops an exhausted sibling', async () => {
+    seedRealJestConfig();
+    const target = 'apps/fleet-executor/src/purser-executability.ts';
+    state.treeFiles.set('BASESHA', [target]);
+    const brokenPaths = [
+      'tests/unit/purser/exhaust-budget-a.test.ts',
+      'tests/unit/purser/exhaust-budget-b.test.ts',
+      'tests/unit/purser/exhaust-budget-c.test.ts',
+    ];
+    const repairablePath = 'tests/unit/purser/repair-after-budget.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          ...brokenPaths.map(path => ({ path, intent: `consume bounded repair budget for ${path}` })),
+          { path: repairablePath, intent: 'verify trusted import repair survives exhausted model budget' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const malformed = (name: string) => `\`\`\`ts\nfunction ${name}( {\ntest('still malformed', () => true);\n\`\`\``;
+    const repairable = [
+      '```ts',
+      "import { checkGeneratedTestsExecutable } from '../../apps/fleet-executor/src/purser-executability';",
+      "test('loads the trusted gate', () => expect(checkGeneratedTestsExecutable).toBeDefined());",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      malformed('brokenA'),
+      malformed('brokenB'),
+      malformed('brokenC'),
+      repairable,
+      malformed('repairA1'),
+      malformed('repairA2'),
+      malformed('repairB1'),
+      malformed('repairB2'),
+      malformed('repairC1'),
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx({ files: [{ filename: target, status: 'modified', additions: 3, deletions: 1 }] }),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(11);
+    expect(rec.steps.filter(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy === 'bounded-partial-executability'
+    )).toHaveLength(3);
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-author-repair' &&
+      (step.detail as { strategy?: string }).strategy ===
+        'trusted-tree-relative-import-after-sibling-drop'
+    )).toMatchObject({
+      title: expect.stringContaining(`HEALED ${repairablePath}`),
+      detail: expect.objectContaining({
+        attempts: 0,
+        fromSpecifier: '../../apps/fleet-executor/src/purser-executability',
+        toSpecifier: '../../../apps/fleet-executor/src/purser-executability.ts',
+      }),
+    });
+    expect(rec.steps.find(step =>
+      step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(step.title)
+    )).toBeUndefined();
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('#9789: two malformed escalation rewrites still fail closed without sandbox or stack effects', async () => {
     seedRealJestConfig();
     const malformedTests = [

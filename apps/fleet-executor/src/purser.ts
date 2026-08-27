@@ -1742,6 +1742,78 @@ export async function runPurser(
         executability.kind === 'missing-test-registration') &&
       executability.path
     ) {
+      // A prior exhausted sibling may have hidden a later failure that is
+      // already repairable from trusted local evidence. Re-run the zero-model
+      // healers before consulting the shared AI-repair budget. Otherwise an
+      // exhausted global budget makes us drop a provably repairable survivor
+      // without ever trying the same deterministic gates used above.
+      if (executability.kind === 'unresolved-import') {
+        const deterministicRepair = repairMisrootedRelativeImport(
+          files,
+          executability,
+          evidence.repoTreePaths,
+          new Set(prCtx.files.map(file => file.filename)),
+        );
+        if (deterministicRepair) {
+          const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+          if (deterministicSafety.ok) {
+            files = deterministicRepair.files;
+            deterministicRepairs.push({
+              path: deterministicRepair.path,
+              fromSpecifier: deterministicRepair.fromSpecifier,
+              toSpecifier: deterministicRepair.toSpecifier,
+              matchedTreePath: deterministicRepair.matchedTreePath,
+            });
+            executability = checkGeneratedTestsExecutable(files, evidence);
+            await transcript.step(
+              'purser-author-repair',
+              ship.name,
+              executability.ok
+                ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+              {
+                strategy: 'trusted-tree-relative-import-after-sibling-drop',
+                attempts: 0,
+                path: deterministicRepair.path,
+                fromSpecifier: deterministicRepair.fromSpecifier,
+                toSpecifier: deterministicRepair.toSpecifier,
+                matchedTreePath: deterministicRepair.matchedTreePath,
+                result: executability.ok
+                  ? 'trusted executability gate passed after deterministic rewrite'
+                  : executability.reason,
+              },
+            );
+            continue;
+          }
+        }
+      }
+      if (executability.kind === 'incompatible-runner') {
+        const deterministicRepair = repairRedundantVitestGlobalsImport(files, executability);
+        if (deterministicRepair) {
+          const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+          if (deterministicSafety.ok) {
+            files = deterministicRepair.files;
+            executability = checkGeneratedTestsExecutable(files, evidence);
+            await transcript.step(
+              'purser-author-repair',
+              ship.name,
+              executability.ok
+                ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+              {
+                strategy: 'trusted-jest-global-import-removal-after-sibling-drop',
+                attempts: 0,
+                path: deterministicRepair.path,
+                removedBindings: deterministicRepair.bindings,
+                result: executability.ok
+                  ? 'trusted executability gate passed after deterministic rewrite'
+                  : executability.reason,
+              },
+            );
+            continue;
+          }
+        }
+      }
       const exhaustedPath = executability.path;
       const exhaustedAttempts = authoredRepairAttempts.get(exhaustedPath) ?? 0;
       if (
