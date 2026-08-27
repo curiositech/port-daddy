@@ -405,6 +405,96 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(state.completed).toHaveLength(0);
   });
 
+  it('mints a fresh check when an explicit reopen retries a completed neutral gate', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'neutral',
+      summary: 'Fleet deferred before reaching a verdict.',
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
+    );
+
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted).toHaveLength(1);
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
+  });
+
+  it('mints a fresh check when an explicit reopen retries a decided failure', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'failure',
+      summary: DECIDED_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
+    );
+
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted).toHaveLength(1);
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
+  });
+
+  it('does not rerun or spend when an explicit reopen finds a completed success', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'success',
+      summary: DECIDED_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    const result = await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
+    );
+
+    expect(result).toEqual({ kind: 'already-decided', conclusion: 'success' });
+    expect(state.existingCheckRuns).toHaveLength(1);
+    expect(state.completed).toHaveLength(0);
+  });
+
   it('closes the loop: DLQ failure then redelivery yields a real verdict', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();

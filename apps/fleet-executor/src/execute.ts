@@ -1441,13 +1441,15 @@ export async function executeFleet(
   // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
   // were then unreviewable at that SHA; reopening them re-ran all of GitHub
   // Actions CI while the fleet check never reappeared at all.
+  const explicitRerun = job.action === 'reopened' || job.action === 'ready_for_review';
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
   const deadLettered = isDeadLetteredSummary(existing?.summary);
   if (
     existing &&
     existing.status === 'completed' &&
     DECIDED.has(existing.conclusion ?? '') &&
-    !deadLettered
+    !deadLettered &&
+    !(existing.conclusion === 'failure' && explicitRerun)
   ) {
     console.log(
       `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
@@ -1466,11 +1468,25 @@ export async function executeFleet(
     );
   }
 
+  const completedNeedsReplacement = Boolean(
+    existing &&
+      existing.status === 'completed' &&
+      (deadLettered ||
+        existing.conclusion === 'neutral' ||
+        (existing.conclusion === 'failure' && explicitRerun)),
+  );
+  if (completedNeedsReplacement && !deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: delivery action ${job.action ?? 'unknown'} retries ` +
+        `completed ${existing?.conclusion ?? 'undecided'} check — minting a fresh gate.`,
+    );
+  }
+
   // A finished check cannot be reopened, so a dead-lettered one must not be
   // REUSED either: completing it again would be a no-op against a gate GitHub
   // considers closed. Mint a fresh check run instead — GitHub surfaces the
   // newest run of a given name, so the new one is what the branch rule reads.
-  let checkRunId = deadLettered ? null : existing?.id ?? null;
+  let checkRunId = completedNeedsReplacement ? null : existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
