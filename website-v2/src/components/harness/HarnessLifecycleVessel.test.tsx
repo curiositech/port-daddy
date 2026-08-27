@@ -35,6 +35,23 @@ describe('HarnessLifecycleVessel', () => {
     expect(screen.getByRole('tab', { name: /PreCompact/i }).getAttribute('aria-selected')).toBe('true')
   })
 
+  it('moves both directions between ordinary middle stations', () => {
+    render(<HarnessLifecycleVessel />)
+
+    const preTool = screen.getByRole('tab', { name: /PreToolUse/i })
+    fireEvent.keyDown(preTool, { key: 'ArrowRight' })
+    expect(screen.getByRole('tab', { name: /PostToolUse/i }).getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: /PostToolUse/i }), { key: 'ArrowLeft' })
+    expect(preTool.getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(preTool, { key: 'ArrowDown' })
+    expect(screen.getByRole('tab', { name: /PostToolUse/i }).getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: /PostToolUse/i }), { key: 'ArrowUp' })
+    expect(preTool.getAttribute('aria-selected')).toBe('true')
+  })
+
   it('retains native Enter and Space activation for every station button', async () => {
     const user = userEvent.setup()
     render(<HarnessLifecycleVessel />)

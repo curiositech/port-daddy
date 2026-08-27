@@ -23,6 +23,11 @@ if [ "$#" -lt 2 ]; then
   exit 1
 fi
 
+if ! command -v asciinema >/dev/null 2>&1; then
+  echo "record-porthole-cast: asciinema is required to record a Porthole cast" >&2
+  exit 127
+fi
+
 SLUG="$1"
 shift
 
