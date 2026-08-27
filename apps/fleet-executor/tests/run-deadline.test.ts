@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { executeFleet } from '../src/execute.js';
 import { RUN_ABSOLUTE_DEADLINE_MS } from '../src/ai-resilience.js';
+import { saveShipCheckpoint } from '../src/ship-checkpoint.js';
 import {
   freshState,
   installGitHubFetch,
@@ -28,6 +29,28 @@ const ADVISORY_QA = [
   'fleet:',
   '  name: test',
   '  agents:',
+  '    qa:',
+  '      trigger: pull_request:opened',
+  '      fallbacks:',
+  '        - backend: cloudflare',
+  "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+  '      prompt: |',
+  '        qa ship: review the diff and report findings.',
+  '',
+].join('\n');
+
+const REVIEWER_PLUS_QA = [
+  'fleet:',
+  '  name: test',
+  '  agents:',
+  '    code-reviewer:',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      fallbacks:',
+  '        - backend: cloudflare',
+  "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+  '      prompt: |',
+  '        reviewer ship: review the diff and report findings.',
   '    qa:',
   '      trigger: pull_request:opened',
   '      fallbacks:',
@@ -58,13 +81,16 @@ function seedStaleRun(d1: ReturnType<typeof memoryD1>, runId: string, createdAtS
 }
 
 let state: GitHubState;
+const TEST_NOW_MS = Date.parse('2026-08-27T02:00:00Z');
 
 beforeEach(() => {
+  vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW_MS);
   state = freshState();
   installGitHubFetch(state);
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -103,6 +129,72 @@ describe('absolute run deadline (DO-NOT-SHIP finding on #9800)', () => {
     expect(ai.calls.length).toBeGreaterThan(0); // the ship actually ran
     expect(state.completed[0].conclusion).toBe('success');
     expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
+  });
+
+  it('still admits the next ship after 120 minutes of legitimate checkpointed review work', async () => {
+    // Production receipts for PRs #9892 and #9897 reached 82-93 minutes before
+    // the remaining Purser work could begin. The 75-minute ceiling therefore
+    // made the default nine-ship roster structurally incapable of returning a
+    // verdict even though every completed ship had checkpointed successfully.
+    const checkpointedStart = Math.floor(Date.now() / 1000) - 120 * 60;
+    const { d1, ai } = await runFleet(checkpointedStart);
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
+  });
+
+  it('admits the next ship at exactly the three-hour boundary', async () => {
+    const boundaryStart = Math.floor(TEST_NOW_MS / 1000) - RUN_ABSOLUTE_DEADLINE_MS / 1000;
+    const { d1, ai } = await runFleet(boundaryStart);
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
+  });
+
+  it('stops before ship spend one second beyond the three-hour boundary', async () => {
+    const expiredStart = Math.floor(TEST_NOW_MS / 1000) - RUN_ABSOLUTE_DEADLINE_MS / 1000 - 1;
+    const { d1, ai } = await runFleet(expiredStart);
+
+    expect(ai.calls.length).toBe(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(true);
+  });
+
+  it('reuses free checkpoints before stopping at the first ship that would spend', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA);
+    const kv = memoryKV();
+    seedToken(kv);
+    const d1 = memoryD1();
+    const staleStart = Math.floor(Date.now() / 1000) - RUN_ABSOLUTE_DEADLINE_MS / 1000 - 1;
+    seedStaleRun(d1, 'run:delivery-abc', staleStart);
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        findings: [],
+      },
+    );
+    const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }),
+    );
+
+    expect(ai.calls).toHaveLength(0);
+    expect(d1.steps.filter(s => s.kind === 'ship-resumed').map(s => s.ship)).toEqual([
+      'code-reviewer',
+    ]);
+    const deadline = d1.steps.find(s => s.kind === 'run-deadline-exceeded');
+    expect(deadline?.ship).toBe('qa');
+    expect(JSON.parse(String(deadline?.detail)).shipsCompleted).toBe(1);
   });
 
   it('fails open (runs normally) when the run\'s start time cannot be determined', async () => {
