@@ -137,7 +137,10 @@ repo-specific mechanics:
   `DYLD_*` absent, before soak or archive sealing. Package dylibs behind a
   verified executable-relative Mach-O rpath and keep
   `com.apple.security.cs.allow-dyld-environment-variables` out of the release
-  entitlements; do not trade a packaging defect for an injection surface.
+  entitlements; do not trade a packaging defect for an injection surface. FleetBar
+  release packaging must also sign every nested Mach-O under the bundled payload
+  inside-out; Bun JIT entitlements belong on the Bun executable only, never on
+  ordinary `.dylib` runtime libraries.
 - **Keep coordination content bounded; the SITREP is the visible value
   surface.** Coordination content (alerts/pheromones) stays invisible and
   bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and
