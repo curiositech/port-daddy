@@ -53,16 +53,23 @@ export const FLEET_AI_CALL_DEADLINE_MS = DEFAULT_AI_CALL_DEADLINE_MS;
  * all. This is the DO-NOT-SHIP finding from the human adversarial review on
  * PR #9800: a per-call deadline bounds one call; nothing bounded the run.
  *
- * 45 minutes is chosen to comfortably fit a legitimate large roster running
- * slowly-but-successfully (the common case this deadline should never touch)
- * while firmly ruling out the multi-hour pathological case. It is a flat,
- * non-configurable constant on purpose: making it a per-repo setting would
- * reopen the same cross-user-authority problem the deadline setting itself
- * was flagged for (see `apps/shared/repo-ai-settings.ts`'s admin-authorization
- * requirement) for a knob whose only honest value is "as small as the fleet's
- * genuine worst-case legitimate runtime requires."
+ * 75 minutes fits the default nine-ship roster at the five-minute call
+ * deadline with 30 minutes left for queue continuations, checkpoint reads,
+ * comment delivery, and bounded provider retries. The previous 45-minute
+ * ceiling equalled `9 ships x 5 minutes` exactly, leaving zero orchestration
+ * allowance; live runs for PRs #9892 and #9893 therefore stopped neutral after
+ * 46-50 minutes before blocking Purser could return a verdict, despite every
+ * earlier ship checkpointing successfully. Seventy-five minutes remains well
+ * below the 135-270 minute pathological retry envelope described above.
+ *
+ * This stays a flat, non-configurable constant on purpose: making it a
+ * per-repo setting would reopen the same cross-user-authority problem the
+ * deadline setting itself was flagged for (see
+ * `apps/shared/repo-ai-settings.ts`'s admin-authorization requirement) for a
+ * knob whose only honest value is "as small as the fleet's genuine worst-case
+ * legitimate runtime requires."
  */
-export const RUN_ABSOLUTE_DEADLINE_MS = 45 * 60_000;
+export const RUN_ABSOLUTE_DEADLINE_MS = 75 * 60_000;
 
 /** Full-jitter queue backoff: 15s, 30s, 60s ceilings, capped at two minutes. */
 const PROVIDER_RETRY_BASE_SECONDS = 15;

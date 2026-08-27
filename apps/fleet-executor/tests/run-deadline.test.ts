@@ -105,6 +105,19 @@ describe('absolute run deadline (DO-NOT-SHIP finding on #9800)', () => {
     expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
   });
 
+  it('still admits the next ship after 50 minutes of legitimate checkpointed review work', async () => {
+    // Production receipts for PRs #9892 and #9893 reached their final blocking
+    // ships after roughly 46-50 minutes. The old 45-minute ceiling made the
+    // default nine-ship roster structurally incapable of returning a verdict,
+    // even though every completed ship had checkpointed successfully.
+    const checkpointedStart = Math.floor(Date.now() / 1000) - 50 * 60;
+    const { d1, ai } = await runFleet(checkpointedStart);
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
+  });
+
   it('fails open (runs normally) when the run\'s start time cannot be determined', async () => {
     // No seeded row at all — getRunStartedAtSec returns null on a first
     // delivery before recordRunStart's own row exists in a way this test can
