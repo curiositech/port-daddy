@@ -1,3 +1,3 @@
 type: added
 
-- **CASE-13 doctrine is now an inspectable advisory evidence loop.** `pd doctrine`, the SDK, MCP, FleetBar, and the public tutorial can record a cited decision episode, preregister factual control and treatment runs, retrieve advisory orders with a receipt, preserve the agent response, and attach verifier-backed outcomes or contests; prompt-only and unmatched replays cannot admit doctrine.
+- **CASE-13 doctrine now closes an attributed, replay-fidelity-gated advisory loop.** The pd-console Doctrine pane, `pd doctrine`, SDK, MCP, and public tutorial preserve cited episodes through preregistration, compatible matched control/treatment replay contexts with distinct replicas, provisional-only admission, decision-time retrieval, application, verifier-backed outcome, contest, and immutable succession; prompt-only, mismatched, drifted, or same-replica replay cannot admit doctrine.

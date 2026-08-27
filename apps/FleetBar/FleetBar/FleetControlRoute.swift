@@ -19,7 +19,6 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case inbox
     case sorties
     case memory
-    case doctrine
     case shipwright
     case yaml
     case galaxy
@@ -43,7 +42,6 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .inbox: return "Inbox"
         case .sorties: return "Sorties"
         case .memory: return "Memory"
-        case .doctrine: return "Doctrine"
         case .shipwright: return "Shipwright"
         case .yaml: return "YAML"
         case .galaxy: return "Galaxy"
@@ -67,7 +65,6 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .inbox: return "tray.full"
         case .sorties: return "paperplane"
         case .memory: return "square.stack.3d.up"
-        case .doctrine: return "scroll.fill"
         case .shipwright: return "hammer"
         case .yaml: return "curlybraces"
         case .galaxy: return "circle.hexagongrid"
@@ -80,7 +77,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     /// routing them through the browser would mean an extra trip + duplicate state.
     var isNative: Bool {
         switch self {
-        case .cloudfleet, .nightshift, .backend, .proposals, .doctrine, .galaxy: return true
+        case .cloudfleet, .nightshift, .backend, .proposals, .galaxy: return true
         default: return false
         }
     }

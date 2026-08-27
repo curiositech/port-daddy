@@ -376,11 +376,14 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
   {
     "id": "doctrine",
     "label": "Doctrine",
-    "description": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "description": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "tools": [
       "doctrine_list",
       "doctrine_get",
+      "doctrine_harvest_list",
+      "doctrine_harvest_get",
       "record_doctrine_episode",
+      "harvest_doctrine_episodes",
       "propose_doctrine_candidate",
       "preregister_doctrine_experiment",
       "record_doctrine_treatment_run",
@@ -388,7 +391,9 @@ export const MCP_AGENT_TOOL_CATEGORIES: McpAgentToolCategory[] = [
       "doctrine_orders",
       "record_doctrine_application",
       "record_doctrine_outcome",
-      "contest_doctrine"
+      "contest_doctrine",
+      "supersede_doctrine",
+      "retire_doctrine"
     ]
   },
   {
@@ -7987,14 +7992,14 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "doctrine_list",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] List candidate and admitted advisory doctrine revisions. This is not policy and does not authorize an action.",
     "required": [],
     "parameters": [
       {
         "name": "status",
-        "type": "enum<candidate | provisional | established | contested | deprecated>",
+        "type": "enum<candidate | provisional | established | contested | retired>",
         "required": false,
         "description": "",
         "enum": [
@@ -8002,7 +8007,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
           "provisional",
           "established",
           "contested",
-          "deprecated"
+          "retired"
         ]
       },
       {
@@ -8028,7 +8033,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
             "provisional",
             "established",
             "contested",
-            "deprecated"
+            "retired"
           ]
         },
         "project_dir": {
@@ -8046,7 +8051,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "doctrine_get",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Read one advisory doctrine revision with its grounded episode, preregistered experiment, retrieval receipts, applications, and outcomes.",
     "required": [
@@ -8074,18 +8079,83 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     }
   },
   {
+    "name": "doctrine_harvest_list",
+    "categoryId": "doctrine",
+    "categoryLabel": "Doctrine",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
+    "exposure": "discoverable",
+    "description": "[Doctrine] List immutable offline harvests of cited recurring exact-decision-class episodes. A harvest is evidence, never active policy or an inferred causal result.",
+    "required": [],
+    "parameters": [
+      {
+        "name": "project_dir",
+        "type": "string",
+        "required": false,
+        "description": "Optional absolute project directory filter."
+      },
+      {
+        "name": "decision_class",
+        "type": "string",
+        "required": false,
+        "description": "Optional exact structured decision class."
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project_dir": {
+          "type": "string",
+          "description": "Optional absolute project directory filter."
+        },
+        "decision_class": {
+          "type": "string",
+          "description": "Optional exact structured decision class."
+        }
+      }
+    }
+  },
+  {
+    "name": "doctrine_harvest_get",
+    "categoryId": "doctrine",
+    "categoryLabel": "Doctrine",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
+    "exposure": "discoverable",
+    "description": "[Doctrine] Read one immutable harvest, including the frozen cited observation snapshots and source episode IDs.",
+    "required": [
+      "harvest_id"
+    ],
+    "parameters": [
+      {
+        "name": "harvest_id",
+        "type": "string",
+        "required": true,
+        "description": ""
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "harvest_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "harvest_id"
+      ]
+    }
+  },
+  {
     "name": "record_doctrine_episode",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
-    "description": "[Doctrine] Append a cited observed DecisionEpisode before proposing an explanation. Capture the historical action, alternatives, and cues; this records evidence, not doctrine.",
+    "description": "[Doctrine] Append a cited observed DecisionEpisode before proposing an explanation. Capture the historical action, alternatives, and cues; this records evidence, not doctrine. The MCP session must hold a daemon-minted credential; the daemon derives the writer identity.",
     "required": [
       "decision_class",
       "summary",
       "historical_action",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -8149,12 +8219,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       {
         "name": "project_dir",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "actor_id",
         "type": "string",
         "required": true,
         "description": ""
@@ -8234,9 +8298,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "project_dir": {
           "type": "string"
         },
-        "actor_id": {
-          "type": "string"
-        },
         "citations": {
           "type": "array",
           "items": {
@@ -8260,7 +8321,140 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "summary",
         "historical_action",
         "project_dir",
-        "actor_id",
+        "citations"
+      ]
+    }
+  },
+  {
+    "name": "harvest_doctrine_episodes",
+    "categoryId": "doctrine",
+    "categoryLabel": "Doctrine",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
+    "exposure": "discoverable",
+    "description": "[Doctrine] Freeze a cited recurring observation set from two or more existing decision episodes with the exact same project directory and structured decision class. This does not infer or activate doctrine.",
+    "required": [
+      "decision_class",
+      "episode_ids",
+      "summary",
+      "project_dir",
+      "citations"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": false,
+        "description": "Optional stable harvest id for an idempotent caller."
+      },
+      {
+        "name": "idempotency_key",
+        "type": "string",
+        "required": false,
+        "description": "Optional retry key; a duplicate returns the original durable receipt."
+      },
+      {
+        "name": "decision_class",
+        "type": "string",
+        "required": true,
+        "description": "Exact structured decision class shared by every episode."
+      },
+      {
+        "name": "episode_ids",
+        "type": "string[]",
+        "required": true,
+        "description": "At least two distinct existing episode IDs.",
+        "itemType": "string"
+      },
+      {
+        "name": "summary",
+        "type": "string",
+        "required": true,
+        "description": "Bounded factual description of the recurring observation set; do not claim causal proof."
+      },
+      {
+        "name": "project_dir",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "citations",
+        "type": "string[]",
+        "required": true,
+        "description": "Additional immutable harvest citations; episode citations are frozen into the harvest automatically.",
+        "itemType": "string"
+      },
+      {
+        "name": "session_id",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "run_id",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "provenance",
+        "type": "object",
+        "required": false,
+        "description": ""
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional stable harvest id for an idempotent caller."
+        },
+        "idempotency_key": {
+          "type": "string",
+          "description": "Optional retry key; a duplicate returns the original durable receipt."
+        },
+        "decision_class": {
+          "type": "string",
+          "description": "Exact structured decision class shared by every episode."
+        },
+        "episode_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string"
+          },
+          "description": "At least two distinct existing episode IDs."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Bounded factual description of the recurring observation set; do not claim causal proof."
+        },
+        "project_dir": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional immutable harvest citations; episode citations are frozen into the harvest automatically."
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "decision_class",
+        "episode_ids",
+        "summary",
+        "project_dir",
         "citations"
       ]
     }
@@ -8269,7 +8463,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "propose_doctrine_candidate",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Propose a cited, falsifiable conditional candidate from a recorded DecisionEpisode. A candidate is not active guidance and may lose.",
     "required": [
@@ -8281,7 +8475,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "over",
       "because",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -8308,6 +8501,18 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "type": "string",
         "required": true,
         "description": ""
+      },
+      {
+        "name": "harvest_id",
+        "type": "string",
+        "required": false,
+        "description": "Optional immutable recurring-episode harvest. It must contain episode_id and match this exact project/class."
+      },
+      {
+        "name": "supersedes_doctrine_id",
+        "type": "string",
+        "required": false,
+        "description": "Optional cited prior doctrine whose boundary this candidate refines; actual retirement requires supersede_doctrine later."
       },
       {
         "name": "decision_class",
@@ -8372,12 +8577,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "description": ""
       },
       {
-        "name": "actor_id",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
         "name": "citations",
         "type": "string[]",
         "required": true,
@@ -8419,6 +8618,14 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "episode_id": {
           "type": "string"
         },
+        "harvest_id": {
+          "type": "string",
+          "description": "Optional immutable recurring-episode harvest. It must contain episode_id and match this exact project/class."
+        },
+        "supersedes_doctrine_id": {
+          "type": "string",
+          "description": "Optional cited prior doctrine whose boundary this candidate refines; actual retirement requires supersede_doctrine later."
+        },
         "decision_class": {
           "type": "string"
         },
@@ -8457,9 +8664,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "project_dir": {
           "type": "string"
         },
-        "actor_id": {
-          "type": "string"
-        },
         "citations": {
           "type": "array",
           "items": {
@@ -8485,7 +8689,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "over",
         "because",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -8494,7 +8697,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "preregister_doctrine_experiment",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Preregister a candidate experiment before results exist. State the hypothesis, primary outcome, factual control, treatment, and optional sham.",
     "required": [
@@ -8504,7 +8707,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "control",
       "treatment",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -8569,12 +8771,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "description": ""
       },
       {
-        "name": "actor_id",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
         "name": "citations",
         "type": "string[]",
         "required": true,
@@ -8634,9 +8830,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "project_dir": {
           "type": "string"
         },
-        "actor_id": {
-          "type": "string"
-        },
         "citations": {
           "type": "array",
           "items": {
@@ -8660,7 +8853,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "control",
         "treatment",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -8669,17 +8861,17 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "record_doctrine_treatment_run",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
-    "description": "[Doctrine] Append one preregistered control, treatment, or sham run. Unmatched and prompt-only replays are retained as evidence but cannot satisfy the factual admission gate.",
+    "description": "[Doctrine] Append one preregistered control, treatment, or sham run. Every arm records its actual replay context; only matched control/treatment arms with identical conditions and distinct replicas can satisfy the factual admission gate.",
     "required": [
       "experiment_id",
       "arm",
       "action",
       "outcome",
       "fidelity",
+      "replay_context",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -8736,6 +8928,56 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         ]
       },
       {
+        "name": "replay_context",
+        "type": "object",
+        "required": true,
+        "description": "Required factual replay context. A qualifying control/treatment pair has identical fields except distinct replica_id.",
+        "properties": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "description": ""
+          },
+          {
+            "name": "model_version",
+            "type": "string",
+            "required": true,
+            "description": ""
+          },
+          {
+            "name": "harness",
+            "type": "string",
+            "required": true,
+            "description": ""
+          },
+          {
+            "name": "worktree",
+            "type": "string",
+            "required": true,
+            "description": ""
+          },
+          {
+            "name": "environment",
+            "type": "string",
+            "required": true,
+            "description": ""
+          },
+          {
+            "name": "checkpoint",
+            "type": "string",
+            "required": true,
+            "description": ""
+          },
+          {
+            "name": "replica_id",
+            "type": "string",
+            "required": true,
+            "description": "Independent replay replica identifier."
+          }
+        ]
+      },
+      {
         "name": "notes",
         "type": "string",
         "required": false,
@@ -8743,12 +8985,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       {
         "name": "project_dir",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "actor_id",
         "type": "string",
         "required": true,
         "description": ""
@@ -8813,13 +9049,47 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
             "mismatched"
           ]
         },
+        "replay_context": {
+          "type": "object",
+          "description": "Required factual replay context. A qualifying control/treatment pair has identical fields except distinct replica_id.",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "model_version": {
+              "type": "string"
+            },
+            "harness": {
+              "type": "string"
+            },
+            "worktree": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            },
+            "checkpoint": {
+              "type": "string"
+            },
+            "replica_id": {
+              "type": "string",
+              "description": "Independent replay replica identifier."
+            }
+          },
+          "required": [
+            "model",
+            "model_version",
+            "harness",
+            "worktree",
+            "environment",
+            "checkpoint",
+            "replica_id"
+          ]
+        },
         "notes": {
           "type": "string"
         },
         "project_dir": {
-          "type": "string"
-        },
-        "actor_id": {
           "type": "string"
         },
         "citations": {
@@ -8844,8 +9114,8 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "action",
         "outcome",
         "fidelity",
+        "replay_context",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -8854,15 +9124,13 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "admit_doctrine_candidate",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
-    "description": "[Doctrine] Admit a candidate as a provisional or established advisory only after its own preregistered experiment has matched factual control and treatment runs. This never authorizes an action.",
+    "description": "[Doctrine] Admit a candidate as provisional advisory only after its own preregistered experiment has matched factual control and treatment arms with compatible replay contexts and distinct replicas. The daemon derives reviewer identity from the credential. This never authorizes an action.",
     "required": [
       "candidate_id",
       "experiment_id",
-      "reviewer_id",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -8879,22 +9147,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "description": ""
       },
       {
-        "name": "reviewer_id",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "status",
-        "type": "enum<provisional | established>",
-        "required": false,
-        "description": "",
-        "enum": [
-          "provisional",
-          "established"
-        ]
-      },
-      {
         "name": "idempotency_key",
         "type": "string",
         "required": false,
@@ -8902,12 +9154,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       {
         "name": "project_dir",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "actor_id",
         "type": "string",
         "required": true,
         "description": ""
@@ -8947,23 +9193,10 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "experiment_id": {
           "type": "string"
         },
-        "reviewer_id": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "provisional",
-            "established"
-          ]
-        },
         "idempotency_key": {
           "type": "string"
         },
         "project_dir": {
-          "type": "string"
-        },
-        "actor_id": {
           "type": "string"
         },
         "citations": {
@@ -8985,9 +9218,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "required": [
         "candidate_id",
         "experiment_id",
-        "reviewer_id",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -8996,14 +9227,13 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "contest_doctrine",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Record contrary evidence or a boundary condition against an advisory doctrine. Contesting preserves history and removes that revision from active retrieval.",
     "required": [
       "doctrine_id",
       "reason",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -9038,12 +9268,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       {
         "name": "project_dir",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "actor_id",
         "type": "string",
         "required": true,
         "description": ""
@@ -9097,7 +9321,224 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "project_dir": {
           "type": "string"
         },
-        "actor_id": {
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "doctrine_id",
+        "reason",
+        "project_dir",
+        "citations"
+      ]
+    }
+  },
+  {
+    "name": "supersede_doctrine",
+    "categoryId": "doctrine",
+    "categoryLabel": "Doctrine",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
+    "exposure": "discoverable",
+    "description": "[Doctrine] Retire one active advisory revision in favor of an already active, explicitly linked successor. The predecessor remains readable in the immutable ledger and is removed from future retrieval.",
+    "required": [
+      "doctrine_id",
+      "successor_doctrine_id",
+      "reason",
+      "project_dir",
+      "citations"
+    ],
+    "parameters": [
+      {
+        "name": "doctrine_id",
+        "type": "string",
+        "required": true,
+        "description": "Active predecessor doctrine revision to retire."
+      },
+      {
+        "name": "successor_doctrine_id",
+        "type": "string",
+        "required": true,
+        "description": "Already admitted successor that was proposed with supersedes_doctrine_id equal to doctrine_id."
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "required": true,
+        "description": "Cited reason for replacing the older revision rather than rewriting it."
+      },
+      {
+        "name": "idempotency_key",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "project_dir",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "citations",
+        "type": "string[]",
+        "required": true,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "session_id",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "run_id",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "provenance",
+        "type": "object",
+        "required": false,
+        "description": ""
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "doctrine_id": {
+          "type": "string",
+          "description": "Active predecessor doctrine revision to retire."
+        },
+        "successor_doctrine_id": {
+          "type": "string",
+          "description": "Already admitted successor that was proposed with supersedes_doctrine_id equal to doctrine_id."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Cited reason for replacing the older revision rather than rewriting it."
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "project_dir": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "doctrine_id",
+        "successor_doctrine_id",
+        "reason",
+        "project_dir",
+        "citations"
+      ]
+    }
+  },
+  {
+    "name": "retire_doctrine",
+    "categoryId": "doctrine",
+    "categoryLabel": "Doctrine",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
+    "exposure": "discoverable",
+    "description": "[Doctrine] Retire an admitted or contested advisory revision without deleting its evidence. Retired doctrine is excluded from future retrieval and remains readable for audit and successor citation.",
+    "required": [
+      "doctrine_id",
+      "reason",
+      "project_dir",
+      "citations"
+    ],
+    "parameters": [
+      {
+        "name": "doctrine_id",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "idempotency_key",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "project_dir",
+        "type": "string",
+        "required": true,
+        "description": ""
+      },
+      {
+        "name": "citations",
+        "type": "string[]",
+        "required": true,
+        "description": "",
+        "itemType": "string"
+      },
+      {
+        "name": "session_id",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "run_id",
+        "type": "string",
+        "required": false,
+        "description": ""
+      },
+      {
+        "name": "provenance",
+        "type": "object",
+        "required": false,
+        "description": ""
+      }
+    ],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "doctrine_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "project_dir": {
           "type": "string"
         },
         "citations": {
@@ -9120,7 +9561,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "doctrine_id",
         "reason",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -9129,14 +9569,13 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "doctrine_orders",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Retrieve advisory doctrine for a live structured decision. This appends a retrieval receipt; then record follow, adapt, or reject with record_doctrine_application. Exact decision-class matching is used, never a lexical-only substitute.",
     "required": [
       "decision_id",
       "decision_class",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -9169,12 +9608,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "type": "string",
         "required": true,
         "description": "Absolute project directory."
-      },
-      {
-        "name": "actor_id",
-        "type": "string",
-        "required": true,
-        "description": "Agent recording this receipt."
       },
       {
         "name": "citations",
@@ -9231,10 +9664,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
           "type": "string",
           "description": "Absolute project directory."
         },
-        "actor_id": {
-          "type": "string",
-          "description": "Agent recording this receipt."
-        },
         "citations": {
           "type": "array",
           "items": {
@@ -9261,7 +9690,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "decision_id",
         "decision_class",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -9270,7 +9698,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "record_doctrine_application",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Record whether an agent followed, adapted, or rejected a doctrine actually present in a retrieval receipt. This is required evidence for later outcome attribution.",
     "required": [
@@ -9279,7 +9707,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "response",
       "decision",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -9332,12 +9759,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       {
         "name": "project_dir",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "actor_id",
         "type": "string",
         "required": true,
         "description": ""
@@ -9403,9 +9824,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "project_dir": {
           "type": "string"
         },
-        "actor_id": {
-          "type": "string"
-        },
         "citations": {
           "type": "array",
           "items": {
@@ -9429,7 +9847,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "response",
         "decision",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }
@@ -9438,7 +9855,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "name": "record_doctrine_outcome",
     "categoryId": "doctrine",
     "categoryLabel": "Doctrine",
-    "categoryDescription": "Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence",
+    "categoryDescription": "Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence",
     "exposure": "discoverable",
     "description": "[Doctrine] Attach a later verified outcome to a recorded doctrine application. A self-assessment alone is insufficient: cite the verification receipt.",
     "required": [
@@ -9447,7 +9864,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       "summary",
       "verified_by",
       "project_dir",
-      "actor_id",
       "citations"
     ],
     "parameters": [
@@ -9494,12 +9910,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
       },
       {
         "name": "project_dir",
-        "type": "string",
-        "required": true,
-        "description": ""
-      },
-      {
-        "name": "actor_id",
         "type": "string",
         "required": true,
         "description": ""
@@ -9562,9 +9972,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "project_dir": {
           "type": "string"
         },
-        "actor_id": {
-          "type": "string"
-        },
         "citations": {
           "type": "array",
           "items": {
@@ -9588,7 +9995,6 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "summary",
         "verified_by",
         "project_dir",
-        "actor_id",
         "citations"
       ]
     }

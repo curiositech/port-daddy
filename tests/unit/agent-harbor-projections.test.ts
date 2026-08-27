@@ -359,6 +359,78 @@ describe('agent-harbor projections', () => {
         experiment_id: 'experiment-projection',
         status: 'provisional',
       });
+
+      appendEvent(db, {
+        streamType: 'doctrine-evidence',
+        payload: {
+          schema: 'pd.agent-harbor.doctrine-evidence.v0',
+          eventId: 'doctrine-projection-retired',
+          idempotencyKey: 'doctrine:projection:retired',
+          kind: 'doctrine_retired',
+          entityId: 'doctrine:projection',
+          occurredAt: '2026-08-26T12:02:00.000Z',
+          projectDir: '/repo/port-daddy',
+          actorId: 'agent:admiralty',
+          citations: ['receipt:retirement'],
+          payload: {
+            reason: 'A successor or later evidence retired this revision without deleting its history.',
+          },
+        },
+      });
+      projectPending(db, { projection: 'doctrine' });
+
+      const retired = getDoctrineProjection(db);
+      expect(retired.stale).toBe(false);
+      expect(retired.rows[0]).toMatchObject({
+        doctrine_id: 'doctrine:projection',
+        status: 'retired',
+        contested_reason: 'A successor or later evidence retired this revision without deleting its history.',
+      });
+
+      // A later malformed admission/contest event must never reactivate the
+      // disposable card.  Replay derives terminal state from the append-only
+      // history, it does not allow a stale lifecycle event to rewrite it.
+      appendEvent(db, {
+        streamType: 'doctrine-evidence',
+        payload: {
+          schema: 'pd.agent-harbor.doctrine-evidence.v0',
+          eventId: 'doctrine-projection-reactivation-attempt',
+          idempotencyKey: 'doctrine:projection:reactivation-attempt',
+          kind: 'doctrine_revision_admitted',
+          entityId: 'doctrine:projection',
+          occurredAt: '2026-08-26T12:03:00.000Z',
+          projectDir: '/repo/port-daddy',
+          actorId: 'agent:admiralty',
+          citations: ['receipt:invalid-reactivation'],
+          payload: {
+            candidateId: 'candidate-projection',
+            experimentId: 'experiment-projection',
+            reviewerId: 'agent:admiralty',
+            status: 'established',
+          },
+        },
+      });
+      appendEvent(db, {
+        streamType: 'doctrine-evidence',
+        payload: {
+          schema: 'pd.agent-harbor.doctrine-evidence.v0',
+          eventId: 'doctrine-projection-contest-after-retirement',
+          idempotencyKey: 'doctrine:projection:contest-after-retirement',
+          kind: 'doctrine_contested',
+          entityId: 'doctrine:projection',
+          occurredAt: '2026-08-26T12:04:00.000Z',
+          projectDir: '/repo/port-daddy',
+          actorId: 'agent:admiralty',
+          citations: ['receipt:invalid-contest'],
+          payload: { reason: 'A retired card cannot be reopened.' },
+        },
+      });
+      projectPending(db, { projection: 'doctrine' });
+      expect(getDoctrineProjection(db).rows[0]).toMatchObject({
+        doctrine_id: 'doctrine:projection',
+        status: 'retired',
+        contested_reason: 'A successor or later evidence retired this revision without deleting its history.',
+      });
     });
   });
 

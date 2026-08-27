@@ -139,15 +139,20 @@ pd graph edges
 pd memory episodes
 pd doctrine status
 pd doctrine candidates [--status <status>] [--decision-class <class>]
+pd doctrine harvests [--dir <project>] [--decision-class <class>]
+pd doctrine show-harvest <harvest-id>
 pd doctrine orders --input @decision.json
 pd doctrine application <retrieval-id> --input @response.json
 pd doctrine outcome <application-id> --input @verified-outcome.json
 pd doctrine record-episode --input @episode.json
+pd doctrine harvest --input @harvest.json
 pd doctrine propose --input @candidate.json
 pd doctrine preregister --input @experiment.json
 pd doctrine run <experiment-id> --input @treatment-run.json
 pd doctrine admit <candidate-id> --input @admission.json
 pd doctrine contest <doctrine-id> --input @contradiction.json
+pd doctrine supersede <doctrine-id> --input @supersession.json
+pd doctrine retire <doctrine-id> --input @retirement.json
 pd ideas list
 pd roadmap [--tag <t>]
 pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
@@ -206,8 +211,10 @@ pop it again if it cycles back.
 `pd doctrine` is the agent-facing surface for an **advisory** evidence chain,
 not a shortcut for turning a transcript into policy. Every mutation reads one
 complete JSON object through `--input <json>` or `--input @path/to/file.json`.
-The input must carry `projectDir`, `actorId`, and at least one immutable
-citation. Normal operator review belongs in FleetBar / Fleet Control Center.
+The input must carry `projectDir` and at least one immutable citation. The
+daemon-minted actor credential attributes the write and derives the admission
+reviewer; do not rely on body `actorId` or `reviewerId` claims. Normal deep
+operator review belongs in the pd-console Doctrine pane.
 
 ```bash
 # Read the existing source-backed evidence
@@ -217,6 +224,7 @@ pd doctrine show doctrine:integration:independent-evidence
 
 # Capture and challenge a candidate
 pd doctrine record-episode --input @case13-episode.json
+pd doctrine harvest --input @case13-harvest.json
 pd doctrine propose --input @case13-candidate.json
 pd doctrine preregister --input @case13-experiment.json
 pd doctrine run doctrine-experiment_... --input @case13-control.json
@@ -228,6 +236,8 @@ pd doctrine orders --input @next-merge-decision.json
 pd doctrine application doctrine-retrieval_... --input @response.json
 pd doctrine outcome doctrine-application_... --input @verified-outcome.json
 pd doctrine contest doctrine:integration:independent-evidence --input @contrary-case.json
+pd doctrine supersede doctrine:integration:independent-evidence --input @supersession.json
+pd doctrine retire doctrine:integration:independent-evidence --input @retirement.json
 ```
 
 `orders` always writes a retrieval receipt, including when it returns no
@@ -237,10 +247,13 @@ are legitimate responses. `outcome` must cite later verification. A contest
 removes a doctrine from active advisory retrieval while preserving its history.
 
 Admission has a factual-fidelity gate: the candidate needs a preregistered
-experiment with both a matched control and a matched treatment run. Prompt-only
-or otherwise unmatched replay can be recorded, but it cannot establish a
-doctrine. See [`docs/tutorials/case-13-doctrine-cycle.md`](../../../docs/tutorials/case-13-doctrine-cycle.md)
-for a full CASE-13 walkthrough and the exact evidence boundaries.
+experiment with both a matched control and a matched treatment run whose model,
+model version, harness, worktree, environment, and checkpoint agree while their
+replica IDs differ. Prompt-only, mismatched, drifted, or same-replica replay can
+be recorded, but it cannot establish doctrine. The first admission is always
+provisional. Evidence entities are immutable and project-bound; use a successor
+candidate and explicit supersession rather than rewriting a doctrine ID. See
+`docs/tutorials/case-13-doctrine-cycle.md` for a full CASE-13 walkthrough.
 
 ## Claim-Aware Git Staging
 

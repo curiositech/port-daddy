@@ -732,16 +732,15 @@ function applyDoctrine(db: DatabaseInstance, row: LedgerRow, payload: Record<str
       `UPDATE harbor_proj_doctrine SET
          candidate_id = COALESCE(?, candidate_id),
          experiment_id = ?,
-         status = ?,
+         status = 'provisional',
          contested_reason = NULL,
          last_event_id = ?,
          last_occurred_at = ?,
          updated_ledger_seq = ?
-       WHERE doctrine_id = ?`,
+       WHERE doctrine_id = ? AND status = 'candidate'`,
     ).run(
       s(body.candidateId),
       s(body.experimentId),
-      s(body.status) ?? 'provisional',
       row.event_id,
       row.occurred_at,
       row.ledger_seq,
@@ -750,7 +749,8 @@ function applyDoctrine(db: DatabaseInstance, row: LedgerRow, payload: Record<str
     return;
   }
 
-  if (kind === 'doctrine_contested' || kind === 'doctrine_deprecated') {
+  if (kind === 'doctrine_contested' || kind === 'doctrine_superseded' || kind === 'doctrine_retired') {
+    const contestGuard = kind === 'doctrine_contested' ? " AND status <> 'retired'" : '';
     db.prepare(
       `UPDATE harbor_proj_doctrine SET
          status = ?,
@@ -758,9 +758,9 @@ function applyDoctrine(db: DatabaseInstance, row: LedgerRow, payload: Record<str
          last_event_id = ?,
          last_occurred_at = ?,
          updated_ledger_seq = ?
-       WHERE doctrine_id = ?`,
+       WHERE doctrine_id = ?${contestGuard}`,
     ).run(
-      kind === 'doctrine_deprecated' ? 'deprecated' : 'contested',
+      kind === 'doctrine_contested' ? 'contested' : 'retired',
       s(body.reason),
       row.event_id,
       row.occurred_at,

@@ -797,7 +797,7 @@ describe('Doctrine evidence loop SDK', () => {
   let pd;
 
   beforeEach(() => {
-    pd = createClient({ agentId: 'doctrine-agent' });
+    pd = createClient({ agentId: 'doctrine-agent', credential: 'credential:sdk-doctrine' });
   });
 
   test('lists a scoped advisory view without treating it as an action', async () => {
@@ -826,7 +826,6 @@ describe('Doctrine evidence loop SDK', () => {
     });
     await pd.retrieveDoctrineOrders({
       projectDir: '/repo/port-daddy',
-      actorId: 'agent:steward',
       citations: ['receipt:decision'],
       decisionId: 'merge-1',
       decisionClass: 'integration.merge',
@@ -835,7 +834,6 @@ describe('Doctrine evidence loop SDK', () => {
     queueResponse({ success: true, outcome: { outcomeId: 'outcome-1' } });
     await pd.recordDoctrineOutcome('application-1', {
       projectDir: '/repo/port-daddy',
-      actorId: 'agent:steward',
       citations: ['receipt:ci'],
       verdict: 'helped',
       summary: 'The underlying technical evidence was checked.',
@@ -852,6 +850,82 @@ describe('Doctrine evidence loop SDK', () => {
       url: '/doctrine/applications/application-1/outcome',
       body: { verdict: 'helped', verifiedBy: 'receipt:ci' },
     });
+  });
+
+  test('uses the neutral factual-run response contract and preserves its arm', async () => {
+    queueResponse({ success: true, run: { runId: 'run-control-1', arm: 'control' } });
+
+    const result = await pd.recordDoctrineTreatmentRun('experiment-case13', {
+      projectDir: '/repo/port-daddy',
+      citations: ['receipt:control-run'],
+      arm: 'control',
+      action: 'hold',
+      outcome: 'recorded',
+      fidelity: 'matched',
+      replayContext: {
+        model: 'fixture-model',
+        modelVersion: '2026-08-26',
+        harness: 'fixture-harness',
+        worktree: 'case13',
+        environment: 'test',
+        checkpoint: 'checkpoint:case13',
+        replicaId: 'replica:control:1',
+      },
+    });
+
+    expect(result.run).toEqual({ runId: 'run-control-1', arm: 'control' });
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/doctrine/experiments/experiment-case13/runs',
+      body: expect.objectContaining({ arm: 'control', replayContext: expect.objectContaining({ replicaId: 'replica:control:1' }) }),
+      headers: expect.objectContaining({ 'x-actor-credential': 'credential:sdk-doctrine' }),
+    });
+    expect(receivedRequests[0].body).not.toHaveProperty('actorId');
+  });
+
+  test('uses direct daemon contracts for harvest, supersession, and retirement', async () => {
+    queueResponse({ success: true, advisory: true, harvest: { harvestId: 'harvest-1' } });
+    await pd.harvestDoctrineEpisodes({
+      id: 'harvest-1',
+      projectDir: '/repo/port-daddy',
+      citations: ['receipt:harvest'],
+      decisionClass: 'integration.merge',
+      episodeIds: ['episode-1', 'episode-2'],
+      summary: 'Two cited recurring merge observations.',
+    });
+
+    queueResponse({ success: true, advisory: true, supersession: { doctrineId: 'doctrine:old', successorDoctrineId: 'doctrine:new' } });
+    await pd.supersedeDoctrine('doctrine:old', {
+      projectDir: '/repo/port-daddy',
+      citations: ['receipt:supersession'],
+      successorDoctrineId: 'doctrine:new',
+      reason: 'A cited successor refines the old revision.',
+    });
+
+    queueResponse({ success: true, advisory: true, retirement: { doctrineId: 'doctrine:new' } });
+    await pd.retireDoctrine('doctrine:new', {
+      projectDir: '/repo/port-daddy',
+      citations: ['receipt:retirement'],
+      reason: 'Retired after a bounded evidence review.',
+    });
+
+    expect(receivedRequests).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        method: 'POST',
+        url: '/doctrine/harvests',
+        body: expect.objectContaining({ episodeIds: ['episode-1', 'episode-2'], decisionClass: 'integration.merge' }),
+      }),
+      expect.objectContaining({
+        method: 'POST',
+        url: '/doctrine/doctrine%3Aold/supersede',
+        body: expect.objectContaining({ successorDoctrineId: 'doctrine:new' }),
+      }),
+      expect.objectContaining({
+        method: 'POST',
+        url: '/doctrine/doctrine%3Anew/retire',
+        body: expect.objectContaining({ reason: 'Retired after a bounded evidence review.' }),
+      }),
+    ]));
   });
 });
 

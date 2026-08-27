@@ -7,7 +7,10 @@ import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/m
 const DOCTRINE_TOOL_ROUTES: Record<string, string> = {
   doctrine_list: '/docs/mcp/doctrine-list',
   doctrine_get: '/docs/mcp/doctrine-get',
+  doctrine_harvest_list: '/docs/mcp/doctrine-harvest-list',
+  doctrine_harvest_get: '/docs/mcp/doctrine-harvest-get',
   record_doctrine_episode: '/docs/mcp/record-doctrine-episode',
+  harvest_doctrine_episodes: '/docs/mcp/harvest-doctrine-episodes',
   propose_doctrine_candidate: '/docs/mcp/propose-doctrine-candidate',
   preregister_doctrine_experiment: '/docs/mcp/preregister-doctrine-experiment',
   record_doctrine_treatment_run: '/docs/mcp/record-doctrine-treatment-run',
@@ -16,6 +19,8 @@ const DOCTRINE_TOOL_ROUTES: Record<string, string> = {
   record_doctrine_application: '/docs/mcp/record-doctrine-application',
   record_doctrine_outcome: '/docs/mcp/record-doctrine-outcome',
   contest_doctrine: '/docs/mcp/contest-doctrine',
+  supersede_doctrine: '/docs/mcp/supersede-doctrine',
+  retire_doctrine: '/docs/mcp/retire-doctrine',
 }
 
 const MCP_SERVERS = [
@@ -212,11 +217,14 @@ export default function McpOverview() {
               </div>
               {category.id === 'doctrine' ? (
                 <p className="mt-4 text-sm text-[var(--text-muted)]">
-                  Doctrine tools preserve the whole cited, advisory loop: record an episode, propose and
-                  preregister a candidate, retain factual treatment runs, admit only matched evidence,
-                  retrieve an exact decision-class match, and preserve the agent response, outcome, or
-                  contest. They do not authorize a merge, block a change, or claim that one transcript
-                  trained the fleet.
+                  Doctrine tools preserve the whole cited, advisory loop: record and freeze recurring
+                  exact-class observations, propose and preregister a candidate, retain replay context for
+                  every factual arm, admit only a first-cycle provisional revision after compatible matched
+                  control and treatment replicas, retrieve an exact decision-class match, and preserve
+                  application, outcome, contest, supersession, or retirement history. The MCP session carries
+                  the daemon-minted credential that derives writer and reviewer identity. These tools do not
+                  authorize a merge, block a change, or claim that one transcript trained the fleet. Review the
+                  operator-facing evidence in pd-console; this catalog documents MCP calls.
                 </p>
               ) : null}
             </div>

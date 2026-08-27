@@ -1,0 +1,13 @@
+{
+  "capabilities": [
+    {
+      "name": "case13-doctrine-evidence-loop",
+      "assignedSurface": "pd-console",
+      "distance": "deep",
+      "evidenceScreens": 5,
+      "daemonEnforceable": true,
+      "busSubscription": "cool"
+    }
+  ],
+  "surfacesOwnRuntimeState": false
+}

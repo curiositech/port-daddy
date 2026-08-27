@@ -5442,7 +5442,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [candidate, provisional, established, contested, deprecated]
+            enum: [candidate, provisional, established, contested, retired]
         - name: projectDir
           in: query
           schema:
@@ -5466,8 +5466,10 @@ paths:
     post:
       tags: [doctrine]
       summary: Propose a falsifiable doctrine candidate
-      description: Records a conditional candidate grounded in a cited DecisionEpisode. Proposal alone does not admit or retrieve advice.
+      description: Records a conditional candidate grounded in a cited DecisionEpisode. Proposal alone does not admit or retrieve advice. The daemon derives the writer from a required actor credential; callers do not author identity in the body.
       operationId: proposeDoctrineCandidate
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5483,10 +5485,16 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Referenced episode was not found
+        '409':
+          description: The cited evidence scope, immutable candidate ID, or doctrine ID conflicts with an existing project-bound record
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/episodes:
     get:
@@ -5515,8 +5523,10 @@ paths:
     post:
       tags: [doctrine]
       summary: Record a cited DecisionEpisode
-      description: Records observed action, alternatives, and cues before a candidate explanation is induced.
+      description: Records observed action, alternatives, and cues before a candidate explanation is induced. The write is attributed from the required actor credential.
       operationId: recordDoctrineEpisode
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5532,6 +5542,93 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
+        '409':
+          description: The immutable episode ID or retry key conflicts with an existing project-bound record
+        '503':
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
+
+  /doctrine/harvests:
+    get:
+      tags: [doctrine]
+      summary: List immutable offline doctrine harvests
+      description: Returns cited recurring exact-decision-class episode harvests. A harvest freezes observations; it is not an inferred causal result or active policy.
+      operationId: listDoctrineHarvests
+      parameters:
+        - name: projectDir
+          in: query
+          schema:
+            type: string
+        - name: decisionClass
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching immutable doctrine harvests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+    post:
+      tags: [doctrine]
+      summary: Freeze a cited recurring exact-class episode harvest
+      description: Requires at least two existing cited DecisionEpisodes from the same project directory and exact structured decision class. It appends evidence only and never activates doctrine.
+      operationId: harvestDoctrineEpisodes
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineHarvestInput'
+      responses:
+        '201':
+          description: Immutable harvest event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
+        '404':
+          description: Referenced episode was not found
+        '409':
+          description: Episodes do not share one project directory and exact decision class
+        '503':
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
+
+  /doctrine/harvests/{id}:
+    get:
+      tags: [doctrine]
+      summary: Read an immutable doctrine harvest
+      operationId: getDoctrineHarvest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Frozen observations and their immutable citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '404':
+          description: Doctrine harvest not found
         '503':
           description: Doctrine evidence ledger is not wired in this daemon
 
@@ -5541,6 +5638,8 @@ paths:
       summary: Preregister a doctrine experiment
       description: Records the hypothesis, primary outcome, control, treatment, and optional sham before run results exist.
       operationId: preregisterDoctrineExperiment
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5556,10 +5655,16 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Referenced candidate was not found
+        '409':
+          description: The experiment project scope or immutable preregistration ID conflicts with the cited candidate or an existing record
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/experiments/{id}:
     get:
@@ -5588,7 +5693,7 @@ paths:
     post:
       tags: [doctrine]
       summary: Record one control, treatment, or sham run
-      description: Appends a replay observation. A prompt-only or mismatched replay may be recorded but cannot satisfy doctrine admission's factual-fidelity gate.
+      description: Appends a replay observation with required model, model version, harness, worktree, environment, checkpoint, and replica ID. A prompt-only, mismatched, drifted, or same-replica replay may be recorded but cannot satisfy doctrine admission's factual-fidelity gate.
       operationId: recordDoctrineTreatmentRun
       parameters:
         - name: id
@@ -5596,6 +5701,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5611,12 +5717,16 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Doctrine experiment not found
         '409':
           description: Run conflicts with experiment state
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/{id}:
     get:
@@ -5645,7 +5755,7 @@ paths:
     post:
       tags: [doctrine]
       summary: Admit an advisory doctrine revision
-      description: Admission requires matched factual control and treatment runs from the candidate's own preregistered experiment. Prompt-only or unmatched replays cannot admit doctrine.
+      description: Admission requires matched factual control and treatment runs from the candidate's own preregistered experiment. Their replay contexts must agree on model, model version, harness, worktree, environment, and checkpoint while using distinct replica IDs. Prompt-only, unmatched, drifted, or same-replica replays cannot admit doctrine. The daemon derives the reviewer from the credential and the first admission is always provisional.
       operationId: admitDoctrine
       parameters:
         - name: id
@@ -5653,6 +5763,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5668,19 +5779,25 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Candidate or experiment not found
         '409':
           description: Factual-fidelity or preregistration admission gate did not pass
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/orders:
     post:
       tags: [doctrine]
       summary: Retrieve advisory doctrine before a live decision
-      description: Appends a retrieval receipt for the live decision, then returns provisional or established packets matching the same project directory and exact structured decision class. A retrieval may honestly return no packets.
+      description: Appends a retrieval receipt for the live decision, then returns provisional or established packets matching the same project directory and exact structured decision class. A retrieval may honestly return no packets. Retrying an idempotency key returns its canonical receipt only for the same project, decision ID, and decision class.
       operationId: retrieveDoctrineOrders
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5696,14 +5813,20 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
+        '409':
+          description: The idempotency key was reused for a different project directory, decision ID, or exact decision class receipt
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/retrievals/{id}/application:
     post:
       tags: [doctrine]
       summary: Record an agent response to a retrieved doctrine packet
-      description: Records follow, adapt, or reject only for a doctrine that the named retrieval receipt actually showed.
+      description: Records follow, adapt, or reject only for a doctrine that the named retrieval receipt actually showed in the same project scope.
       operationId: recordDoctrineApplication
       parameters:
         - name: id
@@ -5711,6 +5834,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5726,18 +5850,22 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Retrieval receipt or doctrine not found
         '409':
           description: Doctrine did not appear in the referenced retrieval receipt
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/applications/{id}/outcome:
     post:
       tags: [doctrine]
       summary: Attach a verifier-backed outcome to a doctrine application
-      description: A self-assessment alone is insufficient; cite the direct verification receipt establishing helped, harmed, or inconclusive.
+      description: A self-assessment alone is insufficient; cite the direct verification receipt establishing helped, harmed, or inconclusive. The application and doctrine must remain in the request project scope.
       operationId: recordDoctrineOutcome
       parameters:
         - name: id
@@ -5745,6 +5873,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5760,10 +5889,16 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Doctrine application not found
+        '409':
+          description: The outcome project directory or immutable outcome ID conflicts with the application, applied doctrine, or an existing record
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
   /doctrine/{id}/contest:
     post:
@@ -5777,6 +5912,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -5792,13 +5928,105 @@ paths:
                 $ref: '#/components/schemas/DoctrineEnvelope'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
         '404':
           description: Doctrine revision not found
+        '409':
+          description: The doctrine is outside the request project scope, inactive, or otherwise not eligible to be contested
         '503':
-          description: Doctrine evidence ledger is not wired in this daemon
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
+
+  /doctrine/{id}/supersede:
+    post:
+      tags: [doctrine]
+      summary: Retire an active doctrine in favor of its explicitly cited successor
+      description: Requires an already admitted successor from the same project directory and exact structured decision class whose candidate explicitly cited the predecessor. The predecessor remains durable evidence but is excluded from future retrieval.
+      operationId: supersedeDoctrine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineSupersessionInput'
+      responses:
+        '201':
+          description: Immutable supersession event appended; predecessor retired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
+        '404':
+          description: Predecessor or successor doctrine not found
+        '409':
+          description: Successor is inactive, unlinked, or in a different project/class
+        '503':
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
+
+  /doctrine/{id}/retire:
+    post:
+      tags: [doctrine]
+      summary: Retire an advisory doctrine without deleting its evidence
+      description: Retires an admitted or contested revision, preserves the full evidence chain, and removes it from future retrieval. Use supersede when an explicit successor exists.
+      operationId: retireDoctrine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineRetirementInput'
+      responses:
+        '201':
+          description: Immutable retirement event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/DoctrineCredentialRequired'
+        '403':
+          $ref: '#/components/responses/DoctrineIdentityAliasMismatch'
+        '404':
+          description: Doctrine revision not found
+        '409':
+          description: Doctrine is already inactive or scoped to another project
+        '503':
+          $ref: '#/components/responses/DoctrineMutationUnavailable'
 
 components:
   parameters:
+    XActorCredential:
+      name: x-actor-credential
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Daemon-minted actor credential. Every doctrine mutation derives its writer, and an admission derives its reviewer, from this credential rather than a body identity claim.
+
     XAgentId:
       name: x-agent-id
       in: header
@@ -5822,19 +6050,17 @@ components:
           type: boolean
         advisory:
           type: boolean
-          description: Always true for doctrine read and retrieval packets; doctrine does not authorize an action.
+          description: Always true for doctrine evidence records and retrieval packets; doctrine does not authorize an action.
       additionalProperties: true
 
     DoctrineEvidenceContext:
       type: object
-      required: [projectDir, actorId, citations]
+      description: Evidence scope for a doctrine mutation. Identity comes only from the required x-actor-credential header; actorId, reviewerId, and credential body fields are not public input fields.
+      required: [projectDir, citations]
       properties:
         projectDir:
           type: string
           description: Absolute project directory used for evidence scope and exact retrieval matching.
-        actorId:
-          type: string
-          description: Agent or reviewer recording this evidence event.
         citations:
           type: array
           minItems: 1
@@ -5850,6 +6076,7 @@ components:
           format: date-time
         idempotencyKey:
           type: string
+          description: Stable retry key. A retry returns the canonical immutable receipt; incompatible reuse is rejected.
         provenance:
           type: object
           properties:
@@ -5879,6 +6106,26 @@ components:
               type: string
               enum: [T0, T1, T2, T3, T4, T5]
 
+    DoctrineHarvestInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [decisionClass, episodeIds, summary]
+          properties:
+            id: { type: string }
+            decisionClass:
+              type: string
+              example: integration.merge
+              description: Exact structured decision class shared by every harvested episode.
+            episodeIds:
+              type: array
+              minItems: 2
+              items: { type: string }
+              description: At least two distinct existing episode IDs from this project and exact class.
+            summary:
+              type: string
+              description: Bounded observational summary. It does not establish causal proof.
+
     DoctrineCandidateInput:
       allOf:
         - $ref: '#/components/schemas/DoctrineEvidenceContext'
@@ -5890,6 +6137,12 @@ components:
               type: string
               description: Stable identifier chosen when this candidate is first proposed. A later revision must be a new successor candidate; admission cannot replace this identifier.
             episodeId: { type: string }
+            harvestId:
+              type: string
+              description: Optional immutable recurring-episode harvest. It must contain episodeId and match the candidate project and exact decision class.
+            supersedesDoctrineId:
+              type: string
+              description: Optional cited predecessor doctrine. It remains active until a later immutable supersession event succeeds.
             decisionClass: { type: string, example: integration.merge }
             title: { type: string }
             when: { type: string }
@@ -5923,7 +6176,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/DoctrineEvidenceContext'
         - type: object
-          required: [arm, action, outcome, fidelity]
+          required: [arm, action, outcome, fidelity, replayContext]
           properties:
             id: { type: string }
             arm:
@@ -5934,19 +6187,33 @@ components:
             fidelity:
               type: string
               enum: [not-run, matched, mismatched]
+            replayContext:
+              $ref: '#/components/schemas/DoctrineReplayContext'
             notes: { type: string }
+
+    DoctrineReplayContext:
+      type: object
+      description: Reproducibility envelope for one recorded replay arm. Admission compares factual control and treatment contexts directly.
+      required: [model, modelVersion, harness, worktree, environment, checkpoint, replicaId]
+      properties:
+        model: { type: string }
+        modelVersion: { type: string }
+        harness: { type: string }
+        worktree: { type: string }
+        environment: { type: string }
+        checkpoint: { type: string }
+        replicaId:
+          type: string
+          description: Immutable independently executed replay-replica identifier. A paired factual arm must use a different value.
 
     DoctrineAdmissionInput:
       allOf:
         - $ref: '#/components/schemas/DoctrineEvidenceContext'
         - type: object
-          required: [experimentId, reviewerId]
+          description: The daemon derives reviewer identity from x-actor-credential and stamps first-cycle admission as provisional. Callers cannot submit established promotion here.
+          required: [experimentId]
           properties:
             experimentId: { type: string }
-            reviewerId: { type: string }
-            status:
-              type: string
-              enum: [provisional, established]
 
     DoctrineRetrieveInput:
       allOf:
@@ -5996,6 +6263,25 @@ components:
             severity:
               type: string
               enum: [low, medium, high]
+
+    DoctrineSupersessionInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [successorDoctrineId, reason]
+          properties:
+            successorDoctrineId:
+              type: string
+              description: Already admitted successor that explicitly cited this predecessor when proposed.
+            reason: { type: string }
+
+    DoctrineRetirementInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [reason]
+          properties:
+            reason: { type: string }
 
     Tool2VecReconcileStatus:
       type: object
@@ -6368,6 +6654,12 @@ components:
           type: integer
 
   responses:
+    DoctrineCredentialRequired:
+      description: A daemon-minted actor credential is missing or invalid. The mutation is rejected before the doctrine ledger processes it.
+    DoctrineIdentityAliasMismatch:
+      description: A supplied display alias resolves to a different daemon-minted actor than the credential. Identity laundering is rejected.
+    DoctrineMutationUnavailable:
+      description: The doctrine evidence ledger or daemon identity verifier is unavailable; the mutation is not accepted.
     ValidationError:
       description: Validation error
       content:

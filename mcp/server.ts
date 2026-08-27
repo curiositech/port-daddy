@@ -287,13 +287,14 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['graph_edges', 'graph_stats', 'memory_episodes', 'memory_stats'],
   },
   'doctrine': {
-    description: 'Empirically earned fleet doctrine — capture cited episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, or contradiction evidence',
+    description: 'Empirically earned fleet doctrine — harvest cited recurring exact-class episodes, test and admit advisory candidates, retrieve them before a decision, then preserve application, outcome, supersession, retirement, or contradiction evidence',
     tools: [
-      'doctrine_list', 'doctrine_get',
-      'record_doctrine_episode', 'propose_doctrine_candidate',
+      'doctrine_list', 'doctrine_get', 'doctrine_harvest_list', 'doctrine_harvest_get',
+      'record_doctrine_episode', 'harvest_doctrine_episodes', 'propose_doctrine_candidate',
       'preregister_doctrine_experiment', 'record_doctrine_treatment_run',
       'admit_doctrine_candidate', 'doctrine_orders',
       'record_doctrine_application', 'record_doctrine_outcome', 'contest_doctrine',
+      'supersede_doctrine', 'retire_doctrine',
     ],
   },
   'feedback': {
@@ -3164,7 +3165,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        status: { type: 'string', enum: ['candidate', 'provisional', 'established', 'contested', 'deprecated'] },
+        status: { type: 'string', enum: ['candidate', 'provisional', 'established', 'contested', 'retired'] },
         project_dir: { type: 'string', description: 'Optional absolute project directory filter.' },
         decision_class: { type: 'string', description: 'Optional structured decision class, such as integration.merge.' },
       },
@@ -3183,9 +3184,33 @@ const TOOLS = [
     },
   },
   {
+    name: 'doctrine_harvest_list',
+    description:
+      '[Doctrine] List immutable offline harvests of cited recurring exact-decision-class episodes. A harvest is evidence, never active policy or an inferred causal result.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional absolute project directory filter.' },
+        decision_class: { type: 'string', description: 'Optional exact structured decision class.' },
+      },
+    },
+  },
+  {
+    name: 'doctrine_harvest_get',
+    description:
+      '[Doctrine] Read one immutable harvest, including the frozen cited observation snapshots and source episode IDs.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        harvest_id: { type: 'string' },
+      },
+      required: ['harvest_id'],
+    },
+  },
+  {
     name: 'record_doctrine_episode',
     description:
-      '[Doctrine] Append a cited observed DecisionEpisode before proposing an explanation. Capture the historical action, alternatives, and cues; this records evidence, not doctrine.',
+      '[Doctrine] Append a cited observed DecisionEpisode before proposing an explanation. Capture the historical action, alternatives, and cues; this records evidence, not doctrine. The MCP session must hold a daemon-minted credential; the daemon derives the writer identity.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3198,13 +3223,33 @@ const TOOLS = [
         cues: { type: 'array', items: { type: 'string' } },
         fidelity: { type: 'string', enum: ['T0', 'T1', 'T2', 'T3', 'T4', 'T5'] },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' }, description: 'Immutable transcript, review, CI, commit, or verifier references.' },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object', description: 'Optional model, harness, worktree, and environment provenance.' },
       },
-      required: ['decision_class', 'summary', 'historical_action', 'project_dir', 'actor_id', 'citations'],
+      required: ['decision_class', 'summary', 'historical_action', 'project_dir', 'citations'],
+    },
+  },
+  {
+    name: 'harvest_doctrine_episodes',
+    description:
+      '[Doctrine] Freeze a cited recurring observation set from two or more existing decision episodes with the exact same project directory and structured decision class. This does not infer or activate doctrine.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Optional stable harvest id for an idempotent caller.' },
+        idempotency_key: { type: 'string', description: 'Optional retry key; a duplicate returns the original durable receipt.' },
+        decision_class: { type: 'string', description: 'Exact structured decision class shared by every episode.' },
+        episode_ids: { type: 'array', minItems: 2, items: { type: 'string' }, description: 'At least two distinct existing episode IDs.' },
+        summary: { type: 'string', description: 'Bounded factual description of the recurring observation set; do not claim causal proof.' },
+        project_dir: { type: 'string' },
+        citations: { type: 'array', items: { type: 'string' }, description: 'Additional immutable harvest citations; episode citations are frozen into the harvest automatically.' },
+        session_id: { type: 'string' },
+        run_id: { type: 'string' },
+        provenance: { type: 'object' },
+      },
+      required: ['decision_class', 'episode_ids', 'summary', 'project_dir', 'citations'],
     },
   },
   {
@@ -3218,6 +3263,8 @@ const TOOLS = [
         doctrine_id: { type: 'string', description: 'Optional stable advisory identity; it cannot later be rewritten during admission.' },
         idempotency_key: { type: 'string' },
         episode_id: { type: 'string' },
+        harvest_id: { type: 'string', description: 'Optional immutable recurring-episode harvest. It must contain episode_id and match this exact project/class.' },
+        supersedes_doctrine_id: { type: 'string', description: 'Optional cited prior doctrine whose boundary this candidate refines; actual retirement requires supersede_doctrine later.' },
         decision_class: { type: 'string' },
         title: { type: 'string' },
         when: { type: 'string' },
@@ -3228,13 +3275,12 @@ const TOOLS = [
         school: { type: 'string', description: 'Decision-domain school, not an agent personality.' },
         skill_refs: { type: 'array', items: { type: 'string' }, description: 'Relevant procedural-skill citations; never canonical doctrine.' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object' },
       },
-      required: ['episode_id', 'decision_class', 'title', 'when', 'prefer', 'over', 'because', 'project_dir', 'actor_id', 'citations'],
+      required: ['episode_id', 'decision_class', 'title', 'when', 'prefer', 'over', 'because', 'project_dir', 'citations'],
     },
   },
   {
@@ -3254,19 +3300,18 @@ const TOOLS = [
         sham: { type: 'string' },
         preregistered_at: { type: 'string', description: 'Optional ISO timestamp.' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object' },
       },
-      required: ['candidate_id', 'hypothesis', 'primary_outcome', 'control', 'treatment', 'project_dir', 'actor_id', 'citations'],
+      required: ['candidate_id', 'hypothesis', 'primary_outcome', 'control', 'treatment', 'project_dir', 'citations'],
     },
   },
   {
     name: 'record_doctrine_treatment_run',
     description:
-      '[Doctrine] Append one preregistered control, treatment, or sham run. Unmatched and prompt-only replays are retained as evidence but cannot satisfy the factual admission gate.',
+      '[Doctrine] Append one preregistered control, treatment, or sham run. Every arm records its actual replay context; only matched control/treatment arms with identical conditions and distinct replicas can satisfy the factual admission gate.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3277,37 +3322,47 @@ const TOOLS = [
         action: { type: 'string' },
         outcome: { type: 'string' },
         fidelity: { type: 'string', enum: ['not-run', 'matched', 'mismatched'] },
+        replay_context: {
+          type: 'object',
+          description: 'Required factual replay context. A qualifying control/treatment pair has identical fields except distinct replica_id.',
+          properties: {
+            model: { type: 'string' },
+            model_version: { type: 'string' },
+            harness: { type: 'string' },
+            worktree: { type: 'string' },
+            environment: { type: 'string' },
+            checkpoint: { type: 'string' },
+            replica_id: { type: 'string', description: 'Independent replay replica identifier.' },
+          },
+          required: ['model', 'model_version', 'harness', 'worktree', 'environment', 'checkpoint', 'replica_id'],
+        },
         notes: { type: 'string' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object' },
       },
-      required: ['experiment_id', 'arm', 'action', 'outcome', 'fidelity', 'project_dir', 'actor_id', 'citations'],
+      required: ['experiment_id', 'arm', 'action', 'outcome', 'fidelity', 'replay_context', 'project_dir', 'citations'],
     },
   },
   {
     name: 'admit_doctrine_candidate',
     description:
-      '[Doctrine] Admit a candidate as a provisional or established advisory only after its own preregistered experiment has matched factual control and treatment runs. This never authorizes an action.',
+      '[Doctrine] Admit a candidate as provisional advisory only after its own preregistered experiment has matched factual control and treatment arms with compatible replay contexts and distinct replicas. The daemon derives reviewer identity from the credential. This never authorizes an action.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         candidate_id: { type: 'string' },
         experiment_id: { type: 'string' },
-        reviewer_id: { type: 'string' },
-        status: { type: 'string', enum: ['provisional', 'established'] },
         idempotency_key: { type: 'string' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object' },
       },
-      required: ['candidate_id', 'experiment_id', 'reviewer_id', 'project_dir', 'actor_id', 'citations'],
+      required: ['candidate_id', 'experiment_id', 'project_dir', 'citations'],
     },
   },
   {
@@ -3322,13 +3377,51 @@ const TOOLS = [
         severity: { type: 'string', enum: ['low', 'medium', 'high'] },
         idempotency_key: { type: 'string' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object' },
       },
-      required: ['doctrine_id', 'reason', 'project_dir', 'actor_id', 'citations'],
+      required: ['doctrine_id', 'reason', 'project_dir', 'citations'],
+    },
+  },
+  {
+    name: 'supersede_doctrine',
+    description:
+      '[Doctrine] Retire one active advisory revision in favor of an already active, explicitly linked successor. The predecessor remains readable in the immutable ledger and is removed from future retrieval.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        doctrine_id: { type: 'string', description: 'Active predecessor doctrine revision to retire.' },
+        successor_doctrine_id: { type: 'string', description: 'Already admitted successor that was proposed with supersedes_doctrine_id equal to doctrine_id.' },
+        reason: { type: 'string', description: 'Cited reason for replacing the older revision rather than rewriting it.' },
+        idempotency_key: { type: 'string' },
+        project_dir: { type: 'string' },
+        citations: { type: 'array', items: { type: 'string' } },
+        session_id: { type: 'string' },
+        run_id: { type: 'string' },
+        provenance: { type: 'object' },
+      },
+      required: ['doctrine_id', 'successor_doctrine_id', 'reason', 'project_dir', 'citations'],
+    },
+  },
+  {
+    name: 'retire_doctrine',
+    description:
+      '[Doctrine] Retire an admitted or contested advisory revision without deleting its evidence. Retired doctrine is excluded from future retrieval and remains readable for audit and successor citation.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        doctrine_id: { type: 'string' },
+        reason: { type: 'string' },
+        idempotency_key: { type: 'string' },
+        project_dir: { type: 'string' },
+        citations: { type: 'array', items: { type: 'string' } },
+        session_id: { type: 'string' },
+        run_id: { type: 'string' },
+        provenance: { type: 'object' },
+      },
+      required: ['doctrine_id', 'reason', 'project_dir', 'citations'],
     },
   },
   {
@@ -3343,14 +3436,13 @@ const TOOLS = [
         decision_id: { type: 'string', description: 'Stable id for this live decision.' },
         decision_class: { type: 'string', description: 'Structured decision class, such as integration.merge.' },
         project_dir: { type: 'string', description: 'Absolute project directory.' },
-        actor_id: { type: 'string', description: 'Agent recording this receipt.' },
         citations: { type: 'array', items: { type: 'string' }, description: 'Immutable decision-context receipt(s) or source span(s).' },
         limit: { type: 'number', description: 'Maximum advisory packets to return (default 3; max 10).' },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object', description: 'Optional model, harness, worktree, and environment provenance.' },
       },
-      required: ['decision_id', 'decision_class', 'project_dir', 'actor_id', 'citations'],
+      required: ['decision_id', 'decision_class', 'project_dir', 'citations'],
     },
   },
   {
@@ -3368,13 +3460,12 @@ const TOOLS = [
         decision: { type: 'string', description: 'What the agent actually decided or did.' },
         note: { type: 'string' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object', description: 'Optional model, harness, worktree, and environment provenance.' },
       },
-      required: ['retrieval_id', 'doctrine_id', 'response', 'decision', 'project_dir', 'actor_id', 'citations'],
+      required: ['retrieval_id', 'doctrine_id', 'response', 'decision', 'project_dir', 'citations'],
     },
   },
   {
@@ -3391,13 +3482,12 @@ const TOOLS = [
         summary: { type: 'string' },
         verified_by: { type: 'string', description: 'The direct verification receipt identifier.' },
         project_dir: { type: 'string' },
-        actor_id: { type: 'string' },
         citations: { type: 'array', items: { type: 'string' } },
         session_id: { type: 'string' },
         run_id: { type: 'string' },
         provenance: { type: 'object', description: 'Optional model, harness, worktree, and environment provenance.' },
       },
-      required: ['application_id', 'verdict', 'summary', 'verified_by', 'project_dir', 'actor_id', 'citations'],
+      required: ['application_id', 'verdict', 'summary', 'verified_by', 'project_dir', 'citations'],
     },
   },
   {
@@ -5364,13 +5454,25 @@ async function handleTool(
       break;
     }
 
+    case 'doctrine_harvest_list': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.decision_class) qs.set('decisionClass', args.decision_class as string);
+      res = await GET(qs.toString() ? `/doctrine/harvests?${qs.toString()}` : '/doctrine/harvests');
+      break;
+    }
+
+    case 'doctrine_harvest_get': {
+      res = await GET(`/doctrine/harvests/${encodeURIComponent(args.harvest_id as string)}`);
+      break;
+    }
+
     case 'record_doctrine_episode': {
       const body: Record<string, unknown> = {
         decisionClass: args.decision_class,
         summary: args.summary,
         historicalAction: args.historical_action,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (args.alternatives) body.alternatives = args.alternatives;
@@ -5378,6 +5480,19 @@ async function handleTool(
       if (args.fidelity) body.fidelity = args.fidelity;
       addDoctrineEvidenceContext(args, body);
       res = await POST('/doctrine/episodes', body);
+      break;
+    }
+
+    case 'harvest_doctrine_episodes': {
+      const body: Record<string, unknown> = {
+        decisionClass: args.decision_class,
+        episodeIds: args.episode_ids,
+        summary: args.summary,
+        projectDir: args.project_dir,
+        citations: args.citations,
+      };
+      addDoctrineEvidenceContext(args, body);
+      res = await POST('/doctrine/harvests', body);
       break;
     }
 
@@ -5391,10 +5506,11 @@ async function handleTool(
         over: args.over,
         because: args.because,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (args.doctrine_id) body.doctrineId = args.doctrine_id;
+      if (args.harvest_id) body.harvestId = args.harvest_id;
+      if (args.supersedes_doctrine_id) body.supersedesDoctrineId = args.supersedes_doctrine_id;
       if (args.unless) body.unless = args.unless;
       if (args.school) body.school = args.school;
       if (args.skill_refs) body.skillRefs = args.skill_refs;
@@ -5411,7 +5527,6 @@ async function handleTool(
         control: args.control,
         treatment: args.treatment,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (args.sham) body.sham = args.sham;
@@ -5427,8 +5542,8 @@ async function handleTool(
         action: args.action,
         outcome: args.outcome,
         fidelity: args.fidelity,
+        replayContext: args.replay_context,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (args.notes) body.notes = args.notes;
@@ -5440,12 +5555,9 @@ async function handleTool(
     case 'admit_doctrine_candidate': {
       const body: Record<string, unknown> = {
         experimentId: args.experiment_id,
-        reviewerId: args.reviewer_id,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
-      if (args.status) body.status = args.status;
       addDoctrineEvidenceContext(args, body);
       res = await POST(`/doctrine/candidates/${encodeURIComponent(args.candidate_id as string)}/admit`, body);
       break;
@@ -5455,7 +5567,6 @@ async function handleTool(
       const body: Record<string, unknown> = {
         reason: args.reason,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (args.severity) body.severity = args.severity;
@@ -5464,12 +5575,34 @@ async function handleTool(
       break;
     }
 
+    case 'supersede_doctrine': {
+      const body: Record<string, unknown> = {
+        successorDoctrineId: args.successor_doctrine_id,
+        reason: args.reason,
+        projectDir: args.project_dir,
+        citations: args.citations,
+      };
+      addDoctrineEvidenceContext(args, body);
+      res = await POST(`/doctrine/${encodeURIComponent(args.doctrine_id as string)}/supersede`, body);
+      break;
+    }
+
+    case 'retire_doctrine': {
+      const body: Record<string, unknown> = {
+        reason: args.reason,
+        projectDir: args.project_dir,
+        citations: args.citations,
+      };
+      addDoctrineEvidenceContext(args, body);
+      res = await POST(`/doctrine/${encodeURIComponent(args.doctrine_id as string)}/retire`, body);
+      break;
+    }
+
     case 'doctrine_orders': {
       const body: Record<string, unknown> = {
         decisionId: args.decision_id,
         decisionClass: args.decision_class,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (typeof args.limit === 'number') body.limit = args.limit;
@@ -5484,7 +5617,6 @@ async function handleTool(
         response: args.response,
         decision: args.decision,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       if (args.note) body.note = args.note;
@@ -5499,7 +5631,6 @@ async function handleTool(
         summary: args.summary,
         verifiedBy: args.verified_by,
         projectDir: args.project_dir,
-        actorId: args.actor_id,
         citations: args.citations,
       };
       addDoctrineEvidenceContext(args, body);

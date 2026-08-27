@@ -593,22 +593,36 @@ pd doctrine outcome doctrine-application_... --input @verified-outcome.json
 ```
 
 This is not a personality system and does not make merge decisions or enforce a
-rule. Admission refuses prompt-only or otherwise unmatched replays: a candidate
-needs a preregistered experiment with a matched factual control and treatment
-run before it can become guidance. The first retrieval policy is intentionally
-exact and structured by project plus decision class; it does not claim a fleet
-has learned from every transcript. The operator reviews the chain in FleetBar /
-Fleet Control Center; the CLI, SDK, and MCP tools expose the same evidence for
-agents and automation. See the [CASE-13 tutorial](docs/tutorials/case-13-doctrine-cycle.md)
-and the [doctrine architecture](docs/proposals/empirically-earned-fleet-doctrine.md).
+rule. Every doctrine mutation is attributed by a daemon-minted
+`x-actor-credential`; it derives the writer and admission reviewer rather than
+trusting a body `actorId` or `reviewerId`. Admission refuses prompt-only,
+unmatched, drifted, or same-replica replays. The candidate's own preregistered
+experiment needs a matched factual control and treatment with the same model,
+model version, harness, worktree, environment, and checkpoint, and with distinct
+replica IDs. The first admission is always provisional; it is not caller-driven
+promotion to established guidance.
 
-MCP clients can traverse the same closed loop with `record_doctrine_episode`,
-`propose_doctrine_candidate`, `preregister_doctrine_experiment`,
-`record_doctrine_treatment_run`, `admit_doctrine_candidate`, `doctrine_orders`,
-`record_doctrine_application`, `record_doctrine_outcome`, and `contest_doctrine`;
-`doctrine_list` and `doctrine_get` remain audit reads. The capture and admission
-tools require cited project and actor context, so MCP cannot turn prompt-only
-replay into active guidance.
+Records are immutable and project-bound. A changed doctrine needs a new successor
+candidate and explicit supersession, not a rewritten doctrine ID. Stable IDs and
+idempotency keys make a retry return the original receipt; a retrieval key cannot
+be repurposed across project, decision ID, or decision class. The first retrieval
+policy is intentionally exact and structured by project plus decision class; it
+does not claim a fleet has learned from every transcript. The operator reviews
+the deep evidence chain in the `Doctrine` pane of pd-console; the CLI, SDK, and
+MCP tools expose the same evidence for agents and automation. See the
+[CASE-13 tutorial](docs/tutorials/case-13-doctrine-cycle.md), the
+[CASE-13 experiment design](docs/research/case-13-experiment-design.md), and the
+[doctrine architecture](docs/proposals/empirically-earned-fleet-doctrine.md).
+
+MCP clients traverse the same loop with `record_doctrine_episode`,
+`harvest_doctrine_episodes`, `propose_doctrine_candidate`,
+`preregister_doctrine_experiment`, `record_doctrine_treatment_run`,
+`admit_doctrine_candidate`, `doctrine_orders`, `record_doctrine_application`,
+`record_doctrine_outcome`, `contest_doctrine`, `supersede_doctrine`, and
+`retire_doctrine`; `doctrine_list`, `doctrine_get`, `doctrine_harvest_list`, and
+`doctrine_harvest_get` are audit reads. The bridge carries the same daemon-minted
+credential for writes, so an MCP call cannot turn prompt-only replay into active
+guidance or self-assert an identity.
 
 ### Artifact Harvest (Booty)
 

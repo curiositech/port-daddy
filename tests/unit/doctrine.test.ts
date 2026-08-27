@@ -31,6 +31,19 @@ describe('empirically earned fleet doctrine', () => {
     return createDoctrineLedger(db, { now: () => NOW });
   }
 
+  function replayContext(replicaId: string, overrides: Partial<Record<string, string>> = {}) {
+    return {
+      model: 'fixture-model',
+      modelVersion: '2026-08-26',
+      harness: 'fixture-harness',
+      worktree: 'case13-worktree',
+      environment: 'test',
+      checkpoint: 'checkpoint:case13',
+      replicaId,
+      ...overrides,
+    };
+  }
+
   function seedCandidate() {
     const ledger = makeLedger();
     const episode = ledger.recordEpisode({
@@ -61,6 +74,37 @@ describe('empirically earned fleet doctrine', () => {
     return { ledger, episode, candidate };
   }
 
+  function admitCandidate(ledger: ReturnType<typeof makeLedger>, candidateId: string, prefix: string) {
+    const experiment = ledger.preregisterExperiment({
+      ...base,
+      id: `experiment_${prefix}`,
+      candidateId,
+      hypothesis: `${prefix} candidate is tested with factual evidence`,
+      primaryOutcome: 'decision quality',
+      control: `${prefix} control`,
+      treatment: `${prefix} treatment`,
+    });
+    for (const arm of ['control', 'treatment'] as const) {
+      ledger.recordTreatmentRun({
+        ...base,
+        id: `run_${prefix}_${arm}`,
+        experimentId: experiment.experimentId,
+        arm,
+        action: `${prefix} ${arm} action`,
+        outcome: `${prefix} ${arm} outcome`,
+        fidelity: 'matched',
+        replayContext: replayContext(`replica:${prefix}:${arm}`),
+      });
+    }
+    return ledger.admit({
+      ...base,
+      idempotencyKey: `admit:${prefix}`,
+      candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    });
+  }
+
   it('closes the CASE-13 cycle with a retrieval receipt, response, and verified outcome', () => {
     const { ledger, candidate } = seedCandidate();
     const experiment = ledger.preregisterExperiment({
@@ -80,6 +124,7 @@ describe('empirically earned fleet doctrine', () => {
       action: 'merge',
       outcome: 'no substantive concern found',
       fidelity: 'matched',
+      replayContext: replayContext('replica:case13:control'),
     });
     ledger.recordTreatmentRun({
       ...base,
@@ -88,6 +133,7 @@ describe('empirically earned fleet doctrine', () => {
       action: 'hold and investigate',
       outcome: 'substantive defect identified',
       fidelity: 'matched',
+      replayContext: replayContext('replica:case13:treatment'),
     });
     const admission = ledger.admit({
       ...base,
@@ -165,6 +211,7 @@ describe('empirically earned fleet doctrine', () => {
       action: 'hold',
       outcome: 'replay diverged before the decision',
       fidelity: 'mismatched',
+      replayContext: replayContext('replica:unmatched:control'),
     });
     ledger.recordTreatmentRun({
       ...base,
@@ -173,6 +220,7 @@ describe('empirically earned fleet doctrine', () => {
       action: 'merge',
       outcome: 'prompt masking changed unrelated context',
       fidelity: 'mismatched',
+      replayContext: replayContext('replica:unmatched:treatment'),
     });
     expect(() => ledger.admit({
       ...base,
@@ -217,6 +265,7 @@ describe('empirically earned fleet doctrine', () => {
         action: arm,
         outcome: arm,
         fidelity: 'matched',
+        replayContext: replayContext(`replica:contradiction:${arm}`),
       });
     }
     const admitted = ledger.admit({
@@ -241,5 +290,612 @@ describe('empirically earned fleet doctrine', () => {
     });
     expect(ledger.getDoctrine(admitted.doctrineId)?.doctrine.status).toBe('contested');
     expect(ledger.listCandidates({ status: 'contested' })).toHaveLength(1);
+  });
+
+  it('harvests recurring exact-class evidence and supersedes only through an explicitly cited successor', () => {
+    const { ledger, episode, candidate } = seedCandidate();
+    const oldRevision = admitCandidate(ledger, candidate.candidateId, 'case13-old');
+    const recurrence = ledger.recordEpisode({
+      ...base,
+      id: 'episode_case13_recurrence',
+      decisionClass: 'integration.merge',
+      summary: 'A later Steward checked technical evidence before treating an unresolved review artifact as blocking.',
+      historicalAction: 'inspect evidence before holding',
+      alternatives: ['block on thread state', 'merge without inspection'],
+      cues: ['unresolved review artifact', 'green CI', 'technical claim inspected'],
+      fidelity: 'T5',
+      citations: ['receipt:case13:recurrence'],
+    });
+    const harvest = ledger.harvest({
+      ...base,
+      id: 'harvest_case13_recurring_merges',
+      decisionClass: 'integration.merge',
+      episodeIds: [episode.episodeId, recurrence.episodeId],
+      summary: 'Two cited integration.merge episodes show review state and independent technical evidence must be distinguished.',
+      citations: ['receipt:case13:harvest-review'],
+    });
+    const frozen = ledger.getHarvest(harvest.harvestId);
+    expect(frozen).toMatchObject({
+      id: 'harvest_case13_recurring_merges',
+      decisionClass: 'integration.merge',
+      episodeIds: ['episode_case13', 'episode_case13_recurrence'],
+    });
+    expect(frozen?.observations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ episodeId: 'episode_case13', citations: ['receipt:case13:timeline'] }),
+      expect.objectContaining({ episodeId: 'episode_case13_recurrence', citations: ['receipt:case13:recurrence'] }),
+    ]));
+    expect(() => ledger.harvest({
+      ...base,
+      id: 'harvest_case13_wrong_project',
+      projectDir: '/repo/another-project',
+      decisionClass: 'integration.merge',
+      episodeIds: [episode.episodeId, recurrence.episodeId],
+      summary: 'This must fail because harvests never cross project scope.',
+      citations: ['receipt:case13:wrong-project'],
+    })).toThrow(/share the caller projectDir/);
+    expect(() => ledger.harvest({
+      ...base,
+      id: 'harvest_case13_wrong_class',
+      decisionClass: 'release.deploy',
+      episodeIds: [episode.episodeId, recurrence.episodeId],
+      summary: 'This must fail because a harvest is exact-decision-class only.',
+      citations: ['receipt:case13:wrong-class'],
+    })).toThrow(/exact structured decisionClass/);
+
+    const successorCandidate = ledger.proposeCandidate({
+      ...base,
+      id: 'candidate_case13_revision_two',
+      doctrineId: 'doctrine:integration:independent-evidence:v2',
+      episodeId: recurrence.episodeId,
+      harvestId: harvest.harvestId,
+      supersedesDoctrineId: oldRevision.doctrineId,
+      decisionClass: 'integration.merge',
+      title: 'Independent technical evidence is a conditional merge cue',
+      when: 'a review artifact remains unresolved but its technical claim can be independently inspected',
+      prefer: 'inspect the claim and weigh evidence directly',
+      over: 'treating an administrative review state as a complete veto',
+      because: 'the harvest distinguishes recurring technical and administrative signals',
+      citations: ['receipt:case13:revision-candidate'],
+    });
+    const successor = admitCandidate(ledger, successorCandidate.candidateId, 'case13-new');
+    const supersessionInput = {
+      ...base,
+      doctrineId: oldRevision.doctrineId,
+      successorDoctrineId: successor.doctrineId,
+      reason: 'The recurring harvest supports a narrower evidence-first revision.',
+      citations: ['receipt:case13:supersession'],
+    };
+    const supersession = ledger.supersede(supersessionInput);
+    const supersessionRetry = ledger.supersede(supersessionInput);
+
+    expect(supersession).toMatchObject({
+      doctrineId: oldRevision.doctrineId,
+      successorDoctrineId: successor.doctrineId,
+    });
+    expect(supersessionRetry.duplicate).toBe(true);
+    const oldDetail = ledger.getDoctrine(oldRevision.doctrineId);
+    expect(oldDetail?.doctrine).toMatchObject({
+      status: 'retired',
+      supersededByDoctrineId: successor.doctrineId,
+      retirementReason: 'The recurring harvest supports a narrower evidence-first revision.',
+    });
+    expect(oldDetail?.successor?.doctrineId).toBe(successor.doctrineId);
+    expect(ledger.getDoctrine(successor.doctrineId)).toMatchObject({
+      doctrine: {
+        doctrineId: successor.doctrineId,
+        harvestId: harvest.harvestId,
+        supersedesDoctrineId: oldRevision.doctrineId,
+        status: 'provisional',
+      },
+      harvest: {
+        id: harvest.harvestId,
+        observations: expect.arrayContaining([
+          expect.objectContaining({ episodeId: 'episode_case13' }),
+          expect.objectContaining({ episodeId: 'episode_case13_recurrence' }),
+        ]),
+      },
+      supersededDoctrine: { doctrineId: oldRevision.doctrineId, status: 'retired' },
+      successor: null,
+    });
+
+    const orders = ledger.retrieve({
+      ...base,
+      id: 'retrieval_after_case13_supersession',
+      decisionId: 'decision_after_case13_supersession',
+      decisionClass: 'integration.merge',
+      citations: ['receipt:case13:next-decision'],
+    });
+    expect(orders.doctrines.map((item) => item.doctrineId)).toEqual([successor.doctrineId]);
+    expect(orders.doctrines.map((item) => item.doctrineId)).not.toContain(oldRevision.doctrineId);
+    expect(readEvents(db, { streamType: 'doctrine-evidence' }).map((event) => event.kind)).toContain('doctrine_harvested');
+    expect(readEvents(db, { streamType: 'doctrine-evidence' }).map((event) => event.kind)).toContain('doctrine_superseded');
+  });
+
+  it('refuses to retire an active revision through an unlinked successor, while direct retirement preserves history', () => {
+    const { ledger, candidate } = seedCandidate();
+    const active = admitCandidate(ledger, candidate.candidateId, 'unlinked-old');
+    const unlinkedCandidate = ledger.proposeCandidate({
+      ...base,
+      id: 'candidate_unlinked_successor',
+      doctrineId: 'doctrine:integration:unlinked-successor',
+      episodeId: 'episode_case13',
+      decisionClass: 'integration.merge',
+      title: 'A different merge heuristic without a predecessor link',
+      when: 'an unrelated merge context appears',
+      prefer: 'inspect a separate signal',
+      over: 'the old heuristic',
+      because: 'this fixture exercises the invalid supersession gate',
+      citations: ['receipt:case13:unlinked-successor'],
+    });
+    const unlinked = admitCandidate(ledger, unlinkedCandidate.candidateId, 'unlinked-new');
+
+    expect(() => ledger.supersede({
+      ...base,
+      doctrineId: active.doctrineId,
+      successorDoctrineId: unlinked.doctrineId,
+      reason: 'This must fail because no structural predecessor citation exists.',
+      citations: ['receipt:case13:invalid-supersession'],
+    })).toThrow(/explicitly cites/);
+    expect(ledger.getDoctrine(active.doctrineId)?.doctrine.status).toBe('provisional');
+
+    const retirementInput = {
+      ...base,
+      doctrineId: active.doctrineId,
+      reason: 'The active revision is retired pending a properly linked successor.',
+      citations: ['receipt:case13:manual-retirement'],
+    };
+    const retirement = ledger.retire(retirementInput);
+    const retirementRetry = ledger.retire(retirementInput);
+    expect(retirement.duplicate).toBe(false);
+    expect(retirementRetry.duplicate).toBe(true);
+    expect(ledger.getDoctrine(active.doctrineId)?.doctrine).toMatchObject({
+      status: 'retired',
+      retirementReason: 'The active revision is retired pending a properly linked successor.',
+    });
+    const orders = ledger.retrieve({
+      ...base,
+      id: 'retrieval_after_manual_retirement',
+      decisionId: 'decision_after_manual_retirement',
+      decisionClass: 'integration.merge',
+      citations: ['receipt:case13:post-retirement-decision'],
+    });
+    expect(orders.doctrines.map((item) => item.doctrineId)).toEqual([unlinked.doctrineId]);
+    expect(readEvents(db, { streamType: 'doctrine-evidence' }).map((event) => event.kind)).toContain('doctrine_retired');
+  });
+
+  it('keeps episode, candidate, doctrine, and experiment identities immutable while preserving canonical retries', () => {
+    const ledger = makeLedger();
+    const episodeInput = {
+      ...base,
+      id: 'episode-immutable',
+      idempotencyKey: 'episode:immutable:one',
+      decisionClass: 'integration.merge',
+      summary: 'The original immutable episode.',
+      historicalAction: 'inspect evidence',
+    };
+    const episode = ledger.recordEpisode(episodeInput);
+    expect(ledger.recordEpisode(episodeInput)).toMatchObject({ duplicate: true, episodeId: episode.episodeId });
+    expect(() => ledger.recordEpisode({
+      ...episodeInput,
+      summary: 'A changed body cannot reuse the original episode idempotency key.',
+    })).toThrow(/idempotencyKey.*conflicts/);
+    expect(() => ledger.recordEpisode({
+      ...episodeInput,
+      idempotencyKey: 'episode:immutable:conflict',
+      summary: 'A conflicting rewrite must not replace the factual episode.',
+    })).toThrow(/already exists/);
+
+    const candidateInput = {
+      ...base,
+      id: 'candidate-immutable',
+      idempotencyKey: 'candidate:immutable:one',
+      doctrineId: 'doctrine:immutable',
+      episodeId: episode.episodeId,
+      decisionClass: 'integration.merge',
+      title: 'Immutable identity test',
+      when: 'a factual episode exists',
+      prefer: 'preserve entity identity',
+      over: 'overwrite a prior entity',
+      because: 'the ledger is append-only',
+    };
+    const candidate = ledger.proposeCandidate(candidateInput);
+    expect(ledger.proposeCandidate(candidateInput)).toMatchObject({ duplicate: true, candidateId: candidate.candidateId });
+    expect(() => ledger.proposeCandidate({
+      ...candidateInput,
+      title: 'A changed body cannot reuse the original candidate idempotency key.',
+    })).toThrow(/idempotencyKey.*conflicts/);
+    expect(() => ledger.proposeCandidate({
+      ...candidateInput,
+      idempotencyKey: 'candidate:immutable:conflict',
+      title: 'Conflicting candidate rewrite',
+    })).toThrow(/already exists/);
+    expect(() => ledger.proposeCandidate({
+      ...candidateInput,
+      id: 'candidate-different-id',
+      idempotencyKey: 'candidate:immutable:doctrine-conflict',
+    })).toThrow(/doctrineId/);
+
+    const generatedCandidateInput = {
+      ...base,
+      idempotencyKey: 'candidate:generated:canonical-retry',
+      doctrineId: 'doctrine:generated-canonical-retry',
+      episodeId: episode.episodeId,
+      decisionClass: 'integration.merge',
+      title: 'Generated candidate identity remains retry-safe.',
+      when: 'the caller lost a candidate-write response',
+      prefer: 'return the canonical candidate',
+      over: 'inventing another candidate id',
+      because: 'idempotency is a durable receipt contract',
+    };
+    const generatedCandidate = ledger.proposeCandidate(generatedCandidateInput);
+    expect(ledger.proposeCandidate(generatedCandidateInput)).toMatchObject({
+      duplicate: true,
+      candidateId: generatedCandidate.candidateId,
+      doctrineId: generatedCandidate.doctrineId,
+    });
+
+    const experimentInput = {
+      ...base,
+      id: 'experiment-immutable',
+      idempotencyKey: 'experiment:immutable:one',
+      candidateId: candidate.candidateId,
+      hypothesis: 'An identity cannot be replaced in place.',
+      primaryOutcome: 'conflict is rejected',
+      control: 'original identity',
+      treatment: 'conflicting rewrite',
+    };
+    const experiment = ledger.preregisterExperiment(experimentInput);
+    expect(ledger.preregisterExperiment(experimentInput)).toMatchObject({ duplicate: true, experimentId: experiment.experimentId });
+    expect(() => ledger.preregisterExperiment({
+      ...experimentInput,
+      hypothesis: 'A changed body cannot reuse the original experiment idempotency key.',
+    })).toThrow(/idempotencyKey.*conflicts/);
+    expect(() => ledger.preregisterExperiment({
+      ...experimentInput,
+      idempotencyKey: 'experiment:immutable:conflict',
+      hypothesis: 'A conflicting experiment rewrite must fail.',
+    })).toThrow(/already exists/);
+
+    for (const arm of ['control', 'treatment'] as const) {
+      ledger.recordTreatmentRun({
+        ...base,
+        id: `run-doctrine-immutable-${arm}`,
+        experimentId: experiment.experimentId,
+        arm,
+        action: arm,
+        outcome: arm,
+        fidelity: 'matched',
+        replayContext: replayContext(`replica:doctrine-immutable:${arm}`),
+      });
+    }
+    const admissionInput = {
+      ...base,
+      idempotencyKey: 'doctrine:immutable:one',
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    };
+    expect(ledger.admit(admissionInput)).toMatchObject({ duplicate: false, doctrineId: candidate.doctrineId });
+    expect(ledger.admit(admissionInput)).toMatchObject({ duplicate: true, doctrineId: candidate.doctrineId });
+    expect(() => ledger.admit({
+      ...admissionInput,
+      reviewerId: 'agent:changed-reviewer',
+    })).toThrow(/idempotencyKey.*conflicts/);
+  });
+
+  it('requires matching structured factual contexts and independent replicas before a provisional admission', () => {
+    const { ledger, candidate } = seedCandidate();
+    const sameReplica = ledger.preregisterExperiment({
+      ...base,
+      id: 'experiment-same-replica',
+      candidateId: candidate.candidateId,
+      hypothesis: 'Same replica must not masquerade as independent factual evidence.',
+      primaryOutcome: 'admission remains blocked',
+      control: 'control',
+      treatment: 'treatment',
+    });
+    for (const arm of ['control', 'treatment'] as const) {
+      ledger.recordTreatmentRun({
+        ...base,
+        id: `run-same-replica-${arm}`,
+        experimentId: sameReplica.experimentId,
+        arm,
+        action: arm,
+        outcome: arm,
+        fidelity: 'matched',
+        replayContext: replayContext('replica:not-independent'),
+      });
+    }
+    expect(() => ledger.admit({
+      ...base,
+      candidateId: candidate.candidateId,
+      experimentId: sameReplica.experimentId,
+      reviewerId: 'agent:admiralty',
+    })).toThrow(/distinct replicaIds/);
+
+    const contextMismatch = ledger.preregisterExperiment({
+      ...base,
+      id: 'experiment-context-mismatch',
+      candidateId: candidate.candidateId,
+      hypothesis: 'Mismatched replay contexts must not be treated as a factual pair.',
+      primaryOutcome: 'admission remains blocked',
+      control: 'control',
+      treatment: 'treatment',
+    });
+    ledger.recordTreatmentRun({
+      ...base,
+      id: 'run-context-control',
+      experimentId: contextMismatch.experimentId,
+      arm: 'control',
+      action: 'control',
+      outcome: 'control',
+      fidelity: 'matched',
+      replayContext: replayContext('replica:context:control'),
+    });
+    ledger.recordTreatmentRun({
+      ...base,
+      id: 'run-context-treatment',
+      experimentId: contextMismatch.experimentId,
+      arm: 'treatment',
+      action: 'treatment',
+      outcome: 'treatment',
+      fidelity: 'matched',
+      replayContext: replayContext('replica:context:treatment', { checkpoint: 'checkpoint:different' }),
+    });
+    expect(() => ledger.admit({
+      ...base,
+      candidateId: candidate.candidateId,
+      experimentId: contextMismatch.experimentId,
+      reviewerId: 'agent:admiralty',
+    })).toThrow(/matching replay contexts/);
+    expect(() => ledger.recordTreatmentRun({
+      ...base,
+      id: 'run-missing-context',
+      experimentId: contextMismatch.experimentId,
+      arm: 'sham',
+      action: 'sham',
+      outcome: 'sham',
+      fidelity: 'matched',
+      replayContext: {} as any,
+    })).toThrow(/replayContext requires/);
+  });
+
+  it('admits first-cycle evidence provisionally only and never reactivates contested or retired doctrine', () => {
+    const { ledger, candidate } = seedCandidate();
+    const experiment = ledger.preregisterExperiment({
+      ...base,
+      id: 'experiment-first-cycle',
+      candidateId: candidate.candidateId,
+      hypothesis: 'One matched factual pair is only a provisional finding.',
+      primaryOutcome: 'provisional status',
+      control: 'control',
+      treatment: 'treatment',
+    });
+    for (const arm of ['control', 'treatment'] as const) {
+      ledger.recordTreatmentRun({
+        ...base,
+        id: `run-first-cycle-${arm}`,
+        experimentId: experiment.experimentId,
+        arm,
+        action: arm,
+        outcome: arm,
+        fidelity: 'matched',
+        replayContext: replayContext(`replica:first-cycle:${arm}`),
+      });
+    }
+    expect(() => ledger.admit({
+      ...base,
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+      status: 'established',
+    })).toThrow(/provisional only/);
+    const admitted = ledger.admit({
+      ...base,
+      idempotencyKey: 'admit:first-cycle',
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    });
+    expect(ledger.getDoctrine(admitted.doctrineId)?.doctrine.status).toBe('provisional');
+    ledger.contest({
+      ...base,
+      doctrineId: admitted.doctrineId,
+      reason: 'A later result contests the first-cycle finding.',
+    });
+    expect(() => ledger.admit({
+      ...base,
+      idempotencyKey: 'admit:contested-reactivation',
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    })).toThrow(/cannot be admitted or reactivated/);
+    ledger.retire({
+      ...base,
+      doctrineId: admitted.doctrineId,
+      reason: 'The contested first-cycle finding is retired pending a successor.',
+    });
+    expect(() => ledger.admit({
+      ...base,
+      idempotencyKey: 'admit:retired-reactivation',
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    })).toThrow(/cannot be admitted or reactivated/);
+  });
+
+  it('binds every referenced doctrine edge to one projectDir and exposes preregistration before admission', () => {
+    const { ledger, episode, candidate } = seedCandidate();
+    expect(() => ledger.proposeCandidate({
+      ...base,
+      id: 'candidate-cross-project',
+      projectDir: '/repo/other-project',
+      doctrineId: 'doctrine:cross-project',
+      episodeId: episode.episodeId,
+      decisionClass: 'integration.merge',
+      title: 'Cross-project candidate',
+      when: 'never',
+      prefer: 'never',
+      over: 'never',
+      because: 'cross-project evidence is invalid',
+    })).toThrow(/must exactly match/);
+    expect(() => ledger.preregisterExperiment({
+      ...base,
+      id: 'experiment-cross-project',
+      projectDir: '/repo/other-project',
+      candidateId: candidate.candidateId,
+      hypothesis: 'Cross-project experiment',
+      primaryOutcome: 'rejected',
+      control: 'control',
+      treatment: 'treatment',
+    })).toThrow(/experiment projectDir/);
+
+    const experiment = ledger.preregisterExperiment({
+      ...base,
+      id: 'experiment-project-binding',
+      candidateId: candidate.candidateId,
+      hypothesis: 'All referenced evidence stays in one project.',
+      primaryOutcome: 'no cross-project laundering',
+      control: 'control',
+      treatment: 'treatment',
+    });
+    expect(ledger.getDoctrine(candidate.doctrineId)?.experiment?.id).toBe(experiment.experimentId);
+    expect(ledger.getDoctrine(candidate.doctrineId)?.experiments.map((item) => item.id)).toEqual([experiment.experimentId]);
+    expect(() => ledger.recordTreatmentRun({
+      ...base,
+      id: 'run-cross-project',
+      projectDir: '/repo/other-project',
+      experimentId: experiment.experimentId,
+      arm: 'control',
+      action: 'control',
+      outcome: 'control',
+      fidelity: 'matched',
+      replayContext: replayContext('replica:cross-project'),
+    })).toThrow(/treatment run projectDir/);
+    for (const arm of ['control', 'treatment'] as const) {
+      ledger.recordTreatmentRun({
+        ...base,
+        id: `run-project-binding-${arm}`,
+        experimentId: experiment.experimentId,
+        arm,
+        action: arm,
+        outcome: arm,
+        fidelity: 'matched',
+        replayContext: replayContext(`replica:project-binding:${arm}`),
+      });
+    }
+    expect(() => ledger.admit({
+      ...base,
+      projectDir: '/repo/other-project',
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    })).toThrow(/admission projectDir/);
+    const admitted = ledger.admit({
+      ...base,
+      candidateId: candidate.candidateId,
+      experimentId: experiment.experimentId,
+      reviewerId: 'agent:admiralty',
+    });
+    expect(ledger.retrieve({
+      ...base,
+      id: 'retrieval-other-project',
+      projectDir: '/repo/other-project',
+      decisionId: 'decision-other-project',
+      decisionClass: 'integration.merge',
+    }).doctrines).toEqual([]);
+    const receipt = ledger.retrieve({
+      ...base,
+      id: 'retrieval-project-binding',
+      decisionId: 'decision-project-binding',
+      decisionClass: 'integration.merge',
+    });
+    expect(() => ledger.recordApplication({
+      ...base,
+      id: 'application-cross-project',
+      projectDir: '/repo/other-project',
+      retrievalId: receipt.receipt.id,
+      doctrineId: admitted.doctrineId,
+      response: 'follow',
+      decision: 'follow',
+    })).toThrow(/application projectDir/);
+    const application = ledger.recordApplication({
+      ...base,
+      id: 'application-project-binding',
+      retrievalId: receipt.receipt.id,
+      doctrineId: admitted.doctrineId,
+      response: 'follow',
+      decision: 'follow',
+    });
+    expect(() => ledger.recordOutcome({
+      ...base,
+      id: 'outcome-cross-project',
+      projectDir: '/repo/other-project',
+      applicationId: application.applicationId,
+      verdict: 'helped',
+      summary: 'cross-project outcome',
+      verifiedBy: 'receipt:cross-project',
+    })).toThrow(/outcome projectDir/);
+    expect(() => ledger.contest({
+      ...base,
+      projectDir: '/repo/other-project',
+      doctrineId: admitted.doctrineId,
+      reason: 'cross-project contest',
+    })).toThrow(/contest must be recorded/);
+    const successorCandidate = ledger.proposeCandidate({
+      ...base,
+      id: 'candidate-project-binding-successor',
+      doctrineId: 'doctrine:project-binding-successor',
+      episodeId: episode.episodeId,
+      decisionClass: 'integration.merge',
+      supersedesDoctrineId: admitted.doctrineId,
+      title: 'A linked successor stays in the same project.',
+      when: 'later evidence narrows the old advice',
+      prefer: 'the scoped successor',
+      over: 'the old revision',
+      because: 'supersession has a durable cited edge',
+    });
+    const successor = admitCandidate(ledger, successorCandidate.candidateId, 'project-binding-successor');
+    expect(() => ledger.supersede({
+      ...base,
+      projectDir: '/repo/other-project',
+      doctrineId: admitted.doctrineId,
+      successorDoctrineId: successor.doctrineId,
+      reason: 'cross-project supersession',
+    })).toThrow(/caller exact projectDir/);
+    expect(() => ledger.retire({
+      ...base,
+      projectDir: '/repo/other-project',
+      doctrineId: admitted.doctrineId,
+      reason: 'cross-project retirement',
+    })).toThrow(/retirement must be recorded/);
+  });
+
+  it('replays an idempotent retrieval from its canonical stored receipt instead of today’s active set', () => {
+    const { ledger, candidate } = seedCandidate();
+    const admitted = admitCandidate(ledger, candidate.candidateId, 'canonical-retrieval');
+    const input = {
+      ...base,
+      id: 'retrieval-canonical',
+      idempotencyKey: 'retrieve:canonical',
+      decisionId: 'decision-canonical',
+      decisionClass: 'integration.merge',
+    };
+    const first = ledger.retrieve(input);
+    expect(first.doctrines.map((item) => item.doctrineId)).toEqual([admitted.doctrineId]);
+    ledger.retire({
+      ...base,
+      doctrineId: admitted.doctrineId,
+      reason: 'Retired after the original decision-time receipt was recorded.',
+    });
+    const retry = ledger.retrieve(input);
+    expect(retry.receipt.id).toBe(first.receipt.id);
+    expect(retry.doctrines.map((item) => item.doctrineId)).toEqual([admitted.doctrineId]);
+    expect(retry.doctrines[0]?.status).toBe('retired');
+    expect(() => ledger.retrieve({
+      ...input,
+      id: 'retrieval-conflicting-idempotency',
+      decisionId: 'decision-conflicting',
+    })).toThrow(/idempotencyKey may only retry/);
   });
 });

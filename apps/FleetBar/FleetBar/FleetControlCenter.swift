@@ -8,7 +8,6 @@ struct FleetControlCenter: View {
     @ObservedObject var backendStore: BackendStore
     @StateObject private var cloudFleetStore = CloudFleetStore()
     @StateObject private var squidHarnessStore = SquidHarnessStore(baseURL: DaemonLocation.availableBaseURL())
-    @StateObject private var doctrineStore = FleetDoctrineStore(baseURL: DaemonLocation.availableBaseURL())
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
@@ -558,11 +557,6 @@ struct FleetControlCenter: View {
         switch selectedSurface {
         case .proposals:
             FleetProposalSection(store: proposalStore)
-        case .doctrine:
-            FleetDoctrineSection(
-                store: doctrineStore,
-                projectDir: selectedProject?.projectDir
-            )
         case .cloudfleet:
             ScrollView {
                 CloudFleetSection(

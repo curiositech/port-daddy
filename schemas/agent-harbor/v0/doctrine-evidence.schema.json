@@ -25,6 +25,7 @@
       "type": "string",
       "enum": [
         "decision_episode_recorded",
+        "doctrine_harvested",
         "doctrine_candidate_induced",
         "experiment_preregistered",
         "treatment_run_recorded",
@@ -33,7 +34,8 @@
         "doctrine_applied",
         "outcome_recorded",
         "doctrine_contested",
-        "doctrine_deprecated"
+        "doctrine_superseded",
+        "doctrine_retired"
       ]
     },
     "entityId": { "type": "string", "minLength": 1 },
@@ -47,6 +49,33 @@
       "minItems": 1,
       "items": { "type": "string", "minLength": 1 }
     },
-    "payload": { "type": "object" }
+    "payload": {
+      "type": "object",
+      "properties": {
+        "replayContext": {
+          "type": "object",
+          "required": [
+            "model",
+            "modelVersion",
+            "harness",
+            "worktree",
+            "environment",
+            "checkpoint",
+            "replicaId"
+          ],
+          "properties": {
+            "model": { "type": "string", "minLength": 1 },
+            "modelVersion": { "type": "string", "minLength": 1 },
+            "harness": { "type": "string", "minLength": 1 },
+            "worktree": { "type": "string", "minLength": 1 },
+            "environment": { "type": "string", "minLength": 1 },
+            "checkpoint": { "type": "string", "minLength": 1 },
+            "replicaId": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    }
   }
 }

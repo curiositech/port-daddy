@@ -6,7 +6,7 @@ const loopSteps = [
   {
     icon: BookOpenCheck,
     title: 'Cite the observed decision',
-    body: 'Capture a DecisionEpisode from an actual transcript, review thread, CI receipt, commit, or verifier result. Preserve the action, alternatives, and cues separately.',
+    body: 'Capture a DecisionEpisode from an actual transcript, review thread, CI receipt, commit, or verifier result. Preserve the action, alternatives, and cues separately; recurring exact-class observations may also be frozen in a harvest.',
   },
   {
     icon: FlaskConical,
@@ -41,11 +41,16 @@ export default function DoctrineFeature() {
           and the later result in one evidence stream instead of treating an agent&apos;s temperament as
           reusable knowledge.
         </p>
+        <p className="max-w-3xl leading-relaxed text-[var(--text-secondary)]">
+          The deep operator surface is the native <code>Doctrine</code> pane in pd-console. It reads and writes the
+          same daemon-backed ledger as the CLI, SDK, and MCP tools; it never shells out to them and never turns advice
+          into merge, deployment, or spend authority.
+        </p>
       </div>
 
       <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-6">
         <p className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-          The full loop
+          The core evidence loop
         </p>
         <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
           <div className="border border-[var(--border-strong)] bg-[var(--surface-base)] p-4 font-mono text-sm text-[var(--text-primary)]">Cited episode</div>
@@ -59,6 +64,9 @@ export default function DoctrineFeature() {
           <span className="hidden text-center text-[var(--brand-primary)] md:block">→</span>
           <div className="border border-[var(--border-strong)] bg-[var(--surface-base)] p-4 font-mono text-sm text-[var(--text-primary)]">Verified outcome or contest</div>
         </div>
+        <p className="mb-0 mt-4 max-w-3xl text-sm leading-relaxed text-[var(--text-secondary)]">
+          This diagram follows one candidate&apos;s core path. Harvest records recurrent evidence before proposal; explicit supersession or retirement closes a later doctrine revision without deleting its history.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -96,9 +104,10 @@ export default function DoctrineFeature() {
         </p>
         <DocsCodeBlock code={'# Each mutating command accepts a cited JSON input.\\npd doctrine record-episode --input @case13-episode.json\\npd doctrine propose --input @case13-candidate.json\\npd doctrine preregister --input @case13-experiment.json\\npd doctrine run doctrine-experiment_... --input @matched-control.json\\npd doctrine run doctrine-experiment_... --input @matched-treatment.json\\npd doctrine admit doctrine-candidate_... --input @admission.json\\n\\n# At a later comparable decision:\\npd doctrine orders --input @next-merge-decision.json\\npd doctrine application doctrine-retrieval_... --input @agent-response.json\\npd doctrine outcome doctrine-application_... --input @verified-outcome.json'} />
         <p className="max-w-3xl leading-relaxed text-[var(--text-secondary)]">
-          MCP exposes the same complete chain, from <code>record_doctrine_episode</code> through
-          <code>contest_doctrine</code>, with audit reads in <code>doctrine_list</code> and
-          <code>doctrine_get</code>. It is not a write-only harvesting path: the retrieval receipt,
+          MCP exposes the whole lifecycle: episode and harvest capture, candidate and experiment writes,
+          admission, retrieval, application, outcome, contest, supersession, retirement, and the four audit
+          reads (<code>doctrine_list</code>, <code>doctrine_get</code>, <code>doctrine_harvest_list</code>, and
+          <code>doctrine_harvest_get</code>). It is not a write-only harvesting path: the retrieval receipt,
           agent response, and later outcome remain part of the same evidence trail.{' '}
           <Link className="text-[var(--brand-primary)] hover:underline" to="/docs/mcp#doctrine_orders">Browse the MCP tools.</Link>
         </p>
@@ -108,7 +117,8 @@ export default function DoctrineFeature() {
         <h2 className="m-0 text-xl font-semibold text-[var(--text-primary)]">What the first slice does not claim</h2>
         <ul className="mt-4 space-y-2 leading-relaxed text-[var(--text-secondary)]">
           <li>It is advisory: an order never merges, blocks, or resolves a review thread.</li>
-          <li>Prompt-only or unmatched replay can be recorded, but cannot admit doctrine.</li>
+          <li>Prompt-only, unmatched, drifted, or same-replica replay can be recorded, but cannot admit doctrine. A qualifying control/treatment pair has matching replay context except for distinct replica IDs.</li>
+          <li>The daemon derives identity from its credential and makes every first-cycle admission provisional; callers cannot self-promote a doctrine to established.</li>
           <li>One verified application is an observed result, not a fleet-wide causal effect or a claim of automatic skill improvement.</li>
           <li>Current retrieval is exact on structured decision class and project scope; it is deliberately not a lexical-only or semantic substitute.</li>
         </ul>

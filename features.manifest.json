@@ -2647,7 +2647,10 @@
         "doctrineStatus",
         "listDoctrineCandidates",
         "getDoctrine",
+        "listDoctrineHarvests",
+        "getDoctrineHarvest",
         "recordDoctrineEpisode",
+        "harvestDoctrineEpisodes",
         "proposeDoctrineCandidate",
         "preregisterDoctrineExperiment",
         "recordDoctrineTreatmentRun",
@@ -2655,15 +2658,20 @@
         "retrieveDoctrineOrders",
         "recordDoctrineApplication",
         "recordDoctrineOutcome",
-        "contestDoctrine"
+        "contestDoctrine",
+        "supersedeDoctrine",
+        "retireDoctrine"
       ],
       "routes": [
         "GET /doctrine/status",
         "GET /doctrine/candidates",
         "GET /doctrine/episodes",
+        "GET /doctrine/harvests",
+        "GET /doctrine/harvests/:param",
         "GET /doctrine/experiments/:param",
         "GET /doctrine/:param",
         "POST /doctrine/episodes",
+        "POST /doctrine/harvests",
         "POST /doctrine/candidates",
         "POST /doctrine/experiments",
         "POST /doctrine/experiments/:param/runs",
@@ -2671,12 +2679,17 @@
         "POST /doctrine/orders",
         "POST /doctrine/retrievals/:param/application",
         "POST /doctrine/applications/:param/outcome",
-        "POST /doctrine/:param/contest"
+        "POST /doctrine/:param/contest",
+        "POST /doctrine/:param/supersede",
+        "POST /doctrine/:param/retire"
       ],
       "mcp": [
         "doctrine_list",
         "doctrine_get",
+        "doctrine_harvest_list",
+        "doctrine_harvest_get",
         "record_doctrine_episode",
+        "harvest_doctrine_episodes",
         "propose_doctrine_candidate",
         "preregister_doctrine_experiment",
         "record_doctrine_treatment_run",
@@ -2684,7 +2697,9 @@
         "doctrine_orders",
         "record_doctrine_application",
         "record_doctrine_outcome",
-        "contest_doctrine"
+        "contest_doctrine",
+        "supersede_doctrine",
+        "retire_doctrine"
       ],
       "completions": [
         "doctrine"
@@ -2693,7 +2708,7 @@
         "readme": true,
         "sdk": true
       },
-      "_note": "Advisory only. The canonical store is the append-only Agent Harbor doctrine-evidence stream, not a mutable doctrine table or skill file. Admission requires matched factual control and treatment runs from the candidate's preregistered experiment; prompt-only or unmatched replay can be recorded but cannot admit doctrine. Retrieval is exact by project directory and structured decision class, and every live retrieval writes a receipt before the agent responds."
+      "_note": "Advisory only. The canonical store is the append-only Agent Harbor doctrine-evidence stream, not a mutable doctrine table or skill file. The deep operator surface is the pd-console Doctrine pane, which calls the shared daemon contract directly rather than shelling out to CLI or MCP. Admission requires matched factual control and treatment runs from the candidate's preregistered experiment; prompt-only or unmatched replay can be recorded but cannot admit doctrine. Retrieval is exact by project directory and structured decision class, and every live retrieval writes a receipt before the agent responds."
     }
   }
 }

@@ -192,7 +192,10 @@ const TunnelStopTool = lazy(() => import('@/pages/docs/mcp/TunnelStopTool'))
 const WatchTool = lazy(() => import('@/pages/docs/mcp/WatchTool'))
 const DoctrineListTool = lazy(() => import('@/pages/docs/mcp/DoctrineListTool'))
 const DoctrineGetTool = lazy(() => import('@/pages/docs/mcp/DoctrineGetTool'))
+const DoctrineHarvestListTool = lazy(() => import('@/pages/docs/mcp/DoctrineHarvestListTool'))
+const DoctrineHarvestGetTool = lazy(() => import('@/pages/docs/mcp/DoctrineHarvestGetTool'))
 const RecordDoctrineEpisodeTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineEpisodeTool'))
+const HarvestDoctrineEpisodesTool = lazy(() => import('@/pages/docs/mcp/HarvestDoctrineEpisodesTool'))
 const ProposeDoctrineCandidateTool = lazy(() => import('@/pages/docs/mcp/ProposeDoctrineCandidateTool'))
 const PreregisterDoctrineExperimentTool = lazy(() => import('@/pages/docs/mcp/PreregisterDoctrineExperimentTool'))
 const RecordDoctrineTreatmentRunTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineTreatmentRunTool'))
@@ -201,6 +204,8 @@ const DoctrineOrdersTool = lazy(() => import('@/pages/docs/mcp/DoctrineOrdersToo
 const RecordDoctrineApplicationTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineApplicationTool'))
 const RecordDoctrineOutcomeTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineOutcomeTool'))
 const ContestDoctrineTool = lazy(() => import('@/pages/docs/mcp/ContestDoctrineTool'))
+const SupersedeDoctrineTool = lazy(() => import('@/pages/docs/mcp/SupersedeDoctrineTool'))
+const RetireDoctrineTool = lazy(() => import('@/pages/docs/mcp/RetireDoctrineTool'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -416,7 +421,10 @@ createRoot(document.getElementById('root')!).render(
               <Route path="mcp/watch" element={<WatchTool />} />
               <Route path="mcp/doctrine-list" element={<DoctrineListTool />} />
               <Route path="mcp/doctrine-get" element={<DoctrineGetTool />} />
+              <Route path="mcp/doctrine-harvest-list" element={<DoctrineHarvestListTool />} />
+              <Route path="mcp/doctrine-harvest-get" element={<DoctrineHarvestGetTool />} />
               <Route path="mcp/record-doctrine-episode" element={<RecordDoctrineEpisodeTool />} />
+              <Route path="mcp/harvest-doctrine-episodes" element={<HarvestDoctrineEpisodesTool />} />
               <Route path="mcp/propose-doctrine-candidate" element={<ProposeDoctrineCandidateTool />} />
               <Route path="mcp/preregister-doctrine-experiment" element={<PreregisterDoctrineExperimentTool />} />
               <Route path="mcp/record-doctrine-treatment-run" element={<RecordDoctrineTreatmentRunTool />} />
@@ -425,6 +433,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="mcp/record-doctrine-application" element={<RecordDoctrineApplicationTool />} />
               <Route path="mcp/record-doctrine-outcome" element={<RecordDoctrineOutcomeTool />} />
               <Route path="mcp/contest-doctrine" element={<ContestDoctrineTool />} />
+              <Route path="mcp/supersede-doctrine" element={<SupersedeDoctrineTool />} />
+              <Route path="mcp/retire-doctrine" element={<RetireDoctrineTool />} />
 
               <Route path="api" element={<ApiReference />} />
               <Route path="api/endpoints" element={<ApiReference />} />

@@ -819,20 +819,35 @@ await pd.arbiterTestInvariant('NOTE_MONOTONICITY');
 
 ## Empirically Earned Doctrine (CASE-13)
 
-The doctrine SDK exposes a complete, append-only evidence loop for a conditional
+The doctrine SDK preserves an append-only evidence loop for a conditional
 decision rule. It is advisory: it never grants merge authority, blocks a change,
 or treats a transcript as proof that a fleet has learned. The canonical store is
 the Agent Harbor `doctrine-evidence` event stream.
 
-Every write carries `projectDir`, `actorId`, and one or more durable `citations`.
-Use the same project scope and structured `decisionClass` when retrieving advice
-for a live choice.
+Every mutation needs a daemon-minted actor credential. Give the client its
+credential directly or set `PORT_DADDY_ACTOR_CREDENTIAL`; it is sent as
+`x-actor-credential`. The public SDK write inputs intentionally omit `actorId`,
+and admission inputs omit `reviewerId`: the daemon derives both from that
+credential rather than trusting a caller-supplied identity. Every write still
+needs `projectDir` and one or more durable `citations`.
 
 ```typescript
+const pd = new PortDaddy({
+  credential: process.env.PORT_DADDY_ACTOR_CREDENTIAL,
+});
+
 const evidence = {
   projectDir: '/workspace/app',
-  actorId: 'steward-7',
   citations: ['pr:482', 'ci:482'],
+};
+
+const replay = {
+  model: 'the-original-model',
+  modelVersion: 'exact-checkpoint-version',
+  harness: 'the-original-harness',
+  worktree: '/workspace/app',
+  environment: 'named-dev-berth',
+  checkpoint: 'fork:case-13:before-merge',
 };
 
 // 1. Record what happened, then propose a falsifiable explanation.
@@ -858,7 +873,7 @@ const candidate = await pd.proposeDoctrineCandidate({
   unless: ['the thread contains an unaddressed technical finding'],
 });
 
-// 2. Preregister and run matched factual control and treatment arms.
+// 2. Preregister and run compatible, independently executed factual arms.
 const experiment = await pd.preregisterDoctrineExperiment({
   ...evidence,
   candidateId: candidate.candidate.candidateId,
@@ -874,6 +889,7 @@ await pd.recordDoctrineTreatmentRun(experiment.experiment.experimentId, {
   action: 'merge after checking the thread',
   outcome: 'thread state alone did not block the merge',
   fidelity: 'matched',
+  replayContext: { ...replay, replicaId: 'control-01' },
 });
 
 await pd.recordDoctrineTreatmentRun(experiment.experiment.experimentId, {
@@ -882,19 +898,20 @@ await pd.recordDoctrineTreatmentRun(experiment.experiment.experimentId, {
   action: 'request a technical response before merge',
   outcome: 'independent evidence changed the decision',
   fidelity: 'matched',
+  replayContext: { ...replay, replicaId: 'treatment-01' },
 });
 
-// 3. Admission creates an advisory packet only after both factual arms match.
+// 3. The daemon stamps the first admitted revision as provisional.
 const admission = await pd.admitDoctrine(candidate.candidate.candidateId, {
   ...evidence,
   experimentId: experiment.experiment.experimentId,
-  reviewerId: 'reviewer-2',
-  status: 'provisional',
 });
 
 // 4. Retrieve before a comparable decision, then preserve the response.
 const orders = await pd.retrieveDoctrineOrders({
   ...evidence,
+  id: 'doctrine-retrieval:merge-483',
+  idempotencyKey: 'case-13:merge-483:orders',
   decisionId: 'merge-483',
   decisionClass: 'integration.merge',
 });
@@ -918,23 +935,35 @@ await pd.recordDoctrineOutcome(application.application.applicationId, {
 | Method | Purpose |
 |--------|---------|
 | `pd.doctrineStatus()` | Inspect counts and the canonical Harbor-store status. |
-| `pd.listDoctrineCandidates(options?)` | List candidate or admitted revisions without applying advice. |
-| `pd.getDoctrine(doctrineId)` | Read the episode, experiment, retrievals, applications, outcomes, and contest history for one revision. |
-| `pd.recordDoctrineEpisode(input)` | Record a concrete decision episode. |
+| `pd.listDoctrineCandidates(options?)` / `pd.getDoctrine(id)` | List or inspect candidates and admitted revisions without applying advice. |
+| `pd.listDoctrineHarvests(options?)` / `pd.getDoctrineHarvest(id)` | List or inspect frozen recurring-observation harvests. |
+| `pd.recordDoctrineEpisode(input)` / `pd.harvestDoctrineEpisodes(input)` | Append a concrete decision episode or freeze an exact-class, cited observation set. |
 | `pd.proposeDoctrineCandidate(input)` | Propose a conditional, falsifiable candidate grounded in an episode. |
 | `pd.preregisterDoctrineExperiment(input)` | Define the control, treatment, primary outcome, and optional sham before results. |
-| `pd.recordDoctrineTreatmentRun(experimentId, input)` | Append one control, treatment, or sham result with fidelity. |
-| `pd.admitDoctrine(candidateId, input)` | Admit a provisional or established advisory packet after the factual-fidelity gate passes; propose a successor candidate for a revision rather than changing its doctrine ID. |
+| `pd.recordDoctrineTreatmentRun(experimentId, input)` | Append one replay arm with required replay context and fidelity. |
+| `pd.admitDoctrine(candidateId, input)` | Append a first-cycle, provisional advisory revision after the hard factual-fidelity gate passes. |
 | `pd.retrieveDoctrineOrders(input)` | Retrieve exact structured decision-class matches and append a decision-time receipt. |
 | `pd.recordDoctrineApplication(retrievalId, input)` | Record whether the agent followed, adapted, or rejected a packet it actually saw. |
 | `pd.recordDoctrineOutcome(applicationId, input)` | Attach a later verifier-backed outcome. |
-| `pd.contestDoctrine(doctrineId, input)` | Preserve contrary evidence and remove a contested packet from active retrieval without deleting history. |
+| `pd.contestDoctrine(id, input)` | Preserve contrary evidence and remove a contested packet from active retrieval without deleting history. |
+| `pd.supersedeDoctrine(id, input)` / `pd.retireDoctrine(id, input)` | Retire an active revision in favor of an explicitly linked successor, or retire it without deleting evidence. |
 
 **Factual-fidelity gate:** prompt-only or mismatched replay may be recorded for
-research, but cannot admit doctrine. Admission requires matched factual control
-and treatment runs from the candidate's own preregistered experiment. Current
-retrieval is exact by `projectDir` and structured `decisionClass`; it is not a
-semantic or lexical fallback.
+research, but cannot admit doctrine. The candidate's own preregistered
+experiment must contain one matched `control` and one matched `treatment`; both
+must carry `replayContext` with the same `model`, `modelVersion`, `harness`,
+`worktree`, `environment`, and `checkpoint`, but distinct `replicaId` values.
+The first admission is always `provisional`; callers cannot promote it to
+`established`.
+
+**Identity, binding, and retries:** records are project-bound and immutable.
+A doctrine ID cannot be rewritten at admission: revise through a separately
+proposed successor candidate, then supersede the older active revision. Stable
+`id` and `idempotencyKey` values make retries return the original durable receipt.
+For retrieval, the key may only be retried with the same project, decision ID,
+and exact decision class; otherwise the daemon rejects it. Current retrieval is
+exact by `projectDir` and structured `decisionClass`, not a semantic or lexical
+fallback.
 
 See the [CASE-13 doctrine-cycle tutorial](tutorials/case-13-doctrine-cycle.md)
 for the operator workflow and the [proposal](proposals/empirically-earned-fleet-doctrine.md)

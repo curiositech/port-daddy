@@ -470,15 +470,16 @@ Count tuples, optionally scoped to a harbor.
 ## Empirically Earned Doctrine
 
 The SDK exposes the CASE-13 evidence loop as typed methods over the same
-append-only Harbor `doctrine-evidence` stream used by the CLI, MCP, and
-FleetBar. It is **advisory**: retrieval returns cited guidance and a receipt;
+append-only Harbor `doctrine-evidence` stream used by the CLI and MCP. The deep
+operator surface is pd-console's Doctrine pane. It is **advisory**: retrieval returns cited guidance and a receipt;
 it never authorizes a merge, policy, review-thread action, or enforcement
 change.
 
 ```js
+const pd = new PortDaddy({ credential: process.env.PORT_DADDY_ACTOR_CREDENTIAL })
+
 const episode = await pd.recordDoctrineEpisode({
   projectDir: process.cwd(),
-  actorId: 'steward',
   citations: ['github:pull:CASE-13#review-thread-7'],
   decisionClass: 'integration.merge',
   summary: 'Steward withheld a green merge while one bot thread was unresolved.',
@@ -487,7 +488,6 @@ const episode = await pd.recordDoctrineEpisode({
 
 const candidate = await pd.proposeDoctrineCandidate({
   projectDir: process.cwd(),
-  actorId: 'steward',
   citations: ['github:pull:CASE-13#review-thread-7'],
   episodeId: episode.episode.episodeId,
   decisionClass: 'integration.merge',
@@ -500,7 +500,6 @@ const candidate = await pd.proposeDoctrineCandidate({
 
 const packet = await pd.retrieveDoctrineOrders({
   projectDir: process.cwd(),
-  actorId: 'steward',
   citations: ['receipt:decision:PR-9844:pre-merge'],
   decisionId: 'decision:PR-9844:merge',
   decisionClass: 'integration.merge',
@@ -515,10 +514,13 @@ const packet = await pd.retrieveDoctrineOrders({
   `decisionClass`; this never applies guidance.
 - `pd.getDoctrine(doctrineId)` — read the linked episode, experiment, receipts,
   applications, and outcomes.
+- `pd.listDoctrineHarvests(options?)` / `pd.getDoctrineHarvest(harvestId)` —
+  inspect frozen recurring-observation evidence.
 
 ### Evidence and decision-time methods
 
 - `pd.recordDoctrineEpisode(input)`
+- `pd.harvestDoctrineEpisodes(input)`
 - `pd.proposeDoctrineCandidate(input)`
 - `pd.preregisterDoctrineExperiment(input)`
 - `pd.recordDoctrineTreatmentRun(experimentId, input)`
@@ -527,14 +529,25 @@ const packet = await pd.retrieveDoctrineOrders({
 - `pd.recordDoctrineApplication(retrievalId, input)`
 - `pd.recordDoctrineOutcome(applicationId, input)`
 - `pd.contestDoctrine(doctrineId, input)`
+- `pd.supersedeDoctrine(doctrineId, input)` / `pd.retireDoctrine(doctrineId, input)`
 
-Every input includes `projectDir`, `actorId`, and non-empty `citations`.
-Admission refuses prompt-only or otherwise unmatched reconstructions: the
-candidate's preregistered experiment needs both matched factual control and
-treatment runs. An application must name a doctrine actually present in the
+Every public write input includes `projectDir` and non-empty `citations`; the
+SDK sends its daemon-minted credential as `x-actor-credential`, and the daemon
+derives the persisted writer and admission reviewer. Do not supply `actorId` or
+`reviewerId` as authority claims. Admission refuses prompt-only, unmatched,
+drifted, or same-replica reconstructions: the candidate's preregistered
+experiment needs matched factual control and treatment runs with the same model,
+model version, harness, worktree, environment, and checkpoint but distinct
+`replicaId`s. First-cycle admission is provisional only.
+
+An application must name a doctrine actually present in the same-project
 retrieval receipt, so outcome attribution cannot be silently attached to advice
 the agent never saw. A contest preserves the original event history and removes
-the doctrine from active advisory retrieval.
+the doctrine from active advisory retrieval. Entities are immutable and
+project-bound: create a successor candidate and explicitly supersede the prior
+revision instead of rewriting its ID. Stable IDs and idempotency keys return the
+canonical receipt for the same request; retrieval retries must retain project,
+decision ID, and exact decision class.
 
 ---
 
