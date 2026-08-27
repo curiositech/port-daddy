@@ -1,0 +1,62 @@
+{
+  "schema": "pd.agent-harbor.dream-rig-containment-spec.v0",
+  "name": "dream-rig-lifecycle-scenario",
+  "isolationDimensions": [
+    "filesystem",
+    "network",
+    "process",
+    "secrets",
+    "resources"
+  ],
+  "egressPolicy": { "mode": "allowlist", "default": "deny", "allow": [] },
+  "pathPolicy": {
+    "mode": "allowlist",
+    "jailRoot": "$SCENARIO_ROOT",
+    "allowedRoots": ["$SCENARIO_ROOT"],
+    "realpathChecked": true
+  },
+  "secretHandling": { "mode": "fake-credentials", "exposedToSandbox": true },
+  "adversarialCases": [
+    {
+      "id": "ssrf-metadata",
+      "invariant": "Metadata and private hosts are refused before a socket is opened.",
+      "threatClass": "ssrf",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "assertSafeOutboundUrl"
+    },
+    {
+      "id": "path-symlink-escape",
+      "invariant": "Traversal and symlink targets cannot escape the scenario root.",
+      "threatClass": "path-traversal",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath"
+    },
+    {
+      "id": "secret-canary",
+      "invariant": "The fake credential is scrubbed and any appearance outside the jail is a failure.",
+      "threatClass": "secret-exfil",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "scrubRawSecretsFromEnv"
+    },
+    {
+      "id": "resource-process-tree",
+      "invariant": "The complete process tree is terminated when its declared resource budget is exceeded.",
+      "threatClass": "resource-exhaustion",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "process-group-limit"
+    },
+    {
+      "id": "side-effect-persistence",
+      "invariant": "The scenario cannot write git hooks or operating-system persistence files.",
+      "threatClass": "side-effect-write",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath+ToolGate"
+    }
+  ],
+  "failMode": "fail-closed"
+}

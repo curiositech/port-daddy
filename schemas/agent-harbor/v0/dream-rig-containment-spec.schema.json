@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/dream-rig-containment-spec.schema.json",
+  "title": "DreamRigContainmentSpec",
+  "description": "Fail-closed isolation policy and hostile-case inventory for one Dream Rig scenario family.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.dream-rig-containment-spec.v0" },
+    "name": { "type": "string", "minLength": 1 },
+    "isolationDimensions": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "enum": ["filesystem", "network", "process", "secrets", "resources"]
+      }
+    },
+    "egressPolicy": {
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["allowlist", "denylist"] },
+        "default": { "enum": ["allow", "deny"] },
+        "allow": { "type": "array", "items": { "type": "string" } },
+        "deny": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["mode", "default"],
+      "additionalProperties": true
+    },
+    "pathPolicy": {
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["allowlist", "denylist"] },
+        "jailRoot": { "type": "string", "minLength": 1 },
+        "allowedRoots": { "type": "array", "items": { "type": "string" } },
+        "realpathChecked": { "type": "boolean" }
+      },
+      "required": ["mode", "jailRoot", "realpathChecked"],
+      "additionalProperties": true
+    },
+    "secretHandling": {
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["fake-credentials", "redacted", "real", "none"] },
+        "exposedToSandbox": { "type": "boolean" }
+      },
+      "required": ["mode", "exposedToSandbox"],
+      "additionalProperties": true
+    },
+    "adversarialCases": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "invariant": { "type": "string", "minLength": 1 },
+          "threatClass": {
+            "enum": [
+              "ssrf",
+              "path-traversal",
+              "secret-exfil",
+              "resource-exhaustion",
+              "side-effect-write"
+            ]
+          },
+          "expected": { "const": "contained" },
+          "failMode": { "enum": ["fail-closed", "fail-open"] },
+          "mechanism": { "type": "string" }
+        },
+        "required": ["id", "invariant", "threatClass", "expected", "failMode"],
+        "additionalProperties": true
+      }
+    },
+    "failMode": { "enum": ["fail-closed", "fail-open"] }
+  },
+  "required": [
+    "schema",
+    "name",
+    "isolationDimensions",
+    "egressPolicy",
+    "pathPolicy",
+    "secretHandling",
+    "adversarialCases",
+    "failMode"
+  ],
+  "additionalProperties": true
+}
