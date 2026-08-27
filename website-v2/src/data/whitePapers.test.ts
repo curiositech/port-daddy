@@ -177,11 +177,11 @@ describe('whitepaper metadata sync', () => {
     })
   })
 
-  test('audited Legible metadata names the collected-volume edition', () => {
+  test('audited Legible metadata names the collected-volume figure edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('legible-swarm')).toMatchObject({
       pages: 42,
-      status: 'Version 1.2 (collected-volume edition)',
+      status: 'Version 1.3 (collected-volume figure edition)',
     })
   })
 

@@ -1,8 +1,6 @@
-% Figure 9 — the five built read-surfaces, each a token-compaction producing a
-% reader-specific digest. The swarm's coordination layer IS a distributed
-% compaction engine.
-% Design: each surface is a name + what it answers; the compaction mechanism
-% per surface lives in the caption.
+% Figure 9 — one source log, five reader-specific instruments.  The painted
+% journal is deliberately non-textual; names, readers, and relations remain
+% typeset here so the claim stays inspectable and correctable.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -10,46 +8,54 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  raw/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=5pt,font=\footnotesize,text width=30mm},
-  prim/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,align=center,
-               inner sep=4pt,font=\footnotesize,text width=36mm,minimum height=12mm},
-  rdr/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=4pt,font=\footnotesize,text width=26mm},
-  e/.style={-{Latex[length=1.8mm]},thick,hhink},
+  x=1cm,y=1cm,
+  % These cards deliberately occupy the five paper slips painted on the plate.
+  % A single source-owned rail makes their edges and baselines exact instead of
+  % leaving five small labels adrift over five larger generated rectangles.
+  reader/.style={draw=none,fill=hhpaper!98,align=left,
+                 inner sep=2.7pt,font=\scriptsize,text width=37mm,
+                 minimum height=10mm,text=hhink},
+  raw/.style={draw=none,fill=hhpaper!78,rounded corners=1pt,align=center,
+              inner sep=3pt,font=\scriptsize,text width=31mm,text=hhink},
+  route/.style={-{Latex[length=1.6mm]},line width=.7pt,hhteal!85},
 ]
-\node[raw] (raw) at (0,0) {raw token\\trajectory\\(transcripts,\\diffs, events)};
+  \node[inner sep=0] (plate) at (0,0)
+    {\includegraphics[width=.90\textwidth]{figures/assets/legible-swarm-read-surfaces-log.jpg}};
 
-\node[prim] (br)  at (5.4,3.2) {\textbf{Briefing}\\\emph{state on arrival}};
-\node[prim] (at)  at (5.4,1.6) {\textbf{Attention}\\\emph{what to look at now}};
-\node[prim] (ep)  at (5.4,0.0) {\textbf{Episodic memory}\\\emph{what happened before}};
-\node[prim] (ph)  at (5.4,-1.6){\textbf{Pheromone}\\\emph{the shared trace map}};
-\node[prim] (re)  at (5.4,-3.2){\textbf{Resurrection}\\\emph{notes, not checkpoints}};
+  % The left book is the durable source; every right-hand object is a different
+  % read product.  These arrows are the semantic layer, not the painted routes.
+  \node[raw] (log) at (-4.05,0.30)
+    {\textsc{Raw ship's log}\\[-1pt]\emph{transcripts, diffs, events}};
+  \node[reader] (brief) at (4.57,3.16)
+    {\textbf{Briefing:} arrival state\\[-1pt]\emph{reader: arriving agent}};
+  \node[reader] (attention) at (4.57,1.82)
+    {\textbf{Attention:} what matters now\\[-1pt]\emph{reader: operator queue}};
+  \node[reader] (memory) at (4.57,0.27)
+    {\textbf{Episodic memory:} what happened before\\[-1pt]\emph{reader: future self}};
+  \node[reader] (pheromone) at (4.57,-1.46)
+    {\textbf{Pheromone:} shared trace map\\[-1pt]\emph{reader: the swarm}};
+  \node[reader] (resurrection) at (4.57,-3.19)
+    {\textbf{Resurrection:} handoff, not checkpoint\\[-1pt]\emph{reader: successor}};
 
-\node[rdr] (r1) at (10.4,3.2) {arriving agent};
-\node[rdr] (r2) at (10.4,1.6) {agent / operator queue};
-\node[rdr] (r3) at (10.4,0.0) {future self / successor};
-\node[rdr] (r4) at (10.4,-1.6){the swarm (stigmergic)};
-\node[rdr] (r5) at (10.4,-3.2){successor agent};
-
-\foreach \p in {br,at,ep,ph,re}{ \draw[e] (raw) -- (\p); }
-\draw[e] (br)--(r1); \draw[e] (at)--(r2); \draw[e] (ep)--(r3);
-\draw[e] (ph)--(r4); \draw[e] (re)--(r5);
-\end{tikzpicture}%
-}
-\caption{Five read-surfaces, each a token-compaction of the raw trajectory produced
-for a specific reader (\S\ref{sec:tokens-digest}): briefing is external note-taking,
-attention is precision compaction, episodic memory is recall-then-precision,
-pheromone is time-decay (forgetting), resurrection is a handoff summary. Viewed
-correctly, the swarm's coordination layer is a \emph{distributed compaction engine}
---- and because each surface is a compaction, each is governed by the same
-cost-and-legibility economics, the same recency-decay (Prop.~\ref{prop:decay}), and
-the same one law (Def.~\ref{def:zoom}).}
+  \draw[route] (log.east) to[out=12,in=180] (brief.west);
+  \draw[route] (log.east) to[out=7,in=180] (attention.west);
+  \draw[route] (log.east) -- (memory.west);
+  \draw[route] (log.east) to[out=-7,in=180] (pheromone.west);
+  \draw[route] (log.east) to[out=-12,in=180] (resurrection.west);
+  \node[font=\scriptsize\itshape,text=hhgray,fill=hhpaper!72,inner sep=1.5pt]
+    at (-.25,4.58) {one voyage, five readings};
+\end{tikzpicture}
+\caption{One durable ship's log becomes five reader-specific instruments, not one
+general-purpose summary.  The same raw trajectory yields an arrival briefing,
+an operator attention queue, episodic recall, a decaying swarm trace, and a
+successor handoff; each compacts for its reader while preserving a zoom path to
+the underlying artifact.  Thus the coordination layer is a \emph{distributed
+compaction engine}: its cost, recency-decay (Prop.~\ref{prop:decay}), and
+legibility obligations are shared even though its readings differ.}
 \label{fig:read-surfaces}
 \end{figure}

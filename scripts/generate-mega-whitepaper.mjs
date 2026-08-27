@@ -13,7 +13,7 @@
  * silently from its chapters.
  */
 
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -282,6 +282,14 @@ function generate() {
   ].join('\n');
 
   mkdirSync(outDir, { recursive: true });
+  // Inlined chapter figures keep their authored relative asset paths.  Mirror
+  // those non-textual plates beside the generated body so the collected volume
+  // resolves exactly the same figures as the standalone chapter build.
+  cpSync(
+    resolve(repoRoot, 'whitepaper/figures/assets'),
+    resolve(outDir, 'figures/assets'),
+    { recursive: true },
+  );
   writeFileSync(resolve(outDir, 'mega-volume-body.tex'), `${generatedBodies.join('\n\n\\clearpage\n\n')}\n`, 'utf8');
   writeFileSync(resolve(outDir, 'mega-volume-bibliography.tex'), bibliography, 'utf8');
   writeFileSync(

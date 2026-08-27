@@ -1,7 +1,6 @@
-% Figure 11 — role assignment in Hobbes' author/actor frame.
-% operator = author, daemon = sovereign-actor, agents = multitude.
-% Design: each role is a name + one line; each relation gets its own arrow
-% (down-arrows on the left, up-arrows on the right), one label per arrow.
+% Figure 11 — semantic source: legible-swarm-roles.mmd.  This is a simple
+% Mermaid LR flow: operator -> scoped grant -> daemon -> agent multitude.
+% The print rendering remains LaTeX-owned so its text is searchable and crisp.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -9,48 +8,35 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.72\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  role/.style={draw=hhebony,very thick,rounded corners=4pt,align=center,inner sep=7pt,
-               font=\footnotesize,text width=52mm},
-  e/.style={-{Latex[length=2.4mm]},very thick},
+  role/.style={draw=hhink,line width=.75pt,fill=hhsand!26,rounded corners=2pt,
+               align=center,minimum width=25mm,minimum height=17mm,
+               inner sep=2.8pt,font=\scriptsize,text width=22mm,text=hhink},
+  route/.style={-{Latex[length=1.8mm]},line width=.8pt,hhink},
+  grant/.style={route,hhamber},
+  act/.style={route,hhteal},
+  edgelabel/.style={midway,above,fill=hhpaper,inner sep=1.1pt,
+                    font=\tiny,align=center,text=hhink},
 ]
-\node[role,fill=hhsand!30] (author) at (0,3.2)
-  {\textbf{Operator = AUTHOR}\\\emph{owns the authority; holds the inalienable override}};
-\node[role,fill=hhsand!30] (actor) at (0,0.2)
-  {\textbf{Daemon = SOVEREIGN (actor)}\\\emph{exercises the authority --- and is the \textbf{most} legible actor}};
-\node[role,fill=hhsand!30] (mult) at (0,-2.8)
-  {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1), enforced by the daemon}};
+  \node[role] (operator) {\textbf{Operator}\\\textsc{author}\\\emph{issues and revokes}};
+  \node[role,right=11mm of operator] (scope)
+    {\textbf{Scoped grant}\\\emph{revocable by operator}};
+  \node[role,right=11mm of scope] (daemon)
+    {\textbf{Daemon}\\\textsc{sovereign actor}\\\emph{acts legibly}};
+  \node[role,right=11mm of daemon] (agents)
+    {\textbf{Agents}\\\textsc{the multitude}\\\emph{mutual covenant}};
 
-% one arrow per relation: down on the left, up on the right
-\draw[e,hhamber] ([xshift=-9mm]author.south) -- ([xshift=-9mm]actor.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{authorizes (scoped grant)};
-\draw[e,hhamber] ([xshift=9mm]actor.north) -- ([xshift=9mm]author.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{revoked by override};
-\draw[e,hhink] ([xshift=-9mm]actor.south) -- ([xshift=-9mm]mult.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{rules over};
-\draw[e,hhink] ([xshift=9mm]mult.north) -- ([xshift=9mm]actor.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{legible to};
-
-% the covenant loop on the multitude
-\draw[e,hhteal] ([xshift=-3mm]mult.south west) to[bend right=40]
-  node[below=1mm,font=\scriptsize,text=hhink]{covenant among subjects}
-  ([xshift=3mm]mult.south east);
-\end{tikzpicture}%
-}
-\caption{Role assignment (\S\ref{sec:roles}) in Hobbes' author/actor distinction
-(\emph{Leviathan} ch.~16). The \emph{agents} are the multitude who covenant
-each-with-all; the \emph{daemon} is the sovereign-as-actor that exercises the
-instituted authority --- blocking, landing, escalating --- but, by the
-legible-sovereign amendment (Prop.~\ref{prop:legible-sovereign}), is the most
-legible actor, not the least; the \emph{operator} is the \emph{author} who owns the
-authority, issues scoped consent grants (Def.~\ref{def:consent}), and holds the
-inalienable override (Prop.~\ref{prop:override}). Naming the operator ``the
-sovereign'' would break the covenant; the author slot is the one Hobbes leaves for
-the one who authorizes without personally acting.}
+  \draw[grant] (operator) -- (scope);
+  \draw[grant] (scope) -- node[edgelabel] {authorizes} (daemon);
+  \draw[act] (daemon) -- (agents);
+\end{tikzpicture}
+\caption{Authority has one readable route: the operator issues a scoped grant,
+which authorizes the daemon to act over the agent multitude.  The operator alone
+can revoke the grant.  The agents' covenant is internal to the multitude; it is
+not a return arrow from subjects to the sovereign.}
 \label{fig:roles}
 \end{figure}

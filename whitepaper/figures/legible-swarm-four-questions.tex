@@ -1,7 +1,7 @@
-% Figure 4 — the four design questions as a decision flow for any read-surface.
-% Design: vertical spine, asked in order top to bottom (they are not branches);
-% each question's obligation sits to its right. No resizebox shrink — the text
-% renders at its natural size.
+% Figure 4 — the four questions as a compact pre-departure log.
+% The generated field-journal image supplies atmosphere only.  Every question,
+% obligation, order marker, and the "may sail" condition is typeset below so the
+% paper, rather than a raster image, owns the claim.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -13,41 +13,29 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  font=\small,
-  q/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-            align=left,inner sep=6pt,font=\footnotesize,text width=46mm,
-            minimum height=11mm},
-  act/.style={draw=hhteal,thick,rounded corners=2pt,fill=hhpaper,
-              align=left,inner sep=5pt,font=\footnotesize,text=hhink,text width=52mm},
-  edge/.style={-{Latex[length=2mm]},thick,hhink},
-  ob/.style={-{Latex[length=2mm]},thick,hhteal},
+  loglabel/.style={fill=hhpaper,fill opacity=.93,text opacity=1,rounded corners=1pt,
+                   align=left,inner sep=2.5pt,font=\footnotesize,text=hhink,text width=33mm},
+  launch/.style={fill=hhebony,fill opacity=.94,text opacity=1,rounded corners=1pt,
+                 align=center,inner sep=3pt,font=\scriptsize\bfseries\color{hhpaper},text width=42mm},
 ]
-\node[q] (q1) at (0,0)    {\textbf{Q1.} Is the act irreversible?};
-\node[q] (q2) at (0,-1.7) {\textbf{Q2.} Administrative vs.\ m\^etis?};
-\node[q] (q3) at (0,-3.4) {\textbf{Q3.} Can the summary lie?};
-\node[q] (q4) at (0,-5.1) {\textbf{Q4.} Is the authority legible?};
-\node[q,draw=hhcobalt,very thick,text width=30mm] (ok) at (0,-6.8) {ship the surface};
+\node[inner sep=0] (log) {\includegraphics[width=.82\textwidth]{figures/assets/legible-swarm-four-questions-log.jpg}};
 
-\node[act] (a1) at (6.4,0)    {force a zoom; artifact one keystroke away};
-\node[act] (a2) at (6.4,-1.7) {flatten admin; link m\^etis verbatim};
-\node[act] (a3) at (6.4,-3.4) {point zoom at the artifact, not narration};
-\node[act] (a4) at (6.4,-5.1) {every act carries a named reason};
-
-\draw[ob] (q1.east) -- (a1.west);
-\draw[ob] (q2.east) -- (a2.west);
-\draw[ob] (q3.east) -- (a3.west);
-\draw[ob] (q4.east) -- (a4.west);
-
-\draw[edge] (q1) -- node[right=1pt,font=\scriptsize\itshape]{then} (q2);
-\draw[edge] (q2) -- node[right=1pt,font=\scriptsize\itshape]{then} (q3);
-\draw[edge] (q3) -- node[right=1pt,font=\scriptsize\itshape]{then} (q4);
-\draw[edge] (q4) -- (ok);
+\node[loglabel] at ($(log.south west)!0.84!(log.north east)$)
+  {\textbf{1. Irreversible act?}\\\emph{Force a zoom.}};
+\node[loglabel] at ($(log.south west)!0.62!(log.north east)$)
+  {\textbf{2. Admin or m\^etis?}\\\emph{Link m\^etis verbatim.}};
+\node[loglabel] at ($(log.south west)!0.40!(log.north east)$)
+  {\textbf{3. Can it lie?}\\\emph{Zoom to the artifact.}};
+\node[loglabel] at ($(log.south west)!0.18!(log.north east)$)
+  {\textbf{4. Named reason?}\\\emph{Make authority legible.}};
+\node[launch] at ([yshift=4mm]log.south)
+  {\textsc{Clear to sail: all four hold}};
 \end{tikzpicture}
-\caption{The four design questions (\S\ref{sec:four-questions}) as a decision flow
-applied to every read-surface. They are asked in order, and each question binds an
-obligation (force-zoom, verbatim-link, artifact-target, named-reason) the surface
-must satisfy before it may ship. The procedure is the operational form of the one
-law (Def.~\ref{def:zoom}) and the legible-sovereign rule
+\caption{A pre-departure log for a read-surface: it may sail only after four ordered
+checks bind four obligations --- forced zoom for irreversible action, a verbatim link
+for m\^etis, an artifact-targeted zoom for a fallible summary, and a named reason for
+authority. The voyage metaphor records the sequence; it does not add a fifth rule.
+The procedure is the operational form of the one law (Def.~\ref{def:zoom}) and the legible-sovereign rule
 (Prop.~\ref{prop:legible-sovereign}).}
 \label{fig:four-questions}
 \end{figure}

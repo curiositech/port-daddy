@@ -1,7 +1,6 @@
-% Figure 8 — the split ranker (Thm. split-ranker): shared candidate-generation +
-% decay substrate, two distinct scoring heads (fit vs regret).
-% Design: each box is a name, an objective, and a motto — the signals inventory
-% and the "not one ranker" verdict live in the caption.
+% Figure I.8 — the split ranker.  The painterly sea chart is an original,
+% nontextual field-journal plate; all semantics, labels, and directional arrows
+% below remain source-owned and reviewable.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -9,42 +8,49 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.8\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
-              font=\footnotesize,text width=42mm},
-  head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
-               font=\footnotesize,text width=50mm},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  font=\footnotesize,
+  labelplate/.style={fill=hhpaper!92,draw=none,rounded corners=1pt,
+                     align=center,inner sep=2pt,text width=28mm,text=hhink},
+  route/.style={-{Latex[length=2mm]},line width=1.05pt},
 ]
-% shared substrate
-\node[box,fill=hhsand!30] (sub) at (0,0)
-  {\textbf{Shared substrate}\\candidate generation\\$+$ recency decay (Prop.~\ref{prop:decay})};
+% The generated image carries only the concrete relation-map setting. It has no
+% text, values, arrows, or claims that could silently drift from the paper.
+\node[inner sep=0] (chart) {\includegraphics[width=0.67\textwidth]{figures/assets/legible-swarm-split-ranker-sea-chart.jpg}};
 
-% split
-\node[head,fill=hhsand!30] (fit) at (6.4,1.8)
-  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit} (Eq.~\ref{eq:fit})\\
-   \emph{``who is most capable?''}};
-\node[head,fill=hhsand!30] (reg) at (6.4,-1.8)
-  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})\\
-   \emph{``what is most dangerous?''}};
+% The cartouches in the nontextual plate receive source-owned labels.  The three
+% labels are compact enough to preserve the relationship rather than repeat the
+% surrounding theorem and caption as prose.
+\node[labelplate] (shared) at ($(chart.center)+(-2.42,1.34)$)
+  {\textbf{SHARED CHART}\\[-1pt]
+   \scriptsize candidate pool\\[-1pt]
+   \scriptsize + recency decay};
+\node[labelplate] (discovery) at ($(chart.center)+(2.24,0.72)$)
+  {\textbf{DISCOVERY}\\[-1pt]
+   \scriptsize agent $\rightarrow$ agent\\[-1pt]
+   \scriptsize \emph{fit} (Eq.~\ref{eq:fit})};
+\node[labelplate] (attention) at ($(chart.center)+(2.24,-2.52)$)
+  {\textbf{ATTENTION}\\[-1pt]
+   \scriptsize watchkeeper's queue\\[-1pt]
+   \scriptsize \emph{regret} (Eq.~\ref{eq:regret})};
 
-\draw[e] (sub.east) -- (fit.west);
-\draw[e] (sub.east) -- (reg.west);
-\end{tikzpicture}%
-}
-\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
-operator's attention queue \emph{share} candidate generation and recency-decay
-(Prop.~\ref{prop:decay}) over the same signals --- claims, skills, notes, episodes,
-presence --- but apply distinct scoring heads: discovery maximizes \emph{fit}
-(capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
-\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
-item surfaced, the agent wants the most capable collaborator --- incompatible loss
-functions, not one objective with swapped weights, so the elegant ``one ranker''
-claim is false-as-stated and demoted to ``shared substrate, distinct heads.''}
+% These are the formal directions.  The painted wakes beneath them are atmosphere,
+% not a substitute for a claimed causal relation.
+\draw[route,hhteal] ($(shared.south east)+(0.10,-0.10)$)
+  to[out=-9,in=179] ($(discovery.west)+(-0.05,0)$);
+\draw[route,hhcobalt] ($(shared.south east)+(0.10,-0.45)$)
+  to[out=-25,in=174] ($(attention.west)+(-0.05,0)$);
+\end{tikzpicture}
+\caption{\textbf{One shared candidate chart supports two noninterchangeable readings.}
+Both rankers draw from the same live substrate and apply the same recency decay;
+the discovery route asks which collaborator is most capable, while the attention
+route asks which item is most dangerous to ignore.  The paths split because
+capability fit (Eq.~\ref{eq:fit}) and regret-if-ignored (Eq.~\ref{eq:regret}) can
+reverse the same pair of items.  They are distinct objectives, not one score with
+weights renamed.}
 \label{fig:split-ranker}
 \end{figure}

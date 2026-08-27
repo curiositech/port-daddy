@@ -174,9 +174,9 @@ export const COLLECTED_VOLUME: CollectedVolume = {
     'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
-  pages: 250,
-  sizeKb: 2309,
-  references: 202,
+  pages: 249,
+  sizeKb: 5828,
+  references: 208,
 }
 
 /**
@@ -258,8 +258,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
     pages: 42,
-    sizeKb: 783,
-    status: 'Version 1.2 (collected-volume edition)',
+    sizeKb: 4335,
+    status: 'Version 1.3 (collected-volume figure edition)',
     order: '01',
     chapter: 'I',
     group: 'explain',

@@ -1,6 +1,7 @@
-% Figure 5 — the authority half: the organs by which the Leviathan rules.
-% Design: one bold name + one italic line per organ; engineering detail lives
-% in the caption and Appendix A.
+% Figure 5 — the authority half: six named organs by which the Leviathan rules.
+% The generated field-journal is an atmospheric relation-map base only.  Each
+% organ's exact name and purpose is typeset here, and every generated word is
+% covered by a source-owned label.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -11,37 +12,44 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{0.97\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=40mm,
-                minimum height=14mm,align=center,inner sep=4pt,
-                font=\footnotesize,text width=36mm,fill=hhsand!30},
-  hub/.style={draw=hhebony,very thick,circle,fill=hhsand!30,minimum size=20mm,
-              align=center,font=\bfseries\footnotesize},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  organ/.style={fill=hhpaper,fill opacity=.94,text opacity=1,rounded corners=1pt,
+                align=center,inner sep=2.5pt,font=\footnotesize,text=hhink,text width=30mm},
+  authority/.style={fill=hhebony,fill opacity=.94,text opacity=1,rounded corners=1pt,
+                    align=center,inner sep=3pt,font=\scriptsize\bfseries\color{hhpaper},text width=43mm},
+  leader/.style={hhink,line width=.45pt},
 ]
-\node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
+\node[inner sep=0] (chart) {\includegraphics[width=.92\textwidth]{figures/assets/legible-swarm-authority-chart.jpg}};
 
-\node[organ] (road) at (-5.4,3.0)
+\node[authority] (auth) at ([yshift=-3mm]chart.north)
+  {THE DAEMON\\\emph{consented authority}\\\emph{acts through named organs}};
+\draw[leader] (auth.south) -- ([yshift=10mm]chart.center);
+
+\node[organ] (road) at ([xshift=-46mm,yshift=23mm]chart.center)
   {\textbf{Roadmap-as-truth}\\\emph{what the authority answers to}};
-\node[organ] (rev) at (0,3.6)
+\node[organ] (review) at ([xshift=-46mm,yshift=-22mm]chart.center)
   {\textbf{Adversarial review}\\\emph{conflict-free quality organ}};
-\node[organ] (done) at (5.4,3.0)
+\node[organ] (completion) at ([xshift=0mm,yshift=-15mm]chart.center)
   {\textbf{Completionist completion}\\\emph{verifier-gated ``done''}};
-\node[organ] (land) at (-5.4,-3.0)
+\node[organ] (landing) at ([xshift=45mm,yshift=16mm]chart.center)
   {\textbf{Thoughtful landing}\\\emph{conflict-aware merge order}};
-\node[organ] (guard) at (0,-3.6)
+\node[organ] (guard) at ([xshift=45mm,yshift=-22mm]chart.center)
   {\textbf{Footgun guards}\\\emph{prevent, or detect \& compensate}};
-\node[organ] (esc) at (5.4,-3.0)
-  {\textbf{Escalation to human}\\\emph{typed, prioritized interrupt}};
+\node[organ] (escalation) at ([xshift=48mm,yshift=37mm]chart.center)
+  {\textbf{Escalation to a human}\\\emph{typed, prioritized interrupt}};
 
-\draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
-\draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);
+\draw[leader] (road.west) -- ([xshift=16mm,yshift=16mm]chart.west);
+\draw[leader] (review.west) -- ([xshift=17mm,yshift=-18mm]chart.west);
+\draw[leader] (completion.north) -- ([yshift=-14mm]chart.center);
+\draw[leader] (landing.south west) -- ([xshift=42mm,yshift=9mm]chart.center);
+\draw[leader] (guard.west) -- ([xshift=38mm,yshift=-20mm]chart.center);
+\draw[leader] (escalation.south east) -- ([xshift=57mm,yshift=35mm]chart.center);
 \end{tikzpicture}%
-}
 \caption{The authority half (\S\ref{sec:authority-rules}): six organs by which the
-consented daemon \emph{rules}. The legibility read-surfaces
+consented daemon \emph{rules}. Rather than treating the daemon as a hub with six
+generic spokes, the field journal gives each organ a distinct working instrument:
+course chart, review lens, completion gate, landing hook, guarded chest, and human
+signal. The legibility read-surfaces
 (Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these organs make the
 authority \emph{act} --- and, per the legible-sovereign rule
 (Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event. The
