@@ -505,3 +505,51 @@ describe('pd roadmap chomp', () => {
     expect(body).toContain('Roadmap-Spawns: v4-plan, phase-1');
   });
 });
+
+describe('pd roadmap search', () => {
+  test('builds the query, harbor, and limit params and requests GET /roadmap/search', async () => {
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, hits: [] }),
+    });
+
+    await handleRoadmap(['search', 'fix', 'the', 'login', 'bug'], { harbor: 'port-daddy', limit: 3, json: true });
+
+    expect(pdFetch).toHaveBeenCalledTimes(1);
+    const url = new URL(pdFetch.mock.calls[0][0], 'http://x');
+    expect(url.pathname).toBe('/roadmap/search');
+    expect(url.searchParams.get('q')).toBe('fix the login bug');
+    expect(url.searchParams.get('harbor')).toBe('port-daddy');
+    expect(url.searchParams.get('limit')).toBe('3');
+  });
+
+  test('--json prints the hits as structured JSON', async () => {
+    const hits = [{ slug: 'fix-login-bug', status: 'now', summaryMd: 'Fix the login bug', stage: 'bm25', score: 0.9 }];
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, hits }),
+    });
+
+    await handleRoadmap(['search', 'login', 'bug'], { json: true });
+
+    const printed = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(printed).toEqual({ success: true, hits, count: 1 });
+  });
+
+  test('requires a query — usage error and no request when neither positional nor --q is given', async () => {
+    await expect(handleRoadmap(['search'], {})).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('a non-ok response exits 1 rather than printing partial results', async () => {
+    pdFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: 'search index unavailable' }),
+    });
+
+    await expect(handleRoadmap(['search', 'anything'], {})).rejects.toThrow('process.exit(1)');
+  });
+});
