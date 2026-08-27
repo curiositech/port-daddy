@@ -387,8 +387,12 @@ violations and responds with sanctions~\cite{gad06}. That community has long obs
 of all actions is often difficult or impossible''~\cite{cs16} --- and has drawn our alphabet split as a design taxonomy,
 separating regimentation of an agent's \emph{mental states} (possible only when the agent is a white box) from regimentation
 of its \emph{actions} (the black-box case)~\cite{balke09}. An LLM agent is the black-box case, and $\Sigma_u$ is the formal
-content of its black-boxness. Our contribution relative to this literature is to replace ``often difficult or impossible''
-with a decidable criterion, a synthesis procedure, and a machine-checked classification of a deployed governance corpus.
+content of its black-boxness. One paper in this community goes further than observing the distinction informally: Dastani,
+Sardina and Yazdanpanah~\cite{dsy17} formalize regimentability for a norm as supervisory-control-theoretic controllability,
+proved by the same Ramadge--Wonham theorem we import, though they present it as an unremarked corollary and do not pursue
+enforceability beyond regimentation, synthesis, or classification. Our contribution relative to this literature is to
+replace ``often difficult or impossible'' with a decidable criterion, a synthesis procedure, and a machine-checked
+classification of a deployed governance corpus.
 
 \paragraph{Adjacent and contemporaneous.} Ray~\cite{ray26} asks what a certified runtime gate can enforce for tool-using
 agents and answers on a third axis: safety plus decidability of good-prefix membership relative to an oracle interface, with
@@ -439,11 +443,16 @@ in practice too, since a status report leaves through emission and then through 
 trigger. What no such runtime can do is \emph{evaluate the gate}: ``this report is false'' is not a predicate over the event
 alphabet, and the condition is unwitnessed internal state rather than an event the daemon sees. The rule therefore falls to
 item~(iv) and \S\ref{sec:partial} --- Lin--Wonham observability --- and not to the box's inequality, which is why it stays
-unpreventable at \emph{every} alphabet split and not merely at ours. (vii) The novelty claim is the least-verified thing in
-this paper. Dastani, Sardina and Yazdanpanah's \emph{Norm Enforcement as Supervisory Control}~\cite{dsy17} applies
-supervisory control theory to normative multi-agent systems --- our thesis in our vocabulary --- and we have not been able to
-obtain its full text. Until we have, treat \S\ref{sec:related}'s two contribution claims as \emph{unrefuted} rather than
-established; the theorem and the classification stand either way, since neither depends on being first. \end{boundary}
+unpreventable at \emph{every} alphabet split and not merely at ours. (vii) Dastani, Sardina and Yazdanpanah's \emph{Norm
+Enforcement as Supervisory Control}~\cite{dsy17}, obtained and read in full: their Theorem~1 proves a norm is
+``regimentable'' iff a regimenting supervisor exists, by directly importing the same Ramadge--Wonham controllability
+theorem we do, in normative-multi-agent-systems vocabulary rather than ours. They do not claim the identification as a
+contribution --- their stated novelty is extending it to sanction- and repair-based enforcement --- and they do not
+address enforceability more generally, synthesis, or classification of a deployed corpus. This narrows but does not
+retract the priority claim in \S\ref{sec:related}: the identification itself is folklore enough that two independent
+communities (Basin et al.'s security-policy line and this normative-systems line) import it in passing before this
+paper; what neither prior source gives is the synthesis procedure or the $\sup\mathcal{C}(K)=\emptyset$ result. The
+theorem and the classification stand regardless, since neither depends on being first. \end{boundary}
 
 \vspace{0.4em} \noindent\emph{Reproducibility.} The policy table and the compound-case verdict regenerate deterministically
 from \texttt{skills/harbor-results/scripts/b3\_controllability.py} (pure Python, no dependencies, no randomness);
@@ -478,7 +487,7 @@ Proceedings 09121, 2009.
 \bibitem{ray26} S.~Ray. What can be enforced? A theory of certified runtime safety for tool-using agents.
 arXiv:2607.22868, 2026.
 \bibitem{dsy17} M.~Dastani, S.~Sardina, and V.~Yazdanpanah. Norm enforcement as supervisory control. In \emph{PRIMA 2017:
-Principles and Practice of Multi-Agent Systems}. Springer, 2017. [Full text not obtained; see boundary~(vii).]
+Principles and Practice of Multi-Agent Systems}, LNAI 10621, pages 330--348. Springer, 2017.
 \bibitem{bkkw15} R.~Bloem, B.~K\"onighofer, R.~K\"onighofer, and C.~Wang. Shield synthesis: runtime enforcement for reactive
 systems. In \emph{Tools and Algorithms for the Construction and Analysis of Systems (TACAS)}, pages 533--548. Springer, 2015.
 \bibitem{alshiekh18} M.~Alshiekh, R.~Bloem, R.~Ehlers, B.~K\"onighofer, S.~Niekum, and U.~Topcu. Safe reinforcement learning

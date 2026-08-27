@@ -487,3 +487,59 @@ safety for tool-using agents. arXiv:2607.22868, 2026.
   (6 pp.), not the paper. Do not cite from it. The ETH Zürich PDF is the article.
 - The Falcone host 403s without a `Referer` header.
 - The CMU `lbauer` URL for Ligatti et al. 403s; the USF `~ligatti` copy works.
+- **`core.ac.uk` reaches full text that Unpaywall/Semantic Scholar/institutional
+  repos miss** — closed Dastani et al. below on the first try via CORE search
+  after four other routes had already dead-ended it. Worth trying earlier next
+  time a citation is stuck on "record exists, no deposited file."
+
+## Amendment 2026-08-27 — Dastani, Sardina & Yazdanpanah obtained and read
+
+Closed via `core.ac.uk` (download id `572201458`; PDF matches the DOI's title,
+authors, and page range `330–348` exactly). Item 3 in the "Open items" list
+above ("`uncertain` — read Dastani et al. before submission") is now
+`verified`.
+
+**What it says.** Their **Theorem 1**: a norm is "regimentable" (their term,
+same concept Paper 2 calls regimentable) in a plant $G$ iff there exists a
+regiment-based supervisor $V_r$ with $L(V_r/G)=K_n$ — proved by directly
+importing Ramadge–Wonham's Controllability Theorem (their ref [13], p. 145):
+"having a plant $G$... and a nonempty $K\subseteq L(G)$, there exists a
+supervisor $S$ such that $L(S/G)=K$ iff $K.\Sigma_u \cap L(G) \subseteq K$."
+This is the same regimentable-iff-controllable identification Paper 2 makes,
+in normative-multi-agent-systems vocabulary rather than security-policy
+vocabulary, and it predates Paper 2 by construction (PRIMA 2017).
+
+**Does it change the verdict?** No — **NARROW stands.** Two things keep this
+from moving the needle further toward SUBSUMED:
+
+1. **They don't claim it as a contribution.** §7/§8 place their novelty
+   entirely in extending regimentation to sanction- and repair-based
+   enforcement; the regimentable/controllable identification is presented as
+   an unremarkable, one-paragraph corollary of "importing" classical SCT, not
+   as a result they're claiming credit for.
+2. **They don't cite Basin et al. 2013 or engage the enforceability-boundary
+   question Paper 2 actually asks** (which safety policies are enforceable at
+   all, at what observation granularity) — their scope is narrower, just
+   "does this specific norm admit a regimenting supervisor in this specific
+   plant."
+
+**What this does change:** Paper 2's already-conceded "surviving delta" — that
+Basin explicitly leaves the Ramadge–Wonham identification as an open question
+— is weaker than the flag-2 verdict stated. It is not open; it has been
+directly imported as a one-line corollary by at least two independent groups
+in two different subfields (Basin's security-policy line, and this
+normative-multi-agent-systems line) before Paper 2. **Recommended Related Work
+addition to `paper2.tex`**, alongside the existing Basin 2013 citation:
+
+> The regimentable-iff-controllable identification itself is not new to either
+> the enforcement or the normative-systems literature: Dastani, Sardina \&
+> Yazdanpanah~\cite{dsy17} import the same Ramadge--Wonham controllability
+> theorem to characterize when a norm admits a regimenting supervisor, treating
+> the identification as an unremarkable corollary rather than a contribution.
+> Our delta is [the specific runtime instantiation / whichever framing the
+> paper's own §7 ultimately keeps] — not the identification, which is folklore
+> across at least two independent subfields by 2017.
+
+Not wired into `paper2.tex` in this pass — this is a citation-ready proposal,
+same discipline as every other entry in this register: only `verified` items
+may enter a `.tex` file, and this one just crossed that line.

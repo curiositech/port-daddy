@@ -42,7 +42,15 @@ ledger explicitly built for adaptive concurrent spend. **The certificate is
 claimed on a model strictly larger than the one it holds for.**
 
 Fix: Whitehouse, Ramdas, Rogers & Wu, *Fully-Adaptive Composition in
-Differential Privacy*, ICML 2023 — `probable`, abstract only, close before use.
+Differential Privacy*, ICML 2023 (arXiv:2203.05481v3) — `verified` **2026-08-27,
+full text read** (was `probable`, abstract only). Confirms the fix framing
+holds: the paper "construct[s] filters that match the rates of advanced
+composition, including constants, despite allowing for adaptively chosen
+privacy parameters" — i.e. a privacy filter valid under exactly the adaptive
+regime Paper 4's ledger needs and the DRV-substitution corollary wrongly
+assumed. Safe to cite and quote the abstract-level claim; the full
+construction (martingale-concentration machinery) is not needed for Paper 4's
+purposes.
 
 ## Internal defects (falsification pass, before any search)
 
@@ -152,8 +160,24 @@ a different report — do not merge author lists.
 2. **Add the laundering mutation to `c1_noninterference.py`.** The current suite
    cannot express A1's break. Highest-value engineering item.
 3. **Rewrite the contribution paragraph against Ryoan.** Not optional.
-4. `UNRESOLVED` — van der Meyden 2007 (bears on §lift's target property: Rushby's
-   unwinding is sound and complete for **TA-security**, not ipurge-security).
-5. `UNRESOLVED` — Whitehouse et al. 2023 full text; PINQ full text (S2 reports
-   CLOSED, ACM DL 403s — cite the record, do not quote the mechanism).
+4. `UNRESOLVED` — R. van der Meyden, **"What, indeed, is intransitive
+   noninterference?"** (extended abstract), Proc. ESORICS 2007, Dresden,
+   LNCS 4734, pp. 235–250 — title/venue/pages now confirmed (`[C37]` on the
+   author's own publications page, `cgi.cse.unsw.edu.au/~meyden`; the extended
+   journal version is `[J18]`, *J. Computer Security* 23(2):197–228, 2015,
+   paywalled at IOS Press). Full text of neither version obtained 2026-08-27 —
+   `core.ac.uk` (which closed two other UNRESOLVED items this session) errored
+   transiently on this query; worth one retry before falling back to an
+   institutional request. Bears on §lift's target property: Rushby's unwinding
+   is sound and complete for **TA-security**, not ipurge-security.
+5. **2026-08-27 update.** Whitehouse et al. 2023 full text: `verified`, see
+   above. PINQ full text: `verified` — F. McSherry, "Privacy Integrated
+   Queries: An Extensible Platform for Privacy-Preserving Data Analysis,"
+   originally SIGMOD 2009 (DOI 10.1145/1559845.1559850), republished
+   *Commun. ACM* 53(9), 2010 (DOI 10.1145/1810891.1810916); full text of the
+   CACM republication obtained via a SciSpace mirror after ACM DL 403s
+   persisted. Confirms the citation: PINQ is exactly what §budget's design
+   claim says it is — a platform providing "unconditional privacy guarantees"
+   via a tracked, declarative-language-enforced privacy budget. Cite the
+   record and the mechanism both now, not just the record.
 6. Stop quoting the 2000-instance sweep and the two vacuous checks as evidence.

@@ -154,15 +154,26 @@ genuinely Paper 5's. A referee finds this in one search.
 
 ## Open items
 
-1. **Lizzeri 1999** (RAND 30(2)) — `UNRESOLVED`, not OA by any route. Potentially
-   **adverse** to Theorem 2b: a monopoly certifier may optimally publish coarse
-   pass/fail rather than the full engine id, which would collapse the
-   (principal, engine) price keys the theorem depends on. Highest-priority pull.
-2. **Lazear 1979** — `UNRESOLVED`, blocks a verb. Secondary sources suggest
-   Lazear *front-loads* the honest worker's burden, in which case Theorem 4
-   **agrees** with him and the paper is knocking down a foil it attributes to
-   someone who doesn't hold it. **Do not ship "the instinct is exactly wrong"
-   until read.**
+1. **Lizzeri.** A. Lizzeri, "Information Revelation and Certification
+   Intermediaries," *RAND Journal of Economics* 30(3):214–231, Summer 1999
+   (title/venue/pages confirmed via RePEc/EconPapers/JSTOR `stable/2556078` —
+   note: issue number corrected from "30(2)" to 30(3), the Summer 1999 issue)
+   — `UNRESOLVED`, not OA by any route tried 2026-08-27 (SSRN, Princeton
+   collaborate profile, JSTOR abstract page all checked; no self-archived copy
+   found). Potentially **adverse** to Theorem 2b: a monopoly certifier may
+   optimally publish coarse pass/fail rather than the full engine id, which
+   would collapse the (principal, engine) price keys the theorem depends on.
+   Highest-priority pull.
+2. **Lazear.** E. P. Lazear, "Why Is There Mandatory Retirement?," *Journal of
+   Political Economy* 87(6):1261–1284, 1979 (DOI 10.1086/260835; title/venue
+   confirmed via IDEAS/RePEc and the journal's own abstract page) —
+   `UNRESOLVED`, blocks a verb. An SSRN-hosted NBER working-paper mirror exists
+   (`abstractid=293234`) but 403s on direct fetch and only resolves back to
+   its own landing page through a scraper — the actual PDF delivery is
+   session-gated, not a plain GET. Secondary sources suggest Lazear
+   *front-loads* the honest worker's burden, in which case Theorem 4 **agrees**
+   with him and the paper is knocking down a foil it attributes to someone who
+   doesn't hold it. **Do not ship "the instinct is exactly wrong" until read.**
 3. Which unraveling hypothesis fails here (Dye 1985 the best candidate).
 4. Costly attestation: Grossman–Hart 1980, Jovanovic 1982 — the regime a real
    daemon occupies, with no parameter in the paper.
