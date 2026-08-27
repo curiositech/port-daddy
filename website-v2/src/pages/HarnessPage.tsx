@@ -15,6 +15,8 @@ import {
   Users,
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { HarnessLifecycleVessel } from '@/components/harness/HarnessLifecycleVessel'
+import { PortholeEmbed } from '@/components/porthole/PortholeEmbed'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Button } from '@/components/ui/Button'
 import {
@@ -28,7 +30,6 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
-import { useTheme } from '@/lib/theme-context'
 
 /**
  * Standalone marquee page at /harness. The argument: a bare vendor CLI is a
@@ -210,57 +211,6 @@ function StatusPill({ tone, children }: { tone: 'live' | 'mapped'; children: Rea
   )
 }
 
-function HarnessArtFigure({
-  src,
-  alt,
-  caption,
-  loading = 'eager',
-  className,
-}: {
-  src: string
-  alt: string
-  caption: string
-  loading?: 'eager' | 'lazy'
-  className?: string
-}) {
-  const { theme } = useTheme()
-  const dark = theme === 'dark'
-  const darkSrc = src.replace(/(\.[^.]+)$/, '-dark$1')
-
-  return (
-    <figure className={`space-y-[var(--space-2)] ${className ?? ''}`}>
-      <div className="relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-        <picture>
-          <source srcSet={darkSrc} media="(prefers-color-scheme: dark)" />
-          <img
-            src={src}
-            alt={alt}
-            className="aspect-video w-full object-cover"
-            style={{
-              filter: dark ? 'brightness(0.72) contrast(1.18) saturate(1.12)' : 'saturate(1.03)',
-            }}
-            width={1456}
-            height={816}
-            loading={loading}
-            decoding="async"
-          />
-        </picture>
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: dark
-              ? 'linear-gradient(180deg, rgba(11,13,16,0.12) 0%, rgba(11,13,16,0.54) 100%)'
-              : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.22) 100%)',
-          }}
-        />
-      </div>
-      <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-        {caption}
-      </figcaption>
-    </figure>
-  )
-}
-
 function CapabilityFlowNode({
   label,
   icon: Icon,
@@ -411,25 +361,6 @@ type ProofMedia = {
 
 const PROOF_MEDIA: readonly ProofMedia[] = [
   {
-    eyebrow: 'Fresh conformance run',
-    title: 'Watch a project move from PARTIAL to LIVE.',
-    body:
-      'This recording uses the branch-built CLI against the live daemon. The first status names every missing tentacle and identity surface, pd squid on repairs them, and the final status reads the same project back as LIVE.',
-    src: '/demos/harness/harness-conformance-live.gif',
-    alt: 'Fresh terminal recording showing a Port Daddy project at PARTIAL Squid conformance, pd squid on wiring the missing hooks and identity, and the final LIVE status.',
-    kind: 'gif',
-    featured: true,
-  },
-  {
-    eyebrow: 'Fresh attention run',
-    title: 'An empty inbox explains what is worth watching.',
-    body:
-      'Nothing new is no longer a dead end. The command ranks exact coordination channels, explains their value and observed activity, arms the set in one action, then reads the subscriptions back.',
-    src: '/demos/harness/harness-attention-activation.gif',
-    alt: 'Fresh terminal recording of pd attention ranking coordination channels, subscribing to the recommended set, and reading the active subscriptions back.',
-    kind: 'gif',
-  },
-  {
     eyebrow: 'FleetBar · before',
     title: 'Missing protection stays visibly broken.',
     body:
@@ -446,89 +377,6 @@ const PROOF_MEDIA: readonly ProofMedia[] = [
     src: '/demos/harness/harness-fleetbar-live.png',
     alt: 'Fresh FleetBar screenshot showing the Giant Squid harness confirmed live after repair.',
     kind: 'image',
-  },
-] as const
-
-type RunItMedia = {
-  eyebrow: string
-  title: string
-  body: string
-  src: string
-  darkSrc: string
-  alt: string
-  featured?: boolean
-}
-
-/**
- * Real terminal recordings of the squid harness — captured with VHS/asciinema
- * running the actual commands against the actual daemon; no staged output.
- * Light GIFs are Catppuccin Latte, -dark are Macchiato, matching pd-tube.
- */
-const RUN_IT_MEDIA: readonly RunItMedia[] = [
-  {
-    eyebrow: 'Conformance activation · fresh',
-    title: 'PARTIAL is a diagnosis. LIVE is a verified transition.',
-    body:
-      'The first read names what is missing. The arm command prints the non-diegetic value it is adding before turns, before edits, and after tools. The final read proves all four detected agent CLIs are wired for the exact project.',
-    src: '/demos/harness/harness-conformance-live.gif',
-    darkSrc: '/demos/harness/harness-conformance-live-dark.gif',
-    alt: 'Terminal recording of the Squid harness moving from PARTIAL to LIVE conformance with explicit PD TURN, EDIT, and TRACE narration.',
-    featured: true,
-  },
-  {
-    eyebrow: 'Attention activation · fresh',
-    title: '“Nothing new” now has a useful next move.',
-    body:
-      'The agent still receives direct inbox messages. When it has no channel watches, attention ranks the worktree inconsistency channel and active fleet channels, explains why they matter, and arms them with one command.',
-    src: '/demos/harness/harness-attention-activation.gif',
-    darkSrc: '/demos/harness/harness-attention-activation-dark.gif',
-    alt: 'Terminal recording of an empty attention read suggesting useful channels and arming the recommended subscriptions.',
-  },
-  {
-    eyebrow: 'Real interactive Claude Code',
-    title: 'Ask for a haiku, get a haiku about ships — because the harness said so.',
-    body:
-      'This is the actual Claude Code TUI, not piped output. The ◆ PD badge sits in the status line the whole session. The operator dropped one steering alert in the Ink Cloud — "any haiku must be about ships" — and pd squid tap shows it. The prompt typed into Claude only says "write a haiku to ship_haiku.txt", with no mention of ships. The UserPromptSubmit tentacle injects the alert, "Async hook SessionStart completed" flashes, and Claude writes a ship haiku, then says so. Watch the status line counters tick to 1 alert · 2 traces as the harness works.',
-    src: '/demos/harness/harness-claude-live.gif',
-    darkSrc: '/demos/harness/harness-claude-live-dark.gif',
-    alt: 'Interactive Claude Code terminal session with a cyan PD badge in the status line. pd squid tap shows a steering alert requiring ship haiku; the user prompt only says write a haiku, and Claude writes a ship-themed haiku, with the status line showing 1 alert and 2 traces.',
-  },
-  {
-    eyebrow: 'Codex pilots Claude Code — live',
-    title: 'The real Claude Code TUI, answered by Codex.',
-    body:
-      'This is the actual Claude Code interface, not piped output. pd squid codex boots the local Anthropic-shaped bridge and launches Claude Code pointed at it in one command — no auth prompts, no incantation. The magenta ◆ PD⇄CODEX badge and the honest backend label — codex (strong), not an Anthropic id — sit in the status line the whole session while Claude answers a question whose tokens were generated by codex exec. Same harness, ChatGPT Pro behind the seat.',
-    src: '/demos/harness/harness-codex-pilot-live.gif',
-    darkSrc: '/demos/harness/harness-codex-pilot-live-dark.gif',
-    alt: 'Interactive Claude Code terminal session launched through the Codex bridge, showing a magenta PD-to-CODEX badge and the codex (strong) backend label in the status line while Claude answers a question.',
-    featured: true,
-  },
-  {
-    eyebrow: 'The arm switch',
-    title: 'pd squid on wires everything; status shows it.',
-    body:
-      'One command arms hooks for every detected agent CLI, the ◆ PD statusline, the Pilot steering hook, and the /squid command — then pd squid status reads back every surface, live.',
-    src: '/demos/harness/harness-squid-on.gif',
-    darkSrc: '/demos/harness/harness-squid-on-dark.gif',
-    alt: 'Terminal recording of pd squid on arming the harness and pd squid status showing daemon, tentacles, per-CLI wiring, identity surfaces, and the Ink Cloud matrix.',
-  },
-  {
-    eyebrow: 'The envelope, verbatim',
-    title: 'pd squid tap prints the exact context the next turn receives.',
-    body:
-      'No guessing about what the hooks feed the model: tap runs the real UserPromptSubmit tentacle and prints the exact coordination context the next turn will see — operator alerts plus pheromone traces near your directory. The agent reads it like any other context and decides what to do with it.',
-    src: '/demos/harness/harness-squid-tap.gif',
-    darkSrc: '/demos/harness/harness-squid-tap-dark.gif',
-    alt: 'Terminal recording of pd squid tap printing the operator alerts and pheromone traces the next Claude Code turn will receive as context.',
-  },
-  {
-    eyebrow: 'The bridge card',
-    title: 'The Codex bridge announces exactly what it is.',
-    body:
-      'pd squid codex --serve-only prints the boundary card: base URL, local auth, tier, routes — and the honest line that this is a compatibility bridge, not a Claude Code auth mode.',
-    src: '/demos/harness/harness-squid-codex.gif',
-    darkSrc: '/demos/harness/harness-squid-codex-dark.gif',
-    alt: 'Terminal recording of the Giant Squid Claude-shaped local bridge card showing base URL, auth, tier, backend, and routes.',
   },
 ] as const
 
@@ -598,25 +446,18 @@ export default function HarnessPage() {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
-            <SwissGrid className="items-center">
-              <SwissGridItem span="narrow">
+            <SwissGrid className="items-end">
+              <SwissGridItem span="wide">
                 <div className="space-y-[var(--space-5)]">
                   <BracketLabel>The harness</BracketLabel>
                   <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
                     Know which agents are protected before they act.
                   </PanelTitle>
-                  <HarnessArtFigure
-                    src="/img/generated/harness-hero.webp"
-                    alt="A rugged agent core in a harness cradle, with instrumented lines reaching into message radio, file claims, budget controls, worktree docks, and command guardrails."
-                    caption="One agent core, eight instrumented lines into the fleet’s control plane."
-                    loading="eager"
-                    className="lg:hidden"
-                  />
                   <PanelBody className="max-w-[46rem] text-[length:var(--type-panel-body-size)]">
                     Giant Squid wires the agent CLI you already use into one visible
-                    fleet contract: fresh context before a turn, ownership before an
-                    edit, a compact trace after tools, durable attention and Parley
-                    delivery, and an honest LIVE / READY / PARTIAL / UNPROTECTED state.
+                    lifecycle contract: wake with a plan, act with ownership, learn
+                    from every tool and child, compact before context death, and leave
+                    a receipt another agent can actually resume.
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
@@ -626,74 +467,30 @@ export default function HarnessPage() {
                       </Link>
                     </Button>
                     <Button asChild variant="secondary" size="lg">
-                      <a href="#capabilities">See the eight capabilities</a>
+                      <a href="#lifecycle-vessel">Board the lifecycle vessel</a>
                     </Button>
                   </div>
                 </div>
               </SwissGridItem>
 
-              <SwissGridItem span="wide">
-                <HarnessArtFigure
-                  src="/img/generated/harness-hero.webp"
-                  alt="A single agent core at center, eight instrumented lines reaching out into a control plane of message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a conversation loop, a budget meter, an isolated worktree, and an amber guard gate"
-                  caption="One agent core, eight instrumented lines into the fleet’s control plane."
-                  loading="eager"
-                  className="hidden lg:block"
-                />
+              <SwissGridItem span="narrow">
+                <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
+                  <PanelEyebrow className="text-[var(--brand-primary)]">The compact</PanelEyebrow>
+                  <PanelTitle as="h2" size="card">Sense. Gate. Remember. Resume.</PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    Hooks stay small. The daemon owns durable truth. Plans and receipts
+                    outlive the model, process, context window, backend, and machine.
+                  </PanelBody>
+                </SurfacePanel>
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
         </section>
 
-        {/* ── The spine: tentacles into the vendor hook surface ────────── */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        {/* ── The lifecycle vessel ───────────────────────────────────── */}
+        <section id="lifecycle-vessel" className="scroll-mt-24 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
-            <SwissGrid className="items-start">
-              <SwissGridItem span="narrow">
-                <SectionIntro
-                  eyebrow="The spine"
-                  title="It hooks into the CLI you already run."
-                  description="The harness is not a fork of your agent. It seats three shared tentacles into each provider’s native events: prompt, pre-tool, and post-tool. The exact project-root registry and daemon heartbeat gate decide whether they activate. Port Daddy’s inbox, Parley, worktree, and Coast Guard controls stay adjacent and are labeled as such."
-                  titleAs="h2"
-                  titleSize="display"
-                  titleClassName="max-w-[18ch]"
-                  bodyClassName="max-w-[44rem]"
-                />
-                <div className="mt-[var(--space-5)] grid gap-[var(--space-3)]">
-                  <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
-                    <div className="inline-flex items-center gap-[var(--space-2)]">
-                      <Terminal size={16} className="text-[var(--brand-primary)]" />
-                      <PanelEyebrow>Honest status</PanelEyebrow>
-                    </div>
-                    <PanelBody size="compact" className="max-w-none">
-                      A live read-back on this slice found Claude Code, Codex CLI, Gemini
-                      CLI, and agy: four detected, four configured, four wired, 100%
-                      conformance. Codex uses a gated user config and needs one-time
-                      <code> /hooks</code> trust; Claude and Gemini use project config.
-                    </PanelBody>
-                  </SurfacePanel>
-                </div>
-              </SwissGridItem>
-
-              <SwissGridItem span="wide">
-                <figure className="space-y-[var(--space-2)]">
-                  <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                    <picture>
-                      <source srcSet="/img/generated/harness-hooks-dark.png" media="(prefers-color-scheme: dark)" />
-                      <img
-                        src="/img/generated/harness-hooks.png"
-                        alt="A vendor command-line tool exposing four hook ports, with keyed couplings from the daemon seating into them."
-                        className="aspect-video w-full object-cover"
-                        loading="eager"
-                      />
-                    </picture>
-                  </div>
-                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    One hook shape, translated to four provider-native event surfaces and gated to an exact armed root.
-                  </figcaption>
-                </figure>
-              </SwissGridItem>
-            </SwissGrid>
+            <HarnessLifecycleVessel />
           </PageContainer>
         </section>
 
@@ -873,14 +670,11 @@ NOT CLAIMED
                   The CLI names the three hook moments as they happen: PD TURN adds bounded context, PD EDIT checks ownership,
                   and PD TRACE leaves compact fleet evidence. Attention makes inbox and channel delivery actionable.
                 </PanelBody>
-                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                  <img
-                    src="/demos/harness/harness-attention-activation.gif"
-                    alt="Fresh terminal recording of Port Daddy attention recommending and arming useful coordination channels."
-                    className="aspect-video w-full object-contain"
-                    loading="eager"
-                  />
-                </figure>
+                <PortholeEmbed
+                  src="/casts/porthole/harness-next-turn.cast"
+                  label="Actual next-turn context emitted by the UserPromptSubmit tentacle"
+                  eager
+                />
               </SurfacePanel>
 
               <SurfacePanel className="space-y-[var(--space-4)]">
@@ -897,9 +691,9 @@ NOT CLAIMED
                 </PanelBody>
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                   <img
-                    src="/demos/harness/harness-fleetbar-repair-live.gif"
-                    alt="Fresh FleetBar recording showing the harness moving from needs repair to confirmed live."
-                    className="aspect-video w-full object-contain"
+                    src="/demos/harness/harness-fleetbar-live.png"
+                    alt="FleetBar showing a freshly verified live Giant Squid harness."
+                    className="aspect-video w-full object-cover"
                     loading="eager"
                   />
                 </figure>
@@ -1082,32 +876,21 @@ pd squid codex --tier strong
                 </PanelBody>
               </div>
 
-              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
-                {RUN_IT_MEDIA.map((media) => (
-                  <SurfacePanel
-                    key={media.title}
-                    elevation={media.featured ? 'raised' : 'quiet'}
-                    padding="compact"
-                    className={`grid content-start gap-[var(--space-3)] ${media.featured ? 'lg:col-span-2' : ''}`}
-                  >
-                    <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                      <picture>
-                        <source srcSet={media.darkSrc} media="(prefers-color-scheme: dark)" />
-                        <img src={media.src} alt={media.alt} className="w-full" loading="lazy" />
-                      </picture>
-                    </figure>
-                    <div className="grid gap-[var(--space-2)]">
-                      <PanelEyebrow className="text-[var(--brand-primary)]">{media.eyebrow}</PanelEyebrow>
-                      <PanelTitle as="h4" size="card" className="max-w-[30ch]">
-                        {media.title}
-                      </PanelTitle>
-                      <PanelBody size="compact" className="max-w-none">
-                        {media.body}
-                      </PanelBody>
-                    </div>
-                  </SurfacePanel>
-                ))}
-              </div>
+              <SurfacePanel elevation="raised" padding="compact" className="grid gap-[var(--space-4)]">
+                <PortholeEmbed
+                  src="/casts/porthole/harness-next-turn.cast"
+                  label="Replay the exact bounded context the current prompt tentacle emitted"
+                />
+                <div className="grid gap-[var(--space-2)]">
+                  <PanelEyebrow className="text-[var(--brand-primary)]">The envelope, verbatim</PanelEyebrow>
+                  <PanelTitle as="h4" size="card">This is what the agent actually receives.</PanelTitle>
+                  <PanelBody size="compact" className="max-w-[64rem]">
+                    Recorded through the repository’s Porthole capture path against the real daemon and source CLI.
+                    It is replayable terminal data, not a GIF and not staged output. More lifecycle portholes land only
+                    after their corresponding hook can produce honest, bounded evidence.
+                  </PanelBody>
+                </div>
+              </SurfacePanel>
             </div>
           </PageContainer>
         </section>

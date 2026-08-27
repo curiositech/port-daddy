@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 309,
+  "count": 310,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1333,6 +1333,11 @@
       "slug": "rent-at-claim-begin-gate",
       "status": "now",
       "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
+    },
+    {
+      "slug": "replace-harness-visual-debt-with-an-interactive-lifecycle-vessel",
+      "status": "backlog",
+      "summaryMd": "Replace harness visual debt with an interactive lifecycle vessel and replayable agent-perspective Portholes."
     },
     {
       "slug": "research-durable-agents-landscape",
