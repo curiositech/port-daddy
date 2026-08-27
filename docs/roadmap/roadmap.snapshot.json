@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 310,
+  "count": 314,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -815,6 +815,21 @@
       "summaryMd": "From fleetbot review on #2582 (pd-lookout HIGH): the door's fail-closed guard-rent logic and the resurrection/reaper's deliberate fail-open lease-facts logic sit in tension -- both are individually correct (documented in the PR itself) but a real parley/reconciliation pass to confirm the boundary between them holds under a live daemon-down scenario hasn't happened. Worth a dedicated review once ADR-0040 identity lands."
     },
     {
+      "slug": "dream-rig-forced-egress-containment",
+      "status": "backlog",
+      "summaryMd": "Enforce default-deny network egress below Dream Rig child processes"
+    },
+    {
+      "slug": "dream-rig-hard-resource-limits",
+      "status": "backlog",
+      "summaryMd": "Enforce process-tree, memory, CPU, time, and disk ceilings for Dream Rig"
+    },
+    {
+      "slug": "dream-rig-open-no-follow-writes",
+      "status": "backlog",
+      "summaryMd": "Close Dream Rig path-check TOCTOU with rooted no-follow writes"
+    },
+    {
       "slug": "durable-agent-continuation-conformance-matrix",
       "status": "backlog",
       "summaryMd": "Probe and publish an honest N:N backend continuation matrix spanning discovery, spawn, live control, native resume, and handoff successor conformance."
@@ -1103,6 +1118,11 @@
       "slug": "harbormaster-mcp-parity",
       "status": "done",
       "summaryMd": "Expose the read-only harbormaster status route through MCP and manifest parity so routed-feature coverage remains honest."
+    },
+    {
+      "slug": "harness-lifecycle-dream-rig-containment-gate",
+      "status": "now",
+      "summaryMd": "Fail-closed adversarial containment gate and receipt authority for Dream Rig scenarios"
     },
     {
       "slug": "high-port-daddy-fleet-required-check",
