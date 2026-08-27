@@ -110,7 +110,33 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       };
     }
 
+    // Bind the dispatch row's runtime identities live, as the Conductor admits
+    // the launch and starts the body — not after `launch()` resolves. An
+    // operator surface following this dispatch (a lane, the handoff-capsule
+    // builder on a mid-run failure) needs launchId/agentId/transcriptId while
+    // the run is still in flight, not only once it is terminal.
+    const dispatchId = input.plan.dispatch.id;
     const intent = planToLaunchIntent(input.plan);
+    intent.onAdmitted = (admittedLaunch) => {
+      try {
+        input.queue.bindExecution({ id: dispatchId, launchId: admittedLaunch.id });
+      } catch {
+        // Best-effort live binding; the terminal mapping below still carries
+        // the authoritative launchId if this write fails.
+      }
+    };
+    intent.onAgentStarted = (receipt) => {
+      try {
+        input.queue.bindExecution({
+          id: dispatchId,
+          agentId: receipt.agentId,
+          transcriptId: receipt.transcriptId,
+          model: receipt.model,
+        });
+      } catch {
+        // Best-effort live binding; see above.
+      }
+    };
     const r = await conductor.launch(intent);
 
     // Refused at admission (bond/ceiling/depth/breaker/main-checkout/capability):
