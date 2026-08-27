@@ -290,9 +290,10 @@ jobs:
         run: bun install
 
       - name: Package + sign + notarize FleetBar.app
-        # Same Developer ID path the daemon (#447) and pd-console use — same APPLE_*
-        # secrets. No-ops to ad-hoc if the cert secret is absent so the build never
-        # breaks; the guard below makes ad-hoc a hard failure on a real signed run.
+        # FleetBar is an ESSENTIAL release artifact. A stable release must not
+        # degrade to ad-hoc signing or signing-without-notarization: either every
+        # credential is present and Apple accepts the bundle, or this job fails
+        # and update-homebrew remains unreachable.
         env:
           APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
@@ -301,70 +302,72 @@ jobs:
           APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
         run: |
           set -euo pipefail
-          export PORT_DADDY_SKIP_NOTARIZE=1
-          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
-            KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
-            KCPASS="$(openssl rand -hex 24)"
-            security create-keychain -p "$KCPASS" "$KEYCHAIN"
-            security set-keychain-settings -lut 21600 "$KEYCHAIN"
-            security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
-            echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-            security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
-            security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
-            security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
-            export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
-            export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
-            if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
-              echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
-              if xcrun notarytool store-credentials pd-notary \
-                   --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
-                   --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"; then
-                unset PORT_DADDY_SKIP_NOTARIZE
-                export PORT_DADDY_NOTARY_PROFILE=pd-notary
-              else
-                echo "::warning::notary creds failed validation — signing FleetBar.app only."
-              fi
-            fi
-          else
-            echo "::warning::APPLE_CERT_P12_BASE64 unset — FleetBar.app ships unsigned."
-          fi
-          scripts/package-fleetbar.sh dist/fleetbar
-          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
-          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
-            security delete-keychain "$KEYCHAIN" || true
-          fi
 
-      - name: Signature guard — reject ad-hoc when signing was configured
-        # The "ensure it's signed from now on" lever: if the Developer ID cert
-        # secret is present, the produced .app MUST carry a Developer ID signature.
-        # Without this, a future regression silently reverts to an unsigned,
-        # Gatekeeper-quarantined .app (the v3.21.0 state this PR fixes).
-        #
-        # GATE IN BASH, NOT IN `if:`. A step-level `if: ${{ secrets.X != '' }}`
-        # is rejected by GitHub's workflow parser ("Unrecognized named-value:
-        # 'secrets'") — this exact line made the whole workflow invalid and
-        # silently killed the v3.25.0 release trigger (an invalid workflow
-        # produces NO run on release.published). Same env-gated pattern as
-        # the packaging step above.
-        env:
-          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          : "${APPLE_CERT_P12_BASE64:?FleetBar release requires APPLE_CERT_P12_BASE64}"
+          : "${APPLE_CERT_PASSWORD:?FleetBar release requires APPLE_CERT_PASSWORD}"
+          : "${APPLE_NOTARY_KEY_P8_BASE64:?FleetBar release requires APPLE_NOTARY_KEY_P8_BASE64}"
+          : "${APPLE_NOTARY_KEY_ID:?FleetBar release requires APPLE_NOTARY_KEY_ID}"
+          : "${APPLE_NOTARY_KEY_ISSUER:?FleetBar release requires APPLE_NOTARY_KEY_ISSUER}"
+          unset PORT_DADDY_SKIP_NOTARIZE
+
+          KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
+          cleanup_fleetbar_credentials() {
+            rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
+            security delete-keychain "$KEYCHAIN" >/dev/null 2>&1 || true
+          }
+          trap cleanup_fleetbar_credentials EXIT
+
+          KCPASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KCPASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+          existing_keychains=()
+          while IFS= read -r existing_keychain; do
+            [ -n "$existing_keychain" ] && existing_keychains+=("$existing_keychain")
+          done < <(security list-keychains -d user | tr -d '"')
+          security list-keychains -d user -s "$KEYCHAIN" "${existing_keychains[@]}"
+
+          echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials pd-notary \
+            --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"
+
+          export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+          export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+          export PORT_DADDY_NOTARY_PROFILE=pd-notary
+          scripts/package-fleetbar.sh dist/fleetbar
+
+      - name: FleetBar release truth guard
+        # Verify both the native signature and the package script's durable
+        # notarization receipt. The job cannot upload an unsigned or merely
+        # signed artifact, so downstream feed/tap jobs cannot mistake it for a
+        # releasable FleetBar.
         run: |
           set -euo pipefail
-          if [ -z "${APPLE_CERT_P12_BASE64:-}" ]; then
-            echo "APPLE_CERT_P12_BASE64 unset — signature guard skipped (unsigned build path)."
-            exit 0
-          fi
-          zip="$(ls dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip | head -n1)"
+          zip="$(find dist/fleetbar -maxdepth 1 -type f -name 'PortDaddy-FleetBar-macOS-*.zip' -print -quit)"
+          [ -n "$zip" ] || { echo "::error::FleetBar release archive is missing"; exit 1; }
           work="$RUNNER_TEMP/fleetbar-verify"; rm -rf "$work"; mkdir -p "$work"
           ditto -x -k "$zip" "$work"
           app="$work/FleetBar.app"
-          codesign --verify --strict --verbose=2 "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
           auth="$(codesign -dvv "$app" 2>&1 | grep '^Authority=' | head -n1 || true)"
           echo "FleetBar.app $auth"
           if ! printf '%s' "$auth" | grep -q 'Developer ID Application'; then
             echo "::error::FleetBar.app is NOT Developer ID signed (got: ${auth:-adhoc/none}). Refusing to ship a Gatekeeper-quarantined app."
             exit 1
           fi
+          node -e '
+            const fs = require("node:fs");
+            const path = process.argv[1];
+            const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
+            if (manifest.unsigned !== false || manifest.notarized !== true) {
+              console.error("FleetBar release manifest is not shippable: unsigned=" + manifest.unsigned + " notarized=" + manifest.notarized);
+              process.exit(1);
+            }
+          ' dist/fleetbar/fleetbar-preview-manifest.json
 
       - name: Upload FleetBar preview to release
         uses: softprops/action-gh-release@v2
@@ -537,31 +540,33 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           set -euo pipefail
-          mkdir -p dist
-          # Daemon tars, FleetBar zip, console zip — whatever this release has.
+          mkdir -p dist/fleetbar
+          # Daemon archives and FleetBar are essential. Their absence is fatal.
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
             --pattern 'pd-*.tar.gz' \
-            --pattern 'PortDaddy-FleetBar-macOS-*.zip' \
+            --pattern 'PortDaddy-FleetBar-macOS-*.zip'
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist/fleetbar \
+            --pattern 'fleetbar-preview-manifest.json'
+          # pd-console is explicitly best-effort for releases where it changed.
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
             --pattern 'PortDaddy-Console-macOS-*.zip' || true
           ls -la dist
+          ls -la dist/fleetbar
 
-      # When the Apple cert secret is present the mac artifacts shipped signed +
-      # notarized, so mark them signed in the feed. Absent → unsigned (the feed
-      # tells the truth either way; `pd upgrade` surfaces the signed flag).
+      # FleetBar trust comes only from the downloaded package manifest. The
+      # producer rejects absent/malformed/unsigned/unnotarized evidence; it never
+      # infers FleetBar trust from the mere presence of a repository secret.
       - name: Generate latest.json
         env:
           TAG: ${{ steps.tag.outputs.tag }}
-          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
         run: |
           set -euo pipefail
-          SIGNED_FLAG=""
-          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then SIGNED_FLAG="--signed"; fi
           node scripts/build-latest-json.mjs \
             --tag "$TAG" \
             --dist dist \
             --out dist/latest.json \
             --repo "$GITHUB_REPOSITORY" \
-            $SIGNED_FLAG
+            --signed
           echo "---- latest.json ----"
           cat dist/latest.json
 

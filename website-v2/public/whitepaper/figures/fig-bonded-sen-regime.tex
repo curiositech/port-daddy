@@ -1,0 +1,80 @@
+% Sen regime diagram — inline in §sec:sen, between the Pareto-inferior locking
+% instance (prop:sen) and the advisory-completeness theorem (thm:advisory).
+% Rail-B boundary figure per docs/harbor-research/figures/CONVENTION.md: axes are
+% the two parameters that control the result's validity, shading marks where
+% advisory claims actually beat enforced locks, and the paper's own operating
+% point is marked on it. Native TikZ (the paper's preamble does not load pgfplots).
+% Serif body font (no \sffamily), hh palette.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  regime/.style={align=center,font=\footnotesize,text width=42mm},
+  axlbl/.style={font=\footnotesize,text=hhink},
+]
+
+% ── Regimes ────────────────────────────────────────────────────────────────
+\fill[hhsand!55]     (0,0)   rectangle (4.0,7.0);   % locking loses nothing
+\fill[hhteal!18]     (4.0,0) rectangle (12.0,4.0);  % advisory strictly better
+\fill[hhamber!22]    (4.0,4.0) rectangle (12.0,7.0);% thrash: neither dominates
+
+% Regime boundaries (dashed: soft, calibrated boundaries, not proved thresholds).
+\draw[dashed,thick,draw=hhebony] (4.0,0) -- (4.0,7.0);
+\draw[dashed,thick,draw=hhebony] (4.0,4.0) -- (12.0,4.0);
+
+% ── Axes ───────────────────────────────────────────────────────────────────
+\draw[->,>=Latex,thick,draw=hhink] (0,0) -- (12.7,0);
+\draw[->,>=Latex,thick,draw=hhink] (0,0) -- (0,7.6);
+\node[axlbl,anchor=north] at (6.0,-0.62)
+  {agent's private information about \emph{its own} future file needs $\longrightarrow$};
+\node[axlbl,rotate=90,anchor=south] at (-0.55,3.8)
+  {cost of negotiating a release $\longrightarrow$};
+
+\node[axlbl,anchor=north east] at (0,-0.12) {low};
+\node[axlbl,anchor=north west] at (12.1,-0.12) {high};
+\node[axlbl,anchor=east] at (-0.15,7.0) {high};
+
+% ── Regime labels ──────────────────────────────────────────────────────────
+\node[regime,text width=34mm] at (2.0,5.2)
+  {\textbf{Locking loses nothing}\\[3pt]
+   Needs are known up front, so an exclusive lock and an advisory claim allocate
+   \emph{identically} --- and the lock adds determinism for free.};
+
+\node[regime,text width=58mm,text=hhteal] at (7.6,2.5)
+  {\textbf{Advisory strictly better}\\[3pt]
+   The allocator lacks the Pareto-relevant information the agents hold, so a
+   precautionary claim can veto a reachable better outcome
+   (Property~\ref{prop:sen}). Conflicts are cheap to renegotiate once reported.};
+
+\node[regime,text width=62mm,text=hhamber] at (8.0,5.5)
+  {\textbf{Neither dominates: thrash region}\\[3pt]
+   Advisory warnings are mutually ignored and renegotiation never converges.
+   This is where the deterministic hard-lock fallback fires (default $k=5$ turns,
+   \S\ref{sec:governance}) --- an admission that the advisory regime has run out.};
+
+% ── The paper's own operating point ────────────────────────────────────────
+\fill[hhcobalt] (10.6,0.95) circle (3.4pt);
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      align=center,font=\footnotesize,text=hhcobalt,text width=78mm,
+      anchor=north] (here) at (7.0,-1.45)
+  {\textbf{LLM coding agents sit here.} An agent told to ``fix the login bug''
+   cannot say up front whether it needs the middleware, the route handler, or the
+   tests --- and the daemon certainly cannot.};
+\draw[->,>=Latex,thick,draw=hhcobalt] (here.north east) -- (10.55,0.80);
+
+\end{tikzpicture}%
+}
+\caption{Advisory claims do not beat enforced locks everywhere --- they beat them only to the right of the dashed vertical, where agents hold private information the allocator cannot have. To its left, locking costs nothing and buys determinism, so Sen's warning does not apply and this paper's design choice would be wrong. Above the dashed horizontal, neither regime works and the hard-lock fallback of \S\ref{sec:governance} takes over. The marked point is where LLM coding agents actually sit, which is the entire argument for the advisory default of \S\ref{sec:advisory}.}
+\label{fig:bonded-sen-regime}
+\end{figure}

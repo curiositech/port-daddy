@@ -1,4 +1,4 @@
-% Fig 12 — the rate-the-raters conjecture, stated as a proof obligation.
+% Fig 12 — the rate-the-raters recursion, closed by the companion paper's tower theorem.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
@@ -15,20 +15,25 @@
   \draw[stp arrow] (l1) -- (l2);
   \draw[stp arrow] (l2) -- (l3);
   \node[stp status,anchor=south] at ([yshift=3mm]l3.north)
-    {conjectured contraction toward an honest fixed point};
+    {geometric contraction to an honest root, at $\lceil\log G_0/\log\tfrac{1}{1-\rho d}\rceil$ levels};
 
   \node[stp accent box,text width=67mm,align=left,anchor=west] (conditions) at (0.3,0.9)
-    {\textbf{Candidate contraction conditions} (Conj.~\ref{conj:contract})\\[3pt]
-     \textbf{1.} $q_k=\rho_k d_k$: sample and detect a corrupt grade.\\
-     \textbf{2.} $q_k B_k>G_k$: expected forfeiture beats total corrupt gain.\\
-     \textbf{3.} Derive $G_{k+1}\leq\lambda G_k$, $0\leq\lambda<1$, from the pool model.\\[3pt]
-     \emph{Unproved obligation: establish both deterrence and contraction.}};
+    {\textbf{Both obligations, discharged} (Thm.~\ref{thm:tower-imported})\\[3pt]
+     \textbf{1. Deterrence, per level.} $\rho d B\ge G_k$, i.e.\ $\rho^\star=G_k/(dB)$.\\
+     \textbf{2. Contraction, derived not assumed.} Sealed sampling over $C$ cliques
+     makes bribery all-or-nothing and unprofitable once $G_k\le CB$; then
+     $G_{k+1}=(1-\rho d)G_k$, so $\lambda=1-\rho d$.\\[3pt]
+     \emph{Still open: the exogenously honest root, and the telemetry for $d$.}};
 \end{tikzpicture}}
-\caption{\textbf{The rate-the-raters recursion.} Conjecture~\ref{conj:contract}
-separates two obligations that a recursive audit design must prove: expected
-forfeiture $\rho_k d_k B_k$ must exceed the judge's total corrupt gain $G_k$ at
-each level, and the pool model must make the remaining corruption opportunity
-shrink by a uniform factor $\lambda<1$. A bond larger than one bribe is not enough
-when re-audit is probabilistic. Neither obligation is depicted as established.}
+\caption{\textbf{The rate-the-raters recursion, closed.} A recursive audit design
+owes two obligations, and the companion inspection-game paper discharges both
+(Thm.~\ref{thm:tower-imported}): expected forfeiture $\rho d B$ must beat the
+judge's corrupt gain $G_k$ at each level, and the pool model must shrink the
+remaining corruption opportunity by a uniform factor $\lambda<1$ --- which sealed
+$C$-clique sampling \emph{derives} as $\lambda=1-\rho d$ rather than assuming. A
+bond larger than one bribe is still not enough when re-audit is probabilistic; what
+makes the tower finite is that the depth is logarithmic in $G_0$ ($27$ levels /
+\$1{,}350 of bond at $C{=}8$ against $53$ / \$2{,}650 at $C{=}1$). What the theorem
+does \emph{not} supply is the honest root the tower terminates against.}
 \label{fig:rate-raters}
 \end{figure}

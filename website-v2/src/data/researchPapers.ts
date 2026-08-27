@@ -29,6 +29,17 @@ import {
  */
 export type ResearchTone = 'primary' | 'health' | 'rust' | 'accent' | 'violet' | 'warm' | 'indigo'
 
+/** The four outcomes a prior-art/falsification dive can end in — see `docs/harbor-research/deep-dives/README.md`. */
+export type DiveVerdict = 'CLEAR' | 'NARROW' | 'SUBSUMED' | 'CONTRADICTED'
+
+export interface PriorArtDive {
+  verdict: DiveVerdict
+  /** One sentence, safe to show next to the paper's own claim — what the dive found and what changed. */
+  summary: string
+  /** Path under docs/harbor-research/deep-dives/, e.g. 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md'. */
+  findingsPath: string
+}
+
 export interface ResearchPaper {
   id: string
   /** Arabic numeral, 1–7 — deliberately distinct from the whitepapers' Roman-numeral chapters. */
@@ -52,6 +63,12 @@ export interface ResearchPaper {
   chapterRef: string
   /** One line on why that chapter needed this proof. */
   chapterWhy: string
+  /**
+   * A completed prior-art / falsification dive against this paper, if one
+   * exists (`docs/harbor-research/deep-dives/`). Omitted, not a placeholder
+   * verdict, for a paper no dive has run against yet — currently just paper 1.
+   */
+  priorArtDive?: PriorArtDive
 }
 
 export const RESEARCH_PAPERS: ResearchPaper[] = [
@@ -61,8 +78,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Price of a Summary',
     subtitle: 'Information-Theoretic Limits of Agent Oversight',
     pdfPath: '/research/paper1.pdf',
-    pages: 12,
-    sizeKb: 726,
+    pages: 16,
+    sizeKb: 451,
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
@@ -79,8 +96,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Regimented or Enforced',
     subtitle: 'The Controllability Boundary for Agent Governance',
     pdfPath: '/research/paper2.pdf',
-    pages: 9,
-    sizeKb: 364,
+    pages: 13,
+    sizeKb: 362,
     claim:
       'Whether a governance rule can be prevented before it happens or only caught after is decided by one theorem, not by how hard the runtime tries.',
     pullQuote:
@@ -90,6 +107,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     icon: Workflow,
     chapterRef: 'II',
     chapterWhy: 'mechanizes the kernel chapter’s own "detector vs. regimenter" distinction as a theorem',
+    priorArtDive: {
+      verdict: 'NARROW',
+      summary:
+        'The rumored same-year preprint is real but orthogonal; the actual prior problem is Basin et al. (TISSEC 2013) — two correctness bugs against Schneider’s original theorem were found and fixed.',
+      findingsPath: 'flag-2-runtime-enforceability-priority/findings.md',
+    },
   },
   {
     id: 'reputation-is-amortized-verification',
@@ -97,8 +120,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Reputation is Amortized Verification',
     subtitle: 'Inspection Games for Agent Economies',
     pdfPath: '/research/paper3.pdf',
-    pages: 9,
-    sizeKb: 390,
+    pages: 12,
+    sizeKb: 343,
     claim:
       'A bonded judge stays honest exactly when audit-rate times damages clears the bribe — and stacking judges on judges holds at any depth on a finite bond, not an infinite one.',
     pullQuote:
@@ -108,6 +131,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     icon: Layers3,
     chapterRef: 'III',
     chapterWhy: 'prices the neutral judges the bridge chapter’s multi-axis reputation depends on',
+    priorArtDive: {
+      verdict: 'CLEAR',
+      summary:
+        'The one named competing result turned out to support the tower theorem, not contradict it — but the adversarial re-read caught and fixed a real arithmetic defect in the paper’s own C=1 counter-case.',
+      findingsPath: 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md',
+    },
   },
   {
     id: 'the-sealed-harbor',
@@ -115,8 +144,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Sealed Harbor',
     subtitle: 'Mutually Confidential Computation with Explicit, Gated, Bounded Releases',
     pdfPath: '/research/paper4.pdf',
-    pages: 12,
-    sizeKb: 566,
+    pages: 17,
+    sizeKb: 406,
     claim:
       'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
     pullQuote:
@@ -126,6 +155,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     icon: ShieldCheck,
     chapterRef: 'V',
     chapterWhy: 'extends the Anchor Protocol’s capability boundary to what two mutually distrustful daemons can compute together',
+    priorArtDive: {
+      verdict: 'NARROW',
+      summary:
+        'Each pillar narrows to a known result (delimited release, a privacy filter) the paper mostly pre-concedes; one corollary applied an invalid composition bound and was rewritten to the model it actually holds for.',
+      findingsPath: 'paper4-sealed-harbor/findings.md',
+    },
   },
   {
     id: 'continuity-without-metaphysics',
@@ -133,8 +168,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Continuity Without Metaphysics',
     subtitle: 'Identity, Reputation, and the Body Problem for Software Agents',
     pdfPath: '/research/paper5.pdf',
-    pages: 10,
-    sizeKb: 500,
+    pages: 14,
+    sizeKb: 324,
     claim:
       'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
     pullQuote:
@@ -144,6 +179,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     icon: Fingerprint,
     chapterRef: 'III',
     chapterWhy: 'gives the role-vs-person distinction its conservation proof: reputation survives a fork without minting itself',
+    priorArtDive: {
+      verdict: 'NARROW',
+      summary:
+        'No prior work proves the theorems, but Theorem 2a was misnamed — it’s Akerlof’s lemons result, not the unraveling theorem the paper originally called it — and a plotted crossing value the paper’s own figure contradicted was corrected.',
+      findingsPath: 'paper5-continuity-without-metaphysics/findings.md',
+    },
   },
   {
     id: 'what-needs-an-authority',
@@ -151,8 +192,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'What Needs an Authority',
     subtitle: 'Mechanical Detection, Chartered Resolution, and the Exact Price of Sole Ownership',
     pdfPath: '/research/paper6.pdf',
-    pages: 9,
-    sizeKb: 467,
+    pages: 14,
+    sizeKb: 419,
     claim:
       'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
     pullQuote:
@@ -162,6 +203,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     icon: SplitSquareVertical,
     chapterRef: 'IV',
     chapterWhy: 'corrects the market chapter’s sole-owner-vs-pooled-swarm threshold with the actual Erlang-C crossing point',
+    priorArtDive: {
+      verdict: 'NARROW',
+      summary:
+        'The tractable-then-NP-complete shape is already mapped by the Colombo Tosatto/Governatori compliance line; the paper’s specific fragment survives as novel, and a wrong-strictness "iff" in Theorem 3 — stated three different ways across four sites — was found and unified.',
+      findingsPath: 'flag-3-deontic-tractability-frontier/findings.md',
+    },
   },
   {
     id: 'the-cohomology-of-equivocation',
@@ -169,8 +216,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'The Cohomology of Equivocation',
     subtitle: 'Detecting Split-View Lies in Federated Witness-Log Gossip by Sheaf Consistency',
     pdfPath: '/research/paper7.pdf',
-    pages: 9,
-    sizeKb: 546,
+    pages: 14,
+    sizeKb: 466,
     claim:
       'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
     pullQuote:
@@ -180,6 +227,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     icon: Radar,
     chapterRef: 'VII',
     chapterWhy: 'gives the federation chapter’s witness-log gossip a detector for lies on links nobody directly compared',
+    priorArtDive: {
+      verdict: 'CLEAR',
+      summary:
+        'The one citation flagged as possibly fabricated turned out to be real but irrelevant — excluded on relevance, not fraud — and Herlihy–Shavit plus three more foundational citations were added to close a real omission.',
+      findingsPath: 'flag-4-topological-consensus-citation-audit/findings.md',
+    },
   },
 ]
 

@@ -1,4 +1,12 @@
 % Algorithm-confusion attack defense — inline in §3.1 (Phase 1).
+%
+% TRUST-BOUNDARY CONVENTION (house style). The dashed cobalt band with a
+% low-opacity fill marks the region the Dolev-Yao adversary of the threat model
+% controls. The convention is inherited from figures/diag-magic-link.tex (which
+% marks its public channel "(Dolev-Yao adversary)") and is introduced here once,
+% then reused verbatim in fig-anchor-delegation-inline.tex and
+% fig-anchor-revocation-gossip.tex. Any figure in this chapter that shows a
+% message crossing out of daemon/verifier authority must carry it.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -13,20 +21,24 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-                inner sep=4pt,minimum width=22mm,align=center,font=\sffamily\bfseries\footnotesize},
+                inner sep=4pt,minimum width=22mm,align=center,font=\bfseries\footnotesize},
   bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries\footnotesize,text=hhcobalt},
+              font=\bfseries\footnotesize,text=hhcobalt},
   token/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-                font=\sffamily\footnotesize\ttfamily,align=left},
+                font=\footnotesize\ttfamily,align=left},
   arr/.style={->,>=Latex,thick,draw=hhink},
   badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
   ok/.style={draw=hhteal,fill=hhpaper,thick,rounded corners=2pt,
-             font=\sffamily\footnotesize,text=hhteal,inner sep=3pt},
+             font=\footnotesize,text=hhteal,inner sep=3pt},
   rejected/.style={draw=hhcobalt,fill=hhpaper,thick,rounded corners=2pt,
-                   font=\sffamily\bfseries\footnotesize,text=hhcobalt,inner sep=3pt},
+                   font=\bfseries\footnotesize,text=hhcobalt,inner sep=3pt},
+  % ── house trust-boundary convention ──
+  untrusted/.style={draw=hhcobalt,dashed,line width=0.8pt,
+                    fill=hhcobalt!6,rounded corners=3pt},
+  untrustedlbl/.style={font=\footnotesize\itshape,text=hhcobalt,align=center},
 ]
 % Top row: naive verifier path (attack succeeds)
 \node[actor] (daemon1) at (0,3.4) {Daemon};
@@ -37,14 +49,14 @@
   {\{alg: \textbf{none}, ...\}\\.``''};
 \node[actor,right=8mm of tok1b] (naive) {Naive verifier};
 \node[rejected,right=4mm of naive,fill=hhcobalt!20] (accept-bad) {ACCEPT (bad!)};
-\draw[arr] (daemon1.east) -- node[above,font=\sffamily\footnotesize]
+\draw[arr] (daemon1.east) -- node[above,font=\footnotesize]
   {issue} (tok1.west);
-\draw[badarr] (tok1.east) -- node[above,pos=0.5,font=\sffamily\tiny\itshape,
+\draw[badarr] (tok1.east) -- node[above,pos=0.5,font=\tiny\itshape,
                                   text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker1.west);
 \draw[badarr] (attacker1.east) -- (tok1b.west);
 \draw[badarr] (tok1b.east) -- (naive.west);
 \draw[badarr] (naive.east) -- (accept-bad.west);
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+\node[font=\footnotesize\itshape,text=hhcobalt,
       above=2mm of naive.north,align=center]
   {trusts alg header\\ from token};
 % Bottom row: pinned verifier path (attack rejected)
@@ -58,21 +70,30 @@
   {Pinned verifier};
 \node[ok,right=4mm of pinned] (reject) {REJECT (good)};
 \draw[arr] (daemon2.east) -- (tok2.west);
-\draw[badarr] (tok2.east) -- node[above,pos=0.5,font=\sffamily\tiny\itshape,
+\draw[badarr] (tok2.east) -- node[above,pos=0.5,font=\tiny\itshape,
                                   text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker2.west);
 \draw[badarr] (attacker2.east) -- (tok2b.west);
 \draw[badarr] (tok2b.east) -- (pinned.west);
 \draw[arr,draw=hhteal,line width=1.4pt] (pinned.east) -- (reject.west);
-\node[font=\sffamily\footnotesize\itshape,text=hhteal,
+\node[font=\footnotesize\itshape,text=hhteal,
       above=2mm of pinned.north,align=center]
   {pins alg at issuance,\\ ignores token's alg field};
+% ─── Trust boundary ──────────────────────────────────────────────────────────
+% Everything between the daemon and the verifier is the adversary's territory,
+% in both rows. Drawn on the background layer so the message nodes sit on top.
+\begin{scope}[on background layer]
+  \node[untrusted,inner sep=7pt,
+        fit=(tok1)(attacker1)(tok1b)(tok2)(attacker2)(tok2b)] (band) {};
+\end{scope}
+\node[untrustedlbl,anchor=north] at ([yshift=-2mm]band.south)
+  {untrusted network --- the Dolev--Yao adversary controls everything inside this band};
 % Header labels
-\node[font=\sffamily\bfseries,left=2mm of daemon1.west,text=hhcobalt]
+\node[font=\bfseries,left=2mm of daemon1.west,text=hhcobalt]
   {(a)};
-\node[font=\sffamily\bfseries,left=2mm of daemon2.west,text=hhteal]
+\node[font=\bfseries,left=2mm of daemon2.west,text=hhteal]
   {(b)};
 \end{tikzpicture}%
 }
-\caption{Algorithm-confusion attack and the pinned-verifier defense. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker who can intercept the token rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band, then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: 5 attack patterns + 2 controls, all pass.}
+\caption{Pinning the verification algorithm at issuance --- rather than trusting the token's self-declared \texttt{alg} field --- closes the algorithm-confusion attack that a naive verifier admits. The dashed band is the chapter's trust boundary: the daemon and the verifier sit outside it, and everything inside it is under the control of the Dolev--Yao adversary of \S\ref{sec:threat-model}, who may read, rewrite, or inject any token in flight. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker inside the band rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band --- across the boundary, where the adversary cannot reach --- then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: 5 attack patterns + 2 controls, all pass.}
 \label{fig:anchor-alg-confusion}
 \end{figure}
