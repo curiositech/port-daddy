@@ -175,7 +175,7 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
   pages: 249,
-  sizeKb: 5828,
+  sizeKb: 2309,
   references: 208,
 }
 
@@ -257,8 +257,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 42,
-    sizeKb: 4335,
+    pages: 41,
+    sizeKb: 815,
     status: 'Version 1.3 (collected-volume figure edition)',
     order: '01',
     chapter: 'I',
