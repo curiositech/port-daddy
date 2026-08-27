@@ -16,11 +16,12 @@
  */
 import { resolve } from 'node:path';
 import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
-import { buildRoadmapSnapshot, writeRoadmapSnapshot } from '../lib/roadmap-snapshot.js';
+import { buildRoadmapSnapshot, writeRoadmapSnapshot, readPreviousSnapshot } from '../lib/roadmap-snapshot.js';
 
-const SNAPSHOT_PATH = resolve(
-  process.argv[2] ?? 'docs/roadmap/roadmap.snapshot.json',
-);
+const cliArgs = process.argv.slice(2);
+const ALLOW_SHRINK = cliArgs.includes('--allow-shrink') || process.env.PD_ROADMAP_ALLOW_SHRINK === '1';
+const positional = cliArgs.find((a) => !a.startsWith('--'));
+const SNAPSHOT_PATH = resolve(positional ?? 'docs/roadmap/roadmap.snapshot.json');
 const BASE = resolveDaemonUrl().replace(/\/$/, '');
 const HARBOR = process.env.PD_HARBOR ?? 'port-daddy';
 
@@ -36,7 +37,12 @@ const HARBOR = process.env.PD_HARBOR ?? 'port-daddy';
 async function main(): Promise<void> {
   let snapshot;
   try {
-    snapshot = await buildRoadmapSnapshot({ baseUrl: BASE, harbor: HARBOR });
+    snapshot = await buildRoadmapSnapshot({
+      baseUrl: BASE,
+      harbor: HARBOR,
+      previousSnapshot: readPreviousSnapshot(SNAPSHOT_PATH),
+      allowShrink: ALLOW_SHRINK,
+    });
   } catch (err) {
     console.error(`✗ ${(err as Error).message}`);
     process.exit(1);
