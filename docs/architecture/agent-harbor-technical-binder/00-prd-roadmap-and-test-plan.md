@@ -288,6 +288,20 @@ Gate:
   produces remediation, and two overlapping agents trigger visible conflict
   handling.
 
+### Priority Program - Postmaster And Plan-First Continuity
+
+Chapter 28 is a high-priority program because coordination that exists but is
+not delivered is operationally absent. Ship bounded inbox/parley and salvage
+nudges first; then plan checkpoints, repository PR digests, provenance-bearing
+roadmap/document/AST suggestions, Fleetbot settlement receipts, and
+context-clustered successor workgroups. Activate the named Postmaster ship only
+after local ship identity, supervision, and operator projection are real.
+
+Gate:
+  Crash, compaction, takeover, new-review, merged-PR, and overlapping-work
+  fixtures each produce one bounded, idempotent next action backed by durable
+  plan, cursor, packet, or settlement evidence.
+
 ### Later - Harbor Editor, Mobile, Cloud, Teams
 
 Only after local Agent Node truth works:
