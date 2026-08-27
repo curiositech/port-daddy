@@ -1638,12 +1638,19 @@ export async function runPurser(
           repairReason = candidateSafety.reason;
         } else {
           const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          // Keep a safe rewrite even when it has not fully healed yet. The
+          // first #9789 production retry changed a syntax error into a precise
+          // unresolved-import error, but the old branch discarded both the
+          // rewritten bytes and that evolved diagnosis. The final retry then
+          // saw the stale source and stale error. Advancing the candidate here
+          // lets the next bounded attempt target the current failure while the
+          // same trusted gate still decides whether the file may execute.
+          files = candidate;
+          executability = candidateExecutability;
           if (
             candidateExecutability.ok ||
             (!candidateExecutability.ok && candidateExecutability.path !== repairPath)
           ) {
-            files = candidate;
-            executability = candidateExecutability;
             healed = true;
             repairReason = candidateExecutability.ok
               ? 'trusted executability gate passed after one rewrite'

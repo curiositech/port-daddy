@@ -1114,10 +1114,10 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       }),
       '```',
     ].join('\n');
-    const malformedRepair = [
+    const firstRepairWithEvolvedError = [
       '```js',
-      'if (parse',
-      '… (diff truncated...)',
+      "const { helper } = require('../missing-support');",
+      "test('first repair is syntactically complete', () => { helper(); });",
       '```',
     ].join('\n');
     const completeRepair = [
@@ -1127,7 +1127,12 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       '});',
       '```',
     ].join('\n');
-    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair, completeRepair]);
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      malformedTests,
+      firstRepairWithEvolvedError,
+      completeRepair,
+    ]);
     const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'PASS', stderr: '' }));
     const rec = recorder();
 
@@ -1145,7 +1150,10 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(repairSteps).toHaveLength(2);
     expect(repairSteps[0]).toMatchObject({
       title: expect.stringContaining('FAILED'),
-      detail: expect.objectContaining({ attempts: 1 }),
+      detail: expect.objectContaining({
+        attempts: 1,
+        result: expect.stringContaining('does not resolve to any file'),
+      }),
     });
     expect(repairSteps[1]).toMatchObject({
       title: expect.stringContaining('HEALED'),
@@ -1153,6 +1161,12 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     });
     expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
       .toBeUndefined();
+    const secondRepairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[3][1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(secondRepairRequest.messages[0].content).toContain(
+      'does not resolve to any file',
+    );
     expect(sandboxExec).toHaveBeenCalledTimes(1);
     expect(state.stackedPrs).toHaveLength(1);
   });
