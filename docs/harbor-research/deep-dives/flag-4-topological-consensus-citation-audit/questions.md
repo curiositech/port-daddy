@@ -1,5 +1,12 @@
 # Questions — flag 4
 
+**RESOLVED.** This is the brief the dive was run against, frozen as the record
+of what the dive had to answer — it is not live guidance. The dive completed
+with verdict **CLEAR**; see `README.md` and `findings.md` in this directory for
+the actual outcome. Q1's suspect citation was **FOUND** (real, just irrelevant
+— excluded on relevance, not authenticity); the "NOT FOUND — DO NOT CITE"
+instruction below describes the other branch the dive did not take.
+
 ## Q1. Does "A Homological Approach to Consensus and Fault Tolerance" exist?
 
 FOUND (with URL and venue) or NOT FOUND. No hedging, no "something similar

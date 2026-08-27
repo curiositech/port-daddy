@@ -302,10 +302,14 @@ closer to Paper 6's problem definition than the Colombo Tosatto line is.
 
 **Gaertner, García-Camino, Noriega, Rodríguez-Aguilar & Vasconcelos,
 "Distributed norm management in regulated multiagent systems," AAMAS '07,
-pp. 90:1–90:8, ACM, 2007.** `probable` — reference transcribed from the survey's
-own bibliography, which was fetched and read; the AAMAS paper itself not fetched.
+pp. 90:1–90:8, ACM, 2007.** Citation confidence: `probable` — the reference
+itself is transcribed from the survey's bibliography; the AAMAS paper was not
+independently fetched, so this stays `probable`, not `verified`, until it is.
 
-Per the survey (`verified` as the survey's characterization):
+The quote below carries a *separate* confidence tag on a *separate* claim —
+not on the Gaertner citation above, but on whether the survey accurately
+represents what Gaertner et al. say. That transcription is `verified` (the
+survey itself was fetched and read in full):
 
 > The authors map the NSs into Coloured Petri Nets (CPNs) and use well-known
 > theoretical results from work on CPNs in order to prove that ensuring
