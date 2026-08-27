@@ -32,6 +32,7 @@
  */
 
 import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -408,6 +409,42 @@ async function discoverAgentId(port, identity, timeoutMs = 20_000) {
   return null;
 }
 
+/**
+ * Hash the primary lane's transcript content, so the manifest's
+ * `transcriptHeadHash` names an actual state of the evidence rather than
+ * standing in as a permanently-null placeholder. A hash of `messages` (not
+ * just the id) is what lets a later audit detect a transcript that was
+ * rewritten out from under an already-committed artifact.
+ *
+ * @param port The daemon port.
+ * @param agentId The primary lane's spawned agent id (`lanes[0].agentId`).
+ * @returns A `sha256:<hex>` string, or null if the transcript could not be
+ *   read back (never fabricated — a missing hash stays null and visible).
+ */
+async function fetchTranscriptHeadHash(port, agentId) {
+  try {
+    const listRes = await fetch(
+      `http://127.0.0.1:${port}/transcripts?agentId=${encodeURIComponent(agentId)}&limit=1`,
+      { headers: { Host: '127.0.0.1' } },
+    );
+    if (!listRes.ok) return null;
+    const listBody = await listRes.json();
+    const rows = listBody.transcripts || listBody.entries || listBody.items || [];
+    const id = rows[0]?.id;
+    if (!id) return null;
+    const txRes = await fetch(`http://127.0.0.1:${port}/transcripts/${encodeURIComponent(id)}`, {
+      headers: { Host: '127.0.0.1' },
+    });
+    if (!txRes.ok) return null;
+    const txBody = await txRes.json();
+    const messages = txBody.transcript?.messages;
+    if (!Array.isArray(messages)) return null;
+    return `sha256:${createHash('sha256').update(JSON.stringify(messages)).digest('hex')}`;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const commit = headCommit();
   const playwright = await loadPlaywright();
@@ -634,6 +671,7 @@ async function main() {
     // The manifest is the artifact's passport. Every field is mandatory, and
     // `sourceLabel` is the one that makes the whole set auditable: an artifact
     // that will not say whether its data is real is not evidence.
+    const transcriptHeadHash = await fetchTranscriptHeadHash(daemon.port, lanes[0].agentId);
     const manifest = {
       branchCommit: commit,
       isControlPanelPr: false,
@@ -647,7 +685,7 @@ async function main() {
         manifest: {
           daemonPort: daemon.port,
           runId: lanes.map((l) => l.agentId).join(','),
-          transcriptHeadHash: null,
+          transcriptHeadHash,
           agentNodeId: lanes[0].agentId,
           commit,
           sourceLabel: LIVE ? 'real' : 'fixture',
