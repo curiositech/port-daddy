@@ -24,6 +24,17 @@ describe('HarnessLifecycleVessel', () => {
     expect(screen.getByRole('tab', { name: /SessionStart/i }).getAttribute('aria-selected')).toBe('true')
   })
 
+  it('supports reverse navigation and wraps the first station to the last', () => {
+    render(<HarnessLifecycleVessel />)
+
+    const sessionStart = screen.getByRole('tab', { name: /SessionStart/i })
+    fireEvent.keyDown(sessionStart, { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: /Stop \/ SessionEnd/i }).getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: /Stop \/ SessionEnd/i }), { key: 'ArrowUp' })
+    expect(screen.getByRole('tab', { name: /PreCompact/i }).getAttribute('aria-selected')).toBe('true')
+  })
+
   it('retains native Enter and Space activation for every station button', async () => {
     const user = userEvent.setup()
     render(<HarnessLifecycleVessel />)
