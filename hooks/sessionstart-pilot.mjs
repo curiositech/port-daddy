@@ -18,7 +18,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 function readStdin() {
   // Read the whole SessionStart payload (small JSON) from fd 0 in one shot.
@@ -40,7 +40,7 @@ function parsePayload(raw) {
 }
 
 /** Walk up from a starting dir looking for a Port Daddy project marker. */
-function isPortDaddyActive(startDir) {
+function findPortDaddyRoot(startDir) {
   let dir = startDir;
   for (let i = 0; i < 12; i++) {
     if (
@@ -48,13 +48,35 @@ function isPortDaddyActive(startDir) {
       existsSync(join(dir, 'pd-fleet.yml')) ||
       existsSync(join(dir, 'pd-fleet.yaml'))
     ) {
-      return true;
+      return dir;
     }
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  return false;
+  return null;
+}
+
+async function salvageNudge(projectName) {
+  if (!projectName) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 500);
+  try {
+    const base = (process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://127.0.0.1:9876').replace(/\/$/, '');
+    const response = await fetch(`${base}/salvage?project=${encodeURIComponent(projectName)}&limit=20`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    const agents = Array.isArray(body?.agents) ? body.agents : [];
+    if (agents.length === 0) return null;
+    const count = agents.length >= 20 ? '20+' : String(agents.length);
+    return `SALVAGE: ${count} interrupted agent run(s) are available for ${projectName}. Run \`pd salvage --project ${projectName}\` before starting duplicate work.`;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /**
@@ -148,19 +170,22 @@ const STEERING = [
   'To opt out for a session, set PD_PILOT_DISABLE=1 or launch with `--agent <other>`.',
 ].join('\n');
 
-function main() {
+async function main() {
   if (process.env.PD_PILOT_DISABLE) return;
 
   const payload = parsePayload(readStdin());
   if (explicitNonDefaultAgent(payload)) return;
 
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
-  if (!isPortDaddyActive(cwd)) return;
+  const root = findPortDaddyRoot(cwd);
+  if (!root) return;
 
   // The SITREP duty rides the same envelope unless the repo dialed it off —
   // the end-of-turn table is the harness's visible value surface, and the
   // session should learn the contract at birth, not at its first turn.
-  const steering = sitrepLevel(cwd) === 'off' ? STEERING : STEERING + SITREP_DUTY;
+  let steering = sitrepLevel(cwd) === 'off' ? STEERING : STEERING + SITREP_DUTY;
+  const salvage = await salvageNudge(basename(root));
+  if (salvage) steering += `\n\n${salvage}`;
 
   const out = {
     hookSpecificOutput: {
@@ -171,4 +196,4 @@ function main() {
   process.stdout.write(JSON.stringify(out));
 }
 
-main();
+main().catch(() => {});
