@@ -1259,6 +1259,102 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
+  it('deterministically removes a redundant Vitest import when every binding is a trusted Jest global', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const testPath = 'tests/unit/purser/jest-globals.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const authoredFile = [
+      '```ts',
+      "import { describe, it, expect, beforeEach } from 'vitest';",
+      "describe('release contract', () => {",
+      "  beforeEach(() => undefined);",
+      "  it('runs under Jest', () => expect(true).toBe(true));",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, plan, authoredFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining(`HEALED ${testPath}`),
+      detail: expect.objectContaining({
+        strategy: 'trusted-jest-global-import-removal',
+        attempts: 0,
+        removedBindings: ['describe', 'it', 'expect', 'beforeEach'],
+      }),
+    });
+    expect(state.blobsCreated).toBe(1);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('does not rewrite Vitest-only bindings under Jest evidence', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const testPath = 'tests/unit/purser/vitest-only.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const authoredFile = [
+      '```ts',
+      "import { describe, it, expect, vi } from 'vitest';",
+      "describe('release contract', () => it('mocks', () => expect(vi.fn()).toBeDefined()));",
+      '```',
+    ].join('\n');
+    const stillIncompatible = [
+      '```ts',
+      "import { test } from 'node:test';",
+      "test('contract', () => {});",
+      '```',
+    ].join('\n');
+    const malformedRepair = ['```ts', 'if (', '```'].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      authoredFile,
+      stillIncompatible,
+      malformedRepair,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    const repairs = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairs).toHaveLength(2);
+    expect(repairs[0]).toMatchObject({
+      detail: expect.objectContaining({ originalError: expect.stringContaining("imports 'vitest'") }),
+    });
+    expect(repairs.some(step =>
+      (step.detail as { strategy?: string }).strategy === 'trusted-jest-global-import-removal'
+    )).toBe(false);
+    expect(state.stackedPrs).toHaveLength(0);
+  });
+
   it('authors with trusted Jest evidence and repairs three incompatible siblings before stacking', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');
@@ -1304,7 +1400,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
 
     expect(result).toMatchObject({ verdict: 'PASS', errored: false });
     const calls = (ai.run as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(8);
+    expect(calls).toHaveLength(5);
     for (const callIndex of [2, 3, 4]) {
       const request = calls[callIndex][1] as {
         messages: Array<{ role: string; content: string }>;
@@ -1324,16 +1420,20 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(repairSteps).toHaveLength(3);
     for (const [index, step] of repairSteps.entries()) {
       expect(step).toMatchObject({
-        title: expect.stringContaining(`HEALED ${paths[index]}`),
-        detail: expect.objectContaining({ repairNumber: index + 1 }),
+        detail: expect.objectContaining({
+          strategy: 'trusted-jest-global-import-removal',
+          attempts: 0,
+          path: paths[index],
+          removedBindings: ['describe', 'it', 'expect'],
+        }),
       });
       const resultDetail = (step.detail as { result: string }).result;
       if (index < paths.length - 1) {
         expect(resultDetail).toContain(
-          `next failing sibling: ${paths[index + 1]} imports 'vitest'`,
+          `${paths[index + 1]} imports 'vitest'`,
         );
       } else {
-        expect(resultDetail).toBe('trusted executability gate passed after one rewrite');
+        expect(resultDetail).toBe('trusted executability gate passed after deterministic rewrite');
       }
     }
     expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({

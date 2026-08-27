@@ -168,6 +168,61 @@ const FAILURE_TAIL_BYTES = 1024;
 const MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE = 2;
 const MAX_AUTHORED_REPAIR_CALLS = MAX_PLANNED_FILES + 1;
 
+const JEST_GLOBAL_BINDINGS = new Set([
+  'afterAll',
+  'afterEach',
+  'beforeAll',
+  'beforeEach',
+  'describe',
+  'expect',
+  'it',
+  'test',
+]);
+
+/**
+ * Remove a redundant Vitest named import only when trusted discovery has
+ * already established that the file runs under Jest and every imported name
+ * is a Jest global. This is deliberately narrower than a source translator:
+ * aliases, `vi`, fixtures, and every other Vitest-only binding stay rejected
+ * by the normal bounded repair path.
+ */
+function repairRedundantVitestGlobalsImport(
+  files: StackedFile[],
+  failure: ExecutabilityResult,
+): { files: StackedFile[]; path: string; bindings: string[] } | null {
+  if (
+    failure.ok ||
+    failure.kind !== 'incompatible-runner' ||
+    failure.specifier !== 'vitest' ||
+    !failure.path
+  ) {
+    return null;
+  }
+
+  const index = files.findIndex(file => file.path === failure.path);
+  if (index < 0) return null;
+  const source = files[index].contents;
+  const importPattern = /^[ \t]*import\s*\{\s*([^}]+?)\s*\}\s*from\s*['"]vitest['"]\s*;?[ \t]*(?:\r?\n|$)/gm;
+  const matches = [...source.matchAll(importPattern)];
+  if (matches.length !== 1) return null;
+
+  const bindings = matches[0][1].split(',').map(binding => binding.trim());
+  if (
+    bindings.length === 0 ||
+    bindings.some(binding =>
+      !/^[A-Za-z_$][\w$]*$/.test(binding) || !JEST_GLOBAL_BINDINGS.has(binding)
+    )
+  ) {
+    return null;
+  }
+
+  const contents = source.replace(importPattern, '');
+  if (contents === source) return null;
+  const repaired = [...files];
+  repaired[index] = { ...files[index], contents };
+  return { files: repaired, path: failure.path, bindings };
+}
+
 /** Structural twin of execute.ts's ShipMetrics (accumulated per AI call). */
 export interface PurserMetrics {
   inputTokens: number;
@@ -1557,6 +1612,36 @@ export async function runPurser(
           strategy: 'trusted-tree-relative-import',
           attempts: 0,
           repairs: deterministicRepairs,
+          result: executability.ok
+            ? 'trusted executability gate passed after deterministic rewrite'
+            : executability.reason,
+        },
+      );
+    }
+    let runnerImportRepairs = 0;
+    while (
+      !executability.ok &&
+      executability.kind === 'incompatible-runner' &&
+      runnerImportRepairs < MAX_PLANNED_FILES
+    ) {
+      const repair = repairRedundantVitestGlobalsImport(files, executability);
+      if (!repair) break;
+      const candidateSafety = validateStackedFiles(repair.files);
+      if (!candidateSafety.ok) break;
+      files = repair.files;
+      runnerImportRepairs += 1;
+      executability = checkGeneratedTestsExecutable(files, evidence);
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        executability.ok
+          ? `pd-${ship.name}: authored-file repair HEALED ${repair.path}`
+          : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+        {
+          strategy: 'trusted-jest-global-import-removal',
+          attempts: 0,
+          path: repair.path,
+          removedBindings: repair.bindings,
           result: executability.ok
             ? 'trusted executability gate passed after deterministic rewrite'
             : executability.reason,
