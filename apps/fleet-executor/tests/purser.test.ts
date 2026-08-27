@@ -1089,10 +1089,12 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     const step = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
     expect(step).toBeDefined();
     expect((step!.detail as { error: string }).error).toMatch(/does not resolve to any file/);
-    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
-    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[1]).toMatchObject({
       title: expect.stringContaining('FAILED'),
-      detail: expect.objectContaining({ attempts: 1 }),
+      detail: expect.objectContaining({ attempts: 2 }),
     });
     expect(state.stackedPrs).toHaveLength(0);
     // No retarget PATCH — the only PR PATCH allowed here is the steel-man
@@ -1100,7 +1102,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
-  it('#9760: malformed authored source fails before sandbox, stacking, or retarget side effects', async () => {
+  it('#9789: a second bounded escalation rewrite heals when the first rewrite is still malformed', async () => {
     seedRealJestConfig();
     const malformedTests = [
       '```json',
@@ -1118,7 +1120,62 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       '… (diff truncated...)',
       '```',
     ].join('\n');
-    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair]);
+    const completeRepair = [
+      '```js',
+      "test('complete source reaches the trusted runner', () => {",
+      '  expect(1).toBe(1);',
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair, completeRepair]);
+    const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'PASS', stderr: '' }));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: { exec: sandboxExec } as unknown }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[0]).toMatchObject({
+      title: expect.stringContaining('FAILED'),
+      detail: expect.objectContaining({ attempts: 1 }),
+    });
+    expect(repairSteps[1]).toMatchObject({
+      title: expect.stringContaining('HEALED'),
+      detail: expect.objectContaining({ attempts: 2 }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
+      .toBeUndefined();
+    expect(sandboxExec).toHaveBeenCalledTimes(1);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('#9789: two malformed escalation rewrites still fail closed without sandbox or stack effects', async () => {
+    seedRealJestConfig();
+    const malformedTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/release-token-fallback.test.js',
+          contents: 'export function parseStableVersion(value) { ... }',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const malformedRepair = [
+      '```js',
+      'if (parse',
+      '… (diff truncated...)',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, malformedTests, malformedRepair, malformedRepair]);
     const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'should not run', stderr: '' }));
     const rec = recorder();
 
@@ -1132,12 +1189,11 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     );
 
     expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
-    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[1]).toMatchObject({
       title: expect.stringContaining('FAILED'),
-      detail: expect.objectContaining({
-        originalError: expect.stringContaining('not a complete syntactically valid test program'),
-        attempts: 1,
-      }),
+      detail: expect.objectContaining({ attempts: 2 }),
     });
     expect(rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title)))
       .toBeDefined();

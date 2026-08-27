@@ -158,6 +158,15 @@ const RAW_DIAGNOSTIC_CHARS = 2000;
 const PURSER_DIFF_CHAR_LIMIT = 24_000;
 /** Transcript cap for the sandbox failure tail. */
 const FAILURE_TAIL_BYTES = 1024;
+/**
+ * One escalation rewrite is not enough when the first repair response is
+ * itself truncated or malformed. Production #9789 witnesses on #9897 and
+ * #9893 both failed this way with more than twenty minutes of run budget left.
+ * Permit one final retry for the same file, while keeping total repair spend
+ * bounded to the original one-call-per-file ceiling plus one retry.
+ */
+const MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE = 2;
+const MAX_AUTHORED_REPAIR_CALLS = MAX_PLANNED_FILES + 1;
 
 /** Structural twin of execute.ts's ShipMetrics (accumulated per AI call). */
 export interface PurserMetrics {
@@ -1554,29 +1563,33 @@ export async function runPurser(
         },
       );
     }
-    const authoredRepairPaths = new Set<string>();
+    const authoredRepairAttempts = new Map<string, number>();
+    let authoredRepairCalls = 0;
     while (
       !executability.ok &&
       (executability.kind === 'syntax-error' ||
         executability.kind === 'unresolved-import' ||
         executability.kind === 'incompatible-runner') &&
       executability.path &&
-      authoredRepairPaths.size < MAX_PLANNED_FILES &&
-      !authoredRepairPaths.has(executability.path)
+      authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS &&
+      (authoredRepairAttempts.get(executability.path) ?? 0) <
+        MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
     ) {
       // #8313: discovery-aware planning healed the filenames, then an authored
       // file nested at tests/unit/purser imported ../../scripts/... as though
       // it lived one directory higher. The trusted gate caught it, but throwing
       // away every authored file made the fleet-wide outage permanent. Give
       // Each distinct offending file gets one bounded rewrite with the exact
-      // gate error. Siblings keep their original bytes, and the same safety +
-      // executability validators remain the sole judges of whether healing
-      // occurred. This matters when two independently-authored siblings both
-      // guessed the same foreign runner: healing the first merely reveals the
-      // second failure.
+      // gate error. When that rewrite is itself malformed, the same file gets
+      // one final escalation retry; this is the #9789 production shape. Total
+      // repair calls remain capped at one per planned file plus one, so a bad
+      // model cannot turn the Purser into an unbounded spend loop. Siblings keep
+      // their original bytes, and the same safety + executability validators
+      // remain the sole judges of whether healing occurred.
       const repairPath = executability.path;
-      // Set size is the 1-based repair ordinal recorded in the transcript.
-      authoredRepairPaths.add(repairPath);
+      const repairAttempt = (authoredRepairAttempts.get(repairPath) ?? 0) + 1;
+      authoredRepairAttempts.set(repairPath, repairAttempt);
+      authoredRepairCalls += 1;
       const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
         'preserve the authored test intent while fixing its executability failure';
       const repairError = executability.reason;
@@ -1650,8 +1663,8 @@ export async function runPurser(
           path: repairPath,
           originalError: repairError,
           result: repairReason,
-          attempts: 1,
-          repairNumber: authoredRepairPaths.size,
+          attempts: repairAttempt,
+          repairNumber: authoredRepairCalls,
         },
       );
     }
