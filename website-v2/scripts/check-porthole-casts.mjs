@@ -41,6 +41,9 @@ const LEAK_PATTERNS = [
 
 const failures = [];
 const fail = (msg) => failures.push(msg);
+const decodedByFile = new Map();
+const PORTS_PROJECT = 'porthole-service-proof';
+const PORTS_SEMANTIC_ID = `${PORTS_PROJECT}:app:main`;
 
 if (!existsSync(CASTS_DIR)) {
   console.log("[check-porthole-casts] no porthole casts directory yet — nothing to gate.");
@@ -80,6 +83,7 @@ for (const file of files) {
   const vt = new VT(cast.cols, cast.rows, FLAT_THEME);
   for (const [, data] of cast.events) vt.feed(data);
   const transcript = vt.lines.map(lineText).join("\n");
+  decodedByFile.set(file, transcript);
 
   if (!transcript.trim()) {
     fail(`${file}: decoded transcript is blank — the payoff produced no visible output`);
@@ -87,6 +91,63 @@ for (const file of files) {
   for (const [pattern, description] of LEAK_PATTERNS) {
     if (pattern.test(transcript)) fail(`${file}: ${description} (matched ${pattern})`);
   }
+
+  if (/❯\s*#/m.test(transcript)) {
+    fail(`${file}: typed narration comment reached the recording`);
+  }
+
+  if (file === 'ports.cast') {
+    const hasReadiness = /"status"\s*:\s*"ok"/.test(transcript);
+    const hasExactQuery = new RegExp(`pd find ['"]?${PORTS_SEMANTIC_ID.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`).test(transcript);
+    const idOccurrences = transcript.split(PORTS_SEMANTIC_ID).length - 1;
+    if (!hasReadiness) fail(`${file}: missing HTTP readiness evidence for ${PORTS_SEMANTIC_ID}`);
+    if (!hasExactQuery) fail(`${file}: readiness may succeed, but the recorder never queries the configured semantic identity ${PORTS_SEMANTIC_ID}`);
+    if (idOccurrences < 3) {
+      fail(`${file}: cannot prove configured identity, pd up registration, and pd find discovery agree on ${PORTS_SEMANTIC_ID} (found ${idOccurrences} occurrences)`);
+    }
+    if (/No services found/.test(transcript)) {
+      fail(`${file}: readiness succeeded but Port Daddy could not discover the recorded semantic identity`);
+    }
+  }
+
+  if (file === 'collision.cast') {
+    const redRefusal = cast.events.some(([, data]) => /\x1b\[[\d;]*41;?\d*m/.test(data));
+    if (!/Lock 'refunds-schema' is held by/.test(transcript)) {
+      fail(`${file}: missing the real contested-lock refusal`);
+    }
+    if (!/REFUSED · command exited/.test(transcript) || !redRefusal) {
+      fail(`${file}: refusal must include the actual non-zero exit and an unmistakable red treatment`);
+    }
+  }
+
+  if (file === 'harness-next-turn.cast' && !/(HARNESSED CONTEXT|PORT DADDY HARNESS)/.test(transcript)) {
+    fail(`${file}: hook injection is missing its explicit harness boundary`);
+  }
+
+  if (file === 'visibility.cast') {
+    const hasRealCut = cast.jumpCuts.some((cut) => cut.sourceTo - cut.sourceFrom >= 80);
+    if (cast.sourceDuration < 90 || !hasRealCut) {
+      fail(`${file}: expected a genuine 90-second timestamp discontinuity and broken-axis jump cut`);
+    }
+  }
+
+  if (file === 'parley.cast') {
+    const rawPerformatives = [
+      /pd parley (?:call|propose|critique|revise|agree|refuse|respond)\b/i,
+      /\bperformative\b/i,
+      /\b(?:propose|critique|revise|agree|refuse)\s*:/i,
+    ];
+    if (!/DECISION RECEIPT/.test(transcript)) {
+      fail(`${file}: primary decision scene is missing its receipt projection`);
+    }
+    for (const pattern of rawPerformatives) {
+      if (pattern.test(transcript)) fail(`${file}: raw Parley protocol performative reached the primary recording (matched ${pattern})`);
+    }
+  }
+}
+
+if (decodedByFile.has('parley.cast') && !decodedByFile.has('parley-source.cast')) {
+  fail('parley.cast: primary receipt is present without the preserved raw two-agent protocol transcript');
 }
 
 if (failures.length) {

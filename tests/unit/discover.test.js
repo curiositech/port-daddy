@@ -274,6 +274,22 @@ describe('Discover Module', () => {
       // Should lowercase and replace invalid chars
       expect(suggestions.app.project).toMatch(/^[a-z0-9-]+$/);
     });
+
+    it('uses the configured project identity over package or directory inference', () => {
+      const services = {
+        app: { stack: null }
+      };
+
+      setupProject(tempDir, { name: 'package-inferred-name' });
+      const suggestions = suggestNames(services, tempDir, {
+        project: 'Configured Service Proof'
+      });
+
+      expect(suggestions.app).toMatchObject({
+        project: 'configured-service-proof',
+        full: 'configured-service-proof:app:main'
+      });
+    });
   });
 
   describe('mergeWithConfig()', () => {

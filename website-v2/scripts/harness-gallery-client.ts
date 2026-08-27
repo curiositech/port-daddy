@@ -16,6 +16,12 @@ interface GalleryScene {
 interface GalleryData {
   scenes: GalleryScene[];
   casts: Record<string, string>;
+  integrationJoin: Array<{
+    contract: string;
+    shape: string;
+    state: string;
+    boundary: string;
+  }>;
 }
 
 const encoded = document.querySelector<HTMLScriptElement>('#gallery-data')?.textContent;
@@ -24,6 +30,7 @@ const gallery = JSON.parse(encoded) as GalleryData;
 const tabs = document.querySelector<HTMLElement>('#scene-tabs')!;
 const playerRoot = document.querySelector<HTMLElement>('#player-root')!;
 const themeButton = document.querySelector<HTMLButtonElement>('#theme-toggle')!;
+const integrationSlots = document.querySelector<HTMLElement>('#integration-slots')!;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let active = 0;
@@ -64,8 +71,9 @@ async function activate(index: number): Promise<void> {
   if (castUrl) URL.revokeObjectURL(castUrl);
   playerRoot.replaceChildren();
   castUrl = URL.createObjectURL(new Blob([gallery.casts[scene.id]], { type: 'application/x-asciicast' }));
-  player = new PortholePlayer(playerRoot, { reducedMotion, autoplay: !reducedMotion });
+  player = new PortholePlayer(playerRoot, { reducedMotion, autoplay: false });
   await player.load(castUrl);
+  if (!reducedMotion) player.restart();
   const title = playerRoot.querySelector<HTMLElement>('.ph-title b');
   if (title) title.textContent = `pd · ${scene.station}`;
 }
@@ -97,5 +105,16 @@ themeButton.addEventListener('click', () => {
   setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 });
 setTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+for (const entry of gallery.integrationJoin) {
+  const slot = document.createElement('article');
+  slot.className = 'integration-slot';
+  const title = document.createElement('strong');
+  title.textContent = entry.contract;
+  const state = document.createElement('span');
+  state.textContent = `${entry.state} · ${entry.shape}`;
+  const boundary = document.createElement('p');
+  boundary.textContent = entry.boundary;
+  slot.append(title, state, boundary);
+  integrationSlots.append(slot);
+}
 void activate(0);
-

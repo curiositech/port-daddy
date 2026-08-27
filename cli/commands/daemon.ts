@@ -86,9 +86,13 @@ const PROFILE_STARTUP_TIMEOUT_MS = 30000;
 
 /** Keep local daemon provenance legible without printing a user's full home path. */
 export function displayDaemonPath(path: string, home = process.env.HOME || homedir()): string {
-  const normalizedHome = home.replace(/\/+$/, '');
-  if (path === normalizedHome) return '~';
-  return path.startsWith(`${normalizedHome}/`) ? `~/${path.slice(normalizedHome.length + 1)}` : path;
+  const trimTrailingSlashes = (value: string): string => value === '/' ? value : value.replace(/\/+$/, '');
+  const normalizedHome = trimTrailingSlashes(home);
+  const normalizedPath = trimTrailingSlashes(path);
+  if (normalizedPath === normalizedHome) return '~';
+  return normalizedPath.startsWith(`${normalizedHome}/`)
+    ? `~/${normalizedPath.slice(normalizedHome.length + 1)}`
+    : normalizedPath;
 }
 
 interface DaemonCommandOptions {

@@ -96,7 +96,10 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
 
   // 3. Suggest semantic identities
   const useGitBranch: boolean = options.branch === true;
-  const nameOpts: { useBranch?: boolean } = useGitBranch ? { useBranch: true } : {};
+  const nameOpts = {
+    ...(useGitBranch ? { useBranch: true } : {}),
+    ...(config?.project ? { project: config.project } : {})
+  };
   const identitySuggestions = suggestNames(mergedServices, dir, nameOpts);
 
   // Build identity map: service name -> full semantic ID

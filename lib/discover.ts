@@ -39,8 +39,14 @@ interface NameSuggestion {
   full: string;
 }
 
-interface SuggestNamesOptions {
+export interface SuggestNamesOptions {
   useBranch?: boolean;
+  /**
+   * Explicit project identity from .portdaddyrc. When present it is the
+   * authority for semantic service IDs; package and directory metadata are
+   * discovery fallbacks only.
+   */
+  project?: string;
 }
 
 // =============================================================================
@@ -223,7 +229,8 @@ export function suggestNames(
   options: SuggestNamesOptions = {}
 ): Record<string, NameSuggestion> {
   const pkg = readJson(join(dir, 'package.json')) as Record<string, unknown> | null;
-  const project = ((pkg?.name as string) || basename(resolve(dir)))
+  const inferredProject = (pkg?.name as string) || basename(resolve(dir));
+  const project = (options.project?.trim() || inferredProject)
     .replace(/^@[^/]+\//, '')
     .replace(/[^a-z0-9-]/gi, '-')
     .toLowerCase();

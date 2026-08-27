@@ -7,6 +7,12 @@ describe('daemon profile path display', () => {
       .toBe('~/.pd/instances/dev');
   });
 
+  it('normalizes trailing slashes before collapsing configured runtime paths', () => {
+    expect(displayDaemonPath('/Users/proof/.pd/instances/dev/', '/Users/proof/'))
+      .toBe('~/.pd/instances/dev');
+    expect(displayDaemonPath('/Users/proof/', '/Users/proof/')).toBe('~');
+  });
+
   it('does not rewrite a sibling whose prefix merely resembles home', () => {
     expect(displayDaemonPath('/Users/proof-other/daemon.log', '/Users/proof'))
       .toBe('/Users/proof-other/daemon.log');

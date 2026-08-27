@@ -64,6 +64,31 @@ function styleSpan(st: { fg: string | null; bg: string | null; b: boolean; d: bo
   return s;
 }
 
+type PortholeSemantic = "anchor" | "hook" | "error";
+
+function markSemantic(text: string, pattern: RegExp, kind: PortholeSemantic, at: Array<Set<PortholeSemantic>>): void {
+  for (const match of text.matchAll(pattern)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    for (let index = start; index < end && index < at.length; index++) at[index].add(kind);
+  }
+}
+
+/**
+ * Terminal bytes retain their ANSI styling, but the proof viewer adds a small
+ * semantic layer around high-value evidence: durable session/agent anchors,
+ * injected harness context, and actual command refusals. This is deliberately
+ * text-derived rather than a parallel transcript so capture fidelity remains
+ * inspectable and selectable.
+ */
+function semanticCells(text: string): Array<Set<PortholeSemantic>> {
+  const at = Array.from({ length: text.length }, () => new Set<PortholeSemantic>());
+  markSemantic(text, /\b(?:session|agent)-[a-z0-9-]+\b|\b[a-z0-9-]+:[a-z0-9-]+(?::[a-z0-9-]+){0,2}\b/gi, "anchor", at);
+  markSemantic(text, /HARNESSED CONTEXT|PORT DADDY HARNESS|MODEL SEES THIS|UserPromptSubmit\.additionalContext/gi, "hook", at);
+  markSemantic(text, /\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b|Lock '[^']+' is held by/gi, "error", at);
+  return at;
+}
+
 /**
  * One mounted Porthole instance. `new PortholePlayer(root, opts)` builds
  * its DOM inside `root`; call `load(url)` to fetch, parse, and (unless
@@ -150,10 +175,7 @@ export class PortholePlayer {
   private wireControls(): void {
     this.els.play.addEventListener("click", () => (this.playing ? this.pause() : this.play()));
     this.els.restart.addEventListener("click", () => {
-      this.pause();
-      this.follow = true;
-      this.seekTo(0);
-      this.play();
+      this.restart();
     });
     this.els.seek.addEventListener("click", (e) => {
       if (!this.cast) return;
@@ -257,18 +279,28 @@ export class PortholePlayer {
       this.term.insertBefore(el, next);
     }
     const L = this.vt!.lines[r] || [];
+    const semantics = semanticCells(L.map((cell) => cell.ch).join(""));
+    el.classList.toggle("ph-line--anchor", semantics.some((kinds) => kinds.has("anchor")));
+    el.classList.toggle("ph-line--hook", semantics.some((kinds) => kinds.has("hook")));
+    el.classList.toggle("ph-line--error", semantics.some((kinds) => kinds.has("error")));
     let html = "";
-    let cur: string | null = null;
+    let curStyle: string | null = null;
+    let curClasses = "";
     let run = "";
     const flush = () => {
-      if (cur !== null) html += `<span style="${cur}">${esc(run)}</span>`;
+      if (curStyle !== null) {
+        const classAttribute = curClasses ? ` class="${curClasses}"` : "";
+        html += `<span${classAttribute} style="${curStyle}">${esc(run)}</span>`;
+      }
       run = "";
     };
-    for (const cell of L) {
-      const s = styleSpan(cell.st);
-      if (s !== cur) {
+    for (const [index, cell] of L.entries()) {
+      const style = styleSpan(cell.st);
+      const classes = [...semantics[index]].sort().map((kind) => `ph-token--${kind}`).join(" ");
+      if (style !== curStyle || classes !== curClasses) {
         flush();
-        cur = s;
+        curStyle = style;
+        curClasses = classes;
       }
       run += cell.ch;
     }
@@ -405,6 +437,15 @@ export class PortholePlayer {
     this.playing = false;
     cancelAnimationFrame(this.raf);
     this.els.play.innerHTML = "▶";
+  }
+
+  /** Rewinds to time zero and begins playback. Gallery scene changes call
+   * this explicitly so a new scene never inherits a prior scene's position. */
+  restart(): void {
+    this.pause();
+    this.follow = true;
+    this.seekTo(0);
+    this.play();
   }
 
   /**

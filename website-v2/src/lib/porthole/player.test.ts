@@ -83,4 +83,18 @@ describe('PortholePlayer alt-screen line pitch', () => {
     expect(term.textContent).not.toContain('last')
     player.destroy()
   })
+
+  it('semantically distinguishes anchors, hook injections, and real refusals', async () => {
+    mockFetch(castText([[0.1, 'session-proof-123 HARNESSED CONTEXT\\r\\n'], [0.2, "Lock 'refunds-schema' is held by nora\\r\\nREFUSED · command exited 1"]], 80))
+    const player = new PortholePlayer(root, { reducedMotion: true })
+    await player.load('/fake.cast')
+
+    expect(root.querySelector('.ph-line--anchor')).not.toBeNull()
+    expect(root.querySelector('.ph-token--anchor')?.textContent).toContain('session-proof-123')
+    expect(root.querySelector('.ph-line--hook')).not.toBeNull()
+    expect(root.querySelector('.ph-token--hook')?.textContent).toContain('HARNESSED CONTEXT')
+    expect(root.querySelector('.ph-line--error')).not.toBeNull()
+    expect([...root.querySelectorAll('.ph-token--error')].map((element) => element.textContent).join('')).toContain('REFUSED')
+    player.destroy()
+  })
 })

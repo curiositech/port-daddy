@@ -18,16 +18,33 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const castsDir = join(root, 'website-v2', 'public', 'casts', 'porthole');
 const scratchParent = join(homedir(), 'coding', 'tmp');
-const nodeBin = '/opt/homebrew/opt/node@22/bin/node';
+function resolveTool(envName, fallback) {
+  const explicit = process.env[envName];
+  if (explicit) return explicit;
+  try {
+    return execFileSync('/usr/bin/which', [fallback], { encoding: 'utf8' }).trim();
+  } catch {
+    return fallback;
+  }
+}
+
+// Keep the CLI process ABI-compatible with the runtime that records it.
+// Individual tools can be overridden for an intentionally provisioned rig.
+const nodeBin = process.env.PD_PORTHOLE_NODE ?? process.execPath;
 const cli = join(root, 'bin', 'port-daddy-cli.js');
-const asciinema = '/opt/homebrew/bin/asciinema';
-const tmux = '/opt/homebrew/bin/tmux';
-const releaseArchive = execFileSync('/opt/homebrew/bin/brew', ['--cache', 'port-daddy'], { encoding: 'utf8' }).trim();
+const asciinema = resolveTool('PD_PORTHOLE_ASCIINEMA', 'asciinema');
+const tmux = resolveTool('PD_PORTHOLE_TMUX', 'tmux');
+const brew = resolveTool('PD_PORTHOLE_BREW', 'brew');
+const toolPath = [...new Set([dirname(nodeBin), dirname(asciinema), dirname(tmux), dirname(brew)])].join(':');
+const releaseArchive = execFileSync(brew, ['--cache', 'port-daddy'], { encoding: 'utf8' }).trim();
 const runRoot = await mkdtemp(join(scratchParent, 'pd-porthole-proof-'));
+// A capture must not inherit unrelated agent salvage state from a previous
+// fixture run against the shared daemon. This is a real semantic project name,
+// unique to the recorder process, not a visual stand-in for another project.
+const fixtureProject = `proof-${process.pid}`;
 const fixtureDirs = new Set([runRoot]);
-const fixtureWorktrees = new Set();
 const requestedScenes = new Set(process.argv.slice(2));
-const knownScenes = new Set(['quickstart', 'harness-next-turn', 'collision', 'visibility', 'ports', 'parley']);
+const knownScenes = new Set(['quickstart', 'harness-next-turn', 'collision', 'visibility', 'recovery', 'ports', 'parley']);
 
 for (const scene of requestedScenes) {
   if (!knownScenes.has(scene)) throw new Error(`unknown proof scene: ${scene}`);
@@ -48,7 +65,7 @@ function run(bin, args, options = {}) {
     cwd: options.cwd ?? root,
     env: {
       ...process.env,
-      PATH: `/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:${process.env.PATH ?? ''}`,
+      PATH: `${toolPath}:${process.env.PATH ?? ''}`,
       TERM: 'xterm-256color',
       PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
       ...options.env,
@@ -56,6 +73,14 @@ function run(bin, args, options = {}) {
     encoding: 'utf8',
     stdio: options.stdio ?? 'pipe',
   });
+}
+
+function promptColor(prompt) {
+  if (prompt.startsWith('NORA')) return '\\033[1;38;5;114m';
+  if (prompt.startsWith('MILO')) return '\\033[1;38;5;117m';
+  if (prompt.startsWith('ENGINE')) return '\\033[1;38;5;221m';
+  if (prompt.startsWith('BRIDGE')) return '\\033[1;38;5;81m';
+  return '\\033[1;36m';
 }
 
 async function writeExecutable(path, body) {
@@ -67,7 +92,7 @@ function shellPrelude({ cwd, prompt, env = {}, sourceCli = true }) {
   const exports = Object.entries(env).map(([key, value]) => `export ${key}=${q(value)}`).join('\n');
   return `#!/usr/bin/env bash
 set -uo pipefail
-export PATH=/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:$PATH
+export PATH=${q(toolPath)}:$PATH
 export PORT_DADDY_SKIP_FRESHNESS_CHECK=1
 unset NO_COLOR
 export FORCE_COLOR=3
@@ -77,18 +102,30 @@ cd ${q(cwd)}
 ${sourceCli ? `pd() { ${q(nodeBin)} ${q(cli)} "$@"; }` : ''}
 type_cmd() {
   local text="$1" i
-  printf ${q(`\\033[1;36m${prompt}\\033[0m \\033[1;32m❯\\033[0m `)}
+  printf ${q(`${promptColor(prompt)}${prompt}\\033[0m \\033[1;32m❯\\033[0m `)}
   sleep 0.25
   for ((i = 0; i < \${#text}; i += 1)); do printf "%s" "\${text:$i:1}"; sleep 0.012; done
   sleep 0.18
   printf "\n"
 }
 run_cmd() {
-  local text="$1"
+  local text="$1" status=0
   type_cmd "$text"
-  eval "$text" 2>&1
+  eval "$text" 2>&1 || status=$?
+  if [ "$status" -ne 0 ]; then
+    printf '\\033[1;41;97m REFUSED · command exited %s \\033[0m\\n' "$status"
+  fi
   printf "\n"
   sleep 0.55
+  return "$status"
+}
+run_required() {
+  local text="$1" status=0
+  run_cmd "$text" || status=$?
+  if [ "$status" -ne 0 ] && [ -n "\${PD_PORTHOLE_FAILURE_FILE:-}" ]; then
+    printf '%s (exit %s)\n' "$text" "$status" > "$PD_PORTHOLE_FAILURE_FILE"
+  fi
+  return "$status"
 }
 `;
 }
@@ -100,14 +137,16 @@ async function recordSingle({ slug, cwd, prompt, commands, env = {}, sourceCli =
   const dir = join(runRoot, slug);
   await mkdir(dir, { recursive: true });
   const driver = join(dir, 'drive.sh');
-  const body = shellPrelude({ cwd, prompt, env, sourceCli })
-    + commands.map((command) => `run_cmd ${q(command)}\n`).join('')
+  const failureFile = join(dir, 'required-command-failure');
+  const recordEnv = { ...env, PD_PORTHOLE_FAILURE_FILE: failureFile };
+  const body = shellPrelude({ cwd, prompt, env: recordEnv, sourceCli })
+    + commands.map((command) => `run_required ${q(command)} || exit $?\n`).join('')
     + 'sleep 1\n';
   await writeExecutable(driver, body);
   run(asciinema, [
     'record', '--window-size', '100x28', '--headless', '--return', '--overwrite', '--quiet',
     '--command', `./${basename(driver)}`, join(castsDir, `${slug}.cast`),
-  ], { cwd: dir, stdio: 'inherit', env });
+  ], { cwd: dir, stdio: 'inherit', env: recordEnv });
 }
 
 async function recordTmux({ slug, left, right, durationSeconds, env = {} }) {
@@ -116,6 +155,8 @@ async function recordTmux({ slug, left, right, durationSeconds, env = {} }) {
   const socket = `pd-proof-${process.pid}-${slug}`;
   const session = `proof-${slug}`;
   const tmuxConfig = join(dir, 'tmux.conf');
+  const failureFile = join(dir, 'required-command-failure');
+  const recordEnv = { ...env, PD_PORTHOLE_FAILURE_FILE: failureFile };
   await writeFile(tmuxConfig, `
 set -g status on
 set -g status-interval 0
@@ -133,11 +174,13 @@ setw -g automatic-rename off
 
   async function paneScript(side, spec) {
     const path = join(dir, `${side}.sh`);
-    const waitsAndCommands = spec.steps.map(({ wait = 0, command }) => {
+    const waitsAndCommands = spec.steps.map(({ wait = 0, command, allowFailure = false }) => {
       if (command.trimStart().startsWith('#')) throw new Error(`${slug}/${side}: narration comments are forbidden`);
-      return `${wait > 0 ? `sleep ${wait}\n` : ''}run_cmd ${q(command)}\n`;
+      const runner = allowFailure ? 'run_cmd' : 'run_required';
+      const failFast = allowFailure ? '' : ' || exit $?';
+      return `${wait > 0 ? `sleep ${wait}\n` : ''}${runner} ${q(command)}${failFast}\n`;
     }).join('');
-    await writeExecutable(path, shellPrelude({ cwd: spec.cwd, prompt: spec.prompt, env: { ...env, ...spec.env } })
+    await writeExecutable(path, shellPrelude({ cwd: spec.cwd, prompt: spec.prompt, env: { ...recordEnv, ...spec.env } })
       + `printf '\\033]2;${spec.title}\\007'\n`
       + waitsAndCommands
       + 'sleep 120\n');
@@ -162,12 +205,17 @@ ${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t ${q(`${session}:0.0`
 printf '\n'
 ${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t ${q(`${session}:0.1`)}
 ${q(tmux)} -L ${q(socket)} kill-session -t ${q(session)} >/dev/null 2>&1 || true
+if [ -s ${q(failureFile)} ]; then
+  printf 'Porthole required command failed: ' >&2
+  cat ${q(failureFile)} >&2
+  exit 1
+fi
 `);
   try {
     run(asciinema, [
       'record', '--window-size', '120x34', '--headless', '--return', '--overwrite', '--quiet',
       '--command', `./${basename(driver)}`, join(castsDir, `${slug}.cast`),
-    ], { cwd: dir, stdio: 'inherit', env });
+    ], { cwd: dir, stdio: 'inherit', env: recordEnv });
   } finally {
     try { run(tmux, ['-L', socket, 'kill-server']); } catch { /* session already ended */ }
   }
@@ -195,8 +243,6 @@ async function addWorktrees(repo, name) {
   const right = join(runRoot, `${name}-milo`);
   run('/usr/bin/git', ['worktree', 'add', '-b', `${name}-nora`, left], { cwd: repo });
   run('/usr/bin/git', ['worktree', 'add', '-b', `${name}-milo`, right], { cwd: repo });
-  fixtureWorktrees.add(left);
-  fixtureWorktrees.add(right);
   return { left, right };
 }
 
@@ -247,7 +293,7 @@ const harnessRepo = await makeRepo('harness-context', {
   'docs/checkout-policy.md': '# Checkout policy\n',
 });
 const harnessWt = (await addWorktrees(harnessRepo, 'harness-context')).left;
-run(nodeBin, [cli, 'begin', 'reconcile checkout policy with current reservation logic', '--identity', 'atlas:harness-proof', '--lifecycle', 'durable', '--sidequest', 'public harness evidence fixture'], { cwd: harnessWt });
+run(nodeBin, [cli, 'begin', 'reconcile checkout policy with current reservation logic', '--identity', `${fixtureProject}:harness`, '--lifecycle', 'durable', '--sidequest', 'public harness evidence fixture'], { cwd: harnessWt });
 const who = JSON.parse(run(nodeBin, [cli, 'whoami', '--json'], { cwd: harnessWt }));
 run(nodeBin, [cli, 'send', who.agentId, 'Postmaster: the checkout-policy Parley has an unread critique waiting.'], { cwd: root });
 const harnessMatrix = join(runRoot, 'harness-context.matrix.env');
@@ -268,26 +314,29 @@ await recordSingle({
 if (wants('collision')) {
 const collisionRepo = await makeRepo('collision-proof', { 'db/schema.sql': 'CREATE TABLE refunds(id TEXT PRIMARY KEY);\n' });
 const collision = await addWorktrees(collisionRepo, 'collision-proof');
+const collisionShared = join(runRoot, 'collision-shared');
+await mkdir(collisionShared, { recursive: true });
 await recordTmux({
   slug: 'collision',
-  durationSeconds: 24,
+  durationSeconds: 42,
+  env: { PD_COLLISION_SHARED: collisionShared },
   left: {
     cwd: collision.left, prompt: 'NORA◆', title: 'NORA · migration author', steps: [
-      { command: 'pd begin "add refund reason code" --identity atlas:nora --lifecycle durable --sidequest "record collision proof"' },
+      { command: `pd begin "add refund reason code" --identity ${fixtureProject}:nora --lifecycle durable --sidequest "record collision proof"` },
       { command: 'pd plan set "- [ ] claim schema\n- [ ] add migration"' },
       { command: 'pd session files add db/schema.sql' },
       { command: 'pd note "I own db/schema.sql while adding the refund reason enum."' },
-      { command: 'pd lock refunds-schema --ttl 120000 --owner nora-migration' },
-      { wait: 10, command: 'pd unlock refunds-schema' },
+      { command: 'pd lock refunds-schema --ttl 120000 --owner nora-migration && printf ready > "$PD_COLLISION_SHARED/nora-lock"' },
+      { wait: 10, command: 'pd unlock refunds-schema --owner nora-migration' },
     ],
   },
   right: {
     cwd: collision.right, prompt: 'MILO◇', title: 'MILO · checkout worker', steps: [
-      { wait: 5, command: 'pd begin "add refund settlement index" --identity atlas:milo --lifecycle durable --sidequest "record collision proof"' },
+      { wait: 2, command: `pd begin "add refund settlement index" --identity ${fixtureProject}:milo --lifecycle durable --sidequest "record collision proof"` },
       { command: 'pd plan set "- [ ] claim schema\n- [ ] add index"' },
-      { command: 'pd session files add db/schema.sql' },
-      { command: 'pd lock refunds-schema --ttl 120000 --owner milo-index' },
-      { wait: 6, command: 'pd lock refunds-schema --ttl 120000 --owner milo-index' },
+      { command: 'pd session files add db/schema.sql', allowFailure: true },
+      { command: 'until [ -s "$PD_COLLISION_SHARED/nora-lock" ]; do sleep 0.2; done; pd lock refunds-schema --ttl 120000 --owner milo-index', allowFailure: true },
+      { wait: 12, command: 'pd lock refunds-schema --ttl 120000 --owner milo-index' },
     ],
   },
 });
@@ -301,7 +350,7 @@ await recordTmux({
   durationSeconds: 112,
   left: {
     cwd: digest.left, prompt: 'NORA◆', title: 'NORA · export repair', steps: [
-      { command: 'pd begin "repair export retry" --identity atlas:nora-digest --lifecycle durable --sidequest "record real elapsed digest"' },
+      { command: `pd begin "repair export retry" --identity ${fixtureProject}:nora-digest --lifecycle durable --sidequest "record real elapsed digest"` },
       { command: 'date "+%H:%M:%S"' },
       { command: 'pd note "Export retry is green; bounded backoff verified against the failure window."' },
       { command: 'sleep 90' },
@@ -311,7 +360,7 @@ await recordTmux({
   },
   right: {
     cwd: digest.right, prompt: 'MILO◇', title: 'MILO · policy reviewer', steps: [
-      { wait: 4, command: 'pd begin "review token rotation" --identity atlas:milo-digest --lifecycle durable --sidequest "record real elapsed digest"' },
+      { wait: 4, command: `pd begin "review token rotation" --identity ${fixtureProject}:milo-digest --lifecycle durable --sidequest "record real elapsed digest"` },
       { command: 'pd note "Rotation interval is four hours under the new mobile policy; awaiting owner confirmation."' },
       { command: 'sleep 90' },
       { command: 'pd attention' },
@@ -320,11 +369,43 @@ await recordTmux({
 });
 }
 
+if (wants('recovery')) {
+const recoveryRepo = await makeRepo('recovery-proof', { 'src/refund.ts': 'export const recover = true\n' });
+const recovery = await addWorktrees(recoveryRepo, 'recovery-proof');
+const recoveryShared = join(runRoot, 'recovery-shared');
+const recoverySharedRelative = '../recovery-shared';
+await mkdir(recoveryShared, { recursive: true });
+await recordTmux({
+  slug: 'recovery',
+  durationSeconds: 32,
+  left: {
+    cwd: recovery.left, prompt: 'NORA◆', title: 'NORA · durable handoff', steps: [
+      { command: `pd begin "prepare refund handoff" --identity ${fixtureProject}:nora-recovery --lifecycle durable --sidequest "record durable takeover proof"` },
+      { command: 'pd plan set "- [ ] retain handoff note\n- [ ] verify successor"' },
+      { command: 'pd session files add src/refund.ts' },
+      { command: 'pd note "Refund retry is isolated; continue from this note before changing the settlement seam."' },
+      { command: `pd whoami --json | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).sessionId' > ${recoverySharedRelative}/predecessor` },
+      { wait: 12, command: `pd notes --session "$(cat ${recoverySharedRelative}/predecessor)" --limit 4` },
+    ],
+  },
+  right: {
+    cwd: recovery.right, prompt: 'MILO◇', title: 'MILO · successor', steps: [
+      { wait: 3, command: `pd begin "continue refund handoff" --identity ${fixtureProject}:milo-recovery --lifecycle durable --sidequest "record durable takeover proof"` },
+      { command: `until [ -s ${recoverySharedRelative}/predecessor ]; do sleep 0.2; done; pd session takeover "$(cat ${recoverySharedRelative}/predecessor)" "Continue from the durable refund handoff note." --purpose "verify refund handoff" --lifecycle durable` },
+      { command: 'pd whoami' },
+      { command: 'pd notes --limit 6' },
+    ],
+  },
+});
+}
+
 if (wants('ports')) {
 const servicePort = 19876;
+const serviceProject = 'porthole-service-proof';
+const serviceSemanticId = `${serviceProject}:app:main`;
 const serviceRepo = await makeRepo('service-proof', {
   'service.mjs': `import { createServer } from 'node:http';\nconst port = Number(process.env.PORT);\ncreateServer((req,res) => { res.setHeader('content-type','application/json'); res.end(JSON.stringify({status:'ok',service:'atlas-api',port})); }).listen(port, () => console.log('atlas-api listening on ' + port));\n`,
-  '.portdaddyrc': JSON.stringify({ project: 'porthole-service-proof', services: { api: { cmd: 'node service.mjs', dir: '.', port: servicePort, healthPath: '/health' } } }, null, 2),
+  '.portdaddyrc': JSON.stringify({ project: serviceProject, services: { api: { cmd: 'node service.mjs', dir: '.', port: servicePort, healthPath: '/health' } } }, null, 2),
 });
 await recordTmux({
   slug: 'ports',
@@ -337,8 +418,8 @@ await recordTmux({
   right: {
     cwd: serviceRepo, prompt: 'BRIDGE◇', title: 'BRIDGE · readiness probe', steps: [
       { wait: 6, command: `curl -sS http://127.0.0.1:${servicePort}/health` },
-      { command: 'pd find porthole-service-proof' },
-      { command: 'pd health' },
+      { command: `pd find '${serviceSemanticId}'` },
+      { command: `pd health '${serviceSemanticId}'` },
       { command: 'pd down --dir . --yes' },
     ],
   },
@@ -352,11 +433,15 @@ const parleyShared = join(runRoot, 'parley-shared');
 const parleySharedRelative = '../parley-shared';
 await mkdir(parleyShared, { recursive: true });
 await recordTmux({
-  slug: 'parley',
+  // Preserve the literal two-agent protocol transcript as supporting evidence.
+  // The gallery's primary cast below is a receipt rendered from this same
+  // durable state, so a visitor never has to read debug performatives to
+  // understand the product result.
+  slug: 'parley-source',
   durationSeconds: 72,
   left: {
     cwd: parley.left, prompt: 'NORA◆', title: 'NORA · proposal author', steps: [
-      { command: 'pd begin "settle checkout ownership" --identity atlas:nora-parley --lifecycle durable --sidequest "record public Parley proof"' },
+      { command: `pd begin "settle checkout ownership" --identity ${fixtureProject}:nora-parley --lifecycle durable --sidequest "record public Parley proof"` },
       { command: `NORA=$(pd whoami --json | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).agentId'); printf '%s' "$NORA" > ${parleySharedRelative}/nora` },
       { command: `until [ -s ${parleySharedRelative}/milo ]; do sleep 0.2; done; MILO=$(cat ${parleySharedRelative}/milo); pd parley call --surface src/checkout.ts --reason "capture-first and authorize-first branches disagree" --with "$NORA,$MILO" | tee ${parleySharedRelative}/call` },
       { command: `PARLEY=$(sed -n 's/^Parley \\([^ ]*\\).*/\\1/p' ${parleySharedRelative}/call); printf '%s' "$PARLEY" > ${parleySharedRelative}/id; pd parley propose "$PARLEY" "Capture funds first, then authorize fulfillment; rollback remains bounded."` },
@@ -366,7 +451,7 @@ await recordTmux({
   },
   right: {
     cwd: parley.right, prompt: 'MILO◇', title: 'MILO · adversarial reviewer', steps: [
-      { wait: 2, command: 'pd begin "challenge checkout ownership" --identity atlas:milo-parley --lifecycle durable --sidequest "record public Parley proof"' },
+      { wait: 2, command: `pd begin "challenge checkout ownership" --identity ${fixtureProject}:milo-parley --lifecycle durable --sidequest "record public Parley proof"` },
       { command: `MILO=$(pd whoami --json | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).agentId'); printf '%s' "$MILO" > ${parleySharedRelative}/milo` },
       { command: `until [ -s ${parleySharedRelative}/id ]; do sleep 0.2; done; PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY"` },
       { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley critique "$PARLEY" "Capture-first can charge an order that inventory later refuses; require a reservation receipt." --as "$MILO" && printf ready > ${parleySharedRelative}/critique-ready` },
@@ -375,13 +460,43 @@ await recordTmux({
     ],
   },
 });
+
+await recordTmux({
+  slug: 'parley',
+  durationSeconds: 24,
+  env: { PD_PARLEY_RECEIPT: join(root, 'website-v2', 'scripts', 'render-parley-proof-receipt.mjs') },
+  left: {
+    cwd: parley.left, prompt: 'NORA◆', title: 'NORA · settlement author', steps: [
+      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/nora)" --json | node "$PD_PARLEY_RECEIPT" --role author` },
+    ],
+  },
+  right: {
+    cwd: parley.right, prompt: 'MILO◇', title: 'MILO · adversarial reviewer', steps: [
+      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/milo)" --json | node "$PD_PARLEY_RECEIPT" --role reviewer` },
+    ],
+  },
+});
 }
 
-for (const cwd of fixtureWorktrees) {
-  try {
-    const context = JSON.parse(run(nodeBin, [cli, 'whoami', '--json'], { cwd }));
-    if (context.sessionId) run(nodeBin, [cli, 'session', 'rm', context.sessionId], { cwd });
-  } catch { /* some fixture worktrees never opened a Port Daddy session */ }
+// Session teardown must be derived from the daemon's durable project index,
+// not from a worktree's last active-context pointer: a takeover can leave a
+// successor session that whoami in the old fixture directory no longer names.
+// Archive only this recorder's uniquely named semantic project, preserving all
+// notes and receipts while releasing the fixture's active claims.
+function activeFixtureSessions() {
+  const result = JSON.parse(run(nodeBin, [cli, 'sessions', '--all-worktrees', '--json']));
+  return (result.sessions ?? []).filter((session) => (
+    session.identityProject === fixtureProject && session.status === 'active'
+  ));
+}
+
+for (const session of activeFixtureSessions()) {
+  run(nodeBin, [cli, 'session', 'rm', session.id]);
+}
+
+const remainingFixtureSessions = activeFixtureSessions();
+if (remainingFixtureSessions.length > 0) {
+  throw new Error(`fixture cleanup left active session(s): ${remainingFixtureSessions.map((session) => session.id).join(', ')}`);
 }
 
 console.log(`Recorded ${requestedScenes.size === 0 ? 'all harness proof scenes' : [...requestedScenes].join(', ')} in ${relative(root, castsDir)}`);
@@ -396,5 +511,5 @@ if (process.env.PD_PORTHOLE_KEEP_FIXTURES === '1') {
     }
     await rm(dir, { recursive: true, force: true });
   }
-  console.log('Fixture sessions ended and isolated proof roots removed.');
+  console.log('Fixture sessions archived with notes preserved and isolated proof roots removed.');
 }

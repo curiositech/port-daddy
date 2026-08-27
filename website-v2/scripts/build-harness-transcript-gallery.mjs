@@ -52,16 +52,49 @@ const scenes = [
     locus: 'Project manifest → process launch → health → teardown', format: 'tmux · service + probe',
     seed: 'A tiny Node service and a real .portdaddyrc declare one API on a known port. No service process is running at capture start.',
     intervention: 'The engine pane runs pd up. The bridge pane probes HTTP, asks Port Daddy to find and health-check the service, then tears it down.',
-    proof: 'The child announces its port, pd marks it healthy, and curl reads the service JSON from the live socket.',
+    proof: 'The manifest project, pd up registration, exact pd find query, and health check all agree on porthole-service-proof:app:main after the live HTTP probe succeeds.',
     authority: 'Real child process · real HTTP response · real pd up/down lifecycle',
   },
   {
-    id: 'parley', label: 'A proposal survives an adversarial Parley', station: 'Wardroom',
-    locus: 'Summon → propose → critique → revise → agree', format: 'tmux · 2 agents · durable turns',
+    id: 'parley', label: 'A decision survives adversarial review', station: 'Wardroom',
+    locus: 'Two sessions → durable decision receipt', format: 'tmux · 2 agents · durable receipts',
     seed: 'Two agents disagree over capture-first versus authorize-first checkout settlement. Each has a separate worktree, identity, session, and inbox.',
-    intervention: 'NORA summons MILO. MILO identifies the charge-without-inventory failure. NORA adds reservation and compensating release. MILO agrees.',
-    proof: 'The final read contains four ordered turns, no missing party, and caught-up receipts. Status remains CONVENED because CAP0 settlement authority is deliberately not bypassed.',
-    authority: 'Real Parley rows · inbox fan-out · read receipts · no forged collapse',
+    intervention: 'The retained source transcript records the live two-agent exchange. The primary replay renders its returned JSON as a decision receipt instead of exposing debug protocol verbs.',
+    proof: 'Both panes show the same durable surface, ordered decision stages, the recorded risk, and caught-up receipts. It does not claim a settlement authority that the source has not exposed.',
+    authority: 'Real two-agent source cast · returned receipt JSON · no forged collapse',
+  },
+];
+
+const integrationJoin = [
+  {
+    contract: 'Sugar Parley',
+    shape: 'SugarParleySettlementReceipt',
+    state: 'join-only',
+    boundary: 'Awaiting a verified public contract and focused source tests; primary proof keeps debug Parley plumbing out of view.',
+  },
+  {
+    contract: 'BufferedOutputRef',
+    shape: 'bounded output reference',
+    state: 'join-only',
+    boundary: 'No overflow behavior is depicted until the owning branch supplies an authorization, replay, and expiry contract.',
+  },
+  {
+    contract: 'ContextEnvelope',
+    shape: 'next-turn context envelope',
+    state: 'join-only',
+    boundary: 'The existing hook cast proves its current bytes only; future envelope fields require upstream contract evidence.',
+  },
+  {
+    contract: 'CompactionPacket',
+    shape: 'pressure and continuation packet',
+    state: 'join-only',
+    boundary: 'No interactive compaction is visualized until the source branch exposes its verified lifecycle and receipts.',
+  },
+  {
+    contract: 'WorkReceipt',
+    shape: 'normalized work evidence',
+    state: 'join-only',
+    boundary: 'The gallery reserves a receipt attachment point but does not upgrade casts into a normalized work receipt on its own.',
   },
 ];
 
@@ -85,7 +118,7 @@ const bundle = await build({
 });
 const clientJs = bundle.outputFiles[0].text;
 const commit = execFileSync('/usr/bin/git', ['rev-parse', '--short=10', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
-const payload = JSON.stringify({ scenes, casts }).replace(/</g, '\\u003c');
+const payload = JSON.stringify({ scenes, casts, integrationJoin }).replace(/</g, '\\u003c');
 
 const html = `<!doctype html>
 <html lang="en">
@@ -157,13 +190,20 @@ h1{max-width:18ch;margin:9px 0 12px;font:700 clamp(34px,5vw,68px)/.98 var(--font
 .evidence-grid article{padding:18px;background:var(--surface-raised)}
 .evidence-grid h3{margin:7px 0;font:700 18px/1.2 var(--font-display)}
 .evidence-grid p{margin:0;color:var(--text-secondary)}
+.integration-join{margin-top:28px;padding:20px;border:1px solid var(--border-default);background:var(--surface-raised)}
+.integration-join h2{margin:5px 0 8px;font:700 clamp(22px,3vw,34px)/1.05 var(--font-display)}
+.integration-join>p{max-width:78ch;margin:0;color:var(--text-secondary)}
+.integration-slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;margin-top:18px;border:1px solid var(--border-default);background:var(--border-default)}
+.integration-slot{padding:14px;background:var(--surface-sunken)}
+.integration-slot strong,.integration-slot span{display:block;font-family:var(--font-mono)}
+.integration-slot strong{color:var(--text-primary);font-size:13px}.integration-slot span{margin-top:7px;color:var(--brand-accent);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.integration-slot p{margin:8px 0 0;color:var(--text-muted);font-size:12px;line-height:1.45}
 .artifact-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;margin-top:28px;padding-top:14px;border-top:1px solid var(--border-default);color:var(--text-muted);font:12px/1.5 var(--font-mono)}
 code{font-family:var(--font-mono)}
 ${portholeCss}
 .ph-root{--type-code-size:14px}
 .ph-win{border-color:var(--border-strong)}
 .ph-cut-notice{background:var(--ph-header-bg)}
-@media(max-width:980px){.mast{grid-template-columns:1fr}.scene-tabs{grid-template-columns:repeat(3,1fr)}.brief{grid-template-columns:1fr 1fr}.brief-main{grid-row:auto;grid-column:1/-1}.evidence-grid{grid-template-columns:1fr}}
+@media(max-width:980px){.mast{grid-template-columns:1fr}.scene-tabs{grid-template-columns:repeat(3,1fr)}.brief{grid-template-columns:1fr 1fr}.brief-main{grid-row:auto;grid-column:1/-1}.evidence-grid,.integration-slots{grid-template-columns:1fr}}
 @media(max-width:640px){.page{width:min(100% - 20px,1320px);padding-top:18px}.scene-tabs{grid-template-columns:1fr 1fr}.brief{grid-template-columns:1fr}.brief-main{grid-column:auto}.brief-main .scene-no{float:none;display:block;margin:0 0 9px}.mast-aside{grid-template-columns:1fr 1fr}.ph-term{font-size:12px;padding-left:28px}.ph-provenance{overflow-wrap:anywhere}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style>
@@ -208,6 +248,12 @@ ${portholeCss}
     <article><span class="kicker">Observed</span><h3>Timestamped terminal bytes</h3><p>The recorder runs commands in real shells and tmux panes. Porthole interprets the emitted bytes into selectable DOM text with full scrollback.</p></article>
     <article><span class="kicker">Explained</span><h3>Fixture and intervention</h3><p>Each scene states what was seeded and what Port Daddy actually did. The notes do not upgrade a cast into stronger authority than it has.</p></article>
     <article><span class="kicker">Not implied</span><h3>Evidence, not a sealed receipt</h3><p>These casts do not prove omitted context, containment, cost, or merge safety. A normalized WorkReceipt must bind those facts separately.</p></article>
+  </section>
+
+  <section class="integration-join" aria-labelledby="integration-join-title">
+    <span class="proof-key">Integration join</span><h2 id="integration-join-title">Named contracts, deliberately unrendered</h2>
+    <p>These are typed attachment points for the hypertree integration, not feature claims. A slot can become visible evidence only when its owning branch brings a verified contract and focused test result.</p>
+    <div class="integration-slots" id="integration-slots"></div>
   </section>
 
   <footer class="artifact-foot"><span>Generated from <code>website-v2/public/casts/porthole/*.cast</code></span><span>Source revision <code>${commit}</code> · restart or choose any scene to replay from time zero</span></footer>
