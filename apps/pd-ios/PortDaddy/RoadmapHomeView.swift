@@ -61,6 +61,21 @@ public struct RoadmapHomeView: View {
                 .padding(PD.Space.l)
             }
             .navigationTitle("Roadmap")
+            .toolbar {
+                // Harbors is not a top-level tab in the intent-first IA, but it
+                // is a real surface (reachability), so it stays reachable here
+                // rather than being orphaned. PROVISIONAL placement pending the
+                // final secondary-nav decision.
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        HarborsView()
+                    } label: {
+                        Image(systemName: "sailboat")
+                            .fontWeight(.semibold)
+                            .accessibilityLabel("Harbors")
+                    }
+                }
+            }
         }
     }
 
@@ -166,7 +181,7 @@ public struct RoadmapItemRow: View {
         }
         .frame(maxWidth: .infinity, minHeight: PD.minimumTapTarget, alignment: .leading)
         .padding(PD.Space.m)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.standard).fill(PD.Chrome.cardRaised))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
     }
 
     /// Status maps onto the shared coordination vocabulary rather than a

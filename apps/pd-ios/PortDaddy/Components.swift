@@ -37,15 +37,15 @@ public struct SignalChip: View {
                 .frame(minWidth: 16)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(RoundedRectangle(cornerRadius: 4).fill(PD.color(for: state).opacity(0.22)))
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(PD.color(for: state), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(PD.color(for: state).opacity(0.22)))
+                .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(PD.color(for: state), lineWidth: 1))
             Text(label)
                 .font(.caption.weight(.semibold))
         }
         .foregroundStyle(PD.color(for: state))
         .padding(.horizontal, PD.Space.s)
         .padding(.vertical, PD.Space.xs)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.small).fill(PD.color(for: state).opacity(0.10)))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).fill(PD.color(for: state).opacity(0.10)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label). Signal flag \(MaritimeSignals.phonetic(for: state)).")
     }
@@ -111,7 +111,7 @@ public struct ProvenanceBar: View {
         .padding(.vertical, PD.Space.s)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: PD.Radius.standard)
+            RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous)
                 .fill(PD.color(for: provenance.coordinationState).opacity(0.10))
         )
         .accessibilityElement(children: .combine)
@@ -186,8 +186,8 @@ public struct UnknownNotice: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.l)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.medium).fill(PD.Chrome.card))
-        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium).stroke(PD.Chrome.border, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).fill(PD.Chrome.card))
+        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
     }
 }
 
@@ -223,7 +223,7 @@ public struct SectionCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.l)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.medium).fill(PD.Chrome.card))
-        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium).stroke(PD.Chrome.border, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).fill(PD.Chrome.card))
+        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
     }
 }

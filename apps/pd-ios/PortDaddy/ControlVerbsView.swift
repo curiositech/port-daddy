@@ -162,7 +162,7 @@ public struct ControlVerbRow: View {
         }
         .frame(maxWidth: .infinity, minHeight: PD.minimumTapTarget, alignment: .leading)
         .padding(PD.Space.m)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.standard).fill(PD.Chrome.cardRaised))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
         .opacity(support.isSupported ? 1.0 : 0.75)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
