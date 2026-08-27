@@ -138,7 +138,7 @@ exit 0
       PORT_DADDY_SKIP_NOTARIZE: '0',
     };
 
-    const result = spawnSync('bash', [scriptPath, outDir], {
+    const result = spawnSync('/bin/bash', [scriptPath, outDir], {
       cwd: process.cwd(),
       env,
       encoding: 'utf8',

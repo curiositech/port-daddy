@@ -178,12 +178,23 @@ codesign_macho() {
   local entitlements
   entitlements="$(macho_entitlements_for "$macho")"
   if [[ -n "$entitlements" ]]; then
-    codesign --force --options runtime --timestamp \
-      --entitlements "$entitlements" \
-      --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$macho"
+    if [[ -n "$KEYCHAIN_PATH" ]]; then
+      codesign --force --options runtime --timestamp \
+        --entitlements "$entitlements" \
+        --sign "$IDENTITY" --keychain "$KEYCHAIN_PATH" "$macho"
+    else
+      codesign --force --options runtime --timestamp \
+        --entitlements "$entitlements" \
+        --sign "$IDENTITY" "$macho"
+    fi
   else
-    codesign --force --options runtime --timestamp \
-      --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$macho"
+    if [[ -n "$KEYCHAIN_PATH" ]]; then
+      codesign --force --options runtime --timestamp \
+        --sign "$IDENTITY" --keychain "$KEYCHAIN_PATH" "$macho"
+    else
+      codesign --force --options runtime --timestamp \
+        --sign "$IDENTITY" "$macho"
+    fi
   fi
 }
 
@@ -207,6 +218,35 @@ print_notary_log() {
   [[ -n "$request_id" ]] || return 0
   echo "Fetching Apple notarization log for request $request_id..." >&2
   xcrun notarytool log "$request_id" "$@" || true
+}
+
+submit_notary_archive() {
+  local notary_zip="$1"
+  if [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]]; then
+    xcrun notarytool submit "$notary_zip" \
+      --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" \
+      --keychain "$PORT_DADDY_NOTARY_KEYCHAIN" \
+      --wait \
+      --timeout 20m \
+      --output-format json
+  else
+    xcrun notarytool submit "$notary_zip" \
+      --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" \
+      --wait \
+      --timeout 20m \
+      --output-format json
+  fi
+}
+
+print_profile_notary_log() {
+  local request_id="$1"
+  if [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]]; then
+    print_notary_log "$request_id" \
+      --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" \
+      --keychain "$PORT_DADDY_NOTARY_KEYCHAIN"
+  else
+    print_notary_log "$request_id" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE"
+  fi
 }
 
 json_field() {
@@ -233,15 +273,9 @@ submit_notarization() {
   mkdir -p "$notary_dir"
 
   ditto -c -k --keepParent "$app_bundle" "$notary_zip"
-  NOTARY_KC=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && NOTARY_KC=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
-  if ! xcrun notarytool submit "$notary_zip" \
-    --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" \
-    "${NOTARY_KC[@]}" \
-    --wait \
-    --timeout 20m \
-    --output-format json > "$notary_output"; then
+  if ! submit_notary_archive "$notary_zip" > "$notary_output"; then
     NOTARY_REQUEST_ID="$(json_field "$notary_output" id)"
-    print_notary_log "$NOTARY_REQUEST_ID" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}"
+    print_profile_notary_log "$NOTARY_REQUEST_ID"
     return 1
   fi
 
@@ -249,7 +283,7 @@ submit_notarization() {
   NOTARY_REQUEST_ID="$(json_field "$notary_output" id)"
   if [[ "$NOTARY_STATUS" != "Accepted" ]]; then
     echo "Notarization failed with status: ${NOTARY_STATUS:-unknown}" >&2
-    print_notary_log "$NOTARY_REQUEST_ID" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}"
+    print_profile_notary_log "$NOTARY_REQUEST_ID"
     return 1
   fi
 }
@@ -329,11 +363,17 @@ NOTARIZED="false"
 if [[ -z "$IDENTITY" ]]; then
   echo "::warning::PORT_DADDY_SIGN_IDENTITY unset — FleetBar.app is UNSIGNED (ad-hoc). Gatekeeper will quarantine it on download. Set the Developer ID secrets to sign."
 else
-  KEYCHAIN_ARGS=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && KEYCHAIN_ARGS=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
+  KEYCHAIN_PATH="${PORT_DADDY_NOTARY_KEYCHAIN:-}"
   sign_nested_macho_files "$APP_BUNDLE"
-  codesign --force --options runtime --timestamp \
-    --entitlements "$FLEETBAR_ENTITLEMENTS" \
-    --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$APP_BUNDLE"
+  if [[ -n "$KEYCHAIN_PATH" ]]; then
+    codesign --force --options runtime --timestamp \
+      --entitlements "$FLEETBAR_ENTITLEMENTS" \
+      --sign "$IDENTITY" --keychain "$KEYCHAIN_PATH" "$APP_BUNDLE"
+  else
+    codesign --force --options runtime --timestamp \
+      --entitlements "$FLEETBAR_ENTITLEMENTS" \
+      --sign "$IDENTITY" "$APP_BUNDLE"
+  fi
   codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
   SIGNED="true"
   echo "Signed $APP_NAME (host + embedded Port Daddy payload) with $IDENTITY"
