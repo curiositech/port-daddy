@@ -1,65 +1,68 @@
-% Figure — durability by fault class (the I1a/I1b split). A returned-success
-% write under WAL + normal synchronization survives a PROCESS crash (OS buffer
-% persists) but is NOT guaranteed against OS crash / power loss until the next
-% checkpoint. The Gray-Reuter framing and the remedy live in the caption.
+% Figure — durability is a fault-class boundary, not a generic storage path.
+% The single visual claim is that acknowledgement and durable media are separated
+% by an interval that only matters for a power-loss fault.
 
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{swkink}{HTML}{282522}
+\providecolor{swkgrid}{HTML}{AAA69E}
+\providecolor{swkground}{HTML}{F8F6F1}
+\providecolor{swkteal}{HTML}{1D6B62}
+\providecolor{swkumber}{HTML}{8A5A24}
+\providecolor{swksoft}{HTML}{E9E5DD}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  tier/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=30mm,
-               minimum height=12mm,align=center,font=\bfseries\footnotesize},
-  fault/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,
-                minimum width=34mm,minimum height=13mm,align=center,
-                font=\footnotesize},
-]
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \path[use as bounding box] (-.35,-1.22) rectangle (13.65,4.12);
 
-% ─── The write's journey ──────────────────────────────────────────────────
-\node[tier,fill=hhsand!30] (app) at (0,0) {commit\\ returns SUCCESS};
-\node[tier,fill=hhsand!30,right=26mm of app] (oscache) {OS page\\ cache};
-\node[tier,fill=hhsand!30,right=30mm of oscache] (waldisk) {WAL file\\ (synced at\\ checkpoint)};
-\node[tier,fill=hhsand!30,right=26mm of waldisk] (maindb) {main DB\\ (checkpointed)};
+  % One acknowledged write, then a later durable-media boundary.
+  \draw[swkink,line width=.55pt,->] (1.35,3.18) -- (13.25,3.18);
+  \node[anchor=east,font=\footnotesize] at (13.10,3.40) {time};
+  \draw[swkink,line width=.6pt] (2.45,3.02) -- (2.45,3.36);
+  \draw[swkteal,line width=.75pt] (8.50,3.02) -- (8.50,3.36);
+  \node[anchor=south,font=\footnotesize\bfseries,align=center] at (2.45,3.40)
+    {success returned};
+  \node[anchor=south,font=\footnotesize\bfseries,text=swkteal,align=center] at (8.50,3.40)
+    {next WAL checkpoint};
+  \node[anchor=north,font=\scriptsize\itshape,align=center] at (5.48,3.03)
+    {acknowledged, but not yet forced to durable media};
 
-\draw[->,>=Latex,thick,hhebony] (app) -- (oscache);
-\draw[->,>=Latex,thick,hhebony] (oscache) -- (waldisk);
-\node[font=\scriptsize,above=2.5mm] at ($(oscache.east)!0.5!(waldisk.west)$){not synced per commit};
-\draw[->,>=Latex,thick,hhebony] (waldisk) -- (maindb);
-\node[font=\scriptsize,above=2.5mm] at ($(waldisk.east)!0.5!(maindb.west)$){at the checkpoint interval};
+  % The same write gets two non-interchangeable guarantees. The shared x-axis
+  % makes the fault-boundary comparison visual rather than prose-only.
+  \node[anchor=east,font=\footnotesize\bfseries,align=right] at (1.05,2.18)
+    {daemon /\\process crash};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkteal] at (2.45,2.48)
+    {I1a: survives};
+  \node[anchor=west,font=\scriptsize] at (5.15,2.48)
+    {the OS page cache outlives the daemon};
+  \draw[swkteal,line width=4.1pt] (2.45,2.18) -- (12.58,2.18);
 
-% ─── I1a survives process crash ───────────────────────────────────────────
-\node[fault,fill=hhsand!30,below=14mm of oscache] (i1a)
-  {\textbf{I1a --- process crash}\\ {\color{hhteal}\textbf{SURVIVES}}\\ {\scriptsize the OS buffer persists}};
-\draw[->,>=Latex,thick,hhteal] (oscache.south) -- (i1a.north);
+  \node[anchor=east,font=\footnotesize\bfseries,align=right] at (1.05,.72)
+    {OS crash /\\power loss};
+  \fill[swkumber!18] (2.45,.45) rectangle (8.50,.99);
+  \draw[swkumber,line width=.75pt] (2.45,.72) -- (8.50,.72);
+  \draw[swkteal,line width=4.1pt] (8.50,.72) -- (12.58,.72);
+  \draw[swkink,line width=.35pt] (2.45,.45) rectangle (12.58,.99);
+  \node[font=\footnotesize\bfseries,text=swkumber] at (5.48,1.14)
+    {I1b: not guaranteed};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkteal] at (8.78,1.14)
+    {survives after checkpoint};
 
-% ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
-\node[fault,fill=hhsand!30,below=14mm of waldisk] (i1b)
-  {\textbf{I1b --- OS crash / power loss}\\ {\color{hhcobalt}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}};
-\draw[->,>=Latex,thick,hhcobalt] (waldisk.south) -- (i1b.north);
-
-\end{tikzpicture}%
-}
-\caption{Durability by fault class --- the single most important correction to the
-kernel's foundational promise, and exactly Gray \& Reuter's
-atomicity-versus-durability distinction (the ``D'' in ACID is a separate promise).
-The unqualified claim ``a write that returned success survives a crash'' is true for
-a \emph{process} crash (I1a: the OS page cache persists past the dying daemon) but
-\emph{not guaranteed} for an OS crash or power loss (I1b), because under normal
-synchronization the WAL is synced only at checkpoints --- the seductive belief that
-``normal sync is safe in WAL mode'' conflates crash-\emph{consistency} (true) with
-power-loss \emph{durability} (false). The remedy for I1b is full synchronization or
-a checkpoint on the commit path; the kernel does not pay that cost by default, and
-the prose must not imply it does. We split the invariant accordingly: I1a is
-\textsf{implemented}; I1b is \textsf{not guaranteed} under the default WAL
-configuration.}
+  % The annotation band keeps causal explanation off the plotted marks.
+  \draw[swkgrid,line width=.35pt] (2.45,.18) -- (2.45,-.28);
+  \draw[swkgrid,line width=.35pt] (8.50,.18) -- (8.50,-.28);
+  \draw[swkumber,line width=.55pt,<->] (2.45,-.18) -- (8.50,-.18);
+  \node[fill=swkground,inner sep=2pt,font=\footnotesize\itshape,text=swkumber]
+    at (5.48,-.18) {loss window under default \texttt{synchronous=NORMAL}};
+  \node[font=\scriptsize\itshape,text=swkink,align=center] at (7.20,-.82)
+    {A durability claim must name both the fault class and the boundary.};
+\end{tikzpicture}
+\caption{A returned success has different durability status under two fault classes.
+For a daemon-process crash, the acknowledged write survives because the operating
+system's page cache survives the daemon (I1a). For an OS crash or power loss,
+the same write is not guaranteed until the next WAL checkpoint forces durable media
+(I1b). The amber interval is therefore not a second storage tier or a generic
+``failure'' state: it is the specific loss window created by the default WAL
+\texttt{synchronous=NORMAL} policy. The remedy for I1b is full synchronization or
+a checkpoint on the commit path; the kernel does not pay that cost by default.}
 \label{fig:swk-durability-faultclass}
 \end{figure}
