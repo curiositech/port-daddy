@@ -575,16 +575,16 @@ describe('POST /account/repos/set — AI call deadline authority gate', () => {
   it('a non-admin submitting the already-effective deadline (the default) is not blocked', async () => {
     const { env, settings } = await makeSessionEnv();
     stubRepoAccess(['acme/widgets']); // readable, not admin
-    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '5'), env);
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
     expect(res.status).toBe(303);
     expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
-    expect(JSON.parse([...settings.values()][0]!.settings_json)).toEqual({ aiCallDeadlineMs: 300_000 });
+    expect(JSON.parse([...settings.values()][0]!.settings_json)).toEqual({ aiCallDeadlineMs: 600_000 });
   });
 
   it('a non-admin trying to CHANGE the effective deadline is rejected, storing nothing', async () => {
     const { env, settings } = await makeSessionEnv();
     stubRepoAccess(['acme/widgets']); // readable, NOT admin
-    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '5'), env);
     expect(res.status).toBe(303);
     const loc = new URL(`${BASE}${res.headers.get('Location')}`);
     expect(loc.searchParams.get('err')).toBe('1');
@@ -595,17 +595,17 @@ describe('POST /account/repos/set — AI call deadline authority gate', () => {
   it('a repo admin CAN change the effective deadline', async () => {
     const { env, settings } = await makeSessionEnv();
     stubRepoAccess(['acme/widgets'], ['acme/widgets']); // readable AND admin
-    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '5'), env);
     expect(res.status).toBe(303);
     expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
-    expect(JSON.parse([...settings.values()][0]!.settings_json)).toEqual({ aiCallDeadlineMs: 600_000 });
+    expect(JSON.parse([...settings.values()][0]!.settings_json)).toEqual({ aiCallDeadlineMs: 300_000 });
   });
 
   it('a non-admin CAN re-affirm a deadline an admin already set (no change in effect)', async () => {
     const { env, settings } = await makeSessionEnv();
-    // First, an admin sets it to 10 minutes.
+    // First, an admin sets it to 5 minutes (a real change from the default).
     stubRepoAccess(['acme/widgets'], ['acme/widgets']);
-    await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '10'), env);
+    await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'enforce', '5'), env);
     // Now a non-admin (different session would be ideal, but the authority
     // gate only inspects GitHub's per-call permissions response — re-stub
     // without the repo in the admin list to simulate a caller GitHub now
@@ -613,12 +613,12 @@ describe('POST /account/repos/set — AI call deadline authority gate', () => {
     // sitrep change; it must not be blocked since nothing about the
     // repo-wide deadline actually changes.
     stubRepoAccess(['acme/widgets']);
-    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'suggest', '10'), env);
+    const res = await handleRepoSettingsSet(setReqWithDeadline('acme/widgets', 'suggest', '5'), env);
     expect(res.status).toBe(303);
     expect(new URL(`${BASE}${res.headers.get('Location')}`).searchParams.get('err')).toBeNull();
     const stored = [...settings.values()][0]!;
     expect(stored.sitrep_end_of_turn).toBe('suggest');
-    expect(JSON.parse(stored.settings_json)).toEqual({ aiCallDeadlineMs: 600_000 });
+    expect(JSON.parse(stored.settings_json)).toEqual({ aiCallDeadlineMs: 300_000 });
   });
 });
 

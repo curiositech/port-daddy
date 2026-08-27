@@ -53,6 +53,8 @@ const TOOL_FEATURE_MAP = {
   'roadmap_list': 'roadmap',
   'roadmap_get': 'roadmap',
   'roadmap_promote': 'roadmap',
+  'roadmap_search': 'roadmap',
+  'roadmap_export': 'roadmap',
 
   // Commitments (ADR-0041) — #199
   'commit': 'commitments',
@@ -71,6 +73,7 @@ const TOOL_FEATURE_MAP = {
   'resolve_parley': 'parley',
 
   // Knowledge: semantic search + symbol index — #199
+  'skill_graft_status': 'skill_graft',
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',

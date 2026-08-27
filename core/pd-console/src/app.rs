@@ -153,14 +153,12 @@ pub enum ControlMsg {
         agent_id: String,
     },
     /// Convene a parley from a Sextant selection: `POST /parley/call`.
-    /// `parties` are DEDUPED AGENT ids (`fleet_transcripts.spawned_agent_id` —
-    /// never transcript/session ids; parley DMs parties via agent inbox). The
-    /// daemon 400s below 2 distinct ids; the UI disables the button first, and
-    /// any rejection body comes back verbatim on the alert bus.
+    /// The client sends durable session ids only. The daemon resolves canonical
+    /// actors, inbox targets, and lineage roots and rejects unresolved identity.
     GalaxyParley {
         surface: String,
         reason: String,
-        parties: Vec<String>,
+        session_ids: Vec<String>,
     },
     /// Fetch one Sextant session's full detail through `GET /galaxy/session/:id`
     /// (`:id` = the transcript id from a clicked point). The parsed
@@ -1500,7 +1498,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 div()
                     .font_family("IBM Plex Mono")
                     .text_color(rgb(t.muted))
-                    .text_size(px(12.0))
+                    .text_size(px(14.0))
                     .font_weight(FontWeight::BOLD)
                     .child(text.to_ascii_uppercase()),
             )
@@ -1521,7 +1519,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                             .items_center()
                             .bg(rgb(t.raised))
                             .text_color(rgb(t.ink2))
-                            .text_size(px(12.0))
+                            .text_size(px(14.0))
                             .font_weight(FontWeight::BOLD)
                             .child("ACTIVE / CONFIRMED"),
                     )
@@ -1557,7 +1555,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         div()
                             .ml(px(11.0))
                             .text_color(rgb(t.muted))
-                            .text_size(px(11.0))
+                            .text_size(px(14.0))
                             .font_family("IBM Plex Mono")
                             .w(px(150.0))
                             .flex_shrink_0()
@@ -1702,7 +1700,9 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         } => {
             let color_u32 = tone_rgb(&tone);
             let preview = preview.unwrap_or_else(|| "open / preview in current worktree".into());
+            let target = path.clone();
             div()
+                .id(SharedString::from(format!("artifact-{path}")))
                 .mx(px(tokens::SPACE_3))
                 .my(px(2.0))
                 .px(px(tokens::SPACE_2))
@@ -1713,6 +1713,11 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .flex()
                 .items_start()
                 .gap(px(tokens::SPACE_2))
+                .cursor_pointer()
+                .hover(|surface| surface.bg(rgb(current_theme().raised)))
+                .on_click(move |_event, _window, _cx| {
+                    let _ = std::process::Command::new("open").arg(&target).spawn();
+                })
                 .child(
                     div()
                         .mt(px(1.0))
@@ -2080,7 +2085,7 @@ pub struct ConsoleView {
     /// Channel to the background thread for operator mutations (Interrupt etc.).
     /// `None` when running without a control plane (e.g. an isolated test view).
     control_tx: Option<mpsc::Sender<ControlMsg>>,
-    /// Transient confirmation shown after a control action ("interrupt sent").
+    /// Transient confirmation shown after a control action (for example, a stop request).
     control_flash: Option<String>,
     /// The accumulated alert log (the HITL dead-letter queue): every captured
     /// action failure/outcome, newest first, bounded so an all-day session can't
@@ -2103,6 +2108,9 @@ pub struct ConsoleView {
     /// Read-only visual projection of the daemon-owned WorkPlan. Empty daemon
     /// nodeSpecs stay empty; this state never manufactures a runnable plan.
     work_plan_graph: crate::work_plan::PredictedDag,
+    /// One human-facing mission receipt. This is the primary Work-screen model;
+    /// the plan graph remains a secondary technical artifact.
+    work_mission: crate::mission_view::MissionViewModel,
     /// Path to the rendered Vello PNG of `work_plan_graph`, shown INLINE at the top of
     /// the Work surface. `None` until a render lands (the surface shows a
     /// "rendering graph…" placeholder). Auto-refreshed whenever the DAG changes.
@@ -2492,6 +2500,7 @@ impl ConsoleView {
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
             work_plan_graph: crate::work_plan::empty_work_projection(),
+            work_mission: crate::mission_view::MissionViewModel::empty(),
             work_graph_png_path: None,
             work_intent_id: None,
             work_plan_state: "unplanned".into(),
@@ -2740,7 +2749,13 @@ impl ConsoleView {
         // Work is foreground-owned but projects only daemon snapshots received
         // over the dedicated Work bus.
         if matches!(surface, SurfaceKind::Work) {
-            return crate::work_plan::blocks_for_work(&self.work_plan_graph);
+            let live_work = NAV
+                .iter()
+                .position(|item| item.id == "lane")
+                .and_then(|index| self.pane_blocks.get(index))
+                .cloned()
+                .unwrap_or_default();
+            return crate::mission_view::blocks(&self.work_mission, &live_work);
         }
         // The Harbor Editor surface reads its PERSISTENT pane (buffer + claims
         // + wedge), created once by `ensure_editor_states`. view() on an
@@ -3510,11 +3525,15 @@ impl ConsoleView {
         };
         match cmd.kind {
             CmdKind::Work => {
+                self.work_mission = crate::mission_view::MissionViewModel {
+                    goal: text.clone(),
+                    intent_id: Some("submitting".into()),
+                    state: "starting".into(),
+                    ..crate::mission_view::MissionViewModel::default()
+                };
                 let _ = tx.send(ControlMsg::SubmitWorkIntent { goal: text });
-                self.control_flash = Some(
-                    "capturing WorkIntent through the daemon — no provider or run has been selected"
-                        .into(),
-                );
+                self.control_flash =
+                    Some("Mission accepted. Port Daddy is selecting a governed agent.".into());
                 self.work_plan_graph = crate::work_plan::pending_work_projection();
                 self.work_graph_png_path = None;
                 self.ws_mut().swap_surface(SurfaceKind::Work);
@@ -3596,17 +3615,15 @@ impl ConsoleView {
                 self.control_flash = Some(format!("interrupting agent {text}…"));
             }
             CmdKind::GalaxyParley => {
-                // Parties are AGENT ids (never transcript/session ids) — recompute
-                // from the live selection at submit time so a pruned map can't
-                // ship stale parties. Below 2 distinct agents the daemon 400s,
-                // so refuse here with the reason instead of a doomed round-trip.
-                let parties =
-                    crate::galaxy_pane::distinct_agents(&self.galaxy.points, &self.galaxy_selected);
-                if parties.len() < 2 {
-                    self.control_flash = Some(
-                        "parley needs ≥2 distinct agents — select sessions from ≥2 agents first"
-                            .into(),
-                    );
+                // Recompute durable session references from the live selection at
+                // submit time so a pruned map cannot ship stale participant hints.
+                let session_ids = crate::galaxy_pane::distinct_sessions(
+                    &self.galaxy.points,
+                    &self.galaxy_selected,
+                );
+                if session_ids.len() < 2 {
+                    self.control_flash =
+                        Some("parley needs ≥2 sessions with durable identity receipts".into());
                     return;
                 }
                 let surface = crate::galaxy_pane::parley_surface(
@@ -3623,15 +3640,15 @@ impl ConsoleView {
                 } else {
                     text
                 };
-                let n_parties = parties.len();
+                let n_sessions = session_ids.len();
                 let _ = tx.send(ControlMsg::GalaxyParley {
                     surface,
                     reason,
-                    parties,
+                    session_ids,
                 });
                 crate::audio::play(crate::audio::Cue::Dispatch);
                 self.control_flash = Some(format!(
-                    "convening parley with {n_parties} agents — outcome lands in Alerts"
+                    "convening parley from {n_sessions} verified sessions — outcome lands in Alerts"
                 ));
             }
             CmdKind::HarborSteer => {
@@ -3925,11 +3942,12 @@ impl ConsoleView {
         match update {
             WorkUpdate::Receipt(receipt) => {
                 self.clear_work_projection_failure();
+                self.work_mission =
+                    crate::mission_view::MissionViewModel::starting(&receipt.snapshot);
                 let intent_id = receipt.snapshot.intent_id().to_string();
                 let plan_state = receipt.snapshot.plan_state().to_string();
                 let dag = crate::work_plan::from_work_snapshot(&receipt.snapshot);
                 let duplicate = receipt.duplicate;
-                let status = receipt.status;
                 self.work_plan_graph = dag;
                 self.work_selected_node = None;
                 self.work_graph_png_path = None;
@@ -3943,18 +3961,15 @@ impl ConsoleView {
                 self.work_execution_session = None;
                 self.work_execution_worktree = None;
                 self.ws_mut().swap_surface(SurfaceKind::Work);
-                self.control_flash = Some(format!(
-                    "WorkIntent {status}: {intent_id} · plan {plan_state} · correlation {}{}",
-                    receipt.correlation_id,
-                    if duplicate {
-                        " · idempotent replay"
-                    } else {
-                        ""
-                    }
-                ));
+                self.control_flash = Some(if duplicate {
+                    "Mission restored from its durable receipt.".into()
+                } else {
+                    "Mission recorded. Port Daddy is preparing the work.".into()
+                });
             }
             WorkUpdate::Execution(receipt) => {
                 self.clear_work_projection_failure();
+                self.work_mission = crate::mission_view::MissionViewModel::from_execution(&receipt);
                 self.work_intent_id = Some(receipt.snapshot.intent_id().to_string());
                 self.work_plan_state = receipt.snapshot.plan_state().to_string();
                 self.work_plan_graph = crate::work_plan::from_work_snapshot(&receipt.snapshot);
@@ -3965,27 +3980,15 @@ impl ConsoleView {
                 self.work_execution_projection = Some(receipt.projection.clone());
                 self.work_execution_session = receipt.session_id.clone();
                 self.work_execution_worktree = receipt.worktree_path.clone();
-                self.ws_mut()
-                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
-                self.control_flash = Some(format!(
-                    "WorkIntent runtime {}: {} · {}{}{}",
-                    receipt.status,
-                    receipt.state,
-                    receipt.dispatch_id,
-                    if receipt.launched_this_tick > 0 {
-                        format!(" · {} worker claim processed", receipt.launched_this_tick)
-                    } else {
-                        String::new()
-                    },
-                    if receipt.duplicate {
-                        " · idempotent replay"
-                    } else {
-                        ""
-                    }
-                ));
+                self.ws_mut().swap_surface(SurfaceKind::Work);
+                self.control_flash = Some(match self.work_mission.agent_id.as_deref() {
+                    Some(agent) => format!("{agent} is now working on this mission."),
+                    None => "Port Daddy admitted the mission and is assigning its agent.".into(),
+                });
             }
             WorkUpdate::Snapshot(snapshot) => {
                 self.clear_work_projection_failure();
+                self.work_mission = crate::mission_view::MissionViewModel::from_snapshot(&snapshot);
                 self.work_intent_id = Some(snapshot.intent_id().to_string());
                 self.work_plan_state = snapshot.plan_state().to_string();
                 self.work_plan_graph = crate::work_plan::from_work_snapshot(&snapshot);
@@ -4075,7 +4078,7 @@ impl ConsoleView {
             }),
             ScriptRequest::Panes => json!({
                 "ok": true,
-                "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
                 "focused": self.ws().focused_surface().label(),
             }),
             ScriptRequest::Focus { pane } => {
@@ -4103,7 +4106,7 @@ impl ConsoleView {
                         None => json!({
                             "ok": false,
                             "error": format!("unknown pane \"{pane}\""),
-                            "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                            "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
                         }),
                     }
                 }
@@ -4149,18 +4152,18 @@ impl ConsoleView {
                 if let Some(reply) = retired_galaxy_pane_reply(&target) {
                     return reply;
                 }
-                let Some(idx) = NAV.iter().position(|n| n.id == target) else {
+                let Some(surface) = surface_for_query(&target) else {
                     return json!({
                         "ok": false,
                         "error": format!("unknown pane \"{target}\""),
-                        "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                        "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
                     });
                 };
                 let blocks: Vec<serde_json::Value> = self
-                    .pane_blocks
-                    .get(idx)
-                    .map(|bs| bs.iter().map(block_to_json).collect::<Vec<_>>())
-                    .unwrap_or_default();
+                    .blocks_for_surface(&surface)
+                    .iter()
+                    .map(block_to_json)
+                    .collect();
                 let mut out = json!({"ok": true, "pane": target, "blocks": blocks});
                 if target == "sextant" {
                     out["sextant"] = json!({
@@ -4247,6 +4250,29 @@ impl ConsoleView {
                         serde_json::Value::String("no control channel (view constructed without one)".into())
                     },
                 })
+            }
+            ScriptRequest::StopMission => {
+                match (&self.control_tx, self.work_mission.agent_id.as_ref()) {
+                    (Some(tx), Some(agent_id)) if self.work_mission.state == "in_progress" => {
+                        let _ = tx.send(ControlMsg::InterruptAgent {
+                            agent_id: agent_id.clone(),
+                        });
+                        self.control_flash = Some(
+                        "Stop request delivered. This runtime has not acknowledged shutdown yet."
+                            .into(),
+                    );
+                        json!({
+                            "ok": true,
+                            "stopRequested": agent_id,
+                            "acknowledged": false,
+                            "hardStop": false,
+                        })
+                    }
+                    (None, _) => {
+                        json!({"ok": false, "error": "no control channel (view constructed without one)"})
+                    }
+                    _ => json!({"ok": false, "error": "no running mission to stop"}),
+                }
             }
             ScriptRequest::Rebind { url } => match &self.control_tx {
                 Some(tx) => {
@@ -4640,18 +4666,11 @@ impl ConsoleView {
         };
         let work_title = self.work_plan_graph.title.clone();
         let work_wave_count = self.work_plan_graph.waves.len();
-        let work_intent_id = self
-            .work_intent_id
-            .clone()
-            .unwrap_or_else(|| "no intent".into());
-        let work_plan_state = self.work_plan_state.clone();
-        let work_correlation_id = self.work_correlation_id.clone();
-        let work_next_action = self.work_next_action.clone();
-        let work_execution_state = self.work_execution_state.clone();
-        let work_execution_id = self.work_execution_id.clone();
-        let work_execution_projection = self.work_execution_projection.clone();
-        let work_execution_session = self.work_execution_session.clone();
-        let work_execution_worktree = self.work_execution_worktree.clone();
+        let work_agent = if is_work && self.work_mission.state == "in_progress" {
+            self.work_mission.agent_id.clone()
+        } else {
+            None
+        };
         // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
         // opens the Editor surface; a directory row descends (rebinds the root).
         let filetree: Option<(Option<String>, Vec<FileEntry>)> = match surface {
@@ -4791,17 +4810,10 @@ impl ConsoleView {
                     .gap(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
                     .px(px(if is_daemons { tokens::SPACE_3 } else { 0.0 }))
                     .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
-                    .when(is_work, |body| {
-                        // The LIVE native canvas is the default view (animated,
-                        // interactive); the Vello PNG is an optional poster below,
-                        // shown only once the operator renders it.
-                        body.child(work_graph_canvas(
-                            id,
-                            &self.work_plan_graph,
-                            self.work_selected_node.as_deref(),
-                            cx,
-                        ))
-                        .when_some(work_graph_png, |b, path| {
+                    .when(is_work && work_graph_png.is_some(), |body| {
+                        // The mission story is the default. A technical plan only
+                        // appears after the operator explicitly asks to view it.
+                        body.when_some(work_graph_png, |b, path| {
                             b.child(work_graphic(id, Some(path), &work_title))
                         })
                     });
@@ -5100,8 +5112,10 @@ impl ConsoleView {
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     if let Some(tx) = &this.control_tx {
                                         let _ = tx.send(ControlMsg::InterruptLane);
-                                        this.control_flash =
-                                            Some("interrupt sent — watch the stream".into());
+                                        this.control_flash = Some(
+                                            "Interrupt requested. Runtime acknowledgement pending."
+                                                .into(),
+                                        );
                                         cx.notify();
                                     }
                                 })),
@@ -5276,24 +5290,49 @@ impl ConsoleView {
                         }),
                 )
             })
-            // WorkPlan proof controls. Rendering is available only when the daemon
-            // actually supplied nodes; an intent-captured placeholder is never
-            // promoted into a decorative fake graph.
+            // Mission actions stay human-facing. Runtime identifiers remain in
+            // the durable receipt and inspector surfaces, not in this primary row.
             .when(is_work && is_focused, |content| {
                 content.child(
                     div()
-                        .px(px(10.0))
-                        .py(px(8.0))
+                        .px(px(16.0))
+                        .py(px(10.0))
                         .border_t_1()
                         .border_color(rgb(current_theme().line))
                         .flex()
                         .items_center()
-                        .gap(px(8.0))
+                        .gap(px(12.0))
+                        .when_some(work_agent, |row, agent_id| {
+                            let target = agent_id.clone();
+                            row.child(
+                                div()
+                                    .id(SharedString::from(format!("stop-mission-{agent_id}")))
+                                    .px(px(12.0))
+                                    .py(px(7.0))
+                                    .border_1()
+                                    .border_color(rgb(current_theme().gated))
+                                    .text_color(rgb(current_theme().gated))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|surface| surface.bg(rgb(current_theme().raised)))
+                                    .child("Ask agent to stop")
+                                    .on_click(cx.listener(move |this, _event, _window, cx| {
+                                        if let Some(tx) = &this.control_tx {
+                                            let _ = tx.send(ControlMsg::InterruptAgent {
+                                                agent_id: target.clone(),
+                                            });
+                                            this.control_flash = Some("Stop request delivered. This runtime has not acknowledged shutdown yet.".into());
+                                            cx.notify();
+                                        }
+                                    })),
+                            )
+                        })
                         .when(work_wave_count > 0, |row| row.child(
                             div()
                                 .id("work-plan-render")
                                 .px(px(12.0))
-                                .py(px(5.0))
+                                .py(px(7.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
@@ -5301,76 +5340,18 @@ impl ConsoleView {
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .cursor_pointer()
                                 .hover(|s| s.bg(rgb(current_theme().raised)))
-                                .child("RENDER GRAPH")
+                                .child("View technical plan")
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     this.render_work_graph();
                                     cx.notify();
                                 })),
                         ))
-                        .child(
-                            div()
-                                .text_color(rgb(current_theme().muted))
-                                .text_size(px(13.0))
-                                .child(format!(
-                                    "{work_plan_state} \u{00b7} {work_intent_id} \u{00b7} runtime {work_execution_state} \u{00b7} {work_wave_count} daemon-authored wave(s)"
-                                )),
-                        )
-                        .when_some(work_execution_id, |bar, execution_id| {
-                            bar.child(
-                                div()
-                                    .text_color(rgb(current_theme().engaged))
-                                    .text_size(px(12.0))
-                                    .child(format!("receipt {execution_id}")),
-                            )
-                        })
-                        .when_some(work_execution_projection, |bar, projection| {
-                            bar.child(
-                                div()
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(12.0))
-                                    .child(projection),
-                            )
-                        })
-                        .when_some(work_execution_session, |bar, session| {
-                            bar.child(
-                                div()
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(12.0))
-                                    .child(format!("session {session}")),
-                            )
-                        })
-                        .when_some(work_execution_worktree, |bar, worktree| {
-                            bar.child(
-                                div()
-                                    .flex_1()
-                                    .overflow_hidden()
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(12.0))
-                                    .child(format!("worktree {worktree}")),
-                            )
-                        })
-                        .when_some(work_correlation_id, |bar, correlation| {
-                            bar.child(
-                                div()
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(12.0))
-                                    .child(format!("trace {correlation}")),
-                            )
-                        })
-                        .when_some(work_next_action, |bar, action| {
-                            bar.child(
-                                div()
-                                    .flex_1()
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(12.0))
-                                    .child(action),
-                            )
-                        })
                         .when_some(work_flash, |bar, flash| {
                             bar.child(
                                 div()
+                                    .flex_1()
                                     .text_color(rgb(current_theme().muted))
-                                    .text_size(px(13.0))
+                                    .text_size(px(14.0))
                                     .child(flash),
                             )
                         }),
@@ -5403,7 +5384,7 @@ impl ConsoleView {
                             div()
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(14.0))
-                                .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
+                                .child("kill = unregister an agent \u{00b7} interrupt = request a run stop"),
                         )
                         .child(
                             div()
@@ -6155,9 +6136,14 @@ fn command_bar_btn(
         .items_center()
         .border_l_1()
         .border_color(rgb(current_theme().line))
-        .text_color(rgb(current_theme().ink2))
+        .text_color(rgb(if kind == CmdKind::Work {
+            knockout_ink(accent)
+        } else {
+            current_theme().ink2
+        }))
+        .when(kind == CmdKind::Work, |button| button.bg(rgb(accent)))
         .font_family("IBM Plex Mono")
-        .text_size(px(12.0))
+        .text_size(px(14.0))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
         .hover(move |s| {
@@ -6168,6 +6154,31 @@ fn command_bar_btn(
         .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             this.command = Some(CommandLine::new(kind));
+            cx.notify();
+        }))
+}
+
+fn views_bar_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    div()
+        .id("cmdbar-more-views")
+        .h_full()
+        .px(px(14.0))
+        .flex()
+        .items_center()
+        .border_l_1()
+        .border_color(rgb(current_theme().line))
+        .text_color(rgb(current_theme().ink2))
+        .text_size(px(14.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(|surface| {
+            surface
+                .bg(rgb(current_theme().raised))
+                .text_color(rgb(current_theme().accent_ink))
+        })
+        .child("More views")
+        .on_click(cx.listener(|this, _event, _window, cx| {
+            this.launcher_open = true;
             cx.notify();
         }))
 }
@@ -8702,7 +8713,7 @@ impl Render for ConsoleView {
             // surface instead of a CLI with hidden options. ──
             .child(
                 div()
-                    .h(px(34.0))
+                    .h(px(44.0))
                     .pl(px(16.0))
                     .flex()
                     .items_center()
@@ -8710,21 +8721,8 @@ impl Render for ConsoleView {
                     .bg(rgb(current_theme().panel))
                     .border_t_1()
                     .border_color(rgb(current_theme().line))
-                    .child(
-                        div()
-                            .h_full()
-                            .px(px(10.0))
-                            .flex()
-                            .items_center()
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(rgb(current_theme().muted))
-                            .child("ACT"),
-                    )
-                    .child(command_bar_btn(CmdKind::Work, "Start work", cx))
-                    .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
-                    .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
-                    .child(command_bar_btn(CmdKind::UseDaemon, "Use daemon", cx))
+                    .child(command_bar_btn(CmdKind::Work, "Start a mission", cx))
+                    .child(views_bar_btn(cx))
                     // Alerts (HITL): always visible, glows red on errors, click to
                     // open the full untruncated log — the discoverable way to read
                     // a failure (no hidden keystroke).
@@ -8756,7 +8754,7 @@ impl Render for ConsoleView {
                             .border_color(rgb(border))
                             .text_color(rgb(text))
                             .font_family("IBM Plex Mono")
-                            .text_size(px(12.0))
+                            .text_size(px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .cursor_pointer()
                             .hover(|s| {

@@ -21,11 +21,24 @@
  *                                          'done' transition stamps completed_at)
  *   POST   /roadmap/items/:slug/touch    — refresh last_touched_at
  *   POST   /roadmap/promote              — atomic feedback→item link
+ *   GET    /roadmap/projection           — read-only roadmap-home projection
+ *                                          (lib/roadmap-projection.ts) for the
+ *                                          web/console/iOS home surfaces
  *   POST   /roadmap/chomp                — general planning-doc ingestion
  *   POST   /roadmap/import-markdown      — legacy 3-pile alias over chomp
+ *   GET    /roadmap/search               — free-text -> ranked roadmap items
+ *                                          (lib/roadmap-search.ts); the
+ *                                          suggestion source for `pd begin`'s
+ *                                          rent gate when no --roadmap slug
+ *                                          is given
+ *   POST   /roadmap/reindex-search       — backfill/refresh the search index
+ *                                          from the live roadmap_items table
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createRoadmapSearch, type RoadmapSearch } from '../lib/roadmap-search.js';
+import type { SemanticResolver } from '../lib/semantic-resolver.js';
+import { exportRoadmapItem, RoadmapExportError, type ExportConfig, type ExportTarget, type ExportFetch } from '../lib/roadmap-export.js';
 import type {
   RoadmapItems,
   RoadmapKind,
@@ -34,6 +47,11 @@ import type {
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
+import {
+  buildRoadmapProjection,
+  serializeRoadmapProjection,
+} from '../lib/roadmap-projection.js';
+import type Database from 'better-sqlite3';
 import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
 import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
@@ -173,7 +191,7 @@ const KIND_VALUES = new Set<RoadmapKind>([
   'bug',
   'chore',
 ]);
-const LINK_KINDS = new Set<ItemLinkKind>(['pr', 'doc', 'file', 'media']);
+const LINK_KINDS = new Set<ItemLinkKind>(['pr', 'doc', 'file', 'media', 'issue']);
 
 /** Owner display info joined from the durable-agent roster onto item reads. */
 interface OwnerInfo {
@@ -279,11 +297,51 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // undefined in unit fixtures that only stand up the roadmap dep pair (see
   // tests/unit/roadmap-board-route.test.js) — the persistence step below tolerates that.
   const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
+  const db = (opts.deps as { db?: Database.Database }).db;
   const graphEdges = (opts.deps as { graphEdges?: GraphEdges }).graphEdges;
   // Durable-agent roster: the owner registry item assignees validate against
   // and reads join for display info. Optional for the same fixture reason as
   // graphEdges — when absent, writes skip validation and reads join null.
   const durableAgentRoster = (opts.deps as { durableAgentRoster?: DurableAgentRoster }).durableAgentRoster;
+  // Roadmap search (lib/roadmap-search.ts): same tolerant-optional pattern as
+  // graphEdges/durableAgentRoster above — unit fixtures that stand up only the
+  // {roadmapItems, roadmapPromote} pair run with search disabled rather than
+  // crashing. Requires both a DB (to persist the embedding sidecar table) and
+  // the shared semantic resolver (to compute embeddings) — the same resolver
+  // lib/whois.ts's phonebook cascade uses, not a second embedding pipeline.
+  const semanticResolverDep = (opts.deps as { semanticResolver?: SemanticResolver }).semanticResolver;
+  const roadmapSearch: RoadmapSearch | undefined =
+    db && semanticResolverDep
+      ? createRoadmapSearch(db, { resolver: semanticResolverDep, logger: fastify.log })
+      : undefined;
+
+  // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
+  // "roadmap is home everywhere"). One deterministic projection that the relay
+  // account page, pd-console, and the iOS app all render instead of re-deriving
+  // roadmap state (see lib/roadmap-projection.ts for the parsimony law and the
+  // law-13 live/stale honesty rules). Read-only; the body is the projection's
+  // canonical serialization so consumers can byte-diff successive fetches.
+  // Self-degrades with 503 when a stripped daemon mode carries no DB (popper
+  // route convention).
+  fastify.get('/roadmap/projection', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!db) {
+      reply.code(503);
+      return { success: false, error: 'roadmap projection requires daemon db' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const harbor = asString(q.harbor);
+    try {
+      const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), { harbor });
+      reply.type('application/json; charset=utf-8');
+      return serializeRoadmapProjection(projection);
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'projection failed',
+      };
+    }
+  });
 
   // GET /roadmap/board — the live, browsable planner board (ADR-0086 §5). Derives the
   // Project→Epic→Task hierarchy from roadmap_items on each request (so it reflects live state
@@ -448,6 +506,14 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     try {
       const item = roadmapItems.upsert(input);
       reply.code(201);
+      // Fire-and-forget: keep the search index warm without slowing the
+      // write path down or failing the upsert on an embedding hiccup. A
+      // stale/missing embedding degrades pd-begin suggestions, not correctness.
+      if (roadmapSearch) {
+        roadmapSearch.reindexItem(item).catch((error: unknown) => {
+          fastify.log.error({ error, slug: item.slug }, 'roadmap_search_reindex_after_upsert_failed');
+        });
+      }
       return { success: true, item };
     } catch (error) {
       reply.code(400);
@@ -455,6 +521,111 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         success: false,
         error: error instanceof Error ? error.message : 'upsert failed',
       };
+    }
+  });
+
+  // GET /roadmap/search?q=<free text>&harbor=<h>&limit=<n> — rank roadmap
+  // items against free text (lib/roadmap-search.ts). The suggestion source
+  // for `pd begin`'s rent gate: when a caller doesn't already know the exact
+  // --roadmap slug, this turns their purpose text into ranked candidates
+  // instead of a bare rejection. Degrades to an empty list (never an error)
+  // when the index isn't wired (unit fixtures) or hasn't been populated yet.
+  fastify.get('/roadmap/search', async (request: FastifyRequest) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const query = asString(q.q) ?? asString(q.query);
+    if (!query) return { success: true, hits: [], count: 0 };
+    if (!roadmapSearch) return { success: true, hits: [], count: 0, degraded: 'search index unavailable' };
+
+    const harbor = asString(q.harbor);
+    const limit = asPosInt(q.limit);
+    const hits = await roadmapSearch.search(query, { harbor, limit });
+    return { success: true, hits, count: hits.length };
+  });
+
+  // POST /roadmap/reindex-search — backfill/refresh every item's embedding.
+  // Needed once after this feature ships (existing rows predate the index)
+  // and safe to re-run any time (reindexItem no-ops on an unchanged hash).
+  fastify.post('/roadmap/reindex-search', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!roadmapSearch) {
+      reply.code(503);
+      return { success: false, error: 'search index unavailable (no DB or semantic resolver wired)' };
+    }
+    const body = (request.body ?? {}) as { harbor?: unknown };
+    const harbor = asString(body.harbor);
+    const items = roadmapItems.list({ harbor, status: 'all' });
+    const result = await roadmapSearch.reindexAll(items);
+    return { success: true, ...result, total: items.length };
+  });
+
+  // POST /roadmap/items/:slug/export — push one roadmap item to an external
+  // tracker (lib/roadmap-export.ts). One-way, repeatable-but-not-idempotent
+  // (see that module's docblock for why); on success, records a typed `issue`
+  // link on the card (lib/planner-edges.ts) so the two records stay
+  // associated for later reads. Credentials NEVER come from the request body
+  // — only from server-side env vars — so a client can pick the target and
+  // repo/project, never smuggle in someone else's token.
+  fastify.post('/roadmap/items/:slug/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { slug?: string };
+    const slug = params.slug;
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug is required' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const existing = roadmapItems.get(slug, asString(q.harbor));
+    if (!existing) {
+      reply.code(404);
+      return { success: false, error: `roadmap item '${slug}' not found` };
+    }
+
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const target = asString(body.target) as ExportTarget | undefined;
+    if (!target || !['github', 'linear', 'jira'].includes(target)) {
+      reply.code(400);
+      return { success: false, error: "target must be one of: 'github', 'linear', 'jira'" };
+    }
+
+    const fetchImpl: ExportFetch = (url, init) => fetch(url, init);
+    let config: ExportConfig;
+    if (target === 'github') {
+      const token = process.env.PD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
+      const repo = asString(body.repo) ?? process.env.PD_ROADMAP_EXPORT_GITHUB_REPO;
+      if (!token) { reply.code(503); return { success: false, error: 'PD_GITHUB_TOKEN (or GITHUB_TOKEN) not configured' }; }
+      if (!repo) { reply.code(400); return { success: false, error: "target 'github' requires body.repo ('owner/repo')" }; }
+      config = { target: 'github', repo, token, fetchImpl };
+    } else if (target === 'linear') {
+      const token = process.env.PD_LINEAR_TOKEN;
+      const teamId = asString(body.teamId) ?? process.env.PD_ROADMAP_EXPORT_LINEAR_TEAM_ID;
+      if (!token) { reply.code(503); return { success: false, error: 'PD_LINEAR_TOKEN not configured' }; }
+      if (!teamId) { reply.code(400); return { success: false, error: "target 'linear' requires body.teamId" }; }
+      config = { target: 'linear', teamId, token, fetchImpl };
+    } else {
+      const email = process.env.PD_JIRA_EMAIL;
+      const apiToken = process.env.PD_JIRA_API_TOKEN;
+      const baseUrl = asString(body.baseUrl) ?? process.env.PD_ROADMAP_EXPORT_JIRA_BASE_URL;
+      const projectKey = asString(body.projectKey) ?? process.env.PD_ROADMAP_EXPORT_JIRA_PROJECT_KEY;
+      if (!email || !apiToken) { reply.code(503); return { success: false, error: 'PD_JIRA_EMAIL / PD_JIRA_API_TOKEN not configured' }; }
+      if (!baseUrl || !projectKey) { reply.code(400); return { success: false, error: "target 'jira' requires body.baseUrl and body.projectKey" }; }
+      config = { target: 'jira', baseUrl, projectKey, email, apiToken, issueType: asString(body.issueType), fetchImpl };
+    }
+
+    try {
+      const result = await exportRoadmapItem(
+        { slug: existing.slug, summaryMd: existing.summaryMd, descriptionMd: existing.descriptionMd, status: existing.status, tags: existing.tags },
+        config,
+      );
+      if (graphEdges) {
+        graphEdges.remember(itemLinkEdge(slug, 'issue', result.externalId, {
+          url: result.externalUrl,
+          tracker: result.target,
+        }));
+      }
+      reply.code(201);
+      return { success: true, export: result };
+    } catch (error) {
+      const message = error instanceof RoadmapExportError ? error.message : error instanceof Error ? error.message : 'export failed';
+      reply.code(502);
+      return { success: false, error: message };
     }
   });
 

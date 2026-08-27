@@ -62,6 +62,13 @@
     scrollbar-width: thin; scrollbar-color: #3a4150 transparent; }
   .pl-line { position: relative; white-space: pre; min-height: 1.42em; }
   .term-scroll.wrap .pl-line { white-space: pre-wrap; word-break: break-word; }
+  /* Alt-screen (TUI) casts draw a real character grid — vim/tmux/htop-style
+   * box-drawing borders are glyphs meant to sit edge-to-edge in their cell.
+   * The 1.42 line-height tuned for readable scrollback prose inserts a gap
+   * between every row, so those glyphs never touch their neighbor above/
+   * below and every panel border looks broken into disconnected dashes. */
+  .term-scroll.tui { line-height: 1; }
+  .term-scroll.tui .pl-line { min-height: 1em; }
   .pl-line::before { content: "⧉"; position: absolute; left: -24px; top: 0; color: var(--cobalt);
     opacity: 0; cursor: pointer; font-size: 12px; }
   .pl-line:hover::before { opacity: 0.9; }
@@ -1180,6 +1187,7 @@
     vt = new VT(cast.cols, cast.rows);
     const isTui = cast.events.some(([, d]) => d.includes("\u001b[?1049h") || d.includes("\u001b[?47h") || d.includes("\u001b[?1047h") || d.includes("\u001b[6n"));
     cast.isTui = isTui;
+    term.classList.toggle("tui", isTui);
     if (isTui) { wrapUser = false; } else if (wrapUser === false) { wrapUser = null; }
     idx = 0; playedT = 0; playing = false; lastTick = null;
     term.innerHTML = ""; lineEls.length = 0;

@@ -288,8 +288,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['spray_pheromone', 'resolve_pheromone', 'pheromone_coverage', 'read_pheromones', 'read_entity_pheromones'],
   },
   'roadmap': {
-    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
-    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote'],
+    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item',
+    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote', 'roadmap_search', 'roadmap_export'],
   },
   'commitments': {
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
@@ -304,8 +304,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
   },
   'knowledge': {
-    description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
+    description: 'Semantic search + symbol index — inspect Skill Graft coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['skill_graft_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
@@ -680,6 +680,42 @@ const TOOLS = [
       required: ['slug'],
     },
   },
+  {
+    name: 'roadmap_search',
+    description:
+      '[Roadmap] Rank roadmap items against free text (BM25 -> cosine over shared MiniLM embeddings, ' +
+      'same cascade as pd whois). Use before pd_begin when you know what you are about to work on but ' +
+      'not the exact --roadmap slug. Usage: roadmap_search({query: "fix the login timeout"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Free text describing the work' },
+        harbor: { type: 'string', description: 'Restrict to one harbor (optional)' },
+        limit: { type: 'number', description: 'Max candidates to return (default 5)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'roadmap_export',
+    description:
+      '[Roadmap] Push one roadmap item to an external tracker (GitHub Issues, Linear, or Jira). ' +
+      'One-way, repeatable push, not two-way sync. Credentials come from server env vars only. ' +
+      'Usage: roadmap_export({slug: "fix-x", target: "github", repo: "acme/widgets"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Roadmap item slug to export' },
+        target: { type: 'string', enum: ['github', 'linear', 'jira'], description: 'Which tracker' },
+        repo: { type: 'string', description: 'GitHub only: "owner/repo"' },
+        teamId: { type: 'string', description: 'Linear only: team id to file the issue under' },
+        baseUrl: { type: 'string', description: 'Jira only: e.g. https://your-org.atlassian.net' },
+        projectKey: { type: 'string', description: 'Jira only: project key, e.g. "ROAD"' },
+        issueType: { type: 'string', description: 'Jira only: issue type name (default "Task")' },
+      },
+      required: ['slug', 'target'],
+    },
+  },
 
   // ── Commitments (ADR-0041 obligations) ───────────────────────────────
   {
@@ -828,6 +864,17 @@ const TOOLS = [
   },
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
+  {
+    name: 'skill_graft_status',
+    description:
+      '[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. ' +
+      'Reports current, cold, reconciling, embedder-down, or generator-down ' +
+      'without generating centroids or calling an LLM. Usage: skill_graft_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
   {
     name: 'semantic_search',
     description:
@@ -3667,6 +3714,25 @@ async function handleTool(
       break;
     }
 
+    case 'roadmap_search': {
+      const params = new URLSearchParams({ q: args.query as string });
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/roadmap/search?${params.toString()}`);
+      break;
+    }
+
+    case 'roadmap_export': {
+      const body: Record<string, unknown> = { target: args.target };
+      if (args.repo !== undefined) body.repo = args.repo;
+      if (args.teamId !== undefined) body.teamId = args.teamId;
+      if (args.baseUrl !== undefined) body.baseUrl = args.baseUrl;
+      if (args.projectKey !== undefined) body.projectKey = args.projectKey;
+      if (args.issueType !== undefined) body.issueType = args.issueType;
+      res = await POST(`/roadmap/items/${encodeURIComponent(args.slug as string)}/export`, body);
+      break;
+    }
+
     // ── Commitments (ADR-0041) ──────────────────────────────────────
     case 'commit': {
       const body: Record<string, unknown> = {
@@ -3767,6 +3833,11 @@ async function handleTool(
     }
 
     // ── Knowledge (semantic search + symbol index) ──────────────────
+    case 'skill_graft_status': {
+      res = await GET('/skill-graft/status');
+      break;
+    }
+
     case 'semantic_search': {
       const params = new URLSearchParams();
       params.set('q', args.q as string);
@@ -5251,7 +5322,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.30.2',
+    version: '3.30.3',
   },
   {
     capabilities: {

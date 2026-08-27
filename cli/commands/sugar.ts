@@ -15,6 +15,7 @@ import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, pri
 import { autoIdentityFromPackageJson } from './services.js';
 import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import * as ui from '../utils/ui.js';
 import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
 import {
@@ -90,6 +91,36 @@ export interface BeginRentResolution {
   /** TTY path: caller should run the interactive prompt. */
   needsPrompt?: boolean;
   error?: string;
+}
+
+/**
+ * Best-effort: fetch roadmap items matching `purpose` (lib/roadmap-search.ts,
+ * GET /roadmap/search) and print them so the rent-gate rejection carries a
+ * fix, not just a rule. Never throws — a daemon hiccup or an un-indexed
+ * roadmap degrades silently back to the plain gate message; suggestions are
+ * a convenience, not a dependency of the gate itself.
+ */
+export async function printRoadmapSuggestions(
+  purpose: string,
+  harbor: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<void> {
+  try {
+    const params = new URLSearchParams({ q: purpose, limit: '5' });
+    if (harbor) params.set('harbor', harbor);
+    const res = await fetcher(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+    if (!res.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHit[] };
+    const hits = data.hits ?? [];
+    if (hits.length === 0) return;
+
+    ui.note(
+      hits.map((h) => `  --roadmap ${h.slug}\n    [${h.status}] ${h.summaryMd}`).join('\n'),
+      `Did you mean one of these? (matched "${purpose}")`,
+    );
+  } catch {
+    // Best-effort only — see docblock.
+  }
 }
 
 /**
@@ -491,6 +522,13 @@ export async function handleBegin(
     rent = await promptBeginRent();
   }
   if (!rent.ok) {
+    // The caller has purpose text but no --roadmap slug in hand — surface
+    // ranked candidates (lib/roadmap-search.ts) instead of a bare rejection,
+    // only on the generic "none given" gate (a specific --roadmap/--sidequest
+    // validation error already names the exact fix; suggestions would be noise).
+    if (rent.error === RENT_GATE_MESSAGE) {
+      await printRoadmapSuggestions(purpose, options.harbor as string | undefined);
+    }
     throw new Error(rent.error || RENT_GATE_MESSAGE);
   }
 

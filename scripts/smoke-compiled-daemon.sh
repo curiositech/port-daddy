@@ -155,6 +155,10 @@ assert_200 "/secrets" || fail=1
 # append-only envelope/packet evidence. An empty fresh registry is a valid
 # response, but the compiled Bun runtime must register and execute the route.
 assert_200 "/agent-harbor/context-continuity?limit=1" || fail=1
+# O3 Tool2Vec reconciliation must be registered in the packaged Bun daemon,
+# and a cold fresh registry is a valid read-only status response. This catches
+# route-registration and bun:sqlite schema drift without invoking a generator.
+assert_200 "/skill-graft/status" || fail=1
 # FleetBar-polled daemon surfaces must not 404 in the packaged binary. These
 # caught live drift where route registration/order bugs were hidden by source
 # tests and only showed up in operator logs.

@@ -290,10 +290,13 @@ Build: `cargo build --release --bin pd-console --features gpui` (from `core/pd-c
 `~/.port-daddy/bin/pd-console` *and* the double-clickable `~/Applications/pd-console.app`
 (embeds its own binary — does NOT read PATH). After replacing the .app binary,
 `codesign --force --deep --sign - ~/Applications/pd-console.app` or macOS rejects it.
-Launch with `PORT_DADDY_URL=http://127.0.0.1:9876` if daemon discovery panics;
-`PD_CONSOLE_THEME=light|dark` / `Ctrl-A g` for theme. Spawning from the console clears real
-guards (`task`+`identity`+`budgetUsd`+`model`+ worktree `workdir`, plus a funded project wallet +
-daily budget) — miss one and spawn "looks wired but does nothing." gpui 0.2.2 has no transform:
+Launch normally against the canonical published daemon port; use
+`PORT_DADDY_URL` only to target one explicit development berth. Startup must
+never read `~/.port-daddy/console-daemon.url`: that stale selector previously
+pinned future launches to dead berths. `PD_CONSOLE_THEME=light|dark` / `Ctrl-A
+g` controls the theme. The Work screen submits one WorkIntent and stays attached
+to the daemon's exact launch/agent/transcript receipt; never jump to “newest
+agent” or spawn directly from the view. gpui 0.2.2 has no transform:
 glow/lift = `shadow(BoxShadow)` + hover color; timelines = `with_animation`; inside `.hover(|s|…)`
 pass bare `rgb(x)` (NOT `.into()` — ambiguous). Console branch: `feat/console-tmux-multiplexer`.
 
@@ -786,6 +789,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** The daemon is healthy on its port but invisible in FleetBar's Daemons list; the operator concludes the feature "doesn't work" while it runs fine in the dark.
 **Fix:** Launch with the full berth env (dev-triple.sh exports it; other launch paths must export it by hand), then verify the entry appears in `~/.port-daddy/dev-daemons.json` before inviting the operator to look.
 **Why:** Registration is the daemon's identity on the operator surface. A daemon that never self-registers does not exist as far as the demo is concerned.
+
+### Prefix-Only Named Daemon Isolation
+**Detection:** A named daemon profile sets `PORT_DADDY_PREFIX` but leaves `PORT_DADDY_DB`, socket, IPC, PID, port, or heartbeat paths implicit.
+**Symptoms:** The profile appears isolated on its chosen port while a consumer that does not interpret the prefix silently opens the canonical registry or control files. Multiple profiles then own different process identities over the same durable truth, and a test daemon can stall or crash production startup.
+**Fix:** Build named-profile environments through `buildDaemonProfileEnv()` and assert every mutable runtime path equals the resolved profile path. Acceptance-test the running profile on a noncanonical port, then inspect its open files and require that no canonical registry handle appears.
+**Why:** A profile is a state-plane boundary, not a naming convention. Isolation must survive new consumers and refactors without depending on every module reimplementing prefix inference correctly.
 
 ### Demoing One Slice Of A Multi-PR Feature
 **Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.

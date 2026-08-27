@@ -6,7 +6,13 @@ import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../.
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
 import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
 import type { ImportMarkdownResult, ChompRoadmapResult, ChompItemReport } from '../../lib/roadmap-chomp.js';
-import { buildRoadmapSnapshot, writeRoadmapSnapshot } from '../../lib/roadmap-snapshot.js';
+import {
+  buildRoadmapSnapshot,
+  writeRoadmapSnapshot,
+  readPreviousSnapshot,
+  type RoadmapSnapshot,
+} from '../../lib/roadmap-snapshot.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import { getWorktreeInfo } from '../../lib/worktree.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
@@ -34,6 +40,11 @@ type RoadmapItemResponse =
   | { success: true; item: RoadmapItem }
   | { success: false; error?: string };
 
+/**
+ * Read the currently-committed snapshot to reconcile against, if one exists
+ * on disk. Never throws — a missing/unparseable file just means there is
+ * nothing to reconcile against (first-ever export), not an error.
+ */
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = options[key];
@@ -196,6 +207,21 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
 
   if (sub === 'import-markdown' || sub === 'import') {
     await handleRoadmapImportMarkdown(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'search') {
+    await handleRoadmapSearch(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'reindex') {
+    await handleRoadmapReindex(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'export') {
+    await handleRoadmapExport(args.slice(1), options);
     return;
   }
 
@@ -963,6 +989,140 @@ async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<
   }
 }
 
+/**
+ * `pd roadmap search <free text>` — rank roadmap items against free text via
+ * the daemon's GET /roadmap/search (lib/roadmap-search.ts). Standalone
+ * lookup; `pd begin` calls the same endpoint automatically when no
+ * --roadmap slug is given (see handleBegin in sugar.ts).
+ */
+async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise<void> {
+  const query = args.join(' ').trim() || readOption(options, 'q', 'query');
+  if (!query) {
+    ui.error('Usage: pd roadmap search <free text> [--harbor <h>] [--limit <n>]');
+    process.exit(1);
+  }
+
+  const params = new URLSearchParams({ q: query });
+  const harbor = readOption(options, 'harbor');
+  if (harbor) params.set('harbor', harbor);
+  const limit = parseLimit(options.limit, 5);
+  params.set('limit', String(limit));
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    hits?: RoadmapSearchHit[];
+    degraded?: string;
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap search failed (status ${res.status})`);
+    process.exit(1);
+  }
+
+  const hits = data.hits ?? [];
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: true, hits, count: hits.length }, null, 2));
+    return;
+  }
+  if (data.degraded) {
+    ui.warn(`search index unavailable — run \`pd roadmap reindex\` on a daemon with the semantic resolver wired`);
+    return;
+  }
+  if (hits.length === 0) {
+    ui.info(`No roadmap items matched "${query}". Use --roadmap-new to draft one.`);
+    return;
+  }
+  ui.step(`Roadmap items matching "${query}":`);
+  for (const hit of hits) {
+    console.log(`  ${hit.slug}  [${hit.status}]  (${hit.stage}, score ${hit.score.toFixed(3)})`);
+    console.log(`    ${hit.summaryMd}`);
+  }
+}
+
+/**
+ * `pd roadmap reindex` — backfill/refresh the search embedding index
+ * (POST /roadmap/reindex-search). Run once after this feature ships
+ * (existing rows predate the index) and safe to re-run any time.
+ */
+async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promise<void> {
+  const harbor = readOption(options, 'harbor');
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/reindex-search`, {
+    method: 'POST',
+    body: JSON.stringify(harbor ? { harbor } : {}),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    indexed?: number;
+    skipped?: number;
+    total?: number;
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap reindex failed (status ${res.status})`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Reindexed ${data.indexed ?? 0}/${data.total ?? 0} item(s) (${data.skipped ?? 0} unchanged, skipped)`);
+}
+
+/**
+ * `pd roadmap export <slug> --to github|linear|jira [target-specific flags]`
+ * — push one roadmap item to an external tracker (POST
+ * /roadmap/items/:slug/export -> lib/roadmap-export.ts). Credentials are
+ * server-side env vars only (PD_GITHUB_TOKEN, PD_LINEAR_TOKEN,
+ * PD_JIRA_EMAIL/PD_JIRA_API_TOKEN) — this command never accepts a token flag.
+ */
+async function handleRoadmapExport(args: string[], options: CLIOptions): Promise<void> {
+  const slug = args[0] && !args[0].startsWith('--') ? args[0] : readOption(options, 'slug');
+  const target = readOption(options, 'to', 'target');
+  if (!slug || !target) {
+    ui.error(
+      'Usage: pd roadmap export <slug> --to github --repo owner/repo\n' +
+      '       pd roadmap export <slug> --to linear --team-id <id>\n' +
+      '       pd roadmap export <slug> --to jira --base-url <url> --project-key <KEY> [--issue-type <type>]',
+    );
+    process.exit(1);
+  }
+  if (!['github', 'linear', 'jira'].includes(target)) {
+    ui.error(`--to must be one of: github, linear, jira (got "${target}")`);
+    process.exit(1);
+  }
+
+  const body = { target };
+  if (target === 'github') Object.assign(body, { repo: readOption(options, 'repo') });
+  if (target === 'linear') Object.assign(body, { teamId: readOption(options, 'team-id', 'teamId') });
+  if (target === 'jira') {
+    Object.assign(body, {
+      baseUrl: readOption(options, 'base-url', 'baseUrl'),
+      projectKey: readOption(options, 'project-key', 'projectKey'),
+      issueType: readOption(options, 'issue-type', 'issueType'),
+    });
+  }
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items/${encodeURIComponent(slug)}/export`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    export?: { externalId: string; externalUrl: string };
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap export failed (status ${res.status})`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Exported '${slug}' to ${target}: ${data.export?.externalUrl}`);
+}
+
 async function handleRoadmapPromote(args: string[], options: CLIOptions): Promise<void> {
   const feedbackId =
     args[0] && !args[0].startsWith('--')
@@ -1347,6 +1507,8 @@ async function emitChompPrPlan(
       baseUrl: PORT_DADDY_URL,
       harbor,
       fetchImpl: pdFetch,
+      previousSnapshot: readPreviousSnapshot(join(ctx.rootDir, 'docs/roadmap/roadmap.snapshot.json')),
+      allowShrink: Boolean(ctx.options['allow-shrink'] ?? ctx.options.allowShrink),
     });
     writeRoadmapSnapshot(join(dir, 'roadmap.snapshot.json'), snapshot);
     snapshotNote = `${snapshot.count} item(s), harbor ${harbor}`;

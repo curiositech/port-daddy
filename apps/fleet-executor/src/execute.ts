@@ -2807,10 +2807,9 @@ interface StackOutcome {
  *   - same-repo only (fork PRs are never written to),
  *   - files bounded by {@link validateStackProposalFiles} (≤5 files, ≤16KB
  *     each, purser-grade path whitelist),
- *   - sandbox validation when env.SANDBOX exists: the repo suite runs with
- *     the fix grafted onto the PR head, and a FAILING suite blocks the stack
- *     (a ship must not stack a fix that breaks the build). Absent binding ⇒
- *     the stack proceeds honestly un-validated.
+ *   - mandatory sandbox validation: the repo suite runs with the fix grafted
+ *     onto the PR head, and only an executed, passing suite may mutate GitHub.
+ *     Missing or failed validation leaves the proposal advisory-only.
  */
 async function maybeStackProposal(
   ship: ShipConfig,
@@ -2860,7 +2859,12 @@ async function maybeStackProposal(
       runId,
     }),
   });
-  if (sandbox.executed && sandbox.passed === false) {
+  if (!sandbox.executed) {
+    return degrade(
+      `sandbox validation unavailable — fix not stacked (${sandbox.reason ?? 'test runner did not execute'})`,
+    );
+  }
+  if (sandbox.passed !== true) {
     return degrade(
       `sandbox validation FAILED on the PR head — fix not stacked (tail: ${sandbox.outputTail.slice(-300)})`,
     );
@@ -2886,7 +2890,7 @@ async function maybeStackProposal(
       branchName,
       prCtx.headRef, // BASE = the reviewed PR's head branch
       `pd-${ship.name}: ${proposal.title} (stacks on #${prCtx.prNumber})`,
-      buildStackPrBody(ship, prCtx, proposal, sandbox.executed === true && sandbox.passed === true),
+      buildStackPrBody(ship, prCtx, proposal),
       ['fleet-stack', `pd-${ship.name}`],
       token,
       assertCurrentHead,
@@ -2901,7 +2905,7 @@ async function maybeStackProposal(
         stackPrUrl: pr.url,
         proposalTitle: proposal.title,
         files: files.map(f => f.path),
-        sandboxValidated: sandbox.executed === true && sandbox.passed === true,
+        sandboxValidated: true,
       },
     );
     emitSquidEvent(env, 'pr-stacked', {
@@ -2936,15 +2940,12 @@ async function maybeStackProposal(
  * @param ship The ideation ship that authored the fix (named in the prose).
  * @param prCtx The reviewed PR this fix stacks on.
  * @param proposal The parsed proposal (title/rationale/files).
- * @param sandboxValidated Whether the repo's suite actually ran green with the
- *   fix applied — stated honestly either way, never assumed.
  * @returns The full markdown body for the stacked fix PR.
  */
 function buildStackPrBody(
   ship: ShipConfig,
   prCtx: PRContext,
   proposal: Proposal,
-  sandboxValidated: boolean,
 ): string {
   const files = (proposal.files ?? []).map(f => `- \`${f.path}\``).join('\n');
   return [
@@ -2953,9 +2954,7 @@ function buildStackPrBody(
       `branch — merging it lands the fix stacked ON TOP of the review diff.`,
     `**Why:** ${proposal.rationale}`,
     files ? `**Files:**\n${files}` : '',
-    sandboxValidated
-      ? `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`
-      : `Not sandbox-validated (no sandbox available this run) — review before merging.`,
+    `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`,
     fleetPrBodyTrailers(
       `stacked fix proposed by pd-${ship.name} while reviewing #${prCtx.prNumber}; it carries no roadmap ` +
         `item of its own — it is machinery attached to whichever item #${prCtx.prNumber} advances`,

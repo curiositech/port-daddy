@@ -47,6 +47,10 @@ import {
 import { inspectHookTargets } from './hooks-install.js';
 import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
 import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
+import {
+  createTool2VecReconciler,
+  type Tool2VecReconcileStatus,
+} from '../../lib/skill-graft-reconciler.js';
 import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
 import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
@@ -73,7 +77,7 @@ const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 // Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
 // version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
 // restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
-const EMBEDDED_PACKAGE_VERSION: string = '3.30.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.3';
 
 interface StatusCommandResponse {
   status?: string;
@@ -2594,6 +2598,38 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Local embedding model', false, `Error: ${(err as Error).message}`, 'Run: pd embed prefetch');
+  }
+
+  // -------------------------------------------------------------------------
+  // 15b. Tool2Vec current-hash coverage (binder ch27 O3 / W9 / W11)
+  // -------------------------------------------------------------------------
+  // Prefer the daemon's exact reconciler view. When the daemon is unavailable
+  // (already a critical result above), inspect the durable cache locally with
+  // generation disabled — Doctor never causes LLM calls or skill-data egress.
+  try {
+    let tool2Vec: Tool2VecReconcileStatus;
+    if (daemonRunning) {
+      const response = await pdFetch(`${PORT_DADDY_URL}/skill-graft/status`);
+      if (!response.ok) throw new Error(`daemon returned HTTP ${response.status ?? 'unknown'}`);
+      tool2Vec = await response.json() as unknown as Tool2VecReconcileStatus;
+    } else {
+      tool2Vec = createTool2VecReconciler({ projectRoot: libDir, runtime: null }).status();
+    }
+
+    const detail = `${tool2Vec.current}/${tool2Vec.total} current-hash centroids (${tool2Vec.coveragePct}%) — ${tool2Vec.state}`;
+    if (tool2Vec.state === 'current') {
+      check('Tool2Vec skill coverage', true, detail);
+    } else if (tool2Vec.state === 'reconciling') {
+      check('Tool2Vec skill coverage', true, `${detail}; checkpointed warm-up is active`);
+    } else if (tool2Vec.state === 'embedder-down') {
+      warn('Tool2Vec skill coverage', detail, 'Repair the local embedder with `pd embed prefetch`, then use FleetBar Setup or run `pd skill-graft warm`.');
+    } else if (tool2Vec.state === 'generator-down') {
+      warn('Tool2Vec skill coverage', detail, 'Check the explicitly configured Tool2Vec generator, then resume the checkpointed warm-up.');
+    } else {
+      warn('Tool2Vec skill coverage', detail, 'Configure local Ollama for automatic warm-up, or explicitly run `pd skill-graft warm` for a manual backend.');
+    }
+  } catch (err: unknown) {
+    warn('Tool2Vec skill coverage', `Could not inspect coverage: ${(err as Error).message}`, 'Repair the daemon, then open FleetBar Setup to resume the catalog warm-up.');
   }
 
   // -------------------------------------------------------------------------
