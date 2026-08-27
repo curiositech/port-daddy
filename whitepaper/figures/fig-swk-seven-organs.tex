@@ -1,74 +1,94 @@
-% Figure 2 — the seven organs of the kernel, each a contract over the same
-% single-writer SQLite/WAL substrate. The substrate organ is the floor; the
-% other six are tables-with-discipline on top of it. Maturity grade per organ.
+% Figure — seven kernel contracts.  This is a comparison figure, not an organ
+% diagram: each row must expose its owned state, enforcing mechanism, and
+% maturity while making the shared transactional substrate explicit.
 
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{swkink}{HTML}{282522}
+\providecolor{swkgrid}{HTML}{AAA69E}
+\providecolor{swkground}{HTML}{F8F6F1}
+\providecolor{swkrow}{HTML}{EEEBE5}
+\providecolor{swkteal}{HTML}{1D6B62}
+\providecolor{swkumber}{HTML}{8A5A24}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,
-                minimum width=52mm,minimum height=20mm,align=left,
-                inner sep=5pt,text width=48mm},
-  sub/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-              minimum width=168mm,minimum height=14mm,align=center,
-              inner sep=5pt,text width=160mm},
-]
-\newcommand{\modlbl}{\itshape\scriptsize\color{hhamber}}
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \path[use as bounding box] (-.25,-1.25) rectangle (14.05,5.20);
 
-% ─── Six organs in a 3x2 grid ─────────────────────────────────────────────
-\node[organ] (resource) at (0,0)
-  {{\bfseries Resource}\\ ports, file/region/symbol claims, named locks.\\
-   {\footnotesize\textsf{implemented}}};
-\node[organ,right=4mm of resource] (identity)
-  {{\bfseries Identity}\\ semantic actor names (project\,:\,stack\,:\,context); heartbeat.\\
-   {\footnotesize\textsf{implemented} (self-asserted)}};
-\node[organ,right=4mm of identity] (comm)
-  {{\bfseries Communication}\\ message bus, tuple space, stigmergic markers, two transports.\\
-   {\footnotesize\textsf{implemented}}};
+  % Column headers live above the comparison field, never inside a prose box.
+  \node[anchor=west,font=\footnotesize\bfseries] at (.10,4.98) {contract};
+  \node[anchor=west,font=\footnotesize\bfseries] at (2.80,4.98) {owned record};
+  \node[anchor=west,font=\footnotesize\bfseries] at (5.50,4.98) {mechanism};
+  \node[anchor=west,font=\footnotesize\bfseries] at (8.50,4.98) {evidence};
+  \node[anchor=west,font=\footnotesize\bfseries] at (11.55,4.98) {maturity};
+  \draw[swkink,line width=.55pt] (.05,4.72) -- (13.80,4.72);
 
-\node[organ,below=4mm of resource] (oblig)
-  {{\bfseries Obligation \& enforcement}\\ a policy monitor (regiment/detect) + commitments (enforce).\\
-   {\footnotesize\textsf{implemented}\,/\,\textsf{partial}}};
-\node[organ,below=4mm of identity] (cont)
-  {{\bfseries Continuity}\\ sessions, notes, recovery, episodic memory, audit log.\\
-   {\footnotesize\textsf{implemented}\,/\,\textsf{partial}}};
-\node[organ,below=4mm of comm] (attest)
-  {{\bfseries Self-attestation}\\ an invariant registry; boot gate, pre-flight, watchdog.\\
-   {\footnotesize\textsf{implemented}}};
+  % Alternating rows give the eye a stable comparison path without turning the
+  % contracts into interchangeable rounded rectangles.
+  \foreach \y in {4.38,3.02,1.66} {
+    \fill[swkrow] (.05,\y-.32) rectangle (13.80,\y+.32);
+  }
+  \foreach \y in {4.72,4.04,3.36,2.68,2.00,1.32,.64} {
+    \draw[swkgrid!72,line width=.3pt] (.05,\y) -- (13.80,\y);
+  }
+  \foreach \x in {2.65,5.35,8.30,11.40} {
+    \draw[swkgrid!72,line width=.3pt] (\x,.64) -- (\x,4.72);
+  }
+  \draw[swkink,line width=.55pt] (.05,.64) rectangle (13.80,4.72);
 
-% ─── The substrate floor ──────────────────────────────────────────────────
-\node[sub,below=6mm of cont] (substrate)
-  {{\bfseries Substrate organ --- the single-writer transactional floor}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
-   \textit{one SQLite database in WAL mode: normal sync, bounded busy-wait, foreign keys}};
+  % Rows: noun, durable record, operative mechanism, inspectable check, grade.
+  \node[anchor=west,font=\footnotesize\bfseries] at (.18,4.38) {Resource};
+  \node[anchor=west,font=\footnotesize] at (2.80,4.38) {claims + locks};
+  \node[anchor=west,font=\footnotesize] at (5.50,4.38) {unique row};
+  \node[anchor=west,font=\footnotesize] at (8.50,4.38) {reject conflict};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkteal] at (11.55,4.38) {implemented};
 
-% ─── Connect each organ to the substrate ──────────────────────────────────
-\foreach \o in {oblig,cont,attest} {
-  \draw[->,>=Latex,hhteal,thick] (\o.south) -- ([yshift=2pt]\o.south|-substrate.north);
-}
-\draw[->,>=Latex,hhteal,thick] (resource.south) -- ++(0,-3mm) -| ([xshift=-30mm]substrate.north);
-\draw[->,>=Latex,hhteal,thick] (comm.south) -- ++(0,-3mm) -| ([xshift=30mm]substrate.north);
+  \node[anchor=west,font=\footnotesize\bfseries] at (.18,3.70) {Identity};
+  \node[anchor=west,font=\footnotesize] at (2.80,3.70) {actor record};
+  \node[anchor=west,font=\footnotesize] at (5.50,3.70) {context identity};
+  \node[anchor=west,font=\footnotesize] at (8.50,3.70) {self-asserted$^{*}$};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkteal] at (11.55,3.70) {implemented};
 
-\end{tikzpicture}%
-}
-\caption{The kernel as \emph{seven organs}, each a contract the daemon must hold
-for the layers above to be coherent. Six organs are, mechanically, just tables
-\emph{with discipline} over a single shared file --- the \textbf{substrate organ},
-the single-writer transactional floor. The substrate's storage configuration
-\emph{is} the kernel's durability claim (the I1a/I1b split, \S\ref{sec:invariants});
-a runtime-shim layer keeps the deployment and test SQLite bindings in step, and
-everything else is convenience built on top of it. Maturity grades (\textsf{implemented} $\cdot$ \textsf{partial} $\cdot$
-\textsf{specified} $\cdot$ \textsf{proposed}) are per organ; note that the identity
-organ is implemented but \emph{self-asserted}, the gap a cross-machine economy must
-eventually close with cryptographic identity.}
+  \node[anchor=west,font=\footnotesize\bfseries] at (.18,3.02) {Communication};
+  \node[anchor=west,font=\footnotesize] at (2.80,3.02) {event log};
+  \node[anchor=west,font=\footnotesize] at (5.50,3.02) {ordered envelope};
+  \node[anchor=west,font=\footnotesize] at (8.50,3.02) {cursor replay};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkteal] at (11.55,3.02) {implemented};
+
+  \node[anchor=west,font=\footnotesize\bfseries] at (.18,2.34) {Obligation};
+  \node[anchor=west,font=\footnotesize] at (2.80,2.34) {commitments};
+  \node[anchor=west,font=\footnotesize] at (5.50,2.34) {policy + oracle};
+  \node[anchor=west,font=\footnotesize] at (8.50,2.34) {refuse / compensate};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkumber] at (11.55,2.34) {partial};
+
+  \node[anchor=west,font=\footnotesize\bfseries] at (.18,1.66) {Continuity};
+  \node[anchor=west,font=\footnotesize] at (2.80,1.66) {sessions + notes};
+  \node[anchor=west,font=\footnotesize] at (5.50,1.66) {recovery handoff};
+  \node[anchor=west,font=\footnotesize] at (8.50,1.66) {salvage receipt};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkumber] at (11.55,1.66) {partial};
+
+  \node[anchor=west,font=\footnotesize\bfseries] at (.18,.98) {Self-attest.};
+  \node[anchor=west,font=\footnotesize] at (2.80,.98) {invariant registry};
+  \node[anchor=west,font=\footnotesize] at (5.50,.98) {boot check};
+  \node[anchor=west,font=\footnotesize] at (8.50,.98) {fail closed};
+  \node[anchor=west,font=\footnotesize\bfseries,text=swkteal] at (11.55,.98) {implemented};
+
+  % A separate substrate band encodes a shared dependency, not a seventh peer.
+  \draw[swkgrid!65,line width=.35pt] (1.10,.62) -- (1.10,.05);
+  \draw[swkgrid!65,line width=.35pt] (4.35,.62) -- (4.35,.05);
+  \draw[swkgrid!65,line width=.35pt] (7.60,.62) -- (7.60,.05);
+  \draw[swkgrid!65,line width=.35pt] (10.85,.62) -- (10.85,.05);
+  \draw[swkgrid!65,line width=.35pt] (13.10,.62) -- (13.10,.05);
+  \node[draw=swkink,fill=swkground,minimum width=13.75cm,minimum height=8.5mm,
+        align=center,font=\footnotesize] at (6.925,-.36)
+    {\textbf{Shared transactional substrate}\quad one SQLite WAL \(\cdot\) atomic write turn \(\cdot\) constraint backstop \(\cdot\) foreign keys};
+  \node[font=\scriptsize\itshape,text=swkumber,align=center] at (6.925,-1.00)
+    {$^{*}$Local context names are real records, not cross-operator cryptographic identity.};
+\end{tikzpicture}
+\caption{The kernel is six distinct contracts over one transactional substrate, not a
+constellation of equivalent ``organs.''  The matrix separates each contract's owned
+record, operative mechanism, and inspectable control.  The substrate band is deliberately
+not a peer: every row persists through its one SQLite write-ahead log and its atomic write
+turn.  Identity is implemented only as a local, self-asserted record; the missing
+cross-operator cryptographic binding belongs to the economy layer.}
 \label{fig:swk-seven-organs}
 \end{figure}
