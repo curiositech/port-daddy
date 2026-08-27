@@ -1,50 +1,68 @@
-% Figure 11 — the split ranker (Thm. split-ranker): shared candidate-generation +
-% decay substrate, two distinct scoring heads (fit vs regret).
-% Design: each box is a name, an objective, and a motto — the signals inventory
-% and the "not one ranker" verdict live in the caption.
+% Figure I.8 — a source-owned comparison of the two heads over the same
+% candidates.  The order reversal is evidence; no illustrative background is
+% needed to make the non-interchangeability claim.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.8\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
-              font=\footnotesize,text width=42mm},
-  head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
-               font=\footnotesize,text width=50mm},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  x=1cm,y=1cm,
+  head/.style={font=\scriptsize\scshape,align=center,text=hhgray},
+  entry/.style={font=\footnotesize,align=left,text=hhink,text width=39mm},
+  score/.style={font=\footnotesize,align=center,text=hhink,text width=31mm},
+  route/.style={-{Latex[length=1.7mm]},line width=.85pt},
 ]
-% shared substrate
-\node[box,fill=hhsand!30] (sub) at (0,0)
-  {\textbf{Shared substrate}\\candidate generation\\$+$ recency decay (Prop.~\ref{prop:decay})};
+  % Three aligned column bands: shared input on the left, distinct heads right.
+  \fill[hhsand!16] (.15,5.28) rectangle (14.85,6.02);
+  \draw[hhgray!55,line width=.45pt] (.15,5.28) -- (14.85,5.28);
+  \draw[hhgray!55,line width=.45pt] (.15,3.14) -- (14.85,3.14);
+  \draw[hhgray!55,line width=.45pt] (.15,1.00) -- (14.85,1.00);
+  \draw[hhgray!55,line width=.45pt] (5.20,.32) -- (5.20,6.02);
+  \draw[hhgray!55,line width=.45pt] (10.02,.32) -- (10.02,6.02);
 
-% split
-\node[head,fill=hhsand!30] (fit) at (6.4,1.8)
-  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit} (Eq.~\ref{eq:fit})\\
-   \emph{``who is most capable?''}};
-\node[head,fill=hhsand!30] (reg) at (6.4,-1.8)
-  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})\\
-   \emph{``what is most dangerous?''}};
+  \node[head] at (2.66,5.65) {shared candidate substrate};
+  \node[head] at (7.61,5.65) {discovery lane};
+  \node[head] at (12.44,5.65) {attention lane};
+  \node[font=\scriptsize\itshape,text=hhgray,align=center] at (2.66,5.00)
+    {same candidates $+$ recency decay};
+  \node[font=\scriptsize\itshape,text=hhteal,align=center] at (7.61,5.00)
+    {maximize \emph{fit} (Eq.~\ref{eq:fit})};
+  \node[font=\scriptsize\itshape,text=hhamber,align=center] at (12.44,5.00)
+    {maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})};
 
-\draw[e] (sub.east) -- (fit.west);
-\draw[e] (sub.east) -- (reg.west);
+  \node[entry] (a) at (2.62,4.02)
+    {\textbf{A}\quad capable, on-topic candidate\\safe and reversible action};
+  \node[entry] (b) at (2.62,1.88)
+    {\textbf{B}\quad off-topic, low-capability candidate\\high-stakes, irreversible anomaly};
+
+  \node[score] (fitA) at (7.61,4.02)
+    {\textbf{fit}(A) > \textbf{fit}(B)\\\textsc{rank:} A, then B};
+  \node[score] (fitB) at (7.61,1.88)
+    {capability match\\does not require interruption};
+  \node[score] (regretA) at (12.44,4.02)
+    {\textbf{regret}(A) < \textbf{regret}(B)\\\textsc{rank:} B, then A};
+  \node[score] (regretB) at (12.44,1.88)
+    {costly omission\\requires operator attention};
+
+  \node[font=\footnotesize\bfseries,text=hhink,align=center] at (7.60,.63)
+    {$A \succ_{\mathrm{fit}} B$};
+  \node[font=\footnotesize\bfseries,text=hhink,align=center] at (12.44,.63)
+    {$B \succ_{\mathrm{regret}} A$};
+  \node[font=\scriptsize\itshape,text=hhgray,align=center] at (10.00,-.03)
+    {the same pair reverses order; no monotone transform identifies the heads};
 \end{tikzpicture}%
 }
-\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
-operator's attention queue \emph{share} candidate generation and recency-decay
-(Prop.~\ref{prop:decay}) over the same signals --- claims, skills, notes, episodes,
-presence --- but apply distinct scoring heads: discovery maximizes \emph{fit}
-(capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
-\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
-item surfaced, the agent wants the most capable collaborator --- incompatible loss
-functions, not one objective with swapped weights, so the elegant ``one ranker''
-claim is false-as-stated and demoted to ``shared substrate, distinct heads.''}
+\caption{The rankers share candidates and recency decay but reverse the same
+two-item ordering.  Discovery sends the capable, on-topic candidate $A$ ahead of
+$B$ because $\mathrm{fit}(A)>\mathrm{fit}(B)$.  The operator attention lane sends
+the high-stakes, irreversible anomaly $B$ ahead of $A$ because
+$\mathrm{regret}(B)>\mathrm{regret}(A)$.  The reversal is the theorem's evidence:
+the two heads are distinct objectives, not one score with renamed weights.}
 \label{fig:split-ranker}
 \end{figure}

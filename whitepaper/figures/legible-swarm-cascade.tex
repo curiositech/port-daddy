@@ -1,56 +1,70 @@
-% Figure 13 — the context-degradation cascade as a ladder; break any rung and the
-% cascade stops. Each rung paired with its cure.
-% Design: the two morals ("failures compound", "break any rung") live in the
-% caption, not under the columns. Palette discipline: the cascade arrows use
-% hhcobalt — the one "pay attention here" accent, already carrying the same meaning
-% in fig-sdt and fig-state-of-nature — and the cure arrows hhteal. No off-palette
-% color appears anywhere in this document's figure set.
+% Figure I.10 — a technical causal chain.  The cascade exists only when every
+% stage is unchecked; an intervention at any stage terminates propagation.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  rung/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-               minimum width=58mm,minimum height=12mm,align=left,inner sep=6pt,
-               font=\footnotesize,text width=54mm},
-  cure/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
-               minimum width=52mm,minimum height=12mm,align=left,inner sep=5pt,
-               font=\footnotesize,text width=48mm,text=hhink},
-  e/.style={-{Latex[length=2.8mm]},very thick,hhcobalt},
-  ce/.style={-{Latex[length=2mm]},thick,hhteal},
+  x=1cm,y=1cm,
+  failure/.style={draw=none,align=left,font=\footnotesize,text width=35mm,text=hhink},
+  cure/.style={draw=none,align=left,font=\footnotesize,text width=43mm,text=hhink},
+  propagate/.style={-{Latex[length=2.1mm]},line width=1.1pt,hhamber},
+  intervention/.style={-{Latex[length=1.8mm]},line width=.9pt,hhteal},
+  cut/.style={line width=1.2pt,hhteal},
 ]
-\node[rung] (r1) at (0,6.6) {\textbf{1. Context rot}\\quality decays as window grows, nothing dropped};
-\node[rung] (r2) at (0,4.4) {\textbf{2. Lost-in-the-middle}\\mid-window facts paid-for but ignored};
-\node[rung] (r3) at (0,2.2) {\textbf{3. Recursive-summary collapse}\\summarizing summaries fabricates};
-\node[rung] (r4) at (0,0.0) {\textbf{4. Over-flattening (Scott)}\\digest becomes a replacement, not a lens};
+  \fill[hhsand!18] (.2,.25) rectangle (14.7,9.05);
+  \draw[hhgray!25,line width=9pt,line cap=round] (1.50,8.25) -- (1.50,.75);
+  \draw[propagate] (1.50,8.25) -- (1.50,.75);
+  \node[anchor=south,font=\scriptsize\scshape,text=hhamber] at (1.50,8.40)
+    {unchecked propagation};
+  \node[anchor=north,font=\scriptsize\itshape,text=hhamber] at (1.50,.55)
+    {digest replaces source};
 
-\draw[e] (r1) -- (r2); \draw[e] (r2) -- (r3); \draw[e] (r3) -- (r4);
+  \foreach \y/\n in {7.25/1,5.15/2,3.08/3,1.02/4}{
+    \fill[hhamber] (2.25,\y) circle (3.3pt);
+    \node[font=\scriptsize\bfseries,text=hhpaper] at (2.25,\y) {\n};
+    \draw[intervention] (6.35,\y) -- (7.40,\y);
+    \draw[cut] (6.97,\y-.30) -- (7.27,\y+.30);
+    \draw[cut] (7.17,\y-.30) -- (7.47,\y+.30);
+  }
 
-\node[cure] (c1) at (7.8,6.6) {compact \emph{earlier}; budget to effective context};
-\node[cure] (c2) at (7.8,4.4) {edge-place load-bearing facts; shorten window};
-\node[cure] (c3) at (7.8,2.2) {\textbf{compact-from-artifacts}, never from the prior summary};
-\node[cure] (c4) at (7.8,0.0) {legibility-with-zoom by construction (a terminal cannot over-render)};
+  \node[failure,anchor=west] at (2.65,7.25)
+    {\textbf{Context rot}\\window grows; quality decays even when nothing is dropped};
+  \node[cure,anchor=west] at (7.85,7.25)
+    {\textbf{Budget earlier}\\compact to effective context};
 
-\draw[ce] (r1) -- (c1); \draw[ce] (r2) -- (c2);
-\draw[ce] (r3) -- (c3); \draw[ce] (r4) -- (c4);
+  \node[failure,anchor=west] at (2.65,5.15)
+    {\textbf{Lost in the middle}\\a paid-for, load-bearing fact is ignored};
+  \node[cure,anchor=west] at (7.85,5.15)
+    {\textbf{Edge-place the fact}\\shorten the window};
+
+  \node[failure,anchor=west] at (2.65,3.08)
+    {\textbf{Recursive-summary collapse}\\a summary of a summary fabricates};
+  \node[cure,anchor=west] at (7.85,3.08)
+    {\textbf{Return to artifacts}\\compact from durable source, never prior prose};
+
+  \node[failure,anchor=west] at (2.65,1.02)
+    {\textbf{Over-flattening}\\the digest becomes a replacement, not a lens};
+  \node[cure,anchor=west] at (7.85,1.02)
+    {\textbf{Keep the zoom path}\\a terminal cannot over-render};
+
+  \node[font=\scriptsize\scshape,text=hhteal,anchor=south] at (7.12,8.42)
+    {an intervention at any stage};
+  \node[font=\scriptsize\itshape,text=hhgray,align=center] at (11.05,.30)
+    {the third intervention is load-bearing:\\durable, addressable artifacts};
 \end{tikzpicture}%
 }
-\caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
-compact, naive compaction loses the middle, recursion fabricates, and the
-operator-facing digest over-flattens what's left --- the failures compound, hence
-``cascade.'' Each rung (left column, joined by blue arrows) has a cure (right
-column, joined by teal arrows), and breaking \emph{any} rung
-stops the cascade; the load-bearing cure is \emph{compact-from-artifacts} (rung~3),
-which a system with durable, addressable state (claims, notes, episodes) makes
-cheap. Cost and legibility share this surface: when compaction fails, the bill
-\emph{and} the truth degrade together.}
+\caption{Context degradation is a causal chain: rot pressures compaction, naive
+compaction loses the middle, recursive summaries fabricate, and the resulting digest
+replaces its source.  A labelled intervention at any stage terminates the chain.
+The load-bearing intervention is stage~3: \emph{compact from durable artifacts}, so
+each new reading can be checked against an addressable claim, note, episode, or diff
+rather than a prior summary.  Cost and truth fail together on this surface.}
 \label{fig:cascade}
 \end{figure}

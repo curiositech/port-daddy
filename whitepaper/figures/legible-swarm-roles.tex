@@ -1,61 +1,75 @@
-% Figure 14 — role assignment in Hobbes' author/actor frame.
-% operator = author, daemon = sovereign-actor, agents = multitude.
-% Design: each role is a name + one line; each relation gets its own arrow
-% (down-arrows on the left, up-arrows on the right), one label per arrow.
-% Palette discipline: two colors only. hhink carries the structural relations
-% (authorize/revoke, rule/covenant); hhcobalt is reserved for the ONE relation this
-% section actually argues is novel — "legible to", the legible-sovereign inversion.
-% Label offsets are 2mm so no label rides its own arrow at 0.72\textwidth.
+% Figure I.11 — a typed authority relation ledger.  The covenant is explicitly
+% peer-to-peer; it is not a return edge from the multitude to the sovereign.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.72\textwidth}{!}{%
+\resizebox{0.94\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  role/.style={draw=hhebony,very thick,rounded corners=4pt,align=center,inner sep=7pt,
-               font=\footnotesize,text width=52mm},
-  e/.style={-{Latex[length=2.4mm]},very thick},
+  x=1cm,y=1cm,
+  head/.style={font=\scriptsize\scshape,align=center,text=hhgray},
+  entry/.style={font=\footnotesize,align=center,text=hhink,text width=31mm},
+  record/.style={draw=hhgray!55,line width=.45pt,fill=hhsand!18,rounded corners=1pt,
+                 font=\scriptsize,align=center,inner sep=2.4pt,text width=27mm,text=hhink},
+  grant/.style={-{Latex[length=1.8mm]},line width=.85pt,hhamber},
+  act/.style={-{Latex[length=1.8mm]},line width=.85pt,hhink},
+  evidence/.style={-{Latex[length=1.6mm]},line width=.75pt,hhteal},
 ]
-\node[role,fill=hhsand!30] (author) at (0,3.2)
-  {\textbf{Operator = AUTHOR}\\\emph{owns the authority; holds the inalienable override}};
-\node[role,fill=hhsand!30] (actor) at (0,0.2)
-  {\textbf{Daemon = SOVEREIGN (actor)}\\\emph{exercises the authority --- and is the \textbf{most} legible actor}};
-\node[role,fill=hhsand!30] (mult) at (0,-2.8)
-  {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1), enforced by the daemon}};
+  \fill[hhsand!15] (.15,5.52) rectangle (14.85,6.24);
+  \draw[hhgray!55,line width=.45pt] (.15,5.52) -- (14.85,5.52);
+  \foreach \y in {4.35,3.10,1.85,.60}{
+    \draw[hhgray!40,line width=.35pt] (.15,\y) -- (14.85,\y);
+  }
+  \draw[hhgray!55,line width=.45pt] (3.00,.60) -- (3.00,6.24);
+  \draw[hhgray!55,line width=.45pt] (7.10,.60) -- (7.10,6.24);
+  \draw[hhgray!55,line width=.45pt] (11.05,.60) -- (11.05,6.24);
 
-% one arrow per relation: down on the left, up on the right
-\draw[e,hhink] ([xshift=-9mm]author.south) -- ([xshift=-9mm]actor.north)
-  node[midway,left=2mm,font=\scriptsize,text=hhink]{authorizes (scoped grant)};
-\draw[e,hhink] ([xshift=9mm]actor.north) -- ([xshift=9mm]author.south)
-  node[midway,right=2mm,font=\scriptsize,text=hhink]{revoked by override};
-\draw[e,hhink] ([xshift=-9mm]actor.south) -- ([xshift=-9mm]mult.north)
-  node[midway,left=2mm,font=\scriptsize,text=hhink]{rules over};
-\draw[e,hhcobalt] ([xshift=9mm]mult.north) -- ([xshift=9mm]actor.south)
-  node[midway,right=2mm,font=\scriptsize\bfseries,text=hhcobalt]{legible to};
+  \node[head] at (1.58,5.88) {source role};
+  \node[head] at (5.05,5.88) {typed authority object / act};
+  \node[head] at (9.08,5.88) {target relation};
+  \node[head] at (12.95,5.88) {inspectable evidence};
 
-% the covenant loop on the multitude
-\draw[e,hhink] ([xshift=-3mm]mult.south west) to[bend right=40]
-  node[below=2mm,font=\scriptsize,text=hhink]{covenant among subjects}
-  ([xshift=3mm]mult.south east);
+  \node[entry] (op1) at (1.58,4.94) {\textbf{Operator}\\\textsc{author}};
+  \node[record] (grantRecord) at (5.05,4.94) {grant $g$\\scope $+$ revocation};
+  \node[entry] (daemon1) at (9.08,4.94) {\textbf{Daemon}\\\textsc{actor}};
+  \node[entry] at (12.95,4.94) {grant record\\and audit id};
+  \draw[grant] (op1.east) -- (grantRecord.west);
+  \draw[grant] (grantRecord.east) -- (daemon1.west);
+
+  \node[entry] (op2) at (1.58,3.73) {\textbf{Operator}\\\textsc{author}};
+  \node[record] (override) at (5.05,3.73) {override$(g)$\\revoke authority};
+  \node[entry] (daemon2) at (9.08,3.73) {\textbf{Daemon}\\grant no longer active};
+  \node[entry] at (12.95,3.73) {revocation\\event};
+  \draw[grant] (op2.east) -- (override.west);
+  \draw[grant] (override.east) -- (daemon2.west);
+
+  \node[entry] (daemon3) at (1.58,2.48) {\textbf{Daemon}\\\textsc{actor}};
+  \node[record] (actRecord) at (5.05,2.48) {permitted act\\block / land / escalate};
+  \node[entry] (agents) at (9.08,2.48) {\textbf{Agents}\\\textsc{multitude}};
+  \node[entry] at (12.95,2.48) {action receipt\\and artifact link};
+  \draw[act] (daemon3.east) -- (actRecord.west);
+  \draw[act] (actRecord.east) -- (agents.west);
+
+  \node[entry] (ai) at (1.58,1.22) {$\text{agent}_i$};
+  \node[record] (covenant) at (5.05,1.22) {rule-of-road covenant\\each-with-all};
+  \node[entry] (aj) at (9.08,1.22) {$\text{agent}_j$};
+  \node[entry] at (12.95,1.22) {claim and event\\references};
+  \draw[evidence] (ai.east) -- (covenant.west);
+  \draw[evidence] (covenant.east) -- (aj.west);
+  \node[font=\scriptsize\itshape,text=hhteal,align=center] at (7.06,.23)
+    {the covenant is among agents; the daemon enforces it but is not a peer party};
 \end{tikzpicture}%
 }
-\caption{Role assignment (\S\ref{sec:roles}) in Hobbes' author/actor distinction
-(\emph{Leviathan} ch.~16). The \emph{agents} are the multitude who covenant
-each-with-all; the \emph{daemon} is the sovereign-as-actor that exercises the
-instituted authority --- blocking, landing, escalating --- but, by the
-legible-sovereign amendment (Prop.~\ref{prop:legible-sovereign}), is the most
-legible actor, not the least --- the one relation drawn in the accent color,
-because it is the inversion this chapter is arguing for; the \emph{operator} is the \emph{author} who owns the
-authority, issues scoped consent grants (Def.~\ref{def:consent}), and holds the
-inalienable override (Prop.~\ref{prop:override}). Naming the operator ``the
-sovereign'' would break the covenant; the author slot is the one Hobbes leaves for
-the one who authorizes without personally acting.}
+\caption{Authority is a typed, auditable relation rather than a hierarchy of
+decorative nodes.  The operator as \emph{author} issues a scoped, revocable grant
+to the daemon as \emph{actor}; permitted acts over the agent multitude carry an
+artifact-linked receipt.  The final row separates the peer-to-peer covenant among
+agents from the delegation path: the daemon enforces the covenant, but does not join
+it as a subject.}
 \label{fig:roles}
 \end{figure}

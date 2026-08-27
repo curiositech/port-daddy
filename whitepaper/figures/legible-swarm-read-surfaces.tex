@@ -1,55 +1,82 @@
-% Figure 12 — the five built read-surfaces, each a token-compaction producing a
-% reader-specific digest. The swarm's coordination layer IS a distributed
-% compaction engine.
-% Design: each surface is a name + what it answers; the compaction mechanism
-% per surface lives in the caption.
+% Figure I.9 — one durable event ledger produces five reader-specific views.
+% Every claim, reader, output, and reference path is source-owned and printable.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
+\resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  raw/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=5pt,font=\footnotesize,text width=30mm},
-  prim/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,align=center,
-               inner sep=4pt,font=\footnotesize,text width=36mm,minimum height=12mm},
-  rdr/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=4pt,font=\footnotesize,text width=26mm},
-  e/.style={-{Latex[length=1.8mm]},thick,hhink},
+  x=1cm,y=1cm,
+  head/.style={font=\scriptsize\scshape,align=center,text=hhgray},
+  cell/.style={font=\scriptsize,align=center,text=hhink},
+  surface/.style={cell,text width=24mm},
+  reader/.style={cell,text width=22mm},
+  output/.style={cell,text width=29mm},
+  reference/.style={cell,text width=34mm},
 ]
-\node[raw] (raw) at (0,0) {raw token\\trajectory\\(transcripts,\\diffs, events)};
+  % A ledger and five aligned rows make the reader-specific compactions
+  % comparable without turning the figure into five independent cards.
+  \fill[hhsand!15] (.15,7.36) rectangle (15.15,8.10);
+  \draw[hhgray!55,line width=.45pt] (.15,7.36) -- (15.15,7.36);
+  \foreach \y in {6.30,5.20,4.10,3.00,1.90,.80}{
+    \draw[hhgray!40,line width=.35pt] (.15,\y) -- (15.15,\y);
+  }
+  \draw[hhgray!55,line width=.45pt] (2.65,.80) -- (2.65,8.10);
+  \draw[hhgray!55,line width=.45pt] (5.35,.80) -- (5.35,8.10);
+  \draw[hhgray!55,line width=.45pt] (8.15,.80) -- (8.15,8.10);
+  \draw[hhgray!55,line width=.45pt] (11.45,.80) -- (11.45,8.10);
 
-\node[prim] (br)  at (5.4,3.2) {\textbf{Briefing}\\\emph{state on arrival}};
-\node[prim] (at)  at (5.4,1.6) {\textbf{Attention}\\\emph{what to look at now}};
-\node[prim] (ep)  at (5.4,0.0) {\textbf{Episodic memory}\\\emph{what happened before}};
-\node[prim] (ph)  at (5.4,-1.6){\textbf{Pheromone}\\\emph{the shared trace map}};
-\node[prim] (re)  at (5.4,-3.2){\textbf{Resurrection}\\\emph{notes, not checkpoints}};
+  \node[head] at (1.40,7.73) {raw event ledger};
+  \node[head] at (4.00,7.73) {read surface};
+  \node[head] at (6.75,7.73) {reader};
+  \node[head] at (9.80,7.73) {output};
+  \node[head] at (13.30,7.73) {zoom / reference path};
 
-\node[rdr] (r1) at (10.4,3.2) {arriving agent};
-\node[rdr] (r2) at (10.4,1.6) {agent / operator queue};
-\node[rdr] (r3) at (10.4,0.0) {future self / successor};
-\node[rdr] (r4) at (10.4,-1.6){the swarm (stigmergic)};
-\node[rdr] (r5) at (10.4,-3.2){successor agent};
+  \node[cell] (ledger) at (1.40,4.05)
+    {\textbf{$E=(e_1,\ldots,e_N)$}\\[-1pt]
+     claims\\diffs\\notes\\episodes\\events};
+  \node[font=\tiny\itshape,text=hhgray,align=center] at (1.40,1.23)
+    {durable refs\\are retained};
 
-\foreach \p in {br,at,ep,ph,re}{ \draw[e] (raw) -- (\p); }
-\draw[e] (br)--(r1); \draw[e] (at)--(r2); \draw[e] (ep)--(r3);
-\draw[e] (ph)--(r4); \draw[e] (re)--(r5);
+  \node[surface] at (4.00,6.80) {\textbf{Briefing}};
+  \node[reader] at (6.75,6.80) {arriving agent};
+  \node[output] at (9.80,6.80) {arrival state};
+  \node[reference] at (13.30,6.80) {task, claim, and note refs};
+
+  \node[surface] at (4.00,5.73) {\textbf{Attention}};
+  \node[reader] at (6.75,5.73) {operator queue};
+  \node[output] at (9.80,5.73) {priority surface};
+  \node[reference] at (13.30,5.73) {triggering event or diff};
+
+  \node[surface] at (4.00,4.63) {\textbf{Episodic memory}};
+  \node[reader] at (6.75,4.63) {future self};
+  \node[output] at (9.80,4.63) {recall cue};
+  \node[reference] at (13.30,4.63) {episode and note refs};
+
+  \node[surface] at (4.00,3.53) {\textbf{Pheromone}};
+  \node[reader] at (6.75,3.53) {the swarm};
+  \node[output] at (9.80,3.53) {decayed trace};
+  \node[reference] at (13.30,3.53) {trace key and claim refs};
+
+  \node[surface] at (4.00,2.43) {\textbf{Resurrection}};
+  \node[reader] at (6.75,2.43) {successor};
+  \node[output] at (9.80,2.43) {continuation handoff};
+  \node[reference] at (13.30,2.43) {task state, notes, and diffs};
+
+  \node[font=\scriptsize\itshape,text=hhteal,align=center] at (8.00,.38)
+    {every output is a view; every view retains an addressable artifact path};
 \end{tikzpicture}%
 }
-\caption{Five read-surfaces, each a token-compaction of the raw trajectory produced
-for a specific reader (\S\ref{sec:tokens-digest}): briefing is external note-taking,
-attention is precision compaction, episodic memory is recall-then-precision,
-pheromone is time-decay (forgetting), resurrection is a handoff summary. Viewed
-correctly, the swarm's coordination layer is a \emph{distributed compaction engine}
---- and because each surface is a compaction, each is governed by the same
-cost-and-legibility economics, the same recency-decay (Prop.~\ref{prop:decay}), and
-the same one law (Def.~\ref{def:zoom}).}
+\caption{One raw event ledger supports five aligned read-surfaces.  Each row names
+its reader, its compact output, and the durable reference that restores detail:
+briefing exposes arrival state, attention exposes a priority surface, episodic
+memory exposes a recall cue, pheromone exposes a decaying coordination trace, and
+resurrection exposes a continuation handoff.  The views differ by reader, but no
+view is a replacement for the events, claims, notes, diffs, or episodes it cites.}
 \label{fig:read-surfaces}
 \end{figure}
