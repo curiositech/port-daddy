@@ -37,6 +37,17 @@ export function compareStableVersions(left, right) {
   return 0;
 }
 
+export function latestStableTag(tags) {
+  const stableTags = tags.filter((tag) => STABLE_TAG.test(tag));
+  if (stableTags.length === 0) return null;
+  return stableTags.reduce((best, candidate) => {
+    if (!best) return candidate;
+    return compareStableVersions(stableVersionFromTag(candidate), stableVersionFromTag(best)) > 0
+      ? candidate
+      : best;
+  }, null);
+}
+
 function parseBooleanFlag(value, label) {
   if (value === true || value === 'true') return true;
   if (value === false || value === 'false') return false;
@@ -194,6 +205,12 @@ function runGit(args, { allowFailure = false } = {}) {
   }
 }
 
+export function findLatestStableTag(git = runGit, pattern = 'v*') {
+  const listed = git(['tag', '--list', pattern]);
+  const tags = listed ? listed.split('\n').filter(Boolean) : [];
+  return latestStableTag(tags);
+}
+
 export function findVersionTransition(version, range, git = runGit) {
   parseStableVersion(version);
   const revisions = git(['rev-list', '--reverse', range, '--', 'package.json'])
@@ -214,6 +231,7 @@ function usage() {
     '  release-workflow-state.mjs validate-version <x.y.z>',
     '  release-workflow-state.mjs validate-tag <vx.y.z>',
     '  release-workflow-state.mjs newer-than <candidate> <previous>',
+    '  release-workflow-state.mjs latest-stable-tag [git-pattern]',
     '  release-workflow-state.mjs find-transition <version> <git-range>',
     '  release-workflow-state.mjs formula-matches <tag> <formula-path>',
     '  release-workflow-state.mjs wait-for-formula <tag> <formula-url> [run-id]',
@@ -247,6 +265,12 @@ async function main(args) {
       throw new Error(`${candidate} is not newer than ${previous}`);
     }
     process.stdout.write(`${candidate}\n`);
+    return;
+  }
+  if (command === 'latest-stable-tag') {
+    const pattern = args[1] || 'v*';
+    const tag = findLatestStableTag(runGit, pattern);
+    if (tag) process.stdout.write(`${tag}\n`);
     return;
   }
   if (command === 'find-transition') {

@@ -10,6 +10,7 @@ import {
   formulaMatchesRelease,
   GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
   HOMEBREW_TAP_TOKEN_SOURCE,
+  latestStableTag,
   parseStableVersion,
   probeRepositoryPush,
   RELEASE_TRAIN_TOKEN_SOURCE,
@@ -36,6 +37,8 @@ describe('release workflow topology contracts', () => {
     expect(workflow).toContain('ref: ${{ steps.release.outputs.release_sha }}');
     expect(workflow).toContain('steps.release.outputs.should_publish');
     expect(workflow).not.toContain("startsWith(github.event.pull_request.head.ref, 'release-train/')");
+    expect(workflow).toContain('latest=$(node scripts/release-workflow-state.mjs latest-stable-tag)');
+    expect(workflow).not.toContain("git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1");
   });
 
   test('release mutation selects a live push-capable token while tap promotion needs no cross-repo credential', () => {
@@ -235,6 +238,16 @@ describe('release workflow state', () => {
     expect(compareStableVersions('3.29.1', '3.29.0')).toBeGreaterThan(0);
     expect(compareStableVersions('3.29.0', '3.29.0')).toBe(0);
     expect(compareStableVersions('3.28.99', '3.29.0')).toBeLessThan(0);
+  });
+
+  test('selects the newest stable tag after excluding prereleases first', () => {
+    expect(latestStableTag([
+      'v3.30.1',
+      'v3.30.2',
+      'v3.30.2-rc.1',
+      'v3.29.9',
+    ])).toBe('v3.30.2');
+    expect(latestStableTag(['v3.30.2-rc.1', 'v3.30.2-beta.1'])).toBe(null);
   });
 
   test('selects the exact first version transition instead of a later carrier commit', () => {
