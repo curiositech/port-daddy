@@ -66,6 +66,8 @@ public struct InterruptionsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Asks")
         }
     }

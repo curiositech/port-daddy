@@ -38,15 +38,23 @@ public enum PDFonts {
     }
 
     /// The large and inline navigation titles are UIKit-drawn, so they need a
-    /// UINavigationBarAppearance rather than a SwiftUI `.font`.
+    /// UINavigationBarAppearance rather than a SwiftUI `.font`. The bars also
+    /// carry the exact Story Linework base surface (cream / near-black) so the
+    /// chrome does not sit on system white over a cream page.
     private static func applyNavBarChrome() {
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithDefaultBackground()
-        appearance.largeTitleTextAttributes = [.font: uiFont(.bold, 34)]
-        appearance.titleTextAttributes = [.font: uiFont(.semibold, 17)]
-        UINavigationBar.appearance().standardAppearance = appearance
-        UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        UINavigationBar.appearance().compactAppearance = appearance
+        let base = UIColor { t in
+            t.userInterfaceStyle == .dark ? UIColor(hex: 0x101216) : UIColor(hex: 0xf2eee6)
+        }
+
+        let nav = UINavigationBarAppearance()
+        nav.configureWithOpaqueBackground()
+        nav.backgroundColor = base
+        nav.shadowColor = .clear
+        nav.largeTitleTextAttributes = [.font: uiFont(.bold, 34)]
+        nav.titleTextAttributes = [.font: uiFont(.semibold, 17)]
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().scrollEdgeAppearance = nav
+        UINavigationBar.appearance().compactAppearance = nav
     }
 
     /// A weighted Plex Sans UIFont via the family + weight trait, so the correct

@@ -81,6 +81,8 @@ public struct HarborsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Harbors")
         }
     }
