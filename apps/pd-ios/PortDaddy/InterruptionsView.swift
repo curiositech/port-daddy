@@ -124,8 +124,8 @@ public struct InterruptionsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.l)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.medium).fill(PD.color(for: .mayday).opacity(0.12)))
-        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium).stroke(PD.color(for: .mayday), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).fill(PD.color(for: .mayday).opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).stroke(PD.color(for: .mayday), lineWidth: 1))
     }
 }
 
@@ -192,7 +192,7 @@ public struct InterruptionRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.m)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.standard).fill(PD.Chrome.cardRaised))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
     }
 
     @ViewBuilder

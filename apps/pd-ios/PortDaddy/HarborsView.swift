@@ -128,7 +128,7 @@ public struct HarborRow: View {
         }
         .frame(minHeight: PD.minimumTapTarget)
         .padding(PD.Space.m)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.standard).fill(PD.Chrome.cardRaised))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
     }
 }
 
