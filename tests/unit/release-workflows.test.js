@@ -6,6 +6,7 @@ import { jest } from '@jest/globals';
 import {
   compareStableVersions,
   extractFormulaVersion,
+  findLatestStableTag,
   findVersionTransition,
   formulaMatchesRelease,
   GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
@@ -248,6 +249,25 @@ describe('release workflow state', () => {
       'v3.29.9',
     ])).toBe('v3.30.2');
     expect(latestStableTag(['v3.30.2-rc.1', 'v3.30.2-beta.1'])).toBe(null);
+  });
+
+  test('queries git with the exact tag-list contract and returns no prerelease-only fallback', () => {
+    const calls = [];
+    const outputs = [
+      'v3.30.1\nv3.30.2-rc.1\nv3.29.9',
+      'v3.30.2-rc.1\nv3.30.2-beta.1',
+    ];
+    const git = (args) => {
+      calls.push(args);
+      return outputs.shift();
+    };
+
+    expect(findLatestStableTag(git)).toBe('v3.30.1');
+    expect(findLatestStableTag(git, 'v3.30.*')).toBe(null);
+    expect(calls).toEqual([
+      ['tag', '--list', 'v*'],
+      ['tag', '--list', 'v3.30.*'],
+    ]);
   });
 
   test('selects the exact first version transition instead of a later carrier commit', () => {
