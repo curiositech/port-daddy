@@ -34,6 +34,7 @@ export type SuggestionStatus = 'pending' | 'accepted' | 'declined' | 'expired' |
  *  prior-art-doc, salvage-candidate) land with the semantic classifier. */
 export type SuggestionKind =
   | 'claim-overlap-headsup'
+  | 'claim-tree-trouble'
   | 'group-chat-proposal'
   | 'prior-art-doc'
   | 'salvage-candidate';

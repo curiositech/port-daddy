@@ -25,6 +25,11 @@
 
 import type { Suggestions, SuggestionKind } from './suggestions.js';
 import type { SymbolConflict } from './symbol-claims.js';
+import {
+  classifyClaimTreeTrouble,
+  renderClaimTreeTroubleMermaid,
+  type ClaimTreeTroubleFinding,
+} from './claim-tree-trouble.js';
 
 /** One active claim, as returned by `sessions.listAllActiveClaims().claims`. */
 export interface ActiveClaim {
@@ -38,6 +43,9 @@ export interface ActiveClaim {
   endLine: number | null;
   symbol: string | null;
   symbolPath: string | null;
+  repoId?: string;
+  worldKind?: string;
+  worldId?: string;
 }
 
 /** A detected overlap between two distinct sessions on one file. The *pair* is
@@ -52,6 +60,7 @@ export interface ClaimOverlap {
 }
 
 const OVERLAP_KIND: SuggestionKind = 'claim-overlap-headsup';
+const CLAIM_TREE_TROUBLE_KIND: SuggestionKind = 'claim-tree-trouble';
 
 /**
  * Wire-format version of the nudge payload. This object crosses boundaries
@@ -200,6 +209,13 @@ export const DEFAULT_STALE_NUDGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export interface OverlapScanResult {
   overlaps: number;
+  surfaced: number;
+  suppressed: number;
+  delivered: number;
+}
+
+export interface ClaimTreeTroubleScanResult {
+  pairs: number;
   surfaced: number;
   suppressed: number;
   delivered: number;
@@ -487,4 +503,98 @@ export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
   }
 
   return { overlaps: overlaps.length, surfaced, suppressed, delivered };
+}
+
+function sameWorld(a: ActiveClaim, b: ActiveClaim): boolean {
+  return Boolean(a.repoId && b.repoId && a.worldKind && b.worldKind && a.worldId && b.worldId)
+    && a.repoId === b.repoId
+    && a.worldKind === b.worldKind
+    && a.worldId === b.worldId;
+}
+
+function hasPrecision(claim: ActiveClaim): boolean {
+  return Boolean(claim.symbolPath || (claim.startLine != null && claim.endLine != null));
+}
+
+function activePhase(claim: ActiveClaim): boolean {
+  return claim.phase !== 'completed' && claim.phase !== 'abandoned';
+}
+
+function troubleConfidence(finding: ClaimTreeTroubleFinding): number {
+  switch (finding.state) {
+    case 'COORDINATE': return 0.97;
+    case 'RESCUE': return 0.92;
+    case 'VERIFY': return 0.84;
+    case 'INSPECT': return 0.8;
+    case 'RECONCILE': return 0.8;
+    case 'WATCH': return 0.72;
+    case 'PROCEED': return 0.5;
+  }
+}
+
+/**
+ * Project the claim forest into durable, Mermaid-carrying agent advice. Unlike
+ * the legacy overlap heads-up, this is a stateful explanation: the agent sees
+ * the exact finite-state outcome, evidence boundary, and next action.
+ */
+export function runClaimTreeTroubleScan(deps: RunOverlapScanDeps): ClaimTreeTroubleScanResult {
+  const claimsRes = deps.sessions.listAllActiveClaims();
+  const claims = claimsRes.success ? claimsRes.claims : [];
+  const pairs: Array<[ActiveClaim, ActiveClaim]> = [];
+  const byPath = new Map<string, ActiveClaim[]>();
+  for (const claim of claims) {
+    if (!claim.filePath) continue;
+    const siblings = byPath.get(claim.filePath) ?? [];
+    for (const other of siblings) if (other.sessionId !== claim.sessionId) pairs.push([other, claim]);
+    siblings.push(claim);
+    byPath.set(claim.filePath, siblings);
+  }
+
+  let surfaced = 0;
+  let suppressed = 0;
+  let delivered = 0;
+  for (const [a, b] of pairs) {
+    for (const [self, other] of [[a, b], [b, a]] as Array<[ActiveClaim, ActiveClaim]>) {
+      const finding = classifyClaimTreeTrouble({
+        sourceComplete: Boolean(self.filePath && self.sessionId && other.sessionId),
+        worldComparable: sameWorld(self, other),
+        counterpartActive: activePhase(other),
+        claimFresh: true, // current active forest rows are the available freshness authority in this slice
+        directOverlap: claimsCollide(self, other),
+        precisionKnown: hasPrecision(self) && hasPrecision(other),
+        dependencyReachable: false, // dependency projection will populate this evidence field when available
+      });
+      if (finding.state === 'PROCEED') continue;
+      const deliveryKey = self.agentId ?? self.sessionId;
+      const payload = {
+        v: SUGGESTION_PAYLOAD_VERSION,
+        kind: CLAIM_TREE_TROUBLE_KIND,
+        state: finding.state,
+        filePath: self.filePath,
+        you: { sessionId: self.sessionId, agentId: self.agentId, purpose: self.purpose, range: { startLine: self.startLine, endLine: self.endLine, symbolPath: self.symbolPath } },
+        other: { sessionId: other.sessionId, agentId: other.agentId, purpose: other.purpose, range: { startLine: other.startLine, endLine: other.endLine, symbolPath: other.symbolPath } },
+        evidence: { worldComparable: sameWorld(self, other), directOverlap: claimsCollide(self, other), precisionKnown: hasPrecision(self) && hasPrecision(other) },
+        action: finding.action,
+        message: `${finding.state}: ${finding.reason}. ${finding.action}.`,
+        mermaid: renderClaimTreeTroubleMermaid({ filePath: self.filePath, selfSessionId: self.sessionId, otherSessionId: other.sessionId, state: finding.state }),
+      };
+      const result = deps.suggestions.create({
+        agentId: deliveryKey,
+        kind: CLAIM_TREE_TROUBLE_KIND,
+        payload,
+        payloadHash: `claim-tree-trouble:${finding.state}:${self.filePath}:${[self.sessionId, other.sessionId].sort().join('|')}`,
+        confidence: troubleConfidence(finding),
+      });
+      if (!result.created) {
+        suppressed++;
+        deps.activityLog?.log('claim_tree_trouble.suppressed', { agentId: deliveryKey, state: finding.state, filePath: self.filePath, reason: result.reason });
+        continue;
+      }
+      surfaced++;
+      const sent = deps.inbox.send(deliveryKey, payload, { from: 'suggestion-broker', type: 'suggestion' });
+      if (sent.success) delivered++;
+      deps.activityLog?.log('claim_tree_trouble.surfaced', { agentId: deliveryKey, state: finding.state, filePath: self.filePath, suggestionId: result.suggestion.id, delivered: sent.success });
+    }
+  }
+  return { pairs: pairs.length, surfaced, suppressed, delivered };
 }
