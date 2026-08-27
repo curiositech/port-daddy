@@ -99,7 +99,7 @@ public struct ReachabilityChip: View {
         VStack(alignment: .leading, spacing: PD.Space.xs) {
             SignalChip(state: reading.verdict.coordinationState, text: reading.verdict.rawValue)
             Text(reading.caption(now: now))
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.tertiaryText)
         }
         .accessibilityElement(children: .combine)
@@ -117,9 +117,9 @@ public struct HarborRow: View {
         HStack(alignment: .top, spacing: PD.Space.m) {
             VStack(alignment: .leading, spacing: PD.Space.xs) {
                 Text(entry.harbor.slug)
-                    .font(.body.weight(.semibold))
+                    .font(PDFont.body.weight(.semibold))
                 Text(entry.harbor.role)
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -162,10 +162,10 @@ public struct HarborDetailView: View {
                                 Image(systemName: member.isDaemon ? "desktopcomputer" : "person")
                                     .foregroundStyle(PD.Chrome.secondaryText)
                                 Text(member.member)
-                                    .font(.body)
+                                    .font(PDFont.body)
                                 Spacer(minLength: 0)
                                 Text(member.role)
-                                    .font(.subheadline)
+                                    .font(PDFont.subheadline)
                                     .foregroundStyle(PD.Chrome.tertiaryText)
                             }
                             .frame(minHeight: PD.minimumTapTarget)
@@ -185,18 +185,18 @@ public struct HarborDetailView: View {
             VStack(alignment: .leading, spacing: PD.Space.xs) {
                 SignalChip(state: .blocked, text: "remote control unavailable")
                 Text("No daemon in this harbor is heartbeating, so a control command has nowhere to be delivered. Everything else on this screen still works.")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         } else if reading.verdict == .unknown {
             Text("Reachability is unknown, which is not the same as unreachable. Controls stay available; a command issued now may still be queued and acknowledged.")
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         } else if reading.verdict == .degraded {
             Text("Some daemons are down. Commands aimed at a body on a live daemon still work; the rest will fail with a recorded reason rather than silently.")
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }

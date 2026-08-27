@@ -48,6 +48,8 @@ public enum PD {
         public static var card: Color { Color.primary.opacity(0.045) }
         public static var cardRaised: Color { Color.primary.opacity(0.075) }
         public static var border: Color { Color.primary.opacity(0.10) }
+        /// Heavier hairline for instrument brackets and fractional linework.
+        public static var strongBorder: Color { Color.primary.opacity(0.34) }
         public static var secondaryText: Color { Color.secondary }
         public static var tertiaryText: Color { Color.secondary.opacity(0.72) }
     }

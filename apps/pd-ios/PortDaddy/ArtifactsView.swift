@@ -97,6 +97,8 @@ public struct ArtifactsView: View {
             }
             .navigationTitle("Artifacts")
         }
+        // One colour zone per view (ch20): Artifacts runs teal.
+        .tint(PD.Palette.healthy)
     }
 }
 
@@ -110,7 +112,7 @@ public struct ArtifactRow: View {
     public var body: some View {
         HStack(spacing: PD.Space.m) {
             Image(systemName: artifact.kind.systemImage)
-                .font(.body.weight(.semibold))
+                .font(PDFont.body.weight(.semibold))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(artifact.tint)
                 .frame(width: 30, height: 30)
@@ -121,7 +123,7 @@ public struct ArtifactRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(artifact.title)
-                    .font(.body.weight(.semibold))
+                    .font(PDFont.body.weight(.semibold))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -131,7 +133,7 @@ public struct ArtifactRow: View {
                     Text("· \(artifact.meta)")
                         .foregroundStyle(PD.Chrome.tertiaryText)
                 }
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .lineLimit(1)
                 .truncationMode(.tail)
             }
@@ -141,7 +143,7 @@ public struct ArtifactRow: View {
                 VerifyBadge(tint: artifact.tint)
             } else {
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(PDFont.caption.weight(.semibold))
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
         }
@@ -166,9 +168,9 @@ public struct VerifyBadge: View {
     public var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "checkmark.shield")
-                .font(.caption2.weight(.bold))
+                .font(PDFont.caption2.weight(.bold))
             Text("Verify")
-                .font(.caption.weight(.semibold))
+                .font(PDFont.caption.weight(.semibold))
         }
         .foregroundStyle(tint)
         .padding(.horizontal, PD.Space.s)

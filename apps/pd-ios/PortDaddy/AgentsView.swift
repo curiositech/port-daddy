@@ -15,6 +15,7 @@ import SwiftUI
 
 public struct AgentsView: View {
     let roster: Loadable<AgentRoster>
+    @State private var appeared = false
 
     public init(roster: Loadable<AgentRoster>? = nil) {
         self.roster = roster ?? AgentsView.fixtureRoster()
@@ -51,8 +52,18 @@ public struct AgentsView: View {
                                 }
                                 .buttonStyle(PressableCardStyle())
                                 .accessibilityIdentifier("agent-row-\(index)")
+                                // Staggered spring entrance — the cast settles
+                                // in rather than snapping. 50ms per row.
+                                .opacity(appeared ? 1 : 0)
+                                .offset(y: appeared ? 0 : 14)
+                                .animation(
+                                    .spring(response: 0.45, dampingFraction: 0.82)
+                                        .delay(Double(index) * 0.05),
+                                    value: appeared
+                                )
                             }
                         }
+                        .onAppear { appeared = true }
                         .navigationDestination(for: String.self) { agentID in
                             if let agent = roster.agents.first(where: { $0.id == agentID }) {
                                 AgentDetailView(agent: agent)
@@ -64,16 +75,19 @@ public struct AgentsView: View {
             }
             .navigationTitle("Agents")
         }
+        // One colour zone per view (ch20): Agents runs cobalt.
+        .tint(PD.Palette.active)
     }
 
     @ViewBuilder
     private func castHeader(_ roster: AgentRoster) -> some View {
         HStack(spacing: PD.Space.s) {
             Text("Durable cast")
-                .font(.subheadline.weight(.semibold))
+                .font(PDFont.subheadline.weight(.semibold))
+                .foregroundStyle(PD.Palette.active)
             Spacer(minLength: 0)
             Text("\(roster.durableCount) survive restarts · \(roster.agents.count) total")
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -98,21 +112,21 @@ public struct AgentRow: View {
                 .frame(width: 3)
 
             Text(agent.initials)
-                .font(.subheadline.weight(.bold))
+                .font(PDFont.subheadline.weight(.bold))
                 .frame(width: 34, height: 34)
                 .background(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).fill(PD.Chrome.card))
                 .overlay(RoundedRectangle(cornerRadius: PD.Radius.small, style: .continuous).stroke(PD.Chrome.border, lineWidth: 1))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(agent.name)
-                    .font(.body.weight(.semibold))
+                    .font(PDFont.body.weight(.semibold))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: PD.Space.xs) {
                     SignalFlag(state: agent.state)
                     Text(agent.statusLine)
-                        .font(.subheadline)
+                        .font(PDFont.subheadline)
                         .foregroundStyle(PD.Chrome.secondaryText)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -123,14 +137,14 @@ public struct AgentRow: View {
             VStack(alignment: .trailing, spacing: PD.Space.xs) {
                 FollowMarker(following: agent.following)
                 Text(agent.ageLabel)
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
                     .monospacedDigit()
             }
             .fixedSize()
 
             Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
+                .font(PDFont.caption.weight(.semibold))
                 .foregroundStyle(PD.Chrome.tertiaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -155,11 +169,11 @@ public struct SignalFlag: View {
 
     public var body: some View {
         Text(MaritimeSignals.signal(for: state).rawValue)
-            .font(.caption2.weight(.bold))
+            .font(PDFont.caption2.weight(.bold))
             .foregroundStyle(PD.color(for: state))
             .frame(width: 17, height: 15)
             .background(RoundedRectangle(cornerRadius: 3, style: .continuous).fill(PD.color(for: state).opacity(0.18)))
-            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(PD.color(for: state), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(PD.color(for: state), lineWidth: 0.75))
             .fixedSize()
             .accessibilityLabel("Signal \(MaritimeSignals.phonetic(for: state))")
     }
@@ -178,9 +192,9 @@ public struct FollowMarker: View {
     public var body: some View {
         HStack(spacing: 3) {
             Image(systemName: following ? "checkmark" : "plus")
-                .font(.caption2.weight(.bold))
+                .font(PDFont.caption2.weight(.bold))
             Text(following ? "Following" : "Follow")
-                .font(.caption.weight(.semibold))
+                .font(PDFont.caption.weight(.semibold))
         }
         .foregroundStyle(following ? Color.white : PD.Chrome.secondaryText)
         .padding(.horizontal, PD.Space.s)

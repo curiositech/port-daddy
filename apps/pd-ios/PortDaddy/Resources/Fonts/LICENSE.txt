@@ -1,0 +1,12 @@
+The bundled typefaces are distributed under the SIL Open Font License 1.1.
+
+IBM Plex Sans, IBM Plex Mono
+  Copyright © 2017 IBM Corp. with Reserved Font Name "Plex".
+  https://github.com/IBM/plex — SIL OFL 1.1
+
+Full license text: https://openfontlicense.org/open-font-license-official-text/
+
+These files (IBMPlexSans-VF.ttf, IBMPlexMono-Regular/Medium/SemiBold.ttf) are
+redistributed unmodified under the OFL, which permits bundling in and shipping
+with an application. Registered at launch via CTFontManager (see
+PortDaddy/Typography.swift) so nothing depends on the host having Plex installed.
