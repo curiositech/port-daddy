@@ -15,7 +15,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Suggestions, SuggestionKind, SuggestionStatus } from '../lib/suggestions.js';
 import {
-  runOverlapScan,
+  runClaimTreeTroubleScan,
   type SessionsClaimSource,
   type BrokerInbox,
   type BrokerActivityLog,
@@ -58,8 +58,10 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
   });
 
   fastify.post('/suggestions/scan', async () => {
-    // 1) declared-claim overlap (file/region claims an agent ran `pd session files add` for)
-    const result = runOverlapScan({ sessions, suggestions, inbox: agentInbox, activityLog });
+    // 1) claim-tree trouble projection (the previous overlap-only nudge is a
+    // subset of this finite-state explanation, so it is intentionally not run
+    // alongside it and cannot double-notify an agent).
+    const claimTree = runClaimTreeTroubleScan({ sessions, suggestions, inbox: agentInbox, activityLog });
     // 2) real-edit semantic conflicts (signature/dependency/transitive, from each live
     //    session's actual git diff) — fires only when the symbol index is wired in.
     let semantic = null;
@@ -82,7 +84,7 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
         activityLog?.log('surface_scan.error', { error: (err as Error).message });
       }
     }
-    return { success: true, ...result, semantic };
+    return { success: true, ...claimTree, claimTree, semantic };
   });
 
   fastify.post('/suggestions/:id/accept', async (request: FastifyRequest, reply: FastifyReply) => {
