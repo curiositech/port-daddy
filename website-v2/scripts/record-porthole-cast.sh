@@ -28,6 +28,16 @@ if ! command -v asciinema >/dev/null 2>&1; then
   exit 127
 fi
 
+if ! command -v node >/dev/null 2>&1; then
+  echo "record-porthole-cast: node is required to run the repo-local Port Daddy CLI" >&2
+  exit 127
+fi
+
+if [ ! -f "$ROOT_DIR/bin/port-daddy-cli.js" ]; then
+  echo "record-porthole-cast: missing repo-local bin/port-daddy-cli.js; build Port Daddy before recording" >&2
+  exit 1
+fi
+
 SLUG="$1"
 shift
 

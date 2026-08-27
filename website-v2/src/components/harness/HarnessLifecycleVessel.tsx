@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react'
+import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Anchor, BookOpenCheck, GitPullRequestArrow, RadioTower } from 'lucide-react'
 import './harness-lifecycle-vessel.css'
 
@@ -108,15 +108,15 @@ export const HARNESS_LIFECYCLE_STAGES: readonly HarnessLifecycleStage[] = [
 function activateWithKeyboard(
   event: KeyboardEvent<HTMLButtonElement>,
   index: number,
-  setActive: (index: number) => void,
+  activate: (index: number) => void,
 ) {
   if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
     event.preventDefault()
-    setActive((index + 1) % HARNESS_LIFECYCLE_STAGES.length)
+    activate((index + 1) % HARNESS_LIFECYCLE_STAGES.length)
   }
   if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
     event.preventDefault()
-    setActive((index - 1 + HARNESS_LIFECYCLE_STAGES.length) % HARNESS_LIFECYCLE_STAGES.length)
+    activate((index - 1 + HARNESS_LIFECYCLE_STAGES.length) % HARNESS_LIFECYCLE_STAGES.length)
   }
 }
 
@@ -124,7 +124,13 @@ export function HarnessLifecycleVessel() {
   const [activeIndex, setActiveIndex] = useState(0)
   const titleId = useId()
   const detailId = useId()
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const active = HARNESS_LIFECYCLE_STAGES[activeIndex]
+
+  const activateTab = (index: number) => {
+    setActiveIndex(index)
+    tabRefs.current[index]?.focus()
+  }
 
   return (
     <section className="hlv" aria-labelledby={titleId}>
@@ -203,6 +209,9 @@ export function HarnessLifecycleVessel() {
           {HARNESS_LIFECYCLE_STAGES.map((stage, index) => (
             <button
               key={stage.id}
+              ref={(node) => {
+                tabRefs.current[index] = node
+              }}
               type="button"
               role="tab"
               aria-selected={activeIndex === index}
@@ -213,7 +222,7 @@ export function HarnessLifecycleVessel() {
               onMouseEnter={() => setActiveIndex(index)}
               onFocus={() => setActiveIndex(index)}
               onClick={() => setActiveIndex(index)}
-              onKeyDown={(event) => activateWithKeyboard(event, index, setActiveIndex)}
+              onKeyDown={(event) => activateWithKeyboard(event, index, activateTab)}
             >
               <span>{String(index + 1).padStart(2, '0')}</span>
               <strong>{stage.hook}</strong>

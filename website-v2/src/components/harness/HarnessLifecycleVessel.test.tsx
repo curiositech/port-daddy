@@ -39,17 +39,39 @@ describe('HarnessLifecycleVessel', () => {
     render(<HarnessLifecycleVessel />)
 
     const preTool = screen.getByRole('tab', { name: /PreToolUse/i })
+    preTool.focus()
     fireEvent.keyDown(preTool, { key: 'ArrowRight' })
-    expect(screen.getByRole('tab', { name: /PostToolUse/i }).getAttribute('aria-selected')).toBe('true')
+    const postTool = screen.getByRole('tab', { name: /PostToolUse/i })
+    expect(postTool.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(postTool)
 
-    fireEvent.keyDown(screen.getByRole('tab', { name: /PostToolUse/i }), { key: 'ArrowLeft' })
+    fireEvent.keyDown(postTool, { key: 'ArrowLeft' })
     expect(preTool.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(preTool)
 
     fireEvent.keyDown(preTool, { key: 'ArrowDown' })
     expect(screen.getByRole('tab', { name: /PostToolUse/i }).getAttribute('aria-selected')).toBe('true')
 
     fireEvent.keyDown(screen.getByRole('tab', { name: /PostToolUse/i }), { key: 'ArrowUp' })
     expect(preTool.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('keeps focus, selection, and roving tab stops aligned during rapid navigation', () => {
+    render(<HarnessLifecycleVessel />)
+
+    const sessionStart = screen.getByRole('tab', { name: /SessionStart/i })
+    sessionStart.focus()
+    fireEvent.keyDown(sessionStart, { key: 'ArrowRight' })
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'ArrowRight' })
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'ArrowRight' })
+
+    const postTool = screen.getByRole('tab', { name: /PostToolUse/i })
+    expect(document.activeElement).toBe(postTool)
+    expect(postTool.getAttribute('aria-selected')).toBe('true')
+    expect(postTool.getAttribute('tabindex')).toBe('0')
+    expect(
+      screen.getAllByRole('tab').filter((tab) => tab.getAttribute('tabindex') === '0'),
+    ).toEqual([postTool])
   })
 
   it('retains native Enter and Space activation for every station button', async () => {

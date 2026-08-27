@@ -48,6 +48,7 @@ describe('HarnessPage', () => {
 
     expect(screen.getByTestId('harness-lifecycle-vessel')).toBeTruthy()
     expect(screen.getByRole('heading', { name: /Know which agents are protected before they act/i })).toBeTruthy()
+    expect(document.querySelector('#capabilities')).toBeTruthy()
 
     const portholes = screen.getAllByTestId('porthole-embed')
     expect(portholes).toHaveLength(2)
