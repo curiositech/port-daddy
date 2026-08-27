@@ -74,6 +74,18 @@ flag-N-<slug>/skills.md          — which of this repo's skills apply and why
 flag-N-<slug>/findings.md        — filled in by the dive. Verdict first.
 ```
 
+Before handing a planned dive to another reader, verify the scaffold rather
+than trusting the copy step. From `docs/harbor-research/deep-dives/`, run:
+
+```sh
+for f in README.md reading-list.md questions.md prompt.md skills.md findings.md; do
+  test -f "flag-N-<slug>/$f" || { echo "missing: $f"; exit 1; }
+done
+```
+
+Do not dispatch a planned dive until that check is silent. The direct-dive
+pattern below deliberately has a different, two-file contract.
+
 ## Skeleton B — direct dive
 
 Use this when you (the calling session) are running the read-plus-falsification

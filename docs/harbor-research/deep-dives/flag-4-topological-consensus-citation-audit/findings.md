@@ -195,16 +195,11 @@ Symposium on Operating Systems Principles (SOSP)}, pp.~175--188, 2007.
    27(4):429–433, 1999* — matching `paper7.tex`'s citation exactly. Now
    `verified` on Crossref **and** DBLP independently.
 
-   **Content**: Semantic Scholar's TLDR for this DOI, generated from the paper's
-   own text rather than from a search snippet, reads:
-
-   > It is proved that computing the dimensions of the cohomology groups of a
-   > **coherent sheaf on projective space**, specified by the kernel, image, or
-   > cokernel of a graded matrix, is hard for Valiant's complexity class #P.
-
-   That is `paper7.tex`'s characterization almost word for word — coherent
-   sheaves on projective space, which is exactly the category the paper says is
-   the wrong one for finite cellular sheaves on graphs.
+   **Content remains `UNRESOLVED`.** Semantic Scholar's machine-generated TLDR
+   is a discovery lead, not admissible evidence for a content claim. We have not
+   obtained the primary text, so this dive does not use the TLDR to confirm
+   `paper7.tex`'s characterization. The category distinction must remain marked
+   `probable` until an institutional or library copy is read directly.
 
    **Route status: closed, not merely untried.** ScienceDirect returns HTTP 403
    to every route (both `/pdf` endpoints and via the DOI, with browser UA and
