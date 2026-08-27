@@ -286,6 +286,11 @@ export function lintReceipt(receipt, options = {}) {
     ) {
       containmentProblems.push('schema discriminator is missing or unknown');
     }
+    for (const field of ['reportId', 'specName', 'generatedAt']) {
+      if (!isNonEmptyString(containment[field])) {
+        containmentProblems.push(`${field} is missing`);
+      }
+    }
     if (containment.pass !== true)
       containmentProblems.push('report pass is not true');
     if (
@@ -294,10 +299,28 @@ export function lintReceipt(receipt, options = {}) {
     ) {
       containmentProblems.push('report findings are missing or non-empty');
     }
+    if (!Array.isArray(containment.recommendations))
+      containmentProblems.push('recommendations are missing or malformed');
+    if (!Array.isArray(containment.residualRisks))
+      containmentProblems.push('residualRisks are missing or malformed');
+
+    const coverageKeys = isPlainObject(containment.coverageByThreatClass)
+      ? Object.keys(containment.coverageByThreatClass)
+      : [];
+    const unknownCoverageKeys = coverageKeys.filter(
+      (key) => !CONTAINMENT_THREAT_CLASSES.includes(key),
+    );
+    if (unknownCoverageKeys.length > 0) {
+      containmentProblems.push(
+        `unknown threat coverage: ${unknownCoverageKeys.join(', ')}`,
+      );
+    }
 
     const probeResults = Array.isArray(containment.probeResults)
       ? containment.probeResults
       : [];
+    if (!Array.isArray(containment.probeResults))
+      containmentProblems.push('probeResults are missing or malformed');
     const seenCaseIds = new Set();
     for (const result of probeResults) {
       if (!isPlainObject(result) || !isNonEmptyString(result.caseId)) {
@@ -307,6 +330,15 @@ export function lintReceipt(receipt, options = {}) {
       if (seenCaseIds.has(result.caseId))
         containmentProblems.push(`probe '${result.caseId}' is duplicated`);
       seenCaseIds.add(result.caseId);
+      if (!CONTAINMENT_THREAT_CLASSES.includes(result.threatClass)) {
+        containmentProblems.push(
+          `probe '${result.caseId}' has unknown threat class '${result.threatClass}'`,
+        );
+      }
+      if (!isNonEmptyString(result.mechanism))
+        containmentProblems.push(
+          `probe '${result.caseId}' has no containment mechanism`,
+        );
       if (result.contained !== true)
         containmentProblems.push(`probe '${result.caseId}' is not contained`);
       if (

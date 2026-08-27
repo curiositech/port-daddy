@@ -384,16 +384,62 @@ export function buildDreamRigContainmentReport(
 export function assertDreamRigReceiptContainment(
   report: DreamRigContainmentReport,
 ): void {
-  const reasons = [...(report.findings ?? [])];
+  const reasons = Array.isArray(report.findings)
+    ? [...report.findings]
+    : ["Containment findings are missing or malformed."];
   if (report.schema !== "pd.agent-harbor.dream-rig-containment-report.v0") {
     reasons.push("Unknown or missing containment report schema discriminator.");
   }
+  if (!nonEmpty(report.reportId))
+    reasons.push("Missing containment report id.");
+  if (!nonEmpty(report.specName))
+    reasons.push("Missing containment spec name.");
+  if (!nonEmpty(report.generatedAt))
+    reasons.push("Missing containment generation timestamp.");
+  if (!Array.isArray(report.recommendations))
+    reasons.push("Containment recommendations are missing or malformed.");
+  if (!Array.isArray(report.residualRisks))
+    reasons.push("Containment residual risks are missing or malformed.");
 
+  const coverageKeys =
+    report.coverageByThreatClass &&
+    typeof report.coverageByThreatClass === "object" &&
+    !Array.isArray(report.coverageByThreatClass)
+      ? Object.keys(report.coverageByThreatClass)
+      : [];
+  const unknownCoverageKeys = coverageKeys.filter(
+    (key) => !(DREAM_RIG_THREAT_CLASSES as readonly string[]).includes(key),
+  );
+  if (unknownCoverageKeys.length > 0) {
+    reasons.push(`Unknown threat coverage: ${unknownCoverageKeys.join(", ")}.`);
+  }
+
+  const probeResults = Array.isArray(report.probeResults)
+    ? report.probeResults
+    : [];
+  if (!Array.isArray(report.probeResults))
+    reasons.push("Containment probe results are missing or malformed.");
   const seenCaseIds = new Set<string>();
-  for (const result of report.probeResults ?? []) {
+  for (const result of probeResults) {
+    if (!result || typeof result !== "object") {
+      reasons.push("A containment probe result is malformed.");
+      continue;
+    }
+    if (!nonEmpty(result.caseId)) reasons.push("A probe has no case id.");
     if (seenCaseIds.has(result.caseId))
       reasons.push(`Duplicate probe result '${result.caseId}'.`);
     seenCaseIds.add(result.caseId);
+    if (
+      !(DREAM_RIG_THREAT_CLASSES as readonly string[]).includes(
+        result.threatClass,
+      )
+    ) {
+      reasons.push(
+        `Probe '${result.caseId}' has unknown threat class '${result.threatClass}'.`,
+      );
+    }
+    if (!nonEmpty(result.mechanism))
+      reasons.push(`Probe '${result.caseId}' has no containment mechanism.`);
     if (!result.contained || !hasMachineEvidence(result)) {
       reasons.push(
         `Probe '${result.caseId}' is red or lacks machine evidence.`,
@@ -404,7 +450,7 @@ export function assertDreamRigReceiptContainment(
   const incomplete: DreamRigThreatClass[] = [];
   for (const threatClass of DREAM_RIG_THREAT_CLASSES) {
     const coverage = report.coverageByThreatClass?.[threatClass];
-    const results = (report.probeResults ?? []).filter(
+    const results = probeResults.filter(
       (result) => result.threatClass === threatClass,
     );
     const evidenced = results.filter(
@@ -425,7 +471,7 @@ export function assertDreamRigReceiptContainment(
   if (incomplete.length > 0)
     reasons.push(`Incomplete threat coverage: ${incomplete.join(", ")}`);
 
-  if (!report.pass || reasons.length > 0) {
+  if (report.pass !== true || reasons.length > 0) {
     throw new DreamRigContainmentBlockedError(
       `Dream Rig receipt remains blocked: ${reasons.join("; ") || "containment did not pass"}`,
     );

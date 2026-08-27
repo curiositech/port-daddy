@@ -212,6 +212,33 @@ describe('gap-fill skill helpers pass their own verified sample and reject bad i
         (finding) => finding.id === 'containment-not-proven',
       ),
     ).toBe(true);
+
+    const ambiguous = lintReceipt(
+      {
+        ...base,
+        containment: {
+          ...containment,
+          reportId: '',
+          probeResults: [
+            ...probeResults,
+            {
+              caseId: 'undeclared-class',
+              threatClass: 'prompt-injection',
+              contained: true,
+              mechanism: 'fixture',
+              artifactPath: 'blob:undeclared-class',
+            },
+          ],
+        },
+      },
+      { requireContainment: true },
+    );
+    expect(ambiguous.pass).toBe(false);
+    expect(
+      ambiguous.findings.some(
+        (finding) => finding.id === 'containment-not-proven',
+      ),
+    ).toBe(true);
   });
 
   test('stressPricingPlan passes a healthy plan and flags negative margin + bill-shock', () => {

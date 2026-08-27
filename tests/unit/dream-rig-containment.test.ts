@@ -190,6 +190,28 @@ describe("Dream Rig adversarial containment authority", () => {
     ).toThrow(DreamRigContainmentBlockedError);
   });
 
+  it("rejects unknown probe classes and missing report identity at the runtime seal", () => {
+    const report = buildDreamRigContainmentReport(spec, evidencedResults(), {
+      reportId: "containment_ambiguous_shape",
+      generatedAt: "2026-08-26T12:00:00.000Z",
+    });
+    report.reportId = "";
+    report.probeResults.push({
+      caseId: "undeclared-class",
+      threatClass: "prompt-injection" as DreamRigProbeResult["threatClass"],
+      contained: true,
+      mechanism: "fixture",
+      artifactPath: "blob:undeclared-class",
+    });
+
+    expect(() =>
+      attachDreamRigContainment(
+        { schema: "pd.agent-harbor.work-receipt.v0" },
+        report,
+      ),
+    ).toThrow(DreamRigContainmentBlockedError);
+  });
+
   it("attaches a complete containment report without mutating the normalized receipt", () => {
     const report = buildDreamRigContainmentReport(spec, evidencedResults(), {
       reportId: "containment_green",
