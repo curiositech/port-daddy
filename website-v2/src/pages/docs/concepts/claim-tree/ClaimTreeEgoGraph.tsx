@@ -1,7 +1,7 @@
 const stateColors = {
   VERIFY: 'var(--brand-accent)',
   RESCUE: 'var(--warning)',
-  COORDINATE: 'var(--danger)',
+  COORDINATE: 'var(--error)',
   INSPECT: 'var(--brand-accent)',
   RECONCILE: 'var(--warning)',
   WATCH: 'var(--success)',
@@ -33,8 +33,8 @@ export function ClaimTreeEgoGraph() {
         </defs>
         <path d="M185 78 C300 78 322 126 380 145" fill="none" stroke="url(#ego-beam)" strokeWidth="5" opacity=".9" />
         <path d="M575 214 C476 214 448 169 380 145" fill="none" stroke={color} strokeWidth="5" opacity=".85" />
-        <circle cx="380" cy="145" r="66" fill="var(--surface-base)" stroke={color} strokeWidth="4" filter="url(#ego-glow)" />
-        <circle cx="380" cy="145" r="48" fill="none" stroke="var(--border-strong)" strokeWidth="1.5" strokeDasharray="4 6" />
+        <circle cx="380" cy="145" r="82" fill="var(--surface-base)" stroke={color} strokeWidth="4" filter="url(#ego-glow)" />
+        <circle cx="380" cy="145" r="62" fill="none" stroke="var(--border-strong)" strokeWidth="1.5" strokeDasharray="4 6" />
         <g transform="translate(35 35)">
           <rect width="190" height="85" rx="12" fill="var(--surface-base)" stroke="var(--brand-accent)" strokeWidth="3" />
           <text x="18" y="32" fill="var(--brand-accent)" fontSize="13" fontWeight="700" letterSpacing="1.6">YOU</text>

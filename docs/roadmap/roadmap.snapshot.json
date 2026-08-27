@@ -1,14 +1,9 @@
 {
-  "generatedAt": 1787763785609,
+  "generatedAt": 1787869429968,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 310,
+  "count": 324,
   "items": [
-    {
-      "slug": "a-add-to-the-papers",
-      "status": "backlog",
-      "summaryMd": "A. Add to the papers"
-    },
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
@@ -267,7 +262,7 @@
     {
       "slug": "adr-0048-phase-7-L3-federation-market",
       "status": "now",
-      "summaryMd": "L3 platform: harbor federation (Alice's fleet) -> the work-for-hire + skill/agent marketplace on the bond ledger (anchor protocol). Done when two operators' fleets safely co-work + trade with reputation + escrow."
+      "summaryMd": "Shared-harbor prerequisites: one-writer authority, split signing and encryption custody, fail-closed transcript egress, native mobile HITL, and explicit launch sequencing."
     },
     {
       "slug": "adr-0048-phase-8-whitepapers",
@@ -452,7 +447,7 @@
     {
       "slug": "adr-doc-reconciliation-sweep",
       "status": "now",
-      "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' — does not exist) and 0053 (Relay 'verifies discharges/ProVerif' — zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
+      "summaryMd": "Reconcile active documentation with the published runtime, distribution, and operator authorities; remove obsolete executable guidance instead of preserving competing instructions."
     },
     {
       "slug": "adr-number-collision-guard",
@@ -461,28 +456,28 @@
     },
     {
       "slug": "agent-harbor-c1-event-ledger",
-      "status": "backlog",
-      "summaryMd": "Agent Harbor C1 — event ledger and projections (binder ch18 Work Order C1)"
+      "status": "done",
+      "summaryMd": "Superseded execution item: Agent Harbor event-ledger and projection authority now lives in ADR-0095, the v0 schemas, current implementation, and executable tests. The Binder remains design context, not a launch board."
     },
     {
       "slug": "agent-harbor-c2-compliance-probes",
-      "status": "backlog",
-      "summaryMd": "Agent Harbor C2 — adapter compliance probes (binder ch18 Work Order C2)"
+      "status": "done",
+      "summaryMd": "Superseded execution item: adapter conformance authority now lives in the Agent Harbor v0 schemas and executable probe tests. Any remaining conformance gap requires a fresh roadmap item backed by current runtime evidence."
     },
     {
       "slug": "agent-harbor-c3-operator-control-panel",
-      "status": "backlog",
-      "summaryMd": "Agent Harbor C3 — operator control panel (binder ch18 Work Order C3)"
+      "status": "done",
+      "summaryMd": "Superseded execution item: the retired Binder work order no longer schedules operator-control work. Current UI and control gaps must be tracked as fresh roadmap items against current code, accepted ADRs, and runtime proof."
     },
     {
       "slug": "agent-harbor-c5-governance-tool-gates",
-      "status": "backlog",
-      "summaryMd": "Agent Harbor C5 — governance and tool gates (binder ch18 Work Order C5)"
+      "status": "done",
+      "summaryMd": "Superseded execution item: governance and tool-gate authority now lives in ADR-0095, ADR-0096, schemas/agent-harbor/v0/governance, and executable tests. The retired Binder launch board has no scheduling authority."
     },
     {
       "slug": "agent-harbor-c8-setup-doctor-remediation",
-      "status": "backlog",
-      "summaryMd": "Agent Harbor C8 — setup and doctor remediation (binder ch18 Work Order C8)"
+      "status": "done",
+      "summaryMd": "Superseded execution item: setup and doctor behavior is governed by the current runtime implementation and tests. Any remaining remediation gap requires a fresh evidence-backed roadmap item."
     },
     {
       "slug": "agent-harbor-daemon-routes",
@@ -496,13 +491,13 @@
     },
     {
       "slug": "agent-harbor-f0-contract-freeze",
-      "status": "now",
-      "summaryMd": "Agent Harbor v0 contract freeze — ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
+      "status": "done",
+      "summaryMd": "Completed historical contract-freeze item: the v0 Agent Harbor contract is preserved in ADR-0095, schemas/agent-harbor/v0, and fixture tests. The retired Binder launch board has no continuing execution authority."
     },
     {
       "slug": "agent-harbor-runtime-refactor-contract-dag",
-      "status": "backlog",
-      "summaryMd": "Agent Harbor runtime refactor contract and gateway"
+      "status": "done",
+      "summaryMd": "Superseded execution DAG: the dated Agent Harbor runtime-refactor launch plan is retired. Current work is scheduled only through daemon-backed roadmap items and governed by accepted ADRs, schemas, implementation, and tests."
     },
     {
       "slug": "agent-harness-installer-roster",
@@ -580,14 +575,44 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
+      "slug": "ast-demo-claim-collision",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Two-agent function-claim collision, causal wedge, pre-write refusal, parley, handoff, and successful retry. Depends on D0, A2.1-A2.3, and A3.1-A3.3."
+    },
+    {
+      "slug": "ast-demo-language-fleet",
+      "status": "parked",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. TypeScript, Python, Go, and Rust normalized graph conformance voyage with honest unsupported states. Depends on D0 and A4."
+    },
+    {
+      "slug": "ast-demo-living-graph",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Visual voyage for imports, calls, references, incremental refresh, ambiguity, and graph integrity. Depends on D0, A1.2, and resolver completion."
+    },
+    {
+      "slug": "ast-demo-salvage-relay",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Dead-agent evidence preservation, salvage suggestion, authorized successor boarding, and provenance-preserving completion. Depends on D0 and the B2.2 salvage generator."
+    },
+    {
+      "slug": "ast-suggest-demo-harness",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Deterministic scenario, fixture, receipt, GPUI capture, redaction, and editorial derivation harness. Depends on the existing pd-console proof harness."
+    },
+    {
+      "slug": "ast-suggest-demo-hero-voyage",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Full GPUI commission-to-PR voyage combining agents, claims, conflict prevention, coaching, parley, salvage, tests, and integrity. Depends on D1-D4 and B3.2."
+    },
+    {
+      "slug": "ast-suggest-demo-publishing-pipeline",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Reproducible captions, poster, GIF, and 16:9/1:1/9:16 cuts linked to a verified evidence master. Depends on D0 and the first verified voyage."
+    },
+    {
       "slug": "audit-git-hooks-env-bypass",
       "status": "backlog",
       "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
-    },
-    {
-      "slug": "b-prove",
-      "status": "backlog",
-      "summaryMd": "B. Prove"
     },
     {
       "slug": "beacon-durable-agent-roster",
@@ -601,18 +626,18 @@
     },
     {
       "slug": "binder-aor-reconciliation-2026-07-06",
-      "status": "backlog",
-      "summaryMd": "feat(fleetbar): add native Cloud Fleet surface"
+      "status": "done",
+      "summaryMd": "Closed as superseded: this historical Binder reconciliation row carried an unrelated Cloud Fleet summary and is not current execution authority. Immutable receipts preserve the mismatch; future reconciliation uses fresh, accurately scoped roadmap items."
     },
     {
       "slug": "binder-baseline-ambition-archaeology",
-      "status": "backlog",
-      "summaryMd": "Execute the Harbor AoR baseline ambition-archaeology sweep per work-packets/harbor-architect-baseline-ambition-archaeology.md: classify all 18 seed families from ch16 (absorbed/superseded/deferred/contradicted/orphaned/rejected) with rationale + destination + source links, and fold the 2026-07-14 contradiction register (CR-5 ch03-vs-ch09 event-schema fork; CR-6 spawn-dissolve vs spawn-live; CR-8 C2-Governed same-UID containment overclaim; CR-11 ch18-shipped vs ch07-silent; CR-12 console-control-socket absent) into ch17. Acceptance: ch17 contains a classification table with 18/18 rows populated + CR register updated; binder-aor-log note written; node scripts/check-doc-citations.mjs clean on changed chapters. NOTE: existing slug binder-aor-reconciliation-2026-07-06 has a mismatched summary (mis-upsert) and does not cover this."
+      "status": "done",
+      "summaryMd": "Superseded Binder packet: the deleted ambition-archaeology work packet and chapter proposal are no longer executable work. The Binder now supplies design context; new contradictions belong in fresh daemon-backed roadmap items and immutable AoR notes."
     },
     {
       "slug": "binder-mechanical-truth-fixes",
-      "status": "backlog",
-      "summaryMd": "Mechanical binder truth fixes from the 2026-07-14 AoR run: (1) add maturity status headers (shipped/partial/target) to ch01-08 and ch10; (2) fix ch19:56 false verified path apps/pd-console -> core/pd-console (CR-10); (3) define or delete the undefined Antigravity body kind in ch07:81 (CR-9); (4) name an accountable owner in the 7 ownerless work-packets; (5) adopt the rule that every binder-aor-log pd note is mirrored into ch17 or a repo ledger file (the 2026-07-10 note was lost to daemon DB churn). Acceptance: grep for 'Status:' hits all 21 chapters; grep apps/pd-console in binder returns 0; every work-packet names an owner; the mirroring rule is written into ch16."
+      "status": "done",
+      "summaryMd": "Superseded Binder packet: the dated mechanical-fix checklist depended on deleted work packets and a retired launch-board structure. Current documentation truth is owned by accepted authorities and fresh daemon-backed roadmap items."
     },
     {
       "slug": "binder-skills-durable-agents-vocabulary",
@@ -645,14 +670,14 @@
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
     },
     {
-      "slug": "c-try-and-measure",
-      "status": "backlog",
-      "summaryMd": "C. Try and measure"
-    },
-    {
       "slug": "cartographer-offline-since-may",
       "status": "backlog",
       "summaryMd": "drop_feedback IS working (24 feedback:dropped tuples in live DB, 13 in the last two weeks) — the write path is fine. But the only automated consumer, the Cartographer fleet agent (pd-fleet.yml, scheduled */30 * * * *, reads pd feedback list --status open --json and harvests into the roadmap), last committed .cartographer/status.md on 2026-05-19 — ~82 days offline. Its last status recorded its own blindness: EPERM on ~/.port-daddy/daemon.sock. Confirmed live: 'pd fleet status' reports 'Fleet port-daddy defined in pd-fleet.yml but not running'. roadmap_items.promoted_from_feedback_id is not null → 0 rows, ever. So feedback accumulates in an open queue (16+ entries as of 2026-08-09, several duplicates of the same live-reproduced MCP param-naming friction) that nothing reads. Fix is operational (pd fleet up + resolve the socket EPERM) plus a durability question: should cartographer's own liveness be monitored so a second silent-death doesn't recur unnoticed for another 3 months."
+    },
+    {
+      "slug": "case-13-live-doctrine-lab-observer",
+      "status": "now",
+      "summaryMd": "CASE-13 empirical doctrine loop: pd-console Live Doctrine Lab, bounded shadow-only merge-queue denominator observer, server-owned advisory assignment, outcome clocks, Porthole proof, and paper-ready audited translation bridge."
     },
     {
       "slug": "ci-macos-node24-jest-memory-20260823",
@@ -695,14 +720,19 @@
       "summaryMd": "Console: scrollable Cartographer chat and transcript conformance"
     },
     {
+      "slug": "codex-claimtree-suggestibility",
+      "status": "backlog",
+      "summaryMd": "feat: project claim-tree trouble into suggestibility"
+    },
+    {
       "slug": "codex-daemon-claude-bin-resolution",
       "status": "backlog",
       "summaryMd": "Fix daemon Claude CLI binary resolution"
     },
     {
       "slug": "codex-doctrine-hypertree",
-      "status": "done",
-      "summaryMd": "Empirically earned Fleet doctrine architecture and machine-readable hypertree"
+      "status": "now",
+      "summaryMd": "CASE-13 empirical-doctrine evidence loop: native pd-console deep surface, credential-attributed immutable receipts, faithful counterfactual arms, and revision/supersession proof."
     },
     {
       "slug": "codex-durable-agent-cross-harness-20260715",
@@ -750,24 +780,9 @@
       "summaryMd": "Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions."
     },
     {
-      "slug": "coordination-papers-research-and-implementation-program",
-      "status": "backlog",
-      "summaryMd": "Coordination Papers Research and Implementation Program"
-    },
-    {
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
       "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
-    },
-    {
-      "slug": "current-implementation-evidence",
-      "status": "backlog",
-      "summaryMd": "Current implementation evidence"
-    },
-    {
-      "slug": "d-add-to-the-code",
-      "status": "backlog",
-      "summaryMd": "D. Add to the code"
     },
     {
       "slug": "daemon-compiled-tree-sitter-wasm-crash-20260823",
@@ -815,6 +830,26 @@
       "summaryMd": "From fleetbot review on #2582 (pd-lookout HIGH): the door's fail-closed guard-rent logic and the resurrection/reaper's deliberate fail-open lease-facts logic sit in tension -- both are individually correct (documented in the PR itself) but a real parley/reconciliation pass to confirm the boundary between them holds under a live daemon-down scenario hasn't happened. Worth a dedicated review once ADR-0040 identity lands."
     },
     {
+      "slug": "dream-rig-config-driven-hostile-probe-generation",
+      "status": "backlog",
+      "summaryMd": "Generate provider-neutral hostile probe cases from the canonical Dream Rig containment config, execute them across the fifteen seeded lifecycle scenarios, and preserve exact inputs, observations, and receipt evidence without treating generated probes as proof until they run."
+    },
+    {
+      "slug": "dream-rig-forced-egress-containment",
+      "status": "backlog",
+      "summaryMd": "Enforce default-deny network egress below Dream Rig child processes"
+    },
+    {
+      "slug": "dream-rig-hard-resource-limits",
+      "status": "backlog",
+      "summaryMd": "Enforce process-tree, memory, CPU, time, and disk ceilings for Dream Rig"
+    },
+    {
+      "slug": "dream-rig-open-no-follow-writes",
+      "status": "backlog",
+      "summaryMd": "Close Dream Rig path-check TOCTOU with rooted no-follow writes"
+    },
+    {
       "slug": "durable-agent-continuation-conformance-matrix",
       "status": "backlog",
       "summaryMd": "Probe and publish an honest N:N backend continuation matrix spanning discovery, spawn, live control, native resume, and handoff successor conformance."
@@ -860,11 +895,6 @@
       "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
     },
     {
-      "slug": "exit-criteria",
-      "status": "backlog",
-      "summaryMd": "Exit criteria"
-    },
-    {
       "slug": "feat-backend-dropdown-spawn-forecast",
       "status": "backlog",
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
@@ -897,7 +927,7 @@
     {
       "slug": "fix-skill-graft-tool2vec-vocabulary-gap",
       "status": "merge",
-      "summaryMd": "PR #723 skill-graft.ts shipped with a vocabulary-mismatch bug: ranking compared task embeddings to a skill's OWN description embedding (cosine(task, description)), which fails when a task is phrased in user language different from the skill's own description wording. Fix: real Tool2Vec synthetic-query-centroid generation (lib/skill-graft-tool2vec.ts) + BM25/Porter-stemming lexical signal (lib/skill-graft-bm25.ts), fused via reciprocal rank fusion (k=60) in lib/skill-graft.ts. lib/coordination-judge.ts's transportToAdapter helper exported (no behavior change) for reuse by lib/fleet-engine.ts's new skill-graft LLM-backend wiring."
+      "summaryMd": "Agent Harbor O3: reconcile the full local Skill Graft catalog into resumable current-hash Tool2Vec centroids without boot blocking, duplicate rows, fleet-backend inheritance, or automatic cloud egress."
     },
     {
       "slug": "fix-squid-debug-bounds-20260823",
@@ -923,6 +953,11 @@
       "slug": "fleet-complexity-escalation-routing",
       "status": "backlog",
       "summaryMd": "Confidence/complexity model cascade: start cheap, escalate to pricey/frontier on low-confidence/high-risk/large-diff (ADR-0116 D2, ~40-70% cost cut + a sellable Deep-Review tier). Blocked-by: none (parallel). Blocks: none."
+    },
+    {
+      "slug": "fleet-continuation-reliability",
+      "status": "now",
+      "summaryMd": "Isolate checkpoint continuation deliveries from fleet admission backlog while preserving at-least-once replay, durable deduplication, bounded retries, fail-closed DLQ recovery, and truthful sequence versus platform-attempt receipts."
     },
     {
       "slug": "fleet-hitl-proposal-queue",
@@ -1081,13 +1116,18 @@
     },
     {
       "slug": "harbor-editor-failed-open-recovery",
-      "status": "merge",
+      "status": "done",
       "summaryMd": "Repair Harbor Editor failed-open recovery and editor basics: typing, optional line wrapping, git blame, and syntax highlighting."
     },
     {
       "slug": "harbor-editor-local-text-input",
       "status": "now",
       "summaryMd": "Make the live Harbor Editor locally editable: GPUI text input and IME, grapheme-safe cursor and selection, CRDT-authored insert/delete, presence updates, virtualization-safe repainting, and visual proof."
+    },
+    {
+      "slug": "harbor-editor-p3-agents-as-peers-claims",
+      "status": "now",
+      "summaryMd": "Harbor Editor P3 claim authority: canonical stable file and region claim identities, atomic first-granted overlap rejection, exact lifecycle and successor transfer semantics, and no public force bypass."
     },
     {
       "slug": "harbor-replicaid-agent-branch-clock",
@@ -1103,6 +1143,21 @@
       "slug": "harbormaster-mcp-parity",
       "status": "done",
       "summaryMd": "Expose the read-only harbormaster status route through MCP and manifest parity so routed-feature coverage remains honest."
+    },
+    {
+      "slug": "harness-lifecycle-dream-rig",
+      "status": "backlog",
+      "summaryMd": "Receipt-backed Dream Rig for deterministic Squid lifecycle scenarios"
+    },
+    {
+      "slug": "harness-lifecycle-dream-rig-containment-gate",
+      "status": "now",
+      "summaryMd": "Fail-closed adversarial containment gate and receipt authority for Dream Rig scenarios"
+    },
+    {
+      "slug": "helmsman-autonomous-roadmap-execution",
+      "status": "now",
+      "summaryMd": "PR #9417 reconciles Helmsman autonomous roadmap execution with current main, including resequenced ADRs 0131 through 0134 and the dispatch failover integration."
     },
     {
       "slug": "high-port-daddy-fleet-required-check",
@@ -1183,6 +1238,11 @@
       "slug": "migration-fixture-rehearsal-ci",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): CI keeps fixture DBs of the last 3 released schema epochs + a scrubbed real-registry copy; boots the migrator over each asserting counts-never-shrink, verify probes green, user_version at max; wire into the PR #681 release soak. Acceptance: a migration lacking a verify probe or shrinking a count fails CI."
+    },
+    {
+      "slug": "mission-control-reactflow-interaction-lab",
+      "status": "merge",
+      "summaryMd": "Bounded ReactFlow Mission Control interaction lab proving portable objective, DAG, provenance, stream recovery, evidence, and operator-control contracts for later GPUI grafting."
     },
     {
       "slug": "mission-first-pd-console-prompt-launch-live-work-artifacts-a",
@@ -1280,9 +1340,14 @@
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
     },
     {
-      "slug": "porthole-player-website-component",
-      "status": "backlog",
-      "summaryMd": "feat(porthole): production terminal-replay player replaces landing-page GIFs"
+      "slug": "porthole-harness-proof-v2-real-lifecycle-recordings-jump-cut",
+      "status": "now",
+      "summaryMd": "Replace narrated Porthole demos with reproducible harness evidence: real install and readiness, decoded model context, tmux collision refusal, declared time jump, pd up service, and durable Parley."
+    },
+    {
+      "slug": "postmaster-context-and-review-coordination",
+      "status": "now",
+      "summaryMd": "High-priority Postmaster delivery contract: plan-first continuity, repository PR digests, roadmap/document/AST suggestions, Fleetbot settlement, and context-clustered successors; named ship activation waits for real local ship runtime."
     },
     {
       "slug": "pr2596-qa-gap-fixes",
@@ -1298,16 +1363,6 @@
       "slug": "provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
-    },
-    {
-      "slug": "publication-receipt-contract",
-      "status": "backlog",
-      "summaryMd": "Publication receipt contract"
-    },
-    {
-      "slug": "purpose",
-      "status": "backlog",
-      "summaryMd": "Purpose"
     },
     {
       "slug": "readme-front-door-and-accuracy-gate",
@@ -1336,8 +1391,8 @@
     },
     {
       "slug": "replace-harness-visual-debt-with-an-interactive-lifecycle-vessel",
-      "status": "backlog",
-      "summaryMd": "Replace harness visual debt with an interactive lifecycle vessel and replayable agent-perspective Portholes."
+      "status": "now",
+      "summaryMd": "Replace harness GIF proof with an interactive Squid lifecycle vessel and replayable agent-perspective Portholes"
     },
     {
       "slug": "research-durable-agents-landscape",
@@ -1388,11 +1443,6 @@
       "slug": "roadmap-reconciler-agent",
       "status": "backlog",
       "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY — headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE — pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT — deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES — tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION — coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode — until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
-    },
-    {
-      "slug": "roadmap-registry",
-      "status": "backlog",
-      "summaryMd": "Roadmap registry"
     },
     {
       "slug": "roadmap-schema-wiring",
@@ -1457,7 +1507,12 @@
     {
       "slug": "squid-coordination-nudges-and-postmaster-contract",
       "status": "now",
-      "summaryMd": "Ship bounded inbox/parley and salvage nudges; establish the authoritative Postmaster, plan-first continuity, repository digest, review-settlement, suggestion-packet, and context-pressure program without claiming the future local ship is already running."
+      "summaryMd": "Ship bounded inbox/parley and salvage nudges; establish authoritative Postmaster and context-pressure program."
+    },
+    {
+      "slug": "squid-matrix-legacy-syntax-fix",
+      "status": "now",
+      "summaryMd": "Regression fix on PR1 of the matrix.env elimination plan (#8008): parseMatrix() in lib/squid/matrix.ts dropped export-prefix and single-quote value support that lib/local-citizen/ink-cloud.ts's deleted parseEnv() used to provide, on the grounds it was untested/unused. Found in a scratch review pass to be worth preserving defensively (POSIX-doc-compliant tolerance, cheap to keep) -- restores the tolerance directly in the shared parser (not duplicated back into ink-cloud.ts), with real test coverage."
     },
     {
       "slug": "squid-matrix-parser-consolidation",
@@ -1480,14 +1535,19 @@
       "summaryMd": "S1 — Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
     },
     {
+      "slug": "sugar-first-parley-experience",
+      "status": "now",
+      "summaryMd": "Sugar-first Parley: turn ordinary agent work into semantically and structurally grounded, bounded coordination cards with explicit human actions, hook context, and typed settlement receipts."
+    },
+    {
       "slug": "suggest-b1-1-suggestions-table",
       "status": "backlog",
       "summaryMd": "B1.1 Migration for suggestions(agent_id,kind,payload,confidence,status,created_at,acted_on_at,muted_until) per ADR-0039 + CRUD. Done when schema migrates clean + unit test."
     },
     {
       "slug": "suggest-b1-2-topical-classifier",
-      "status": "now",
-      "summaryMd": "Classify bounded agent context into semantic topics with local MiniLM evidence"
+      "status": "done",
+      "summaryMd": "B1.2 bounded topical classifier landed in PR #9793. Production uses the shared local Xenova/all-MiniLM-L6-v2 embedder via createLocalEmbedder(); injected embedders are an internal deterministic test seam. Exact tie, empty/whitespace input, non-tautological normalization, malformed vector, and null/omitted collection behavior are covered."
     },
     {
       "slug": "suggest-b2-1-suggestion-broker",
@@ -1510,9 +1570,19 @@
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
     },
     {
+      "slug": "suggest-demo-coaching",
+      "status": "backlog",
+      "summaryMd": "Parent: ast-and-suggestibility-program-integration. Semantic convergence, attributed suggestion, accept/decline/mute/cooldown, and group-channel voyage. Depends on D0, B1.2, B2.2, and B3.1."
+    },
+    {
       "slug": "surface-triad-redesign",
       "status": "backlog",
       "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
+    },
+    {
+      "slug": "swarm-coordination-parley",
+      "status": "now",
+      "summaryMd": "Governed Parley coordination with actor-bound authority"
     },
     {
       "slug": "transcript-compliance-hitl-health",
