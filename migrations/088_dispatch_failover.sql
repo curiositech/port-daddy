@@ -1,4 +1,4 @@
--- migration 088 — cross-backend dispatch failover (ADR-0121,
+-- migration 088 — cross-backend dispatch failover (ADR-0131,
 -- helmsman-backend-failover).
 --
 -- Idempotent applier: migrateDispatchFailoverColumns() in lib/dispatch/queue.ts.

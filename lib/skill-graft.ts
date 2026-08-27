@@ -96,6 +96,7 @@ import {
 import { containPath, PathEscapeError } from './fleet/path-guard.js';
 import type { LLMClient } from './llm-call.js';
 import { bm25Rank } from './skill-graft-bm25.js';
+import { extractPairsWithTargets } from './skill-pairs-with.js';
 import {
   createLLMClientSyntheticQueryGenerator,
   createTool2VecStore,
@@ -265,9 +266,8 @@ export interface SkillGraftIndex {
    * Fetch one file from within a specific skill's own directory — the
    * on-demand companion to `craft()`, mirroring `windags_skill_reference`.
    * Guards against the requested path escaping the skill's directory.
-   * Requires `craft()` or `refresh()` to have run at least once (so the
-   * catalog is populated); returns `found: false` otherwise rather than
-   * throwing.
+   * Lazily scans the catalog when needed; fetching one reference must never
+   * trigger the expensive centroid build.
    */
   getReference(skillId: string, filePath: string): SkillReferenceResult;
   /** Skill ids known as of the last scan (empty until `craft()`/`refresh()` runs). */
@@ -475,6 +475,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     },
 
     getReference(skillId, filePath) {
+      ensureScanned();
       const skill = catalogById.get(skillId);
       if (!skill) {
         return {
@@ -483,7 +484,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
           found: false,
           content: null,
           absolutePath: null,
-          error: `unknown skill id "${skillId}" (call craft()/refresh() first, or check the id)`,
+          error: `unknown skill id "${skillId}" (check the id and configured skill roots)`,
         };
       }
 
@@ -660,35 +661,6 @@ function escapeRegExpLiteral(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Pull `pairs-with` targets out of one skill's already-YAML-parsed
- * frontmatter. Real SKILL.md files in this repo disagree on where the
- * field lives — most nest it under `metadata:` (e.g.
- * `rag-retrieval-pattern-design`), a few put it at the frontmatter top
- * level (e.g. `dag-performance-profiler`) — so both locations are checked
- * and merged. Entry shape also varies: most are `{ skill, reason }`
- * objects, but 22 skills (e.g. `wave-by-wave-parley`, the imported windags
- * grafts, and several port-daddy-* skills) list bare id strings instead —
- * both shapes count as the same curated edge. Only the target id matters
- * here — `reason` is operator-facing prose this module never reads.
- */
-function extractPairsWithTargets(frontmatter: Record<string, unknown>, selfId: string): string[] {
-  const metadata = (frontmatter.metadata && typeof frontmatter.metadata === 'object')
-    ? frontmatter.metadata as Record<string, unknown>
-    : {};
-  const rawEntries = [
-    ...(Array.isArray(frontmatter['pairs-with']) ? frontmatter['pairs-with'] as unknown[] : []),
-    ...(Array.isArray(metadata['pairs-with']) ? metadata['pairs-with'] as unknown[] : []),
-  ];
-  const targets: string[] = [];
-  for (const entry of rawEntries) {
-    const id = typeof entry === 'string'
-      ? entry
-      : (entry && typeof entry === 'object') ? (entry as Record<string, unknown>).skill : undefined;
-    if (typeof id === 'string' && id.trim() && id.trim() !== selfId) targets.push(id.trim());
-  }
-  return targets;
-}
 
 /**
  * Re-read one skill's SKILL.md — `loadSkillCatalog` already parsed the

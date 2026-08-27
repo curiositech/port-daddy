@@ -167,6 +167,16 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
    * @param merge - Status + body for the merge PUT.
    * @returns The fetch fake plus a counter of merge attempts.
    */
+  /**
+   * Fake the two calls a landing makes: the REST protected-path file list, and
+   * the GraphQL pair (resolve node id, then enqueue).
+   *
+   * `merges.count` counts ENQUEUE ATTEMPTS — the mutation, not the lookup — so
+   * the "did the seat try to land?" assertions keep meaning what they meant
+   * when landing was a direct merge. The name is kept for the same reason:
+   * these tests assert whether the seat REACHED for the merge button, and that
+   * question is unchanged by which button it is.
+   */
   function ghLandFake(
     files: string[],
     merge: { status: number; body: Record<string, unknown> },
@@ -174,13 +184,28 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
     const merges = { count: 0 };
     return {
       merges,
-      fetchImpl: async (url: string) => {
+      fetchImpl: async (url: string, init?: RequestInit) => {
         if (url.includes('/files')) {
           return new Response(JSON.stringify(files.map(filename => ({ filename }))), { status: 200 });
         }
-        if (url.includes('/merge')) {
+        if (url.includes('/graphql')) {
+          const body = String(init?.body);
+          if (body.includes('pullRequest(number:')) {
+            return new Response(
+              JSON.stringify({
+                data: { repository: { pullRequest: { id: 'PR_node', headRefOid: String(merge.body.sha ?? 'headoid') } } },
+              }),
+              { status: 200 },
+            );
+          }
           merges.count++;
-          return new Response(JSON.stringify(merge.body), { status: merge.status });
+          if (merge.status !== 200) {
+            return new Response(JSON.stringify({ message: merge.body.message }), { status: merge.status });
+          }
+          return new Response(
+            JSON.stringify({ data: { enqueuePullRequest: { mergeQueueEntry: { position: 1, state: 'QUEUED' } } } }),
+            { status: 200 },
+          );
         }
         return new Response('{}', { status: 404 });
       },

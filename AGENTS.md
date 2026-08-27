@@ -272,8 +272,9 @@ bounced (it cannot enter the merge queue):**
 
 1. **`pr-requirements-guard`** — the body needs a real `## Summary` (≥10 words of
    prose) and `## Test Plan` (≥12 words: commands + their output), plus a
-   screenshot + a GIF/recording for any visual-surface change. Self-check before
-   pushing: `npm run check:pr-requirements -- --body-file <draft.md>`.
+   screenshot + a GIF/recording for any visual-surface change, plus a **changelog
+   fragment** for any user-visible change. Self-check before pushing:
+   `npm run check:pr-requirements -- --body-file <draft.md>`.
 2. **`roadmap-link`** — the body needs exactly one `Roadmap-Item: <slug>` trailer
    (or `Roadmap-Item: none — <reason>` for a chore/docs/hotfix). No slug yet?
    `npx tsx scripts/roadmap-link.ts <pr-number>` creates the item and stamps it.
@@ -281,6 +282,17 @@ bounced (it cannot enter the merge queue):**
 The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
 headings and the trailer line, fill in the prose. Both report on `merge_group`
 as pass-throughs, so a PR that is green at PR time never hangs the queue.
+
+**Never hand-edit `CHANGELOG.md`'s `[Unreleased]` section.** It is ASSEMBLED at
+release time from one file per PR under `changelog.d/`. Write
+`changelog.d/<pr>-<slug>.md` (or `draft-<slug>.md` before you have a number) —
+format and rationale in `changelog.d/README.md`, validate with
+`npm run check:changelog`. This exists because every PR used to insert its bullet
+at the same line 11 of the same file: two branches cut from the same base conflict
+on nearly every pair, and a resolver taking "ours" silently drops the other PR's
+entry with nothing failing. One file per PR removes the conflict entirely. If a
+change genuinely ships nothing a user would notice, put
+`<!-- changelog-exempt: <reason> -->` in the body; the reason is required.
 
 **Branch protection on `main` is a ruleset** (`main merge queue`, id `17604542`),
 not classic protection — 18 required checks with `strict` off, merge queue
@@ -353,6 +365,43 @@ you don't brief it on.
 For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
+
+### Migration and removal land together (operator directive, 2026-08-22)
+
+**A PR that adds a replacement removes what it replaces, in the same PR, with
+the tests still passing.** Not "addition now, removal in a follow-up." The
+follow-up is what never happens, and two implementations of the same thing is
+the condition every parsimony rule in this file exists to prevent.
+
+Three obligations, all of them before the fact:
+
+1. **Write the tests first, for BOTH sides.** Complete, non-tautological,
+   comprehensive, adversarial tests for the thing being created *and* for the
+   thing being replaced. "The old tests still pass" is not coverage of the old
+   behaviour — old tests were written against the old implementation and often
+   pin its accidents rather than its properties. Write the tests you would want
+   if you had to defend the swap to someone who thinks it is a regression.
+
+2. **Name the losses, plainly, in the PR body.** A replacement almost never
+   does everything the old thing did. **That is allowed.** What is not allowed
+   is discovering it later. List what the old path could do that the new one
+   cannot, and say so as a decision rather than an oversight.
+
+3. **Behavioural identity is NOT required.** Do not contort the new thing into
+   bug-for-bug compatibility with the old one. If the old behaviour was wrong,
+   the new behaviour should be right and the difference should appear under
+   "losses" — or under "fixes". The operator's words: *"Call out losses that
+   are just gone now. Those are OK, too. No need for identity."*
+
+The failure this closes: a PR lands a new module, claims N consumers, and has
+zero — because migrating the consumers was the deferred half. The new module
+then rots beside the old paths it was supposed to retire, and the next agent
+finds two ways to do one thing and picks the wrong one.
+
+If the removal genuinely cannot land in the same PR — the call sites are in
+another language, another repo, or another PR — say so in the body, name every
+site by path, and do not describe the replacement as adopted. A projection with
+no consumers is a projection with no consumers.
 
 ### Respond to every review comment — no silent ignores
 
@@ -931,3 +980,21 @@ sequence. Every item below is a real failure from a live demo (2026-07-12), not 
    no-emoji-as-icons rule applies to what renders, not what greps.
 6. **Never create virtual displays or modify display settings.** On-primary-screen
    window openings are allowed only with explicit operator consent, per action.
+
+## HITL escalation & event-cued execution (operator directive, 2026-08-19 — IMPORTANT)
+
+- **A question that blocks progress is asked in a way that blocks execution.** The moment
+  work is blocked on operator input — a merge policy, a deploy on the operator's side, a
+  scope decision, a spend approval — raise it through the MOST IMMEDIATE human-in-the-loop
+  structure the surface offers (`AskUserQuestion` in Claude Code sessions; the HITL
+  interruption surface elsewhere) and WAIT for the answer. Never park blocked work behind
+  timers, polling loops, silent re-arms, or "the next event will tell me."
+- **Blocked longer than one wake cycle = a blocking question.** A gate, merge, or deploy
+  waiting on operator action does not get babysat; it gets elevated as a direct question
+  the operator must answer before loads continue.
+- **Wake on events, not timers.** PR subscriptions, operator messages, and system events
+  are the wake signals. Never poll unchanged state on a schedule; never re-fetch what an
+  event would have delivered.
+- **Launch gates gate launch, not development.** Client surfaces (iOS, web account
+  sections, console, FleetBar) build in parallel against staging keys; do not serialize
+  development behind a launch gate or hold parallel-authorized waves on unrelated merges.

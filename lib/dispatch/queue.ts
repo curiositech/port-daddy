@@ -181,7 +181,7 @@ export interface ProposeDispatchInput {
   /** Who proposed this. Defaults to 'operator'. */
   requestedBy?: string;
   /**
-   * Cross-backend succession (ADR-0121). Set together by the failover path; an
+   * Cross-backend succession (ADR-0131). Set together by the failover path; an
    * ordinary propose leaves all of them unset and the row reads exactly as
    * before.
    */
@@ -326,7 +326,7 @@ const SCHEMA_SQL = `
     merge_policy TEXT NOT NULL DEFAULT 'review'
       CHECK(merge_policy IN ('review','auto','never')),
     reject_reason TEXT,
-    -- Cross-backend failover (ADR-0121 helmsman-backend-failover). All additive
+    -- Cross-backend failover (ADR-0131 helmsman-backend-failover). All additive
     -- and all nullable: a dispatch that never fails over reads exactly as before.
     -- The succession is an EDGE, not a state — the 8-state machine is unchanged,
     -- because "this run failed and a successor picked it up" is a relationship

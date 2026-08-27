@@ -39,7 +39,7 @@ every narrative mention carries `link:<slug>` or a one-line `optout:<reason>`.
 
 ## Item shape extension (declared 2026-08-22, helmsman lane)
 
-The pd-helmsman program (ADR-0121, `docs/proposals/pd-helmsman.md`) extends the
+The pd-helmsman program (ADR-0131, `docs/proposals/pd-helmsman.md`) extends the
 registry-authority item with **four additive, nullable fields**, delivered by the
 `roadmap-schema-wiring` item:
 

@@ -20,7 +20,7 @@ loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
 // read process.env at module-init time, so this has to run first so
 // dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot
 // capture the raw env values on load. See lib/secret-env.ts.
-import { snapshotSensitiveEnv } from './lib/secret-env.js';
+import { getSecret, snapshotSensitiveEnv } from './lib/secret-env.js';
 snapshotSensitiveEnv();
 
 import Fastify from 'fastify';
@@ -46,7 +46,7 @@ import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
-import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
@@ -61,6 +61,7 @@ import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
+import { DaemonRelayConnection } from './lib/relay-connection.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
@@ -98,6 +99,8 @@ import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
+import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
+import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
@@ -135,6 +138,12 @@ import { clearDaemonReady, publishDaemonReady } from './lib/daemon-ready.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
+import {
+  createCoordinationPeer,
+  coordinationPeerConfigFromEnv,
+  type CoordinationPeer,
+} from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -554,6 +563,49 @@ const semanticResolver = createSemanticResolver(db, {
   logger,
   governor,
 });
+// Automatic reconciliation is local-only: a daemon tick must never send a
+// private SKILL.md catalog to a cloud backend or create surprise spend. An
+// explicit manual `pd skill-graft warm` may use the operator-pinned cloud
+// backend; setup/startup/ticks only use an explicitly configured Ollama.
+const tool2VecReconciler = createTool2VecReconciler({
+  projectRoot: REPO_ROOT,
+  runtime: resolveSkillGraftRuntime(process.env, { allowRemote: false }),
+  onWarning: (message) => logger.warn('tool2vec_reconcile_warning', { message }),
+});
+const _tool2VecPollMs = Number.parseInt(process.env.PD_TOOL2VEC_RECONCILE_MS ?? '300000', 10);
+const TOOL2VEC_RECONCILE_MS = Number.isFinite(_tool2VecPollMs) && _tool2VecPollMs >= 60_000
+  ? _tool2VecPollMs
+  : 300_000;
+let tool2VecTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Schedules one bounded reconciliation pass outside daemon readiness. The
+ * design ensures startup and periodic ticks share the durable lease while the
+ * event loop remains available for health and operator traffic.
+ *
+ * @param trigger Durable provenance label for status and logs.
+ */
+function triggerTool2VecReconcile(trigger: string): void {
+  setImmediate(() => {
+    void tool2VecReconciler.reconcile({ trigger, maxSkills: 8 }).then((result) => {
+      logger.info('tool2vec_reconcile', {
+        trigger,
+        state: result.state,
+        acquired: result.acquired,
+        configured: result.configured,
+        embedded: result.embedded,
+        current: result.current,
+        total: result.total,
+        coveragePct: result.coveragePct,
+      });
+    }).catch((error) => {
+      logger.warn('tool2vec_reconcile_failed', {
+        trigger,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  });
+}
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
@@ -607,6 +659,36 @@ const sessions = createSessions(db, noteEncryption, {
 });
 sessions.setActivityLog(activityLog);
 
+// ADR-0092: optional cloud coordination peer. Local SQLite remains the write
+// path regardless of configuration or network health; the peer only observes,
+// queues, and CRDT-merges. A partial/malformed configuration degrades loudly
+// without preventing the offline-first daemon from starting.
+let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
+try {
+  const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
+  if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
+    coordinationPeer = createCoordinationPeer({
+      db,
+      sessions,
+      locks,
+      config: coordinationConfig,
+      logger,
+    });
+    coordinationPeer.start();
+    logger.info('coordination_peer_started', {
+      project: coordinationConfig.project,
+      actorId: coordinationConfig.actorId,
+      url: coordinationConfig.url,
+    });
+  }
+} catch (error) {
+  logger.error('coordination_peer_configuration_invalid', {
+    error: (error as Error).message,
+  });
+}
+
 const symbolClaims = createSymbolClaims(db, {
   symbolIndex,
   agentForSession: (sessionId: string) => {
@@ -616,13 +698,16 @@ const symbolClaims = createSymbolClaims(db, {
 });
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
-  messaging.publish(`inbox:${agentId}`, {
-    ...message,
-    sender: message.from || 'SYSTEM',
-    signal: (message as any).signal || 'report'
-  });
+  messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
-const parley = createParley({ tuples, agentInbox });
+// The local daemon is one tenant. CAP0 owns any future authenticated tenant
+// binding; request data must never choose this STORE0 authority.
+const parley = createParley({
+  db,
+  tenantId: 'local-daemon',
+  agentInbox,
+  notificationRecovery: {},
+});
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -650,10 +735,22 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
+// Relay connection lifecycle (ADR-0049). Replaces the honest-disconnected
+// stub: the daemon now runs the real outbound handshake + SSE loop from
+// lib/relay-connection.ts when a relay_url is configured, and the status
+// surface reports the live state of that loop — connected only while the
+// relay has an accepted stream open. Signing stays inside harbor-tokens
+// (signHex): the connection holds a signing capability, never the key.
+const relayConnection = new DaemonRelayConnection({
+  db,
+  logger,
+  signer: (msgHex) => harborTokens.signHex(msgHex),
+});
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 
@@ -925,7 +1022,7 @@ const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 
   : 5000;
 // Optional model pin for dispatch work. Absent → the CLI's authenticated default.
 const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
-// Cross-backend failover (ADR-0121). OFF unless the operator turns it on: it
+// Cross-backend failover (ADR-0131). OFF unless the operator turns it on: it
 // mints a second body — and spends a second time — with nobody in the loop, so
 // it is a deliberate choice, not a default. When on, the successor's warm brief
 // comes from the dead body's own transcript through the fail-closed sanitizer;
@@ -1253,7 +1350,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
     }
 
-    const agentCleanup = agents.cleanup(locks);
+    // `sessions` is what lets the reaper tell whether a dying DISPLAY handle
+    // is actually the soul that holds a stamped lock. Without it the reaper
+    // fails closed and leaves stamped locks to their TTL — correct, but it
+    // means a genuinely dead agent's locks linger, so this must stay wired.
+    // See lib/agent-soul-binding.ts and
+    // tests/unit/heartbeat-lock-invariant.test.js.
+    const agentCleanup = agents.cleanup(locks, { sessions });
     if (agentCleanup.cleaned > 0) {
       logger.info('agent_cleanup', agentCleanup);
       activityLog.log(ActivityType.AGENT_CLEANUP, {
@@ -1554,7 +1657,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
-    contextTracker,
+    contextTracker, tool2VecReconciler,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     roadmapActivity,
@@ -1566,22 +1669,40 @@ await registerAllRoutes(
     daemonBerth: DAEMON_BERTH,
     plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
-    // Relay (ADR-0049) connection status. The daemon does not yet start the
-    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
-    // reports "not connected" — `pd relay status` shows disconnected even when
-    // a relay_url is configured. When the SSE manager is wired, replace this
-    // with the manager's live status getter.
-    getRelayStatus: () => ({
-      connected: false,
-      session_id: null,
-      last_handshake: null as number | null,
-      accepted_channels: [] as string[],
-      relay_version: null as string | null,
-    }),
+    // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
+    // `connected` is true only while the relay has an accepted SSE stream
+    // open to this daemon (lib/relay-connection.ts flips it on the stream's
+    // open signal and off on any error/close), so `pd relay status` reports
+    // evidence, never intent.
+    getRelayStatus: () => relayConnection.getStatus(),
+    // Lets a runtime config write (POST /relay/config) or a fresh card
+    // (POST /relay/exchange) take effect without a daemon restart.
+    notifyRelayConfigChanged: () => relayConnection.restart(),
   },
   arbiter,
   { pheromones, sessions, db },
 );
+
+// Read-only local readiness proof for cloud sandboxes. The macaroon never
+// leaves the daemon process; bootstrap code can still verify that its `pd
+// begin` operation received a durable room acknowledgement (outbox drained)
+// and was observed back through the room cursor.
+app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
+  enabled: false,
+  connected: false,
+  project: null,
+  actorId: null,
+  replicaId: null,
+  cursor: 0,
+  outbox: 0,
+  lastSyncAt: null,
+  lastError: null,
+});
+
+// Start the outbound relay lifecycle after routes exist: a no-op when
+// relay_url is unconfigured (state: disabled — no loop spins against
+// nothing), the real handshake + SSE + backoff loop when it is.
+relayConnection.start();
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
@@ -1686,10 +1807,15 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  // Drop the relay stream before closing the DB: a stopping daemon must not
+  // advertise (or hold) a live federation link.
+  try { relayConnection.stop(); } catch {}
+  try { coordinationPeer?.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
   try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
+  try { if (tool2VecTimer) clearInterval(tool2VecTimer); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
@@ -1754,6 +1880,18 @@ function onReady(): void {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
+
+  // O3: readiness never waits for a cold catalog. Every caller shares the
+  // same expiring SQLite lease and row checkpoints, so startup and the
+  // low-frequency tick resume missing hashes without duplicate builders.
+  triggerTool2VecReconcile('daemon-startup');
+  if (!tool2VecTimer) {
+    tool2VecTimer = setInterval(
+      () => triggerTool2VecReconcile('daemon-tick'),
+      TOOL2VEC_RECONCILE_MS,
+    );
+    tool2VecTimer.unref?.();
+  }
 
   // Start mid-claim hash watcher. Cheap (sha256 every ~5s over the active
   // claim set), unref()'d so it doesn't keep the process alive on its own.

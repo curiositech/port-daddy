@@ -1,7 +1,7 @@
 /**
  * Cross-backend failover for dispatch: resume the work, do not restart it.
  *
- * WHY THIS EXISTS (ADR-0121, operator directive 2026-08-22). Dispatch was
+ * WHY THIS EXISTS (ADR-0131, operator directive 2026-08-22). Dispatch was
  * single-backend by accident rather than by design: a run that died because the
  * chosen backend was rate-limited, uninstalled, or having an outage died
  * outright, and the only recovery was an operator re-proposing the same goal by
@@ -44,7 +44,7 @@ import { DEFAULT_BACKEND } from './runner.js';
  * Ordered by instrumentation honesty, not by preference alone: `cli:claude-code`
  * is first because it is the only backend with a verified squid adapter today,
  * so a successor landing there keeps the controls the operator can actually use
- * (ADR-0124's per-backend matrix). The rest follow in descending harness
+ * (ADR-0134's per-backend matrix). The rest follow in descending harness
  * capability. A backend that has no adapter still runs — at a disclosed tier —
  * because refusing to fail over is worse than failing over to limited controls.
  */

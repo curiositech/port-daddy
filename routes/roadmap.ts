@@ -21,6 +21,9 @@
  *                                          'done' transition stamps completed_at)
  *   POST   /roadmap/items/:slug/touch    — refresh last_touched_at
  *   POST   /roadmap/promote              — atomic feedback→item link
+ *   GET    /roadmap/projection           — read-only roadmap-home projection
+ *                                          (lib/roadmap-projection.ts) for the
+ *                                          web/console/iOS home surfaces
  *   POST   /roadmap/chomp                — general planning-doc ingestion
  *   POST   /roadmap/import-markdown      — legacy 3-pile alias over chomp
  */
@@ -34,10 +37,15 @@ import type {
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
+import {
+  buildRoadmapProjection,
+  serializeRoadmapProjection,
+} from '../lib/roadmap-projection.js';
+import type Database from 'better-sqlite3';
 import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
 import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
-import { schedule } from '../lib/planner-schedule.js';
+import { scheduleDagPreferKernel as schedule } from '../lib/planner-schedule-ffi.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
 import {
   writePlanEdges,
@@ -279,11 +287,40 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // undefined in unit fixtures that only stand up the roadmap dep pair (see
   // tests/unit/roadmap-board-route.test.js) — the persistence step below tolerates that.
   const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
+  const db = (opts.deps as { db?: Database.Database }).db;
   const graphEdges = (opts.deps as { graphEdges?: GraphEdges }).graphEdges;
   // Durable-agent roster: the owner registry item assignees validate against
   // and reads join for display info. Optional for the same fixture reason as
   // graphEdges — when absent, writes skip validation and reads join null.
   const durableAgentRoster = (opts.deps as { durableAgentRoster?: DurableAgentRoster }).durableAgentRoster;
+
+  // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
+  // "roadmap is home everywhere"). One deterministic projection that the relay
+  // account page, pd-console, and the iOS app all render instead of re-deriving
+  // roadmap state (see lib/roadmap-projection.ts for the parsimony law and the
+  // law-13 live/stale honesty rules). Read-only; the body is the projection's
+  // canonical serialization so consumers can byte-diff successive fetches.
+  // Self-degrades with 503 when a stripped daemon mode carries no DB (popper
+  // route convention).
+  fastify.get('/roadmap/projection', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!db) {
+      reply.code(503);
+      return { success: false, error: 'roadmap projection requires daemon db' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const harbor = asString(q.harbor);
+    try {
+      const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), { harbor });
+      reply.type('application/json; charset=utf-8');
+      return serializeRoadmapProjection(projection);
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'projection failed',
+      };
+    }
+  });
 
   // GET /roadmap/board — the live, browsable planner board (ADR-0086 §5). Derives the
   // Project→Epic→Task hierarchy from roadmap_items on each request (so it reflects live state
@@ -307,6 +344,11 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       dependencies: r.dependencies ?? [],
       notes: (r.notes ?? []).map((n) => ({ text: n.text })),
       harbor: r.harbor,
+      // Gantt wall-clock date anchors (ADR-0086 planner columns) — carried
+      // through so `renderBoard` can date-anchor a task's bar instead of
+      // leaving every item on the CPM-relative offset (see planner-board.ts).
+      startedAt: r.startedAt,
+      dueAt: r.dueAt,
     }));
     const plan = derivePlan(items);
     if (graphEdges) {

@@ -308,6 +308,24 @@ List all agents. Optional query param: `active=true`.
 ### POST /agents/:id/inbox
 Send a message to an agent's inbox. Body: `{ content, from?, type? }`.
 
+**Requires a daemon-minted actor credential** (`x-actor-credential` header or
+body `credential`) — #8877 / ADR-0122. The inbox is an instruction plane: with
+`wake: true` the message becomes the `- sender:` line in a spawned agent's
+prompt, so `from` is verified, not taken on faith.
+
+- No credential → `401 IDENTITY_CREDENTIAL_REQUIRED`.
+- Invalid credential → `401 IDENTITY_CREDENTIAL_INVALID`.
+- `from` omitted → the message is attributed to your minted `actorId`. **This
+  is the recommended usage.**
+- `from` present → accepted only when it is an alias bound to your soul, or
+  the agentId of an ACTIVE session stamped with your soul (what `pd begin`
+  creates). Anything else — including a name nobody ever minted — is
+  `403 INBOX_FROM_MISMATCH`.
+
+Each stored message carries the daemon's verdict as `fromActorId` and
+`fromSoulClass`. A null `fromActorId` means a daemon-internal send, not a
+principal; do not render it as "system".
+
 ### GET /agents/:id/inbox
 Read inbox messages. Query: `?unread=true&limit=50`.
 
@@ -377,6 +395,29 @@ actually doing what it claims, not just that it is up.
   "honest": true
 }
 ```
+
+### GET /coordination/status
+
+Read-only ADR-0092 cloud coordination peer status. A disconnected peer keeps
+accepting local sessions, notes, claims, and logical lock leases into its
+SQLite ledger and durable outbox; this endpoint reports federation progress,
+not local availability.
+
+```json
+{
+  "enabled": true,
+  "connected": true,
+  "project": "owner/repo",
+  "actorId": "cloud-runner",
+  "replicaId": "peer-01J...",
+  "cursor": 42,
+  "outbox": 0,
+  "lastSyncAt": 1787520000000,
+  "lastError": null
+}
+```
+
+MCP equivalent: `coordination_status()`.
 
 ### GET /status
 Combined daemon report. Includes build identity, metrics, detailed fleet breakdown, guardian state, and recent daemon history.
@@ -1198,6 +1239,22 @@ List semantic graph edges.
 Summarize graph edges for a project.
 
 **Query params:** `projectDir`.
+
+---
+
+## Skill Graft
+
+### GET /skill-graft/status
+Read current-hash Tool2Vec catalog coverage, active lease state, and the latest
+reconciliation outcome. This endpoint is strictly observational: it does not
+generate centroids or call an LLM.
+
+### POST /skill-graft/reconcile
+Start one bounded reconciliation batch. This mutation accepts only loopback
+transport peers and returns `200` when it acquires the builder lease or `202`
+when another reconciler already owns it.
+
+**Body:** `{ "maxSkills": 8 }` (optional, clamped to `1..64`).
 
 ---
 

@@ -148,6 +148,17 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
    closed — never verify with weaker semantics (caveat-omission attack).
 6. **Bare green assurance.** Every safety score shows its scan time and links to
    the underlying evidence (digest-with-zoom).
+7. **Credentialless evidence mutation.** Loopback, Unix socket possession,
+   headers, process labels, and reusable actor credentials do not authorize an
+   external caller to append, terminalize, backfill, or delete canonical
+   transcripts. Keep evidence production daemon-owned and in-process until a
+   one-use broker-redeemed action boundary is actually wired; remove the old
+   route instead of preserving a downgrade.
+8. **Evidence-producer laundering.** A body or imported snapshot that names an
+   internal producer, trusted tier, automatic trigger, or spawned-agent id is
+   still caller data. Canonical lifecycle code stamps reserved provenance
+   itself; legacy rows stay explicitly untrusted instead of being upgraded by
+   inference.
 
 ## Quality gates
 
@@ -157,6 +168,27 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
 - [ ] Every file sink/trigger path goes through `containPath`.
 - [ ] Each new attack vector gets a named regression test.
 - [ ] Macaroon tool/tier caveats covered by ProVerif before they are load-bearing.
+- [ ] Durable evidence sinks publish immutable artifacts from unique private
+      temps; shared append rollback is not process-safe. Fsync only after the
+      complete write, atomically publish, clamp directories/files to least
+      privilege, reject symlink/unsafe targets, and require a receipt binding the
+      exact artifact locator/digest/size/format before pruning live evidence.
+- [ ] A terminal evidence receipt freezes every field covered by its digest.
+      Status checks and child writes are one atomic operation; full-entry imports
+      commit header plus children together before publication.
+- [ ] The first exact archive success is immutable under interleaved stores; a
+      late failure or different-digest success cannot replace it. Archive the
+      fresh private-DB snapshot before invoking listeners.
+- [ ] Archive roots, partitions, and artifacts are private; reject static
+      symlink ancestors as well as symlink targets. If publication is still
+      pathname-based, state the residual same-UID concurrent swap race instead
+      of claiming an `openat`/dirfd guarantee.
+- [ ] Public transcript HTTP/CLI surfaces are read-only unless the action
+      service directly redeems a one-use capability. Every retired mutator has
+      a hostile 404/405 regression and no compatibility fallback.
+- [ ] Producer provenance is daemon-stamped at the in-process boundary; forged
+      producer-shaped fields and pre-migration rows never acquire trusted
+      provenance by declaration or inference.
 
 ## Residual (sound fixes not yet shipped — see ADR-0093 §10)
 

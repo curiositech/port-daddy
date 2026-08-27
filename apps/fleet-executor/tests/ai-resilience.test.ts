@@ -104,6 +104,45 @@ describe('per-run Workers AI circuit', () => {
     expect(circuit.isOpen).toBe(true);
   });
 
+  it('spends the deadline at most once per INVOCATION — the per-delivery half of the bound', async () => {
+    // WHAT THIS DOES AND DOES NOT PROVE — worth stating precisely, because
+    // conflating the two scopes is exactly the error the PR #9800 review
+    // caught. A queue consumer gets ~15 minutes of wall clock, and the
+    // per-call deadline can approach 10 minutes, so one INVOCATION only fits
+    // because the circuit opens on the first timeout and every later call is
+    // rejected WITHOUT awaiting the provider. That is the property pinned
+    // here: if a future edit let a second call reach the provider after a
+    // timeout, worst-case wait becomes MAX_MAP_CHUNKS_PER_SHIP × the
+    // deadline, past the budget, and the invocation is killed mid-run with no
+    // catchable error — the #7743 failure shape.
+    //
+    // It says NOTHING about a whole logical RUN. A run spans many deliveries
+    // (one provider-heavy ship apiece), each with a fresh circuit, so the
+    // run-level worst case is ships × attempts × deadline and needs its own
+    // ceiling. That is RUN_ABSOLUTE_DEADLINE_MS, not this.
+    //
+    // Timing is asserted rather than call counts alone: the point is that the
+    // later calls cost no WAITING, which a call-count assertion cannot show.
+    const deadlineMs = 20;
+    const circuit = new FleetAiCircuit(deadlineMs);
+    const silent = vi.fn(() => new Promise<never>(() => undefined));
+
+    const startedAt = Date.now();
+    await expect(circuit.run(silent)).rejects.toMatchObject({
+      failure: { name: 'FleetAiCallDeadlineError' },
+    });
+    // Seven more chunks' worth of calls, as one ship's MAP fan-out would issue.
+    for (let i = 0; i < 7; i++) {
+      await expect(circuit.run(silent)).rejects.toBeInstanceOf(FleetAiDependencyError);
+    }
+    const elapsed = Date.now() - startedAt;
+
+    // One deadline's wait, not eight. Generous headroom for scheduler jitter;
+    // the failure this catches is an order-of-magnitude regression, not ms.
+    expect(elapsed).toBeLessThan(deadlineMs * 4);
+    expect(silent).toHaveBeenCalledTimes(1);
+  });
+
   it('opens on a retryable provider failure and rejects later work without a downstream call', async () => {
     const circuit = new FleetAiCircuit();
     const first = vi.fn(async () => {
@@ -157,6 +196,70 @@ describe('per-run Workers AI circuit', () => {
 
     await expect(run).rejects.toThrow('provider failed');
     expect(started).toEqual([0, 1]);
+  });
+});
+
+describe('per-ship AI call aggregation', () => {
+  it('accumulates calls, outcomes, and elapsed time across the ship, keyed by ship name', async () => {
+    const circuit = new FleetAiCircuit(1_000);
+    await circuit.runForShip('pilot', async () => 'ok-1');
+    await circuit.runForShip('pilot', async () => 'ok-2');
+    await expect(
+      circuit.runForShip('pilot', async () => {
+        throw Object.assign(new Error('bad model'), { status: 400, code: 5007 });
+      }),
+    ).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    const pilot = circuit.snapshotShipStats('pilot');
+    expect(pilot).toMatchObject({ ship: 'pilot', calls: 3, okCalls: 2, errorCalls: 1, timeoutCalls: 0 });
+    expect(pilot!.totalElapsedMs).toBeGreaterThanOrEqual(0);
+    expect(circuit.snapshotShipStats('lookout')).toBeNull();
+  });
+
+  it('keeps separate totals per ship on a shared circuit', async () => {
+    const circuit = new FleetAiCircuit(1_000);
+    await circuit.runForShip('pilot', async () => 'ok');
+    await circuit.runForShip('lookout', async () => 'ok');
+    await circuit.runForShip('lookout', async () => 'ok');
+
+    expect(circuit.snapshotShipStats('pilot')).toMatchObject({ calls: 1 });
+    expect(circuit.snapshotShipStats('lookout')).toMatchObject({ calls: 2 });
+  });
+
+  it('counts a deadline timeout as both a call and a timeout for that ship', async () => {
+    const circuit = new FleetAiCircuit(10);
+    const silent = () => new Promise<never>(() => undefined);
+    await expect(circuit.runForShip('pilot', silent)).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    const pilot = circuit.snapshotShipStats('pilot');
+    expect(pilot).toMatchObject({ calls: 1, okCalls: 0, timeoutCalls: 1, errorCalls: 1 });
+  });
+
+  it('opens the circuit for later ships once a retryable failure occurs on any ship', async () => {
+    const circuit = new FleetAiCircuit();
+    await expect(
+      circuit.runForShip('pilot', async () => {
+        throw Object.assign(new Error('capacity'), { status: 429, code: 3040 });
+      }),
+    ).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    await expect(circuit.runForShip('lookout', async () => 'should not run')).rejects.toBeInstanceOf(
+      FleetAiDependencyError,
+    );
+    expect(circuit.snapshotShipStats('lookout')).toMatchObject({ calls: 1, errorCalls: 1 });
+  });
+});
+
+describe('AiFailureDetail.elapsedMs', () => {
+  it('reports how long the call actually ran before it failed', () => {
+    expect(describeAiFailure({ status: 500, message: 'boom' }, 4_200).elapsedMs).toBe(4_200);
+    expect(describeAiFailure({ status: 500, message: 'boom' }).elapsedMs).toBe(0);
+    expect(describeAiFailure({ status: 500, message: 'boom' }, -5).elapsedMs).toBe(0);
+  });
+
+  it('surfaces elapsed time in the summary text once measured', () => {
+    const failure = describeAiFailure({ status: 500, code: 5004, message: 'boom' }, 12_345);
+    expect(failure.summary).toContain('12345ms elapsed');
   });
 });
 

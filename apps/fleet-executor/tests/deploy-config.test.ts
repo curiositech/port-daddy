@@ -80,4 +80,17 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(observability, 'missing [observability] block').toBeDefined();
     expect(observability).toMatch(/^\s*enabled\s*=\s*true\s*$/m);
   });
+
+  it('binds Fleet to Relay for per-run coordination grants without a static macaroon', () => {
+    const config = readConfig(name);
+    const services = config.split('[[services]]').slice(1);
+    const grants = services.find(block => /^\s*binding\s*=\s*"COORDINATION_GRANTS"/m.test(block));
+    expect(grants, 'missing COORDINATION_GRANTS service binding').toBeDefined();
+    expect(grants).toMatch(/^\s*service\s*=\s*"port-daddy-relay"\s*$/m);
+    expect(grants).toMatch(/^\s*entrypoint\s*=\s*"CoordinationGrantService"\s*$/m);
+    expect(config).toMatch(/^\s*PORT_DADDY_COORDINATION_URL\s*=\s*"https:\/\/relay\.portdaddy\.dev"\s*$/m);
+    expect(config).not.toContain('PORT_DADDY_COORDINATION_PROJECT');
+    expect(config).not.toContain('PORT_DADDY_COORDINATION_ACTOR');
+    expect(config).not.toContain('PORT_DADDY_COORDINATION_MACAROON');
+  });
 });

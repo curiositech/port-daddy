@@ -18,6 +18,7 @@
 #   3. Set secrets:
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        openssl rand -hex 32 | wrangler secret put COORDINATION_MACAROON_ROOT_KEY_HEX
 #        # GitHub login (ADR-0101 Phase 1) — login stays DISABLED (503) until all
 #        # four of GITHUB_OAUTH_CLIENT_ID (var, below), PUBLIC_BASE_URL (var,
 #        # below), and these two secrets are present:
@@ -40,7 +41,7 @@
 # push to main by .github/workflows/deploy-relay.yml.
 
 name = "port-daddy-relay"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -71,6 +72,19 @@ PUBLIC_BASE_URL = "https://relay.portdaddy.dev"
 # AI_ERROR, they never remap silently. Unset, the default is the `shipwright`
 # cloud-plane role in config/models.yaml (supplant, 2026-08-23 — a pinned
 # default here was a second place the id had to be right).
+# Durable GitHub numeric id for the initial account-backed Cloud Fleet operator.
+# Public identity metadata; authorization still requires a live pdu_ token.
+RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
+# Workers AI model for the Shipwright chat (src/shipwright.ts). A plain var so
+# operators can retarget without a code deploy; unknown ids fail the AI call
+# with an honest AI_ERROR, they never remap silently.
+SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Daily per-user chat budget (src/chat-spend.ts), shared by EVERY conversational
+# surface the relay hosts. Plain vars, never caller input. Unset or unparsable
+# values fall back to the committed defaults — never to "unlimited", never to
+# zero — so a typo here cannot switch a protective budget off.
+CHAT_DAILY_MESSAGES = "60"
+CHAT_DAILY_TOKENS = "200000"
 # X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
 # `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
 # gives the reserved pd-mediator seat its observation behavior. While off, the
@@ -98,10 +112,24 @@ database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
 migrations_dir = "migrations"
 
+# STEWARD is CROSS-SCRIPT (`script_name`): the class is defined, owned, and
+# migrated by `apps/steward`, and this Worker only holds a reference to it.
+# That is why no `[[migrations]]` entry below mentions StewardDO and why none
+# ever should — two Workers claiming migration authority over one class is how
+# a namespace gets forked in production.
+#
+# The binding exists so the webhook receiver can POST /wake the instant a check
+# suite completes (P1 PR 8) instead of the seat waiting out its 6h heartbeat. A
+# DO namespace is not publicly addressable, so this is an in-boundary call with
+# no credential — the alternative, an HTTPS call bearing STEWARD_ADMIN_TOKEN,
+# would have put full merge authority (/ship-it, /charter, /clusterfudge/ack)
+# in the relay to deliver a notification.
 [durable_objects]
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
   { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+  { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
+  { name = "STEWARD", class_name = "StewardDO", script_name = "pd-steward" },
 ]
 
 [[migrations]]
@@ -113,6 +141,11 @@ new_classes = ["HarborChannel"]
 tag = "v0002"
 new_classes = ["HarborQuota"]
 
+# ADR-0092: one CRDT coordination peer per project.
+[[migrations]]
+tag = "v0003"
+new_sqlite_classes = ["CoordinationRoom"]
+
 [[kv_namespaces]]
 # JWKS cache and pinned relay key cache
 binding = "KV"
@@ -123,6 +156,15 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 # still deploys if this block is removed; handlers fail closed without it.
 [ai]
 binding = "AI"
+
+# R2 — raw ship session transcripts (pd-transcript.v1), WRITTEN by the
+# fleet-executor and only READ here (run-page links + the
+# /fleet/runs/:id/transcript/:ship.jsonl route). Env.TRANSCRIPTS is optional
+# in code; absent ⇒ transcript routes 404 and the page shows no links.
+# See docs/FLEET-SESSION-TRANSCRIPTS.md.
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
 
 # Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
 [[queues.producers]]
@@ -210,6 +252,14 @@ GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
 # SHIPWRIGHT_MODEL / PARLEY_MEDIATOR_MODEL: unset here too — see the base env's
 # note. The committed defaults are cloud-plane roles in config/models.yaml.
+RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
+SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Daily per-user chat budget (src/chat-spend.ts), shared by EVERY conversational
+# surface the relay hosts. Plain vars, never caller input. Unset or unparsable
+# values fall back to the committed defaults — never to "unlimited", never to
+# zero — so a typo here cannot switch a protective budget off.
+CHAT_DAILY_MESSAGES = "60"
+CHAT_DAILY_TOKENS = "200000"
 # X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
 # `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
 # gives the reserved pd-mediator seat its observation behavior. While off, the
@@ -238,11 +288,19 @@ migrations_dir = "migrations"
 
 # Same DO classes as prod; environments get their OWN namespace instances, so
 # relay-latest's HarborChannel/HarborQuota state is fully isolated from prod's.
-# ([[migrations]] are top-level and shared — v0002 registers HarborQuota.)
+# ([[migrations]] are top-level and shared — v0002/v0003 register the DOs.)
+# NOTE the deliberate omission of STEWARD. Environments do not inherit
+# top-level bindings, and here that default is the one we want: staging shares
+# this repo's real GitHub webhook, so a `latest` delivery carrying STEWARD
+# would wake the PRODUCTION merge authority with staging traffic. Unbound is a
+# silent no-op by construction (`if (!env.STEWARD) return`), so the omission is
+# the safety mechanism, not an oversight. Wiring a staging seat means giving
+# pd-steward its own `--env latest` script first.
 [env.latest.durable_objects]
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
   { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
+  { name = "COORDINATION_ROOM", class_name = "CoordinationRoom" },
 ]
 
 [[env.latest.kv_namespaces]]
@@ -253,6 +311,12 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 
 # Workers AI binding — environments do NOT inherit top-level bindings, so the
 # [ai] block is repeated here on purpose (see the NOTE above).
+# Same PROD transcript bucket, read-only usage (staging runs read real
+# captures; the executor is the only writer and has no staging channel).
+[[env.latest.r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
+
 [env.latest.ai]
 binding = "AI"
 

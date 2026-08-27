@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { handleFleetRunPage, runPageToken } from '../src/fleet-run-page.js';
+import {
+  handleFleetRunPage,
+  handleFleetRunTranscript,
+  handleFleetRunTranscriptPage,
+  runPageToken,
+} from '../src/fleet-run-page.js';
 import { hashHex, fromHex, base64UrlEncode } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 import type { FleetRunRow, FleetRunStepRow } from '../src/db.js';
@@ -27,9 +32,9 @@ const WRAP_KEY = 'bb'.repeat(32);
 const RUN_ID = 'run:d-1';
 const BASE = 'https://relay.example';
 
-function makeRun(): FleetRunRow {
+function makeRun(repoFullName = 'acme/widgets'): FleetRunRow {
   return {
-    id: RUN_ID, delivery_id: 'd-1', repo_full_name: 'acme/widgets', pr_number: 3,
+    id: RUN_ID, delivery_id: 'd-1', repo_full_name: repoFullName, pr_number: 3,
     pr_url: 'https://github.com/acme/widgets/pull/3', head_sha: 'abcdef1234567890',
     conclusion: 'success', ships_csv: 'code-reviewer', neurons: 10, ms: 1000, created_at: 1_700_000_000,
   };
@@ -37,7 +42,7 @@ function makeRun(): FleetRunRow {
 
 // D1 that returns the run + one step, plus a web_sessions/users lookup for a
 // single seeded session token hash.
-function makeDb(sessionHash?: string, sealed?: { enc: string; iv: string }) {
+function makeDb(sessionHash?: string, sealed?: { enc: string; iv: string }, repoFullName?: string) {
   const steps: FleetRunStepRow[] = [
     { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'code-reviewer', title: 'PASS', detail: null, created_at: 1_700_000_005 },
   ];
@@ -54,10 +59,15 @@ function makeDb(sessionHash?: string, sealed?: { enc: string; iv: string }) {
         if (sql.includes('FROM users WHERE id')) {
           return { id: 'u_1', github_user_id: 1, login: 'octocat', display_name: null, avatar_url: null, primary_email: null, email_verified: 0, created_at: 0, last_login_at: 0, deleted_at: null } as T;
         }
-        if (sql.includes('FROM fleet_runs WHERE id')) return makeRun() as T;
+        if (sql.includes('FROM fleet_runs WHERE id')) return makeRun(repoFullName) as T;
         return null;
       },
-      async all<T>(): Promise<{ results: T[] }> { return { results: steps as unknown as T[] }; },
+      async all<T>(): Promise<{ results: T[] }> {
+        if (sql.includes('fleet_run_transcripts')) {
+          return { results: [{ ship: 'qa', attempt: 1, r2_key: 'v1/run/qa.1.jsonl' }] as unknown as T[] };
+        }
+        return { results: steps as unknown as T[] };
+      },
       async run() { return { success: true }; },
     };
     return s as unknown as D1PreparedStatement;
@@ -137,5 +147,75 @@ describe('session-gated run pages', () => {
   it('no session and no token → 404', async () => {
     const res = await handleFleetRunPage(pageReq(), makeEnv(), RUN_ID);
     expect(res.status).toBe(404);
+  });
+});
+
+// The transcript surfaces (HTML viewer + raw .jsonl) authorize through the
+// shared authorizedForRun — the SAME three credentials as the receipt. These
+// tests pin the session leg of that contract: signed-in-with-repo-read opens
+// both surfaces, signed-in-WITHOUT-repo-read gets the indistinguishable 404.
+describe('session-gated transcript surfaces (authorizedForRun)', () => {
+  const TURN = JSON.stringify({
+    v: 1, seq: 0, phase: 'map', chunk: null, kind: 'assistant', model: 'm', ts: 1_700_000_000,
+    latencyMs: 10, usage: null, costUsd: null, content: [{ type: 'text', text: 'hello' }],
+    sysRef: null, truncated: false,
+  }) + '\n';
+
+  function transcriptsBucket(): unknown {
+    return {
+      get: async (key: string) =>
+        key === 'v1/run/qa.1.jsonl' ? ({ body: TURN, text: async () => TURN } as unknown) : null,
+    };
+  }
+
+  function transcriptReq(path: string, cookie?: string): Request {
+    return new Request(`${BASE}${path}`, cookie ? { headers: { Cookie: cookie } } : {});
+  }
+
+  it('a signed-in user who can read the repo opens the viewer AND the raw .jsonl', async () => {
+    const cookieValue = 'sess-value-abc';
+    const sealed = await sealForTest('gho_token');
+    const env = makeEnv({ TRANSCRIPTS: transcriptsBucket() as never }, makeDb(hashHex(cookieValue), sealed));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 200 }))); // repo read OK
+    const cookie = `__Host-pd_session=${cookieValue}`;
+    const page = await handleFleetRunTranscriptPage(
+      transcriptReq(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa`, cookie), env, RUN_ID, 'qa');
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('raw session transcript');
+    const raw = await handleFleetRunTranscript(
+      transcriptReq(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa.jsonl`, cookie), env, RUN_ID, 'qa');
+    expect(raw.status).toBe(200);
+  });
+
+  it('a signed-in user who CANNOT read the repo gets the same 404 on both surfaces', async () => {
+    const cookieValue = 'sess-value-abc';
+    const sealed = await sealForTest('gho_token');
+    const env = makeEnv({ TRANSCRIPTS: transcriptsBucket() as never }, makeDb(hashHex(cookieValue), sealed));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 }))); // no repo access
+    const cookie = `__Host-pd_session=${cookieValue}`;
+    expect(
+      (await handleFleetRunTranscriptPage(
+        transcriptReq(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa`, cookie), env, RUN_ID, 'qa')).status,
+    ).toBe(404);
+    expect(
+      (await handleFleetRunTranscript(
+        transcriptReq(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa.jsonl`, cookie), env, RUN_ID, 'qa')).status,
+    ).toBe(404);
+  });
+
+  it('a run with an EMPTY repo_full_name refuses the session path without ever asking GitHub', async () => {
+    const cookieValue = 'sess-value-abc';
+    const sealed = await sealForTest('gho_token');
+    const env = makeEnv(
+      { TRANSCRIPTS: transcriptsBucket() as never },
+      makeDb(hashHex(cookieValue), sealed, ''), // '' .split('/') → [''] — falsy owner refuses
+    );
+    const fetchMock = vi.fn(async () => new Response('', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await handleFleetRunTranscriptPage(
+      transcriptReq(`/fleet/runs/${encodeURIComponent(RUN_ID)}/transcript/qa`, `__Host-pd_session=${cookieValue}`),
+      env, RUN_ID, 'qa');
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

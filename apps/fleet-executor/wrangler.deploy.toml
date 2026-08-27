@@ -69,6 +69,16 @@ cpu_ms = 300000
 [ai]
 binding = "AI"
 
+# Relay's named, RPC-only ADR-0092 grant issuer. This binding is the capability:
+# Fleet supplies only a GitHub-verified project and durable run actor, while the
+# Relay keeps the macaroon root. Deploy Relay's CoordinationGrantService before
+# deploying this caller binding. Relay remains a replicated peer, not the
+# coordination ledger's authority.
+[[services]]
+binding = "COORDINATION_GRANTS"
+service = "port-daddy-relay"
+entrypoint = "CoordinationGrantService"
+
 # ---------------------------------------------------------------------------
 # KV — installation-token cache. Keyed by `github_inst_<installationId>`,
 # value `{ token, expiresAt }`, TTL set to (expiresAt - 60s). Avoids re-minting
@@ -94,6 +104,18 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 binding = "DB"
 database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+
+# ---------------------------------------------------------------------------
+# R2 — raw ship session transcripts (pd-transcript.v1). One JSONL object per
+# (run, ship, attempt), written ONCE at ship completion/error by
+# src/transcript-capture.ts's flushShipTranscript; the relay reads the same
+# bucket for the run page's raw-transcript links. Best-effort like every
+# transcript write: an absent binding or a failed PUT never changes a run.
+# Bucket provisioned 2026-08-24 (`wrangler r2 bucket create fleet-transcripts`).
+# See docs/FLEET-SESSION-TRANSCRIPTS.md.
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
 
 # ---------------------------------------------------------------------------
 # OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
@@ -182,6 +204,9 @@ max_retries = 1
 RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
+# ADR-0092 peer transport only. Project, actor, and short-lived macaroon are
+# derived/minted per Fleet run through COORDINATION_GRANTS above.
+PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 # XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
 # "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
 # Workers AI ONLY — an override must be a `@cf/` id; any other value is ignored

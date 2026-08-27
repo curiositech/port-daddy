@@ -358,7 +358,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // and `pd hm` are the CLI surfaces for status, queue, start, and stop.
     harbormaster: ['harbormaster', 'hm'],
     // transcripts: ship-run records surface. routes/transcripts.ts is the
-    // operator-facing read/delete API; `pd transcripts <list|show|cost|delete>`
+    // operator-facing read-only API; `pd transcripts <list|show|watch|cost>`
     // is its CLI surface.
     transcripts: ['transcripts', 'transcript'],
     // dispatches: HTTP surface over the dispatch queue (POST /dispatches +
@@ -383,6 +383,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // durableagentroster: manage durable named AgentNode experts. routes/durable-agent-roster.ts
     // (GET /durable-agents, etc.); `pd roster <subcommand>` is its CLI surface.
     durableagentroster: ['roster'],
+    // skillgraft: read current-hash Tool2Vec coverage and start bounded local
+    // reconciliation. `pd skill-graft <status|warm>` is the CLI surface.
+    skillgraft: ['skill-graft', 'skillgraft'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).

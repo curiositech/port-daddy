@@ -52,7 +52,7 @@ export interface WorkIntentPayload extends HarborPayload {
       mergePolicy?: MergePolicy;
       requestedBy?: string;
       /**
-       * Cross-backend succession (ADR-0121). Carried through the intent rather
+       * Cross-backend succession (ADR-0131). Carried through the intent rather
        * than written onto the dispatch row afterwards, because a successor is a
        * governed launch like any other — the worker's intent gate refuses an
        * orphan row, so a successor written directly to the queue would be

@@ -7,12 +7,11 @@
  * forecast is built from the SAME primitives the engine actually runs on, so
  * it reflects reality rather than intent:
  *
- *  - Scheduled agents: the engine arms `setInterval(parseCronInterval(cron))`
- *    with NO fire-time cron-match gate (lib/fleet-engine.ts startAgent). That
- *    means a cron the parser can't represent (e.g. weekly `0 8 * * 1`) falls
- *    to the 10-minute default and ACTUALLY fires 6×/hour. The forecast mirrors
- *    that and flags it (`approxSchedule`) instead of pretending the YAML's
- *    intent is what runs.
+ *  - Scheduled agents: the engine admits only its explicit interval and
+ *    fixed-clock subsets. Unsupported cron shapes (for example weekly
+ *    `0 8 * * 1`) fail closed and arm no timer. The forecast uses the same
+ *    admission helpers, reports zero launches, and flags the invalid schedule
+ *    instead of projecting the parser's historical 10-minute fallback.
  *  - Cooldowns damp the effective rate: an agent can't fire faster than
  *    3600000/cooldownMs regardless of its interval.
  *  - Event-triggered agents have no deterministic rate; they are listed with
@@ -23,7 +22,14 @@
  *    computed with the same placeholder rules as the cli-tube launcher.
  */
 
-import { resolveFleetAgentRuntime, parseCronInterval, type FleetConfig, type FleetAgent } from './fleet-engine.js';
+import {
+  isAbsoluteCronSchedule,
+  isIntervalCronSchedule,
+  parseCronInterval,
+  resolveFleetAgentRuntime,
+  type FleetConfig,
+  type FleetAgent,
+} from './fleet-engine.js';
 import { resolveModel } from './model-registry.js';
 
 // Mirrors ONLY the placeholder-detection half of lib/spawner/backends/cli-tube.ts
@@ -46,12 +52,8 @@ export interface AgentSpawnForecast {
   kind: 'scheduled' | 'event' | 'manual';
   /** Raw cron string from pd-fleet.yml, when scheduled. */
   schedule?: string;
-  /**
-   * True when the cron pattern is NOT representable by the engine's
-   * interval parser — the agent really fires at the 10-minute default,
-   * not at the cadence the YAML implies.
-   */
-  approxSchedule?: boolean;
+  /** True when the engine refuses the cron shape and arms no timer. */
+  unsupportedSchedule?: boolean;
   /** Channel/registry triggers, when event-driven. */
   triggers?: string[];
   /** Deterministic spawns/hour (scheduled agents only; cooldown-damped). */
@@ -105,28 +107,20 @@ export interface ForecastInputFleet {
   config: FleetConfig;
 }
 
-/** Spawns/hour implied by a cron schedule, as the ENGINE runs it. */
-export function cronPerHour(cron: string): number {
+/** Spawns/hour implied by a supported cron schedule; null means fail-closed. */
+export function cronPerHour(cron: string): number | null {
+  if (isAbsoluteCronSchedule(cron)) {
+    const [, hour] = cron.trim().split(/\s+/);
+    return hour === '*' ? 1 : +(1 / 24).toFixed(2);
+  }
+  if (!isIntervalCronSchedule(cron)) return null;
   const intervalMs = parseCronInterval(cron);
   return +(3_600_000 / intervalMs).toFixed(2);
 }
 
-// True when the engine's interval parser actually understands this cron —
-// `*/N * * * *`, `0 */N * * *`, or top-of-hour `0 * * * *`. Anything else
-// silently becomes the 10-minute default interval.
-export function cronIsRepresentable(cron: string): boolean {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length < 5) return false;
-  const [minute, hour] = parts;
-  if (minute.startsWith('*/')) {
-    const n = parseInt(minute.slice(2), 10);
-    return !isNaN(n) && n > 0;
-  }
-  if (hour.startsWith('*/')) {
-    const n = parseInt(hour.slice(2), 10);
-    return !isNaN(n) && n > 0;
-  }
-  return minute === '0' && hour === '*';
+/** True when startAgent will arm this schedule. */
+export function cronIsSupported(cron: string): boolean {
+  return isAbsoluteCronSchedule(cron) || isIntervalCronSchedule(cron);
 }
 
 interface EffectiveRuntime {
@@ -203,13 +197,18 @@ export function computeSpawnForecast(
       const runtime = resolveEffectiveRuntime(agent, opts.forcedCliBackend);
 
       let perHour: number | null = null;
-      let approxSchedule: boolean | undefined;
+      let unsupportedSchedule: boolean | undefined;
       if (kind === 'scheduled' && agent.schedule) {
-        perHour = cronPerHour(agent.schedule);
-        approxSchedule = !cronIsRepresentable(agent.schedule) || undefined;
-        // Cooldown damps the effective rate regardless of the interval.
-        if (agent.cooldownMs && agent.cooldownMs > 0) {
-          perHour = Math.min(perHour, +(3_600_000 / agent.cooldownMs).toFixed(2));
+        const scheduleRate = cronPerHour(agent.schedule);
+        if (scheduleRate === null) {
+          perHour = 0;
+          unsupportedSchedule = true;
+        } else {
+          perHour = scheduleRate;
+          // Cooldown damps the effective rate regardless of the interval.
+          if (agent.cooldownMs && agent.cooldownMs > 0) {
+            perHour = Math.min(perHour, +(3_600_000 / agent.cooldownMs).toFixed(2));
+          }
         }
         scheduledRaw += perHour;
       }
@@ -223,7 +222,7 @@ export function computeSpawnForecast(
         model: runtime.model,
       };
       if (agent.schedule) entry.schedule = agent.schedule;
-      if (approxSchedule) entry.approxSchedule = true;
+      if (unsupportedSchedule) entry.unsupportedSchedule = true;
       if (kind === 'event') {
         entry.triggers = agent.triggers ?? (agent.trigger ? [agent.trigger] : []);
       }

@@ -81,6 +81,7 @@ import {
 } from './github.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { extractWorkersAiUsage } from './telemetry.js';
+import { ShipTranscript, runCaptured, type TranscriptPhase } from './transcript-capture.js';
 import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
@@ -115,6 +116,7 @@ import {
 } from './purser-rerun.js';
 import {
   runTestsInSandbox,
+  sandboxCoordinationEnrollmentFromEnv,
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
@@ -587,6 +589,10 @@ async function purserAiCall(
    */
   stepModel?: string,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
+  /** Which pipeline stage this call serves, for the transcript's phase chip. */
+  phase: TranscriptPhase = 'purser',
 ): Promise<{ text: string; res: unknown }> {
   const request = {
     messages: [
@@ -597,11 +603,14 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   await assertCurrentHead(`before pd-${ship.name} Purser model call`);
-  const res = await aiCircuit.run(() =>
-    env.AI.run(
-      (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
-      request,
-      aiOptions(env, ship.name),
+  const model = stepModel ?? ship.cfModel;
+  const res = await runCaptured(capture, { phase, model }, request, () =>
+    aiCircuit.runForShip(ship.name, () =>
+      env.AI.run(
+        model as Parameters<typeof env.AI.run>[0],
+        request,
+        aiOptions(env, ship.name),
+      ),
     ),
   );
   await assertCurrentHead(`after pd-${ship.name} Purser model call`);
@@ -887,6 +896,7 @@ async function rerunExistingTests(
   files: StackedFile[],
   testPr: { number: number; url: string },
   reason: string,
+  runId: string,
   verifiedExecutability?: ExecutabilityResult,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<ShipResult> {
@@ -935,6 +945,10 @@ async function rerunExistingTests(
     headSha: prCtx.headSha,
     files,
     token,
+    coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+      project: `${prCtx.owner}/${prCtx.repo}`,
+      runId,
+    }),
   });
   await assertCurrentHead(`after pd-${ship.name} reused-tests sandbox`);
 
@@ -1015,6 +1029,12 @@ export async function runPurser(
   providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
   /** Fail-closed live-head proof around model work and publication. */
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  /**
+   * Raw pd-transcript.v1 session buffer for THIS ship attempt (null ⇒ capture
+   * off). Created and flushed by the orchestrator in execute.ts; the purser
+   * only records into it via {@link purserAiCall}'s runCaptured wrapper.
+   */
+  capture: ShipTranscript | null = null,
 ): Promise<ShipResult> {
   // The BROKEN-SHIP result (see the module doc): the purser's machinery failed
   // to do its job, so it says so under its REAL blocking flag. `errored: true`
@@ -1123,6 +1143,7 @@ export async function runPurser(
         reused.files,
         reused.testPr,
         rerunNote ?? '',
+        runId,
         verifiedReuse,
         assertCurrentHead,
       );
@@ -1156,6 +1177,8 @@ export async function runPurser(
               aiCircuit,
               model,
               assertCurrentHead,
+              capture,
+              'repair',
             )
           ).text,
         validate,
@@ -1185,6 +1208,8 @@ export async function runPurser(
       aiCircuit,
       undefined,
       assertCurrentHead,
+      capture,
+      'steelman',
     );
     let steelText = steelCall.text;
     let steel = parseSteelMan(steelText);
@@ -1265,6 +1290,8 @@ export async function runPurser(
       aiCircuit,
       ship.cfPlanModel,
       assertCurrentHead,
+      capture,
+      'plan',
     );
 
     // FAST PATH: a model that ignored "plan only" and returned complete files
@@ -1379,6 +1406,8 @@ export async function runPurser(
           aiCircuit,
           ship.cfAuthorModel,
           assertCurrentHead,
+          capture,
+          'author',
         );
         return call.text;
       });
@@ -1578,6 +1607,8 @@ export async function runPurser(
             // the repair down with it.
             REPAIR_ESCALATION_MODEL,
             assertCurrentHead,
+            capture,
+            'author',
           );
           return call.text;
         },
@@ -1681,6 +1712,10 @@ export async function runPurser(
       headSha: prCtx.headSha,
       files,
       token,
+      coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+        project: `${prCtx.owner}/${prCtx.repo}`,
+        runId,
+      }),
     });
     await assertCurrentHead(`after pd-${ship.name} authored-tests sandbox`);
     await transcript.step(

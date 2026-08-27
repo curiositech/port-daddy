@@ -6,6 +6,7 @@
  * idempotency key for the whole pipeline.
  */
 
+import type { CoordinationGrantServiceContract } from '../../../lib/coordination-grant-contract.js';
 import type { PortDaddyTelemetryEnv } from './telemetry.js';
 
 export interface ExecutorEnv extends PortDaddyTelemetryEnv {
@@ -42,6 +43,15 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Workers AI binding. */
   AI: Ai;
   /**
+   * OPTIONAL R2 bucket (`fleet-transcripts`) holding each ship's raw
+   * pd-transcript.v1 session capture — one JSONL object per (run, ship,
+   * attempt), written once at ship completion by
+   * src/transcript-capture.ts's flushShipTranscript. Absent ⇒ capture is
+   * dark and every ship runs exactly as before: the transcript layer is
+   * evidence, never a dependency (docs/FLEET-SESSION-TRANSCRIPTS.md).
+   */
+  TRANSCRIPTS?: R2Bucket;
+  /**
    * OPTIONAL Cloudflare Sandbox binding (Containers beta, `@cloudflare/sandbox`)
    * used by the purser ship to EXECUTE its authored adversarial tests against
    * the PR head. Deliberately typed `unknown` and duck-typed in
@@ -50,6 +60,15 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * test results. See the commented block in wrangler.toml.example.
    */
   SANDBOX?: unknown;
+  /** Relay origin hosting the ADR-0092 coordination sync route. */
+  PORT_DADDY_COORDINATION_URL?: string;
+  /**
+   * Relay's service-binding-only grant issuer. Fleet derives the project and
+   * actor from verified run context, then asks for one short-lived macaroon
+   * immediately before booting the real sandbox daemon. No static shared
+   * coordination credential is stored on the executor.
+   */
+  COORDINATION_GRANTS?: CoordinationGrantServiceContract;
   /**
    * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
    * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is

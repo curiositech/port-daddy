@@ -78,7 +78,7 @@ export interface DispatchWorkerOptions {
    */
   backend?: RunnerOptions['backend'];
   /**
-   * Cross-backend failover (ADR-0121). Default OFF.
+   * Cross-backend failover (ADR-0131). Default OFF.
    *
    * The daemon worker is the caller that should have it — it runs unattended,
    * which is exactly the situation where a backend outage otherwise means the

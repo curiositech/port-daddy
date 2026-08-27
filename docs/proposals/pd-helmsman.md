@@ -75,19 +75,19 @@ worker (`lib/dispatch/worker.ts`), `merge_policy: 'review'`. Helmsman ships
 projection of WorkIntents (`captureDispatch`, deterministic
 `dispatchIdForWorkIntent`), so riding the compat path adds zero new launch
 verbs and zero independent state. The migration trigger is recorded in
-ADR-0121: when the WorkPlanner lands, Helmsman switches to direct
+ADR-0131: when the WorkPlanner lands, Helmsman switches to direct
 `WorkIntentService.create` with `source.kind: 'schedule'` — the union member
 that exists today with zero producers. To keep the compat path from
 ossifying, **H2 is contractually gated on the WorkPlanner landing** — autonomy
 scale-up pays for the governance layer.
 
-**Trust ladder** (full contract in ADR-0121):
+**Trust ladder** (full contract in ADR-0131):
 
 | Rung | Behavior | Merge | Enter | Demote |
 |---|---|---|---|---|
 | **H0** propose-only | Daily sortie plan: ≤3 eligible items with score, budget, acceptance gate, as a consent card; executes nothing without per-item approve/modify/reject | n/a | charter lands | — |
 | **H1** dispatch | Auto-proposes eligible items into dispatch; PRs open under `merge_policy: 'review'` | operator / authorized paths | first time: operator command after 10 clean H0 approvals; re-entry after demotion: 10 clean receipts auto-promote | reverted PR, budget breach, red adversarial verdict → H0 |
-| **H2** bounded auto-merge | `merge_policy: 'auto'` for bounded classes (docs-only, tests-only, roadmap-sync) through the existing `lib/dispatch/auto-merge.ts` gate + never-list | auto-merge gate | first time: operator command; requires 10 clean H1 receipts AND the WorkPlanner landed AND ADR-0122 merged AND the steer verb live | any auto-merged revert → class removed, back to H1 |
+| **H2** bounded auto-merge | `merge_policy: 'auto'` for bounded classes (docs-only, tests-only, roadmap-sync) through the existing `lib/dispatch/auto-merge.ts` gate + never-list | auto-merge gate | first time: operator command; requires 10 clean H1 receipts AND the WorkPlanner landed AND ADR-0132 merged AND the steer verb live | any auto-merged revert → class removed, back to H1 |
 
 Promotion policy (operator decision 2026-08-22): the **first** promotion to
 each rung is an explicit operator command; thereafter N-clean-receipts
@@ -104,9 +104,9 @@ bypass. If H0 approvals go stale >7 days, Helmsman self-pauses rather than
 nagging.
 
 **Helmsman never merges directly at any rung.** It sets `merge_policy`;
-landing belongs to the authorized paths of ADR-0122.
+landing belongs to the authorized paths of ADR-0132.
 
-### 2. Issues, interpreted separately from the roadmap (ADR-0123)
+### 2. Issues, interpreted separately from the roadmap (ADR-0133)
 
 Three moves, in order:
 
@@ -146,7 +146,7 @@ references on merged PRs.
   `lib/adr-matrix.ts` is a complete, tested, pure transform with zero callers.
   Add `POST /adr/sync` + `pd adr sync`, and run it as a step in the existing
   Cartographer fleet lane so the lane finally writes **rows**, not markdown.
-  Immediate payoff: ADR-0121–0124's own Implementation Matrices become live
+  Immediate payoff: ADR-0131–0134's own Implementation Matrices become live
   roadmap rows.
 - **"Now" triage**: 103 → ≤10. Cartographer pre-scores all current "now"
   items with the seven lenses; the operator confirms a top-10; everything else
@@ -164,7 +164,7 @@ references on merged PRs.
   reconciled in the same slice. "How are we doing on the binder" becomes
   `pd roadmap list --source binder:*` — a query, not an archaeology dig.
 
-### 4. Merge authority (ADR-0122)
+### 4. Merge authority (ADR-0132)
 
 Amend ADR-0109 to enforceable reality; add a detective control; do **not**
 build the macaroon now (that would repeat the built-tested-unwired pattern).
@@ -229,7 +229,7 @@ daemon cannot enforce):
 - Every in-flight lane shows the anti-Infinite-Spinner set: heartbeat, current
   step, spend meter, cancel, inspectable transcript.
 
-### OX-2 · Jumping into agents (ADR-0124, part 1)
+### OX-2 · Jumping into agents (ADR-0134, part 1)
 
 Ship the two verbs that can be honest: **interrupt** (C4) and **steer** (C3).
 Pause/checkpoint/fork stay unrendered until a backend supports them; kill
@@ -255,7 +255,7 @@ Per-backend honesty:
 Sequencing: H1 depends on the interrupt verb landing; H2 additionally on
 steer — autonomous merging without mid-flight steering is operator-hostile.
 
-### OX-3 · Approving new agents (ADR-0124, part 2)
+### OX-3 · Approving new agents (ADR-0134, part 2)
 
 One consent transport: `lib/fleet/approval-stream.ts` (its own header invites
 the convergence). `PendingApproval` gains `kind: 'trust-gate-spawn' |
@@ -317,7 +317,7 @@ unwired; the daemon reports disconnected; doctrine D9 forbids pretending
 otherwise. The deferred chain is named, not scheduled:
 `relay-client-wiring` → `helmsman-receipts-to-relay` (X2 harbor co-members
 see Helmsman receipts) → `multi-operator-helm-command` (the Helm and its
-succession decide who commands; doctrine D6 one-decider — ADR-0121 names
+succession decide who commands; doctrine D6 one-decider — ADR-0131 names
 exactly one operator identity holding promotion/demotion/never-list
 authority; co-members see, never command; the Helm governs relay artifacts,
 never remote machines).
@@ -345,7 +345,7 @@ on another.
   block, flip the flag) and `agy-squid-adapter` (new) authors + verifies the
   agy adapter. Until a backend's adapter is verified it runs at a
   **disclosed capability tier**: the lane shows "harness: none — controls
-  limited" and ADR-0124's per-backend matrix decides which controls render
+  limited" and ADR-0134's per-backend matrix decides which controls render
   enabled. Injection-or-refuse applies only when the selected backend claims
   a verified adapter and injection fails.
 - **Failover = resume, never restart** (slug `helmsman-backend-failover`,
@@ -456,10 +456,10 @@ the fourth — Helmsman must be selector-driven before it dispatches anything.
 | `work-intake-node-shaping` | legacy verbs are compat metadata into one WorkIntent funnel, never a second launch path | ship on dispatch-compat *because* it already projects into WorkIntentService; migration trigger recorded |
 | `product-roadmap-focus` | smallest visible slice; the not-now list is load-bearing | the 103→≤10 triage; the explicit not-harvested list; MVP line at P0+P1 |
 | `architecture-binder-of-record` | capability = owner + gate + evidenceLink; append-only AoR ledger every run | committed-file aor-log; the first entry ships in this PR |
-| `human-gate-designer` | gate before irreversible; four-state with Modify; cost/confidence on the card | the trust ladder; ADR-0124's card contract; force-zoom set |
+| `human-gate-designer` | gate before irreversible; four-state with Modify; cost/confidence on the card | the trust ladder; ADR-0134's card contract; force-zoom set |
 | `agent-issue-tracker-workflow` | search before creating; close with evidence | existing slugs rescoped in place; every issue close carries `mined:`/`dup-of:`/PR evidence |
 | `operator-surface-authority-designer` | one surface per capability; no unenforceable controls | OX-1 ownership split; controls disabled-with-reason when conformance is stale |
-| `agent-control-command-contract` | distinct verbs, full lifecycle, authoritative authz | ADR-0124 verb set, leased lifecycle, witness-based acks |
+| `agent-control-command-contract` | distinct verbs, full lifecycle, authoritative authz | ADR-0134 verb set, leased lifecycle, witness-based acks |
 
 ## Risks (called out, not hand-waved)
 
@@ -492,5 +492,5 @@ the fourth — Helmsman must be selector-driven before it dispatches anything.
   parks the worktree as salvage first.
 - **Backend capability tiers can mislead** — a lane must never render a
   control the selected backend cannot honor; the tier chip
-  ("harness: none — controls limited") and ADR-0124's matrix are the
+  ("harness: none — controls limited") and ADR-0134's matrix are the
   disclosure, enforced daemon-side.

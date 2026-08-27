@@ -72,18 +72,49 @@ function changedMarkdown() {
   const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
     cwd: REPO, encoding: 'utf8',
   })
-  return out.split('\n').filter((f) => f.endsWith('.md') && !isFixture(f))
+  return out.split('\n').filter((f) => f.endsWith('.md') && !isFixture(f) && !isRetired(f))
 }
 
 function allMarkdown() {
   const out = execFileSync('git', ['ls-files', '*.md'], { cwd: REPO, encoding: 'utf8' })
-  return out.split('\n').filter((f) => f && !isFixture(f))
+  return out.split('\n').filter((f) => f && !isFixture(f) && !isRetired(f))
 }
 
 // Test fixtures intentionally contain broken citations; they are scanned only when
 // passed explicitly (by the unit test), never by the changed-files / --all sweeps.
 function isFixture(f) {
   return f.includes('tests/fixtures/')
+}
+
+/**
+ * Documents formally retired by an ADR (docs/retirement-manifest.json).
+ *
+ * A retired plan's citations are a record of what the repo looked like when it
+ * was written, not a claim about now. V4-DAG.md cites `lib/hlc.ts` and
+ * `lib/sync-protocol.ts` because Part XVII was the plan then; ADR-0049 rejected
+ * that plan and the files were never built. Repairing those paths would be
+ * editing history to make a dead document look current, which is the opposite
+ * of what retiring it was for — and this gate's own rule is "enforce what you
+ * touch", so adding a retirement banner would otherwise make every stale
+ * citation in the body the retiring PR's problem.
+ *
+ * The banner is NOT exempt: doc-retirement-guard.mjs requires every link inside
+ * it to resolve from the file's own directory. So the part a reader needs — the
+ * pointer to what replaced this — stays enforced, and only the history is let
+ * be. Same posture as isFixture: skipped in the sweeps, still scanned when the
+ * path is passed explicitly, so the unit test can exercise it.
+ */
+let retiredCache = null
+function isRetired(f) {
+  if (retiredCache === null) {
+    try {
+      const raw = readFileSync(join(REPO, 'docs', 'retirement-manifest.json'), 'utf8')
+      retiredCache = new Set(Object.keys(JSON.parse(raw).retired ?? {}))
+    } catch {
+      retiredCache = new Set()
+    }
+  }
+  return retiredCache.has(f)
 }
 
 function hasProposalMarker(line) {

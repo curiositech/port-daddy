@@ -1,5 +1,6 @@
 import { birthCharter, reviseCharter } from './charter.js';
-import { appendDeckLog, readDeckLog } from './ledgers.js';
+import { appendDeckLog } from './ledgers.js';
+import { readStewardDeckLog } from '../../shared/steward-ledgers.js';
 import { landFailKey, shipItKey, SHIPIT_PREFIX, type ShipItGrant } from './landing.js';
 import {
   ackClusterfudge,
@@ -52,6 +53,14 @@ export class StewardDO {
   static readonly HEARTBEAT_MS = 6 * 3600_000;
   /** Bounded size of the DO-storage fallback ring used when D1 is unreachable. */
   static readonly FALLBACK_RING_MAX = 50;
+  /**
+   * How long without a wake means the seat is dead rather than merely idle.
+   *
+   * Two heartbeats: one missed beat is a delivery hiccup the platform may
+   * still recover from, two is a pulse that stopped. The watchdog only acts
+   * past this line so it can never mistake a healthy quiet seat for a corpse.
+   */
+  static readonly STALE_WAKE_MS = 2 * StewardDO.HEARTBEAT_MS;
 
   /**
    * Standard DO constructor.
@@ -112,7 +121,77 @@ export class StewardDO {
     if (request.method === 'POST' && url.pathname === '/clusterfudge/ack') {
       return this.handleClusterfudgeAck(request);
     }
+    if (request.method === 'POST' && url.pathname === '/pulse') {
+      return this.handlePulse(repo);
+    }
     return json({ error: 'not found' }, 404);
+  }
+
+  /**
+   * The starter motor and the watchdog — ensure an alarm is armed.
+   *
+   * WHY THIS EXISTS (the P1 gap this PR closes): {@link alarm} re-arms itself
+   * at the heartbeat cadence on its way out, so a *running* seat keeps its own
+   * pulse forever. But the only code that ever sets a FIRST alarm is
+   * {@link handleWake}, and until something wakes the seat there is nothing to
+   * re-arm — the heartbeat is a perpetual-motion machine with no starter. That
+   * is not a theory: P1 shipped deployed and commissioned, and production D1
+   * held **zero** `steward_deck_log` rows, because nothing had ever POSTed
+   * `/wake`. §5.3 makes the deck log the seat's vital sign; a seat that can
+   * never write one is indistinguishable from a dead one *because it is one*.
+   *
+   * The same call is also the watchdog. A DO alarm can be lost — a failed
+   * delivery, an evicted object, a migration — and the loss is silent by
+   * construction, since the thing that would have reported it is the wake that
+   * did not happen. Nothing else in the seat can notice that; only an outside
+   * clock can. So this checks liveness by the one fact that cannot lie about
+   * it — when the seat last actually woke — rather than by whether an alarm
+   * *appears* to be scheduled.
+   *
+   * DELIBERATELY NOT A WAKE: this arms the alarm and writes no inbox event, so
+   * the resulting entry is an honest `all-quiet` heartbeat rather than a `wake`
+   * over a synthetic stimulus the seat never received. The pulse must not
+   * forge the vital sign it exists to restore.
+   *
+   * IDEMPOTENT AND CHEAP: on a healthy seat an alarm is always armed, so this
+   * reads two keys and returns. That is what lets the cron run far more often
+   * than the heartbeat — frequent checking buys faster recovery without
+   * causing a single extra wake.
+   *
+   * @param repo - The repo this seat is bound to, echoed for the cron's log line.
+   * @returns 200 with whether an alarm was armed and the reason.
+   */
+  private async handlePulse(repo: string): Promise<Response> {
+    const now = Date.now();
+    const alarmAt = await this.state.storage.getAlarm();
+    const lastWakeAt = (await this.state.storage.get<number>(StewardDO.KEY_LAST_WAKE_AT)) ?? null;
+    // Overdue is judged on last ACTUAL wake, never on the alarm's presence: a
+    // scheduled-but-undelivered alarm is precisely the failure being caught,
+    // and it looks perfectly healthy to getAlarm().
+    const overdueBy = lastWakeAt === null ? 0 : now - lastWakeAt;
+    const stalled = lastWakeAt !== null && overdueBy > StewardDO.STALE_WAKE_MS;
+
+    let reason: string;
+    if (alarmAt === null && lastWakeAt === null) {
+      reason = 'cold seat: no alarm has ever been armed — starting the heartbeat';
+    } else if (alarmAt === null) {
+      reason = `alarm missing ${Math.round(overdueBy / 60_000)}m after the last wake — re-arming`;
+    } else if (stalled) {
+      reason =
+        `alarm armed but no wake in ${Math.round(overdueBy / 3_600_000)}h ` +
+        `(limit ${StewardDO.STALE_WAKE_MS / 3_600_000}h) — forcing a beat`;
+    } else {
+      return json({
+        repo,
+        armed: false,
+        reason: 'healthy: an alarm is armed and the last wake is within the heartbeat window',
+        alarmAt,
+        lastWakeAt,
+      });
+    }
+
+    await this.state.storage.setAlarm(now);
+    return json({ repo, armed: true, reason, alarmAt, lastWakeAt });
   }
 
   /**
@@ -188,7 +267,7 @@ export class StewardDO {
     const lastWakeAt = (await this.state.storage.get<number>(StewardDO.KEY_LAST_WAKE_AT)) ?? null;
     const fallback =
       (await this.state.storage.get<DeckLogEntry[]>(StewardDO.KEY_FALLBACK_LOG)) ?? [];
-    const recentLog = await readDeckLog(this.env.DB, repo, 5);
+    const recentLog = await readStewardDeckLog(this.env.DB, repo, 5);
     const grants = await this.state.storage.list<ShipItGrant>({ prefix: SHIPIT_PREFIX });
     const breaker = await readClusterfudge(this.state.storage);
     return json({
@@ -198,6 +277,13 @@ export class StewardDO {
       charter: charter ?? null,
       pendingWakes: inbox.size,
       lastWakeAt,
+      // Is the clock actually wound? `lastWakeAt` says when the seat last beat;
+      // this says whether it is going to beat again. The two answer different
+      // questions and the difference is the whole P1 PR 5 incident: a seat can
+      // have woken recently and still be dead, because nothing re-armed it.
+      // Null here is the signature of a stopped pulse — the one field that
+      // would have made "deployed but never running" visible from one GET.
+      alarmAt: await this.state.storage.getAlarm(),
       degraded,
       fallbackEntries: fallback.length,
       recentDeckLog: recentLog,

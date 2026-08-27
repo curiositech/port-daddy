@@ -39,7 +39,7 @@ Introduce each symbol here, at first point of use, bound to the scene's referent
 Every reported number carries one of two tags, visibly:
 - **[verified]** — externally checkable (textbook value, closed form the reader can recompute): e.g., ρ* = G/(dB); R(0) = H(p).
 - **[internal, seed/script]** — regenerates from a named script and seed (program convention: seed 20260816): e.g., "0/16 floor violations [internal, a7_experiment.py]"; "536 reachable states [internal, c0_workunit.py]".
-Never let a reader confuse the two; the exposition-research audit showed outside readers cannot distinguish them unaided. Wrong-turn numbers (the 8/16 spurious violations) are reported, not hidden — see falsification-first.
+Never let a reader confuse the two; the exposition-research audit showed outside readers cannot distinguish them unaided. Wrong-turn numbers (the 8/14 spurious violations) are reported, not hidden — see falsification-first.
 
 ## Done-tests (both must pass before shipping)
 1. **Expert test**: express lane + box alone state the result completely and correctly.

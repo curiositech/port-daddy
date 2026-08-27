@@ -35,7 +35,11 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Project, SyntaxKind, type ObjectLiteralExpression } from 'ts-morph'
-import { WHITE_PAPERS } from '../src/data/whitePapers'
+import { COLLECTED_VOLUME, WHITE_PAPERS } from '../src/data/whitePapers'
+
+// The collected volume is a publication artifact, not an eighth chapter, but
+// its page and byte metadata must obey the same drift guard.
+const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS]
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const websiteRoot = resolve(__dirname, '..')
@@ -269,14 +273,16 @@ function main(argv: string[]): number {
 
   let reports: DriftReport[]
   try {
-    reports = detectDrift(WHITE_PAPERS)
+    reports = detectDrift(PUBLISHED_WHITEPAPER_PDFS)
   } catch (err) {
     console.error(`Whitepaper metadata check failed: ${(err as Error).message}`)
     return 1
   }
 
   if (reports.length === 0) {
-    console.log(`Whitepaper metadata in sync (${WHITE_PAPERS.length} papers checked).`)
+    console.log(
+      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + 1 collected volume checked).`,
+    )
     return 0
   }
 

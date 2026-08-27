@@ -11,6 +11,15 @@ import type { DeckLogEntry, MergeLedgerEntry } from './types.js';
  * Every write reports success honestly: a missing binding or a thrown D1
  * error returns `false` so the caller can raise its degraded flag, because a
  * ledger that silently drops entries is worse than no ledger at all.
+ *
+ * WRITES ONLY. The reads used to live here too, and when P1 PR 6 needed them
+ * from `apps/relay` they were copied into `apps/shared/steward-ledgers.ts`
+ * rather than moved — leaving two SELECTs over the same two tables, which is
+ * precisely the drift that module's own docstring exists to forbid. The copies
+ * are gone; every reader in both Workers now goes through the shared module.
+ * What stays here is what ADR-0109 says must: the seat is the single WRITER of
+ * its own history, and that is a property a shared write path would destroy.
+ * A shared reader cannot violate single-writer; a shared writer can.
  */
 
 /**
@@ -43,49 +52,17 @@ export async function appendDeckLog(db: D1Database | undefined, entry: DeckLogEn
 }
 
 /**
- * Read the most recent deck-log entries for a repo, newest first.
+ * Append one merge-ledger verdict row — the repo's merge history of record.
  *
- * PURPOSE: feeds /status and (later) the console's deck-log pane. Bounded by
- * `limit` because the log is permanent — an unbounded read would grow without
- * limit as the seat ages, and no caller ever needs more than a page.
- *
- * @param db - The D1 binding, or undefined when the seat runs unbound.
- * @param repo - `owner/repo` the seat serves.
- * @param limit - Maximum rows to return (defaults to 20).
- * @returns Entries newest-first; empty array when unbound or on error.
- */
-export async function readDeckLog(
-  db: D1Database | undefined,
-  repo: string,
-  limit = 20,
-): Promise<DeckLogEntry[]> {
-  if (!db) return [];
-  try {
-    const res = await db
-      .prepare(
-        `SELECT repo_full_name, entry_kind, summary, detail, wake_events, created_at
-         FROM steward_deck_log WHERE repo_full_name = ? ORDER BY id DESC LIMIT ?`,
-      )
-      .bind(repo, limit)
-      .all();
-    return (res.results ?? []).map(rowToDeckLog);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Append one merge-ledger verdict row.
- *
- * DESIGN NOTE: nothing writes verdicts in the scaffold — the tick (P1 PR 2)
- * is the first caller. Landing the write path now, tested, means the tick PR
- * changes behavior without also changing the ledger contract, which keeps
- * each PR reviewable on one axis. The verdict vocabulary is CHECK-constrained
- * in the schema as well as typed here: defense at both layers because this
- * table is the repo's merge history of record.
+ * SAME FAIL-SOFT RATIONALE as {@link appendDeckLog}, with one addition: this
+ * table is the answer to "why did the Steward merge that", so the verdict
+ * vocabulary is CHECK-constrained in the schema as well as typed here.
+ * Defense at both layers, because a row that lands with a verdict nobody can
+ * interpret is worse than a row that never lands — the first corrupts the
+ * record, the second only shortens it, and the caller is told either way.
  *
  * @param db - The D1 binding, or undefined when the seat runs unbound.
- * @param entry - The verdict; `createdAt` is epoch seconds.
+ * @param entry - The rendered verdict; `createdAt` is epoch seconds.
  * @returns True when the row landed in D1; false on missing binding or error.
  */
 export async function appendMergeVerdict(
@@ -105,80 +82,4 @@ export async function appendMergeVerdict(
   } catch {
     return false;
   }
-}
-
-/**
- * Read the most recent merge-ledger rows for a repo, newest first.
- *
- * MOTIVATION: the console's "view merge ledger" action (§10) and the tick's
- * own land-fail-loop tripwire both read this projection; bounding it keeps
- * the query cheap forever.
- *
- * @param db - The D1 binding, or undefined when the seat runs unbound.
- * @param repo - `owner/repo` the seat serves.
- * @param limit - Maximum rows to return (defaults to 20).
- * @returns Entries newest-first; empty array when unbound or on error.
- */
-export async function readMergeLedger(
-  db: D1Database | undefined,
-  repo: string,
-  limit = 20,
-): Promise<MergeLedgerEntry[]> {
-  if (!db) return [];
-  try {
-    const res = await db
-      .prepare(
-        `SELECT repo_full_name, pr_number, verdict, evidence, requested_by, created_at
-         FROM steward_merge_ledger WHERE repo_full_name = ? ORDER BY id DESC LIMIT ?`,
-      )
-      .bind(repo, limit)
-      .all();
-    return (res.results ?? []).map(rowToMergeLedger);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Map a raw D1 row onto the typed deck-log record.
- *
- * WHY EXPLICIT MAPPING: D1 returns loosely-typed objects keyed by column
- * name; mapping at the boundary keeps snake_case confined to SQL and lets the
- * rest of the seat speak only the typed contract in types.ts.
- *
- * @param row - One row from steward_deck_log.
- * @returns The typed entry.
- */
-function rowToDeckLog(row: Record<string, unknown>): DeckLogEntry {
-  return {
-    repo: String(row.repo_full_name),
-    entryKind: row.entry_kind === 'all-quiet' ? 'all-quiet' : 'wake',
-    summary: String(row.summary),
-    detail: String(row.detail),
-    wakeEvents: Number(row.wake_events),
-    createdAt: Number(row.created_at),
-  };
-}
-
-/**
- * Map a raw D1 row onto the typed merge-ledger record.
- *
- * Same boundary-mapping rationale as {@link rowToDeckLog}; the verdict falls
- * back to SURFACE on an unrecognized value because SURFACE is the only
- * verdict that is always safe to over-report — it hands the decision to a
- * human rather than inventing authority.
- *
- * @param row - One row from steward_merge_ledger.
- * @returns The typed entry.
- */
-function rowToMergeLedger(row: Record<string, unknown>): MergeLedgerEntry {
-  const v = String(row.verdict);
-  return {
-    repo: String(row.repo_full_name),
-    prNumber: Number(row.pr_number),
-    verdict: v === 'LAND' || v === 'NEEDS-WORK' ? v : 'SURFACE',
-    evidence: String(row.evidence),
-    requestedBy: String(row.requested_by),
-    createdAt: Number(row.created_at),
-  };
 }

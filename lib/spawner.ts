@@ -283,6 +283,13 @@ export interface SpawnedAgent {
   purpose: string | null;
   startedAt: number;
   completedAt: number | null;
+  /**
+   * Coast Guard's completion receipt, when this backend produced one.
+   *
+   * Absent is meaningful: API-only and otherwise unsupported backends do not
+   * manufacture a confinement/egress claim for the operator surface.
+   */
+  coastGuard?: CoastGuardReceipt;
 }
 
 export interface TelemetryBypassApproval {
@@ -2652,6 +2659,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     record.status = status;
     record.completedAt = completedAt;
     record.childProcess = null;
+    // The result already carries this receipt, but the daemon's /spawn history
+    // is built from AgentRecord. Keep the same evidence after completion so
+    // FleetBar can show the actual mechanism and metered egress totals. Do not
+    // synthesize a null receipt: unavailable evidence must stay absent.
+    if (coastGuardReceipt) record.coastGuard = coastGuardReceipt;
 
     if (record.heartbeatInterval) {
       clearInterval(record.heartbeatInterval);
@@ -2697,7 +2709,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // Final-answer-only backends (API calls): one assistant turn.
         txAssistant(transcriptId, output, completedAt);
       }
-      if (error) {
+      if (error && !wasKilled) {
         // Record the error itself as a final turn so operators see why the run
         // failed without having to cross-reference status.
         txAssistant(transcriptId, `[error] ${error}`, completedAt);
@@ -2816,6 +2828,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: r.purpose,
       startedAt: r.startedAt,
       completedAt: r.completedAt,
+      ...(r.coastGuard ? { coastGuard: r.coastGuard } : {}),
     }));
   }
 

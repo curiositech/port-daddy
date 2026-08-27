@@ -9,6 +9,7 @@
 //      /spawn returns {status: 'spawned'} -- callbacks are dead code
 
 import { jest } from '@jest/globals';
+import { spawnSync as realSpawnSync } from 'node:child_process';
 import { readFileSync as realReadFileSync } from 'node:fs';
 import { join as realJoin } from 'node:path';
 import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
@@ -81,7 +82,8 @@ jest.unstable_mockModule('yaml', () => ({
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+const { parseFleetSource, astToConfig } = await import('../../lib/fleet-ast.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { resolveModel } = await import('../../lib/model-registry.js');
 const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
@@ -194,36 +196,41 @@ afterEach(() => {
 
 // ─── Bug 1: */0 cron produces 0ms interval ───────────────────────────────────
 
-test('BUG 1: schedule */0 * * * * produces 0ms setInterval (runaway)', () => {
+test('BUG 1: schedule */0 * * * * is refused instead of arming a runaway timer', () => {
   const config = makeConfig({ schedule: '*/0 * * * *' });
-  const runner = createFleetRunner(config, '/tmp/proj');
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   runner.startAgent(config.agents[0]);
 
-  const calls = setIntervalSpy.mock.calls;
-  expect(calls.length).toBeGreaterThan(0);
-  const intervalMs = calls[0][1];
-  // 0ms or NaN both cause runaway — neither is a valid schedule
-  expect(intervalMs).toBeGreaterThan(0);
-  expect(Number.isFinite(intervalMs)).toBe(true);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'agent_failed',
+    details: expect.objectContaining({ error: expect.stringContaining('unsupported cron schedule') }),
+  }));
+  errSpy.mockRestore();
 });
 
 // ─── Bug 2: */abc cron produces NaN interval ─────────────────────────────────
 
-test('BUG 2: schedule */abc * * * * produces NaN setInterval (runaway)', () => {
+test('BUG 2: schedule */abc * * * * is refused instead of arming a NaN timer', () => {
   const config = makeConfig({ schedule: '*/abc * * * *' });
-  const runner = createFleetRunner(config, '/tmp/proj');
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   runner.startAgent(config.agents[0]);
 
-  const calls = setIntervalSpy.mock.calls;
-  expect(calls.length).toBeGreaterThan(0);
-  const intervalMs = calls[0][1];
-  // Must not be NaN — NaN causes Node.js to treat it as 1ms
-  expect(Number.isNaN(intervalMs)).toBe(false);
-  expect(intervalMs).toBeGreaterThan(0);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_failed' }));
+  errSpy.mockRestore();
 });
 
 // ─── Bug 3: YAML array-style agents corrupts names ───────────────────────────
@@ -400,6 +407,37 @@ test('ignores camelCase runOnStart in fleet yaml when run_on_start is false', ()
     schedule: '*/30 * * * *',
     runOnStart: false,
   }));
+});
+
+test('omits disabled and malformed-enabled agents before runtime projection', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'disabled-fleet',
+    agents: {
+      dark: {
+        enabled: false,
+        backend: 'custom',
+        prompt: 'must never run',
+        schedule: '0 1 * * *',
+      },
+      malformed: {
+        enabled: 'false',
+        backend: 'custom',
+        prompt: 'must also never run',
+        schedule: '0 1 * * *',
+      },
+      armed: {
+        enabled: true,
+        backend: 'claude-cli',
+        prompt: 'review',
+        trigger: 'git:committed',
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents.map(agent => agent.name)).toEqual(['armed']);
 });
 
 test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
@@ -1317,16 +1355,23 @@ test('valid cron */10 * * * * returns 600000ms', () => {
   expect(calls[0][1]).toBe(600000);
 });
 
-test('valid cron 0 * * * * returns 3600000ms', () => {
+test('valid cron 0 * * * * arms a setTimeout at the next top of the hour (was a boot-anchored setInterval — same drift bug as the daily-absolute case)', () => {
+  // "0 * * * *" is a fixed-minute pattern ("M * * * *"), one of the two
+  // shapes isAbsoluteCronSchedule/computeNextAbsoluteFireDelayMs now handle.
+  // The old fixed-3600000ms setInterval fired at boot+1h, boot+2h, ... never
+  // converging on wall-clock :00 — the same anchoring defect the named
+  // daily-at-1am bug had, just capped at 59 minutes of drift instead of
+  // firing every 10 minutes. It now gets the same next-fire-time treatment.
+  jest.setSystemTime(new Date(2026, 0, 15, 9, 30, 0, 0)); // 09:30 — 30 min to :00
   const config = makeConfig({ schedule: '0 * * * *' });
   const runner = createFleetRunner(config, '/tmp/proj');
 
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
   runner.startAgent(config.agents[0]);
 
-  const calls = setIntervalSpy.mock.calls;
-  expect(calls.length).toBeGreaterThan(0);
-  expect(calls[0][1]).toBe(3600000);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30 * 60 * 1000);
 });
 
 test('valid cron 0 */4 * * * returns 14400000ms', () => {
@@ -1339,6 +1384,259 @@ test('valid cron 0 */4 * * * returns 14400000ms', () => {
   const calls = setIntervalSpy.mock.calls;
   expect(calls.length).toBeGreaterThan(0);
   expect(calls[0][1]).toBe(14400000);
+});
+
+// ─── Absolute (fixed-clock) cron schedules ───────────────────────────────────
+//
+// Regression coverage for the bug pd-fleet.yml's dispatch-runner precondition
+// notes named: parseCronInterval coerced an absolute hour-of-day schedule
+// ("0 1 * * *") to DEFAULT_INTERVAL, so a daily-at-1am agent's setInterval
+// fired every 10 minutes instead. isAbsoluteCronSchedule/
+// computeNextAbsoluteFireDelayMs now route "M H * * *" and "M * * * *"
+// patterns to a self-re-arming setTimeout chain that fires on the actual
+// next occurrence instead.
+
+describe('isAbsoluteCronSchedule', () => {
+  test('recognizes a fixed daily hour-of-day pattern', () => {
+    expect(isAbsoluteCronSchedule('0 1 * * *')).toBe(true);
+  });
+
+  test('recognizes a fixed minute-of-hour pattern (hour wildcard)', () => {
+    expect(isAbsoluteCronSchedule('15 * * * *')).toBe(true);
+  });
+
+  test('rejects */N step patterns — those stay on the interval fast path', () => {
+    expect(isAbsoluteCronSchedule('*/5 * * * *')).toBe(false);
+    expect(isAbsoluteCronSchedule('0 */4 * * *')).toBe(false);
+  });
+
+  test('rejects a constrained day-of-week field (honest limitation: no calendar walk)', () => {
+    // pd-fleet.yml's tenderfoot ship uses "0 8 * * 1" (Monday 8am). This
+    // module doesn't walk weekdays, so it declines rather than fire on the
+    // wrong day. startAgent refuses the unsupported shape below.
+    expect(isAbsoluteCronSchedule('0 8 * * 1')).toBe(false);
+    // Same honesty for a constrained day-of-month and a fully-pinned date:
+    // any non-'*' calendar field is outside the supported subset.
+    expect(isAbsoluteCronSchedule('0 1 15 * *')).toBe(false);
+    expect(isAbsoluteCronSchedule('0 1 15 6 *')).toBe(false);
+  });
+
+  test('rejects a constrained day-of-month field', () => {
+    expect(isAbsoluteCronSchedule('0 1 15 * *')).toBe(false);
+  });
+
+  test('rejects malformed/too-short input', () => {
+    expect(isAbsoluteCronSchedule('garbage')).toBe(false);
+    expect(isAbsoluteCronSchedule('0 25 * * *')).toBe(false); // hour out of range
+  });
+});
+
+describe('isIntervalCronSchedule', () => {
+  test('recognizes only the supported minute and hour step shapes', () => {
+    expect(isIntervalCronSchedule('*/5 * * * *')).toBe(true);
+    expect(isIntervalCronSchedule('0 */4 * * *')).toBe(true);
+  });
+
+  test('rejects zero, malformed, out-of-range, and calendar-constrained steps', () => {
+    expect(isIntervalCronSchedule('*/0 * * * *')).toBe(false);
+    expect(isIntervalCronSchedule('*/abc * * * *')).toBe(false);
+    expect(isIntervalCronSchedule('*/60 * * * *')).toBe(false);
+    expect(isIntervalCronSchedule('0 */24 * * *')).toBe(false);
+    expect(isIntervalCronSchedule('*/5 * * * 1')).toBe(false);
+  });
+});
+
+describe('computeNextAbsoluteFireDelayMs', () => {
+  test('"0 1 * * *" schedules the next 01:00 later the same day', () => {
+    const now = new Date(2026, 0, 15, 0, 30, 0, 0).getTime(); // Jan 15, 00:30
+    const expected = new Date(2026, 0, 15, 1, 0, 0, 0).getTime() - now;
+    expect(computeNextAbsoluteFireDelayMs('0 1 * * *', now)).toBe(expected);
+  });
+
+  test('"0 1 * * *" rolls to tomorrow\'s 01:00 once today\'s has passed', () => {
+    const now = new Date(2026, 0, 15, 1, 30, 0, 0).getTime(); // Jan 15, 01:30 — past today's tick
+    const expected = new Date(2026, 0, 16, 1, 0, 0, 0).getTime() - now;
+    expect(computeNextAbsoluteFireDelayMs('0 1 * * *', now)).toBe(expected);
+  });
+
+  test('"15 * * * *" schedules the next :15 within the current or next hour', () => {
+    const now = new Date(2026, 0, 15, 9, 45, 0, 0).getTime(); // Jan 15, 09:45 — past this hour's :15
+    const expected = new Date(2026, 0, 15, 10, 15, 0, 0).getTime() - now;
+    expect(computeNextAbsoluteFireDelayMs('15 * * * *', now)).toBe(expected);
+  });
+
+  test('returns null for schedules isAbsoluteCronSchedule rejects', () => {
+    expect(computeNextAbsoluteFireDelayMs('*/5 * * * *')).toBeNull();
+    expect(computeNextAbsoluteFireDelayMs('0 8 * * 1')).toBeNull();
+    expect(computeNextAbsoluteFireDelayMs('garbage')).toBeNull();
+  });
+
+  test('"0 0 * * *" just after midnight schedules the NEXT midnight, never an immediate fire', () => {
+    // The exact boundary: hour 0 with `now` seconds past 00:00 must roll the
+    // day forward (next.getTime() <= now branch), not fire at once or today.
+    const now = new Date(2026, 0, 15, 0, 0, 30, 0).getTime(); // Jan 15, 00:00:30
+    const expected = new Date(2026, 0, 16, 0, 0, 0, 0).getTime() - now;
+    const delay = computeNextAbsoluteFireDelayMs('0 0 * * *', now);
+    expect(delay).toBe(expected);
+    expect(delay).toBeGreaterThan(0);
+  });
+
+  test('"0 0 * * *" one second before midnight fires in exactly one second', () => {
+    const now = new Date(2026, 0, 15, 23, 59, 59, 0).getTime(); // Jan 15, 23:59:59
+    expect(computeNextAbsoluteFireDelayMs('0 0 * * *', now)).toBe(1000);
+  });
+
+  test('"0 0 * * *" at the exact fire instant rolls a full day forward, never zero', () => {
+    // delay 0 would re-fire immediately in a tight loop; <= comparison must
+    // push the equal-instant case to the next day.
+    const now = new Date(2026, 0, 15, 0, 0, 0, 0).getTime(); // Jan 15, 00:00:00.000
+    expect(computeNextAbsoluteFireDelayMs('0 0 * * *', now)).toBe(24 * 60 * 60 * 1000);
+  });
+
+  test('uses host-local Date disambiguation for DST gaps and folds', () => {
+    const childMarker = 'PD_FLEET_DST_TEST_CHILD';
+    if (process.env[childMarker] === '1') {
+      // 02:30 does not exist on this spring-forward day. Date.setHours uses
+      // compatible local-time disambiguation and advances it to 03:30 EDT.
+      const beforeGap = new Date('2026-03-08T00:30:00-05:00').getTime();
+      expect(computeNextAbsoluteFireDelayMs('30 2 * * *', beforeGap)).toBe(2 * 60 * 60 * 1000);
+
+      // 01:30 occurs twice on this fall-back day. Date.setHours chooses the
+      // earlier occurrence (EDT); this helper never enumerates both instants.
+      const beforeFold = new Date('2026-11-01T00:30:00-04:00').getTime();
+      expect(computeNextAbsoluteFireDelayMs('30 1 * * *', beforeFold)).toBe(60 * 60 * 1000);
+      return;
+    }
+
+    // Jest's fake Date retains the timezone active when its worker started,
+    // so run this one case in a fresh Node process whose TZ is fixed before
+    // module load. The child re-enters only this named test and exercises the
+    // production helper above; the marker prevents recursion.
+    const repoRoot = realJoin(import.meta.dirname, '..', '..');
+    const result = realSpawnSync(process.execPath, [
+      '--experimental-vm-modules',
+      realJoin(repoRoot, 'node_modules', 'jest', 'bin', 'jest.js'),
+      'tests/unit/fleet-engine.test.js',
+      '--runInBand',
+      '-t',
+      'uses host-local Date disambiguation for DST gaps and folds',
+    ], {
+      cwd: repoRoot,
+      env: { ...process.env, TZ: 'America/New_York', [childMarker]: '1', PD_USE_CLI_BACKEND: 'none' },
+      encoding: 'utf8',
+    });
+
+    if (result.status !== 0) {
+      throw new Error(`DST child test failed\n${result.stdout}\n${result.stderr}`);
+    }
+  });
+});
+
+test('parseCronInterval retains its direct-call DEFAULT_INTERVAL compatibility', () => {
+  expect(parseCronInterval('garbage')).toBe(600000);
+});
+
+test('startAgent: "0 1 * * *" arms a setTimeout at the next 01:00, not a fixed setInterval', () => {
+  jest.setSystemTime(new Date(2026, 0, 15, 0, 59, 0, 0)); // 1 minute before 01:00
+  const config = makeConfig({ schedule: '0 1 * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+});
+
+test('startAgent: malformed schedule fails closed without a timer or run-on-start', () => {
+  const config = makeConfig({ schedule: 'garbage' });
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_failed' }));
+  errSpy.mockRestore();
+});
+
+test('startAgent: constrained day-of-week "0 8 * * 1" fails closed', () => {
+  const config = makeConfig({ schedule: '0 8 * * 1' });
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'agent_failed',
+    details: expect.objectContaining({ error: expect.stringContaining('0 8 * * 1') }),
+  }));
+  errSpy.mockRestore();
+});
+
+test('startAgent: "*/5 * * * *" keeps the 5-minute setInterval fast path untouched', () => {
+  const config = makeConfig({ schedule: '*/5 * * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy.mock.calls[0][1]).toBe(300000);
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+});
+
+test('startAgent: absolute schedule re-arms a fresh setTimeout after firing', async () => {
+  jest.setSystemTime(new Date(2026, 0, 15, 0, 59, 0, 0)); // 1 minute before 01:00
+  const config = makeConfig({ schedule: '0 1 * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  runner.startAgent(config.agents[0]);
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+
+  setTimeoutSpy.mockClear();
+  global.fetch.mockClear();
+
+  // Fire the 01:00 tick.
+  await jest.advanceTimersByTimeAsync(60000);
+
+  // The scheduled run actually fired...
+  expect(global.fetch).toHaveBeenCalled();
+  const spawnCall = global.fetch.mock.calls.find((c) => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+
+  // ...and the chain re-armed a NEW setTimeout for tomorrow's 01:00 (24h out),
+  // proving stopRunningRecord's single clearInterval(record.interval) call
+  // would still have something live to cancel — this is not a one-shot timer.
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 86400000);
+});
+
+test('startAgent: absolute schedule chain does not re-arm after stopRunningRecord (fleet stopAll)', async () => {
+  jest.setSystemTime(new Date(2026, 0, 15, 0, 59, 0, 0));
+  const config = makeConfig({ schedule: '0 1 * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+  runner.startAgent(config.agents[0]);
+
+  runner.stopAll();
+
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  await jest.advanceTimersByTimeAsync(60000);
+
+  // stopAll() cleared the pending timeout before it could fire, so no
+  // re-arm setTimeout call should ever land.
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
 });
 
 // ─── Topology Validation (CSP DAG Property) ─────────────────────────────────
@@ -1957,4 +2255,110 @@ test('skillGraft that stalls never blocks a spawn: the budget elapses and the sh
     expect.stringContaining('skill-graft exceeded 5ms for agent "test-agent"'),
   );
   errSpy.mockRestore();
+});
+
+// ---------------------------------------------------------------------------
+// pd-fleet.yml dispatch-runner manifest — scheduler support can land without
+// arming the current dispatch artifact path, which still opens draft PRs.
+// Reads the REAL pd-fleet.yml (realReadFileSync bypasses this file's fs mock).
+describe('pd-fleet.yml dispatch-runner manifest (gated nightly entry)', () => {
+  const repoRoot = realJoin(import.meta.dirname, '..', '..');
+  const manifestRaw = realReadFileSync(
+    realJoin(repoRoot, 'pd-fleet.yml'),
+    'utf8',
+  );
+  const manifest = realYamlParse(manifestRaw);
+  const runtimeConfig = astToConfig(parseFleetSource(manifestRaw));
+  const runner = manifest?.fleet?.agents?.['dispatch-runner'];
+  const dispatchBlock = manifestRaw.match(
+    /\n    dispatch-runner:[\s\S]*?(?=\n    # ─── The Purser)/,
+  )?.[0] ?? '';
+
+  test('the reviewed runner stays declaratively disabled while operator review is open', () => {
+    expect(runner).toMatchObject({
+      enabled: false,
+      schedule: '0 1 * * *',
+      backend: 'custom',
+      singleton: true,
+      cooldown_ms: 21_600_000,
+      timeout: 14_400_000,
+      daily_cap_usd: 10,
+      prompt: 'pd dispatch run --next --really-run',
+      identity: '{project}:fleet:dispatch-runner',
+    });
+    expect(manifestRaw).toMatch(/precondition 1 still open and\s+unverified in-repo/i);
+    expect(manifestRaw).toMatch(/nothing here attests to that review having\s+happened/i);
+  });
+
+  test('its documented schedule satisfies the cron-parser precondition this PR closes', () => {
+    // Precondition 3 in the file's own comment block: absolute hour-of-day
+    // support. Executable check — the schedule must be recognized as an
+    // absolute pattern (setTimeout chain), never coerced to DEFAULT_INTERVAL.
+    const documentedSchedule = /schedule:\s+"([^"]+)"/.exec(dispatchBlock)?.[1];
+    expect(documentedSchedule).toBe('0 1 * * *');
+    expect(isAbsoluteCronSchedule(documentedSchedule)).toBe(true);
+    expect(computeNextAbsoluteFireDelayMs(documentedSchedule)).not.toBeNull();
+  });
+
+  test('the real fleet-wide settled-spend threshold remains configured honestly', () => {
+    expect(manifest.fleet.limits.budget_usd_per_day).toBe(8.5);
+    expect(runner.daily_cap_usd).toBe(10);
+    expect(dispatchBlock).toMatch(/review-contract metadata only; not a runtime budget authority/i);
+    expect(manifestRaw).toMatch(/configured fleet-wide settled-spend\s+# threshold checked before each launch/i);
+    expect(manifestRaw).toMatch(/not an atomic reservation;\s+# concurrent starts can oversubscribe it/i);
+    expect(manifestRaw).not.toMatch(/\$8\.50(?:\/day)?\s+ceiling/i);
+    expect(runtimeConfig.limits.budgetUsdPerDay).toBe(8.5);
+    expect(runtimeConfig.agents.map(agent => agent.name)).not.toContain('dispatch-runner');
+  });
+
+  test('the parsed fleet-wide settled-spend threshold is checked before every launch attempt', async () => {
+    const threshold = runtimeConfig.limits.budgetUsdPerDay;
+    const callOrder = [];
+    const budgetStatus = jest.fn(() => {
+      callOrder.push('budget');
+      return {
+        project: 'test-fleet',
+        budgetUsdPerDay: threshold,
+        spentUsd: 1,
+        remainingUsd: threshold - 1,
+        percentUsed: 100 / threshold,
+        overBudget: false,
+      };
+    });
+    global.fetch = jest.fn(async (url, init) => {
+      if (String(url).endsWith('/spawn')) {
+        callOrder.push('spawn');
+        expect(JSON.parse(init.body).budgetUsd).toBe(threshold);
+      }
+      return { ok: true, status: 200, json: async () => ({ agentId: 'abc', status: 'spawned' }) };
+    });
+
+    const config = {
+      ...makeConfig(),
+      limits: { budgetUsdPerDay: threshold },
+    };
+    const runnerWithManifestBudget = createFleetRunner(
+      config,
+      realJoin(repoRoot, '.scratch', 'fleet-budget-test'),
+      {
+        costTracker: { budgetStatus },
+      },
+    );
+
+    await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
+      .resolves.toEqual({ success: true });
+    await expect(runnerWithManifestBudget.hailAgent('test-agent', { source: 'manual' }))
+      .resolves.toEqual({ success: true });
+
+    expect(threshold).toBe(8.5);
+    expect(budgetStatus).toHaveBeenNthCalledWith(1, 'test-fleet', 8.5);
+    expect(budgetStatus).toHaveBeenNthCalledWith(2, 'test-fleet', 8.5);
+    expect(callOrder).toEqual(['budget', 'spawn', 'budget', 'spawn']);
+  });
+
+  test('the remaining blast-radius values stay documented beside the gate', () => {
+    expect(dispatchBlock).toMatch(/singleton:\s+true/);
+    expect(dispatchBlock).toMatch(/timeout:\s+14400000/);
+    expect(dispatchBlock).toMatch(/cooldown_ms:\s+21600000/);
+  });
 });

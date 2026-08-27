@@ -69,6 +69,13 @@ cpu_ms = 300000
 [ai]
 binding = "AI"
 
+# Relay's named, RPC-only ADR-0092 grant issuer. Deploy that named entrypoint
+# before deploying this caller binding. Fleet never stores a static macaroon.
+[[services]]
+binding = "COORDINATION_GRANTS"
+service = "port-daddy-relay"
+entrypoint = "CoordinationGrantService"
+
 # ---------------------------------------------------------------------------
 # KV — installation-token cache. Keyed by `github_inst_<installationId>`,
 # value `{ token, expiresAt }`, TTL set to (expiresAt - 60s). Avoids re-minting
@@ -194,6 +201,11 @@ DEFAULT_BRANCH = "main"
 # copying this template verbatim never points ships at a bogus host. Fill it in
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
+
+# ADR-0092 cloud coordination peer transport. The verified repository and
+# durable Fleet run become the grant's project/actor scope at runtime. Relay
+# remains a peer, never authority: local daemon writes survive its absence.
+PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 
 # Cloud squid — fleet coordination events (src/squid-events.ts). When
 # RELAY_PUBLISH_URL (var) AND the FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX +

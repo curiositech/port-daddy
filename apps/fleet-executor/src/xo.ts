@@ -431,6 +431,8 @@ export async function runXoEditorPass(opts: {
     return { proposals, applied: false, editCount: 0, reason: 'no proposals to edit' };
   }
   try {
+    // transcript-capture: exempt (XO curation pass — run-level, not a ship
+    // conversation; RFC open question #1 defers its capture)
     const call = () => ai.run(
       model as Parameters<typeof ai.run>[0],
       {
@@ -679,6 +681,8 @@ export async function xoOrdersSection(opts: {
   const advisories = opts.advisories.slice(0, XO_MAX_ADVISORIES);
   if (advisories.length === 0) return '';
   try {
+    // transcript-capture: exempt (XO advisory pass — run-level, not a ship
+    // conversation; RFC open question #1 defers its capture)
     const call = () => opts.ai.run(
       opts.model as Parameters<typeof opts.ai.run>[0],
       {

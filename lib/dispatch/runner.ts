@@ -138,7 +138,7 @@ export interface RunnerOptions {
    */
   costFn?: DispatchCostFn;
   /**
-   * Cross-backend failover policy (ADR-0121). Absent → OFF: a failure settles
+   * Cross-backend failover policy (ADR-0131). Absent → OFF: a failure settles
    * exactly as it always did.
    *
    * Off by default on purpose. Failover spends money without an operator in the

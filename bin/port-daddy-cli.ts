@@ -181,6 +181,12 @@ import {
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
 import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
+import {
+  configuredDaemonUrl,
+  configuredDaemonUnavailableMessage,
+  hasExplicitDaemonEndpoint,
+  shouldAutoStartLocalDaemon,
+} from '../cli/utils/remote-daemon.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -191,7 +197,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destruc
 import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
-const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const PORT_DADDY_URL: string = getDaemonTcpUrl(configuredDaemonUrl(process.env));
 // Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
@@ -369,12 +375,12 @@ function printLaunchHints(hints: {
  * Resolve connection target: Unix socket or TCP.
  */
 function resolveTarget(): ConnectionTarget {
+  const explicitUrl = configuredDaemonUrl(process.env);
+  if (explicitUrl) {
+    return resolveDaemonTcpTarget(explicitUrl);
+  }
   if (process.env.PORT_DADDY_FORCE_TCP === '1') {
     return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
-  }
-  // Explicit TCP URL overrides socket
-  if (process.env.PORT_DADDY_URL) {
-    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   // Use socket if it exists
   if (existsSync(SOCK_PATH)) {
@@ -781,6 +787,7 @@ Commands:
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --no-skill-warmup       Skip the detached, local-only Tool2Vec warm-up
     --no-agents             Skip Port Daddy Pilot agent definitions
     --no-harness            Skip Squid hooks and Coordination Guard
     --no-squid-hooks        Skip agent hook installation only
@@ -1384,17 +1391,22 @@ Commands:
     --body-chars <n>             Hard cap per inlined SKILL.md body
     --json                       Emit the structured SkillGraftResult
 
-  skill-graft warm               Rescan skills and precompute Tool2Vec centroids when explicitly configured
+  skill-graft warm               Reconcile a checkpointed Tool2Vec batch
+    --max-skills <n>             Bound this run (default: 32)
+    --all                        Reconcile every current-hash miss
+    --local-only                 Permit only loopback Ollama; reject cloud/remote hosts
   skill-graft reference <id> <path>
                                  Read one file from inside a skill directory
 
 This is the same lib/skill-graft.ts index used by lib/fleet-engine.ts when a
 pd-fleet.yml ship opts into skill_graft: true. Query is safe on a cold cache:
-it scans local skills and ranks via BM25 until Tool2Vec centroids are warmed.
+it scans the full user catalog and ranks via BM25 until Tool2Vec centroids are
+warmed. Setup and daemon callers are local-only. A manual warm may use an
+explicit PD_SKILL_GRAFT_BACKEND; the fleet default is never inherited.
 
 Examples:
   pd skill-graft "write tests for a flaky fleet trigger"
-  pd skill-graft warm --json
+  pd skill-graft warm --local-only --json
   pd skill-graft reference rag-retrieval-pattern-design scripts/audit.mjs`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
@@ -3452,6 +3464,14 @@ export async function main(): Promise<void> {
     await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
     const error = err as Error;
     if (isDaemonUnavailableError(error)) {
+      // An explicitly selected URL/profile is a peer, not a hint to fall back
+      // to this machine. Direct-DB fallback and local auto-start would both
+      // redirect writes into the wrong ledger while that peer is offline.
+      if (hasExplicitDaemonEndpoint(process.env)) {
+        ui.error(configuredDaemonUnavailableMessage(PORT_DADDY_URL));
+        process.exit(1);
+      }
+
       // Daemon unreachable — try direct-DB mode for Tier 1 commands
       if (TIER_1_COMMANDS.has(command)) {
         try {
@@ -3471,7 +3491,7 @@ export async function main(): Promise<void> {
         process.exit(1);
       }
 
-      if (!autoStartAttempted) {
+      if (!autoStartAttempted && shouldAutoStartLocalDaemon(PORT_DADDY_URL, process.env)) {
         // Auto-start daemon on first use
         autoStartAttempted = true;
         console.error('Port Daddy daemon is not running. Starting it...');

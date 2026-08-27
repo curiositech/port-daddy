@@ -344,7 +344,6 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd agent inbox clear` — deletes all messages in the inbox
 - `pd harbor destroy <name>` — tears down a harbor and evicts everyone in it
 - `pd spawn kill <id>` — terminates a running spawned agent mid-run
-- `pd transcripts delete/rm` — removes durable agent transcripts
 - `pd restore <id>` — overwrites the live registry DB from a snapshot
 - `pd fleet down` — SIGTERMs the running fleet
 - `pd fleet panic --reason "<text>"` — SIGTERMs every running fleet agent (also requires typing `YES`)
@@ -407,6 +406,40 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 Port Daddy is built for the "Wild West" of agentic workflows where agents hail each other ad-hoc.
 
+### Cloud coordination peer (ADR-0092)
+
+An optional per-project relay room federates sessions, append-only notes,
+advisory file claims, and project-scoped logical lock leases between local and
+cloud daemons. The room is a peer, never the authority: every daemon writes its
+own SQLite ledger while offline, keeps a durable outbox, and CRDT-merges after
+reconnection. Ports, processes, sockets, and machine-local exclusion remain
+local. Each local ledger persists its replica identity beside that outbox, so a
+daemon restart cannot strand older operations under a new sync envelope.
+Replicated lock leases are shown under coordination-scoped projection names.
+Ownership metadata and collision-safe fallback slots prevent them from
+overwriting or releasing enforcing machine-local locks, including a lock that
+already occupies a projection-shaped name.
+
+The relay exposes an operator-gated grant endpoint and a macaroon-gated sync
+endpoint. Grants are scoped to `coordination-sync` plus one project, actor, and
+expiry. A deployment enables a daemon peer only when all four settings are
+present: `PORT_DADDY_COORDINATION_URL`, `PORT_DADDY_COORDINATION_PROJECT`,
+`PORT_DADDY_COORDINATION_ACTOR`, and the managed secret
+`PORT_DADDY_COORDINATION_MACAROON`. Partial configuration is reported but does
+not prevent the local daemon from starting or accepting local work.
+Agents can inspect `coordination_status()` over MCP to distinguish a healthy
+room connection from an offline peer with locally queued work; disconnected
+never means the local coordination ledger stopped accepting writes.
+
+Cloud sandboxes use the same runtime rather than a mock coordination client:
+the executor builds the compiled binary, starts an isolated daemon with its own
+`PORT_DADDY_PREFIX`, `PORT_DADDY_DB`, and `PORT_DADDY_SOCK`, waits for health,
+and runs `pd begin` before sandbox work. It then waits until the session has
+been durably acknowledged by the room and observed through the daemon cursor.
+If an explicitly configured remote
+daemon is unavailable, the CLI reports that peer as unavailable and never
+silently starts a different local daemon or falls back to a local database.
+
 ### Swarm Radio (Pub/Sub)
 
 Agents speak over named channels using maritime signals:
@@ -457,12 +490,22 @@ Parley decisions render in pd-console's Parley pane, including CONVENE/hold econ
 
 ```bash
 pd inbox watch --agent CAPTAIN                     # stream your inbox live (SSE)
-pd inbox send CAPTAIN "Course corrected." --sender "PILOT"
+pd inbox send CAPTAIN "Course corrected."          # sent as YOUR session's agent
 pd integration ready myapp:api                     # signal the API is up
 pd wait myapp:api                                  # block until a service is healthy
 pd attention                                       # session-start mailbox aggregator
 pd nudge                                           # list pending suggestibility nudges
 ```
+
+An inbox send is a **credentialed** write (#8877 / ADR-0122). The inbox is an
+instruction plane, not a display one: with `wake`, a DM becomes the `- sender:`
+line in a spawned agent's prompt. So the daemon verifies who is sending —
+`pd begin` captures the credential and `pd` presents it automatically, and a
+`from` you did not earn is refused (`403 INBOX_FROM_MISMATCH`) rather than
+written down as fact. There was no `--sender` flag on `pd inbox send`; the
+sender is your session. Reads, clears and mark-read on another agent's inbox
+are still unauthenticated — see the deferral in
+[`docs/security/identity-write-boundary-audit.md`](docs/security/identity-write-boundary-audit.md).
 
 ### Durable Commitments
 
@@ -505,12 +548,15 @@ pd embed status                                           # shared local embedde
 pd embed text "salvage a dead agent's session"            # embed ad-hoc text
 pd embed prefetch                                         # one-time ~27 MB model download
 pd skill-graft "write tests for a flaky fleet trigger"    # preview the local skill guidance a fleet ship would receive
+pd skill-graft warm --local-only                          # checkpoint a bounded Tool2Vec batch with loopback Ollama only
+pd skill-graft warm --all                                 # explicit full warm; may use the actor-pinned generator backend
+# MCP: skill_graft_status() reads coverage without generating or calling an LLM
 pd backend adapters --matrix                              # N:N native/handoff mechanics
 pd backend adapters --probe                               # local discovery, not runtime proof
 pd roster search "SQLite migration recovery" --repo .    # durable expert lookup (hybrid)
 ```
 
-Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
+Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). Skill Graft's Tool2Vec centroids are reconciled content-hash-by-content-hash across the full user catalog: setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd skill-graft warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
 
 Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, tokenBudget?, coordinationSessionId? }`, where `capsule` follows `pd.agent-harbor.handoff-capsule.v0`. The daemon enforces a 2 MiB ingress boundary, allowlists and bounds the capsule fields, preserves every operator turn and durable decision, sheds transcript tail before artifact summaries when a token budget is tight, recursively redacts structured credentials, and then requires a clean external `gitleaks stdin` verdict. Homebrew installs Gitleaks with Port Daddy; other installation paths must place `gitleaks` on `PATH` or set `PD_GITLEAKS_BIN`. Missing scanners, residual findings, or a budget too small for operator context fail closed; only the sanitized capsule is stored as an idempotent handoff episode keyed by source agent and session. Optional coordination-note harvest runs after that durable write and reports a warning rather than discarding a clean capsule when harvest is unavailable. The canonical schema is [`schemas/agent-harbor/v0/handoff-capsule.schema.json`](schemas/agent-harbor/v0/handoff-capsule.schema.json), extending the salvage contract in ADR-0028 without replaying raw provider transcripts.
 
@@ -623,7 +669,7 @@ Every agent spawned through a subprocess backend (`codex`, `claude-cli`, `aider`
 2. **Broker** — the agent's environment carries **no raw API key**. Every managed provider key *and* every key loaded from your `.env` files is scrubbed from the child env; keys stay in the daemon's sealed cache.
 3. **Cap** — outbound API traffic is forced through a local meter with a **hard per-agent request/byte cap**; the over-cap call is refused (`402 Spend Cap Exceeded`).
 
-Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording what was confined, which keys were scrubbed, and the metered egress. `pd coast-guard` (alias `pd cg`) shows local confinement status; opt out per-run with `PD_COAST_GUARD_OFF=1`.
+Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording what was confined, which keys were scrubbed, and the metered egress. Completed receipts remain visible in the daemon's `/spawn` history and FleetBar's compact Recent confinement section; no row appears when a backend has no receipt. `pd coast-guard` (alias `pd cg`) shows local confinement status; opt out per-run with `PD_COAST_GUARD_OFF=1`.
 
 **Coordination keeps working.** Confinement denies secret-file *reads* — not network or process exec. The agent still reaches the daemon, runs the `pd` CLI, and talks to MCP servers (stdio MCP is a child process; loopback HTTP is `NO_PROXY`-exempt so local traffic never burns the spend cap).
 
@@ -798,7 +844,7 @@ fleet:
   limits:
     max_concurrent_spawns: 2        # At most 2 agents running in parallel
     max_spawns_per_hour: 20         # Rate cap (Ostrom Principle 2)
-    budget_usd_per_day: 5           # Daily LLM spend ceiling in USD
+    budget_usd_per_day: 5           # Settled-spend prelaunch threshold in USD
 
   agents:
     qa:
@@ -841,7 +887,7 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your P
 curl http://localhost:9876/fleet/models             # Available backends & models
 ```
 
-Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, warms, and reads guarded references from the same local index.
+Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path.
 
 Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues.
 

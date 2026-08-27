@@ -513,6 +513,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'attest': 'attest',
       'safe_scan': 'safe',
       'relay_status': 'relay',
+      'coordination_status': 'coordination',
       'harbormaster_status': 'harbormaster',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
@@ -539,6 +540,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_overdue_commitments': 'commitments',
       'list_nudges': 'suggestions',
       'respond_nudge': 'suggestions',
+      'skill_graft_status': 'skill_graft',
       'semantic_search': 'semantic',
       'semantic_resolve': 'semantic',
       'find_symbols': 'symbols',

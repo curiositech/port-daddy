@@ -29,6 +29,11 @@ import {
 } from '../src/fleet-executor-identity.js';
 import { listChainHeadsForChannel } from '../src/db.js';
 import {
+  ENVELOPE_SCHEMA_ID,
+  encodeTransitEnvelope,
+  signEnvelope,
+} from '../src/envelope.js';
+import {
   computeEventHash,
   signEd25519,
   pubKeyFromPrivKey,
@@ -424,6 +429,66 @@ describe('GATE 1 — squid/1 envelope end-to-end against the relay chain verific
 
     // Nothing landed.
     expect(db.eventInserts).toBe(0);
+  });
+
+  it('rejects a classified envelope whose routing tuple disagrees with its frame', async () => {
+    // The envelope type documents its routing fields as "must equal the outer
+    // frame's". Until the check below existed, nothing enforced that here: the
+    // classification probe read the body and threw the decoded envelope away.
+    //
+    // A mismatch is not a forgery — the frame sig covers this_hash, which
+    // covers the ciphertext, so these bytes came from the authenticated daemon.
+    // It is a disagreement about where the event lives. The relay's chain files
+    // it under the frame's channel; a consumer that verifies the envelope's own
+    // signature files it under the envelope's. Both are validly signed.
+    const db = new MockD1();
+    const env = makeEnv(db);
+    const { card, fingerprint } = await provision(env, SEED_A, 'staging');
+    const channel = RUN_CHANNEL();
+
+    async function frameCarrying(innerChannel: string, seq: number, prev: string): Promise<RelayEvent> {
+      const iat = 1_717_000_000 + seq;
+      const unsigned = {
+        schema: ENVELOPE_SCHEMA_ID,
+        v: 1 as const,
+        classification: 'relay_readable' as const,
+        harbor: innerChannel.slice(0, innerChannel.indexOf(':')),
+        channel: innerChannel,
+        sender: fingerprint,
+        seq,
+        iat,
+        payload: { type: 'run-started' },
+        reason: 'test fixture: a classified body on the daemon publish path',
+      };
+      const ciphertext = encodeTransitEnvelope({
+        ...unsigned,
+        sig: await signEnvelope(SEED_A, unsigned),
+      });
+      const this_hash = computeEventHash({
+        prev_hash: prev, sender: fingerprint, channel, seq, iat, ciphertext,
+      });
+      return {
+        v: 1, sender: fingerprint, channel, seq, prev_hash: prev, this_hash, iat,
+        ciphertext, sig: await signEd25519(SEED_A, this_hash),
+      };
+    }
+
+    // Control: the same construction with a matching inner channel lands. This
+    // is what proves the rejection below is about the mismatch and not about
+    // classified bodies being refused wholesale on this path.
+    const matching = await frameCarrying(channel, 1, ZERO_HASH);
+    const okRes = await publish(env, card, matching);
+    expect(await okRes.json()).toMatchObject({ ok: true, seq: 1 });
+    expect(db.eventInserts).toBe(1);
+
+    // The envelope claims a different channel than the frame it travelled in.
+    const spliced = await frameCarrying(`${RELAY_FP}:fleet-cloud:run:d-OTHER`, 2, matching.this_hash);
+    const badRes = await publish(env, card, spliced);
+    expect(badRes.status).toBe(400);
+    expect(await badRes.text()).toContain('ENVELOPE_FRAME_MISMATCH');
+
+    // Nothing beyond the control event landed.
+    expect(db.eventInserts).toBe(1);
   });
 
   it('KNOWN-ANSWER VECTOR — shared with the executor suite so the two formulas cannot drift', () => {

@@ -255,8 +255,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'coordination_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -304,8 +304,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
   },
   'knowledge': {
-    description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
+    description: 'Semantic search + symbol index — inspect Skill Graft coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['skill_graft_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
@@ -476,6 +476,20 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'coordination_status',
+    description:
+      '[System] Offline-first coordination peer status (ADR-0092 section 4). ' +
+      'Returns whether federation is enabled and connected plus the project, actor, ' +
+      'stable replica id, durable room cursor, pending local outbox count, last sync, ' +
+      'and last error. A disconnected peer does not mean local coordination is ' +
+      'unavailable: the local SQLite ledger remains writable and reconverges later. ' +
+      'Read-only. Usage: coordination_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -814,6 +828,17 @@ const TOOLS = [
   },
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
+  {
+    name: 'skill_graft_status',
+    description:
+      '[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. ' +
+      'Reports current, cold, reconciling, embedder-down, or generator-down ' +
+      'without generating centroids or calling an LLM. Usage: skill_graft_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
   {
     name: 'semantic_search',
     description:
@@ -1681,10 +1706,6 @@ const TOOLS = [
           type: 'string',
           description: 'Message content to queue.',
         },
-        from: {
-          type: 'string',
-          description: 'Sender agent id or operator label.',
-        },
         type: {
           type: 'string',
           description: 'Optional message type.',
@@ -1844,10 +1865,6 @@ const TOOLS = [
         content: {
           type: 'string',
           description: 'Message content',
-        },
-        from: {
-          type: 'string',
-          description: 'Sender agent ID (optional)',
         },
         type: {
           type: 'string',
@@ -3550,6 +3567,11 @@ async function handleTool(
       break;
     }
 
+    case 'coordination_status': {
+      res = await GET('/coordination/status');
+      break;
+    }
+
     case 'harbormaster_status': {
       res = await GET('/harbormaster/status');
       break;
@@ -3756,6 +3778,11 @@ async function handleTool(
     }
 
     // ── Knowledge (semantic search + symbol index) ──────────────────
+    case 'skill_graft_status': {
+      res = await GET('/skill-graft/status');
+      break;
+    }
+
     case 'semantic_search': {
       const params = new URLSearchParams();
       params.set('q', args.q as string);
@@ -4185,7 +4212,14 @@ async function handleTool(
       const body: Record<string, unknown> = {
         content: args.content,
       };
-      if (args.from) body.from = args.from;
+      // #8877 / ADR-0122: `from` is no longer model-supplied. The inbox is an
+      // instruction plane — a model-chosen sender name is a forged authority
+      // label the daemon would have to take on faith. Send under this
+      // process's own session agentId (which the daemon can verify against
+      // the session binding), or send nothing and let it derive the minted
+      // actorId from the credential.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       if (typeof args.wake === 'boolean') body.wake = args.wake;
       if (args.project) body.project = args.project;
@@ -4242,7 +4276,10 @@ async function handleTool(
     // ── Agent Inbox ─────────────────────────────────────────────────────
     case 'inbox_send': {
       const body: Record<string, unknown> = { content: args.content };
-      if (args.from) body.from = args.from;
+      // See message_actor: the sender is this process's verified session, not
+      // a string the model picked.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox`, body);
       break;
@@ -4883,6 +4920,7 @@ async function handleTool(
       const message = args.message as string;
       const type = (args.type as string) || 'request';
       const project = args.project as string | undefined;
+      const talkSenderAgentId = resolveAgentId({});
       const candidates = agent.includes(':')
         ? [agent]
         : [
@@ -4893,14 +4931,20 @@ async function handleTool(
       for (const target of candidates) {
         try {
           const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {
-            type, content: message, from: 'mcp-user',
+            // 'mcp-user' was a hardcoded, un-minted sender name — exactly the
+            // forged attribution the inbox gate now rejects. Send under this
+            // process's verified session agentId, or omit and let the daemon
+            // attribute the message to the credential's minted actor.
+            type, content: message, ...(talkSenderAgentId ? { from: talkSenderAgentId } : {}),
           });
           if (r.status >= 200 && r.status < 300) {
             return JSON.stringify({ success: true, delivered_to: target, type, message });
           }
         } catch { /* try next candidate */ }
       }
-      await POST(`/msg/${encodeURIComponent(agent)}`, { payload: { type, message, from: 'mcp-user' } });
+      await POST(`/msg/${encodeURIComponent(agent)}`, {
+        payload: { type, message, from: talkSenderAgentId ?? 'mcp-user' },
+      });
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 

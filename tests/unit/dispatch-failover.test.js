@@ -209,7 +209,7 @@ describe('decideFailover', () => {
 
   test('the default chain leads with the only backend that has a verified harness', () => {
     // Instrumentation honesty, not preference alone: a successor landing on
-    // claude-code keeps the controls ADR-0124 can actually render as enabled.
+    // claude-code keeps the controls ADR-0134 can actually render as enabled.
     expect(DEFAULT_FAILOVER_CHAIN[0]).toBe('cli:claude-code');
   });
 });
