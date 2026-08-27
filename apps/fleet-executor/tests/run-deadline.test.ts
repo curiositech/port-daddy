@@ -121,6 +121,24 @@ describe('absolute run deadline (DO-NOT-SHIP finding on #9800)', () => {
     expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
   });
 
+  it('admits the next ship at exactly the 75-minute boundary', async () => {
+    const boundaryStart = Math.floor(TEST_NOW_MS / 1000) - RUN_ABSOLUTE_DEADLINE_MS / 1000;
+    const { d1, ai } = await runFleet(boundaryStart);
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(false);
+  });
+
+  it('stops before ship spend one second beyond the 75-minute boundary', async () => {
+    const expiredStart = Math.floor(TEST_NOW_MS / 1000) - RUN_ABSOLUTE_DEADLINE_MS / 1000 - 1;
+    const { d1, ai } = await runFleet(expiredStart);
+
+    expect(ai.calls.length).toBe(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(d1.steps.some(s => s.kind === 'run-deadline-exceeded')).toBe(true);
+  });
+
   it('fails open (runs normally) when the run\'s start time cannot be determined', async () => {
     // No seeded row at all — getRunStartedAtSec returns null on a first
     // delivery before recordRunStart's own row exists in a way this test can
