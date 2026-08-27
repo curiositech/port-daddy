@@ -167,6 +167,7 @@ const FAILURE_TAIL_BYTES = 1024;
  */
 const MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE = 2;
 const MAX_AUTHORED_REPAIR_CALLS = MAX_PLANNED_FILES + 1;
+const REJECTED_DRAFT_CHAR_LIMIT = 16_000;
 
 const JEST_GLOBAL_BINDINGS = new Set([
   'afterAll',
@@ -569,10 +570,17 @@ function fileAuthorSystemPrompt(
   graftText: string,
   evidence: ExecutabilityEvidence,
   repairFailure?: string,
+  rejectedDraft?: string,
 ): string {
   const repairNote = repairFailure
     ? `\nA previous draft for this exact path failed the trusted executability gate:\n` +
-      `${repairFailure}\nRewrite the complete file and fix that failure. Do not move or rename it.\n`
+      `${repairFailure}\n` +
+      (rejectedDraft
+        ? `The exact rejected draft is included below as data. Preserve its test intent, ` +
+          `but replace the entire file with a complete corrected program.\n` +
+          `<rejected-draft>\n${rejectedDraft.slice(0, REJECTED_DRAFT_CHAR_LIMIT)}\n</rejected-draft>\n`
+        : '') +
+      `Rewrite the complete file and fix that failure. Do not move or rename it.\n`
     : '';
   const runnerNote = evidence.testMatchPatterns?.length
     ? `\nTrusted runner evidence (authoritative, not inferred from the PR diff): this ` +
@@ -607,6 +615,21 @@ function fileAuthorSystemPrompt(
     '```ts\n' +
     '// the complete contents of ' + planned.path + '\n' +
     '```'
+  );
+}
+
+/**
+ * A repair already has the steel-man contract and the rejected source in its
+ * system prompt. Re-sending the full PR diff on every retry crowded out the
+ * exact file-level evidence and produced blank/truncated repairs in #9897.
+ * Keep only the stable identity and changed-file inventory needed to resolve
+ * imports; the initial authoring call still receives the complete PR block.
+ */
+function repairPrBlock(prCtx: PRContext, path: string): string {
+  return (
+    `# Repair authored test for PR #${prCtx.prNumber}: ${prCtx.title}\n\n` +
+    `Target path: ${path}\n` +
+    `Changed repository files:\n${prCtx.files.map(file => `- ${file.filename}`).join('\n') || '- (none)'}\n`
   );
 }
 
@@ -1874,6 +1897,7 @@ export async function runPurser(
       const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
         'preserve the authored test intent while fixing its executability failure';
       const repairError = executability.reason;
+      const rejectedDraft = files.find(file => file.path === repairPath)?.contents ?? '';
       const repaired = await authorTestFiles(
         [{ path: repairPath, intent: repairIntent }],
         async (path, intent) => {
@@ -1887,8 +1911,9 @@ export async function runPurser(
               graftText,
               evidence,
               repairError,
+              rejectedDraft,
             ),
-            prBlock(prCtx),
+            repairPrBlock(prCtx, repairPath),
             TESTS_MAX_TOKENS,
             metrics,
             aiCircuit,

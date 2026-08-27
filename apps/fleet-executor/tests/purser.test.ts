@@ -1167,6 +1167,13 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(secondRepairRequest.messages[0].content).toContain(
       'does not resolve to any file',
     );
+    expect(secondRepairRequest.messages[0].content).toContain(
+      "test('first repair is syntactically complete'",
+    );
+    expect(secondRepairRequest.messages[0].content).toContain('<rejected-draft>');
+    expect(secondRepairRequest.messages[1].content).toContain('Target path: tests/unit/release-token-fallback.test.js');
+    expect(secondRepairRequest.messages[1].content).toContain('- src/widget.ts');
+    expect(secondRepairRequest.messages[1].content).not.toContain('## Diff');
     expect(sandboxExec).toHaveBeenCalledTimes(1);
     expect(state.stackedPrs).toHaveLength(1);
   });
