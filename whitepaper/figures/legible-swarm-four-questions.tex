@@ -1,56 +1,63 @@
-% Figure 4 — the four design questions as a decision flow for any read-surface.
-% Design: vertical spine, asked in order top to bottom (they are not branches);
-% each question's obligation sits to its right. Scaled to 0.75\textwidth so its
-% type matches the surrounding figures (split-ranker 0.8, roles 0.72) rather than
-% rendering visibly larger at native size.
+% Figure I.4 --- a source-controlled release gate for read-surfaces.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.75\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  q/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-            align=left,inner sep=6pt,font=\footnotesize,text width=46mm,
-            minimum height=11mm},
-  act/.style={draw=hhteal,thick,rounded corners=2pt,fill=hhpaper,
-              align=left,inner sep=5pt,font=\footnotesize,text=hhink,text width=52mm},
-  edge/.style={-{Latex[length=2mm]},thick,hhink},
-  ob/.style={-{Latex[length=2mm]},thick,hhteal},
+  check/.style={draw=hhink,line width=.65pt,fill=hhsand!24,rounded corners=2pt,
+    align=left,inner sep=4.5pt,font=\footnotesize,text=hhink,text width=55mm,
+    minimum height=13mm},
+  result/.style={draw=hhgray!72,line width=.5pt,fill=hhpaper,rounded corners=2pt,
+    align=left,inner sep=4.5pt,font=\footnotesize,text=hhink,text width=53mm,
+    minimum height=13mm},
+  route/.style={-{Latex[length=1.8mm]},line width=.65pt,hhgray},
+  terminal/.style={draw=hhamber,line width=.85pt,fill=hhsand!17,rounded corners=2pt,
+    align=center,inner sep=5pt,font=\footnotesize,text=hhink,text width=72mm,
+    minimum height=15mm},
 ]
-\node[q] (q1) at (0,0)    {\textbf{Q1.} Is the act irreversible?};
-\node[q] (q2) at (0,-1.7) {\textbf{Q2.} Administrative vs.\ m\^etis?};
-\node[q] (q3) at (0,-3.4) {\textbf{Q3.} Can the summary lie?};
-\node[q] (q4) at (0,-5.1) {\textbf{Q4.} Is the authority legible?};
-\node[q,draw=hhcobalt,very thick,text width=30mm] (ok) at (0,-6.8) {ship the surface};
+  \node[font=\bfseries\small,text=hhink] (title) {RELEASE GATE FOR A READ-SURFACE};
+  \node[below=2.5mm of title,font=\scriptsize,text=hhgray] (subtitle)
+    {Each check produces an observable condition; all four are required.};
 
-\node[act] (a1) at (6.4,0)    {force a zoom; artifact one keystroke away};
-\node[act] (a2) at (6.4,-1.7) {flatten admin; link m\^etis verbatim};
-\node[act] (a3) at (6.4,-3.4) {point zoom at the artifact, not narration};
-\node[act] (a4) at (6.4,-5.1) {every act carries a named reason};
+  \node[check,below=7mm of subtitle] (q1)
+    {\textbf{1. Irreversible effect?}\\Can this surface authorize a merge, deployment, deletion, or other non-reversible act?};
+  \node[result,right=13mm of q1] (r1)
+    {\textbf{Required result}\\Artifact-level review is one action away.};
 
-\draw[ob] (q1.east) -- (a1.west);
-\draw[ob] (q2.east) -- (a2.west);
-\draw[ob] (q3.east) -- (a3.west);
-\draw[ob] (q4.east) -- (a4.west);
+  \node[check,below=6mm of q1] (q2)
+    {\textbf{2. Administrative or local judgment?}\\Does the item contain practical context that a summary must not flatten?};
+  \node[result,right=13mm of q2] (r2)
+    {\textbf{Required result}\\Preserve the relevant context verbatim.};
 
-\draw[edge] (q1) -- node[right=4pt,font=\scriptsize\itshape]{then} (q2);
-\draw[edge] (q2) -- node[right=4pt,font=\scriptsize\itshape]{then} (q3);
-\draw[edge] (q3) -- node[right=4pt,font=\scriptsize\itshape]{then} (q4);
-\draw[edge] (q4) -- (ok);
-\end{tikzpicture}%
-}
-\caption{The four design questions (\S\ref{sec:four-questions}) as a decision flow
-applied to every read-surface. They are asked in order, and each question binds an
-obligation (force-zoom, verbatim-link, artifact-target, named-reason) the surface
-must satisfy before it may ship. The procedure is the operational form of the one
-law (Def.~\ref{def:zoom}) and the legible-sovereign rule
-(Prop.~\ref{prop:legible-sovereign}).}
+  \node[check,below=6mm of q2] (q3)
+    {\textbf{3. Can the summary misrepresent?}\\Is the displayed claim independently checkable against its source artifact?};
+  \node[result,right=13mm of q3] (r3)
+    {\textbf{Required result}\\Link the claim directly to its artifact.};
+
+  \node[check,below=6mm of q3] (q4)
+    {\textbf{4. Is authority traceable?}\\Does every coordinator action expose a named reason and scope?};
+  \node[result,right=13mm of q4] (r4)
+    {\textbf{Required result}\\Record a named reason for the action.};
+
+  \draw[route] (q1.south) -- (q2.north);
+  \draw[route] (q2.south) -- (q3.north);
+  \draw[route] (q3.south) -- (q4.north);
+  \draw[route] (q1.east) -- (r1.west);
+  \draw[route] (q2.east) -- (r2.west);
+  \draw[route] (q3.east) -- (r3.west);
+  \draw[route] (q4.east) -- (r4.west);
+
+  \node[terminal,below=8mm of q4] (release)
+    {\textbf{Release decision}\\Release only when every required result is present; otherwise return the surface for correction.};
+  \draw[route] (q4.south) -- (release.north);
+\end{tikzpicture}
+\caption{\textbf{A read-surface is released only after four checkable conditions hold.}
+The gate requires artifact-level review for irreversible effects, verbatim preservation of local judgment, an independently checkable artifact link for every fallible summary, and a named reason for every authority action. Any missing condition returns the surface for correction. This is the operational form of the one law (Def.~\ref{def:zoom}) and the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}).}
 \label{fig:four-questions}
 \end{figure}

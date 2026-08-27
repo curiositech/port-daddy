@@ -1,50 +1,67 @@
-% Figure 5 — the authority half: the organs by which the Leviathan rules.
-% Design: one bold name + one italic line per organ; engineering detail lives
-% in the caption and Appendix A.
+% Figure I.5 --- a source-controlled authority routing matrix.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.97\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=40mm,
-                minimum height=14mm,align=center,inner sep=4pt,
-                font=\footnotesize,text width=36mm,fill=hhsand!30},
-  hub/.style={draw=hhebony,very thick,circle,fill=hhsand!30,minimum size=20mm,
-              align=center,font=\bfseries\footnotesize},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  heading/.style={font=\bfseries\small,text=hhink,align=center},
+  column/.style={font=\scriptsize\bfseries,text=hhgray,align=center},
+  trigger/.style={draw=hhgray!65,line width=.45pt,fill=hhpaper,rounded corners=1.5pt,
+    align=left,inner sep=3.6pt,font=\scriptsize,text=hhink,text width=36mm,
+    minimum height=11mm},
+  function/.style={draw=hhink,line width=.65pt,fill=hhsand!25,rounded corners=1.5pt,
+    align=left,inner sep=3.6pt,font=\scriptsize,text=hhink,text width=42mm,
+    minimum height=11mm},
+  record/.style={draw=hhgray!65,line width=.45pt,fill=hhpaper,rounded corners=1.5pt,
+    align=left,inner sep=3.6pt,font=\scriptsize,text=hhink,text width=39mm,
+    minimum height=11mm},
+  route/.style={-{Latex[length=1.6mm]},line width=.55pt,hhgray},
 ]
-\node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
+  \node[heading] (title) {AUTHORITY ROUTING MATRIX};
+  \node[below=2.2mm of title,font=\scriptsize,text=hhgray,align=center] (subtitle)
+    {Consent authority is exercised through named functions that turn evidence into reviewable decisions.};
 
-\node[organ] (road) at (-5.4,3.0)
-  {\textbf{Roadmap-as-truth}\\\emph{what the authority answers to}};
-\node[organ] (rev) at (0,3.6)
-  {\textbf{Adversarial review}\\\emph{conflict-free quality organ}};
-\node[organ] (done) at (5.4,3.0)
-  {\textbf{Completionist completion}\\\emph{verifier-gated ``done''}};
-\node[organ] (land) at (-5.4,-3.0)
-  {\textbf{Thoughtful landing}\\\emph{conflict-aware merge order}};
-\node[organ] (guard) at (0,-3.6)
-  {\textbf{Footgun guards}\\\emph{prevent, or detect \& compensate}};
-\node[organ] (esc) at (5.4,-3.0)
-  {\textbf{Escalation to human}\\\emph{typed, prioritized interrupt}};
+  \node[column,below=6mm of subtitle] (h1) {TRIGGER OR EVIDENCE};
+  \node[column,right=16mm of h1] (h2) {CONTROL FUNCTION};
+  \node[column,right=16mm of h2] (h3) {DECISION RECORD};
+  \draw[hhgray!48,line width=.45pt] ([yshift=-2.5mm]h1.south west) -- ([yshift=-2.5mm]h3.south east);
 
-\draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
-\draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);
+  \node[trigger,below=5mm of h1] (t1) {Plan state and work evidence};
+  \node[function,right=16mm of t1] (f1) {\textbf{Roadmap consistency}\\compare intended and actual work};
+  \node[record,right=16mm of f1] (o1) {Intent and drift are recorded};
+
+  \node[trigger,below=4mm of t1] (t2) {Proposed change and its evidence};
+  \node[function,right=16mm of t2] (f2) {\textbf{Independent review}\\adjudicate conflict-free quality};
+  \node[record,right=16mm of f2] (o2) {Accept, reject, or request revision};
+
+  \node[trigger,below=4mm of t2] (t3) {Acceptance evidence};
+  \node[function,right=16mm of t3] (f3) {\textbf{Completion verification}\\gate the definition of done};
+  \node[record,right=16mm of f3] (o3) {Verified completion only};
+
+  \node[trigger,below=4mm of t3] (t4) {Validated changes and dependencies};
+  \node[function,right=16mm of t4] (f4) {\textbf{Integration sequencing}\\order compatible changes};
+  \node[record,right=16mm of f4] (o4) {Dependency-safe integration order};
+
+  \node[trigger,below=4mm of t4] (t5) {High-risk operation};
+  \node[function,right=16mm of t5] (f5) {\textbf{Safety guard}\\block, detect, or compensate};
+  \node[record,right=16mm of f5] (o5) {Risk response and rationale};
+
+  \node[trigger,below=4mm of t5] (t6) {Typed interruption or exception};
+  \node[function,right=16mm of t6] (f6) {\textbf{Human escalation}\\route a prioritized decision};
+  \node[record,right=16mm of f6] (o6) {Operator decision and scope};
+
+  \foreach \left/\middle/\right in {t1/f1/o1,t2/f2/o2,t3/f3/o3,t4/f4/o4,t5/f5/o5,t6/f6/o6}{%
+    \draw[route] (\left.east) -- (\middle.west);
+    \draw[route] (\middle.east) -- (\right.west);
+  }
 \end{tikzpicture}%
 }
-\caption{The authority half (\S\ref{sec:authority-rules}): six organs by which the
-consented daemon \emph{rules}. The legibility read-surfaces
-(Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these organs make the
-authority \emph{act} --- and, per the legible-sovereign rule
-(Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event. The
-engineering status of each organ is recorded in Appendix~\ref{app:honest}.}
+\caption{\textbf{Authority is an observable route from evidence to a named decision, not a generic hub.}
+The six control functions map plan state, proposed changes, acceptance evidence, dependency constraints, high-risk operations, and exceptions to their respective records: roadmap consistency, independent review, completion verification, integration sequencing, safety response, and human escalation. Together they make the consented daemon's acts inspectable and reviewable; read-surfaces (Figure~\ref{fig:read-surfaces}) expose state, while these functions decide, block, integrate, and escalate. The engineering status of each function is recorded in Appendix~\ref{app:honest}.}
 \label{fig:authority-organs}
 \end{figure}
