@@ -430,6 +430,159 @@ export interface MemoryStats {
   lastUpdated: number | null;
 }
 
+// ─── Empirically earned doctrine ───────────────────────────────────────────
+//
+// Doctrine is intentionally not a policy engine. These types model the
+// append-only evidence chain rendered by the operator surfaces: a historical
+// episode can produce a candidate, a preregistered experiment can support a
+// provisional/established advisory, and an actual decision must leave a
+// retrieval, application, and outcome receipt behind.
+
+export type DoctrineStatus = 'candidate' | 'provisional' | 'established' | 'contested' | 'deprecated';
+export type DoctrineApplicationResponse = 'follow' | 'adapt' | 'reject';
+export type DoctrineOutcomeVerdict = 'helped' | 'harmed' | 'inconclusive';
+export type DoctrineReplayFidelity = 'not-run' | 'matched' | 'mismatched';
+
+export interface DoctrineProvenance {
+  model?: string;
+  modelVersion?: string;
+  harness?: string;
+  worktree?: string;
+  environment?: string;
+}
+
+export interface DoctrineCandidate {
+  id: string;
+  doctrineId: string | null;
+  episodeId: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  occurredAt: string;
+  decisionClass: string;
+  title: string;
+  when: string;
+  prefer: string;
+  over: string;
+  because: string;
+  unless: string[];
+  school: string | null;
+  skillRefs: string[];
+  status: DoctrineStatus;
+  reviewerId: string | null;
+  experimentId: string | null;
+  admissionCitations: string[];
+  contestedReason: string | null;
+}
+
+export interface DoctrineEpisode {
+  id: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  occurredAt: string;
+  decisionClass: string;
+  summary: string;
+  historicalAction: string;
+  alternatives: string[];
+  cues: string[];
+  fidelity: string;
+  provenance: DoctrineProvenance;
+}
+
+export interface DoctrineTreatmentRun {
+  id: string;
+  experimentId: string;
+  arm: 'control' | 'treatment' | 'sham';
+  action: string;
+  outcome: string;
+  fidelity: DoctrineReplayFidelity;
+  notes: string | null;
+  occurredAt: string;
+  citations: string[];
+}
+
+export interface DoctrineExperiment {
+  id: string;
+  candidateId: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  occurredAt: string;
+  hypothesis: string;
+  primaryOutcome: string;
+  control: string;
+  treatment: string;
+  sham: string | null;
+  runs: DoctrineTreatmentRun[];
+}
+
+export interface DoctrineRetrievalReceipt {
+  id: string;
+  decisionId: string;
+  decisionClass: string;
+  projectDir: string;
+  actorId: string;
+  occurredAt: string;
+  doctrineIds: string[];
+  citations: string[];
+}
+
+export interface DoctrineApplication {
+  id: string;
+  retrievalId: string;
+  doctrineId: string;
+  projectDir: string;
+  actorId: string;
+  occurredAt: string;
+  response: DoctrineApplicationResponse;
+  decision: string;
+  note: string | null;
+  citations: string[];
+}
+
+export interface DoctrineOutcome {
+  id: string;
+  applicationId: string;
+  doctrineId: string;
+  projectDir: string;
+  actorId: string;
+  occurredAt: string;
+  verdict: DoctrineOutcomeVerdict;
+  summary: string;
+  verifiedBy: string;
+  citations: string[];
+}
+
+export interface DoctrineDetail {
+  doctrine: DoctrineCandidate;
+  episode: DoctrineEpisode | null;
+  experiment: DoctrineExperiment | null;
+  retrievals: DoctrineRetrievalReceipt[];
+  applications: DoctrineApplication[];
+  outcomes: DoctrineOutcome[];
+}
+
+export interface DoctrinePacket {
+  receipt: DoctrineRetrievalReceipt;
+  doctrines: DoctrineCandidate[];
+  advisory: true;
+  retrievalPolicy: 'structured-exact-decision-class';
+}
+
+export interface DoctrineStatusSummary {
+  success: boolean;
+  advisory: true;
+  canonicalStore: string;
+  counts: {
+    episodes: number;
+    candidates: number;
+    provisional: number;
+    established: number;
+    contested: number;
+  };
+}
+
 export interface RoadmapNextCut {
   slug: string;
   summary: string;

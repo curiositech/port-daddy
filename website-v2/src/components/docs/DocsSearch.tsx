@@ -15,6 +15,20 @@ interface SearchResult {
 }
 
 const seenMcpTools = new Set<string>()
+const MCP_DETAIL_ROUTES: Record<string, string> = {
+  doctrine_list: '/docs/mcp/doctrine-list',
+  doctrine_get: '/docs/mcp/doctrine-get',
+  record_doctrine_episode: '/docs/mcp/record-doctrine-episode',
+  propose_doctrine_candidate: '/docs/mcp/propose-doctrine-candidate',
+  preregister_doctrine_experiment: '/docs/mcp/preregister-doctrine-experiment',
+  record_doctrine_treatment_run: '/docs/mcp/record-doctrine-treatment-run',
+  admit_doctrine_candidate: '/docs/mcp/admit-doctrine-candidate',
+  doctrine_orders: '/docs/mcp/doctrine-orders',
+  record_doctrine_application: '/docs/mcp/record-doctrine-application',
+  record_doctrine_outcome: '/docs/mcp/record-doctrine-outcome',
+  contest_doctrine: '/docs/mcp/contest-doctrine',
+}
+
 const MCP_TOOL_SEARCH_RESULTS: SearchResult[] = ALL_CATEGORIES.flatMap((category) => {
   const results: SearchResult[] = []
 
@@ -24,7 +38,7 @@ const MCP_TOOL_SEARCH_RESULTS: SearchResult[] = ALL_CATEGORIES.flatMap((category
 
     results.push({
       title: tool,
-      href: `/docs/mcp#${tool}`,
+      href: MCP_DETAIL_ROUTES[tool] ?? `/docs/mcp#${tool}`,
       category: `MCP: ${category.label}`,
       icon: Cpu,
       description: `${category.description} Function in the ${category.label} MCP category.`,
@@ -104,6 +118,7 @@ const SEARCH_INDEX: SearchResult[] = [
   { title: 'Pheromone Trails', href: '/docs/features/pheromone', category: 'Features', icon: FileText, description: 'Stigmergic signaling' },
   { title: 'Fleet & GitHub App', href: '/docs/features/fleet', category: 'Features', icon: FileText, description: 'Declarative agents + cloud PR fleet' },
   { title: 'Activity Timeline', href: '/docs/features/timeline', category: 'Features', icon: FileText, description: 'Audit log and replay' },
+  { title: 'Evidence-led doctrine', href: '/docs/features/doctrine', category: 'Features', icon: FileText, description: 'Cited decision episodes, advisory packets, and verified outcomes' },
 
   // API
   { title: 'REST API Reference', href: '/docs/api', category: 'API', icon: Code, description: '93 endpoints with curl examples' },

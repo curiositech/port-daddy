@@ -4,6 +4,20 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Cpu, Terminal, Code, ExternalLink, Check } from 'lucide-react'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
 
+const DOCTRINE_TOOL_ROUTES: Record<string, string> = {
+  doctrine_list: '/docs/mcp/doctrine-list',
+  doctrine_get: '/docs/mcp/doctrine-get',
+  record_doctrine_episode: '/docs/mcp/record-doctrine-episode',
+  propose_doctrine_candidate: '/docs/mcp/propose-doctrine-candidate',
+  preregister_doctrine_experiment: '/docs/mcp/preregister-doctrine-experiment',
+  record_doctrine_treatment_run: '/docs/mcp/record-doctrine-treatment-run',
+  admit_doctrine_candidate: '/docs/mcp/admit-doctrine-candidate',
+  doctrine_orders: '/docs/mcp/doctrine-orders',
+  record_doctrine_application: '/docs/mcp/record-doctrine-application',
+  record_doctrine_outcome: '/docs/mcp/record-doctrine-outcome',
+  contest_doctrine: '/docs/mcp/contest-doctrine',
+}
+
 const MCP_SERVERS = [
   {
     name: 'Claude Code',
@@ -182,12 +196,29 @@ export default function McpOverview() {
                 <Badge variant="teal">{category.tools.length} tools</Badge>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {category.tools.map(tool => (
-                  <code id={tool} key={tool} className="scroll-mt-24 text-[length:var(--type-meta-size)] px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
-                    {tool}
-                  </code>
-                ))}
+                {category.tools.map(tool => {
+                  const detailRoute = DOCTRINE_TOOL_ROUTES[tool]
+                  const className = 'scroll-mt-24 text-[length:var(--type-meta-size)] px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono'
+                  return detailRoute ? (
+                    <Link id={tool} key={tool} to={detailRoute} className={`${className} hover:text-[var(--brand-primary)] hover:underline`}>
+                      {tool}
+                    </Link>
+                  ) : (
+                    <code id={tool} key={tool} className={className}>
+                      {tool}
+                    </code>
+                  )
+                })}
               </div>
+              {category.id === 'doctrine' ? (
+                <p className="mt-4 text-sm text-[var(--text-muted)]">
+                  Doctrine tools preserve the whole cited, advisory loop: record an episode, propose and
+                  preregister a candidate, retain factual treatment runs, admit only matched evidence,
+                  retrieve an exact decision-class match, and preserve the agent response, outcome, or
+                  contest. They do not authorize a merge, block a change, or claim that one transcript
+                  trained the fleet.
+                </p>
+              ) : null}
             </div>
           ))}
         </div>

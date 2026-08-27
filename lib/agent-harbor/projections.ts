@@ -49,6 +49,7 @@ export const PROJECTIONS = [
   'costs',
   'compliance',
   'work-receipts',
+  'doctrine',
 ] as const;
 
 export type ProjectionName = (typeof PROJECTIONS)[number];
@@ -174,6 +175,25 @@ const PROJECTION_SCHEMA_SQL = `
     created_at           TEXT,
     pr_refs_json         TEXT NOT NULL DEFAULT '[]'
   );
+
+  -- Advisory doctrine is a disposable projection over doctrine-evidence
+  -- events. The primary evidence chain remains in harbor_events; this table
+  -- exists so the harbor-ledger doctrine projection commands can expose
+  -- freshness and recover a UI read model without inventing another authority.
+  CREATE TABLE IF NOT EXISTS harbor_proj_doctrine (
+    doctrine_id          TEXT PRIMARY KEY,
+    candidate_id         TEXT,
+    episode_id           TEXT,
+    experiment_id        TEXT,
+    decision_class       TEXT,
+    project_dir          TEXT,
+    title                TEXT,
+    status               TEXT NOT NULL DEFAULT 'candidate',
+    contested_reason     TEXT,
+    last_event_id        TEXT,
+    last_occurred_at     TEXT,
+    updated_ledger_seq   INTEGER NOT NULL DEFAULT 0
+  );
 `;
 
 const PROJECTION_TABLES: Record<ProjectionName, string> = {
@@ -183,6 +203,7 @@ const PROJECTION_TABLES: Record<ProjectionName, string> = {
   costs: 'harbor_proj_costs',
   compliance: 'harbor_proj_compliance',
   'work-receipts': 'harbor_proj_work_receipts',
+  doctrine: 'harbor_proj_doctrine',
 };
 
 /** Required columns per projection table — the post-apply probe checks shape, not mere existence. */
@@ -220,6 +241,11 @@ const REQUIRED_PROJ_COLUMNS: Record<string, string[]> = {
     'receipt_id', 'agent_node_id', 'session_id', 'run_id', 'strength',
     'verification_status', 'artifact_backed', 'transcript_head_hash',
     'created_at', 'pr_refs_json',
+  ],
+  harbor_proj_doctrine: [
+    'doctrine_id', 'candidate_id', 'episode_id', 'experiment_id',
+    'decision_class', 'project_dir', 'title', 'status', 'contested_reason',
+    'last_event_id', 'last_occurred_at', 'updated_ledger_seq',
   ],
 };
 
@@ -662,6 +688,89 @@ function applyWorkReceipts(db: DatabaseInstance, row: LedgerRow, payload: Record
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Doctrine projection — consumes: doctrine-evidence
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Minimal read model for repair/status tooling. Detailed episodes, treatments,
+ * receipts, applications, and outcomes are replayed by lib/doctrine.ts; this
+ * table intentionally stores only the current revision card, so it can never
+ * become a rival source of truth.
+ */
+function applyDoctrine(db: DatabaseInstance, row: LedgerRow, payload: Record<string, unknown>): void {
+  if (row.stream_type !== 'doctrine-evidence') return;
+  const body = (payload.payload ?? {}) as Record<string, unknown>;
+  const kind = s(payload.kind);
+  const entityId = s(payload.entityId);
+  if (!kind || !entityId) return;
+
+  if (kind === 'doctrine_candidate_induced') {
+    const doctrineId = s(body.doctrineId);
+    if (!doctrineId) return;
+    db.prepare(
+      `INSERT INTO harbor_proj_doctrine
+         (doctrine_id, candidate_id, episode_id, decision_class, project_dir,
+          title, status, last_event_id, last_occurred_at, updated_ledger_seq)
+       VALUES (?, ?, ?, ?, ?, ?, 'candidate', ?, ?, ?)
+       ON CONFLICT (doctrine_id) DO NOTHING`,
+    ).run(
+      doctrineId,
+      entityId,
+      s(body.episodeId),
+      s(body.decisionClass),
+      s(payload.projectDir),
+      s(body.title),
+      row.event_id,
+      row.occurred_at,
+      row.ledger_seq,
+    );
+    return;
+  }
+
+  if (kind === 'doctrine_revision_admitted') {
+    db.prepare(
+      `UPDATE harbor_proj_doctrine SET
+         candidate_id = COALESCE(?, candidate_id),
+         experiment_id = ?,
+         status = ?,
+         contested_reason = NULL,
+         last_event_id = ?,
+         last_occurred_at = ?,
+         updated_ledger_seq = ?
+       WHERE doctrine_id = ?`,
+    ).run(
+      s(body.candidateId),
+      s(body.experimentId),
+      s(body.status) ?? 'provisional',
+      row.event_id,
+      row.occurred_at,
+      row.ledger_seq,
+      entityId,
+    );
+    return;
+  }
+
+  if (kind === 'doctrine_contested' || kind === 'doctrine_deprecated') {
+    db.prepare(
+      `UPDATE harbor_proj_doctrine SET
+         status = ?,
+         contested_reason = ?,
+         last_event_id = ?,
+         last_occurred_at = ?,
+         updated_ledger_seq = ?
+       WHERE doctrine_id = ?`,
+    ).run(
+      kind === 'doctrine_deprecated' ? 'deprecated' : 'contested',
+      s(body.reason),
+      row.event_id,
+      row.occurred_at,
+      row.ledger_seq,
+      entityId,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Projection engine: catch-up, staleness, rebuild
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -674,6 +783,7 @@ const HANDLERS: Record<ProjectionName, Handler> = {
   costs: applyCosts,
   compliance: applyCompliance,
   'work-receipts': applyWorkReceipts,
+  doctrine: applyDoctrine,
 };
 
 function getCheckpoint(db: DatabaseInstance, projection: ProjectionName): number {
@@ -924,4 +1034,30 @@ export function getWorkReceipts(
       : db.prepare('SELECT * FROM harbor_proj_work_receipts ORDER BY created_at DESC').all()
   ) as Record<string, unknown>[];
   return labeled(db, 'work-receipts', rows);
+}
+
+/** Current doctrine-revision cards, explicitly stale-labeled like every Harbor projection. */
+export function getDoctrineProjection(
+  db: DatabaseInstance,
+  filter: { projectDir?: string; decisionClass?: string; status?: string } = {},
+): LabeledResult<Record<string, unknown>> {
+  ensureProjectionSchema(db);
+  const where: string[] = ['1=1'];
+  const params: unknown[] = [];
+  if (filter.projectDir) {
+    where.push('project_dir = ?');
+    params.push(filter.projectDir);
+  }
+  if (filter.decisionClass) {
+    where.push('decision_class = ?');
+    params.push(filter.decisionClass);
+  }
+  if (filter.status) {
+    where.push('status = ?');
+    params.push(filter.status);
+  }
+  const rows = db
+    .prepare(`SELECT * FROM harbor_proj_doctrine WHERE ${where.join(' AND ')} ORDER BY last_occurred_at DESC`)
+    .all(...params) as Record<string, unknown>[];
+  return labeled(db, 'doctrine', rows);
 }

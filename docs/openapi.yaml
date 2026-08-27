@@ -69,6 +69,8 @@ tags:
     description: Harness mechanics, runtime evidence, and N:N continuation compatibility
   - name: skill-graft
     description: Read and reconcile checkpointed Tool2Vec catalog coverage
+  - name: doctrine
+    description: Advisory, evidence-backed decision doctrine with cited episodes, preregistered experiments, retrieval receipts, and verifier-backed outcomes
 
 paths:
   # ===========================================================================
@@ -5410,6 +5412,391 @@ paths:
         '503':
           description: Continuation store unavailable
 
+  # ===========================================================================
+  # EMPIRICALLY EARNED DOCTRINE (CASE-13)
+  # ===========================================================================
+  /doctrine/status:
+    get:
+      tags: [doctrine]
+      summary: Inspect advisory doctrine evidence-store status
+      description: Returns counts from the canonical Agent Harbor doctrine-evidence stream. Doctrine is advisory and never authorizes an action.
+      operationId: doctrineStatus
+      responses:
+        '200':
+          description: Advisory doctrine counts and canonical-store identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/candidates:
+    get:
+      tags: [doctrine]
+      summary: List candidate and admitted doctrine revisions
+      description: Lists evidence-backed revisions without applying any guidance or policy.
+      operationId: listDoctrineCandidates
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [candidate, provisional, established, contested, deprecated]
+        - name: projectDir
+          in: query
+          schema:
+            type: string
+        - name: decisionClass
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching advisory revisions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          description: Invalid doctrine status
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+    post:
+      tags: [doctrine]
+      summary: Propose a falsifiable doctrine candidate
+      description: Records a conditional candidate grounded in a cited DecisionEpisode. Proposal alone does not admit or retrieve advice.
+      operationId: proposeDoctrineCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineCandidateInput'
+      responses:
+        '201':
+          description: Candidate event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Referenced episode was not found
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/episodes:
+    get:
+      tags: [doctrine]
+      summary: List cited decision episodes
+      operationId: listDoctrineEpisodes
+      parameters:
+        - name: projectDir
+          in: query
+          schema:
+            type: string
+        - name: decisionClass
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recorded decision episodes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+    post:
+      tags: [doctrine]
+      summary: Record a cited DecisionEpisode
+      description: Records observed action, alternatives, and cues before a candidate explanation is induced.
+      operationId: recordDoctrineEpisode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionEpisodeInput'
+      responses:
+        '201':
+          description: Decision-episode event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/experiments:
+    post:
+      tags: [doctrine]
+      summary: Preregister a doctrine experiment
+      description: Records the hypothesis, primary outcome, control, treatment, and optional sham before run results exist.
+      operationId: preregisterDoctrineExperiment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineExperimentInput'
+      responses:
+        '201':
+          description: Experiment-preregistration event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Referenced candidate was not found
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/experiments/{id}:
+    get:
+      tags: [doctrine]
+      summary: Read a preregistered doctrine experiment
+      operationId: getDoctrineExperiment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Experiment and its recorded treatment runs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '404':
+          description: Doctrine experiment not found
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/experiments/{id}/runs:
+    post:
+      tags: [doctrine]
+      summary: Record one control, treatment, or sham run
+      description: Appends a replay observation. A prompt-only or mismatched replay may be recorded but cannot satisfy doctrine admission's factual-fidelity gate.
+      operationId: recordDoctrineTreatmentRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineTreatmentRunInput'
+      responses:
+        '201':
+          description: Treatment-run event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Doctrine experiment not found
+        '409':
+          description: Run conflicts with experiment state
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/{id}:
+    get:
+      tags: [doctrine]
+      summary: Read one doctrine revision and its evidence links
+      operationId: getDoctrine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Doctrine, its cited episode and experiment, retrieval receipts, applications, outcomes, and contests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '404':
+          description: Doctrine revision not found
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/candidates/{id}/admit:
+    post:
+      tags: [doctrine]
+      summary: Admit an advisory doctrine revision
+      description: Admission requires matched factual control and treatment runs from the candidate's own preregistered experiment. Prompt-only or unmatched replays cannot admit doctrine.
+      operationId: admitDoctrine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineAdmissionInput'
+      responses:
+        '201':
+          description: Advisory doctrine-revision event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Candidate or experiment not found
+        '409':
+          description: Factual-fidelity or preregistration admission gate did not pass
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/orders:
+    post:
+      tags: [doctrine]
+      summary: Retrieve advisory doctrine before a live decision
+      description: Appends a retrieval receipt for the live decision, then returns provisional or established packets matching the same project directory and exact structured decision class. A retrieval may honestly return no packets.
+      operationId: retrieveDoctrineOrders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineRetrieveInput'
+      responses:
+        '200':
+          description: Advisory packet and retrieval receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/retrievals/{id}/application:
+    post:
+      tags: [doctrine]
+      summary: Record an agent response to a retrieved doctrine packet
+      description: Records follow, adapt, or reject only for a doctrine that the named retrieval receipt actually showed.
+      operationId: recordDoctrineApplication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineApplicationInput'
+      responses:
+        '201':
+          description: Doctrine-application event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Retrieval receipt or doctrine not found
+        '409':
+          description: Doctrine did not appear in the referenced retrieval receipt
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/applications/{id}/outcome:
+    post:
+      tags: [doctrine]
+      summary: Attach a verifier-backed outcome to a doctrine application
+      description: A self-assessment alone is insufficient; cite the direct verification receipt establishing helped, harmed, or inconclusive.
+      operationId: recordDoctrineOutcome
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineOutcomeInput'
+      responses:
+        '201':
+          description: Verified-outcome event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Doctrine application not found
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
+  /doctrine/{id}/contest:
+    post:
+      tags: [doctrine]
+      summary: Contest an advisory doctrine revision with contrary evidence
+      description: Preserves prior evidence and removes the contested revision from active retrieval; it does not delete history.
+      operationId: contestDoctrine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctrineContestInput'
+      responses:
+        '201':
+          description: Doctrine-contest event appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctrineEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Doctrine revision not found
+        '503':
+          description: Doctrine evidence ledger is not wired in this daemon
+
 components:
   parameters:
     XAgentId:
@@ -5427,6 +5814,189 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    DoctrineEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        advisory:
+          type: boolean
+          description: Always true for doctrine read and retrieval packets; doctrine does not authorize an action.
+      additionalProperties: true
+
+    DoctrineEvidenceContext:
+      type: object
+      required: [projectDir, actorId, citations]
+      properties:
+        projectDir:
+          type: string
+          description: Absolute project directory used for evidence scope and exact retrieval matching.
+        actorId:
+          type: string
+          description: Agent or reviewer recording this evidence event.
+        citations:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: Immutable receipt identifiers, source spans, or verifier results.
+        sessionId:
+          type: string
+        runId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        idempotencyKey:
+          type: string
+        provenance:
+          type: object
+          properties:
+            model: { type: string }
+            modelVersion: { type: string }
+            harness: { type: string }
+            worktree: { type: string }
+            environment: { type: string }
+
+    DecisionEpisodeInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [decisionClass, summary, historicalAction]
+          properties:
+            id: { type: string }
+            decisionClass: { type: string, example: integration.merge }
+            summary: { type: string }
+            historicalAction: { type: string }
+            alternatives:
+              type: array
+              items: { type: string }
+            cues:
+              type: array
+              items: { type: string }
+            fidelity:
+              type: string
+              enum: [T0, T1, T2, T3, T4, T5]
+
+    DoctrineCandidateInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [episodeId, decisionClass, title, when, prefer, over, because]
+          properties:
+            id: { type: string }
+            doctrineId:
+              type: string
+              description: Stable identifier chosen when this candidate is first proposed. A later revision must be a new successor candidate; admission cannot replace this identifier.
+            episodeId: { type: string }
+            decisionClass: { type: string, example: integration.merge }
+            title: { type: string }
+            when: { type: string }
+            prefer: { type: string }
+            over: { type: string }
+            because: { type: string }
+            unless:
+              type: array
+              items: { type: string }
+            school: { type: string }
+            skillRefs:
+              type: array
+              items: { type: string }
+
+    DoctrineExperimentInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [candidateId, hypothesis, primaryOutcome, control, treatment]
+          properties:
+            id: { type: string }
+            candidateId: { type: string }
+            hypothesis: { type: string }
+            primaryOutcome: { type: string }
+            control: { type: string }
+            treatment: { type: string }
+            sham: { type: string }
+            preregisteredAt: { type: string, format: date-time }
+
+    DoctrineTreatmentRunInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [arm, action, outcome, fidelity]
+          properties:
+            id: { type: string }
+            arm:
+              type: string
+              enum: [control, treatment, sham]
+            action: { type: string }
+            outcome: { type: string }
+            fidelity:
+              type: string
+              enum: [not-run, matched, mismatched]
+            notes: { type: string }
+
+    DoctrineAdmissionInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [experimentId, reviewerId]
+          properties:
+            experimentId: { type: string }
+            reviewerId: { type: string }
+            status:
+              type: string
+              enum: [provisional, established]
+
+    DoctrineRetrieveInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [decisionId, decisionClass]
+          properties:
+            id: { type: string }
+            decisionId: { type: string }
+            decisionClass: { type: string, example: integration.merge }
+            limit: { type: integer, minimum: 1, maximum: 10, default: 3 }
+
+    DoctrineApplicationInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [doctrineId, response, decision]
+          properties:
+            id: { type: string }
+            doctrineId: { type: string }
+            response:
+              type: string
+              enum: [follow, adapt, reject]
+            decision: { type: string }
+            note: { type: string }
+
+    DoctrineOutcomeInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [verdict, summary, verifiedBy]
+          properties:
+            id: { type: string }
+            verdict:
+              type: string
+              enum: [helped, harmed, inconclusive]
+            summary: { type: string }
+            verifiedBy: { type: string }
+
+    DoctrineContestInput:
+      allOf:
+        - $ref: '#/components/schemas/DoctrineEvidenceContext'
+        - type: object
+          required: [reason]
+          properties:
+            reason: { type: string }
+            severity:
+              type: string
+              enum: [low, medium, high]
+
     Tool2VecReconcileStatus:
       type: object
       required: [state, configured, backend, generatorModel, embedderModel, catalogHash, total, current, missing, stale, coveragePct, leaseOwner, leaseExpiresAt, lastTrigger, lastStartedAt, lastCompletedAt, lastErrorKind, lastError]

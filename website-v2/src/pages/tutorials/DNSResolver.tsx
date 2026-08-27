@@ -9,7 +9,7 @@ export function DNSResolver() {
       title="Identity Discovery"
       description="Stop hardcoding addresses. Look up local services by name instead of by port number."
       number={8}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: "Expose a Harbor Service", href: "/tutorials/tunnel" }}

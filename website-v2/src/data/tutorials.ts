@@ -220,4 +220,14 @@ export const TUTORIALS: Tutorial[] = [
     tags: ['tube', 'messaging', 'control plane'],
     href: '/tutorials/pd-tube',
   },
+  {
+    slug: 'doctrine-cycle',
+    number: '22',
+    title: 'Test a Decision Rule Before Reusing It',
+    description: 'Turn a cited agent incident into an advisory evidence loop: test the explanation, retrieve it before a comparable decision, and preserve the verified result.',
+    level: 'advanced',
+    time: '14 min',
+    tags: ['doctrine', 'evidence', 'control plane'],
+    href: '/tutorials/doctrine-cycle',
+  },
 ]

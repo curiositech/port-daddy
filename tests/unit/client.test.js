@@ -790,6 +790,72 @@ describe('Tuples', () => {
 });
 
 // =============================================================================
+// Empirically earned fleet doctrine
+// =============================================================================
+
+describe('Doctrine evidence loop SDK', () => {
+  let pd;
+
+  beforeEach(() => {
+    pd = createClient({ agentId: 'doctrine-agent' });
+  });
+
+  test('lists a scoped advisory view without treating it as an action', async () => {
+    queueResponse({ success: true, advisory: true, candidates: [], count: 0 });
+
+    await pd.listDoctrineCandidates({
+      status: 'provisional',
+      projectDir: '/repo/port-daddy',
+      decisionClass: 'integration.merge',
+    });
+
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toContain('/doctrine/candidates?');
+    expect(receivedRequests[0].url).toContain('status=provisional');
+    expect(receivedRequests[0].url).toContain('projectDir=%2Frepo%2Fport-daddy');
+    expect(receivedRequests[0].url).toContain('decisionClass=integration.merge');
+  });
+
+  test('records a decision-time retrieval receipt and a later outcome on the correct endpoints', async () => {
+    queueResponse({
+      success: true,
+      advisory: true,
+      retrievalPolicy: 'structured-exact-decision-class',
+      receipt: { id: 'retrieval-1', doctrineIds: ['doctrine:case13'] },
+      doctrines: [],
+    });
+    await pd.retrieveDoctrineOrders({
+      projectDir: '/repo/port-daddy',
+      actorId: 'agent:steward',
+      citations: ['receipt:decision'],
+      decisionId: 'merge-1',
+      decisionClass: 'integration.merge',
+    });
+
+    queueResponse({ success: true, outcome: { outcomeId: 'outcome-1' } });
+    await pd.recordDoctrineOutcome('application-1', {
+      projectDir: '/repo/port-daddy',
+      actorId: 'agent:steward',
+      citations: ['receipt:ci'],
+      verdict: 'helped',
+      summary: 'The underlying technical evidence was checked.',
+      verifiedBy: 'receipt:ci',
+    });
+
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/doctrine/orders',
+      body: { decisionId: 'merge-1', decisionClass: 'integration.merge' },
+    });
+    expect(receivedRequests[1]).toMatchObject({
+      method: 'POST',
+      url: '/doctrine/applications/application-1/outcome',
+      body: { verdict: 'helped', verifiedBy: 'receipt:ci' },
+    });
+  });
+});
+
+// =============================================================================
 // Spawn
 // =============================================================================
 

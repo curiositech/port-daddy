@@ -15,6 +15,7 @@ import YAMLEditor from './components/YAMLEditor';
 import ActivityPanel from './components/ActivityPanel';
 import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
+import DoctrinePanel from './components/DoctrinePanel';
 import AgentsPanel from './components/AgentsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
 import CockpitMissionsPanel from './components/CockpitMissionsPanel';
@@ -70,8 +71,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Galaxy' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
-type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'galaxy' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
+type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Doctrine' | 'Metrics' | 'Galaxy' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
+type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'doctrine' | 'metrics' | 'galaxy' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -88,6 +89,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'inbox':
     case 'sorties':
     case 'memory':
+    case 'doctrine':
     case 'metrics':
     case 'galaxy':
     case 'dispatch':
@@ -136,6 +138,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Sorties';
     case 'memory':
       return 'Memory';
+    case 'doctrine':
+      return 'Doctrine';
     case 'metrics':
       return 'Metrics';
     case 'galaxy':
@@ -169,6 +173,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
+  if (activeTab === 'Doctrine') return 'doctrine';
   if (activeTab === 'Metrics') return 'metrics';
   if (activeTab === 'Galaxy') return 'galaxy';
   if (activeTab === 'Dispatch') return 'dispatch';
@@ -1487,7 +1492,7 @@ export default function App() {
     (!!fleet.status && !fleet.error) ||
     (!!operatorStateHook.state && !operatorStateHook.error);
 
-  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Galaxy', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Doctrine', 'Metrics', 'Galaxy', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
   // Visual task intake can start from a screenshot before the operator picks a repo.
   // It still attaches a project when FleetBar opens it from a project context.
   const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
@@ -2004,6 +2009,13 @@ export default function App() {
                         projectDir={selectedProjectId ?? undefined}
                         projectName={selectedProjectName ?? undefined}
                         harbor={fleetConfig?.harbor}
+                      />
+                    )}
+                    {activeTab === 'Doctrine' && (
+                      <DoctrinePanel
+                        key={`${daemonUrl}:${selectedProjectId ?? 'all'}:doctrine`}
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
                       />
                     )}
                     {activeTab === 'Metrics' && (

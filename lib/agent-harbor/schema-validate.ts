@@ -30,7 +30,7 @@ const ANNOTATION_KEYWORDS = new Set(['$schema', '$id', 'title', 'description', '
 const VALIDATION_KEYWORDS = new Set([
   'type', 'properties', 'required', 'additionalProperties', 'items',
   'enum', 'const', 'minLength', 'maxLength', 'minimum', 'maximum',
-  'minItems', 'maxItems', 'pattern',
+  'minItems', 'maxItems', 'pattern', 'format',
 ]);
 
 /** Throws if the schema uses any keyword this validator does not implement. */
@@ -89,6 +89,9 @@ function validateNode(schema: JsonSchema, value: unknown, path: string, errors: 
     }
     if (typeof schema.pattern === 'string' && !new RegExp(schema.pattern).test(value)) {
       errors.push(`${path}: string does not match pattern ${schema.pattern}`);
+    }
+    if (schema.format === 'date-time' && !Number.isFinite(Date.parse(value))) {
+      errors.push(`${path}: invalid date-time`);
     }
   }
   if (typeof value === 'number') {

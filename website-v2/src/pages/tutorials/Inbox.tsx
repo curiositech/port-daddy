@@ -8,7 +8,7 @@ export function Inbox() {
       title="Use Agent Inboxes"
       description="Separate the human control layer from the agent execution layer, send a durable handoff to one named agent, and keep direct coordination readable instead of burying it in logs."
       number={10}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: "Session Phases", href: "/tutorials/session-phases" }}

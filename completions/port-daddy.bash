@@ -144,7 +144,7 @@ _port_daddy() {
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas skill-graft skillgraft
+    graph memory doctrine ideas skill-graft skillgraft
     # Artifact harvest provenance (slice S4a)
     booty
     # Shared local embedder (ADR-0061)
@@ -2025,6 +2025,38 @@ _port_daddy() {
           ;;
         stats)
           _pd_opts '--dir --project --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # doctrine  status|candidates|show|orders|record-episode|propose|
+    #           preregister|run|admit|application|outcome|contest  [options]
+    # -----------------------------------------------------------------------
+    doctrine)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status candidates show orders record-episode propose preregister run admit application outcome contest help" -- "$cur") )
+          ;;
+        status)
+          _pd_opts '--json --quiet'
+          ;;
+        candidates)
+          _pd_opts '--status --dir --project-dir --decision-class --json --quiet'
+          ;;
+        show)
+          _pd_opts '--json --quiet'
+          ;;
+        orders)
+          _pd_opts '--input --decision-id --decision-class --json --quiet'
+          ;;
+        record-episode|propose|preregister)
+          _pd_opts '--input --json --quiet'
+          ;;
+        run|admit|application|outcome|contest)
+          _pd_opts '--input --json --quiet'
           ;;
         *) _pd_opts '' ;;
       esac

@@ -283,6 +283,19 @@ const TOOL_FEATURE_MAP = {
   'memory_episodes': 'memory',
   'memory_stats': 'memory',
 
+  // Empirically earned doctrine: advisory packets plus retrieval/application/outcome receipts.
+  'doctrine_list': 'doctrine',
+  'doctrine_get': 'doctrine',
+  'record_doctrine_episode': 'doctrine',
+  'propose_doctrine_candidate': 'doctrine',
+  'preregister_doctrine_experiment': 'doctrine',
+  'record_doctrine_treatment_run': 'doctrine',
+  'admit_doctrine_candidate': 'doctrine',
+  'doctrine_orders': 'doctrine',
+  'record_doctrine_application': 'doctrine',
+  'record_doctrine_outcome': 'doctrine',
+  'contest_doctrine': 'doctrine',
+
   // Feedback (central agentic-feedback primitive)
   'drop_feedback': 'feedback',
   'submit_visual_task': 'visual_tasks',
@@ -651,6 +664,15 @@ describe('Manifest features --> MCP tools (routed features need MCP coverage)', 
 const KNOWN_GENERIC_ROUTES = new Set([
   'POST /harvest/session/:param',   // routes/harvest.ts — Fastify generic syntax
   'POST /custodian/approvals/:param', // routes/custodian.ts — Fastify generic syntax
+  'POST /doctrine/episodes', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/candidates', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/experiments', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/orders', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/experiments/:param/runs', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/candidates/:param/admit', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/retrievals/:param/application', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/applications/:param/outcome', // routes/doctrine.ts — Fastify generic syntax
+  'POST /doctrine/:param/contest', // routes/doctrine.ts — Fastify generic syntax
   'GET /harbors',                   // routes/harbors.ts — Fastify generic syntax
   'GET /harbors/:param',            // routes/harbors.ts — Fastify generic syntax
   'POST /harbors/:param/check',     // routes/harbors.ts — Fastify generic syntax
@@ -808,7 +830,7 @@ describe('MCP tiered tool loading', () => {
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
     'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
-    'context', 'harvest', 'custodian',
+    'context', 'harvest', 'custodian', 'doctrine',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

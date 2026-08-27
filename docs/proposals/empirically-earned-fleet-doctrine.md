@@ -1,11 +1,45 @@
 # Empirically Earned Fleet Doctrine
 
-**Status:** Proposed founding architecture
+**Status:** In implementation — the CASE-13 evidence vertical slice is source-backed; the wider research, federation, and evaluation program remains proposed
 
 **Roadmap item:** `codex-doctrine-hypertree`
 
 **Scope:** Port Daddy-wide institutional learning, including transcripts, agent-to-agent deliberation, skills, memory, experiments, dispatch, and decision-time guidance
 **Decision:** Build one evidence-bearing doctrine loop that absorbs the useful parts of ADR-0052 and the closed agent-downtime RFC, while retaining transcripts, notes, tuples, episodic memory, semantic graph, Parley, and skills as specialized projections rather than rival memories.
+
+## Implementation note: the CASE-13 vertical slice
+
+The first implementation deliberately closes one narrow loop before claiming a
+fleet-learning program:
+
+```text
+cited decision episode
+  → falsifiable candidate
+  → preregistered experiment + recorded control/treatment runs
+  → advisory doctrine admission
+  → decision-time retrieval receipt
+  → follow/adapt/reject application
+  → verified outcome or contest
+```
+
+These facts append to the existing Agent Harbor `doctrine-evidence` stream;
+the detail, list, and retrieval views are rebuilt from that immutable evidence
+rather than maintained as a second doctrine database. The initial retrieval
+policy is deliberately narrow: exact, structured decision-class matching in one
+project. It is an auditable first decision surface, not a claim that semantic
+matching or universal relevance has been solved.
+
+The slice refuses admission without a preregistered experiment containing both
+a **matched factual control** and a **matched treatment**. A prompt-only or
+unmatched replay is recorded as evidence about replay fidelity, but cannot
+establish doctrine. The system also records sham arms when supplied, but it does
+not yet create forks, randomize agents, score causal intervals, or infer a
+population-level result. Those remain gates for the war-game laboratory.
+
+The operational walkthrough is
+[`docs/tutorials/case-13-doctrine-cycle.md`](../tutorials/case-13-doctrine-cycle.md).
+It is intentionally candid about what a supplied CASE-13 chain proves and
+what still needs an independently faithful experiment.
 
 ## Abstract
 
@@ -213,6 +247,23 @@ Admission requirements:
 6. **Deprecated:** remains queryable with rationale and descendants; it is excluded from default guidance.
 
 No doctrine directly becomes an enforced policy. Enforcement requires a separate ADR naming authority, operator control, safety analysis, and rollback. Doctrine is advisory by default.
+
+### 3.5 Supersession boundary
+
+This proposal now **supersedes ADR-0052 as the top-level institutional-learning
+architecture**. It does not erase the useful downstream work in ADR-0052:
+
+| ADR-0052 concern | Doctrine-program disposition |
+| --- | --- |
+| Exportable, redacted episode records | Retained as a downstream consumer of the canonical evidence ledger. |
+| Verified outcomes and synthetic evaluation | Retained as experimental and outcome evidence, with factual-fidelity and interference gates added. |
+| Prompt, SFT, preference, and RL consumers | Retained only after a doctrine has evidence, retrieval attribution, and held-out evaluation; they never become canonical truth. |
+| Reward-first coordination policy | Supplanted. A reward rubric cannot stand in for a falsifiable doctrine, contrary evidence, or a decision-time receipt. |
+| Trajectory exporter as the sole load-bearing learning surface | Supplanted. The evidence ledger owns facts; exporters are rebuildable views. |
+
+The corresponding ADR carries a reciprocal note. This removes an ambiguous
+choice of canonical learner without pretending that the unbuilt export or RL
+experiments were deleted from history.
 
 ## 4. The doctrine cycle
 
@@ -537,7 +588,7 @@ Parallel branches:
 - [ ] Persist preregistration and every treatment receipt.
 - [ ] Build a synthetic planted-cause suite and at least three real ambiguous cases.
 
-**Gate:** recover planted causes with calibrated intervals; refuse causal claims when factual replay fidelity fails.
+**Gate:** recover planted causes with calibrated intervals; refuse causal claims when factual replay fidelity fails. The CASE-13 implementation enforces the smaller admission precursor now: one matched factual control and one matched treatment are required before an advisory doctrine can be admitted. It does not satisfy this laboratory gate by itself.
 
 ### Wave 4 — doctrine admission and decision-time pilot
 
@@ -549,7 +600,7 @@ Parallel branches:
 - [ ] Run a safe randomized-encouragement pilot on non-security, reversible decisions.
 - [ ] Randomize at a non-interfering cluster boundary and reserve clean holdout clusters protected from treatment-derived evidence contamination.
 
-**Gate:** doctrine exposure improves a preregistered quality metric without increasing operator corrections, cost, or cycle time beyond limits; all effects include uncertainty.
+**Gate:** doctrine exposure improves a preregistered quality metric without increasing operator corrections, cost, or cycle time beyond limits; all effects include uncertainty. The CASE-13 vertical slice closes receipt → response → outcome attribution, but has not run this randomized-encouragement pilot.
 
 ### Wave 5 — continuous revision and skills
 
@@ -629,10 +680,12 @@ Kill the pilot if doctrine exposure increases defect rate, operator correction b
 
 ## 12. Proof checklist
 
-- [ ] Every doctrine revision links supporting and contradicting evidence.
-- [ ] Every causal claim links a preregistered experiment and factual-fidelity result.
-- [ ] Every decision-time packet emits an agent-visible retrieval receipt.
-- [ ] Every attributed outcome links to the decision and retrieval that preceded it.
+- [x] The CASE-13 ledger can link an episode, candidate, preregistered experiment, treatment receipts, retrieval receipt, application, outcome, and contest in one read-back chain.
+- [x] Admission refuses a candidate unless it has a preregistered experiment with matched factual control and treatment runs.
+- [x] Every CASE-13 decision-time packet emits an agent-visible retrieval receipt.
+- [x] Every CASE-13 attributed outcome links to an application and the retrieval that preceded it.
+- [ ] Every doctrine revision links supporting and contradicting evidence across independent cases.
+- [ ] Every causal claim links a preregistered experiment and factual-fidelity result with calibrated analysis.
 - [ ] Synthetic, observational, and production evidence remain separate dimensions.
 - [ ] Model, harness, prompt, tool, project, and environment provenance are queryable.
 - [ ] Multi-agent effective N is reported alongside nominal N.

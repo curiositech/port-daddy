@@ -23,6 +23,21 @@ import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discover
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
+import type {
+  AdmitDoctrineInput,
+  DecisionEpisodeInput,
+  DoctrineApplicationInput,
+  DoctrineCandidate,
+  DoctrineCandidateInput,
+  DoctrineContestInput,
+  DoctrineDetail,
+  DoctrineOutcomeInput,
+  DoctrinePacket,
+  DoctrineRetrieveInput,
+  DoctrineStatus,
+  ExperimentInput,
+  TreatmentRunInput,
+} from './doctrine.js';
 
 // =============================================================================
 // SDK option / result interfaces
@@ -3078,6 +3093,113 @@ class PortDaddy {
     return this._request('DELETE', `/agents/${encodeURIComponent(agentId)}/inbox`) as Promise<InboxClearResponse>;
   }
 
+  // ==========================================================================
+  // Empirically earned fleet doctrine — advisory evidence loop
+  // ==========================================================================
+
+  /** Inspect doctrine counts and the canonical Harbor evidence-store status. */
+  async doctrineStatus(): Promise<DoctrineStatusResponse> {
+    return this._request('GET', '/doctrine/status') as Promise<DoctrineStatusResponse>;
+  }
+
+  /** List candidate and admitted doctrine revisions; no guidance is applied. */
+  async listDoctrineCandidates(options: DoctrineListOptions = {}): Promise<DoctrineCandidatesResponse> {
+    const params = new URLSearchParams();
+    if (options.status) params.set('status', options.status);
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (options.decisionClass) params.set('decisionClass', options.decisionClass);
+    const query = params.toString();
+    return this._request('GET', `/doctrine/candidates${query ? `?${query}` : ''}`) as Promise<DoctrineCandidatesResponse>;
+  }
+
+  /** Read a doctrine revision with its episode, experiment, receipt, and outcome links. */
+  async getDoctrine(doctrineId: string): Promise<DoctrineDetailResponse> {
+    return this._request('GET', `/doctrine/${encodeURIComponent(doctrineId)}`) as Promise<DoctrineDetailResponse>;
+  }
+
+  /** Record a concrete decision episode. This is evidence capture, not doctrine admission. */
+  async recordDoctrineEpisode(input: DecisionEpisodeInput): Promise<DoctrineEpisodeResponse> {
+    return this._request('POST', '/doctrine/episodes', input as unknown as Record<string, unknown>) as Promise<DoctrineEpisodeResponse>;
+  }
+
+  /** Propose a falsifiable candidate grounded in a recorded decision episode. */
+  async proposeDoctrineCandidate(input: DoctrineCandidateInput): Promise<DoctrineCandidateWriteResponse> {
+    return this._request('POST', '/doctrine/candidates', input as unknown as Record<string, unknown>) as Promise<DoctrineCandidateWriteResponse>;
+  }
+
+  /** Preregister a control/treatment experiment before its replay results exist. */
+  async preregisterDoctrineExperiment(input: ExperimentInput): Promise<DoctrineExperimentWriteResponse> {
+    return this._request('POST', '/doctrine/experiments', input as unknown as Record<string, unknown>) as Promise<DoctrineExperimentWriteResponse>;
+  }
+
+  /** Append one observed replay arm. Matched control and treatment arms gate admission. */
+  async recordDoctrineTreatmentRun(
+    experimentId: string,
+    input: Omit<TreatmentRunInput, 'experimentId'>,
+  ): Promise<DoctrineTreatmentWriteResponse> {
+    return this._request(
+      'POST',
+      `/doctrine/experiments/${encodeURIComponent(experimentId)}/runs`,
+      input as unknown as Record<string, unknown>,
+    ) as Promise<DoctrineTreatmentWriteResponse>;
+  }
+
+  /** Admit a candidate as advisory-only doctrine after the factual-fidelity gate passes. */
+  async admitDoctrine(
+    candidateId: string,
+    input: Omit<AdmitDoctrineInput, 'candidateId'>,
+  ): Promise<DoctrineAdmissionResponse> {
+    return this._request(
+      'POST',
+      `/doctrine/candidates/${encodeURIComponent(candidateId)}/admit`,
+      input as unknown as Record<string, unknown>,
+    ) as Promise<DoctrineAdmissionResponse>;
+  }
+
+  /**
+   * Retrieve advisory doctrine for a live decision and append its retrieval
+   * receipt. The packet contains evidence links; it never grants authority.
+   */
+  async retrieveDoctrineOrders(input: DoctrineRetrieveInput): Promise<DoctrineOrdersResponse> {
+    return this._request('POST', '/doctrine/orders', input as unknown as Record<string, unknown>) as Promise<DoctrineOrdersResponse>;
+  }
+
+  /** Record whether the agent followed, adapted, or rejected a shown advisory. */
+  async recordDoctrineApplication(
+    retrievalId: string,
+    input: Omit<DoctrineApplicationInput, 'retrievalId'>,
+  ): Promise<DoctrineApplicationWriteResponse> {
+    return this._request(
+      'POST',
+      `/doctrine/retrievals/${encodeURIComponent(retrievalId)}/application`,
+      input as unknown as Record<string, unknown>,
+    ) as Promise<DoctrineApplicationWriteResponse>;
+  }
+
+  /** Attach a later verified outcome to one recorded advisory application. */
+  async recordDoctrineOutcome(
+    applicationId: string,
+    input: Omit<DoctrineOutcomeInput, 'applicationId'>,
+  ): Promise<DoctrineOutcomeWriteResponse> {
+    return this._request(
+      'POST',
+      `/doctrine/applications/${encodeURIComponent(applicationId)}/outcome`,
+      input as unknown as Record<string, unknown>,
+    ) as Promise<DoctrineOutcomeWriteResponse>;
+  }
+
+  /** Surface contrary evidence without overwriting the original doctrine event history. */
+  async contestDoctrine(
+    doctrineId: string,
+    input: Omit<DoctrineContestInput, 'doctrineId'>,
+  ): Promise<DoctrineContestResponse> {
+    return this._request(
+      'POST',
+      `/doctrine/${encodeURIComponent(doctrineId)}/contest`,
+      input as unknown as Record<string, unknown>,
+    ) as Promise<DoctrineContestResponse>;
+  }
+
   /**
    * Subscribe to an agent's inbox via pub/sub (SSE).
    * 
@@ -4344,6 +4466,87 @@ interface TupleCountResponse {
   count: number;
 }
 
+// =============================================================================
+// Doctrine types
+// =============================================================================
+
+interface DoctrineListOptions {
+  status?: DoctrineStatus;
+  projectDir?: string;
+  decisionClass?: string;
+}
+
+interface DoctrineWriteReceipt {
+  duplicate: boolean;
+  ledgerSeq: number;
+  eventId: string;
+  contentHash: string | null;
+  prevHash: string | null;
+}
+
+interface DoctrineStatusResponse {
+  success: boolean;
+  advisory: true;
+  canonicalStore: 'agent-harbor:doctrine-evidence';
+  counts: Record<string, number>;
+}
+
+interface DoctrineCandidatesResponse {
+  success: boolean;
+  advisory: true;
+  candidates: DoctrineCandidate[];
+  count: number;
+}
+
+interface DoctrineDetailResponse extends DoctrineDetail {
+  success: boolean;
+  advisory: true;
+}
+
+interface DoctrineEpisodeResponse {
+  success: boolean;
+  episode: DoctrineWriteReceipt & { episodeId: string };
+}
+
+interface DoctrineCandidateWriteResponse {
+  success: boolean;
+  candidate: DoctrineWriteReceipt & { candidateId: string; doctrineId: string };
+}
+
+interface DoctrineExperimentWriteResponse {
+  success: boolean;
+  experiment: DoctrineWriteReceipt & { experimentId: string };
+}
+
+interface DoctrineTreatmentWriteResponse {
+  success: boolean;
+  treatmentRun: DoctrineWriteReceipt & { treatmentRunId: string };
+}
+
+interface DoctrineAdmissionResponse {
+  success: boolean;
+  doctrine: DoctrineWriteReceipt & { doctrineId: string };
+}
+
+interface DoctrineOrdersResponse extends DoctrinePacket {
+  success: boolean;
+}
+
+interface DoctrineApplicationWriteResponse {
+  success: boolean;
+  application: DoctrineWriteReceipt & { applicationId: string };
+}
+
+interface DoctrineOutcomeWriteResponse {
+  success: boolean;
+  outcome: DoctrineWriteReceipt & { outcomeId: string };
+}
+
+interface DoctrineContestResponse {
+  success: boolean;
+  contest: DoctrineWriteReceipt;
+}
+
 export { PortDaddy, PortDaddyError, ConnectionError };
 export type {
   WaitResponse,
@@ -4415,5 +4618,34 @@ export type {
   TupleInResponse,
   TupleScanResponse,
   TupleCountResponse,
+  DoctrineListOptions,
+  DoctrineWriteReceipt,
+  DoctrineStatusResponse,
+  DoctrineCandidatesResponse,
+  DoctrineDetailResponse,
+  DoctrineEpisodeResponse,
+  DoctrineCandidateWriteResponse,
+  DoctrineExperimentWriteResponse,
+  DoctrineTreatmentWriteResponse,
+  DoctrineAdmissionResponse,
+  DoctrineOrdersResponse,
+  DoctrineApplicationWriteResponse,
+  DoctrineOutcomeWriteResponse,
+  DoctrineContestResponse,
+};
+export type {
+  AdmitDoctrineInput,
+  DecisionEpisodeInput,
+  DoctrineApplicationInput,
+  DoctrineCandidate,
+  DoctrineCandidateInput,
+  DoctrineContestInput,
+  DoctrineDetail,
+  DoctrineOutcomeInput,
+  DoctrinePacket,
+  DoctrineRetrieveInput,
+  DoctrineStatus,
+  ExperimentInput,
+  TreatmentRunInput,
 };
 export default PortDaddy;

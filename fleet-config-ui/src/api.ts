@@ -51,6 +51,15 @@ import type {
   GalaxyMapResponse,
   GalaxyParleyCallRequest,
   GalaxySessionDetailResponse,
+  DoctrineApplication,
+  DoctrineApplicationResponse,
+  DoctrineCandidate,
+  DoctrineDetail,
+  DoctrineOutcome,
+  DoctrineOutcomeVerdict,
+  DoctrineStatus,
+  DoctrineStatusSummary,
+  DoctrinePacket,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -314,6 +323,7 @@ function pathCategory(path: string): string {
   if (p.startsWith('/resources')) return 'resources';
   if (p.startsWith('/activity')) return 'activity';
   if (p.startsWith('/memory')) return 'memory';
+  if (p.startsWith('/doctrine')) return 'doctrine';
   if (p.startsWith('/sorties')) return 'sorties';
   if (p.startsWith('/projects')) return 'projects';
   if (p.startsWith('/locks')) return 'locks';
@@ -956,6 +966,150 @@ export async function fetchMemoryStats(projectDir?: string, project?: string): P
   if (projectDir) params.set('projectDir', projectDir);
   if (project) params.set('project', project);
   return get<MemoryStats>(`/memory/stats${params.toString() ? `?${params}` : ''}`);
+}
+
+// ─── Empirically earned doctrine ───────────────────────────────────────────
+//
+// The doctrine routes deliberately record a retrieval receipt through POST.
+// A read-only GET could display a rule, but could not later establish whether a
+// decision-maker was actually shown the advisory packet.
+
+export async function fetchDoctrineStatus(): Promise<DoctrineStatusSummary> {
+  return get<DoctrineStatusSummary>('/doctrine/status');
+}
+
+export async function fetchDoctrineCandidates(options: {
+  projectDir?: string;
+  decisionClass?: string;
+  status?: DoctrineStatus;
+} = {}): Promise<DoctrineCandidate[]> {
+  const params = new URLSearchParams();
+  if (options.projectDir) params.set('projectDir', options.projectDir);
+  if (options.decisionClass) params.set('decisionClass', options.decisionClass);
+  if (options.status) params.set('status', options.status);
+  const response = await get<{ success: boolean; advisory: true; candidates: DoctrineCandidate[] }>(
+    `/doctrine/candidates${params.toString() ? `?${params}` : ''}`,
+  );
+  return response.candidates ?? [];
+}
+
+export async function fetchDoctrineDetail(doctrineId: string): Promise<DoctrineDetail> {
+  const response = await get<{ success: boolean; advisory: true } & DoctrineDetail>(
+    `/doctrine/${encodeURIComponent(doctrineId)}`,
+  );
+  return {
+    doctrine: response.doctrine,
+    episode: response.episode,
+    experiment: response.experiment,
+    retrievals: response.retrievals ?? [],
+    applications: response.applications ?? [],
+    outcomes: response.outcomes ?? [],
+  };
+}
+
+export async function admitDoctrineCandidate(input: {
+  candidateId: string;
+  experimentId: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  reviewerId: string;
+  status?: Extract<DoctrineStatus, 'provisional' | 'established'>;
+}): Promise<{ doctrineId: string }> {
+  const response = await post<{ success: boolean; doctrine: { doctrineId: string } }>(
+    `/doctrine/candidates/${encodeURIComponent(input.candidateId)}/admit`,
+    {
+      experimentId: input.experimentId,
+      projectDir: input.projectDir,
+      actorId: input.actorId,
+      citations: input.citations,
+      reviewerId: input.reviewerId,
+      ...(input.status ? { status: input.status } : {}),
+    },
+  );
+  return response.doctrine;
+}
+
+export async function retrieveDoctrineOrder(input: {
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  decisionId: string;
+  decisionClass: string;
+  limit?: number;
+}): Promise<DoctrinePacket> {
+  const response = await post<{ success: boolean } & DoctrinePacket>('/doctrine/orders', input);
+  return {
+    receipt: response.receipt,
+    doctrines: response.doctrines ?? [],
+    advisory: response.advisory,
+    retrievalPolicy: response.retrievalPolicy,
+  };
+}
+
+export async function recordDoctrineApplication(input: {
+  retrievalId: string;
+  doctrineId: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  response: DoctrineApplicationResponse;
+  decision: string;
+  note?: string;
+}): Promise<DoctrineApplication> {
+  const response = await post<{ success: boolean; application: DoctrineApplication }>(
+    `/doctrine/retrievals/${encodeURIComponent(input.retrievalId)}/application`,
+    {
+      doctrineId: input.doctrineId,
+      projectDir: input.projectDir,
+      actorId: input.actorId,
+      citations: input.citations,
+      response: input.response,
+      decision: input.decision,
+      ...(input.note ? { note: input.note } : {}),
+    },
+  );
+  return response.application;
+}
+
+export async function recordDoctrineOutcome(input: {
+  applicationId: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  verdict: DoctrineOutcomeVerdict;
+  summary: string;
+  verifiedBy: string;
+}): Promise<DoctrineOutcome> {
+  const response = await post<{ success: boolean; outcome: DoctrineOutcome }>(
+    `/doctrine/applications/${encodeURIComponent(input.applicationId)}/outcome`,
+    {
+      projectDir: input.projectDir,
+      actorId: input.actorId,
+      citations: input.citations,
+      verdict: input.verdict,
+      summary: input.summary,
+      verifiedBy: input.verifiedBy,
+    },
+  );
+  return response.outcome;
+}
+
+export async function contestDoctrine(input: {
+  doctrineId: string;
+  projectDir: string;
+  actorId: string;
+  citations: string[];
+  reason: string;
+  severity?: 'low' | 'medium' | 'high';
+}): Promise<void> {
+  await post<{ success: boolean }>(`/doctrine/${encodeURIComponent(input.doctrineId)}/contest`, {
+    projectDir: input.projectDir,
+    actorId: input.actorId,
+    citations: input.citations,
+    reason: input.reason,
+    severity: input.severity ?? 'medium',
+  });
 }
 
 export async function fetchSemanticStats(projectDir?: string): Promise<SemanticResolutionStats> {

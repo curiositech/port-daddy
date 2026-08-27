@@ -66,6 +66,7 @@ export const STREAM_TYPES = [
   'work-receipt',
   'agent-node',
   'agent-run',
+  'doctrine-evidence',
 ] as const;
 
 export type StreamType = (typeof STREAM_TYPES)[number];
@@ -80,6 +81,7 @@ const SCHEMA_CONST: Record<Exclude<StreamType, 'transcript-event'>, string> = {
   'work-receipt': 'pd.agent-harbor.work-receipt.v0',
   'agent-node': 'pd.agent-harbor.agent-node.v0',
   'agent-run': 'pd.agent-harbor.agent-run.v0',
+  'doctrine-evidence': 'pd.agent-harbor.doctrine-evidence.v0',
 };
 
 /** Required fields per stream type — mirrors the frozen schemas' `required` arrays. */
@@ -93,6 +95,7 @@ const REQUIRED_FIELDS: Record<StreamType, string[]> = {
   'work-receipt': ['schema', 'receiptId', 'agentNodeId', 'sessionId', 'identity', 'intent', 'risks', 'validation', 'actions', 'contextUsed', 'rollback', 'spend', 'provenance', 'createdAt'],
   'agent-node': ['schema', 'agentNodeId', 'identity', 'class', 'authority', 'complianceLevel', 'status', 'createdAt'],
   'agent-run': ['schema', 'runId', 'agentNodeId', 'sessionId', 'body', 'status', 'startedAt'],
+  'doctrine-evidence': ['schema', 'eventId', 'idempotencyKey', 'kind', 'entityId', 'occurredAt', 'projectDir', 'actorId', 'citations', 'payload'],
 };
 
 export type HarborPayload = Record<string, unknown>;
@@ -423,6 +426,18 @@ function extractFields(streamType: StreamType, payload: HarborPayload): Extracte
         schemaId: payload.schema as string,
       };
     }
+    case 'doctrine-evidence':
+      return {
+        eventId: payload.eventId as string,
+        agentNodeId: str(payload.actorId),
+        sessionId: str(payload.sessionId),
+        runId: str(payload.runId),
+        sequence: null,
+        kind: str(payload.kind),
+        occurredAt: str(payload.occurredAt),
+        idempotencyKey: str(payload.idempotencyKey),
+        schemaId: payload.schema as string,
+      };
   }
 }
 

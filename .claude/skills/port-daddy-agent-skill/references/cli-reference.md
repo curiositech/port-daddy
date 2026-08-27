@@ -137,6 +137,17 @@ pd wallet <command>
 pd bond <command>
 pd graph edges
 pd memory episodes
+pd doctrine status
+pd doctrine candidates [--status <status>] [--decision-class <class>]
+pd doctrine orders --input @decision.json
+pd doctrine application <retrieval-id> --input @response.json
+pd doctrine outcome <application-id> --input @verified-outcome.json
+pd doctrine record-episode --input @episode.json
+pd doctrine propose --input @candidate.json
+pd doctrine preregister --input @experiment.json
+pd doctrine run <experiment-id> --input @treatment-run.json
+pd doctrine admit <candidate-id> --input @admission.json
+pd doctrine contest <doctrine-id> --input @contradiction.json
 pd ideas list
 pd roadmap [--tag <t>]
 pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
@@ -189,6 +200,47 @@ session + agent back onto the claim row via `linkClaim`. Pop without
 When done, `pd roadmap release <slug>` (or letting the session end
 naturally if `--begin` was used) frees the slug so another agent can
 pop it again if it cycles back.
+
+## Doctrine evidence loop (CASE-13)
+
+`pd doctrine` is the agent-facing surface for an **advisory** evidence chain,
+not a shortcut for turning a transcript into policy. Every mutation reads one
+complete JSON object through `--input <json>` or `--input @path/to/file.json`.
+The input must carry `projectDir`, `actorId`, and at least one immutable
+citation. Normal operator review belongs in FleetBar / Fleet Control Center.
+
+```bash
+# Read the existing source-backed evidence
+pd doctrine status
+pd doctrine candidates --status provisional --decision-class integration.merge
+pd doctrine show doctrine:integration:independent-evidence
+
+# Capture and challenge a candidate
+pd doctrine record-episode --input @case13-episode.json
+pd doctrine propose --input @case13-candidate.json
+pd doctrine preregister --input @case13-experiment.json
+pd doctrine run doctrine-experiment_... --input @case13-control.json
+pd doctrine run doctrine-experiment_... --input @case13-treatment.json
+pd doctrine admit doctrine-candidate_... --input @case13-admission.json
+
+# Decision-time retrieval and after-action evidence
+pd doctrine orders --input @next-merge-decision.json
+pd doctrine application doctrine-retrieval_... --input @response.json
+pd doctrine outcome doctrine-application_... --input @verified-outcome.json
+pd doctrine contest doctrine:integration:independent-evidence --input @contrary-case.json
+```
+
+`orders` always writes a retrieval receipt, including when it returns no
+doctrine. It does not change a merge, policy, review thread, or enforcement
+setting. Record `follow`, `adapt`, or `reject` with `application`; all three
+are legitimate responses. `outcome` must cite later verification. A contest
+removes a doctrine from active advisory retrieval while preserving its history.
+
+Admission has a factual-fidelity gate: the candidate needs a preregistered
+experiment with both a matched control and a matched treatment run. Prompt-only
+or otherwise unmatched replay can be recorded, but it cannot establish a
+doctrine. See [`docs/tutorials/case-13-doctrine-cycle.md`](../../../docs/tutorials/case-13-doctrine-cycle.md)
+for a full CASE-13 walkthrough and the exact evidence boundaries.
 
 ## Claim-Aware Git Staging
 

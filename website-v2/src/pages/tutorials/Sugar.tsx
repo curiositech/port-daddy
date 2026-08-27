@@ -8,7 +8,7 @@ export function Sugar() {
       title="Use Operator Shortcuts"
       description="Use pd begin, pd done, pd whoami, and pd with-lock as the daily command layer over the lower-level primitives."
       number={11}
-      total={21}
+      total={22}
       level="Beginner"
       readTime="5 min read"
       prev={{ title: "Use Agent Inboxes", href: "/tutorials/inbox" }}

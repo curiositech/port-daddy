@@ -39,7 +39,7 @@ export function Primitives() {
       title="Walk the 11 Product Primitives"
       description="Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives."
       number={20}
-      total={21}
+      total={22}
       level="Beginner"
       readTime="12 min read"
       prev={{

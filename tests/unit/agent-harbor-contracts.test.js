@@ -84,6 +84,7 @@ const SCHEMA_NAMES = [
   'transcript-search-query',
   'transcript-search-result',
   'blackboard-item',
+  'doctrine-evidence',
 ];
 
 const STRICT_SCHEMA_NAMES = new Set([
@@ -276,7 +277,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-five frozen contracts plus fixtures', () => {
+  it('ships exactly the twenty-six frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });

@@ -158,6 +158,8 @@ import {
   handleSuggest,
   // Seamanship — skill registry, search, graft, outcomes
   handleSeamanship,
+  // Empirically earned fleet doctrine — advisory evidence loop
+  handleDoctrine,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -229,7 +231,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'skill-graft', 'plan'
+  'secret', 'secrets', 'skill-graft', 'plan', 'doctrine'
 ]);
 
 /**
@@ -757,6 +759,7 @@ function buildHelp(): string {
     `  ${G}pd graph stats${Z}           ${tag('silent')} Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       ${tag('silent')} Inspect episodic memory`,
     `  ${G}pd memory tiers${Z}          ${tag('silent')} Core/Recall/Archival mapping with live counts`,
+    `  ${G}pd doctrine orders${Z}       ${tag('notify')} Retrieve advisory evidence and record its receipt`,
     `  ${G}pd ideas search${Z} "text"   ${tag('silent')} Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
     `  ${G}pd skill-graft${Z} "task"     ${tag('silent')} Preview native skill guidance for fleet ships`,
@@ -766,7 +769,7 @@ function buildHelp(): string {
     `${A}Permission tiers:${Z}`,
     TIER_LEGEND,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, doctrine, secret, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -1409,6 +1412,33 @@ Examples:
   pd skill-graft warm --local-only --json
   pd skill-graft reference rag-retrieval-pattern-design scripts/audit.mjs`,
 
+  doctrine: `Fleet Doctrine — evidence-backed advisory guidance
+
+Commands:
+  doctrine status
+  doctrine candidates [--status provisional] [--decision-class integration.merge]
+  doctrine show <doctrine-id>
+  doctrine orders --input @decision.json
+  doctrine application <retrieval-id> --input @application.json
+  doctrine outcome <application-id> --input @outcome.json
+
+Laboratory / evidence capture (append-only):
+  doctrine record-episode --input @episode.json
+  doctrine propose --input @candidate.json
+  doctrine preregister --input @experiment.json
+  doctrine run <experiment-id> --input @treatment-run.json
+  doctrine admit <candidate-id> --input @admission.json
+  doctrine contest <doctrine-id> --input @contradiction.json
+
+orders always records a retrieval receipt before an agent decides. Doctrine
+is advisory, not merge authority. Admission requires matched factual control
+and treatment runs; a prompt-only replay cannot prove the historical cause.
+
+Examples:
+  pd doctrine candidates --status provisional --decision-class integration.merge
+  pd doctrine orders --input @case13-next-decision.json
+  pd doctrine application doctrine-retrieval_... --input @case13-response.json`,
+
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
 
 The store is the OS keychain (macOS Keychain), encrypted at rest and
@@ -1499,6 +1529,7 @@ export const ALL_COMMANDS: string[] = [
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
+  'doctrine',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -3409,6 +3440,10 @@ export async function main(): Promise<void> {
 
       case 'memory':
         await handleMemory(positional, options);
+        break;
+
+      case 'doctrine':
+        await handleDoctrine(positional, options);
         break;
 
       case 'ideas':

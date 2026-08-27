@@ -9,7 +9,7 @@ export function Spawn() {
       title="Budgeted One-Shot Agents"
       description="Use pd spawn when you want direct daemon-backed execution inside a harbor with explicit identity, cost ceiling, telemetry, and salvage."
       number={13}
-      total={21}
+      total={22}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: "Spawn + Watch Pattern", href: "/tutorials/always-on" }}

@@ -330,6 +330,29 @@ export const PRODUCT_FEATURES = [
     status: 'new'
   },
   {
+    id: 'doctrine',
+    title: 'Evidence-led doctrine',
+    description: 'Turn a cited coding-agent decision into a falsifiable advisory rule, then preserve what happened when a later agent saw and used it.',
+    category: 'intelligence',
+    cli: 'pd doctrine orders --input @decision.json',
+    href: '/docs/features/doctrine',
+    image: {
+      src: '/img/generated/salvage-ledger.webp',
+      alt: 'A durable ledger illustration used to represent inspectable evidence records',
+    },
+    detail: 'The CASE-13 vertical slice captures an episode, candidate, preregistered experiment, advisory retrieval receipt, agent response, and verified outcome or contest in one append-only evidence stream. It is deliberately advisory and scoped: the system does not infer causal learning from every transcript.',
+    outcomes: [
+      'Make an agent decision rule inspectable instead of calling it personality or folklore.',
+      'Record exactly what advice was retrieved before a comparable decision and how the agent responded.',
+      'Keep contrary evidence visible by contesting a packet instead of deleting its history.',
+    ],
+    links: [
+      { label: 'Doctrine feature', href: '/docs/features/doctrine' },
+      { label: 'CASE-13 tutorial', href: '/tutorials/doctrine-cycle' },
+    ],
+    status: 'preview'
+  },
+  {
     id: 'self-healing',
     title: 'Session salvage',
     description: 'When an agent crashes, its session notes, file claims, and work context survive. A new agent can claim the abandoned work and continue.',

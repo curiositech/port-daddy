@@ -467,6 +467,77 @@ Count tuples, optionally scoped to a harbor.
 
 ---
 
+## Empirically Earned Doctrine
+
+The SDK exposes the CASE-13 evidence loop as typed methods over the same
+append-only Harbor `doctrine-evidence` stream used by the CLI, MCP, and
+FleetBar. It is **advisory**: retrieval returns cited guidance and a receipt;
+it never authorizes a merge, policy, review-thread action, or enforcement
+change.
+
+```js
+const episode = await pd.recordDoctrineEpisode({
+  projectDir: process.cwd(),
+  actorId: 'steward',
+  citations: ['github:pull:CASE-13#review-thread-7'],
+  decisionClass: 'integration.merge',
+  summary: 'Steward withheld a green merge while one bot thread was unresolved.',
+  historicalAction: 'withheld merge',
+})
+
+const candidate = await pd.proposeDoctrineCandidate({
+  projectDir: process.cwd(),
+  actorId: 'steward',
+  citations: ['github:pull:CASE-13#review-thread-7'],
+  episodeId: episode.episode.episodeId,
+  decisionClass: 'integration.merge',
+  title: 'Independent technical evidence carries merge-blocking weight',
+  when: 'an otherwise-ready merge has an unresolved review thread',
+  prefer: 'inspect independent technical evidence',
+  over: 'treating thread state as a veto',
+  because: 'thread state is a proxy, not the proposed mechanism',
+})
+
+const packet = await pd.retrieveDoctrineOrders({
+  projectDir: process.cwd(),
+  actorId: 'steward',
+  citations: ['receipt:decision:PR-9844:pre-merge'],
+  decisionId: 'decision:PR-9844:merge',
+  decisionClass: 'integration.merge',
+})
+// packet.receipt is durable evidence that the agent saw this advisory.
+```
+
+### Read methods
+
+- `pd.doctrineStatus()` — inspect counts and canonical-store status.
+- `pd.listDoctrineCandidates(options?)` — filter by `status`, `projectDir`, or
+  `decisionClass`; this never applies guidance.
+- `pd.getDoctrine(doctrineId)` — read the linked episode, experiment, receipts,
+  applications, and outcomes.
+
+### Evidence and decision-time methods
+
+- `pd.recordDoctrineEpisode(input)`
+- `pd.proposeDoctrineCandidate(input)`
+- `pd.preregisterDoctrineExperiment(input)`
+- `pd.recordDoctrineTreatmentRun(experimentId, input)`
+- `pd.admitDoctrine(candidateId, input)`
+- `pd.retrieveDoctrineOrders(input)`
+- `pd.recordDoctrineApplication(retrievalId, input)`
+- `pd.recordDoctrineOutcome(applicationId, input)`
+- `pd.contestDoctrine(doctrineId, input)`
+
+Every input includes `projectDir`, `actorId`, and non-empty `citations`.
+Admission refuses prompt-only or otherwise unmatched reconstructions: the
+candidate's preregistered experiment needs both matched factual control and
+treatment runs. An application must name a doctrine actually present in the
+retrieval receipt, so outcome attribution cannot be silently attached to advice
+the agent never saw. A contest preserves the original event history and removes
+the doctrine from active advisory retrieval.
+
+---
+
 ## IPC Fast Paths
 
 The following methods automatically use the Binary IPC channel when the daemon's IPC socket is available at `~/.port-daddy/daemon.ipc`. No code changes needed — the SDK detects and uses IPC transparently.

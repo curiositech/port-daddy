@@ -10,7 +10,7 @@ export function SemanticIdentities() {
       title="Name Work Inside the Harbor"
       description="Every service, agent, session, and channel in a harbor has a project:stack:context name. This is not decoration; it is how other agents find the work."
       number={3}
-      total={21}
+      total={22}
       level="Beginner"
       readTime="8 min read"
       prev={{ title: "Install and Verify the Daemon", href: "/tutorials/getting-started" }}

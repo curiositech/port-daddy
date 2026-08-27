@@ -8,7 +8,7 @@ export function Harbors() {
       title="Start Inside a Harbor"
       description="Create the project boundary first, then run agents, sessions, ports, channels, and recovery inside a named permission scope."
       number={1}
-      total={21}
+      total={22}
       level="Beginner"
       readTime="8 min read"
       next={{ title: "Install and Verify the Daemon", href: "/tutorials/getting-started" }}

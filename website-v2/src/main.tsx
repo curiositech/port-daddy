@@ -66,6 +66,7 @@ const Fleet = lazyNamed(() => import('@/pages/tutorials/Fleet'), 'Fleet')
 const Pheromone = lazyNamed(() => import('@/pages/tutorials/Pheromone'), 'Pheromone')
 const Primitives = lazyNamed(() => import('@/pages/tutorials/Primitives'), 'Primitives')
 const PdTube = lazyNamed(() => import('@/pages/tutorials/PdTube'), 'PdTube')
+const DoctrineCycle = lazyNamed(() => import('@/pages/tutorials/DoctrineCycle'), 'DoctrineCycle')
 
 const ApiReference = lazy(() => import('@/pages/docs/ApiReference'))
 const Decisions = lazy(() => import('@/pages/docs/Decisions'))
@@ -90,6 +91,7 @@ const FleetFeature = lazy(() => import('@/pages/docs/features/FleetFeature'))
 const TuplesFeature = lazy(() => import('@/pages/docs/features/TuplesFeature'))
 const ArbiterFeature = lazy(() => import('@/pages/docs/features/ArbiterFeature'))
 const RelayPkiFeature = lazy(() => import('@/pages/docs/features/RelayPkiFeature'))
+const DoctrineFeature = lazy(() => import('@/pages/docs/features/DoctrineFeature'))
 const PromptingAgents = lazy(() => import('@/pages/docs/guides/PromptingAgents'))
 const TemplatesGuide = lazy(() => import('@/pages/docs/guides/TemplatesGuide'))
 const ProtocolGuide = lazy(() => import('@/pages/docs/guides/ProtocolGuide'))
@@ -188,6 +190,17 @@ const StatusTool = lazy(() => import('@/pages/docs/mcp/StatusTool'))
 const TunnelTool = lazy(() => import('@/pages/docs/mcp/TunnelTool'))
 const TunnelStopTool = lazy(() => import('@/pages/docs/mcp/TunnelStopTool'))
 const WatchTool = lazy(() => import('@/pages/docs/mcp/WatchTool'))
+const DoctrineListTool = lazy(() => import('@/pages/docs/mcp/DoctrineListTool'))
+const DoctrineGetTool = lazy(() => import('@/pages/docs/mcp/DoctrineGetTool'))
+const RecordDoctrineEpisodeTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineEpisodeTool'))
+const ProposeDoctrineCandidateTool = lazy(() => import('@/pages/docs/mcp/ProposeDoctrineCandidateTool'))
+const PreregisterDoctrineExperimentTool = lazy(() => import('@/pages/docs/mcp/PreregisterDoctrineExperimentTool'))
+const RecordDoctrineTreatmentRunTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineTreatmentRunTool'))
+const AdmitDoctrineCandidateTool = lazy(() => import('@/pages/docs/mcp/AdmitDoctrineCandidateTool'))
+const DoctrineOrdersTool = lazy(() => import('@/pages/docs/mcp/DoctrineOrdersTool'))
+const RecordDoctrineApplicationTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineApplicationTool'))
+const RecordDoctrineOutcomeTool = lazy(() => import('@/pages/docs/mcp/RecordDoctrineOutcomeTool'))
+const ContestDoctrineTool = lazy(() => import('@/pages/docs/mcp/ContestDoctrineTool'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -240,6 +253,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/pheromone" element={<Pheromone />} />
               <Route path="/tutorials/primitives" element={<Primitives />} />
               <Route path="/tutorials/pd-tube" element={<PdTube />} />
+              <Route path="/tutorials/doctrine-cycle" element={<DoctrineCycle />} />
 
               <Route path="/cookbook" element={<LegacyExampleRedirect />} />
               <Route path="/cookbook/:id" element={<LegacyExampleRedirect />} />
@@ -337,6 +351,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="features/tuples" element={<TuplesFeature />} />
               <Route path="features/arbiter" element={<ArbiterFeature />} />
               <Route path="features/relay-pki" element={<RelayPkiFeature />} />
+              <Route path="features/doctrine" element={<DoctrineFeature />} />
 
               <Route path="sdk" element={<SdkOverview />} />
               <Route path="sdk/ports" element={<PortsSdk />} />
@@ -399,6 +414,17 @@ createRoot(document.getElementById('root')!).render(
               <Route path="mcp/tunnel" element={<TunnelTool />} />
               <Route path="mcp/tunnel-stop" element={<TunnelStopTool />} />
               <Route path="mcp/watch" element={<WatchTool />} />
+              <Route path="mcp/doctrine-list" element={<DoctrineListTool />} />
+              <Route path="mcp/doctrine-get" element={<DoctrineGetTool />} />
+              <Route path="mcp/record-doctrine-episode" element={<RecordDoctrineEpisodeTool />} />
+              <Route path="mcp/propose-doctrine-candidate" element={<ProposeDoctrineCandidateTool />} />
+              <Route path="mcp/preregister-doctrine-experiment" element={<PreregisterDoctrineExperimentTool />} />
+              <Route path="mcp/record-doctrine-treatment-run" element={<RecordDoctrineTreatmentRunTool />} />
+              <Route path="mcp/admit-doctrine-candidate" element={<AdmitDoctrineCandidateTool />} />
+              <Route path="mcp/doctrine-orders" element={<DoctrineOrdersTool />} />
+              <Route path="mcp/record-doctrine-application" element={<RecordDoctrineApplicationTool />} />
+              <Route path="mcp/record-doctrine-outcome" element={<RecordDoctrineOutcomeTool />} />
+              <Route path="mcp/contest-doctrine" element={<ContestDoctrineTool />} />
 
               <Route path="api" element={<ApiReference />} />
               <Route path="api/endpoints" element={<ApiReference />} />

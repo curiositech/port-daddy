@@ -14,7 +14,7 @@ export function Tunnel() {
       title="Expose a Harbor Service"
       description="Publish one harbor-owned service through pd tunnel with clear ownership, explicit provider choice, and a reversible path."
       number={7}
-      total={21}
+      total={22}
       level="Beginner"
       readTime="6 min read"
       prev={{

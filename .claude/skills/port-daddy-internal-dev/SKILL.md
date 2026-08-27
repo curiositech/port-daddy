@@ -212,6 +212,7 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) | <!-- cite-exempt: illustrative role/template path -->
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
 | **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
+| **Empirically earned doctrine** — CASE-13 evidence loop | `docs/proposals/empirically-earned-fleet-doctrine.md` | `lib/doctrine.ts` · `schemas/agent-harbor/v0/doctrine-evidence.schema.json` · `routes/doctrine.ts` · `cli/commands/doctrine.ts` · SDK / MCP contracts · FleetBar Doctrine panel · OpenAPI / README / website tutorial / skills / manifest parity |
 
 Contributor gotchas specific to these:
 
@@ -236,6 +237,16 @@ Contributor gotchas specific to these:
   CI/boot gates red. New CRITICAL invariants go in `lib/attest-invariants.ts`
   with a test; mark non-blocking checks as such so a green exit keeps meaning
   "every CRITICAL invariant holds."
+- **Doctrine is a ledger contract, not a memory bucket.** A CASE-13 change
+  must preserve one append-only `doctrine-evidence` chain: cited episode →
+  candidate → preregistered experiment → advisory retrieval receipt → agent
+  response → verified outcome or contest. Do not add a mutable doctrine table,
+  make a skill file canonical, or expose a write-only harvest. Admission must
+  refuse prompt-only or unmatched factual replays; retrieval must remain
+  advisory and receipt-bearing. Change the ledger schema, route, CLI, SDK, MCP,
+  FleetBar, OpenAPI, README, public tutorial, skill reference, and manifest
+  together. The proof boundary is
+  `docs/proposals/empirically-earned-fleet-doctrine.md`.
 - **Manifest bijection.** `features.manifest.json` is the parity source of
   truth (`npm run parity`). The `dispatch`/`relay`/`attest`/`operator_coast_guard`
   feature rows carry `_note` fields explaining intentionally-omitted routes

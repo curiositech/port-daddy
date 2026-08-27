@@ -31,6 +31,7 @@ import {
   getCostSummary,
   getCompliance,
   getWorkReceipts,
+  getDoctrineProjection,
 } from '../../lib/agent-harbor/projections.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -117,6 +118,7 @@ function dumpProjections(db: DatabaseInstance): Record<string, unknown[]> {
     'harbor_proj_costs',
     'harbor_proj_compliance',
     'harbor_proj_work_receipts',
+    'harbor_proj_doctrine',
   ];
   const dump: Record<string, unknown[]> = {};
   for (const table of tables) {
@@ -292,6 +294,71 @@ describe('agent-harbor projections', () => {
       const row = receipts.rows[0] as Record<string, unknown>;
       expect(row.transcript_head_hash).toBeTruthy();
       expect(typeof row.strength).toBe('string');
+    });
+  });
+
+  describe('doctrine projection', () => {
+    it('materializes the current revision card from the immutable evidence stream', () => {
+      appendEvent(db, {
+        streamType: 'doctrine-evidence',
+        payload: {
+          schema: 'pd.agent-harbor.doctrine-evidence.v0',
+          eventId: 'doctrine-projection-candidate',
+          idempotencyKey: 'doctrine:projection:candidate',
+          kind: 'doctrine_candidate_induced',
+          entityId: 'candidate-projection',
+          occurredAt: '2026-08-26T12:00:00.000Z',
+          projectDir: '/repo/port-daddy',
+          actorId: 'agent:steward',
+          citations: ['receipt:case-13'],
+          payload: {
+            doctrineId: 'doctrine:projection',
+            episodeId: 'episode-projection',
+            decisionClass: 'integration.merge',
+            title: 'Treat unresolved independent evidence as blocking',
+          },
+        },
+      });
+      projectPending(db, { projection: 'doctrine' });
+
+      const initial = getDoctrineProjection(db);
+      expect(initial.stale).toBe(false);
+      expect(initial.rows).toHaveLength(1);
+      expect(initial.rows[0]).toMatchObject({
+        doctrine_id: 'doctrine:projection',
+        candidate_id: 'candidate-projection',
+        status: 'candidate',
+      });
+
+      appendEvent(db, {
+        streamType: 'doctrine-evidence',
+        payload: {
+          schema: 'pd.agent-harbor.doctrine-evidence.v0',
+          eventId: 'doctrine-projection-admitted',
+          idempotencyKey: 'doctrine:projection:admitted',
+          kind: 'doctrine_revision_admitted',
+          entityId: 'doctrine:projection',
+          occurredAt: '2026-08-26T12:01:00.000Z',
+          projectDir: '/repo/port-daddy',
+          actorId: 'agent:admiralty',
+          citations: ['experiment:case-13'],
+          payload: {
+            candidateId: 'candidate-projection',
+            experimentId: 'experiment-projection',
+            reviewerId: 'agent:admiralty',
+            status: 'provisional',
+          },
+        },
+      });
+      projectPending(db, { projection: 'doctrine' });
+
+      const admitted = getDoctrineProjection(db);
+      expect(admitted.stale).toBe(false);
+      expect(admitted.rows[0]).toMatchObject({
+        doctrine_id: 'doctrine:projection',
+        experiment_id: 'experiment-projection',
+        status: 'provisional',
+      });
     });
   });
 

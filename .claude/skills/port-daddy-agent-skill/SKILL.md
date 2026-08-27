@@ -461,6 +461,61 @@ strictly read-only: it reports current-hash Tool2Vec coverage without generating
 centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
 do not add an agent-triggered MCP mutation for it.
 
+## Empirically Earned Doctrine — advisory evidence, not agent personality
+
+When a recurring engineering choice looks worth reusing, do not turn one
+successful transcript into a standing instruction or label an agent
+"cautious." Capture a **falsifiable, cited choice rule** through `pd doctrine`:
+
+```bash
+pd doctrine record-episode --input @episode.json
+pd doctrine propose --input @candidate.json
+pd doctrine preregister --input @experiment.json
+pd doctrine run <experiment-id> --input @treatment-run.json
+pd doctrine admit <candidate-id> --input @admission.json
+pd doctrine orders --input @next-decision.json
+pd doctrine application <retrieval-id> --input @response.json
+pd doctrine outcome <application-id> --input @verified-outcome.json
+```
+
+Each input names `projectDir`, `actorId`, and immutable citations. The chain is
+one append-only Harbor evidence stream:
+
+```text
+episode → candidate → preregistered experiment → advisory order receipt
+        → follow/adapt/reject → verified outcome or contest
+```
+
+Use this only for a decision rule that could lose. A candidate must say when to
+prefer what over which alternative, why, and under what exceptions. Use Skill
+Graft to discover a relevant procedural skill, but keep a `skillRefs` entry as a
+projection citation — a skill file is not canonical evidence and is never an
+automatic admission path.
+
+**Factual fidelity is a gate.** Record unmatched or prompt-only replays as
+evidence about a failed reconstruction, not causal proof. Doctrine admission
+requires a preregistered experiment with both matched factual control and
+matched treatment runs. Repeated samples from one checkpoint are also not
+independent fleet cases.
+
+**Orders are advisory.** `pd doctrine orders` creates a decision-time receipt
+showing what the agent was presented; it does not merge, block, resolve a
+review thread, or enforce a policy. Record whether the agent followed, adapted,
+or rejected the packet, then record a later outcome only when a verifier or
+reviewer can cite it. A well-supported rejection is valuable contrary evidence;
+contest it rather than overwriting history. The operator reviews and contests
+this chain in FleetBar / Fleet Control Center, not by managing a CLI workflow.
+To revise an admitted rule, propose a successor candidate; admission never
+changes an existing candidate's doctrine ID.
+
+MCP has the same full loop: `record_doctrine_episode`,
+`propose_doctrine_candidate`, `preregister_doctrine_experiment`,
+`record_doctrine_treatment_run`, `admit_doctrine_candidate`, `doctrine_orders`,
+`record_doctrine_application`, `record_doctrine_outcome`, and
+`contest_doctrine`; `doctrine_list` and `doctrine_get` are audit reads. Use
+the MCP write tools only with their required snake_case project, actor, and
+citation context. They are not an alternate admission path.
+
 ## Operating Loop
 
 Run the loop in order. Skip only when the task is truly trivial.
@@ -845,11 +900,29 @@ pd tube <channel> --reply "<body>"      # inline reply, auto-correlated, keep li
 pd tube <channel> --once                # one poll-pass, then exit
 ```
 
+### Empirically earned doctrine — CASE-13 evidence loop
+
+`pd doctrine` turns a cited recurring decision into an auditable, advisory
+chain: episode → candidate → preregistered experiment → retrieval receipt →
+agent response → verified outcome or contest. The canonical facts append to
+the Agent Harbor `doctrine-evidence` stream; skills and memory remain
+projections. `pd doctrine orders --input @decision.json` writes a receipt of
+what an agent actually saw, but it cannot merge, block, or enforce a policy.
+
+Admission requires matched factual control and treatment runs from a
+preregistered experiment. Prompt-only or unmatched replay is retained as a
+fidelity result but cannot establish doctrine. The practical CASE-13 procedure
+is [`docs/tutorials/case-13-doctrine-cycle.md`](../../docs/tutorials/case-13-doctrine-cycle.md).
+MCP and SDK callers use the same ledger and should record follow, adapt, or
+reject before attaching a cited outcome. The operator reviews this in FleetBar
+or Fleet Control Center.
+
 ### Design-stage ADRs (NOT shipped — do not depend on)
 
 These are accepted-design or in-flight ADRs. Reference them for direction;
 do not document their verbs as if they ship today: **marketplace** (ADR-0051),
-**trajectory export + RL loop** (ADR-0052), and **out-of-band enforcement /
+the remaining **trajectory export + RL loop** work (ADR-0052, partially
+superseded by the shipped doctrine evidence vertical), and **out-of-band enforcement /
 "DOM DADDY"** (ADR-0053, in-flight) which moves enforcement out of in-band
 git-hook shims to branch-protection / cred-broker layers. A release-cadence +
 Rust-surface ADR (ADR-0054) is being written in parallel; once it lands it is

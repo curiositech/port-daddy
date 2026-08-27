@@ -95,6 +95,7 @@ import { contextRoutes as contextPlugin } from './context.js';
 import { harvestPlugin } from './harvest.js';
 import { custodianPlugin } from './custodian.js';
 import { skillGraftPlugin } from './skill-graft.js';
+import { doctrinePlugin } from './doctrine.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -399,6 +400,12 @@ export async function registerAllRoutes(
 
   if ((deps as { tool2VecReconciler?: unknown }).tool2VecReconciler) {
     await fastify.register(skillGraftPlugin, { deps } as any);
+  }
+
+  // Empirically earned doctrine is a canonical Agent Harbor evidence stream
+  // with replayed advisory packets, never a mutable second memory store.
+  if ((deps as { db?: unknown }).db) {
+    await fastify.register(doctrinePlugin, { deps } as any);
   }
 
   // Session harvest — mounts when episodicMemory dep is present (already gated above for memoryPlugin).

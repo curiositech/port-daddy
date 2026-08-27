@@ -16,7 +16,7 @@ export function RemoteHarbors() {
       title="Multiplayer Localhost"
       description="The swarm doesn't stop at your machine. Harbors on the relay let daemons find each other by name; invites and joining are live, device pairing and end-to-end sealing are designed-not-built and gate launch."
       number={17}
-      total={21}
+      total={22}
       level="Advanced"
       readTime="15 min read"
       prev={{ title: "Swarm Observation", href: "/tutorials/watch" }}
