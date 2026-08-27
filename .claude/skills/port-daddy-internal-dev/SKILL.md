@@ -790,6 +790,12 @@ daemon-witnessed runtime receipt.
 **Fix:** Launch with the full berth env (dev-triple.sh exports it; other launch paths must export it by hand), then verify the entry appears in `~/.port-daddy/dev-daemons.json` before inviting the operator to look.
 **Why:** Registration is the daemon's identity on the operator surface. A daemon that never self-registers does not exist as far as the demo is concerned.
 
+### Prefix-Only Named Daemon Isolation
+**Detection:** A named daemon profile sets `PORT_DADDY_PREFIX` but leaves `PORT_DADDY_DB`, socket, IPC, PID, port, or heartbeat paths implicit.
+**Symptoms:** The profile appears isolated on its chosen port while a consumer that does not interpret the prefix silently opens the canonical registry or control files. Multiple profiles then own different process identities over the same durable truth, and a test daemon can stall or crash production startup.
+**Fix:** Build named-profile environments through `buildDaemonProfileEnv()` and assert every mutable runtime path equals the resolved profile path. Acceptance-test the running profile on a noncanonical port, then inspect its open files and require that no canonical registry handle appears.
+**Why:** A profile is a state-plane boundary, not a naming convention. Isolation must survive new consumers and refactors without depending on every module reimplementing prefix inference correctly.
+
 ### Demoing One Slice Of A Multi-PR Feature
 **Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.
 **Symptoms:** The operator files rage-bugs against branch A for everything branch B already fixed; review time is spent re-litigating known-done work.
