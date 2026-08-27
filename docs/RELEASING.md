@@ -138,11 +138,14 @@ pd done "v3.15.0 shipped"
 
 ### Code signing (Apple Developer ID)
 
-Every macOS artifact `release.yml` produces is signed with the **Developer ID
-Application: Curiositech LLC (P5H9P59X2M)** identity, and notarized + stapled by
-Apple — the daemon (`pd` + `port-daddy`), the `pd-console.app`, and FleetBar.
-This is automatic on every release; **nothing to do per-release** once the secrets
-below are set. (ADR-0057; the daemon path is ADR-0028's signing recipe, finally wired.)
+The stable release path signs macOS artifacts with the **Developer ID Application:
+Curiositech LLC (P5H9P59X2M)** identity. FleetBar is an ESSENTIAL artifact: its
+job fails unless signing and notarization credentials are present and valid, the
+bundle is accepted and stapled by Apple, and its manifest reads
+`unsigned:false` plus `notarized:true`. `build-latest-json` downloads that exact
+manifest, binds it to the FleetBar archive name and SHA-256, and refuses to emit
+the feed otherwise; `update-homebrew` depends on both jobs. Secret presence alone
+is never release evidence. (ADR-0057; the daemon path follows ADR-0028.)
 
 FleetBar is an app bundle with a bundled Port Daddy payload, not a single Mach-O.
 `scripts/package-fleetbar.sh` must discover every Mach-O under `FleetBar.app`
@@ -157,16 +160,18 @@ visible in CI.
 
 | Secret | What it is | Required? |
 |---|---|---|
-| `APPLE_CERT_P12_BASE64` | base64 of the Developer ID Application `.p12` (cert **+ private key** — export from Keychain Access › *My Certificates*, which prompts for an export password) | **yes** — without it, binaries ship adhoc/unsigned |
-| `APPLE_CERT_PASSWORD` | the `.p12` export password | **yes** |
-| `APPLE_NOTARY_KEY_P8_BASE64` | base64 of the App Store Connect API `.p8` key (Users and Access › Integrations › App Store Connect API, role *Developer*) | optional — absent ⇒ signed but **not** notarized |
-| `APPLE_NOTARY_KEY_ID` | the API Key ID (10 chars) | with the `.p8` |
-| `APPLE_NOTARY_KEY_ISSUER` | the API Issuer ID (a UUID — note the top-of-page UUID, NOT the Key ID) | with the `.p8` |
+| `APPLE_CERT_P12_BASE64` | base64 of the Developer ID Application `.p12` (cert **+ private key** — export from Keychain Access › *My Certificates*, which prompts for an export password) | **yes** — FleetBar fails closed without it |
+| `APPLE_CERT_PASSWORD` | the `.p12` export password | **yes** — FleetBar fails closed without it |
+| `APPLE_NOTARY_KEY_P8_BASE64` | base64 of the App Store Connect API `.p8` key (Users and Access › Integrations › App Store Connect API, role *Developer*) | **yes** — FleetBar cannot ship signed-only |
+| `APPLE_NOTARY_KEY_ID` | the API Key ID (10 chars) | **yes** |
+| `APPLE_NOTARY_KEY_ISSUER` | the API Issuer ID (a UUID — note the top-of-page UUID, NOT the Key ID) | **yes** |
 
-**Graceful degradation:** the signing step is gated and fail-soft. No `APPLE_CERT_*`
-⇒ the build still ships an (adhoc) binary with a `::warning::`. Notary creds present
-but failing validation ⇒ the binary is **signed-only** with a warning, never a broken
-release. So a rotated/expired notary key cannot block shipping a signed daemon.
+The daemon and conditional pd-console jobs retain their separately documented
+fail-soft signing behavior, but that does not make a stable release promotable:
+FleetBar's essential gate remains fail-closed. Missing credentials, failed
+`notarytool store-credentials`, Apple's `Invalid` result, a missing manifest, or
+an unsigned/unnotarized/mismatched manifest all stop `build-fleetbar-preview`,
+`build-latest-json`, and therefore `update-homebrew`.
 
 **Verify it yourself** (no destructive release needed): the `_sign-smoke` pattern —
 import the cert into a temp keychain, sign + notarize a trivial Mach-O — is how this

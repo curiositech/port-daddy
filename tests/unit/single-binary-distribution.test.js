@@ -211,4 +211,43 @@ describe('single binary distribution path', () => {
     expect(workflow).toContain('dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip');
     expect(workflow).not.toContain('PortDaddy-FleetBar-macOS-*-dev.zip');
   });
+
+  test('essential FleetBar release truth fails closed before Homebrew promotion', () => {
+    const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
+    const fleetbarJob = workflow.slice(
+      workflow.indexOf('  build-fleetbar-preview:'),
+      workflow.indexOf('  build-pd-console-app:'),
+    );
+    const feedJob = workflow.slice(
+      workflow.indexOf('  build-latest-json:'),
+      workflow.indexOf('  # publish-npm'),
+    );
+    const homebrewJob = workflow.slice(workflow.indexOf('  update-homebrew:'));
+
+    for (const secret of [
+      'APPLE_CERT_P12_BASE64',
+      'APPLE_CERT_PASSWORD',
+      'APPLE_NOTARY_KEY_P8_BASE64',
+      'APPLE_NOTARY_KEY_ID',
+      'APPLE_NOTARY_KEY_ISSUER',
+    ]) {
+      expect(fleetbarJob).toContain(`\${${secret}:?FleetBar release requires ${secret}}`);
+    }
+
+    expect(fleetbarJob).toContain('xcrun notarytool store-credentials pd-notary');
+    expect(fleetbarJob).not.toContain('if xcrun notarytool store-credentials');
+    expect(fleetbarJob).not.toContain('PORT_DADDY_SKIP_NOTARIZE');
+    expect(fleetbarJob).not.toContain('ships unsigned');
+    expect(fleetbarJob).toContain('manifest.unsigned !== false || manifest.notarized !== true');
+    expect(fleetbarJob).toContain('codesign --verify --deep --strict');
+
+    expect(feedJob).toContain("--pattern 'fleetbar-preview-manifest.json'");
+    expect(feedJob).not.toContain('APPLE_CERT_P12_BASE64');
+    expect(feedJob).not.toContain('SIGNED_FLAG');
+    expect(feedJob).toContain('node scripts/build-latest-json.mjs');
+
+    expect(homebrewJob).toContain('needs: [build-binaries, build-fleetbar-preview, build-latest-json]');
+    expect(homebrewJob).toContain("needs.build-fleetbar-preview.result == 'success'");
+    expect(homebrewJob).toContain("needs.build-latest-json.result == 'success'");
+  });
 });
