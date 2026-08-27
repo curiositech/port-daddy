@@ -7,6 +7,8 @@
   --hlv-squid: color-mix(in oklch, var(--brand-primary) 72%, var(--text-primary) 28%);
   --hlv-signal: var(--brand-primary);
   color: var(--hlv-ink);
+  max-width: 100%;
+  overflow: hidden;
   border: 2px solid var(--border-strong);
   background: var(--surface-raised);
 }
@@ -46,6 +48,7 @@
 
 .hlv__chart {
   position: relative;
+  max-width: 100%;
   overflow: hidden;
   background: var(--hlv-sea);
 }
@@ -210,6 +213,7 @@
   .hlv__detail-index { font-size: 2.4rem; }
   .hlv__chart {
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
     scroll-snap-type: x proximity;
     scrollbar-color: var(--brand-primary) var(--surface-sunken);
   }

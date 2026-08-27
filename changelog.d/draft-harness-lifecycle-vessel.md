@@ -1,4 +1,3 @@
-### Changed
+type: changed
 
-- Replaced the Agent Harness GIF wall with an interactive Giant Squid lifecycle vessel and a replayable Porthole capture of the actual next-turn context envelope.
-- Moved Porthole capture scratch files out of purgeable `/tmp` and into `~/coding/tmp`.
+- **The Agent Harness now proves its lifecycle instead of decorating it.** The old GIF wall is replaced by a keyboard-accessible Giant Squid vessel whose eight stations map to real hook moments, bounded context gifts, durable receipts, and honest authority boundaries; a committed Porthole cast replays actual hook output, and its capture helper keeps scratch work under durable `~/coding/tmp` storage.

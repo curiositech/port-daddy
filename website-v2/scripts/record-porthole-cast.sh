@@ -35,6 +35,7 @@ trap 'rm -f "$DRIVER"' EXIT
   echo '#!/usr/bin/env bash'
   echo 'set -uo pipefail'
   echo "ROOT_DIR=$(printf '%q' "$ROOT_DIR")"
+  echo 'cd "$ROOT_DIR"'
   echo 'pd() { node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"; }'
   echo 'type_cmd() {'
   echo '  local text="$1" i'
@@ -61,6 +62,19 @@ trap 'rm -f "$DRIVER"' EXIT
 chmod +x "$DRIVER"
 
 CAST_PATH="$OUT_DIR/$SLUG.cast"
-asciinema rec --cols 100 --rows 28 --overwrite -q -c "$DRIVER" "$CAST_PATH"
+(
+  # Keep the recording metadata public-safe too: asciinema records the
+  # command string verbatim, so execute a relative driver name from its
+  # durable scratch directory instead of embedding a local home path.
+  cd "$(dirname "$DRIVER")"
+  asciinema record \
+    --window-size 100x28 \
+    --headless \
+    --return \
+    --overwrite \
+    --quiet \
+    --command "./$(basename "$DRIVER")" \
+    "$CAST_PATH"
+)
 
 echo "wrote $CAST_PATH"
