@@ -99,7 +99,7 @@ public struct RoadmapHomeView: View {
                     NavigationLink(value: item) {
                         RoadmapItemRow(item: item)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableCardStyle())
                 }
             }
         }

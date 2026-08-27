@@ -49,7 +49,7 @@ public struct AgentsView: View {
                                 NavigationLink(value: agent.id) {
                                     AgentRow(agent: agent)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(PressableCardStyle())
                                 .accessibilityIdentifier("agent-row-\(index)")
                             }
                         }
