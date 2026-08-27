@@ -53,14 +53,23 @@ export const FLEET_AI_CALL_DEADLINE_MS = DEFAULT_AI_CALL_DEADLINE_MS;
  * all. This is the DO-NOT-SHIP finding from the human adversarial review on
  * PR #9800: a per-call deadline bounds one call; nothing bounded the run.
  *
- * 75 minutes fits the default nine-ship roster at the five-minute call
- * deadline with 30 minutes left for queue continuations, checkpoint reads,
- * comment delivery, and bounded provider retries. The previous 45-minute
- * ceiling equalled `9 ships x 5 minutes` exactly, leaving zero orchestration
- * allowance; live runs for PRs #9892 and #9893 therefore stopped neutral after
- * 46-50 minutes before blocking Purser could return a verdict, despite every
- * earlier ship checkpointing successfully. Seventy-five minutes remains well
- * below the 135-270 minute pathological retry envelope described above.
+ * Three hours is the smallest ceiling supported by the live default-roster
+ * evidence. The previous 45-minute ceiling equalled `9 ships x 5 minutes`
+ * exactly, leaving zero orchestration allowance. Raising it to 75 minutes was
+ * still structurally too small: exact-head runs for PRs #9892 and #9897
+ * checkpointed healthy ships for 82-93 minutes and then stopped before the
+ * remaining blocking Purser work could begin. The roster also legitimately
+ * contains multi-call ships (MAP/REDUCE and Purser's bounded author/repair
+ * cycle), so multiplying ship count by one call deadline was not an honest
+ * upper bound.
+ *
+ * The ceiling remains finite and lower than the old unbounded behavior: every
+ * call still has its own deadline, provider retries remain capped, Purser has
+ * separate per-file and total repair-call limits, and checkpoint continuations
+ * never re-spend completed ships. Three hours gives the nine-ship production
+ * roster enough room for those bounded multi-call ships plus queue scheduling,
+ * while still terminating a stale or pathological logical run in one operator
+ * shift rather than letting it survive indefinitely.
  *
  * This stays a flat, non-configurable constant on purpose: making it a
  * per-repo setting would reopen the same cross-user-authority problem the
@@ -69,7 +78,7 @@ export const FLEET_AI_CALL_DEADLINE_MS = DEFAULT_AI_CALL_DEADLINE_MS;
  * knob whose only honest value is "as small as the fleet's genuine worst-case
  * legitimate runtime requires."
  */
-export const RUN_ABSOLUTE_DEADLINE_MS = 75 * 60_000;
+export const RUN_ABSOLUTE_DEADLINE_MS = 180 * 60_000;
 
 /** Full-jitter queue backoff: 15s, 30s, 60s ceilings, capped at two minutes. */
 const PROVIDER_RETRY_BASE_SECONDS = 15;

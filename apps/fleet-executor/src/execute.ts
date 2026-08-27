@@ -1782,47 +1782,6 @@ export async function executeFleet(
       return;
     }
 
-    // Re-check the run's ABSOLUTE wall-clock budget before each ship. Raising
-    // the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
-    // compensating run-level ceiling would let a roster of retrying ships spend
-    // hours — this is the bound that stops it regardless of how many queue
-    // continuations or provider retries got the run this far. Measured against
-    // the run's TRUE first-attempt start (runStartedAtSec), not "now" relative
-    // to this invocation, so it cannot be reset by re-enqueuing a continuation.
-    // Fails open exactly like the credit/pause gates above — a broken deadline
-    // check must never itself break a run — for both a missing value AND an
-    // implausible one (non-positive, or in the future relative to "now"): the
-    // same validity shape recordRunEnd's own durable-start fallback already
-    // uses, so a malformed created_at cannot manufacture a false deadline trip
-    // any more than it can manufacture a false elapsed-time report there.
-    const runStartedAtMs = runStartedAtSec != null ? runStartedAtSec * 1000 : null;
-    if (runStartedAtMs != null && runStartedAtMs > 0 && runStartedAtMs <= Date.now()) {
-      const runElapsedMs = Date.now() - runStartedAtMs;
-      if (runElapsedMs > RUN_ABSOLUTE_DEADLINE_MS) {
-        const summary =
-          `Fleet review exceeded its ${Math.round(RUN_ABSOLUTE_DEADLINE_MS / 60_000)}-minute run budget ` +
-          `before pd-${ship.name} (${results.length} of ${orderedShips.length} ships completed) — stopping ` +
-          `rather than continuing to spend. Re-push the PR to start a fresh run.`;
-        await transcript.step(
-          'run-deadline-exceeded',
-          ship.name,
-          'Check concluded: neutral (run exceeded its absolute wall-clock budget)',
-          {
-            checkRunId,
-            conclusion: 'neutral',
-            stoppedBeforeShip: ship.name,
-            shipsCompleted: results.length,
-            shipsTotal: orderedShips.length,
-            runElapsedMs,
-            runAbsoluteDeadlineMs: RUN_ABSOLUTE_DEADLINE_MS,
-          },
-        );
-        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
-        await recordRunEnd(env, runId, 'neutral', startMs);
-        return;
-      }
-    }
-
     // RESUME: an earlier attempt of this delivery already completed this ship.
     // Its comment is already posted (edit-in-place inside runShip), its
     // telemetry/spend rows are already written; re-running would produce the
@@ -1855,6 +1814,47 @@ export async function executeFleet(
       // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
       await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
       continue;
+    }
+
+    // Re-check the run's ABSOLUTE wall-clock budget immediately before the
+    // first operation that can lead to fresh model spend. Resumed checkpoints
+    // and surface-gated ships above are free, trusted progress; stopping before
+    // reading them made an expired continuation falsely report "0 ships
+    // completed" and name the first roster entry instead of the actual next
+    // uncompleted ship. The deadline must prevent NEW spend, not suppress
+    // already-paid evidence.
+    //
+    // Raising the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
+    // compensating run-level ceiling would let a roster of retrying ships spend
+    // hours. This bound is measured against the logical run's TRUE first start,
+    // so queue continuations cannot reset it. Missing or implausible durable
+    // starts fail open, matching recordRunEnd's defensive fallback.
+    const runStartedAtMs = runStartedAtSec != null ? runStartedAtSec * 1000 : null;
+    if (runStartedAtMs != null && runStartedAtMs > 0 && runStartedAtMs <= Date.now()) {
+      const runElapsedMs = Date.now() - runStartedAtMs;
+      if (runElapsedMs > RUN_ABSOLUTE_DEADLINE_MS) {
+        const summary =
+          `Fleet review exceeded its ${Math.round(RUN_ABSOLUTE_DEADLINE_MS / 60_000)}-minute run budget ` +
+          `before pd-${ship.name} (${results.length} of ${orderedShips.length} ships completed) — stopping ` +
+          `rather than continuing to spend. Re-push the PR to start a fresh run.`;
+        await transcript.step(
+          'run-deadline-exceeded',
+          ship.name,
+          'Check concluded: neutral (run exceeded its absolute wall-clock budget)',
+          {
+            checkRunId,
+            conclusion: 'neutral',
+            stoppedBeforeShip: ship.name,
+            shipsCompleted: results.length,
+            shipsTotal: orderedShips.length,
+            runElapsedMs,
+            runAbsoluteDeadlineMs: RUN_ABSOLUTE_DEADLINE_MS,
+          },
+        );
+        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await recordRunEnd(env, runId, 'neutral', startMs);
+        return;
+      }
     }
 
     // Skill graft: build this ship's prompt prefix from its `graft:` list.
