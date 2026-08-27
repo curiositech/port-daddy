@@ -261,6 +261,56 @@ describe('repairMisrootedRelativeImport', () => {
     )).toBeNull();
   });
 
+  it('uses the exact PR-changed path to disambiguate an otherwise ambiguous trusted-tree suffix', () => {
+    const files = [{
+      path: 'tests/unit/purser/check-run-reopen.test.ts',
+      contents: "import { executeFleet } from '../../src/execute';\ntest('runs', () => expect(executeFleet).toBeDefined());",
+    }];
+    const tree = new Set([
+      'apps/fleet-executor/src/execute.ts',
+      'apps/github-app-receiver/src/execute.ts',
+    ]);
+    const failure = checkGeneratedTestsExecutable(files, {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.ts'],
+      repoTreePaths: tree,
+    });
+
+    const repaired = repairMisrootedRelativeImport(
+      files,
+      failure,
+      tree,
+      new Set(['apps/fleet-executor/src/execute.ts']),
+    );
+
+    expect(repaired).toMatchObject({
+      fromSpecifier: '../../src/execute',
+      toSpecifier: '../../../apps/fleet-executor/src/execute.ts',
+      matchedTreePath: 'apps/fleet-executor/src/execute.ts',
+    });
+    expect(repaired!.files[0].contents).toContain(
+      "from '../../../apps/fleet-executor/src/execute.ts'",
+    );
+  });
+
+  it('does not trust a changed-path hint that is absent from the trusted repository tree', () => {
+    const files = [{
+      path: 'tests/unit/purser/check-run-reopen.test.ts',
+      contents: "import { executeFleet } from '../../src/execute';",
+    }];
+    const tree = new Set(['apps/github-app-receiver/src/execute.ts']);
+    const failure = checkGeneratedTestsExecutable(files, {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.ts'],
+      repoTreePaths: tree,
+    });
+
+    expect(repairMisrootedRelativeImport(
+      files,
+      failure,
+      tree,
+      new Set(['apps/fleet-executor/src/execute.ts']),
+    )).toBeNull();
+  });
+
   it('returns null when no trusted-tree path matches the root-relative target', () => {
     const files = [{
       path: 'tests/unit/purser/mixed.test.js',

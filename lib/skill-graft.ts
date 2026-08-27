@@ -266,9 +266,8 @@ export interface SkillGraftIndex {
    * Fetch one file from within a specific skill's own directory — the
    * on-demand companion to `craft()`, mirroring `windags_skill_reference`.
    * Guards against the requested path escaping the skill's directory.
-   * Requires `craft()` or `refresh()` to have run at least once (so the
-   * catalog is populated); returns `found: false` otherwise rather than
-   * throwing.
+   * Lazily scans the catalog when needed; fetching one reference must never
+   * trigger the expensive centroid build.
    */
   getReference(skillId: string, filePath: string): SkillReferenceResult;
   /** Skill ids known as of the last scan (empty until `craft()`/`refresh()` runs). */
@@ -476,6 +475,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     },
 
     getReference(skillId, filePath) {
+      ensureScanned();
       const skill = catalogById.get(skillId);
       if (!skill) {
         return {
@@ -484,7 +484,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
           found: false,
           content: null,
           absolutePath: null,
-          error: `unknown skill id "${skillId}" (call craft()/refresh() first, or check the id)`,
+          error: `unknown skill id "${skillId}" (check the id and configured skill roots)`,
         };
       }
 

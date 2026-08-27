@@ -20,28 +20,31 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   ring/.style={draw=hhebony,thick,rounded corners=6pt,align=center,inner sep=10pt},
-  ringtitle/.style={font=\sffamily\bfseries\small,align=center,
+  ringtitle/.style={font=\bfseries\small,align=center,
                     fill=hhpaper,inner sep=2pt},
-  ringsub/.style={font=\sffamily\footnotesize\itshape,align=center,
+  ringsub/.style={font=\footnotesize\itshape,align=center,
                   fill=hhpaper,inner sep=1.5pt,text=hhink},
   actor/.style={draw=hhebony,fill=hhsand,thick,rounded corners=2pt,
                 inner sep=4pt,minimum width=22mm,minimum height=8mm,
-                font=\sffamily\bfseries\footnotesize,align=center},
+                font=\bfseries\footnotesize,align=center},
   okarr/.style={->,>=Latex,thick,draw=hhink},
   bondarr/.style={->,>=Latex,thick,draw=hhamber,line width=1.2pt},
   refund/.style={->,>=Latex,thick,draw=hhteal,line width=1.2pt},
-  badarr/.style={->,>=Latex,thick,dashed,draw=maydayred,line width=1.1pt},
-  okxlbl/.style={font=\sffamily\bfseries\footnotesize,text=hhink,
+  % Refused path is DOTTED, priced path is DASHED, admitted path is SOLID: the
+  % prevented/priced contrast is carried by line style first and colour second,
+  % so it survives greyscale and colour-blind rendering.
+  badarr/.style={->,>=Latex,thick,densely dotted,draw=maydayred,line width=1.1pt},
+  okxlbl/.style={font=\bfseries\footnotesize,text=hhink,
                  fill=hhpaper,inner sep=1.5pt},
-  wallnote/.style={font=\sffamily\bfseries\footnotesize,text=maydayred,
+  wallnote/.style={font=\bfseries\footnotesize,text=maydayred,
                    fill=hhpaper,inner sep=1.5pt,align=center},
-  pricenote/.style={font=\sffamily\footnotesize\itshape,text=hhamber,
+  pricenote/.style={font=\footnotesize\itshape,text=hhamber,
                     fill=hhpaper,inner sep=1.5pt,align=center},
   invariant/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                     align=left,inner sep=6pt,
-                    font=\sffamily\footnotesize},
+                    font=\footnotesize},
   stopmark/.style={circle,draw=maydayred,fill=maydayred,inner sep=0pt,
                    minimum size=5pt},
 ]
@@ -134,6 +137,6 @@
    No layer is sufficient alone; each closes a failure mode the others cannot.};
 \end{tikzpicture}%
 }
-\caption{The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph{prevented} (Layer~1 refuses; red dashed) and \emph{priced} (Layer~1 admits, Layer~3 charges; amber dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured.}
+\caption{The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph{prevented} (Layer~1 refuses; dotted, stopped at the boundary) and \emph{priced} (Layer~1 admits, Layer~3 charges; solid in, dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured.}
 \label{fig:bonded-three-layer}
 \end{figure}

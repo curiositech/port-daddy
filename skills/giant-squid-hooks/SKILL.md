@@ -30,7 +30,7 @@ coordination fires *inside* the vendor's own lifecycle:
 
 | Tentacle | Phase label | Fires on | Job |
 |---|---|---|---|
-| `bin/pd-hook-prompt` | PD TURN | turn start | Inject bounded coordination context + the SITREP compulsion |
+| `bin/pd-hook-prompt` | PD TURN | turn start | Inject bounded coordination context, unread inbox/parley count, and the SITREP compulsion |
 | `bin/pd-hook-pre-tool` | PD EDIT | before direct edits | Block foreign-locked files per the suggestibility dial |
 | `bin/pd-hook-post-tool` | PD TRACE | (retired from lifecycles) | Legacy pheromone trace; staged for migration/debug only |
 | `bin/pd-hook-stop` | PD CLOSE | turn end | Verify the SITREP table the prompt tentacle compelled |
@@ -166,6 +166,15 @@ Known accepted miss: Claude Code's `Stop` does not fire on user interrupts,
 so an interrupted turn is never SITREP-checked. `SubagentStop` exists on
 Claude and Codex but is out of scope for the current tentacle (ADR-0092 L4's
 adversarial-review pipeline is the follow-up).
+
+The related SessionStart Pilot hook now adds a bounded, project-scoped salvage
+count. Both nudges expose counts and corrective verbs only; message bodies and
+salvage payloads stay in daemon truth until the agent explicitly runs
+`pd attention` or `pd salvage`. Chapter 28 of the Agent Harbor binder owns the
+larger lifecycle contract for Notification, SessionEnd, SubagentStop,
+PreCompact, repository PR digests, and the future Postmaster role. Do not add
+those as synchronous network-heavy tentacles: hooks emit bounded facts or
+durable jobs, and expensive synthesis happens behind the daemon.
 
 ## ADR ownership
 

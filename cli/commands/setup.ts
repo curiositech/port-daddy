@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +32,7 @@ import {
   saveFirstValueRecord,
   transparentHookInventory,
 } from '../../lib/agent-harbor/setup-doctor.js';
+import { resolvePortDaddyInvocation } from '../../lib/port-daddy-command.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -59,6 +60,29 @@ const AGENT_SKILL_ID = 'port-daddy-agent-skill';
 const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
 const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
 const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
+
+/**
+ * Starts one detached, bounded, local-only warm-up after skill installation.
+ * The design keeps setup responsive and treats reconciliation as resumable
+ * background work; failures remain visible later through Doctor status.
+ */
+function startTool2VecWarmup(): void {
+  try {
+    const invocation = resolvePortDaddyInvocation();
+    const child = spawn(
+      invocation.command,
+      [...invocation.args, 'skill-graft', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
+      { detached: true, stdio: 'ignore', env: process.env },
+    );
+    child.once('error', (error) => {
+      ui.warn(`Could not start Tool2Vec warm-up: ${error.message}`);
+    });
+    child.unref();
+    ui.info('Tool2Vec catalog warm-up started in the background; Doctor reports current, cold, or dependency-down coverage.');
+  } catch (error) {
+    ui.warn(`Could not start Tool2Vec warm-up: ${(error as Error).message}`);
+  }
+}
 
 const PROJECT_MARKERS = [
   '.git',
@@ -573,6 +597,8 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
 
   if (!options['no-skill']) {
     installAgentSkillUnion(options);
+    if (!options['no-skill-warmup']) startTool2VecWarmup();
+    else ui.info('Skipping Tool2Vec catalog warm-up (--no-skill-warmup)');
   } else {
     ui.info('Skipping agent skill symlink (--no-skill)');
   }

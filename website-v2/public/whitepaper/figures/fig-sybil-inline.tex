@@ -14,19 +14,19 @@
 \centering
 \resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   adv/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=maydayred},
+              font=\bfseries,text=maydayred},
   sybil/.style={draw=maydayred,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,minimum width=16mm,align=center,
-                font=\sffamily\footnotesize,text=maydayred},
+                font=\footnotesize,text=maydayred},
   honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                  inner sep=3pt,minimum width=16mm,align=center},
   auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
                   inner sep=5pt,align=center,minimum width=28mm},
   payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+                 inner sep=3pt,align=center,font=\footnotesize\bfseries},
   arr/.style={->,>=Latex,thick,draw=hhink},
   badarr/.style={->,>=Latex,thick,draw=maydayred,dashed},
 ]
@@ -38,7 +38,7 @@
 \node[sybil] (s2) at (3, 0)   {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
 \node[sybil] (s3) at (3,-0.9) {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
 \draw[arr] (attacker.east) -- (s1.west);
-\draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]{spawn} (s2.west);
+\draw[arr] (attacker.east) -- node[above,font=\footnotesize]{spawn} (s2.west);
 \draw[arr] (attacker.east) -- (s3.west);
 % Auction in the centre
 \node[auction] (auction) at (7,0) {Vickrey auction\\$q^* = q_{(2)}$};
@@ -50,7 +50,7 @@
 \draw[badarr] (s2.east) to                (auction.west);
 \draw[badarr] (s3.east) to[bend right=12] (auction.south west);
 % Annotation above auction
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+\node[font=\footnotesize\itshape,text=hhcobalt,
       align=center,above=2mm of auction.north]
   {sybils bid $(1{-}\varepsilon)\,q_{\min}^{\mathrm{honest}}$};
 % Honest → Auction (good, solid)
@@ -58,7 +58,7 @@
 \draw[arr] (h2.west) to[bend left=12]  (auction.south east);
 % Winner box below auction
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      align=center,font=\sffamily\bfseries,text=hhcobalt]
+      align=center,font=\bfseries,text=hhcobalt]
   (winner) at (7,-2.2) {WINNER: $S_i$};
 \draw[arr,line width=1.4pt,draw=hhcobalt] (auction.south) -- (winner.north);
 % Loss box — placed below the sybil column, clear of sybil nodes

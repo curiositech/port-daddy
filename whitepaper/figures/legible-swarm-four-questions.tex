@@ -1,7 +1,8 @@
 % Figure 4 — the four design questions as a decision flow for any read-surface.
 % Design: vertical spine, asked in order top to bottom (they are not branches);
-% each question's obligation sits to its right. No resizebox shrink — the text
-% renders at its natural size.
+% each question's obligation sits to its right. Scaled to 0.75\textwidth so its
+% type matches the surrounding figures (split-ranker 0.8, roles 0.72) rather than
+% rendering visibly larger at native size.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -12,6 +13,7 @@
 
 \begin{figure}[H]
 \centering
+\resizebox{0.75\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   q/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
@@ -38,11 +40,12 @@
 \draw[ob] (q3.east) -- (a3.west);
 \draw[ob] (q4.east) -- (a4.west);
 
-\draw[edge] (q1) -- node[right=1pt,font=\scriptsize\itshape]{then} (q2);
-\draw[edge] (q2) -- node[right=1pt,font=\scriptsize\itshape]{then} (q3);
-\draw[edge] (q3) -- node[right=1pt,font=\scriptsize\itshape]{then} (q4);
+\draw[edge] (q1) -- node[right=4pt,font=\scriptsize\itshape]{then} (q2);
+\draw[edge] (q2) -- node[right=4pt,font=\scriptsize\itshape]{then} (q3);
+\draw[edge] (q3) -- node[right=4pt,font=\scriptsize\itshape]{then} (q4);
 \draw[edge] (q4) -- (ok);
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{The four design questions (\S\ref{sec:four-questions}) as a decision flow
 applied to every read-surface. They are asked in order, and each question binds an
 obligation (force-zoom, verbatim-link, artifact-target, named-reason) the surface

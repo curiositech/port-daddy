@@ -98,6 +98,8 @@ import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
+import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
+import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
@@ -210,7 +212,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.30.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.3';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -560,6 +562,49 @@ const semanticResolver = createSemanticResolver(db, {
   logger,
   governor,
 });
+// Automatic reconciliation is local-only: a daemon tick must never send a
+// private SKILL.md catalog to a cloud backend or create surprise spend. An
+// explicit manual `pd skill-graft warm` may use the operator-pinned cloud
+// backend; setup/startup/ticks only use an explicitly configured Ollama.
+const tool2VecReconciler = createTool2VecReconciler({
+  projectRoot: REPO_ROOT,
+  runtime: resolveSkillGraftRuntime(process.env, { allowRemote: false }),
+  onWarning: (message) => logger.warn('tool2vec_reconcile_warning', { message }),
+});
+const _tool2VecPollMs = Number.parseInt(process.env.PD_TOOL2VEC_RECONCILE_MS ?? '300000', 10);
+const TOOL2VEC_RECONCILE_MS = Number.isFinite(_tool2VecPollMs) && _tool2VecPollMs >= 60_000
+  ? _tool2VecPollMs
+  : 300_000;
+let tool2VecTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Schedules one bounded reconciliation pass outside daemon readiness. The
+ * design ensures startup and periodic ticks share the durable lease while the
+ * event loop remains available for health and operator traffic.
+ *
+ * @param trigger Durable provenance label for status and logs.
+ */
+function triggerTool2VecReconcile(trigger: string): void {
+  setImmediate(() => {
+    void tool2VecReconciler.reconcile({ trigger, maxSkills: 8 }).then((result) => {
+      logger.info('tool2vec_reconcile', {
+        trigger,
+        state: result.state,
+        acquired: result.acquired,
+        configured: result.configured,
+        embedded: result.embedded,
+        current: result.current,
+        total: result.total,
+        coveragePct: result.coveragePct,
+      });
+    }).catch((error) => {
+      logger.warn('tool2vec_reconcile_failed', {
+        trigger,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  });
+}
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
@@ -1580,7 +1625,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
-    contextTracker,
+    contextTracker, tool2VecReconciler,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     roadmapActivity,
@@ -1738,6 +1783,7 @@ function shutdown(signal: string): void {
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
   try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
+  try { if (tool2VecTimer) clearInterval(tool2VecTimer); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
@@ -1802,6 +1848,18 @@ function onReady(): void {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
+
+  // O3: readiness never waits for a cold catalog. Every caller shares the
+  // same expiring SQLite lease and row checkpoints, so startup and the
+  // low-frequency tick resume missing hashes without duplicate builders.
+  triggerTool2VecReconcile('daemon-startup');
+  if (!tool2VecTimer) {
+    tool2VecTimer = setInterval(
+      () => triggerTool2VecReconcile('daemon-tick'),
+      TOOL2VEC_RECONCILE_MS,
+    );
+    tool2VecTimer.unref?.();
+  }
 
   // Start mid-claim hash watcher. Cheap (sha256 every ~5s over the active
   // claim set), unref()'d so it doesn't keep the process alive on its own.

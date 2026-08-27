@@ -13,26 +13,28 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   state/.style={draw=hhebony,thick,fill=hhsand,circle,inner sep=2pt,
-                minimum size=8mm,font=\sffamily\footnotesize},
+                minimum size=8mm,font=\footnotesize},
   decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=20mm},
-  payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
-  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
-              text=hhcobalt},
+  % Outcome status is coded by fill-vs-outline and weight, not by hue: an
+  % ordinary payoff is a light filled box, the slashed outcome is the one node
+  % that gets the paper's single accent, because it is what the model is about.
+  payoff/.style={draw=hhebony,thick,fill=hhsand!25,rounded corners=2pt,
+                 inner sep=3pt,align=center,font=\footnotesize},
+  bad/.style={draw=hhcobalt,line width=1.3pt,fill=hhpaper,rounded corners=2pt,
+              inner sep=3pt,align=center,font=\footnotesize\bfseries},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
+  prob/.style={font=\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
 ]
 \node[state] (rt) at (0,2.4) {round $t$};
 \node[decision,right=10mm of rt] (dec) {Action choice};
 \draw[arr] (rt) -- (dec);
-\node[decision,fill=hhteal!30,right=12mm of dec,yshift=14mm] (collude)
+\node[decision,fill=hhsand!35,right=12mm of dec,yshift=14mm] (collude)
   {COLLUDE\\$q_{\mathrm{floor}}$};
 \draw[arr] (dec.north east) to[bend left=10] (collude.west);
-\node[decision,fill=hhamber!40,right=12mm of dec,yshift=-14mm] (defect)
+\node[decision,fill=hhsand!35,right=12mm of dec,yshift=-14mm] (defect)
   {DEFECT\\$-\varepsilon$};
 \draw[arr] (dec.south east) to[bend right=10] (defect.west);
 \node[state,right=14mm of collude,yshift=10mm] (det) {detected};
@@ -45,7 +47,7 @@
 \node[payoff,right=4mm of safe] {$+\pi_C$};
 \node[state,right=14mm of defect] (collapse) {collapse};
 \draw[arr] (defect.east) -- (collapse.west);
-\node[payoff,right=4mm of collapse,fill=hhamber!20]
+\node[payoff,right=4mm of collapse]
   {$+\pi_D$ once,\\then $\pi_N \approx 0$};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
       align=left,inner sep=6pt,
@@ -55,10 +57,16 @@
    \quad $L=5(q_f-\mu)$};
 \end{tikzpicture}%
 }
-\caption{Cartel repeated-game node under the supplied grim-trigger model. Each
-round a member maintains the floor or undercuts it by $\varepsilon$. Detection
-occurs before the current-round payoff and applies loss $L$; a one-shot deviation
-takes $\pi_D$ and ends the cartel stream. The displayed recurrence is specific to
-that event timing and payoff model.}
+\caption{One round of the cartel, under a grim-trigger punishment model. Each round
+a member either maintains the agreed floor or undercuts it by $\varepsilon$;
+detection occurs before the current-round payoff and applies loss $L$, while a
+one-shot deviation banks $\pi_D$ and ends the cartel stream for good. The finding is
+in the box: the cartel holds only while the \emph{discounted} colluding stream $V_C$
+--- which is decreasing in the detection rate $p_d$ and increasing in the discount
+factor $\delta$, the weight a member puts on next round --- still beats the one-shot
+deviation payoff $\pi_D$. Raising $p_d$ (sampled re-audit of high-velocity pairs) or
+lowering $\delta$ (making membership churn) breaks it from either side. The one
+outlined outcome is the slashed branch, since it is the branch the defense is buying;
+the displayed recurrence is specific to this event timing and payoff model.}
 \label{fig:cartel-game-inline}
 \end{figure}

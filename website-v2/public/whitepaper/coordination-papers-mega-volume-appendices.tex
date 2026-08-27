@@ -50,7 +50,7 @@ Residual risk moves down the ladder, and the underwriting market prices only wha
 \toprule
 \textbf{Mechanism or claim} & \textbf{Grade} & \textbf{Current evidence and boundary}\\
 \midrule
-Single-writer SQLite/WAL kernel, claims, sessions, messaging & \Built & Running daemon paths, linear migration ledger (\texttt{PRAGMA user\_version}), and regression tests; durability is per-transaction typed (\texttt{PROCESS\_CRASH} vs \texttt{POWER\_LOSS}).\\
+Single-writer SQLite/WAL kernel, claims, sessions, messaging & \BuiltWeak & Running daemon paths and regression tests; durability is per-transaction typed (\texttt{PROCESS\_CRASH} vs \texttt{POWER\_LOSS}). Schema evolution is an ordered boot ledger (\Built), not yet the \texttt{PRAGMA user\_version} sequencer (\Designed) --- OP-7 stands \Partial (Ch.~II \S3.6), so this row is graded to its weakest load-bearing part rather than its strongest.\\
 Legibility and digest-with-zoom surfaces & \BuiltWeak & Provenance-preserving projections from raw event ledgers; why/where/why-not query substrate.\\
 Durable commitments and obligation monitor & \BuiltWeak & Durable records, daemon-derived deadlines, oracle-bound closure, and periodic overdue detection.\\
 Portable Task Capsule and successor restoration & \Designed & Content-addressed task capsule over JSON message arrays and Git SHA; provider-portable semantic resurrection.\\

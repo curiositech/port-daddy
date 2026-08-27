@@ -60,6 +60,17 @@ describe('decideShipGate', () => {
     expect(off.reason).toMatch(/surface not touched/);
   });
 
+  it('red-team runs on key-wrap/vault crypto surfaces (PRs #9873, #9882 real diffs)', () => {
+    // Regression: none of these paths contained crypto|sign|verify|hash|token|
+    // secret|auth|capabilit, so red-team silently never spawned on either PR —
+    // the exact gap that made it look broken. key|vault|wrap|hpke close it.
+    const rt = ship({ name: 'red-team', blocking: true });
+    expect(decideShipGate(rt, ['core/kernel/pd-vault/src/hpke.rs'], false).run).toBe(true);
+    expect(decideShipGate(rt, ['core/kernel/pd-vault/src/keys.rs'], false).run).toBe(true);
+    expect(decideShipGate(rt, ['apps/relay/src/device-keys.ts'], false).run).toBe(true);
+    expect(decideShipGate(rt, ['apps/relay/migrations/2026-08-26-b3-device-keys.sql'], false).run).toBe(true);
+  });
+
   it('tautology-sniffer runs only when the diff touches test files', () => {
     expect(decideShipGate(ship({ name: 'tautology-sniffer' }), TESTS, false).run).toBe(true);
     expect(decideShipGate(ship({ name: 'tautology-sniffer' }), CODE, false).run).toBe(false);
