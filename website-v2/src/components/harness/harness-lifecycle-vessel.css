@@ -48,6 +48,7 @@
 
 .hlv__chart {
   position: relative;
+  container-type: inline-size;
   max-width: 100%;
   overflow: hidden;
   background: var(--hlv-sea);
@@ -222,11 +223,11 @@
   .hlv__detail {
     position: sticky;
     left: 0;
-    width: calc(100vw - 3rem);
-    min-width: calc(100vw - 3rem);
+    width: 100cqw;
+    min-width: 100cqw;
     scroll-snap-align: start;
   }
-  .hlv__legend { position: sticky; left: 0; width: calc(100vw - 3rem); }
+  .hlv__legend { position: sticky; left: 0; width: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
