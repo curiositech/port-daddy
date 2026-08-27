@@ -178,7 +178,7 @@ export default function LibraryPage() {
               <div className="space-y-[var(--space-5)]">
                 <PanelEyebrow>The Harbor Library — read it as one book</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                  Seven papers. Four explain the system. Three prove it.
+                  Seven chapters. Four explain the system. Three prove it.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[62ch] text-[length:var(--text-lg)]">
                   You can now hand a goal to a program and walk away. One coding
@@ -271,33 +271,60 @@ export default function LibraryPage() {
           </PageContainer>
         </section>
 
-        {/* ── CTA: the research program that proves the harder theorems ── */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-6)]">
+        {/* ── A second, distinct collection: seven research papers, named ── */}
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--story-indigo)] py-[var(--space-7)] text-[var(--story-indigo-foreground)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
-            <Link
-              to="/library/research"
-              className="group grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--story-indigo)] p-[var(--space-5)] text-[var(--story-indigo-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:grid-cols-[auto_1fr_auto] sm:items-center"
-            >
-              <span className="grid h-12 w-12 place-items-center border-2 border-current">
-                <FlaskConical aria-hidden="true" size={24} />
-              </span>
-              <span className="grid gap-[var(--space-1)]">
-                <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
-                  Seven papers prove the theory
+            <div className="space-y-[var(--space-6)]">
+              <div className="grid gap-[var(--space-3)] sm:grid-cols-[auto,1fr] sm:items-start">
+                <span className="grid h-14 w-14 place-items-center border-2 border-current">
+                  <FlaskConical aria-hidden="true" size={28} />
                 </span>
-                <span className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)]">
-                  Read the Harbor research library
-                </span>
-                <span className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
-                  {RESEARCH_PAPERS.length} arXiv-style papers · {RESEARCH_PAPER_TOTAL_PAGES} pages · R1–R17 discharged
-                </span>
-              </span>
-              <ArrowRight
-                aria-hidden="true"
-                size={24}
-                className="transition-transform group-hover:translate-x-1"
-              />
-            </Link>
+                <div className="space-y-[var(--space-2)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
+                    Not the seven chapters above — a second, separate collection
+                  </span>
+                  <h2 className="max-w-[40ch] font-display text-[length:var(--text-3xl)] font-black leading-[var(--leading-display-tight)] !text-[var(--story-indigo-foreground)]">
+                    Seven new research papers. Each one proves a theorem the chapters only argue in prose.
+                  </h2>
+                  <p className="max-w-[68ch] text-[length:var(--text-lg)] leading-[var(--leading-body)]">
+                    Closed-form bit floors, an NP-completeness frontier, a sheaf-cohomology
+                    detector with a certified lower bound — {RESEARCH_PAPERS.length} arXiv-style
+                    papers, {RESEARCH_PAPER_TOTAL_PAGES} pages total, adversarially reviewed,
+                    discharging results R1 through R17.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-3">
+                {RESEARCH_PAPERS.map((paper) => (
+                  <Link
+                    key={paper.id}
+                    to={`/library/research#paper-${paper.number}`}
+                    className="group grid gap-[var(--space-2)] border-2 border-current bg-[var(--story-indigo)] p-[var(--space-4)] transition-colors hover:bg-[var(--story-indigo-foreground)] hover:text-[var(--story-indigo)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    <span className="flex items-center gap-[var(--space-2)]">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center border-2 border-current font-mono text-[length:var(--text-sm)] font-black leading-none">
+                        {paper.number}
+                      </span>
+                      <span className="font-display text-[length:var(--text-base)] font-black leading-[var(--leading-nav)]">
+                        {paper.title}
+                      </span>
+                    </span>
+                    <span className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)]">
+                      {paper.claim}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              <Link
+                to="/library/research"
+                className="group inline-flex w-fit items-center gap-[var(--space-2)] border-2 border-current bg-[var(--story-indigo-foreground)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--story-indigo)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+              >
+                Read the full research library
+                <ArrowRight aria-hidden="true" size={16} className="transition-transform group-hover:translate-x-1" />
+              </Link>
+            </div>
           </PageContainer>
         </section>
 
@@ -528,7 +555,7 @@ export default function LibraryPage() {
                   What changed, and when.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch] text-[length:var(--text-lg)]">
-                  These papers are living documents: they get argued with, proven
+                  These chapters are living documents: they get argued with, proven
                   against, and revised in the open. One entry per release wave,
                   newest first. For the per-objection history of the adversarial
                   reviews, see{' '}

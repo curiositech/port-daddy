@@ -137,7 +137,10 @@ repo-specific mechanics:
   `DYLD_*` absent, before soak or archive sealing. Package dylibs behind a
   verified executable-relative Mach-O rpath and keep
   `com.apple.security.cs.allow-dyld-environment-variables` out of the release
-  entitlements; do not trade a packaging defect for an injection surface.
+  entitlements; do not trade a packaging defect for an injection surface. FleetBar
+  release packaging must also sign every nested Mach-O under the bundled payload
+  inside-out; Bun JIT entitlements belong on the Bun executable only, never on
+  ordinary `.dylib` runtime libraries.
 - **Keep coordination content bounded; the SITREP is the visible value
   surface.** Coordination content (alerts/pheromones) stays invisible and
   bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and
@@ -661,6 +664,12 @@ re-asking them is the failure mode this section exists to kill.
    result into queue retry/DLQ before acknowledging the message. Keep ship
    checkpoints durable and post non-idempotent aggregate reviews only after
    the required check PATCH succeeds, so retries neither re-spend nor duplicate.
+   The logical-run deadline must also fit the configured roster: budget at
+   least one default AI-call window per ship plus explicit queue/checkpoint
+   overhead. A ceiling equal to `ship count x call deadline` has zero room for
+   continuations and will deterministically terminate healthy checkpointed
+   reviews before their final blocking ship. Prove the slow-success boundary
+   with a focused test whenever either deadline or roster size changes.
 4. **Answer every review thread.** Copilot and claude-review inline comments
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".

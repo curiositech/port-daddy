@@ -158,6 +158,71 @@ const RAW_DIAGNOSTIC_CHARS = 2000;
 const PURSER_DIFF_CHAR_LIMIT = 24_000;
 /** Transcript cap for the sandbox failure tail. */
 const FAILURE_TAIL_BYTES = 1024;
+/**
+ * One escalation rewrite is not enough when the first repair response is
+ * itself truncated or malformed. Production #9789 witnesses on #9897 and
+ * #9893 both failed this way with more than twenty minutes of run budget left.
+ * Permit one final retry for the same file, while keeping total repair spend
+ * bounded to the original one-call-per-file ceiling plus one retry.
+ */
+const MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE = 2;
+const MAX_AUTHORED_REPAIR_CALLS = MAX_PLANNED_FILES + 1;
+const REJECTED_DRAFT_CHAR_LIMIT = 16_000;
+
+const JEST_GLOBAL_BINDINGS = new Set([
+  'afterAll',
+  'afterEach',
+  'beforeAll',
+  'beforeEach',
+  'describe',
+  'expect',
+  'it',
+  'test',
+]);
+
+/**
+ * Remove a redundant Vitest named import only when trusted discovery has
+ * already established that the file runs under Jest and every imported name
+ * is a Jest global. This is deliberately narrower than a source translator:
+ * aliases, `vi`, fixtures, and every other Vitest-only binding stay rejected
+ * by the normal bounded repair path.
+ */
+function repairRedundantVitestGlobalsImport(
+  files: StackedFile[],
+  failure: ExecutabilityResult,
+): { files: StackedFile[]; path: string; bindings: string[] } | null {
+  if (
+    failure.ok ||
+    failure.kind !== 'incompatible-runner' ||
+    failure.specifier !== 'vitest' ||
+    !failure.path
+  ) {
+    return null;
+  }
+
+  const index = files.findIndex(file => file.path === failure.path);
+  if (index < 0) return null;
+  const source = files[index].contents;
+  const importPattern = /^[ \t]*import\s*\{\s*([^}]+?)\s*\}\s*from\s*['"]vitest['"]\s*;?[ \t]*(?:\r?\n|$)/gm;
+  const matches = [...source.matchAll(importPattern)];
+  if (matches.length !== 1) return null;
+
+  const bindings = matches[0][1].split(',').map(binding => binding.trim());
+  if (
+    bindings.length === 0 ||
+    bindings.some(binding =>
+      !/^[A-Za-z_$][\w$]*$/.test(binding) || !JEST_GLOBAL_BINDINGS.has(binding)
+    )
+  ) {
+    return null;
+  }
+
+  const contents = source.replace(importPattern, '');
+  if (contents === source) return null;
+  const repaired = [...files];
+  repaired[index] = { ...files[index], contents };
+  return { files: repaired, path: failure.path, bindings };
+}
 
 /** Structural twin of execute.ts's ShipMetrics (accumulated per AI call). */
 export interface PurserMetrics {
@@ -505,10 +570,17 @@ function fileAuthorSystemPrompt(
   graftText: string,
   evidence: ExecutabilityEvidence,
   repairFailure?: string,
+  rejectedDraft?: string,
 ): string {
   const repairNote = repairFailure
     ? `\nA previous draft for this exact path failed the trusted executability gate:\n` +
-      `${repairFailure}\nRewrite the complete file and fix that failure. Do not move or rename it.\n`
+      `${repairFailure}\n` +
+      (rejectedDraft
+        ? `The exact rejected draft is included below as data. Preserve its test intent, ` +
+          `but replace the entire file with a complete corrected program.\n` +
+          `<rejected-draft>\n${rejectedDraft.slice(0, REJECTED_DRAFT_CHAR_LIMIT)}\n</rejected-draft>\n`
+        : '') +
+      `Rewrite the complete file and fix that failure. Do not move or rename it.\n`
     : '';
   const runnerNote = evidence.testMatchPatterns?.length
     ? `\nTrusted runner evidence (authoritative, not inferred from the PR diff): this ` +
@@ -543,6 +615,21 @@ function fileAuthorSystemPrompt(
     '```ts\n' +
     '// the complete contents of ' + planned.path + '\n' +
     '```'
+  );
+}
+
+/**
+ * A repair already has the steel-man contract and the rejected source in its
+ * system prompt. Re-sending the full PR diff on every retry crowded out the
+ * exact file-level evidence and produced blank/truncated repairs in #9897.
+ * Keep only the stable identity and changed-file inventory needed to resolve
+ * imports; the initial authoring call still receives the complete PR block.
+ */
+function repairPrBlock(prCtx: PRContext, path: string): string {
+  return (
+    `# Repair authored test for PR #${prCtx.prNumber}: ${prCtx.title}\n\n` +
+    `Target path: ${path}\n` +
+    `Changed repository files:\n${prCtx.files.map(file => `- ${file.filename}`).join('\n') || '- (none)'}\n`
   );
 }
 
@@ -1415,6 +1502,91 @@ export async function runPurser(
       authorFailures = authored.failures;
     }
 
+    // Initial authoring and later executability repair share ONE absolute
+    // rewrite budget. A blank/refusal response used to be terminal before the
+    // escalation tier was ever tried, even though malformed source authored a
+    // few lines later was allowed the full bounded repair path. That asymmetry
+    // caused #9892 generation 13 to fail after its sole planned file returned
+    // no usable content.
+    //
+    // Give each failed planned file the same escalation opportunity, but debit
+    // it from the existing MAX_AUTHORED_REPAIR_CALLS / per-file caps. No retry
+    // or deadline constant grows, and a sole file that still authors nothing
+    // remains a hard failure.
+    const authoredRepairAttempts = new Map<string, number>();
+    let authoredRepairCalls = 0;
+    for (const initialFailure of [...authorFailures]) {
+      const planned = plan.find(item => item.path === initialFailure.path);
+      if (!planned) continue;
+      while (
+        authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS &&
+        (authoredRepairAttempts.get(planned.path) ?? 0) <
+          MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
+      ) {
+        const repairAttempt = (authoredRepairAttempts.get(planned.path) ?? 0) + 1;
+        authoredRepairAttempts.set(planned.path, repairAttempt);
+        authoredRepairCalls += 1;
+        const rescued = await authorTestFiles(
+          [planned],
+          async (path, intent) => {
+            const call = await purserAiCall(
+              ship,
+              env,
+              fileAuthorSystemPrompt(
+                ship,
+                steel,
+                { path, intent },
+                graftText,
+                authoringEvidence ?? evidence!,
+                initialFailure.reason,
+              ),
+              prBlock(prCtx),
+              TESTS_MAX_TOKENS,
+              metrics,
+              aiCircuit,
+              REPAIR_ESCALATION_MODEL,
+              assertCurrentHead,
+              capture,
+              'author',
+            );
+            return call.text;
+          },
+        );
+        if (rescued.files.length === 1) {
+          files.push(rescued.files[0]);
+          authorFailures = authorFailures.filter(failure => failure.path !== planned.path);
+          await transcript.step(
+            'purser-author-repair',
+            ship.name,
+            `pd-${ship.name}: empty authored file HEALED ${planned.path}`,
+            {
+              path: planned.path,
+              strategy: 'bounded-empty-author-escalation',
+              attempts: repairAttempt,
+              repairNumber: authoredRepairCalls,
+            },
+          );
+          break;
+        }
+        const reason = rescued.failures[0]?.reason ?? 'repair emitted no usable file';
+        authorFailures = authorFailures.map(failure =>
+          failure.path === planned.path ? { path: planned.path, reason } : failure,
+        );
+        await transcript.step(
+          'purser-author-repair',
+          ship.name,
+          `pd-${ship.name}: empty authored file repair FAILED ${planned.path}`,
+          {
+            path: planned.path,
+            strategy: 'bounded-empty-author-escalation',
+            result: reason,
+            attempts: repairAttempt,
+            repairNumber: authoredRepairCalls,
+          },
+        );
+      }
+    }
+
     if (files.length === 0) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring FAILED`, {
         error: 'no planned file authored usable contents',
@@ -1515,6 +1687,7 @@ export async function runPurser(
       toSpecifier: string;
       matchedTreePath: string;
     }> = [];
+    let droppedExhaustedSibling = false;
     while (
       !executability.ok &&
       executability.kind === 'unresolved-import' &&
@@ -1524,6 +1697,7 @@ export async function runPurser(
         files,
         executability,
         evidence.repoTreePaths,
+        new Set(prCtx.files.map(file => file.filename)),
       );
       if (!repair) break;
       const candidateSafety = validateStackedFiles(repair.files);
@@ -1554,32 +1728,176 @@ export async function runPurser(
         },
       );
     }
-    const authoredRepairPaths = new Set<string>();
+    let runnerImportRepairs = 0;
+    while (
+      !executability.ok &&
+      executability.kind === 'incompatible-runner' &&
+      runnerImportRepairs < MAX_PLANNED_FILES
+    ) {
+      const repair = repairRedundantVitestGlobalsImport(files, executability);
+      if (!repair) break;
+      const candidateSafety = validateStackedFiles(repair.files);
+      if (!candidateSafety.ok) break;
+      files = repair.files;
+      runnerImportRepairs += 1;
+      executability = checkGeneratedTestsExecutable(files, evidence);
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        executability.ok
+          ? `pd-${ship.name}: authored-file repair HEALED ${repair.path}`
+          : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+        {
+          strategy: 'trusted-jest-global-import-removal',
+          attempts: 0,
+          path: repair.path,
+          removedBindings: repair.bindings,
+          result: executability.ok
+            ? 'trusted executability gate passed after deterministic rewrite'
+            : executability.reason,
+        },
+      );
+    }
     while (
       !executability.ok &&
       (executability.kind === 'syntax-error' ||
         executability.kind === 'unresolved-import' ||
-        executability.kind === 'incompatible-runner') &&
-      executability.path &&
-      authoredRepairPaths.size < MAX_PLANNED_FILES &&
-      !authoredRepairPaths.has(executability.path)
+        executability.kind === 'incompatible-runner' ||
+        executability.kind === 'missing-test-registration') &&
+      executability.path
     ) {
+      // A prior exhausted sibling may have hidden a later failure that is
+      // already repairable from trusted local evidence. Re-run the zero-model
+      // healers before consulting the shared AI-repair budget. Otherwise an
+      // exhausted global budget makes us drop a provably repairable survivor
+      // without ever trying the same deterministic gates used above.
+      if (executability.kind === 'unresolved-import') {
+        const deterministicRepair = repairMisrootedRelativeImport(
+          files,
+          executability,
+          evidence.repoTreePaths,
+          new Set(prCtx.files.map(file => file.filename)),
+        );
+        if (deterministicRepair) {
+          const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+          if (deterministicSafety.ok) {
+            files = deterministicRepair.files;
+            deterministicRepairs.push({
+              path: deterministicRepair.path,
+              fromSpecifier: deterministicRepair.fromSpecifier,
+              toSpecifier: deterministicRepair.toSpecifier,
+              matchedTreePath: deterministicRepair.matchedTreePath,
+            });
+            executability = checkGeneratedTestsExecutable(files, evidence);
+            await transcript.step(
+              'purser-author-repair',
+              ship.name,
+              executability.ok
+                ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+              {
+                strategy: 'trusted-tree-relative-import-after-sibling-drop',
+                attempts: 0,
+                path: deterministicRepair.path,
+                fromSpecifier: deterministicRepair.fromSpecifier,
+                toSpecifier: deterministicRepair.toSpecifier,
+                matchedTreePath: deterministicRepair.matchedTreePath,
+                result: executability.ok
+                  ? 'trusted executability gate passed after deterministic rewrite'
+                  : executability.reason,
+              },
+            );
+            continue;
+          }
+        }
+      }
+      if (executability.kind === 'incompatible-runner') {
+        const deterministicRepair = repairRedundantVitestGlobalsImport(files, executability);
+        if (deterministicRepair) {
+          const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+          if (deterministicSafety.ok) {
+            files = deterministicRepair.files;
+            executability = checkGeneratedTestsExecutable(files, evidence);
+            await transcript.step(
+              'purser-author-repair',
+              ship.name,
+              executability.ok
+                ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+              {
+                strategy: 'trusted-jest-global-import-removal-after-sibling-drop',
+                attempts: 0,
+                path: deterministicRepair.path,
+                removedBindings: deterministicRepair.bindings,
+                result: executability.ok
+                  ? 'trusted executability gate passed after deterministic rewrite'
+                  : executability.reason,
+              },
+            );
+            continue;
+          }
+        }
+      }
+      const exhaustedPath = executability.path;
+      const exhaustedAttempts = authoredRepairAttempts.get(exhaustedPath) ?? 0;
+      const canUseResidualBudgetForSoleSurvivor =
+        droppedExhaustedSibling &&
+        files.length === 1 &&
+        authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS;
+      if (
+        authoredRepairCalls >= MAX_AUTHORED_REPAIR_CALLS ||
+        (exhaustedAttempts >= MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE &&
+          !canUseResidualBudgetForSoleSurvivor)
+      ) {
+        // Preserve partial evidence without allowing one exhausted generated
+        // file to strand a later sibling that still has repair budget. Drop
+        // only the exhausted file, re-run the trusted gate, then continue this
+        // same bounded loop against the next diagnosis. A sole survivor may
+        // consume any residual shared call budget before remaining a hard
+        // failure; the shared absolute cap never grows.
+        if (files.length <= 1) break;
+        const droppedReason = executability.reason;
+        files = files.filter(file => file.path !== exhaustedPath);
+        droppedExhaustedSibling = true;
+        authorFailures.push({ path: exhaustedPath, reason: droppedReason });
+        executability = checkGeneratedTestsExecutable(files, evidence);
+        await transcript.step(
+          'purser-author-repair',
+          ship.name,
+          `pd-${ship.name}: exhausted malformed file DROPPED ${exhaustedPath}`,
+          {
+            path: exhaustedPath,
+            strategy: 'bounded-partial-executability',
+            attempts: exhaustedAttempts,
+            repairCalls: authoredRepairCalls,
+            reason: droppedReason,
+            survivors: files.map(file => file.path),
+            result: executability.ok
+              ? 'trusted executability gate passed on survivors'
+              : executability.reason,
+          },
+        );
+        continue;
+      }
       // #8313: discovery-aware planning healed the filenames, then an authored
       // file nested at tests/unit/purser imported ../../scripts/... as though
       // it lived one directory higher. The trusted gate caught it, but throwing
       // away every authored file made the fleet-wide outage permanent. Give
       // Each distinct offending file gets one bounded rewrite with the exact
-      // gate error. Siblings keep their original bytes, and the same safety +
-      // executability validators remain the sole judges of whether healing
-      // occurred. This matters when two independently-authored siblings both
-      // guessed the same foreign runner: healing the first merely reveals the
-      // second failure.
+      // gate error. When that rewrite is itself malformed, the same file gets
+      // one final escalation retry; this is the #9789 production shape. Total
+      // repair calls remain capped at one per planned file plus one, so a bad
+      // model cannot turn the Purser into an unbounded spend loop. Siblings keep
+      // their original bytes, and the same safety + executability validators
+      // remain the sole judges of whether healing occurred.
       const repairPath = executability.path;
-      // Set size is the 1-based repair ordinal recorded in the transcript.
-      authoredRepairPaths.add(repairPath);
+      const repairAttempt = (authoredRepairAttempts.get(repairPath) ?? 0) + 1;
+      authoredRepairAttempts.set(repairPath, repairAttempt);
+      authoredRepairCalls += 1;
       const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
         'preserve the authored test intent while fixing its executability failure';
       const repairError = executability.reason;
+      const rejectedDraft = files.find(file => file.path === repairPath)?.contents ?? '';
       const repaired = await authorTestFiles(
         [{ path: repairPath, intent: repairIntent }],
         async (path, intent) => {
@@ -1593,8 +1911,9 @@ export async function runPurser(
               graftText,
               evidence,
               repairError,
+              rejectedDraft,
             ),
-            prBlock(prCtx),
+            repairPrBlock(prCtx, repairPath),
             TESTS_MAX_TOKENS,
             metrics,
             aiCircuit,
@@ -1624,13 +1943,79 @@ export async function runPurser(
         if (!candidateSafety.ok) {
           repairReason = candidateSafety.reason;
         } else {
-          const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          let candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          let installedDeterministicCandidate = false;
+          // A model rewrite can legitimately evolve one trusted failure into
+          // another. In #9893 the first bounded rewrite added a real Jest test
+          // (healing missing registration) but rooted its import as though the
+          // generated file lived one directory higher. The deterministic
+          // trusted-tree healer had already run before that rewrite, so the old
+          // loop spent its final AI call rewriting a path we can prove locally
+          // and received malformed source back.
+          //
+          // Re-run the same fail-closed deterministic repair after a safe model
+          // rewrite. This consumes no model call, does not widen the retry or
+          // deadline budget, and still requires one unambiguous repository-tree
+          // match corroborated by the PR's exact changed-file list.
+          if (!candidateExecutability.ok && candidateExecutability.kind === 'unresolved-import') {
+            const deterministicRepair = repairMisrootedRelativeImport(
+              candidate,
+              candidateExecutability,
+              evidence.repoTreePaths,
+              new Set(prCtx.files.map(file => file.filename)),
+            );
+            if (deterministicRepair) {
+              const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+              if (deterministicSafety.ok) {
+                files = deterministicRepair.files;
+                installedDeterministicCandidate = true;
+                deterministicRepairs.push({
+                  path: deterministicRepair.path,
+                  fromSpecifier: deterministicRepair.fromSpecifier,
+                  toSpecifier: deterministicRepair.toSpecifier,
+                  matchedTreePath: deterministicRepair.matchedTreePath,
+                });
+                candidateExecutability = checkGeneratedTestsExecutable(files, evidence);
+                await transcript.step(
+                  'purser-author-repair',
+                  ship.name,
+                  candidateExecutability.ok
+                    ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                    : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+                  {
+                    strategy: 'trusted-tree-relative-import-after-model-rewrite',
+                    attempts: 0,
+                    path: deterministicRepair.path,
+                    fromSpecifier: deterministicRepair.fromSpecifier,
+                    toSpecifier: deterministicRepair.toSpecifier,
+                    matchedTreePath: deterministicRepair.matchedTreePath,
+                    result: candidateExecutability.ok
+                      ? 'trusted executability gate passed after deterministic rewrite'
+                      : candidateExecutability.reason,
+                  },
+                );
+              }
+            }
+          }
+          // Keep a safe rewrite even when it has not fully healed yet. The
+          // first #9789 production retry changed a syntax error into a precise
+          // unresolved-import error, but the old branch discarded both the
+          // rewritten bytes and that evolved diagnosis. The final retry then
+          // saw the stale source and stale error. Advancing the candidate here
+          // lets the next bounded attempt target the current failure while the
+          // same trusted gate still decides whether the file may execute.
+          if (installedDeterministicCandidate) {
+            // A post-model deterministic repair already installed the healed
+            // candidate above. Preserve it rather than restoring the shallow
+            // model-authored import.
+          } else {
+            files = candidate;
+          }
+          executability = candidateExecutability;
           if (
             candidateExecutability.ok ||
             (!candidateExecutability.ok && candidateExecutability.path !== repairPath)
           ) {
-            files = candidate;
-            executability = candidateExecutability;
             healed = true;
             repairReason = candidateExecutability.ok
               ? 'trusted executability gate passed after one rewrite'
@@ -1650,8 +2035,8 @@ export async function runPurser(
           path: repairPath,
           originalError: repairError,
           result: repairReason,
-          attempts: 1,
-          repairNumber: authoredRepairPaths.size,
+          attempts: repairAttempt,
+          repairNumber: authoredRepairCalls,
         },
       );
     }

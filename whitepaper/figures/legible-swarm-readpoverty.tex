@@ -1,7 +1,8 @@
-% Figure 7 — read-poverty: O(n) eyeball search vs O(log n) indexed directory,
+% Figure 9 — read-poverty: O(n) eyeball search vs O(log n) indexed directory,
 % and the value curve of L2 across swarm size n.
 % Design: short data labels only; the read-poverty moral and the n=1 inventory
-% live in the caption.
+% live in the caption. Curve labels sit in the clear band above their own curve at
+% mid-domain, not at the terminal point, so they cannot ride the curve at render.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -21,10 +22,10 @@
 \draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{cost to find};
 % O(n) eyeball
 \draw[hhcobalt,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.8*\x});
-\node[text=hhink,font=\bfseries\footnotesize,anchor=west] at (4.45,4.0) {$O(n)$ eyeball};
+\node[text=hhink,font=\bfseries\footnotesize,anchor=south east] at (3.0,2.6) {$O(n)$ eyeball};
 % O(log n) directory
 \draw[hhteal,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.6 + 0.5*ln(1+\x)});
-\node[text=hhink,font=\bfseries\footnotesize,anchor=west] at (4.45,1.5) {$O(\log n)$ index};
+\node[text=hhink,font=\bfseries\footnotesize,anchor=north west] at (2.6,1.15) {$O(\log n)$ index};
 \end{scope}
 
 % ─── RIGHT: value of L2 across n (works at n=1, grows) ───────────────────

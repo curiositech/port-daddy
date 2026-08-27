@@ -82,6 +82,6 @@
   };
 
 \end{tikzpicture}
-\caption{Federated revocation propagation across three harbors. The append-only revocation log ensures that revocation events propagate epidemically ($\Delta$-spaced rounds). Per-epoch roots $R_X^{(e)}$ published to the shared witness log provide transparent, non-repudiable audit trails that generalize Certificate Transparency.}
+\caption{Revocation spreads epidemically in expected $\Theta(\log m)$ rounds under the connected, reliable-round overlay of Property~\ref{thm:fh-conv} --- this is an expectation, not a worst-case deadline: an unbounded partition still yields unbounded exposure. Three harbors are shown across epochs $t = 0, \Delta, 2\Delta$; each harbor's local cuckoo filter is a read-path cache, the append-only revocation log beneath it is authoritative, and per-epoch roots $R_X^{(e)}$ published to the shared witness log give any third party a transparent, non-repudiable audit trail that generalizes Certificate Transparency.}
 \label{fig:fh-revocation}
 \end{figure}
