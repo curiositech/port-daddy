@@ -1,34 +1,30 @@
-% Fig 13 — append a compensating tombstone; never rewrite settled history.
+% Figure III.13 — a later revocation marks one provenance branch invalid.
+% Visual question: what changes when an append-only outcome is revoked?
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=29mm] (e1) at (-6,0)
-    {outcome $o_1$\\{\scriptsize honest}};
-  \node[stp box,minimum width=29mm] (e2) at (-3,0)
-    {outcome $o_2$\\{\scriptsize honest}};
-  \node[stp box,minimum width=29mm] (e3) at (0,0)
-    {outcome $o_3$\\{\scriptsize fraudulent}};
-  \node[stp box,minimum width=29mm] (e4) at (3,0)
-    {outcome $o_4$\\{\scriptsize honest}};
-  \node[stp accent box,minimum width=34mm] (t) at (6.4,0)
-    {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
-  \draw[stp arrow] (e1) -- (e2);
-  \draw[stp arrow] (e2) -- (e3);
-  \draw[stp arrow] (e3) -- (e4);
-  \draw[stp accent arrow] (e4) -- (t);
-  \draw[stp dashed arrow] (t.north) .. controls +(0,12mm) and +(0,12mm) .. (e3.north);
-  \node[stp label] at (3.2,1.25) {compensating saga entry};
+\resizebox{0.91\textwidth}{!}{%
+\begin{tikzpicture}[font=\small,node distance=18mm]
+  \node[stp box,text width=28mm] (root) {principal\\outcome ledger};
+  \node[stp box,text width=26mm,right=of root,yshift=11mm] (o1) {outcome $o_1$\\{\scriptsize valid}};
+  \node[stp accent box,text width=26mm,right=of root,yshift=-11mm] (o3) {outcome $o_3$\\{\scriptsize fraudulent}};
+  \node[stp box,text width=27mm,right=of o3,yshift=9mm] (score) {derived score\\$s(o_3)$};
+  \node[stp box,text width=27mm,right=of o3,yshift=-9mm] (hire) {dependent hire\\decision};
+  \node[stp accent box,text width=30mm,right=28mm of score,yshift=-9mm] (t)
+    {appended tombstone\\$\bar{o}_3$};
+  \draw[stp arrow] (root) -- (o1);
+  \draw[stp accent arrow] (root) -- (o3);
+  \draw[stp arrow] (o3) -- (score);
+  \draw[stp arrow] (o3) -- (hire);
+  \draw[stp accent arrow] (t.west) -- (o3.east);
+  \draw[hhcobalt,line width=1.2pt] ([xshift=-4mm,yshift=4mm]o3.center) -- ([xshift=4mm,yshift=-4mm]o3.center);
+  \draw[hhcobalt,line width=1.2pt] ([xshift=-4mm,yshift=-4mm]o3.center) -- ([xshift=4mm,yshift=4mm]o3.center);
+  \node[stp label,below=8mm of t] {append repair; preserve history};
+  \node[stp label,above=7mm of score] {descendants recomputed};
 \end{tikzpicture}}
-\caption{\textbf{Tombstone revocation on an append-only ledger} (never mutate in
-place). A fraudulent outcome is not deleted (that would break append-only and
-auditability); it is nullified by an appended \emph{tombstone} --- a saga-style
-compensating entry --- which propagates across harbors bounded by the
-revocation-convergence window (Chapter~IV); the poisoned point was spendable only
-during that window. ``Reputation never ends'' is corrected to: monotone in
-\emph{honest} outcomes (they are never silently erased), individually revocable via
-tombstone, with bounded memory (Liu--Skrzypacz) as a tunable parameter rather than a
-virtue --- $\infty$-memory freezes types and removes the incentive to keep
-performing.}
+\caption{\textbf{A tombstone invalidates a provenance branch without rewriting
+history.} The fraudulent outcome remains in the append-only ledger, but the later
+tombstone marks it and every derived score or decision for recomputation. The
+protocol bounds the window during which descendants can rely on the poisoned
+entry; it does not pretend the window was zero.}
 \label{fig:tombstone}
 \end{figure}

@@ -1,35 +1,32 @@
-% Fig 11 — a bonded, accountable neutral-judge market.
+% Figure III.11 — three explicit selection gates before a grade is admitted.
+% Visual question: what makes a judge eligible and accountable?
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=30mm] (work) at (-6,1.2)
-    {graded \textbf{work}};
-  \node[stp box,minimum width=42mm,text width=35mm] (elig) at (-2,1.2)
-    {\textbf{eligibility screen}\\{\scriptsize conflict- and influence-free}};
-  \node[stp accent box,minimum width=37mm,text width=31mm] (judge) at (2.3,1.2)
-    {\textbf{neutral judge}\\{\scriptsize posts its own bond}};
-  \node[stp box,minimum width=34mm] (ledger) at (6.3,1.2)
-    {\textbf{outcome ledger}};
-  \draw[stp arrow] (work) -- (elig);
-  \draw[stp accent arrow] (elig) -- (judge);
-  \draw[stp arrow] (judge) -- (ledger);
-
-  \node[stp box,minimum width=37mm] (bond) at (2.3,-1.6)
-    {judge's \textbf{bond}};
-  \node[stp box,minimum width=37mm] (audit) at (6.3,-1.6)
-    {sampled \textbf{re-audit}};
-  \draw[stp arrow] (judge) -- (bond);
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[font=\small,node distance=13mm]
+  \node[stp box,text width=28mm] (work) {ungraded\\work};
+  \node[stp box,text width=32mm,right=of work] (conflict)
+    {\textbf{conflict screen}\\{\scriptsize no shared principal or stake}};
+  \node[stp box,text width=32mm,right=of conflict] (blind)
+    {\textbf{blind review}\\{\scriptsize author metadata withheld}};
+  \node[stp accent box,text width=32mm,right=of blind] (bond)
+    {\textbf{bonded judge}\\{\scriptsize signs a vector grade}};
+  \node[stp box,text width=28mm,right=of bond] (ledger) {outcome\\ledger};
+  \draw[stp arrow] (work) -- (conflict);
+  \draw[stp arrow] (conflict) -- (blind);
+  \draw[stp accent arrow] (blind) -- (bond);
+  \draw[stp arrow] (bond) -- (ledger);
+  \node[stp box,text width=32mm,below=15mm of ledger] (audit)
+    {sampled re-audit\\{\scriptsize overturn $\Rightarrow$ slash}};
   \draw[stp arrow] (ledger) -- (audit);
-  \draw[stp dashed arrow] (audit) -- (bond);
-  \node[stp label] at (4.3,-0.75) {overturn $\Rightarrow$ slash};
+  \draw[stp dashed arrow] (audit.west) -| (bond.south);
+  \node[stp label,above=7mm of conflict] {eligibility};
+  \node[stp label,above=7mm of blind] {influence control};
+  \node[stp label,above=7mm of bond] {accountability};
 \end{tikzpicture}}
-\caption{\textbf{The neutral-judge market.} Graded work flows to a judge selected
-for conflict- and influence-freedom; the judge posts its own bond, the grade enters
-the outcome ledger, and a sampled re-audit can slash a judge whose grade is
-overturned. ``Neutral'' is a checklist (conflict-free, influence-free, de-biased),
-not a vibe, and the judge is hired through the same bonded ceremony the market uses
-for any task (Protocol~\ref{proto:judge}) --- the judge's own reputation is the
-asset it protects.}
+\caption{\textbf{Neutrality is a gated ceremony.} Work reaches a judge only
+after conflict screening and blind presentation; the selected judge posts a bond
+and signs the grade before it enters the outcome ledger. Sampled re-audit closes
+the loop by making an overturned grade costly to the judge itself.}
 \label{fig:judge-market}
 \end{figure}

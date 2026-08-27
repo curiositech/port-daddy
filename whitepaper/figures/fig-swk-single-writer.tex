@@ -1,62 +1,49 @@
-% Figure — the single-writer serialization. Many client processes + the daemon
-% funnel through one writer; SQLite's file lock + a busy-wait serialize all
-% mutations. One decider => no agreement to reach (FLP sidestepped, not solved);
-% that whole argument, and the cross-machine boundary, live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure II.3 — many callers become one ordered commit history.
+% Visual question: where is concurrency turned into a serial order?
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
+\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
-              minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
-  daemon/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
-                 minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
-  db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
-             aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
+  source/.style={draw=hhink,line width=.55pt,fill=hhsand!22,rounded corners=2pt,
+    inner sep=7pt,minimum width=31mm,minimum height=10mm,align=center},
+  token/.style={draw=hhink,line width=.55pt,fill=hhpaper,circle,inner sep=3pt,
+    font=\scriptsize\bfseries},
+  writer/.style={draw=hhcobalt,line width=1pt,fill=hhpaper,rounded corners=2pt,
+    inner sep=9pt,minimum width=34mm,minimum height=19mm,align=center},
+  route/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhink,line width=.65pt},
+  band/.style={font=\footnotesize\itshape,text=hhgray,align=center},
 ]
-
-% ─── Many clients on the left ─────────────────────────────────────────────
-\node[cli] (c1) at (0,2.4) {command line};
-\node[cli] (c2) at (0,1.2) {command line};
-\node[cli] (c3) at (0,0)   {agent (tool bridge)};
-\node[cli] (c4) at (0,-1.2){agent (binary IPC)};
-\node[cli] (c5) at (0,-2.4){background worker};
-
-% ─── The single daemon (sole write connection) ────────────────────────────
-\node[daemon] (d) at (58mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
-  {\footnotesize\normalfont two transports over Unix sockets}};
-
-\foreach \c in {c1,c2,c3,c4,c5} {
-  \draw[->,>=Latex,hhebony] (\c.east) -- (d.west);
+\node[source] (cli) at (0,2.1) {command-line calls};
+\node[source] (ipc) at (0,0) {agent transports};
+\node[source] (worker) at (0,-2.1) {background workers};
+\coordinate (merge) at (4.1,0);
+\draw[route] (cli.east) -| (merge);
+\draw[route] (ipc.east) -- (merge);
+\draw[route] (worker.east) -| (merge);
+\node[band,anchor=south] at (3.0,2.65) {concurrent arrival};
+\node[token] (q1) at (5.0,0) {$1$};
+\node[token] (q2) at (5.8,0) {$2$};
+\node[token] (q3) at (6.6,0) {$3$};
+\draw[route] (merge) -- (q1);
+\draw[route] (q1) -- (q2);
+\draw[route] (q2) -- (q3);
+\node[band,anchor=south] at (5.8,.65) {daemon request queue};
+\node[writer] (writer) at (9.2,0)
+  {\textbf{sole writer}\\[-1pt]{\scriptsize one write connection}};
+\draw[route] (q3) -- (writer);
+\draw[hhink,line width=.8pt] (12.1,-2.15) -- (12.1,2.15);
+\foreach \y/\n in {1.5/1,.5/2,-.5/3,-1.5/4}{
+  \draw[hhink,line width=.8pt] (11.85,\y) -- (12.35,\y);
+  \node[font=\scriptsize,anchor=west] at (12.55,\y) {commit \n};
 }
-
-% ─── The single file ──────────────────────────────────────────────────────
-\node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
-\draw[<->,>=Latex,line width=1.2pt,hhcobalt] (d.east) -- (file.west);
-\node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
-  at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
-
-\end{tikzpicture}%
-}
-\caption{The single-writer serialization, the cleanest thing about the layer.
-Dozens of command-line invocations and agents funnel through \emph{one} writer ---
-the daemon, the sole holder of a read--write connection --- and SQLite's OS-level
-file lock plus a bounded busy-wait serialize all mutations. Because there is exactly
-one decider, there is no agreement to reach: the consensus impossibility of
-Fischer--Lynch--Paterson does not bite --- it is \emph{sidestepped}, not solved, and
-on one machine the system is CP with a central coordinator. This is not a gap; it is
-the layer's defining discipline. The boundary is exact: the instant a \emph{second}
-daemon shares this file, the assumption breaks and you have a distributed problem
---- which belongs to the cross-machine economy layer, not here.}
+\draw[route,draw=hhcobalt,line width=.9pt] (writer.east) -- (11.75,0);
+\node[band,anchor=south] at (12.1,2.55) {one WAL commit spine};
+\end{tikzpicture}}
+\caption{\textbf{Single-writer serialization.} Concurrent callers converge on
+one daemon-owned request queue; only the sole write connection can append to the
+WAL commit spine. The queue supplies the architectural discipline, while SQLite's
+file lock is the correctness backstop. With one decider there is no agreement
+protocol to run; adding a second daemon would cross the chapter's fault boundary.}
 \label{fig:swk-single-writer}
 \end{figure}

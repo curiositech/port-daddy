@@ -1,65 +1,35 @@
-% Figure — durability by fault class (the I1a/I1b split). A returned-success
-% write under WAL + normal synchronization survives a PROCESS crash (OS buffer
-% persists) but is NOT guaranteed against OS crash / power loss until the next
-% checkpoint. The Gray-Reuter framing and the remedy live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure II.4 — the same successful commit judged against two fault classes.
+% Visual question: which persistence stratum survives each fault?
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.90\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  tier/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=30mm,
-               minimum height=12mm,align=center,font=\bfseries\footnotesize},
-  fault/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,
-                minimum width=34mm,minimum height=13mm,align=center,
-                font=\footnotesize},
+  cell/.style={draw=hhink,line width=.55pt,fill=hhsand!22,rounded corners=2pt,
+    inner sep=7pt,minimum width=55mm,minimum height=11mm,align=center},
+  exposure/.style={cell,draw=hhcobalt,line width=.95pt,fill=hhpaper},
+  band/.style={font=\footnotesize\bfseries,align=center},
+  note/.style={font=\footnotesize\itshape,text=hhgray,align=center},
 ]
-
-% ─── The write's journey ──────────────────────────────────────────────────
-\node[tier,fill=hhsand!30] (app) at (0,0) {commit\\ returns SUCCESS};
-\node[tier,fill=hhsand!30,right=26mm of app] (oscache) {OS page\\ cache};
-\node[tier,fill=hhsand!30,right=30mm of oscache] (waldisk) {WAL file\\ (synced at\\ checkpoint)};
-\node[tier,fill=hhsand!30,right=26mm of waldisk] (maindb) {main DB\\ (checkpointed)};
-
-\draw[->,>=Latex,thick,hhebony] (app) -- (oscache);
-\draw[->,>=Latex,thick,hhebony] (oscache) -- (waldisk);
-\node[font=\scriptsize,above=2.5mm] at ($(oscache.east)!0.5!(waldisk.west)$){not synced per commit};
-\draw[->,>=Latex,thick,hhebony] (waldisk) -- (maindb);
-\node[font=\scriptsize,above=2.5mm] at ($(waldisk.east)!0.5!(maindb.west)$){at the checkpoint interval};
-
-% ─── I1a survives process crash ───────────────────────────────────────────
-\node[fault,fill=hhsand!30,below=14mm of oscache] (i1a)
-  {\textbf{I1a --- process crash}\\ {\color{hhteal}\textbf{SURVIVES}}\\ {\scriptsize the OS buffer persists}};
-\draw[->,>=Latex,thick,hhteal] (oscache.south) -- (i1a.north);
-
-% ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
-\node[fault,fill=hhsand!30,below=14mm of waldisk] (i1b)
-  {\textbf{I1b --- OS crash / power loss}\\ {\color{hhcobalt}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}};
-\draw[->,>=Latex,thick,hhcobalt] (waldisk.south) -- (i1b.north);
-
-\end{tikzpicture}%
-}
-\caption{Durability by fault class --- the single most important correction to the
-kernel's foundational promise, and exactly Gray \& Reuter's
-atomicity-versus-durability distinction (the ``D'' in ACID is a separate promise).
-The unqualified claim ``a write that returned success survives a crash'' is true for
-a \emph{process} crash (I1a: the OS page cache persists past the dying daemon) but
-\emph{not guaranteed} for an OS crash or power loss (I1b), because under normal
-synchronization the WAL is synced only at checkpoints --- the seductive belief that
-``normal sync is safe in WAL mode'' conflates crash-\emph{consistency} (true) with
-power-loss \emph{durability} (false). The remedy for I1b is full synchronization or
-a checkpoint on the commit path; the kernel does not pay that cost by default, and
-the prose must not imply it does. We split the invariant accordingly: I1a is
-\textsf{implemented}; I1b is \textsf{not guaranteed} under the default WAL
-configuration.}
+\node[band] at (-3.4,2.75) {PROCESS FAILURE};
+\node[band] at (3.4,2.75) {OS / POWER FAILURE};
+\node[cell] (pdaemon) at (-3.4,1.55) {daemon memory\\{\scriptsize process terminates}};
+\node[cell] (pcache) at (-3.4,0) {OS page cache\\{\scriptsize still resident}};
+\node[cell] (pdisk) at (-3.4,-1.55) {WAL on storage\\{\scriptsize flush may follow}};
+\node[cell] (odaemon) at (3.4,1.55) {daemon memory\\{\scriptsize lost}};
+\node[exposure] (ocache) at (3.4,0) {OS page cache\\{\scriptsize unsynced bytes may vanish}};
+\node[cell] (odisk) at (3.4,-1.55) {WAL on storage\\{\scriptsize only prior syncs survive}};
+\draw[-{Stealth[length=2.2mm]},hhink,line width=.65pt] (pdaemon) -- (pcache);
+\draw[-{Stealth[length=2.2mm]},hhink,line width=.65pt] (pcache) -- (pdisk);
+\draw[-{Stealth[length=2.2mm]},hhink,line width=.65pt] (odaemon) -- (ocache);
+\draw[-{Stealth[length=2.2mm]},hhink,line width=.65pt] (ocache) -- (odisk);
+\node[note,anchor=north] at (-3.4,-2.35) {I1a: committed state survives};
+\node[note,anchor=north,text=hhcobalt] at (3.4,-2.35) {I1b: latest commits are not guaranteed};
+\end{tikzpicture}}
+\caption{\textbf{Durability is indexed by fault class.} A process failure leaves
+the operating-system cache alive, satisfying I1a. A power or operating-system
+failure erases unsynced cache state, so under normal WAL synchronization I1b does
+not hold for the latest commits. The highlighted cell is the precise exposure;
+crash-consistency must not be sold as power-loss durability.}
 \label{fig:swk-durability-faultclass}
 \end{figure}

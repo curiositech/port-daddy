@@ -1,49 +1,32 @@
-% Fig 2 — role (org-chart, reputation-free) vs person (a thread plus continuity).
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Figure III.2 — roles change while one provenance rail persists.
+% Visual question: what stays the same as role instances change?
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-\node[stp heading] (rh) at (-5.8,2.6) {ROLE};
-\node[stp box,text width=29mm] (role) at (-5.8,1.25)
-  {\textbf{job description}\\[2pt]
-   {\scriptsize obligation\\capability\\authority}};
-\node[stp box,text width=29mm] (fill) at (-5.8,-0.4)
-  {\textit{fillable}\\{\scriptsize by any spawn}};
-\node[stp box,text width=29mm] (history) at (-5.8,-1.95)
-  {\textit{history-free}\\{\scriptsize no reputation}};
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[font=\small,node distance=21mm]
+  \node[stp heading] (roles) {ROLE INSTANCES};
+  \node[stp box,text width=27mm,below=7mm of roles] (r1)
+    {navigator\\{\scriptsize obligation set A}};
+  \node[stp box,text width=27mm,right=of r1] (r2)
+    {cartographer\\{\scriptsize obligation set B}};
+  \node[stp box,text width=27mm,right=of r2] (r3)
+    {reviewer\\{\scriptsize obligation set C}};
+  \node[stp box,text width=27mm,right=of r3] (r4)
+    {lookout\\{\scriptsize obligation set D}};
 
-\node[stp heading] (ph) at (1.7,2.6)
-  {PERSON = one identity through role instances};
-\node[stp box,text width=20mm] (i1) at (-2.35,1.25)
-  {navigator\\{\scriptsize outcome: pass}};
-\node[stp box,text width=20mm] (i2) at (0.35,1.25)
-  {cartographer\\{\scriptsize outcome: pass}};
-\node[stp box,text width=20mm] (i3) at (3.05,1.25)
-  {cartographer\\{\scriptsize outcome: fail}};
-\node[stp box,text width=20mm] (i4) at (5.75,1.25)
-  {lookout\\{\scriptsize outcome: pass}};
-\draw[stp arrow] (i1) -- (i2);
-\draw[stp arrow] (i2) -- (i3);
-\draw[stp arrow] (i3) -- (i4);
-\node[stp accent box,text width=92mm] (thread) at (1.7,-0.65)
-  {\textbf{continuity} --- witnessed history follows the identity, not the role};
-\draw[stp accent arrow] (i1.south) -- ++(0,-3mm) -| (thread.north west);
-\draw[stp accent arrow] (i4.south) -- ++(0,-3mm) -| (thread.north east);
+  \draw[hhcobalt,line width=1.2pt] ([yshift=-15mm]r1.south) -- ([yshift=-15mm]r4.south);
+  \foreach \r/\o in {r1/pass,r2/pass,r3/fail,r4/pass}{
+    \draw[hhcobalt,line width=.9pt] (\r.south) -- ([yshift=-15mm]\r.south);
+    \node[font=\scriptsize,anchor=north] at ([yshift=-17mm]\r.south) {\o};
+  }
+  \node[stp accent box,text width=102mm,anchor=north] (identity)
+    at ([yshift=-27mm]$(r1.south)!0.5!(r4.south)$)
+    {\textbf{one bound identity} --- the witnessed history follows this rail,
+     not any role or process};
 \end{tikzpicture}}
-\caption{\textbf{Role vs.\ person.} A \emph{role} (left) is an org-chart entry ---
-obligations, capabilities, authority --- fillable by any spawn and carrying no
-history. A \emph{person} (right) is one non-forgeable identity walking through a
-sequence of role-instances, accumulating a witnessed outcome history. Reputation
-attaches to the thread, never to the role and never to the process.}
+\caption{\textbf{A person is the continuous provenance rail beneath changing
+roles.} A role is fillable and history-free; each process may occupy a different
+role instance. Outcomes accumulate against one bound identity, so reputation
+survives role changes and respawns without being attached to an org-chart slot.}
 \label{fig:role-person}
 \end{figure}

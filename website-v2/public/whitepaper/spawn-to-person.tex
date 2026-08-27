@@ -47,7 +47,7 @@
   stp accent arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},
     draw=hhcobalt,line width=0.8pt},
   stp dashed arrow/.style={stp accent arrow,dashed},
-  stp label/.style={fill=hhpaper,inner xsep=3pt,inner ysep=1.5pt,
+  stp label/.style={fill=hhpaper,inner xsep=3pt,inner ysep=2.5pt,
     font=\footnotesize\itshape,text=hhgray},
   stp heading/.style={font=\footnotesize\bfseries,text=hhink},
   stp status/.style={font=\scriptsize\scshape,text=hhgray},
@@ -200,7 +200,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.4 (collected-volume edition)}
+\date{August 2026\\Version 1.5 (collected-volume edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -208,7 +208,11 @@
 \maketitle
 \thispagestyle{empty}
 
-\vspace{0.6cm}
+\begin{center}
+\includegraphics[width=0.94\textwidth]{figures/assets/chapter-iii-spawn-to-person-title.jpg}
+\end{center}
+
+\vspace{0.2cm}
 
 \begin{abstract}\noindent
 A coding-agent swarm produces work, but until that work can be attributed to
@@ -302,7 +306,7 @@ The honest-state table (Fig.~\ref{fig:honest-state}) \\
 A philosopher / cognitive scientist &
 \S\ref{sec:continuity} (Locke, Parfit, and why the \emph{ledger} not the
 \emph{memory} is the identity organ), \S\ref{sec:organs}. &
-The continuity-organs figure (Fig.~\ref{fig:organs}) \\
+The continuity chain in \S\ref{sec:organs} \\
 A mechanism-design / reputation-systems reader &
 \S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
 \emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
@@ -312,7 +316,7 @@ A distributed-systems / crypto reader &
 \S\ref{sec:identity} (the non-forgeable root), \S\ref{sec:keystone}
 (the local-identity / cross-operator split), \S\ref{sec:revoke} (revocation
 \& tombstones). &
-The keystone-split figure (Fig.~\ref{fig:keystone}) \\
+The boundary definition in \S\ref{sec:keystone} \\
 \bottomrule
 \end{tabular}
 \caption{Reader's Map. The core product arc is Chapter~I (the wedge) $\to$
@@ -369,15 +373,11 @@ only pay if Heron's track record means something he can check.
 economy is not to compute a score --- it is to manufacture a self that the score
 can be \emph{about}.}
 
-\noindent The series' stack-map (Fig.~\ref{fig:stack}) places this chapter. The
-daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
+\noindent The daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{prove who it is to one machine}. Legibility (L2) lets one operator
 \emph{see} the swarm. None of that yet makes a tradeable person. The bridge from
 the wedge to the market is the thing this paper builds: \textbf{continuity}, and
 the reputation it makes possible.
-
-% --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
-\input{figures/fig-stp-stack-map}
 
 \subsection{What this paper claims, and what it refuses to claim}
 
@@ -564,10 +564,9 @@ on a non-forgeable identity (\S\ref{sec:identity}). A person is a role
 \emph{plus a self}.
 \end{definition}
 
-\noindent Figure~\ref{fig:role-person} draws the distinction. The org-chart on the
-left is roles: stable, fillable, reputation-free. The thread on the right is a
-person: one identity, walking through a sequence of role-instances and
-accumulating a witnessed history as it goes.
+\noindent Figure~\ref{fig:role-person} draws the distinction as one provenance
+rail: roles change above it while the accountable identity and outcome history
+remain continuous below it.
 
 % --- FIGURE 2: role vs person ---
 \input{figures/fig-stp-role-vs-person}
@@ -668,12 +667,9 @@ incarnations, can only attach to the transitive thing.}
 \noindent This is why, later (\S\ref{sec:substrate}), we insist the
 \textbf{outcome ledger}, not the memory stream, is the organ reputation keys on.
 Memory makes an agent \emph{feel} like the same character; the ledger makes it
-\emph{be} the same accountable principal. Figure~\ref{fig:parfit} draws the
-distinction: a chain of overlapping connections is continuous even where no single
-incarnation directly remembers the first.
-
-% --- FIGURE 3: Parfitian continuity vs connectedness ---
-\input{figures/fig-stp-parfit-chain}
+\emph{be} the same accountable principal. Direct memory can fail between distant
+incarnations while the overlapping witnessed chain remains continuous; this is a
+logical distinction, not a separate spatial mechanism, so it stays in prose.
 
 \keyidea{The philosophy is load-bearing because it predicts the \emph{wrong
 default}. The intuitive organ of identity is \emph{memory} (``the agent remembers
@@ -723,8 +719,10 @@ substrate but not yet the reputation-grade witnessed ledger this paper requires.
 We use the neutral maturity scale throughout (\BUILT~/
 \BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
 
-% --- FIGURE 4: the three continuity organs ---
-\input{figures/fig-stp-three-organs}
+\noindent\textbf{The continuity chain, in one line:}
+\emph{episodic memory} (implemented) $\to$ \emph{checkpoint} (partial) $\to$
+\emph{witnessed-outcome ledger} (partial). Reputation attaches only to the last
+record; the first two make recovery possible but cannot certify delivered work.
 
 \subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
 
@@ -1058,9 +1056,6 @@ named dependency --- not an assumption. Every cross-operator sentence that says
 attestation; until that exists, it is resting on a single trusted root, and we
 say so.}
 
-% --- FIGURE 7: keystone split ---
-\input{figures/fig-stp-keystone-split}
-
 \keyidea{The keystone that holds up \emph{this} paper (identity inside one
 trusted daemon) is \emph{not} the keystone that holds up the cross-operator market.
 This paper stands on a local non-forgeable identity. The market paper needs
@@ -1151,9 +1146,8 @@ We catalog the estimators not because they are hard but because choosing the
   third side of the market has real value to price.
 \end{itemize}
 
-% --- FIGURE 8: estimator family by signal type ---
-Figure~\ref{fig:estimators} maps each signal type to its matching estimator.
-\input{figures/fig-stp-estimator-family}
+Table~\ref{tab:estimators} maps each signal type to its matching estimator; a
+second diagram would only repeat those rows as connected boxes.
 
 \subsection{Score as telemetry; gate on predicates}
 
@@ -1194,10 +1188,27 @@ adversarial, multi-dimensional, persistent substrate other parties trade on --- 
 not. Modeling reputation as a bandit imports four assumptions that are all false in
 a market.}
 
-% --- FIGURE 9: bandit assumptions vs reputation reality ---
-Figure~\ref{fig:not-bandit} lines the four bandit assumptions up against the market
+Table~\ref{tab:not-bandit} lines the four bandit assumptions up against the market
 reality that breaks each.
-\input{figures/fig-stp-not-bandit}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{3.6cm}p{5.1cm}p{5.1cm}@{}}
+\toprule
+\textbf{Bandit assumption} & \textbf{Reputation reality} & \textbf{Required response} \\
+\midrule
+Stationary rewards & models, prompts, and skills change over time & bounded-memory dynamics and version binding \\
+One scalar reward & accuracy, aesthetics, and efficiency remain distinct & quality vector plus buyer weighting \\
+Non-strategic environment & agents can whitewash, collude, and Goodhart & bonds, slashing, and mechanism design \\
+Observed reward & a grading oracle produces a capturable signal & bonded judges and sampled re-audit \\
+\bottomrule
+\end{tabular}
+\caption{Why public reputation is not a bandit problem. Private routing retains
+the exploration analogy; the public substrate violates all four assumptions.}
+\label{tab:not-bandit}
+\end{table}
 
 \subsection{The four broken assumptions}
 

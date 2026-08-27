@@ -1,33 +1,33 @@
-% Fig 10 — preserve the quality vector; let each buyer choose its weights.
+% Figure III.10 — a source-owned three-axis quality vector.
+% Visual question: why must the score remain a vector rather than one scalar?
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
+\resizebox{0.90\textwidth}{!}{%
 \begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=38mm] (out) at (-5,1.8)
-    {\textbf{witnessed outcome}};
-  \node[stp accent box,minimum width=40mm] (vector) at (0,1.8)
-    {\textbf{quality vector}\\{\small $\mathbf q=(q_{\rm acc},q_{\rm aes},q_{\rm eff})$}};
-  \node[stp box,minimum width=42mm,text width=36mm] (buyer) at (5.2,1.8)
-    {\textbf{buyer applies $\mathbf w$}\\
-     {\scriptsize ``cheap'' versus ``careful''}};
-  \draw[stp accent arrow] (out) -- (vector);
-  \draw[stp accent arrow] (vector) -- (buyer);
-
-  \node[stp box,minimum width=43mm,text width=36mm] (acc) at (-5,-1.25)
-    {\textbf{accuracy} $q_{\rm acc}$\\{\scriptsize judged by a test oracle}};
-  \node[stp box,minimum width=43mm,text width=36mm] (aes) at (0,-1.25)
-    {\textbf{aesthetics} $q_{\rm aes}$\\{\scriptsize expert-reviewer judgment}};
-  \node[stp box,minimum width=43mm,text width=36mm] (eff) at (5,-1.25)
-    {\textbf{efficiency} $q_{\rm eff}$\\{\scriptsize judged by the cost ledger}};
-  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (acc.north);
-  \draw[stp arrow] (vector.south) -- (aes.north);
-  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (eff.north);
+  \coordinate (c) at (0,0);
+  \coordinate (acc) at (0,3.0);
+  \coordinate (aes) at (-2.9,-1.8);
+  \coordinate (eff) at (2.9,-1.8);
+  \draw[hhgray,line width=.55pt] (acc) -- (aes) -- (eff) -- cycle;
+  \draw[hhgray!55,line width=.45pt] ($(c)!.5!(acc)$) -- ($(c)!.5!(aes)$) -- ($(c)!.5!(eff)$) -- cycle;
+  \draw[hhink,line width=.65pt] (c) -- (acc);
+  \draw[hhink,line width=.65pt] (c) -- (aes);
+  \draw[hhink,line width=.65pt] (c) -- (eff);
+  \fill[hhcobalt] (c) circle (2.4pt);
+  \node[stp accent box,text width=33mm] at (c) {$\mathbf q=(q_{\rm acc},q_{\rm aes},q_{\rm eff})$};
+  \node[stp box,text width=35mm,anchor=south] at ([yshift=5mm]acc)
+    {\textbf{accuracy}\\{\scriptsize acceptance-test oracle}};
+  \node[stp box,text width=35mm,anchor=east] at ([xshift=-6mm]aes)
+    {\textbf{aesthetics}\\{\scriptsize independent reviewer}};
+  \node[stp box,text width=35mm,anchor=west] at ([xshift=6mm]eff)
+    {\textbf{efficiency}\\{\scriptsize cost ledger}};
+  \node[stp label,anchor=north] at (0,-3.2)
+    {buyer applies a preference vector $\mathbf w$ only after disclosure};
 \end{tikzpicture}}
-\caption{\textbf{Multi-dimensional reputation.} A witnessed outcome
-carries a quality \emph{vector} $\mathbf{q}=(q_{\text{acc}},q_{\text{aes}},
-q_{\text{eff}})$. Each axis is scored by a \emph{different} competent judge: a test
-oracle for accuracy, a senior reviewer for aesthetics, the cost meter for
-efficiency. The buyer reads the vector and applies their own weights --- which is
-exactly what avoids collapsing quality into one Goodhart-able scalar.}
+\caption{\textbf{Quality remains a three-axis disclosure.} Accuracy,
+aesthetics, and efficiency have different competent judges and cannot be collapsed
+without hiding trade-offs. The ledger publishes $\mathbf q$ intact; each buyer
+then applies its own preference vector $\mathbf w$ rather than inheriting a single
+Goodhart-able global score.}
 \label{fig:multidim}
 \end{figure}

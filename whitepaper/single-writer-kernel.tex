@@ -183,7 +183,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.1 (revised pre-print)}
+\date{August 2026\\Version 1.2 (revised pre-print)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -192,7 +192,11 @@
 \maketitle
 \thispagestyle{empty}
 
-\vspace{0.6cm}
+\begin{center}
+\includegraphics[width=0.50\textwidth]{figures/assets/chapter-ii-single-writer-kernel-title.png}
+\end{center}
+
+\vspace{0.2cm}
 
 \begin{abstract}\noindent
 A swarm of autonomous coding agents sharing one machine collides over the same
@@ -251,10 +255,10 @@ this one.}
 \section{Where this paper sits, and what it promises}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\input{figures/fig-swk-stack-map}
-
-We model an agent-coordination system as a four-layer stack
-(Figure~\ref{fig:swk-stack-map}), each layer serving a different \emph{whom}.
+We model an agent-coordination system as a four-layer stack, each layer serving a
+different \emph{whom}. This chapter owns the substrate and the implemented carrier
+half of coordination; the repeated series-wide stack diagram is omitted here so
+the chapter begins with the actual contracts it must defend.
 
 \begin{description}[leftmargin=2.2em,style=nextline]
 \item[Substrate (the machine).] A single always-on daemon over one local database:
@@ -400,11 +404,11 @@ paper and a brochure.}
 \toprule
 \textbf{If you are\ldots} & \textbf{\ldots read first} & \textbf{\ldots load-bearing artifact} \\
 \midrule
-short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
+short on time (15 min) & \S1 (thesis), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
-a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Figs.~\ref{fig:swk-reference-monitor}, \ref{fig:swk-deontic-split}; Table~\ref{tab:threat-model} \\
-a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Figs.~\ref{fig:swk-claim-lifecycle}, \ref{fig:swk-comm-organ}; \S\ref{sec:adjacency} \\
-here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
+a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Fig.~\ref{fig:swk-reference-monitor}; Table~\ref{tab:threat-model} \\
+a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}; \S\ref{sec:adjacency} \\
+here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & the continuity statement in \S\ref{sec:continuity} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-9 (\S\ref{sec:openproblems}) & the starred exercises \\
 \bottomrule
 \end{tabularx}
@@ -421,14 +425,34 @@ foundation is sound, read this one.
 % ═════════════════════════════════════════════════════════════════════════════
 
 We organize the kernel into seven \emph{organs}, each a contract the daemon must
-hold for the layers above to be coherent (Figure~\ref{fig:swk-seven-organs}). The
+hold for the layers above to be coherent. The
 temptation is to describe such a kernel as a flat noun-list of features --- ports,
 claims, sessions, a bus, markers, commitments, a monitor, a memory store --- which
 is the symptom of treating the kernel as a database. It is not a database. It is a
 system of record \emph{plus} a mediator, and naming the organs surfaces the
 connective tissue a noun-list hides.
 
-\input{figures/fig-swk-seven-organs}
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{0.96\textwidth}{@{}p{2.7cm}p{3.7cm}X@{}}
+\toprule
+\textbf{Organ} & \textbf{SQLite home} & \textbf{Invariant provided} \\
+\midrule
+Substrate & WAL, pragmas, schema & one serialized commit history \\
+Resource & claims, locks, ports & exclusive ownership with fenced leases \\
+Identity & sessions, heartbeats & attributable actors and liveness state \\
+Communication & messages, markers & durable replay plus decaying shared signals \\
+Obligation & commitments, policies & typed promises and bounded enforcement \\
+Continuity & notes, recovery, log & history survives process replacement \\
+Self-attestation & invariant reports & the daemon reports its own coverage honestly \\
+\bottomrule
+\end{tabularx}
+\caption{The seven kernel organs as contracts over one transactional substrate.
+The table exposes the useful mapping directly: organ, table family, invariant.}
+\label{tab:swk-seven-organs}
+\end{table}
 
 The \textbf{substrate organ} is the floor; the other six are, mechanically,
 tables \emph{with discipline} over the same file. We treat the substrate and the
@@ -724,8 +748,10 @@ CREATE TABLE claim_tickets (
 When Agent~$B$'s claim acquisition fails against the primary-key \texttt{UNIQUE} constraint, the error handler inserts an entry into \texttt{claim\_tickets}. When Agent~$A$ calls \texttt{release('auth.ts')}, the daemon executes a single atomic transaction:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item Delete Agent~$A$'s active claim row: \texttt{DELETE FROM claims WHERE resource = :r;}
-\item Read the lowest ticket: \texttt{SELECT agent\_id, seq\_num FROM claim\_tickets WHERE resource\_id = :r ORDER BY seq\_num ASC LIMIT 1;}
-\item Atomically re-grant the claim: \texttt{INSERT INTO claims (resource, holder, ttl) VALUES (:r, :next\_agent, :ttl);}
+\item Read the lowest ticket by \texttt{resource\_id}, ordered by
+\texttt{seq\_num}, with \texttt{LIMIT 1}.
+\item Atomically re-grant the claim to \texttt{:next\_agent} with the requested
+TTL.
 \item Remove the claimed ticket: \texttt{DELETE FROM claim\_tickets WHERE seq\_num = :next\_seq;}
 \end{enumerate}
 Because the state transition is driven entirely \emph{reactively} by the releasing agent in a single transaction, FIFO bounded-wait fairness is mathematically guaranteed by SQLite's B-Tree sequencing without dragging a background timer or polling thread into the kernel.
@@ -743,12 +769,16 @@ same instant. Walk the uniqueness-constraint insert for both (Algorithm
 \label{sec:comm}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\input{figures/fig-swk-comm-organ}
-
-The communication organ (Figure~\ref{fig:swk-comm-organ}) is where the substrate
+The communication organ is where the substrate
 stops being a lockbox and becomes a medium for conversation. The carrier is
 \Built; the \emph{semantics} that ride on top of it (typed speech acts, protocol
-state machines) belong to the coordination layer. Three pieces matter here.
+state machines) belong to the coordination layer. Three pieces matter here:
+\begin{itemize}[leftmargin=1.4em]
+  \item the durable, ordered, at-least-once bus envelope;
+  \item stigmergic markers whose weights decay at tick and read time; and
+  \item two distinct delegation records: authorization chains and coordination
+  lineages.
+\end{itemize}
 
 \subsection{The bus: a durable carrier envelope}
 
@@ -843,11 +873,6 @@ in the vocabulary of deontic logic for computer systems (Jones and
 Sergot~\cite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
 about how strong each arm actually is --- is the security heart of the paper.
-
-Figure~\ref{fig:swk-deontic-split} lays out the three modalities and the mechanism
-behind each.
-
-\input{figures/fig-swk-deontic-split}
 
 \subsection{The deontic split}
 
@@ -951,13 +976,12 @@ organ, carrying a time-of-check-to-time-of-use surface.
 
 \subsection{Commitments: obligation with oracle-bound closure}
 
-\input{figures/fig-swk-commitment-oracle}
-
 Commitments are durable, \emph{violable} promises --- in the sense of Cohen and
 Levesque's ``intention as a persistent goal''~\cite{cohenlevesque1990}, with both
 single-minded and open-minded strategies for when a promise may be dropped. Two
-hardening laws are implemented, and they are the load-bearing ones
-(Figure~\ref{fig:swk-commitment-oracle}).
+hardening laws are implemented, and they are the load-bearing ones. The complete
+transition rule appears once, in Algorithm~\ref{alg:close}, rather than being
+duplicated as a three-state figure.
 
 \begin{property}[Metric-control separation, Law 1]\label{prop:law1}
 A commitment's deadline is derived by the daemon from a scope policy and is
@@ -1046,12 +1070,10 @@ the substrate's continuity is weak, the cross-machine economy is built on sand.
 This is the section the personhood and market papers lean on hardest, so it carries
 the canonical statement of the layer's own softest link.
 
-\input{figures/fig-swk-continuity-organs}
-
 \subsection{Three organs, one weak link}
 
-Figure~\ref{fig:swk-continuity-organs} names the three continuity organs and states
-the canonical sentence the rest of the series depends on:
+The following compact continuity statement replaces the duplicate three-box chain
+used elsewhere in the series:
 
 \pullquote{The economy rests on three continuity organs --- memory
 (\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
@@ -1211,18 +1233,34 @@ One decider, one order, one auditable truth.}
 
 \subsection{The dual-runtime hazard, and what would make I11 a theorem}
 
-\input{figures/fig-swk-dual-runtime}
-
 Invariant I11 (runtime parity) is the one place the formal spine is held together
 by a compatibility shim rather than a proof. In deployment, truth is \emph{computed}
 under the SQLite bindings of one runtime (the compiled single-binary daemon), but in
 the test suite it is \emph{verified} under a different runtime's bindings; a thin
-shim normalizes their pragma and option interfaces
-(Figure~\ref{fig:swk-dual-runtime}). An invariant that is green under test can fail
+shim normalizes their pragma and option interfaces. An invariant that is green under test can fail
 in production if the two bindings diverge in lock or pragma semantics --- the
 classic ``green in the test runtime, broken in the deployment runtime'' failure. A
 continuous-integration pipeline must therefore \emph{boot the deployment runtime}
 and exercise its endpoints, not merely build it. To solve this (formerly open problem OP-3), the kernel's CI pipeline runs \textbf{Differential Fuzzing}: $1\times 10^6$ concurrent operations are blasted against both the test and deployment SQLite bindings, asserting strict hash equivalence of the resulting database state. This guarantees runtime parity across bindings.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.16}
+\begin{tabularx}{0.92\textwidth}{@{}p{3.1cm}XX@{}}
+\toprule
+& \textbf{Test runtime} & \textbf{Deployment runtime} \\
+\midrule
+Binding role & verifies invariants in the suite & computes production truth \\
+Shared contract & normalized pragmas and options & normalized pragmas and options \\
+Parity evidence & differential operation traces & identical resulting state hash \\
+Residual risk & green tests can miss binding drift & production behavior can diverge \\
+\bottomrule
+\end{tabularx}
+\caption{The dual-runtime parity obligation. The shared interface is a claim;
+differential execution against both bindings is the evidence.}
+\label{tab:swk-dual-runtime}
+\end{table}
 
 \exercises{%
 \textbf{(check)} List the four assumptions Theorem~\ref{thm:consistency} charges
@@ -1395,7 +1433,11 @@ To actually solve the same-machine adversary vulnerability (OP-9) locally, we in
 \subsection{Information Flow Control (IFC) and the Compute-to-Data Airlock}
 \label{sec:ifc-airlock}
 
-Capability scoping alone (such as granting an agent \texttt{fs:read:/confidential} and \texttt{net:egress:github.com}) is insufficient to prevent exfiltration: an agent granted both can read a confidential proprietary database and push the contents to an external server. The kernel resolves this via \textbf{Dynamic Taint Analysis} coupled with complete OS-level mediation.
+Capability scoping alone is insufficient to prevent exfiltration. For example,
+an agent granted \texttt{fs:read} over a confidential path and
+\texttt{net:egress} to an external host can combine those individually valid
+capabilities. The kernel resolves this via \textbf{Dynamic Taint Analysis} coupled
+with complete OS-level mediation.
 
 \paragraph{The Compute-to-Data Airlock protocol.}
 To allow Alice to license a proprietary agent stack $S$ (compiled Wasm or opaque container) to execute over Bob's confidential data $D$ without mutual data exfiltration:

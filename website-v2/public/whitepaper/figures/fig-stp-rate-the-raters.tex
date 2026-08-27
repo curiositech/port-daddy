@@ -1,34 +1,33 @@
-% Fig 12 — the rate-the-raters conjecture, stated as a proof obligation.
+% Figure III.12 — audit opportunity must contract at each level.
+% Visual question: what must shrink for recursive review to terminate?
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
+\resizebox{0.90\textwidth}{!}{%
 \begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=62mm] (l0) at (-3.8,-1.8)
-    {\textbf{agent performs work}\\{\scriptsize first-order incentive to cheat}};
-  \node[stp box,minimum width=54mm] (l1) at (-3.8,0)
-    {\textbf{bonded judge grades it}};
-  \node[stp box,minimum width=46mm] (l2) at (-3.8,1.8)
-    {\textbf{bonded re-auditor}};
-  \node[stp box,minimum width=38mm] (l3) at (-3.8,3.6)
-    {\textbf{next audit level}};
-  \draw[stp arrow] (l0) -- (l1);
-  \draw[stp arrow] (l1) -- (l2);
-  \draw[stp arrow] (l2) -- (l3);
-  \node[stp status,anchor=south] at ([yshift=3mm]l3.north)
-    {conjectured contraction toward an honest fixed point};
-
-  \node[stp accent box,text width=67mm,align=left,anchor=west] (conditions) at (0.3,0.9)
-    {\textbf{Candidate contraction conditions} (Conj.~\ref{conj:contract})\\[3pt]
-     \textbf{1.} $q_k=\rho_k d_k$: sample and detect a corrupt grade.\\
-     \textbf{2.} $q_k B_k>G_k$: expected forfeiture beats total corrupt gain.\\
-     \textbf{3.} Derive $G_{k+1}\leq\lambda G_k$, $0\leq\lambda<1$, from the pool model.\\[3pt]
-     \emph{Unproved obligation: establish both deterrence and contraction.}};
+  \node[stp heading] at (0,3.2) {HETEROGENEOUS AUDIT POOL};
+  \node[stp box,text width=28mm] (f1) at (-4.1,2.2) {model family A};
+  \node[stp box,text width=28mm] (f2) at (0,2.2) {model family B};
+  \node[stp box,text width=28mm] (f3) at (4.1,2.2) {model family C};
+  \node[stp accent box,text width=100mm] (g0) at (0,.6)
+    {level 0: corrupt opportunity $G_0$};
+  \node[stp box,text width=70mm] (g1) at (0,-.75)
+    {level 1: $G_1\leq\lambda G_0$};
+  \node[stp box,text width=42mm] (g2) at (0,-2.1)
+    {level 2: $G_2\leq\lambda G_1$};
+  \node[stp heading] (root) at (0,-3.25) {verified terminal condition};
+  \draw[stp dashed arrow] (f1) -- (g0.north west);
+  \draw[stp dashed arrow] (f2) -- (g0.north);
+  \draw[stp dashed arrow] (f3) -- (g0.north east);
+  \draw[stp arrow] (g0) -- (g1);
+  \draw[stp arrow] (g1) -- (g2);
+  \draw[stp accent arrow] (g2) -- (root);
+  \node[stp label,anchor=west] at (5.9,.6) {$q_k B_k>G_k$ at every level};
+  \node[stp label,anchor=west] at (4.6,-1.4) {$0\leq\lambda<1$};
 \end{tikzpicture}}
-\caption{\textbf{The rate-the-raters recursion.} Conjecture~\ref{conj:contract}
-separates two obligations that a recursive audit design must prove: expected
-forfeiture $\rho_k d_k B_k$ must exceed the judge's total corrupt gain $G_k$ at
-each level, and the pool model must make the remaining corruption opportunity
-shrink by a uniform factor $\lambda<1$. A bond larger than one bribe is not enough
-when re-audit is probabilistic. Neither obligation is depicted as established.}
+\caption{\textbf{Recursive review terminates only if corruption opportunity
+contracts.} Heterogeneous judge families reduce shared-mode failure, while each
+sampled level must satisfy both expected-forfeiture deterrence $q_kB_k>G_k$ and a
+uniform contraction $G_{k+1}\leq\lambda G_k$. The narrowing geometry states the
+proof obligation; it does not depict the conjecture as established.}
 \label{fig:rate-raters}
 \end{figure}

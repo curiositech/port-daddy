@@ -1,84 +1,42 @@
-% Figure — the reference-monitor framing (Anderson 1972 / Lampson). The kernel
-% satisfies complete mediation BY CONSTRUCTION for the regimented gate; the
-% policy monitor is NOT on the request path (post-commit subscriber), so it is
-% a detector, not a regimenter. The three monitor properties live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure II.8 — prevention and compensation occupy different sides of commit.
+% Visual question: which mechanism can still refuse the effect?
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.93\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  actor/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
-                minimum width=22mm,minimum height=10mm,align=center},
-  gate/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,
-               minimum width=22mm,minimum height=14mm,align=center,
-               font=\bfseries\footnotesize},
-  store/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
-                aspect=0.28,minimum width=26mm,minimum height=16mm,align=center},
-  mon/.style={draw=hhink,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
-              minimum width=34mm,minimum height=12mm,align=center,
-              font=\footnotesize},
-  note/.style={font=\footnotesize\itshape,align=center,text width=44mm},
+  nodebox/.style={draw=hhink,line width=.55pt,fill=hhsand!22,rounded corners=2pt,
+    inner sep=7pt,minimum width=29mm,minimum height=11mm,align=center},
+  gate/.style={nodebox,draw=hhcobalt,line width=1pt,fill=hhpaper},
+  route/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhink,line width=.65pt},
+  accentroute/.style={route,draw=hhcobalt,line width=.8pt},
+  band/.style={font=\footnotesize\bfseries,align=center},
+  note/.style={font=\scriptsize\itshape,text=hhgray,align=center},
 ]
-
-% ─── Request path: agent -> uniqueness/boot gate -> WAL -> activity log ─────
-\node[actor] (agent) at (0,0) {agent\\ request};
-\node[gate,right=20mm of agent] (pk) {uniqueness\\ constraint\\ / boot gate};
-\node[store,right=18mm of pk] (wal) {SQLite\\ WAL\\ (committed)};
-\node[store,right=20mm of wal] (log) {operation\\ log\\ (append-only)};
-
-\draw[->,>=Latex,thick,hhebony] (agent) -- (pk);
-\draw[->,>=Latex,thick,hhebony] (pk) -- node[above,font=\footnotesize]{admit} (wal);
-\draw[->,>=Latex,thick,hhebony] (wal) -- node[above,font=\footnotesize]{emit event} (log);
-
-% reject edge
-\draw[->,>=Latex,thick,hhcobalt] (pk.south) to[bend right=30]
-  node[below,font=\footnotesize,text=hhink]{reject} ([yshift=-7mm]pk.south);
-
-% ─── Policy monitor: subscriber DOWNSTREAM of commit ───────────────────────
-\node[mon,below=15mm of log] (arb) {policy monitor\\ (post-commit subscriber)};
-\draw[->,>=Latex,thick,hhteal] (log.south) -- (arb.north)
-  node[midway,right,font=\footnotesize,text=hhink]{observes};
-\draw[->,>=Latex,thick,dashed,hhteal] (arb.west) to[bend right=18]
-  node[below,font=\footnotesize,text=hhink,align=center]{compensate\\(undo / salvage)} (wal.south);
-
-% ─── The interception line ─────────────────────────────────────────────────
-\draw[hhcobalt,line width=1pt,dash pattern=on 3pt off 2pt]
-  ($(wal.east)!0.5!(log.west)$) ++(0,16mm) -- ++(0,-42mm);
-\node[note,text=hhink,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,17mm)$)
-  {\textbf{the commit line}};
-
-% ─── Region labels, clear of the boxes ─────────────────────────────────────
-\node[note,text=hhink,anchor=south] at ([yshift=14mm]pk.north)
-  {\textbf{regimented:}\\ pre-commit, truly unreachable};
-\node[note,text=hhink,anchor=south,text width=50mm] at ([yshift=14mm]log.north)
-  {\textbf{enforced:}\\ post-commit, detected \& compensated};
-
-\end{tikzpicture}%
-}
-\caption{The kernel as a reference monitor --- and the honest correction it forces.
-Anderson's reference monitor must be \emph{always invoked} on the request path
-(complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}. The
-\textbf{uniqueness constraint / boot gate} (cobalt) meets the first property by
-construction --- the single SQLite file lock means every double-claim,
-duplicate-identity squat, or serve-from-test-database attempt is rejected
-\emph{before} the WAL write. The \textbf{policy monitor} (teal) does not: it is a
-subscriber to the operation log that fires \emph{after} the event is already
-durable, and by Schneider's theorem~\cite{schneider2000} (\S\ref{sec:enforcement}) a
-monitor downstream of the commit line enforces no safety property --- it can only
-\emph{detect and compensate} within a bounded window. Tamper-evidence (a
-hash-chained audit log) is re-scoped to the economy layer (\S\ref{sec:merkle});
-smallness is the point of one writer over one file. We therefore reserve
-``physically unreachable'' for the regimented set and say ``detected, then halted or
-compensated'' everywhere else.}
+\node[band] at (-3.3,2.2) {PRE-COMMIT: REGIMENT};
+\node[band] at (4.2,2.2) {POST-COMMIT: DETECT + COMPENSATE};
+\node[nodebox] (request) at (-6.0,.5) {request};
+\node[gate] (gate) at (-2.9,.5) {constraint /\\admission gate};
+\node[nodebox] (wal) at (.7,.5) {committed\\WAL event};
+\node[nodebox] (log) at (4.0,.5) {operation log};
+\node[nodebox] (monitor) at (7.0,.5) {policy monitor};
+\draw[route] (request) -- (gate);
+\draw[accentroute] (gate) -- (wal);
+\draw[route] (wal) -- (log);
+\draw[route] (log) -- (monitor);
+\draw[accentroute] (gate.south) -- ++(0,-1.25);
+\node[note,text=hhcobalt,anchor=north] at (-2.9,-.9)
+  {invalid transition refused; no mutation};
+\draw[route] (monitor.south) -- ++(0,-1.25) -| (wal.south);
+\node[note,anchor=north] at (4.0,-.9)
+  {bad prefix already exists; append repair or halt};
+\draw[hhcobalt,line width=.9pt,dashed] (-.8,-1.65) -- (-.8,2.55);
+\node[note,anchor=south,text=hhcobalt] at (-.8,2.58) {commit boundary};
+\end{tikzpicture}}
+\caption{\textbf{The commit boundary separates prevention from enforcement.}
+Constraints and admission checks run before commit and can make a transition
+unreachable. The policy monitor is downstream of the durable operation log; it can
+detect, halt later effects, and append compensation, but it cannot erase the bad
+prefix. The two guarantees are not interchangeable.}
 \label{fig:swk-reference-monitor}
 \end{figure}

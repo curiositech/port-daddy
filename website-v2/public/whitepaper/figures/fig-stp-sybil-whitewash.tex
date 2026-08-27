@@ -1,47 +1,31 @@
-% Fig 6 — Sybil / whitewashing defeated by a daemon-minted non-forgeable id.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure III.6 — free labels branch; bound identities return to one principal.
+% Visual question: where do sanctions land after a respawn or a Sybil split?
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[font=\small,node distance=20mm]
-\node[stp heading,anchor=west] (freeh)
-  {SELF-ASSERTED LABEL --- RESET AND REPLICATION ARE FREE};
-\node[stp box,text width=34mm,below=4mm of freeh,anchor=north west] (bad1)
-  {agent ``X''\\{\scriptsize bad record}};
-\node[stp box,text width=34mm,right=of bad1] (bad2)
-  {agent ``X'\,'\\{\scriptsize fresh label, clean record}};
-\node[stp box,text width=34mm,right=of bad2] (syb)
-  {1000 $\times$ ``X$_i$''\\{\scriptsize forged quorum}};
-\draw[stp dashed arrow] (bad1) -- (bad2);
-\draw[stp dashed arrow] (bad2) -- (syb);
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[font=\small,node distance=14mm]
+  \node[stp heading] (freeh) {SELF-ASSERTED LABELS};
+  \node[stp box,text width=30mm,below=6mm of freeh] (bad) {bad outcome\\{\scriptsize label X}};
+  \node[stp box,text width=27mm,right=of bad,yshift=8mm] (x1) {fresh X$'$\\{\scriptsize clean record}};
+  \node[stp box,text width=27mm,right=of bad,yshift=-8mm] (xmany) {$X_1\ldots X_n$\\{\scriptsize forged quorum}};
+  \draw[stp dashed arrow] (bad) -- (x1);
+  \draw[stp dashed arrow] (bad) -- (xmany);
+  \node[stp label,below=9mm of bad] {sanction discarded with the label};
 
-\node[stp heading,anchor=west,below=18mm of bad1.south west] (boundh)
-  {BOUND IDENTITY --- SANCTIONS FOLLOW THE PRINCIPAL};
-\node[stp box,text width=34mm,below=4mm of boundh,anchor=north west] (daemon)
-  {daemon mints\\{\scriptsize a local identity}};
-\node[stp accent box,text width=34mm,right=of daemon] (cred)
-  {non-re-pickable\\credential\\{\scriptsize identity cannot be shed}};
-\node[stp box,text width=34mm,right=of cred] (princ)
-  {principal\\{\scriptsize owns the fleet, posts bonds}};
-\draw[stp arrow] (daemon) -- (cred);
-\draw[stp arrow] (cred) -- (princ);
+  \node[stp heading,right=42mm of freeh] (boundh) {BOUND PRINCIPAL ROOT};
+  \node[stp accent box,text width=34mm,below=6mm of boundh] (principal)
+    {principal record\\{\scriptsize owns bonds and history}};
+  \node[stp box,text width=26mm,right=of principal,yshift=8mm] (i1) {identity A\\{\scriptsize process 1}};
+  \node[stp box,text width=26mm,right=of principal,yshift=-8mm] (i2) {identity B\\{\scriptsize respawn}};
+  \draw[stp accent arrow] (principal) -- (i1);
+  \draw[stp accent arrow] (principal) -- (i2);
+  \draw[stp dashed arrow] (i2.south) -- ++(0,-9mm) -| (principal.south);
+  \node[stp label,below=9mm of i2] {sanction returns to the same root};
 \end{tikzpicture}}
-\caption{\textbf{The non-forgeable root forecloses the two classic attacks.} With
-self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted,
-non-forgeable identity bound to a non-re-pickable credential and a principal
-(bottom) makes both costly: churn costs more than a clean record
-(Thm.~\ref{thm:whitewash-cost}), and sanctions survive respawns
-(Thm.~\ref{thm:necessity}). The newcomer policy is a shape, not a scalar: a fresh
-id may have full \emph{work} ability but a reduced \emph{economic ceiling} until
-it earns a witnessed history (Friedman--Resnick). This is the one genuinely
-architectural piece of the program.}
+\caption{\textbf{Identity binding determines whether sanctions survive churn.}
+Self-asserted labels branch freely into a clean replacement or a forged quorum.
+With a daemon-minted identity bound to one economic principal, every descendant
+process returns outcomes and sanctions to the same durable root; respawning does
+not reset the ledger.}
 \label{fig:sybil}
 \end{figure}
