@@ -143,11 +143,17 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       case 'halted':
         // Operator halt landed on this launch → preserve the worktree/transcript
         // for the operator to salvage rather than discarding it as a failure.
-        return { state: 'salvage', agentId, errorMessage: r.launch.errorMessage ?? 'halted' };
+        return {
+          state: 'salvage',
+          launchId: r.launch.id,
+          agentId,
+          errorMessage: r.launch.errorMessage ?? 'halted',
+        };
 
       case 'failed':
         return {
           state: 'failed',
+          launchId: r.launch.id,
           agentId,
           costUsd: r.launch.costUsd ?? undefined,
           errorMessage: r.launch.errorMessage,
@@ -163,6 +169,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         if (!r.launch.resultArtifact) {
           return {
             state: 'salvage',
+            launchId: r.launch.id,
             agentId,
             costUsd: r.launch.costUsd ?? undefined,
             errorMessage:
@@ -172,6 +179,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         }
         return {
           state: 'settled',
+          launchId: r.launch.id,
           agentId,
           costUsd: r.launch.costUsd ?? undefined,
           resultArtifact: r.launch.resultArtifact,
@@ -180,6 +188,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       default:
         return {
           state: 'failed',
+          launchId: r.launch.id,
           agentId,
           errorMessage: `unexpected launch state: ${launchState}`,
         };

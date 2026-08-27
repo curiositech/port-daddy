@@ -68,6 +68,9 @@ mod editor_sync;
 #[path = "../editor_wedge.rs"]
 mod editor_wedge;
 #[allow(dead_code)]
+#[path = "../mission_view.rs"]
+mod mission_view;
+#[allow(dead_code)]
 #[path = "../work_plan.rs"]
 mod work_plan;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
@@ -416,7 +419,7 @@ async fn main() -> Result<()> {
                 {
                     Ok(()) => ok(
                         &style,
-                        "interrupt sent — watch the stream for control.interrupt",
+                        "interrupt requested — runtime acknowledgement pending",
                     ),
                     Err(e) => err(&style, &format!("interrupt failed: {e}")),
                 }

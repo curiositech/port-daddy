@@ -294,11 +294,139 @@ impl HarborKemSecret {
     /// # Ok::<(), pd_vault::VaultError>(())
     /// ```
     pub fn diffie_hellman(&self, peer: &X25519PublicKey) -> Result<SharedSecret, VaultError> {
-        let agreed = self.secret.diffie_hellman(&XPublicKey::from(peer.0));
-        if !agreed.was_contributory() {
-            return Err(VaultError::InvalidKey);
-        }
-        Ok(SharedSecret(agreed.to_bytes()))
+        raw_diffie_hellman(&self.secret, peer)
+    }
+}
+
+/// The DH-agree-then-wrap step shared by every X25519 static secret in this
+/// crate, regardless of where the secret came from.
+///
+/// `pub(crate)` rather than a method on one type because three different
+/// callers reduce to exactly this: [`HarborKemSecret::diffie_hellman`] (a
+/// harbor's identity-derived agreement key), [`DeviceKemSecret::diffie_hellman`]
+/// (a device's independently generated one), and the one-shot ephemeral
+/// agreement [`crate::hpke`] performs on every HPKE encapsulation, whose secret
+/// is discarded after a single use and never becomes either of the named types
+/// above. Three copies of "agree, check contributory, wrap" would be three
+/// places the contributory check could independently go missing; one function
+/// makes that impossible by construction.
+///
+/// # Errors
+///
+/// [`VaultError::InvalidKey`] if the agreement is non-contributory — the peer
+/// supplied a low-order point, which would force the shared secret to a fixed
+/// value the peer already knows. See [`HarborKemSecret::diffie_hellman`] for the
+/// full rationale; it applies identically here.
+pub(crate) fn raw_diffie_hellman(
+    secret: &StaticSecret,
+    peer: &X25519PublicKey,
+) -> Result<SharedSecret, VaultError> {
+    let agreed = secret.diffie_hellman(&XPublicKey::from(peer.0));
+    if !agreed.was_contributory() {
+        return Err(VaultError::InvalidKey);
+    }
+    Ok(SharedSecret(agreed.to_bytes()))
+}
+
+/// A device's own X25519 key-agreement secret — independently generated, not
+/// derived from any harbor's Ed25519 seed.
+///
+/// [`HarborKemSecret`] is deliberately not reused for this role, even though the
+/// shape is identical (an X25519 `StaticSecret` plus its public key) and the
+/// custody properties are identical (no accessor for the scalar, agreement
+/// yields a [`SharedSecret`] rather than raw bytes). The difference is
+/// provenance, and provenance is exactly the thing a type should make hard to
+/// mix up: a harbor's agreement key is *derived* — [`HarborKeypair::derive_x25519`]
+/// takes no randomness at all, so the same seed is the same key-agreement
+/// identity on any machine, forever. A device's is *generated* — fresh entropy,
+/// no seed behind it, nothing to re-derive from if it is lost. Giving
+/// `HarborKemSecret` a `generate()` alongside its `derive_x25519`-only
+/// construction would let a caller accidentally mint a harbor agreement key with
+/// no recoverable identity backing it; giving `DeviceKemSecret` a derivation
+/// path would claim a determinism devices do not have. Two constructors on one
+/// type cannot express "exactly one of these is how this kind of secret comes
+/// into existence" — two types can.
+///
+/// This is the recipient side of HPKE base-mode decapsulation
+/// ([`crate::hpke::unwrap_channel_key_for_device`]): a device publishes
+/// [`DeviceKemSecret::public`] once (e.g. at enrollment), and every sender
+/// wrapping a key to that device uses the published key as HPKE's `pkR`.
+pub struct DeviceKemSecret {
+    secret: StaticSecret,
+}
+
+impl DeviceKemSecret {
+    /// Mint a fresh device key-agreement identity from the operating system
+    /// CSPRNG.
+    ///
+    /// Unlike [`HarborKeypair::derive_x25519`], there is no seed to recover this
+    /// from — losing the returned value loses the identity. That trade is the
+    /// point: a device is not expected to carry a portable long-term seed the
+    /// way a harbor does, so the key it publishes is only as durable as the
+    /// device's own key storage, and that is a decision for the caller, not
+    /// this crate.
+    ///
+    /// # Errors
+    ///
+    /// [`VaultError::Rng`] if the OS entropy source is unavailable. The kernel
+    /// refuses to mint an identity rather than fall back to a weaker source.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pd_vault::DeviceKemSecret;
+    ///
+    /// let device = DeviceKemSecret::generate()?;
+    /// let other = DeviceKemSecret::generate()?;
+    /// assert_ne!(device.public(), other.public());
+    /// # Ok::<(), pd_vault::VaultError>(())
+    /// ```
+    pub fn generate() -> Result<Self, VaultError> {
+        let mut bytes = [0u8; SEED_LEN];
+        getrandom::getrandom(&mut bytes).map_err(|e| VaultError::Rng(e.to_string()))?;
+        // `from_bytes` zeroizes `bytes` in place, so the freshly drawn entropy
+        // does not outlive this frame.
+        Ok(Self::from_bytes(&mut bytes))
+    }
+
+    /// Adopt an existing 32-byte X25519 secret scalar, wiping the caller's
+    /// buffer.
+    ///
+    /// For a device restoring its own persisted key-agreement identity from
+    /// wherever it keeps device-local secrets, and for known-answer vectors that
+    /// need a fixed keypair. The normal way to mint one is [`Self::generate`].
+    ///
+    /// Taken by `&mut` for the same reason as [`HarborKeypair::from_seed`] and
+    /// [`crate::ChannelKey::from_bytes`]: a by-value `[u8; 32]` parameter would
+    /// only ever wipe the call site's copy, leaving the caller's own array live.
+    pub fn from_bytes(bytes: &mut [u8; SEED_LEN]) -> Self {
+        let secret = StaticSecret::from(*bytes);
+        bytes.zeroize();
+        Self { secret }
+    }
+
+    /// The public half — publish this so senders can wrap keys to the device.
+    pub fn public(&self) -> X25519PublicKey {
+        X25519PublicKey(XPublicKey::from(&self.secret).to_bytes())
+    }
+
+    /// Agree a raw shared secret with a peer's X25519 public key.
+    ///
+    /// See [`HarborKemSecret::diffie_hellman`] — the contract is identical: the
+    /// result is a curve point, not a uniform key, has no public byte accessor,
+    /// and a non-contributory peer key is rejected rather than silently
+    /// producing the shared all-zero secret. [`crate::hpke`] is the intended
+    /// caller: it feeds this into HPKE's `ExtractAndExpand`, never into
+    /// [`SharedSecret::derive_channel_key`] — a device's HPKE agreement and a
+    /// harbor's channel-key agreement are different protocols that happen to
+    /// share the same curve, and nothing here lets one be used in place of the
+    /// other.
+    ///
+    /// # Errors
+    ///
+    /// [`VaultError::InvalidKey`] if the agreement is non-contributory.
+    pub fn diffie_hellman(&self, peer: &X25519PublicKey) -> Result<SharedSecret, VaultError> {
+        raw_diffie_hellman(&self.secret, peer)
     }
 }
 
@@ -630,6 +758,58 @@ mod tests {
         let degenerate = X25519PublicKey::from_bytes([0u8; SEED_LEN]);
         assert!(matches!(
             harbor.diffie_hellman(&degenerate),
+            Err(VaultError::InvalidKey)
+        ));
+    }
+
+    // --- DeviceKemSecret: same custody contract, different provenance -------
+
+    #[test]
+    fn device_kem_secret_generate_gives_distinct_identities() {
+        let first = DeviceKemSecret::generate().unwrap();
+        let second = DeviceKemSecret::generate().unwrap();
+        assert_ne!(first.public(), second.public());
+    }
+
+    #[test]
+    fn device_kem_secret_from_bytes_wipes_the_callers_buffer() {
+        let mut bytes = [0x77u8; SEED_LEN];
+        let device = DeviceKemSecret::from_bytes(&mut bytes);
+        assert_eq!(
+            bytes, [0u8; SEED_LEN],
+            "from_bytes left the caller's key buffer live"
+        );
+
+        // ...and the wipe did not cost the identity: it is still the identity
+        // for the bytes that were passed in.
+        assert_eq!(
+            device.public(),
+            DeviceKemSecret::from_bytes(&mut [0x77u8; SEED_LEN]).public()
+        );
+    }
+
+    #[test]
+    fn device_kem_secret_from_bytes_is_deterministic() {
+        let first = DeviceKemSecret::from_bytes(&mut [9u8; SEED_LEN]).public();
+        let second = DeviceKemSecret::from_bytes(&mut [9u8; SEED_LEN]).public();
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn device_kem_secret_agreement_is_symmetric_and_rejects_low_order_peers() {
+        // A device and a harbor agreeing with each other exercises the same
+        // `raw_diffie_hellman` both types now share, from the two different
+        // entry points.
+        let device = DeviceKemSecret::from_bytes(&mut [11u8; SEED_LEN]);
+        let harbor = HarborKeypair::from_seed(&mut [22u8; SEED_LEN]).derive_x25519();
+
+        let ours = device.diffie_hellman(&harbor.public()).unwrap();
+        let theirs = harbor.diffie_hellman(&device.public()).unwrap();
+        assert_eq!(ours, theirs);
+
+        let degenerate = X25519PublicKey::from_bytes([0u8; SEED_LEN]);
+        assert!(matches!(
+            device.diffie_hellman(&degenerate),
             Err(VaultError::InvalidKey)
         ));
     }

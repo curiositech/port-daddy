@@ -14,6 +14,7 @@
 //!   {"cmd":"state","pane":"sextant"}
 //!   {"cmd":"sextant","windowHours":720,"minTokens":64}
 //!   {"cmd":"work","goal":"Take the next roadmap slice"}
+//!   {"cmd":"stop"}
 //!   {"cmd":"chat","text":"Are you attached live?"}
 //!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
 //!   {"cmd":"alerts"}
@@ -57,6 +58,7 @@ pub enum ScriptRequest {
     Work {
         goal: String,
     },
+    StopMission,
     Rebind {
         url: String,
     },
@@ -118,6 +120,7 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 goal: goal.trim().to_string(),
             })
         }
+        "stop" => Ok(ScriptRequest::StopMission),
         "sextant" => {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
@@ -396,6 +399,10 @@ mod tests {
             Ok(ScriptRequest::Work {
                 goal: "Take the next roadmap slice".into()
             })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"stop"}"#),
+            Ok(ScriptRequest::StopMission)
         );
         assert_eq!(
             parse_request(r#"{"cmd":"rebind","url":"http://127.0.0.1:9899"}"#),

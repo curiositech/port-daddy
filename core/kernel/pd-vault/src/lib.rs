@@ -63,11 +63,18 @@
 //! # Shape of the crate
 //!
 //! 1. [`keys`] — [`HarborKeypair`], the Ed25519 signing identity, plus its
-//!    deterministic X25519 counterpart for key agreement.
+//!    deterministic X25519 counterpart for key agreement, and
+//!    [`DeviceKemSecret`], the independently-generated X25519 counterpart a
+//!    device (rather than a harbor) uses for the same role.
 //! 2. [`kdf`] — [`derive_channel_key`], HKDF-SHA256 from a harbor secret to a
 //!    per-channel, per-epoch [`ChannelKey`].
 //! 3. [`seal`] — [`seal`] / [`open`], XChaCha20-Poly1305 over that channel key
 //!    with harbor, channel, epoch, and sequence bound into the associated data.
+//! 4. [`hpke`] — [`wrap_channel_key_for_device`] / [`unwrap_channel_key_for_device`],
+//!    RFC 9180 HPKE base mode over X25519/HKDF-SHA256/AES-256-GCM, for handing a
+//!    [`ChannelKey`] to one recipient device across the join-time / rotation
+//!    wire (ADR-0123 A4/B3) rather than inside a channel the recipient already
+//!    holds the key for.
 //!
 //! Every public function carries a runnable doctest, so `cargo test --doc -p
 //! pd-vault` doubles as a worked tutorial for the whole path.
@@ -81,12 +88,19 @@
 
 use thiserror::Error;
 
+pub mod hpke;
 pub mod kdf;
 pub mod keys;
 pub mod seal;
 
+pub use hpke::{
+    unwrap_channel_key_for_device, wrap_channel_key_for_device, KeyWrapAad, WrappedKey,
+    KEY_WRAP_AAD_LABEL,
+};
 pub use kdf::{derive_channel_key, ChannelKey, CHANNEL_KEY_LABEL, CHANNEL_KEY_LEN};
-pub use keys::{HarborKemSecret, HarborKeypair, HarborPublicKey, SharedSecret, X25519PublicKey};
+pub use keys::{
+    DeviceKemSecret, HarborKemSecret, HarborKeypair, HarborPublicKey, SharedSecret, X25519PublicKey,
+};
 pub use seal::{open, random_nonce, seal, SealAad, NONCE_LEN, SEAL_AAD_LABEL, TAG_LEN};
 
 /// Encode a component list so that no two distinct lists share an encoding.

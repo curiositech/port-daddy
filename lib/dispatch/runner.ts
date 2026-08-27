@@ -450,6 +450,15 @@ export async function runClaimedDispatch(
     result = { state: 'failed', errorMessage };
   }
 
+  if (result.launchId || result.agentId || result.transcriptId) {
+    queue.bindExecution({
+      id: claimed.id,
+      launchId: result.launchId ?? null,
+      agentId: result.agentId ?? null,
+      transcriptId: result.transcriptId ?? null,
+    });
+  }
+
   // ── Failover seam ──────────────────────────────────────────────────────────
   // The ONE place a dead dispatch can become a live successor. It sits here,
   // between the adapter returning and the lifecycle closing, because both halves

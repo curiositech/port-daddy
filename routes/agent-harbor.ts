@@ -61,9 +61,18 @@ import {
   surfaceGatewayCapabilityProjection,
   validateSurfaceGatewayEnvelope,
 } from '../lib/agent-harbor/surface-gateway.js';
-import type { WorkIntentService } from '../lib/agent-harbor/work-intent-service.js';
+import {
+  dispatchIdForWorkIntent,
+  type WorkIntentService,
+  type WorkIntentSnapshot,
+} from '../lib/agent-harbor/work-intent-service.js';
 import type { DispatchQueue } from '../lib/dispatch/queue.js';
 import type { DispatchWorker } from '../lib/dispatch/worker.js';
+import {
+  createDefaultCommandRunner,
+  fetchPrInfo,
+  type PrInfo,
+} from '../lib/dispatch/auto-merge.js';
 import {
   buildHarnessContinuationMatrix,
   collectHarnessConformanceWitnesses,
@@ -75,6 +84,7 @@ interface AgentHarborRouteDeps {
   workIntentService?: WorkIntentService;
   dispatchQueue?: DispatchQueue;
   dispatchWorker?: DispatchWorker;
+  missionArtifactStatus?: (url: string) => Promise<PrInfo>;
   daemonBerth?: DaemonBerthIdentity;
   metrics: { errors: number };
   logger: {
@@ -105,6 +115,71 @@ interface ProjectionMeta {
   headSeq: number;
   /** For multi-projection joins: exactly which projections are behind. */
   staleProjections?: ProjectionName[];
+}
+
+/** One restart-safe mission projection for operator surfaces. */
+function projectMissionExecution(snapshot: WorkIntentSnapshot, queue?: DispatchQueue) {
+  if (!queue) return null;
+  const dispatchId = snapshot.intent.compat?.dispatchId
+    ?? dispatchIdForWorkIntent(snapshot.intent.intentId);
+  const dispatch = queue.get(dispatchId);
+  if (!dispatch) return null;
+  return {
+    projection: 'governed-mission',
+    dispatchId: dispatch.id,
+    state: dispatch.state,
+    launchId: dispatch.launchId,
+    agentId: dispatch.agentId,
+    transcriptId: dispatch.transcriptId,
+    backend: dispatch.backend,
+    model: dispatch.model,
+    sessionId: dispatch.sessionId,
+    worktreePath: dispatch.worktreePath,
+    branch: dispatch.branch,
+    resultArtifact: dispatch.resultArtifact,
+    costUsd: dispatch.costUsd,
+    errorMessage: dispatch.errorMessage,
+    createdAt: dispatch.createdAt,
+    claimedAt: dispatch.claimedAt,
+    startedAt: dispatch.startedAt,
+    producedAt: dispatch.producedAt,
+    settledAt: dispatch.settledAt,
+  };
+}
+
+function projectMissionSnapshot(snapshot: WorkIntentSnapshot, queue?: DispatchQueue) {
+  return { ...snapshot, execution: projectMissionExecution(snapshot, queue) };
+}
+
+const missionArtifactRunner = createDefaultCommandRunner();
+const missionArtifactCache = new Map<string, { fetchedAt: number; status: PrInfo }>();
+const MISSION_ARTIFACT_CACHE_MS = 15_000;
+
+async function defaultMissionArtifactStatus(url: string): Promise<PrInfo> {
+  const cached = missionArtifactCache.get(url);
+  if (cached && Date.now() - cached.fetchedAt < MISSION_ARTIFACT_CACHE_MS) {
+    return cached.status;
+  }
+  const status = await fetchPrInfo(url, missionArtifactRunner);
+  missionArtifactCache.set(url, { fetchedAt: Date.now(), status });
+  return status;
+}
+
+async function projectMissionSnapshotWithArtifact(
+  snapshot: WorkIntentSnapshot,
+  queue: DispatchQueue | undefined,
+  includeArtifactStatus: boolean,
+  statusProvider: (url: string) => Promise<PrInfo>,
+) {
+  const projected = projectMissionSnapshot(snapshot, queue);
+  if (!includeArtifactStatus || !projected.execution?.resultArtifact) return projected;
+  return {
+    ...projected,
+    execution: {
+      ...projected.execution,
+      artifactStatus: await statusProvider(projected.execution.resultArtifact),
+    },
+  };
 }
 
 function projectionMeta(db: DatabaseInstance, name: ProjectionName): ProjectionMeta {
@@ -334,12 +409,21 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
 
     if (validation.envelope.mode === 'query') {
       const payload = validation.envelope.payload as Record<string, unknown>;
+      const includeArtifactStatus = payload.includeArtifactStatus === true;
+      const statusProvider = opts.deps.missionArtifactStatus ?? defaultMissionArtifactStatus;
       if (validation.envelope.operation === 'work-intent.list') {
         const limit = typeof payload.limit === 'number' ? payload.limit : 100;
         return {
           schema: 'pd.agent-harbor.surface-gateway.query-result.v0',
           correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
-          data: opts.deps.workIntentService.list(limit),
+          data: await Promise.all(opts.deps.workIntentService
+            .list(limit)
+            .map((snapshot) => projectMissionSnapshotWithArtifact(
+              snapshot,
+              opts.deps.dispatchQueue,
+              includeArtifactStatus,
+              statusProvider,
+            ))),
           projection: validation.envelope.projection,
         };
       }
@@ -353,7 +437,12 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
         return {
           schema: 'pd.agent-harbor.surface-gateway.query-result.v0',
           correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
-          data: snapshot,
+          data: await projectMissionSnapshotWithArtifact(
+            snapshot,
+            opts.deps.dispatchQueue,
+            includeArtifactStatus,
+            statusProvider,
+          ),
           projection: validation.envelope.projection,
         };
       }
@@ -404,7 +493,7 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
         if (started.dispatch.state === 'proposed') {
           launchedThisTick = await opts.deps.dispatchWorker.poll();
         }
-        const runtime = opts.deps.dispatchQueue.get(started.dispatch.id) ?? started.dispatch;
+        const execution = projectMissionExecution(started, opts.deps.dispatchQueue);
         reply.code(started.duplicate ? 200 : 202);
         return {
           schema: 'pd.agent-harbor.surface-gateway.command-receipt.v0',
@@ -414,17 +503,17 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
           intent: started.intent,
           plan: started.plan,
           execution: {
-            projection: 'dispatches-compatibility',
-            dispatchId: runtime.id,
-            state: runtime.state,
-            sessionId: runtime.sessionId,
-            worktreePath: runtime.worktreePath,
+            ...(execution ?? {
+              projection: 'governed-mission',
+              dispatchId: started.dispatch.id,
+              state: started.dispatch.state,
+            }),
             launchedThisTick,
           },
           nextAction: {
             code: 'WORK_RUNTIME_STARTED',
             message:
-              'The daemon accepted this WorkIntent for Conductor-governed execution. Watch the active-agent roster and transcript stream for its bound body.',
+              'Port Daddy accepted this mission. Its exact running agent, live output, checks, artifacts, and PR remain attached to this mission.',
           },
         };
       } catch (error) {

@@ -28,8 +28,9 @@
     {\scriptsize Performance Bond Poster}
   };
   \node[escrow] (E) at (0.0, 0) {
-    \textbf{\scshape 2-of-3 Multisig Escrow}\\[1pt]
-    {\scriptsize Bounded Custody \& Settlement}
+    \textbf{\scshape Settlement Escrow}\\[1pt]
+    {\scriptsize Custody bounded \emph{only if}}\\
+    {\scriptsize Prop.~\ref{thm:fh-escrow-bound}'s assumptions hold}
   };
   \node[party] (PB) at (4.8, 0) {
     \textbf{\scshape Bob (Principal)}\\[1pt]
@@ -39,7 +40,7 @@
   % ─── Steps 1, 2, 3 Below ────────────────────────────────────────────────────
   \node[stepbox] (s1) at (-4.8, -2.4) {
     \textbf{1. Bond Posting}\\[1pt]
-    $A$ mints work card for agent $\alpha$; posts performance bond $B_\alpha$ into multisig escrow.
+    $A$ mints work card for agent $\alpha$; posts performance bond $B_\alpha$ into the escrow.
   };
 
   \node[stepbox] (s2) at (0.0, -2.4) {
@@ -61,8 +62,8 @@
 
   % ─── Outcomes and Structural Guard ──────────────────────────────────────────
   \node[guardbox] (guard) at (-4.8, -4.8) {
-    \textbf{\scshape Authority Invariant:}\\
-    Neither harbor can bypass recipient whitelist, fee cap, or atomic 2-of-3 multisig transition.
+    \textbf{\scshape Custody Assumption:}\\
+    \emph{If} whitelist, fee cap, and single-terminal-transition are non-bypassable (Prop.~\ref{thm:fh-escrow-bound}), funds cannot be redirected. Not established here for a deployed system.
   };
 
   \node[outcomebox] (Op) at (0.5, -4.8) {
@@ -79,6 +80,6 @@
   \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Or.north);
 
 \end{tikzpicture}
-\caption{Cross-harbor settlement protocol. Custody bounds are structurally enforced: the escrow authority requires 2-of-3 multisig consensus across the recipient whitelist, fee cap, and atomic terminal transitions. The outcome space partitions cleanly into \textbf{Clear} or \textbf{Refuse}, preventing unbounded cross-harbor liability.}
+\caption{Cross-harbor settlement protocol. The custody bounds are \emph{conditional}, not established: Property~\ref{thm:fh-escrow-bound} holds only where the recipient whitelist, fee cap, and single-terminal-transition rule cannot be bypassed by the escrow operator (\S\ref{sec:fh-escrow}); 2-of-3 threshold signing is one candidate way to arrange that. Under those assumptions the outcome space partitions into \textbf{Clear} or \textbf{Refuse}, bounding cross-harbor liability; without them the worst case is the full custodial balance.}
 \label{fig:fh-settlement}
 \end{figure}

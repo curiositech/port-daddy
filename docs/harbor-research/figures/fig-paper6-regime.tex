@@ -38,7 +38,12 @@
   ytick={1.0,1.5,2.0,2.5,3.0,3.5,4.0},
   legend pos=north west,
 ]
-\addplot[draw=none,fill=shipred,fill opacity=0.18,forget plot] coordinates {
+% The two lenses were separated by hue alone (shipred vs harborblue fill at
+% ~0.15 opacity), which is the least accurate visual channel and collapses to one
+% grey in print -- and neither carried a text label, so the caption was doing the
+% figure's work. Both now carry an opposed hatch AND an in-region text label, so
+% "these are two different kinds of error" survives the delete-all-colour test.
+\addplot[draw=none,fill=white,pattern=north east lines,pattern color=shipred,forget plot] coordinates {
   (0.0200,1.0396) (0.0562,1.1092) (0.0924,1.1762) (0.1286,1.2406) (0.1648,1.3024)
   (0.2010,1.3616) (0.2372,1.4181) (0.2734,1.4720) (0.3096,1.5233) (0.3458,1.5720)
   (0.3820,1.6180)
@@ -46,7 +51,7 @@
   (0.2010,1.2515) (0.1648,1.1973) (0.1286,1.1476) (0.0924,1.1018) (0.0562,1.0595)
   (0.0200,1.0204)
 } \closedcycle;
-\addplot[draw=none,fill=harborblue,fill opacity=0.15,forget plot] coordinates {
+\addplot[draw=none,fill=white,pattern=north west lines,pattern color=harborblue,forget plot] coordinates {
   (0.3820,1.6180) (0.4204,1.7253) (0.4588,1.8478) (0.4973,1.9891) (0.5357,2.1537)
   (0.5741,2.3481) (0.6126,2.5810) (0.6510,2.8652) (0.6894,3.2197) (0.7278,3.6744)
   (0.7663,4.0000) (0.8047,4.0000) (0.8431,4.0000) (0.8816,4.0000) (0.9200,4.0000)
@@ -79,10 +84,20 @@
 % keeps it clear of both the legend above and the false-certify cluster
 % (~y=1.0-1.15) below.
 \node[font=\tiny,rotate=90,anchor=north] at (axis cs:0.394,2.3) {$\rho=(3-\sqrt5)/2$};
+% Truncation flagged rather than silent: the dashed curve leaves the top of the
+% frame at rho~0.755 and reaches 12.5 by rho=0.92. Panel A cannot show the
+% saturate-vs-diverge contrast (that is a c=8, log-axis picture); it can at least
+% not pretend the dashed line stopped.
+\node[shipred,font=\tiny,align=right,anchor=north east,fill=white,fill opacity=0.88,text opacity=1,inner sep=1.5pt]
+  at (axis cs:0.945,3.96) {axis clipped at $r{=}4$;\\$\tilde g$ reaches $12.5$ at $\rho{=}0.92$};
+% Region labels: each lens is named ON the figure, not only in the caption.
 \addplot[shipred,mark=x,mark size=3.0pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.1,1.15)};
-\node[shipred,font=\scriptsize,anchor=north west] at (axis cs:0.13,1.13) {false-certify $r{=}1.15$};
+\node[shipred,font=\tiny,align=center,anchor=west,fill=white,fill opacity=0.88,text opacity=1,inner sep=1.5pt]
+  at (axis cs:0.135,1.055) {\textbf{false-certify} lens\\$\tilde g$ certifies $r{=}1.15$, $g$ rejects};
+\draw[shipred,->,thin] (axis cs:0.24,1.20) -- (axis cs:0.24,1.31);
 \addplot[harborblue,mark=o,mark size=2.4pt,mark options={line width=1.1pt},only marks,forget plot] coordinates {(0.5,1.9)};
-\node[harborblue,font=\scriptsize,anchor=south west] at (axis cs:0.53,1.98) {false-reject $r{=}1.9$};
+\node[harborblue,font=\tiny,align=center,anchor=south east,fill=white,fill opacity=0.88,text opacity=1,inner sep=1.5pt]
+  at (axis cs:0.90,2.05) {\textbf{false-reject} lens\\$\tilde g$ rejects $r{=}1.9$, $g$ accepts};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -93,18 +108,23 @@
 \begin{axis}[
   harbor curve,
   xlabel={death-rate $\times$ succession-time, $\xi/\eta$},
-  ylabel={mean response time $W$},
+  % Neither plotted series is a response time: one is an infimum OVER response
+  % times, the other a cost line that only carries time units because A/(w*lambda)
+  % does. The old ylabel invited reading the seagreen curve as the specialist's
+  % actual W -- the one misreading this panel most needs to prevent.
+  ylabel={response time / cost line (same units)},
   title={\textbf{B} --- the succession price\\($\eta{=}0.25$, $K{=}1.036$)},
-  xmin=0,xmax=1.0,ymin=0,ymax=2.6,
+  % ymax raised from 2.6 to 4.2 so the finite-premium W_bd series fits in frame.
+  xmin=0,xmax=1.0,ymin=0,ymax=4.2,
   xtick={0,0.2,0.4,0.6,0.8,1.0},
-  ytick={0,0.5,1.0,1.5,2.0,2.5},
+  ytick={0,1,2,3,4},
   legend pos=north west,
 ]
 \addplot[draw=none,fill=shipred,fill opacity=0.15,forget plot] coordinates {
   (0.3496,1.0362) (0.3961,1.1348) (0.4425,1.2271) (0.4890,1.3136) (0.5354,1.3949)
   (0.5819,1.4714) (0.6284,1.5435) (0.6748,1.6117) (0.7213,1.6761) (0.7677,1.7372)
   (0.8142,1.7951) (0.8606,1.8502) (0.9071,1.9026) (0.9535,1.9524) (1.0000,2.0000)
-  (1.0000,2.6000) (0.3496,2.6000)
+  (1.0000,4.2000) (0.3496,4.2000)
 } \closedcycle;
 \addplot[seagreen,thick] coordinates {
   (0.0000,0.0000) (0.0699,0.2614) (0.1398,0.4908) (0.2098,0.6936) (0.2797,0.8743)
@@ -113,9 +133,23 @@
   (0.8142,1.7951) (0.8606,1.8502) (0.9071,1.9026) (0.9535,1.9524) (1.0000,2.0000)
 };
 \addlegendentry{downtime floor $W_\infty=\xi/(\eta(\xi+\eta))$}
+% Third series: the ACTUAL W_bd at a finite skill premium, so that "infimum,
+% never attained" is visible rather than asserted -- the property Theorem 3's
+% boxed inequality turns on. mu_s=5 is the paper's own canary instance; recomputed
+% here from the box's identity W_bd = 1/(mu_eff-lam) + mu_eff/(mu_eff-lam)*W_inf
+% with mu_eff = mu_s*eta/(xi+eta), lam=1, eta=0.25, xi=eta*(xi/eta). Spot check
+% against the paper's stated canary: at xi/eta=2 (xi=0.5) this gives 8.1667,
+% matching the "truth is 8.17" quoted in Sec. "The succession price".
+\addplot[black!45,thick,densely dotted] coordinates {
+  (0.0000,0.2500) (0.0699,0.6047) (0.1398,0.9307) (0.2098,1.2343) (0.2797,1.5190)
+  (0.3496,1.7890) (0.3961,1.9619) (0.4425,2.1301) (0.4890,2.2948) (0.5354,2.4561)
+  (0.5819,2.6152) (0.6284,2.7721) (0.6748,2.9271) (0.7213,3.0812) (0.7677,3.2341)
+  (0.8142,3.3869) (0.8606,3.5393) (0.9071,3.6923) (0.9535,3.8455) (1.0000,4.0000)
+};
+\addlegendentry{actual $W_{\mathrm{bd}}$ at $\mu_s{=}5$ (always above the floor)}
 \addplot[harborblue,thick,dashed] coordinates {(0,1.0362) (1.0,1.0362)};
 \addlegendentry{pool cost line $K=A/(w\lambda)+W_{\mathrm{pool}}$}
-\addplot[black,dotted,forget plot] coordinates {(0.34962,0) (0.34962,2.6)};
+\addplot[black,dotted,forget plot] coordinates {(0.34962,0) (0.34962,4.2)};
 \node[font=\scriptsize,rotate=90,anchor=south west] at (axis cs:0.3646,0.25) {$D^\star=0.350$};
 % Moved down from y=2.15: legend pos=north west with these two long entries
 % (one with a stacked fraction) renders nearly full plot width and reaches
@@ -130,11 +164,16 @@
 \end{tikzpicture}
 \end{minipage}
 \caption{The regime diagram. Panel A: the exact boundary $g(\rho,2)=1+2\rho-\rho^2$ (solid) against the falsified proposal
-$\tilde g$ (dashed); the shaded lenses are the two error regimes --- false-certify below the crossing at $\rho=(3-\sqrt5)/2$,
-false-reject above it --- with the two refuting instances marked ($r{=}1.15$ at $\rho{=}0.1$; $r{=}1.9$ at $\rho{=}0.5$). Panel B:
+$\tilde g$ (dashed). The two hatched lenses --- each labelled on the figure --- are the two error regimes, and the proposal is
+wrong on \emph{both} sides of the crossing at $\rho=(3-\sqrt5)/2$, so no constant rescues it; the refuting instances are marked
+($r{=}1.15$ at $\rho{=}0.1$; $r{=}1.9$ at $\rho{=}0.5$). The $y$-axis is clipped at $r{=}4$: $\tilde g$ leaves the frame near
+$\rho{=}0.76$ and reaches $12.5$ by $\rho{=}0.92$, which is the divergence $g$ does not have. Panel B:
 the succession price at the reference instance ($\eta{=}0.25$, $K{=}1.036$): the downtime floor $W_\infty=\xi/(\eta(\xi+\eta))$
-crosses the pool cost line at $D^\star=0.350$; to its right pooling wins at every skill premium --- the marked point is a
-$\mu_s=10^8$ specialist still losing at $\xi/\eta=1.5D^\star$ ($W=1.376>K$). Both panels regenerate from
-\texttt{b8\_specialization.py} [internal, seed 20260816].}
+crosses the pool cost line at $D^\star=0.350$, and to its right pooling wins at every \emph{finite} skill premium. The dotted
+grey series is the actual $W_{\mathrm{bd}}$ at a finite $\mu_s{=}5$, drawn to make the floor's un-attainedness visible: no
+specialist ever sits on it, which is why Theorem 3's criterion is non-strict at $D^\star$. The marked point is a
+$\mu_s=10^8$ specialist still losing at $\xi/\eta=1.5D^\star$ ($W=1.376>K$). Both panels are closed-form curves plotted from
+\texttt{figures/src/paper6\_figures.py}; the underlying boundary and $D^\star$ results are \texttt{b8\_specialization.py}
+[internal, seed 20260816].}
 \label{fig:regime}
 \end{figure}

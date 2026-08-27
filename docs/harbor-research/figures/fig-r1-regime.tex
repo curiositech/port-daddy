@@ -1,10 +1,18 @@
 % R1 regime diagram: B*(N,k,m) = log2 C(N,k) - log2 C(m,k) recomputed
 % directly (N=60, k in {1,2,4}, m=1..60), same step function
 % (drawstyle='steps-post' in the source -> `const plot` here), same shaded
-% region above the k=2 curve, same marked point (N=60,k=2,m=8 -> 5.98 bits),
-% and the same y-axis clip at max(k=2 curve)+2 that also clips the top of the
-% k=4 curve for small m in the original PNG (a display choice, not an error;
-% reproduced here since pgfplots clips to the axis box by default).
+% region above the k=2 curve, same marked point (N=60,k=2,m=8 -> 5.98 bits).
+%
+% CLIP CORRECTED (not reproduced): the source's y-axis limit is
+% max(k=2 curve)+2 = 12.79, which cuts the top off the k=4 curve (its first
+% plotted point is 18.895 at m/N=0.0667). A reader sees the red curve run
+% flat along the axis top and reads that flat as data. ymax is raised to
+% 19.5 here so all three curves are whole; the shaded band's top edge is
+% raised with it. No coordinate changed.
+%
+% The shaded band is "zero-miss possible" for the k=2 curve ONLY -- it means
+% something different for each k plotted in the same axes -- so the legend
+% entry now carries that scope rather than leaving it in this comment.
 % [verified: script r1_figures.py]
 \begin{figure}[t]
 \centering
@@ -15,7 +23,7 @@
   xlabel={open budget fraction $m/N$},
   ylabel={required digest bits $B^\star$},
   title={\textbf{R1} --- the floor falls as the open budget grows; zero only at $m{=}N$},
-  xmin=0,xmax=1,ymin=0,ymax=12.7895,
+  xmin=0,xmax=1,ymin=0,ymax=19.5,
   legend pos=north east,
 ]
 \addplot[seagreen,const plot,thick] coordinates {
@@ -31,9 +39,9 @@
 };
 \addlegendentry{$k=4$}
 \addplot[const plot,draw=none,fill=harborblue,fill opacity=0.08] coordinates {
-(0.0333,12.7895) (0.0333,10.7895) (0.0500,9.2046) (0.0667,8.2046) (0.0833,7.4676) (0.1000,6.8826) (0.1167,6.3972) (0.1333,5.9822) (0.1500,5.6196) (0.1667,5.2977) (0.1833,5.0082) (0.2000,4.7451) (0.2167,4.5041) (0.2333,4.2817) (0.2500,4.0753) (0.2667,3.8826) (0.2833,3.7021) (0.3000,3.5321) (0.3167,3.3717) (0.3333,3.2197) (0.3500,3.0753) (0.3667,2.9378) (0.3833,2.8065) (0.4000,2.6810) (0.4167,2.5607) (0.4333,2.4452) (0.4500,2.3342) (0.4667,2.2273) (0.4833,2.1242) (0.5000,2.0247) (0.5167,1.9284) (0.5333,1.8353) (0.5500,1.7451) (0.5667,1.6577) (0.5833,1.5728) (0.6000,1.4903) (0.6167,1.4102) (0.6333,1.3322) (0.6500,1.2562) (0.6667,1.1822) (0.6833,1.1101) (0.7000,1.0397) (0.7167,0.9710) (0.7333,0.9038) (0.7500,0.8382) (0.7667,0.7741) (0.7833,0.7114) (0.8000,0.6500) (0.8167,0.5899) (0.8333,0.5310) (0.8500,0.4733) (0.8667,0.4167) (0.8833,0.3612) (0.9000,0.3067) (0.9167,0.2533) (0.9333,0.2008) (0.9500,0.1493) (0.9667,0.0987) (0.9833,0.0489) (1.0000,0.0000) (1.0000,12.7895)
+(0.0333,19.5) (0.0333,10.7895) (0.0500,9.2046) (0.0667,8.2046) (0.0833,7.4676) (0.1000,6.8826) (0.1167,6.3972) (0.1333,5.9822) (0.1500,5.6196) (0.1667,5.2977) (0.1833,5.0082) (0.2000,4.7451) (0.2167,4.5041) (0.2333,4.2817) (0.2500,4.0753) (0.2667,3.8826) (0.2833,3.7021) (0.3000,3.5321) (0.3167,3.3717) (0.3333,3.2197) (0.3500,3.0753) (0.3667,2.9378) (0.3833,2.8065) (0.4000,2.6810) (0.4167,2.5607) (0.4333,2.4452) (0.4500,2.3342) (0.4667,2.2273) (0.4833,2.1242) (0.5000,2.0247) (0.5167,1.9284) (0.5333,1.8353) (0.5500,1.7451) (0.5667,1.6577) (0.5833,1.5728) (0.6000,1.4903) (0.6167,1.4102) (0.6333,1.3322) (0.6500,1.2562) (0.6667,1.1822) (0.6833,1.1101) (0.7000,1.0397) (0.7167,0.9710) (0.7333,0.9038) (0.7500,0.8382) (0.7667,0.7741) (0.7833,0.7114) (0.8000,0.6500) (0.8167,0.5899) (0.8333,0.5310) (0.8500,0.4733) (0.8667,0.4167) (0.8833,0.3612) (0.9000,0.3067) (0.9167,0.2533) (0.9333,0.2008) (0.9500,0.1493) (0.9667,0.0987) (0.9833,0.0489) (1.0000,0.0000) (1.0000,19.5)
 } \closedcycle;
-\addlegendentry{zero-miss possible ($k{=}2$)}
+\addlegendentry{zero-miss possible ($k{=}2$ only)}
 \addplot[only marks,mark=*,mark size=2.2pt,shipred,forget plot] coordinates {(0.1333,5.9822)};
 \node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=3.4cm,inner sep=3pt] at (axis cs:0.55,6.0)
   {measured: $N{=}60,k{=}2,m{=}8$\\$\to 5.98$ bits [verified]};

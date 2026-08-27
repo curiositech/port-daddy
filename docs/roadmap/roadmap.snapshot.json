@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1787528087885,
+  "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 294,
+  "count": 310,
   "items": [
+    {
+      "slug": "a-add-to-the-papers",
+      "status": "backlog",
+      "summaryMd": "A. Add to the papers"
+    },
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
@@ -536,8 +541,8 @@
     },
     {
       "slug": "ast-a1-5-graph-integrity-auditor",
-      "status": "now",
-      "summaryMd": "Add a read-only AST graph integrity auditor with focused corruption and clean-state tests."
+      "status": "done",
+      "summaryMd": "AST A1.5 graph integrity auditor"
     },
     {
       "slug": "ast-a2-1-symbol-claim-isolation-validator",
@@ -578,6 +583,11 @@
       "slug": "audit-git-hooks-env-bypass",
       "status": "backlog",
       "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
+    },
+    {
+      "slug": "b-prove",
+      "status": "backlog",
+      "summaryMd": "B. Prove"
     },
     {
       "slug": "beacon-durable-agent-roster",
@@ -625,9 +635,19 @@
       "summaryMd": "com.portdaddy.bosun.plist pins a versioned Cellar path (e.g. 3.25.2_2/bin/pd-bosun) and goes stale on every brew upgrade, causing EX_CONFIG exit-78 and zero auto-restart on daemon crash until port-daddy install is manually re-run. pd doctor also falsely reports the binary as MISSING when it's actually a stale-path config error. Fix belongs in the brew upgrade post-install hook: regenerate the plist against the currently-linked Cellar path automatically."
     },
     {
+      "slug": "budget-terminal-timer-cancellation",
+      "status": "now",
+      "summaryMd": "Restore the lost terminal-state disarm contract so a delayed budget grace timer cannot kill or rewrite an agent after its run has already completed."
+    },
+    {
       "slug": "build-integrity-spine-drift-checks",
       "status": "backlog",
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
+    },
+    {
+      "slug": "c-try-and-measure",
+      "status": "backlog",
+      "summaryMd": "C. Try and measure"
     },
     {
       "slug": "cartographer-offline-since-may",
@@ -730,9 +750,24 @@
       "summaryMd": "Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions."
     },
     {
+      "slug": "coordination-papers-research-and-implementation-program",
+      "status": "backlog",
+      "summaryMd": "Coordination Papers Research and Implementation Program"
+    },
+    {
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
       "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
+    },
+    {
+      "slug": "current-implementation-evidence",
+      "status": "backlog",
+      "summaryMd": "Current implementation evidence"
+    },
+    {
+      "slug": "d-add-to-the-code",
+      "status": "backlog",
+      "summaryMd": "D. Add to the code"
     },
     {
       "slug": "daemon-compiled-tree-sitter-wasm-crash-20260823",
@@ -825,6 +860,11 @@
       "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
     },
     {
+      "slug": "exit-criteria",
+      "status": "backlog",
+      "summaryMd": "Exit criteria"
+    },
+    {
       "slug": "feat-backend-dropdown-spawn-forecast",
       "status": "backlog",
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
@@ -846,7 +886,7 @@
     },
     {
       "slug": "fix-fleet-live-introspection-20260822",
-      "status": "backlog",
+      "status": "now",
       "summaryMd": "Native signed-in Cloud Fleet introspection across FleetBar and pd-console"
     },
     {
@@ -1040,6 +1080,11 @@
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
+      "slug": "harbor-editor-failed-open-recovery",
+      "status": "merge",
+      "summaryMd": "Repair Harbor Editor failed-open recovery and editor basics: typing, optional line wrapping, git blame, and syntax highlighting."
+    },
+    {
       "slug": "harbor-editor-local-text-input",
       "status": "now",
       "summaryMd": "Make the live Harbor Editor locally editable: GPUI text input and IME, grapheme-safe cursor and selection, CRDT-authored insert/delete, presence updates, virtualization-safe repainting, and visual proof."
@@ -1138,6 +1183,11 @@
       "slug": "migration-fixture-rehearsal-ci",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): CI keeps fixture DBs of the last 3 released schema epochs + a scrubbed real-registry copy; boots the migrator over each asserting counts-never-shrink, verify probes green, user_version at max; wire into the PR #681 release soak. Acceptance: a migration lacking a verify probe or shrinking a count fails CI."
+    },
+    {
+      "slug": "mission-first-pd-console-prompt-launch-live-work-artifacts-a",
+      "status": "now",
+      "summaryMd": "Make pd-console open on one mission screen: plain-language prompt, governed launch, exact agent and transcript, live work, PR checks, and clickable delivery artifact."
     },
     {
       "slug": "model-abstraction-audit",
@@ -1250,6 +1300,16 @@
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
     },
     {
+      "slug": "publication-receipt-contract",
+      "status": "backlog",
+      "summaryMd": "Publication receipt contract"
+    },
+    {
+      "slug": "purpose",
+      "status": "backlog",
+      "summaryMd": "Purpose"
+    },
+    {
       "slug": "readme-front-door-and-accuracy-gate",
       "status": "merge",
       "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
@@ -1273,6 +1333,11 @@
       "slug": "rent-at-claim-begin-gate",
       "status": "now",
       "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
+    },
+    {
+      "slug": "replace-harness-visual-debt-with-an-interactive-lifecycle-vessel",
+      "status": "backlog",
+      "summaryMd": "Replace harness visual debt with an interactive lifecycle vessel and replayable agent-perspective Portholes."
     },
     {
       "slug": "research-durable-agents-landscape",
@@ -1325,9 +1390,19 @@
       "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY — headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE — pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT — deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES — tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION — coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode — until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
     },
     {
+      "slug": "roadmap-registry",
+      "status": "backlog",
+      "summaryMd": "Roadmap registry"
+    },
+    {
       "slug": "roadmap-schema-wiring",
       "status": "now",
       "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
+    },
+    {
+      "slug": "runtime-session-accounting-release",
+      "status": "backlog",
+      "summaryMd": "Ship post-3.30.2 runtime truth: published endpoint discovery, durable spawn receipts, named-daemon Squid conformance, complete session accounting, Beacon continuation visibility, and a new Homebrew daemon build."
     },
     {
       "slug": "rust-kernel-bugfix-sweep",
@@ -1378,6 +1453,11 @@
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "squid-coordination-nudges-and-postmaster-contract",
+      "status": "now",
+      "summaryMd": "Ship bounded inbox/parley and salvage nudges; establish the authoritative Postmaster, plan-first continuity, repository digest, review-settlement, suggestion-packet, and context-pressure program without claiming the future local ship is already running."
     },
     {
       "slug": "squid-matrix-parser-consolidation",

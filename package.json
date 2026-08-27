@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.30.2",
+  "version": "3.30.3",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -63,6 +63,8 @@
     "build:bin": "node scripts/build-single-binary.mjs",
     "build:bin:all": "node scripts/build-single-binary.mjs --outfile=dist/port-daddy-darwin-arm64 && node scripts/build-single-binary.mjs --target=bun-linux-x64 --outfile=dist/port-daddy-linux-x64",
     "package:fleetbar-preview": "bash scripts/package-fleetbar-preview.sh",
+    "fixtures:pd-ios": "bun run scripts/generate-pd-ios-fixtures.ts",
+    "fixtures:pd-ios:check": "bun run scripts/generate-pd-ios-fixtures.ts --check",
     "package:scout-extension": "node scripts/package-scout-extension.mjs"
   },
   "repository": {

@@ -94,6 +94,14 @@ export interface Dispatch {
   targetActorId: string | null;
   /** Actor that claimed the work. Filled at claim time. */
   workerActorId: string | null;
+  /** Conductor launch that owns this dispatch's governed execution. */
+  launchId: string | null;
+  /** Exact spawned body handling the dispatch, available while it is running. */
+  agentId: string | null;
+  /** Durable transcript opened for the spawned body before backend execution. */
+  transcriptId: string | null;
+  /** Effective model selected by the governed runtime for this body. */
+  model: string | null;
   /** Actor (or 'operator') responsible for accept/reject. */
   reviewerActorId: string | null;
   /** Branch the worktree was carved from. Default: 'main'. */
@@ -220,6 +228,14 @@ export interface ProduceDispatchInput {
   costUsd?: number | null;
 }
 
+export interface BindDispatchExecutionInput {
+  id: string;
+  launchId?: string | null;
+  agentId?: string | null;
+  transcriptId?: string | null;
+  model?: string | null;
+}
+
 export interface SettleDispatchInput {
   id: string;
   state: 'settled' | 'failed' | 'salvage';
@@ -255,6 +271,10 @@ interface DispatchRow {
   requested_by: string;
   target_actor_id: string | null;
   worker_actor_id: string | null;
+  launch_id: string | null;
+  agent_id: string | null;
+  transcript_id: string | null;
+  model: string | null;
   reviewer_actor_id: string | null;
   base_branch: string;
   backend: string | null;
@@ -311,6 +331,10 @@ const SCHEMA_SQL = `
     requested_by TEXT NOT NULL DEFAULT 'operator',
     target_actor_id TEXT,
     worker_actor_id TEXT,
+    launch_id TEXT,
+    agent_id TEXT,
+    transcript_id TEXT,
+    model TEXT,
     reviewer_actor_id TEXT,
     base_branch TEXT NOT NULL DEFAULT 'main',
     backend TEXT,
@@ -426,6 +450,10 @@ function rowToDispatch(row: DispatchRow): Dispatch {
     requestedBy: row.requested_by,
     targetActorId: row.target_actor_id,
     workerActorId: row.worker_actor_id,
+    launchId: row.launch_id,
+    agentId: row.agent_id,
+    transcriptId: row.transcript_id,
+    model: row.model,
     reviewerActorId: row.reviewer_actor_id,
     baseBranch: row.base_branch,
     backend: (row.backend as Dispatch['backend']) || null,
@@ -628,6 +656,18 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   if (!dispatchColumns.some((column) => column.name === 'run_requested_at')) {
     db.exec(`ALTER TABLE dispatches ADD COLUMN run_requested_at INTEGER`);
   }
+  if (!dispatchColumns.some((column) => column.name === 'launch_id')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN launch_id TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'agent_id')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN agent_id TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'transcript_id')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN transcript_id TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'model')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN model TEXT`);
+  }
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_dispatches_run_request
       ON dispatches(state, run_requested_at, created_at)
@@ -743,6 +783,16 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
      WHERE id = ? AND state = 'claimed'
   `);
 
+  const bindExecutionStmt = db.prepare(`
+    UPDATE dispatches
+       SET launch_id = COALESCE(?, launch_id),
+           agent_id = COALESCE(?, agent_id),
+           transcript_id = COALESCE(?, transcript_id),
+           model = COALESCE(?, model)
+     WHERE id = ?
+       AND state IN ('claimed','in_progress','produced','review_pending','accepted','settled','failed','salvage')
+  `);
+
   const produceStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'produced',
@@ -827,6 +877,10 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     UPDATE dispatches
        SET state = 'proposed',
            worker_actor_id = NULL,
+           launch_id = NULL,
+           agent_id = NULL,
+           transcript_id = NULL,
+           model = NULL,
            session_id = NULL,
            started_at = NULL,
            error_message = ?
@@ -1095,6 +1149,27 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return rowToDispatch(updated);
   }
 
+  /**
+   * Attach the runtime identities as soon as the Conductor admits a launch and
+   * the spawner opens its transcript. This is intentionally independent of the
+   * terminal result path: an operator must be able to follow the exact body
+   * while it is still working, and a failed run must retain the same evidence.
+   */
+  function bindExecution(input: BindDispatchExecutionInput): Dispatch {
+    const existing = selectByIdStmt.get(input.id);
+    if (!existing) throw new Error(`bindExecution: dispatch ${input.id} not found`);
+    bindExecutionStmt.run(
+      input.launchId ?? null,
+      input.agentId ?? null,
+      input.transcriptId ?? null,
+      input.model ?? null,
+      input.id,
+    );
+    const updated = selectByIdStmt.get(input.id);
+    if (!updated) throw new Error(`bindExecution: dispatch ${input.id} vanished`);
+    return rowToDispatch(updated);
+  }
+
   function produce(input: ProduceDispatchInput): Dispatch {
     const existing = selectByIdStmt.get(input.id);
     if (!existing) throw new Error(`produce: dispatch ${input.id} not found`);
@@ -1301,6 +1376,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     claim,
     nextProposed,
     start,
+    bindExecution,
     produce,
     requestReview,
     accept,
