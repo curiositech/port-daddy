@@ -1,6 +1,4 @@
-% Figure 9 — one source log, five reader-specific instruments.  The painted
-% journal is deliberately non-textual; names, readers, and relations remain
-% typeset here so the claim stays inspectable and correctable.
+% Figure 9 — one durable record, five reader-specific projections.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -14,32 +12,24 @@
 \centering
 \begin{tikzpicture}[
   x=1cm,y=1cm,
-  % These cards deliberately occupy the five paper slips painted on the plate.
-  % A single source-owned rail makes their edges and baselines exact instead of
-  % leaving five small labels adrift over five larger generated rectangles.
-  reader/.style={draw=none,fill=hhpaper!98,align=left,
-                 inner sep=2.7pt,font=\scriptsize,text width=37mm,
-                 minimum height=10mm,text=hhink},
-  raw/.style={draw=none,fill=hhpaper!78,rounded corners=1pt,align=center,
-              inner sep=3pt,font=\scriptsize,text width=31mm,text=hhink},
+  reader/.style={draw=hhink!72,line width=.55pt,fill=hhpaper,align=left,
+                 rounded corners=1pt,inner sep=3pt,font=\scriptsize,text width=37mm,
+                 minimum height=11mm,text=hhink},
+  raw/.style={draw=hhamber,line width=.75pt,fill=hhamber!12,rounded corners=1.5pt,align=center,
+              inner sep=4pt,font=\scriptsize,text width=34mm,text=hhink},
   route/.style={-{Latex[length=1.6mm]},line width=.7pt,hhteal!85},
 ]
-  \node[inner sep=0] (plate) at (0,0)
-    {\includegraphics[width=.90\textwidth]{figures/assets/legible-swarm-read-surfaces-log.jpg}};
-
-  % The left book is the durable source; every right-hand object is a different
-  % read product.  These arrows are the semantic layer, not the painted routes.
-  \node[raw] (log) at (-4.05,0.30)
-    {\textsc{Raw ship's log}\\[-1pt]\emph{transcripts, diffs, events}};
-  \node[reader] (brief) at (4.57,3.16)
+  \node[raw] (log) at (-3.65,0.0)
+    {\textsc{Durable record}\\[-1pt]\emph{transcripts, diffs, events}};
+  \node[reader] (brief) at (3.35,3.05)
     {\textbf{Briefing:} arrival state\\[-1pt]\emph{reader: arriving agent}};
-  \node[reader] (attention) at (4.57,1.82)
+  \node[reader] (attention) at (3.35,1.55)
     {\textbf{Attention:} what matters now\\[-1pt]\emph{reader: operator queue}};
-  \node[reader] (memory) at (4.57,0.27)
+  \node[reader] (memory) at (3.35,0.0)
     {\textbf{Episodic memory:} what happened before\\[-1pt]\emph{reader: future self}};
-  \node[reader] (pheromone) at (4.57,-1.46)
+  \node[reader] (pheromone) at (3.35,-1.55)
     {\textbf{Pheromone:} shared trace map\\[-1pt]\emph{reader: the swarm}};
-  \node[reader] (resurrection) at (4.57,-3.19)
+  \node[reader] (resurrection) at (3.35,-3.05)
     {\textbf{Resurrection:} handoff, not checkpoint\\[-1pt]\emph{reader: successor}};
 
   \draw[route] (log.east) to[out=12,in=180] (brief.west);
@@ -47,10 +37,10 @@
   \draw[route] (log.east) -- (memory.west);
   \draw[route] (log.east) to[out=-7,in=180] (pheromone.west);
   \draw[route] (log.east) to[out=-12,in=180] (resurrection.west);
-  \node[font=\scriptsize\itshape,text=hhgray,fill=hhpaper!72,inner sep=1.5pt]
-    at (-.25,4.58) {one voyage, five readings};
+  \node[font=\scriptsize\itshape,text=hhgray,inner sep=1.5pt]
+    at (-.15,4.0) {one record, five reader-specific projections};
 \end{tikzpicture}
-\caption{One durable ship's log becomes five reader-specific instruments, not one
+\caption{One durable record becomes five reader-specific instruments, not one
 general-purpose summary.  The same raw trajectory yields an arrival briefing,
 an operator attention queue, episodic recall, a decaying swarm trace, and a
 successor handoff; each compacts for its reader while preserving a zoom path to
