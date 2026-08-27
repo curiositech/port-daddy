@@ -1,6 +1,4 @@
-% Figure 5 — the authority half: the organs by which the Leviathan rules.
-% Design: one bold name + one italic line per organ; engineering detail lives
-% in the caption and Appendix A.
+% Figure I.5 — authority acts through six distinct source-drawn organs.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -11,37 +9,32 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{0.97\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=40mm,
-                minimum height=14mm,align=center,inner sep=4pt,
-                font=\footnotesize,text width=36mm,fill=hhsand!30},
-  hub/.style={draw=hhebony,very thick,circle,fill=hhsand!30,minimum size=20mm,
-              align=center,font=\bfseries\footnotesize},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  organ/.style={draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=1.5pt,
+                align=center,minimum width=36mm,minimum height=17mm,inner sep=3pt,font=\scriptsize,text=hhink},
+  authority/.style={draw=hhamber,line width=.9pt,fill=hhamber!12,rounded corners=2pt,
+                    align=center,minimum width=50mm,minimum height=20mm,inner sep=3pt,font=\footnotesize,text=hhink},
+  leader/.style={hhink,line width=.45pt},
 ]
-\node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
-
-\node[organ] (road) at (-5.4,3.0)
+\node[authority] (auth) at (0,0)
+  {THE DAEMON\\\emph{consented authority}\\\emph{acts through named organs}};
+\node[organ] (road) at (-58mm,22mm)
   {\textbf{Roadmap-as-truth}\\\emph{what the authority answers to}};
-\node[organ] (rev) at (0,3.6)
+\node[organ] (review) at (0,22mm)
   {\textbf{Adversarial review}\\\emph{conflict-free quality organ}};
-\node[organ] (done) at (5.4,3.0)
-  {\textbf{Completionist completion}\\\emph{verifier-gated ``done''}};
-\node[organ] (land) at (-5.4,-3.0)
+\node[organ] (completion) at (58mm,22mm)
+  {\textbf{Completion gate}\\\emph{verifier-gated ``done''}};
+\node[organ] (landing) at (-58mm,-22mm)
   {\textbf{Thoughtful landing}\\\emph{conflict-aware merge order}};
-\node[organ] (guard) at (0,-3.6)
+\node[organ] (guard) at (0,-22mm)
   {\textbf{Footgun guards}\\\emph{prevent, or detect \& compensate}};
-\node[organ] (esc) at (5.4,-3.0)
-  {\textbf{Escalation to human}\\\emph{typed, prioritized interrupt}};
-
-\draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
-\draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);
+\node[organ] (escalation) at (58mm,-22mm)
+  {\textbf{Escalation to a human}\\\emph{typed, prioritized interrupt}};
+\foreach \n in {road,review,completion,landing,guard,escalation} {\draw[leader] (auth) -- (\n);}
 \end{tikzpicture}%
-}
 \caption{The authority half (\S\ref{sec:authority-rules}): six organs by which the
-consented daemon \emph{rules}. The legibility read-surfaces
+consented daemon \emph{rules}. The six aligned roles specify accountability, review,
+completion, landing, protection, and human interruption. The legibility read-surfaces
 (Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these organs make the
 authority \emph{act} --- and, per the legible-sovereign rule
 (Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event. The
