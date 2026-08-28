@@ -1,12 +1,45 @@
 import { describe, expect, test } from '@jest/globals';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
   resolveRepoRoot,
   defaultFrom,
+  resolveCodebaseBerthLaunch,
   shouldPurgeBerthState,
 } from '../../cli/commands/berths.js';
+
+function createBerthLaunchRoot() {
+  const scratchRoot = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchRoot, { recursive: true });
+  const root = mkdtempSync(join(scratchRoot, 'pd-berth-launch-'));
+  const binary = join(root, 'dist', 'daemon', 'port-daddy-daemon');
+  mkdirSync(join(root, 'dist', 'daemon'), { recursive: true });
+  writeFileSync(binary, '');
+  return { root, binary };
+}
+
+describe('codebase berth compiled launch contract', () => {
+  test('pins the freshly built berth binary while publishing its resource root', () => {
+    const { root, binary } = createBerthLaunchRoot();
+    try {
+      const launch = resolveCodebaseBerthLaunch(root, binary, {
+        PORT_DADDY_CAN_SELF_DAEMON: '1',
+        PORT_DADDY_PROFILE: 'proof-berth',
+        BUN_JSC_useConcurrentGC: '1',
+      });
+
+      expect(launch.program).toBe(binary);
+      expect(launch.args).toEqual([]);
+      expect(launch.env.PORT_DADDY_RESOURCE_DIR).toBe(root);
+      expect(launch.env.PORT_DADDY_PROFILE).toBe('proof-berth');
+      expect(launch.env.BUN_JSC_useConcurrentGC).toBe('0');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
 
 // Regression for `pd dev up` crashing with
 //   "build script missing in source tree: /scripts/build-daemon-binary.mjs"
