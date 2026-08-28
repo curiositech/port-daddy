@@ -1436,6 +1436,7 @@
       "sdk": [],
       "routes": [
         "GET /agent-harbor/context-continuity",
+        "POST /agent-harbor/interactive-context-pressure",
         "GET /agent-harbor/surface-gateway/capabilities",
         "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",

@@ -501,11 +501,16 @@ export interface HookInventoryEntry {
   privacy: string;
 }
 
-const HOOK_BINARY_FOR_PURPOSE: Record<SquidHookPurpose, string> = {
+// `preCompact` deliberately has a stable doctor mapping independent of the
+// adapter metadata. This keeps the inventory seam composable across the hook
+// contract and compaction slices instead of requiring a second release just
+// to teach setup/doctor which shipped binary an emitted hook uses.
+export const HOOK_BINARY_FOR_PURPOSE: Record<SquidHookPurpose | 'preCompact', string> = {
   prompt: 'pd-hook-prompt',
   preTool: 'pd-hook-pre-tool',
   postTool: 'pd-hook-post-tool',
   stop: 'pd-hook-stop',
+  preCompact: 'pd-hook-precompact',
 };
 
 /**
