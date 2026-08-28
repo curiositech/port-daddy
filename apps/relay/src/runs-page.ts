@@ -28,6 +28,10 @@ import {
 } from './fleet-run-intents.js';
 import { resolveSession, userCanReadRepo, type ResolvedSession } from './auth-github.js';
 import { HEAD, TOKENS } from './account-page.js';
+import {
+  decodeFleetDeliveryAttemptCursor,
+  fleetDeliveryAttemptLabel,
+} from '../../shared/fleet-delivery-attempt.js';
 
 /** How many recent runs to pull from D1 (newest first). */
 const RUNS_LIMIT = 100;
@@ -106,8 +110,20 @@ function fmtExpected(epochSec: number | null): string {
   return `expected ${new Date(epochSec * 1000).toISOString().slice(11, 16)} UTC`;
 }
 
-function normalizedAttemptCount(value: number): number {
-  return Number.isInteger(value) && value > 0 ? value : 1;
+/**
+ * Decode stored cursor evidence for the compact run-list narrative.
+ *
+ * Design intent: the compact surface tells the same sequence/platform truth as
+ * the full receipt instead of reviving the cursor's historical ambiguity.
+ *
+ * @param value - Legacy-compatible intent `attempt_count` cursor.
+ * @returns An honest sequence/platform-attempt label with an unknown fallback.
+ */
+function deliveryAttemptLabel(value: number): string {
+  const stored = decodeFleetDeliveryAttemptCursor(value);
+  return fleetDeliveryAttemptLabel(
+    stored.platformAttempt > 0 ? stored : { ...stored, platformAttempt: 1 },
+  );
 }
 
 // ── authz filter ─────────────────────────────────────────────────────────────
@@ -260,9 +276,9 @@ function renderRow(run: FleetRunProjection, nowSec: number): string {
       : run.logical_state === 'enqueue_failed'
         ? run.last_error?.trim() || 'admission record incomplete · queue handoff failed without durable error detail'
         : run.logical_state === 'retrying'
-          ? `provider retry · attempt ${normalizedAttemptCount(run.attempt_count)} scheduled`
+          ? `provider retry · ${deliveryAttemptLabel(run.attempt_count)} scheduled`
         : run.logical_state === 'running'
-          ? `attempt ${normalizedAttemptCount(run.attempt_count)} · transcript arriving`
+          ? `${deliveryAttemptLabel(run.attempt_count)} · transcript arriving`
           : `generation ${run.generation ?? '—'} · ${fmtExpected(run.expected_finish_at)}`;
   const href = `/fleet/runs/${encodeURIComponent(run.id)}`;
   const timing = run.logical_state === 'queued' || run.logical_state === 'admitting'

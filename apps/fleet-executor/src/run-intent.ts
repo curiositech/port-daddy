@@ -27,18 +27,20 @@ const TERMINAL_OR_SUPERSEDED = new Set([
 
 /**
  * Decide whether this delivery is current and claim its attempt before spend.
- * The design requires a higher platform attempt to resume a running row, which
+ * The design requires a higher monotonic delivery cursor to resume a running
+ * row. Explicit continuation messages restart the platform attempt at one, so
+ * the cursor includes both continuation sequence and platform attempt; this
  * prevents concurrent duplicate delivery from entering model work.
  *
  * @param env - Executor bindings, including the shared D1 ledger.
  * @param job - Verified Fleet queue job.
- * @param attempt - Cloudflare delivery-attempt counter.
+ * @param attemptCursor - Internal monotonic delivery cursor, not a public attempt count.
  * @returns Run, skip, or legacy-rollout behavior for this message.
  */
 export async function beginFleetIntentAttempt(
   env: ExecutorEnv,
   job: FleetRunJob,
-  attempt: number,
+  attemptCursor: number,
 ): Promise<FleetIntentExecutionDecision> {
   if (!env.DB || !job.deliveryId) return 'legacy';
   try {
@@ -49,7 +51,9 @@ export async function beginFleetIntentAttempt(
     if (!row) return 'legacy';
     if (TERMINAL_OR_SUPERSEDED.has(row.state)) return 'skip';
     const now = Math.floor(Date.now() / 1000);
-    const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+    const safeCursor = Number.isInteger(attemptCursor) && attemptCursor > 0
+      ? attemptCursor
+      : 0;
     const updated = await env.DB
       .prepare(
         `UPDATE fleet_run_intents
@@ -64,7 +68,7 @@ export async function beginFleetIntentAttempt(
              OR (state = 'running' AND attempt_count < ?)
            )`,
       )
-      .bind(safeAttempt, now, now, job.deliveryId, safeAttempt)
+      .bind(safeCursor, now, now, job.deliveryId, safeCursor)
       .run();
     // A newer generation can supersede this row between SELECT and UPDATE.
     // Treat the conditional write as the authority.  Missing meta is accepted
@@ -85,20 +89,22 @@ export async function beginFleetIntentAttempt(
  *
  * @param env - Executor bindings, including the shared D1 ledger.
  * @param job - Fleet queue job being retried.
- * @param attempt - Cloudflare delivery-attempt counter.
+ * @param attemptCursor - Internal monotonic delivery cursor, not a public attempt count.
  * @param error - Infrastructure failure recorded for the operator.
  * @returns Completion after the best-effort marker attempt.
  */
 export async function markFleetIntentRetrying(
   env: ExecutorEnv,
   job: FleetRunJob,
-  attempt: number,
+  attemptCursor: number,
   error: unknown,
 ): Promise<void> {
   if (!env.DB || !job.deliveryId) return;
   try {
     const now = Math.floor(Date.now() / 1000);
-    const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+    const safeCursor = Number.isInteger(attemptCursor) && attemptCursor > 0
+      ? attemptCursor
+      : 0;
     const message = String(error).replace(/\s+/g, ' ').trim().slice(0, 600) || 'unknown error';
     await env.DB
       .prepare(
@@ -108,7 +114,7 @@ export async function markFleetIntentRetrying(
          WHERE delivery_id = ?
            AND state IN ('admitting','queued','running','retrying')`,
       )
-      .bind(safeAttempt, now, message, job.deliveryId)
+      .bind(safeCursor, now, message, job.deliveryId)
       .run();
   } catch (writeError) {
     console.error(

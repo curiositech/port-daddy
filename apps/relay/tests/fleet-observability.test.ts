@@ -259,6 +259,49 @@ describe('handleFleetActivity', () => {
     expect(json.runs[0]!.prNumber).toBe(202);
   });
 
+  it('exposes continuation sequence and platform attempt instead of cursor 101', async () => {
+    const intent = {
+      delivery_id: RUN_NEW.delivery_id,
+      repo_full_name: RUN_NEW.repo_full_name,
+      pr_number: RUN_NEW.pr_number,
+      pr_url: RUN_NEW.pr_url,
+      head_sha: RUN_NEW.head_sha,
+      event_type: 'pull_request',
+      action: 'opened',
+      generation: 3,
+      state: 'retrying',
+      attempt_count: 101,
+      queued_at: 1_719_432_000,
+      started_at: 1_719_432_001,
+      last_progress_at: 1_719_432_010,
+      finished_at: null,
+      superseded_by: null,
+      last_error: 'retry scheduled',
+    };
+    const db = makeMockD1({
+      onAll: (q) => q.includes('FROM fleet_run_intents') ? [intent] : [RUN_NEW],
+    });
+    const res = await handleFleetActivity(
+      req('/v1/fleet/activity', 'GET', OPERATOR),
+      makeEnv({ db }),
+    );
+    const json = (await res.json()) as {
+      runs: Array<{
+        attemptCount: number;
+        platformAttempt: number;
+        continuationSequence: number | null;
+        attemptCursor: number;
+      }>;
+    };
+
+    expect(json.runs[0]).toMatchObject({
+      attemptCount: 1,
+      platformAttempt: 1,
+      continuationSequence: 1,
+      attemptCursor: 101,
+    });
+  });
+
   it('clamps the ?limit param to 500', async () => {
     const db = makeMockD1({
       onAll: (_q, bound) => {

@@ -260,8 +260,8 @@ describe('fleet run page — live intent-only receipt', () => {
       last_error: 'Workers AI circuit open on attempt 2/3; queue retry scheduled in 31s',
     };
     const html = renderFleetRunReceiptPage(run, []);
-    expect(html).toContain('retry attempt');
-    expect(html).toContain('Provider retry scheduled — attempt 2 is complete');
+    expect(html).toContain('retry platform attempt');
+    expect(html).toContain('Provider retry scheduled — platform attempt 2 is complete');
     expect(html).toContain('provider outage');
     expect(html).toContain('not a PR-review failure');
     expect(html).toContain('queue retry scheduled in 31s');
@@ -737,6 +737,24 @@ describe('fleet run page rendering', () => {
     expect(providerOutage).toContain('No change is requested from the PR author');
     expect(providerOutage).toContain('This is a fleet-wide adjudication, not a PR-review failure');
 
+    const legacyContinuation = renderFleetRunReceiptPage(
+      {
+        ...makeRun({ conclusion: 'retrying' }),
+        logical_state: 'retrying', generation: 1, attempt_count: 101,
+        queued_at: 1_700_000_000, started_at: 1_700_000_001, last_progress_at: 1_700_000_010,
+        finished_at: null, expected_start_at: null, expected_finish_at: 1_700_000_040,
+        queue_ahead_estimate: 0, has_transcript: true, superseded_by: null, last_error: null,
+      },
+      [
+        step('provider-circuit-open', 'code-reviewer', 'internal title is not operator copy', {
+          attempt: 101, maxAttempts: 3, status: 429, code: 3040, retryable: true,
+        }),
+      ],
+    );
+    expect(legacyContinuation).toContain('continuation 1, platform attempt 1/3');
+    expect(legacyContinuation).not.toContain('delivery attempt 101');
+    expect(legacyContinuation).not.toContain('attempt 101/3');
+
     const isolatedFailure = renderFleetRunReceiptPage(
       {
         ...makeRun({ conclusion: 'failure' }),
@@ -968,12 +986,50 @@ describe('fleet run page — per-ship config, spend, and delivery-history consol
       },
     ];
     const html = renderFleetRunReceiptPage(makeProjection(), steps, NO_PR_CONTEXT);
-    expect(html).toContain('Delivered across 2 attempts');
-    expect(html).toContain('1 of which failed');
-    expect(html).toContain('Per-attempt breakdown · 2 attempts');
+    expect(html).toContain('Recorded 2 queue deliveries');
+    expect(html).toContain('1 failed before completing');
+    expect(html).toContain('Per-delivery breakdown · 2 queue deliveries');
     expect(html).toContain('FAILED: timeout');
     // Not one bare "Delivery attempt N started" line per attempt.
-    expect(html.match(/Delivered across/g)?.length).toBe(1);
+    expect(html.match(/Recorded 2 queue deliveries/g)?.length).toBe(1);
+  });
+
+  it('renders a legacy 101 cursor as continuation 1 and platform attempt 1', () => {
+    const steps: FleetRunStepRow[] = [
+      {
+        run_id: RUN_ID,
+        seq: 2_000_101,
+        kind: 'delivery-attempt',
+        ship: null,
+        title: 'Delivery attempt 101 started',
+        detail: JSON.stringify({ attempt: 101 }),
+        created_at: 1_700_000_001,
+      },
+      {
+        run_id: RUN_ID,
+        seq: 1_000_101,
+        kind: 'delivery-failed',
+        ship: null,
+        title: 'Delivery attempt 101 failed: timeout',
+        detail: JSON.stringify({ attempt: 101, error: 'timeout' }),
+        created_at: 1_700_000_002,
+      },
+    ];
+    const html = renderFleetRunReceiptPage(
+      makeProjection({
+        logical_state: 'retrying',
+        conclusion: 'pending',
+        attempt_count: 101,
+        finished_at: null,
+      }),
+      steps,
+      NO_PR_CONTEXT,
+    );
+
+    expect(html).toContain('<span class="fk">continuation</span><code>1</code>');
+    expect(html).toContain('<span class="fk">retry platform attempt</span><code>1</code>');
+    expect(html).toContain('Continuation 1, platform attempt 1');
+    expect(html).not.toContain('attempt 101');
   });
 
   it('shows an absolute UTC clock time per step, with the run-relative offset as the tooltip', () => {

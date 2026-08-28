@@ -45,6 +45,30 @@ So the coveted experience — click the check run, see a beautiful breakdown of
 the fleet's review and deliberation — is not blocked on new plumbing. It is
 blocked on (1) a URL, (2) a renderer, and (3) an answer to "who may see it."
 
+### Queue continuity and delivery-attempt receipts
+
+Checkpoint progress is a separate workload from new Fleet admissions. The
+relay sends new work to `fleet-runs`; a successful one-ship slice sends its
+successor to `fleet-continuations`, whose consumer has its own concurrency
+slot and bounded retry budget. Both queues keep one-message batches,
+at-least-once delivery, and the fail-closed `fleet-runs-dlq` terminal path.
+An unrelated review occupying the serialized admission consumer therefore
+cannot starve a checkpoint successor.
+
+Continuation messages carry the stable webhook `deliveryId` plus a monotonic
+`continuationSequence`. The executor compares that sequence with durable
+`delivery-continuation` rows before spend: a duplicate is acknowledged, an
+ahead-of-ledger message retries, and a checkpoint committed before an
+interrupted queue send causes the exact missing successor to be re-sent.
+
+The storage comparison cursor remains
+`continuationSequence * 100 + platformAttempt` so pre-existing intent and
+transcript evidence stays readable. It is not an attempt count. New evidence
+and every operator projection expose `attemptCursor`,
+`continuationSequence`, and the per-message `platformAttempt` separately;
+legacy cursor-only rows are decoded at read time. A stored cursor of `101`
+therefore renders as continuation 1, platform attempt 1, never 101 attempts.
+
 ## Decision drivers
 
 - Ship the run page **now**, without waiting for a login system.

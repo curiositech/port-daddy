@@ -93,13 +93,13 @@ const retrying: FleetRunProjection = {
   ms: 151_000,
   logical_state: 'retrying',
   generation: 3,
-  attempt_count: 2,
+  attempt_count: 101,
   queued_at: NOW - 540,
   started_at: NOW - 510,
   last_progress_at: NOW - 25,
   expected_finish_at: NOW + 30,
   queue_ahead_estimate: 0,
-  last_error: 'Workers AI circuit open on attempt 2/3; queue retry scheduled in 31s',
+  last_error: 'Workers AI circuit open on continuation 1, platform attempt 1/3; queue retry scheduled in 31s',
 };
 
 const providerOutageNeutral: FleetRunProjection = {
@@ -227,7 +227,9 @@ const retrySteps: FleetRunStepRow[] = [
     kind: 'provider-circuit-open',
     ship: 'qa',
     title: 'Workers AI circuit opened',
-    detail: JSON.stringify({ attempt: 2, maxAttempts: 3, status: 429, code: 3040, retryable: true }),
+    // Legacy rows persisted only `attempt`; cursor 101 must render as
+    // continuation sequence 1, platform attempt 1 rather than "attempt 101".
+    detail: JSON.stringify({ attempt: 101, maxAttempts: 3, status: 429, code: 3040, retryable: true }),
     created_at: NOW - 25,
   },
 ];

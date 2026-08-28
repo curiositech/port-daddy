@@ -38,6 +38,12 @@ import {
 import { resolveSession, userCanReadRepo } from './auth-github.js';
 import { getRepoToken, getPrMeta, getPrDiff, type PrMeta, type PrDiff } from './github-app.js';
 import type { Env } from './types.js';
+import {
+  decodeFleetDeliveryAttemptCursor,
+  fleetDeliveryAttemptLabel,
+  readFleetDeliveryAttempt,
+  type FleetDeliveryAttempt,
+} from '../../shared/fleet-delivery-attempt.js';
 
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,160}$/;
 
@@ -715,17 +721,18 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
     // This is a provider availability event, deliberately distinct from a ship's
     // review judgement or an isolated broken-ship failure.
     case 'provider-circuit-open': {
-      const attempt = numField(obj, 'attempt');
+      const attempt = readFleetDeliveryAttempt(obj);
       const maxAttempts = numField(obj, 'maxAttempts');
-      const hasRetryRemaining = attempt != null && maxAttempts != null && attempt < maxAttempts;
+      const hasRetryRemaining = attempt.platformAttempt > 0 &&
+        maxAttempts != null && attempt.platformAttempt < maxAttempts;
       const status = numField(obj, 'status');
       const code = numField(obj, 'code');
       const providerDetail = [
         status != null ? `HTTP ${status}` : null,
         code != null ? `provider code ${code}` : null,
       ].filter((value): value is string => value !== null).join(' · ');
-      const attemptLabel = attempt != null && maxAttempts != null
-        ? `delivery attempt ${attempt}/${maxAttempts}`
+      const attemptLabel = attempt.platformAttempt > 0 && maxAttempts != null
+        ? `${fleetDeliveryAttemptLabel(attempt)}/${maxAttempts}`
         : 'this delivery attempt';
       return {
         icon: '!',
@@ -1299,13 +1306,18 @@ function renderShipConfigPanel(
  */
 function renderDeliveryHistory(rows: FleetRunStepRow[], runStartSec: number): string {
   if (rows.length === 0) return '';
-  const byAttempt = new Map<number, { started?: FleetRunStepRow; failed?: FleetRunStepRow }>();
+  const byAttempt = new Map<number, {
+    attempt: FleetDeliveryAttempt;
+    started?: FleetRunStepRow;
+    failed?: FleetRunStepRow;
+  }>();
   for (const r of rows) {
-    const n = numField(asObject(parseDetail(r)), 'attempt') ?? 0;
-    const entry = byAttempt.get(n) ?? {};
+    const attempt = readFleetDeliveryAttempt(asObject(parseDetail(r)));
+    const key = attempt.attemptCursor || r.seq;
+    const entry = byAttempt.get(key) ?? { attempt };
     if (r.kind === 'delivery-failed') entry.failed = r;
     else entry.started = r;
-    byAttempt.set(n, entry);
+    byAttempt.set(key, entry);
   }
   const attempts = [...byAttempt.entries()].sort((a, b) => a[0] - b[0]);
   const failedCount = attempts.filter(([, e]) => e.failed).length;
@@ -1313,17 +1325,17 @@ function renderDeliveryHistory(rows: FleetRunStepRow[], runStartSec: number): st
   if (!first) return '';
   const offset = Math.max(0, first.created_at - runStartSec);
   const breakdown = attempts
-    .map(([n, e]) => {
+    .map(([, e]) => {
       const time = e.started ? fmtClockUtc(e.started.created_at) : e.failed ? fmtClockUtc(e.failed.created_at) : '';
       const failText = e.failed ? esc((asObject(parseDetail(e.failed)).error as string) ?? 'failed') : null;
-      return `<li>Attempt ${n || '?'} · ${esc(time)}${failText ? ` — FAILED: ${failText}` : ' — started'}</li>`;
+      return `<li>${esc(fleetDeliveryAttemptLabel(e.attempt, true))} · ${esc(time)}${failText ? ` — FAILED: ${failText}` : ' — started'}</li>`;
     })
     .join('');
   const headline =
     attempts.length === 1
-      ? 'Delivered on the first attempt — no retries.'
-      : `Delivered across ${attempts.length} attempt${attempts.length === 1 ? '' : 's'}` +
-        (failedCount ? `, ${failedCount} of which failed before completing.` : '.');
+      ? 'One queue delivery recorded — no retry failure.'
+      : `Recorded ${attempts.length} queue deliveries` +
+        (failedCount ? `, ${failedCount} failed before completing.` : '.');
   return `<li class="tl-step step tone-${failedCount ? 'neutral' : 'info'}">
     <div class="tl-rail"><span class="tl-node" aria-hidden="true"></span></div>
     <div class="tl-body">
@@ -1332,7 +1344,7 @@ function renderDeliveryHistory(rows: FleetRunStepRow[], runStartSec: number): st
         <span class="tl-title narrative">${esc(headline)}</span>
         <span class="tl-time t" title="+${esc(String(offset))}s into the run">${esc(fmtClockUtc(first.created_at))}</span>
       </div>
-      <details class="consolidated"><summary>Per-attempt breakdown · ${attempts.length} attempt${attempts.length === 1 ? '' : 's'}</summary>
+      <details class="consolidated"><summary>Per-delivery breakdown · ${attempts.length} queue deliveries</summary>
         <ol class="breakdown">${breakdown}</ol>
       </details>
     </div>
@@ -1431,8 +1443,11 @@ function emptyTranscript(run: FleetRunProjection): string {
       <p>${esc(run.last_error ?? 'The relay could not hand this generation to a Fleet worker.')}</p></div>`;
   }
   if (run.logical_state === 'retrying') {
-    const attempt = Number.isInteger(run.attempt_count) && run.attempt_count > 0 ? run.attempt_count : 1;
-    return `<div class="empty"><div class="e-title">Provider retry scheduled — attempt ${esc(attempt)} is complete.</div>
+    const storedAttempt = decodeFleetDeliveryAttemptCursor(run.attempt_count);
+    const attempt = storedAttempt.platformAttempt > 0
+      ? storedAttempt
+      : { ...storedAttempt, platformAttempt: 1 };
+    return `<div class="empty"><div class="e-title">Provider retry scheduled — ${esc(fleetDeliveryAttemptLabel(attempt))} is complete.</div>
       <p>A provider outage interrupted this Fleet delivery. This is not a PR-review failure, and no review conclusion has been made yet.</p>
       ${run.last_error ? `<p class="meta">${esc(run.last_error)}</p>` : ''}
       <p class="operator-action"><strong>Operator action:</strong> No change is requested from the PR author. Let the queue retry; if its bounded attempts exhaust, inspect Workers AI and the Fleet provider configuration in FleetBar before requesting a fresh review.</p></div>`;
@@ -1579,6 +1594,10 @@ export function renderFleetRunReceiptPage(
     : prLabel;
   const active = ['admitting', 'queued', 'running', 'retrying'].includes(run.logical_state);
   const retrying = run.logical_state === 'retrying';
+  const storedAttempt = decodeFleetDeliveryAttemptCursor(run.attempt_count);
+  const platformAttempt = storedAttempt.platformAttempt > 0
+    ? String(storedAttempt.platformAttempt)
+    : 'not started';
   const timingLabel = active ? 'admitted' : 'finished';
   const timingValue = active ? run.queued_at : (run.finished_at ?? run.created_at);
   const expected = run.expected_finish_at == null ? 'calculating' : fmtUtc(run.expected_finish_at);
@@ -1605,7 +1624,8 @@ export function renderFleetRunReceiptPage(
       <div class="rid-facts">
         <span class="fact"><span class="fk">head</span><code>${esc(run.head_sha.slice(0, 12))}</code></span>
         <span class="fact"><span class="fk">${esc(timingLabel)}</span><code>${esc(fmtUtc(timingValue))}</code></span>
-        <span class="fact"><span class="fk">${retrying ? 'retry attempt' : 'attempts'}</span><code>${esc(run.attempt_count)}</code></span>
+        ${storedAttempt.continuationSequence == null ? '' : `<span class="fact"><span class="fk">continuation</span><code>${esc(storedAttempt.continuationSequence)}</code></span>`}
+        <span class="fact"><span class="fk">${retrying ? 'retry platform attempt' : 'platform attempt'}</span><code>${esc(platformAttempt)}</code></span>
         ${active ? `<span class="fact"><span class="fk">expected by</span><code>${esc(expected)}</code></span>` : ''}
         <span class="fact"><span class="fk">ships</span><code>${esc(shipsLabel)}</code></span>
         ${

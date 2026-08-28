@@ -41,7 +41,12 @@ for (const shot of shots) {
   console.log(`shot ${OUT}${shot.output}`);
 }
 
-const liveInputs = ['fleet-receipt-queued.html', 'fleet-receipt-running.html', 'fleet-receipt-success.html'];
+const liveInputs = [
+  'fleet-receipt-queued.html',
+  'fleet-receipt-retrying.html',
+  'fleet-receipt-running.html',
+  'fleet-receipt-success.html',
+];
 const liveContext = await browser.newContext({
   colorScheme: 'dark',
   viewport: { width: 1280, height: 820 },
