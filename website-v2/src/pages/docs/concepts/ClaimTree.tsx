@@ -80,7 +80,7 @@ export default function ClaimTree() {
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Trouble, in one glance</h2>
-              <p className="mt-2 max-w-3xl text-[var(--text-secondary)]">The agent receives this same bounded ego graph as Mermaid. The console and web give it color and shape; neither changes the evidence or invents a heat score.</p>
+              <p className="mt-2 max-w-3xl text-[var(--text-secondary)]">The agent receives this same bounded trouble graph as Mermaid. Pick a state to inspect the reason and next action; the console and web keep the evidence honest and the motion quiet.</p>
             </div>
             <Badge variant="warning">finite-state evidence</Badge>
           </div>

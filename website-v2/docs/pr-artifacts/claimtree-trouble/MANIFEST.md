@@ -1,15 +1,15 @@
 # Claim-tree trouble visual proof
 
 Captured headlessly from this branch's production build at `/docs/concepts/claim-tree`.
-The figure is the same bounded ego graph introduced in the docs: `session-you`
-and `session-other` converge on the synthetic lib/auth.ts surface, producing the explicit
-`COORDINATE` state and its next action.
+The figure is the interactive claim-tree trouble visualizer: a Mermaid bounded
+graph with a color-safe state legend, an inspection panel, and reduced-motion
+behavior that keeps the swap instant.
 
 | Artifact | Shows |
 | --- | --- |
-| `ego-graph-light.png` | The human-facing graph in the light theme. |
-| `ego-graph-dark.png` | The same semantic colors and readable labels in dark theme. |
-| `ego-graph-focus.webm` | The rendered graph in the live production build, brought into focus and animated in place. |
+| `ego-graph-light.png` | Light theme with the default inspected state and the legend pinned beside it. |
+| `ego-graph-dark.png` | Dark theme with the same selected state, colors, and labels. |
+| `ego-graph-focus.webm` | The live visualizer moving between states while the inspection panel and Mermaid node update together. |
 
 The recordings are captured from the actual React component after the route is
 loaded; they are not a mockup or a hand-drawn substitute.
