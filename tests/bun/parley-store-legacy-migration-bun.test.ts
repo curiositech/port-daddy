@@ -33,7 +33,10 @@ afterEach(() => {
   scratch = null;
 });
 
-function insertLiveShapeFixture(db: InstanceType<typeof Database>): void {
+function insertLiveShapeFixture(
+  db: InstanceType<typeof Database>,
+  options: { automatic?: boolean } = {},
+): void {
   createTupleSpace(db);
   const insert = db.prepare(`
     INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at, internal_only)
@@ -52,6 +55,7 @@ function insertLiveShapeFixture(db: InstanceType<typeof Database>): void {
     responseDueAt: BASE + 24 * 60 * 60 * 1000,
     roundLimit: 4,
     createdAt: BASE,
+    automatic: options.automatic ? true : undefined,
   };
   insert.run(HARBOR, JSON.stringify(['parley:opened', PARLEY_ID, record]), CALLER, BASE);
 
@@ -148,6 +152,39 @@ describe('legacy Parley tuple migration under bun:sqlite', () => {
       });
     } finally {
       reopened.close();
+    }
+  });
+
+  test('rejects automatic tuple authority without creating a Store0 record or receipt', () => {
+    mkdirSync(SCRATCH_ROOT, { recursive: true });
+    scratch = mkdtempSync(join(SCRATCH_ROOT, 'port-daddy-parley-bun-automatic-'));
+    const db = new Database(join(scratch, 'port-daddy.db'));
+    try {
+      insertLiveShapeFixture(db, { automatic: true });
+      const sourceTuplesBefore = db.prepare(`
+        SELECT id, harbor, fields, written_by, created_at, expires_at, internal_only
+        FROM tuples
+        ORDER BY id ASC
+      `).all();
+
+      expect(() => createParleyStore({
+        db,
+        tenantId: 'local-daemon',
+        now: () => BASE + 5_000,
+      })).toThrow(
+        `legacy opened ${PARLEY_ID}: automatic Parleys require their Store0 signal authority and cannot be imported`,
+      );
+
+      expect(db.prepare('SELECT COUNT(*) AS count FROM parley_records').get()).toEqual({ count: 0 });
+      expect(db.prepare('SELECT COUNT(*) AS count FROM parley_legacy_tuple_migration_receipts').get()).toEqual({ count: 0 });
+      expect(db.prepare('SELECT COUNT(*) AS count FROM tuples').get()).toEqual({ count: 30 });
+      expect(db.prepare(`
+        SELECT id, harbor, fields, written_by, created_at, expires_at, internal_only
+        FROM tuples
+        ORDER BY id ASC
+      `).all()).toEqual(sourceTuplesBefore);
+    } finally {
+      db.close();
     }
   });
 });
