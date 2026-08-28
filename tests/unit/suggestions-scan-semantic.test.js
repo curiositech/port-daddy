@@ -28,8 +28,10 @@ describe('POST /suggestions/scan with symbolIndex (live surface scan wired)', ()
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.success).toBe(true);
-    // declared-overlap pass result is spread at top level (backward compatible)
-    expect(body).toHaveProperty('overlaps');
+    // The canonical claim-tree result is spread at top level; `pairs` remains
+    // inspectable while the retired overlap-only field is intentionally absent.
+    expect(body).toHaveProperty('pairs');
+    expect(body).not.toHaveProperty('overlaps');
     // semantic pass ran; the unresolved-worktree session was dropped → 0 sessions, no git
     expect(body.semantic).toMatchObject({ sessions: 0, conflicts: 0 });
     await app.close();

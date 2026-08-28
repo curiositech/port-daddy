@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787869429968,
+  "generatedAt": 1787894977011,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 324,
+  "count": 336,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -615,6 +615,31 @@
       "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
     },
     {
+      "slug": "authority-receipts-external-gateway",
+      "status": "now",
+      "summaryMd": "Fail closed every managed external write behind signed intent and outcome receipts"
+    },
+    {
+      "slug": "authority-receipts-macos-observability",
+      "status": "now",
+      "summaryMd": "Build the consented macOS system-extension observability and enforcement lane"
+    },
+    {
+      "slug": "authority-receipts-managed-capture",
+      "status": "now",
+      "summaryMd": "Capture managed shell, process, file, tool, and network interactions as redacted receipt events"
+    },
+    {
+      "slug": "authority-receipts-porthole-replay",
+      "status": "now",
+      "summaryMd": "Verify and replay signed action receipts, lineage, outcomes, and capture gaps in Porthole"
+    },
+    {
+      "slug": "authority-receipts-principal-schema",
+      "status": "now",
+      "summaryMd": "Signed principal lineage, verifier registry, and canonical action-receipt envelope"
+    },
+    {
       "slug": "beacon-durable-agent-roster",
       "status": "backlog",
       "summaryMd": "Turn machine-local sessions into durable, meaningful named agents with system and repo remits, prompt and tool policy, episodic learning, searchable transcript lineage, and Port Daddy discovery."
@@ -660,6 +685,11 @@
       "summaryMd": "com.portdaddy.bosun.plist pins a versioned Cellar path (e.g. 3.25.2_2/bin/pd-bosun) and goes stale on every brew upgrade, causing EX_CONFIG exit-78 and zero auto-restart on daemon crash until port-daddy install is manually re-run. pd doctor also falsely reports the binary as MISSING when it's actually a stale-path config error. Fix belongs in the brew upgrade post-install hook: regenerate the plist against the currently-linked Cellar path automatically."
     },
     {
+      "slug": "bound-w8-w12-agent-output-overflow",
+      "status": "now",
+      "summaryMd": "Bound daemon-supervised agent output with one fail-closed BufferedOutputRef contract, durable spill receipts, exact authorized replay, semantic search, and adapter-neutral evidence."
+    },
+    {
       "slug": "budget-terminal-timer-cancellation",
       "status": "now",
       "summaryMd": "Restore the lost terminal-state disarm contract so a delayed budget grace timer cannot kill or rewrite an agent after its run has already completed."
@@ -683,6 +713,11 @@
       "slug": "ci-macos-node24-jest-memory-20260823",
       "status": "done",
       "summaryMd": "Prevent recurring macOS Node 24 Jest out-of-memory failures by scoping a 4 GiB V8 old-space limit to the macOS compatibility test step while preserving Linux command parity. PR #9783 merged at main d1f30731ffc01b13b48f808df72ad13e87e77e96; main CI run 32668945088 proved macOS Node 24, macOS Node 20, and both Linux comparison lanes successful."
+    },
+    {
+      "slug": "claim-tree-dependency-provenance-projection",
+      "status": "backlog",
+      "summaryMd": "Project claim-tree dependency reachability and authoritative world provenance into fail-closed agent suggestions"
     },
     {
       "slug": "claude-provenance-gated-git-guard",
@@ -893,6 +928,11 @@
       "slug": "durable-asynchronous-spawn-receipts",
       "status": "now",
       "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
+      "slug": "fail-closed-signed-external-action-receipts-and-porthole-rep",
+      "status": "now",
+      "summaryMd": "Break fleet authority: every external effect needs a signed, resolvable agent receipt and Porthole replay"
     },
     {
       "slug": "feat-backend-dropdown-spawn-forecast",
@@ -1185,6 +1225,16 @@
       "summaryMd": "[dispatch] Take roadmap slice ideas-trove-queryable-surface. Audit the ..."
     },
     {
+      "slug": "integrate-mermaid-state-machine-into-squid-prompt-hook",
+      "status": "backlog",
+      "summaryMd": "Align Squid claim-tree prompt projection with the canonical state-machine Mermaid contract without duplicating classifier logic"
+    },
+    {
+      "slug": "interactive-squid-context-pressure",
+      "status": "now",
+      "summaryMd": "Claude-only interactive context-pressure and plan-first compaction: max usage measurement, cited evidence packet, bounded verified continuation, and honest unsupported adapters."
+    },
+    {
       "slug": "io-wiring",
       "status": "now",
       "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
@@ -1368,6 +1418,11 @@
       "slug": "readme-front-door-and-accuracy-gate",
       "status": "merge",
       "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
+    },
+    {
+      "slug": "relay-oauth-relogin-access-cache",
+      "status": "backlog",
+      "summaryMd": "Invalidate stale Relay repository-access decisions when a user completes a new OAuth login."
     },
     {
       "slug": "relay-sqlite-placeholder-portability-20260823",
@@ -1583,6 +1638,11 @@
       "slug": "swarm-coordination-parley",
       "status": "now",
       "summaryMd": "Governed Parley coordination with actor-bound authority"
+    },
+    {
+      "slug": "synchronize-ego-graph-visualization-between-console-and-webs",
+      "status": "backlog",
+      "summaryMd": "Synchronize ego graph visualization between console and website through a versioned projection contract and native/web render adapters"
     },
     {
       "slug": "transcript-compliance-hitl-health",

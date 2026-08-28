@@ -98,7 +98,8 @@ describe('suggestions routes', () => {
     const scan = await app.inject({ method: 'POST', url: '/suggestions/scan' });
     expect(scan.statusCode).toBe(200);
     const body = scan.json();
-    expect(body.overlaps).toBe(1);
+    expect(body).toMatchObject({ success: true, pairs: 1 });
+    expect(body).not.toHaveProperty('overlaps');
     expect(body.claimTree).toMatchObject({ pairs: 1, surfaced: 2, suppressed: 0, delivered: 2 });
     expect(body.semantic).toMatchObject({ sessions: 0, conflicts: 0 });
 
