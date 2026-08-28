@@ -1,6 +1,8 @@
 # Figure quality gates
 
-Review at full page size and at 100% raster size. Pass every gate explicitly.
+During an edit loop, review one color PNG at 100% and the isolated figure PDF.
+Rebuild the parent paper only at a batch gate. Pass every gate explicitly; a
+separate grayscale raster is not required.
 
 | Gate | Pass condition | Fail signal |
 |---|---|---|
@@ -10,7 +12,7 @@ Review at full page size and at 100% raster size. Pass every gate explicitly.
 | Spacing | text has moat; edges occupy gutters | labels sit on paths, nodes, or axes |
 | Labels | concise and directly associated | prose on arrows; legends require scavenger hunt |
 | Scale | quantities have units/baseline/uncertainty as warranted | decorative curves, unmeasured areas |
-| Color | contrast and redundant encodings survive grayscale | blue is doing all semantic work |
+| Color | contrast and redundant encodings do not rely on hue alone | blue is doing all semantic work |
 | Fit | no warnings, cropped ink, or unreadably small text | overfull boxes; raster clipping; `tiny` labels |
 | Caption independence | figure states structure, caption states consequence | duplicated paragraph inside the diagram |
 
@@ -25,4 +27,3 @@ Review at full page size and at 100% raster size. Pass every gate explicitly.
   or split panels.
 - If it is “all blue”: reduce blue to `focus` only and use ink/neutral for the
   rest; reserve caution for a different semantic state.
-

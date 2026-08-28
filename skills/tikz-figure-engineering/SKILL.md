@@ -31,7 +31,7 @@ Run the local tool before trusting a figure:
 
 ```bash
 python3 skills/tikz-figure-engineering/scripts/render_tikz_figure.py figure.tex \
-  --out-dir build/figure --strict --max-width-in 6.5 --max-height-in 4.6
+  --out-dir build/figure --preview --strict --max-width-in 6.5 --max-height-in 4.6
 ```
 
 For a contact sheet while auditing a paper suite:
@@ -40,6 +40,11 @@ For a contact sheet while auditing a paper suite:
 python3 skills/tikz-figure-engineering/scripts/render_tikz_figure.py figures/ \
   --out-dir build/contact-sheet --contact-sheet --strict
 ```
+
+The ordinary edit loop emits one color PNG only. It does not generate grayscale
+copies. `--contact-sheet` is a batch-review option and needs ImageMagick for
+composition; a normal single-figure preview needs only `pdftocairo` *or*
+ImageMagick.
 
 ## Gate 0: write the figure brief before TikZ
 
@@ -126,9 +131,14 @@ Non-negotiable constraints:
 
 1. Create a self-contained `.tex` source from
    [the publication template](templates/publication-figure.tex).
-2. Run `render_tikz_figure.py ... --strict` after every structural edit.
-3. Inspect the generated PNG at 100% and the full-page PDF. Inspect the contact
-   sheet when more than one figure is changing.
+2. During an edit loop, run `render_tikz_figure.py ... --preview --strict` on
+   the one figure being changed. It compiles once and emits one color PNG; do
+   not rebuild a parent paper, rasterize every page, or generate grayscale
+   copies after a small adjustment.
+3. Inspect that generated PNG at 100%. Compile the parent paper only at a
+   batch gate (after a coherent set of figure changes), then inspect the
+   relevant color page. Generate a contact sheet only when several figures
+   are changing and their cross-figure balance needs review.
 4. Treat every warning as evidence: overfull boxes, missing glyphs, undefined
    references, cropped ink, missing output, and forbidden tiny text fail the
    gate. The tool also reports long edge labels and dense nodes for review.
@@ -178,7 +188,7 @@ libraries; package accumulation is not quality.
 python3 -m unittest skills/tikz-figure-engineering/tests/test_render_tikz_figure.py -v
 python3 skills/tikz-figure-engineering/scripts/render_tikz_figure.py \
   skills/tikz-figure-engineering/examples/clean-two-lane-sequence.tex \
-  --out-dir build/tikz-skill-smoke --strict --max-width-in 6.5 --max-height-in 4.6
+  --out-dir build/tikz-skill-smoke --preview --strict --max-width-in 6.5 --max-height-in 4.6
 ```
 
 For research rationale and citations, read [research notes](references/research-notes.md).

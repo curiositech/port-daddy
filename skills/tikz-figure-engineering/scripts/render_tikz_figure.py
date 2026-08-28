@@ -17,6 +17,8 @@ from pathlib import Path
 
 FATAL_PATTERNS = ("LaTeX Error", "Emergency stop", "Fatal error", "Undefined control sequence")
 LAYOUT_PATTERNS = ("Overfull \\hbox", "Overfull \\vbox", "Missing character", "Undefined references", "Citation `")
+DEFAULT_DPI = 160
+PREVIEW_DPI = 144
 
 def which(name: str) -> str | None:
     return shutil.which(name)
@@ -116,12 +118,16 @@ def main() -> int:
     parser.add_argument("input", type=Path, help="A self-contained .tex file or directory of .tex files")
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--engine", default="auto", choices=["auto", "pdflatex", "xelatex", "lualatex"])
-    parser.add_argument("--dpi", default=220, type=int)
+    parser.add_argument("--dpi", type=int,
+                        help=f"Color inspection resolution (default: {DEFAULT_DPI}; overrides --preview).")
+    parser.add_argument("--preview", action="store_true",
+                        help=f"Fast color-only inspection PNG at {PREVIEW_DPI} DPI; compile and strict checks remain enabled.")
     parser.add_argument("--strict", action="store_true", help="Fail on warnings as well as compilation errors")
     parser.add_argument("--contact-sheet", action="store_true")
     parser.add_argument("--max-width-in", type=float)
     parser.add_argument("--max-height-in", type=float)
     args = parser.parse_args()
+    dpi = args.dpi if args.dpi is not None else (PREVIEW_DPI if args.preview else DEFAULT_DPI)
     args.out_dir = args.out_dir.resolve()
     if not args.input.exists():
         parser.error(f"Input does not exist: {args.input}")
@@ -133,10 +139,12 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    reports = [compile_one(source, args.out_dir / source.stem, engine, args.dpi, args.max_width_in, args.max_height_in) for source in sources]
+    reports = [compile_one(source, args.out_dir / source.stem, engine, dpi, args.max_width_in, args.max_height_in) for source in sources]
     pngs = [Path(item["png"]) for item in reports if item["png"]]
     sheet_error = contact_sheet(pngs, args.out_dir) if args.contact_sheet else None
-    report = {"tool": "render_tikz_figure", "engine": engine, "strict": args.strict, "figures": reports, "contact_sheet_error": sheet_error}
+    report = {"tool": "render_tikz_figure", "engine": engine, "strict": args.strict,
+              "dpi": dpi, "preview": args.preview, "figures": reports,
+              "contact_sheet_error": sheet_error}
     report_path = args.out_dir / "render-report.json"
     args.out_dir.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2) + "\n")

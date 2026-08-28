@@ -37,7 +37,8 @@ look monochrome.
 ## Color
 
 Use semantic roles rather than named hues: `ink`, `neutral`, `focus`,
-`caution`, `failure`. Test grayscale and avoid red/green as the only distinction.
+`caution`, `failure`. Avoid red/green as the only distinction and include a
+non-color cue when a distinction matters; do not make grayscale raster output
+a required render artifact.
 The figure template uses deep ink, muted cool-gray, teal focus, and ochre
 caution; these are defaults, not branding requirements.
-
