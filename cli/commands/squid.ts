@@ -834,6 +834,13 @@ export function decodeSquidTapEnvelope(raw: string): SquidTapEnvelope {
   return { context: trimmed, eventName: null, structured: false };
 }
 
+/** Render the structured hook event as a human-readable panel subtitle. */
+export function squidTapSubtitle(envelope: Pick<SquidTapEnvelope, 'eventName'>): string {
+  return envelope.eventName
+    ? `${envelope.eventName}: additional context`
+    : 'direct adapter context';
+}
+
 function handleSquidTap(options: CLIOptions): void {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -869,7 +876,7 @@ function handleSquidTap(options: CLIOptions): void {
   console.log('');
   console.log(ui.renderLineworkPanel({
     title: 'Harnessed Context',
-    subtitle: envelope.eventName ? `${envelope.eventName}.additionalContext` : 'direct adapter context',
+    subtitle: squidTapSubtitle(envelope),
     tone: 'info',
     zone: 'model sees this before its next decision',
     rows: [

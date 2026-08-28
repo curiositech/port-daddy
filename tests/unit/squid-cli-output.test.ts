@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { decodeSquidTapEnvelope } from '../../cli/commands/squid.js';
+import { decodeSquidTapEnvelope, squidTapSubtitle } from '../../cli/commands/squid.js';
 
 describe('pd squid tap model-context preview', () => {
   test('extracts exact additionalContext instead of displaying provider transport JSON', () => {
@@ -23,5 +23,11 @@ describe('pd squid tap model-context preview', () => {
 
   test('represents an empty hook response honestly', () => {
     expect(decodeSquidTapEnvelope('')).toEqual({ context: null, eventName: null, structured: false });
+  });
+
+  test('labels structured context as prose rather than a property path', () => {
+    expect(squidTapSubtitle({ eventName: 'UserPromptSubmit' }))
+      .toBe('UserPromptSubmit: additional context');
+    expect(squidTapSubtitle({ eventName: null })).toBe('direct adapter context');
   });
 });

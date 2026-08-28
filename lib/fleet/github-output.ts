@@ -353,8 +353,7 @@ export function createGitHubOutput(deps: GitHubOutputDeps): GitHubOutput {
      * @returns The new pull request number and URL.
      */
     async openDraftPR(branchName, title, body, baseBranch = 'main') {
-      const result = await execGh(
-        ghBin,
+      const result = await runGh(
         [
           'pr',
           'create',

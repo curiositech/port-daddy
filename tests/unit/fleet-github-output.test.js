@@ -95,4 +95,40 @@ describe('GitHub PR comment output', () => {
     });
     expect(calls[1].args).not.toContain('body=@-');
   });
+
+  test('opens draft pull requests through the injected GitHub runner', async () => {
+    const { calls, runGh } = recordedRunner();
+    const output = createGitHubOutput({
+      shipName: 'proof-reviewer',
+      repo: 'acme/port-daddy',
+      runGh,
+    });
+    const markdown = '## Proposal\n\nUse the injected runner for every GitHub mutation.';
+
+    const result = await output.openDraftPR('codex/proof', 'Proof hardening', markdown);
+
+    expect(result).toEqual({
+      number: 42,
+      url: 'https://github.com/acme/port-daddy/pull/42#issuecomment-7',
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual({
+      args: [
+        'pr',
+        'create',
+        '-R',
+        'acme/port-daddy',
+        '--draft',
+        '--base',
+        'main',
+        '--head',
+        'codex/proof',
+        '--title',
+        'Proof hardening',
+        '--body-file',
+        '-',
+      ],
+      stdin: markdown,
+    });
+  });
 });
