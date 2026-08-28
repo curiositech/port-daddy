@@ -1986,6 +1986,62 @@ describe('interactive Squid context-pressure bridge', () => {
     expect(source).toContain('head -c "$RESPONSE_BUDGET_BYTES"');
   });
 
+  test('PreCompact keeps lifecycle-event intake separate from its capped daemon response', () => {
+    const parent = join(homedir(), 'coding', 'tmp', 'interactive-squid-context-pressure');
+    mkdirSync(parent, { recursive: true });
+    const root = mkdtempSync(join(parent, 'independent-bounds-'));
+    const cli = join(root, 'pd-fixture');
+    const called = join(root, 'called');
+    writeFileSync(cli, [
+      '#!/bin/sh',
+      `printf x > "${called}"`,
+      'if [ "${PD_SQUID_TEST_OVERSIZE_RESPONSE:-}" = "1" ]; then',
+      "  printf '{\"padding\":\"'",
+      "  head -c 5000 /dev/zero | tr '\\0' x",
+      "  printf '\",\"directive\":{\"decision\":\"block\",\"reason\":\"must not reach stdout\"}}\\n'",
+      '  exit 0',
+      'fi',
+      "printf '%s\\n' '{\"status\":\"recorded\",\"directive\":{\"decision\":\"block\",\"reason\":\"Checkpoint pd plan before manual compaction\"}}'",
+    ].join('\n'), { mode: 0o755 });
+    try {
+      // 8 KiB is deliberately larger than the provider-visible 4 KiB response
+      // cap but below the separately bounded 64 KiB lifecycle-event intake.
+      const event = JSON.stringify({
+        session_id: 'claude-provider-session',
+        trigger: 'manual',
+        padding: 'x'.repeat(8 * 1024),
+      });
+      const accepted = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
+        input: event,
+        env: { ...process.env, PD_URL: 'http://127.0.0.1:9876', PD_SQUID_CLI: cli },
+        encoding: 'utf8',
+      });
+      expect(accepted.status).toBe(0);
+      expect(existsSync(called)).toBe(true);
+      expect(JSON.parse(accepted.stdout)).toEqual({
+        decision: 'block',
+        reason: 'Checkpoint pd plan before manual compaction',
+      });
+
+      // A response exceeding 4 KiB is truncated before jq can decode it and
+      // therefore fails open; no oversized daemon output reaches Claude.
+      const oversized = spawnSync(join(process.cwd(), 'bin', 'pd-hook-precompact'), [], {
+        input: JSON.stringify({ session_id: 'claude-provider-session', trigger: 'manual' }),
+        env: {
+          ...process.env,
+          PD_URL: 'http://127.0.0.1:9876',
+          PD_SQUID_CLI: cli,
+          PD_SQUID_TEST_OVERSIZE_RESPONSE: '1',
+        },
+        encoding: 'utf8',
+      });
+      expect(oversized.status).toBe(0);
+      expect(oversized.stdout).toBe('');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('PreCompact emits only the documented manual block response and never blocks automatic recovery', () => {
     const parent = join(homedir(), 'coding', 'tmp', 'interactive-squid-context-pressure');
     mkdirSync(parent, { recursive: true });
