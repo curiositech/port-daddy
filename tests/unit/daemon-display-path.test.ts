@@ -22,4 +22,17 @@ describe('daemon profile path display', () => {
     expect(displayDaemonPath('/opt/port-daddy/daemon.log', '/Users/proof'))
       .toBe('/opt/port-daddy/daemon.log');
   });
+
+  it('leaves a relative runtime path visible rather than inventing a home prefix', () => {
+    expect(displayDaemonPath('profiles/preview/daemon.log', '/Users/proof'))
+      .toBe('profiles/preview/daemon.log');
+  });
+
+  it('reports a missing legacy runtime field safely', () => {
+    expect(displayDaemonPath(undefined, '/Users/proof')).toBe('-');
+  });
+
+  it('does not collapse arbitrary absolute paths when the runtime has no home value', () => {
+    expect(displayDaemonPath('/opt/port-daddy/daemon.log', '')).toBe('/opt/port-daddy/daemon.log');
+  });
 });

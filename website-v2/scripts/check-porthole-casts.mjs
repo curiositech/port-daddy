@@ -20,7 +20,13 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCast, VT, lineText } from "../src/lib/porthole/vt.ts";
-import { findJoinOnlyCastClaims, findServiceDiscoveryFailures } from "./porthole-proof-contracts.mjs";
+import {
+  findCollisionRefusalFailures,
+  findJoinOnlyCastClaims,
+  findPortholeCastCorpusFailures,
+  findServiceDiscoveryFailures,
+  findVisibilityTimelineFailures,
+} from "./porthole-proof-contracts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CASTS_DIR = join(__dirname, "..", "public", "casts", "porthole");
@@ -58,6 +64,8 @@ if (files.length === 0) {
   console.log("[check-porthole-casts] porthole casts directory exists but is empty — nothing to gate.");
   process.exit(0);
 }
+
+for (const failure of findPortholeCastCorpusFailures(files)) fail(failure);
 
 for (const file of files) {
   const path = join(CASTS_DIR, file);
@@ -120,12 +128,7 @@ for (const file of files) {
 
   if (file === 'collision.cast') {
     const redRefusal = cast.events.some(([, data]) => /\x1b\[[\d;]*41;?\d*m/.test(data));
-    if (!/Lock 'refunds-schema' is held by/.test(transcript)) {
-      fail(`${file}: missing the real contested-lock refusal`);
-    }
-    if (!/REFUSED · command exited/.test(transcript) || !redRefusal) {
-      fail(`${file}: refusal must include the actual non-zero exit and an unmistakable red treatment`);
-    }
+    for (const failure of findCollisionRefusalFailures(transcript, redRefusal)) fail(failure);
   }
 
   if (file === 'harness-next-turn.cast' && !/(HARNESSED CONTEXT|PORT DADDY HARNESS)/.test(transcript)) {
@@ -133,10 +136,7 @@ for (const file of files) {
   }
 
   if (file === 'visibility.cast') {
-    const hasRealCut = cast.jumpCuts.some((cut) => cut.sourceTo - cut.sourceFrom >= 80);
-    if (cast.sourceDuration < 90 || !hasRealCut) {
-      fail(`${file}: expected a genuine 90-second timestamp discontinuity and broken-axis jump cut`);
-    }
+    for (const failure of findVisibilityTimelineFailures(cast, file)) fail(failure);
   }
 
   if (file === 'parley.cast') {

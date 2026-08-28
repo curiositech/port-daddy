@@ -66,12 +66,34 @@ function styleSpan(st: { fg: string | null; bg: string | null; b: boolean; d: bo
 
 type PortholeSemantic = "anchor" | "hook" | "error";
 
-function markSemantic(text: string, pattern: RegExp, kind: PortholeSemantic, at: Array<Set<PortholeSemantic>>): void {
-  for (const match of text.matchAll(pattern)) {
+type SemanticSpan = { start: number; end: number; kind: PortholeSemantic };
+
+const SEMANTIC_PATTERN = /(?<anchor>\b(?:session|agent)-[a-z0-9-]+\b|\b[a-z0-9-]+:[a-z0-9-]+(?::[a-z0-9-]+){0,2}\b)|(?<hook>HARNESSED CONTEXT|PORT DADDY HARNESS|MODEL SEES THIS|UserPromptSubmit\.additionalContext)|(?<error>\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b|Lock '[^']+' is held by)/gi;
+
+/**
+ * Finds semantic evidence as compact spans in one terminal row. Rendering
+ * already walks every visible cell for ANSI styles, so the proof player keeps
+ * only matched ranges instead of allocating a Set for every character or
+ * rescanning scrollback on every animation frame.
+ *
+ * @param text one current VT row, never the complete cast transcript.
+ * @returns sorted, exclusive-end ranges carrying the semantic evidence kind.
+ */
+function semanticSpans(text: string): SemanticSpan[] {
+  const spans: SemanticSpan[] = [];
+  for (const match of text.matchAll(SEMANTIC_PATTERN)) {
+    const kind: PortholeSemantic | null = match.groups?.anchor
+      ? "anchor"
+      : match.groups?.hook
+        ? "hook"
+        : match.groups?.error
+          ? "error"
+          : null;
+    if (!kind || !match[0]) continue;
     const start = match.index ?? 0;
-    const end = start + match[0].length;
-    for (let index = start; index < end && index < at.length; index++) at[index].add(kind);
+    spans.push({ start, end: start + match[0].length, kind });
   }
+  return spans.sort((left, right) => left.start - right.start || left.end - right.end);
 }
 
 /**
@@ -81,14 +103,6 @@ function markSemantic(text: string, pattern: RegExp, kind: PortholeSemantic, at:
  * text-derived rather than a parallel transcript so capture fidelity remains
  * inspectable and selectable.
  */
-function semanticCells(text: string): Array<Set<PortholeSemantic>> {
-  const at = Array.from({ length: text.length }, () => new Set<PortholeSemantic>());
-  markSemantic(text, /\b(?:session|agent)-[a-z0-9-]+\b|\b[a-z0-9-]+:[a-z0-9-]+(?::[a-z0-9-]+){0,2}\b/gi, "anchor", at);
-  markSemantic(text, /HARNESSED CONTEXT|PORT DADDY HARNESS|MODEL SEES THIS|UserPromptSubmit\.additionalContext/gi, "hook", at);
-  markSemantic(text, /\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b|Lock '[^']+' is held by/gi, "error", at);
-  return at;
-}
-
 /**
  * One mounted Porthole instance. `new PortholePlayer(root, opts)` builds
  * its DOM inside `root`; call `load(url)` to fetch, parse, and (unless
@@ -279,10 +293,23 @@ export class PortholePlayer {
       this.term.insertBefore(el, next);
     }
     const L = this.vt!.lines[r] || [];
-    const semantics = semanticCells(L.map((cell) => cell.ch).join(""));
-    el.classList.toggle("ph-line--anchor", semantics.some((kinds) => kinds.has("anchor")));
-    el.classList.toggle("ph-line--hook", semantics.some((kinds) => kinds.has("hook")));
-    el.classList.toggle("ph-line--error", semantics.some((kinds) => kinds.has("error")));
+    const spans = semanticSpans(L.map((cell) => cell.ch).join(""));
+    const hasKind = (kind: PortholeSemantic): boolean => spans.some((span) => span.kind === kind);
+    el.classList.toggle("ph-line--anchor", hasKind("anchor"));
+    el.classList.toggle("ph-line--hook", hasKind("hook"));
+    el.classList.toggle("ph-line--error", hasKind("error"));
+    const starts = spans;
+    const ends = [...spans].sort((left, right) => left.end - right.end || left.start - right.start);
+    const active: Record<PortholeSemantic, number> = { anchor: 0, hook: 0, error: 0 };
+    let nextStart = 0;
+    let nextEnd = 0;
+    let activeClasses = "";
+    const refreshActiveClasses = (): void => {
+      activeClasses = (["anchor", "hook", "error"] as const)
+        .filter((kind) => active[kind] > 0)
+        .map((kind) => `ph-token--${kind}`)
+        .join(" ");
+    };
     let html = "";
     let curStyle: string | null = null;
     let curClasses = "";
@@ -295,8 +322,20 @@ export class PortholePlayer {
       run = "";
     };
     for (const [index, cell] of L.entries()) {
+      let semanticChanged = false;
+      while (ends[nextEnd]?.end <= index) {
+        active[ends[nextEnd].kind]--;
+        nextEnd++;
+        semanticChanged = true;
+      }
+      while (starts[nextStart]?.start <= index) {
+        active[starts[nextStart].kind]++;
+        nextStart++;
+        semanticChanged = true;
+      }
+      if (semanticChanged) refreshActiveClasses();
       const style = styleSpan(cell.st);
-      const classes = [...semantics[index]].sort().map((kind) => `ph-token--${kind}`).join(" ");
+      const classes = activeClasses;
       if (style !== curStyle || classes !== curClasses) {
         flush();
         curStyle = style;

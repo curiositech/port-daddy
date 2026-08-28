@@ -48,6 +48,7 @@ import {
 } from '../../lib/squid/debug.js';
 import type { CLIOptions } from '../types.js';
 import { resolveCliActorCredential } from '../utils/actor-credential.js';
+import { displayPathRelativeToHome } from '../utils/display-path.js';
 import * as ui from '../utils/ui.js';
 
 const LEGACY_SQUID_TOKEN = 'squid-local';
@@ -1008,14 +1009,15 @@ export function decodeSquidTapEnvelope(raw: string): SquidTapEnvelope {
   const trimmed = raw.trim();
   if (!trimmed) return { context: null, eventName: null, structured: false };
   try {
-    const parsed = JSON.parse(trimmed) as {
-      hookSpecificOutput?: { hookEventName?: unknown; additionalContext?: unknown };
-    };
-    const hook = parsed.hookSpecificOutput;
-    if (hook && typeof hook.additionalContext === 'string') {
+    const parsed = JSON.parse(trimmed) as unknown;
+    const hook = parsed && typeof parsed === 'object'
+      ? (parsed as { hookSpecificOutput?: unknown }).hookSpecificOutput
+      : null;
+    if (hook && typeof hook === 'object' && typeof (hook as { additionalContext?: unknown }).additionalContext === 'string') {
+      const output = hook as { hookEventName?: unknown; additionalContext: string };
       return {
-        context: hook.additionalContext,
-        eventName: typeof hook.hookEventName === 'string' ? hook.hookEventName : null,
+        context: output.additionalContext,
+        eventName: typeof output.hookEventName === 'string' ? output.hookEventName : null,
         structured: true,
       };
     }
@@ -1059,12 +1061,6 @@ function handleSquidTap(options: CLIOptions): void {
   const D = '\x1b[2m', Z = '\x1b[0m';
   const envelope = decodeSquidTapEnvelope(out);
   const c = squidTokens('stdout');
-  const publicPath = (value: string): string => {
-    const normalizedHome = home.replace(/\/$/, '');
-    return normalizedHome && (value === normalizedHome || value.startsWith(`${normalizedHome}/`))
-      ? `~${value.slice(normalizedHome.length)}`
-      : value;
-  };
   console.log('');
   console.log(ui.renderLineworkPanel({
     title: 'Harnessed Context',
@@ -1074,8 +1070,8 @@ function handleSquidTap(options: CLIOptions): void {
     rows: [
       { state: 'confirmed', label: 'delivery', text: envelope.structured ? 'structured hook envelope decoded' : 'direct text fallback', colorText: true },
       { state: 'active', label: 'audience', text: 'agent model context — not shell stdout', colorText: true },
-      { state: 'info', label: 'source', text: publicPath(tentacle) },
-      { state: 'info', label: 'cwd', text: publicPath(cwd) },
+      { state: 'info', label: 'source', text: displayPathRelativeToHome(tentacle, home) },
+      { state: 'info', label: 'cwd', text: displayPathRelativeToHome(cwd, home) },
     ],
     footer: 'the block below is the exact injected context, transport wrapper removed',
     colorLevel: ui.lineworkColorLevel('stdout'),

@@ -7,7 +7,6 @@
 import { join } from 'node:path';
 import { closeSync, existsSync, openSync, readFileSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
-import { homedir } from 'node:os';
 import http from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
@@ -47,6 +46,7 @@ import {
   type LaunchdSupervisorSnapshot,
   type RuntimeIdentityAssessment,
 } from '../../lib/daemon-runtime.js';
+import { displayPathRelativeToHome } from '../utils/display-path.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -84,15 +84,18 @@ export async function runDaemonInProcess(): Promise<never> {
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const PROFILE_STARTUP_TIMEOUT_MS = 30000;
 
-/** Keep local daemon provenance legible without printing a user's full home path. */
-export function displayDaemonPath(path: string, home = process.env.HOME || homedir()): string {
-  const trimTrailingSlashes = (value: string): string => value === '/' ? value : value.replace(/\/+$/, '');
-  const normalizedHome = trimTrailingSlashes(home);
-  const normalizedPath = trimTrailingSlashes(path);
-  if (normalizedPath === normalizedHome) return '~';
-  return normalizedPath.startsWith(`${normalizedHome}/`)
-    ? `~/${normalizedPath.slice(normalizedHome.length + 1)}`
-    : normalizedPath;
+/**
+ * Keeps daemon-profile provenance legible without printing a user's full home
+ * path. Delegating to the shared formatter keeps Squid's model-context panel
+ * and daemon lifecycle output honest about the same local path.
+ *
+ * @param path runtime path supplied by a daemon profile, including a missing
+ *   legacy field when a degraded profile still needs a readable status line.
+ * @param home optional home override used by deterministic display tests.
+ * @returns a home-collapsed path or `-` when the runtime field is absent.
+ */
+export function displayDaemonPath(path: string | null | undefined, home?: string): string {
+  return displayPathRelativeToHome(path, home);
 }
 
 interface DaemonCommandOptions {

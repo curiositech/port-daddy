@@ -97,4 +97,20 @@ describe('PortholePlayer alt-screen line pitch', () => {
     expect([...root.querySelectorAll('.ph-token--error')].map((element) => element.textContent).join('')).toContain('REFUSED')
     player.destroy()
   })
+
+  it('retains every repeated semantic range in one dirty terminal row', async () => {
+    mockFetch(castText([[0.1, "session-nora-1 session-milo-2 HARNESSED CONTEXT REFUSED denied"], [0.2, "\r\n"]], 100))
+    const player = new PortholePlayer(root, { reducedMotion: true })
+    await player.load('/fake.cast')
+
+    const anchors = [...root.querySelectorAll('.ph-token--anchor')].map((element) => element.textContent).join('')
+    const hooks = [...root.querySelectorAll('.ph-token--hook')].map((element) => element.textContent).join('')
+    const errors = [...root.querySelectorAll('.ph-token--error')].map((element) => element.textContent).join('')
+    expect(anchors).toContain('session-nora-1')
+    expect(anchors).toContain('session-milo-2')
+    expect(hooks).toContain('HARNESSED CONTEXT')
+    expect(errors).toContain('REFUSED')
+    expect(errors).toContain('denied')
+    player.destroy()
+  })
 })
