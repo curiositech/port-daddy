@@ -24,6 +24,12 @@ interface GalleryData {
   }>;
 }
 
+function joinStateLabel(state: string, shape: string): string {
+  return state === 'join-only'
+    ? `join-only · no cast witness · ${shape}`
+    : `${state} · ${shape}`;
+}
+
 const encoded = document.querySelector<HTMLScriptElement>('#gallery-data')?.textContent;
 if (!encoded) throw new Error('Harness gallery data is missing');
 const gallery = JSON.parse(encoded) as GalleryData;
@@ -111,7 +117,7 @@ for (const entry of gallery.integrationJoin) {
   const title = document.createElement('strong');
   title.textContent = entry.contract;
   const state = document.createElement('span');
-  state.textContent = `${entry.state} · ${entry.shape}`;
+  state.textContent = joinStateLabel(entry.state, entry.shape);
   const boundary = document.createElement('p');
   boundary.textContent = entry.boundary;
   slot.append(title, state, boundary);

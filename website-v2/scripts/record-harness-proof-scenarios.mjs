@@ -9,7 +9,7 @@
  * on the asciicast clock for Porthole's declared broken-axis treatment.
  */
 import { execFileSync } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,9 +28,42 @@ function resolveTool(envName, fallback) {
   }
 }
 
+/**
+ * Resolves a clean runtime for the recorded CLI rather than letting a known
+ * loader warning become part of supposedly product-grade terminal evidence.
+ * Explicit overrides remain authoritative; otherwise the recorder tries the
+ * current process and PATH, never a package-manager-specific location.
+ */
+function resolveNodeBin() {
+  const explicit = process.env.PD_PORTHOLE_NODE;
+  const pathNode = resolveTool('PD_PORTHOLE_PATH_NODE', 'node');
+  const candidates = [...new Set([explicit, process.execPath, pathNode].filter(Boolean))];
+  for (const candidate of candidates) {
+    const version = execFileSync(candidate, ['--version'], { encoding: 'utf8' }).trim();
+    const major = Number(/^v(\d+)/.exec(version)?.[1]);
+    if (Number.isInteger(major) && major >= 20 && major < 26) return candidate;
+  }
+  throw new Error(`Porthole refuses a runtime that emits tsx loader warnings. Set PD_PORTHOLE_NODE to a Node 20-25 executable; tried ${candidates.join(', ')}`);
+}
+
+/**
+ * Publishes the existing daemon endpoint into the isolated HOME used by the
+ * harness context scene. This keeps its displayed CWD fixture-relative while
+ * preserving a real connection to the daemon that owns the pre-recorded
+ * session, rather than post-processing the terminal output.
+ */
+async function resolveRecorderDaemonUrl() {
+  if (process.env.PD_PORTHOLE_DAEMON_URL) return process.env.PD_PORTHOLE_DAEMON_URL;
+  if (process.env.PORT_DADDY_URL) return process.env.PORT_DADDY_URL;
+  const pdHome = process.env.PD_HOME ?? join(homedir(), '.port-daddy');
+  const port = (await readFile(join(pdHome, 'daemon.port'), 'utf8')).trim();
+  if (!/^\d+$/.test(port)) throw new Error(`Porthole recorder found an invalid daemon port in ${join(pdHome, 'daemon.port')}`);
+  return `http://127.0.0.1:${port}`;
+}
+
 // Keep the CLI process ABI-compatible with the runtime that records it.
 // Individual tools can be overridden for an intentionally provisioned rig.
-const nodeBin = process.env.PD_PORTHOLE_NODE ?? process.execPath;
+const nodeBin = resolveNodeBin();
 const cli = join(root, 'bin', 'port-daddy-cli.js');
 const asciinema = resolveTool('PD_PORTHOLE_ASCIINEMA', 'asciinema');
 const tmux = resolveTool('PD_PORTHOLE_TMUX', 'tmux');
@@ -38,6 +71,7 @@ const brew = resolveTool('PD_PORTHOLE_BREW', 'brew');
 const toolPath = [...new Set([dirname(nodeBin), dirname(asciinema), dirname(tmux), dirname(brew)])].join(':');
 const releaseArchive = execFileSync(brew, ['--cache', 'port-daddy'], { encoding: 'utf8' }).trim();
 const runRoot = await mkdtemp(join(scratchParent, 'pd-porthole-proof-'));
+const recorderDaemonUrl = await resolveRecorderDaemonUrl();
 // A capture must not inherit unrelated agent salvage state from a previous
 // fixture run against the shared daemon. This is a real semantic project name,
 // unique to the recorder process, not a visual stand-in for another project.
@@ -181,7 +215,6 @@ setw -g automatic-rename off
       return `${wait > 0 ? `sleep ${wait}\n` : ''}${runner} ${q(command)}${failFast}\n`;
     }).join('');
     await writeExecutable(path, shellPrelude({ cwd: spec.cwd, prompt: spec.prompt, env: { ...recordEnv, ...spec.env } })
-      + `printf '\\033]2;${spec.title}\\007'\n`
       + waitsAndCommands
       + 'sleep 120\n');
     return path;
@@ -195,6 +228,8 @@ set -uo pipefail
 ${q(tmux)} -L ${q(socket)} -f ${q(tmuxConfig)} new-session -d -x 120 -y 34 -s ${q(session)} -c ${q(left.cwd)} ${q(leftScript)}
 ${q(tmux)} -L ${q(socket)} split-window -h -t ${q(session)} -c ${q(right.cwd)} ${q(rightScript)}
 ${q(tmux)} -L ${q(socket)} select-layout -t ${q(session)} even-horizontal >/dev/null
+${q(tmux)} -L ${q(socket)} select-pane -t ${q(`${session}:0.0`)} -T ${q(left.title)}
+${q(tmux)} -L ${q(socket)} select-pane -t ${q(`${session}:0.1`)} -T ${q(right.title)}
 (
   sleep ${durationSeconds}
   ${q(tmux)} -L ${q(socket)} detach-client -s ${q(session)} >/dev/null 2>&1 || true
@@ -293,6 +328,15 @@ const harnessRepo = await makeRepo('harness-context', {
   'docs/checkout-policy.md': '# Checkout policy\n',
 });
 const harnessWt = (await addWorktrees(harnessRepo, 'harness-context')).left;
+// `pd squid tap` truthfully names the tentacle that produced the injection.
+// Stage a symlink to the real tentacle under the fixture HOME so the capture
+// retains authentic provenance without revealing a developer checkout path.
+const harnessPdHome = join(runRoot, '.port-daddy');
+const stagedPromptTentacle = join(harnessPdHome, 'bin', 'squid', 'pd-hook-prompt');
+const stagedPostTentacle = join(runRoot, 'pd-hook-post-tool');
+await mkdir(dirname(stagedPromptTentacle), { recursive: true });
+await symlink(join(root, 'bin', 'pd-hook-prompt'), stagedPromptTentacle);
+await symlink(join(root, 'bin', 'pd-hook-post-tool'), stagedPostTentacle);
 run(nodeBin, [cli, 'begin', 'reconcile checkout policy with current reservation logic', '--identity', `${fixtureProject}:harness`, '--lifecycle', 'durable', '--sidequest', 'public harness evidence fixture'], { cwd: harnessWt });
 const who = JSON.parse(run(nodeBin, [cli, 'whoami', '--json'], { cwd: harnessWt }));
 run(nodeBin, [cli, 'send', who.agentId, 'Postmaster: the checkout-policy Parley has an unread critique waiting.'], { cwd: root });
@@ -301,7 +345,16 @@ await recordSingle({
   slug: 'harness-next-turn',
   cwd: harnessWt,
   prompt: 'atlas◆harness',
-  env: { PD_ACTOR: who.agentId, PD_AGENT_ID: who.agentId, PD_SESSION_ID: who.sessionId, PD_MATRIX_FILE: harnessMatrix, PD_HOOK_POST: join(root, 'bin', 'pd-hook-post-tool') },
+  env: {
+    HOME: runRoot,
+    PD_HOME: harnessPdHome,
+    PORT_DADDY_URL: recorderDaemonUrl,
+    PD_ACTOR: who.agentId,
+    PD_AGENT_ID: who.agentId,
+    PD_SESSION_ID: who.sessionId,
+    PD_MATRIX_FILE: harnessMatrix,
+    PD_HOOK_POST: stagedPostTentacle,
+  },
   commands: [
     `printf '%s' '{"cwd":".","tool_name":"Write","tool_input":{"file_path":"src/checkout.ts"}}' | "$PD_HOOK_POST"`,
     'pd squid tap',
@@ -412,6 +465,7 @@ await recordTmux({
   durationSeconds: 25,
   left: {
     cwd: serviceRepo, prompt: 'ENGINE◆', title: 'ENGINE · pd up orchestrator', steps: [
+      { command: `node -e 'const config=JSON.parse(require("node:fs").readFileSync(".portdaddyrc","utf8")); if (typeof config.project !== "string") process.exit(2); console.log("Configured project: " + config.project)'` },
       { command: 'pd up --dir .' },
     ],
   },

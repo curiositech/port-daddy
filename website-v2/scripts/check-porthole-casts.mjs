@@ -20,6 +20,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCast, VT, lineText } from "../src/lib/porthole/vt.ts";
+import { findJoinOnlyCastClaims, findServiceDiscoveryFailures } from "./porthole-proof-contracts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CASTS_DIR = join(__dirname, "..", "public", "casts", "porthole");
@@ -30,20 +31,22 @@ const FLAT_THEME = Array.from({ length: 16 }, (_, i) => `c${i}`);
 
 const LEAK_PATTERNS = [
   [/Unknown command/i, "an unrecognized command reached camera"],
-  [/^✗/m, "a failure glyph in the transcript"],
+  [/^✗/, "a failure glyph in the transcript"],
   [/\bERROR\b/, "an ERROR line in the transcript"],
+  [/\b(?:DeprecationWarning|ExperimentalWarning)\b/, "an unexpected runtime warning"],
   [/Traceback \(most recent/, "a Python traceback"],
   [/command not found/i, "a shell 'command not found'"],
   [/\/Users\/[a-zA-Z0-9_-]+/, "a leaked macOS home path"],
   [/\/home\/[a-zA-Z0-9_-]+\/(?!coding\/port-daddy\b)/, "a leaked non-sandbox home path"],
+  [/\b[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.(?:local|lan)\b/i, "a leaked local host name"],
+  [/~\/coding\/tmp\/pd-porthole-proof-[^/\s]+/, "a random capture fixture path"],
   [/UnhandledPromiseRejection|Cannot read propert(?:y|ies) of (?:undefined|null)/, "an unhandled runtime error"],
 ];
 
 const failures = [];
 const fail = (msg) => failures.push(msg);
 const decodedByFile = new Map();
-const PORTS_PROJECT = 'porthole-service-proof';
-const PORTS_SEMANTIC_ID = `${PORTS_PROJECT}:app:main`;
+const observedByFile = new Map();
 
 if (!existsSync(CASTS_DIR)) {
   console.log("[check-porthole-casts] no porthole casts directory yet — nothing to gate.");
@@ -81,33 +84,38 @@ for (const file of files) {
   }
 
   const vt = new VT(cast.cols, cast.rows, FLAT_THEME);
-  for (const [, data] of cast.events) vt.feed(data);
+  const observedLines = new Set();
+  const reportedLines = new Set();
+  for (const [, data] of cast.events) {
+    vt.feed(data);
+    for (const row of vt.dirty) {
+      const line = lineText(vt.lines[row] ?? []);
+      if (!line.trim()) continue;
+      observedLines.add(line);
+      for (const [pattern, description] of LEAK_PATTERNS) {
+        if (!pattern.test(line)) continue;
+        const key = `${description}:${line}`;
+        if (reportedLines.has(key)) continue;
+        reportedLines.add(key);
+        fail(`${file}: ${description} (matched ${pattern})`);
+      }
+    }
+    vt.dirty.clear();
+  }
   const transcript = vt.lines.map(lineText).join("\n");
   decodedByFile.set(file, transcript);
+  observedByFile.set(file, [...observedLines].join("\n"));
 
   if (!transcript.trim()) {
     fail(`${file}: decoded transcript is blank — the payoff produced no visible output`);
   }
-  for (const [pattern, description] of LEAK_PATTERNS) {
-    if (pattern.test(transcript)) fail(`${file}: ${description} (matched ${pattern})`);
-  }
-
   if (/❯\s*#/m.test(transcript)) {
     fail(`${file}: typed narration comment reached the recording`);
   }
 
   if (file === 'ports.cast') {
-    const hasReadiness = /"status"\s*:\s*"ok"/.test(transcript);
-    const hasExactQuery = new RegExp(`pd find ['"]?${PORTS_SEMANTIC_ID.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`).test(transcript);
-    const idOccurrences = transcript.split(PORTS_SEMANTIC_ID).length - 1;
-    if (!hasReadiness) fail(`${file}: missing HTTP readiness evidence for ${PORTS_SEMANTIC_ID}`);
-    if (!hasExactQuery) fail(`${file}: readiness may succeed, but the recorder never queries the configured semantic identity ${PORTS_SEMANTIC_ID}`);
-    if (idOccurrences < 3) {
-      fail(`${file}: cannot prove configured identity, pd up registration, and pd find discovery agree on ${PORTS_SEMANTIC_ID} (found ${idOccurrences} occurrences)`);
-    }
-    if (/No services found/.test(transcript)) {
-      fail(`${file}: readiness succeeded but Port Daddy could not discover the recorded semantic identity`);
-    }
+    const portsEvidence = observedByFile.get(file) ?? transcript;
+    for (const failure of findServiceDiscoveryFailures(portsEvidence, file)) fail(failure);
   }
 
   if (file === 'collision.cast') {
@@ -149,6 +157,8 @@ for (const file of files) {
 if (decodedByFile.has('parley.cast') && !decodedByFile.has('parley-source.cast')) {
   fail('parley.cast: primary receipt is present without the preserved raw two-agent protocol transcript');
 }
+
+for (const failure of findJoinOnlyCastClaims(observedByFile)) fail(failure);
 
 if (failures.length) {
   console.error(`[check-porthole-casts] ${failures.length} finding(s) in ${files.length} porthole cast(s):`);

@@ -7,6 +7,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { INTEGRATION_CONTRACTS } from './porthole-proof-contracts.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const websiteRoot = join(here, '..');
@@ -65,38 +66,7 @@ const scenes = [
   },
 ];
 
-const integrationJoin = [
-  {
-    contract: 'Sugar Parley',
-    shape: 'SugarParleySettlementReceipt',
-    state: 'join-only',
-    boundary: 'Awaiting a verified public contract and focused source tests; primary proof keeps debug Parley plumbing out of view.',
-  },
-  {
-    contract: 'BufferedOutputRef',
-    shape: 'bounded output reference',
-    state: 'join-only',
-    boundary: 'No overflow behavior is depicted until the owning branch supplies an authorization, replay, and expiry contract.',
-  },
-  {
-    contract: 'ContextEnvelope',
-    shape: 'next-turn context envelope',
-    state: 'join-only',
-    boundary: 'The existing hook cast proves its current bytes only; future envelope fields require upstream contract evidence.',
-  },
-  {
-    contract: 'CompactionPacket',
-    shape: 'pressure and continuation packet',
-    state: 'join-only',
-    boundary: 'No interactive compaction is visualized until the source branch exposes its verified lifecycle and receipts.',
-  },
-  {
-    contract: 'WorkReceipt',
-    shape: 'normalized work evidence',
-    state: 'join-only',
-    boundary: 'The gallery reserves a receipt attachment point but does not upgrade casts into a normalized work receipt on its own.',
-  },
-];
+const integrationJoin = INTEGRATION_CONTRACTS.map(({ castClaimPatterns, ...contract }) => contract);
 
 const casts = {};
 for (const scene of scenes) {
