@@ -2,9 +2,8 @@ import importlib.util
 import json
 import subprocess
 import tempfile
-import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import TestCase, mock, skipUnless
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "render_tikz_figure.py"
@@ -22,7 +21,7 @@ HAS_RENDER_SUPPORT = HAS_ENGINE and HAS_RASTERIZER
 RENDER_SKIP_REASON = "requires a local LaTeX engine and either pdftocairo or ImageMagick"
 FIT_SKIP_REASON = f"{RENDER_SKIP_REASON}; page-fit assertions also require pdfinfo"
 
-class RendererTests(unittest.TestCase):
+class RendererTests(TestCase):
     def temporary_dir(self):
         # Keep test artifacts beside the caller's checkout rather than assuming a
         # particular home directory or falling back to the OS temporary folder.
@@ -50,7 +49,7 @@ class RendererTests(unittest.TestCase):
         with self.temporary_dir() as tmp:
             self.assertIsNone(renderer.contact_sheet([], Path(tmp)))
 
-    @unittest.skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
+    @skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
     def test_example_renders_and_reports_no_strict_warnings(self):
         source = EXAMPLE.read_text()
         self.assertIn("node[above=3mm]{signed transfer}", source)
@@ -68,7 +67,7 @@ class RendererTests(unittest.TestCase):
             self.assertTrue(report["preview"])
             self.assertEqual(report["dpi"], renderer.PREVIEW_DPI)
 
-    @unittest.skipUnless(HAS_RENDER_SUPPORT and HAS_PDFINFO, FIT_SKIP_REASON)
+    @skipUnless(HAS_RENDER_SUPPORT and HAS_PDFINFO, FIT_SKIP_REASON)
     def test_template_compiles_with_basic_tex_install_and_page_gate(self):
         with self.temporary_dir() as tmp:
             out = Path(tmp) / "out"
@@ -77,7 +76,7 @@ class RendererTests(unittest.TestCase):
             report = json.loads((out / "render-report.json").read_text())
             self.assertLessEqual(report["figures"][0]["width_in"], 6.5)
 
-    @unittest.skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
+    @skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
     def test_relative_output_directory_is_resolved_from_caller(self):
         with self.temporary_dir() as tmp:
             cwd = Path(tmp)
@@ -85,7 +84,7 @@ class RendererTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout)
             self.assertTrue((cwd / "relative-build" / "render-report.json").exists())
 
-    @unittest.skipUnless(HAS_RENDER_SUPPORT and HAS_PDFINFO, FIT_SKIP_REASON)
+    @skipUnless(HAS_RENDER_SUPPORT and HAS_PDFINFO, FIT_SKIP_REASON)
     def test_strict_page_limit_rejects_an_oversized_canvas(self):
         with self.temporary_dir() as tmp:
             out = Path(tmp) / "out"
@@ -95,7 +94,7 @@ class RendererTests(unittest.TestCase):
             kinds = {item["kind"] for item in report["figures"][0]["warnings"]}
             self.assertIn("page-width", kinds)
 
-    @unittest.skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
+    @skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
     def test_invalid_latex_emits_a_failed_report(self):
         with self.temporary_dir() as tmp:
             source = Path(tmp) / "invalid.tex"
@@ -107,8 +106,8 @@ class RendererTests(unittest.TestCase):
             self.assertFalse(report["figures"][0]["compiled"])
             self.assertIn("Undefined control sequence", report["figures"][0]["fatal"])
 
-    @unittest.skipUnless(HAS_RENDER_SUPPORT and bool(renderer.which("magick")),
-                         "contact-sheet composition requires ImageMagick in addition to the ordinary renderer prerequisites")
+    @skipUnless(HAS_RENDER_SUPPORT and bool(renderer.which("magick")),
+                "contact-sheet composition requires ImageMagick in addition to the ordinary renderer prerequisites")
     def test_contact_sheet_is_emitted_for_multiple_figures(self):
         with self.temporary_dir() as tmp:
             source_dir = Path(tmp) / "sources"
