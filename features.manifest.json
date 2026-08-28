@@ -989,7 +989,7 @@
       "_note": "ADR-0039 first slice (claim-overlap-headsup only). Out of scope (next slices): the Haiku/embedding topical classifier (group-chat-proposal, prior-art-doc), the periodic/reactive auto-trigger (today scan is on-demand via `pd nudge scan`), and the per-kind mute CLI surface (route exists; CLI flag deferred)."
     },
     "sugar": {
-      "description": "Compound commands for common workflows (begin/done/whoami) plus cloud account sign-in (pd account, ADR-0101 device flow)",
+      "description": "Compound commands for ordinary agent workflows (begin/done/whoami), cloud account sign-in (pd account, ADR-0101 device flow), and the Sugar-first bounded Parley card that turns grounded coordination overlap into human actions and typed settlement receipts.",
       "cli": [
         "begin",
         "b",
@@ -1013,7 +1013,13 @@
         "POST /sugar/done",
         "POST /sugar/relink",
         "GET /sugar/whoami",
-        "GET /sugar/welcome"
+        "GET /sugar/welcome",
+        "GET /sugar/parley-card",
+        "POST /sugar/parley/work-separately",
+        "POST /sugar/parley/note",
+        "POST /sugar/parley/resolve-together",
+        "POST /sugar/parley/settle",
+        "POST /sugar/parley/message"
       ],
       "completions": [
         "begin",

@@ -263,7 +263,17 @@ export interface AddTurnInput {
     proposalId: string;
     decision: string;
     reason: string;
-    notifications: (record: ParleyRecord, outcome: ParleyOutcome) => ParleyNotificationIntent[];
+    /**
+     * Executes while the authoritative turn/outcome transaction is open. A
+     * throw rolls back the agreeing turn, outcome, cooldown and outbox, so a
+     * terminal Sugar receipt can never outrun its durable effects.
+     */
+    finalize: (record: ParleyRecord, outcome: ParleyOutcome) => unknown;
+    notifications: (
+      record: ParleyRecord,
+      outcome: ParleyOutcome,
+      finalization: unknown,
+    ) => ParleyNotificationIntent[];
   };
 }
 
@@ -314,6 +324,7 @@ interface RecordRow {
   automatic_evidence_json: string | null;
   automatic_confidence: number | null;
   automatic_magnitude: number | null;
+  automatic_origin: string | null;
 }
 
 interface ParticipantRow {
@@ -455,6 +466,7 @@ const BUDGETED_PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set([
 ]);
 
 type QuotaCounter = 'retained_records' | 'retained_signals' | 'retained_turns' | 'retained_outbox';
+const OUTBOX_QUOTA_RESERVE_BYTES = 128 + 4_096;
 
 /**
  * Build the SQLite expression used to charge immutable payload bytes.
@@ -485,7 +497,7 @@ const QUOTA_TABLES = Object.freeze([
       'tenant_id', 'harbor', 'parley_id', 'surface', 'reason', 'called_by',
       'trigger', 'channel', 'automatic_signal_id', 'automatic_call_fingerprint',
       'automatic_lineage_key', 'automatic_checkpoint', 'automatic_kind',
-      'automatic_shape', 'automatic_evidence_json',
+      'automatic_shape', 'automatic_evidence_json', 'automatic_origin',
     ],
     reserveBytes: 128,
   },
@@ -526,7 +538,7 @@ const QUOTA_TABLES = Object.freeze([
       'recipient_actor_id', 'inbox_target', 'from_actor_id', 'event_type',
       'payload_json', 'payload_hash',
     ],
-    reserveBytes: 128 + 4_096,
+    reserveBytes: OUTBOX_QUOTA_RESERVE_BYTES,
   },
 ] as const);
 
@@ -715,6 +727,7 @@ const SCHEMA = `
     automatic_evidence_json TEXT,
     automatic_confidence REAL,
     automatic_magnitude REAL,
+    automatic_origin TEXT CHECK(automatic_origin IS NULL OR automatic_origin IN ('sugar-parley')),
     PRIMARY KEY (tenant_id, harbor, parley_id),
     UNIQUE (tenant_id, harbor, automatic_signal_id),
     FOREIGN KEY (tenant_id, harbor, automatic_signal_id)
@@ -729,7 +742,8 @@ const SCHEMA = `
         AND automatic_shape IS NULL
         AND automatic_evidence_json IS NULL
         AND automatic_confidence IS NULL
-        AND automatic_magnitude IS NULL)
+        AND automatic_magnitude IS NULL
+        AND automatic_origin IS NULL)
       OR
       (automatic_signal_id IS NOT NULL
         AND length(automatic_call_fingerprint) = 64
@@ -1556,6 +1570,7 @@ function decodeRecord(row: RecordRow): ParleyRecord {
       ),
       confidence: Number(row.automatic_confidence),
       magnitude: Number(row.automatic_magnitude),
+      origin: row.automatic_origin === 'sugar-parley' ? 'sugar-parley' : null,
       participants: [],
     } as ParleyRecord['automatic'];
   return {
@@ -1688,6 +1703,13 @@ export function createParleyStore(deps: ParleyStoreDeps) {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
   db.exec(SCHEMA);
+  // Legacy automatic rows predate the explicit product-origin discriminator.
+  // They remain originless rather than being retroactively guessed from text
+  // or evidence shapes; only a Sugar card can durably write this marker.
+  const recordColumns = db.prepare('PRAGMA table_info(parley_records)').all() as Array<{ name: string }>;
+  if (!recordColumns.some((column) => column.name === 'automatic_origin')) {
+    db.exec("ALTER TABLE parley_records ADD COLUMN automatic_origin TEXT");
+  }
 
   function scope(harbor: string): string {
     return assertCanonicalString(harbor, 'parley harbor', PARLEY_STORE_LIMITS.maxHarborChars);
@@ -2467,9 +2489,9 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         retention_until, automatic_signal_id, automatic_call_fingerprint,
         automatic_lineage_key, automatic_checkpoint, automatic_kind,
         automatic_shape, automatic_evidence_json, automatic_confidence,
-        automatic_magnitude
+        automatic_magnitude, automatic_origin
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `).run(
       tenantId,
@@ -2495,6 +2517,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       automatic ? json(automatic.evidenceRefs) : null,
       automatic?.confidence ?? null,
       automatic?.magnitude ?? null,
+      automatic?.origin ?? null,
     );
     // The compiled daemon uses bun:sqlite, which includes the durable quota
     // trigger's ledger writes in `changes`. The direct record row is still
@@ -2679,6 +2702,54 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     );
   }
 
+  function terminalOutboxBytes(
+    record: ParleyRecord,
+    intents: readonly ParleyNotificationIntent[],
+  ): number {
+    return intents.reduce((total, intent) => {
+      const payload = json(intent.payload);
+      // This mirrors the parley_notification_outbox QUOTA_TABLES entry.
+      // SQLite's `length(CAST(value AS BLOB))` is the UTF-8 byte length of
+      // these canonical text fields, so this preflight matches its trigger.
+      const fields = [
+        tenantId,
+        record.harbor,
+        record.parleyId,
+        intent.deliveryKey,
+        intent.recipientActorId,
+        intent.inboxTarget,
+        intent.fromActorId,
+        intent.eventType,
+        payload,
+        hash(payload),
+      ];
+      return total + OUTBOX_QUOTA_RESERVE_BYTES
+        + fields.reduce((bytes, field) => bytes + Buffer.byteLength(field, 'utf8'), 0);
+    }, 0);
+  }
+
+  function terminalNotificationOverflowReason(
+    record: ParleyRecord,
+    canonical: readonly ParleyNotificationIntent[],
+  ): string | null {
+    const quota = quotaSnapshot(record.harbor);
+    if (quota.retainedOutbox + canonical.length > PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor) {
+      return `terminal notification overflow: retained outbox quota ${PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor} reached`;
+    }
+    const tenantQuota = tenantQuotaSnapshot();
+    if (tenantQuota.retainedOutbox + canonical.length > PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant) {
+      return `terminal notification overflow: retained outbox tenant quota ${PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant} reached`;
+    }
+    if (tenantQuota.retainedRows + canonical.length > PARLEY_STORE_LIMITS.maxRetainedRowsPerTenant) {
+      return `terminal notification overflow: retained-row tenant quota ${PARLEY_STORE_LIMITS.maxRetainedRowsPerTenant} reached`;
+    }
+    if (tenantQuota.retainedBytes + terminalOutboxBytes(record, canonical)
+      > PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant) {
+      return `terminal notification overflow: retained-byte tenant quota ${PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant} reached`;
+    }
+    return null;
+  }
+
   /**
    * Terminal state is higher priority than delivery admission. Active-capacity
    * saturation records terminal publications as dead rows while retained quota
@@ -2693,16 +2764,9 @@ export function createParleyStore(deps: ParleyStoreDeps) {
   ): number {
     if (intents.length === 0) return 0;
     const canonical = canonicalNotifications(intents);
-    const quota = quotaSnapshot(record.harbor);
-    const retainedCapacityAvailable = quota.retainedOutbox + canonical.length
-      <= PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor;
-    if (!retainedCapacityAvailable) {
-      insertOverflowReceipt(
-        record,
-        canonical,
-        createdAt,
-        `terminal notification overflow: retained outbox quota ${PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor} reached`,
-      );
+    const overflowReason = terminalNotificationOverflowReason(record, canonical);
+    if (overflowReason) {
+      insertOverflowReceipt(record, canonical, createdAt, overflowReason);
       return canonical.length;
     }
     const saturated = pendingOutboxCount(record.harbor) + canonical.length
@@ -3822,6 +3886,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
           'automatic consensus reason',
           PARLEY_STORE_LIMITS.maxDecisionChars,
         ),
+        finalize: input.automaticConsensus.finalize,
         notifications: input.automaticConsensus.notifications,
       }
       : null;
@@ -4026,11 +4091,13 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         }
       } else {
         if (automaticConsensus) {
-          if (row.automatic_checkpoint !== 'session_begin' || row.automatic_kind !== 'task_convergence') {
-            throw new Error('automatic consensus is only available to session_begin task_convergence Parleys');
+          if (row.automatic_origin !== 'sugar-parley'
+            || row.automatic_checkpoint !== 'session_begin'
+            || row.automatic_kind !== 'task_convergence') {
+            throw new Error('automatic consensus is only available to card-derived Sugar session_begin task_convergence Parleys');
           }
           const agreements = db.prepare(`
-            SELECT p.actor_id, t.proposal_id, t.content
+            SELECT p.actor_id, t.performative, t.proposal_id, t.content
             FROM parley_participants p
             LEFT JOIN parley_turns t
               ON t.tenant_id = p.tenant_id
@@ -4044,18 +4111,19 @@ export function createParleyStore(deps: ParleyStoreDeps) {
                   AND latest.harbor = p.harbor
                   AND latest.parley_id = p.parley_id
                   AND latest.party = p.actor_id
-                  AND latest.performative = 'agree'
               )
             WHERE p.tenant_id = ? AND p.harbor = ? AND p.parley_id = ? AND p.summoned = 1
             ORDER BY p.actor_id ASC
           `).all(tenantId, harbor, parleyId) as Array<{
             actor_id: string;
+            performative: string | null;
             proposal_id: string | null;
             content: string | null;
           }>;
           const unanimous = agreements.length >= 2
             && agreements.every((agreement) => (
-              agreement.proposal_id === automaticConsensus.proposalId
+              agreement.performative === 'agree'
+              && agreement.proposal_id === automaticConsensus.proposalId
               && agreement.content === content
             ));
           if (unanimous) {
@@ -4081,9 +4149,10 @@ export function createParleyStore(deps: ParleyStoreDeps) {
                   ?? (() => { throw new Error('parley store lost the settled record'); })(),
                 terminal.outcome.at,
               ).parley;
+              const finalization = automaticConsensus.finalize(terminalRecord, terminal.outcome);
               insertTerminalNotifications(
                 terminalRecord,
-                automaticConsensus.notifications(terminalRecord, terminal.outcome),
+                automaticConsensus.notifications(terminalRecord, terminal.outcome, finalization),
                 terminal.outcome.at,
               );
             }

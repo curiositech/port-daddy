@@ -124,6 +124,40 @@ function makeSignal({
   };
 }
 
+function makeTaskConvergenceSignal({
+  surface = 'session-begin:lib/shared.ts#createShared',
+  parties = ['agent-a', 'agent-b'],
+  evidenceRefs = ['claim:shared-surface'],
+  reason = 'two live sessions need one shared resolution',
+  producedAt = BASE_TIME,
+} = {}) {
+  const identity = {
+    checkpoint: 'session_begin',
+    kind: 'task_convergence',
+    surface,
+    parties,
+    evidenceRefs,
+  };
+  return {
+    schemaVersion: 1,
+    signalId: conflictSignalId(identity),
+    kind: 'task_convergence',
+    checkpoint: 'session_begin',
+    shape: 'contract-net',
+    parties: [...parties],
+    surface,
+    magnitude: evidenceRefs.length,
+    confidence: 1,
+    reason,
+    evidenceRefs: [...evidenceRefs],
+    provenance: {
+      producer: CONFLICT_SIGNAL_PRODUCERS.sessionBeginConvergence,
+      trustTier: 'INTERNAL',
+      producedAt,
+    },
+  };
+}
+
 function liveParticipants(signal) {
   return signal.parties.map((actorId, index) => ({
     actorId,
@@ -140,6 +174,7 @@ function admitAutomatic(
     terminalState = 'fired',
     policy = {},
     lineageKey = parleySignalLineageKey(signal),
+    origin = null,
   } = {},
 ) {
   const decision = shouldConvene(signal, { mode: 'automatic' });
@@ -148,6 +183,7 @@ function admitAutomatic(
     policy,
     lineageKey,
     decision,
+    origin,
   }));
 }
 
@@ -158,6 +194,7 @@ function automaticAdmissionInput(
     policy = {},
     lineageKey = parleySignalLineageKey(signal),
     decision = shouldConvene(signal, { mode: 'automatic' }),
+    origin = null,
   } = {},
 ) {
   return {
@@ -183,6 +220,7 @@ function automaticAdmissionInput(
         evidenceRefs: [...signal.evidenceRefs],
         confidence: signal.confidence,
         magnitude: signal.magnitude,
+        origin,
       },
     } : null,
     policy: { ...PARLEY_AUTO_TRIGGER_POLICY, ...policy },
@@ -304,10 +342,12 @@ function fillActiveOutbox(record, amount = PARLEY_STORE_LIMITS.maxPendingOutboxP
   transaction();
 }
 
-function fillRetainedOutbox(record, storeInstance = store, database = db) {
+function fillRetainedOutbox(record, storeInstance = store, database = db, requestedAmount = null) {
   const existing = storeInstance.inspectQuota(record.harbor).retainedOutbox;
-  const amount = PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor - existing;
-  if (amount < 0) throw new Error('retained outbox fixture exceeded the hard quota');
+  const amount = requestedAmount ?? (PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor - existing);
+  if (amount < 0 || existing + amount > PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor) {
+    throw new Error('retained outbox fixture exceeded the hard quota');
+  }
   const payload = stableJson({ kind: 'retained-capacity-fixture', parleyId: record.parleyId });
   const statement = database.prepare(`
     INSERT INTO parley_notification_outbox (
@@ -334,7 +374,65 @@ function fillRetainedOutbox(record, storeInstance = store, database = db) {
     }
   })();
   expect(storeInstance.inspectQuota(record.harbor).retainedOutbox)
-    .toBe(PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor);
+    .toBe(existing + amount);
+}
+
+function outboxAccountedBytes(record, intent) {
+  const payload = stableJson(intent.payload);
+  return 128 + 4_096 + [
+    TENANT,
+    record.harbor,
+    record.parleyId,
+    intent.deliveryKey,
+    intent.recipientActorId,
+    intent.inboxTarget,
+    intent.fromActorId,
+    intent.eventType,
+    payload,
+    sha256(payload),
+  ].reduce((total, field) => total + Buffer.byteLength(field, 'utf8'), 0);
+}
+
+function fillTenantBytesUntilTerminalOverflow(record, terminalBytes) {
+  const payload = { kind: 'retained-byte-capacity-fixture', padding: 'x'.repeat(120_000) };
+  const statement = db.prepare(`
+    INSERT INTO parley_notification_outbox (
+      tenant_id, harbor, parley_id, delivery_key, recipient_actor_id,
+      inbox_target, from_actor_id, event_type, payload_json, payload_hash,
+      state, attempts, available_at, lease_until, lease_token, last_error,
+      created_at, delivered_at
+    ) VALUES (?, ?, ?, ?, 'fixture-recipient', 'fixture-inbox', 'fixture-producer',
+      'parley_summons', ?, ?, 'delivered', 0, ?, NULL, NULL, NULL, ?, ?)
+  `);
+  let index = 0;
+  while (store.inspectTenantQuota().retainedBytes + terminalBytes
+    <= PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant) {
+    const deliveryKey = `retained-byte-capacity:${record.parleyId}:${index}`;
+    const intent = {
+      deliveryKey,
+      recipientActorId: 'fixture-recipient',
+      inboxTarget: 'fixture-inbox',
+      fromActorId: 'fixture-producer',
+      eventType: 'parley_summons',
+      payload,
+    };
+    expect(outboxAccountedBytes(record, intent)).toBeLessThan(terminalBytes);
+    const payloadJson = stableJson(payload);
+    statement.run(
+      TENANT,
+      record.harbor,
+      record.parleyId,
+      deliveryKey,
+      payloadJson,
+      sha256(payloadJson),
+      clock,
+      clock,
+      clock,
+    );
+    index += 1;
+  }
+  expect(store.inspectTenantQuota().retainedBytes + terminalBytes)
+    .toBeGreaterThan(PARLEY_STORE_LIMITS.maxRetainedBytesPerTenant);
 }
 
 function setQuotaLedger(overrides = {}) {
@@ -670,6 +768,203 @@ describe('automatic freshness, durable tombstones, and outer transaction seam', 
   });
 });
 
+describe('Sugar automatic-consensus authority', () => {
+  test('counts a matching agree only while it remains that party\'s latest turn, then permits a fresh re-acknowledgement', () => {
+    const admitted = admitAutomatic(parley, makeTaskConvergenceSignal(), {
+      origin: 'sugar-parley',
+    });
+    const record = admitted.parley;
+    const proposalId = 'sugar-settlement:current-proposal';
+    const content = 'We agree to the current bounded settlement.';
+    const finalizations = [];
+    const automaticConsensus = {
+      proposalId,
+      decision: 'settle the shared surface',
+      reason: 'every party has a current matching typed acknowledgement',
+      finalize: (terminalRecord, outcome) => {
+        const finalization = {
+          parleyId: terminalRecord.parleyId,
+          status: outcome.status,
+        };
+        finalizations.push(finalization);
+        return finalization;
+      },
+      notifications: () => [],
+    };
+
+    store.addTurn(storeTurnInput(record, {
+      party: 'agent-a',
+      performative: 'agree',
+      content,
+      proposalId,
+      idempotencyKey: 'sugar-consensus:agent-a:first-agree',
+      notifications: () => [],
+    }));
+    clock += 1;
+    store.addTurn(storeTurnInput(record, {
+      party: 'agent-a',
+      performative: 'inform',
+      content: 'Normal Sugar message: I need one more confirmation before settling.',
+      proposalId: null,
+      idempotencyKey: 'sugar-consensus:agent-a:later-inform',
+      notifications: () => [],
+    }));
+    clock += 1;
+    const blocked = store.addTurn({
+      ...storeTurnInput(record, {
+        party: 'agent-b',
+        performative: 'agree',
+        content,
+        proposalId,
+        idempotencyKey: 'sugar-consensus:agent-b:agree',
+        notifications: () => [],
+      }),
+      automaticConsensus,
+    });
+
+    // Deterministic rule: an acknowledgement is current only while it is that
+    // participant's latest persisted turn; a later normal Sugar inform revokes it.
+    expect(blocked).toMatchObject({ turnSequence: 3, replayed: false });
+    expect(finalizations).toEqual([]);
+    expect(store.getSnapshot(HARBOR, record.parleyId)).toMatchObject({
+      parley: { status: 'CONVENED' },
+      outcome: null,
+    });
+
+    clock += 1;
+    const settled = store.addTurn({
+      ...storeTurnInput(record, {
+        party: 'agent-a',
+        performative: 'agree',
+        content,
+        proposalId,
+        idempotencyKey: 'sugar-consensus:agent-a:re-acknowledge',
+        notifications: () => [],
+      }),
+      automaticConsensus,
+    });
+
+    expect(settled).toMatchObject({ turnSequence: 4, replayed: false });
+    expect(finalizations).toEqual([{ parleyId: record.parleyId, status: 'COLLAPSED' }]);
+    expect(store.getSnapshot(HARBOR, record.parleyId).outcome).toMatchObject({
+      status: 'COLLAPSED',
+      decision: automaticConsensus.decision,
+      resolvedBy: 'port-daddy:sugar-parley-consensus',
+    });
+  });
+
+  test('requires persisted Sugar origin before direct store consensus can terminalize task convergence', () => {
+    const admitted = admitAutomatic(parley, makeTaskConvergenceSignal());
+    const record = admitted.parley;
+    const proposalId = 'origin-gate:proposal';
+    const content = 'Both parties agree on this origin-gate fixture.';
+    const finalizations = [];
+    const automaticConsensus = {
+      proposalId,
+      decision: 'forged terminal decision',
+      reason: 'this must not receive Sugar terminal authority',
+      finalize: () => {
+        finalizations.push('called');
+        return { impossible: true };
+      },
+      notifications: () => [],
+    };
+
+    expect(db.prepare(`
+      SELECT automatic_origin FROM parley_records
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(TENANT, HARBOR, record.parleyId)).toEqual({ automatic_origin: null });
+
+    store.addTurn(storeTurnInput(record, {
+      party: 'agent-a',
+      performative: 'agree',
+      content,
+      proposalId,
+      idempotencyKey: 'origin-gate:agent-a:agree',
+      notifications: () => [],
+    }));
+
+    expect(() => store.addTurn({
+      ...storeTurnInput(record, {
+        party: 'agent-b',
+        performative: 'agree',
+        content,
+        proposalId,
+        idempotencyKey: 'origin-gate:agent-b:attempt',
+        notifications: () => [],
+      }),
+      automaticConsensus,
+    })).toThrow(/card-derived Sugar session_begin task_convergence/);
+
+    expect(finalizations).toEqual([]);
+    expect(store.getSnapshot(HARBOR, record.parleyId)).toMatchObject({
+      turns: [expect.objectContaining({ party: 'agent-a', performative: 'agree' })],
+      outcome: null,
+    });
+  });
+
+  test('rolls back the terminal agree, settlement outcome, release, and finalizer effects together', () => {
+    const signal = makeTaskConvergenceSignal({
+      surface: 'session-begin:lib/settlement.ts#apply',
+    });
+    const admitted = admitAutomatic(parley, signal, { origin: 'sugar-parley' });
+    const record = admitted.parley;
+    const proposalId = 'atomic-finalizer:proposal';
+    const content = 'Both agents agree to the one canonical settlement.';
+    db.exec(`
+      CREATE TABLE settlement_effect_fixture (
+        id INTEGER PRIMARY KEY,
+        parley_id TEXT NOT NULL
+      )
+    `);
+
+    store.addTurn(storeTurnInput(record, {
+      party: 'agent-a',
+      performative: 'agree',
+      content,
+      proposalId,
+      idempotencyKey: 'atomic-finalizer:agent-a:agree',
+      notifications: () => [],
+    }));
+    const before = counts();
+    clock += 1;
+
+    expect(() => store.addTurn({
+      ...storeTurnInput(record, {
+        party: 'agent-b',
+        performative: 'agree',
+        content,
+        proposalId,
+        idempotencyKey: 'atomic-finalizer:agent-b:agree',
+        notifications: () => [],
+      }),
+      automaticConsensus: {
+        proposalId,
+        decision: 'apply one canonical settlement',
+        reason: 'all summoned agents have a current matching agreement',
+        finalize: (terminalRecord) => {
+          db.prepare('INSERT INTO settlement_effect_fixture (parley_id) VALUES (?)')
+            .run(terminalRecord.parleyId);
+          throw new Error('injected Sugar settlement finalizer failure');
+        },
+        notifications: () => [],
+      },
+    })).toThrow(/injected Sugar settlement finalizer failure/);
+
+    expect(counts()).toEqual(before);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM settlement_effect_fixture').get()).toEqual({ count: 0 });
+    expect(store.getSnapshot(HARBOR, record.parleyId)).toMatchObject({
+      parley: { status: 'SUMMONED' },
+      turns: [expect.objectContaining({ party: 'agent-a', performative: 'agree' })],
+      outcome: null,
+    });
+    expect(db.prepare(`
+      SELECT state FROM parley_lineage_cooldowns
+      WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+    `).get(TENANT, HARBOR, parleySignalLineageKey(signal))).toEqual({ state: 'active' });
+  });
+});
+
 describe('outbox leases and crash-safe retries', () => {
   test('restart recovery drains a non-default harbor without a later request', () => {
     withDatabasePath((path) => {
@@ -889,6 +1184,181 @@ describe('terminal state survives saturated delivery capacity', () => {
 });
 
 describe('retained quota admission and bounded terminal overflow receipts', () => {
+  test('Sugar settlement commits its receipt when the tenant-wide outbox cap is reached elsewhere', () => {
+    const signal = makeTaskConvergenceSignal({
+      surface: 'session-begin:lib/tenant-capacity.ts#settle',
+    });
+    const admitted = admitAutomatic(parley, signal, { origin: 'sugar-parley' });
+    const record = admitted.parley;
+    const capacityRecord = persistManual(store, manualRecord({
+      harbor: 'tenant-capacity-harbor',
+      parleyId: 'tenant-capacity-outbox',
+      ttlMs: null,
+    }));
+    const tenantRemaining = PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant
+      - store.inspectTenantQuota().retainedOutbox;
+    expect(tenantRemaining).toBeGreaterThan(0);
+    fillRetainedOutbox(capacityRecord, store, db, tenantRemaining);
+    expect(store.inspectQuota(HARBOR).retainedOutbox)
+      .toBeLessThan(PARLEY_STORE_LIMITS.maxRetainedOutboxPerHarbor);
+    expect(store.inspectTenantQuota().retainedOutbox)
+      .toBe(PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant);
+
+    const proposalId = 'tenant-capacity:settlement';
+    const content = 'We can settle even while delivery retention is full elsewhere.';
+    store.addTurn(storeTurnInput(record, {
+      party: 'agent-a',
+      performative: 'agree',
+      content,
+      proposalId,
+      idempotencyKey: 'tenant-capacity:agent-a:agree',
+      notifications: () => [],
+    }));
+    clock += 1;
+    const settled = store.addTurn({
+      ...storeTurnInput(record, {
+        party: 'agent-b',
+        performative: 'agree',
+        content,
+        proposalId,
+        idempotencyKey: 'tenant-capacity:agent-b:agree',
+        notifications: () => [],
+      }),
+      automaticConsensus: {
+        proposalId,
+        decision: 'retain the bounded Sugar settlement receipt',
+        reason: 'both summoned agents have a current matching agreement',
+        finalize: (terminalRecord, outcome) => ({
+          parleyId: terminalRecord.parleyId,
+          outcome: outcome.status,
+        }),
+        notifications: (terminalRecord, outcome) => terminalRecord.automatic.participants.map((participant) => ({
+          deliveryKey: `tenant-capacity:settlement:${outcome.at}:${participant.actorId}`,
+          recipientActorId: participant.actorId,
+          inboxTarget: participant.inboxTarget,
+          fromActorId: terminalRecord.calledBy,
+          eventType: 'parley_turn',
+          payload: {
+            kind: 'sugar-settlement',
+            parleyId: terminalRecord.parleyId,
+            outcome: outcome.status,
+          },
+        })),
+      },
+    });
+
+    expect(settled).toMatchObject({ turnSequence: 2, replayed: false });
+    const snapshot = store.getSnapshot(HARBOR, record.parleyId);
+    expect(snapshot.outcome).toMatchObject({
+      status: 'COLLAPSED',
+      decision: 'retain the bounded Sugar settlement receipt',
+      resolvedBy: 'port-daddy:sugar-parley-consensus',
+    });
+    expect(snapshot.deliveryOverflow).toMatchObject({
+      droppedIntents: 2,
+      batchCount: 1,
+      sawTurn: true,
+      sawEscalation: false,
+      lastError: expect.stringMatching(/retained outbox tenant quota/),
+    });
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+        AND delivery_key LIKE 'tenant-capacity:settlement:%'
+    `).get(TENANT, HARBOR, record.parleyId)).toEqual({ count: 0 });
+    expect(store.inspectTenantQuota().retainedOutbox)
+      .toBe(PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant);
+    expect(db.prepare(`
+      SELECT state FROM parley_lineage_cooldowns
+      WHERE tenant_id = ? AND harbor = ? AND lineage_key = ?
+    `).get(TENANT, HARBOR, parleySignalLineageKey(signal))).toEqual({ state: 'cooldown' });
+  });
+
+  test('Sugar settlement commits its receipt when tenant byte retention cannot fit its terminal fan-out', () => {
+    const signal = makeTaskConvergenceSignal({
+      surface: 'session-begin:lib/tenant-bytes.ts#settle',
+    });
+    const admitted = admitAutomatic(parley, signal, { origin: 'sugar-parley' });
+    const record = admitted.parley;
+    const proposalId = 'tenant-bytes:settlement';
+    const content = 'The terminal receipt must survive byte-quota delivery pressure.';
+    store.addTurn(storeTurnInput(record, {
+      party: 'agent-a',
+      performative: 'agree',
+      content,
+      proposalId,
+      idempotencyKey: 'tenant-bytes:agent-a:agree',
+      notifications: () => [],
+    }));
+    const terminalRecord = store.getSnapshot(HARBOR, record.parleyId).parley;
+    const terminalIntents = terminalRecord.automatic.participants.map((participant) => ({
+      deliveryKey: `tenant-bytes:settlement:${terminalRecord.parleyId}:${participant.actorId}`,
+      recipientActorId: participant.actorId,
+      inboxTarget: participant.inboxTarget,
+      fromActorId: terminalRecord.calledBy,
+      eventType: 'parley_turn',
+      payload: {
+        kind: 'sugar-settlement',
+        parleyId: terminalRecord.parleyId,
+        padding: 'x'.repeat(60_000),
+      },
+    }));
+    const terminalBytes = terminalIntents.reduce(
+      (total, intent) => total + outboxAccountedBytes(terminalRecord, intent),
+      0,
+    );
+    const capacityRecord = persistManual(store, manualRecord({
+      harbor: 'tenant-byte-capacity-harbor',
+      parleyId: 'tenant-byte-capacity-outbox',
+      ttlMs: null,
+    }));
+    fillTenantBytesUntilTerminalOverflow(capacityRecord, terminalBytes);
+    expect(store.inspectTenantQuota()).toMatchObject({
+      retainedOutbox: expect.any(Number),
+      retainedBytes: expect.any(Number),
+    });
+    expect(store.inspectTenantQuota().retainedOutbox)
+      .toBeLessThan(PARLEY_STORE_LIMITS.maxRetainedOutboxPerTenant);
+
+    clock += 1;
+    const settled = store.addTurn({
+      ...storeTurnInput(record, {
+        party: 'agent-b',
+        performative: 'agree',
+        content,
+        proposalId,
+        idempotencyKey: 'tenant-bytes:agent-b:agree',
+        notifications: () => [],
+      }),
+      automaticConsensus: {
+        proposalId,
+        decision: 'retain the byte-bounded Sugar settlement receipt',
+        reason: 'both summoned agents have a current matching agreement',
+        finalize: () => ({ applied: true }),
+        notifications: () => terminalIntents,
+      },
+    });
+
+    expect(settled).toMatchObject({ turnSequence: 2, replayed: false });
+    const snapshot = store.getSnapshot(HARBOR, record.parleyId);
+    expect(snapshot.outcome).toMatchObject({
+      status: 'COLLAPSED',
+      decision: 'retain the byte-bounded Sugar settlement receipt',
+    });
+    expect(snapshot.deliveryOverflow).toMatchObject({
+      droppedIntents: 2,
+      batchCount: 1,
+      sawTurn: true,
+      sawEscalation: false,
+      lastError: expect.stringMatching(/retained-byte tenant quota/),
+    });
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+        AND delivery_key LIKE 'tenant-bytes:settlement:%'
+    `).get(TENANT, HARBOR, record.parleyId)).toEqual({ count: 0 });
+  });
+
   test('TTL terminalization commits at the exact retained-outbox quota with one bounded receipt', () => {
     const record = persistManual(store, manualRecord({ ttlMs: 1_000 }));
     fillRetainedOutbox(record);

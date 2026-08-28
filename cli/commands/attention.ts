@@ -28,6 +28,7 @@ import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 import { resolveTargetDir } from '../utils/channel-resolution.js';
 import { validateChannel } from '../../shared/validators.js';
 import * as ui from '../utils/ui.js';
+import { renderSugarParleyAttention } from '../utils/sugar-parley-card.js';
 import { showSugarParleyExperience } from './sugar.js';
 
 interface AttentionItem {
@@ -41,6 +42,27 @@ interface AttentionItem {
   contentType: string;
   receivedAt: number;
 }
+
+/**
+ * Daemon-owned inbox discriminants whose delivery is a live coordination
+ * concern. This is deliberately a closed protocol list: untrusted or future
+ * strings must retain ordinary inbox/channel treatment until the owning
+ * protocol assigns them a stable meaning.
+ */
+type AttentionCoordinationMessageType =
+  | 'parley_summons'
+  | 'parley_turn'
+  | 'sugar_parley_note'
+  | 'sugar_parley_message'
+  | 'sugar_parley_settlement_receipt';
+
+const ATTENTION_STATE_BY_MESSAGE_TYPE: Readonly<Record<AttentionCoordinationMessageType, ui.LineworkState>> = {
+  parley_summons: 'conflict',
+  parley_turn: 'conflict',
+  sugar_parley_note: 'conflict',
+  sugar_parley_message: 'conflict',
+  sugar_parley_settlement_receipt: 'conflict',
+};
 
 export interface AttentionSuggestion {
   channel: string;
@@ -257,13 +279,50 @@ function renderContent(content: unknown, contentType: string): string {
   return String(content);
 }
 
+/**
+ * Give a received item a deterministic presentation state without inferring
+ * protocol authority from a user-controlled string. Exact known delivery
+ * discriminants keep their coordination signal; every other value uses the
+ * source-based generic fallback so JSON and no-color callers remain unchanged.
+ *
+ * @param item Attention item received from the daemon.
+ * @returns The linework state appropriate for this exact protocol item.
+ */
 function attentionState(item: AttentionItem): ui.LineworkState {
-  const type = (item.type || '').toLowerCase();
-  if (type.includes('parley') || type.includes('conflict')) return 'conflict';
-  if (type.includes('hold') || type.includes('approval')) return 'awaiting-human';
-  if (type.includes('block') || type.includes('guard')) return 'guard-blocked';
+  const type = item.type;
+  if (type && Object.hasOwn(ATTENTION_STATE_BY_MESSAGE_TYPE, type)) {
+    return ATTENTION_STATE_BY_MESSAGE_TYPE[type as AttentionCoordinationMessageType];
+  }
   if (item.source === 'inbox') return 'pending';
   return 'request';
+}
+
+/**
+ * Render only the three sealed Sugar payloads that normal agents can act on
+ * conversationally. The explicit item-type check is intentional: generic
+ * Parley traffic and JSON lookalikes retain the ordinary attention treatment.
+ *
+ * @param item Attention item received from the daemon.
+ * @param options Presentation constraints for linework or plain terminal output.
+ * @returns A human-facing Sugar frame, or null for ordinary attention content.
+ */
+function renderSealedSugarParleyAttentionItem(
+  item: AttentionItem,
+  options: { width?: number; styled?: boolean } = {},
+): string | null {
+  const payloadKind = typeof item.content === 'object'
+    && item.content !== null
+    && !Array.isArray(item.content)
+    ? (item.content as { kind?: unknown }).kind
+    : null;
+  if (item.contentType !== 'json'
+    || (item.type !== 'parley_summons'
+      && item.type !== 'sugar_parley_message'
+      && item.type !== 'sugar_parley_settlement_receipt')
+    || payloadKind !== item.type) {
+    return null;
+  }
+  return renderSugarParleyAttention(item.content, options);
 }
 
 export function renderAttentionLinework(summary: AttentionSummary): string {
@@ -304,20 +363,25 @@ export function renderAttentionLinework(summary: AttentionSummary): string {
     });
   }
 
-  const rows = items.map((item): ui.LineworkRow => {
+  const renderedItems = items.map((item) => ({
+    item,
+    sugar: renderSealedSugarParleyAttentionItem(item, { width: process.stdout.columns }),
+  }));
+  const rows = renderedItems.flatMap(({ item, sugar }): ui.LineworkRow[] => {
+    if (sugar) return [];
     const age = formatRelative(item.receivedAt, now);
     const origin = item.source === 'inbox'
       ? `inbox from ${item.from || 'unknown'}`
       : `${item.channel || 'channel'}${item.from ? ` from ${item.from}` : ''}`;
     const body = renderContent(item.content, item.contentType).replace(/\s+/g, ' ').trim();
-    return {
+    return [{
       state: attentionState(item),
       label: age,
       text: `${origin}${item.type ? ` [${item.type}]` : ''}${body ? ` · ${body}` : ''}`,
-    };
+    }];
   });
 
-  return ui.renderLineworkPanel({
+  const attentionPanel = ui.renderLineworkPanel({
     title: 'Attention',
     subtitle: summary.agentId || 'agent',
     tone: summary.peek ? 'unknown' : 'pending',
@@ -325,6 +389,9 @@ export function renderAttentionLinework(summary: AttentionSummary): string {
     rows,
     footer: `inbox ${counts.inbox} · channels ${counts.channels}${counts.inboxUnreadRemaining > 0 ? ` · inbox remaining ${counts.inboxUnreadRemaining}` : ''}`,
   });
+  const sugarPanels = renderedItems.flatMap(({ sugar }) => sugar ? [sugar] : []);
+  if (sugarPanels.length === 0) return attentionPanel;
+  return rows.length === 0 ? sugarPanels.join('\n\n') : [...sugarPanels, attentionPanel].join('\n\n');
 }
 
 function printPretty(summary: AttentionSummary, options: CLIOptions): void {
@@ -374,6 +441,15 @@ function printPretty(summary: AttentionSummary, options: CLIOptions): void {
   console.log('');
 
   for (const item of items) {
+    const sugar = renderSealedSugarParleyAttentionItem(item, {
+      width: process.stdout.columns,
+      styled: false,
+    });
+    if (sugar) {
+      console.log(sugar);
+      console.log('');
+      continue;
+    }
     const age = formatRelative(item.receivedAt, now);
     const origin = item.source === 'inbox'
       ? `inbox ← ${item.from || 'unknown'}`

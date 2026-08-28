@@ -10,6 +10,9 @@ import {
 function claim(sessionId, filePath, opts = {}) {
   return {
     filePath,
+    ...(Object.prototype.hasOwnProperty.call(opts, 'repoId') ? { repoId: opts.repoId } : {}),
+    ...(Object.prototype.hasOwnProperty.call(opts, 'worldKind') ? { worldKind: opts.worldKind } : {}),
+    ...(Object.prototype.hasOwnProperty.call(opts, 'worldId') ? { worldId: opts.worldId } : {}),
     sessionId,
     purpose: opts.purpose ?? `purpose-${sessionId}`,
     agentId: opts.agentId ?? null,
@@ -94,10 +97,42 @@ describe('detectClaimOverlaps', () => {
     ).toHaveLength(0);
   });
 
+  test('requires one exact repo/world/file address before producing an overlap', () => {
+    const differentRepo = detectClaimOverlaps([
+      claim('s1', 'lib/x.ts', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+      claim('s2', 'lib/x.ts', { repoId: 'repo-b', worldKind: 'worktree', worldId: 'main' }),
+    ]);
+    const differentWorld = detectClaimOverlaps([
+      claim('s1', 'lib/x.ts', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+      claim('s2', 'lib/x.ts', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'other-worktree' }),
+    ]);
+    const [sameScope] = detectClaimOverlaps([
+      claim('s1', 'lib/x.ts', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+      claim('s2', 'lib/x.ts', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+    ]);
+
+    expect(differentRepo).toHaveLength(0);
+    expect(differentWorld).toHaveLength(0);
+    expect(sameScope).toMatchObject({ repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' });
+  });
+
   test('payload hash is stable regardless of session order', () => {
     const [o1] = detectClaimOverlaps([claim('s2', 'f'), claim('s1', 'f')]);
     const [o2] = detectClaimOverlaps([claim('s1', 'f'), claim('s2', 'f')]);
     expect(overlapPayloadHash(o1)).toBe(overlapPayloadHash(o2));
+  });
+
+  test('payload hash includes the canonical repo/world scope', () => {
+    const [main] = detectClaimOverlaps([
+      claim('s1', 'f', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+      claim('s2', 'f', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+    ]);
+    const [other] = detectClaimOverlaps([
+      claim('s1', 'f', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'other' }),
+      claim('s2', 'f', { repoId: 'repo-a', worldKind: 'worktree', worldId: 'other' }),
+    ]);
+
+    expect(overlapPayloadHash(main)).not.toBe(overlapPayloadHash(other));
   });
 });
 
@@ -232,6 +267,19 @@ describe('runOverlapScan', () => {
   test('no overlaps → no suggestions, no delivery', () => {
     const res = runOverlapScan({
       sessions: sessionsWith([claim('s1', 'lib/x.ts'), claim('s2', 'lib/y.ts')]),
+      suggestions,
+      inbox,
+    });
+    expect(res).toMatchObject({ overlaps: 0, surfaced: 0, delivered: 0 });
+    expect(sent).toHaveLength(0);
+  });
+
+  test('same relative path in a separate canonical scope creates no heads-up card', () => {
+    const res = runOverlapScan({
+      sessions: sessionsWith([
+        claim('s1', 'lib/x.ts', { agentId: 'agent-1', repoId: 'repo-a', worldKind: 'worktree', worldId: 'main' }),
+        claim('s2', 'lib/x.ts', { agentId: 'agent-2', repoId: 'repo-b', worldKind: 'worktree', worldId: 'main' }),
+      ]),
       suggestions,
       inbox,
     });
