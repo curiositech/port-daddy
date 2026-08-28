@@ -250,7 +250,7 @@ describe('Agent Harbor context continuity vertical slice', () => {
   });
 
   test('projects the most recent cited plan checkpoint into a continuation capsule', () => {
-    const { db, transcripts, episodicMemory, bridge } = state();
+    const { transcripts, episodicMemory, bridge } = state();
     const agentId = 'spawn-context-latest-plan';
     const transcriptId = transcripts.start({
       id: 'transcript-context-latest-plan', ship: 'test', spawned_agent_id: agentId,
