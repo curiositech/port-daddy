@@ -10,7 +10,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "render_tikz_figure.py"
 EXAMPLE = ROOT / "examples" / "clean-two-lane-sequence.tex"
 TEMPLATE = ROOT / "templates" / "publication-figure.tex"
-SCRATCH_ROOT = Path.home() / "coding" / "tmp"
 spec = importlib.util.spec_from_file_location("renderer", SCRIPT)
 renderer = importlib.util.module_from_spec(spec)
 assert spec.loader
@@ -25,8 +24,13 @@ FIT_SKIP_REASON = f"{RENDER_SKIP_REASON}; page-fit assertions also require pdfin
 
 class RendererTests(unittest.TestCase):
     def temporary_dir(self):
-        SCRATCH_ROOT.mkdir(parents=True, exist_ok=True)
-        return tempfile.TemporaryDirectory(dir=SCRATCH_ROOT)
+        # Keep test artifacts beside the caller's checkout rather than assuming a
+        # particular home directory or falling back to the OS temporary folder.
+        return tempfile.TemporaryDirectory(prefix="tikz-figure-engineering-", dir=Path.cwd())
+
+    def test_temporary_dir_stays_in_the_caller_workspace(self):
+        with self.temporary_dir() as tmp:
+            self.assertEqual(Path(tmp).parent.resolve(), Path.cwd().resolve())
 
     def test_source_audit_flags_tiny_and_long_edge_label(self):
         source = r"\\tiny \\draw (0,0) -- node{this relation label is far too long for an edge} (1,0);"
