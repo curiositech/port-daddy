@@ -61,7 +61,7 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
     // 1) claim-tree trouble projection (the previous overlap-only nudge is a
     // subset of this finite-state explanation, so it is intentionally not run
     // alongside it and cannot double-notify an agent).
-    const claimTree = runClaimTreeTroubleScan({ sessions, suggestions, inbox: agentInbox, activityLog });
+    const claimTree = runClaimTreeTroubleScan({ sessions, suggestions, inbox: agentInbox, activityLog, symbolIndex });
     // 2) real-edit semantic conflicts (signature/dependency/transitive, from each live
     //    session's actual git diff) — fires only when the symbol index is wired in.
     let semantic = null;
@@ -84,7 +84,10 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
         activityLog?.log('surface_scan.error', { error: (err as Error).message });
       }
     }
-    return { success: true, ...claimTree, claimTree, semantic };
+    // Retain the legacy count at the top level for existing CLI/MCP callers.
+    // `pairs` is the claim-tree's equivalent unit; callers that understand the
+    // richer finite-state projection should read `claimTree`.
+    return { success: true, ...claimTree, overlaps: claimTree.pairs, claimTree, semantic };
   });
 
   fastify.post('/suggestions/:id/accept', async (request: FastifyRequest, reply: FastifyReply) => {
