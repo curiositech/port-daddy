@@ -28,6 +28,7 @@ import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 import { resolveTargetDir } from '../utils/channel-resolution.js';
 import { validateChannel } from '../../shared/validators.js';
 import * as ui from '../utils/ui.js';
+import { showSugarParleyExperience } from './sugar.js';
 
 interface AttentionItem {
   source: 'inbox' | 'channel';
@@ -80,8 +81,16 @@ interface AttentionSummary {
   code?: string;
 }
 
+type SugarParleyOffer = (
+  agentId: string | undefined,
+  sessionId: string | undefined,
+  options: CLIOptions,
+) => Promise<void>;
+
 interface AttentionHandlerDeps {
   fetch?: (path: string, options?: FetchOptions) => Promise<PdFetchResponse>;
+  /** Injectable only for focused CLI coverage; production uses Sugar's card. */
+  sugarParleyOffer?: SugarParleyOffer;
 }
 
 export const ATTENTION_HELP: string = [
@@ -659,4 +668,13 @@ export async function handleAttention(options: CLIOptions, deps: AttentionHandle
     return;
   }
   printPretty(data, options);
+
+  // A normal interactive attention pass is also an ordinary work entry
+  // point. It may offer the same bounded server-derived card as `pd begin`,
+  // but only after the attention receipt is already complete. The card helper
+  // itself preserves capability checks, a 150 ms deadline, no-color rendering,
+  // and the exact JSON/quiet/noninteractive contracts above.
+  const context = readCurrentContext();
+  const offerSugarParley = deps.sugarParleyOffer ?? showSugarParleyExperience;
+  await offerSugarParley(context?.agentId, context?.sessionId, options);
 }
