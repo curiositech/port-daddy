@@ -40,7 +40,36 @@ To avoid overclaiming systems guarantees, Port Daddy structures all enforcement 
 
 \subsection{The Six-Rung Risk Ladder}
 Defenses must not ask one mechanism to perform multiple contradictory roles. Security and economic guarantees are staged sequentially:
-$$\text{PREVENT} \;\longrightarrow\; \text{CONTAIN} \;\longrightarrow\; \text{CHECKPOINT} \;\longrightarrow\; \text{OBSERVE} \;\longrightarrow\; \text{ADJUDICATE} \;\longrightarrow\; \text{COMPENSATE}$$
+\begin{center}
+\begin{tikzpicture}[
+  x=4.55cm,
+  y=1.15cm,
+  stage/.style={
+    draw=hhink!65,
+    rounded corners=2pt,
+    fill=hhpaper,
+    minimum width=3.75cm,
+    minimum height=0.78cm,
+    align=center,
+    inner sep=4pt,
+    font=\small
+  },
+  flow/.style={-{Stealth[length=2.1mm]}, draw=hhteal, line width=0.85pt}
+]
+  \node[stage] (prevent)    at (0,0) {\textbf{1}\quad\textsc{Prevent}\\[-1pt]\scriptsize deny inadmissible acts};
+  \node[stage] (contain)    at (1,0) {\textbf{2}\quad\textsc{Contain}\\[-1pt]\scriptsize bound the effect surface};
+  \node[stage] (checkpoint) at (2,0) {\textbf{3}\quad\textsc{Checkpoint}\\[-1pt]\scriptsize preserve recoverable state};
+  \node[stage] (observe)    at (2,-1) {\textbf{4}\quad\textsc{Observe}\\[-1pt]\scriptsize retain attributable evidence};
+  \node[stage] (adjudicate) at (1,-1) {\textbf{5}\quad\textsc{Adjudicate}\\[-1pt]\scriptsize resolve the recorded claim};
+  \node[stage] (compensate) at (0,-1) {\textbf{6}\quad\textsc{Compensate}\\[-1pt]\scriptsize settle the residual loss};
+
+  \draw[flow] (prevent) -- (contain);
+  \draw[flow] (contain) -- (checkpoint);
+  \draw[flow] (checkpoint) -- (observe);
+  \draw[flow] (observe) -- (adjudicate);
+  \draw[flow] (adjudicate) -- (compensate);
+\end{tikzpicture}
+\end{center}
 Residual risk moves down the ladder, and the underwriting market prices only what remains after structural containment.
 
 \subsection{Consolidated Mechanism Status}

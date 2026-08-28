@@ -1,35 +1,40 @@
-% Fig 11 — a bonded, accountable neutral-judge market.
+% Figure III.11 --- the market is an accountable sequence, not a neutral-box claim.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=30mm] (work) at (-6,1.2)
-    {graded \textbf{work}};
-  \node[stp box,minimum width=42mm,text width=35mm] (elig) at (-2,1.2)
-    {\textbf{eligibility screen}\\{\scriptsize conflict- and influence-free}};
-  \node[stp accent box,minimum width=37mm,text width=31mm] (judge) at (2.3,1.2)
-    {\textbf{neutral judge}\\{\scriptsize posts its own bond}};
-  \node[stp box,minimum width=34mm] (ledger) at (6.3,1.2)
-    {\textbf{outcome ledger}};
-  \draw[stp arrow] (work) -- (elig);
-  \draw[stp accent arrow] (elig) -- (judge);
-  \draw[stp arrow] (judge) -- (ledger);
-
-  \node[stp box,minimum width=37mm] (bond) at (2.3,-1.6)
-    {judge's \textbf{bond}};
-  \node[stp box,minimum width=37mm] (audit) at (6.3,-1.6)
-    {sampled \textbf{re-audit}};
-  \draw[stp arrow] (judge) -- (bond);
-  \draw[stp arrow] (ledger) -- (audit);
-  \draw[stp dashed arrow] (audit) -- (bond);
-  \node[stp label] at (4.3,-0.75) {overturn $\Rightarrow$ slash};
+\begin{tikzpicture}[font=\footnotesize,
+  lane/.style={draw=hhink!58,line width=.35pt,fill=hhsand!16,text width=30mm,minimum height=9mm,align=left,inner sep=3.5pt},
+  head/.style={lane,fill=hhink,text=hhpaper,font=\footnotesize\bfseries,align=center},
+  time/.style={lane,text width=10mm,align=center,font=\footnotesize\bfseries},
+  audit/.style={lane,draw=hhteal!82,fill=hhteal!8},
+  bond/.style={lane,draw=hhamber!90,fill=hhamber!12},
+]
+  \fill[hhink] (-7,2.1) rectangle (7.4,3.05);
+  \fill[hhsand!16] (-7,-3.95) rectangle (7.4,2.1);
+  \draw[hhink!58,line width=.4pt] (-7,-3.95) rectangle (7.4,3.05);
+  \foreach \x in {-5.8,-2.5,.8,4.1} \draw[hhink!58,line width=.35pt] (\x,-3.95) -- (\x,3.05);
+  \foreach \y in {2.1,.9,-.3,-1.5,-2.7} \draw[hhink!58,line width=.35pt] (-7,\y) -- (7.4,\y);
+  \node[font=\footnotesize\bfseries,text=hhpaper] at (-6.4,2.57) {time};
+  \node[font=\footnotesize\bfseries,text=hhpaper] at (-4.15,2.57) {work party};
+  \node[font=\footnotesize\bfseries,text=hhpaper] at (-.85,2.57) {eligible pool};
+  \node[font=\footnotesize\bfseries,text=hhpaper] at (2.45,2.57) {neutral judge};
+  \node[font=\footnotesize\bfseries,text=hhpaper] at (5.75,2.57) {outcome ledger};
+  \foreach \y/\time in {1.5/$t_1$,.3/$t_2$,-.9/$t_3$,-2.1/$t_4$,-3.3/$t_5$}
+    \node[font=\footnotesize\bfseries] at (-6.4,\y) {\time};
+  \node[font=\footnotesize,align=left,text width=27mm] at (-4.15,1.5) {submit graded work};
+  \node[font=\footnotesize,align=left,text width=27mm] at (5.75,1.5) {receipt + work hash};
+  \node[font=\footnotesize,align=left,text width=27mm,text=hhteal] at (-.85,.3) {remove conflict and influence candidates};
+  \node[font=\footnotesize,align=left,text width=27mm] at (5.75,.3) {eligibility record};
+  \node[font=\footnotesize,align=left,text width=27mm] at (-.85,-.9) {select eligible judge};
+  \node[font=\footnotesize,align=left,text width=27mm,text=hhamber] at (2.45,-.9) {post judge bond before evidence};
+  \node[font=\footnotesize,align=left,text width=27mm] at (5.75,-.9) {bond reference};
+  \node[font=\footnotesize,align=left,text width=27mm,text=hhteal] at (2.45,-2.1) {inspect blind work; publish grade};
+  \node[font=\footnotesize,align=left,text width=27mm] at (5.75,-2.1) {witnessed outcome};
+  \node[font=\footnotesize,align=left,text width=27mm,text=hhamber] at (2.45,-3.3) {sampled re-audit; slash on overturn};
+  \node[font=\footnotesize,align=left,text width=27mm,text=hhteal] at (5.75,-3.3) {grade, audit, and bond outcome};
+  \draw[hhteal,line width=1.05pt] (-5.65,-4.65) -- (7.15,-4.65);
+  \node[font=\footnotesize\bfseries,text=hhteal,anchor=north] at (.75,-4.65) {neutrality is checked before selection; accountability is checked after it};
 \end{tikzpicture}}
-\caption{\textbf{The neutral-judge market.} Graded work flows to a judge selected
-for conflict- and influence-freedom; the judge posts its own bond, the grade enters
-the outcome ledger, and a sampled re-audit can slash a judge whose grade is
-overturned. ``Neutral'' is a checklist (conflict-free, influence-free, de-biased),
-not a vibe, and the judge is hired through the same bonded ceremony the market uses
-for any task (Protocol~\ref{proto:judge}) --- the judge's own reputation is the
-asset it protects.}
+\caption{\textbf{The neutral-judge market as an accountable sequence.} Graded work is submitted with a receipt, candidates with conflicts or influence are removed, and the selected judge posts a bond before seeing the work. The grade, bond reference, and later re-audit are preserved in the outcome ledger; an overturned grade can slash the judge. ``Neutral'' is therefore an auditable eligibility condition, not a label (Protocol~\ref{proto:judge}).}
 \label{fig:judge-market}
 \end{figure}

@@ -1,74 +1,85 @@
-% Figure 2 — the state-of-nature -> consented-Leviathan transition.
-% Left: ungoverned swarm (war of all against all). Right: the consented local
-% Leviathan rendering the swarm legible. The arrow is the covenant.
-% Design: one title line per panel; the failure/cure vocabularies live in the
-% caption, not under the panels. Agent E orbits the daemon like the others —
-% nothing crowds the titles.
+% Figure 2 --- the consent transition, expressed as two comparable work schedules.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.9\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  agent/.style={draw=hhebony,thick,circle,fill=hhpaper,minimum size=9mm,
-                font=\footnotesize},
-  daemon/.style={draw=hhebony,very thick,rectangle,rounded corners=3pt,
-                 fill=hhsand!30,minimum width=22mm,minimum height=14mm,
-                 align=center,font=\bfseries\footnotesize},
-  collide/.style={hhcobalt,thick,decorate,
-                  decoration={zigzag,segment length=2mm,amplitude=0.6mm}},
-  legible/.style={hhteal,thick,-{Latex[length=2mm]}},
+  font=\footnotesize,
+  head/.style={draw=hhebony,very thick,fill=hhebony,text=white,align=center,
+               minimum height=8mm,font=\footnotesize\bfseries},
+  lane/.style={hhgray!55,thin},
+  work/.style={draw=hhgray,thick,fill=hhpaper,rounded corners=1pt,
+               minimum height=6mm,align=center,font=\scriptsize,text=hhink},
+  commit/.style={draw=hhteal,very thick,fill=hhteal!7,rounded corners=1pt,
+                 minimum height=7mm,align=center,font=\scriptsize,text=hhink},
 ]
+% Same time scale; the left panel makes the collision window visible.
+\node[head,text width=62mm] at (-4.25,3.45) {state of nature: concurrent writes};
+\node[head,text width=62mm] at (4.25,3.45) {consented order: one commit spine};
+\draw[-{Latex[length=2mm]},very thick,hhamber] (-0.9,3.45) -- (0.9,3.45)
+  node[midway,above,font=\scriptsize\bfseries,text=hhink]{covenant};
 
-% ─── LEFT: state of nature ───────────────────────────────────────────────
-\begin{scope}[shift={(0,0)}]
-  \node[font=\bfseries] at (2.2,3.2) {State of nature};
-  \node[agent] (a1) at (0.4,1.8) {A};
-  \node[agent] (a2) at (3.9,2.0) {B};
-  \node[agent] (a3) at (0.9,-0.3) {C};
-  \node[agent] (a4) at (3.6,-0.2) {D};
-  \node[agent] (a5) at (2.2,0.9) {E};
-  % colliding edges (no referee)
-  \draw[collide] (a1)--(a5); \draw[collide] (a2)--(a5);
-  \draw[collide] (a3)--(a5); \draw[collide] (a4)--(a5);
-  \draw[collide] (a1)--(a3); \draw[collide] (a2)--(a4);
-\end{scope}
+\foreach \x/\t in {-6.2/$t_0$,-4.8/$t_1$,-3.4/$t_2$,-2.0/$t_3$}{
+  \draw[hhgray,thin] (\x,2.7) -- (\x,2.88);
+  \node[font=\scriptsize,text=hhgray,anchor=south] at (\x,2.9) {\t};
+}
+\foreach \x/\t in {2.0/$t_0$,3.4/$t_1$,4.8/$t_2$,6.2/$t_3$}{
+  \draw[hhgray,thin] (\x,2.7) -- (\x,2.88);
+  \node[font=\scriptsize,text=hhgray,anchor=south] at (\x,2.9) {\t};
+}
 
-% ─── COVENANT arrow ──────────────────────────────────────────────────────
-\draw[-{Latex[length=3mm]},very thick,hhink] (4.9,0.8) -- (6.7,0.8)
-  node[midway,above,font=\bfseries\footnotesize,text=hhink]{covenant};
+% Ungoverned schedule: A and B overlap on a shared artifact.
+\fill[hhamber!12] (-4.9,-0.25) rectangle (-3.05,2.7);
+\node[font=\scriptsize\bfseries,text=hhamber,align=center] at (-3.98,-0.62)
+  {collision window\\shared artifact};
+\foreach \y/\actor in {2.05/A,1.10/B,0.15/C}{
+  \node[font=\footnotesize\bfseries,anchor=east] at (-6.55,\y) {\actor};
+  \draw[lane] (-6.35,\y) -- (-1.35,\y);
+}
+\node[work,text width=22mm] at (-4.72,2.05) {claim handler};
+\node[work,text width=22mm] at (-4.10,1.10) {claim handler};
+\node[work,text width=19mm] at (-5.28,0.15) {test};
+\draw[hhamber,very thick] (-4.9,2.5) -- (-4.9,-0.18);
+\draw[hhamber,very thick] (-3.05,2.5) -- (-3.05,-0.18);
+\node[draw=hhamber,thick,fill=hhamber!8,rounded corners=1pt,text width=46mm,
+      minimum height=8mm,align=center,font=\scriptsize,text=hhink] at (-4.0,-1.34)
+  {two writers can each commit; no common order or audit return};
 
-% ─── RIGHT: consented local Leviathan ────────────────────────────────────
-\begin{scope}[shift={(8.0,0)}]
-  \node[font=\bfseries] at (2.2,3.2) {Consented \emph{local} Leviathan};
-  \node[daemon] (d) at (2.2,0.8) {daemon\\(L0)};
-  \node[agent] (b1) at (0.3,2.1) {A};
-  \node[agent] (b2) at (4.1,2.1) {B};
-  \node[agent] (b3) at (0.3,-0.5) {C};
-  \node[agent] (b4) at (4.1,-0.5) {D};
-  \node[agent] (b5) at (2.2,-1.1) {E};
-  \draw[legible] (b1)--(d); \draw[legible] (b2)--(d);
-  \draw[legible] (b3)--(d); \draw[legible] (b4)--(d); \draw[legible] (b5)--(d);
-\end{scope}
-
+% Consented schedule: requests are ordered into a single visible spine.
+\foreach \y/\actor in {2.05/A,1.10/B,0.15/C}{
+  \node[font=\footnotesize\bfseries,anchor=east] at (1.65,\y) {\actor};
+  \draw[lane] (1.85,\y) -- (6.85,\y);
+}
+\node[work,text width=18mm] (qa) at (2.65,2.05) {claim};
+\node[work,text width=18mm] (qb) at (4.05,1.10) {claim};
+\node[work,text width=18mm] (qc) at (5.45,0.15) {test};
+\draw[hhteal,very thick] (2.1,-0.45) -- (6.15,-0.45);
+\node[font=\scriptsize\bfseries,text=hhteal,anchor=east] at (1.95,-0.45) {commit spine};
+\node[commit,text width=15mm] (ca) at (2.65,-0.45) {\#241};
+\node[commit,text width=15mm] (cb) at (4.05,-0.45) {\#242};
+\node[commit,text width=15mm] (cc) at (5.45,-0.45) {\#243};
+\draw[hhteal,thin,-{Latex[length=1.4mm]}] (qa.south) -- (ca.north);
+\draw[hhteal,thin,-{Latex[length=1.4mm]}] (qb.south) -- (cb.north);
+\draw[hhteal,thin,-{Latex[length=1.4mm]}] (qc.south) -- (cc.north);
+\node[draw=hhteal,thick,fill=hhteal!7,rounded corners=1pt,text width=58mm,
+      minimum height=8mm,align=center,font=\scriptsize,text=hhink] at (4.15,-1.48)
+  {every commit records \textbf{actor $\mid$ claim $\mid$ artifact $\mid$ reason}};
 \end{tikzpicture}%
 }
-\caption{The transition this paper argues for. \emph{Left}: an ungoverned swarm is
-Hobbes' state of nature --- rational agents colliding because none can trust the
-others (\S\ref{sec:taxonomy}): double-claims, illegible PRs, confident lies,
-footguns. \emph{Right}: the operator institutes a rule of the road and consents (a
-covenant \emph{among the subject agents}, enforced by the daemon, not a bargain with
-it) to a \emph{local} Leviathan that renders the swarm legible --- claims, the
-Arbiter, digest-with-zoom, consent grants, the override. The arrow is the covenant;
-the right-hand spokes are legibility, not chains. Empirically, LLM societies
-traverse this arrow on their own~\cite{dai2024}; Port Daddy's wager is to build the
-destination \emph{deliberately and legibly}.}
+\caption{The transition from concurrent work to consented order. \emph{Left}: an ungoverned swarm is
+Hobbes' state of nature --- overlapping writers may each act on the same work, so a
+collision has no common order or inspectable return. \emph{Right}: the operator
+institutes a rule of the road and consents (a covenant \emph{among the subject
+agents}, enforced by the daemon, not a bargain with it) to a \emph{local} Leviathan.
+The same work is admitted through one ordered commit spine, and each act returns an
+actor, claim, artifact, and named reason. That is the legibility the earlier swarm
+lacked: the covenant turns concurrent work into an auditable order.}
 \label{fig:state-of-nature}
 \end{figure}
