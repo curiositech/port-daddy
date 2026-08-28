@@ -98,6 +98,7 @@ import {
 } from '../lib/identity-write-boundary.js';
 import type { SessionBindingLookup } from '../lib/agent-soul-binding.js';
 import { getEffectiveContextWindow } from '../lib/context-window-tracker.js';
+import { resolveModel } from '../lib/model-registry.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
@@ -530,12 +531,13 @@ function daemonContextMeasurement(
   if (durable.evidenceRows === 0 || durable.truncated) return null;
   const measurementRef = durableMeasurementRef(db, authority.sessionId);
   if (!measurementRef) return null;
+  const model = resolveModel({ backend: 'anthropic', tier: 'mid' });
   return {
     // Claude's supported PreCompact event does not declare a selected model.
-    // Use a fixed conservative Claude effective window rather than accepting
-    // a hook body model string that can change the pressure decision.
-    model: 'claude-interactive',
-    windowTokens: getEffectiveContextWindow('claude-sonnet-4'),
+    // Resolve the canonical balanced Claude handle rather than accepting a
+    // hook-body model string that can change the pressure decision.
+    model,
+    windowTokens: getEffectiveContextWindow(model),
     daemonUsedTokensEstimate: durable.usedTokensEstimate,
     measurementRef,
     providerNativeUsage: null,

@@ -35,6 +35,7 @@ import {
   assessStaleVersions,
   remediationCardsFromProbe,
   transparentHookInventory,
+  HOOK_BINARY_FOR_PURPOSE,
   isOfficialAgentNode,
   firstOfficialAgentNode,
   computeFirstValue,
@@ -299,6 +300,10 @@ describe('per-area judgments', () => {
 });
 
 describe('transparent hook inventory (ch18 output)', () => {
+  test('maps the composable pre-compact purpose to its shipped binary', () => {
+    expect(HOOK_BINARY_FOR_PURPOSE.preCompact).toBe('pd-hook-precompact');
+  });
+
   test('every installed hook has a name, description, privacy note, and binary', () => {
     const inventory = transparentHookInventory();
     expect(inventory.map((h) => h.hookBinary).sort()).toEqual([

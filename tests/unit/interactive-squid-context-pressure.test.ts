@@ -19,7 +19,11 @@ import {
 import { transparentHookInventory } from '../../lib/agent-harbor/setup-doctor.js';
 import { buildJsonHookMap, codexHooksTomlBlock } from '../../lib/squid/hook-shape.js';
 import { recordInteractiveContextPressure } from '../../lib/squid/context-pressure.js';
-import { handleSquidContextPressureIngress, postBoundedPrecompactIngress } from '../../cli/commands/squid.js';
+import {
+  handleSquidContextPressureIngress,
+  handleSquidPrecompactIngress,
+  postBoundedPrecompactIngress,
+} from '../../cli/commands/squid.js';
 import type { CLIOptions } from '../../cli/types.js';
 
 const databases: DatabaseInstance[] = [];
@@ -556,6 +560,142 @@ describe('interactive Squid context-pressure bridge', () => {
     });
     expect(readEvents(db, { streamType: 'transcript-event', sessionId: 'interactive-session' })
       .map((row) => row.kind)).not.toContain('compaction_packet');
+  });
+
+  test('does not reuse another agent\'s deterministic pd plan receipt', () => {
+    const db = state();
+    seedPairedTranscript(db);
+    const observationId = 'foreign-plan-receipt-collision';
+    const suffix = deterministicSuffix('interactive-session', observationId);
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        ...event(5, 'plan_checkpoint', {
+          planCheckpoint: {
+            schema: 'pd.plan-checkpoint.v0',
+            sessionId: 'interactive-session',
+            content: '- [ ] A foreign agent cannot authorize this continuation',
+            capturedAt: '2026-08-27T12:00:00.000Z',
+          },
+        }),
+        eventId: `evt_plan_${suffix}`,
+        agentNodeId: 'foreign-agent',
+      },
+    });
+
+    const result = recordInteractiveContextPressure(db, input({ observationId, deferHandoffProjection: true }));
+    expect(result.status).toBe('recorded');
+    if (result.status !== 'recorded') throw new Error('expected a recorded packet-withheld observation');
+    expect(result.continuity.planCheckpoint).toBeNull();
+    expect(result.continuity.packet).toBeNull();
+    expect(result.directive).toMatchObject({
+      decision: 'block',
+      plan: 'checkpoint-required',
+      continuation: 'packet-withheld',
+    });
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: 'interactive-session' })
+      .map((row) => row.kind)).not.toContain('compaction_packet');
+  });
+
+  test('does not reuse another agent\'s deterministic tool-pair coverage receipt', () => {
+    const db = state();
+    seedPairedTranscript(db);
+    const observationId = 'foreign-coverage-receipt-collision';
+    const suffix = deterministicSuffix('interactive-session', observationId);
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        ...event(5, 'tool_pair_coverage', {
+          toolPairCoverage: {
+            witness: 'daemon-adapter',
+            status: 'complete',
+            provider: 'claude',
+            sessionId: 'interactive-session',
+            observationId,
+            coveredThroughLedgerSeq: 4,
+            coverageRef: 'foreign-agent-coverage-must-not-authorize',
+          },
+        }),
+        eventId: `evt_tool_coverage_${suffix}`,
+        agentNodeId: 'foreign-agent',
+      },
+    });
+
+    expect(recordInteractiveContextPressure(db, input({ observationId, deferHandoffProjection: true }))).toMatchObject({
+      status: 'rejected',
+      error: { code: 'TOOL_PAIR_COVERAGE_UNAVAILABLE' },
+      directive: { continuation: 'packet-withheld' },
+    });
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: 'interactive-session' })
+      .map((row) => row.kind)).not.toContain('compaction_packet');
+  });
+
+  test('reuses the exact durable pd plan when a retry no longer carries an adapter snapshot', () => {
+    const db = state();
+    seedPairedTranscript(db);
+    const observationId = 'durable-plan-outlives-adapter-snapshot';
+    expect(recordInteractiveContextPressure(db, input({ observationId, toolPairCoverage: null }))).toMatchObject({
+      status: 'rejected',
+      error: { code: 'TOOL_PAIR_COVERAGE_UNAVAILABLE' },
+    });
+
+    const retried = recordInteractiveContextPressure(db, input({
+      observationId,
+      planCheckpoint: null,
+      deferHandoffProjection: true,
+    }));
+    expect(retried.status).toBe('recorded');
+    if (retried.status !== 'recorded') throw new Error('expected durable plan receipt to authorize the retried boundary');
+    expect(retried.continuity.planCheckpoint?.content).toContain('Preserve the cited packet');
+    expect(retried.continuity.packet?.validator.passed).toBe(true);
+  });
+
+  test('does not relabel stale tool-pair coverage after later tool work arrives', () => {
+    const db = state();
+    seedPairedTranscript(db);
+    const observationId = 'fresh-coverage-required-after-later-tools';
+    const withheld = recordInteractiveContextPressure(db, input({
+      observationId,
+      planCheckpoint: null,
+      deferHandoffProjection: true,
+    }));
+    expect(withheld.status).toBe('recorded');
+    if (withheld.status !== 'recorded') throw new Error('expected the planless observation to persist its base boundary');
+    expect(withheld.continuity.packet).toBeNull();
+
+    // The first receipt covers the paired tool exchange at ledger sequence 4.
+    // A later complete pair needs a new adapter receipt; it cannot be silently
+    // relabelled with this retry's newer cursor and opaque reference.
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: event(7, 'tool_call', { toolCallId: 'later_tool_read', toolName: 'Read' }),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: event(8, 'tool_result', { toolCallId: 'later_tool_read', content: 'later bounded result' }),
+    });
+
+    const retried = recordInteractiveContextPressure(db, input({
+      observationId,
+      deferHandoffProjection: true,
+      toolPairCoverage: {
+        witness: 'daemon-adapter',
+        status: 'complete',
+        provider: 'claude',
+        sessionId: 'interactive-session',
+        observationId,
+        coveredThroughLedgerSeq: 8,
+        coverageRef: 'fresh-coverage-after-later-tools',
+      },
+    }));
+    expect(retried).toMatchObject({
+      status: 'rejected',
+      error: { code: 'TOOL_PAIR_COVERAGE_UNAVAILABLE' },
+      directive: { continuation: 'packet-withheld' },
+    });
+    const events = readEvents(db, { streamType: 'transcript-event', sessionId: 'interactive-session' });
+    expect(events.some((row) => row.event_id.startsWith('evt_ctx_verified_'))).toBe(false);
+    expect(events.map((row) => row.kind)).not.toContain('compaction_packet');
   });
 
   test('reissues one verified boundary when complete coverage arrives after a packet-withheld observation', () => {
@@ -2035,6 +2175,42 @@ describe('interactive Squid context-pressure bridge', () => {
         'provider-session': 'claude-provider-session',
       } as unknown as CLIOptions);
       expect(JSON.parse(writes.join(''))).toEqual({ status: 'rejected', directive: response.directive });
+    } finally {
+      process.stdout.write = originalWrite;
+      if (priorUrl === undefined) delete process.env.PORT_DADDY_URL; else process.env.PORT_DADDY_URL = priorUrl;
+      if (priorCredential === undefined) delete process.env.PD_ACTOR_CREDENTIAL; else process.env.PD_ACTOR_CREDENTIAL = priorCredential;
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  test('PreCompact CLI never contacts the daemon for a non-Claude provider', async () => {
+    let requests = 0;
+    const server = createServer((_request, reply) => {
+      requests += 1;
+      reply.writeHead(200, { 'content-type': 'application/json' });
+      reply.end(JSON.stringify({ status: 'recorded', directive: { decision: 'block', reason: 'must not reach Codex' } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('expected loopback test server');
+    const priorUrl = process.env.PORT_DADDY_URL;
+    const priorCredential = process.env.PD_ACTOR_CREDENTIAL;
+    const originalWrite = process.stdout.write.bind(process.stdout);
+    const writes: string[] = [];
+    process.env.PORT_DADDY_URL = `http://127.0.0.1:${address.port}`;
+    process.env.PD_ACTOR_CREDENTIAL = 'fixture-non-claude-credential';
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      writes.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await handleSquidPrecompactIngress({
+        provider: 'codex',
+        trigger: 'auto',
+        'provider-session': 'codex-provider-session',
+      } as unknown as CLIOptions);
+      expect(requests).toBe(0);
+      expect(writes).toEqual([]);
     } finally {
       process.stdout.write = originalWrite;
       if (priorUrl === undefined) delete process.env.PORT_DADDY_URL; else process.env.PORT_DADDY_URL = priorUrl;

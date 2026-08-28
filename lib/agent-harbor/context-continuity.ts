@@ -631,23 +631,15 @@ function appendPlanCheckpoint(
   sample: ContextContinuitySample,
   suffix: string,
 ): ContextPlanCheckpoint | null {
+  const eventId = `evt_plan_${suffix}`;
+  // A retry may reuse only the exact receipt this observation minted.  Reading
+  // the nested plan payload alone would let a same-id row from another agent
+  // supply continuation authority, so bind the outer event before reuse.
+  if (eventPayload(db, eventId)) {
+    return persistedPlanCheckpointForInteractiveBoundary(db, sample, eventId);
+  }
   const source = latestPlanContent(db, sample);
   if (!source) return null;
-  const eventId = `evt_plan_${suffix}`;
-  const existing = eventPayload(db, eventId)?.payloadJson as Record<string, unknown> | undefined;
-  const existingPlan = existing?.planCheckpoint;
-  if (existing) {
-    if (!existingPlan || typeof existingPlan !== 'object' || Array.isArray(existingPlan)) return null;
-    const row = existingPlan as Record<string, unknown>;
-    const content = nonEmptyBoundedText(row.content);
-    if (!content || !planCheckpointSessionMatches(row.sessionId, sample.sessionId)) return null;
-    return {
-      eventId,
-      sessionId: typeof row.sessionId === 'string' ? row.sessionId : null,
-      content,
-      capturedAt: isoTimestamp(row.capturedAt, source.capturedAt),
-    };
-  }
 
   appendEvent(db, {
     streamType: 'transcript-event',
@@ -754,22 +746,21 @@ function appendToolPairCoverageReceipt(
 
   const state = latestTranscriptState(db, sample.sessionId);
   const currentLedgerSeq = state?.ledgerSeq ?? 0;
-  if (coverage.coveredThroughLedgerSeq > currentLedgerSeq) return null;
-  const unseenTool = db.prepare(`
-    SELECT 1 AS present
-    FROM harbor_events
-    WHERE stream_type = 'transcript-event'
-      AND session_id = ?
-      AND ledger_seq > ?
-      AND ledger_seq <= ?
-      AND kind IN ('tool_call', 'tool_result')
-    LIMIT 1
-  `).get(sample.sessionId, coverage.coveredThroughLedgerSeq, currentLedgerSeq) as { present: number } | undefined;
-  if (unseenTool?.present === 1) return null;
+  if (!coverageReceiptCoversCurrentToolTail(
+    db,
+    sample.sessionId,
+    coverage.coveredThroughLedgerSeq,
+    currentLedgerSeq,
+  )) return null;
 
   const eventId = `evt_tool_coverage_${suffix}`;
   const existing = coverageReceiptFromEvent(db, eventId);
-  if (existing) return existing;
+  // Coverage is likewise an authority receipt, not merely an object-shaped
+  // payload. Reuse it only after checking its outer transcript event belongs
+  // to this session, agent, provider, and observation.
+  if (existing) {
+    return persistedToolPairCoverageForInteractiveBoundary(db, sample, eventId, currentLedgerSeq);
+  }
   appendEvent(db, {
     streamType: 'transcript-event',
     payload: {
@@ -934,11 +925,33 @@ function persistedPlanCheckpointForInteractiveBoundary(
   }
 }
 
+/** Confirm a coverage cursor leaves no later tool invocation or result uncited. */
+function coverageReceiptCoversCurrentToolTail(
+  db: DatabaseInstance,
+  sessionId: string,
+  coveredThroughLedgerSeq: number,
+  currentLedgerSeq: number,
+): boolean {
+  if (coveredThroughLedgerSeq > currentLedgerSeq) return false;
+  const unseenTool = db.prepare(`
+    SELECT 1 AS present
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event'
+      AND session_id = ?
+      AND ledger_seq > ?
+      AND ledger_seq <= ?
+      AND kind IN ('tool_call', 'tool_result')
+    LIMIT 1
+  `).get(sessionId, coveredThroughLedgerSeq, currentLedgerSeq) as { present: number } | undefined;
+  return unseenTool?.present !== 1;
+}
+
 /** Read the exact deterministic daemon coverage receipt and bind it to this observation. */
 function persistedToolPairCoverageForInteractiveBoundary(
   db: DatabaseInstance,
   sample: ContextContinuitySample,
   eventId: string,
+  currentLedgerSeq: number,
 ): ToolPairCoverageReceipt | null {
   const row = db.prepare(`
     SELECT stream_type, session_id, agent_node_id, kind
@@ -967,6 +980,12 @@ function persistedToolPairCoverageForInteractiveBoundary(
     || receipt.coverage.provider !== provider
     || receipt.coverage.sessionId !== sample.sessionId
     || receipt.coverage.observationId !== sample.observationId
+    || !coverageReceiptCoversCurrentToolTail(
+      db,
+      sample.sessionId,
+      receipt.coverage.coveredThroughLedgerSeq,
+      currentLedgerSeq,
+    )
   ) return null;
   return receipt;
 }

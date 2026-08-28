@@ -39,6 +39,8 @@ import { createSessions } from '../../lib/sessions.js';
 import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { resolveWriteIdentity, stampIdentityMetadata } from '../../lib/identity-write-boundary.js';
 import { agentHarborPlugin } from '../../routes/agent-harbor.js';
+import { getEffectiveContextWindow } from '../../lib/context-window-tracker.js';
+import { resolveModel } from '../../lib/model-registry.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureDir = join(here, '..', '..', 'schemas', 'agent-harbor', 'v0', 'fixtures');
@@ -645,6 +647,35 @@ describe('agent-harbor routes', () => {
         status: 'measurement-unavailable',
         directive: { continuation: 'normal' },
         receipt: null,
+      });
+    });
+
+    test('resolves the daemon-only Claude fallback through the canonical model tier', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: transcript({
+          eventId: 'evt_daemon_only_interactive_measurement',
+          sessionId: plan.sessionId,
+          sequence: 1,
+          kind: 'assistant_message',
+          payloadJson: { content: 'Daemon-owned evidence for the bounded fallback.' },
+        }),
+      });
+
+      const response = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ status: 'recorded' });
+      const pressure = readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .find((row) => row.kind === 'context_pressure');
+      const envelope = JSON.parse(pressure.payload_json).payloadJson.contextEnvelope;
+      const expectedModel = resolveModel({ backend: 'anthropic', tier: 'mid' });
+      expect(envelope).toMatchObject({
+        model: expectedModel,
+        windowTokens: getEffectiveContextWindow(expectedModel),
       });
     });
 
