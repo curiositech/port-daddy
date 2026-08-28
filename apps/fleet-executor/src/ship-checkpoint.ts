@@ -66,13 +66,14 @@ export interface ShipCheckpointBinding {
   /**
    * Exact rendered open-PR/recent-branch projection supplied to Lookout.
    *
-   * `not-applicable` is canonical for every other ship. The field remains
-   * optional only while parsing binding-v3 rows written before this witness
-   * existed: an omitted value normalizes to `not-applicable`, which preserves
-   * unaffected ship checkpoints while necessarily invalidating an old Lookout
-   * row against the current projection hash.
+   * `not-applicable` is canonical for every other ship. Current writers must
+   * always supply this field. The untrusted parser alone accepts an omitted
+   * value from binding-v3 rows written before this witness existed and
+   * normalizes it to `not-applicable`; that preserves unaffected ship
+   * checkpoints while necessarily invalidating an old Lookout row against the
+   * current projection hash.
    */
-  lookoutProjectionSha256?: string;
+  lookoutProjectionSha256: string;
 }
 
 /** Why a retained row was deliberately not allowed to resume. */
@@ -361,8 +362,7 @@ function sameShipCheckpointBinding(left: ShipCheckpointBinding, right: ShipCheck
     left.systemPromptSha256 === right.systemPromptSha256 &&
     left.reviewInputSha256 === right.reviewInputSha256 &&
     left.mediatorOrdersSha256 === right.mediatorOrdersSha256 &&
-    (left.lookoutProjectionSha256 ?? NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST) ===
-      (right.lookoutProjectionSha256 ?? NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST);
+    left.lookoutProjectionSha256 === right.lookoutProjectionSha256;
 }
 
 /**
@@ -562,6 +562,13 @@ export async function saveShipCheckpoint(
   if (!env.DB) return false;
   const normalizedBinding = parseShipCheckpointBinding(binding);
   if (!normalizedBinding) return false;
+  // The sentinel is valid only for ships that do not consume this projection.
+  // Legacy Lookout rows without the field still parse so load can classify
+  // them as a trusted-binding mismatch, but no current writer may persist a
+  // Lookout checkpoint that is unbound from the exact rendered projection.
+  const hasLookoutProjection =
+    normalizedBinding.lookoutProjectionSha256 !== NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST;
+  if ((result.ship === 'lookout') !== hasLookoutProjection) return false;
   // An ERROR or all-empty/no-usable-output result is a diagnostic observation,
   // not completed review evidence. Its regular transcript/spend records stay
   // durable, but a retry must make fresh model progress instead of inheriting

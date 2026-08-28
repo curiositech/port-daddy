@@ -56,6 +56,7 @@ const CHECKPOINT_BINDING = {
   systemPromptSha256: `sha256:${'3'.repeat(64)}`,
   reviewInputSha256: `sha256:${'4'.repeat(64)}`,
   mediatorOrdersSha256: 'absent',
+  lookoutProjectionSha256: 'not-applicable',
 };
 
 let state: GitHubState;

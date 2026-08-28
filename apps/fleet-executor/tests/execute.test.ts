@@ -1595,10 +1595,11 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
 
   it('makes monotonic one-ship progress past Lookout and terminates with every ship executed once', async () => {
     state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
-    state.openPRs = [
-      { number: 700, title: 'Stable peer work', draft: false, head: { ref: 'peer' }, base: { ref: 'main' } },
-    ];
-    state.branches = [{ name: 'peer' }];
+    // An active Lookout can legitimately have no other work to report. Empty
+    // context is still an exact projection and must hash as evidence, not be
+    // confused with the non-Lookout `not-applicable` sentinel.
+    state.openPRs = [];
+    state.branches = [];
     const kv = memoryKV();
     seedToken(kv, 42);
     const d1 = memoryD1();
@@ -1635,6 +1636,15 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
     expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
     expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const lookoutCheckpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'lookout',
+    );
+    const lookoutBinding = JSON.parse(String(lookoutCheckpoint?.detail)).checkpointBinding;
+    expect(lookoutBinding.lookoutProjectionSha256).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(lookoutBinding.lookoutProjectionSha256).not.toBe('not-applicable');
+    expect(lookoutBinding).toEqual(
+      await checkpointBindingForYaml(LOOKOUT_THEN_REVIEWER_QA_YAML, 'lookout', null, '', '', ''),
+    );
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('success');
   });
@@ -2338,6 +2348,27 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
         findings: [],
       },
       binding,
+    )).resolves.toBe(false);
+    expect(d1.steps).toHaveLength(0);
+  });
+
+  it('refuses to persist a Lookout checkpoint with the non-applicable projection sentinel', async () => {
+    const d1 = memoryD1();
+    const binding = await checkpointBindingForYaml(
+      LOOKOUT_THEN_REVIEWER_QA_YAML,
+      'lookout',
+      null,
+      '',
+      '',
+      '',
+    );
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'lookout', blocking: false, verdict: 'PASS', errored: false, findings: [] },
+      { ...binding, lookoutProjectionSha256: 'not-applicable' },
     )).resolves.toBe(false);
     expect(d1.steps).toHaveLength(0);
   });
