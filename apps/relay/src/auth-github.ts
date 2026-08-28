@@ -462,13 +462,20 @@ export interface ResolvedSession {
   user: UserRow;
   /** The decrypted GitHub user-to-server token — repo-access checks ONLY. */
   ghToken: string | null;
+  /**
+   * SHA-256 of the opaque browser-session cookie.  Authorization decisions are
+   * cached under this value so a renewed OAuth login never inherits a stale
+   * allow or deny result from an earlier session.
+   */
+  cacheNamespace: string;
 }
 
 /** Resolve the __Host-pd_session cookie to a live, unexpired session, or null. */
 export async function resolveSession(request: Request, env: Env): Promise<ResolvedSession | null> {
   const value = readSessionCookie(request);
   if (!value) return null;
-  const row = await getWebSession(env.DB, hashHex(value));
+  const cacheNamespace = hashHex(value);
+  const row = await getWebSession(env.DB, cacheNamespace);
   if (!row) return null;
   if (row.expires_at <= Math.floor(Date.now() / 1000)) return null;
   // The wrapping key is required to decrypt the gh token; without it (login
@@ -477,13 +484,14 @@ export async function resolveSession(request: Request, env: Env): Promise<Resolv
     env.USER_TOKEN_WRAPPING_KEY && row.gh_token_enc && row.gh_token_iv
       ? await openToken(env.USER_TOKEN_WRAPPING_KEY, row.gh_token_enc, row.gh_token_iv)
       : null;
-  return { user: row.user, ghToken };
+  return { user: row.user, ghToken, cacheNamespace };
 }
 
 /**
  * Does the session's user have read access to `owner/repo` on GitHub? Cached in
- * KV for 5 minutes keyed by (user_id, repo) so GitHub stays the single source of
- * authz truth without a request per page view. 200/404 from GET /repos decides.
+ * KV for 5 minutes keyed by (user_id, browser session, repo) so a renewed OAuth
+ * login never inherits a stale decision while GitHub remains the source of authz
+ * truth. 200/404 from GET /repos decides.
  */
 export async function userCanReadRepo(
   env: Env,
@@ -492,7 +500,7 @@ export async function userCanReadRepo(
   repo: string,
 ): Promise<boolean> {
   if (!session.ghToken) return false;
-  const cacheKey = `repo_access:${session.user.id}:${owner}/${repo}`;
+  const cacheKey = `repo_access:${session.user.id}:${session.cacheNamespace}:${owner}/${repo}`;
   const cached = await env.KV.get(cacheKey);
   if (cached === '1') return true;
   if (cached === '0') return false;
