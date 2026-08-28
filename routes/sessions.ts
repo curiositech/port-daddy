@@ -31,6 +31,7 @@ import {
   type BrokerActivityLog,
   type BrokerInbox,
 } from '../lib/suggestion-broker.js';
+import type { BlastRadiusDeps } from '../lib/blast-radius.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -120,6 +121,7 @@ interface SessionsRouteDeps {
   activityLog: BrokerActivityLog;
   suggestions?: Suggestions;
   agentInbox?: BrokerInbox;
+  symbolIndex?: BlastRadiusDeps;
   symbolClaims?: {
     claim(
       sessionId: string,
@@ -190,6 +192,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     suggestions,
     agentInbox,
     parleyAutoTrigger,
+    symbolIndex,
   } = deps;
 
   interface ClaimConflictRecord {
@@ -228,6 +231,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         suggestions,
         inbox: agentInbox,
         activityLog,
+        symbolIndex,
       });
       if (scan.surfaced > 0) {
         logger.info('claim_tree_trouble_surfaced', { ...scan });
