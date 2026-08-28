@@ -1485,6 +1485,11 @@
       "summaryMd": "S1 — Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
     },
     {
+      "slug": "sugar-first-parley-experience",
+      "status": "now",
+      "summaryMd": "Sugar-first Parley: turn ordinary agent work into semantically and structurally grounded, bounded coordination cards with explicit human actions, hook context, and typed settlement receipts."
+    },
+    {
       "slug": "suggest-b1-1-suggestions-table",
       "status": "backlog",
       "summaryMd": "B1.1 Migration for suggestions(agent_id,kind,payload,confidence,status,created_at,acted_on_at,muted_until) per ADR-0039 + CRUD. Done when schema migrates clean + unit test."
