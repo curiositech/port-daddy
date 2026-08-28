@@ -138,6 +138,7 @@ jobs:
             test -s "$PKGSHARE/skills/port-daddy-agent-skill/SKILL.md"
             test -s "$PKGSHARE/agents/port-daddy-pilot/AGENT.md"
             test -x "$PKGSHARE/bin/pd-hook-prompt"
+            test -x "$PKGSHARE/bin/pd-hook-precompact"
             echo "pkgshare runtime cargo present (single-supervisor layout)"
           else
             echo "pre-3.28 keg layout (no pkgshare cargo) — acceptable until the cutover release ships"

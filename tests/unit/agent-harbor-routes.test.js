@@ -33,8 +33,14 @@ import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-serv
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createContinuationStore } from '../../lib/continuation-runtime.js';
 import { createTranscripts } from '../../lib/transcripts.js';
+import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { createContextContinuityCoordinator } from '../../lib/agent-harbor/context-continuity.js';
+import { createSessions } from '../../lib/sessions.js';
+import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
+import { resolveWriteIdentity, stampIdentityMetadata } from '../../lib/identity-write-boundary.js';
 import { agentHarborPlugin } from '../../routes/agent-harbor.js';
+import { getEffectiveContextWindow } from '../../lib/context-window-tracker.js';
+import { resolveModel } from '../../lib/model-registry.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureDir = join(here, '..', '..', 'schemas', 'agent-harbor', 'v0', 'fixtures');
@@ -89,6 +95,27 @@ function seed(db) {
 
 function buildApp(db, sse = {}) {
   const app = Fastify();
+  const episodicMemory = createEpisodicMemory(db);
+  const sessions = createSessions(db);
+  const actorSouls = createTestActorSouls(db);
+  const providerSessionBindings = new Map();
+  const interactiveProviderSessionBinding = {
+    resolve: jest.fn(({ provider, providerSessionId }) => (
+      provider === 'claude' ? providerSessionBindings.get(providerSessionId) ?? null : null
+    )),
+  };
+  const interactiveContextUsageWitness = { measure: jest.fn(() => null) };
+  const interactiveToolPairWitness = {
+    coverage: jest.fn(({ provider, sessionId, observationId }) => ({
+      witness: 'daemon-adapter',
+      status: 'complete',
+      provider,
+      sessionId,
+      observationId,
+      coveredThroughLedgerSeq: 0,
+      coverageRef: 'route-test-complete-tool-pairs',
+    })),
+  };
   const dispatchQueue = createDispatchQueue({ db });
   const dispatchWorker = {
     poll: jest.fn(async () => {
@@ -113,11 +140,58 @@ function buildApp(db, sse = {}) {
     }),
     dispatchQueue,
     dispatchWorker,
+    episodicMemory,
+    gitleaksRunner: () => ({ findings: [] }),
+    sessions,
+    actorSouls,
+    interactiveProviderSessionBinding,
+    interactiveContextUsageWitness,
+    interactiveToolPairWitness,
     metrics: { errors: 0 },
     logger: { info: jest.fn(), error: jest.fn() },
   };
   app.register(agentHarborPlugin, { deps, sse });
-  return { app, deps };
+  return {
+    app,
+    deps,
+    episodicMemory,
+    sessions,
+    actorSouls,
+    providerSessionBindings,
+    interactiveProviderSessionBinding,
+    interactiveContextUsageWitness,
+    interactiveToolPairWitness,
+  };
+}
+
+function startInteractivePlanSession({
+  sessions,
+  actorSouls,
+  providerSessionBindings,
+  actor = mintTestActor(actorSouls),
+  agentId = NODE_ID,
+  note = '- [ ] Continue only from the cited plan',
+} = {}) {
+  const verdict = resolveWriteIdentity({
+    souls: actorSouls,
+    credential: actor.credential,
+    assertedAgentId: null,
+    route: 'POST /agent-harbor/interactive-context-pressure',
+    requireIdentity: true,
+  });
+  if (!verdict.ok) throw new Error('test actor credential did not resolve');
+  const started = sessions.start('interactive context plan', {
+    agentId,
+    project: 'port-daddy',
+    worktreeId: 'route-test-worktree',
+    metadata: stampIdentityMetadata(null, verdict),
+  });
+  if (!started.success) throw new Error(started.error);
+  const noted = sessions.addNote(started.id, note, { type: 'todo_list' });
+  if (!noted.success) throw new Error(noted.error);
+  const providerSessionId = `claude-provider-${started.id}`;
+  providerSessionBindings?.set(providerSessionId, { planSessionId: started.id });
+  return { actor, sessionId: started.id, providerSessionId };
 }
 
 function gatewayEnvelope(overrides = {}) {
@@ -165,12 +239,27 @@ describe('agent-harbor routes', () => {
   let db;
   let app;
   let deps;
+  let sessions;
+  let actorSouls;
+  let providerSessionBindings;
+  let interactiveProviderSessionBinding;
+  let interactiveContextUsageWitness;
+  let interactiveToolPairWitness;
 
   beforeEach(async () => {
     db = initDatabase({ inMemory: true });
     seed(db);
     projectPending(db);
-    ({ app, deps } = buildApp(db, { pollMs: 40, heartbeatMs: 200 }));
+    ({
+      app,
+      deps,
+      sessions,
+      actorSouls,
+      providerSessionBindings,
+      interactiveProviderSessionBinding,
+      interactiveContextUsageWitness,
+      interactiveToolPairWitness,
+    } = buildApp(db, { pollMs: 40, heartbeatMs: 200 }));
     await app.ready();
   });
 
@@ -275,6 +364,434 @@ describe('agent-harbor routes', () => {
       });
       expect(matching.json().counts.observed).toBe(1);
       expect(foreign.json().counts.observed).toBe(0);
+    });
+  });
+
+  describe('POST /agent-harbor/interactive-context-pressure', () => {
+    function daemonMeasurement(tokensUsed = 850, effectiveMax = 1_000, measurementRef = 'route-test-measurement:1') {
+      interactiveContextUsageWitness.measure.mockReturnValue({
+        witness: 'daemon-adapter',
+        model: 'claude-test',
+        daemonUsedTokensEstimate: tokensUsed,
+        windowTokens: effectiveMax,
+        measurementRef,
+      });
+    }
+
+    function requestPayload(providerSessionId, overrides = {}) {
+      return {
+        provider: 'claude',
+        hookTrigger: 'manual',
+        agentNodeId: NODE_ID,
+        providerSessionId,
+        ...overrides,
+      };
+    }
+
+    test('binds a credentialed hook to its durable plan session and returns only a bounded receipt', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/interactive-context-pressure',
+        headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        schema: 'pd.agent-harbor.interactive-context-pressure-result.v0',
+        status: 'recorded',
+        directive: { decision: 'allow', plan: 'checkpointed', riskyWork: 'restricted' },
+        receipt: {
+          pressure: 0.85,
+          packet: { validatorPassed: true },
+          handoff: 'not-projected',
+        },
+      });
+      expect(response.payload.length).toBeLessThan(2_048);
+      expect(response.payload).not.toContain('transcriptExcerpts');
+      expect(response.payload).not.toContain('bootstrap');
+
+      const pressure = readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .find((row) => row.kind === 'context_pressure');
+      expect(pressure).toBeTruthy();
+      const envelope = JSON.parse(pressure.payload_json).payloadJson.contextEnvelope;
+      expect(envelope).toMatchObject({
+        sessionId: plan.sessionId,
+        agentNodeId: NODE_ID,
+        usedTokensEstimate: 850,
+        windowTokens: 1_000,
+      });
+    });
+
+    test('refreshes Claude context pressure at turn start before packet issuance', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement(600, 1_000, 'claude-turn-start:1');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/interactive-context-pressure',
+        headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId, { hookTrigger: 'turn' }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        status: 'recorded',
+        directive: {
+          decision: 'allow',
+          plan: 'checkpointed',
+          riskyWork: 'allowed',
+          continuation: 'normal',
+          reason: expect.stringContaining('Prepare and checkpoint `pd plan`'),
+        },
+        receipt: {
+          pressure: 0.6,
+          packet: null,
+          handoff: 'not-requested',
+          replayed: false,
+        },
+      });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .map((row) => row.kind)).not.toContain('compaction_packet');
+    });
+
+    test('replays an unchanged Claude turn from the durable fallback rather than its own receipts', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      // Do not install an in-process adapter witness. The bounded fallback
+      // estimates only provider-work rows, then must ignore its subsequently
+      // written plan/coverage/context rows when deriving the next watermark.
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: {
+          eventId: `evt_durable_fallback_${plan.sessionId}`,
+          sessionId: plan.sessionId,
+          agentNodeId: NODE_ID,
+          sequence: 1,
+          occurredAt: '2026-08-27T12:00:00.000Z',
+          schemaVersion: 1,
+          kind: 'operator_message',
+          visibility: 'operator',
+          payloadJson: { content: 'x'.repeat(300_000) },
+        },
+      });
+
+      const first = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/interactive-context-pressure',
+        headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId, { hookTrigger: 'turn' }),
+      });
+      const second = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/interactive-context-pressure',
+        headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId, { hookTrigger: 'turn' }),
+      });
+
+      expect(first.statusCode).toBe(200);
+      expect(first.json()).toMatchObject({
+        status: 'recorded',
+        receipt: { packet: null, replayed: false },
+      });
+      expect(second.statusCode).toBe(200);
+      expect(second.json()).toMatchObject({
+        status: 'recorded',
+        receipt: { packet: null, replayed: true },
+      });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .filter((row) => row.kind === 'context_pressure')).toHaveLength(1);
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .filter((row) => row.kind === 'compaction_packet')).toHaveLength(0);
+    });
+
+    test('the daemon-default dependency shape reports provider-session-unbound without creating a record', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      deps.interactiveProviderSessionBinding = null; // server.ts supplies no binding until an adapter owns one.
+      daemonMeasurement();
+
+      const response = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        status: 'provider-session-unbound',
+        capability: { provider: 'claude', preCompact: 'supported' },
+        directive: { continuation: 'normal' },
+        receipt: null,
+        error: { code: 'INTERACTIVE_PROVIDER_SESSION_UNBOUND' },
+      });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .map((row) => row.kind)).not.toContain('context_pressure');
+    });
+
+    test('does not let a stale ambient plan claim override the daemon provider-session binding', async () => {
+      const providerA = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      const staleAmbientPlan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings, actor: providerA.actor });
+      daemonMeasurement();
+
+      const smuggled = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: providerA.actor.headers,
+        payload: requestPayload(providerA.providerSessionId, { planCheckpoint: { sessionId: staleAmbientPlan.sessionId } }),
+      });
+      expect(smuggled.statusCode).toBe(400);
+      expect(smuggled.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_REJECTED' });
+
+      const bound = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: providerA.actor.headers,
+        payload: requestPayload(providerA.providerSessionId),
+      });
+      expect(bound.statusCode).toBe(200);
+      expect(bound.json()).toMatchObject({ status: 'recorded' });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: providerA.sessionId })
+        .map((row) => row.kind)).toContain('context_pressure');
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: staleAmbientPlan.sessionId })
+        .map((row) => row.kind)).not.toContain('context_pressure');
+    });
+
+    test('rejects missing or forged actor credentials before writing a context event', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement();
+      const before = readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId }).length;
+
+      const missing = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure',
+        payload: requestPayload(plan.providerSessionId),
+      });
+      const forged = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure',
+        headers: { 'x-actor-credential': 'forged.not-a-secret' },
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      expect(missing.statusCode).toBe(401);
+      expect(missing.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+      expect(forged.statusCode).toBe(401);
+      expect(forged.json().code).toBe('IDENTITY_CREDENTIAL_INVALID');
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })).toHaveLength(before);
+    });
+
+    test('rejects a different soul even when it uses the same display agent handle', async () => {
+      const owner = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings, agentId: NODE_ID });
+      const intruder = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings, agentId: NODE_ID });
+      daemonMeasurement();
+
+      const response = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure',
+        headers: intruder.actor.headers,
+        payload: requestPayload(owner.providerSessionId),
+      });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_AUTHORITY_REJECTED' });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: owner.sessionId })
+        .map((row) => row.kind)).not.toContain('context_pressure');
+    });
+
+    test('rejects caller-supplied usage, plan session claims, and unsupported provider claims', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement();
+      const providerUsage = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId, { providerNativeUsage: { usedTokensEstimate: 999 } }),
+      });
+      const rawUsage = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId, { windowTokens: 1_000 }),
+      });
+      const malformedPlan = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId, { planCheckpoint: 'not-an-object' }),
+      });
+      const unsupported = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure',
+        payload: { provider: 'not-a-provider' },
+      });
+
+      for (const response of [providerUsage, rawUsage, malformedPlan, unsupported]) {
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_REJECTED' });
+      }
+    });
+
+    test('rejects every non-envelope field before auth or any ledger write', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement();
+      const before = readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId }).length;
+      for (const payload of [
+        requestPayload(plan.providerSessionId, { transcript: 'raw predecessor text' }),
+        requestPayload(plan.providerSessionId, { plan: 'smuggled plan text' }),
+        requestPayload(plan.providerSessionId, { bufferedOutputRef: { id: 'private-blob' } }),
+        requestPayload(plan.providerSessionId, { futureUncheckedField: true }),
+      ]) {
+        const response = await app.inject({
+          method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers, payload,
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_REJECTED' });
+      }
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })).toHaveLength(before);
+    });
+
+    test('reports measurement unavailable rather than accepting a hook estimate', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      const response = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        status: 'measurement-unavailable',
+        directive: { continuation: 'normal' },
+        receipt: null,
+      });
+    });
+
+    test('resolves the daemon-only Claude fallback through the canonical model tier', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: transcript({
+          eventId: 'evt_daemon_only_interactive_measurement',
+          sessionId: plan.sessionId,
+          sequence: 1,
+          kind: 'assistant_message',
+          payloadJson: { content: 'Daemon-owned evidence for the bounded fallback.' },
+        }),
+      });
+
+      const response = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ status: 'recorded' });
+      const pressure = readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .find((row) => row.kind === 'context_pressure');
+      const envelope = JSON.parse(pressure.payload_json).payloadJson.contextEnvelope;
+      const expectedModel = resolveModel({ backend: 'anthropic', tier: 'mid' });
+      expect(envelope).toMatchObject({
+        model: expectedModel,
+        windowTokens: getEffectiveContextWindow(expectedModel),
+      });
+    });
+
+    test('withholds a packet by default when no in-process tool-pair witness is wired', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement();
+      deps.interactiveToolPairWitness = null;
+
+      const response = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        status: 'rejected',
+        error: { code: 'TOOL_PAIR_COVERAGE_UNAVAILABLE' },
+        directive: { continuation: 'packet-withheld' },
+        receipt: null,
+      });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .map((row) => row.kind)).not.toContain('compaction_packet');
+    });
+
+    test('evolves a server-derived observation when the trusted measurement rises, but replays an exact retry', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      daemonMeasurement(850, 1_000);
+      const first = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      daemonMeasurement(950, 1_000);
+      const elevated = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      const retry = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      expect(first.json()).toMatchObject({ status: 'recorded', receipt: { pressure: 0.85, replayed: false } });
+      expect(elevated.json()).toMatchObject({
+        status: 'recorded',
+        directive: { continuation: 'governed-successor' },
+        receipt: { pressure: 0.95, replayed: false },
+      });
+      expect(retry.json()).toMatchObject({ status: 'recorded', receipt: { pressure: 0.95, replayed: true } });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .filter((row) => row.kind === 'context_pressure')).toHaveLength(2);
+    });
+
+    test('distinguishes a later daemon measurement watermark at unchanged usage and replays only its exact retry', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
+      let coverageWatermark = 1;
+      interactiveToolPairWitness.coverage.mockImplementation(({ provider, sessionId, observationId }) => ({
+        witness: 'daemon-adapter',
+        status: 'complete',
+        provider,
+        sessionId,
+        observationId,
+        coveredThroughLedgerSeq: coverageWatermark,
+        coverageRef: `route-test-tool-pairs:${coverageWatermark}`,
+      }));
+
+      daemonMeasurement(850, 1_000, 'adapter-observation:1');
+      const first = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      // A later tool-pair witness may have the same rounded token estimate.
+      // Its daemon-owned observation watermark, rather than a provider payload
+      // timestamp, makes this a distinct compaction boundary.
+      coverageWatermark = 2;
+      daemonMeasurement(850, 1_000, 'adapter-observation:2');
+      const later = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      const retry = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+
+      expect(first.json()).toMatchObject({ status: 'recorded', receipt: { replayed: false } });
+      expect(later.json()).toMatchObject({ status: 'recorded', receipt: { replayed: false } });
+      expect(retry.json()).toMatchObject({ status: 'recorded', receipt: { replayed: true } });
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .filter((row) => row.kind === 'context_pressure')).toHaveLength(2);
+      expect(readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .filter((row) => row.kind === 'compaction_packet')).toHaveLength(2);
+    });
+
+    test('uses a revised durable pd plan as a new packet authority at unchanged pressure', async () => {
+      const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings, note: '- [ ] Original plan authority' });
+      daemonMeasurement(850, 1_000);
+      const first = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      expect(first.statusCode).toBe(200);
+      const updated = sessions.addNote(plan.sessionId, '- [ ] Revised plan authority', { type: 'todo_list' });
+      expect(updated.success).toBe(true);
+      const second = await app.inject({
+        method: 'POST', url: '/agent-harbor/interactive-context-pressure', headers: plan.actor.headers,
+        payload: requestPayload(plan.providerSessionId),
+      });
+      expect(second.statusCode).toBe(200);
+      expect(first.json().receipt.replayed).toBe(false);
+      expect(second.json().receipt.replayed).toBe(false);
+      const packets = readEvents(db, { streamType: 'transcript-event', sessionId: plan.sessionId })
+        .filter((row) => row.kind === 'compaction_packet');
+      expect(packets).toHaveLength(2);
+      expect(JSON.parse(packets[1].payload_json).payloadJson.identity.operatorInstructions)
+        .toEqual(['- [ ] Revised plan authority']);
     });
   });
 

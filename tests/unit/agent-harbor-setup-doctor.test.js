@@ -300,7 +300,7 @@ describe('per-area judgments', () => {
 });
 
 describe('transparent hook inventory (ch18 output)', () => {
-  test('pre-compact has its stable binary mapping before the adapter publishes its metadata', () => {
+  test('maps the composable pre-compact purpose to its shipped binary', () => {
     // #9915 adds `preCompact` to SquidHookPurpose. Keep this forward-compatible
     // seam explicit so metadata expansion cannot yield an undefined binary in
     // the operator's setup/doctor inventory.
@@ -310,7 +310,7 @@ describe('transparent hook inventory (ch18 output)', () => {
   test('every installed hook has a name, description, privacy note, and binary', () => {
     const inventory = transparentHookInventory();
     expect(inventory.map((h) => h.hookBinary).sort()).toEqual([
-      'pd-hook-post-tool', 'pd-hook-pre-tool', 'pd-hook-prompt', 'pd-hook-stop',
+      'pd-hook-post-tool', 'pd-hook-pre-tool', 'pd-hook-precompact', 'pd-hook-prompt', 'pd-hook-stop',
     ]);
     for (const hook of inventory) {
       expect(hook.displayName).toMatch(/Port Daddy/);
