@@ -67,11 +67,30 @@ metaphor:
 
 ## Reference standard distilled from `legible-volume1-audit`
 
+Use this as a print-layout contract, not an invitation to copy its subject
+matter:
+
+- **One question, one visual grammar.** A comparison is two balanced panels; a
+  threshold is an axis-bound plot; a protocol is a short, ordered sequence.
+  Never combine all three because the source prose mentions all three.
+- **Grid before decoration.** Panel widths, baselines, actor columns, time
+  ticks, and annotation bands must align before any colour or rounded frame is
+  introduced. Captions carry the conclusion; the plot carries the evidence.
+- **A disciplined semantic palette.** Warm paper and dark ink are the default.
+  Teal marks the working/verified route, amber marks a boundary or cost, and
+  cobalt is reserved for one genuinely comparative or counterfactual trace;
+  it never becomes the default outline of every component.
+- **Labels live in reserved space.** Put legend, formula, stage strip, and
+  explanation in dedicated exterior bands. Nothing may sit on top of a curve,
+  arrow bend, terminal, or another label.
+- **The page is the test.** A figure that works as a crop but forces the prose,
+  caption, or next heading into a cramped page does not meet this standard.
+
 Keep:
 
 - Figure 6's phase-boundary plot: one common scale, a shaded decision region,
   a distinct dashed counterfactual, and an explanation panel outside the axes.
-- Figure 8's abdicaton plot: direct values on a common scale, a stage rail
+- Figure 8's abdication plot: direct values on a common scale, a stage rail
   below the plot, and intervention markers that have ample clearance.
 - Figure 3's side-by-side comparison: symmetric panels, a shared baseline,
   and the conclusion carried by caption rather than duplicated prose.
