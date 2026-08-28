@@ -540,6 +540,11 @@ function purserReviewCoverage(
       `GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes; source after that boundary was unavailable to Purser`,
     );
   }
+  if (prCtx.filesTruncated) {
+    reasons.push(
+      'GitHub returned an incomplete changed-file inventory; paths after that boundary were unavailable to Purser',
+    );
+  }
   if (purserDiffPromptTruncated(prCtx.diff)) {
     reasons.push(
       `Purser projected only the first ${PURSER_DIFF_CHAR_LIMIT} characters of the diff into its model requests`,

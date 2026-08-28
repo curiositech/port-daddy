@@ -48,6 +48,11 @@ describe('isReviewableForBugs', () => {
     expect(isReviewableForBugs('website-v2/public/casts/porthole/collision.cast')).toBe(false);
   });
 
+  it('excludes only the docs/artifacts directory, not same-prefix authored files', () => {
+    expect(isReviewableForBugs('docs/artifacts/porthole-harness-proof-v2/receipt.json')).toBe(false);
+    expect(isReviewableForBugs('docs/artifacts.txt')).toBe(true);
+  });
+
   it('keeps authored source reviewable after evidence is excluded', () => {
     expect(isReviewableForBugs('apps/fleet-executor/src/execute.ts')).toBe(true);
   });

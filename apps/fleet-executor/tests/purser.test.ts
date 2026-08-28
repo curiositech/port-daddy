@@ -366,6 +366,24 @@ describe('runPurser — steel-man failure modes', () => {
     expect(aggregateConclusion([truncated])).toBe('neutral');
   });
 
+  it('marks an incomplete GitHub changed-file inventory as partial coverage', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    const result = await runPurser(
+      mkShip(),
+      mkCtx({ filesTruncated: true }),
+      makeEnv({ AI: ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ errored: false, reviewCoverage: 'partial' });
+    expect(result.reviewCoverageReason).toContain('incomplete changed-file inventory');
+    expect(aggregateConclusion([result])).toBe('neutral');
+    expect(rec.steps).toContainEqual(expect.objectContaining({ kind: 'purser-context-partial' }));
+  });
+
   it('fails visibly before Workers AI when an indivisible full request exceeds capacity', async () => {
     const run = vi.fn(async () => ({ response: STEELMAN_JSON }));
     const rec = recorder();

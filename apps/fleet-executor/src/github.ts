@@ -655,7 +655,14 @@ export async function fetchTrustedShipContract(
   if (body.encoding !== 'base64' || typeof body.content !== 'string') {
     throw new Error(`fetch trusted ship contract ${path} returned an invalid contents payload`);
   }
-  return atob(body.content.replace(/\n/g, ''));
+  const contract = atob(body.content.replace(/\n/g, ''));
+  // A successful Contents response still has to contain a usable trusted
+  // contract. Treating whitespace as absence would silently weaken the prompt
+  // and checkpoint binding even though GitHub confirmed the file exists.
+  if (contract.trim().length === 0) {
+    throw new Error(`fetch trusted ship contract ${path} returned an empty contract`);
+  }
+  return contract;
 }
 
 // ---------------------------------------------------------------------------
