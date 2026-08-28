@@ -302,7 +302,7 @@ describe('transparent hook inventory (ch18 output)', () => {
   test('every installed hook has a name, description, privacy note, and binary', () => {
     const inventory = transparentHookInventory();
     expect(inventory.map((h) => h.hookBinary).sort()).toEqual([
-      'pd-hook-post-tool', 'pd-hook-pre-tool', 'pd-hook-prompt', 'pd-hook-stop',
+      'pd-hook-post-tool', 'pd-hook-pre-tool', 'pd-hook-precompact', 'pd-hook-prompt', 'pd-hook-stop',
     ]);
     for (const hook of inventory) {
       expect(hook.displayName).toMatch(/Port Daddy/);

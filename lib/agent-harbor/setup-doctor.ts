@@ -506,6 +506,7 @@ const HOOK_BINARY_FOR_PURPOSE: Record<SquidHookPurpose, string> = {
   preTool: 'pd-hook-pre-tool',
   postTool: 'pd-hook-post-tool',
   stop: 'pd-hook-stop',
+  preCompact: 'pd-hook-precompact',
 };
 
 /**

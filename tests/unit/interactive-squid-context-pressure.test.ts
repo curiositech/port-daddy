@@ -13,6 +13,7 @@ import {
   loadLatestVerifiedContextBootstrap,
   loadVerifiedContextBootstrapFromProjection,
 } from '../../lib/agent-harbor/context-continuity.js';
+import { transparentHookInventory } from '../../lib/agent-harbor/setup-doctor.js';
 import { buildJsonHookMap, codexHooksTomlBlock } from '../../lib/squid/hook-shape.js';
 import { recordInteractiveContextPressure } from '../../lib/squid/context-pressure.js';
 import { handleSquidContextPressureIngress, postBoundedPrecompactIngress } from '../../cli/commands/squid.js';
@@ -129,6 +130,40 @@ function input(overrides: Record<string, unknown> = {}) {
 }
 
 describe('interactive Squid context-pressure bridge', () => {
+  test('ships the Claude-only checkpoint and connects verified bootstrap lookup at the daemon composition root', () => {
+    expect(transparentHookInventory()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ hookBinary: 'pd-hook-precompact' }),
+    ]));
+
+    const releaseManifest = JSON.parse(readFileSync(join(process.cwd(), 'release-artifacts.json'), 'utf8')) as {
+      artifacts: Array<Record<string, unknown>>;
+    };
+    expect(releaseManifest.artifacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'pd-hook-precompact',
+        sourcePath: 'bin/pd-hook-precompact',
+        stagedPath: 'bin/pd-hook-precompact',
+        required: true,
+        executable: true,
+      }),
+    ]));
+
+    const serverSource = readFileSync(join(process.cwd(), 'server.ts'), 'utf8');
+    expect(serverSource).toContain("import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';");
+    expect(serverSource).toContain('const contextBootstrapLookup = (sourceSessionId: string) => loadLatestVerifiedContextBootstrap(db, sourceSessionId);');
+    expect(serverSource).toContain('contextBootstrapLookup,');
+
+    const releaseSources = [
+      'scripts/build-single-binary.mjs',
+      '.github/workflows/release.yml',
+      '.github/workflows/fresh-install.yml',
+      'scripts/smoke-squid-release.mjs',
+    ];
+    for (const path of releaseSources) {
+      expect(readFileSync(join(process.cwd(), path), 'utf8')).toContain('pd-hook-precompact');
+    }
+  });
+
   test('registers a truthful Claude-only PreCompact and turn-pressure hook shape', () => {
     const resolve = (name: string) => `/stable/pd/${name}`;
     const claude = buildJsonHookMap('claude', resolve);

@@ -72,6 +72,7 @@ import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
+import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -735,7 +736,24 @@ const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
-const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
+/**
+ * Resolve one predecessor's bounded continuity projection for every daemon
+ * entry point. The design purpose is to keep fresh-begin, takeover, and
+ * salvage flows evidence-led instead of replaying an unbounded transcript.
+ *
+ * @param sourceSessionId - Durable predecessor session identifier to revalidate.
+ * @returns The verified plan-plus-packet projection, or an explicit withheld state.
+ */
+const contextBootstrapLookup = (sourceSessionId: string) => loadLatestVerifiedContextBootstrap(db, sourceSessionId);
+const sugar = createSugar({
+  agents,
+  sessions: sugarSessions,
+  activityLog,
+  roadmapItems,
+  feedback,
+  commitments,
+  contextBootstrapLookup,
+});
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -1630,6 +1648,7 @@ await registerAllRoutes(
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
+    contextBootstrapLookup,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

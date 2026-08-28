@@ -176,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist/bin dist/hooks dist/skills dist/agents
-          for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool pd-hook-stop pd-statusline; do
+          for f in pd-hook-prompt pd-hook-precompact pd-hook-pre-tool pd-hook-post-tool pd-hook-stop pd-statusline; do
             cp "bin/$f" "dist/bin/$f"
             chmod +x "dist/bin/$f"
           done

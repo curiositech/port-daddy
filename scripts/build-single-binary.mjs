@@ -259,6 +259,7 @@ function writeEmbeddedAssetsModule() {
 function stageSquidReleaseAssets(releaseDir) {
   const executableAssets = [
     'pd-hook-prompt',
+    'pd-hook-precompact',
     'pd-hook-pre-tool',
     'pd-hook-post-tool',
     'pd-hook-stop',
