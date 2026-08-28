@@ -418,6 +418,14 @@ gone, voluntary disclosure no longer unravels, which is why the daemon must furn
 allow it. What Theorem 2b then adds to disclosure theory is that attestation does not only reveal the engine, it \emph{re-prices}
 it.
 
+A third hypothesis fails for a different reason: even a competitive \emph{market} for attestation need not unravel to full
+disclosure. Lizzeri shows a monopoly certification intermediary optimally withholds everything and extracts the entire surplus
+whenever its own profit, not the buyer's welfare, sets the disclosure rule, and that full revelation is recovered only in the
+frictionless limit of infinitely many free-entering competitors --- a limit any positive, sequential entry cost defeats,
+sustaining the pooling monopoly indefinitely \cite{lizzeri99}. A voluntary, third-party attestation market therefore inherits a
+failure mode a protocol-mandated channel does not: the daemon is not a profit-maximizing intermediary choosing how much of the
+engine id to reveal, so its incentive to pool never arises in the first place.
+
 The observation that costly instruments only certain types will pay can \emph{sort} them traces to Spence \cite{spence}; the
 deterrence instrument itself --- post a stake forfeited on misconduct, sized to the gain --- is Becker's expected-penalty
 condition \cite{becker1968}, which is also what Theorem 2a's $qB\ge\Delta c$ restates. That zero-cost pseudonyms make sanctions
@@ -480,6 +488,8 @@ LNCS 2429, pp.~251--260, 2002.
 Economics}, 12(2):380--391, 1981.
 \bibitem{dranove-jin} D.~Dranove and G.~Z. Jin. Quality disclosure and certification: theory and practice. \emph{Journal of
 Economic Literature}, 48(4):935--963, 2010.
+\bibitem{lizzeri99} A.~Lizzeri. Information revelation and certification intermediaries. \emph{RAND Journal of Economics},
+30(3):214--231, 1999.
 \bibitem{feldman2004} M.~Feldman, C.~Papadimitriou, J.~Chuang, and I.~Stoica. Free-riding and whitewashing in peer-to-peer
 systems. In \emph{Proc.\ ACM SIGCOMM Workshop on Practice and Theory of Incentives in Networked Systems (PINS)}, pages
 228--236, 2004.
