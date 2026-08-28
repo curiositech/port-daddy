@@ -13,45 +13,45 @@
 \centering
 \begin{tikzpicture}[
   lane/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=32mm, align=center},
-  msgarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt},
+  msgarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhteal, line width=0.75pt},
   flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
   notebox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=62mm, align=left},
   lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt}
 ]
 
   % ─── Four Lifelines ─────────────────────────────────────────────────────────
-  \node[lane] (LA) at (-5.1, 0) {\textbf{\scshape Alice's Agent}\\[1pt]{\scriptsize Claim Holder}};
-  \node[lane] (HA) at (-1.7, 0) {\textbf{\scshape Harbor $A$}\\[1pt]{\scriptsize Alice's Daemon}};
-  \node[lane] (HB) at (1.7, 0) {\textbf{\scshape Harbor $B$}\\[1pt]{\scriptsize Bob's Daemon}};
-  \node[lane] (LB) at (5.1, 0) {\textbf{\scshape Bob's Agent}\\[1pt]{\scriptsize Verifier}};
+  \node[lane] (LA) at (-5.1, 0) {\textbf{Alice's Agent}\\[1pt]{\scriptsize Claim Holder}};
+  \node[lane] (HA) at (-1.7, 0) {\textbf{Harbor $A$}\\[1pt]{\scriptsize Alice's Daemon}};
+  \node[lane] (HB) at (1.7, 0) {\textbf{Harbor $B$}\\[1pt]{\scriptsize Bob's Daemon}};
+  \node[lane] (LB) at (5.1, 0) {\textbf{Bob's Agent}\\[1pt]{\scriptsize Verifier}};
 
   % Lifeline dashed tracks
-  \draw[hhgray!40, line width=0.4pt, dashed] (LA.south) -- ++(0, -5.4);
-  \draw[hhgray!40, line width=0.4pt, dashed] (HA.south) -- ++(0, -5.4);
-  \draw[hhgray!40, line width=0.4pt, dashed] (HB.south) -- ++(0, -5.4);
-  \draw[hhgray!40, line width=0.4pt, dashed] (LB.south) -- ++(0, -5.4);
+  \draw[hhgray!40, line width=0.4pt, dashed] (LA.south) -- ++(0, -3.85);
+  \draw[hhgray!40, line width=0.4pt, dashed] (HA.south) -- ++(0, -3.85);
+  \draw[hhgray!40, line width=0.4pt, dashed] (HB.south) -- ++(0, -3.85);
+  \draw[hhgray!40, line width=0.4pt, dashed] (LB.south) -- ++(0, -3.85);
 
   % ─── Step 1: Transfer request ───────────────────────────────────────────────
-  \draw[msgarr] (-5.1, -1.0) -- node[lbl, above] {$\mathsf{xfer\_req}(C_A, B)$} (-1.7, -1.0);
+  \draw[msgarr] (-5.1, -.78) -- node[lbl, above] {$\mathsf{xfer\_req}(C_A, B)$} (-1.7, -.78);
 
   % ─── Step 2: Transfer offer with signed epoch root ──────────────────────────
-  \draw[msgarr] (-1.7, -2.2) -- node[lbl, above] {$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} (1.7, -2.2);
+  \draw[msgarr] (-1.7, -1.62) -- node[lbl, above] {$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} (1.7, -1.62);
 
   % ─── Step 3: Attenuated ack with recipient epoch root ───────────────────────
-  \draw[msgarr] (1.7, -3.4) -- node[lbl, above] {$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} (-1.7, -3.4);
+  \draw[msgarr] (1.7, -2.46) -- node[lbl, above] {$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} (-1.7, -2.46);
 
   % ─── Step 4: Card delivery to destination verifier ──────────────────────────
-  \draw[msgarr] (1.7, -4.6) -- node[lbl, above] {$\mathsf{xfer\_deliver}\langle C_B'\rangle$} (5.1, -4.6);
+  \draw[msgarr] (1.7, -3.30) -- node[lbl, above] {$\mathsf{xfer\_deliver}\langle C_B'\rangle$} (5.1, -3.30);
 
   % ─── Summary Callout Box Below ──────────────────────────────────────────────
-  \node[notebox, below=5.8cm of HA, xshift=-1.7cm] {
-    \textbf{\scshape Invariants Foreclosed:}\\
+  \node[notebox, below=4.25cm of HA, xshift=-1.7cm] {
+    \textbf{Invariants Foreclosed:}\\
     $\bullet$ Identity spoofing of $\mathit{sk}_A$ across trust boundary\\
     $\bullet$ Capability escalation ($\text{cap}_B' \subseteq \text{cap}_A$ enforced)\\
     $\bullet$ Replay attack against stale epoch root $R_A$
   };
-  \node[notebox, below=5.8cm of HB, xshift=1.7cm] {
-    \textbf{\scshape Deferred Properties:}\\
+  \node[notebox, below=4.25cm of HB, xshift=1.7cm] {
+    \textbf{Deferred Properties:}\\
     $\bullet$ Revocation propagation latency (\S\ref{sec:fh-revocation})\\
     $\bullet$ Conditionally bounded escrow custody (\S\ref{sec:fh-settlement})\\
     $\bullet$ Witness log equivocation proof (\S\ref{sec:fh-authority})

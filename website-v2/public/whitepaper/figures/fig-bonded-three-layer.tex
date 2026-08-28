@@ -1,142 +1,85 @@
-% Three-layer architecture — canonical figure. Inline at the §1 → §2 boundary.
-% Sibling of fig-anchor-capability-attenuation (Russian-doll grammar), at the
-% architecture level rather than the delegation level. Visually audited at 500 DPI
-% on the rendered paper page (2026-05-19): titles repositioned inside their rings;
-% Agent action principal box anchored adjacent to L3 (not floating off-page);
-% red-dashed-stop placed clearly outside L1 boundary so "refused at boundary"
-% caption sits in the gap between principal and ring.
+% Typed hazard/control/evidence ledger for the three-layer Bonded Commons.
+% Semantic form: stratified architecture with explicit failure mapping.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhamber}{HTML}{8A5A12}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
+\resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  ring/.style={draw=hhebony,thick,rounded corners=6pt,align=center,inner sep=10pt},
-  ringtitle/.style={font=\bfseries\small,align=center,
-                    fill=hhpaper,inner sep=2pt},
-  ringsub/.style={font=\footnotesize\itshape,align=center,
-                  fill=hhpaper,inner sep=1.5pt,text=hhink},
-  actor/.style={draw=hhebony,fill=hhsand,thick,rounded corners=2pt,
-                inner sep=4pt,minimum width=22mm,minimum height=8mm,
-                font=\bfseries\footnotesize,align=center},
-  okarr/.style={->,>=Latex,thick,draw=hhink},
-  bondarr/.style={->,>=Latex,thick,draw=hhamber,line width=1.2pt},
-  refund/.style={->,>=Latex,thick,draw=hhteal,line width=1.2pt},
-  % Refused path is DOTTED, priced path is DASHED, admitted path is SOLID: the
-  % prevented/priced contrast is carried by line style first and colour second,
-  % so it survives greyscale and colour-blind rendering.
-  badarr/.style={->,>=Latex,thick,densely dotted,draw=maydayred,line width=1.1pt},
-  okxlbl/.style={font=\bfseries\footnotesize,text=hhink,
-                 fill=hhpaper,inner sep=1.5pt},
-  wallnote/.style={font=\bfseries\footnotesize,text=maydayred,
-                   fill=hhpaper,inner sep=1.5pt,align=center},
-  pricenote/.style={font=\footnotesize\itshape,text=hhamber,
-                    fill=hhpaper,inner sep=1.5pt,align=center},
-  invariant/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
-                    align=left,inner sep=6pt,
-                    font=\footnotesize},
-  stopmark/.style={circle,draw=maydayred,fill=maydayred,inner sep=0pt,
-                   minimum size=5pt},
+  head/.style={font=\footnotesize\bfseries,text=hhpaper,align=center},
+  rowlabel/.style={font=\small\bfseries,align=left,text=hhink},
+  cell/.style={font=\footnotesize,align=left,text=hhink},
+  status/.style={font=\footnotesize\bfseries,align=center},
 ]
-% ───────────────────────────────────────────────────────────────────────────
-% Three nested rings, centered. Outer L3 is sized to give breathing room for
-% labels both inside and outside the diagram.
-% ───────────────────────────────────────────────────────────────────────────
-\node[ring,fill=hhamber!22,minimum width=156mm,minimum height=96mm] (L3) at (0,0)
-  {};
-\node[ring,fill=hhsanddeep!70,minimum width=112mm,minimum height=58mm]
-  (L2) at (0,-0.2) {};
-\node[ring,fill=hhsand,minimum width=68mm,minimum height=24mm]
-  (L1) at (0,-0.4) {};
-% Ring titles — pinned to the TOP-CENTER of each ring, on top of the ring's
-% border so they cross neither the inner content nor the outer area.
-\node[ringtitle] at (L3.north) {\textsc{Layer 3 \textemdash{} Collateral pool}};
-\node[ringsub,below=1mm of L3.north]
-  {bonds \(\cdot\) slashing \(\cdot\) settlement \(\cdot\) insurance market};
-\node[ringtitle] at (L2.north) {\textsc{Layer 2 \textemdash{} Evidence chain}};
-\node[ringsub,below=1mm of L2.north]
-  {Merkle forest \(\cdot\) pheromone lineage \(\cdot\) conservation invariant};
-\node[ringtitle] at (L1.north) {\textsc{Layer 1 \textemdash{} Capability scope}};
-\node[ringsub,below=1mm of L1.north]
-  {Anchor tokens \(\cdot\) attenuation \(\cdot\) TTL};
-% ───────────────────────────────────────────────────────────────────────────
-% Principal actors (right side cluster: post bond / settle).
-% ───────────────────────────────────────────────────────────────────────────
-\node[actor,fill=hhsand,above right=4mm and 10mm of L3.north east]
-  (agent) {Agent\\(principal)};
-\node[actor,fill=hhteal!25,below right=8mm and 10mm of L3.south east]
-  (settle) {Settle\\(to principal)};
-% Bond-posting arrow (amber) — from agent down into L3's right edge.
-\draw[bondarr] (agent.south) to[out=-90,in=20]
-  node[okxlbl,pos=0.4,right] {post bond}
-  ($(L3.north east)+(-3mm,-2mm)$);
-% Settlement arrow (teal) — from L3 right edge out to settle box.
-\draw[refund] ($(L3.east)+(0,-4mm)$) to[out=0,in=180]
-  node[okxlbl,pos=0.5,above] {refund \(\,|\,\) slash}
-  (settle.west);
-% ───────────────────────────────────────────────────────────────────────────
-% LEFT side: agent action principal — anchored just outside L3.west.
-% ───────────────────────────────────────────────────────────────────────────
-\node[actor,fill=hhsand,left=14mm of L3.west,yshift=10mm]
-  (agentL) {Agent\\action};
-% "claim + work" arrow pierces L3 → L2 → L1 from the left.
-% Label at pos=0.12 sits in the open gap between agentL and the L3 ring.
-\draw[okarr,line width=1.2pt]
-  (agentL.east) -- node[okxlbl,pos=0.12,above] {claim \(+\) work} (L1.west);
-% "Merkle append" — evidence write into L2 (upward from inside L1 to L2 interior).
-% Arrow starts inside L1, ends in the L2 band; label sits to the right mid-arrow.
-\draw[okarr] ($(L1.north east)+(-8mm,0)$) -- ++(0,14mm)
-  node[okxlbl,pos=0.6,right] {Merkle append};
-% ───────────────────────────────────────────────────────────────────────────
-% BOTTOM: the two-arrow defense-in-depth contrast.
-% (i) Unauthorized action — red dashed arrow, BLOCKED at L1's southern boundary.
-% Place principal well below L3 so the stop is clearly outside L1.
-% ───────────────────────────────────────────────────────────────────────────
-\node[actor,fill=maydayred!10,draw=maydayred,
-      below=20mm of L3.south,xshift=-30mm]
-  (bad1) {Unauthorized\\action};
-\coordinate (badStop) at ($(L1.south)+(-12mm,-3mm)$);
-\draw[badarr] (bad1.north) -- (badStop);
-\node[stopmark] at (badStop) {};
-\node[wallnote,left=2mm of badStop,yshift=-0.5mm]
-  {refused\\at boundary};
-% ───────────────────────────────────────────────────────────────────────────
-% (ii) Authorized-but-harmful — solid arrow IN (pierces all 3), then amber dashed
-% exit OUT representing settlement charge at L3.
-% ───────────────────────────────────────────────────────────────────────────
-\node[actor,fill=hhsand,
-      below=20mm of L3.south,xshift=30mm]
-  (bad2) {Authorized-but-\\harmful action};
-\coordinate (harmEnter) at ($(L1.south)+(12mm,-3mm)$);
-\coordinate (harmHit)   at ($(L1.south)+(12mm,4mm)$);
-\draw[okarr,line width=1.0pt] (bad2.north) -- (harmHit);
-% Brass dashed exit — settled out through L3's south boundary.
-\draw[bondarr,dashed]
-  (harmHit) .. controls ($(harmHit)+(8mm,-4mm)$) and ($(L3.south)+(20mm,-6mm)$)
-  .. ($(L3.south east)+(-6mm,2mm)$);
-\node[pricenote,below=2mm of bad2,align=center]
-  {admitted by L1\\charged at L3};
-% ───────────────────────────────────────────────────────────────────────────
-% Invariants legend — below the bottom actors, centered.
-% ───────────────────────────────────────────────────────────────────────────
-\node[invariant,below=10mm of bad1.south,xshift=30mm,text width=128mm]
-  {{\bfseries Composition (defense in depth):}\quad
-   {\color{maydayred}$\bullet$} \textbf{L1 prevents} unauthorized acts \emph{(walls, not laws)}\quad
-   {\color{hhteal}$\bullet$} \textbf{L2 records} every authorized act \emph{(tamper-evident lineage)}\quad
-   {\color{hhamber}$\bullet$} \textbf{L3 prices} authorized-but-harmful acts \emph{(bond pays for damage)}.\quad
-   No layer is sufficient alone; each closes a failure mode the others cannot.};
+
+% Table scaffold: failure class | layer | required record | disposition.
+\fill[hhebony] (0,5.25) rectangle (15.6,6.05);
+\fill[hhsand!35] (0,3.55) rectangle (15.6,5.25);
+\fill[hhteal!8] (0,1.85) rectangle (15.6,3.55);
+\fill[hhamber!11] (0,0.15) rectangle (15.6,1.85);
+
+\draw[hhebony,thick] (0,0.15) rectangle (15.6,6.05);
+\foreach \x in {3.7,7.7,11.9} {\draw[hhebony] (\x,0.15)--(\x,6.05);}
+\foreach \y in {1.85,3.55,5.25} {\draw[hhebony] (0,\y)--(15.6,\y);}
+
+\node[head] at (1.85,5.65) {FAILURE CLASS};
+\node[head] at (5.70,5.65) {CONTROL LAYER};
+\node[head] at (9.80,5.65) {REQUIRED RECORD};
+\node[head] at (13.75,5.65) {DISPOSITION};
+
+% Layer 1.
+\node[rowlabel,text width=31mm,anchor=west] at (0.18,4.40)
+  {Act exceeds grant};
+\node[cell,text width=33mm,anchor=west] at (3.90,4.40)
+  {\textbf{L1 Capability scope}\newline verifier + attenuation};
+\node[cell,text width=36mm,anchor=west] at (7.90,4.40)
+  {scope check\newline refusal receipt};
+\node[status,text=hhteal] at (13.75,4.40)
+  {\rule{13mm}{1.2pt}\quad PREVENTED};
+
+% Layer 2.
+\node[rowlabel,text width=31mm,anchor=west] at (0.18,2.70)
+  {Authorized act disputed};
+\node[cell,text width=33mm,anchor=west] at (3.90,2.70)
+  {\textbf{L2 Evidence chain}\newline append-only lineage};
+\node[cell,text width=36mm,anchor=west] at (7.90,2.70)
+  {actor $\cdot$ reason $\cdot$ artifact\newline outcome + Merkle binding};
+\node[status,text=hhink] at (13.75,2.70)
+  {\rule{13mm}{1.2pt}\quad ATTRIBUTED};
+
+% Layer 3.
+\node[rowlabel,text width=31mm,anchor=west] at (0.18,1.00)
+  {Evidence-linked damage};
+\node[cell,text width=33mm,anchor=west] at (3.90,1.00)
+  {\textbf{L3 Collateral pool}\newline bond + settlement};
+\node[cell,text width=36mm,anchor=west] at (7.90,1.00)
+  {damage proof\newline contract bound + amount};
+\node[status,text=hhamber] at (13.75,1.00)
+  {\rule[2pt]{13mm}{1.2pt}\quad PRICED};
+
+% Cross-layer dependency rail: rows are not independent substitutes.
+\draw[->,>=Latex,thick,draw=hhgray,dashed] (5.70,3.55) -- (5.70,3.08)
+  node[midway,right=4pt,font=\footnotesize\itshape,text=hhgray] {if admitted};
+\draw[->,>=Latex,thick,draw=hhgray,dashed] (5.70,1.85) -- (5.70,1.38)
+  node[midway,right=4pt,font=\footnotesize\itshape,text=hhgray] {if harmful};
+
+% Explicit composition statement in a separate evidence band.
+\draw[hhebony,thick] (0,-0.25) -- (15.6,-0.25);
+\node[font=\footnotesize,align=center,text=hhink,text width=146mm,anchor=north]
+  at (7.8,-0.48)
+  {\textbf{Composition invariant:} L1 decides admissibility; L2 preserves attribution for every admitted act; L3 can price only damage that L2 binds to a contract. No layer substitutes for another.};
+
 \end{tikzpicture}%
 }
-\caption{The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph{prevented} (Layer~1 refuses; dotted, stopped at the boundary) and \emph{priced} (Layer~1 admits, Layer~3 charges; solid in, dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured.}
+\caption{The three layers separate three distinct hazard treatments. Capability scope prevents acts outside a grant; the evidence chain attributes admitted acts; collateral prices only evidence-linked damage. The dashed dependencies are load-bearing: settlement cannot price an act that the evidence layer did not bind, and evidence cannot legitimize an act that the capability layer should have refused.}
 \label{fig:bonded-three-layer}
 \end{figure}

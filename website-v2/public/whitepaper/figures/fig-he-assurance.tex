@@ -1,93 +1,57 @@
-% Purchased assurance: k independent test-writers buy down defect-survival risk,
-% and a bonded deterrence condition is what makes their reports worth buying.
-% Relation-map (left) + hand-checkable regime table (right). Body serif, one accent.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Semantic contract: reviewer count buys geometric risk reduction at linear cost.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
-              inner sep=4pt,text width=30mm,align=center,minimum height=12mm},
-  writer/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
-                 inner sep=3pt,text width=26mm,align=center,font=\scriptsize,
-                 minimum height=9mm},
-  readout/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
-                  inner sep=5pt,text width=36mm,align=center,minimum height=16mm},
-  gate/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=4pt,text width=44mm,align=center,font=\scriptsize},
-  flow/.style={->,>=Latex,thick,draw=hhebony},
-  accent/.style={->,>=Latex,line width=1.3pt,draw=hhcobalt},
-]
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \begin{scope}[shift={(-5.8,0)}]
+    \node[anchor=west,font=\bfseries] at (0,2.35) {Residual defect risk};
+    \node[anchor=west,font=\scriptsize,text=hhgray] at (0,2.02) {$P_k=(1-d)^k$};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (5.0,0)
+      node[right,font=\scriptsize] {$k$ reviewers};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (0,1.75)
+      node[above,font=\scriptsize] {risk};
+    \foreach \x in {1,...,5} {
+      \draw[hhgray,line width=.35pt] (\x*.8,0) -- (\x*.8,-.08);
+      \node[font=\scriptsize,below=1pt] at (\x*.8,0) {\x};
+    }
+    \draw[hhteal,line width=1.25pt]
+      (0,1.55) .. controls (.75,.98) and (1.55,.56) .. (2.4,.31)
+      .. controls (3.15,.16) and (3.65,.08) .. (4.1,.045);
+    \fill[hhteal] (2.4,.31) circle (1.8pt);
+    \draw[hhteal,dashed,line width=.55pt] (2.4,0) -- (2.4,.31);
+    \node[font=\scriptsize,anchor=west,text=hhteal] at (2.55,.48)
+      {$k=3:\;6.4\%$ at $d=.6$};
+  \end{scope}
 
-% ─── the diff enters ────────────────────────────────────────────────────
-\node[box] (diff) at (0,0) {\textbf{one proposed diff}\\[1pt]
-  \scriptsize author-agent's float plan};
+  \begin{scope}[shift={(1.1,0)}]
+    \node[anchor=west,font=\bfseries] at (0,2.35) {Cumulative review cost};
+    \node[anchor=west,font=\scriptsize,text=hhgray] at (0,2.02) {$K_k=k(b+c_B)$};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (5.0,0)
+      node[right,font=\scriptsize] {$k$ reviewers};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (0,1.75)
+      node[above,font=\scriptsize] {cost};
+    \foreach \x in {1,...,5} {
+      \draw[hhgray,line width=.35pt] (\x*.8,0) -- (\x*.8,-.08);
+      \node[font=\scriptsize,below=1pt] at (\x*.8,0) {\x};
+    }
+    \draw[hhamber,line width=1.25pt] (0,0) -- (4.1,1.55);
+    \fill[hhamber] (2.4,.91) circle (1.8pt);
+    \draw[hhamber,dashed,line width=.55pt] (2.4,0) -- (2.4,.91);
+    \node[font=\scriptsize,anchor=west,text=hhamber] at (2.55,1.05)
+      {$k=3:\;3(b+c_B)$};
+  \end{scope}
 
-% ─── k independent test-writers ─────────────────────────────────────────
-\node[writer] (w1) at (42mm, 15mm) {test-writer $1$\\ detects w.p.\ $d$};
-\node[writer] (w2) at (42mm,  0mm) {test-writer $2$\\ detects w.p.\ $d$};
-\node[writer] (w3) at (42mm,-15mm) {test-writer $k$\\ detects w.p.\ $d$};
-\node[font=\scriptsize,text=hhgray] at (42mm,-7.5mm) {$\vdots$};
-
-\draw[flow] (diff.east) -- (w1.west);
-\draw[flow] (diff.east) -- (w2.west);
-\draw[flow] (diff.east) -- (w3.west);
-
-% ─── the readout ────────────────────────────────────────────────────────
-\node[readout] (out) at (94mm,0) {\textbf{assurance}\\[2pt]
-  $1-(1-d)^k$\\[2pt]
-  \scriptsize priced at $k(\text{bounty}+\text{bond carry})$};
-\draw[accent] (w1.east) -- (out.north west);
-\draw[accent] (w2.east) -- (out.west);
-\draw[accent] (w3.east) -- (out.south west);
-
-% ─── the deterrence gate underneath ────────────────────────────────────
-\node[gate] (becker) at (42mm,-33mm)
-  {\textbf{each report is only worth buying while}\\[2pt]
-   $\rho\,d\,B \ge G$\ \ i.e.\ \ $\rho \ge \rho^\star = G/(dB)$\\[2pt]
-   re-audit rate $\rho$, bond $B$, cheat gain $G$};
-\draw[flow] (becker.north) -- (w3.south);
-
-% ─── hand-checkable regime table ───────────────────────────────────────
-\node[draw=hhebony,thick,fill=hhsand!18,rounded corners=3pt,inner sep=6pt,
-      align=left,font=\scriptsize,text width=52mm] (tab) at (152mm,0)
-  {{\bfseries At $d=0.6$, bounty $30$\,\textsc{cr}:}\\[3pt]
-   \begin{tabular}{@{}r r r@{}}
-   $k$ & survives & you pay \\
-   \hline
-   $1$ & $40.0\%$ & $30$\,\textsc{cr} \\
-   $3$ & $6.4\%$ & $90$\,\textsc{cr} \\
-   $5$ & $1.0\%$ & $150$\,\textsc{cr} \\
-   \end{tabular}\\[3pt]
-   {\itshape linear in cost, geometric in risk ---\\
-    but only while the $k$ draws are\\
-    genuinely independent}};
-\draw[accent] (out.east) -- (tab.west);
-
-\end{tikzpicture}%
-}
-\caption{Assurance is bought in units of $k$, and the price of a unit is one bounty
-plus one bond carry. The mechanism is geometric on the risk side and linear on the
-cost side --- three independent reviewers at $d=0.6$ take a planted flaw's survival
-odds from $40\%$ to $6.4\%$ for three bounties --- which is why an operator can quote
-an assurance level as a line item at all. Two conditions carry the whole figure. The
-gate underneath sets what a report is worth: a test-writer is deterred from
-inventing or suppressing flaws only while its expected forfeiture $\rho d B$ covers
-the gain $G$ from misreporting, i.e.\ only while the platform commits to re-auditing
-at $\rho \ge \rho^\star = G/(dB)$. And the word \emph{independent} in the hypothesis
-is the real cost centre: correlated test-writers --- same model family, shared blind
-spot, or visible submissions --- collapse $k$ draws toward one, so the priced
-assurance overstates the delivered assurance. Buying assurance means buying
-diversity, not headcount.}
+  \node[draw=hhink,line width=.6pt,fill=hhsand!18,rounded corners=2pt,
+    text width=112mm,minimum height=17mm,align=center,font=\footnotesize]
+    at (0,-1.15)
+    {The geometric curve is valid only when reviewers are independent and
+     misreporting is deterred: $\rho dB\geq G$.\\[-1pt]
+     {\scriptsize\itshape\color{hhgray}same model family or shared blind spot
+     $\Rightarrow$ effective $k$ collapses toward one}};
+\end{tikzpicture}
+\caption{Purchased assurance has two different shapes: residual defect risk falls
+geometrically with independent reviewers, while bounty and bond-carry cost rise
+linearly. The marked $k=3$ operating point makes the trade visible without implying
+that headcount alone buys assurance. Independence and the deterrence condition
+$\rho dB\geq G$ are part of the claim, not footnotes.}
 \label{fig:he-assurance}
 \end{figure}

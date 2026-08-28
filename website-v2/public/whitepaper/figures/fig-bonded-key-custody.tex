@@ -1,100 +1,101 @@
-% Key-custody relation map — inline in §sec:federated-sovereign, just before the
-% four-part Federated Security theorem (thm:federated-security). Relation-map
-% grammar per docs/harbor-research/figures/CONVENTION.md: parties on the top band,
-% the key material each one actually holds on the middle band, and the theorem's
-% four negative clauses on the bottom band, with an arrow from each secret to the
-% clause its compromise would break. Serif body font (no \sffamily), hh palette,
-% same colour semantics as fig-bonded-three-layer (sand = custody, teal = holds
-% plaintext, cobalt = the recovery pair, red = the adversary's reach).
+% Custody-by-guarantee threat matrix for the Federated Security theorem.
+% Semantic form: lookup matrix; rows are guarantees and columns are compromises.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhamber}{HTML}{8A5A12}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
+\providecolor{hhgray}{HTML}{5C5650}
+\providecolor{maydayred}{HTML}{8B2E2E}
 
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
+\resizebox{0.99\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  party/.style={draw=hhebony,thick,fill=hhsand,rounded corners=3pt,
-                inner sep=5pt,text width=34mm,align=center,font=\footnotesize},
-  secret/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=4pt,text width=32mm,align=center,font=\footnotesize},
-  pair/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=4pt,text width=24mm,align=center,font=\footnotesize},
-  clause/.style={draw=hhebony,thick,fill=hhsanddeep!70,rounded corners=2pt,
-                 inner sep=5pt,text width=34mm,align=center,font=\footnotesize},
-  cust/.style={->,>=Latex,thick,draw=hhink},
-  brk/.style={->,>=Latex,thick,draw=hhteal,dashed},
+  hdr/.style={font=\footnotesize\bfseries,align=center,text=hhpaper},
+  rowhdr/.style={font=\footnotesize\bfseries,align=left,text=hhink},
+  cell/.style={font=\footnotesize\bfseries,align=center},
+  mitigation/.style={font=\footnotesize,align=left,text=hhink},
 ]
 
-% ── Band 1: the four parties ────────────────────────────────────────────────
-\node[party] (D) at (0,3.6)
-  {\textbf{Daemon}\\[2pt]commons authority inside one machine; signs harbor roots};
-\node[party] (A) at (4.9,3.6)
-  {\textbf{Agent}\\[2pt]holds a Harbor Card signed by the daemon; signs actions};
-\node[party] (P) at (9.8,3.6)
-  {\textbf{Principal (user)}\\[2pt]funds Float Plans; identity is an Ed25519 keypair};
-\node[party] (K) at (14.7,3.6)
-  {\textbf{KMS}\\[2pt]custody and recovery root; stores every blob \emph{Argon2id-wrapped}, never plaintext};
+% Column geometry (mm-like TikZ units under resizebox):
+% guarantee | daemon signing | session | email | passphrase | KMS witness | mitigation.
+\def\H{0.90}
+\def\R{1.05}
+\coordinate (p0) at (0,0);
+\foreach \x in {0,3.9,6.0,8.1,10.2,12.3,14.4,18.0} {
+  \draw[hhebony] (\x,0) -- (\x,5.10);
+}
+\foreach \y in {0,1.05,2.10,3.15,4.20,5.10} {
+  \draw[hhebony] (0,\y) -- (18.0,\y);
+}
+\draw[hhebony,thick] (0,0) rectangle (18.0,5.10);
+\fill[hhebony] (0,4.20) rectangle (18.0,5.10);
 
-% ── Band 2: the key material actually held ──────────────────────────────────
-\node[secret] (s1) at (0,0.8)
-  {daemon Ed25519\\\textbf{private key}};
-\node[secret] (s2) at (4.9,0.8)
-  {harbor \textbf{session key}\\{\itshape unwrapped only on the daemon's own host}};
-\node[pair] (s3) at (8.6,0.8) {user \textbf{email}\\{\itshape recovery root}};
-\node[pair] (s4) at (11.4,0.8) {user \textbf{passphrase}\\{\itshape wraps the master}};
-\node[secret] (s5) at (14.7,0.8)
-  {KMS \textbf{witness-log}\\signature over $R_{\text{harbor},\ell}$};
+\node[hdr,text width=31mm] at (1.95,4.65) {GUARANTEE};
+\node[hdr,text width=17mm] at (4.95,4.65) {daemon\newline signing key};
+\node[hdr,text width=17mm] at (7.05,4.65) {harbor\newline session key};
+\node[hdr,text width=17mm] at (9.15,4.65) {user\newline email};
+\node[hdr,text width=17mm] at (11.25,4.65) {user\newline \scalebox{0.94}{passphrase}};
+\node[hdr,text width=17mm] at (13.35,4.65) {KMS witness\newline signature};
+\node[hdr,text width=30mm] at (16.20,4.65) {BOUNDING MITIGATION};
 
-% Custody arrows: who holds what.
-\draw[cust] (D.south) -- (s1.north);
-\draw[cust] (D.south east) .. controls +(0.9,-1.0) and +(-1.3,1.0) .. (s2.north west);
-\draw[cust] (P.south west) -- (s3.north);
-\draw[cust] (P.south east) -- (s4.north);
-\draw[cust] (K.south) -- (s5.north);
+% Alternating row fields and row labels.
+\fill[hhsand!28] (0,3.15) rectangle (18.0,4.20);
+\fill[hhteal!6] (0,1.05) rectangle (18.0,2.10);
+\node[rowhdr,text width=34mm,anchor=west] at (0.18,3.68)
+  {(i) Forge a Harbor Card};
+\node[rowhdr,text width=34mm,anchor=west] at (0.18,2.63)
+  {(ii) Read plaintext evidence};
+\node[rowhdr,text width=34mm,anchor=west] at (0.18,1.58)
+  {(iii) Impersonate the user};
+\node[rowhdr,text width=34mm,anchor=west] at (0.18,0.53)
+  {(iv) Roll back Merkle forest};
 
-% ── Band 3: the theorem's four negative clauses ─────────────────────────────
-\node[clause] (c1) at (0,-2.9)
-  {\textbf{(i)} cannot forge a Harbor Card};
-\node[clause] (c2) at (4.9,-2.9)
-  {\textbf{(ii)} cannot read plaintext evidence};
-\node[clause] (c3) at (10.0,-2.9)
-  {\textbf{(iii)} cannot impersonate the user};
-\node[clause] (c4) at (14.7,-2.9)
-  {\textbf{(iv)} cannot roll back the Merkle forest};
+% A single compromise is sufficient only in the red BREAK cells.
+\fill[maydayred!13] (3.9,3.15) rectangle (6.0,4.20);
+\node[cell,text=maydayred] at (4.95,3.68) {BREAK};
+\fill[maydayred!13] (6.0,2.10) rectangle (8.1,3.15);
+\node[cell,text=maydayred] at (7.05,2.63) {BREAK};
+\fill[maydayred!13] (12.3,0) rectangle (14.4,1.05);
+\node[cell,text=maydayred] at (13.35,0.53) {BREAK};
 
-% Break arrows: which compromise breaks which clause.
-\draw[brk] (s1.south) -- node[right,font=\footnotesize,inner sep=2pt]
-  {breaks only with this key} (c1.north);
-\draw[brk] (s2.south) -- node[right,font=\footnotesize,inner sep=2pt]
-  {breaks only with this key} (c2.north);
-\draw[brk] (s3.south) -- (c3.north west);
-\draw[brk] (s4.south) -- (c3.north);
-\node[font=\footnotesize\bfseries,text=hhcobalt] at (10.0,-1.35)
-  {both, not either};
-\draw[brk] (s5.south) -- node[right,font=\footnotesize,inner sep=2pt]
-  {needs $\mathcal{K}$'s complicity} (c4.north);
+% User impersonation is the one conjunctive failure.
+\fill[hhamber!18] (8.1,1.05) rectangle (12.3,2.10);
+\node[cell,text=hhamber] at (9.15,1.58) {AND};
+\node[cell,text=hhamber] at (11.25,1.58) {AND};
+\draw[hhamber,thick] (9.45,1.58) -- (10.95,1.58);
 
-% ── The adversary's reach, and what is out of scope ─────────────────────────
-\node[draw=maydayred,thick,dashed,fill=maydayred!5,rounded corners=3pt,
-      inner sep=6pt,text width=160mm,align=center,font=\footnotesize,
-      text=hhink] at (7.35,-5.1)
-  {\textbf{\textcolor{maydayred}{Adversary of Theorem~\ref{thm:federated-security}}}\ reads
-   $\mathcal{K}$'s storage, the daemon's SQLite database, and mesh gossip ---
-   and none of those contains any box above in usable form.\\[2pt]
-   \emph{Out of scope:} an adversary with same-user code execution on the daemon's
-   host reads every box the user can read, which is why the theorem excludes it.};
+% Explicit non-breaking cells.
+\foreach \x in {7.05,9.15,11.25,13.35} {\node[cell,text=hhgray] at (\x,3.68) {--};}
+\foreach \x in {4.95,9.15,11.25,13.35} {\node[cell,text=hhgray] at (\x,2.63) {--};}
+\foreach \x in {4.95,7.05,13.35} {\node[cell,text=hhgray] at (\x,1.58) {--};}
+\foreach \x in {4.95,7.05,9.15,11.25} {\node[cell,text=hhgray] at (\x,0.53) {--};}
+
+% Mitigations are attached to rows, not floating as prose cards.
+\node[mitigation,text width=31mm,anchor=west] at (14.58,3.68)
+  {rotation + revocation};
+\node[mitigation,text width=31mm,anchor=west] at (14.58,2.63)
+  {native keyring + host sandbox};
+\node[mitigation,text width=31mm,anchor=west] at (14.58,1.58)
+  {require both recovery factors};
+\node[mitigation,text width=31mm,anchor=west] at (14.58,0.53)
+  {cross-witness signed roots};
+
+% Scope and legend rail.
+\node[font=\footnotesize,align=left,text=hhink,text width=170mm,anchor=north west]
+  at (0,-0.34)
+  {\textcolor{maydayred}{\textbf{BREAK}} = that single secret suffices.\quad
+   \textcolor{hhamber}{\textbf{AND}} = email and passphrase must both fail.\quad
+   ``--'' = compromise alone does not violate the row.\newline
+   \textbf{Scope:} the theorem excludes same-user code execution on the daemon host; that adversary can read every secret available to the user process.};
 
 \end{tikzpicture}%
 }
-\caption{Who holds which key, and which compromise breaks which clause. Each of the theorem's four negative guarantees fails to exactly one custody compromise, and only clause~(iii) requires two --- email \emph{and} passphrase together, which is why the recovery pair is the one place the architecture depends on a conjunction rather than a single secret. The KMS is the only party that stores everything and can decrypt nothing; the daemon is the only party that ever holds the harbor session key unwrapped, which is precisely why the theorem must exclude the same-user adversary on the daemon's host.}
+\caption{Custody is easiest to audit as a guarantee-by-compromise matrix. Three guarantees each have one sufficient custody failure; user impersonation is the sole conjunctive case, requiring both email and passphrase. The mitigation column bounds the consequence rather than pretending the relevant holder is harmless, and the scope rail makes the same-user exclusion explicit.}
 \label{fig:bonded-key-custody}
 \end{figure}

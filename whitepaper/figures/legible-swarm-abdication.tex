@@ -23,8 +23,9 @@
 \begin{tikzpicture}[font=\small]
 
 % ─── axes ────────────────────────────────────────────────────────────────────
-\draw[->,thick,hhink] (0,0) -- (12.2,0)
-  node[below left=2pt and 0pt,font=\footnotesize]{autonomy of the automation $\longrightarrow$};
+\draw[->,thick,hhink] (0,0) -- (12.2,0);
+\node[font=\scriptsize,text=hhgray,anchor=north east] at (12.15,-0.82)
+  {autonomy of the automation};
 \draw[->,thick,hhink] (0,0) -- (0,4.4);
 \node[font=\footnotesize,text=hhink,rotate=90,anchor=south] at (-0.75,2.2)
   {operator situation awareness};

@@ -3,7 +3,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -20,14 +20,14 @@
   {agent ``X'\,'\\{\scriptsize fresh label, clean record}};
 \node[stp box,text width=34mm,right=of bad2] (syb)
   {1000 $\times$ ``X$_i$''\\{\scriptsize forged quorum}};
-\draw[stp dashed arrow] (bad1) -- (bad2);
-\draw[stp dashed arrow] (bad2) -- (syb);
+\draw[-{Stealth[length=2.3mm,width=1.5mm]},draw=hhamber,line width=.8pt,dashed] (bad1) -- (bad2);
+\draw[-{Stealth[length=2.3mm,width=1.5mm]},draw=hhamber,line width=.8pt,dashed] (bad2) -- (syb);
 
 \node[stp heading,anchor=west,below=18mm of bad1.south west] (boundh)
   {BOUND IDENTITY --- SANCTIONS FOLLOW THE PRINCIPAL};
 \node[stp box,text width=34mm,below=4mm of boundh,anchor=north west] (daemon)
   {daemon mints\\{\scriptsize a local identity}};
-\node[stp accent box,text width=34mm,right=of daemon] (cred)
+\node[stp box,draw=hhamber,line width=.9pt,text width=34mm,right=of daemon] (cred)
   {non-re-pickable\\credential\\{\scriptsize identity cannot be shed}};
 \node[stp box,text width=34mm,right=of cred] (princ)
   {principal\\{\scriptsize owns the fleet, posts bonds}};
