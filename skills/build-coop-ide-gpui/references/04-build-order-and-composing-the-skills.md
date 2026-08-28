@@ -207,8 +207,9 @@ Zed's LAN baseline — but on infra you already own.
 tube SSE** — *not a new sync backend*. The plumbing is already proven: the
 `AgentTranscript` surface already folds an SSE stream via `on_stream()` (`pane.rs:114`,
 and `lane_pane.rs:11` documents `agent.tube` frames folding into scrollback). Cursors and
-selections ride `EphemeralStore` (timestamp-LWW); snapshots → content-addressed `/blob`;
-op-log deltas → immutable notes. Add a `Subscription::Editor` variant beside the existing
+selections ride `EphemeralStore` (timestamp-LWW). Checkpoint and reconnect behavior stays
+behind the canonical editor-sync contract; P3.5 salvage evidence is a separate typed
+receipt ledger, never notes. Add a `Subscription::Editor` variant beside the existing
 `Subscription::Agent` (`pane.rs:67`).
 
 > "Loro Protocol multiplexes doc-ops + ephemeral cursors + claim-awareness over the
@@ -231,14 +232,15 @@ op-log deltas → immutable notes. Add a `Subscription::Editor` variant beside t
 > debounce intervals so you don't reinvent a known-bad cadence.
 
 **Exit criterion:** two humans co-edit one file over the daemon tube; cursors visible;
-reconnect replays from `/blob` + notes.
+reconnect succeeds through the canonical editor-sync contract.
 
 **Quality Gate P2:**
 - [ ] Loro Protocol frames ride the tube SSE; `Subscription::Editor` added; `on_stream`
       folds remote ops.
 - [ ] Ephemeral cursor lane is debounced and **mirrored into the durable claims table** so
       presence survives reconnect (battle-plan §3).
-- [ ] Snapshots → `/blob`, op-log deltas → immutable notes.
+- [ ] Checkpoint/reconnect stays behind the canonical editor-sync contract; no note-based
+      op-log is presented as salvage authority.
 - [ ] No per-peer window-wide `repeat()`; idle screen = 0 re-renders with 2+ remote cursors.
 - [ ] **Edit-sync channel isolated from the coordination control plane** so editor load
       never regresses claim latency (the explicit §6 "daemon must stay lean" risk).
@@ -303,11 +305,18 @@ staged ranges on commit (`pd guard check --staged`).
 **This is the headline demo — structurally impossible in Zed's trust-the-room, cloud-only,
 ephemeral-session model.**
 
-**What you build.** A dead actor's op-log + claim + scope note persist (`/blob` snapshot +
-session record); `POST /recovery/request` surfaces "agent A left dirty work on
-parse_header (claim held, snapshot `blob:…`)"; `POST /recovery/consume` replays A's ops
-onto the live doc, inherits the claim, and finishes — every span authored in an immutable
-note. Reuses `routes/recovery.ts`, `/blob`, immutable notes, ADR-0028 salvage envelope.
+> **Current implementation gate.** The registered HTTP routes are not this demo and are not a usable recovery pipeline. The P1 Rust operation-receipt producer, P1B, canonical Rust Loro recovery adapter, and P3 same-database released-claim transfer adapter remain unimplemented external gates. Daemon scope minting also lacks the verified root device/inode witness, content-bound symbol lease, and daemon file-mutation generation authority. Keep the adapter unavailable and every route 503-gated until all authorities land. Finalization retains root/file descriptors plus both leases through P3 transfer and persists exact root/file device+inode, content hash, parser/authority generations, and mutation lease/generation; canonical provenance repeats the exact hash as `scope.canonical_content_hash`. Cooperative mutation exclusion does not freeze arbitrary OS processes, so P3 must reject later edits after any identity/hash/generation drift. Canonical provenance/outbox rows may commit. Any later projection read, attempt-log write, or local publication-receipt failure is fail-soft and returns canonical 200 success with the stable pending outbox ID/reason; restart retries the same sink-deduplicated key until one local receipt exists. Publication stays pending without an atomically idempotent sink and incurs no retry churn; a wired sink uses bounded startup/periodic exact-key repair. Never substitute `sessions.addNote` or migrate an unshipped intermediate schema.
+
+**What you build.** Daemon-owned typed op receipts plus one sealed abandonment receipt
+preserve the complete op log from sequence zero. An authenticated successor follows
+`POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`: canonical
+Rust validates the Loro bytes and terminal state before one atomic P3 released-claim
+transfer, provenance write, token consume, and preparation finalize. Prepare leases an
+opaque content/hash/parser-generation symbol resolution inside its immediate transaction.
+Finalize does the same, holds and consumes the daemon file-mutation generation through
+the P3 transfer, and gives P3 that exact transaction database plus the immutable identity tuple. Reuses
+`routes/editor-recovery.ts` and `lib/editor-recovery.ts`; it fails closed until the
+canonical Rust and P3 authorities land.
 
 **The correctness risk is real and named (§6):**
 
@@ -327,13 +336,15 @@ concurrent inserts is what makes replay deterministic; prove it, don't assume it
   show *which* spans were recovered (final state + author tint), per the skill's
   *"reduced-motion deletes orientation"* failure mode.
 
-**Exit criterion:** kill a dispatched agent mid-edit; `/recovery/request` surfaces the
-dirty buffer+claim; `/recovery/consume` replays and inherits; an immutable note records
-who-wrote-which-span.
+**Exit criterion:** kill a dispatched agent mid-edit; authenticated request and prepare
+surface the complete sealed ledger; canonical replay validates it; finalize atomically
+transfers one released claim and records who-wrote-which-span.
 
 **Quality Gate P3.5:**
-- [ ] Dead-replica op-log + claim + note persist to `/blob` + session record.
-- [ ] `/recovery/consume` replays + inherits the claim; provenance lands in an immutable note.
+- [ ] P1 Rust operation-receipt production, P1B, canonical Rust Loro recovery, daemon-verified root identity minting, and the P3 same-database transfer adapter are implemented; registered 503 routes alone do not pass this gate.
+- [ ] Dead-replica op receipts are append-only and the sealed abandonment matches exact sequence, digest, count, high-water, hashes, and terminal state.
+- [ ] `/editor/recovery/finalize` accepts only a live-revalidated canonical replay receipt; retains root/file descriptors, content-bound symbol authority, and daemon mutation generation through commit/rollback; consumes the mutation lease in the same transaction; then atomically invokes P3 claim transfer and lands editor-owned provenance plus its append-only outbox.
+- [ ] Provenance `scope.canonical_content_hash` exactly matches the descriptor-bound file hash transferred to P3; every post-commit projection/local-receipt failure preserves canonical 200 success with a stable pending outbox ID/reason, and same-key restart retry converges to one sink record plus one local receipt.
 - [ ] **Property tests on Loro op-replay convergence pass** (the P1 harness, now exercised
       against a doc that advanced post-death) — not a happy-path demo.
 - [ ] Replay viz is a staggered opacity transition, reduced-motion preserves "which spans recovered".
@@ -345,7 +356,7 @@ who-wrote-which-span.
 **Goal.** Join-by-link; **capability-scoped per path/region**, not trust-the-room.
 
 **What you build (§3, §5).** Formalize the `SyncTransport` trait (grafted from Design C,
-*proven last*); the host daemon is authoritative for the claim/governance ledger + `/blob`;
+*proven last*); the host daemon is authoritative for the claim/governance ledger;
 `PUT /harbors/:name/envelope` scopes a per-region edit capability; signed Ed25519 cards
 (`core/harbor-card-rs/src/lib.rs`, `HarborCardClaims{sub,harbor,cap[],iat,exp,jti}`, 218
 LOC, Kani proof targets) gate join; `POST /harbors/:name/check` is the in-editor dry-run.
@@ -369,7 +380,7 @@ refused *at ingress* before any op; the dry-run `/harbors/:name/check` shows the
 in-editor.
 
 **Quality Gate P4:**
-- [ ] `SyncTransport` trait formalized; host daemon authoritative for ledger + `/blob`.
+- [ ] `SyncTransport` trait formalized; host daemon authoritative for the governance ledger.
 - [ ] Per-region edit cap via `PUT /harbors/:name/envelope`; Ed25519 card gates join.
 - [ ] Out-of-cap Loro op **rejected at daemon ingress**, not surfaced-then-allowed.
 - [ ] Refusal UX = `Gated`-tone component, names the missing cap, no bypass advertised.
@@ -480,11 +491,12 @@ PD claims.
   in `--help` for humans, never in the refusal. (PD memory hard rule.)
 
 ### Anti-Pattern: Claude-specific agent tooling
-- **Symptom:** The claim/salvage MCP tools or identity binding assume a Claude backend.
+- **Symptom:** Claim MCP tools or identity binding assume a Claude backend.
 - **Detection:** Tool names, prompts, or identity logic that branch on Claude;
   `agent.rs` is explicitly backend-agnostic (ADR-0046) but a new tool re-introduces a vendor.
-- **Fix:** `claim_region`/`release_region`/`coordination_preflight`/`salvage` are
-  **agent-neutral** first-class MCP tools. Every backend the spawner accepts gets them.
+- **Fix:** `claim_region`/`release_region`/`coordination_preflight` are **agent-neutral**
+  first-class MCP tools. Every backend the spawner accepts gets them. Editor recovery is
+  a separate authenticated HTTP-only state machine, not an MCP shortcut.
 
 ---
 

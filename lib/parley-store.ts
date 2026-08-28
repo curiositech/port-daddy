@@ -87,6 +87,38 @@ export const PARLEY_STORE_POLICY = Object.freeze({
   automaticRoundLimit: 3,
 } as const);
 
+/**
+ * Immutable receipt version for the one-way v3.30.2 tuple authority import.
+ *
+ * The version is deliberately part of durable state instead of a startup flag:
+ * a recovered daemon must be able to prove whether it imported the old
+ * authority, what it observed, and that a later restart did not replay it.
+ */
+export const LEGACY_PARLEY_TUPLE_MIGRATION_VERSION = 'v3.30.2-tuples-to-store0-v1';
+const LEGACY_PARLEY_TUPLE_TENANT = 'local-daemon';
+const LEGACY_PARLEY_TUPLE_QUERY_BATCH = 200;
+
+/** Durable evidence left by the legacy tuple importer after its single commit. */
+export interface LegacyParleyTupleMigrationReceipt {
+  migrationVersion: typeof LEGACY_PARLEY_TUPLE_MIGRATION_VERSION;
+  sourceDigest: string;
+  /** Total tuple rows at migration commit; the importer never mutates this source table. */
+  sourceTupleRows: number;
+  sourceOpenedRows: number;
+  sourceTurnRows: number;
+  sourceSeenRows: number;
+  sourceSeenFrontiers: number;
+  sourceOutcomeRows: number;
+  importedRecords: number;
+  importedTurns: number;
+  importedSeenReceipts: number;
+  /** Includes zero frontiers that have no normalized receipt row. */
+  importedSeenProvenance: number;
+  importedOutcomes: number;
+  completedAt: number;
+  replayed: boolean;
+}
+
 if (PARLEY_SIGNAL_FRESHNESS.dedupeTombstoneMs
   < PARLEY_SIGNAL_FRESHNESS.maxProducerRetryHorizonMs) {
   throw new Error('Parley dedupe tombstone must cover the maximum producer retry horizon');
@@ -344,6 +376,62 @@ interface OutboxRow {
   payload_hash: string;
   attempts: number;
   lease_token: string | null;
+}
+
+/** Raw v3.30.2 tuple row. It is intentionally read directly, never through TupleSpace. */
+interface LegacyTupleRow {
+  id: number;
+  harbor: string;
+  fields: string;
+  written_by: string | null;
+  created_at: number;
+  expires_at: number | null;
+}
+
+interface LegacyOpenedParley {
+  tuple: LegacyTupleRow;
+  record: ParleyRecord;
+  participants: StoredParleyParticipant[];
+}
+
+interface LegacyParleyTurn {
+  tuple: LegacyTupleRow;
+  turn: ParleyTurn;
+}
+
+interface LegacySeenFrontier {
+  tuple: LegacyTupleRow;
+  party: string;
+  throughAt: number;
+  at: number;
+}
+
+interface LegacyParleyOutcome {
+  tuple: LegacyTupleRow;
+  outcome: ParleyOutcome;
+}
+
+interface LegacyParleyImportSource extends LegacyOpenedParley {
+  turns: LegacyParleyTurn[];
+  seenFrontiers: LegacySeenFrontier[];
+  outcome: LegacyParleyOutcome | null;
+}
+
+interface LegacyMigrationReceiptRow {
+  migration_version: string;
+  source_digest: string;
+  source_tuple_rows: number;
+  source_opened_rows: number;
+  source_turn_rows: number;
+  source_seen_rows: number;
+  source_seen_frontiers: number;
+  source_outcome_rows: number;
+  imported_records: number;
+  imported_turns: number;
+  imported_seen_receipts: number;
+  imported_seen_provenance: number;
+  imported_outcomes: number;
+  completed_at: number;
 }
 
 const TERMINAL_STATUSES: ReadonlySet<ParleyStatus> = new Set(['COLLAPSED', 'ESCALATED', 'VOIDED']);
@@ -729,6 +817,54 @@ const SCHEMA = `
       ON DELETE CASCADE
   );
 
+  /*
+   * This is deliberately separate from the per-harbor authority tables: it is
+   * an immutable, tenant-scoped audit receipt for the one-way v3.30.2 import.
+   * It neither owns nor cascades into the legacy tuple source.
+   */
+  CREATE TABLE IF NOT EXISTS parley_legacy_tuple_migration_receipts (
+    tenant_id TEXT NOT NULL CHECK(length(tenant_id) BETWEEN 1 AND 128),
+    migration_version TEXT NOT NULL CHECK(length(migration_version) BETWEEN 1 AND 128),
+    source_digest TEXT NOT NULL CHECK(length(source_digest) = 64),
+    source_tuple_rows INTEGER NOT NULL CHECK(source_tuple_rows >= 0),
+    source_opened_rows INTEGER NOT NULL CHECK(source_opened_rows >= 0),
+    source_turn_rows INTEGER NOT NULL CHECK(source_turn_rows >= 0),
+    source_seen_rows INTEGER NOT NULL CHECK(source_seen_rows >= 0),
+    source_seen_frontiers INTEGER NOT NULL CHECK(source_seen_frontiers >= 0),
+    source_outcome_rows INTEGER NOT NULL CHECK(source_outcome_rows >= 0),
+    imported_records INTEGER NOT NULL CHECK(imported_records >= 0),
+    imported_turns INTEGER NOT NULL CHECK(imported_turns >= 0),
+    imported_seen_receipts INTEGER NOT NULL CHECK(imported_seen_receipts >= 0),
+    imported_seen_provenance INTEGER NOT NULL CHECK(imported_seen_provenance >= 0),
+    imported_outcomes INTEGER NOT NULL CHECK(imported_outcomes >= 0),
+    completed_at INTEGER NOT NULL,
+    PRIMARY KEY (tenant_id, migration_version)
+  );
+
+  /*
+   * Store0 remains sequence-authoritative. This additive evidence table keeps
+   * the original timestamp watermark verbatim when it falls between turns (or
+   * before the first one), where a sequence alone cannot reproduce its exact
+   * old API value. It is not a legacy read fallback.
+   */
+  CREATE TABLE IF NOT EXISTS parley_legacy_tuple_seen_provenance (
+    tenant_id TEXT NOT NULL,
+    harbor TEXT NOT NULL,
+    parley_id TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    source_tuple_id INTEGER NOT NULL CHECK(source_tuple_id > 0),
+    source_through_at INTEGER NOT NULL,
+    source_written_at INTEGER NOT NULL,
+    source_created_at INTEGER NOT NULL,
+    source_written_by TEXT NOT NULL CHECK(length(source_written_by) BETWEEN 1 AND 128),
+    normalized_turn_sequence INTEGER NOT NULL CHECK(normalized_turn_sequence >= 0),
+    PRIMARY KEY (tenant_id, harbor, parley_id, actor_id),
+    UNIQUE (tenant_id, source_tuple_id),
+    FOREIGN KEY (tenant_id, harbor, parley_id, actor_id)
+      REFERENCES parley_participants(tenant_id, harbor, parley_id, actor_id)
+      ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS parley_auto_terminal_receipts (
     tenant_id TEXT NOT NULL,
     harbor TEXT NOT NULL,
@@ -949,6 +1085,303 @@ function canonicalStrings(values: readonly string[], label: string, maxItems: nu
 function isTerminalStatus(value: string): value is Extract<ParleyStatus, 'COLLAPSED' | 'ESCALATED' | 'VOIDED'> {
   return value === 'COLLAPSED' || value === 'ESCALATED' || value === 'VOIDED';
 }
+
+/* LEGACY_PARLEY_TUPLE_IMPORTER_BEGIN */
+/**
+ * The only Store0 code allowed to name legacy tuple vocabulary. This bounded,
+ * one-way importer reads source rows once; the returned Store0 APIs never
+ * consult tuples as a fallback.
+ */
+/** Parse and validate a raw tuple row before it can influence Store0 authority. */
+function assertLegacyTupleRow(row: LegacyTupleRow, label: string): void {
+  if (!Number.isSafeInteger(row.id) || row.id < 1) {
+    throw new Error(`${label}: tuple id is invalid`);
+  }
+  assertCanonicalString(row.harbor, `${label}: tuple harbor`, PARLEY_STORE_LIMITS.maxHarborChars);
+  assertFiniteTimestamp(row.created_at, `${label}: tuple created_at`);
+  if (row.expires_at !== null) assertFiniteTimestamp(row.expires_at, `${label}: tuple expires_at`);
+  if (row.written_by !== null) {
+    assertCanonicalString(row.written_by, `${label}: tuple written_by`, PARLEY_STORE_LIMITS.maxActorChars);
+  }
+  if (typeof row.fields !== 'string' || !row.fields) {
+    throw new Error(`${label}: tuple fields are invalid`);
+  }
+}
+
+/** Decode one exact v3.30.2 tuple shape; unrelated tuple kinds are never parsed. */
+function legacyFields(row: LegacyTupleRow, kind: string, length: number): unknown[] {
+  assertLegacyTupleRow(row, `legacy ${kind}`);
+  const fields = parseJson<unknown>(row.fields, `legacy ${kind} tuple fields`);
+  if (!Array.isArray(fields) || fields.length !== length || fields[0] !== kind) {
+    throw new Error(`legacy ${kind}: tuple shape is invalid`);
+  }
+  return fields;
+}
+
+function legacyObject(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function legacyNullableString(value: unknown, label: string, max: number): string | null {
+  return value === null ? null : assertCanonicalString(value, label, max);
+}
+
+function legacyStringArray(
+  value: unknown,
+  label: string,
+  maxItems: number,
+  maxChars: number,
+): string[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw new Error(`${label} must be a string array`);
+  }
+  return canonicalStrings(value as string[], label, maxItems, maxChars);
+}
+
+/** Decode a manual v3.30.2 `parley:opened` tuple without admitting automatic authority. */
+function decodeLegacyOpenedTuple(row: LegacyTupleRow): LegacyOpenedParley {
+  const fields = legacyFields(row, 'parley:opened', 3);
+  const parleyId = assertCanonicalString(fields[1], 'legacy opened parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+  const source = legacyObject(fields[2], 'legacy opened record');
+  if (source.parleyId !== parleyId) {
+    throw new Error(`legacy opened ${parleyId}: record id disagrees with tuple`);
+  }
+  if (source.harbor !== row.harbor) {
+    throw new Error(`legacy opened ${parleyId}: record harbor disagrees with tuple`);
+  }
+  if (source.status !== 'SUMMONED') {
+    throw new Error(`legacy opened ${parleyId}: stored status must be SUMMONED`);
+  }
+  // v3.30.2 predated Store0's automatic metadata, so an absent field is the
+  // authoritative manual legacy shape. Anything other than absent/null would
+  // be an automatic authority that must remain governed by Store0 signals.
+  if (source.automatic !== undefined && source.automatic !== null) {
+    throw new Error(
+      `legacy opened ${parleyId}: automatic Parleys require their Store0 signal authority and cannot be imported`,
+    );
+  }
+  if (source.trigger !== 'operator'
+    && source.trigger !== 'claim_overlap'
+    && source.trigger !== 'detector'
+    && source.trigger !== 'swarm_fit') {
+    throw new Error(`legacy opened ${parleyId}: trigger is invalid`);
+  }
+  if (!Array.isArray(source.parties)) {
+    throw new Error(`legacy opened ${parleyId}: parties are invalid`);
+  }
+  const parties = source.parties.map((party) => assertCanonicalString(
+    party,
+    `legacy opened ${parleyId}: party`,
+    PARLEY_STORE_LIMITS.maxActorChars,
+  ));
+  if (parties.length < 2 || parties.length > PARLEY_STORE_LIMITS.maxParticipants) {
+    throw new Error(`legacy opened ${parleyId}: parties exceed Store0 bounds`);
+  }
+  if (new Set(parties).size !== parties.length) {
+    throw new Error(`legacy opened ${parleyId}: parties must be unique`);
+  }
+  const responseDueAt = source.responseDueAt === null
+    ? null
+    : assertFiniteTimestamp(source.responseDueAt as number, `legacy opened ${parleyId}: responseDueAt`);
+  const record: ParleyRecord = {
+    parleyId,
+    surface: assertCanonicalString(source.surface, `legacy opened ${parleyId}: surface`, CONFLICT_SIGNAL_LIMITS.maxSurfaceChars),
+    reason: assertCanonicalString(source.reason, `legacy opened ${parleyId}: reason`, CONFLICT_SIGNAL_LIMITS.maxReasonChars),
+    parties,
+    calledBy: assertCanonicalString(source.calledBy, `legacy opened ${parleyId}: calledBy`, PARLEY_STORE_LIMITS.maxActorChars),
+    trigger: source.trigger,
+    channel: assertCanonicalString(source.channel, `legacy opened ${parleyId}: channel`, PARLEY_STORE_LIMITS.maxChannelChars),
+    status: 'SUMMONED',
+    harbor: row.harbor,
+    responseDueAt,
+    roundLimit: source.roundLimit as number,
+    createdAt: assertFiniteTimestamp(source.createdAt as number, `legacy opened ${parleyId}: createdAt`),
+    automatic: null,
+  };
+  if (!Number.isInteger(record.roundLimit)) {
+    throw new Error(`legacy opened ${parleyId}: roundLimit is invalid`);
+  }
+  if (row.written_by !== record.calledBy) {
+    throw new Error(`legacy opened ${parleyId}: tuple writer is not the caller`);
+  }
+  const participants: StoredParleyParticipant[] = parties.map((party) => ({
+    actorId: party,
+    inboxTarget: party,
+    sessionId: null,
+    lineageRootSessionId: null,
+    summoned: true,
+    caller: party === record.calledBy,
+  }));
+  if (!participants.some((participant) => participant.caller)) {
+    participants.push({
+      actorId: record.calledBy,
+      inboxTarget: record.calledBy,
+      sessionId: null,
+      lineageRootSessionId: null,
+      summoned: false,
+      caller: true,
+    });
+  }
+  return { tuple: row, record, participants };
+}
+
+/** Decode one exact v3.30.2 turn and bind it to the opened manual authority. */
+function decodeLegacyTurnTuple(row: LegacyTupleRow, opened: LegacyOpenedParley): LegacyParleyTurn {
+  const fields = legacyFields(row, 'parley:turn', 4);
+  const parleyId = assertCanonicalString(fields[1], 'legacy turn parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+  const party = assertCanonicalString(fields[2], 'legacy turn party', PARLEY_STORE_LIMITS.maxActorChars);
+  if (parleyId !== opened.record.parleyId || row.harbor !== opened.record.harbor) {
+    throw new Error(`legacy turn ${row.id}: scope does not match opened Parley`);
+  }
+  if (!opened.record.parties.includes(party)) {
+    throw new Error(`legacy turn ${row.id}: writer was not a summoned party`);
+  }
+  if (row.written_by !== party) {
+    throw new Error(`legacy turn ${row.id}: tuple writer is not its party`);
+  }
+  const source = legacyObject(fields[3], `legacy turn ${row.id}`);
+  if (source.parleyId !== parleyId || source.party !== party) {
+    throw new Error(`legacy turn ${row.id}: payload identity disagrees with tuple`);
+  }
+  if (typeof source.performative !== 'string' || !PERFORMATIVES.has(source.performative as ParleyPerformative)) {
+    throw new Error(`legacy turn ${row.id}: performative is invalid`);
+  }
+  const turn: ParleyTurn = {
+    parleyId,
+    party,
+    performative: source.performative as ParleyPerformative,
+    content: assertCanonicalString(source.content, `legacy turn ${row.id}: content`, PARLEY_STORE_LIMITS.maxTurnContentChars),
+    proposalId: legacyNullableString(source.proposalId, `legacy turn ${row.id}: proposalId`, PARLEY_STORE_LIMITS.maxProposalIdChars),
+    evidenceRefs: legacyStringArray(
+      source.evidenceRefs,
+      `legacy turn ${row.id}: evidenceRefs`,
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefs,
+      CONFLICT_SIGNAL_LIMITS.maxEvidenceRefChars,
+    ),
+    at: assertFiniteTimestamp(source.at as number, `legacy turn ${row.id}: at`),
+  };
+  return { tuple: row, turn };
+}
+
+/** Decode one exact v3.30.2 seen tuple; timestamp frontiers normalize to Store0 sequences later. */
+function decodeLegacySeenTuple(row: LegacyTupleRow, opened: LegacyOpenedParley): LegacySeenFrontier {
+  const fields = legacyFields(row, 'parley:seen', 4);
+  const parleyId = assertCanonicalString(fields[1], 'legacy seen parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+  const party = assertCanonicalString(fields[2], 'legacy seen party', PARLEY_STORE_LIMITS.maxActorChars);
+  if (parleyId !== opened.record.parleyId || row.harbor !== opened.record.harbor) {
+    throw new Error(`legacy seen ${row.id}: scope does not match opened Parley`);
+  }
+  if (!opened.participants.some((participant) => participant.actorId === party)) {
+    throw new Error(`legacy seen ${row.id}: party is not a participant`);
+  }
+  if (row.written_by !== party) {
+    throw new Error(`legacy seen ${row.id}: tuple writer is not its party`);
+  }
+  const source = legacyObject(fields[3], `legacy seen ${row.id}`);
+  return {
+    tuple: row,
+    party,
+    throughAt: assertFiniteTimestamp(source.throughAt as number, `legacy seen ${row.id}: throughAt`),
+    at: assertFiniteTimestamp(source.at as number, `legacy seen ${row.id}: at`),
+  };
+}
+
+/** Decode one exact v3.30.2 terminal outcome and preserve its original terminal authority. */
+function decodeLegacyOutcomeTuple(row: LegacyTupleRow, opened: LegacyOpenedParley): LegacyParleyOutcome {
+  const fields = legacyFields(row, 'parley:outcome', 3);
+  const parleyId = assertCanonicalString(fields[1], 'legacy outcome parley id', PARLEY_STORE_LIMITS.maxParleyIdChars);
+  if (parleyId !== opened.record.parleyId || row.harbor !== opened.record.harbor) {
+    throw new Error(`legacy outcome ${row.id}: scope does not match opened Parley`);
+  }
+  const source = legacyObject(fields[2], `legacy outcome ${row.id}`);
+  if (source.parleyId !== parleyId || !isTerminalStatus(source.status as string)) {
+    throw new Error(`legacy outcome ${row.id}: payload is invalid`);
+  }
+  const outcome: ParleyOutcome = {
+    parleyId,
+    status: source.status as Extract<ParleyStatus, 'COLLAPSED' | 'ESCALATED' | 'VOIDED'>,
+    decision: legacyNullableString(source.decision, `legacy outcome ${row.id}: decision`, PARLEY_STORE_LIMITS.maxDecisionChars),
+    reason: legacyNullableString(source.reason, `legacy outcome ${row.id}: reason`, PARLEY_STORE_LIMITS.maxDecisionChars),
+    resolvedBy: assertCanonicalString(source.resolvedBy, `legacy outcome ${row.id}: resolvedBy`, PARLEY_STORE_LIMITS.maxActorChars),
+    dissenters: legacyStringArray(
+      source.dissenters,
+      `legacy outcome ${row.id}: dissenters`,
+      PARLEY_STORE_LIMITS.maxParticipants,
+      PARLEY_STORE_LIMITS.maxActorChars,
+    ),
+    at: assertFiniteTimestamp(source.at as number, `legacy outcome ${row.id}: at`),
+  };
+  if (outcome.at < opened.record.createdAt) {
+    throw new Error(`legacy outcome ${row.id}: precedes Parley creation`);
+  }
+  if (row.written_by !== outcome.resolvedBy) {
+    throw new Error(`legacy outcome ${row.id}: tuple writer is not resolver`);
+  }
+  return { tuple: row, outcome };
+}
+
+/** Decode the immutable receipt gate before deciding whether a restart may scan legacy tuples. */
+function decodeLegacyMigrationReceipt(
+  row: LegacyMigrationReceiptRow,
+  replayed: boolean,
+): LegacyParleyTupleMigrationReceipt {
+  if (row.migration_version !== LEGACY_PARLEY_TUPLE_MIGRATION_VERSION) {
+    throw new Error('legacy Parley migration receipt has an unsupported version');
+  }
+  if (!/^[a-f0-9]{64}$/.test(row.source_digest)) {
+    throw new Error('legacy Parley migration receipt has an invalid source digest');
+  }
+  const counts = [
+    ['sourceTupleRows', row.source_tuple_rows],
+    ['sourceOpenedRows', row.source_opened_rows],
+    ['sourceTurnRows', row.source_turn_rows],
+    ['sourceSeenRows', row.source_seen_rows],
+    ['sourceSeenFrontiers', row.source_seen_frontiers],
+    ['sourceOutcomeRows', row.source_outcome_rows],
+    ['importedRecords', row.imported_records],
+    ['importedTurns', row.imported_turns],
+    ['importedSeenReceipts', row.imported_seen_receipts],
+    ['importedSeenProvenance', row.imported_seen_provenance],
+    ['importedOutcomes', row.imported_outcomes],
+  ] as const;
+  for (const [label, count] of counts) {
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new Error(`legacy Parley migration receipt has an invalid ${label}`);
+    }
+  }
+  if (row.source_seen_frontiers > row.source_seen_rows
+    || row.imported_records > row.source_opened_rows
+    || row.imported_turns > row.source_turn_rows
+    || row.imported_seen_receipts > row.source_seen_frontiers
+    || row.imported_seen_provenance !== row.source_seen_frontiers
+    || row.imported_outcomes > row.source_outcome_rows
+    || row.source_tuple_rows < row.source_opened_rows + row.source_turn_rows
+      + row.source_seen_rows + row.source_outcome_rows) {
+    throw new Error('legacy Parley migration receipt has inconsistent counters');
+  }
+  assertFiniteTimestamp(row.completed_at, 'legacy Parley migration receipt completedAt');
+  return {
+    migrationVersion: LEGACY_PARLEY_TUPLE_MIGRATION_VERSION,
+    sourceDigest: row.source_digest,
+    sourceTupleRows: row.source_tuple_rows,
+    sourceOpenedRows: row.source_opened_rows,
+    sourceTurnRows: row.source_turn_rows,
+    sourceSeenRows: row.source_seen_rows,
+    sourceSeenFrontiers: row.source_seen_frontiers,
+    sourceOutcomeRows: row.source_outcome_rows,
+    importedRecords: row.imported_records,
+    importedTurns: row.imported_turns,
+    importedSeenReceipts: row.imported_seen_receipts,
+    importedSeenProvenance: row.imported_seen_provenance,
+    importedOutcomes: row.imported_outcomes,
+    completedAt: row.completed_at,
+    replayed,
+  };
+}
+/* LEGACY_PARLEY_TUPLE_IMPORTER_END */
 
 function isAutomaticTerminalState(value: string): value is AutomaticTerminalState {
   return value === 'evaluated' || value === 'fired' || value === 'suppressed' || value === 'failed';
@@ -1490,6 +1923,524 @@ export function createParleyStore(deps: ParleyStoreDeps) {
 
   reconcileQuotaLedger();
 
+  /* LEGACY_PARLEY_TUPLE_IMPORTER_BEGIN */
+  /* The runtime's only bounded raw tuple read path; see the matching static guard. */
+  /** Return true only when this database still carries the pre-Store0 tuple authority. */
+  function hasLegacyTupleTable(): boolean {
+    const row = db.prepare(`
+      SELECT 1 AS present
+      FROM sqlite_master
+      WHERE type = 'table' AND name = 'tuples'
+    `).get() as { present: number } | undefined;
+    return row?.present === 1;
+  }
+
+  /** Read the receipt gate without touching source tuples or normalized Parley rows. */
+  function legacyMigrationReceipt(): LegacyParleyTupleMigrationReceipt | null {
+    const row = db.prepare(`
+      SELECT migration_version, source_digest, source_tuple_rows,
+             source_opened_rows, source_turn_rows, source_seen_rows,
+             source_seen_frontiers, source_outcome_rows, imported_records,
+             imported_turns, imported_seen_receipts, imported_seen_provenance,
+             imported_outcomes,
+             completed_at
+      FROM parley_legacy_tuple_migration_receipts
+      WHERE tenant_id = ? AND migration_version = ?
+    `).get(tenantId, LEGACY_PARLEY_TUPLE_MIGRATION_VERSION) as LegacyMigrationReceiptRow | undefined;
+    return row ? decodeLegacyMigrationReceipt(row, true) : null;
+  }
+
+  /** Read exact child tuple rows in bounded SQLite batches, never into a TupleSpace adapter. */
+  function legacyChildRows(
+    kind: 'parley:turn' | 'parley:outcome',
+    harbor: string,
+    parleyIds: string[],
+    observedAt: number,
+  ): LegacyTupleRow[] {
+    const rows: LegacyTupleRow[] = [];
+    for (let offset = 0; offset < parleyIds.length; offset += LEGACY_PARLEY_TUPLE_QUERY_BATCH) {
+      const ids = parleyIds.slice(offset, offset + LEGACY_PARLEY_TUPLE_QUERY_BATCH);
+      const placeholders = ids.map(() => '?').join(', ');
+      rows.push(...db.prepare(`
+        SELECT id, harbor, fields, written_by, created_at, expires_at
+        FROM tuples
+        WHERE harbor = ?
+          AND internal_only = 0
+          AND json_extract(fields, '$[0]') = ?
+          AND json_extract(fields, '$[1]') IN (${placeholders})
+          AND (expires_at IS NULL OR expires_at > ?)
+        ORDER BY created_at ASC, id ASC
+      `).all(harbor, kind, ...ids, observedAt) as LegacyTupleRow[]);
+    }
+    return rows;
+  }
+
+  /** Count all historical seen rows while letting SQLite retain the high-cardinality corpus. */
+  function legacySeenCount(harbor: string, parleyIds: string[], observedAt: number): number {
+    let count = 0;
+    for (let offset = 0; offset < parleyIds.length; offset += LEGACY_PARLEY_TUPLE_QUERY_BATCH) {
+      const ids = parleyIds.slice(offset, offset + LEGACY_PARLEY_TUPLE_QUERY_BATCH);
+      const placeholders = ids.map(() => '?').join(', ');
+      const row = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM tuples
+        WHERE harbor = ?
+          AND internal_only = 0
+          AND json_extract(fields, '$[0]') = 'parley:seen'
+          AND json_extract(fields, '$[1]') IN (${placeholders})
+          AND (expires_at IS NULL OR expires_at > ?)
+      `).get(harbor, ...ids, observedAt) as { count: number };
+      count += Number(row.count);
+    }
+    return count;
+  }
+
+  /**
+   * Collapse timestamp receipts at the database edge. This is the only seen
+   * query that crosses the process boundary, so a 22k-row receipt corpus does
+   * not become a 22k-object migration heap.
+   */
+  function legacySeenFrontiers(
+    harbor: string,
+    parleyIds: string[],
+    observedAt: number,
+  ): LegacyTupleRow[] {
+    const rows: LegacyTupleRow[] = [];
+    for (let offset = 0; offset < parleyIds.length; offset += LEGACY_PARLEY_TUPLE_QUERY_BATCH) {
+      const ids = parleyIds.slice(offset, offset + LEGACY_PARLEY_TUPLE_QUERY_BATCH);
+      const placeholders = ids.map(() => '?').join(', ');
+      rows.push(...db.prepare(`
+        WITH ranked_seen AS (
+          SELECT id, harbor, fields, written_by, created_at, expires_at,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY json_extract(fields, '$[1]'), json_extract(fields, '$[2]')
+                   ORDER BY CAST(json_extract(fields, '$[3].throughAt') AS INTEGER) DESC,
+                            created_at DESC,
+                            id DESC
+                 ) AS position
+          FROM tuples
+          WHERE harbor = ?
+            AND internal_only = 0
+            AND json_extract(fields, '$[0]') = 'parley:seen'
+            AND json_extract(fields, '$[1]') IN (${placeholders})
+            AND (expires_at IS NULL OR expires_at > ?)
+        )
+        SELECT id, harbor, fields, written_by, created_at, expires_at
+        FROM ranked_seen
+        WHERE position = 1
+        ORDER BY harbor ASC, json_extract(fields, '$[1]') ASC,
+                 json_extract(fields, '$[2]') ASC, id ASC
+      `).all(harbor, ...ids, observedAt) as LegacyTupleRow[]);
+    }
+    return rows;
+  }
+
+  /** Find an opened source from a child row before decoding its payload. */
+  function legacyOpenedForChild(
+    row: LegacyTupleRow,
+    kind: 'parley:turn' | 'parley:seen' | 'parley:outcome',
+    opened: Map<string, LegacyParleyImportSource>,
+  ): LegacyParleyImportSource {
+    const fields = legacyFields(row, kind, kind === 'parley:outcome' ? 3 : 4);
+    const parleyId = assertCanonicalString(
+      fields[1],
+      `legacy ${kind} parley id`,
+      PARLEY_STORE_LIMITS.maxParleyIdChars,
+    );
+    const source = opened.get(`${row.harbor}\u0000${parleyId}`);
+    if (!source) throw new Error(`legacy ${kind} ${row.id}: opened source is missing`);
+    return source;
+  }
+
+  /** Load, validate, and normalize only the legacy data that Store0 can represent truthfully. */
+  function readLegacyParleySources(observedAt: number): {
+    sourceTupleRows: number;
+    sourceOpenedRows: number;
+    sourceTurnRows: number;
+    sourceSeenRows: number;
+    sourceSeenFrontiers: number;
+    sourceOutcomeRows: number;
+    sources: LegacyParleyImportSource[];
+  } {
+    const sourceTupleRows = Number((db.prepare('SELECT COUNT(*) AS count FROM tuples').get() as {
+      count: number;
+    }).count);
+    const openedRows = db.prepare(`
+      SELECT id, harbor, fields, written_by, created_at, expires_at
+      FROM tuples
+      WHERE internal_only = 0
+        AND json_extract(fields, '$[0]') = 'parley:opened'
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY harbor ASC, created_at ASC, id ASC
+    `).all(observedAt) as LegacyTupleRow[];
+    const sources: LegacyParleyImportSource[] = openedRows.map((tuple): LegacyParleyImportSource => {
+      const opened = decodeLegacyOpenedTuple(tuple);
+      assertRecord(opened.record, tenantId);
+      const participants = assertParticipants(opened.participants);
+      return {
+        ...opened,
+        participants,
+        turns: [],
+        seenFrontiers: [],
+        outcome: null,
+      };
+    });
+    const byScope = new Map<string, LegacyParleyImportSource>();
+    for (const source of sources) {
+      const key = `${source.record.harbor}\u0000${source.record.parleyId}`;
+      if (byScope.has(key)) throw new Error(`legacy opened ${key}: duplicate tuple authority`);
+      byScope.set(key, source);
+    }
+    const idsByHarbor = new Map<string, string[]>();
+    for (const source of sources) {
+      const ids = idsByHarbor.get(source.record.harbor) ?? [];
+      ids.push(source.record.parleyId);
+      idsByHarbor.set(source.record.harbor, ids);
+    }
+    let sourceTurnRows = 0;
+    let sourceSeenRows = 0;
+    let sourceSeenFrontiers = 0;
+    let sourceOutcomeRows = 0;
+    for (const [harbor, parleyIds] of idsByHarbor) {
+      for (const row of legacyChildRows('parley:turn', harbor, parleyIds, observedAt)) {
+        const source = legacyOpenedForChild(row, 'parley:turn', byScope);
+        source.turns.push(decodeLegacyTurnTuple(row, source));
+        sourceTurnRows++;
+      }
+      sourceSeenRows += legacySeenCount(harbor, parleyIds, observedAt);
+      for (const row of legacySeenFrontiers(harbor, parleyIds, observedAt)) {
+        const source = legacyOpenedForChild(row, 'parley:seen', byScope);
+        source.seenFrontiers.push(decodeLegacySeenTuple(row, source));
+        sourceSeenFrontiers++;
+      }
+      for (const row of legacyChildRows('parley:outcome', harbor, parleyIds, observedAt)) {
+        const source = legacyOpenedForChild(row, 'parley:outcome', byScope);
+        if (source.outcome) {
+          throw new Error(`legacy outcome ${row.id}: duplicate terminal authority`);
+        }
+        source.outcome = decodeLegacyOutcomeTuple(row, source);
+        sourceOutcomeRows++;
+      }
+    }
+    for (const source of sources) {
+      source.turns.sort((left, right) => (
+        left.tuple.created_at - right.tuple.created_at || left.tuple.id - right.tuple.id
+      ));
+      for (let index = 1; index < source.turns.length; index++) {
+        if (source.turns[index]!.turn.at < source.turns[index - 1]!.turn.at) {
+          throw new Error(
+            `legacy Parley ${source.record.parleyId}: timestamp receipts cannot be normalized over non-monotonic tuple turn order`,
+          );
+        }
+      }
+    }
+    return {
+      sourceTupleRows,
+      sourceOpenedRows: sources.length,
+      sourceTurnRows,
+      sourceSeenRows,
+      sourceSeenFrontiers,
+      sourceOutcomeRows,
+      sources,
+    };
+  }
+
+  /**
+   * Hash exact imported source identities without retaining all historical seen
+   * receipts in memory. The raw opened `fields` binds its original deadline,
+   * even when Store0 deliberately omits that inactive historic deadline.
+   */
+  function legacySourceDigest(source: ReturnType<typeof readLegacyParleySources>): string {
+    const tuple = (row: LegacyTupleRow) => ({
+      id: row.id,
+      harbor: row.harbor,
+      fields: row.fields,
+      writtenBy: row.written_by,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+    });
+    return hash(json({
+      migrationVersion: LEGACY_PARLEY_TUPLE_MIGRATION_VERSION,
+      sourceTupleRows: source.sourceTupleRows,
+      sourceOpenedRows: source.sourceOpenedRows,
+      sourceTurnRows: source.sourceTurnRows,
+      sourceSeenRows: source.sourceSeenRows,
+      sourceSeenFrontiers: source.sourceSeenFrontiers,
+      sourceOutcomeRows: source.sourceOutcomeRows,
+      opened: source.sources.map((entry) => tuple(entry.tuple)),
+      turns: source.sources.flatMap((entry) => entry.turns.map(({ tuple: row }) => tuple(row))),
+      seenFrontiers: source.sources.flatMap((entry) => entry.seenFrontiers.map(({ tuple: row }) => tuple(row))),
+      outcomes: source.sources.flatMap((entry) => entry.outcome ? [tuple(entry.outcome.tuple)] : []),
+    }));
+  }
+
+  /**
+   * A successful direct row write is one or more safe integer mutations.
+   * better-sqlite3 reports the direct row while bun:sqlite includes durable
+   * quota-trigger ledger writes. Never coerce an adapter receipt: an absent,
+   * malformed, or zero count must remain a fail-closed storage failure.
+   */
+  function hasSuccessfulStoreWrite(result: unknown): boolean {
+    const count = (result as { changes?: unknown } | null | undefined)?.changes;
+    return typeof count === 'number' && Number.isSafeInteger(count) && count >= 1;
+  }
+
+  /** Insert a source only after every source row was validated and collision-checked. */
+  function importLegacyParleySource(source: LegacyParleyImportSource): {
+    turns: number;
+    seenReceipts: number;
+    seenProvenance: number;
+    outcomes: number;
+  } {
+    const { record } = source;
+    assertQuotaAvailable(record.harbor, {
+      retainedRecords: 1,
+      retainedTurns: source.turns.length,
+    });
+    // A legacy deadline without a durable outcome was only a tuple-era
+    // projection. Carrying it into Store0 would cause the first read to create
+    // a new terminal outcome and outbox. The untouched opened tuple and its
+    // receipt digest preserve the historic deadline; Store0 must not replay it.
+    const storedRecord = source.outcome ? record : { ...record, responseDueAt: null };
+    insertRecord(storedRecord);
+    insertParticipants(record, source.participants);
+    const insertTurn = db.prepare(`
+      INSERT INTO parley_turns (
+        tenant_id, harbor, parley_id, turn_sequence, party, idempotency_key,
+        intent_fingerprint, performative, content, proposal_id, evidence_json,
+        delivery_keys_json, at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)
+    `);
+    for (const [index, entry] of source.turns.entries()) {
+      const turn = entry.turn;
+      const tupleIdentity = `${record.harbor}:${record.parleyId}:${entry.tuple.id}`;
+      const idempotencyKey = `legacy-turn:v1:${hash(tupleIdentity)}`;
+      const intentFingerprint = hash(json({
+        migrationVersion: LEGACY_PARLEY_TUPLE_MIGRATION_VERSION,
+        tupleId: entry.tuple.id,
+        parleyId: turn.parleyId,
+        party: turn.party,
+        performative: turn.performative,
+        content: turn.content,
+        proposalId: turn.proposalId,
+        evidenceRefs: turn.evidenceRefs,
+        at: turn.at,
+      }));
+      const result = insertTurn.run(
+        tenantId,
+        record.harbor,
+        record.parleyId,
+        index + 1,
+        turn.party,
+        idempotencyKey,
+        intentFingerprint,
+        turn.performative,
+        turn.content,
+        turn.proposalId,
+        json(turn.evidenceRefs),
+        turn.at,
+      );
+      // bun:sqlite includes quota-trigger writes in Statement#run().changes,
+      // whereas better-sqlite3 reports just this direct row. A positive count
+      // is the portable success receipt for this single-row insert.
+      if (!hasSuccessfulStoreWrite(result)) throw new Error(`legacy turn ${entry.tuple.id}: Store0 insert failed`);
+    }
+    let seenReceipts = 0;
+    const insertSeen = db.prepare(`
+      INSERT INTO parley_seen_receipts (
+        tenant_id, harbor, parley_id, actor_id, last_seen_turn_sequence, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const insertSeenProvenance = db.prepare(`
+      INSERT INTO parley_legacy_tuple_seen_provenance (
+        tenant_id, harbor, parley_id, actor_id, source_tuple_id,
+        source_through_at, source_written_at, source_created_at,
+        source_written_by, normalized_turn_sequence
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const seen of source.seenFrontiers) {
+      let sequence = 0;
+      for (const [index, entry] of source.turns.entries()) {
+        if (entry.turn.at > seen.throughAt) break;
+        sequence = index + 1;
+      }
+      const provenance = insertSeenProvenance.run(
+        tenantId,
+        record.harbor,
+        record.parleyId,
+        seen.party,
+        seen.tuple.id,
+        seen.throughAt,
+        seen.at,
+        seen.tuple.created_at,
+        seen.party,
+        sequence,
+      );
+      if (!hasSuccessfulStoreWrite(provenance)) {
+        throw new Error(`legacy seen ${seen.tuple.id}: Store0 provenance insert failed`);
+      }
+      // Store0's zero frontier is represented by no receipt. The provenance
+      // row still retains the literal legacy timestamp that produced it.
+      if (sequence > 0) {
+        const result = insertSeen.run(
+          tenantId,
+          record.harbor,
+          record.parleyId,
+          seen.party,
+          sequence,
+          seen.at,
+        );
+        if (!hasSuccessfulStoreWrite(result)) throw new Error(`legacy seen ${seen.tuple.id}: Store0 insert failed`);
+        seenReceipts++;
+      }
+    }
+    let outcomes = 0;
+    if (source.outcome) {
+      const outcome = source.outcome.outcome;
+      const result = db.prepare(`
+        INSERT INTO parley_outcomes (
+          tenant_id, harbor, parley_id, status, decision, reason,
+          resolved_by, dissenters_json, at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        record.harbor,
+        record.parleyId,
+        outcome.status,
+        outcome.decision,
+        outcome.reason,
+        outcome.resolvedBy,
+        json(outcome.dissenters),
+        outcome.at,
+      );
+      if (!hasSuccessfulStoreWrite(result)) throw new Error(`legacy outcome ${source.outcome.tuple.id}: Store0 insert failed`);
+      outcomes = 1;
+    }
+    const allPartiesResponded = record.parties.every((party) => (
+      source.turns.some((entry) => entry.turn.party === party)
+    ));
+    const legacyRefusal = source.turns.some((entry) => entry.turn.performative === 'refuse');
+    // Store0 correctly requires every terminal record to have a durable
+    // outcome. Legacy refusal/expiry projections had none, so keep their raw
+    // transcript readable and nonterminal instead of manufacturing authority.
+    const status = source.outcome?.outcome.status
+      ?? (!legacyRefusal && allPartiesResponded ? 'CONVENED' : 'SUMMONED');
+    const updatedAt = Math.max(
+      record.createdAt,
+      ...source.turns.map((entry) => entry.turn.at),
+      source.outcome?.outcome.at ?? 0,
+    );
+    const retentionUntil = updatedAt + PARLEY_STORE_LIMITS.retentionMs;
+    if (!Number.isSafeInteger(retentionUntil)) {
+      throw new Error(`legacy Parley ${record.parleyId}: retention deadline exceeds timestamp capacity`);
+    }
+    const updated = db.prepare(`
+      UPDATE parley_records
+      SET status = ?, updated_at = ?, retention_until = ?
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).run(
+      status,
+      updatedAt,
+      retentionUntil,
+      tenantId,
+      record.harbor,
+      record.parleyId,
+    );
+    if (!hasSuccessfulStoreWrite(updated)) throw new Error(`legacy Parley ${record.parleyId}: Store0 status update failed`);
+    return {
+      turns: source.turns.length,
+      seenReceipts,
+      seenProvenance: source.seenFrontiers.length,
+      outcomes,
+    };
+  }
+
+  /**
+   * Perform the non-replayable tuple-to-Store0 conversion under SQLite's
+   * writer lock. A committed versioned receipt is the only restart gate.
+   */
+  function importLegacyTupleParleys(): LegacyParleyTupleMigrationReceipt | null {
+    if (tenantId !== LEGACY_PARLEY_TUPLE_TENANT || !hasLegacyTupleTable()) return null;
+    if (db.inTransaction) {
+      throw new Error('legacy Parley import requires its own SQLite writer transaction');
+    }
+    return db.transaction(() => {
+      const prior = legacyMigrationReceipt();
+      if (prior) return prior;
+      const observedAt = assertFiniteTimestamp(now(), 'legacy Parley migration time');
+      const source = readLegacyParleySources(observedAt);
+      for (const entry of source.sources) {
+        if (getRecordRow(entry.record.harbor, entry.record.parleyId)) {
+          throw new Error(
+            `legacy Parley ${entry.record.harbor}/${entry.record.parleyId} collides with Store0 before migration receipt`,
+          );
+        }
+      }
+      let importedTurns = 0;
+      let importedSeenReceipts = 0;
+      let importedSeenProvenance = 0;
+      let importedOutcomes = 0;
+      for (const entry of source.sources) {
+        const imported = importLegacyParleySource(entry);
+        importedTurns += imported.turns;
+        importedSeenReceipts += imported.seenReceipts;
+        importedSeenProvenance += imported.seenProvenance;
+        importedOutcomes += imported.outcomes;
+      }
+      const sourceTupleRowsAfter = Number((db.prepare('SELECT COUNT(*) AS count FROM tuples').get() as {
+        count: number;
+      }).count);
+      if (sourceTupleRowsAfter !== source.sourceTupleRows) {
+        throw new Error('legacy Parley import detected a source tuple mutation');
+      }
+      const receipt: LegacyParleyTupleMigrationReceipt = {
+        migrationVersion: LEGACY_PARLEY_TUPLE_MIGRATION_VERSION,
+        sourceDigest: legacySourceDigest(source),
+        sourceTupleRows: source.sourceTupleRows,
+        sourceOpenedRows: source.sourceOpenedRows,
+        sourceTurnRows: source.sourceTurnRows,
+        sourceSeenRows: source.sourceSeenRows,
+        sourceSeenFrontiers: source.sourceSeenFrontiers,
+        sourceOutcomeRows: source.sourceOutcomeRows,
+        importedRecords: source.sources.length,
+        importedTurns,
+        importedSeenReceipts,
+        importedSeenProvenance,
+        importedOutcomes,
+        completedAt: observedAt,
+        replayed: false,
+      };
+      const result = db.prepare(`
+        INSERT INTO parley_legacy_tuple_migration_receipts (
+          tenant_id, migration_version, source_digest, source_tuple_rows,
+          source_opened_rows, source_turn_rows, source_seen_rows,
+          source_seen_frontiers, source_outcome_rows, imported_records,
+          imported_turns, imported_seen_receipts, imported_seen_provenance,
+          imported_outcomes, completed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        tenantId,
+        receipt.migrationVersion,
+        receipt.sourceDigest,
+        receipt.sourceTupleRows,
+        receipt.sourceOpenedRows,
+        receipt.sourceTurnRows,
+        receipt.sourceSeenRows,
+        receipt.sourceSeenFrontiers,
+        receipt.sourceOutcomeRows,
+        receipt.importedRecords,
+        receipt.importedTurns,
+        receipt.importedSeenReceipts,
+        receipt.importedSeenProvenance,
+        receipt.importedOutcomes,
+        receipt.completedAt,
+      );
+      if (!hasSuccessfulStoreWrite(result)) throw new Error('legacy Parley migration receipt insert failed');
+      return receipt;
+    }).immediate();
+  }
+  /* LEGACY_PARLEY_TUPLE_IMPORTER_END */
+
   function insertRecord(record: ParleyRecord): void {
     assertRecord(record, tenantId);
     const retentionUntil = record.createdAt + PARLEY_STORE_LIMITS.retentionMs;
@@ -1533,7 +2484,11 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       automatic?.confidence ?? null,
       automatic?.magnitude ?? null,
     );
-    if (changes(result) !== 1) throw new Error('parley store failed to insert canonical record');
+    // The compiled daemon uses bun:sqlite, which includes the durable quota
+    // trigger's ledger writes in `changes`. The direct record row is still
+    // exactly one; accepting any positive mutation keeps this boundary
+    // portable without weakening a no-op or conflict failure.
+    if (!hasSuccessfulStoreWrite(result)) throw new Error('parley store failed to insert canonical record');
   }
 
   function insertParticipants(record: ParleyRecord, input: StoredParleyParticipant[]): StoredParleyParticipant[] {
@@ -3462,6 +4417,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       'parley_participants',
       'parley_turns',
       'parley_seen_receipts',
+      'parley_legacy_tuple_seen_provenance',
       'parley_outcomes',
       'parley_auto_signals',
       'parley_auto_terminal_receipts',
@@ -3488,6 +4444,12 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     return tenantQuotaSnapshot();
   }
 
+  // Run after all Store0 methods exist so the importer can share their
+  // validation and quota primitives, then rebuild ledger evidence once after
+  // its transaction commits. A receipt makes every subsequent restart a read.
+  const legacyMigration = importLegacyTupleParleys();
+  if (legacyMigration && !legacyMigration.replayed) reconcileQuotaLedger();
+
   return {
     tenantId,
     createManual,
@@ -3506,6 +4468,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     inspectCounts,
     inspectQuota,
     inspectTenantQuota,
+    legacyMigration,
   };
 }
 
