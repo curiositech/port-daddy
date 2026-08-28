@@ -87,6 +87,9 @@ describe('SwiftPM build harness for apps/pd-ios', () => {
     expect(stdout).toMatch(/build succeeded/i);
   });
 
+  // xcodebuild needs to compile the SwiftPM manifest before it can reject this
+  // deliberately invalid product declaration. On GitHub's macOS runner that
+  // takes roughly 90 seconds, well beyond Jest's 10-second default.
   testIfXcode('Build fails when the target is changed to an executable', async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pd-ios-test-'));
     // Copy the original Package.swift
@@ -119,7 +122,7 @@ describe('SwiftPM build harness for apps/pd-ios', () => {
     expect(result.stderr).toMatch(/error:/);
     // Clean up
     await fs.rm(tmpDir, { recursive: true, force: true });
-  });
+  }, 120_000);
 
   testIfXcode('Build fails with malformed Package.swift', async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pd-ios-test-'));
