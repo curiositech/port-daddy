@@ -66,6 +66,17 @@ async function captureStillEvidence() {
     await settled.locator('.player-shell').screenshot({ path: join(artifactsDir, 'collision-red-refusal.png') });
     await settled.close();
 
+    const portsConfiguration = await browser.newPage({ viewport });
+    await openGallery(portsConfiguration, { reducedMotion: true });
+    await waitForScene(portsConfiguration, 'ports');
+    const configurationTerminal = portsConfiguration.locator('.ph-term');
+    await configurationTerminal.evaluate((element) => { element.scrollTop = 0; });
+    await portsConfiguration.getByText('Configured project: porthole-service-proof', { exact: false }).waitFor();
+    await portsConfiguration.locator('.player-shell').screenshot({
+      path: join(artifactsDir, 'ports-configuration-registration.png'),
+    });
+    await portsConfiguration.close();
+
     const ports = await browser.newPage({ viewport });
     await openGallery(ports, { reducedMotion: true });
     await waitForScene(ports, 'ports');
