@@ -2174,6 +2174,17 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     }));
   }
 
+  /**
+   * A successful direct row write is one or more safe integer mutations.
+   * better-sqlite3 reports the direct row while bun:sqlite includes durable
+   * quota-trigger ledger writes. Never coerce an adapter receipt: an absent,
+   * malformed, or zero count must remain a fail-closed storage failure.
+   */
+  function hasSuccessfulStoreWrite(result: unknown): boolean {
+    const count = (result as { changes?: unknown } | null | undefined)?.changes;
+    return typeof count === 'number' && Number.isSafeInteger(count) && count >= 1;
+  }
+
   /** Insert a source only after every source row was validated and collision-checked. */
   function importLegacyParleySource(source: LegacyParleyImportSource): {
     turns: number;
@@ -2229,7 +2240,10 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         json(turn.evidenceRefs),
         turn.at,
       );
-      if (changes(result) !== 1) throw new Error(`legacy turn ${entry.tuple.id}: Store0 insert failed`);
+      // bun:sqlite includes quota-trigger writes in Statement#run().changes,
+      // whereas better-sqlite3 reports just this direct row. A positive count
+      // is the portable success receipt for this single-row insert.
+      if (!hasSuccessfulStoreWrite(result)) throw new Error(`legacy turn ${entry.tuple.id}: Store0 insert failed`);
     }
     let seenReceipts = 0;
     const insertSeen = db.prepare(`
@@ -2262,7 +2276,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         seen.party,
         sequence,
       );
-      if (changes(provenance) !== 1) {
+      if (!hasSuccessfulStoreWrite(provenance)) {
         throw new Error(`legacy seen ${seen.tuple.id}: Store0 provenance insert failed`);
       }
       // Store0's zero frontier is represented by no receipt. The provenance
@@ -2276,7 +2290,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
           sequence,
           seen.at,
         );
-        if (changes(result) !== 1) throw new Error(`legacy seen ${seen.tuple.id}: Store0 insert failed`);
+        if (!hasSuccessfulStoreWrite(result)) throw new Error(`legacy seen ${seen.tuple.id}: Store0 insert failed`);
         seenReceipts++;
       }
     }
@@ -2299,7 +2313,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         json(outcome.dissenters),
         outcome.at,
       );
-      if (changes(result) !== 1) throw new Error(`legacy outcome ${source.outcome.tuple.id}: Store0 insert failed`);
+      if (!hasSuccessfulStoreWrite(result)) throw new Error(`legacy outcome ${source.outcome.tuple.id}: Store0 insert failed`);
       outcomes = 1;
     }
     const allPartiesResponded = record.parties.every((party) => (
@@ -2332,7 +2346,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       record.harbor,
       record.parleyId,
     );
-    if (changes(updated) !== 1) throw new Error(`legacy Parley ${record.parleyId}: Store0 status update failed`);
+    if (!hasSuccessfulStoreWrite(updated)) throw new Error(`legacy Parley ${record.parleyId}: Store0 status update failed`);
     return {
       turns: source.turns.length,
       seenReceipts,
@@ -2421,7 +2435,7 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         receipt.importedOutcomes,
         receipt.completedAt,
       );
-      if (changes(result) !== 1) throw new Error('legacy Parley migration receipt insert failed');
+      if (!hasSuccessfulStoreWrite(result)) throw new Error('legacy Parley migration receipt insert failed');
       return receipt;
     }).immediate();
   }
@@ -2470,7 +2484,11 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       automatic?.confidence ?? null,
       automatic?.magnitude ?? null,
     );
-    if (changes(result) !== 1) throw new Error('parley store failed to insert canonical record');
+    // The compiled daemon uses bun:sqlite, which includes the durable quota
+    // trigger's ledger writes in `changes`. The direct record row is still
+    // exactly one; accepting any positive mutation keeps this boundary
+    // portable without weakening a no-op or conflict failure.
+    if (!hasSuccessfulStoreWrite(result)) throw new Error('parley store failed to insert canonical record');
   }
 
   function insertParticipants(record: ParleyRecord, input: StoredParleyParticipant[]): StoredParleyParticipant[] {
