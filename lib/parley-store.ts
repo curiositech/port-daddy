@@ -1524,6 +1524,16 @@ export function createParleyStore(deps: ParleyStoreDeps) {
 
   reconcileQuotaLedger();
 
+  /**
+   * Persists one validated record before Store0 writes its dependent state.
+   *
+   * Purpose: a plain INSERT makes canonical admission all-or-nothing: it
+   * either creates the row or raises, while SQLite adapters may report quota
+   * trigger ledger writes alongside the record in their affected-row count.
+   *
+   * @param record Canonical Parley state that must exist before participants,
+   * notifications, and automatic admission receipts can be persisted.
+   */
   function insertRecord(record: ParleyRecord): void {
     assertRecord(record, tenantId);
     const retentionUntil = record.createdAt + PARLEY_STORE_LIMITS.retentionMs;
@@ -1568,7 +1578,9 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       automatic?.magnitude ?? null,
       automatic?.origin ?? null,
     );
-    if (changes(result) !== 1) throw new Error('parley store failed to insert canonical record');
+    // Bun includes quota-trigger ledger writes in `changes`; this plain INSERT
+    // either creates the canonical row or raises, so any positive count proves admission.
+    if (changes(result) < 1) throw new Error('parley store failed to insert canonical record');
   }
 
   function insertParticipants(record: ParleyRecord, input: StoredParleyParticipant[]): StoredParleyParticipant[] {
