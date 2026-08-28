@@ -1633,10 +1633,14 @@ export function createParleyStore(deps: ParleyStoreDeps) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, NULL, ?, ?, NULL)
       ON CONFLICT(tenant_id, harbor, delivery_key) DO NOTHING
     `);
+    // Driver result metadata is not portable: Bun includes quota-trigger writes
+    // in `run().changes`, while SQLite's changes() function reports only this
+    // direct INSERT. Read it immediately so ON CONFLICT replay remains exact.
+    const directChanges = db.prepare('SELECT changes() AS count');
     let inserted = 0;
     for (const intent of canonical) {
       const payload = json(intent.payload);
-      const result = statement.run(
+      statement.run(
         tenantId,
         record.harbor,
         record.parleyId,
@@ -1652,8 +1656,12 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         lastError,
         createdAt,
       );
-      inserted += changes(result);
-      if (changes(result) === 0) {
+      const direct = Number((directChanges.get() as { count?: unknown } | undefined)?.count);
+      if (direct !== 0 && direct !== 1) {
+        throw new Error(`parley outbox direct insert count is invalid for ${intent.deliveryKey}`);
+      }
+      inserted += direct;
+      if (direct === 0) {
         const existing = db.prepare(`
           SELECT parley_id, payload_hash, recipient_actor_id, inbox_target, from_actor_id, event_type
           FROM parley_notification_outbox
