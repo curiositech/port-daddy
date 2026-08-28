@@ -93,8 +93,16 @@ function seed(db) {
   appendEvent(db, { streamType: 'work-receipt', payload: fixture('work-receipt') });
 }
 
-function buildApp(db, sse = {}) {
+function buildApp(db, sse = {}, { withoutRequestIp = false } = {}) {
   const app = Fastify();
+  if (withoutRequestIp) {
+    // Fastify normally supplies a string, but the local-only authority gate
+    // must still fail closed if an adapter/proxy leaves that metadata absent.
+    app.addHook('onRequest', (request, _reply, done) => {
+      Object.defineProperty(request, 'ip', { configurable: true, value: undefined });
+      done();
+    });
+  }
   const episodicMemory = createEpisodicMemory(db);
   const sessions = createSessions(db);
   const actorSouls = createTestActorSouls(db);
@@ -387,6 +395,25 @@ describe('agent-harbor routes', () => {
         ...overrides,
       };
     }
+
+    test('fails closed before parsing or writing when request IP metadata is unavailable', async () => {
+      const { app: noIpApp } = buildApp(db, {}, { withoutRequestIp: true });
+      await noIpApp.ready();
+      try {
+        const response = await noIpApp.inject({
+          method: 'POST',
+          url: '/agent-harbor/interactive-context-pressure',
+          payload: requestPayload('provider-session-without-ip'),
+        });
+
+        expect(response.statusCode).toBe(403);
+        expect(response.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_REMOTE_UNAVAILABLE' });
+        expect(readEvents(db, { streamType: 'transcript-event' })
+          .map((row) => row.kind)).not.toContain('context_pressure');
+      } finally {
+        await noIpApp.close();
+      }
+    });
 
     test('binds a credentialed hook to its durable plan session and returns only a bounded receipt', async () => {
       const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });
