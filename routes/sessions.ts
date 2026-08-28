@@ -26,6 +26,7 @@ import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.j
 import type { SymbolConflict } from '../lib/symbol-claims.js';
 import type { Suggestions } from '../lib/suggestions.js';
 import {
+  runClaimTreeTroubleScan,
   surfaceSymbolConflictAdvice,
   type BrokerActivityLog,
   type BrokerInbox,
@@ -211,6 +212,30 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     if (!storedAgentId || !actorSouls) return null;
     const resolved = actorSouls.resolveActor(storedAgentId);
     return resolved.soulClass === 'unknown' ? null : resolved.actorId;
+  }
+
+  /**
+   * A claim write is the reactive edge for the deterministic trouble classifier.
+   * The scanner is durable and deduplicated; prompt hooks only read its result.
+   */
+  function surfaceClaimTreeTrouble() {
+    if (!suggestions || !agentInbox) return;
+    try {
+      const scan = runClaimTreeTroubleScan({
+        sessions: {
+          listAllActiveClaims: (options) => sessions.listAllActiveClaims(options) as any,
+        },
+        suggestions,
+        inbox: agentInbox,
+        activityLog,
+      });
+      if (scan.surfaced > 0) {
+        logger.info('claim_tree_trouble_surfaced', { ...scan });
+      }
+    } catch (error) {
+      // A classifier outage cannot undo a successful authoritative claim.
+      logger.error('claim_tree_trouble_scan_error', { error: (error as Error).message });
+    }
   }
 
   function hasActiveCanonicalActor(actorId: string): boolean {
@@ -808,6 +833,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         });
       }
 
+      surfaceClaimTreeTrouble();
+
       return result;
 
     } catch (error) {
@@ -909,6 +936,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           metadata: { sessionId, status: result.status as string }
         });
       }
+
+      surfaceClaimTreeTrouble();
 
       return result;
 

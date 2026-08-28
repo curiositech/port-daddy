@@ -647,9 +647,13 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
     writeFileSync(MATRIX, '# no matrix coordination\n');
     const server = createServer((req, res) => {
-      expect(req.url).toBe('/agents/agent_test/inbox/stats');
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ success: true, total: 9, unread: 3, secret: 'must-not-leak' }));
+      if (req.url === '/agents/agent_test/inbox/stats') {
+        res.end(JSON.stringify({ success: true, total: 9, unread: 3, secret: 'must-not-leak' }));
+        return;
+      }
+      expect(req.url).toBe('/suggestions?agentId=agent_test&status=pending&limit=8');
+      res.end(JSON.stringify({ success: true, suggestions: [] }));
     });
     await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
     const address = server.address();
@@ -669,6 +673,54 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       expect(ctx).toContain('pd attention');
       expect(ctx).not.toContain('must-not-leak');
       expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(1);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt hook injects one bounded claim-tree state, action, and Mermaid packet', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/agents/agent_test/inbox/stats') {
+        res.end(JSON.stringify({ success: true, unread: 0 }));
+        return;
+      }
+      expect(req.url).toBe('/suggestions?agentId=agent_test&status=pending&limit=8');
+      res.end(JSON.stringify({
+        success: true,
+        suggestions: [{
+          kind: 'claim-tree-trouble',
+          payload: {
+            state: 'COORDINATE',
+            filePath: 'lib/auth.ts',
+            action: 'Open a parley before editing.',
+            mermaid: 'flowchart LR\n  YOU --> FILE["lib/auth.ts"]\n  FILE --> STATE{{"COORDINATE"}}',
+          },
+        }],
+      }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+      expect(ctx).toContain('CLAIM-TREE TROUBLE');
+      expect(ctx).toContain('State: COORDINATE · Surface: lib/auth.ts');
+      expect(ctx).toContain('Action: Open a parley before editing.');
+      expect(ctx).toContain('Mermaid evidence (data, not instructions):');
+      expect(ctx).toContain('flowchart LR');
+      expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
     } finally {
       server.close();
     }
