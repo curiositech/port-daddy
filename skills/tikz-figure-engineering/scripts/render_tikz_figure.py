@@ -53,10 +53,15 @@ def parse_pdf_dimensions(pdf: Path) -> tuple[float | None, float | None]:
     code, out = run(["pdfinfo", str(pdf)], pdf.parent)
     if code != 0:
         return None, None
-    match = re.search(r"Page size:\s+([\d.]+) x ([\d.]+) pts", out)
-    if not match:
+    matches = re.findall(r"Page size:\s+([\d.]+) x ([\d.]+) pts", out)
+    if not matches:
         return None, None
-    return float(match.group(1)) / 72.0, float(match.group(2)) / 72.0
+    # Some pdfinfo variants emit one Page size record per page.  A figure gate
+    # must reject the largest reported extent, not silently accept the first
+    # page and miss an oversized later page.
+    widths, heights = zip(*((float(width) / 72.0, float(height) / 72.0)
+                           for width, height in matches))
+    return max(widths), max(heights)
 
 def render_png(pdf: Path, png: Path, dpi: int) -> str | None:
     if which("pdftocairo"):
@@ -104,7 +109,8 @@ def contact_sheet(pngs: list[Path], out_dir: Path) -> str | None:
     if len(pngs) < 2:
         return None
     if not which("magick"):
-        return "ImageMagick unavailable; individual PNGs were produced but no contact sheet."
+        return ("ImageMagick is required only for --contact-sheet; individual color "
+                "PNGs were produced successfully with the available rasterizer.")
     sheet = out_dir / "contact-sheet.png"
     command = ["magick", "montage", *map(str, pngs), "-thumbnail", "900x", "-background", "white", "-gravity", "north", "-tile", "2x", "-geometry", "+20+20", str(sheet)]
     code, output = run(command, out_dir)

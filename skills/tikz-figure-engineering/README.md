@@ -13,8 +13,10 @@ dependencies. A normal render emits a PDF, one color PNG inspection raster,
 compilation logs, and `render-report.json`; it never creates grayscale output.
 The `--preview` mode uses a faster 144-DPI color raster while retaining
 compilation and strict-fit checks. The optional `--contact-sheet` batch feature
-also requires ImageMagick because `pdftocairo` rasterizes pages but does not
-compose PNGs. The renderer does not modify source files.
+requires ImageMagick specifically: `pdftocairo` can rasterize each page but
+cannot compose the sheet. Without ImageMagick, individual color renders remain
+valid and the report states that only the requested contact sheet is unavailable.
+The renderer does not modify source files.
 
 ## Test
 

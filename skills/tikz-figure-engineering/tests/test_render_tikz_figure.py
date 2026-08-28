@@ -42,8 +42,32 @@ class RendererTests(TestCase):
             with self.assertRaisesRegex(RuntimeError, "No LaTeX engine found"):
                 renderer.locate_engine("auto")
 
-    def test_renderer_has_no_undeclared_pdfplumber_import(self):
-        self.assertNotIn("pdfplumber", SCRIPT.read_text())
+    def test_renderer_imports_without_optional_site_packages(self):
+        # The published renderer promises no Python package dependencies.  Test
+        # that promise by importing the actual module with site-packages
+        # disabled, rather than by searching its source for one package name.
+        program = (
+            "import importlib.util\n"
+            f"spec = importlib.util.spec_from_file_location('renderer_smoke', {str(SCRIPT)!r})\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+        )
+        result = subprocess.run(
+            ["python3", "-S", "-c", program],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_pdf_dimensions_use_largest_reported_page(self):
+        report = "Page size: 432 x 288 pts\nPage size: 504 x 360 pts\n"
+        with mock.patch.object(renderer, "which", return_value="/usr/bin/pdfinfo"), \
+             mock.patch.object(renderer, "run", return_value=(0, report)):
+            width, height = renderer.parse_pdf_dimensions(Path("figure.pdf"))
+        self.assertEqual(width, 7.0)
+        self.assertEqual(height, 5.0)
 
     def test_empty_contact_sheet_is_a_clean_noop(self):
         with self.temporary_dir() as tmp:
