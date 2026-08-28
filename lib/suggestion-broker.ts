@@ -525,8 +525,8 @@ function claimForestProvenance(claim: ActiveClaim): ClaimForestProvenance | null
 function sameWorld(a: ActiveClaim, b: ActiveClaim): boolean {
   const self = claimForestProvenance(a);
   const other = claimForestProvenance(b);
-  return Boolean(self && other)
-    && self.repoId === other.repoId
+  if (!self || !other) return false;
+  return self.repoId === other.repoId
     && self.worldKind === other.worldKind
     && self.worldId === other.worldId;
 }
