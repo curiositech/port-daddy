@@ -72,7 +72,7 @@ class AtlasCoverageTests(unittest.TestCase):
             / "skills/whitepaper-figure-system/references/semantic-figure-atlas.md"
         )
         report = coverage.compare(figures, coverage.extract_atlas_ids(atlas))
-        self.assertTrue(report["source_count"] >= 80)
+        self.assertGreaterEqual(report["source_count"], 80)
         self.assertTrue(coverage.is_clean(report), report)
 
 
