@@ -136,6 +136,11 @@ import {
   FleetAiDependencyError,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
 } from './ai-resilience.js';
+import {
+  ContextAdmissionError,
+  requireContextAdmission,
+  utf8ByteLength,
+} from './context-admission.js';
 
 // ---------------------------------------------------------------------------
 
@@ -156,6 +161,16 @@ const PLAN_MAX_TOKENS = 1024;
 const RAW_DIAGNOSTIC_CHARS = 2000;
 /** Diff budget for the purser's prompts (chars). */
 const PURSER_DIFF_CHAR_LIMIT = 24_000;
+/** Per-request title projection: a PR title is metadata, not an unbounded prompt suffix. */
+const PURSER_TITLE_BYTE_LIMIT = 512;
+/** Per-request body projection: preserve the opening claim while leaving room for review evidence. */
+const PURSER_BODY_BYTE_LIMIT = 2_048;
+/** The repair path needs a file inventory, but never an unbounded one. */
+const PURSER_FILE_INDEX_BYTE_LIMIT = 4 * 1024;
+/** Bound file-count work even when every filename is tiny. */
+const PURSER_FILE_INDEX_MAX_FILES = 64;
+/** A pathological filename must not consume the whole changed-file projection. */
+const PURSER_FILE_PATH_BYTE_LIMIT = 512;
 /** Transcript cap for the sandbox failure tail. */
 const FAILURE_TAIL_BYTES = 1024;
 /**
@@ -377,15 +392,173 @@ export function parseAuthoredFiles(output: string): StackedFile[] | null {
 // ---------------------------------------------------------------------------
 // Prompts
 
+interface TextProjection {
+  text: string;
+  displayedBytes: number;
+  totalBytes: number;
+  truncated: boolean;
+}
+
+/**
+ * Project a text field at a UTF-8 boundary instead of a UTF-16 index.
+ *
+ * The purpose is to bound PR metadata without producing malformed surrogate
+ * pairs. This deliberately applies only to prose and path metadata; diff/code
+ * evidence keeps its existing review policy and is never raw-sliced here.
+ *
+ * @param value Unbounded metadata from the GitHub PR payload.
+ * @param maxBytes Maximum UTF-8 bytes this model-facing projection may keep.
+ * @returns The intact UTF-8 prefix and exact omission accounting.
+ */
+function projectUtf8Prefix(value: string, maxBytes: number): TextProjection {
+  const totalBytes = utf8ByteLength(value);
+  if (totalBytes <= maxBytes) {
+    return { text: value, displayedBytes: totalBytes, totalBytes, truncated: false };
+  }
+
+  let displayedBytes = 0;
+  let text = '';
+  for (const codePoint of value) {
+    const bytes = utf8ByteLength(codePoint);
+    if (displayedBytes + bytes > maxBytes) break;
+    text += codePoint;
+    displayedBytes += bytes;
+  }
+  return { text, displayedBytes, totalBytes, truncated: true };
+}
+
+/**
+ * Render a truthful marker whenever a metadata field has been projected.
+ *
+ * The marker is part of the model-facing prompt so it cannot mistake a bounded
+ * view for the whole author claim. It names byte counts only, never repeats
+ * omitted content into a second unbounded channel.
+ *
+ * @param label Human-readable field name for the prompt.
+ * @param projection The bounded field returned by {@link projectUtf8Prefix}.
+ * @returns A one-line omission marker, or an empty string when complete.
+ */
+function projectionMarker(label: string, projection: TextProjection): string {
+  if (!projection.truncated) return '';
+  return (
+    `[${label} projection: showing first ${projection.displayedBytes} of ` +
+    `${projection.totalBytes} UTF-8 bytes; the remainder is omitted from this model request.]`
+  );
+}
+
+/**
+ * Render bounded prose with an explicit omission marker on its own line.
+ *
+ * @param label Human-readable field name for the model prompt.
+ * @param value Raw PR metadata text.
+ * @param maxBytes Maximum UTF-8 bytes to retain before the marker.
+ * @returns Either the complete text or a bounded, visibly-projected version.
+ */
+function projectedProse(label: string, value: string, maxBytes: number): string {
+  const projection = projectUtf8Prefix(value, maxBytes);
+  const marker = projectionMarker(label, projection);
+  return marker ? `${projection.text}\n\n${marker}` : projection.text;
+}
+
+/**
+ * Render title/path metadata inline so headings and list rows stay legible.
+ *
+ * @param label Human-readable field name for the model prompt.
+ * @param value Raw title or path text.
+ * @param maxBytes Maximum UTF-8 bytes to retain before the marker.
+ * @returns The complete inline field or its explicit bounded projection.
+ */
+function projectedInline(label: string, value: string, maxBytes: number): string {
+  const projection = projectUtf8Prefix(value, maxBytes);
+  const marker = projectionMarker(label, projection);
+  return marker ? `${projection.text} ${marker}` : projection.text;
+}
+
+/**
+ * Build a bounded changed-file inventory for repair prompts.
+ *
+ * Repair needs path context to resolve imports, but an unbounded GitHub file
+ * array can crowd out the rejected source and turn a repair into another
+ * context failure. The marker names the partial projection so the model never
+ * claims it saw every file.
+ *
+ * @param files Changed files from the reviewed PR.
+ * @returns A complete inventory when small, otherwise a bounded marked view.
+ */
+function projectedChangedFiles(files: PRContext['files']): string {
+  if (files.length === 0) return '- (none)';
+
+  const rows: string[] = [];
+  let displayedBytes = 0;
+  let omitted = 0;
+  for (let index = 0; index < files.length; index += 1) {
+    if (rows.length >= PURSER_FILE_INDEX_MAX_FILES) {
+      omitted = files.length - index;
+      break;
+    }
+    const path = projectedInline('file path', files[index].filename, PURSER_FILE_PATH_BYTE_LIMIT);
+    const row = `- ${path}`;
+    const rowBytes = utf8ByteLength(row) + (rows.length > 0 ? 1 : 0);
+    if (displayedBytes + rowBytes > PURSER_FILE_INDEX_BYTE_LIMIT) {
+      omitted = files.length - index;
+      break;
+    }
+    rows.push(row);
+    displayedBytes += rowBytes;
+  }
+
+  if (omitted === 0) return rows.join('\n');
+  return (
+    `${rows.join('\n')}\n` +
+    `[Changed-file projection: showing ${rows.length} of ${files.length} changed files ` +
+    `within ${displayedBytes} UTF-8 bytes; ${omitted} file(s) omitted from this model request.]`
+  );
+}
+
+function purserDiffPromptTruncated(diff: string): boolean {
+  return diff.length > PURSER_DIFF_CHAR_LIMIT;
+}
+
 function truncatedDiff(diff: string): string {
-  if (diff.length <= PURSER_DIFF_CHAR_LIMIT) return diff;
+  if (!purserDiffPromptTruncated(diff)) return diff;
   return `${diff.slice(0, PURSER_DIFF_CHAR_LIMIT)}\n… (diff truncated at ${PURSER_DIFF_CHAR_LIMIT} chars)`;
+}
+
+/**
+ * A Purser contract is only complete when its source projection was complete.
+ * The prompt marker alone is not enough: it would let an otherwise clean
+ * steel-man/test run reach a green required check after source had been
+ * omitted. Carry the boundary into ShipResult so aggregateConclusion can keep
+ * the check neutral.
+ */
+function purserReviewCoverage(
+  prCtx: PRContext,
+): Pick<ShipResult, 'reviewCoverage' | 'reviewCoverageReason'> {
+  const reasons: string[] = [];
+  if (prCtx.diffTruncated) {
+    reasons.push(
+      `GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes; source after that boundary was unavailable to Purser`,
+    );
+  }
+  if (prCtx.filesTruncated) {
+    reasons.push(
+      'GitHub returned an incomplete changed-file inventory; paths after that boundary were unavailable to Purser',
+    );
+  }
+  if (purserDiffPromptTruncated(prCtx.diff)) {
+    reasons.push(
+      `Purser projected only the first ${PURSER_DIFF_CHAR_LIMIT} characters of the diff into its model requests`,
+    );
+  }
+  return reasons.length > 0
+    ? { reviewCoverage: 'partial', reviewCoverageReason: reasons.join('; ') }
+    : {};
 }
 
 function prBlock(prCtx: PRContext): string {
   return (
-    `# PR #${prCtx.prNumber}: ${prCtx.title}\n\n` +
-    `## PR description\n${prCtx.body || '(none)'}\n\n` +
+    `# PR #${prCtx.prNumber}: ${projectedInline('PR title', prCtx.title, PURSER_TITLE_BYTE_LIMIT)}\n\n` +
+    `## PR description\n${projectedProse('PR description', prCtx.body || '(none)', PURSER_BODY_BYTE_LIMIT)}\n\n` +
     `## Diff\n\`\`\`diff\n${truncatedDiff(prCtx.diff)}\n\`\`\``
   );
 }
@@ -627,9 +800,10 @@ function fileAuthorSystemPrompt(
  */
 function repairPrBlock(prCtx: PRContext, path: string): string {
   return (
-    `# Repair authored test for PR #${prCtx.prNumber}: ${prCtx.title}\n\n` +
-    `Target path: ${path}\n` +
-    `Changed repository files:\n${prCtx.files.map(file => `- ${file.filename}`).join('\n') || '- (none)'}\n`
+    `# Repair authored test for PR #${prCtx.prNumber}: ` +
+    `${projectedInline('PR title', prCtx.title, PURSER_TITLE_BYTE_LIMIT)}\n\n` +
+    `Target path: ${projectedInline('target path', path, PURSER_FILE_PATH_BYTE_LIMIT)}\n` +
+    `Changed repository files:\n${projectedChangedFiles(prCtx.files)}\n`
   );
 }
 
@@ -681,6 +855,7 @@ async function purserAiCall(
   /** Which pipeline stage this call serves, for the transcript's phase chip. */
   phase: TranscriptPhase = 'purser',
 ): Promise<{ text: string; res: unknown }> {
+  const model = stepModel ?? ship.cfModel;
   const request = {
     messages: [
       { role: 'system', content: system },
@@ -690,7 +865,11 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   await assertCurrentHead(`before pd-${ship.name} Purser model call`);
-  const model = stepModel ?? ship.cfModel;
+  // This is intentionally the final synchronous operation before the capture
+  // wrapper/provider boundary. Every Purser step (steel-man, plan, author, and
+  // contract repair) flows through this helper, so no caller can accidentally
+  // budget only its user text and then append an over-window system prompt.
+  requireContextAdmission(model, request.messages, maxTokens);
   const res = await runCaptured(capture, { phase, model }, request, () =>
     aiCircuit.runForShip(ship.name, () =>
       env.AI.run(
@@ -704,6 +883,32 @@ async function purserAiCall(
   const { text } = extractAiText(res);
   accumulate(metrics, res, text);
   return { text, res };
+}
+
+/**
+ * Preserve an admission failure across {@link authorTestFiles}' intentional
+ * per-file error collection.
+ *
+ * Authoring normally continues after one malformed model response so healthy
+ * sibling tests survive. A context admission failure is different: it is a
+ * local, permanent refusal before provider dispatch, and must escape as the
+ * run's visible broken-ship cause while preventing later sibling dispatches.
+ *
+ * @param state Mutable capture shared by one bounded authoring batch.
+ * @param call The one-file model call to perform when no admission failed.
+ * @returns The model response when admission succeeds.
+ */
+async function contextAdmissionAwareAuthorCall(
+  state: { error: ContextAdmissionError | null },
+  call: () => Promise<string>,
+): Promise<string> {
+  if (state.error) throw state.error;
+  try {
+    return await call();
+  } catch (error) {
+    if (error instanceof ContextAdmissionError) state.error = error;
+    throw error;
+  }
 }
 
 /** Cheap runner evidence used before authoring; deliberately omits the tree. */
@@ -986,6 +1191,7 @@ async function rerunExistingTests(
   runId: string,
   verifiedExecutability?: ExecutabilityResult,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  reviewCoverage: Pick<ShipResult, 'reviewCoverage' | 'reviewCoverageReason'> = {},
 ): Promise<ShipResult> {
   const executability = verifiedExecutability ?? checkGeneratedTestsExecutable(
     files,
@@ -1087,7 +1293,7 @@ async function rerunExistingTests(
   } else {
     verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
   }
-  return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
+  return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [], ...reviewCoverage };
 }
 
 /**
@@ -1140,8 +1346,17 @@ export async function runPurser(
   // and write another.
   const branchName = `purser/pr-${prCtx.prNumber}-tests`;
   const fingerprint = fingerprintDiff(prCtx.diff ?? '');
+  const reviewCoverage = purserReviewCoverage(prCtx);
 
   try {
+    if (reviewCoverage.reviewCoverage) {
+      await transcript.step(
+        'purser-context-partial',
+        ship.name,
+        `pd-${ship.name}: source projection is partial — required check cannot report a complete review`,
+        { reason: reviewCoverage.reviewCoverageReason },
+      );
+    }
     // --- 0. RE-RUN PROBE ----------------------------------------------------
     // Before spending a single token, ask whether this PR already HAS a
     // contract. Tests are authored once and then re-executed; see
@@ -1149,32 +1364,39 @@ export async function runPurser(
     // harmful rather than merely wasteful.
     let reused: { files: StackedFile[]; testPr: { number: number; url: string } } | null = null;
     let rerunNote: string | null = null;
-    try {
-      const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
-      if (existingPr) {
-        const prior = decodeFingerprint(existingPr.body);
-        // Read ONLY the paths recorded at author time. The branch tree is the
-        // whole repository (base_tree), so there is nothing to discover here —
-        // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
-        const priorFiles = prior?.tests.length
-          ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
-          : null;
-        const decision = decideRerun(
-          prior,
-          fingerprint,
-          Boolean(priorFiles && priorFiles.length),
-        );
-        if (decision.action === 'reuse' && priorFiles) {
-          reused = { files: priorFiles, testPr: { number: existingPr.number, url: existingPr.url } };
-          rerunNote = decision.reason;
-        } else {
-          rerunNote = `re-authoring: ${decision.reason}`;
+    if (prCtx.diffTruncated) {
+      // A prefix hash cannot prove the omitted tail is unchanged. Reusing a
+      // prior test suite here would turn an incomplete GitHub response into a
+      // false exact-match proof, so author fresh (still marked partial above).
+      rerunNote = 're-authoring: GitHub truncated the diff, so the prior full-diff fingerprint is not trustworthy';
+    } else {
+      try {
+        const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
+        if (existingPr) {
+          const prior = decodeFingerprint(existingPr.body);
+          // Read ONLY the paths recorded at author time. The branch tree is the
+          // whole repository (base_tree), so there is nothing to discover here —
+          // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
+          const priorFiles = prior?.tests.length
+            ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
+            : null;
+          const decision = decideRerun(
+            prior,
+            fingerprint,
+            Boolean(priorFiles && priorFiles.length),
+          );
+          if (decision.action === 'reuse' && priorFiles) {
+            reused = { files: priorFiles, testPr: { number: existingPr.number, url: existingPr.url } };
+            rerunNote = decision.reason;
+          } else {
+            rerunNote = `re-authoring: ${decision.reason}`;
+          }
         }
+      } catch (err) {
+        // A probe failure must never cost the run — fall through to authoring,
+        // which is the pre-existing behaviour.
+        rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
       }
-    } catch (err) {
-      // A probe failure must never cost the run — fall through to authoring,
-      // which is the pre-existing behaviour.
-      rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
     }
 
     let verifiedReuse: ExecutabilityResult | undefined;
@@ -1233,6 +1455,7 @@ export async function runPurser(
         runId,
         verifiedReuse,
         assertCurrentHead,
+        reviewCoverage,
       );
     }
 
@@ -1271,7 +1494,8 @@ export async function runPurser(
         validate,
         abortOnError: error =>
           error instanceof PullRequestHeadValidationError ||
-          error instanceof FleetAiDependencyError,
+          error instanceof FleetAiDependencyError ||
+          error instanceof ContextAdmissionError,
       });
       await transcript.step(
         'ship-repair',
@@ -1482,22 +1706,26 @@ export async function runPurser(
       // it forward so authoring sees the actual Jest contract even when a
       // release/version diff contains no test-runner clues of its own.
       authoringEvidence = evidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
-      const authored = await authorTestFiles(plan, async (path, intent) => {
-        const call = await purserAiCall(
-          ship,
-          env,
-          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText, authoringEvidence!),
-          prBlock(prCtx),
-          TESTS_MAX_TOKENS,
-          metrics,
-          aiCircuit,
-          ship.cfAuthorModel,
-          assertCurrentHead,
-          capture,
-          'author',
-        );
-        return call.text;
-      });
+      const authorAdmission = { error: null as ContextAdmissionError | null };
+      const authored = await authorTestFiles(plan, (path, intent) =>
+        contextAdmissionAwareAuthorCall(authorAdmission, async () => {
+          const call = await purserAiCall(
+            ship,
+            env,
+            fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText, authoringEvidence!),
+            prBlock(prCtx),
+            TESTS_MAX_TOKENS,
+            metrics,
+            aiCircuit,
+            ship.cfAuthorModel,
+            assertCurrentHead,
+            capture,
+            'author',
+          );
+          return call.text;
+        }),
+      );
+      if (authorAdmission.error) throw authorAdmission.error;
       files = authored.files;
       authorFailures = authored.failures;
     }
@@ -1526,32 +1754,35 @@ export async function runPurser(
         const repairAttempt = (authoredRepairAttempts.get(planned.path) ?? 0) + 1;
         authoredRepairAttempts.set(planned.path, repairAttempt);
         authoredRepairCalls += 1;
+        const rescueAdmission = { error: null as ContextAdmissionError | null };
         const rescued = await authorTestFiles(
           [planned],
-          async (path, intent) => {
-            const call = await purserAiCall(
-              ship,
-              env,
-              fileAuthorSystemPrompt(
+          (path, intent) =>
+            contextAdmissionAwareAuthorCall(rescueAdmission, async () => {
+              const call = await purserAiCall(
                 ship,
-                steel,
-                { path, intent },
-                graftText,
-                authoringEvidence ?? evidence!,
-                initialFailure.reason,
-              ),
-              prBlock(prCtx),
-              TESTS_MAX_TOKENS,
-              metrics,
-              aiCircuit,
-              REPAIR_ESCALATION_MODEL,
-              assertCurrentHead,
-              capture,
-              'author',
-            );
-            return call.text;
-          },
+                env,
+                fileAuthorSystemPrompt(
+                  ship,
+                  steel,
+                  { path, intent },
+                  graftText,
+                  authoringEvidence ?? evidence!,
+                  initialFailure.reason,
+                ),
+                prBlock(prCtx),
+                TESTS_MAX_TOKENS,
+                metrics,
+                aiCircuit,
+                REPAIR_ESCALATION_MODEL,
+                assertCurrentHead,
+                capture,
+                'author',
+              );
+              return call.text;
+            }),
         );
+        if (rescueAdmission.error) throw rescueAdmission.error;
         if (rescued.files.length === 1) {
           files.push(rescued.files[0]);
           authorFailures = authorFailures.filter(failure => failure.path !== planned.path);
@@ -1898,40 +2129,43 @@ export async function runPurser(
         'preserve the authored test intent while fixing its executability failure';
       const repairError = executability.reason;
       const rejectedDraft = files.find(file => file.path === repairPath)?.contents ?? '';
+      const rewriteAdmission = { error: null as ContextAdmissionError | null };
       const repaired = await authorTestFiles(
         [{ path: repairPath, intent: repairIntent }],
-        async (path, intent) => {
-          const call = await purserAiCall(
-            ship,
-            env,
-            fileAuthorSystemPrompt(
+        (path, intent) =>
+          contextAdmissionAwareAuthorCall(rewriteAdmission, async () => {
+            const call = await purserAiCall(
               ship,
-              steel,
-              { path, intent },
-              graftText,
-              evidence,
-              repairError,
-              rejectedDraft,
-            ),
-            repairPrBlock(prCtx, repairPath),
-            TESTS_MAX_TOKENS,
-            metrics,
-            aiCircuit,
-            // The rewrite runs on the ESCALATION tier, never the author tier:
-            // a model that just authored a non-executable file is the worst
-            // candidate to fix it (14-day D1 record: 83 of 110 same-model
-            // rewrites FAILED). Same posture as repairContractOutput's second
-            // attempt — when the author tier already IS the escalation model
-            // this is a no-op, but an operator opt-down pin no longer drags
-            // the repair down with it.
-            REPAIR_ESCALATION_MODEL,
-            assertCurrentHead,
-            capture,
-            'author',
-          );
-          return call.text;
-        },
+              env,
+              fileAuthorSystemPrompt(
+                ship,
+                steel,
+                { path, intent },
+                graftText,
+                evidence,
+                repairError,
+                rejectedDraft,
+              ),
+              repairPrBlock(prCtx, repairPath),
+              TESTS_MAX_TOKENS,
+              metrics,
+              aiCircuit,
+              // The rewrite runs on the ESCALATION tier, never the author tier:
+              // a model that just authored a non-executable file is the worst
+              // candidate to fix it (14-day D1 record: 83 of 110 same-model
+              // rewrites FAILED). Same posture as repairContractOutput's second
+              // attempt — when the author tier already IS the escalation model
+              // this is a no-op, but an operator opt-down pin no longer drags
+              // the repair down with it.
+              REPAIR_ESCALATION_MODEL,
+              assertCurrentHead,
+              capture,
+              'author',
+            );
+            return call.text;
+          }),
       );
+      if (rewriteAdmission.error) throw rewriteAdmission.error;
 
       let repairReason = repaired.failures[0]?.reason ?? 'repair emitted no usable file';
       let healed = false;
@@ -2313,9 +2547,35 @@ export async function runPurser(
         });
       }
     }
-    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
+    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [], ...reviewCoverage };
   } catch (err) {
     if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof ContextAdmissionError) {
+      const admission = err.admission;
+      const failureReason = `context admission rejected before model dispatch: ${
+        admission.reason ?? 'unknown request-budget failure'
+      }`;
+      await transcript.step(
+        'ship-error',
+        ship.name,
+        `pd-${ship.name}: ERROR — ${failureReason}`,
+        {
+          error: failureReason,
+          model: admission.model,
+          contextWindowTokens: admission.contextWindowTokens,
+          requestedOutputTokens: admission.requestedOutputTokens,
+          inputBudgetTokens: admission.inputBudgetTokens,
+          estimatedInputTokens: admission.estimatedInputTokens,
+        },
+      );
+      await transcript.step(
+        'ship-verdict',
+        ship.name,
+        `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored — context admission)`,
+        { errored: true, contextAdmission: true },
+      );
+      return { ...brokenShip, failureReason };
+    }
     if (err instanceof FleetAiDependencyError) {
       const failure = err.failure;
       await transcript.step(

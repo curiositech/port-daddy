@@ -147,6 +147,18 @@ describe('aggregateConclusion', () => {
     ).toBe('neutral');
   });
 
+  it.each(['partial', 'none'] as const)(
+    'neutral when otherwise-passing review coverage is %s',
+    reviewCoverage => {
+      expect(
+        aggregateConclusion([
+          r({ blocking: true, verdict: 'PASS', reviewCoverage }),
+          r({ ship: 'peer', verdict: 'PASS' }),
+        ]),
+      ).toBe('neutral');
+    },
+  );
+
   // Broken-ship doctrine (operator ruling, 2026-08-19): "advisory" scopes a
   // ship's JUDGMENT, not its machinery. A ship that errored or returned
   // nothing usable rendered no opinion — the fleet is broken, and the run
