@@ -172,6 +172,11 @@ pub enum ControlMsg {
     HarborSelect {
         index: usize,
     },
+    /// Select one bounded claim-tree trouble card. This only changes the
+    /// Claims inspector; it never sends a coordination command automatically.
+    ClaimsTroubleSelect {
+        index: usize,
+    },
     /// Issue a compliance-gated control verb against the Harbor's selected
     /// node. The pane re-checks its gate, then POSTs the F0 ControlCommand;
     /// the daemon is the sole authorizer. `argument` carries a steer message
@@ -1977,6 +1982,19 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             .text_color(rgb(t.ink))
             .text_size(px(tokens::TEXT_BODY))
             .child(format!("{name} — {meta}"))
+            .into_any_element(),
+        Block::ClaimTroubleCard {
+            state,
+            surface,
+            other,
+            action,
+            ..
+        } => div()
+            .mx(px(tokens::SPACE_3))
+            .my(px(2.0))
+            .text_color(rgb(t.ink))
+            .text_size(px(tokens::TEXT_BODY))
+            .child(format!("{state}: {surface} → {other} · {action}"))
             .into_any_element(),
         Block::ControlButton {
             label,
@@ -4903,6 +4921,9 @@ impl ConsoleView {
                                 blk @ Block::NodeRow { .. } => {
                                     b.child(render_harbor_node_row(id, blk, cx))
                                 }
+                                blk @ Block::ClaimTroubleCard { .. } => {
+                                    b.child(render_claim_trouble_card(id, blk, cx))
+                                }
                                 blk @ Block::ControlButton { .. } => {
                                     b.child(render_harbor_control(id, blk, cx))
                                 }
@@ -5352,6 +5373,93 @@ impl ConsoleView {
             })
             .into_any_element()
     }
+}
+
+/// A compact, keyboard-equivalent clickable radar card. The card only focuses
+/// evidence in the Claims surface: coordination remains an explicit operator
+/// choice in Parley rather than a visualization-triggered side effect.
+fn render_claim_trouble_card(
+    id: PaneId,
+    block: Block,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let Block::ClaimTroubleCard {
+        index,
+        selected,
+        flag,
+        state,
+        surface,
+        other,
+        action,
+        tone,
+    } = block
+    else {
+        unreachable!("render_claim_trouble_card called with a non-trouble block");
+    };
+    let t = current_theme();
+    let signal = tone_rgb(&tone);
+    div()
+        .id(SharedString::from(format!("claim-trouble-{id}-{index}")))
+        .flex()
+        .flex_col()
+        .gap(px(3.0))
+        .mx(px(tokens::SPACE_3))
+        .my(px(3.0))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .border_1()
+        .when(selected, |s| s.border_l_2())
+        .border_color(rgb(if selected { signal } else { t.line }))
+        .bg(rgb(if selected { t.raised } else { t.panel }))
+        .cursor_pointer()
+        .hover(|s| {
+            let t = current_theme();
+            s.bg(rgb(t.raised)).border_color(rgb(signal))
+        })
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .w(px(8.0))
+                        .h(px(12.0))
+                        .bg(rgb(signal))
+                        .child(flag.to_string()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(signal))
+                        .font_weight(FontWeight::BOLD)
+                        .child(state),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.ink))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(surface),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(12.0))
+                        .child(format!("→ {other}")),
+                ),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(13.0))
+                .child(action),
+        )
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.ws_mut().focus(id);
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::ClaimsTroubleSelect { index });
+            }
+            cx.notify();
+        }))
 }
 
 /// The one place an operator-action button's visual state machine lives —

@@ -588,6 +588,29 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
+            Block::ClaimTroubleCard {
+                selected,
+                flag,
+                state,
+                surface,
+                other,
+                action,
+                tone,
+                ..
+            } => {
+                let sem = tone.sem();
+                let marker = if *selected { "▶" } else { "·" };
+                out.push_str(&format!(
+                    "  {} {} {} {} → {}\n     {}\n",
+                    style.paint(marker, sem),
+                    style.bold_paint(&format!("{flag} {state}"), sem),
+                    style.paint(surface, Sem::Ink),
+                    style.paint("", Sem::Muted),
+                    style.paint(other, Sem::Muted),
+                    style.paint(action, Sem::Ink2),
+                ));
+                i += 1;
+            }
             Block::ControlButton {
                 label,
                 enabled,

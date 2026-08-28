@@ -1046,6 +1046,20 @@ fn main() {
                                     ));
                                 }
                             }
+                            // Claim-tree radar selection is an inspect-only UI
+                            // action. It retargets the focused evidence card;
+                            // it cannot coordinate or mutate a claim on its own.
+                            app::ControlMsg::ClaimsTroubleSelect { index } => {
+                                if let Err(e) = claims
+                                    .mutate(&client, SurfaceAction::SelectRow { index })
+                                    .await
+                                {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "claim-tree selection failed",
+                                        e.to_string(),
+                                    ));
+                                }
+                            }
                             // Harbor control verb: the pane gate-checks, then
                             // POSTs the F0 ControlCommand; the daemon is the
                             // sole authorizer. Refusals surface in FULL as
