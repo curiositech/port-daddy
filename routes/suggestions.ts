@@ -14,6 +14,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Suggestions, SuggestionKind, SuggestionStatus } from '../lib/suggestions.js';
+import type { BlastRadiusDeps } from '../lib/blast-radius.js';
 import {
   runClaimTreeTroubleScan,
   type SessionsClaimSource,
@@ -45,6 +46,13 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
   opts,
 ) => {
   const { suggestions, sessions, agentInbox, activityLog, symbolIndex } = opts.deps;
+  // The semantic scanner can run against a lighter symbol-index interface. The
+  // claim-tree scanner asks for one additional, concrete capability: reverse
+  // dependency traversal. Do not pretend the graph exists when it is absent.
+  const dependencyGraph: BlastRadiusDeps | undefined = symbolIndex
+    && typeof (symbolIndex as Partial<BlastRadiusDeps>).getDependents === 'function'
+    ? symbolIndex as unknown as BlastRadiusDeps
+    : undefined;
 
   fastify.get('/suggestions', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, string>;
@@ -61,7 +69,7 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
     // 1) claim-tree trouble projection (the previous overlap-only nudge is a
     // subset of this finite-state explanation, so it is intentionally not run
     // alongside it and cannot double-notify an agent).
-    const claimTree = runClaimTreeTroubleScan({ sessions, suggestions, inbox: agentInbox, activityLog, symbolIndex });
+    const claimTree = runClaimTreeTroubleScan({ sessions, suggestions, inbox: agentInbox, activityLog, symbolIndex: dependencyGraph });
     // 2) real-edit semantic conflicts (signature/dependency/transitive, from each live
     //    session's actual git diff) — fires only when the symbol index is wired in.
     let semantic = null;
@@ -84,10 +92,10 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
         activityLog?.log('surface_scan.error', { error: (err as Error).message });
       }
     }
-    // Retain the legacy count at the top level for existing CLI/MCP callers.
-    // `pairs` is the claim-tree's equivalent unit; callers that understand the
-    // richer finite-state projection should read `claimTree`.
-    return { success: true, ...claimTree, overlaps: claimTree.pairs, claimTree, semantic };
+    // `pairs` and the nested `claimTree` projection are the canonical contract.
+    // The retired overlap-only count is deliberately not revived: it described a
+    // less capable scan and would let consumers mistake the projection's unit.
+    return { success: true, ...claimTree, claimTree, semantic };
   });
 
   fastify.post('/suggestions/:id/accept', async (request: FastifyRequest, reply: FastifyReply) => {
