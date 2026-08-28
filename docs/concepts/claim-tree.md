@@ -152,6 +152,15 @@ claim on or above the target.
 Both directions are O(depth × claims), single SQL query with an index
 on `parent_id`.
 
+## Claim-tree trouble contract
+
+`lib/claim-tree-trouble.ts` exports the ordered trouble ladder as plain data:
+`VERIFY → RESCUE → COORDINATE → INSPECT → RECONCILE → WATCH → PROCEED`.
+
+That module renders the Mermaid state diagram from the same table and
+validates the graph against it. The result is one source of truth for the
+agent-facing nudge, the documentation diagram, and the test snapshot.
+
 ---
 
 ## Visualization gallery
