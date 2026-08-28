@@ -751,6 +751,32 @@ const relayConnection = new DaemonRelayConnection({
   signer: (msgHex) => harborTokens.signHex(msgHex),
 });
 const harbors = createHarbors(db, { harborTokens });
+// Harbor membership is the sole capability declaration authority. Whois is a
+// derived semantic projection, so every future enter waits for this listener
+// when it needs immediate discovery while a failed embed never rejects the
+// admitted harbor member.
+harbors.setCapabilityListener(async (agentId, harborName, phrases) => {
+  try {
+    await whois.registerCapabilities(agentId, harborName, phrases);
+  } catch (error) {
+    logger.error('whois_capability_projection_failed', {
+      agentId,
+      harborName,
+      error: (error as Error).message,
+    });
+  }
+});
+// Existing members predate the listener on an upgraded daemon. Backfill them
+// in the background: a normal fresh `pd begin` still awaits its own Harbor
+// projection above, while daemon readiness is not held hostage by historical
+// capability embedding work.
+void whois.backfill()
+  .then(({ embedded, scanned }) => {
+    logger.info('whois_capability_backfill_complete', { embedded, scanned });
+  })
+  .catch((error: Error) => {
+    logger.error('whois_capability_backfill_failed', { error: error.message });
+  });
 const sorties = createSorties(db, { episodicMemory });
 
 // Bond escrow + budget guard — FleetControl hardening. Built BEFORE

@@ -309,6 +309,22 @@ describe('indexed automatic Parley trigger', () => {
     expect(count('parley_auto_terminal_receipts')).toBe(2);
   });
 
+  test('does not cross-suppress exact actors when their canonical surfaces differ by worktree scope', () => {
+    const firstSignal = automaticSignal({
+      surface: 'session-begin:lib/example.ts#run [repo-a/worktree/feature-a]@a4e5b5c7d8e9f001',
+      evidenceRefs: ['claim:feature-a:left', 'claim:feature-a:right'],
+    });
+    const secondSignal = automaticSignal({
+      surface: 'session-begin:lib/example.ts#run [repo-a/worktree/feature-b]@b4e5b5c7d8e9f002',
+      evidenceRefs: ['claim:feature-b:left', 'claim:feature-b:right'],
+    });
+
+    expect(parleySignalLineageKey(firstSignal)).not.toBe(parleySignalLineageKey(secondSignal));
+    expect(service().evaluate(firstSignal, { harbor: DEFAULT_HARBOR }).state).toBe('fired');
+    expect(service().evaluate(secondSignal, { harbor: DEFAULT_HARBOR }).state).toBe('fired');
+    expect(count('parley_records')).toBe(2);
+  });
+
   test('terminal lineage cooldown expires at the exact stored boundary', () => {
     const firstSignal = automaticSignal({ evidenceRefs: ['claim:first'] });
     const first = service().evaluate(firstSignal, { harbor: DEFAULT_HARBOR });

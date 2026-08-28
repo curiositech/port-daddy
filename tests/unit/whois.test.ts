@@ -18,10 +18,19 @@
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
-import { createWhois, freshnessWeight } from '../../lib/whois.js';
+import { createWhois, freshnessWeight, isReviewedSemanticWhoisHit } from '../../lib/whois.js';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
+
+describe('whois — shared reviewed-peer admission', () => {
+  it('admits only a semantically or LLM-reviewed result above both shared thresholds', () => {
+    expect(isReviewedSemanticWhoisHit({ stage: 'semantic', score: 0.94, similarity: 0.95 })).toBe(true);
+    expect(isReviewedSemanticWhoisHit({ stage: 'llm', score: 0.94, similarity: 0.95 })).toBe(true);
+    expect(isReviewedSemanticWhoisHit({ stage: 'bm25', score: 0.99, similarity: 0.99 })).toBe(false);
+    expect(isReviewedSemanticWhoisHit({ stage: 'semantic', score: 0.4, similarity: 0.95 })).toBe(false);
+  });
+});
 
 // ─── Deterministic stub embedder ──────────────────────────────────────────────
 
@@ -216,6 +225,28 @@ describe('whois — search cascade', () => {
     expect(hits[0].score).toBeCloseTo(1.0, 10);
     expect(hits[1].agentId).toBe('stale');
     expect(hits[1].score).toBeCloseTo(0.1, 10);
+  });
+
+  it('keeps raw exact lookup while product semantic review reranks the same phrase', async () => {
+    const whois = createWhois(db, { resolver: makeStubResolver() });
+    insertAgent(db, 'fresh', 'Fresh Agent', now);
+    await whois.registerCapabilities('fresh', 'h:fleet', ['coordinate the shared Sugar workflow']);
+
+    const raw = await whois.search('coordinate the shared Sugar workflow', { nowMs: now });
+    const reviewed = await whois.search('coordinate the shared Sugar workflow', {
+      nowMs: now,
+      semanticReview: true,
+    });
+
+    expect(raw).toHaveLength(1);
+    expect(raw[0]).toMatchObject({ stage: 'exact', similarity: 1, score: 1 });
+    expect(reviewed).toHaveLength(1);
+    expect(reviewed[0]).toMatchObject({ stage: 'semantic' });
+    // Embeddings round-trip through a Float32 sidecar, so a unit-vector
+    // cosine can be microscopically below one even for the identical phrase.
+    expect(reviewed[0].similarity).toBeCloseTo(1, 6);
+    expect(reviewed[0].score).toBeCloseTo(1, 6);
+    expect(isReviewedSemanticWhoisHit(reviewed[0])).toBe(true);
   });
 
   it('score equals similarity × freshnessWeight for every hit', async () => {

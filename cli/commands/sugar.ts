@@ -25,7 +25,7 @@ import {
 import { initDatabase } from '../../lib/db.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { checkAndCompleteDispatch } from '../../lib/dispatch/auto-merge.js';
-import { DEFAULT_SEMANTIC_REVIEW_THRESHOLD } from '../../lib/semantic-resolver.js';
+import { isReviewedSemanticWhoisHit } from '../../lib/whois.js';
 import type { SugarParleyCard } from '../../lib/sugar-parley.js';
 import { renderSugarParleyCard } from '../utils/sugar-parley-card.js';
 
@@ -302,9 +302,7 @@ export function selectHelpfulPeerSuggestions(
 ): HelpfulPeerSuggestion[] {
   return hits
     .filter((hit) => hit.agentId !== currentAgentId)
-    .filter((hit) => Number.isFinite(hit.score) && Number.isFinite(hit.similarity))
-    .filter((hit) => hit.stage === 'semantic' || hit.stage === 'llm')
-    .filter((hit) => hit.score >= DEFAULT_SEMANTIC_REVIEW_THRESHOLD)
+    .filter(isReviewedSemanticWhoisHit)
     .slice(0, HELPFUL_SUGGESTION_LIMIT);
 }
 
@@ -330,6 +328,10 @@ export async function fetchHelpfulPeerSuggestions(
       q: purpose,
       kind: 'agent',
       limit: String(HELPFUL_SUGGESTION_LIMIT + 1),
+      // Arrival guidance can point an agent at a live peer, so require the
+      // same resolver-reviewed contract that Sugar Parley uses. This keeps a
+      // verbatim purpose match from becoming an unreviewed lexical shortcut.
+      semantic_review: 'true',
     });
     const request = fetcher(`/whois?${params.toString()}`, {
       timeout: HELPFUL_SUGGESTION_TIMEOUT_MS,

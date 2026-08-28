@@ -189,6 +189,23 @@ disables reconnect retries, aborts at the total deadline, uses no lexical
 fallback, and disappears silently when semantic lookup is slow or unavailable.
 It must never turn session admission into a coordination dump.
 
+### Sugar-first Parley cards
+
+In an ordinary capable interactive terminal, `pd begin` (after admission) and
+`pd attention` (after its inbox receipt) may surface a bounded Sugar Parley
+card. It appears only when the session's recorded purpose has a live,
+semantically reviewed peer **and** the canonical claim projection proves a
+shared file, symbol, or line-range overlap. Its three human actions are **Work
+separately**, **Send note**, and **Resolve together**. The last action convenes
+the bounded exchange with its validated parties, surface, and evidence; its
+outcome is a typed settlement receipt.
+
+Raw `pd parley` turns and receipts remain available for protocol inspection and
+debugging, but they are not the normal agent experience. JSON, quiet, export,
+piped, CI, and explicitly non-interactive invocations retain their deterministic
+existing output; an interactive `NO_COLOR` terminal receives the same bounded
+card as ANSI-free linework.
+
 ### `pd begin` charges roadmap rent
 
 Every session must say where it sits on the roadmap — one line, at start, not at PR time. Pass exactly one of:

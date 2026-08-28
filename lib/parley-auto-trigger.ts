@@ -40,6 +40,8 @@ export type ParleyAutoTriggerState =
 
 export interface ParleyAutoTriggerContext {
   readonly harbor: string;
+  /** Explicit durable product provenance for a card-derived automatic Parley. */
+  readonly origin?: 'sugar-parley';
   /**
    * A server-derived, one-evaluation delivery binding. It is for a caller
    * that already proved the exact live sessions behind a signal (such as a
@@ -322,6 +324,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
           evidenceRefs: [...effective.evidenceRefs],
           confidence: effective.confidence,
           magnitude: effective.magnitude,
+          origin: context.origin ?? null,
         },
       };
       const admitted = deps.parley.admitAutomatic({

@@ -10,11 +10,19 @@
 
 import { createHash } from 'node:crypto';
 import { asActorId } from './actor-souls.js';
-import { AUTOMATIC_PARLEY_DEFAULTS } from './parley.js';
+import {
+  AUTOMATIC_PARLEY_DEFAULTS,
+  SUGAR_PARLEY_SCHEMA_VERSION,
+  createSugarParleyHookContext,
+  sugarParleyCardId,
+} from './parley.js';
 import type {
   ParleyOutcome,
   ParleySummary,
+  SettleAutomaticConsensusInput,
+  SugarParleyHookContext,
   SettleAutomaticConsensusResult,
+  SugarParleySettledReceipt,
 } from './parley.js';
 import { PARLEY_AUTO_TRIGGER_POLICY, type ParleyAutoTrigger } from './parley-auto-trigger.js';
 import {
@@ -27,12 +35,27 @@ import {
   type ParleyDecision,
 } from './parley-trigger.js';
 import { DEFAULT_SEMANTIC_REVIEW_THRESHOLD } from './semantic-resolver.js';
-import type { WhoisHit } from './whois.js';
+import {
+  activeClaimAddress,
+  activeClaimEvidenceRef,
+  activeClaimScope,
+  detectClaimOverlaps,
+  formatActiveClaimAddress,
+  type ActiveClaim,
+} from './suggestion-broker.js';
+import {
+  type SugarParleySettlementInput as SessionSugarParleySettlementInput,
+  type SugarParleySettlementResult as SessionSugarParleySettlementResult,
+} from './sessions.js';
+import { isReviewedSemanticWhoisHit, type WhoisHit } from './whois.js';
 
-export const SUGAR_PARLEY_SCHEMA_VERSION = 1 as const;
+export { SUGAR_PARLEY_SCHEMA_VERSION } from './parley.js';
+export type { SugarParleyHookContext } from './parley.js';
 export const SUGAR_PARLEY_CARD_LIMIT = 1 as const;
 export const SUGAR_PARLEY_NOTE_MAX_CHARS = 2_000;
 export const SUGAR_PARLEY_SETTLEMENT_MAX_CHARS = 2_000;
+/** The final canonical agreement is a Parley turn, so it has this hard cap. */
+export const SUGAR_PARLEY_SETTLEMENT_CONTENT_MAX_CHARS = 16_384;
 
 export type SugarParleyActionId = 'work-separately' | 'send-note' | 'resolve-together';
 export type SugarParleyPreviewState = 'ready' | 'none' | 'unavailable';
@@ -80,16 +103,6 @@ export interface SugarParleyParticipant {
   sessionId: string;
 }
 
-export interface SugarParleyHookContext {
-  kind: 'sugar_parley_hook_context';
-  schemaVersion: typeof SUGAR_PARLEY_SCHEMA_VERSION;
-  parleyId: string;
-  cardId: string;
-  surface: string;
-  evidenceRefs: string[];
-  message: string;
-}
-
 export interface SugarParleyCard {
   kind: 'sugar_parley_card';
   schemaVersion: typeof SUGAR_PARLEY_SCHEMA_VERSION;
@@ -125,22 +138,27 @@ export interface SugarParleyConveningReceipt {
   hookContext: SugarParleyHookContext | null;
 }
 
-export type SugarParleySettlementState = 'awaiting-peer' | 'settled' | 'failed' | 'rejected';
+export type SugarParleySettlementAcknowledgementState = 'awaiting-peer' | 'rejected' | 'failed' | 'replayed';
 
-export interface SugarParleySettlementReceipt {
-  kind: 'sugar_parley_settlement_receipt';
+/**
+ * A response to an acknowledgement attempt, never a terminal settlement.
+ * The terminal receipt kind is reserved for a fully committed `settled`
+ * outcome and is delivered to both bounded parties from the Parley outbox.
+ */
+export interface SugarParleySettlementAcknowledgement {
+  kind: 'sugar_parley_settlement_acknowledgement';
   schemaVersion: typeof SUGAR_PARLEY_SCHEMA_VERSION;
-  state: SugarParleySettlementState;
+  state: SugarParleySettlementAcknowledgementState;
   parleyId: string;
   proposalId: string | null;
   surface: string | null;
   outcome: ParleyOutcome | null;
-  claimUpdates: Array<{ sessionId: string; claimRef: string; released: boolean }>;
-  planUpdates: Array<{ sessionId: string; updated: boolean }>;
   remindersSuppressed: boolean;
   replayed: boolean;
   reason: string;
 }
+
+export type SugarParleySettlementReceipt = SugarParleySettledReceipt | SugarParleySettlementAcknowledgement;
 
 export interface SugarParleyPreviewInput {
   sessionId: string;
@@ -174,30 +192,16 @@ interface RawSession {
   verifiedActorId: string | null;
 }
 
-interface RawClaim {
-  filePath: string;
-  sessionId: string;
-  agentId: string | null;
-  claimedAt: number;
-  symbolPath: string | null;
-  startLine: number | null;
-  endLine: number | null;
+interface RawClaim extends ActiveClaim {
+  sessionFileId: number | null;
 }
 
 interface SessionReader {
   get(sessionId: string): unknown;
   list(options?: Record<string, unknown>): unknown;
   listAllActiveClaims(options?: Record<string, unknown>): unknown;
-  releaseFiles?(
-    sessionId: string,
-    filePaths: string[],
-    options?: {
-      regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
-      agentId?: string | null;
-    },
-  ): unknown;
-  addNote?(sessionId: string, content: string, options?: { type?: string }): unknown;
   getNotes?(sessionId?: string | null, options?: { type?: string; limit?: number }): unknown;
+  applySugarParleySettlement?(input: SessionSugarParleySettlementInput): SessionSugarParleySettlementResult;
 }
 
 interface ActorResolver {
@@ -205,22 +209,15 @@ interface ActorResolver {
 }
 
 interface WhoisReader {
-  search(query: string, options?: { kind?: 'agent'; limit?: number }): Promise<WhoisHit[]>;
+  search(
+    query: string,
+    options?: { kind?: 'agent'; limit?: number; semanticReview?: boolean },
+  ): Promise<WhoisHit[]>;
 }
 
 interface SugarParleyAuthority {
   get(parleyId: string, harbor?: string): ParleySummary | null;
-  settleAutomaticConsensus(input: {
-    parleyId: string;
-    harbor?: string;
-    party: string;
-    proposalId: string;
-    content: string;
-    decision: string;
-    reason: string;
-    evidenceRefs?: string[];
-    idempotencyKey?: string;
-  }): SettleAutomaticConsensusResult;
+  settleAutomaticConsensus(input: SettleAutomaticConsensusInput): SettleAutomaticConsensusResult;
 }
 
 export interface SugarParleyDeps {
@@ -243,8 +240,39 @@ function finitePositiveInt(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
+/**
+ * Parse the canonical one-based, inclusive session-claim line coordinate.
+ *
+ * Symbol-index exports add one to tree-sitter's zero-based rows before they
+ * become claim data, and the broker renders those values as human-facing
+ * `#Lstart-end` evidence. Zero is therefore a parser-internal row, not a
+ * valid persisted claim line; malformed, negative, or fractional values are
+ * rejected by the claim parser rather than being silently shifted or widened.
+ *
+ * @param value - Untrusted claim coordinate from the sessions projection.
+ * @returns A positive one-based integer, or null when no canonical line exists.
+ */
 function finiteLine(value: unknown): number | null {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : null;
+}
+
+/**
+ * Preserve the distinction between an intentionally omitted whole-file range
+ * and a malformed range received from an authority projection.
+ *
+ * Session claims use one-based, inclusive coordinates. `null` / `undefined`
+ * mean that the original claim intentionally named the whole file; a supplied
+ * `0`, negative number, fractional number, or non-number must instead reject
+ * the claim. Treating a malformed coordinate as absent would widen it into a
+ * whole-file overlap and could manufacture a Sugar card from bad evidence.
+ *
+ * @param value - Untrusted optional coordinate from the sessions projection.
+ * @returns Whether the value is canonical, plus its one-based line or null.
+ */
+function parseOptionalClaimLine(value: unknown): { valid: boolean; line: number | null } {
+  if (value === null || value === undefined) return { valid: true, line: null };
+  const line = finiteLine(value);
+  return line === null ? { valid: false, line: null } : { valid: true, line };
 }
 
 function canonicalStrings(values: readonly string[]): string[] {
@@ -276,15 +304,25 @@ function parseClaim(value: unknown): RawClaim | null {
   const sessionId = stringField(value.sessionId);
   const claimedAt = finitePositiveInt(value.claimedAt);
   if (!filePath || !sessionId || claimedAt === null) return null;
+  const startLine = parseOptionalClaimLine(value.startLine);
+  const endLine = parseOptionalClaimLine(value.endLine);
+  if (!startLine.valid || !endLine.valid) return null;
   const agentId = stringField(value.agentId);
   return {
     filePath,
+    repoId: stringField(value.repoId),
+    worldKind: stringField(value.worldKind),
+    worldId: stringField(value.worldId),
     sessionId,
     agentId,
+    sessionFileId: finitePositiveInt(value.sessionFileId) ?? finitePositiveInt(value.legacySessionFileId),
+    purpose: stringField(value.purpose) ?? '',
+    phase: stringField(value.phase) ?? 'in_progress',
     claimedAt,
     symbolPath: stringField(value.symbolPath),
-    startLine: finiteLine(value.startLine),
-    endLine: finiteLine(value.endLine),
+    symbol: stringField(value.symbol),
+    startLine: startLine.line,
+    endLine: endLine.line,
   };
 }
 
@@ -299,38 +337,25 @@ function parseClaims(value: unknown): RawClaim[] | null {
   return claims.every((claim) => claim !== null) ? claims as RawClaim[] : null;
 }
 
-function resolveCanonicalActor(actorSouls: ActorResolver, agentId: string): string | null {
-  try {
-    const resolved = actorSouls.resolveActor(agentId);
-    if (!resolved || typeof resolved.actorId !== 'string' || !resolved.actorId.trim()) return null;
-    return resolved.soulClass === 'unknown' ? null : resolved.actorId.trim();
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Resolve the minted actor that is authoritative for one live session.
  *
  * A Sugar begin mints an actor and intentionally keeps its generated display
  * agent id separate from the actor-soul alias table. We therefore accept the
- * daemon-written session stamp when it round-trips to a known soul; older
- * explicit actor aliases remain supported as the narrow compatibility path.
- * A malformed or unknown stamp fails closed rather than falling through to a
- * caller-controlled display string.
+ * daemon-written session stamp when it round-trips to the same known soul.
+ * A malformed, absent, or unknown stamp fails closed: a display handle is
+ * transport metadata and must never become session authority.
  */
 function resolveSessionActor(session: RawSession, actorSouls: ActorResolver): string | null {
-  if (session.verifiedActorId) {
-    try {
-      const resolved = actorSouls.resolveActor(session.verifiedActorId);
-      return resolved?.soulClass !== 'unknown' && resolved.actorId === session.verifiedActorId
-        ? session.verifiedActorId
-        : null;
-    } catch {
-      return null;
-    }
+  if (!session.verifiedActorId) return null;
+  try {
+    const resolved = actorSouls.resolveActor(session.verifiedActorId);
+    return resolved?.soulClass !== 'unknown' && resolved.actorId === session.verifiedActorId
+      ? session.verifiedActorId
+      : null;
+  } catch {
+    return null;
   }
-  return resolveCanonicalActor(actorSouls, session.agentId);
 }
 
 /**
@@ -343,55 +368,28 @@ export function resolveSugarParleySessionActor(session: unknown, actorSouls: Act
   return parsed ? resolveSessionActor(parsed, actorSouls) : null;
 }
 
-function isWholeFileClaim(claim: RawClaim): boolean {
-  return claim.symbolPath === null && claim.startLine === null && claim.endLine === null;
-}
-
-function claimsOverlap(left: RawClaim, right: RawClaim): boolean {
-  if (left.filePath !== right.filePath) return false;
-  if (isWholeFileClaim(left) || isWholeFileClaim(right)) return true;
-  if (left.symbolPath && right.symbolPath) return left.symbolPath === right.symbolPath;
-  if (left.startLine !== null && left.endLine !== null && right.startLine !== null && right.endLine !== null) {
-    return left.startLine <= right.endLine && right.startLine <= left.endLine;
-  }
-  return false;
-}
-
-function claimAddress(claim: RawClaim): SugarParleyClaimAddress {
-  return {
-    filePath: claim.filePath,
-    symbolPath: claim.symbolPath,
-    startLine: claim.startLine,
-    endLine: claim.endLine,
-  };
-}
-
-function displayAddress(address: SugarParleyClaimAddress): string {
-  if (address.symbolPath) return `${address.filePath}#${address.symbolPath}`;
-  if (address.startLine !== null || address.endLine !== null) {
-    return `${address.filePath}#L${address.startLine ?? '*'}-${address.endLine ?? '*'}`;
-  }
-  return address.filePath;
-}
-
 function claimRef(claim: RawClaim): string {
-  return `session-claim:${claim.sessionId}:${displayAddress(claimAddress(claim))}:${claim.claimedAt}`;
+  return activeClaimEvidenceRef(claim);
 }
 
-function stableSurface(address: SugarParleyClaimAddress): string {
-  const readable = `session-begin:${displayAddress(address)}`;
+function stableSurface(claim: RawClaim): string {
+  const address = formatActiveClaimAddress(claim);
+  const scope = activeClaimScope(claim);
+  // The broker's exact repo/world/file scope is part of the automatic Parley
+  // identity as well as its overlap decision. A readable address alone would
+  // let the same two actors on another worktree share a cooldown lineage.
+  // Keep the human address legible while appending an unambiguous digest of
+  // the canonical scope/address tuple for storage, caps, and cooldowns.
+  const identity = JSON.stringify([scope.repoId, scope.worldKind, scope.worldId, address]);
+  const scopeDigest = createHash('sha256').update(identity, 'utf8').digest('hex').slice(0, 16);
+  const readable = `session-begin:${address} [${scope.repoId}/${scope.worldKind}/${scope.worldId}]@${scopeDigest}`;
   if (readable.length <= CONFLICT_SIGNAL_LIMITS.maxSurfaceChars) return readable;
-  const digest = createHash('sha256').update(readable, 'utf8').digest('hex');
+  const digest = createHash('sha256').update(identity, 'utf8').digest('hex');
   return `session-begin:${digest}`;
 }
 
 function evidenceRefForHit(hit: WhoisHit, actorId: string): string {
   return `semantic-peer:${actorId}:${hit.agentId}:${hit.stage}`;
-}
-
-function cardId(signalId: string): string {
-  const digest = createHash('sha256').update(signalId, 'utf8').digest('hex');
-  return `sugar-parley-card:v${SUGAR_PARLEY_SCHEMA_VERSION}:${digest}`;
 }
 
 function action(
@@ -412,6 +410,17 @@ interface SemanticPeer {
   actorId: string;
 }
 
+interface SugarParleyCardDerivation {
+  card: SugarParleyCard;
+  signal: ConflictSignal;
+}
+
+/** The private derivation retains the server-only signal while public preview stays card-only. */
+type SugarParleyDerivationResult =
+  | { state: 'ready'; card: SugarParleyCard; signal: ConflictSignal }
+  | { state: 'none'; reason: string }
+  | { state: 'unavailable'; reason: string };
+
 function reviewedSemanticPeers(
   hits: WhoisHit[],
   currentActorId: string,
@@ -420,39 +429,24 @@ function reviewedSemanticPeers(
 ): SemanticPeer[] {
   const byActor = new Map<string, SemanticPeer>();
   for (const hit of hits) {
-    const stage = hit.stage;
-    // Whois uses BM25 only to select a bounded candidate set before doing the
-    // mandatory cosine rerank. Its result label remains `bm25` when that set
-    // was nonempty, so a stage-only filter would discard normal semantic
-    // matches with shared vocabulary. Require BOTH independently observed
-    // semantic similarity and final score; this never admits a lexical-only
-    // exact/BM25 result.
-    if ((stage !== 'semantic' && stage !== 'bm25' && stage !== 'llm')
-      || !Number.isFinite(hit.score)
-      || !Number.isFinite(hit.similarity)
-      || hit.score < DEFAULT_SEMANTIC_REVIEW_THRESHOLD
-      || hit.similarity < DEFAULT_SEMANTIC_REVIEW_THRESHOLD) {
+    // This is the same reviewed-hit policy used by ordinary `pd begin` peer
+    // suggestions. A lexical candidate may reach whois's reranker, but Sugar
+    // only acts once the canonical result itself is semantic or LLM-reviewed.
+    if (!isReviewedSemanticWhoisHit(hit)) {
       continue;
     }
-    const directActor = resolveCanonicalActor(actorSouls, hit.agentId);
     const stampedActors = [...new Set(
       activeSessions
         .filter((session) => session.agentId === hit.agentId)
         .map((session) => resolveSessionActor(session, actorSouls))
         .filter((candidate): candidate is string => Boolean(candidate)),
     )].sort();
-    // A shared display handle with multiple active stamped souls is ambiguous
-    // by design. Do not pick one merely because it matched semantically.
-    // A session's daemon-written verified actor stamp is the authoritative
-    // identity for normal Sugar work. A display agent may also have an older
-    // alias soul of its own; treating that alias as stronger would disconnect
-    // an otherwise valid semantic hit from the session and claim that produced
-    // it. Multiple distinct stamps remain ambiguous and fail closed.
-    const actorId = stampedActors.length === 1
-      ? stampedActors[0]
-      : stampedActors.length === 0
-        ? directActor
-        : null;
+    // A Whois display handle is only a candidate selector. It becomes a
+    // Parley party only when exactly one ACTIVE session with that same handle
+    // carries a verified actor stamp. Resolving the display alias directly
+    // would let a stale/ambiguous phonebook row nominate an unrelated session
+    // for a mutable automatic convening.
+    const actorId = stampedActors.length === 1 ? stampedActors[0] : null;
     if (!actorId || actorId === currentActorId) continue;
     const current = byActor.get(actorId);
     if (!current
@@ -497,9 +491,9 @@ function buildCard(
   peerSession: RawSession,
   peerClaim: RawClaim,
   peer: SemanticPeer,
-): SugarParleyCard {
+): SugarParleyCardDerivation {
   const structuralEvidence: SugarParleyStructuralEvidence = {
-    address: claimAddress(sourceClaim),
+    address: activeClaimAddress(sourceClaim),
     sourceClaimRef: claimRef(sourceClaim),
     peerClaimRef: claimRef(peerClaim),
   };
@@ -522,7 +516,7 @@ function buildCard(
     structuralEvidence.peerClaimRef,
     semanticEvidence.evidenceRef,
   ]);
-  const surface = stableSurface(structuralEvidence.address);
+  const surface = stableSurface(sourceClaim);
   const signal: ConflictSignal = {
     schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
     signalId: conflictSignalId({
@@ -544,7 +538,10 @@ function buildCard(
     provenance: {
       producer: CONFLICT_SIGNAL_PRODUCERS.sessionBeginConvergence,
       trustTier: 'INTERNAL',
-      producedAt: 1,
+      // Observation time is deliberately server-owned and excluded from the
+      // stable signal identity; automatic admission still rejects stale
+      // replays before any bounded Parley is created.
+      producedAt: Date.now(),
     },
   };
   const decision = shouldConvene(signal, { mode: 'automatic' });
@@ -552,56 +549,29 @@ function buildCard(
     ? null
     : decision.reason;
   return {
-    kind: 'sugar_parley_card',
-    schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
-    cardId: cardId(signal.signalId),
-    signalId: signal.signalId,
-    surface,
-    reason: signal.reason,
-    participants,
-    semanticEvidence,
-    structuralEvidence,
-    decision,
-    bounds: {
-      maxParleyRounds: 2,
-      turnsPerParty: AUTOMATIC_PARLEY_DEFAULTS.roundLimit,
-      cooldownMs: PARLEY_AUTO_TRIGGER_POLICY.cooldownMs,
+    card: {
+      kind: 'sugar_parley_card',
+      schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
+      cardId: sugarParleyCardId(signal.signalId),
+      signalId: signal.signalId,
+      surface,
+      reason: signal.reason,
+      participants,
+      semanticEvidence,
+      structuralEvidence,
+      decision,
+      bounds: {
+        maxParleyRounds: 2,
+        turnsPerParty: AUTOMATIC_PARLEY_DEFAULTS.roundLimit,
+        cooldownMs: PARLEY_AUTO_TRIGGER_POLICY.cooldownMs,
+      },
+      actions: [
+        action('work-separately', true),
+        action('send-note', true),
+        action('resolve-together', decision.convene, resolveReason),
+      ],
     },
-    actions: [
-      action('work-separately', true),
-      action('send-note', true),
-      action('resolve-together', decision.convene, resolveReason),
-    ],
-  };
-}
-
-function signalForCard(card: SugarParleyCard): ConflictSignal {
-  const evidenceRefs = canonicalStrings([
-    card.structuralEvidence.sourceClaimRef,
-    card.structuralEvidence.peerClaimRef,
-    card.semanticEvidence.evidenceRef,
-  ]);
-  const parties = card.participants.map((participant) => participant.actorId).sort();
-  return {
-    schemaVersion: CONFLICT_SIGNAL_SCHEMA_VERSION,
-    signalId: card.signalId,
-    kind: 'task_convergence',
-    checkpoint: 'session_begin',
-    shape: 'contract-net',
-    parties,
-    surface: card.surface,
-    magnitude: 1,
-    confidence: Math.min(1, Math.max(DEFAULT_SEMANTIC_REVIEW_THRESHOLD, card.semanticEvidence.similarity)),
-    reason: card.reason,
-    evidenceRefs,
-    provenance: {
-      producer: CONFLICT_SIGNAL_PRODUCERS.sessionBeginConvergence,
-      trustTier: 'INTERNAL',
-      // The origin timestamp is persisted by the automatic authority. The
-      // signal identity deliberately excludes this server-owned observation
-      // time, so re-reading the same structural evidence is idempotent.
-      producedAt: Date.now(),
-    },
+    signal,
   };
 }
 
@@ -648,7 +618,7 @@ function canonicalSettlementContent(input: {
 }): string {
   // Property order is intentional: the text is both the human-readable
   // settlement and the exact consensus object all parties must acknowledge.
-  return JSON.stringify({
+  const content = JSON.stringify({
     kind: 'sugar_parley_settlement',
     schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
     parleyId: input.parleyId,
@@ -659,6 +629,7 @@ function canonicalSettlementContent(input: {
     summary: input.summary,
     nextStep: input.nextStep,
   });
+  return content.length <= SUGAR_PARLEY_SETTLEMENT_CONTENT_MAX_CHARS ? content : '';
 }
 
 function settlementProposalId(content: string): string {
@@ -675,10 +646,6 @@ function extractLatestPlan(value: unknown): string | null {
   return null;
 }
 
-function isSuccessful(value: unknown): boolean {
-  return isRecord(value) && value.success === true;
-}
-
 /**
  * Coordinates a normal Sugar entry point with the durable Parley substrate.
  * The public preview is read-only. Only `resolveTogether` can admit work, and
@@ -686,7 +653,15 @@ function isSuccessful(value: unknown): boolean {
  * parties, surfaces, or evidence references.
  */
 export function createSugarParley(deps: SugarParleyDeps) {
-  async function preview(input: SugarParleyPreviewInput): Promise<SugarParleyPreview> {
+  /**
+   * Re-derive the card and its server-only signal from live canonical state.
+   * The purpose is to make Resolve together consume a fresh authority result,
+   * while a preview can safely expose only the human-facing card.
+   *
+   * @param input - Credential-derived current session and actor identity.
+   * @returns A card plus private signal, or an explicit non-admission result.
+   */
+  async function derive(input: SugarParleyPreviewInput): Promise<SugarParleyDerivationResult> {
     const sessionId = stringField(input.sessionId);
     const actorId = stringField(input.actorId);
     if (!sessionId || !actorId) {
@@ -717,10 +692,34 @@ export function createSugarParley(deps: SugarParleyDeps) {
     if (sourceClaims.length === 0) {
       return { state: 'none', reason: 'No active structural claim is available to ground a coordination card.' };
     }
-
+    // Claim collision semantics are canonical in the suggestion broker. Sugar
+    // only intersects that already-defined structural truth with whois's
+    // semantically reviewed peer list; it is not a second overlap detector.
+    const claimsByEvidenceRef = new Map(claims.map((claim) => [claimRef(claim), claim]));
+    const structuralOverlaps = detectClaimOverlaps(claims)
+      .filter((overlap) => overlap.a.sessionId === sourceSession.id || overlap.b.sessionId === sourceSession.id)
+      .map((overlap) => {
+        const source = overlap.a.sessionId === sourceSession.id ? overlap.a : overlap.b;
+        const peer = overlap.a.sessionId === sourceSession.id ? overlap.b : overlap.a;
+        return {
+          source: claimsByEvidenceRef.get(activeClaimEvidenceRef(source)),
+          peer: claimsByEvidenceRef.get(activeClaimEvidenceRef(peer)),
+        };
+      })
+      .filter((overlap): overlap is { source: RawClaim; peer: RawClaim } => Boolean(overlap.source && overlap.peer))
+      .sort((left, right) => (
+        claimRef(left.peer).localeCompare(claimRef(right.peer))
+        || claimRef(left.source).localeCompare(claimRef(right.source))
+      ));
     let semanticHits: WhoisHit[];
     try {
-      semanticHits = await deps.whois.search(purpose, { kind: 'agent', limit: 32 });
+      semanticHits = await deps.whois.search(purpose, {
+        kind: 'agent',
+        limit: 32,
+        // Sugar can convene a bounded Parley from this result, so it requests
+        // the shared vector review even when two peers chose identical words.
+        semanticReview: true,
+      });
     } catch {
       return { state: 'unavailable', reason: 'The shared semantic resolver is unavailable; no lexical fallback is permitted.' };
     }
@@ -728,33 +727,35 @@ export function createSugarParley(deps: SugarParleyDeps) {
     if (peers.length === 0) {
       return { state: 'none', reason: 'No semantically reviewed live peer is relevant enough to coordinate.' };
     }
+    if (structuralOverlaps.length === 0) {
+      return { state: 'none', reason: 'Semantic relevance exists, but no exact active claim overlap grounds a card.' };
+    }
 
     for (const peer of peers) {
-      // One verified actor may deliberately retain several active sessions.
-      // The semantic result names the actor, not an arbitrary earliest session;
-      // inspect every current session for that actor so an unrelated older
-      // session cannot hide the exact claim overlap that grounds this card.
       for (const peerSession of sessionsForActor(sessions, deps.actorSouls, peer.actorId)) {
-        const peerClaims = claims.filter((claim) => claim.sessionId === peerSession.id);
-        for (const sourceClaim of sourceClaims) {
-          const overlap = peerClaims
-            .filter((peerClaim) => claimsOverlap(sourceClaim, peerClaim))
-            .sort((left, right) => claimRef(left).localeCompare(claimRef(right)))[0];
-          if (!overlap) continue;
-          const card = buildCard(input, sourceSession, sourceClaim, peerSession, overlap, peer);
-          return card.decision.policyCleared
-            ? { state: 'ready', card }
-            : { state: 'none', reason: card.decision.reason };
-        }
+        const overlap = structuralOverlaps.find((candidate) => candidate.peer.sessionId === peerSession.id);
+        if (!overlap) continue;
+        const derived = buildCard(input, sourceSession, overlap.source, peerSession, overlap.peer, peer);
+        const { card } = derived;
+        return card.decision.policyCleared
+          ? { state: 'ready', card, signal: derived.signal }
+          : { state: 'none', reason: card.decision.reason };
       }
     }
 
     return { state: 'none', reason: 'Semantic relevance exists, but no exact active claim overlap grounds a card.' };
   }
 
+  async function preview(input: SugarParleyPreviewInput): Promise<SugarParleyPreview> {
+    const derived = await derive(input);
+    return derived.state === 'ready'
+      ? { state: 'ready', card: derived.card }
+      : derived;
+  }
+
   async function resolveTogether(input: SugarParleyConveneInput): Promise<SugarParleyConveningReceipt> {
-    const previewResult = await preview(input);
-    if (previewResult.state !== 'ready') {
+    const derived = await derive(input);
+    if (derived.state !== 'ready') {
       return {
         kind: 'sugar_parley_convening_receipt',
         schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
@@ -762,11 +763,11 @@ export function createSugarParley(deps: SugarParleyDeps) {
         cardId: '',
         signalId: stringField(input.signalId) ?? '',
         parleyId: null,
-        reason: previewResult.reason,
+        reason: derived.reason,
         hookContext: null,
       };
     }
-    const card = previewResult.card;
+    const { card, signal } = derived;
     if (input.signalId !== card.signalId) {
       return {
         kind: 'sugar_parley_convening_receipt',
@@ -792,8 +793,9 @@ export function createSugarParley(deps: SugarParleyDeps) {
         hookContext: null,
       };
     }
-    const result = deps.parleyAutoTrigger.evaluate(signalForCard(card), {
+    const result = deps.parleyAutoTrigger.evaluate(signal, {
       harbor,
+      origin: 'sugar-parley',
       resolveLiveParty: (candidateActorId) => (
         resolveCardParty(card, candidateActorId, deps.sessions, deps.actorSouls)
       ),
@@ -806,19 +808,16 @@ export function createSugarParley(deps: SugarParleyDeps) {
       ? result.state
       : 'failed';
     const hookContext = result.parleyId && (state === 'fired' || state === 'replayed')
-      ? {
-        kind: 'sugar_parley_hook_context' as const,
-        schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
+      ? createSugarParleyHookContext({
         parleyId: result.parleyId,
-        cardId: card.cardId,
+        signalId: card.signalId,
         surface: card.surface,
-        evidenceRefs: canonicalStrings([
+        evidenceRefs: [
           card.structuralEvidence.sourceClaimRef,
           card.structuralEvidence.peerClaimRef,
           card.semanticEvidence.evidenceRef,
-        ]),
-        message: 'A bounded Parley is active. Reply in natural language, keep the shared surface in view, and settle only with the typed receipt.',
-      }
+        ],
+      })
       : null;
     return {
       kind: 'sugar_parley_convening_receipt',
@@ -840,22 +839,25 @@ export function createSugarParley(deps: SugarParleyDeps) {
    * claim, or raw Parley operation.
    */
   function settle(input: SugarParleySettlementInput): SugarParleySettlementReceipt {
-    const unavailable = (reason: string): SugarParleySettlementReceipt => ({
-      kind: 'sugar_parley_settlement_receipt',
+    const acknowledgement = (
+      state: SugarParleySettlementAcknowledgementState,
+      reason: string,
+      fields: Partial<Omit<SugarParleySettlementAcknowledgement, 'kind' | 'schemaVersion' | 'state' | 'reason'>> = {},
+    ): SugarParleySettlementAcknowledgement => ({
+      kind: 'sugar_parley_settlement_acknowledgement',
       schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
-      state: 'rejected',
+      state,
       parleyId: stringField(input.parleyId) ?? '',
       proposalId: null,
       surface: null,
       outcome: null,
-      claimUpdates: [],
-      planUpdates: [],
       remindersSuppressed: false,
       replayed: false,
       reason,
+      ...fields,
     });
-    if (!deps.parley || !deps.sessions.releaseFiles || !deps.sessions.addNote || !deps.sessions.getNotes) {
-      return unavailable('The typed settlement authority is unavailable; no claim or plan mutation was attempted.');
+    if (!deps.parley || !deps.sessions.applySugarParleySettlement || !deps.sessions.getNotes) {
+      return acknowledgement('rejected', 'The typed settlement authority is unavailable; no claim or plan mutation was attempted.');
     }
     const sessionId = stringField(input.sessionId);
     const actorId = stringField(input.actorId);
@@ -864,19 +866,20 @@ export function createSugarParley(deps: SugarParleyDeps) {
     const summaryText = boundedSettlementText(input.summary);
     const nextStep = boundedSettlementText(input.nextStep);
     if (!sessionId || !actorId || !parleyId || !harbor || !summaryText || !nextStep) {
-      return unavailable('A canonical session, actor, harbor, Parley, summary, and next step are required for typed settlement.');
+      return acknowledgement('rejected', 'A canonical session, actor, harbor, Parley, summary, and next step are required for typed settlement.');
     }
     const sourceSession = parseSessionDetail(deps.sessions.get(sessionId));
     if (!sourceSession || sourceSession.status !== 'active'
       || resolveSessionActor(sourceSession, deps.actorSouls) !== actorId) {
-      return unavailable('The current actor is not authorized for the active settlement session.');
+      return acknowledgement('rejected', 'The current actor is not authorized for the active settlement session.', { parleyId });
     }
     const current = deps.parley.get(parleyId, harbor);
     const automatic = current?.parley.automatic;
     const membership = automatic?.participants.find((participant) => participant.actorId === actorId);
-    if (!current || !automatic || automatic.checkpoint !== 'session_begin'
+    if (!current || !automatic || automatic.origin !== 'sugar-parley'
+      || automatic.checkpoint !== 'session_begin'
       || automatic.kind !== 'task_convergence' || !membership || membership.sessionId !== sessionId) {
-      return unavailable('This actor and session are not members of a bounded Sugar Parley.');
+      return acknowledgement('rejected', 'This actor and session are not members of a bounded Sugar Parley.', { parleyId });
     }
     const evidenceRefs = canonicalStrings(automatic.evidenceRefs);
     const content = canonicalSettlementContent({
@@ -886,7 +889,69 @@ export function createSugarParley(deps: SugarParleyDeps) {
       summary: summaryText,
       nextStep,
     });
+    if (!content) {
+      return acknowledgement('rejected', `The canonical settlement exceeds ${SUGAR_PARLEY_SETTLEMENT_CONTENT_MAX_CHARS} characters.`, {
+        parleyId,
+        surface: current.parley.surface,
+      });
+    }
     const proposalId = settlementProposalId(content);
+    const claims = parseClaims(deps.sessions.listAllActiveClaims());
+    if (!claims) {
+      return acknowledgement('rejected', 'The active-claim authority could not be read for this settlement.', {
+        parleyId,
+        proposalId,
+        surface: current.parley.surface,
+      });
+    }
+    const participantBySession = new Map(
+      automatic.participants.map((participant) => [participant.sessionId, participant]),
+    );
+    const selectedClaims = claims
+      .filter((claim) => participantBySession.has(claim.sessionId)
+        && evidenceRefs.includes(claimRef(claim)))
+      .sort((left, right) => claimRef(left).localeCompare(claimRef(right)));
+    const selectedSessionIds = new Set(selectedClaims.map((claim) => claim.sessionId));
+    const expectedSessionIds = [...participantBySession.keys()].sort();
+    if (selectedClaims.length !== expectedSessionIds.length
+      || selectedSessionIds.size !== expectedSessionIds.length
+      || expectedSessionIds.some((id) => !selectedSessionIds.has(id))
+      || selectedClaims.some((claim) => claim.sessionFileId === null
+        || claim.agentId === null
+        || claim.agentId !== participantBySession.get(claim.sessionId)!.inboxTarget)) {
+      return acknowledgement('rejected', 'The evidence no longer resolves to one exact active claim for every bounded participant.', {
+        parleyId,
+        proposalId,
+        surface: current.parley.surface,
+      });
+    }
+    const settlementClaims: SessionSugarParleySettlementInput['claims'] = selectedClaims.map((claim) => ({
+      sessionId: claim.sessionId,
+      agentId: claim.agentId!,
+      sessionFileId: claim.sessionFileId!,
+      claimRef: claimRef(claim),
+    }));
+    const settlementLine = `- [x] Sugar Parley settlement ${proposalId}: ${nextStep}`;
+    const plans: SessionSugarParleySettlementInput['plans'] = automatic.participants
+      .slice()
+      .sort((left, right) => left.sessionId.localeCompare(right.sessionId))
+      .map((participant) => {
+        const existingPlan = extractLatestPlan(deps.sessions.getNotes!(participant.sessionId, { type: 'todo_list', limit: 1 }));
+        const contentForPlan = existingPlan ? `${existingPlan}\n${settlementLine}` : settlementLine;
+        return {
+          sessionId: participant.sessionId,
+          agentId: participant.inboxTarget,
+          content: contentForPlan,
+          type: 'todo_list' as const,
+        };
+      });
+    if (plans.some((plan) => plan.content.length > SUGAR_PARLEY_SETTLEMENT_CONTENT_MAX_CHARS)) {
+      return acknowledgement('rejected', `A settlement plan receipt exceeds ${SUGAR_PARLEY_SETTLEMENT_CONTENT_MAX_CHARS} characters.`, {
+        parleyId,
+        proposalId,
+        surface: current.parley.surface,
+      });
+    }
     let result: SettleAutomaticConsensusResult;
     try {
       result = deps.parley.settleAutomaticConsensus({
@@ -897,123 +962,55 @@ export function createSugarParley(deps: SugarParleyDeps) {
         content,
         decision: content,
         reason: 'All bounded Sugar Parley participants acknowledged the same typed settlement.',
-        evidenceRefs,
+        finalize: () => {
+          const effects = deps.sessions.applySugarParleySettlement!({
+            claims: settlementClaims,
+            plans,
+          });
+          if (!effects.success) {
+            throw new Error(`Sugar settlement effects did not commit: ${effects.code}: ${effects.error}`);
+          }
+          return {
+            claimUpdates: effects.claimUpdates.map((update) => ({
+              sessionId: update.sessionId,
+              claimRef: update.claimRef,
+              released: update.released,
+            })),
+            planUpdates: effects.planUpdates.map((update) => ({
+              sessionId: update.sessionId,
+              updated: update.updated,
+            })),
+            reason: 'The typed settlement released the exact evidence-bound claims, appended checked plan receipts, and suppressed its settled reminder lineage.',
+          };
+        },
       });
     } catch (error) {
-      return {
-        ...unavailable(error instanceof Error ? error.message : 'The typed settlement authority rejected the acknowledgement.'),
+      return acknowledgement('failed', error instanceof Error ? error.message : 'The typed settlement could not commit.', {
         parleyId,
         proposalId,
         surface: current.parley.surface,
-      };
-    }
-    if (!result.settled) {
-      return {
-        kind: 'sugar_parley_settlement_receipt',
-        schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
-        state: 'awaiting-peer',
-        parleyId,
-        proposalId,
-        surface: current.parley.surface,
-        outcome: result.outcome,
-        claimUpdates: [],
-        planUpdates: [],
-        remindersSuppressed: false,
-        replayed: result.replayed,
-        reason: 'Typed settlement recorded; it will take effect only when every bounded participant acknowledges this exact receipt.',
-      };
-    }
-    if (result.replayed) {
-      return {
-        kind: 'sugar_parley_settlement_receipt',
-        schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
-        state: 'settled',
-        parleyId,
-        proposalId,
-        surface: current.parley.surface,
-        outcome: result.outcome,
-        claimUpdates: [],
-        planUpdates: [],
-        remindersSuppressed: true,
-        replayed: true,
-        reason: 'The typed settlement receipt was already recorded; its bounded Parley remains settled and reminder-suppressed.',
-      };
-    }
-
-    const claims = parseClaims(deps.sessions.listAllActiveClaims());
-    if (!claims) {
-      return {
-        kind: 'sugar_parley_settlement_receipt',
-        schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
-        state: 'failed',
-        parleyId,
-        proposalId,
-        surface: current.parley.surface,
-        outcome: result.outcome,
-        claimUpdates: [],
-        planUpdates: [],
-        remindersSuppressed: true,
-        replayed: false,
-        reason: 'The Parley settled, but the active-claim authority could not be read back to apply its typed claim effect.',
-      };
-    }
-    const participantBySession = new Map(
-      automatic.participants.map((participant) => [participant.sessionId, participant]),
-    );
-    const settlementClaims = claims
-      .filter((claim) => participantBySession.has(claim.sessionId) && evidenceRefs.includes(claimRef(claim)))
-      .sort((left, right) => claimRef(left).localeCompare(claimRef(right)));
-    const claimUpdates: Array<{ sessionId: string; claimRef: string; released: boolean }> = [];
-    for (const claim of settlementClaims) {
-      const participant = participantBySession.get(claim.sessionId)!;
-      const release = isWholeFileClaim(claim)
-        ? deps.sessions.releaseFiles(claim.sessionId, [claim.filePath], { agentId: claim.agentId ?? participant.inboxTarget })
-        : deps.sessions.releaseFiles(claim.sessionId, [], {
-          agentId: claim.agentId ?? participant.inboxTarget,
-          regions: [{
-            path: claim.filePath,
-            ...(claim.symbolPath ? { symbolPath: claim.symbolPath } : {}),
-            ...(claim.startLine !== null ? { startLine: claim.startLine } : {}),
-            ...(claim.endLine !== null ? { endLine: claim.endLine } : {}),
-          }],
-        });
-      claimUpdates.push({
-        sessionId: claim.sessionId,
-        claimRef: claimRef(claim),
-        released: isSuccessful(release),
       });
     }
-    const claimFailure = claimUpdates.some((update) => !update.released);
-    const planUpdates: Array<{ sessionId: string; updated: boolean }> = [];
-    for (const participant of automatic.participants
-      .slice()
-      .sort((left, right) => left.sessionId.localeCompare(right.sessionId))) {
-      const existingPlan = extractLatestPlan(deps.sessions.getNotes(participant.sessionId, { type: 'todo_list', limit: 1 }));
-      const settlementLine = `- [x] Sugar Parley settlement ${proposalId}: ${nextStep}`;
-      const updatedPlan = existingPlan ? `${existingPlan}\n${settlementLine}` : settlementLine;
-      const update = updatedPlan.length <= 16_384
-        ? deps.sessions.addNote(participant.sessionId, updatedPlan, { type: 'todo_list' })
-        : { success: false };
-      planUpdates.push({ sessionId: participant.sessionId, updated: isSuccessful(update) });
+    if (!result.settled) {
+      return acknowledgement('awaiting-peer', 'Typed settlement recorded; it will take effect only when every bounded participant acknowledges this exact settlement.', {
+        parleyId,
+        proposalId,
+        surface: current.parley.surface,
+        outcome: result.outcome,
+        replayed: result.replayed,
+      });
     }
-    const planFailure = planUpdates.some((update) => !update.updated);
-    const failed = claimFailure || planFailure;
-    return {
-      kind: 'sugar_parley_settlement_receipt',
-      schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
-      state: failed ? 'failed' : 'settled',
-      parleyId,
-      proposalId,
-      surface: current.parley.surface,
-      outcome: result.outcome,
-      claimUpdates,
-      planUpdates,
-      remindersSuppressed: true,
-      replayed: false,
-      reason: failed
-        ? 'The Parley settled and reminders are suppressed, but one or more evidence-bound claim or plan updates failed and require recovery.'
-        : 'The typed settlement released the evidence-bound overlap, appended checked plan receipts, and suppressed its settled reminder lineage.',
-    };
+    if (result.replayed || !result.settlementReceipt) {
+      return acknowledgement('replayed', 'The typed settlement was already settled. Read the durable inbox receipt rather than treating this retry as a new terminal receipt.', {
+        parleyId,
+        proposalId,
+        surface: current.parley.surface,
+        outcome: result.outcome,
+        remindersSuppressed: true,
+        replayed: true,
+      });
+    }
+    return result.settlementReceipt;
   }
 
   return { preview, resolveTogether, settle };

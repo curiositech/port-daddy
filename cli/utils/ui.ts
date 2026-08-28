@@ -20,6 +20,7 @@ import {
   type TerminalCapabilities,
   type TerminalCapabilityOverrides,
 } from './output.js';
+import { isStdinInteractive } from './tty.js';
 
 export type LineworkTone =
   | 'healthy'
@@ -550,9 +551,23 @@ export function spinner(): ReturnType<typeof p.spinner> {
 
 /**
  * Check whether interactive prompting is possible.
+ *
+ * The purpose is to keep a human-input capability separate from presentation
+ * policy: `NO_COLOR` must make a real terminal plain, not turn it into a
+ * script, while `FORCE_COLOR` must never make a pipe promptable. A prompt
+ * needs a kernel-confirmed stdin plus terminal stdout and stderr so ordinary
+ * piped invocations retain deterministic machine-readable behavior.
+ *
+ * @returns True only when this process can safely wait for a human response.
  */
 export function canPrompt(): boolean {
-  return IS_TTY && !process.env.CI && !process.env.PORT_DADDY_NON_INTERACTIVE;
+  const stdout = detectTerminalCapabilities('stdout');
+  const stderr = detectTerminalCapabilities('stderr');
+  return isStdinInteractive()
+    && stdout.isTTY
+    && stderr.isTTY
+    && !process.env.CI
+    && !process.env.PORT_DADDY_NON_INTERACTIVE;
 }
 
 /**

@@ -1,14 +1,48 @@
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
-import {
+import type { SugarParleyCard } from '../../lib/sugar-parley.js';
+
+const mockIsatty = jest.fn<(fd: number) => boolean>(() => false);
+
+jest.unstable_mockModule('node:tty', () => ({
+  ...jest.requireActual<typeof import('node:tty')>('node:tty'),
+  isatty: mockIsatty,
+}));
+
+const {
   fetchSugarParleyCard,
+  fetchHelpfulPeerSuggestions,
   credentialForBegunSugarContext,
   SUGAR_PARLEY_CARD_TIMEOUT_MS,
   shouldShowSugarParleyExperience,
-} from '../../cli/commands/sugar.js';
-import { handleAttention } from '../../cli/commands/attention.js';
-import type { SugarParleyCard } from '../../lib/sugar-parley.js';
+} = await import('../../cli/commands/sugar.js');
+const { handleAttention } = await import('../../cli/commands/attention.js');
+const { canPrompt, lineworkColorLevel } = await import('../../cli/utils/ui.js');
+const { renderSugarParleyCard } = await import('../../cli/utils/sugar-parley-card.js');
 
 const originalCredential = process.env.PD_ACTOR_CREDENTIAL;
+const terminalStreams = [process.stdin, process.stdout, process.stderr] as const;
+const originalTtyDescriptors = terminalStreams.map((stream) => Object.getOwnPropertyDescriptor(stream, 'isTTY'));
+const promptEnvironmentKeys = ['CI', 'NO_COLOR', 'FORCE_COLOR', 'PORT_DADDY_NON_INTERACTIVE', 'PD_EMIT_EXPORTS'] as const;
+const originalPromptEnvironment = Object.fromEntries(
+  promptEnvironmentKeys.map((key) => [key, process.env[key]]),
+) as Record<(typeof promptEnvironmentKeys)[number], string | undefined>;
+
+function pinTerminalFds(activeFds: readonly number[]): void {
+  mockIsatty.mockImplementation((fd) => activeFds.includes(fd));
+  for (const stream of terminalStreams) {
+    Object.defineProperty(stream, 'isTTY', { configurable: true, value: false });
+  }
+}
+
+function restoreTerminalFds(): void {
+  for (const [index, stream] of terminalStreams.entries()) {
+    const descriptor = originalTtyDescriptors[index];
+    if (descriptor) Object.defineProperty(stream, 'isTTY', descriptor);
+    else delete (stream as { isTTY?: boolean }).isTTY;
+  }
+  mockIsatty.mockReset();
+  mockIsatty.mockImplementation(() => false);
+}
 
 function card(): SugarParleyCard {
   return {
@@ -47,6 +81,12 @@ function card(): SugarParleyCard {
 afterEach(() => {
   if (originalCredential === undefined) delete process.env.PD_ACTOR_CREDENTIAL;
   else process.env.PD_ACTOR_CREDENTIAL = originalCredential;
+  for (const key of promptEnvironmentKeys) {
+    const value = originalPromptEnvironment[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  restoreTerminalFds();
 });
 
 describe('pd begin Sugar Parley arrival enrichment', () => {
@@ -119,6 +159,31 @@ describe('pd begin Sugar Parley arrival enrichment', () => {
     expect(String(fetcher.mock.calls[0]?.[0])).not.toContain('purpose=');
   });
 
+  test('asks Whois for semantic review before offering ordinary begin peer guidance', async () => {
+    const fetcher = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        hits: [{
+          agentId: 'peer',
+          agentName: 'Peer',
+          harbor: 'local',
+          phrase: 'coordinate shared work',
+          score: 0.95,
+          similarity: 0.96,
+          bm25Score: 1,
+          freshnessWeight: 1,
+          lastHeartbeat: 1_700_000_000_000,
+          stage: 'semantic',
+          source: 'declared',
+        }],
+      }),
+    }));
+
+    await expect(fetchHelpfulPeerSuggestions('coordinate shared work', 'source', fetcher as any))
+      .resolves.toEqual([expect.objectContaining({ agentId: 'peer', stage: 'semantic' })]);
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain('semantic_review=true');
+  });
+
   test('does not turn an absent or not-ready server observation into a card', async () => {
     process.env.PD_ACTOR_CREDENTIAL = 'test-credential';
     const fetcher = async () => ({
@@ -133,7 +198,26 @@ describe('pd begin Sugar Parley arrival enrichment', () => {
       .resolves.toBeNull();
   });
 
-  test('leaves JSON, quiet, export, and noninteractive begins deterministic while retaining an ANSI-free no-color card', () => {
+  test('derives the default Sugar prompt capability from TTYs, not color policy', () => {
+    delete process.env.CI;
+    delete process.env.PORT_DADDY_NON_INTERACTIVE;
+    delete process.env.PD_EMIT_EXPORTS;
+    process.env.NO_COLOR = '1';
+    pinTerminalFds([0, 1, 2]);
+
+    expect(canPrompt()).toBe(true);
+    expect(shouldShowSugarParleyExperience({})).toBe(true);
+    expect(renderSugarParleyCard(card(), { colorLevel: lineworkColorLevel('stderr') })).not.toContain('\u001b[');
+
+    delete process.env.NO_COLOR;
+    process.env.FORCE_COLOR = '3';
+    pinTerminalFds([]);
+
+    expect(canPrompt()).toBe(false);
+    expect(shouldShowSugarParleyExperience({})).toBe(false);
+  });
+
+  test('leaves JSON, quiet, export, and explicit noninteractive begins deterministic', () => {
     expect(shouldShowSugarParleyExperience({}, true, {})).toBe(true);
     expect(shouldShowSugarParleyExperience({ json: true }, true, {})).toBe(false);
     expect(shouldShowSugarParleyExperience({ quiet: true }, true, {})).toBe(false);

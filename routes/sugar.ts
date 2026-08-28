@@ -8,15 +8,20 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { asActorId, type ActorSouls } from '../lib/actor-souls.js';
+import type { ActorSouls } from '../lib/actor-souls.js';
 import { createParleyAutoTrigger } from '../lib/parley-auto-trigger.js';
 import {
   createSugarParley,
   resolveSugarParleySessionActor,
   SUGAR_PARLEY_NOTE_MAX_CHARS,
+  SUGAR_PARLEY_SETTLEMENT_MAX_CHARS,
   type SugarParley,
 } from '../lib/sugar-parley.js';
 import type { Parley } from '../lib/parley.js';
+import type {
+  SugarParleySettlementInput,
+  SugarParleySettlementResult,
+} from '../lib/sessions.js';
 import type { WhoisHit } from '../lib/whois.js';
 import {
   extractActorCredential,
@@ -40,6 +45,8 @@ interface SugarParleySessions {
   list(options?: Record<string, unknown>): Record<string, unknown>;
   listAllActiveClaims(options?: Record<string, unknown>): Record<string, unknown>;
   addNote(sessionId: string, content: string, options?: { type?: string }): Record<string, unknown>;
+  getNotes(sessionId?: string | null, options?: { type?: string; limit?: number }): Record<string, unknown>;
+  applySugarParleySettlement(input: SugarParleySettlementInput): SugarParleySettlementResult;
 }
 
 interface SugarParleyInbox {
@@ -53,7 +60,25 @@ interface SugarParleyInbox {
 }
 
 interface SugarParleyWhois {
-  search(query: string, options?: { kind?: 'agent'; limit?: number }): Promise<WhoisHit[]>;
+  search(
+    query: string,
+    options?: { kind?: 'agent'; limit?: number; semanticReview?: boolean },
+  ): Promise<WhoisHit[]>;
+}
+
+/**
+ * Canonical Harbor membership operations used to project a successful Sugar
+ * admission into Whois. The route never writes the Whois sidecar directly:
+ * Harbors owns the membership fact and its server-wired listener owns the
+ * derived capability projection.
+ */
+interface SugarCapabilityHarbors {
+  create(name: string): { success: boolean; error?: string };
+  enter(
+    harborName: string,
+    agentId: string,
+    options?: { identity?: string; capabilities?: string[] },
+  ): Promise<{ success: boolean; error?: string }>;
 }
 
 interface SugarRouteDeps {
@@ -82,8 +107,9 @@ interface SugarRouteDeps {
    * production wiring supplies all of them through registerAllRoutes.
    */
   sessions?: SugarParleySessions;
-  parley?: Pick<Parley, 'admitAutomatic' | 'get' | 'respond' | 'settleAutomaticConsensus'>;
+  parley?: Pick<Parley, 'admitAutomatic' | 'get' | 'respondSugarParleyMessage' | 'settleAutomaticConsensus'>;
   whois?: SugarParleyWhois;
+  harbors?: SugarCapabilityHarbors;
   agentInbox?: SugarParleyInbox;
 }
 
@@ -109,6 +135,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     sessions,
     parley,
     whois,
+    harbors,
     agentInbox,
   } = deps;
 
@@ -121,33 +148,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     if (!sessions || !parley || !whois || !actorSouls) return null;
     const autoTrigger = createParleyAutoTrigger({
       parley,
-      resolveLiveParty: (candidateActorId) => {
-        const active = sessions.list({ status: 'active', allWorktrees: true, limit: 1_000 }) as {
-          success?: unknown;
-          sessions?: Array<{ id?: unknown; agentId?: unknown; status?: unknown }>;
-        };
-        if (active.success !== true || !Array.isArray(active.sessions)) return null;
-        const matches = active.sessions
-          .filter((session) => session.status === 'active')
-          .filter((session) => typeof session.id === 'string' && typeof session.agentId === 'string')
-          .map((session) => ({
-            sessionId: session.id as string,
-            agentId: session.agentId as string,
-            actorId: resolveSugarParleySessionActor(session, actorSouls),
-          }))
-          .filter((session): session is { sessionId: string; agentId: string; actorId: string } => (
-            session.actorId === candidateActorId
-          ))
-          .sort((left, right) => left.sessionId.localeCompare(right.sessionId));
-        const selected = matches[0];
-        if (!selected) return null;
-        return {
-          actorId: asActorId(selected.actorId),
-          inboxTarget: selected.agentId,
-          sessionId: selected.sessionId,
-          lineageRootSessionId: selected.sessionId,
-        };
-      },
+      // Sugar always passes its fresh, evidence-bound card resolver to
+      // evaluate(). This required adapter is deliberately fail-closed so no
+      // route-level scan can select an arbitrary first active session.
+      resolveLiveParty: () => null,
     });
     return createSugarParley({ sessions, actorSouls, whois, parleyAutoTrigger: autoTrigger, parley });
   })();
@@ -155,6 +159,62 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   function canonicalHarbor(): string | null {
     const harbor = actorSouls?.constants?.defaultHarbor;
     return typeof harbor === 'string' && harbor.trim() ? harbor.trim() : null;
+  }
+
+  /**
+   * Project a successfully admitted Sugar agent through the canonical Harbor
+   * membership path before the begin response is returned.
+   *
+   * The Harbor's capability listener awaits the existing Whois semantic
+   * projection. This makes a brand-new second begin eligible for immediate
+   * peer discovery without manufacturing a purpose index in Sugar. Both
+   * membership and embedding remain best-effort enrichment: a failure is
+   * recorded but cannot invalidate an already-admitted agent/session pair.
+   *
+   * @param result - Successful result from the canonical Sugar begin service.
+   * @param purpose - Validated session purpose to declare as one capability.
+   * @param identity - Optional display identity retained on the Harbor member.
+   * @returns A promise that settles after the non-fatal membership projection attempt.
+   */
+  async function projectSuccessfulBeginCapability(
+    result: Record<string, unknown>,
+    purpose: string,
+    identity: unknown,
+  ): Promise<void> {
+    if (!harbors) return;
+    const agentId = typeof result.agentId === 'string' ? result.agentId.trim() : '';
+    const harbor = canonicalHarbor();
+    if (!agentId || !harbor) return;
+
+    try {
+      const created = harbors.create(harbor);
+      if (!created.success) {
+        logger.warn('sugar_begin_capability_projection_unavailable', {
+          agentId,
+          harbor,
+          reason: created.error ?? 'harbor create failed',
+        });
+        return;
+      }
+
+      const entered = await harbors.enter(harbor, agentId, {
+        ...(typeof identity === 'string' && identity.trim() ? { identity: identity.trim() } : {}),
+        capabilities: [purpose],
+      });
+      if (!entered.success) {
+        logger.warn('sugar_begin_capability_projection_unavailable', {
+          agentId,
+          harbor,
+          reason: entered.error ?? 'harbor enter failed',
+        });
+      }
+    } catch (error) {
+      logger.warn('sugar_begin_capability_projection_failed', {
+        agentId,
+        harbor,
+        error: (error as Error).message,
+      });
+    }
   }
 
   function stringInput(value: unknown, maxChars: number): string | null {
@@ -565,6 +625,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         reply.code(status);
         return result;
       }
+
+      // A normal begin declares its durable purpose through the canonical
+      // Harbor membership authority. `enter()` awaits the server-wired Whois
+      // projection, while any capability-indexing fault remains non-fatal to
+      // the agent/session admission above.
+      await projectSuccessfulBeginCapability(result, purpose.trim(), identity);
 
       // Surface the identity verdict (as `actorIdentity` — `identity` on this
       // response is already the project:stack:context display string); when
@@ -991,8 +1057,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       }
       const sessionId = stringInput(body.sessionId, 256);
       const parleyId = stringInput(body.parleyId, 256);
-      const summary = stringInput(body.summary, SUGAR_PARLEY_NOTE_MAX_CHARS);
-      const nextStep = stringInput(body.nextStep, SUGAR_PARLEY_NOTE_MAX_CHARS);
+      const summary = stringInput(body.summary, SUGAR_PARLEY_SETTLEMENT_MAX_CHARS);
+      const nextStep = stringInput(body.nextStep, SUGAR_PARLEY_SETTLEMENT_MAX_CHARS);
       const harbor = canonicalHarbor();
       if (!sessionId || !parleyId || !summary || !nextStep || !harbor) {
         reply.code(400);
@@ -1030,7 +1096,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // canonical membership and active session lineage.
   fastify.post('/sugar/parley/message', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (!parley) return coordinatorUnavailable(reply);
+      if (!parley || !sessions) return coordinatorUnavailable(reply);
       const body = request.body as Record<string, unknown>;
       const identity = requireSugarParleyIdentity(request, 'POST /sugar/parley/message');
       if (!identity.success) {
@@ -1047,19 +1113,26 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       }
       const summary = parley.get(parleyId, harbor);
       const participant = summary?.parley.automatic?.participants.find((item) => item.actorId === identity.verdict.actorId);
+      const liveSession = sessions.get(sessionId) as {
+        success?: unknown;
+        session?: { id?: unknown; status?: unknown; agentId?: unknown; metadata?: unknown };
+      };
       if (!summary || summary.parley.automatic?.checkpoint !== 'session_begin'
         || summary.parley.automatic.kind !== 'task_convergence'
-        || !participant || participant.sessionId !== sessionId) {
+        || summary.parley.automatic.origin !== 'sugar-parley'
+        || !participant || participant.sessionId !== sessionId
+        || liveSession.success !== true || liveSession.session?.status !== 'active'
+        || liveSession.session.id !== sessionId
+        || liveSession.session.agentId !== participant.inboxTarget
+        || resolveSugarParleySessionActor(liveSession.session, actorSouls!) !== identity.verdict.actorId) {
         reply.code(403);
         return { success: false, error: 'This credential and active session are not a party to a bounded Sugar Parley.', code: 'SUGAR_PARLEY_MEMBERSHIP_REQUIRED' };
       }
-      const turn = parley.respond({
+      const turn = parley.respondSugarParleyMessage({
         parleyId,
         harbor,
         party: identity.verdict.actorId,
-        performative: 'inform',
-        content: message,
-        evidenceRefs: summary.parley.automatic.evidenceRefs,
+        message,
       });
       return {
         success: true,
