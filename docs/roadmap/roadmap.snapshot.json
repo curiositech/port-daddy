@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 310,
+  "count": 311,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1128,6 +1128,11 @@
       "slug": "ideas-trove-queryable-surface",
       "status": "backlog",
       "summaryMd": "[dispatch] Take roadmap slice ideas-trove-queryable-surface. Audit the ..."
+    },
+    {
+      "slug": "interactive-squid-review-hardening",
+      "status": "now",
+      "summaryMd": "Harden interactive context-pressure ingress and successor-boundary contract"
     },
     {
       "slug": "io-wiring",
