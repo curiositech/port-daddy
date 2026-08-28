@@ -485,7 +485,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
     pages: 41,
-    sizeKb: 711,
+    sizeKb: 702,
     status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
@@ -1137,7 +1137,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     date: 'August 5, 2026',
     title: 'Spawn-to-Person diagrams and implementation status align',
     summary:
-      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 35-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
+      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 41-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
     chapters: ['III'],
   },
   {
