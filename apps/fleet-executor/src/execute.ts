@@ -27,6 +27,7 @@ import {
   invalidateInstallationToken,
   fetchPRContext,
   fetchRepoFile,
+  fetchTrustedShipContract,
   fetchOpenPullRequests,
   listRecentBranches,
   renderFleetContext,
@@ -42,6 +43,7 @@ import {
   resolveFleetAppLogin,
   requireCurrentPullRequestHead,
   PullRequestHeadValidationError,
+  PullRequestDiffFetchError,
   type PRContext,
   type PullRequestHeadGuard,
   type ReviewComment,
@@ -82,7 +84,7 @@ import {
   runTestsInSandbox,
   sandboxCoordinationEnrollmentFromEnv,
 } from './sandbox-runner.js';
-import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
+import { createSkillGraftCache, type SkillGraft } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import {
@@ -126,7 +128,13 @@ import { repairContractOutput } from './repair.js';
 import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
-import { loadShipCheckpoints, saveShipCheckpoint } from './ship-checkpoint.js';
+import {
+  createCheckpointReviewInputSha256,
+  createShipCheckpointBinding,
+  loadShipCheckpoints,
+  saveShipCheckpoint,
+  type ShipCheckpointBinding,
+} from './ship-checkpoint.js';
 import { countDeliveryContinuations } from './delivery-failure.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
@@ -1350,6 +1358,50 @@ export interface FleetExecutionOptions {
 }
 
 /**
+ * Establish a visible in-progress gate before retrying an unavailable raw diff.
+ *
+ * Normal Fleet check creation follows authoritative PR-context fetch because it
+ * needs the live head. The signed webhook payload is nevertheless the only
+ * safe coordinate available when that fetch's raw-diff leg itself fails. This
+ * helper creates (or preserves) a pending check on that immutable payload head
+ * so an exhausted queue delivery reaches the DLQ with a real check to mark
+ * failed rather than leaving an invisible, passable-looking gap.
+ *
+ * @param owner GitHub repository owner.
+ * @param repo GitHub repository name.
+ * @param prPayload Signed webhook pull-request payload.
+ * @param token Installation token for the check API.
+ * @param detailsUrl Optional durable run-details URL.
+ * @returns Nothing after an existing or newly created gate is confirmed.
+ */
+async function ensureRawDiffFailureGate(
+  owner: string,
+  repo: string,
+  prPayload: Record<string, unknown>,
+  token: string,
+  detailsUrl: string | null,
+): Promise<void> {
+  const head = prPayload.head;
+  const headSha = head && typeof head === 'object'
+    ? (head as Record<string, unknown>).sha
+    : null;
+  if (typeof headSha !== 'string' || !headSha) {
+    throw new Error('raw diff unavailable and webhook payload omitted the pull request head SHA');
+  }
+  const existing = await findFleetCheckRunState(owner, repo, headSha, CHECK_NAME, token);
+  const alreadyDecided = existing?.status === 'completed' &&
+    (existing.conclusion === 'success' || existing.conclusion === 'failure') &&
+    !isDeadLetteredSummary(existing.summary);
+  if (alreadyDecided || (existing && existing.status !== 'completed')) return;
+  const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
+  if (!checkRunId) {
+    throw new Error(
+      `raw diff unavailable and could not establish the Port Daddy Fleet gate for ${owner}/${repo}@${headSha}`,
+    );
+  }
+}
+
+/**
  * Execute one verified Fleet delivery against the current pull-request head.
  * The design returns an explicit disposition only when the immutable webhook
  * head is stale, allowing the queue wrapper to close admission truth without
@@ -1528,14 +1580,15 @@ export async function executeFleet(
   let prCtx: PRContext;
   let fleetYaml: string | null;
   try {
-    [prCtx, fleetYaml] = await Promise.all([
-      fetchPRContext(owner, repo, prNumber, prPayload, token),
-      // ZERO-TRUST: config is read from the trusted branch, NEVER PR head.
-      fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
-    ]);
-  } catch (err) {
-    // One automatic remint on a likely-401, then retry the fetch.
-    if (is401(err)) {
+    try {
+      [prCtx, fleetYaml] = await Promise.all([
+        fetchPRContext(owner, repo, prNumber, prPayload, token),
+        // ZERO-TRUST: config is read from the trusted branch, NEVER PR head.
+        fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
+      ]);
+    } catch (err) {
+      // One automatic remint on a likely-401, then retry the fetch.
+      if (!is401(err)) throw err;
       await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
       token = await getInstallationTokenCached(
         env.GITHUB_APP_ID,
@@ -1548,9 +1601,15 @@ export async function executeFleet(
         fetchPRContext(owner, repo, prNumber, prPayload, token),
         fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
       ]);
-    } else {
-      throw err;
     }
+  } catch (err) {
+    // A non-OK raw diff is unavailable infrastructure, never an empty review.
+    // Create the payload-head gate before handing the error to the queue so an
+    // exhausted retry has an actual check run for the DLQ to fail.
+    if (err instanceof PullRequestDiffFetchError) {
+      await ensureRawDiffFailureGate(owner, repo, prPayload, token, detailsUrl);
+    }
+    throw err;
   }
 
   // A synchronize delivery can sit behind an expensive review long enough for
@@ -1985,12 +2044,81 @@ export async function executeFleet(
     fetchRepoFile(owner, repo, path, branch, token),
   );
 
+  // Snapshot every trusted input that can affect a resumption BEFORE reading
+  // checkpoints. `runShip` receives these exact values later, closing the
+  // time-of-check/time-of-use gap where a changed contract or graft could
+  // validate one result but prompt a rerun differently.
+  const trustedContracts = new Map<string, string | null>();
+  const graftsByShip = new Map<string, SkillGraft>();
+  const checkpointBindings = new Map<string, ShipCheckpointBinding>();
+  // A PR title/body can change without moving its head SHA or delivery id.
+  // Bind the exact live input projection once, then reuse that digest for each
+  // ship's current trusted checkpoint proof without re-hashing a large diff.
+  const reviewInputSha256 = await createCheckpointReviewInputSha256(prCtx);
+  for (const ship of orderedShips) {
+    const [contract, graft] = await Promise.all([
+      // Unlike the legacy best-effort helper, only a confirmed 404 means an
+      // absent contract. A 401/5xx must retry the whole delivery rather than
+      // turning an authority outage into a new contract-less review.
+      fetchTrustedShipContract(owner, repo, ship.name, branch, token),
+      skillGrafts.graftFor(ship.graft),
+    ]);
+    const systemPrompt = buildSystemPrompt(ship, contract, graft.text);
+    trustedContracts.set(ship.name, contract);
+    graftsByShip.set(ship.name, graft);
+    checkpointBindings.set(
+      ship.name,
+      await createShipCheckpointBinding(
+        ship,
+        contract,
+        graft.text,
+        systemPrompt,
+        reviewInputSha256,
+      ),
+    );
+  }
+
   // Attempt checkpoints (src/ship-checkpoint.ts): ships completed by an
   // EARLIER attempt of this same delivery — a platform kill (memory/CPU) is
   // uncatchable, so retries must resume past finished work instead of
   // re-spending into the same ceiling. Same-delivery only: runId is
   // `run:<deliveryId>`, so a new push never inherits a stale verdict.
-  const resumedShips = await loadShipCheckpoints(env, runId);
+  //
+  // Mediator orders are intentionally injected into every user prompt and
+  // Lookout's prompt contains live cross-PR state. Neither is a static trusted
+  // config file, so a changed value disables resume for the affected work
+  // instead of letting a prior verdict pretend it reviewed the new context.
+  const resumeBindings = new Map(checkpointBindings);
+  if (mediatorOrders) {
+    resumeBindings.clear();
+    await transcript.step(
+      'ship-checkpoint-resume-disabled',
+      null,
+      'Checkpoint resume disabled because a mediator order changed the current review context',
+      { reason: 'mediator-orders' },
+    );
+  }
+  if (resumeBindings.delete('lookout')) {
+    await transcript.step(
+      'ship-checkpoint-resume-disabled',
+      'lookout',
+      'Checkpoint resume disabled because Lookout consumes live cross-PR context',
+      { reason: 'live-cross-pr-context' },
+    );
+  }
+  const resumedShips = await loadShipCheckpoints(
+    env,
+    runId,
+    resumeBindings,
+    async ship => {
+      await transcript.step(
+        'ship-checkpoint-invalidated',
+        ship,
+        `pd-${ship}: retained checkpoint did not match the current trusted review inputs; re-running the ship`,
+        { reason: 'trusted-binding-mismatch' },
+      );
+    },
+  );
 
   const results: ShipResult[] = [];
   let newlyExecutedShips = 0;
@@ -2099,18 +2227,20 @@ export async function executeFleet(
     // Skill graft: build this ship's prompt prefix from its `graft:` list.
     // Unknown ids are a transcript WARNING, never a failure — the ship still
     // runs, just without the missing skill.
-    let graftText = '';
-    if (ship.graft.length > 0) {
-      const graft = await skillGrafts.graftFor(ship.graft);
-      graftText = graft.text;
-      if (graft.missing.length > 0) {
-        await transcript.step(
-          'skill-graft',
-          ship.name,
-          `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
-          { loaded: graft.loaded, missing: graft.missing, warning: true },
-        );
-      }
+    const graft = graftsByShip.get(ship.name);
+    const checkpointBinding = checkpointBindings.get(ship.name);
+    if (!graft || !checkpointBinding || !trustedContracts.has(ship.name)) {
+      throw new Error(`missing trusted checkpoint snapshot for pd-${ship.name}`);
+    }
+    const contract = trustedContracts.get(ship.name) ?? null;
+    const graftText = graft.text;
+    if (graft.missing.length > 0) {
+      await transcript.step(
+        'skill-graft',
+        ship.name,
+        `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
+        { loaded: graft.loaded, missing: graft.missing, warning: true },
+      );
     }
 
     const metrics = newShipMetrics();
@@ -2142,7 +2272,7 @@ export async function executeFleet(
             prCtx,
             token,
             env,
-            branch,
+            contract,
             transcript,
             metrics,
             graftText,
@@ -2185,7 +2315,13 @@ export async function executeFleet(
     // rows are durable, so a resumed attempt never skips a ship whose
     // accounting was lost with the kill. Gated-out ships are not checkpointed:
     // re-deciding a skip costs nothing.
-    const checkpointSaved = await saveShipCheckpoint(env, runId, shipIndex, result);
+    const checkpointSaved = await saveShipCheckpoint(
+      env,
+      runId,
+      shipIndex,
+      result,
+      checkpointBinding,
+    );
     newlyExecutedShips += 1;
 
     // A retryable Workers AI fault exhausted its bounded delivery budget. The
@@ -2517,7 +2653,8 @@ async function runShip(
   prCtx: PRContext,
   token: string,
   env: ExecutorEnv,
-  branch: string,
+  /** Exact trusted contract snapshot that was bound before checkpoint lookup. */
+  contract: string | null,
   transcript: Transcript,
   metrics: ShipMetrics,
   /** Skill-graft prompt prefix ('' ⇒ none) — see src/skill-graft.ts. */
@@ -2549,15 +2686,6 @@ async function runShip(
   capture: ShipTranscript | null = null,
 ): Promise<ShipResult> {
   try {
-    // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
-    const contract = await fetchRepoFile(
-      prCtx.owner,
-      prCtx.repo,
-      `fleet/ships/${ship.name}.md`,
-      branch,
-      token,
-    ).catch(() => null);
-
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
@@ -3789,7 +3917,19 @@ function buildOutputContract(): string {
   );
 }
 
-function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
+/**
+ * Build the exact system prompt handed to a standard Fleet reviewer ship.
+ *
+ * This is exported for checkpoint-binding tests because a resumable verdict is
+ * valid only under the same prompt that produced it. The caller owns fetching
+ * the trusted contract and graft snapshot before invoking this pure renderer.
+ *
+ * @param ship Parsed trusted Fleet configuration.
+ * @param contract Exact trusted ship contract, or null when confirmed absent.
+ * @param graftText Exact trusted graft prefix selected for this ship.
+ * @returns The complete immutable system prompt for a model call.
+ */
+export function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
   const parts: string[] = [];
 
   // Grafted skills come FIRST: they are the repo's own playbooks, fetched from

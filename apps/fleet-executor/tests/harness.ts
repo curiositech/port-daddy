@@ -58,6 +58,12 @@ export interface GitHubState {
   }>;
   /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
   prDiff?: string;
+  /** Mutable authoritative PR title; it can change without moving the head SHA. */
+  prTitle?: string;
+  /** Mutable authoritative PR body; it can change without moving the head SHA. */
+  prBody?: string;
+  /** Override the raw-diff endpoint status to exercise unavailable-source handling. */
+  prDiffStatus?: number;
   /** Override the first (and currently only) GitHub changed-files page. */
   prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number }>;
   /** Raw changed-files response, used to exercise malformed/incomplete inventory handling. */
@@ -172,6 +178,9 @@ export function freshState(): GitHubState {
     completed: [],
     reviews: [],
     prDiff: undefined,
+    prTitle: undefined,
+    prBody: undefined,
+    prDiffStatus: undefined,
     prFiles: undefined,
     prFilesBody: undefined,
     prHeadSha: 'HEADSHA',
@@ -382,12 +391,15 @@ export function installGitHubFetch(state: GitHubState): void {
     if (/\/pulls\/\d+$/.test(url)) {
       const headers = new Headers(init?.headers);
       if (headers.get('Accept')?.includes('diff')) {
-        return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
+        return text(
+          state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed',
+          state.prDiffStatus ?? 200,
+        );
       }
       return json({
         number: 7,
-        title: 'Test PR',
-        body: '',
+        title: state.prTitle ?? 'Test PR',
+        body: state.prBody ?? '',
         ...(state.prAuthor ? { user: state.prAuthor } : {}),
         ...(state.prState === undefined ? {} : { state: state.prState }),
         ...(state.prMerged === undefined ? {} : { merged: state.prMerged }),

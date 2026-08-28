@@ -18,10 +18,10 @@
  * the delivery-failure (1M) and attempt-marker (2M) bands so the Transcript
  * recorder's seq-0 restart on redelivery can never overwrite it. The runId is
  * already deterministic per delivery (`run:<deliveryId>`), so retries — and
- * DLQ replays of the same delivery — read their predecessors' checkpoints,
- * reconstruct those ships' results without re-running them, and spend only on
- * ships that never finished. A NEW push is a new delivery and a new runId:
- * checkpoints never leak across heads.
+ * DLQ replays of the same delivery — can revalidate predecessors against the
+ * current trusted Fleet policy, contract, graft, and prompt, then reconstruct
+ * only matching ships without re-running them. A NEW push is a new delivery
+ * and a new runId: checkpoints never leak across heads.
  *
  * Every write and read here is BEST-EFFORT and never throws: a checkpoint
  * failure degrades to exactly the pre-checkpoint behaviour (the ship re-runs),
@@ -30,16 +30,65 @@
  */
 
 import type { ExecutorEnv } from './env.js';
+import type { ShipConfig } from './fleet.js';
 import type { Finding, ShipResult, Verdict } from './verdict.js';
 
 /** `fleet_run_steps.kind` for a completed ship's checkpointed result. */
 export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
 
 /**
- * Persisted checkpoint wire format. Versionless rows predate review-coverage
- * admission and must re-run rather than masquerade as a current clean result.
+ * Persisted checkpoint wire format. Versionless and v2 rows predate trusted
+ * policy/contract binding and must re-run rather than masquerade as a current
+ * clean result under a changed review contract.
  */
-export const SHIP_CHECKPOINT_SCHEMA_VERSION = 2;
+export const SHIP_CHECKPOINT_SCHEMA_VERSION = 3;
+
+/** Current shape of the trusted inputs a checkpoint must prove it reviewed. */
+export const SHIP_CHECKPOINT_BINDING_VERSION = 2;
+
+/**
+ * Opaque, deterministic witness of the authoritative policy and live PR input
+ * that shaped a completed ship result. These hashes deliberately contain no
+ * contract, diff, or skill text: checkpoint rows are durable operator evidence,
+ * not another copy of a potentially large prompt.
+ */
+export interface ShipCheckpointBinding {
+  bindingVersion: typeof SHIP_CHECKPOINT_BINDING_VERSION;
+  shipConfigSha256: string;
+  contractSha256: string;
+  graftSha256: string;
+  systemPromptSha256: string;
+  reviewInputSha256: string;
+}
+
+/**
+ * Exact pull-request evidence that can shape a ship's user prompt or execution
+ * path. It intentionally excludes installation credentials and other runtime
+ * plumbing, but includes every live PR field exposed to reviewer/Purser logic.
+ */
+export interface CheckpointReviewInput {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  title: string;
+  body: string;
+  headSha: string;
+  headRef: string;
+  baseSha: string;
+  baseRef: string;
+  isFork: boolean;
+  files: ReadonlyArray<{
+    filename: string;
+    status: string;
+    patch?: string;
+    additions: number;
+    deletions: number;
+  }>;
+  diff: string;
+  diffBytes: number;
+  diffTruncated: boolean;
+  filesTruncated: boolean;
+}
 
 /**
  * Seq floor for checkpoint rows — its own band above the failure (1M) and
@@ -53,6 +102,205 @@ export const SHIP_CHECKPOINT_SEQ_BASE = 3_000_000;
 const VALID_VERDICTS: ReadonlySet<string> = new Set(['PASS', 'BLOCK']);
 const VALID_SEVERITIES: ReadonlySet<string> = new Set(['HIGH', 'MEDIUM', 'LOW']);
 const MAX_REVIEW_COVERAGE_REASON_CHARS = 2_048;
+const SHA256_RE = /^sha256:[a-f0-9]{64}$/;
+const ABSENT_CONTRACT_DIGEST = 'absent';
+
+/**
+ * Digest text as lower-case SHA-256 with an algorithm prefix.
+ *
+ * The prefix makes a persisted checkpoint self-describing and prevents a
+ * future hashing migration from comparing unlike opaque strings as though
+ * they were the same proof.
+ *
+ * @param value Exact UTF-8 text to bind.
+ * @returns A versioned SHA-256 digest string.
+ */
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return `sha256:${[...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Normalize a trigger's set-like string form before hashing it.
+ *
+ * YAML key order must not invalidate a checkpoint, while a real change to the
+ * effective trigger must. The parser already validates values; this only makes
+ * scalar and singleton-array representations of the same trigger equivalent.
+ *
+ * @param trigger Parsed Fleet trigger declaration.
+ * @returns Stable sorted trigger names.
+ */
+function normalizedTriggers(trigger: ShipConfig['trigger']): string[] {
+  return [...new Set(Array.isArray(trigger) ? trigger : [trigger])].sort();
+}
+
+/**
+ * Render the parsed effective ship configuration as a fixed-order semantic
+ * tuple rather than serializing YAML or an object whose key insertion order is
+ * accidental. Every field here can alter whether or how a ship reviews.
+ *
+ * @param ship Parsed trusted ship configuration.
+ * @returns Stable JSON-ready tuple of review-relevant policy fields.
+ */
+function semanticShipConfigTuple(ship: ShipConfig): readonly unknown[] {
+  return [
+    'fleet-ship-config-v1',
+    ship.name,
+    normalizedTriggers(ship.trigger),
+    ship.prompt,
+    ship.cfModel,
+    ship.cfMapModel ?? null,
+    ship.cfPlanModel ?? null,
+    ship.cfAuthorModel ?? null,
+    ship.temperature,
+    ship.role,
+    ship.telos,
+    ship.blocking,
+    ship.needsExecution,
+    ship.ideation,
+    ship.purser,
+    ship.blockWithoutSandbox,
+    ship.testPaths,
+    ship.graft,
+  ];
+}
+
+/**
+ * Digest the exact live PR projection supplied to Fleet review work.
+ *
+ * A GitHub PR description may be edited without changing its head SHA or
+ * delivery id. The head alone therefore cannot prove an old model verdict saw
+ * the same title, body, file inventory, or diff that a resumed run would use.
+ * This fixed-order tuple is intentionally lossless for the fields passed into
+ * reviewer and Purser prompt/execution paths; preserving file order also
+ * preserves the rendered changed-file index order.
+ *
+ * @param input Live PR evidence used by the current delivery.
+ * @returns A digest suitable for a per-ship checkpoint binding.
+ */
+export async function createCheckpointReviewInputSha256(
+  input: CheckpointReviewInput,
+): Promise<string> {
+  return sha256(JSON.stringify([
+    'fleet-review-input-v1',
+    input.owner,
+    input.repo,
+    input.prNumber,
+    input.title,
+    input.body,
+    input.headSha,
+    input.headRef,
+    input.baseSha,
+    input.baseRef,
+    input.isFork,
+    input.files.map(file => [
+      file.filename,
+      file.status,
+      file.patch ?? null,
+      file.additions,
+      file.deletions,
+    ]),
+    input.diff,
+    input.diffBytes,
+    input.diffTruncated,
+    input.filesTruncated,
+  ]));
+}
+
+/**
+ * Bind a checkpoint to the exact trusted policy and prompt snapshot that
+ * generated it.
+ *
+ * The system prompt includes the ship contract and grafted skill text. Keeping
+ * the component hashes too makes a mismatch auditable without persisting raw
+ * prompt material. A confirmed absent contract uses its own sentinel; an
+ * unavailable contract is never passed here because the executor retries it.
+ *
+ * @param ship Parsed trusted Fleet configuration for one ship.
+ * @param contract Exact trusted contract text, or null only for HTTP 404.
+ * @param graftText Exact trusted graft prefix used for this attempt.
+ * @param systemPrompt Exact system prompt handed to the model.
+ * @param reviewInputSha256 Digest of the exact live PR input projection.
+ * @returns Deterministic checkpoint binding for persistence and comparison.
+ */
+export async function createShipCheckpointBinding(
+  ship: ShipConfig,
+  contract: string | null,
+  graftText: string,
+  systemPrompt: string,
+  reviewInputSha256: string,
+): Promise<ShipCheckpointBinding> {
+  if (!SHA256_RE.test(reviewInputSha256)) {
+    throw new Error('checkpoint review input digest must be a SHA-256 value');
+  }
+  const [shipConfigSha256, contractSha256, graftSha256, systemPromptSha256] = await Promise.all([
+    sha256(JSON.stringify(semanticShipConfigTuple(ship))),
+    contract === null ? Promise.resolve(ABSENT_CONTRACT_DIGEST) : sha256(contract),
+    sha256(graftText),
+    sha256(systemPrompt),
+  ]);
+  return {
+    bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
+    shipConfigSha256,
+    contractSha256,
+    graftSha256,
+    systemPromptSha256,
+    reviewInputSha256,
+  };
+}
+
+/**
+ * Validate one persisted binding before any checkpoint result can be reused.
+ *
+ * @param value Untrusted JSON field from durable storage.
+ * @returns A typed binding only when every digest has the current shape.
+ */
+function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | null {
+  if (!value || typeof value !== 'object') return null;
+  const binding = value as Record<string, unknown>;
+  if (binding.bindingVersion !== SHIP_CHECKPOINT_BINDING_VERSION) return null;
+  if (typeof binding.shipConfigSha256 !== 'string' || !SHA256_RE.test(binding.shipConfigSha256)) {
+    return null;
+  }
+  if (
+    typeof binding.contractSha256 !== 'string' ||
+    (binding.contractSha256 !== ABSENT_CONTRACT_DIGEST && !SHA256_RE.test(binding.contractSha256))
+  ) {
+    return null;
+  }
+  if (typeof binding.graftSha256 !== 'string' || !SHA256_RE.test(binding.graftSha256)) return null;
+  if (typeof binding.systemPromptSha256 !== 'string' || !SHA256_RE.test(binding.systemPromptSha256)) {
+    return null;
+  }
+  if (typeof binding.reviewInputSha256 !== 'string' || !SHA256_RE.test(binding.reviewInputSha256)) {
+    return null;
+  }
+  return {
+    bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
+    shipConfigSha256: binding.shipConfigSha256,
+    contractSha256: binding.contractSha256,
+    graftSha256: binding.graftSha256,
+    systemPromptSha256: binding.systemPromptSha256,
+    reviewInputSha256: binding.reviewInputSha256,
+  };
+}
+
+/**
+ * Compare two typed bindings without relying on object identity or JSON key
+ * order, which would turn equivalent persisted evidence into a false miss.
+ *
+ * @param left Persisted checkpoint binding.
+ * @param right Current trusted binding.
+ * @returns Whether both bind the same review policy and prompt.
+ */
+function sameShipCheckpointBinding(left: ShipCheckpointBinding, right: ShipCheckpointBinding): boolean {
+  return left.bindingVersion === right.bindingVersion &&
+    left.shipConfigSha256 === right.shipConfigSha256 &&
+    left.contractSha256 === right.contractSha256 &&
+    left.graftSha256 === right.graftSha256 &&
+    left.systemPromptSha256 === right.systemPromptSha256 &&
+    left.reviewInputSha256 === right.reviewInputSha256;
+}
 
 /**
  * Validate the nested finding objects too. Checking only that `findings` is an
@@ -88,7 +336,11 @@ function parseCheckpointFindings(value: unknown): Finding[] | null {
  * the row's own ship column — a band collision after a roster change between
  * attempts must lose the checkpoint, never mis-attribute it.
  */
-export function parseShipCheckpoint(shipColumn: unknown, detailJson: unknown): ShipResult | null {
+export function parseShipCheckpoint(
+  shipColumn: unknown,
+  detailJson: unknown,
+  expectedBinding?: ShipCheckpointBinding,
+): ShipResult | null {
   if (typeof shipColumn !== 'string' || !shipColumn) return null;
   if (typeof detailJson !== 'string' || !detailJson) return null;
   let raw: unknown;
@@ -100,9 +352,13 @@ export function parseShipCheckpoint(shipColumn: unknown, detailJson: unknown): S
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   // A legacy row cannot prove it was written after the source-coverage and
-  // context-admission contracts landed. Re-running is safe; trusting its
-  // formerly-green verdict is not.
+  // context-admission and trusted policy/contract contracts landed. Re-running
+  // is safe; trusting its formerly-green verdict is not.
   if (r.checkpointSchemaVersion !== SHIP_CHECKPOINT_SCHEMA_VERSION) return null;
+  const binding = parseShipCheckpointBinding(r.checkpointBinding);
+  if (!binding || (expectedBinding && !sameShipCheckpointBinding(binding, expectedBinding))) {
+    return null;
+  }
   if (r.ship !== shipColumn) return null;
   if (typeof r.blocking !== 'boolean') return null;
   if (typeof r.errored !== 'boolean') return null;
@@ -142,12 +398,26 @@ export function parseShipCheckpoint(shipColumn: unknown, detailJson: unknown): S
 }
 
 /**
- * Load every valid checkpoint for this run. Empty map on any failure — the
- * run then behaves exactly as before checkpoints existed.
+ * Load every checkpoint that matches a caller-supplied current trusted binding.
+ *
+ * Resume is deliberately impossible without `expectedBindings`: durable rows
+ * are evidence of a past invocation, not authority to carry that invocation's
+ * result across a changed Fleet policy, contract, graft, or mediator context.
+ * Empty map on any read failure — the run then behaves exactly as before
+ * checkpoints existed.
+ *
+ * @param env Worker bindings.
+ * @param runId Logical delivery run to inspect.
+ * @param expectedBindings Current trusted binding for every resume-eligible ship.
+ * @param onBindingMismatch Optional durable-observability callback for a
+ * structurally valid retained row whose binding no longer matches.
+ * @returns Only results whose durable binding matches the current snapshot.
  */
 export async function loadShipCheckpoints(
   env: ExecutorEnv,
   runId: string,
+  expectedBindings: ReadonlyMap<string, ShipCheckpointBinding>,
+  onBindingMismatch?: (ship: string) => Promise<void> | void,
 ): Promise<Map<string, ShipResult>> {
   const resumed = new Map<string, ShipResult>();
   if (!env.DB) return resumed;
@@ -158,8 +428,27 @@ export async function loadShipCheckpoints(
       .bind(runId, SHIP_CHECKPOINT_KIND)
       .all<{ ship: unknown; detail: unknown }>();
     for (const row of rows?.results ?? []) {
-      const result = parseShipCheckpoint(row.ship, row.detail);
-      if (result) resumed.set(result.ship, result);
+      const expected = typeof row.ship === 'string' ? expectedBindings.get(row.ship) : undefined;
+      // A roster that no longer contains this ship cannot authorize resuming
+      // it. The executor supplies bindings only after it has read every
+      // current trusted contract and constructed the exact system prompt.
+      if (!expected) continue;
+      const result = parseShipCheckpoint(row.ship, row.detail, expected);
+      if (result) {
+        resumed.set(result.ship, result);
+      } else if (typeof row.ship === 'string' && parseShipCheckpoint(row.ship, row.detail)) {
+        // The row itself is current-schema evidence, but its trusted input
+        // snapshot drifted. Re-run the ship and make that decision legible;
+        // silently dropping it would look like a lost checkpoint instead of a
+        // deliberate safety invalidation.
+        try {
+          await onBindingMismatch?.(row.ship);
+        } catch (err) {
+          console.error(
+            `[fleet-executor] checkpoint invalidation transcript failed run=${runId} ship=${row.ship}: ${String(err)}`,
+          );
+        }
+      }
     }
   } catch (err) {
     console.error(`[fleet-executor] checkpoint load failed run=${runId}: ${String(err)}`);
@@ -178,8 +467,10 @@ export async function saveShipCheckpoint(
   runId: string,
   shipIndex: number,
   result: ShipResult,
+  binding: ShipCheckpointBinding,
 ): Promise<boolean> {
   if (!env.DB) return false;
+  if (!parseShipCheckpointBinding(binding)) return false;
   const safeIndex = Number.isInteger(shipIndex) && shipIndex >= 0 ? shipIndex : 0;
   try {
     await env.DB.prepare(
@@ -191,10 +482,14 @@ export async function saveShipCheckpoint(
         SHIP_CHECKPOINT_SEQ_BASE + safeIndex,
         SHIP_CHECKPOINT_KIND,
         result.ship,
-        `pd-${result.ship}: checkpointed — ${result.errored ? 'ERROR' : result.verdict}; a retried delivery resumes past this ship`,
+        `pd-${result.ship}: checkpointed — ${result.errored ? 'ERROR' : result.verdict}; a retried delivery may resume after trusted-input revalidation`,
         // Version belongs to the writer, not callers. Keep it out of the
         // reconstructed ShipResult so result contracts stay version-agnostic.
-        JSON.stringify({ ...result, checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION }),
+        JSON.stringify({
+          ...result,
+          checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+          checkpointBinding: binding,
+        }),
         Math.floor(Date.now() / 1000),
       )
       .run();
@@ -208,11 +503,28 @@ export async function saveShipCheckpoint(
 }
 
 /**
- * Count this run's checkpointed ships (for the DLQ summary: a dead-lettered
- * run that completed N ships before the loss should say so). Zero on failure.
+ * Count this run's structurally valid retained checkpoint rows for the DLQ
+ * summary. This is deliberately NOT a resume lookup: DLQ has no current
+ * trusted policy/contract snapshot, so the later delivery must revalidate
+ * every retained row before it can reuse it. Zero on failure.
+ *
+ * @param env Worker bindings.
+ * @param runId Logical delivery run to inspect.
+ * @returns Number of current-schema checkpoint records retained durably.
  */
 export async function countShipCheckpoints(env: ExecutorEnv, runId: string): Promise<number> {
-  // Count only rows the resume path can actually trust. A DLQ summary that
-  // promises resumption past a versionless legacy row would be a false claim.
-  return (await loadShipCheckpoints(env, runId)).size;
+  if (!env.DB) return 0;
+  try {
+    const rows = await env.DB.prepare(
+      `SELECT ship, detail FROM fleet_run_steps WHERE run_id = ? AND kind = ?`,
+    )
+      .bind(runId, SHIP_CHECKPOINT_KIND)
+      .all<{ ship: unknown; detail: unknown }>();
+    // Versionless/v2/malformed rows are not retained proof. Matching the
+    // current trusted binding happens later in loadShipCheckpoints.
+    return (rows?.results ?? []).filter(row => parseShipCheckpoint(row.ship, row.detail)).length;
+  } catch (err) {
+    console.error(`[fleet-executor] checkpoint count failed run=${runId}: ${String(err)}`);
+    return 0;
+  }
 }

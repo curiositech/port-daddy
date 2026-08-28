@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { parseShipCheckpoint, SHIP_CHECKPOINT_SCHEMA_VERSION } from '../src/ship-checkpoint.js';
 
 describe('review coverage checkpoint contract', () => {
+  const checkpointBinding = {
+    bindingVersion: 2 as const,
+    shipConfigSha256: `sha256:${'1'.repeat(64)}`,
+    contractSha256: 'absent',
+    graftSha256: `sha256:${'2'.repeat(64)}`,
+    systemPromptSha256: `sha256:${'3'.repeat(64)}`,
+    reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  };
   const cleanResult = {
     ship: 'code-reviewer',
     blocking: true,
@@ -21,6 +29,7 @@ describe('review coverage checkpoint contract', () => {
       expect(parseShipCheckpoint('code-reviewer', JSON.stringify({
         ...detail,
         checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        checkpointBinding,
       }))).toEqual(detail);
     },
   );
@@ -35,6 +44,7 @@ describe('review coverage checkpoint contract', () => {
     expect(parseShipCheckpoint('code-reviewer', JSON.stringify({
       ...detail,
       checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+      checkpointBinding,
     }))).toEqual(detail);
   });
 
@@ -54,6 +64,7 @@ describe('review coverage checkpoint contract', () => {
         ...cleanResult,
         ...detail,
         checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        checkpointBinding,
       })),
     ).toBeNull();
   });

@@ -371,6 +371,24 @@ export interface PRContext {
 }
 
 /**
+ * GitHub failed to provide the authoritative raw patch for a pull request.
+ *
+ * A raw diff is review evidence, not an optional display convenience: treating
+ * an HTTP failure as an empty string lets a ship manufacture a clean verdict
+ * without having seen the change. The queue boundary deliberately receives a
+ * typed error so it can retry this transient dependency and, after exhaustion,
+ * let the DLQ complete the required Fleet check as infrastructure failure.
+ *
+ * @param status The GitHub HTTP status returned by the raw-diff endpoint.
+ */
+export class PullRequestDiffFetchError extends Error {
+  constructor(readonly status: number) {
+    super(`fetch pull request raw diff failed ${status}`);
+    this.name = 'PullRequestDiffFetchError';
+  }
+}
+
+/**
  * A fail-closed current-head check used immediately before model work and
  * GitHub mutations. `changed` is a normal supersession outcome; `unavailable`
  * is infrastructure failure and must retry rather than publish against an
@@ -498,6 +516,12 @@ export async function fetchPRContext(
   if (!prRes.ok) {
     throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
   }
+  // The raw diff is the only source the MAP/REDUCE ships inspect. A non-OK
+  // response must escape as infrastructure failure, never become an empty
+  // diff that a model can incorrectly bless as a complete clean review.
+  if (!diffRes.ok) {
+    throw new PullRequestDiffFetchError(diffRes.status);
+  }
   const livePr = (await prRes.json()) as typeof eventPr;
 
   // Both bodies are bounded (#7743). They arrive concurrently, so the peak is
@@ -534,9 +558,7 @@ export async function fetchPRContext(
     }
   }
 
-  const diffRead = diffRes.ok
-    ? await readTextCapped(diffRes, MAX_DIFF_BYTES)
-    : { text: '', bytes: 0, truncated: false };
+  const diffRead = await readTextCapped(diffRes, MAX_DIFF_BYTES);
   const diff = diffRead.text;
 
   return {
@@ -595,6 +617,44 @@ export async function fetchRepoFile(
   if (!res.ok) return null;
   const body = (await res.json()) as { content?: string; encoding?: string };
   if (body.encoding !== 'base64' || !body.content) return null;
+  return atob(body.content.replace(/\n/g, ''));
+}
+
+/**
+ * Load one trusted ship contract with absence distinguished from outage.
+ *
+ * Checkpoint reuse can only trust the exact contract that shaped a prior ship
+ * result. A confirmed 404 means the contract is intentionally absent and is a
+ * stable binding input; every other response is unavailable infrastructure and
+ * must retry rather than silently bind or run as if no contract existed.
+ *
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @param ship Ship whose canonical contract path is requested.
+ * @param ref Trusted default-branch ref, never a PR head.
+ * @param token GitHub App installation token.
+ * @returns Exact contract text, or null only for a confirmed 404.
+ */
+export async function fetchTrustedShipContract(
+  owner: string,
+  repo: string,
+  ship: string,
+  ref: string,
+  token: string,
+): Promise<string | null> {
+  const path = `fleet/ships/${ship}.md`;
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`,
+    { headers: ghHeaders(token) },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`fetch trusted ship contract ${path} failed ${res.status}`);
+  }
+  const body = (await res.json()) as { content?: string; encoding?: string };
+  if (body.encoding !== 'base64' || typeof body.content !== 'string') {
+    throw new Error(`fetch trusted ship contract ${path} returned an invalid contents payload`);
+  }
   return atob(body.content.replace(/\n/g, ''));
 }
 
