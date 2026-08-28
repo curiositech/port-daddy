@@ -6,12 +6,13 @@ description: >-
   current result is generic boxes and arrows, prose in shapes, an ornamental illustration,
   visually homogeneous nodes, a misleading chart type, or a layout that does not reveal the
   paper's claim. Pair with tikz-figure-engineering for source, rendering, page-fit, and contact
-  sheets. NOT for cover or chapter art, statistical model selection, or product UI.
+  sheets. NOT for cover or chapter art, statistical model selection, product UI, or render-only,
+  page-fit, and typographic implementation work after the semantic form has been approved.
 metadata:
   category: Writing & Communication
   tags: [whitepaper, figures, semantic-visualization, tikz, information-design]
   pairs-with: [tikz-figure-engineering, latex-authoring, color-contrast-auditor]
-allowed-tools: Read,Write,Edit,Bash,Grep,Glob
+allowed-tools: Read,Bash,Grep,Glob
 ---
 
 # Whitepaper Figure System
@@ -28,6 +29,10 @@ required evidence, and rejected forms.
 After selecting the semantic form, use the `tikz-figure-engineering` skill for implementation,
 final-size rendering, page-fit checks, and contact sheets. This skill decides *what the figure
 must be*; that skill makes it survive publication.
+
+If a six-line brief and atlas prescription are already approved and the remaining problem is
+TikZ source, spacing, type, rendering, page fit, or contact-sheet inspection, stop using this
+skill and activate `tikz-figure-engineering` directly.
 
 ## The figure brief
 
@@ -191,7 +196,10 @@ python3 -m unittest discover -s skills/whitepaper-figure-system/tests -p 'test_*
 
 The first command recursively follows the seven canonical TeX roots, extracts labeled figure
 environments, and fails on missing, stale, or duplicate atlas IDs. New paper figures therefore
-cannot silently escape semantic review.
+cannot silently escape semantic review. The supported source subset is deliberately narrow:
+`figure`/`figure*` environments and recursive `\input`/`\include` directives. The checker fails
+closed if a canonical paper introduces another figure-like environment or inclusion directive;
+extend and test the scanner before adopting that construct.
 
 ## Review gate
 
@@ -229,6 +237,7 @@ Should not activate:
 3. "Choose a regression model."
 4. "Design a dashboard."
 5. "Rewrite the paper's prose."
+6. "The semantic form is approved; render this TikZ at final size and fix page fit."
 
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 

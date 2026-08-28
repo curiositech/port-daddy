@@ -10,6 +10,8 @@
   silently.
 - Aligned the semantic review loop with `tikz-figure-engineering`: colour-only final renders,
   page-fit validation, contact sheets, and no required grayscale artifact.
+- Corrected the read-poverty, abdication, evaluator-recursion, and four-volume coordination-stack
+  prescriptions against their exact source claims; hardened activation routing and scan limits.
 
 ## 1.0.0 - 2026-08-27
 

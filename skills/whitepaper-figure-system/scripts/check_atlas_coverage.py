@@ -2,8 +2,10 @@
 r"""Fail when the seven whitepaper TeX sources and semantic atlas drift.
 
 The checker deliberately uses source labels rather than printed figure numbers. It follows
-\input and \include directives recursively, extracts every figure environment, and accepts a
-figure label (fig:...) or an algorithm-listing label (alg:...) as its durable identity.
+\input and \include directives recursively, extracts every figure/figure* environment, and
+accepts a figure label (fig:...) or algorithm-listing label (alg:...) as its durable identity.
+Other figure-like environments and inclusion directives fail closed until the scanner is
+explicitly extended and tested.
 """
 
 from __future__ import annotations
@@ -35,12 +37,33 @@ INPUT_RE = re.compile(r"\\(?:input|include)\s*\{([^}]+)\}")
 LABEL_RE = re.compile(r"\\label\s*\{([^}]+)\}")
 LISTING_LABEL_RE = re.compile(r"\blabel\s*=\s*\{((?:fig|alg):[^{}]+)\}")
 ATLAS_ID_RE = re.compile(r"^\|\s*`([IVX]+/(?:fig|alg):[^`]+)`\s*\|", re.MULTILINE)
+ENVIRONMENT_RE = re.compile(r"\\begin\s*\{([^{}]+)\}")
+UNSUPPORTED_INCLUDE_RE = re.compile(
+    r"\\(subfile|import|subimport|inputfrom|subinputfrom|includefrom|subincludefrom)"
+    r"\s*\{"
+)
+BUILD_PAPER_RE = re.compile(
+    r'^\s*"(?P<src>[^"|]+)\|(?P<root>[^"|]+\.tex)\|[^\"]+"\s*$', re.MULTILINE
+)
+MEGA_PAPER_RE = re.compile(
+    r"\{\s*roman:\s*'(?P<roman>[IVX]+)'[^{}\n]*"
+    r"source:\s*'(?P<source>[^']+\.tex)'[^{}\n]*\}"
+)
 
 
 @dataclass(frozen=True)
 class SourceFigure:
     atlas_id: str
     source: Path
+
+
+@dataclass(frozen=True)
+class AtlasRow:
+    atlas_id: str
+    reader_question: str
+    grammar: str
+    must_encode: str
+    reject: str
 
 
 def strip_tex_comments(text: str) -> str:
@@ -77,6 +100,23 @@ def resolve_include(parent: Path, raw_target: str) -> Path:
     return (parent / target).resolve()
 
 
+def unsupported_constructs(text: str, source: Path) -> list[str]:
+    """Return unsupported figure-like environments or inclusion directives."""
+
+    failures: list[str] = []
+    for environment in ENVIRONMENT_RE.findall(text):
+        is_figure_like = "figure" in environment.lower()
+        is_algorithm_exhibit = environment in {"algorithm", "algorithm*"}
+        if (is_figure_like or is_algorithm_exhibit) and environment not in {
+            "figure",
+            "figure*",
+        }:
+            failures.append(f"{source}: \\begin{{{environment}}}")
+    for directive in UNSUPPORTED_INCLUDE_RE.findall(text):
+        failures.append(f"{source}: \\{directive}{{...}}")
+    return failures
+
+
 def walk_tex(root: Path) -> list[tuple[Path, str]]:
     """Return each recursively included TeX file once, in reading order."""
 
@@ -91,6 +131,12 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
             raise FileNotFoundError(f"included TeX source does not exist: {resolved}")
         visited.add(resolved)
         text = strip_tex_comments(resolved.read_text(encoding="utf-8"))
+        unsupported = unsupported_constructs(text, resolved)
+        if unsupported:
+            raise ValueError(
+                "unsupported TeX construct; extend and test the atlas scanner first: "
+                + "; ".join(unsupported)
+            )
         ordered.append((resolved, text))
         for match in INPUT_RE.finditer(text):
             visit(resolve_include(resolved.parent, match.group(1)))
@@ -125,15 +171,105 @@ def extract_source_figures(repo_root: Path) -> list[SourceFigure]:
     return figures
 
 
+def parse_atlas_row(line: str, line_number: int) -> AtlasRow:
+    """Parse one five-field atlas row, rejecting structurally incomplete rows."""
+
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    if len(cells) != 5:
+        raise ValueError(
+            f"atlas row {line_number} has {len(cells)} fields; expected exactly 5"
+        )
+    identifier = re.fullmatch(r"`([IVX]+/(?:fig|alg):[^`]+)`", cells[0])
+    if not identifier:
+        raise ValueError(f"atlas row {line_number} has an invalid stable ID")
+    return AtlasRow(identifier.group(1), *cells[1:])
+
+
+def extract_atlas_rows(atlas: Path) -> list[AtlasRow]:
+    rows: list[AtlasRow] = []
+    for line_number, line in enumerate(
+        atlas.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        if ATLAS_ID_RE.match(line):
+            rows.append(parse_atlas_row(line, line_number))
+    return rows
+
+
 def extract_atlas_ids(atlas: Path) -> list[str]:
-    return ATLAS_ID_RE.findall(atlas.read_text(encoding="utf-8"))
+    return [row.atlas_id for row in extract_atlas_rows(atlas)]
+
+
+def incomplete_atlas_rows(rows: Iterable[AtlasRow]) -> list[str]:
+    issues: list[str] = []
+    fields = ("reader_question", "grammar", "must_encode", "reject")
+    for row in rows:
+        for field in fields:
+            if not getattr(row, field).strip():
+                issues.append(f"{row.atlas_id}:{field}")
+    return sorted(issues)
+
+
+def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
+    text = (repo_root / "scripts/build-whitepapers.sh").read_text(encoding="utf-8")
+    roots: set[str] = set()
+    for match in BUILD_PAPER_RE.finditer(text):
+        root = match.group("root")
+        if root == "coordination-papers-mega-volume.tex":
+            continue
+        source_dir = match.group("src")
+        if source_dir == "$PUB":
+            source_dir = "website-v2/public/whitepaper"
+        roots.add(f"{source_dir}/{root}")
+    return roots
+
+
+def canonical_roots_from_mega_generator(repo_root: Path) -> dict[str, str]:
+    text = (repo_root / "scripts/generate-mega-whitepaper.mjs").read_text(
+        encoding="utf-8"
+    )
+    return {
+        match.group("roman"): match.group("source")
+        for match in MEGA_PAPER_RE.finditer(text)
+    }
+
+
+def canonical_root_drift(
+    repo_root: Path, expected_roots: dict[str, str] | None = None
+) -> list[str]:
+    expected_mapping = expected_roots or CANONICAL_ROOTS
+    expected = set(expected_mapping.values())
+    failures: list[str] = []
+    build_roots = canonical_roots_from_build_script(repo_root)
+    build_missing = sorted(expected - build_roots)
+    build_extra = sorted(build_roots - expected)
+    if build_missing:
+        failures.append(f"build-whitepapers:missing={','.join(build_missing)}")
+    if build_extra:
+        failures.append(f"build-whitepapers:extra={','.join(build_extra)}")
+
+    mega_mapping = canonical_roots_from_mega_generator(repo_root)
+    for volume in sorted(set(expected_mapping) | set(mega_mapping)):
+        expected_source = expected_mapping.get(volume)
+        observed_source = mega_mapping.get(volume)
+        if expected_source != observed_source:
+            failures.append(
+                f"mega-generator:{volume}:expected={expected_source}:"
+                f"observed={observed_source}"
+            )
+    return failures
 
 
 def duplicates(values: Iterable[str]) -> list[str]:
     return sorted(value for value, count in Counter(values).items() if count > 1)
 
 
-def compare(source_figures: list[SourceFigure], atlas_ids: list[str]) -> dict[str, object]:
+def compare(
+    source_figures: list[SourceFigure],
+    atlas_ids: list[str],
+    *,
+    atlas_row_issues: list[str] | None = None,
+    root_drift: list[str] | None = None,
+) -> dict[str, object]:
     source_ids = [figure.atlas_id for figure in source_figures]
     source_set = set(source_ids)
     atlas_set = set(atlas_ids)
@@ -144,6 +280,8 @@ def compare(source_figures: list[SourceFigure], atlas_ids: list[str]) -> dict[st
         "stale_in_atlas": sorted(atlas_set - source_set),
         "duplicate_source_ids": duplicates(source_ids),
         "duplicate_atlas_ids": duplicates(atlas_ids),
+        "incomplete_atlas_rows": sorted(atlas_row_issues or []),
+        "canonical_root_drift": sorted(root_drift or []),
     }
 
 
@@ -155,6 +293,8 @@ def is_clean(report: dict[str, object]) -> bool:
             "stale_in_atlas",
             "duplicate_source_ids",
             "duplicate_atlas_ids",
+            "incomplete_atlas_rows",
+            "canonical_root_drift",
         )
     ) and report["source_count"] == report["atlas_count"]
 
@@ -187,8 +327,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         source_figures = extract_source_figures(repo_root)
-        atlas_ids = extract_atlas_ids(atlas)
-        report = compare(source_figures, atlas_ids)
+        atlas_rows = extract_atlas_rows(atlas)
+        atlas_ids = [row.atlas_id for row in atlas_rows]
+        report = compare(
+            source_figures,
+            atlas_ids,
+            atlas_row_issues=incomplete_atlas_rows(atlas_rows),
+            root_drift=canonical_root_drift(repo_root),
+        )
     except (FileNotFoundError, OSError, ValueError) as error:
         if args.as_json:
             print(json.dumps({"ok": False, "error": str(error)}, indent=2))
@@ -211,6 +357,8 @@ def main(argv: list[str] | None = None) -> int:
             "stale_in_atlas",
             "duplicate_source_ids",
             "duplicate_atlas_ids",
+            "incomplete_atlas_rows",
+            "canonical_root_drift",
         ):
             values = report[key]
             if values:
