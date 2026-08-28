@@ -2074,6 +2074,7 @@ export async function executeFleet(
         graft.text,
         systemPrompt,
         reviewInputSha256,
+        mediatorOrders,
       ),
     );
   }
@@ -2110,12 +2111,15 @@ export async function executeFleet(
     env,
     runId,
     resumeBindings,
-    async ship => {
+    async (ship, reason) => {
+      const message = reason === 'non-resumable-result'
+        ? `pd-${ship}: retained broken checkpoint is diagnostic only; re-running the ship`
+        : `pd-${ship}: retained checkpoint did not match the current trusted review inputs; re-running the ship`;
       await transcript.step(
         'ship-checkpoint-invalidated',
         ship,
-        `pd-${ship}: retained checkpoint did not match the current trusted review inputs; re-running the ship`,
-        { reason: 'trusted-binding-mismatch' },
+        message,
+        { reason },
       );
     },
   );

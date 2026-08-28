@@ -96,6 +96,11 @@ const REVIEWER_PLUS_RED_TEAM_YAML = fleetYaml([
   { name: 'red-team', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
 ]);
 
+const MEDIATOR_REVIEWER_PLUS_QA_YAML = REVIEWER_PLUS_QA_YAML.replace(
+  '  name: test\n',
+  '  name: test\n  mediator:\n    enabled: true\n    harbor: test-harbor\n',
+);
+
 /** Match the executor's live PR evidence digest for the shared GitHub harness. */
 async function checkpointReviewInputForState(): Promise<string> {
   const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
@@ -124,6 +129,7 @@ async function checkpointBindingForYaml(
   shipName: string,
   contract: string | null = null,
   graftText = '',
+  mediatorOrders = '',
 ) {
   const ship = parseFleetShips(config, 'pull_request:opened')?.find(candidate => candidate.name === shipName);
   if (!ship) throw new Error(`fixture does not declare ${shipName}`);
@@ -133,16 +139,18 @@ async function checkpointBindingForYaml(
     graftText,
     buildSystemPrompt(ship, contract, graftText),
     await checkpointReviewInputForState(),
+    mediatorOrders,
   );
 }
 
 const TEST_CHECKPOINT_BINDING = {
-  bindingVersion: 2 as const,
+  bindingVersion: 3 as const,
   shipConfigSha256: `sha256:${'1'.repeat(64)}`,
   contractSha256: 'absent',
   graftSha256: `sha256:${'2'.repeat(64)}`,
   systemPromptSha256: `sha256:${'3'.repeat(64)}`,
   reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  mediatorOrdersSha256: 'absent',
 };
 
 const TEST_EXPECTED_CHECKPOINT_BINDINGS = new Map([
@@ -1554,6 +1562,41 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       .toEqual(['code-reviewer']);
   });
 
+  it('does not schedule a continuation from a broken first ship with work remaining', async () => {
+    // A checkpoint is the only authorization for a bounded invocation to leave
+    // the rest of its roster for a later delivery. If a broken first ship were
+    // checkpointed, maxNewShips=1 would create error → continuation → re-run
+    // loops instead of reaching the current invocation's terminal adjudication.
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      // Include the reviewer in the routed stub so throwForShip reaches its
+      // actual model call rather than the generic fallback response.
+      perShip: {
+        'code-reviewer': 'unused because this call throws',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+      throwForShip: 'code-reviewer',
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    expect(disposition).toBeUndefined();
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(ai.calls.filter(call => call.ship === 'qa').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer'))
+      .toHaveLength(0);
+    expect(d1.steps.some(step => step.kind === 'ship-broken' && step.ship === 'code-reviewer')).toBe(true);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
   it('keeps an incomplete-inventory gated ship in the continuation roster', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_RED_TEAM_YAML);
     // An unparseable `/files` payload previously made red-team look gated out,
@@ -1895,6 +1938,193 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('invalidates and re-runs a stale ERROR checkpoint when its review input drifts', async () => {
+    // #9914 shape: an ERROR recorded before a PR description correction must
+    // not reach epidemic adjudication as though it were this delivery's fresh
+    // model evidence. Binding drift is checked before error eligibility so the
+    // transcript makes the stale-input cause explicit.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prTitle = 'Before the correction';
+    const staleBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    state.prTitle = 'After the correction';
+    const currentBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    expect(currentBinding).not.toEqual(staleBinding);
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'historical ERROR checkpoint',
+      detail: JSON.stringify({
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: true,
+        findings: [],
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        checkpointBinding: staleBinding,
+      }),
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toMatchObject([
+      { ship: 'code-reviewer' },
+    ]);
+    expect(JSON.parse(String(d1.steps.find(step => step.kind === 'ship-checkpoint-invalidated')?.detail)))
+      .toMatchObject({ reason: 'trusted-binding-mismatch' });
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it.each([
+    {
+      label: 'ERROR',
+      result: { verdict: 'PASS' as const, errored: true, findings: [] },
+    },
+    {
+      label: 'no-usable-output',
+      result: { verdict: 'PASS' as const, errored: false, noUsableOutput: true, findings: [] },
+    },
+  ])('does not resume a matching $label checkpoint', async ({ result }) => {
+    // Historical rows can predate the save-side guard below. Even with a
+    // perfect current binding, a broken result is diagnostic evidence rather
+    // than permission to skip a fresh model attempt.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const binding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'historical broken checkpoint',
+      detail: JSON.stringify({
+        ship: 'code-reviewer',
+        blocking: true,
+        ...result,
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        checkpointBinding: binding,
+      }),
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(JSON.parse(String(d1.steps.find(step => step.kind === 'ship-checkpoint-invalidated')?.detail)))
+      .toMatchObject({ reason: 'non-resumable-result' });
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('does not persist ERROR or no-usable-output results as checkpoint progress', async () => {
+    const d1 = memoryD1();
+    const binding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    const env = makeEnv({ DB: d1.db });
+
+    await expect(saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: true, findings: [] },
+      binding,
+    )).resolves.toBe(false);
+    await expect(saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        noUsableOutput: true,
+        findings: [],
+      },
+      binding,
+    )).resolves.toBe(false);
+    expect(d1.steps).toHaveLength(0);
+  });
+
+  it('invalidates a mediator-scoped checkpoint after its Modify order is consumed', async () => {
+    // Attempt one consumes and applies the human order. Attempt two sees the
+    // explicit no-order sentinel; it must re-run rather than reuse a verdict
+    // made under instructions that no longer appear in the current context.
+    state.files.set('main:pd-fleet.yml', MEDIATOR_REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    const control = memoryKV();
+    seedToken(kv, 42);
+    await control.put(
+      'mediator:reinjection:erichowens/port-daddy:7',
+      JSON.stringify({
+        parleyId: '979f6940-e0b0-42b9-ab21-078bbb2acae6',
+        repo: 'erichowens/port-daddy',
+        pr: 7,
+        action: 'merge',
+        modifyText: 'Reconcile the conflicting error-boundary behavior before concluding.',
+        decidedBy: 'operator',
+        at: 1_756_320_000,
+      }),
+    );
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: control, AI: ai.ai, DB: d1.db });
+
+    const first = await executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    });
+    expect(first).toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    expect(control._store.has('mediator:reinjection:erichowens/port-daddy:7')).toBe(false);
+    const firstReviewerCalls = ai.calls.filter(call => call.ship === 'code-reviewer').length;
+    expect(firstReviewerCalls).toBeGreaterThan(0);
+    expect(JSON.stringify(ai.calls)).toContain('MEDIATOR ORDERS');
+    const firstCheckpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer',
+    );
+    expect(JSON.parse(String(firstCheckpoint?.detail)).checkpointBinding.mediatorOrdersSha256)
+      .toMatch(/^sha256:/);
+
+    const second = await executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    });
+    expect(second).toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(firstReviewerCalls);
+    expect(JSON.stringify(ai.calls.slice(firstReviewerCalls))).not.toContain('MEDIATOR ORDERS');
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed' && step.ship === 'code-reviewer'))
+      .toHaveLength(0);
+    expect(JSON.parse(String(d1.steps.find(step => step.kind === 'ship-checkpoint-invalidated')?.detail)))
+      .toMatchObject({ reason: 'trusted-binding-mismatch' });
+    const latestCheckpoint = d1.steps.filter(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer',
+    ).at(-1);
+    expect(JSON.parse(String(latestCheckpoint?.detail)).checkpointBinding.mediatorOrdersSha256)
+      .toBe('absent');
+  });
+
   it('multiple checkpointed ships resume in roster order with their findings intact', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();
@@ -2178,6 +2408,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(parseShipCheckpoint('qa', JSON.stringify({
       ...versionedGood,
       checkpointBinding: { ...TEST_CHECKPOINT_BINDING, reviewInputSha256: 'sha256:not-a-digest' },
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, mediatorOrdersSha256: 'sha256:not-a-digest' },
     }))).toBeNull();
     // Unknown verdict, wrong types, and malformed finding payloads: refused.
     expect(parseShipCheckpoint('qa', JSON.stringify({ ...versionedGood, verdict: 'MAYBE' }))).toBeNull();

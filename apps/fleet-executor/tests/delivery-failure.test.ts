@@ -49,12 +49,13 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
 }
 
 const CHECKPOINT_BINDING = {
-  bindingVersion: 2 as const,
+  bindingVersion: 3 as const,
   shipConfigSha256: `sha256:${'1'.repeat(64)}`,
   contractSha256: 'absent',
   graftSha256: `sha256:${'2'.repeat(64)}`,
   systemPromptSha256: `sha256:${'3'.repeat(64)}`,
   reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  mediatorOrdersSha256: 'absent',
 };
 
 let state: GitHubState;

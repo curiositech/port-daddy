@@ -19,7 +19,8 @@
  * recorder's seq-0 restart on redelivery can never overwrite it. The runId is
  * already deterministic per delivery (`run:<deliveryId>`), so retries — and
  * DLQ replays of the same delivery — can revalidate predecessors against the
- * current trusted Fleet policy, contract, graft, and prompt, then reconstruct
+ * current trusted Fleet policy, contract, graft, prompt, and mediator orders,
+ * then reconstruct
  * only matching ships without re-running them. A NEW push is a new delivery
  * and a new runId: checkpoints never leak across heads.
  *
@@ -37,14 +38,14 @@ import type { Finding, ShipResult, Verdict } from './verdict.js';
 export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
 
 /**
- * Persisted checkpoint wire format. Versionless and v2 rows predate trusted
- * policy/contract binding and must re-run rather than masquerade as a current
- * clean result under a changed review contract.
+ * Persisted checkpoint wire format. Versionless rows and older binding
+ * versions predate one or more trusted review inputs and must re-run rather
+ * than masquerade as a current clean result under a changed review contract.
  */
 export const SHIP_CHECKPOINT_SCHEMA_VERSION = 3;
 
 /** Current shape of the trusted inputs a checkpoint must prove it reviewed. */
-export const SHIP_CHECKPOINT_BINDING_VERSION = 2;
+export const SHIP_CHECKPOINT_BINDING_VERSION = 3;
 
 /**
  * Opaque, deterministic witness of the authoritative policy and live PR input
@@ -59,7 +60,14 @@ export interface ShipCheckpointBinding {
   graftSha256: string;
   systemPromptSha256: string;
   reviewInputSha256: string;
+  /** Exact mediator reinjection that shaped user-visible ship context, or an explicit absence sentinel. */
+  mediatorOrdersSha256: string;
 }
+
+/** Why a retained row was deliberately not allowed to resume. */
+export type CheckpointInvalidationReason =
+  | 'trusted-binding-mismatch'
+  | 'non-resumable-result';
 
 /**
  * Exact pull-request evidence that can shape a ship's user prompt or execution
@@ -104,6 +112,8 @@ const VALID_SEVERITIES: ReadonlySet<string> = new Set(['HIGH', 'MEDIUM', 'LOW'])
 const MAX_REVIEW_COVERAGE_REASON_CHARS = 2_048;
 const SHA256_RE = /^sha256:[a-f0-9]{64}$/;
 const ABSENT_CONTRACT_DIGEST = 'absent';
+/** No Modify order was present for this delivery when the checkpoint was written. */
+const ABSENT_MEDIATOR_ORDERS_DIGEST = 'absent';
 
 /**
  * Digest text as lower-case SHA-256 with an algorithm prefix.
@@ -221,6 +231,7 @@ export async function createCheckpointReviewInputSha256(
  * @param graftText Exact trusted graft prefix used for this attempt.
  * @param systemPrompt Exact system prompt handed to the model.
  * @param reviewInputSha256 Digest of the exact live PR input projection.
+ * @param mediatorOrders Exact consumed Modify-order context, or '' when none was present.
  * @returns Deterministic checkpoint binding for persistence and comparison.
  */
 export async function createShipCheckpointBinding(
@@ -229,15 +240,17 @@ export async function createShipCheckpointBinding(
   graftText: string,
   systemPrompt: string,
   reviewInputSha256: string,
+  mediatorOrders = '',
 ): Promise<ShipCheckpointBinding> {
   if (!SHA256_RE.test(reviewInputSha256)) {
     throw new Error('checkpoint review input digest must be a SHA-256 value');
   }
-  const [shipConfigSha256, contractSha256, graftSha256, systemPromptSha256] = await Promise.all([
+  const [shipConfigSha256, contractSha256, graftSha256, systemPromptSha256, mediatorOrdersSha256] = await Promise.all([
     sha256(JSON.stringify(semanticShipConfigTuple(ship))),
     contract === null ? Promise.resolve(ABSENT_CONTRACT_DIGEST) : sha256(contract),
     sha256(graftText),
     sha256(systemPrompt),
+    mediatorOrders === '' ? Promise.resolve(ABSENT_MEDIATOR_ORDERS_DIGEST) : sha256(mediatorOrders),
   ]);
   return {
     bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
@@ -246,6 +259,7 @@ export async function createShipCheckpointBinding(
     graftSha256,
     systemPromptSha256,
     reviewInputSha256,
+    mediatorOrdersSha256,
   };
 }
 
@@ -275,6 +289,13 @@ function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | nul
   if (typeof binding.reviewInputSha256 !== 'string' || !SHA256_RE.test(binding.reviewInputSha256)) {
     return null;
   }
+  if (
+    typeof binding.mediatorOrdersSha256 !== 'string' ||
+    (binding.mediatorOrdersSha256 !== ABSENT_MEDIATOR_ORDERS_DIGEST &&
+      !SHA256_RE.test(binding.mediatorOrdersSha256))
+  ) {
+    return null;
+  }
   return {
     bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
     shipConfigSha256: binding.shipConfigSha256,
@@ -282,6 +303,7 @@ function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | nul
     graftSha256: binding.graftSha256,
     systemPromptSha256: binding.systemPromptSha256,
     reviewInputSha256: binding.reviewInputSha256,
+    mediatorOrdersSha256: binding.mediatorOrdersSha256,
   };
 }
 
@@ -299,7 +321,17 @@ function sameShipCheckpointBinding(left: ShipCheckpointBinding, right: ShipCheck
     left.contractSha256 === right.contractSha256 &&
     left.graftSha256 === right.graftSha256 &&
     left.systemPromptSha256 === right.systemPromptSha256 &&
-    left.reviewInputSha256 === right.reviewInputSha256;
+    left.reviewInputSha256 === right.reviewInputSha256 &&
+    left.mediatorOrdersSha256 === right.mediatorOrdersSha256;
+}
+
+/**
+ * A broken outcome is retained in the ordinary transcript, not promoted to
+ * retry-progress. Reusing one would turn a prior failure observation into a
+ * present-tense verdict without another model attempt.
+ */
+function isResumeEligibleCheckpoint(result: ShipResult): boolean {
+  return !result.errored && result.noUsableOutput !== true;
 }
 
 /**
@@ -409,15 +441,19 @@ export function parseShipCheckpoint(
  * @param env Worker bindings.
  * @param runId Logical delivery run to inspect.
  * @param expectedBindings Current trusted binding for every resume-eligible ship.
- * @param onBindingMismatch Optional durable-observability callback for a
- * structurally valid retained row whose binding no longer matches.
+ * @param onCheckpointInvalidated Optional durable-observability callback for a
+ * structurally valid retained row that no longer has current trusted inputs or
+ * that records a broken, non-resumable outcome.
  * @returns Only results whose durable binding matches the current snapshot.
  */
 export async function loadShipCheckpoints(
   env: ExecutorEnv,
   runId: string,
   expectedBindings: ReadonlyMap<string, ShipCheckpointBinding>,
-  onBindingMismatch?: (ship: string) => Promise<void> | void,
+  onCheckpointInvalidated?: (
+    ship: string,
+    reason: CheckpointInvalidationReason,
+  ) => Promise<void> | void,
 ): Promise<Map<string, ShipResult>> {
   const resumed = new Map<string, ShipResult>();
   if (!env.DB) return resumed;
@@ -428,27 +464,41 @@ export async function loadShipCheckpoints(
       .bind(runId, SHIP_CHECKPOINT_KIND)
       .all<{ ship: unknown; detail: unknown }>();
     for (const row of rows?.results ?? []) {
-      const expected = typeof row.ship === 'string' ? expectedBindings.get(row.ship) : undefined;
+      const ship = typeof row.ship === 'string' ? row.ship : null;
+      const expected = ship ? expectedBindings.get(ship) : undefined;
       // A roster that no longer contains this ship cannot authorize resuming
       // it. The executor supplies bindings only after it has read every
       // current trusted contract and constructed the exact system prompt.
-      if (!expected) continue;
-      const result = parseShipCheckpoint(row.ship, row.detail, expected);
-      if (result) {
-        resumed.set(result.ship, result);
-      } else if (typeof row.ship === 'string' && parseShipCheckpoint(row.ship, row.detail)) {
-        // The row itself is current-schema evidence, but its trusted input
-        // snapshot drifted. Re-run the ship and make that decision legible;
-        // silently dropping it would look like a lost checkpoint instead of a
-        // deliberate safety invalidation.
+      if (!ship || !expected) continue;
+      const retained = parseShipCheckpoint(ship, row.detail);
+      if (!retained) continue;
+      const result = parseShipCheckpoint(ship, row.detail, expected);
+      if (!result) {
+        // The row itself is current-schema durable evidence, but it reviewed
+        // different trusted inputs.
+        // Re-run the ship and make that decision legible; silently dropping it
+        // would look like a lost checkpoint instead of a deliberate safety
+        // invalidation.
         try {
-          await onBindingMismatch?.(row.ship);
+          await onCheckpointInvalidated?.(ship, 'trusted-binding-mismatch');
         } catch (err) {
           console.error(
-            `[fleet-executor] checkpoint invalidation transcript failed run=${runId} ship=${row.ship}: ${String(err)}`,
+            `[fleet-executor] checkpoint invalidation transcript failed run=${runId} ship=${ship}: ${String(err)}`,
           );
         }
+        continue;
       }
+      if (!isResumeEligibleCheckpoint(result)) {
+        try {
+          await onCheckpointInvalidated?.(ship, 'non-resumable-result');
+        } catch (err) {
+          console.error(
+            `[fleet-executor] checkpoint invalidation transcript failed run=${runId} ship=${ship}: ${String(err)}`,
+          );
+        }
+        continue;
+      }
+      resumed.set(result.ship, result);
     }
   } catch (err) {
     console.error(`[fleet-executor] checkpoint load failed run=${runId}: ${String(err)}`);
@@ -471,6 +521,11 @@ export async function saveShipCheckpoint(
 ): Promise<boolean> {
   if (!env.DB) return false;
   if (!parseShipCheckpointBinding(binding)) return false;
+  // An ERROR or all-empty/no-usable-output result is a diagnostic observation,
+  // not completed review evidence. Its regular transcript/spend records stay
+  // durable, but a retry must make fresh model progress instead of inheriting
+  // the broken result into a new attempt.
+  if (!isResumeEligibleCheckpoint(result)) return false;
   const safeIndex = Number.isInteger(shipIndex) && shipIndex >= 0 ? shipIndex : 0;
   try {
     await env.DB.prepare(
@@ -482,7 +537,7 @@ export async function saveShipCheckpoint(
         SHIP_CHECKPOINT_SEQ_BASE + safeIndex,
         SHIP_CHECKPOINT_KIND,
         result.ship,
-        `pd-${result.ship}: checkpointed — ${result.errored ? 'ERROR' : result.verdict}; a retried delivery may resume after trusted-input revalidation`,
+        `pd-${result.ship}: checkpointed — ${result.verdict}; a retried delivery may resume after trusted-input revalidation`,
         // Version belongs to the writer, not callers. Keep it out of the
         // reconstructed ShipResult so result contracts stay version-agnostic.
         JSON.stringify({
@@ -510,7 +565,7 @@ export async function saveShipCheckpoint(
  *
  * @param env Worker bindings.
  * @param runId Logical delivery run to inspect.
- * @returns Number of current-schema checkpoint records retained durably.
+ * @returns Number of current-schema, resume-eligible checkpoint records.
  */
 export async function countShipCheckpoints(env: ExecutorEnv, runId: string): Promise<number> {
   if (!env.DB) return 0;
@@ -520,9 +575,13 @@ export async function countShipCheckpoints(env: ExecutorEnv, runId: string): Pro
     )
       .bind(runId, SHIP_CHECKPOINT_KIND)
       .all<{ ship: unknown; detail: unknown }>();
-    // Versionless/v2/malformed rows are not retained proof. Matching the
+    // Versionless/v2/malformed rows are not retained proof. Broken outcomes
+    // are transcript evidence rather than resumable progress. Matching the
     // current trusted binding happens later in loadShipCheckpoints.
-    return (rows?.results ?? []).filter(row => parseShipCheckpoint(row.ship, row.detail)).length;
+    return (rows?.results ?? []).filter(row => {
+      const result = parseShipCheckpoint(row.ship, row.detail);
+      return result !== null && isResumeEligibleCheckpoint(result);
+    }).length;
   } catch (err) {
     console.error(`[fleet-executor] checkpoint count failed run=${runId}: ${String(err)}`);
     return 0;
