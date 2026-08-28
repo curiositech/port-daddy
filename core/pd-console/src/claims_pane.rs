@@ -5,7 +5,7 @@
 //!    startLine, endLine, symbol, symbolPath }] }`
 
 use crate::agent::DaemonClient;
-use crate::pane::{Block, Pane, Tone};
+use crate::pane::{Block, Pane, SurfaceAction, Tone};
 use crate::util::{age_short, arr, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
@@ -26,6 +26,7 @@ struct TroubleEntry {
     file_path: String,
     other_session: String,
     action: String,
+    mermaid: String,
 }
 
 impl TroubleEntry {
@@ -46,6 +47,7 @@ impl TroubleEntry {
                 .map(|other| s(other, "sessionId"))
                 .unwrap_or_default(),
             action: s(payload, "action"),
+            mermaid: s(payload, "mermaid"),
         })
     }
 }
@@ -84,6 +86,7 @@ fn tail_path(p: &str, max_chars: usize) -> String {
 pub struct ClaimsPane {
     claims: Vec<ClaimEntry>,
     trouble: Vec<TroubleEntry>,
+    selected_surface: Option<String>,
     last_error: Option<String>,
 }
 
@@ -92,6 +95,7 @@ impl Default for ClaimsPane {
         Self {
             claims: Vec::new(),
             trouble: Vec::new(),
+            selected_surface: None,
             last_error: None,
         }
     }
@@ -100,6 +104,16 @@ impl Default for ClaimsPane {
 impl ClaimsPane {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn trouble_rank(state: &str) -> usize {
+        match state {
+            "RESCUE" => 0,
+            "COORDINATE" => 1,
+            "VERIFY" | "INSPECT" | "RECONCILE" => 2,
+            "WATCH" => 3,
+            _ => 4,
+        }
     }
 }
 
@@ -126,22 +140,56 @@ impl Pane for ClaimsPane {
                 "legend".into(),
                 "you  →  claimed surface  →  finite-state action".into(),
             ));
-            for trouble in &self.trouble {
+            let mut radar: Vec<&TroubleEntry> = self.trouble.iter().collect();
+            radar.sort_by_key(|trouble| Self::trouble_rank(&trouble.state));
+            let selected_surface = self
+                .selected_surface
+                .as_deref()
+                .or_else(|| radar.first().map(|trouble| trouble.file_path.as_str()));
+            for (index, trouble) in radar.iter().enumerate() {
                 let tone = trouble_tone(&trouble.state);
-                blocks.push(Block::Flag {
-                    letter: trouble.state.chars().next().unwrap_or('!'),
-                    label: format!("{} · {}", trouble.state, tail_path(&trouble.file_path, 42)),
+                blocks.push(Block::ClaimTroubleCard {
+                    index,
+                    selected: selected_surface == Some(trouble.file_path.as_str()),
+                    flag: trouble.state.chars().next().unwrap_or('!'),
+                    state: trouble.state.clone(),
+                    surface: tail_path(&trouble.file_path, 42),
+                    other: trunc(&trouble.other_session, 20),
+                    action: if trouble.action.is_empty() {
+                        "Inspect the claim evidence.".into()
+                    } else {
+                        trouble.action.clone()
+                    },
                     tone,
                 });
+            }
+            if let Some(selected) = radar
+                .iter()
+                .find(|trouble| selected_surface == Some(trouble.file_path.as_str()))
+            {
+                blocks.push(Block::Gap);
+                blocks.push(Block::Header("Focused trouble evidence".into()));
                 blocks.push(Block::Row(vec![
                     "you".into(),
                     "→".into(),
-                    tail_path(&trouble.file_path, 32),
+                    tail_path(&selected.file_path, 32),
                     "→".into(),
-                    trunc(&trouble.other_session, 20),
+                    trunc(&selected.other_session, 20),
                 ]));
-                if !trouble.action.is_empty() {
-                    blocks.push(Block::KeyVal("next".into(), trouble.action.clone()));
+                blocks.push(Block::KeyVal("state".into(), selected.state.clone()));
+                blocks.push(Block::KeyVal(
+                    "recommended next move".into(),
+                    if selected.action.is_empty() {
+                        "Inspect, then decide whether to open Parley or split the surface.".into()
+                    } else {
+                        selected.action.clone()
+                    },
+                ));
+                if !selected.mermaid.is_empty() {
+                    blocks.push(Block::WrappedText {
+                        text: selected.mermaid.clone(),
+                        tone: trouble_tone(&selected.state),
+                    });
                 }
             }
         }
@@ -224,6 +272,19 @@ impl Pane for ClaimsPane {
             Ok(())
         })
     }
+
+    fn mutate<'a>(
+        &'a mut self,
+        _daemon: &'a DaemonClient,
+        action: SurfaceAction,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        if let SurfaceAction::SelectRow { index } = action {
+            let mut radar: Vec<&TroubleEntry> = self.trouble.iter().collect();
+            radar.sort_by_key(|trouble| Self::trouble_rank(&trouble.state));
+            self.selected_surface = radar.get(index).map(|trouble| trouble.file_path.clone());
+        }
+        Box::pin(async { Ok(()) })
+    }
 }
 
 #[cfg(test)]
@@ -284,19 +345,19 @@ mod tests {
             file_path: "lib/claim-tree-trouble.ts".into(),
             other_session: "session-other".into(),
             action: "open a parley".into(),
+            mermaid: "flowchart LR".into(),
         }];
         let blocks = p.view();
         assert!(blocks.iter().any(|block| matches!(
             block,
-            Block::Flag {
-                letter: 'C',
+            Block::ClaimTroubleCard {
                 tone: Tone::Conflicted,
                 ..
             }
         )));
-        assert!(blocks
-            .iter()
-            .any(|block| matches!(block, Block::Row(row) if row.iter().any(|cell| cell == "→"))));
+        assert!(blocks.iter().any(
+            |block| matches!(block, Block::WrappedText { text, .. } if text == "flowchart LR")
+        ));
     }
 
     #[test]
@@ -306,5 +367,36 @@ mod tests {
             "payload": { "filePath": "lib/auth.ts", "state": "" }
         });
         assert!(TroubleEntry::from_value(&malformed).is_none());
+    }
+
+    #[test]
+    fn selecting_a_radar_card_retargets_only_the_inspector() {
+        let mut p = ClaimsPane::default();
+        p.trouble = vec![
+            TroubleEntry {
+                state: "WATCH".into(),
+                file_path: "lib/quiet.ts".into(),
+                other_session: "session-watch".into(),
+                action: "keep observing".into(),
+                mermaid: String::new(),
+            },
+            TroubleEntry {
+                state: "COORDINATE".into(),
+                file_path: "lib/shared.ts".into(),
+                other_session: "session-peer".into(),
+                action: "open Parley".into(),
+                mermaid: "flowchart LR".into(),
+            },
+        ];
+        let daemon = DaemonClient::new("http://127.0.0.1:1".into());
+        // Selection is applied before the no-op future is returned; no runtime
+        // is necessary for this purely local UI mutation.
+        drop(p.mutate(&daemon, SurfaceAction::SelectRow { index: 1 }));
+        assert_eq!(p.selected_surface.as_deref(), Some("lib/quiet.ts"));
+        let blocks = p.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::KeyVal(key, value) if key == "recommended next move" && value == "keep observing"
+        )));
     }
 }

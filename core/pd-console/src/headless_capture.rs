@@ -267,7 +267,9 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
             Block::Gap => ROW_H / 2,
             Block::Header(_) => ROW_H + 8,
             Block::Spark(_) => ROW_H + 20,
-            Block::WrappedText { .. } | Block::ChatTurn { .. } => ROW_H + 18,
+            Block::WrappedText { .. } | Block::ChatTurn { .. } | Block::ClaimTroubleCard { .. } => {
+                ROW_H + 18
+            }
             Block::NodeRow { .. } => ROW_H + 8,
             Block::CodeBuffer { lines, .. } => {
                 let visible = lines.len().min(500);
@@ -465,6 +467,37 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 draw_text(&mut c, x0 + inner - bw - 66, y + 10, 1, badge, bg);
                 draw_text(&mut c, x0 + inner - 56, y + 12, 1, age, muted);
                 y += ROW_H + 8;
+            }
+            Block::ClaimTroubleCard {
+                selected,
+                flag,
+                state,
+                surface,
+                other,
+                action,
+                tone,
+                ..
+            } => {
+                let band = if *selected { raised } else { panel };
+                let signal = tone_rgb(*tone, t);
+                c.fill_rect(x0, y, inner, ROW_H + 14, band);
+                c.fill_rect(x0, y, 5, ROW_H + 14, signal);
+                if *selected {
+                    c.stroke_rect(x0, y, inner, ROW_H + 14, signal);
+                }
+                let mut fb = [0u8; 4];
+                draw_text(&mut c, x0 + 12, y + 8, 2, flag.encode_utf8(&mut fb), signal);
+                draw_text(&mut c, x0 + 28, y + 8, 2, state, signal);
+                draw_text(&mut c, x0 + 100, y + 8, 2, surface, ink);
+                draw_text(
+                    &mut c,
+                    x0 + 100,
+                    y + 22,
+                    1,
+                    &format!("→ {other} · {action}"),
+                    muted,
+                );
+                y += ROW_H + 18;
             }
             Block::Spark(vals) => {
                 c.fill_rect(x0, y, inner, ROW_H + 16, panel);
@@ -1094,6 +1127,29 @@ mod geom_tests {
             let px = c.pixel(PAD + 2, HEADER_H + PAD + 10);
             assert_eq!(px, to_rgb(oklch), "chip fill for {tone:?} != theme color");
         }
+    }
+
+    #[test]
+    fn claim_trouble_card_paints_a_color_stripe() {
+        let c = render_blocks(
+            &[Block::ClaimTroubleCard {
+                index: 0,
+                selected: true,
+                flag: 'C',
+                state: "COORDINATE".into(),
+                surface: "core/pd-console/src/app.rs".into(),
+                other: "session-peer".into(),
+                action: "coordinate now".into(),
+                tone: Tone::Conflicted,
+            }],
+            &DARK,
+            200,
+        );
+        assert_eq!(
+            c.pixel(PAD + 2, HEADER_H + PAD + 10),
+            to_rgb(DARK.conflicted),
+            "claim-trouble stripe should use conflicted tone"
+        );
     }
 
     /// Regression: the full sample renders every `Block` variant without panic and

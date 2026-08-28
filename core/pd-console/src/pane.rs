@@ -179,6 +179,19 @@ pub enum Block {
         age: String,
         tone: Tone,
     },
+    /// A selectable claim-tree trouble projection. Selecting it is deliberately
+    /// local UI state: the operator inspects bounded evidence before deciding
+    /// whether to open a Parley or split the surface.
+    ClaimTroubleCard {
+        index: usize,
+        selected: bool,
+        flag: char,
+        state: String,
+        surface: String,
+        other: String,
+        action: String,
+        tone: Tone,
+    },
     /// A clickable operator control (steer/pause/interrupt/checkpoint/…),
     /// compliance-gated at emit time: `enabled: false` MUST carry
     /// `why_disabled` — a false affordance or a silently dead button is the
