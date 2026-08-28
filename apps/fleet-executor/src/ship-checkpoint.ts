@@ -36,6 +36,12 @@ import type { Finding, ShipResult, Verdict } from './verdict.js';
 export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
 
 /**
+ * Persisted checkpoint wire format. Versionless rows predate review-coverage
+ * admission and must re-run rather than masquerade as a current clean result.
+ */
+export const SHIP_CHECKPOINT_SCHEMA_VERSION = 2;
+
+/**
  * Seq floor for checkpoint rows — its own band above the failure (1M) and
  * attempt-marker (2M) bands, for the same reason those have bands: the
  * Transcript recorder restarts seq at 0 on every delivery and INSERT OR
@@ -46,6 +52,7 @@ export const SHIP_CHECKPOINT_SEQ_BASE = 3_000_000;
 
 const VALID_VERDICTS: ReadonlySet<string> = new Set(['PASS', 'BLOCK']);
 const VALID_SEVERITIES: ReadonlySet<string> = new Set(['HIGH', 'MEDIUM', 'LOW']);
+const MAX_REVIEW_COVERAGE_REASON_CHARS = 2_048;
 
 /**
  * Validate the nested finding objects too. Checking only that `findings` is an
@@ -92,11 +99,31 @@ export function parseShipCheckpoint(shipColumn: unknown, detailJson: unknown): S
   }
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
+  // A legacy row cannot prove it was written after the source-coverage and
+  // context-admission contracts landed. Re-running is safe; trusting its
+  // formerly-green verdict is not.
+  if (r.checkpointSchemaVersion !== SHIP_CHECKPOINT_SCHEMA_VERSION) return null;
   if (r.ship !== shipColumn) return null;
   if (typeof r.blocking !== 'boolean') return null;
   if (typeof r.errored !== 'boolean') return null;
   if (typeof r.verdict !== 'string' || !VALID_VERDICTS.has(r.verdict)) return null;
   if (r.noUsableOutput !== undefined && typeof r.noUsableOutput !== 'boolean') return null;
+  const reviewCoverage =
+    r.reviewCoverage === undefined
+      ? undefined
+      : r.reviewCoverage === 'partial' || r.reviewCoverage === 'none'
+        ? r.reviewCoverage
+        : null;
+  if (reviewCoverage === null) return null;
+  if (r.reviewCoverageReason !== undefined) {
+    if (reviewCoverage === undefined || typeof r.reviewCoverageReason !== 'string') return null;
+    if (
+      !r.reviewCoverageReason.trim() ||
+      r.reviewCoverageReason.length > MAX_REVIEW_COVERAGE_REASON_CHARS
+    ) {
+      return null;
+    }
+  }
   const findings =
     r.findings === undefined ? undefined : parseCheckpointFindings(r.findings);
   if (findings === null) return null;
@@ -106,6 +133,10 @@ export function parseShipCheckpoint(shipColumn: unknown, detailJson: unknown): S
     verdict: r.verdict as Verdict,
     errored: r.errored,
     ...(r.noUsableOutput !== undefined ? { noUsableOutput: r.noUsableOutput as boolean } : {}),
+    ...(reviewCoverage !== undefined ? { reviewCoverage } : {}),
+    ...(typeof r.reviewCoverageReason === 'string'
+      ? { reviewCoverageReason: r.reviewCoverageReason }
+      : {}),
     ...(findings !== undefined ? { findings } : {}),
   };
 }
@@ -161,7 +192,9 @@ export async function saveShipCheckpoint(
         SHIP_CHECKPOINT_KIND,
         result.ship,
         `pd-${result.ship}: checkpointed — ${result.errored ? 'ERROR' : result.verdict}; a retried delivery resumes past this ship`,
-        JSON.stringify(result),
+        // Version belongs to the writer, not callers. Keep it out of the
+        // reconstructed ShipResult so result contracts stay version-agnostic.
+        JSON.stringify({ ...result, checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION }),
         Math.floor(Date.now() / 1000),
       )
       .run();
@@ -179,15 +212,7 @@ export async function saveShipCheckpoint(
  * run that completed N ships before the loss should say so). Zero on failure.
  */
 export async function countShipCheckpoints(env: ExecutorEnv, runId: string): Promise<number> {
-  if (!env.DB) return 0;
-  try {
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM fleet_run_steps WHERE run_id = ? AND kind = ?`,
-    )
-      .bind(runId, SHIP_CHECKPOINT_KIND)
-      .first<{ n: number }>();
-    return Number(row?.n) || 0;
-  } catch {
-    return 0;
-  }
+  // Count only rows the resume path can actually trust. A DLQ summary that
+  // promises resumption past a versionless legacy row would be a false claim.
+  return (await loadShipCheckpoints(env, runId)).size;
 }

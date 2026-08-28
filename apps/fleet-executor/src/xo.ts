@@ -35,6 +35,7 @@ import type { Proposal } from './proposals.js';
 import type { Severity, ShipResult } from './verdict.js';
 import { extractAiText } from './ai-response.js';
 import { FleetAiCircuit, FleetAiDependencyError } from './ai-resilience.js';
+import { requireContextAdmission } from './context-admission.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -432,15 +433,20 @@ export async function runXoEditorPass(opts: {
   try {
     // transcript-capture: exempt (XO curation pass — run-level, not a ship
     // conversation; RFC open question #1 defers its capture)
+    const request = {
+      messages: [
+        { role: 'system', content: buildEditorSystemPrompt() },
+        { role: 'user', content: buildEditorUserMessage(proposals, recentIdeas) },
+      ],
+      max_tokens: XO_MAX_OUTPUT_TOKENS,
+    };
+    // XO is advisory, but it must still never hand an over-window request to
+    // Workers AI. The surrounding fail-open contract preserves the original
+    // proposals when admission declines this optional pass.
+    requireContextAdmission(model, request.messages, XO_MAX_OUTPUT_TOKENS);
     const call = () => ai.run(
       model as Parameters<typeof ai.run>[0],
-      {
-        messages: [
-          { role: 'system', content: buildEditorSystemPrompt() },
-          { role: 'user', content: buildEditorUserMessage(proposals, recentIdeas) },
-        ],
-        max_tokens: XO_MAX_OUTPUT_TOKENS,
-      },
+      request,
       xoAiOptions(opts.gatewayId),
     );
     const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
@@ -682,15 +688,20 @@ export async function xoOrdersSection(opts: {
   try {
     // transcript-capture: exempt (XO advisory pass — run-level, not a ship
     // conversation; RFC open question #1 defers its capture)
+    const request = {
+      messages: [
+        { role: 'system', content: buildTriageSystemPrompt() },
+        { role: 'user', content: buildTriageUserMessage(advisories, opts.changedPaths) },
+      ],
+      max_tokens: XO_MAX_OUTPUT_TOKENS,
+    };
+    // Same admission boundary as the editor pass. `xoOrdersSection` is
+    // intentionally fail-open, so refusal leaves the required check and its
+    // ordinary review comment untouched.
+    requireContextAdmission(opts.model, request.messages, XO_MAX_OUTPUT_TOKENS);
     const call = () => opts.ai.run(
       opts.model as Parameters<typeof opts.ai.run>[0],
-      {
-        messages: [
-          { role: 'system', content: buildTriageSystemPrompt() },
-          { role: 'user', content: buildTriageUserMessage(advisories, opts.changedPaths) },
-        ],
-        max_tokens: XO_MAX_OUTPUT_TOKENS,
-      },
+      request,
       xoAiOptions(opts.gatewayId),
     );
     const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();

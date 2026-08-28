@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isDocsOnly, decideShipGate } from '../src/gates.js';
+import { isDocsOnly, decideShipGate, isReviewableForBugs } from '../src/gates.js';
 import type { ShipConfig } from '../src/fleet.js';
 
 const ship = (over: Partial<ShipConfig>): ShipConfig => ({
@@ -32,6 +32,24 @@ describe('isDocsOnly', () => {
   });
   it('false for an empty diff', () => {
     expect(isDocsOnly([])).toBe(false);
+  });
+});
+
+describe('isReviewableForBugs', () => {
+  it('excludes generated Porthole artifacts and raw terminal recordings from model input', () => {
+    expect(
+      isReviewableForBugs(
+        'docs/artifacts/porthole-harness-proof-v2/harness-proof-current.html',
+      ),
+    ).toBe(false);
+    expect(
+      isReviewableForBugs('docs/artifacts/porthole-harness-proof-v2/parley-source.cast'),
+    ).toBe(false);
+    expect(isReviewableForBugs('website-v2/public/casts/porthole/collision.cast')).toBe(false);
+  });
+
+  it('keeps authored source reviewable after evidence is excluded', () => {
+    expect(isReviewableForBugs('apps/fleet-executor/src/execute.ts')).toBe(true);
   });
 });
 

@@ -58,6 +58,10 @@ export interface GitHubState {
   }>;
   /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
   prDiff?: string;
+  /** Override the first (and currently only) GitHub changed-files page. */
+  prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number }>;
+  /** Raw changed-files response, used to exercise malformed/incomplete inventory handling. */
+  prFilesBody?: string;
   /** Authoritative current PR head returned by GET /pulls/{n}. */
   prHeadSha: string;
   /**
@@ -168,6 +172,8 @@ export function freshState(): GitHubState {
     completed: [],
     reviews: [],
     prDiff: undefined,
+    prFiles: undefined,
+    prFilesBody: undefined,
     prHeadSha: 'HEADSHA',
     prHeadRef: 'feat/widget',
     prBaseRef: 'main',
@@ -355,7 +361,8 @@ export function installGitHubFetch(state: GitHubState): void {
     }
     // --- PR files ---
     if (/\/pulls\/\d+\/files/.test(url)) {
-      return json([{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
+      if (state.prFilesBody !== undefined) return text(state.prFilesBody);
+      return json(state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
     }
     // --- create review (inline comments) ---
     if (/\/pulls\/\d+\/reviews$/.test(url) && method === 'POST') {
@@ -787,7 +794,14 @@ export function memoryD1(): D1Capture {
 export interface AiStub {
   ai: Ai;
   /** Every AI call: which model, the map/reduce phase, and the routed ship. */
-  calls: Array<{ model: string; phase: 'map' | 'reduce'; ship: string | null; temperature?: number }>;
+  calls: Array<{
+    model: string;
+    phase: 'map' | 'reduce';
+    ship: string | null;
+    temperature?: number;
+    /** Immutable request projection for context-budget assertions. */
+    messages: Array<{ role: string; content: string }>;
+  }>;
 }
 
 /**
@@ -846,10 +860,11 @@ export function aiStub(opts: {
   ) => {
     const sys = args.messages.find(m => m.role === 'system')?.content ?? '';
     const ship = matchShip(sys);
+    const messages = args.messages.map(message => ({ ...message }));
 
     // --- REDUCE manager call ---
     if (/REDUCE manager/.test(sys)) {
-      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature };
+      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature, messages };
       calls.push(call);
       await opts.onCall?.(call);
       if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
@@ -860,7 +875,7 @@ export function aiStub(opts: {
     }
 
     // --- MAP call ---
-    const call = { model, phase: 'map' as const, ship, temperature: args.temperature };
+    const call = { model, phase: 'map' as const, ship, temperature: args.temperature, messages };
     calls.push(call);
     await opts.onCall?.(call);
     if (ship) {

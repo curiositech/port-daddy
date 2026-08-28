@@ -275,8 +275,11 @@ describe('the division of labour that makes two stages necessary', () => {
     const INTERP = '$' + '{';
     const src = readExecuteSource();
     expect(src).not.toMatch(/MAP chunk[^`]*EMPTY on[^`]*`\s*\+\s*`\$\{ship\.cfModel\}/);
-    expect(src).toContain(`${INTERP}mapModelFor(ship)}: ${INTERP}describeResponseShape(res)}`);
-    expect(src).toContain(`REDUCE EMPTY on ${INTERP}reduceModelFor(ship)}`);
+    // MAP and REDUCE now bind their resolved model once before admission and
+    // dispatch. The warning must name that same resolved value, not the
+    // configured `ship.cfModel` which may be a different tier.
+    expect(src).toContain(`${INTERP}mapModel}: ${INTERP}describeResponseShape(res)}`);
+    expect(src).toContain(`REDUCE EMPTY on ${INTERP}model}`);
   });
 
   it('a single-chunk diff skips REDUCE entirely', () => {
@@ -284,6 +287,6 @@ describe('the division of labour that makes two stages necessary', () => {
     // reconcile. One chunk means no cross-chunk judgement exists to make, so
     // paying the capable model twice would be waste.
     const src = readExecuteSource();
-    expect(src).toMatch(/chunks\.length === 1 \? partials\[0\]/);
+    expect(src).toMatch(/chunks\.length === 1\s*\?\s*partials\[0\]/);
   });
 });

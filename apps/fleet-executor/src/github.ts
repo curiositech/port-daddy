@@ -360,7 +360,13 @@ export interface PRContext {
   diffBytes: number;
   /** True when the diff exceeded the cap and was cut short. */
   diffTruncated: boolean;
-  /** True when the `/files` body exceeded its cap or failed to parse. */
+  /**
+   * True when the changed-file inventory is incomplete or untrustworthy.
+   *
+   * GitHub's non-paginated first page is capped at {@link PR_FILES_PAGE_SIZE},
+   * so an exactly-full page is deliberately treated as incomplete too: a 101st
+   * sensitive path must never disappear behind a surface gate.
+   */
   filesTruncated: boolean;
 }
 
@@ -498,7 +504,10 @@ export async function fetchPRContext(
   // their sum; an unbounded read of either one can kill the isolate before any
   // catch block exists to report it.
   let files: PRFile[] = [];
-  let filesTruncated = false;
+  // A failed, malformed, capped, or exactly-full first page cannot prove the
+  // whole changed-file set. Carry that uncertainty to the executor instead of
+  // silently letting surface gates treat an empty/partial inventory as exact.
+  let filesTruncated = !filesRes.ok;
   if (filesRes.ok) {
     const read = await readTextCapped(filesRes, MAX_FILES_BYTES);
     if (read.truncated) {
@@ -509,7 +518,16 @@ export async function fetchPRContext(
       filesTruncated = true;
     } else {
       try {
-        files = JSON.parse(read.text) as PRFile[];
+        const parsed: unknown = JSON.parse(read.text);
+        if (!Array.isArray(parsed)) {
+          filesTruncated = true;
+        } else {
+          files = parsed as PRFile[];
+          // This endpoint requests one page only. An exact page could be the
+          // complete set or merely the first 100 entries; fail closed to a
+          // complete-inventory claim until pagination is implemented.
+          filesTruncated = files.length >= PR_FILES_PAGE_SIZE;
+        }
       } catch {
         filesTruncated = true;
       }
