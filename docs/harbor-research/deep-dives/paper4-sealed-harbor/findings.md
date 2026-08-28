@@ -160,16 +160,23 @@ a different report — do not merge author lists.
 2. **Add the laundering mutation to `c1_noninterference.py`.** The current suite
    cannot express A1's break. Highest-value engineering item.
 3. **Rewrite the contribution paragraph against Ryoan.** Not optional.
-4. `UNRESOLVED` — R. van der Meyden, **"What, indeed, is intransitive
-   noninterference?"** (extended abstract), Proc. ESORICS 2007, Dresden,
-   LNCS 4734, pp. 235–250 — title/venue/pages now confirmed (`[C37]` on the
-   author's own publications page, `cgi.cse.unsw.edu.au/~meyden`; the extended
-   journal version is `[J18]`, *J. Computer Security* 23(2):197–228, 2015,
-   paywalled at IOS Press). Full text of neither version obtained 2026-08-27 —
-   `core.ac.uk` (which closed two other UNRESOLVED items this session) errored
-   transiently on this query; worth one retry before falling back to an
-   institutional request. Bears on §lift's target property: Rushby's unwinding
-   is sound and complete for **TA-security**, not ipurge-security.
+4. **2026-08-27 update: `verified`, full text obtained (user-provided PDF).**
+   R. van der Meyden, "What, Indeed, Is Intransitive Noninterference?"
+   (extended abstract), Proc. ESORICS 2007, Dresden, LNCS 4734, pp. 235–250 —
+   title/venue/pages match exactly. Confirms the claim precisely: Rushby
+   proves *soundness* of his weak-unwinding conditions (OC, WSC, LR) for
+   Haigh–Young intransitive noninterference (IP-security, defined via the
+   `ipurge` function), but not completeness. This paper's Theorems 2–3 supply
+   the missing half — the same three conditions are sound **and complete** —
+   for a strictly *stronger* property, **TA-security**, which additionally
+   preserves the transmitted-information's order via a `ta` function, not
+   just which actions survive intransitive purging. §lift (`sec:lift`) had
+   not yet made a completeness claim — the mechanization is explicitly future
+   work ("the program's stated next obligation") — so this was a landmine for
+   whoever does that work, not a live defect. Wired directly into
+   `paper4.tex`'s §lift: one clarifying paragraph, citing `vdm07`, stating the
+   lift's target as TA-security explicitly rather than the weaker purge-based
+   notion the unwinding-conditions reduction is sometimes assumed to certify.
 5. **2026-08-27 update.** Whitehouse et al. 2023 full text: `verified`, see
    above. PINQ full text: `verified` — F. McSherry, "Privacy Integrated
    Queries: An Extensible Platform for Privacy-Preserving Data Analysis,"
