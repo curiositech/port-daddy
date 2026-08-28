@@ -763,7 +763,7 @@ Skills available: {skills}
     triggers: ['pull_request:opened'],
     outputs: ['github:pr-comment'],
     costClass: 'high',
-    backendDefault: { backend: 'claude', capability: 'balanced' },
+    backendDefault: { backend: 'claude', capability: 'high' },
     backendEscalation: null,
     defaultTrigger: { kind: 'git-pr' },
     defaultModelTier: 'high',
