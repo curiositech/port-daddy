@@ -30,6 +30,7 @@ import {
   renderClaimTreeTroubleMermaid,
   type ClaimTreeTroubleFinding,
 } from './claim-tree-trouble.js';
+import { computeBlastRadius, type BlastRadiusDeps } from './blast-radius.js';
 
 /** One active claim, as returned by `sessions.listAllActiveClaims().claims`. */
 export interface ActiveClaim {
@@ -46,6 +47,12 @@ export interface ActiveClaim {
   repoId?: string;
   worldKind?: string;
   worldId?: string;
+}
+
+export interface ClaimForestProvenance {
+  repoId: string;
+  worldKind: string;
+  worldId: string;
 }
 
 /** A detected overlap between two distinct sessions on one file. The *pair* is
@@ -198,6 +205,8 @@ export interface RunOverlapScanDeps {
   suggestions: Suggestions;
   inbox: BrokerInbox;
   activityLog?: BrokerActivityLog;
+  /** Narrow reverse-dependency graph used only when it can prove reachability. */
+  symbolIndex?: BlastRadiusDeps;
   /** Pending nudges older than this are expired (status='expired') at the start of
    *  each scan, so a stale overlap that was never acted on can re-surface. Defaults
    *  to DEFAULT_STALE_NUDGE_MS; pass 0/Infinity-ish to disable by sweeping nothing. */
@@ -505,11 +514,33 @@ export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
   return { overlaps: overlaps.length, surfaced, suppressed, delivered };
 }
 
+function claimForestProvenance(claim: ActiveClaim): ClaimForestProvenance | null {
+  const repoId = claim.repoId?.trim();
+  const worldKind = claim.worldKind?.trim();
+  const worldId = claim.worldId?.trim();
+  if (!repoId || !worldKind || !worldId) return null;
+  return { repoId, worldKind, worldId };
+}
+
 function sameWorld(a: ActiveClaim, b: ActiveClaim): boolean {
-  return Boolean(a.repoId && b.repoId && a.worldKind && b.worldKind && a.worldId && b.worldId)
-    && a.repoId === b.repoId
-    && a.worldKind === b.worldKind
-    && a.worldId === b.worldId;
+  const self = claimForestProvenance(a);
+  const other = claimForestProvenance(b);
+  return Boolean(self && other)
+    && self.repoId === other.repoId
+    && self.worldKind === other.worldKind
+    && self.worldId === other.worldId;
+}
+
+function dependencyReachableViaGraph(symbolIndex: BlastRadiusDeps | undefined, self: ActiveClaim, other: ActiveClaim): boolean {
+  if (!symbolIndex || !self.symbolPath || !other.symbolPath) return false;
+  try {
+    const selfRadius = computeBlastRadius(symbolIndex, { filePath: self.filePath, symbolPath: self.symbolPath });
+    if (selfRadius.some((node) => node.filePath === other.filePath && node.symbolPath === other.symbolPath)) return true;
+    const otherRadius = computeBlastRadius(symbolIndex, { filePath: other.filePath, symbolPath: other.symbolPath });
+    return otherRadius.some((node) => node.filePath === self.filePath && node.symbolPath === self.symbolPath);
+  } catch {
+    return false;
+  }
 }
 
 function hasPrecision(claim: ActiveClaim): boolean {
@@ -521,6 +552,9 @@ function activePhase(claim: ActiveClaim): boolean {
 }
 
 function troubleConfidence(finding: ClaimTreeTroubleFinding): number {
+  // Confidence is evidence strength, not urgency: a direct declared overlap
+  // is near-certain, whereas incomplete provenance and dependency-only advice
+  // deliberately remain lower-confidence even when their action is important.
   switch (finding.state) {
     case 'COORDINATE': return 0.97;
     case 'RESCUE': return 0.92;
@@ -533,9 +567,10 @@ function troubleConfidence(finding: ClaimTreeTroubleFinding): number {
 }
 
 /**
- * Project the claim forest into durable, Mermaid-carrying agent advice. Unlike
- * the legacy overlap heads-up, this is a stateful explanation: the agent sees
- * the exact finite-state outcome, evidence boundary, and next action.
+ * Project the declared claim forest into durable, Mermaid-carrying agent advice.
+ * This scanner evaluates same-path claim pairs only. `WATCH` is only emitted
+ * when the optional reverse-dependency graph can prove a symbol-level reachability
+ * path between the two claims; otherwise the scan stays fail-closed.
  */
 export function runClaimTreeTroubleScan(deps: RunOverlapScanDeps): ClaimTreeTroubleScanResult {
   const claimsRes = deps.sessions.listAllActiveClaims();
@@ -555,15 +590,18 @@ export function runClaimTreeTroubleScan(deps: RunOverlapScanDeps): ClaimTreeTrou
   let delivered = 0;
   for (const [a, b] of pairs) {
     for (const [self, other] of [[a, b], [b, a]] as Array<[ActiveClaim, ActiveClaim]>) {
-      const finding = classifyClaimTreeTrouble({
-        sourceComplete: Boolean(self.filePath && self.sessionId && other.sessionId),
+      const selfProvenance = claimForestProvenance(self);
+      const otherProvenance = claimForestProvenance(other);
+      const classifierEvidence = {
+        sourceComplete: Boolean(selfProvenance && otherProvenance),
         worldComparable: sameWorld(self, other),
         counterpartActive: activePhase(other),
         claimFresh: true, // current active forest rows are the available freshness authority in this slice
         directOverlap: claimsCollide(self, other),
         precisionKnown: hasPrecision(self) && hasPrecision(other),
-        dependencyReachable: false, // dependency projection will populate this evidence field when available
-      });
+        dependencyReachable: dependencyReachableViaGraph(deps.symbolIndex, self, other),
+      };
+      const finding = classifyClaimTreeTrouble(classifierEvidence);
       if (finding.state === 'PROCEED') continue;
       const deliveryKey = self.agentId ?? self.sessionId;
       const payload = {
@@ -573,7 +611,14 @@ export function runClaimTreeTroubleScan(deps: RunOverlapScanDeps): ClaimTreeTrou
         filePath: self.filePath,
         you: { sessionId: self.sessionId, agentId: self.agentId, purpose: self.purpose, range: { startLine: self.startLine, endLine: self.endLine, symbolPath: self.symbolPath } },
         other: { sessionId: other.sessionId, agentId: other.agentId, purpose: other.purpose, range: { startLine: other.startLine, endLine: other.endLine, symbolPath: other.symbolPath } },
-        evidence: { worldComparable: sameWorld(self, other), directOverlap: claimsCollide(self, other), precisionKnown: hasPrecision(self) && hasPrecision(other) },
+        evidence: {
+          ...classifierEvidence,
+          provenance: {
+            source: 'claim-forest',
+            self: selfProvenance,
+            other: otherProvenance,
+          },
+        },
         action: finding.action,
         message: `${finding.state}: ${finding.reason}. ${finding.action}.`,
         mermaid: renderClaimTreeTroubleMermaid({ filePath: self.filePath, selfSessionId: self.sessionId, otherSessionId: other.sessionId, state: finding.state }),
