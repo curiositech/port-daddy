@@ -726,6 +726,50 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     }
   });
 
+  test('prompt hook never injects a truncated Mermaid graph and preserves a long path tail', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const longPath = `generated/${'segment/'.repeat(20)}target.ts`;
+    const oversizedGraph = `flowchart LR\n${Array.from({ length: 80 }, (_, index) => `  N${index} --> N${index + 1}`).join('\n')}`;
+    const server = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/agents/agent_test/inbox/stats') {
+        res.end(JSON.stringify({ success: true, unread: 0 }));
+        return;
+      }
+      expect(req.url).toBe('/suggestions?agentId=agent_test&status=pending&limit=8');
+      res.end(JSON.stringify({
+        success: true,
+        suggestions: [{
+          kind: 'claim-tree-trouble',
+          payload: { state: 'COORDINATE', filePath: longPath, action: 'Open a parley before editing.', mermaid: oversizedGraph },
+        }],
+      }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+      expect(ctx).toContain('…');
+      expect(ctx).toContain('target.ts');
+      expect(ctx).toContain('Mermaid omitted from this bounded turn');
+      expect(ctx).not.toContain('N0 --> N1');
+      expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    } finally {
+      server.close();
+    }
+  });
+
   test('prompt inbox probe is silent and fail-open without an actor or live daemon', async () => {
     mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
     writeFileSync(MATRIX, '# no matrix coordination\n');
