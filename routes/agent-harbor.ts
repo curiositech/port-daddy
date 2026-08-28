@@ -655,7 +655,9 @@ function interactiveProviderSessionUnboundReceipt(provider: typeof INTERACTIVE_C
   };
 }
 
-function isLoopback(address: string): boolean {
+/** Missing or malformed request metadata must never widen a local-only route. */
+function isLoopback(address: unknown): boolean {
+  if (typeof address !== 'string') return false;
   const normalized = address.replace(/^::ffff:/, '');
   return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
 }
