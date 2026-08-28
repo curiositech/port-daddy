@@ -165,6 +165,8 @@ is deterministic and recordable:
 | 0.85 | retain the packet and restrict broad or risky work |
 | 0.92 | allow provider-owned compaction and record one governed-successor boundary directive; this hook creates no successor process |
 
+The ingress accepts only string loopback metadata. Empty or non-string `request.ip` values are rejected before payload parsing or ledger mutation; adapters and proxies must provide a verified value rather than relying on coercion.
+
 Before a packet is built, interactive transcript rows must prove complete,
 ordered tool-call/result pairs. A malformed, orphaned, duplicate, or unresolved
 pair yields `packet-withheld` rather than guessing. Repeating the same provider
