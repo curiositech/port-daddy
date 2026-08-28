@@ -159,8 +159,6 @@ const TESTS_MAX_TOKENS = 4096;
 const PLAN_MAX_TOKENS = 1024;
 /** Head of a malformed response recorded for diagnosis. See {@link runPurser}. */
 const RAW_DIAGNOSTIC_CHARS = 2000;
-/** Diff budget for the purser's prompts (chars). */
-const PURSER_DIFF_CHAR_LIMIT = 24_000;
 /** Per-request title projection: a PR title is metadata, not an unbounded prompt suffix. */
 const PURSER_TITLE_BYTE_LIMIT = 512;
 /** Per-request body projection: preserve the opening claim while leaving room for review evidence. */
@@ -399,31 +397,35 @@ interface TextProjection {
   truncated: boolean;
 }
 
+const purserUtf8Encoder = new TextEncoder();
+const purserUtf8Decoder = new TextDecoder();
+
 /**
  * Project a text field at a UTF-8 boundary instead of a UTF-16 index.
  *
- * The purpose is to bound PR metadata without producing malformed surrogate
- * pairs. This deliberately applies only to prose and path metadata; diff/code
- * evidence keeps its existing review policy and is never raw-sliced here.
+ * The purpose is to bound model-facing text without producing malformed
+ * surrogate pairs. Callers projecting diff/code evidence must also emit an
+ * omission marker and carry partial coverage into the durable result.
  *
  * @param value Unbounded metadata from the GitHub PR payload.
  * @param maxBytes Maximum UTF-8 bytes this model-facing projection may keep.
  * @returns The intact UTF-8 prefix and exact omission accounting.
  */
-function projectUtf8Prefix(value: string, maxBytes: number): TextProjection {
-  const totalBytes = utf8ByteLength(value);
+function projectUtf8Prefix(
+  value: string,
+  maxBytes: number,
+  encodedValue = purserUtf8Encoder.encode(value),
+): TextProjection {
+  const totalBytes = encodedValue.byteLength;
   if (totalBytes <= maxBytes) {
     return { text: value, displayedBytes: totalBytes, totalBytes, truncated: false };
   }
 
-  let displayedBytes = 0;
-  let text = '';
-  for (const codePoint of value) {
-    const bytes = utf8ByteLength(codePoint);
-    if (displayedBytes + bytes > maxBytes) break;
-    text += codePoint;
-    displayedBytes += bytes;
+  let displayedBytes = Math.max(0, Math.min(Math.floor(maxBytes), totalBytes));
+  while (displayedBytes > 0 && (encodedValue[displayedBytes] & 0xc0) === 0x80) {
+    displayedBytes -= 1;
   }
+  const text = purserUtf8Decoder.decode(encodedValue.subarray(0, displayedBytes));
   return { text, displayedBytes, totalBytes, truncated: true };
 }
 
@@ -515,13 +517,207 @@ function projectedChangedFiles(files: PRContext['files']): string {
   );
 }
 
-function purserDiffPromptTruncated(diff: string): boolean {
-  return diff.length > PURSER_DIFF_CHAR_LIMIT;
+interface PurserPrBlockProjection {
+  text: string;
+  phase: string;
+  model: string;
+  displayedBytes: number;
+  totalBytes: number;
+  omittedBytes: number;
+  complete: boolean;
+  inputBudgetTokens: number;
+  estimatedInputTokens: number;
+  requestedOutputTokens: number;
 }
 
-function truncatedDiff(diff: string): string {
-  if (!purserDiffPromptTruncated(diff)) return diff;
-  return `${diff.slice(0, PURSER_DIFF_CHAR_LIMIT)}\n… (diff truncated at ${PURSER_DIFF_CHAR_LIMIT} chars)`;
+const PURSER_SOURCE_COVERAGE_MARKER = 'purser-source-coverage';
+
+interface PurserSourceCoverageReceipt {
+  version: 1;
+  status: 'complete' | 'partial';
+}
+
+/** Bind a reusable authored suite to whether every source-bearing request was complete. */
+function encodeSourceCoverageReceipt(
+  coverage: Pick<ShipResult, 'reviewCoverage'>,
+): string {
+  const receipt: PurserSourceCoverageReceipt = {
+    version: 1,
+    status: coverage.reviewCoverage === 'partial' ? 'partial' : 'complete',
+  };
+  return `<!-- ${PURSER_SOURCE_COVERAGE_MARKER}: ${JSON.stringify(receipt)} -->`;
+}
+
+/** Read a coverage receipt; missing/malformed evidence is never treated as complete. */
+function decodeSourceCoverageReceipt(
+  body: string | null | undefined,
+): PurserSourceCoverageReceipt | null {
+  if (!body) return null;
+  const markerStart = `<!--\\s*${PURSER_SOURCE_COVERAGE_MARKER}:`;
+  if ([...body.matchAll(new RegExp(markerStart, 'g'))].length !== 1) return null;
+  const match = new RegExp(`${markerStart}\\s*(\\{[^}]*\\})\\s*-->`).exec(body);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]) as Record<string, unknown>;
+    if (parsed.version !== 1 || (parsed.status !== 'complete' && parsed.status !== 'partial')) {
+      return null;
+    }
+    return parsed as unknown as PurserSourceCoverageReceipt;
+  } catch {
+    return null;
+  }
+}
+
+/** Render one PR block around an already-decided diff projection. */
+function renderPrBlock(prCtx: PRContext, diff: string, diffMarker = ''): string {
+  return (
+    `# PR #${prCtx.prNumber}: ${projectedInline('PR title', prCtx.title, PURSER_TITLE_BYTE_LIMIT)}\n\n` +
+    `## PR description\n${projectedProse('PR description', prCtx.body || '(none)', PURSER_BODY_BYTE_LIMIT)}\n\n` +
+    `## Diff\n\`\`\`diff\n${diff}${diffMarker ? `\n${diffMarker}` : ''}\n\`\`\``
+  );
+}
+
+/**
+ * Explain a bounded diff inside the model-facing request itself.
+ *
+ * Byte counts are exact and the reason names the complete request budget, so
+ * a model can never mistake a source prefix for the whole reviewed patch.
+ */
+function diffProjectionMarker(
+  phase: string,
+  projection: TextProjection,
+  inputBudgetTokens: number,
+  requestedOutputTokens: number,
+): string {
+  if (!projection.truncated) return '';
+  const omittedBytes = projection.totalBytes - projection.displayedBytes;
+  return (
+    `[Diff projection for ${phase}: showing first ${projection.displayedBytes} of ` +
+    `${projection.totalBytes} UTF-8 bytes; ${omittedBytes} byte(s) omitted from this ` +
+    `model request while budgeting the complete request against its ${inputBudgetTokens}-token ` +
+    `input limit after reserving ${requestedOutputTokens} output tokens and protocol framing.]`
+  );
+}
+
+/**
+ * Build a deterministic bounded source projection for the exact request. Full
+ * source wins whenever it fits. Otherwise a capped UTF-8-safe correction loop
+ * accounts for system/graft bytes, title/body projection, both message
+ * envelopes, requested output, and the protocol reserve through the same
+ * fail-closed admission function used immediately before provider dispatch.
+ * The selected prefix is admitted and repeatable; it is not claimed to consume
+ * every last byte of capacity.
+ *
+ * If even the marker-only request cannot fit (for example, an indivisible
+ * system contract is too large), this returns that minimal request and leaves
+ * the final {@link requireContextAdmission} call to reject it. No provider call
+ * can occur on that path.
+ */
+function prBlock(
+  prCtx: PRContext,
+  options: {
+    phase: string;
+    model: string;
+    system: string;
+    maxTokens: number;
+  },
+): PurserPrBlockProjection {
+  const inspect = (text: string) => {
+    try {
+      return requireContextAdmission(
+        options.model,
+        [
+          { role: 'system', content: options.system },
+          { role: 'user', content: text },
+        ],
+        options.maxTokens,
+      );
+    } catch (error) {
+      if (error instanceof ContextAdmissionError) return error.admission;
+      throw error;
+    }
+  };
+
+  const encodedDiff = purserUtf8Encoder.encode(prCtx.diff);
+  const totalBytes = encodedDiff.byteLength;
+  const fullText = renderPrBlock(prCtx, prCtx.diff);
+  const fullAdmission = inspect(fullText);
+  if (fullAdmission.accepted) {
+    return {
+      text: fullText,
+      phase: options.phase,
+      model: options.model,
+      displayedBytes: totalBytes,
+      totalBytes,
+      omittedBytes: 0,
+      complete: true,
+      inputBudgetTokens: fullAdmission.inputBudgetTokens,
+      estimatedInputTokens: fullAdmission.estimatedInputTokens,
+      requestedOutputTokens: options.maxTokens,
+    };
+  }
+
+  const candidate = (maxBytes: number) => {
+    const diff = projectUtf8Prefix(prCtx.diff, maxBytes, encodedDiff);
+    const marker = diffProjectionMarker(
+      options.phase,
+      diff,
+      fullAdmission.inputBudgetTokens,
+      options.maxTokens,
+    );
+    const text = renderPrBlock(prCtx, diff.text, marker);
+    return { diff, text, admission: inspect(text) };
+  };
+
+  const emptyAdmission = inspect(renderPrBlock(prCtx, ''));
+  let maxBytes = Math.max(
+    0,
+    Math.min(
+      Math.max(0, totalBytes - 1),
+      fullAdmission.inputBudgetTokens - emptyAdmission.estimatedInputTokens,
+    ),
+  );
+  let best: ReturnType<typeof candidate> | null = null;
+  const tried = new Set<number>();
+  // The first guess reserves the fixed request bytes. One correction accounts
+  // for the omission marker; another may consume a few bytes released when its
+  // decimal counts shrink. Keep a hard cap so pathological model metadata can
+  // never turn projection into an unbounded pre-dispatch loop.
+  for (let attempt = 0; attempt < 8 && !tried.has(maxBytes); attempt += 1) {
+    tried.add(maxBytes);
+    const current = candidate(maxBytes);
+    if (current.admission.accepted) {
+      if (!best || current.diff.displayedBytes > best.diff.displayedBytes) best = current;
+      if (current.admission.remainingInputTokens === 0) break;
+      maxBytes = Math.min(
+        Math.max(0, totalBytes - 1),
+        maxBytes + Math.max(1, current.admission.remainingInputTokens),
+      );
+    } else {
+      const overage = Math.max(
+        1,
+        current.admission.estimatedInputTokens - current.admission.inputBudgetTokens,
+      );
+      maxBytes = Math.max(0, maxBytes - overage);
+    }
+  }
+
+  // Unknown model capacity or an indivisible system overflow can make even a
+  // zero-byte diff inadmissible. Preserve a truthful minimal prompt and let the
+  // unchanged final admission boundary fail visibly before env.AI.run.
+  const selected = best ?? candidate(0);
+  return {
+    text: selected.text,
+    phase: options.phase,
+    model: options.model,
+    displayedBytes: selected.diff.displayedBytes,
+    totalBytes: selected.diff.totalBytes,
+    omittedBytes: selected.diff.totalBytes - selected.diff.displayedBytes,
+    complete: !selected.diff.truncated,
+    inputBudgetTokens: selected.admission.inputBudgetTokens,
+    estimatedInputTokens: selected.admission.estimatedInputTokens,
+    requestedOutputTokens: options.maxTokens,
+  };
 }
 
 /**
@@ -533,34 +729,33 @@ function truncatedDiff(diff: string): string {
  */
 function purserReviewCoverage(
   prCtx: PRContext,
+  projections: readonly PurserPrBlockProjection[] = [],
+  inheritedPartialReason: string | null = null,
 ): Pick<ShipResult, 'reviewCoverage' | 'reviewCoverageReason'> {
-  const reasons: string[] = [];
+  const reasons = new Set<string>();
   if (prCtx.diffTruncated) {
-    reasons.push(
+    reasons.add(
       `GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes; source after that boundary was unavailable to Purser`,
     );
   }
   if (prCtx.filesTruncated) {
-    reasons.push(
+    reasons.add(
       'GitHub returned an incomplete changed-file inventory; paths after that boundary were unavailable to Purser',
     );
   }
-  if (purserDiffPromptTruncated(prCtx.diff)) {
-    reasons.push(
-      `Purser projected only the first ${PURSER_DIFF_CHAR_LIMIT} characters of the diff into its model requests`,
+  if (inheritedPartialReason) reasons.add(inheritedPartialReason);
+  for (const projection of projections) {
+    if (projection.complete) continue;
+    reasons.add(
+      `Purser ${projection.phase} projected ${projection.displayedBytes} of ` +
+      `${projection.totalBytes} UTF-8 diff bytes for ${projection.model}; ` +
+      `${projection.omittedBytes} byte(s) were omitted to fit the complete request's ` +
+      `${projection.inputBudgetTokens}-token input budget`,
     );
   }
-  return reasons.length > 0
-    ? { reviewCoverage: 'partial', reviewCoverageReason: reasons.join('; ') }
+  return reasons.size > 0
+    ? { reviewCoverage: 'partial', reviewCoverageReason: [...reasons].join('; ') }
     : {};
-}
-
-function prBlock(prCtx: PRContext): string {
-  return (
-    `# PR #${prCtx.prNumber}: ${projectedInline('PR title', prCtx.title, PURSER_TITLE_BYTE_LIMIT)}\n\n` +
-    `## PR description\n${projectedProse('PR description', prCtx.body || '(none)', PURSER_BODY_BYTE_LIMIT)}\n\n` +
-    `## Diff\n\`\`\`diff\n${truncatedDiff(prCtx.diff)}\n\`\`\``
-  );
 }
 
 /**
@@ -1346,23 +1541,56 @@ export async function runPurser(
   // and write another.
   const branchName = `purser/pr-${prCtx.prNumber}-tests`;
   const fingerprint = fingerprintDiff(prCtx.diff ?? '');
-  const reviewCoverage = purserReviewCoverage(prCtx);
+  const sourceProjections: PurserPrBlockProjection[] = [];
+  const currentReviewCoverage = () => purserReviewCoverage(prCtx, sourceProjections);
+  const recordSourceProjection = async (projection: PurserPrBlockProjection) => {
+    sourceProjections.push(projection);
+    if (projection.complete) return;
+    await transcript.step(
+      'purser-context-partial',
+      ship.name,
+      `pd-${ship.name}: ${projection.phase} source projection is partial — required check cannot report a complete review`,
+      {
+        phase: projection.phase,
+        model: projection.model,
+        displayedBytes: projection.displayedBytes,
+        totalBytes: projection.totalBytes,
+        omittedBytes: projection.omittedBytes,
+        inputBudgetTokens: projection.inputBudgetTokens,
+        estimatedInputTokens: projection.estimatedInputTokens,
+        requestedOutputTokens: projection.requestedOutputTokens,
+      },
+    );
+  };
 
   try {
-    if (reviewCoverage.reviewCoverage) {
+    const upstreamCoverage = currentReviewCoverage();
+    if (upstreamCoverage.reviewCoverage) {
       await transcript.step(
         'purser-context-partial',
         ship.name,
         `pd-${ship.name}: source projection is partial — required check cannot report a complete review`,
-        { reason: reviewCoverage.reviewCoverageReason },
+        { reason: upstreamCoverage.reviewCoverageReason },
       );
     }
+    const steelSystem = steelManSystemPrompt(ship, graftText);
+    const steelModel = ship.cfPlanModel ?? ship.cfModel;
+    const steelProjection = prBlock(prCtx, {
+      phase: 'STEEL-MAN',
+      model: steelModel,
+      system: steelSystem,
+      maxTokens: STEELMAN_MAX_TOKENS,
+    });
     // --- 0. RE-RUN PROBE ----------------------------------------------------
     // Before spending a single token, ask whether this PR already HAS a
     // contract. Tests are authored once and then re-executed; see
     // src/purser-rerun.ts for why re-authoring on every push is actively
     // harmful rather than merely wasteful.
-    let reused: { files: StackedFile[]; testPr: { number: number; url: string } } | null = null;
+    let reused: {
+      files: StackedFile[];
+      testPr: { number: number; url: string };
+      sourceCoverage: PurserSourceCoverageReceipt | null;
+    } | null = null;
     let rerunNote: string | null = null;
     if (prCtx.diffTruncated) {
       // A prefix hash cannot prove the omitted tail is unchanged. Reusing a
@@ -1374,22 +1602,36 @@ export async function runPurser(
         const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
         if (existingPr) {
           const prior = decodeFingerprint(existingPr.body);
-          // Read ONLY the paths recorded at author time. The branch tree is the
-          // whole repository (base_tree), so there is nothing to discover here —
-          // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
-          const priorFiles = prior?.tests.length
-            ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
-            : null;
-          const decision = decideRerun(
-            prior,
-            fingerprint,
-            Boolean(priorFiles && priorFiles.length),
-          );
-          if (decision.action === 'reuse' && priorFiles) {
-            reused = { files: priorFiles, testPr: { number: existingPr.number, url: existingPr.url } };
-            rerunNote = decision.reason;
+          const priorCoverage = decodeSourceCoverageReceipt(existingPr.body);
+          const missingCoverageReceipt = prior !== null && priorCoverage === null;
+          const partialSourceCanNowBeComplete =
+            priorCoverage?.status === 'partial' && steelProjection.complete;
+          if (missingCoverageReceipt || partialSourceCanNowBeComplete) {
+            rerunNote = missingCoverageReceipt
+              ? 're-authoring: the existing contract has no valid v1 source-coverage receipt'
+              : 're-authoring: the existing contract records partial source, while the current exact STEEL-MAN request admits the complete diff';
           } else {
-            rerunNote = `re-authoring: ${decision.reason}`;
+            // Read ONLY the paths recorded at author time. The branch tree is
+            // the whole repository (base_tree), so there is nothing to discover here —
+            // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
+            const priorFiles = prior?.tests.length
+              ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
+              : null;
+            const decision = decideRerun(
+              prior,
+              fingerprint,
+              Boolean(priorFiles && priorFiles.length),
+            );
+            if (decision.action === 'reuse' && priorFiles) {
+              reused = {
+                files: priorFiles,
+                testPr: { number: existingPr.number, url: existingPr.url },
+                sourceCoverage: priorCoverage,
+              };
+              rerunNote = decision.reason;
+            } else {
+              rerunNote = `re-authoring: ${decision.reason}`;
+            }
           }
         }
       } catch (err) {
@@ -1432,6 +1674,18 @@ export async function runPurser(
     }
 
     if (reused) {
+      const inheritedPartialReason =
+        reused.sourceCoverage?.status === 'partial'
+          ? 'The reused Purser contract records partial source coverage; no new model review ran'
+          : null;
+      if (inheritedPartialReason) {
+        await transcript.step(
+          'purser-context-partial',
+          ship.name,
+          `pd-${ship.name}: reused contract source coverage is partial — required check cannot report a complete review`,
+          { reason: inheritedPartialReason, source: 'reused-contract-receipt' },
+        );
+      }
       await transcript.step(
         'purser-rerun',
         ship.name,
@@ -1455,7 +1709,11 @@ export async function runPurser(
         runId,
         verifiedReuse,
         assertCurrentHead,
-        reviewCoverage,
+        purserReviewCoverage(
+          prCtx,
+          [],
+          inheritedPartialReason,
+        ),
       );
     }
 
@@ -1509,15 +1767,18 @@ export async function runPurser(
     };
 
     // --- a. STEEL-MAN -------------------------------------------------------
+    // The projection above was hypothetical while probing reuse. It becomes
+    // run evidence only now that fresh authoring has actually been selected.
+    await recordSourceProjection(steelProjection);
     const steelCall = await purserAiCall(
       ship,
       env,
-      steelManSystemPrompt(ship, graftText),
-      prBlock(prCtx),
+      steelSystem,
+      steelProjection.text,
       STEELMAN_MAX_TOKENS,
       metrics,
       aiCircuit,
-      undefined,
+      ship.cfPlanModel,
       assertCurrentHead,
       capture,
       'steelman',
@@ -1591,11 +1852,20 @@ export async function runPurser(
     // --- b. PLAN TESTS ------------------------------------------------------
     // One small-JSON call names the files; the contents come one call each,
     // below. See purser-authoring.ts for why this is split.
+    const planSystem = testPlanSystemPrompt(ship, steel, graftText);
+    const planModel = ship.cfPlanModel ?? ship.cfModel;
+    const planProjection = prBlock(prCtx, {
+      phase: 'PLAN',
+      model: planModel,
+      system: planSystem,
+      maxTokens: PLAN_MAX_TOKENS,
+    });
+    await recordSourceProjection(planProjection);
     const planCall = await purserAiCall(
       ship,
       env,
-      testPlanSystemPrompt(ship, steel, graftText),
-      prBlock(prCtx),
+      planSystem,
+      planProjection.text,
       PLAN_MAX_TOKENS,
       metrics,
       aiCircuit,
@@ -1709,11 +1979,26 @@ export async function runPurser(
       const authorAdmission = { error: null as ContextAdmissionError | null };
       const authored = await authorTestFiles(plan, (path, intent) =>
         contextAdmissionAwareAuthorCall(authorAdmission, async () => {
+          const authorSystem = fileAuthorSystemPrompt(
+            ship,
+            steel,
+            { path, intent },
+            graftText,
+            authoringEvidence!,
+          );
+          const authorModel = ship.cfAuthorModel ?? ship.cfModel;
+          const authorProjection = prBlock(prCtx, {
+            phase: 'AUTHOR',
+            model: authorModel,
+            system: authorSystem,
+            maxTokens: TESTS_MAX_TOKENS,
+          });
+          await recordSourceProjection(authorProjection);
           const call = await purserAiCall(
             ship,
             env,
-            fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText, authoringEvidence!),
-            prBlock(prCtx),
+            authorSystem,
+            authorProjection.text,
             TESTS_MAX_TOKENS,
             metrics,
             aiCircuit,
@@ -1759,18 +2044,26 @@ export async function runPurser(
           [planned],
           (path, intent) =>
             contextAdmissionAwareAuthorCall(rescueAdmission, async () => {
+              const rescueSystem = fileAuthorSystemPrompt(
+                ship,
+                steel,
+                { path, intent },
+                graftText,
+                authoringEvidence ?? evidence!,
+                initialFailure.reason,
+              );
+              const rescueProjection = prBlock(prCtx, {
+                phase: 'AUTHOR-REPAIR',
+                model: REPAIR_ESCALATION_MODEL,
+                system: rescueSystem,
+                maxTokens: TESTS_MAX_TOKENS,
+              });
+              await recordSourceProjection(rescueProjection);
               const call = await purserAiCall(
                 ship,
                 env,
-                fileAuthorSystemPrompt(
-                  ship,
-                  steel,
-                  { path, intent },
-                  graftText,
-                  authoringEvidence ?? evidence!,
-                  initialFailure.reason,
-                ),
-                prBlock(prCtx),
+                rescueSystem,
+                rescueProjection.text,
                 TESTS_MAX_TOKENS,
                 metrics,
                 aiCircuit,
@@ -2388,7 +2681,8 @@ export async function runPurser(
         baseBranch,
         `purser: adversarial tests for #${prCtx.prNumber}`,
         `${buildTestPrBody(prCtx, steel, files)}\n\n` +
-          `${encodeFingerprint(withAuthoredTests(fingerprint, files.map(f => f.path)))}`,
+          `${encodeFingerprint(withAuthoredTests(fingerprint, files.map(f => f.path)))}\n` +
+          `${encodeSourceCoverageReceipt(currentReviewCoverage())}`,
         ['purser', 'adversarial-tests'],
         token,
         assertCurrentHead,
@@ -2547,7 +2841,14 @@ export async function runPurser(
         });
       }
     }
-    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [], ...reviewCoverage };
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict,
+      errored: false,
+      findings: [],
+      ...currentReviewCoverage(),
+    };
   } catch (err) {
     if (err instanceof PullRequestHeadValidationError) throw err;
     if (err instanceof ContextAdmissionError) {

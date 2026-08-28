@@ -275,6 +275,33 @@ describe('parseSteelMan — extraction tolerance (2026-08-04: 1416 chars discard
 });
 
 describe('runPurser — steel-man failure modes', () => {
+  const seedExistingSuite = (
+    diff: string,
+    testPath: string,
+    receipt: string | null,
+    number: number,
+  ) => {
+    const branch = 'purser/pr-7-tests';
+    const fingerprint = withAuthoredTests(fingerprintDiff(diff), [testPath]);
+    (state.openPRs as Array<Record<string, unknown>>).push({
+      number,
+      title: 'purser: adversarial tests for #7',
+      head: { ref: branch },
+      base: { ref: 'main' },
+      html_url: `https://github.com/test/pr/${number}`,
+      body: [encodeFingerprint(fingerprint), receipt].filter(Boolean).join('\n'),
+    });
+    state.files.set(
+      `${branch}:${testPath}`,
+      "describe('existing contract', () => { it('runs', () => expect(true).toBe(true)); });",
+    );
+    state.files.set(
+      'BASESHA:jest.config.js',
+      readFileSync(new URL('../../../jest.config.js', import.meta.url), 'utf8'),
+    );
+    state.gitRefs.set(branch, 'existing-contract');
+  };
+
   it('projects oversized PR metadata explicitly while every dispatched request remains admitted', async () => {
     const responses = [STEELMAN_JSON, TESTS_JSON];
     const run = vi.fn(async (
@@ -299,6 +326,7 @@ describe('runPurser — steel-man failure modes', () => {
 
     expect(result.errored).toBe(false);
     expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls[0][0]).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     const firstRequest = run.mock.calls[0][1] as {
       messages: Array<{ role: string; content: string }>;
       max_tokens: number;
@@ -324,26 +352,353 @@ describe('runPurser — steel-man failure modes', () => {
     }
   });
 
-  it('marks Purser’s own diff projection partial instead of returning a clean fleet result', async () => {
-    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
-    const rec = recorder();
+  it('routes the exact 40186 > 30208 STEEL-MAN witness through the input-heavy model and keeps the full #9948-class diff', async () => {
+    const shipModel = '@cf/qwen/qwen3-30b-a3b-fp8';
+    const planModel = '@cf/zai-org/glm-4.7-flash';
+    const productionWitness = assessContextAdmission(
+      shipModel,
+      [
+        { role: 'system', content: 's'.repeat(13_818) },
+        { role: 'user', content: 'u'.repeat(26_336) },
+      ],
+      2_048,
+    );
+    expect(productionWitness).toMatchObject({
+      estimatedInputTokens: 40_186,
+      inputBudgetTokens: 30_208,
+      accepted: false,
+    });
+
+    const responses = [STEELMAN_JSON, TESTS_JSON];
+    const run = vi.fn(async (
+      _model: string,
+      _request: { messages: Array<{ role: string; content: string }>; max_tokens: number },
+    ) => ({ response: responses[run.mock.calls.length - 1] ?? '' }));
+    const fullDiffTail = '+FULL-DIFF-TAIL-MUST-REACH-STEELMAN';
+    const fullDiff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      `${'+reviewed-source\n'.repeat(1_930)}${fullDiffTail}`;
+    expect(Buffer.byteLength(fullDiff, 'utf8')).toBeGreaterThan(32_900);
+
     const result = await runPurser(
-      mkShip(),
-      mkCtx({
-        diff:
-          'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
-          '+reviewed-prefix\n'.repeat(2_000),
+      mkShip({
+        blocking: true,
+        prompt: 'input-heavy contract evidence '.repeat(500),
+        cfPlanModel: planModel,
       }),
+      mkCtx({
+        title: 'T'.repeat(68),
+        body: 'B'.repeat(2_048),
+        diff: fullDiff,
+      }),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      recorder().transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ errored: false });
+    expect(result.reviewCoverage).toBeUndefined();
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls.map(call => call[0])).toEqual([planModel, planModel]);
+    const steelRequest = run.mock.calls[0][1] as {
+      messages: Array<{ role: string; content: string }>;
+      max_tokens: number;
+    };
+    const steelUser = steelRequest.messages.find(message => message.role === 'user')!.content;
+    expect(steelUser).toContain(fullDiffTail);
+    expect(steelUser).not.toContain('[Diff projection for STEEL-MAN:');
+    expect(
+      assessContextAdmission(planModel, steelRequest.messages, steelRequest.max_tokens).accepted,
+    ).toBe(true);
+    expect(
+      assessContextAdmission(shipModel, steelRequest.messages, steelRequest.max_tokens).accepted,
+    ).toBe(false);
+  });
+
+  it('selects a deterministic admitted UTF-8 diff prefix, receipts every omitted byte, and stays neutral', async () => {
+    const fullDiffTail = '+OMITTED-DIFF-TAIL-MUST-NOT-REACH-THE-MODEL';
+    const diff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      `${'+reviewed-prefix-😀\n'.repeat(2_000)}${fullDiffTail}`;
+
+    const runOnce = async () => {
+      state = freshState();
+      installGitHubFetch(state);
+      const responses = [STEELMAN_JSON, TESTS_JSON];
+      const run = vi.fn(async (
+        _model: string,
+        _request: { messages: Array<{ role: string; content: string }>; max_tokens: number },
+      ) => ({ response: responses[run.mock.calls.length - 1] ?? '' }));
+      const rec = recorder();
+      const result = await runPurser(
+        mkShip(),
+        mkCtx({ diff }),
+        makeEnv({ AI: { run } as unknown as Ai }),
+        'tok',
+        rec.transcript,
+        freshMetrics(),
+      );
+      return { result, run, rec };
+    };
+
+    const first = await runOnce();
+    const second = await runOnce();
+    const firstRequest = first.run.mock.calls[0][1] as {
+      messages: Array<{ role: string; content: string }>;
+      max_tokens: number;
+    };
+    const secondRequest = second.run.mock.calls[0][1] as typeof firstRequest;
+    const firstUser = firstRequest.messages.find(message => message.role === 'user')!.content;
+    const secondUser = secondRequest.messages.find(message => message.role === 'user')!.content;
+    const receipt = /showing first (\d+) of (\d+) UTF-8 bytes; (\d+) byte\(s\) omitted/.exec(firstUser);
+
+    expect(firstUser).toBe(secondUser);
+    expect(firstUser).not.toContain(fullDiffTail);
+    expect(receipt).not.toBeNull();
+    const displayedBytes = Number(receipt![1]);
+    const totalBytes = Number(receipt![2]);
+    const omittedBytes = Number(receipt![3]);
+    expect(totalBytes).toBe(Buffer.byteLength(diff, 'utf8'));
+    expect(displayedBytes + omittedBytes).toBe(totalBytes);
+
+    for (const current of [first, second]) {
+      expect(current.result).toMatchObject({ errored: false, reviewCoverage: 'partial' });
+      expect(current.result.reviewCoverageReason).toContain(`${displayedBytes} of ${totalBytes}`);
+      expect(aggregateConclusion([current.result])).toBe('neutral');
+      expect(current.rec.steps).toContainEqual(expect.objectContaining({
+        kind: 'purser-context-partial',
+        detail: expect.objectContaining({ displayedBytes, totalBytes, omittedBytes }),
+      }));
+      for (const [model, request] of current.run.mock.calls) {
+        const aiRequest = request as typeof firstRequest;
+        expect(
+          assessContextAdmission(String(model), aiRequest.messages, aiRequest.max_tokens).accepted,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('re-authors a small exact-fingerprint suite when its source-coverage receipt is missing', async () => {
+    const testPath = 'tests/unit/purser/legacy-source-coverage.test.ts';
+    const diff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      '+legacy-reviewed-source\n'.repeat(12);
+    expect(diff.length).toBeLessThan(24_000);
+    seedExistingSuite(diff, testPath, null, 8_669);
+
+    const freshTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: testPath,
+          contents: "describe('complete contract', () => { it('runs', () => expect(true).toBe(true)); });",
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const responses = [STEELMAN_JSON, freshTests];
+    const run = vi.fn(async (
+      _model: string,
+      _request: { messages: Array<{ role: string; content: string }>; max_tokens: number },
+    ) => ({ response: responses[run.mock.calls.length - 1] ?? '' }));
+
+    const result = await runPurser(
+      mkShip({ blocking: true, cfPlanModel: '@cf/zai-org/glm-4.7-flash' }),
+      mkCtx({ diff }),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      recorder().transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ errored: false });
+    expect(result.reviewCoverage).toBeUndefined();
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(state.refUpdates).toBe(1);
+    expect(state.prPatches).toContainEqual(expect.objectContaining({
+      number: 8_669,
+      body: expect.stringContaining('purser-source-coverage: {"version":1,"status":"complete"}'),
+    }));
+  });
+
+  it.each([
+    [
+      'malformed',
+      '<!-- purser-source-coverage: {"version":1,"status":"complete" -->',
+    ],
+    [
+      'duplicated and ambiguous',
+      '<!-- purser-source-coverage: {"version":1,"status":"complete"} -->\n' +
+        '<!-- purser-source-coverage: {"version":1,"status":"partial"} -->',
+    ],
+  ])('re-authors an exact-fingerprint suite when its source-coverage receipt is %s', async (_case, receipt) => {
+    const testPath = 'tests/unit/purser/malformed-source-coverage.test.ts';
+    const diff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      '+small-reviewed-source\n'.repeat(10);
+    seedExistingSuite(
+      diff,
+      testPath,
+      receipt,
+      8_670,
+    );
+    const freshTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: testPath,
+          contents: "describe('receipted contract', () => { it('runs', () => expect(true).toBe(true)); });",
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, freshTests]);
+
+    const result = await runPurser(
+      mkShip({ blocking: true, cfPlanModel: '@cf/zai-org/glm-4.7-flash' }),
+      mkCtx({ diff }),
       makeEnv({ AI: ai }),
+      'tok',
+      recorder().transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ errored: false });
+    expect(result.reviewCoverage).toBeUndefined();
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(2);
+    expect(state.refUpdates).toBe(1);
+    expect(state.prPatches).toContainEqual(expect.objectContaining({
+      number: 8_670,
+      body: expect.stringContaining('purser-source-coverage: {"version":1,"status":"complete"}'),
+    }));
+  });
+
+  it('reuses a complete receipted suite with zero AI calls even when the current model would project source', async () => {
+    const testPath = 'tests/unit/purser/reused-complete-source.test.ts';
+    const diff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      '+already-reviewed-source\n'.repeat(1_800);
+    const shipModel = '@cf/qwen/qwen3-30b-a3b-fp8';
+    expect(
+      assessContextAdmission(
+        shipModel,
+        [
+          { role: 'system', content: '' },
+          { role: 'user', content: diff },
+        ],
+        2_048,
+      ).accepted,
+    ).toBe(false);
+
+    seedExistingSuite(
+      diff,
+      testPath,
+      '<!-- purser-source-coverage: {"version":1,"status":"complete"} -->',
+      8_670,
+    );
+    const run = vi.fn();
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, cfModel: shipModel }),
+      mkCtx({ diff }),
+      makeEnv({ AI: { run } as unknown as Ai, SANDBOX: sandboxStub(0) }),
       'tok',
       rec.transcript,
       freshMetrics(),
     );
 
-    expect(result).toMatchObject({ errored: false, reviewCoverage: 'partial' });
-    expect(result.reviewCoverageReason).toContain('first 24000 characters');
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect(result.reviewCoverage).toBeUndefined();
+    expect(aggregateConclusion([result])).toBe('success');
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'purser-rerun',
+      title: expect.stringContaining('0 AI calls'),
+    }));
+    expect(rec.steps.filter(step => step.kind === 'purser-context-partial')).toHaveLength(0);
+  });
+
+  it('reuses a valid partial receipt without AI calls and keeps the required check neutral', async () => {
+    const testPath = 'tests/unit/purser/reused-partial-source.test.ts';
+    const diff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      '+already-reviewed-prefix\n'.repeat(1_800);
+    seedExistingSuite(
+      diff,
+      testPath,
+      '<!-- purser-source-coverage: {"version":1,"status":"partial"} -->',
+      8_671,
+    );
+    const run = vi.fn();
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx({ diff }),
+      makeEnv({ AI: { run } as unknown as Ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false, reviewCoverage: 'partial' });
+    expect(result.reviewCoverageReason).toContain('reused Purser contract records partial');
     expect(aggregateConclusion([result])).toBe('neutral');
-    expect(rec.steps).toContainEqual(expect.objectContaining({ kind: 'purser-context-partial' }));
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'purser-context-partial',
+      detail: expect.objectContaining({ source: 'reused-contract-receipt' }),
+    }));
+  });
+
+  it('re-authors a partial receipt when the current input-heavy model can cover the complete diff', async () => {
+    const testPath = 'tests/unit/purser/upgraded-complete-source.test.ts';
+    const planModel = '@cf/zai-org/glm-4.7-flash';
+    const diff =
+      'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+      '+previously-projected-source\n'.repeat(1_800);
+    seedExistingSuite(
+      diff,
+      testPath,
+      '<!-- purser-source-coverage: {"version":1,"status":"partial"} -->',
+      8_672,
+    );
+    const freshTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: testPath,
+          contents: "describe('upgraded contract', () => { it('runs', () => expect(true).toBe(true)); });",
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const responses = [STEELMAN_JSON, freshTests];
+    const run = vi.fn(async (
+      _model: string,
+      _request: { messages: Array<{ role: string; content: string }>; max_tokens: number },
+    ) => ({ response: responses[run.mock.calls.length - 1] ?? '' }));
+
+    const result = await runPurser(
+      mkShip({ blocking: true, cfPlanModel: planModel }),
+      mkCtx({ diff }),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      recorder().transcript,
+      freshMetrics(),
+    );
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls.map(call => call[0])).toEqual([planModel, planModel]);
+    expect(result).toMatchObject({ errored: false });
+    expect(result.reviewCoverage).toBeUndefined();
+    expect(state.refUpdates).toBe(1);
+    expect(state.prPatches).toContainEqual(expect.objectContaining({
+      number: 8_672,
+      body: expect.stringContaining('purser-source-coverage: {"version":1,"status":"complete"}'),
+    }));
   });
 
   it('does not reuse a prefix-only Purser fingerprint after GitHub truncates the raw diff', async () => {
@@ -1990,7 +2345,9 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       head: { ref: branch },
       base: { ref: 'main' },
       html_url: 'https://github.com/test/pr/8669',
-      body: encodeFingerprint(fingerprint),
+      body:
+        `${encodeFingerprint(fingerprint)}\n` +
+        '<!-- purser-source-coverage: {"version":1,"status":"complete"} -->',
     });
     state.files.set(
       `${branch}:${testPath}`,
