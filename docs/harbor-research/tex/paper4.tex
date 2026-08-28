@@ -484,6 +484,13 @@ lemmas once, for all depths and all secrets. We flag the lift as the program's s
 folding a half-finished mechanization into it; the finite result plus mutation suite is what the lift will certify at scale, not a
 substitute for it.
 
+One target-property precision the lift must get right from the start: Rushby's own soundness result for these unwinding
+conditions is with respect to Haigh--Young intransitive purge, but van der Meyden shows the conditions are sound \emph{and
+complete} for the strictly stronger TA-security property instead --- which additionally preserves the \emph{order} of
+permitted transmissions, not just which actions survive intransitive purging \cite{vdm07}. Discharging the three lemmas
+therefore certifies TA-security, not the weaker purge-based notion; the lift should state its target as TA-security explicitly
+rather than assume the weaker property falls out for free.
+
 \section{Related work, and what is actually new}\label{sec:related}
 
 \textbf{Imported.} Noninterference and its unwinding proof technique are Goguen--Meseguer
@@ -564,6 +571,8 @@ canary-stripping boundary experiment). Pillar II's classification table regenera
 \emph{Proc.\ IEEE Symposium on Security and Privacy}, 1984.
 \bibitem{rushby} J.~Rushby. Noninterference, transitivity, and channel-control security policies.
 Technical Report CSL-92-02, SRI International, December 1992.
+\bibitem{vdm07} R.~van der Meyden. What, indeed, is intransitive noninterference? (extended abstract). In
+\emph{Proc.\ European Symposium on Research in Computer Security (ESORICS)}, LNCS 4734, pages 235--250, 2007.
 \bibitem{ramadge-wonham} P.~J. Ramadge and W.~M. Wonham. Supervisory control of a class of discrete
 event processes. \emph{SIAM Journal on Control and Optimization}, 25(1):206--230, 1987.
 \bibitem{lin-wonham} F.~Lin and W.~M. Wonham. On observability of discrete-event systems.
