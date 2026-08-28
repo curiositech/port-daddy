@@ -20,6 +20,23 @@ function claim(sessionId, filePath, opts = {}) {
     endLine: opts.endLine ?? null,
     symbol: null,
     symbolPath: opts.symbolPath ?? null,
+    repoId: opts.repoId ?? null,
+    worldKind: opts.worldKind ?? null,
+    worldId: opts.worldId ?? null,
+  };
+}
+
+function makeSymbolIndex(edges) {
+  return {
+    getDependents(filePath, symbolPath) {
+      return edges
+        .filter((edge) => edge.targetFile === filePath && edge.targetSymbol === (symbolPath ?? null))
+        .map((edge) => ({
+          sourceFile: edge.sourceFile,
+          sourceSymbol: edge.sourceSymbol,
+          dependencyType: edge.dependencyType,
+        }));
+    },
   };
 }
 
@@ -271,24 +288,104 @@ describe('runClaimTreeTroubleScan', () => {
   });
   afterEach(() => db.close());
 
+  function sessionsWith(claims) {
+    return { listAllActiveClaims: () => ({ success: true, claims, count: claims.length }) };
+  }
+
   test('delivers one COORDINATE state and Mermaid ego graph to each live claimant', () => {
     const claims = [
-      { ...claim('s1', 'lib/x.ts', { agentId: 'agent-1' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
-      { ...claim('s2', 'lib/x.ts', { agentId: 'agent-2' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+      claim('s1', 'lib/x.ts', { agentId: 'agent-1', repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' }),
+      claim('s2', 'lib/x.ts', { agentId: 'agent-2', repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' }),
     ];
-    const result = runClaimTreeTroubleScan({ sessions: { listAllActiveClaims: () => ({ success: true, claims, count: 2 }) }, suggestions, inbox });
+    const result = runClaimTreeTroubleScan({ sessions: sessionsWith(claims), suggestions, inbox });
     expect(result).toMatchObject({ pairs: 1, surfaced: 2, delivered: 2 });
-    expect(sent.map(item => item.content.state)).toEqual(['COORDINATE', 'COORDINATE']);
+    expect(sent.map((item) => item.content.state)).toEqual(['COORDINATE', 'COORDINATE']);
     expect(sent[0].content.mermaid).toContain('flowchart LR');
     expect(sent[0].content.mermaid).toContain('COORDINATE');
   });
 
+  test('surfaces WATCH only when a durable dependency graph proves it, and carries claim-forest provenance', () => {
+    const claims = [
+      claim('s1', 'lib/x.ts', {
+        agentId: 'agent-1',
+        symbolPath: 'Alpha.one',
+        repoId: 'port-daddy',
+        worldKind: 'worktree',
+        worldId: 'wt-a',
+      }),
+      claim('s2', 'lib/x.ts', {
+        agentId: 'agent-2',
+        symbolPath: 'Beta.two',
+        repoId: 'port-daddy',
+        worldKind: 'worktree',
+        worldId: 'wt-a',
+      }),
+    ];
+    const symbolIndex = makeSymbolIndex([
+      {
+        targetFile: 'lib/x.ts',
+        targetSymbol: 'Alpha.one',
+        sourceFile: 'lib/x.ts',
+        sourceSymbol: 'Beta.two',
+        dependencyType: 'calls',
+      },
+    ]);
+    const result = runClaimTreeTroubleScan({ sessions: sessionsWith(claims), suggestions, inbox, symbolIndex });
+    expect(result).toMatchObject({ pairs: 1, surfaced: 2, suppressed: 0, delivered: 2 });
+    const agent1Suggestions = suggestions.list({ agentId: 'agent-1' });
+    const agent2Suggestions = suggestions.list({ agentId: 'agent-2' });
+    expect(agent1Suggestions).toHaveLength(1);
+    expect(agent2Suggestions).toHaveLength(1);
+    expect(agent1Suggestions[0].payload).toMatchObject({
+      state: 'WATCH',
+      evidence: {
+        sourceComplete: true,
+        worldComparable: true,
+        counterpartActive: true,
+        claimFresh: true,
+        directOverlap: false,
+        precisionKnown: true,
+        dependencyReachable: true,
+        provenance: {
+          source: 'claim-forest',
+          self: { repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+          other: { repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+        },
+      },
+    });
+    expect(sent).toHaveLength(2);
+    expect(sent.every((item) => item.content.state === 'WATCH')).toBe(true);
+  });
+
+  test('stays fail-closed when the dependency graph is unavailable', () => {
+    const claims = [
+      claim('s1', 'lib/x.ts', {
+        agentId: 'agent-1',
+        symbolPath: 'Alpha.one',
+        repoId: 'port-daddy',
+        worldKind: 'worktree',
+        worldId: 'wt-a',
+      }),
+      claim('s2', 'lib/x.ts', {
+        agentId: 'agent-2',
+        symbolPath: 'Beta.two',
+        repoId: 'port-daddy',
+        worldKind: 'worktree',
+        worldId: 'wt-a',
+      }),
+    ];
+    const result = runClaimTreeTroubleScan({ sessions: sessionsWith(claims), suggestions, inbox });
+    expect(result).toMatchObject({ pairs: 1, surfaced: 0, suppressed: 0, delivered: 0 });
+    expect(suggestions.list({ agentId: 'agent-1' })).toHaveLength(0);
+    expect(sent).toHaveLength(0);
+  });
+
   test('does not notify when precise claims share a file but do not collide', () => {
     const claims = [
-      { ...claim('s1', 'lib/x.ts', { agentId: 'agent-1', symbolPath: 'A.one' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
-      { ...claim('s2', 'lib/x.ts', { agentId: 'agent-2', symbolPath: 'A.two' }), repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' },
+      { ...claim('s1', 'lib/x.ts', { agentId: 'agent-1', symbolPath: 'A.one', repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' }) },
+      { ...claim('s2', 'lib/x.ts', { agentId: 'agent-2', symbolPath: 'A.two', repoId: 'port-daddy', worldKind: 'worktree', worldId: 'wt-a' }) },
     ];
-    const result = runClaimTreeTroubleScan({ sessions: { listAllActiveClaims: () => ({ success: true, claims, count: 2 }) }, suggestions, inbox });
+    const result = runClaimTreeTroubleScan({ sessions: sessionsWith(claims), suggestions, inbox });
     expect(result).toMatchObject({ pairs: 1, surfaced: 0, delivered: 0 });
   });
 });
