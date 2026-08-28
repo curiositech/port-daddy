@@ -115,6 +115,7 @@ import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
+import { createParleyStore } from './lib/parley-store.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
@@ -702,9 +703,21 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
 });
 // The local daemon is one tenant. CAP0 owns any future authenticated tenant
 // binding; request data must never choose this STORE0 authority.
+const parleyStore = createParleyStore({ db, tenantId: 'local-daemon' });
+if (parleyStore.legacyMigration && !parleyStore.legacyMigration.replayed) {
+  logger.info('parley_legacy_tuple_migration_completed', {
+    migrationVersion: parleyStore.legacyMigration.migrationVersion,
+    sourceDigest: parleyStore.legacyMigration.sourceDigest,
+    sourceTupleRows: parleyStore.legacyMigration.sourceTupleRows,
+    importedRecords: parleyStore.legacyMigration.importedRecords,
+    importedTurns: parleyStore.legacyMigration.importedTurns,
+    importedSeenReceipts: parleyStore.legacyMigration.importedSeenReceipts,
+    importedSeenProvenance: parleyStore.legacyMigration.importedSeenProvenance,
+    importedOutcomes: parleyStore.legacyMigration.importedOutcomes,
+  });
+}
 const parley = createParley({
-  db,
-  tenantId: 'local-daemon',
+  store: parleyStore,
   agentInbox,
   notificationRecovery: {},
 });
