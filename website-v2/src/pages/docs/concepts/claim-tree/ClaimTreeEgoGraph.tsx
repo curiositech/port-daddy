@@ -1,59 +1,262 @@
-const stateColors = {
-  VERIFY: 'var(--brand-accent)',
-  RESCUE: 'var(--warning)',
-  COORDINATE: 'var(--error)',
-  INSPECT: 'var(--brand-accent)',
-  RECONCILE: 'var(--warning)',
-  WATCH: 'var(--success)',
-  PROCEED: 'var(--success)',
-} as const
+import { useEffect, useMemo, useState } from 'react'
+import { Mermaid } from '@/components/ui/Mermaid'
+import { cn } from '@/lib/utils'
+import {
+  renderClaimTreeTroubleMermaid,
+  type ClaimTreeTroubleState,
+} from '../../../../../../lib/claim-tree-trouble'
+
+export interface ClaimTreeTroubleStateMeta {
+  state: ClaimTreeTroubleState
+  label: string
+  reason: string
+  action: string
+  color: string
+}
+
+export const CLAIM_TREE_TROUBLE_STATES: readonly ClaimTreeTroubleStateMeta[] = [
+  {
+    state: 'VERIFY',
+    label: 'Verify provenance',
+    reason: 'claim provenance is incomplete or names different worlds',
+    action: 'refresh the claim tree and compare the intended merge world before editing',
+    color: '#2563EB',
+  },
+  {
+    state: 'RESCUE',
+    label: 'Rescue stale claim',
+    reason: 'the counterpart claim is no longer backed by a live session',
+    action: 'inspect salvage or handoff evidence before reclaiming the surface',
+    color: '#D97706',
+  },
+  {
+    state: 'COORDINATE',
+    label: 'Coordinate overlap',
+    reason: 'two live sessions claim the same declared surface',
+    action: 'open a parley, hand off, or split the surface before proceeding',
+    color: '#C026D3',
+  },
+  {
+    state: 'INSPECT',
+    label: 'Inspect precision',
+    reason: 'the shared surface lacks symbol or complete range precision',
+    action: 'resolve symbols or ranges, then re-scan before editing',
+    color: '#0891B2',
+  },
+  {
+    state: 'RECONCILE',
+    label: 'Reconcile freshness',
+    reason: 'the claim tree is older than its freshness boundary',
+    action: 'refresh provenance and reconcile the claim with current work',
+    color: '#0F766E',
+  },
+  {
+    state: 'WATCH',
+    label: 'Watch dependency',
+    reason: 'a dependency connects otherwise separate claimed surfaces',
+    action: 'proceed with a narrow change and watch the dependent surface',
+    color: '#EA580C',
+  },
+  {
+    state: 'PROCEED',
+    label: 'Proceed',
+    reason: 'no trouble is visible in the supplied evidence',
+    action: 'proceed, keeping the claim current',
+    color: '#334155',
+  },
+] as const
+
+const TROUBLE_STATE_MAP: Record<ClaimTreeTroubleState, ClaimTreeTroubleStateMeta> =
+  Object.fromEntries(CLAIM_TREE_TROUBLE_STATES.map((state) => [state.state, state])) as Record<
+    ClaimTreeTroubleState,
+    ClaimTreeTroubleStateMeta
+  >
+
+const DEFAULT_STATE: ClaimTreeTroubleState = 'COORDINATE'
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReduced(media.matches)
+
+    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches)
+    if (media.addEventListener) {
+      media.addEventListener('change', onChange)
+      return () => media.removeEventListener('change', onChange)
+    }
+    media.addListener(onChange)
+    return () => media.removeListener(onChange)
+  }, [])
+
+  return reduced
+}
+
+function stateClassName(state: ClaimTreeTroubleState) {
+  return `claimtreeState${state[0]}${state.slice(1).toLowerCase()}`
+}
+
+function buildTroubleMermaid(state: ClaimTreeTroubleState) {
+  const meta = TROUBLE_STATE_MAP[state]
+  return [
+    renderClaimTreeTroubleMermaid({
+      filePath: 'lib/auth.ts',
+      selfSessionId: 'session-you',
+      otherSessionId: 'session-other',
+      state,
+    }),
+    'classDef claimtreeActor fill:var(--surface-base),stroke:var(--border-strong),stroke-width:2px,color:var(--text-primary);',
+    'classDef claimtreeSurface fill:var(--surface-raised),stroke:var(--border-strong),stroke-width:2px,color:var(--text-primary);',
+    `classDef ${stateClassName(state)} fill:${meta.color},stroke:${meta.color},stroke-width:3px,color:#ffffff;`,
+    'class YOU claimtreeActor;',
+    'class OTHER claimtreeActor;',
+    'class FILE claimtreeSurface;',
+    `class STATE ${stateClassName(state)};`,
+    'linkStyle 0 stroke:var(--border-soft),stroke-width:2px;',
+    'linkStyle 1 stroke:var(--border-soft),stroke-width:2px;',
+    `linkStyle 2 stroke:${meta.color},stroke-width:2.5px;`,
+  ].join('\n')
+}
 
 /**
- * A deliberately bounded projection: the viewer sees their claim, the one
- * counterpart, the shared surface, and the classifier state. It is the same
- * ego graph delivered to agents as Mermaid, given a human-operable face.
+ * Interactive claim-tree trouble visualizer.
+ *
+ * The Mermaid graph stays intentionally bounded: one shared file, two claims,
+ * one current state. The state legend and inspection panel make the reason and
+ * next action explicit without turning the graph into a scoreboard.
  */
 export function ClaimTreeEgoGraph() {
-  const state = 'COORDINATE' as const
-  const color = stateColors[state]
+  const reducedMotion = usePrefersReducedMotion()
+  const [selectedState, setSelectedState] = useState<ClaimTreeTroubleState>(DEFAULT_STATE)
+  const selected = TROUBLE_STATE_MAP[selectedState]
+
+  const chart = useMemo(() => buildTroubleMermaid(selectedState), [selectedState])
+
   return (
-    <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 sm:p-6">
-      <svg viewBox="0 0 760 290" className="h-auto w-full" role="img" aria-labelledby="ego-title ego-desc">
-        <title id="ego-title">Claim-tree trouble ego graph</title>
-        <desc id="ego-desc">Your claim and another agent's claim converge on one file, producing a coordinate action.</desc>
-        <defs>
-          <linearGradient id="ego-beam" x1="0" x2="1">
-            <stop offset="0" stopColor="var(--brand-accent)" />
-            <stop offset="1" stopColor={color} />
-          </linearGradient>
-          <filter id="ego-glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="7" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-        <path d="M185 78 C300 78 322 126 380 145" fill="none" stroke="url(#ego-beam)" strokeWidth="5" opacity=".9" />
-        <path d="M575 214 C476 214 448 169 380 145" fill="none" stroke={color} strokeWidth="5" opacity=".85" />
-        <circle cx="380" cy="145" r="82" fill="var(--surface-base)" stroke={color} strokeWidth="4" filter="url(#ego-glow)" />
-        <circle cx="380" cy="145" r="62" fill="none" stroke="var(--border-strong)" strokeWidth="1.5" strokeDasharray="4 6" />
-        <g transform="translate(35 35)">
-          <rect width="190" height="85" rx="12" fill="var(--surface-base)" stroke="var(--brand-accent)" strokeWidth="3" />
-          <text x="18" y="32" fill="var(--brand-accent)" fontSize="13" fontWeight="700" letterSpacing="1.6">YOU</text>
-          <text x="18" y="58" fill="var(--text-primary)" fontSize="17" fontWeight="700">session-you</text>
-          <text x="18" y="76" fill="var(--text-muted)" fontSize="12">claims this surface</text>
-        </g>
-        <g transform="translate(535 170)">
-          <rect width="190" height="85" rx="12" fill="var(--surface-base)" stroke={color} strokeWidth="3" />
-          <text x="18" y="32" fill={color} fontSize="13" fontWeight="700" letterSpacing="1.6">COUNTERPART</text>
-          <text x="18" y="58" fill="var(--text-primary)" fontSize="17" fontWeight="700">session-other</text>
-          <text x="18" y="76" fill="var(--text-muted)" fontSize="12">also claims it</text>
-        </g>
-        <text x="380" y="134" textAnchor="middle" fill="var(--text-muted)" fontSize="11" fontWeight="700" letterSpacing="1.4">SHARED SURFACE</text>
-        <text x="380" y="155" textAnchor="middle" fill="var(--text-primary)" fontSize="15" fontWeight="700">lib/auth.ts</text>
-        <text x="380" y="173" textAnchor="middle" fill={color} fontSize="13" fontWeight="800">{state}</text>
-      </svg>
-      <figcaption className="mt-4 flex flex-col gap-2 border-t border-[var(--border-soft)] pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-mono font-semibold" style={{ color }}>{state}</span>
-        <span className="text-[var(--text-secondary)]">Open a parley, hand off, or split the surface before proceeding.</span>
+    <figure
+      data-testid="claimtree-trouble-viz"
+      data-motion={reducedMotion ? 'reduced' : 'full'}
+      data-selected-state={selectedState}
+      className="space-y-4"
+    >
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.8fr)]">
+        <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-3 sm:p-4">
+          <Mermaid
+            chart={chart}
+            className="my-0 border-0 bg-transparent p-0 shadow-none"
+          />
+        </div>
+
+        <aside className="space-y-4 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 sm:p-5">
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  State legend
+                </div>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Hover, focus, or click a state to change the inspection.
+                </p>
+              </div>
+              <span className="font-mono text-xs uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                Ordered by precedence
+              </span>
+            </div>
+
+            <div className="grid gap-2">
+              {CLAIM_TREE_TROUBLE_STATES.map((meta) => {
+                const active = selectedState === meta.state
+                return (
+                  <button
+                    key={meta.state}
+                    type="button"
+                    aria-pressed={active}
+                    aria-label={`${meta.state}: ${meta.label}. ${meta.action}`}
+                    onMouseEnter={() => setSelectedState(meta.state)}
+                    onFocus={() => setSelectedState(meta.state)}
+                    onClick={() => setSelectedState(meta.state)}
+                    className={cn(
+                      'group flex w-full items-start gap-3 border-2 px-3 py-3 text-left',
+                      reducedMotion
+                        ? 'transition-none'
+                        : 'transition-[background-color,border-color,box-shadow,transform] duration-200',
+                      active
+                        ? 'border-[var(--text-primary)] bg-[var(--surface-base)]'
+                        : 'border-[var(--border-soft)] bg-[var(--surface-base)] hover:bg-[var(--surface-hover)]',
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-1 h-3 w-3 shrink-0 border border-[var(--border-strong)]"
+                      style={{ backgroundColor: meta.color }}
+                    />
+                    <span className="min-w-0 space-y-1">
+                      <span className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">
+                          {meta.state}
+                        </span>
+                        {active ? (
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                            selected
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="block text-sm font-semibold text-[var(--text-primary)]">
+                        {meta.label}
+                      </span>
+                      <span className="block text-sm leading-relaxed text-[var(--text-secondary)]">
+                        {meta.action}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <section
+            role="status"
+            aria-live="polite"
+            className="border-2 border-[var(--border-soft)] bg-[var(--surface-base)] p-4"
+          >
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="h-3 w-3 shrink-0 border border-[var(--border-strong)]"
+                style={{ backgroundColor: selected.color }}
+              />
+              <div className="space-y-1">
+                <div className="font-mono text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                  Inspection
+                </div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                  {selected.label}
+                </h3>
+              </div>
+            </div>
+
+            <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text-primary)]">Why it appears:</span>{' '}
+              {selected.reason}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text-primary)]">Action:</span>{' '}
+              {selected.action}
+            </p>
+            <div className="mt-4 border-t border-[var(--border-soft)] pt-3 text-sm text-[var(--text-muted)]">
+              Earlier states dominate later evidence. The Mermaid node and inspector
+              stay in sync.
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <figcaption className="border-t border-[var(--border-soft)] pt-3 text-sm text-[var(--text-secondary)]">
+        Color is semantic only. The state label, reason, and next action stay
+        visible together, and reduced motion keeps the swap instant.
       </figcaption>
     </figure>
   )
