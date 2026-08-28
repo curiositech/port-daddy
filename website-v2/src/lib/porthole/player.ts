@@ -126,6 +126,7 @@ export class PortholePlayer {
   private raf = 0;
   private wrapUser: boolean | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(root: HTMLElement, opts: PortholePlayerOptions = {}) {
     this.root = root;
@@ -235,9 +236,10 @@ export class PortholePlayer {
         .join("\n");
       void navigator.clipboard.writeText(text).then(() => this.toast("full transcript copied"));
     });
-    new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       if (this.cast) this.autoWrap();
-    }).observe(this.term);
+    });
+    this.resizeObserver.observe(this.term);
   }
 
   private toast(msg: string): void {
@@ -552,5 +554,7 @@ export class PortholePlayer {
   destroy(): void {
     this.pause();
     clearTimeout(this.toastTimer);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 }

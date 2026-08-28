@@ -19,6 +19,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { JSDOM } from "jsdom";
 import { parseCast, VT, lineText } from "../src/lib/porthole/vt.ts";
 import {
   findCollisionRefusalFailures,
@@ -30,6 +31,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CASTS_DIR = join(__dirname, "..", "public", "casts", "porthole");
+const GALLERY_PATH = join(__dirname, "..", "..", "docs", "artifacts", "porthole-harness-proof-v2", "harness-proof-current.html");
 
 /** A flat theme is enough here — the gate cares about TEXT content, never
  *  about which color a cell landed in, so real token names are unneeded. */
@@ -53,6 +55,99 @@ const failures = [];
 const fail = (msg) => failures.push(msg);
 const decodedByFile = new Map();
 const observedByFile = new Map();
+
+/**
+ * Loads the committed, self-contained gallery in a browser-like DOM and
+ * checks the lifecycle boundary a viewer actually exercises: changing scenes
+ * destroys the prior player before it mounts the next one.  A string check
+ * would not catch a retained-but-never-disconnected observer, so the test
+ * replaces the platform observer with a counter and drives five real tab
+ * clicks through the embedded client bundle.
+ */
+async function checkGalleryResizeObserverLifecycle() {
+  if (!existsSync(GALLERY_PATH)) {
+    fail("harness-proof-current.html: missing committed gallery lifecycle witness");
+    return;
+  }
+
+  const observers = [];
+  const galleryCast = `${JSON.stringify({ version: 2, width: 100, height: 28, timestamp: 0 })}\n${JSON.stringify([0.1, "o", "gallery lifecycle witness\\r\\n"])}\n`;
+  const dom = new JSDOM(readFileSync(GALLERY_PATH, "utf8"), {
+    runScripts: "dangerously",
+    pretendToBeVisual: true,
+    url: "https://porthole.test/harness-proof-current.html",
+    beforeParse(window) {
+      class CountingResizeObserver {
+        disconnectCount = 0;
+        constructor() {
+          observers.push(this);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {
+          this.disconnectCount += 1;
+        }
+      }
+
+      window.ResizeObserver = CountingResizeObserver;
+      window.matchMedia = () => ({
+        matches: true,
+        media: "(prefers-reduced-motion: reduce)",
+        onchange: null,
+        addEventListener() {},
+        removeEventListener() {},
+        addListener() {},
+        removeListener() {},
+        dispatchEvent() { return false; },
+      });
+      window.URL.createObjectURL = () => `blob:porthole-test-${observers.length}`;
+      window.URL.revokeObjectURL = () => {};
+      window.fetch = async () => ({
+        ok: true,
+        status: 200,
+        text: async () => galleryCast,
+      });
+      Object.defineProperty(window.navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async () => {} },
+      });
+    },
+  });
+
+  try {
+    // `activate(0)` is intentionally fire-and-forget in the real gallery.
+    // Let that initial async cast load finish before we begin exercising the
+    // same public scene-switch path; otherwise a closing JSDOM can make an
+    // in-flight, already-replaced player look like a gallery failure.
+    const settle = () => new Promise((resolve) => dom.window.setTimeout(resolve, 0));
+    await settle();
+    const sceneIds = ["harness-next-turn", "collision", "visibility", "ports", "parley"];
+    for (const [index, id] of sceneIds.entries()) {
+      const button = dom.window.document.querySelector(`#scene-tab-${id}`);
+      if (!(button instanceof dom.window.HTMLButtonElement)) {
+        fail(`harness-proof-current.html: scene tab ${id} is missing from the executable gallery`);
+        return;
+      }
+      button.click();
+      await settle();
+      if (button.getAttribute("aria-selected") !== "true") {
+        fail(`harness-proof-current.html: scene tab ${id} did not become active`);
+      }
+      if (observers.length !== index + 2) {
+        fail(`harness-proof-current.html: scene switch ${id} created ${observers.length} ResizeObserver instances; expected ${index + 2}`);
+      }
+    }
+
+    const disconnects = observers.reduce((count, observer) => count + observer.disconnectCount, 0);
+    if (observers.length !== 6 || disconnects !== 5) {
+      fail(`harness-proof-current.html: five scene switches must create 6 observers and disconnect the 5 retired players (created=${observers.length}, disconnected=${disconnects})`);
+    } else {
+      console.log("[check-porthole-casts] gallery lifecycle clean — 6 ResizeObserver instances created; 5 retired players disconnected.");
+    }
+  } finally {
+    dom.window.close();
+  }
+}
 
 if (!existsSync(CASTS_DIR)) {
   console.log("[check-porthole-casts] no porthole casts directory yet — nothing to gate.");
@@ -159,6 +254,8 @@ if (decodedByFile.has('parley.cast') && !decodedByFile.has('parley-source.cast')
 }
 
 for (const failure of findJoinOnlyCastClaims(observedByFile)) fail(failure);
+
+await checkGalleryResizeObserverLifecycle();
 
 if (failures.length) {
   console.error(`[check-porthole-casts] ${failures.length} finding(s) in ${files.length} porthole cast(s):`);
