@@ -2056,7 +2056,9 @@ export async function executeFleet(
   // constructing any checkpoint binding, then hand this same immutable string
   // to both the binding and runShip. A changed GitHub projection invalidates
   // Lookout; an unchanged projection can resume and let a one-ship slice move
-  // monotonically to the next ship.
+  // monotonically to the next ship. Both projection helpers are deliberately
+  // best-effort and resolve to [] on HTTP or transport failure, so the frozen
+  // value remains an exact empty projection instead of aborting the review.
   let frozenLookoutProjection = '';
   if (orderedShips.some(ship => ship.name === 'lookout')) {
     const [openPullRequests, recentBranches] = await Promise.all([

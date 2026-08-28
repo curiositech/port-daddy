@@ -1649,6 +1649,51 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('freezes an exact empty Lookout projection when both GitHub context reads reject', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const installedFetch = globalThis.fetch;
+    const rejectedProjectionUrls: string[] = [];
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (/\/pulls\?/.test(url) || /\/branches\?/.test(url)) {
+        rejectedProjectionUrls.push(url);
+        throw new Error('Lookout context transport unavailable');
+      }
+      return installedFetch(input, init);
+    });
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: { lookout: CONTRACT_MINIMAL_PASS },
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    )).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['code-reviewer', 'qa'],
+    });
+
+    expect(rejectedProjectionUrls).toHaveLength(2);
+    expect(rejectedProjectionUrls.some(url => /\/pulls\?/.test(url))).toBe(true);
+    expect(rejectedProjectionUrls.some(url => /\/branches\?/.test(url))).toBe(true);
+    const lookoutPrompt = ai.calls
+      .find(call => call.ship === 'lookout')
+      ?.messages.map(message => message.content).join('\n') ?? '';
+    expect(lookoutPrompt).not.toContain('## Fleet context');
+    const lookoutCheckpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'lookout',
+    );
+    expect(JSON.parse(String(lookoutCheckpoint?.detail)).checkpointBinding).toEqual(
+      await checkpointBindingForYaml(LOOKOUT_THEN_REVIEWER_QA_YAML, 'lookout', null, '', '', ''),
+    );
+  });
+
   it('keeps stable nonempty mediator orders resumable across one-ship slices', async () => {
     state.files.set('main:pd-fleet.yml', MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML);
     state.openPRs = [
