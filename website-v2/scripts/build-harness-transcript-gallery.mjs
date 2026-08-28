@@ -41,11 +41,11 @@ const scenes = [
     authority: 'Real tmux PTYs · real linked worktrees · daemon-backed lock',
   },
   {
-    id: 'visibility', label: 'Ninety quiet seconds stay ninety real seconds', station: 'Broken watch',
+    id: 'visibility', label: 'A real quiet interval stays on the clock', station: 'Broken watch',
     locus: 'Turn harvest → elapsed silence → digest', format: 'tmux · 2 agents · jump cut',
-    seed: 'Two agents publish durable notes, then genuinely wait ninety seconds before returning to coordination state.',
+    seed: 'Two agents publish durable notes, then genuinely wait through a substantial quiet interval before returning to coordination state.',
     intervention: 'Nothing is typed during the wait. Porthole preserves source time, compresses only the silent display interval, and marks the discontinuity with a broken axis and exact clock endpoints.',
-    proof: 'The before/after date commands differ by more than ninety seconds. Source duration remains 112 seconds even though replay duration is compact.',
+    proof: 'The before/after date commands differ by more than eighty seconds. Source duration remains 112 seconds even though replay duration is compact.',
     authority: 'Real wall clock · no narration comments · no omitted terminal output',
   },
   {
