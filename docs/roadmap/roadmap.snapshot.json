@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 310,
+  "count": 311,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1478,6 +1478,11 @@
       "slug": "state-plane-s1-daemon-plane-identity",
       "status": "backlog",
       "summaryMd": "S1 — Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
+    },
+    {
+      "slug": "sugar-first-parley-experience",
+      "status": "now",
+      "summaryMd": "Sugar-first Parley: turn ordinary agent work into semantically and structurally grounded, bounded coordination cards with explicit human actions, hook context, and typed settlement receipts."
     },
     {
       "slug": "suggest-b1-1-suggestions-table",
