@@ -175,7 +175,7 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
   pages: 272,
-  sizeKb: 2296,
+  sizeKb: 2266,
   references: 202,
 }
 
@@ -824,7 +824,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
     pages: 52,
-    sizeKb: 913,
+    sizeKb: 883,
     status: 'Version 2.7 (revised pre-print)',
     order: '06',
     chapter: 'VI',

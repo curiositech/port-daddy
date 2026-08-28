@@ -51,7 +51,14 @@ PAPER = "#FBF7EF"
 
 plt.rcParams.update({
     "font.family": "serif",
-    "font.serif": ["Palatino", "Charter", "Georgia", "DejaVu Serif"],
+    "font.serif": ["Palatino"],
+    "mathtext.fontset": "custom",
+    "mathtext.rm": "Palatino",
+    "mathtext.it": "Palatino:italic",
+    "mathtext.bf": "Palatino:bold",
+    "mathtext.sf": "Palatino",
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
     "font.size": 11,
     "axes.titlesize": 13,
     "axes.titleweight": "bold",
@@ -415,7 +422,7 @@ def fig_cartel_folk(out: Path) -> None:
     ax.plot(pds, mean_lifespan, "o-", linewidth=2.4, markersize=6,
             color=TEAL, label="simulation mean")
     ax.plot(pds, expected_lifespan, "--", linewidth=1.8,
-            color=EBONY, label=rf"$\mathbb{{E}}[\min(G,{horizon})]$")
+            color=EBONY, label=rf"$\mathrm{{E}}[\min(G,{horizon})]$")
     ax.axhline(10, color=EBONY, linewidth=0.8, linestyle=":",
                alpha=0.7, label="10-round target")
     ax.set_xscale("log")
