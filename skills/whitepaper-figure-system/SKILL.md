@@ -201,6 +201,10 @@ cannot silently escape semantic review. The supported source subset is deliberat
 closed if a canonical paper introduces another figure-like environment or inclusion directive;
 extend and test the scanner before adopting that construct.
 
+Canonical roots and cross-volume reuse memberships are read directly from the atlas. Membership
+drift is machine-checkable; visual semantic equivalence is not. Inspect every member of a reuse
+contract together on one contact sheet before accepting a shared-figure change.
+
 ## Review gate
 
 - [ ] The figure answers one named reader question.

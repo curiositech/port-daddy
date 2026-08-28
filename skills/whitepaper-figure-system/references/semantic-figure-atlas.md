@@ -217,6 +217,11 @@ If a shared figure changes, inspect every member of its contract in the same con
 local redraw that subtly reverses direction, changes the scale, or drops an assumption is a
 semantic regression.
 
+The coverage checker parses this table and fails when a declared member is absent from either the
+atlas or canonical TeX sources, when a contract has fewer than two members, or when names or
+members are duplicated. It does **not** claim to prove that two renders are semantically equal:
+that remains the same-contact-sheet human review above.
+
 ## Suite-level house style
 
 Coherence does not mean making 81 copies of the same node diagram. The suite should alternate

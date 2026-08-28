@@ -18,6 +18,13 @@ SPEC.loader.exec_module(coverage)
 
 
 class AtlasCoverageTests(unittest.TestCase):
+    @staticmethod
+    def live_atlas(repo_root: Path) -> Path:
+        return (
+            repo_root
+            / "skills/whitepaper-figure-system/references/semantic-figure-atlas.md"
+        )
+
     def test_strip_tex_comments_preserves_escaped_percent(self) -> None:
         source = "value \\% stays % comment goes\n\\label{fig:x}\n"
         self.assertEqual(
@@ -110,33 +117,143 @@ class AtlasCoverageTests(unittest.TestCase):
 
     def test_canonical_root_sets_match_build_and_mega_inputs(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
-        self.assertEqual(coverage.canonical_root_drift(repo_root), [])
+        roots = coverage.extract_atlas_volume_roots(self.live_atlas(repo_root))
+        self.assertEqual(coverage.canonical_root_drift(repo_root, roots), [])
 
     def test_canonical_root_parity_rejects_swapped_volume_mapping(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
-        swapped = dict(coverage.CANONICAL_ROOTS)
+        swapped = coverage.extract_atlas_volume_roots(self.live_atlas(repo_root))
         swapped["I"], swapped["II"] = swapped["II"], swapped["I"]
         drift = coverage.canonical_root_drift(repo_root, swapped)
         self.assertTrue(any(item.startswith("mega-generator:I:") for item in drift))
         self.assertTrue(any(item.startswith("mega-generator:II:") for item in drift))
 
+    def test_atlas_roots_reject_duplicate_or_noncanonical_declarations(self) -> None:
+        canonical = ["I", "II", "III", "IV", "V", "VI", "VII"]
+        unique_paths = [f"paper-{index}.tex" for index in range(7)]
+        cases = {
+            "duplicate-volume": (canonical + ["I"], unique_paths + ["paper-8.tex"]),
+            "wrong-volume-set": (canonical[:-1] + ["VIII"], unique_paths),
+            "duplicate-root-path": (canonical, unique_paths[:-1] + [unique_paths[0]]),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, (volumes, paths) in cases.items():
+                with self.subTest(name=name):
+                    atlas = root / f"{name}.md"
+                    atlas.write_text(
+                        "\n".join(
+                            f"## Volume {volume}: Paper\n\n"
+                            f"Canonical root: `{path}`"
+                            for volume, path in zip(volumes, paths, strict=True)
+                        ),
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(ValueError, "exactly one canonical root"):
+                        coverage.extract_atlas_volume_roots(atlas)
+
+    def test_reuse_contract_parser_rejects_malformed_candidate_row(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            atlas = Path(directory) / "atlas.md"
+            atlas.write_text(
+                "## Cross-volume reuse contracts\n\n"
+                "| Contract | Members | Requirement |\n"
+                "|---|---|---|\n"
+                "| Valid | `I/fig:a`, `II/fig:b` | same relation |\n"
+                "| Malformed | only two fields |\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "expected exactly 3"):
+                coverage.extract_reuse_contracts(atlas)
+
+    def test_reuse_contract_parser_rejects_blank_or_partial_cells(self) -> None:
+        invalid_rows = (
+            "| | `I/fig:a`, `II/fig:b` | same relation |",
+            "| Mixed | `I/fig:a`, `II/fig:b`, bogus-token | same relation |",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, invalid in enumerate(invalid_rows):
+                with self.subTest(invalid=invalid):
+                    atlas = root / f"invalid-{index}.md"
+                    atlas.write_text(
+                        "## Cross-volume reuse contracts\n\n"
+                        "| Contract | Members | Requirement |\n"
+                        "|---|---|---|\n"
+                        f"{invalid}\n",
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(ValueError, "blank|invalid members"):
+                        coverage.extract_reuse_contracts(atlas)
+
+    def test_reuse_contracts_require_live_atlas_and_source_members(self) -> None:
+        contracts = [
+            coverage.ReuseContract(
+                "Shared view", ("I/fig:a", "II/fig:b"), "same typed relation"
+            )
+        ]
+        self.assertEqual(
+            coverage.reuse_contract_issues(
+                contracts,
+                ["I/fig:a", "II/fig:b"],
+                ["I/fig:a", "II/fig:b"],
+            ),
+            [],
+        )
+        self.assertEqual(
+            coverage.reuse_contract_issues(
+                contracts,
+                ["I/fig:a"],
+                ["I/fig:a", "II/fig:b"],
+            ),
+            ["Shared view:member-missing-from-atlas=II/fig:b"],
+        )
+
+    def test_reuse_contracts_reject_same_volume_and_structural_gaps(self) -> None:
+        contracts = [
+            coverage.ReuseContract("Local only", ("I/fig:a", "I/fig:b"), "same"),
+            coverage.ReuseContract("Single", ("II/fig:c",), ""),
+            coverage.ReuseContract(
+                "Duplicate member", ("III/fig:d", "III/fig:d"), "same"
+            ),
+        ]
+        issues = coverage.reuse_contract_issues(
+            contracts,
+            ["I/fig:a", "I/fig:b", "II/fig:c", "III/fig:d"],
+            ["I/fig:a", "I/fig:b", "II/fig:c"],
+        )
+        for expected in (
+            "Local only:not-cross-volume",
+            "Single:fewer-than-two-members",
+            "Single:missing-requirement",
+            "Single:not-cross-volume",
+            "Duplicate member:duplicate-member",
+            "Duplicate member:member-missing-from-source=III/fig:d",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, issues)
+
     def test_live_atlas_covers_all_canonical_sources(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
-        figures = coverage.extract_source_figures(repo_root)
-        atlas = (
-            repo_root
-            / "skills/whitepaper-figure-system/references/semantic-figure-atlas.md"
-        )
+        atlas = self.live_atlas(repo_root)
+        roots = coverage.extract_atlas_volume_roots(atlas)
+        figures = coverage.extract_source_figures(repo_root, roots)
         rows = coverage.extract_atlas_rows(atlas)
         atlas_ids = [row.atlas_id for row in rows]
+        source_ids = [figure.atlas_id for figure in figures]
+        contracts = coverage.extract_reuse_contracts(atlas)
         report = coverage.compare(
             figures,
             atlas_ids,
             atlas_row_issues=coverage.incomplete_atlas_rows(rows),
-            root_drift=coverage.canonical_root_drift(repo_root),
+            root_drift=coverage.canonical_root_drift(repo_root, roots),
+            reuse_issues=coverage.reuse_contract_issues(
+                contracts, atlas_ids, source_ids
+            ),
         )
         self.assertEqual(report["source_count"], 81)
         self.assertEqual(report["atlas_count"], 81)
+        self.assertEqual(len(contracts), 8)
         self.assertTrue(coverage.is_clean(report), report)
 
         for removed in atlas_ids:

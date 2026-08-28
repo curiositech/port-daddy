@@ -12,6 +12,8 @@
   page-fit validation, contact sheets, and no required grayscale artifact.
 - Corrected the read-poverty, abdication, evaluator-recursion, and four-volume coordination-stack
   prescriptions against their exact source claims; hardened activation routing and scan limits.
+- Made atlas-declared canonical roots and reuse groups machine-validated without pretending that
+  source text can prove rendered semantic equivalence.
 
 ## 1.0.0 - 2026-08-27
 

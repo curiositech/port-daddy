@@ -4,8 +4,10 @@ r"""Fail when the seven whitepaper TeX sources and semantic atlas drift.
 The checker deliberately uses source labels rather than printed figure numbers. It follows
 \input and \include directives recursively, extracts every figure/figure* environment, and
 accepts a figure label (fig:...) or algorithm-listing label (alg:...) as its durable identity.
-Other figure-like environments and inclusion directives fail closed until the scanner is
-explicitly extended and tested.
+Canonical roots and cross-volume reuse memberships come from the atlas. Other figure-like
+environments and inclusion directives fail closed until the scanner is explicitly extended and
+tested. Rendered semantic equivalence remains a contact-sheet review because source text cannot
+honestly prove visual equivalence.
 """
 
 from __future__ import annotations
@@ -20,16 +22,6 @@ from pathlib import Path
 from typing import Iterable
 
 
-CANONICAL_ROOTS = {
-    "I": "whitepaper/legible-swarm.tex",
-    "II": "whitepaper/single-writer-kernel.tex",
-    "III": "website-v2/public/whitepaper/spawn-to-person.tex",
-    "IV": "website-v2/public/whitepaper/harbor-economy.tex",
-    "V": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
-    "VI": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-    "VII": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-}
-
 FIGURE_RE = re.compile(
     r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL
 )
@@ -37,6 +29,21 @@ INPUT_RE = re.compile(r"\\(?:input|include)\s*\{([^}]+)\}")
 LABEL_RE = re.compile(r"\\label\s*\{([^}]+)\}")
 LISTING_LABEL_RE = re.compile(r"\blabel\s*=\s*\{((?:fig|alg):[^{}]+)\}")
 ATLAS_ID_RE = re.compile(r"^\|\s*`([IVX]+/(?:fig|alg):[^`]+)`\s*\|", re.MULTILINE)
+ATLAS_VOLUME_ROOT_RE = re.compile(
+    r"^## Volume (?P<roman>[IVX]+):[^\n]*\n+"
+    r"Canonical root: `(?P<root>[^`]+\.tex)`",
+    re.MULTILINE,
+)
+REUSE_SECTION_RE = re.compile(
+    r"^## Cross-volume reuse contracts\s*$\n(?P<body>.*?)(?=^##\s|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+REUSE_MEMBER_RE = re.compile(r"`([IVX]+/(?:fig|alg):[^`]+)`")
+REUSE_MEMBERS_CELL_RE = re.compile(
+    r"`[IVX]+/(?:fig|alg):[^`]+`"
+    r"(?:\s*,\s*`[IVX]+/(?:fig|alg):[^`]+`)*"
+)
+EXPECTED_VOLUMES = {"I", "II", "III", "IV", "V", "VI", "VII"}
 ENVIRONMENT_RE = re.compile(r"\\begin\s*\{([^{}]+)\}")
 UNSUPPORTED_INCLUDE_RE = re.compile(
     r"\\(subfile|import|subimport|inputfrom|subinputfrom|includefrom|subincludefrom)"
@@ -64,6 +71,13 @@ class AtlasRow:
     grammar: str
     must_encode: str
     reject: str
+
+
+@dataclass(frozen=True)
+class ReuseContract:
+    name: str
+    members: tuple[str, ...]
+    requirement: str
 
 
 def strip_tex_comments(text: str) -> str:
@@ -160,9 +174,11 @@ def figure_label(block: str, source: Path) -> str:
     return unique[0]
 
 
-def extract_source_figures(repo_root: Path) -> list[SourceFigure]:
+def extract_source_figures(
+    repo_root: Path, canonical_roots: dict[str, str]
+) -> list[SourceFigure]:
     figures: list[SourceFigure] = []
-    for volume, relative_root in CANONICAL_ROOTS.items():
+    for volume, relative_root in canonical_roots.items():
         root = (repo_root / relative_root).resolve()
         for source, text in walk_tex(root):
             for match in FIGURE_RE.finditer(text):
@@ -197,6 +213,106 @@ def extract_atlas_rows(atlas: Path) -> list[AtlasRow]:
 
 def extract_atlas_ids(atlas: Path) -> list[str]:
     return [row.atlas_id for row in extract_atlas_rows(atlas)]
+
+
+def extract_atlas_volume_roots(atlas: Path) -> dict[str, str]:
+    """Read the seven canonical TeX roots from the human-facing atlas."""
+
+    text = atlas.read_text(encoding="utf-8")
+    matches = list(ATLAS_VOLUME_ROOT_RE.finditer(text))
+    roots = {
+        match.group("roman"): match.group("root")
+        for match in matches
+    }
+    volumes = [match.group("roman") for match in matches]
+    root_paths = [match.group("root") for match in matches]
+    if (
+        len(matches) != 7
+        or set(volumes) != EXPECTED_VOLUMES
+        or len(set(volumes)) != len(volumes)
+        or len(set(root_paths)) != len(root_paths)
+    ):
+        raise ValueError("atlas must declare exactly one canonical root per volume I--VII")
+    return roots
+
+
+def extract_reuse_contracts(atlas: Path) -> list[ReuseContract]:
+    """Parse the structured cross-volume reuse table from the atlas."""
+
+    text = atlas.read_text(encoding="utf-8")
+    section = REUSE_SECTION_RE.search(text)
+    if not section:
+        raise ValueError("atlas is missing the cross-volume reuse contracts section")
+    contracts: list[ReuseContract] = []
+    for line_number, line in enumerate(section.group("body").splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if cells[0] == "Contract" or all(
+            cell and set(cell) <= {"-", ":"} for cell in cells
+        ):
+            continue
+        if len(cells) != 3:
+            raise ValueError(
+                f"reuse contract row {line_number} has {len(cells)} fields; "
+                "expected exactly 3"
+            )
+        name, raw_members, requirement = cells
+        if not name or not requirement:
+            raise ValueError(
+                f"reuse contract row {line_number} has a blank name or requirement"
+            )
+        if not REUSE_MEMBERS_CELL_RE.fullmatch(raw_members):
+            raise ValueError(
+                f"reuse contract row {line_number} has an invalid members cell"
+            )
+        contracts.append(
+            ReuseContract(
+                name=name,
+                members=tuple(REUSE_MEMBER_RE.findall(raw_members)),
+                requirement=requirement,
+            )
+        )
+    if not contracts:
+        raise ValueError("atlas declares no cross-volume reuse contracts")
+    return contracts
+
+
+def reuse_contract_issues(
+    contracts: Iterable[ReuseContract],
+    atlas_ids: Iterable[str],
+    source_ids: Iterable[str],
+) -> list[str]:
+    """Validate reuse membership; rendered equivalence remains a visual audit."""
+
+    atlas_set = set(atlas_ids)
+    source_set = set(source_ids)
+    issues: list[str] = []
+    names: list[str] = []
+    memberships: list[str] = []
+    for contract in contracts:
+        names.append(contract.name)
+        memberships.extend(contract.members)
+        if len(contract.members) < 2:
+            issues.append(f"{contract.name}:fewer-than-two-members")
+        member_volumes = {member.split("/", 1)[0] for member in contract.members}
+        if len(member_volumes) < 2:
+            issues.append(f"{contract.name}:not-cross-volume")
+        if len(set(contract.members)) != len(contract.members):
+            issues.append(f"{contract.name}:duplicate-member")
+        if not contract.requirement:
+            issues.append(f"{contract.name}:missing-requirement")
+        for member in contract.members:
+            if member not in atlas_set:
+                issues.append(f"{contract.name}:member-missing-from-atlas={member}")
+            if member not in source_set:
+                issues.append(f"{contract.name}:member-missing-from-source={member}")
+    for name in duplicates(names):
+        issues.append(f"duplicate-contract-name={name}")
+    for member in duplicates(memberships):
+        issues.append(f"member-in-multiple-contracts={member}")
+    return sorted(issues)
 
 
 def incomplete_atlas_rows(rows: Iterable[AtlasRow]) -> list[str]:
@@ -234,10 +350,9 @@ def canonical_roots_from_mega_generator(repo_root: Path) -> dict[str, str]:
 
 
 def canonical_root_drift(
-    repo_root: Path, expected_roots: dict[str, str] | None = None
+    repo_root: Path, expected_roots: dict[str, str]
 ) -> list[str]:
-    expected_mapping = expected_roots or CANONICAL_ROOTS
-    expected = set(expected_mapping.values())
+    expected = set(expected_roots.values())
     failures: list[str] = []
     build_roots = canonical_roots_from_build_script(repo_root)
     build_missing = sorted(expected - build_roots)
@@ -248,8 +363,8 @@ def canonical_root_drift(
         failures.append(f"build-whitepapers:extra={','.join(build_extra)}")
 
     mega_mapping = canonical_roots_from_mega_generator(repo_root)
-    for volume in sorted(set(expected_mapping) | set(mega_mapping)):
-        expected_source = expected_mapping.get(volume)
+    for volume in sorted(set(expected_roots) | set(mega_mapping)):
+        expected_source = expected_roots.get(volume)
         observed_source = mega_mapping.get(volume)
         if expected_source != observed_source:
             failures.append(
@@ -269,6 +384,7 @@ def compare(
     *,
     atlas_row_issues: list[str] | None = None,
     root_drift: list[str] | None = None,
+    reuse_issues: list[str] | None = None,
 ) -> dict[str, object]:
     source_ids = [figure.atlas_id for figure in source_figures]
     source_set = set(source_ids)
@@ -282,6 +398,7 @@ def compare(
         "duplicate_atlas_ids": duplicates(atlas_ids),
         "incomplete_atlas_rows": sorted(atlas_row_issues or []),
         "canonical_root_drift": sorted(root_drift or []),
+        "reuse_contract_issues": sorted(reuse_issues or []),
     }
 
 
@@ -295,6 +412,7 @@ def is_clean(report: dict[str, object]) -> bool:
             "duplicate_atlas_ids",
             "incomplete_atlas_rows",
             "canonical_root_drift",
+            "reuse_contract_issues",
         )
     ) and report["source_count"] == report["atlas_count"]
 
@@ -326,14 +444,18 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     try:
-        source_figures = extract_source_figures(repo_root)
+        canonical_roots = extract_atlas_volume_roots(atlas)
+        source_figures = extract_source_figures(repo_root, canonical_roots)
         atlas_rows = extract_atlas_rows(atlas)
         atlas_ids = [row.atlas_id for row in atlas_rows]
+        source_ids = [figure.atlas_id for figure in source_figures]
+        contracts = extract_reuse_contracts(atlas)
         report = compare(
             source_figures,
             atlas_ids,
             atlas_row_issues=incomplete_atlas_rows(atlas_rows),
-            root_drift=canonical_root_drift(repo_root),
+            root_drift=canonical_root_drift(repo_root, canonical_roots),
+            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids),
         )
     except (FileNotFoundError, OSError, ValueError) as error:
         if args.as_json:
@@ -359,6 +481,7 @@ def main(argv: list[str] | None = None) -> int:
             "duplicate_atlas_ids",
             "incomplete_atlas_rows",
             "canonical_root_drift",
+            "reuse_contract_issues",
         ):
             values = report[key]
             if values:
@@ -366,7 +489,8 @@ def main(argv: list[str] | None = None) -> int:
                 for value in values:
                     print(f"  - {value}", file=sys.stderr)
         print(
-            f"source_count={report['source_count']} atlas_count={report['atlas_count']}",
+            f"source_count={report['source_count']} "
+            f"atlas_count={report['atlas_count']}",
             file=sys.stderr,
         )
     return 0 if report["ok"] else 1
