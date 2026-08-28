@@ -35,6 +35,7 @@ import {
   assessStaleVersions,
   remediationCardsFromProbe,
   transparentHookInventory,
+  HOOK_BINARY_FOR_PURPOSE,
   isOfficialAgentNode,
   firstOfficialAgentNode,
   computeFirstValue,
@@ -299,6 +300,13 @@ describe('per-area judgments', () => {
 });
 
 describe('transparent hook inventory (ch18 output)', () => {
+  test('pre-compact has its stable binary mapping before the adapter publishes its metadata', () => {
+    // #9915 adds `preCompact` to SquidHookPurpose. Keep this forward-compatible
+    // seam explicit so metadata expansion cannot yield an undefined binary in
+    // the operator's setup/doctor inventory.
+    expect(HOOK_BINARY_FOR_PURPOSE.preCompact).toBe('pd-hook-precompact');
+  });
+
   test('every installed hook has a name, description, privacy note, and binary', () => {
     const inventory = transparentHookInventory();
     expect(inventory.map((h) => h.hookBinary).sort()).toEqual([
