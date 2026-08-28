@@ -466,12 +466,26 @@ export function shouldShowSugarParleyExperience(
     && environment.PD_EMIT_EXPORTS !== '1';
 }
 
-async function postSugarParleyAction(
+/**
+ * Submit one interactive Sugar Parley action and return its typed receipt.
+ *
+ * Purpose: a failed product receipt can explain a bounded coordination refusal
+ * safely, whereas transport failures retain their existing generic path. Keep
+ * that distinction visible to an ordinary terminal without changing JSON or
+ * non-interactive control flow, which never invokes this prompt action.
+ *
+ * @param path Sugar Parley action route selected from the bounded card.
+ * @param body Canonical action payload sent to that route.
+ * @param fetcher Request implementation, injectable only for focused CLI tests.
+ * @returns The accepted receipt, or null after reporting the failed action.
+ */
+export async function postSugarParleyAction(
   path: string,
   body: Record<string, unknown>,
+  fetcher: typeof pdFetch = pdFetch,
 ): Promise<Record<string, unknown> | null> {
   try {
-    const response = await pdFetch(path, {
+    const response = await fetcher(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -480,7 +494,12 @@ async function postSugarParleyAction(
     });
     const result: Record<string, unknown> = await response.json().catch(() => ({} as Record<string, unknown>));
     if (!response.ok || result.success !== true) {
-      ui.warn(String(result.error || 'The coordination action was not accepted.'));
+      const reason = typeof result.reason === 'string' && result.reason.trim()
+        ? result.reason.trim()
+        : typeof result.error === 'string' && result.error.trim()
+          ? result.error.trim()
+          : 'The coordination action was not accepted.';
+      ui.warn(reason);
       return null;
     }
     return result;

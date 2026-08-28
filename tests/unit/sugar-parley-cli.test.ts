@@ -12,6 +12,7 @@ const {
   fetchSugarParleyCard,
   fetchHelpfulPeerSuggestions,
   credentialForBegunSugarContext,
+  postSugarParleyAction,
   SUGAR_PARLEY_CARD_TIMEOUT_MS,
   shouldShowSugarParleyExperience,
 } = await import('../../cli/commands/sugar.js');
@@ -87,6 +88,54 @@ afterEach(() => {
     else process.env[key] = value;
   }
   restoreTerminalFds();
+});
+
+describe('Sugar Parley action failure receipts', () => {
+  test('reports a non-2xx product receipt reason before its generic error', async () => {
+    const output = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const fetcher = jest.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({
+        success: false,
+        reason: 'The bounded Parley could not be admitted because canonical storage rejected the record.',
+        error: 'The coordination action was not accepted.',
+      }),
+    }));
+
+    try {
+      await expect(postSugarParleyAction('/sugar/parley/resolve-together', {
+        sessionId: 'session-source',
+        signalId: 'parley-signal:v1:test',
+      }, fetcher as any)).resolves.toBeNull();
+
+      expect(output).toHaveBeenCalledWith(
+        'WARN: The bounded Parley could not be admitted because canonical storage rejected the record.',
+      );
+    } finally {
+      output.mockRestore();
+    }
+  });
+
+  test('falls back to a generic receipt error when a failed response has no reason', async () => {
+    const output = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const fetcher = jest.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({ success: false, error: 'The coordination action was not accepted.' }),
+    }));
+
+    try {
+      await expect(postSugarParleyAction('/sugar/parley/resolve-together', {
+        sessionId: 'session-source',
+        signalId: 'parley-signal:v1:test',
+      }, fetcher as any)).resolves.toBeNull();
+
+      expect(output).toHaveBeenCalledWith('WARN: The coordination action was not accepted.');
+    } finally {
+      output.mockRestore();
+    }
+  });
 });
 
 describe('pd begin Sugar Parley arrival enrichment', () => {
