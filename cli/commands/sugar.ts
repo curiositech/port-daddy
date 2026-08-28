@@ -26,6 +26,8 @@ import { initDatabase } from '../../lib/db.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { checkAndCompleteDispatch } from '../../lib/dispatch/auto-merge.js';
 import { DEFAULT_SEMANTIC_REVIEW_THRESHOLD } from '../../lib/semantic-resolver.js';
+import type { SugarParleyCard } from '../../lib/sugar-parley.js';
+import { renderSugarParleyCard } from '../utils/sugar-parley-card.js';
 
 type BeginLifecycle = 'durable' | 'ephemeral';
 
@@ -382,6 +384,227 @@ async function showHelpfulSuggestions(purpose: string, currentAgentId: string | 
   }
 }
 
+/** The arrival card is optional enrichment and must never delay `pd begin`. */
+export const SUGAR_PARLEY_CARD_TIMEOUT_MS = 150;
+
+interface SugarParleyCardResponse {
+  success?: unknown;
+  state?: unknown;
+  card?: unknown;
+}
+
+function isSugarParleyCard(value: unknown): value is SugarParleyCard {
+  return Boolean(value)
+    && typeof value === 'object'
+    && (value as { kind?: unknown }).kind === 'sugar_parley_card'
+    && typeof (value as { signalId?: unknown }).signalId === 'string';
+}
+
+/**
+ * Read the server-derived coordination card after the successful Sugar begin
+ * has persisted the new actor credential. This is intentionally bounded and
+ * fail-open: a resolver or daemon delay never changes the already-successful
+ * session-creation result, and the client never synthesizes an overlap itself.
+ */
+export async function fetchSugarParleyCard(
+  agentId: string | undefined,
+  sessionId: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<SugarParleyCard | null> {
+  if (!agentId || !sessionId) return null;
+  const credential = resolveCliActorCredential(agentId);
+  if (!credential) return null;
+  const controller = new AbortController();
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const params = new URLSearchParams({ sessionId });
+    const request = fetcher(`/sugar/parley-card?${params.toString()}`, {
+      headers: { 'x-actor-credential': credential },
+      timeout: SUGAR_PARLEY_CARD_TIMEOUT_MS,
+      retry: false,
+      signal: controller.signal,
+    });
+    const response = await Promise.race([
+      request,
+      new Promise<null>((resolveDeadline) => {
+        deadline = setTimeout(() => {
+          controller.abort();
+          resolveDeadline(null);
+        }, SUGAR_PARLEY_CARD_TIMEOUT_MS);
+      }),
+    ]);
+    if (!response || !response.ok) return null;
+    const body = await response.json() as SugarParleyCardResponse;
+    return body.success === true && body.state === 'ready' && isSugarParleyCard(body.card)
+      ? body.card
+      : null;
+  } catch {
+    return null;
+  } finally {
+    if (deadline) clearTimeout(deadline);
+  }
+}
+
+/**
+ * Keep the established machine-oriented begin contracts entirely free of an
+ * arrival card. The optional card belongs only to an ordinary capable human
+ * terminal; it must not leak into JSON, quiet, eval/export, or explicitly
+ * non-interactive invocations. A NO_COLOR terminal remains interactive and
+ * receives the same bounded card in its ANSI-free linework form.
+ */
+export function shouldShowSugarParleyExperience(
+  options: CLIOptions,
+  interactive: boolean = canPrompt(),
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return interactive
+    && !isJson(options)
+    && !isQuiet(options)
+    && environment.PORT_DADDY_NON_INTERACTIVE === undefined
+    && environment.PD_EMIT_EXPORTS !== '1';
+}
+
+async function postSugarParleyAction(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await pdFetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      timeout: 3_000,
+      retry: false,
+    });
+    const result: Record<string, unknown> = await response.json().catch(() => ({} as Record<string, unknown>));
+    if (!response.ok || result.success !== true) {
+      ui.warn(String(result.error || 'The coordination action was not accepted.'));
+      return null;
+    }
+    return result;
+  } catch (error) {
+    ui.warn(`The coordination action could not reach the daemon: ${(error as Error).message}`);
+    return null;
+  }
+}
+
+async function offerSettlement(
+  sessionId: string,
+  parleyId: string,
+): Promise<void> {
+  const summary = await promptText({
+    label: 'What did you settle?',
+    hint: 'A concise shared decision',
+    required: true,
+  });
+  if (!summary) return;
+  const nextStep = await promptText({
+    label: 'What is the next bounded step?',
+    hint: 'A concrete next action for both plans',
+    required: true,
+  });
+  if (!nextStep) return;
+  const receipt = await postSugarParleyAction('/sugar/parley/settle', {
+    sessionId,
+    parleyId,
+    summary,
+    nextStep,
+  });
+  if (!receipt) return;
+  const state = String(receipt.state || 'recorded');
+  if (state === 'awaiting-peer') {
+    console.error('  Settlement acknowledgement recorded. The other party must acknowledge the same receipt.');
+    return;
+  }
+  console.error(`  Settlement ${state}: claims and plans were updated through the typed receipt.`);
+}
+
+async function offerBoundedParleyNextStep(
+  sessionId: string,
+  parleyId: string,
+): Promise<void> {
+  const next = await promptSelect({
+    label: 'Bounded Parley next step',
+    choices: [
+      { value: 'message', label: 'Send a message', hint: 'Share natural-language context with the other party' },
+      { value: 'settle', label: 'Record a typed settlement', hint: 'Acknowledge the shared decision and update its effects' },
+      { value: 'later', label: 'Return to work', hint: 'Keep the bounded Parley available for a later turn' },
+    ],
+    default: 'message',
+  });
+  if (next === 'message') {
+    const message = await promptText({ label: 'Message for the other party', required: true });
+    if (!message) return;
+    const receipt = await postSugarParleyAction('/sugar/parley/message', {
+      sessionId,
+      parleyId,
+      message,
+    });
+    if (receipt) console.error('  Message delivered to the bounded Parley.');
+    return;
+  }
+  if (next === 'settle') await offerSettlement(sessionId, parleyId);
+}
+
+/**
+ * Present the normal Sugar-first action card only when the terminal can safely
+ * prompt. JSON, quiet, exports, pipes, and explicit noninteractive modes
+ * retain their exact deterministic begin surfaces; NO_COLOR gets the plain
+ * renderer rather than losing the coordination affordance.
+ */
+export async function showSugarParleyExperience(
+  agentId: string | undefined,
+  sessionId: string | undefined,
+  options: CLIOptions,
+): Promise<void> {
+  if (!agentId || !sessionId || !shouldShowSugarParleyExperience(options)) return;
+  const card = await fetchSugarParleyCard(agentId, sessionId);
+  if (!card) return;
+  console.error(`\n${renderSugarParleyCard(card, {
+    width: process.stderr.columns,
+    colorLevel: ui.lineworkColorLevel('stderr'),
+  })}\n`);
+  const selected = await promptSelect({
+    label: 'Coordination action',
+    choices: card.actions.map((action) => ({
+      value: action.id,
+      label: action.label,
+      hint: action.enabled ? undefined : (action.reason || 'Unavailable for this bounded card'),
+    })),
+  });
+  if (!selected) return;
+  const action = card.actions.find((candidate) => candidate.id === selected);
+  if (!action?.enabled) {
+    ui.warn(action?.reason || 'That coordination action is unavailable for this card.');
+    return;
+  }
+  const base = { sessionId, signalId: card.signalId };
+  if (selected === 'work-separately') {
+    const receipt = await postSugarParleyAction('/sugar/parley/work-separately', base);
+    if (receipt) console.error('  Work-separately decision recorded with its evidence.');
+    return;
+  }
+  if (selected === 'send-note') {
+    const message = await promptText({ label: 'Note for the matched peer', required: true });
+    if (!message) return;
+    const receipt = await postSugarParleyAction('/sugar/parley/note', { ...base, message });
+    if (receipt) console.error('  Attributed coordination note delivered.');
+    return;
+  }
+  const receipt = await postSugarParleyAction('/sugar/parley/resolve-together', base);
+  if (!receipt) return;
+  const parleyId = typeof receipt.parleyId === 'string' ? receipt.parleyId : null;
+  const hookContext = receipt.hookContext as { message?: unknown } | undefined;
+  if (!parleyId) {
+    ui.warn(String(receipt.reason || 'The bounded Parley was not admitted.'));
+    return;
+  }
+  console.error(`  ${typeof hookContext?.message === 'string'
+    ? hookContext.message
+    : 'A bounded Parley is active for this shared surface.'}`);
+  await offerBoundedParleyNextStep(sessionId, parleyId);
+}
+
 async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
   try {
     const res = await pdFetch(`${PORT_DADDY_URL}/sugar/welcome?harbor=${encodeURIComponent(harbor || '')}`);
@@ -451,6 +674,23 @@ export function shouldRunBeginWizard(
     options.name,
   ].some((value) => value !== undefined);
   return purpose === undefined && interactive && !hasScopingArgs;
+}
+
+/**
+ * Preserve the credential that authenticated a successful repeated begin.
+ * Generated Sugar display handles can change between sessions for one minted
+ * actor, so resolving it after the context is overwritten by the new handle
+ * would discard the very credential needed to fetch the normal coordination
+ * card.
+ */
+export function credentialForBegunSugarContext(
+  mintedCredential: unknown,
+  carriedCredential: string | undefined,
+): string | null {
+  if (typeof mintedCredential === 'string' && mintedCredential.trim()) return mintedCredential;
+  return typeof carriedCredential === 'string' && carriedCredential.trim()
+    ? carriedCredential
+    : null;
 }
 
 export async function handleBegin(
@@ -564,6 +804,10 @@ export async function handleBegin(
   }
   attachCliSessionWorktreePolicy(body, worktreePolicy);
 
+  // Capture before the request updates the display agent/session context. The
+  // central fetch layer will present this same credential to a repeated begin;
+  // retaining it afterward keeps the derived card and its actions attributed.
+  const carriedCredential = resolveCliActorCredential();
   const res: PdFetchResponse = await pdFetch('/sugar/begin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -588,9 +832,7 @@ export async function handleBegin(
     purpose,
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
-    credential: typeof data.credential === 'string' && data.credential
-      ? data.credential
-      : (process.env.PD_ACTOR_CREDENTIAL?.trim() || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim() || null),
+    credential: credentialForBegunSugarContext(data.credential, carriedCredential),
   });
 
   if (isJson(options)) {
@@ -680,6 +922,11 @@ export async function handleBegin(
       footer: 'claim files next with pd session files add <path>',
       colorLevel: ui.lineworkColorLevel('stderr'),
     }));
+    await showSugarParleyExperience(
+      data.agentId as string | undefined,
+      data.sessionId as string | undefined,
+      options,
+    );
     await showHelpfulSuggestions(purpose, data.agentId as string | undefined);
     return;
   }
@@ -720,6 +967,11 @@ export async function handleBegin(
     console.error('');
     ui.warn(String(data.approvalsHint));
   }
+  await showSugarParleyExperience(
+    data.agentId as string | undefined,
+    data.sessionId as string | undefined,
+    options,
+  );
   await showHelpfulSuggestions(purpose, data.agentId as string | undefined);
 }
 

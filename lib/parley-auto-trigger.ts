@@ -40,6 +40,13 @@ export type ParleyAutoTriggerState =
 
 export interface ParleyAutoTriggerContext {
   readonly harbor: string;
+  /**
+   * A server-derived, one-evaluation delivery binding. It is for a caller
+   * that already proved the exact live sessions behind a signal (such as a
+   * Sugar card); it may refine the daemon's default live-party projection but
+   * can never add a party absent from the signal.
+   */
+  readonly resolveLiveParty?: (claimedActorId: string) => ParleyParticipant | null;
 }
 
 export interface ParleyAutoTriggerResult {
@@ -189,13 +196,16 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
     };
   }
 
-  function resolveParties(signal: ConflictSignal): ParleyParticipant[] | null {
+  function resolveParties(
+    signal: ConflictSignal,
+    resolveLiveParty: (claimedActorId: string) => ParleyParticipant | null = deps.resolveLiveParty,
+  ): ParleyParticipant[] | null {
     const resolved: ParleyParticipant[] = [];
     const inboxTargets = new Set<string>();
     const sessionIds = new Set<string>();
     for (const party of signal.parties) {
       const claimed = party.trim();
-      const live = deps.resolveLiveParty(claimed);
+      const live = resolveLiveParty(claimed);
       if (!live
         || typeof live.actorId !== 'string'
         || live.actorId.trim() !== claimed
@@ -277,7 +287,7 @@ export function createParleyAutoTrigger(deps: ParleyAutoTriggerDeps) {
         }), signalId, lineageKey, decision);
       }
 
-      const participants = resolveParties(effective);
+      const participants = resolveParties(effective, context.resolveLiveParty ?? deps.resolveLiveParty);
       if (!participants) {
         const reason = 'automatic Parley requires at least two distinct live daemon agent identities';
         return project(deps.parley.admitAutomatic({

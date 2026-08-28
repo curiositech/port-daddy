@@ -253,6 +253,18 @@ export interface AddTurnInput {
   idempotencyKey: string;
   intentFingerprint: string;
   notifications: (turnSequence: number, at: number) => ParleyNotificationIntent[];
+  /**
+   * Narrow terminal authority used only by the typed Sugar settlement facade.
+   * The store verifies both the automatic checkpoint/kind and unanimous latest
+   * agreement before it can collapse a Parley. Generic `agree` turns remain
+   * ordinary conversation and never obtain this capability.
+   */
+  automaticConsensus?: {
+    proposalId: string;
+    decision: string;
+    reason: string;
+    notifications: (record: ParleyRecord, outcome: ParleyOutcome) => ParleyNotificationIntent[];
+  };
 }
 
 export interface AddTurnResult {
@@ -3793,6 +3805,29 @@ export function createParleyStore(deps: ParleyStoreDeps) {
     if (input.intentFingerprint !== expectedFingerprint) {
       throw new Error('parley turn intentFingerprint does not match canonical turn content');
     }
+    const automaticConsensus = input.automaticConsensus
+      ? {
+        proposalId: assertCanonicalString(
+          input.automaticConsensus.proposalId,
+          'automatic consensus proposalId',
+          PARLEY_STORE_LIMITS.maxProposalIdChars,
+        ),
+        decision: assertCanonicalString(
+          input.automaticConsensus.decision,
+          'automatic consensus decision',
+          PARLEY_STORE_LIMITS.maxDecisionChars,
+        ),
+        reason: assertCanonicalString(
+          input.automaticConsensus.reason,
+          'automatic consensus reason',
+          PARLEY_STORE_LIMITS.maxDecisionChars,
+        ),
+        notifications: input.automaticConsensus.notifications,
+      }
+      : null;
+    if (automaticConsensus && (input.performative !== 'agree' || proposalId !== automaticConsensus.proposalId)) {
+      throw new Error('automatic consensus requires an agree turn with its canonical proposalId');
+    }
     const at = assertFiniteTimestamp(now(), 'parley turn time');
     const transaction = db.transaction((): AddTurnResult => {
       const existingTurn = db.prepare(`
@@ -3990,6 +4025,70 @@ export function createParleyStore(deps: ParleyStoreDeps) {
           );
         }
       } else {
+        if (automaticConsensus) {
+          if (row.automatic_checkpoint !== 'session_begin' || row.automatic_kind !== 'task_convergence') {
+            throw new Error('automatic consensus is only available to session_begin task_convergence Parleys');
+          }
+          const agreements = db.prepare(`
+            SELECT p.actor_id, t.proposal_id, t.content
+            FROM parley_participants p
+            LEFT JOIN parley_turns t
+              ON t.tenant_id = p.tenant_id
+              AND t.harbor = p.harbor
+              AND t.parley_id = p.parley_id
+              AND t.party = p.actor_id
+              AND t.turn_sequence = (
+                SELECT MAX(latest.turn_sequence)
+                FROM parley_turns latest
+                WHERE latest.tenant_id = p.tenant_id
+                  AND latest.harbor = p.harbor
+                  AND latest.parley_id = p.parley_id
+                  AND latest.party = p.actor_id
+                  AND latest.performative = 'agree'
+              )
+            WHERE p.tenant_id = ? AND p.harbor = ? AND p.parley_id = ? AND p.summoned = 1
+            ORDER BY p.actor_id ASC
+          `).all(tenantId, harbor, parleyId) as Array<{
+            actor_id: string;
+            proposal_id: string | null;
+            content: string | null;
+          }>;
+          const unanimous = agreements.length >= 2
+            && agreements.every((agreement) => (
+              agreement.proposal_id === automaticConsensus.proposalId
+              && agreement.content === content
+            ));
+          if (unanimous) {
+            const terminal = writeOutcome(row, {
+              status: 'COLLAPSED',
+              decision: automaticConsensus.decision,
+              reason: automaticConsensus.reason,
+              resolvedBy: 'port-daddy:sugar-parley-consensus',
+              dissenters: [],
+              at,
+            });
+            fault('terminal.outcome');
+            if (terminal.inserted) {
+              releaseAutomatic(row, terminal.outcome.at);
+              fault('terminal.release');
+              // `decodeRecord()` intentionally leaves automatic participants
+              // empty because the durable participant rows are a separate
+              // authority. The typed terminal receipt must include every
+              // live party, so reload the canonical snapshot before asking
+              // the callback to address its outbox messages.
+              const terminalRecord = snapshotFromRow(
+                getRecordRow(harbor, parleyId)
+                  ?? (() => { throw new Error('parley store lost the settled record'); })(),
+                terminal.outcome.at,
+              ).parley;
+              insertTerminalNotifications(
+                terminalRecord,
+                automaticConsensus.notifications(terminalRecord, terminal.outcome),
+                terminal.outcome.at,
+              );
+            }
+          }
+        }
         const missing = db.prepare(`
           SELECT COUNT(*) AS count
           FROM parley_participants p

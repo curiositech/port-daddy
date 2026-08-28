@@ -226,6 +226,21 @@ describe('indexed automatic Parley trigger', () => {
     expect(inbox.list('spawned:agent-b').messages).toHaveLength(1);
   });
 
+  test('honors a server-scoped live-session binding for one evaluated signal', () => {
+    const trigger = service();
+    const result = trigger.evaluate(automaticSignal(), {
+      harbor: DEFAULT_HARBOR,
+      resolveLiveParty: (actorId) => liveParticipant(actorId, `card-bound:${actorId}`),
+    });
+    const stored = parley.getAutomatic(automaticSignal().signalId, DEFAULT_HARBOR)?.parley;
+
+    expect(result.state).toBe('fired');
+    expect(stored?.automatic?.participants).toEqual([
+      liveParticipant('agent-a', 'card-bound:agent-a'),
+      liveParticipant('agent-b', 'card-bound:agent-b'),
+    ]);
+  });
+
   test('suppresses ambiguous or missing live identities with a terminal receipt', () => {
     const ambiguous = service(parley, (actorId) => ({
       ...liveParticipant(actorId, 'shared-inbox'),
