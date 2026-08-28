@@ -182,6 +182,12 @@ const TEST_CHECKPOINT_BINDING = {
   reviewInputSha256: `sha256:${'4'.repeat(64)}`,
   mediatorOrdersSha256: 'absent',
   lookoutProjectionSha256: 'not-applicable',
+  executionReceiptKind: 'not-applicable' as const,
+};
+
+const PURSER_CHECKPOINT_BINDING = {
+  ...TEST_CHECKPOINT_BINDING,
+  executionReceiptKind: 'purser-sandbox-v1' as const,
 };
 
 const TEST_EXPECTED_CHECKPOINT_BINDINGS = new Map([
@@ -2395,6 +2401,122 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       binding,
     )).resolves.toBe(false);
     expect(d1.steps).toHaveLength(0);
+  });
+
+  it('requires an executed Purser sandbox receipt before saving or resuming PASS', async () => {
+    const failed = memoryD1();
+    failed.steps.push({
+      runId: 'run:delivery-abc',
+      seq: 7,
+      kind: 'purser-sandbox',
+      ship: 'purser',
+      title: 'pd-purser: sandbox NOT RUN',
+      detail: JSON.stringify({
+        executed: false,
+        passed: null,
+        outcomeKind: 'not-executed',
+        reason: 'sandbox setup failed before the test runner started',
+      }),
+    });
+    const falsePass = {
+      ship: 'purser',
+      blocking: true,
+      verdict: 'PASS' as const,
+      errored: false,
+      findings: [],
+    };
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: failed.db }),
+      'run:delivery-abc',
+      0,
+      falsePass,
+      PURSER_CHECKPOINT_BINDING,
+    )).resolves.toBe(false);
+    expect(failed.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+
+    // A row written by the buggy executor is diagnostic evidence only. The
+    // current loader must consult the same run's sandbox receipt and rerun
+    // Purser instead of inheriting the false PASS into another queue slice.
+    failed.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'purser',
+      title: 'historical false Purser PASS',
+      detail: JSON.stringify({
+        ...falsePass,
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        // Pre-fix Purser bindings had no execution-receipt requirement. The
+        // current trusted binding must invalidate that row before reuse.
+        checkpointBinding: TEST_CHECKPOINT_BINDING,
+      }),
+    });
+    const invalidated: string[] = [];
+    await expect(loadShipCheckpoints(
+      makeEnv({ DB: failed.db }),
+      'run:delivery-abc',
+      new Map([['purser', PURSER_CHECKPOINT_BINDING]]),
+      (_ship, reason) => { invalidated.push(reason); },
+    )).resolves.toEqual(new Map());
+    expect(invalidated).toEqual(['trusted-binding-mismatch']);
+
+    // Positive control: an exact structured execution receipt still permits
+    // monotonic continuation, so this hardening cannot recreate starvation.
+    const executed = memoryD1();
+    executed.steps.push({
+      runId: 'run:delivery-good',
+      seq: 7,
+      kind: 'purser-sandbox',
+      ship: 'purser',
+      title: 'pd-purser: sandbox PASSED',
+      detail: JSON.stringify({
+        executed: true,
+        passed: true,
+        outcomeKind: 'passed',
+        failuresTail: '',
+      }),
+    });
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: executed.db }),
+      'run:delivery-good',
+      0,
+      falsePass,
+      PURSER_CHECKPOINT_BINDING,
+    )).resolves.toBe(true);
+    const saved = executed.steps.find(step => step.kind === SHIP_CHECKPOINT_KIND)!;
+    expect(JSON.parse(String(saved.detail))).toMatchObject({
+      verdict: 'PASS',
+      checkpointExecutionReceipt: {
+        kind: 'purser-sandbox-v1',
+        executed: true,
+        passed: true,
+        outcomeKind: 'passed',
+      },
+    });
+    executed.steps.splice(
+      executed.steps.findIndex(step => step.kind === 'purser-sandbox'),
+      1,
+    );
+    await expect(loadShipCheckpoints(
+      makeEnv({ DB: executed.db }),
+      'run:delivery-good',
+      new Map([['purser', PURSER_CHECKPOINT_BINDING]]),
+    )).resolves.toEqual(new Map([['purser', falsePass]]));
+
+    const mismatched = JSON.parse(String(saved.detail)) as Record<string, unknown>;
+    mismatched.checkpointExecutionReceipt = {
+      kind: 'purser-sandbox-v1',
+      executed: true,
+      passed: false,
+      outcomeKind: 'assertion-failure',
+    };
+    saved.detail = JSON.stringify(mismatched);
+    await expect(loadShipCheckpoints(
+      makeEnv({ DB: executed.db }),
+      'run:delivery-good',
+      new Map([['purser', PURSER_CHECKPOINT_BINDING]]),
+    )).resolves.toEqual(new Map());
   });
 
   it('refuses to persist a Lookout checkpoint with the non-applicable projection sentinel', async () => {

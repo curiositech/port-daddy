@@ -620,6 +620,51 @@ describe('runPurser — steel-man failure modes', () => {
     expect(rec.steps.filter(step => step.kind === 'purser-context-partial')).toHaveLength(0);
   });
 
+  it('fails a reused suite closed when sandbox setup never reaches the test runner', async () => {
+    const testPath = 'tests/unit/purser/reused-setup-failure.test.ts';
+    const diff = 'diff --git a/src/widget.ts b/src/widget.ts\n+same-contract';
+    seedExistingSuite(
+      diff,
+      testPath,
+      '<!-- purser-source-coverage: {"version":1,"status":"complete"} -->',
+      8_673,
+    );
+    const run = vi.fn();
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }),
+      mkCtx({ diff }),
+      makeEnv({
+        AI: { run } as unknown as Ai,
+        SANDBOX: {
+          exec: async () => ({
+            exitCode: 1,
+            stdout: 'npm ci failed before Jest started',
+            stderr: '',
+          }),
+        },
+      }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: 'sandbox setup failed before the test runner started',
+    });
+    expect(rec.steps.find(step => step.kind === 'purser-sandbox')?.detail).toMatchObject({
+      rerun: true,
+      executed: false,
+      passed: null,
+      outcomeKind: 'not-executed',
+      reason: 'sandbox setup failed before the test runner started',
+    });
+  });
+
   it('reuses a valid partial receipt without AI calls and keeps the required check neutral', async () => {
     const testPath = 'tests/unit/purser/reused-partial-source.test.ts';
     const diff =
@@ -1657,13 +1702,16 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       firstRepairWithEvolvedError,
       completeRepair,
     ]);
-    const sandboxExec = vi.fn(async () => ({ exitCode: 0, stdout: 'PASS', stderr: '' }));
+    const healthySandbox = sandboxStub(0) as {
+      exec: () => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+    };
+    const sandboxExec = vi.fn(healthySandbox.exec);
     const rec = recorder();
 
     const result = await runPurser(
       mkShip({ blocking: true }),
       mkCtx(),
-      makeEnv({ AI: ai, SANDBOX: { exec: sandboxExec } as unknown }),
+      makeEnv({ AI: ai, SANDBOX: { exec: sandboxExec } }),
       'tok',
       rec.transcript,
       freshMetrics(),
@@ -2442,7 +2490,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
 
 describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking flags)', () => {
   const run = async (opts: {
-    sandbox: 'pass' | 'fail' | 'absent';
+    sandbox: 'pass' | 'fail' | 'setup-fail' | 'absent';
     blocking: boolean;
     blockWithoutSandbox?: boolean;
   }) => {
@@ -2450,7 +2498,22 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
     const rec = recorder();
     const env = makeEnv({
       AI: ai,
-      ...(opts.sandbox === 'absent' ? {} : { SANDBOX: sandboxStub(opts.sandbox === 'pass' ? 0 : 1, 'FAIL tests/purser 1 failed') }),
+      ...(opts.sandbox === 'absent'
+        ? {}
+        : {
+            SANDBOX: opts.sandbox === 'setup-fail'
+              ? {
+                  exec: async () => ({
+                    exitCode: 1,
+                    stdout: 'npm ci failed before Jest started',
+                    stderr: '',
+                  }),
+                }
+              : sandboxStub(
+                  opts.sandbox === 'pass' ? 0 : 1,
+                  'FAIL tests/purser 1 failed',
+                ),
+          }),
     });
     const result = await runPurser(
       mkShip({ blocking: opts.blocking, blockWithoutSandbox: opts.blockWithoutSandbox ?? false }),
@@ -2482,11 +2545,35 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
     expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK' });
   });
 
-  it('sandbox ABSENT + blocking + blockWithoutSandbox:false ⇒ PASS (never block on tests never run)', async () => {
-    const { result, rec } = await run({ sandbox: 'absent', blocking: true });
-    expect(result).toMatchObject({ blocking: true, verdict: 'PASS' });
+  it('sandbox setup NOT EXECUTED ⇒ broken BLOCK with the exact reason, never PASS', async () => {
+    const { result, rec } = await run({ sandbox: 'setup-fail', blocking: true });
+
+    expect(result).toMatchObject({
+      blocking: true,
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: 'sandbox setup failed before the test runner started',
+    });
     const step = rec.steps.find(s => s.kind === 'purser-sandbox')!;
-    expect(step.detail).toMatchObject({ executed: false, passed: null });
+    expect(step.title).toContain('NOT RUN');
+    expect(step.detail).toMatchObject({
+      executed: false,
+      passed: null,
+      outcomeKind: 'not-executed',
+      reason: 'sandbox setup failed before the test runner started',
+    });
+  });
+
+  it('sandbox ABSENT + blocking + blockWithoutSandbox:false ⇒ advisory BLOCK, never PASS', async () => {
+    const { result, rec } = await run({ sandbox: 'absent', blocking: true });
+    expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK', errored: false });
+    const step = rec.steps.find(s => s.kind === 'purser-sandbox')!;
+    expect(step.detail).toMatchObject({
+      executed: false,
+      passed: null,
+      outcomeKind: 'not-executed',
+      reason: expect.stringContaining('SANDBOX binding absent'),
+    });
     // The comment claims NO result for unexecuted tests.
     const bodies = purserCommentBodies(state);
     expect(bodies[0]).toContain('NOT RUN');
@@ -2494,12 +2581,12 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
 
   it('sandbox ABSENT + blocking + blockWithoutSandbox:true ⇒ BLOCK (explicit fail-closed opt-in)', async () => {
     const { result } = await run({ sandbox: 'absent', blocking: true, blockWithoutSandbox: true });
-    expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK' });
+    expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK', errored: false });
   });
 
   it('sandbox ABSENT + non-blocking + blockWithoutSandbox:true ⇒ advisory BLOCK', async () => {
     const { result } = await run({ sandbox: 'absent', blocking: false, blockWithoutSandbox: true });
-    expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK' });
+    expect(result).toMatchObject({ blocking: false, verdict: 'BLOCK', errored: false });
   });
 });
 

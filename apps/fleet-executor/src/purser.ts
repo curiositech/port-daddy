@@ -45,11 +45,13 @@
  *      comment and the missing permission is named + escalated — but it is
  *      still a BROKEN-SHIP result: the run fails until the permission lands.
  *   e. VERDICT — blocking iff pd-fleet.yml says `blocking: true`. BLOCK while
- *      sandbox-executed tests fail on the PR head. Sandbox unavailable ⇒ the
- *      `blockWithoutSandbox` flag decides (default false ⇒ advisory): the
- *      purser never blocks on tests that were never run unless the operator
- *      explicitly opted into fail-closed. (This governs the ship's PASS/BLOCK
- *      merge-gate verdict; RETARGETING is a separate, stricter action — see d.)
+ *      sandbox-executed tests fail on the PR head. A configured sandbox that
+ *      fails before the test runner is broken machinery: it returns an errored
+ *      BLOCK with the exact bounded reason and can never become resumable PASS
+ *      evidence. A deliberately absent binding remains governed by
+ *      `blockWithoutSandbox`: it is an advisory BLOCK when fail-closed is off
+ *      and a gating BLOCK when it is on. No non-executed state is ever PASS or
+ *      checkpoint evidence.
  *
  * Comment tone: firm, adversarial, professional. Demands, with reasons.
  * Never abusive.
@@ -63,10 +65,10 @@
  * never discover, stacked nothing, and the run stayed green. That is a broken
  * ship sailing past the gate it exists to keep. Machinery failures now return
  * `errored: true` under the ship's REAL blocking flag, which fails the run —
- * the breakage gets fixed in the diff that surfaced it. The ONE deliberate
- * exception is sandbox ABSENCE on well-formed, executable, stacked tests:
- * that is a configured deployment state (`blockWithoutSandbox` decides it),
- * not a breakage.
+ * the breakage gets fixed in the diff that surfaced it. The one deliberate
+ * exception remains an absent SANDBOX binding on well-formed tests, because
+ * that is an explicit deployment state governed by `blockWithoutSandbox`.
+ * Setup/checkout/transport failures are not that state and fail closed.
  */
 
 import type { ExecutorEnv } from './env.js';
@@ -1265,6 +1267,17 @@ function sandboxFailureIsAssertion(sandbox: SandboxRunOutcome): boolean {
   return sandbox.outcomeKind === undefined || sandbox.outcomeKind === 'assertion-failure';
 }
 
+/**
+ * Only the explicit no-binding deployment state is optional. Once a binding
+ * exists, every failure to reach the test runner is broken Purser machinery.
+ * Keeping this distinction exact prevents an npm/setup/transport failure from
+ * hiding behind the older advisory no-sandbox policy.
+ */
+function sandboxNonExecutionIsBroken(sandbox: SandboxRunOutcome): boolean {
+  return !sandbox.executed &&
+    !sandbox.reason?.startsWith('SANDBOX binding absent');
+}
+
 function renderTestList(files: StackedFile[]): string {
   return files.map(f => `- \`${f.path}\``).join('\n');
 }
@@ -1452,6 +1465,7 @@ async function rerunExistingTests(
       executed: sandbox.executed,
       passed: sandbox.passed,
       failures: sandbox.failures,
+      ...(sandbox.outcomeKind ? { outcomeKind: sandbox.outcomeKind } : {}),
       ...(sandbox.reason ? { reason: sandbox.reason } : {}),
     },
   );
@@ -1482,13 +1496,22 @@ async function rerunExistingTests(
     assertCurrentHead,
   );
 
-  let verdict: Verdict;
-  if (sandbox.executed) {
-    verdict = sandbox.passed ? 'PASS' : 'BLOCK';
-  } else {
-    verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
+  if (sandboxNonExecutionIsBroken(sandbox)) {
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: sandbox.reason ?? 'sandbox did not execute the test runner',
+      findings: [],
+      ...reviewCoverage,
+    };
   }
-  return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [], ...reviewCoverage };
+  const verdict: Verdict = sandbox.executed && sandbox.passed ? 'PASS' : 'BLOCK';
+  const blocking = sandbox.executed || ship.blockWithoutSandbox
+    ? ship.blocking
+    : false;
+  return { ship: ship.name, blocking, verdict, errored: false, findings: [], ...reviewCoverage };
 }
 
 /**
@@ -2577,6 +2600,7 @@ export async function runPurser(
         passed: null,
         outputTail: '',
         failures: [],
+        outcomeKind: 'not-executed',
         reason: `not executed: ${executability.reason}`,
       };
       // Preserve the contract + authored tests as ADVISORY EVIDENCE (same
@@ -2804,22 +2828,35 @@ export async function runPurser(
     // as BLOCK. A runner/harness failure is broken machinery, never product
     // evidence.
     if (degradedReason && !stackedPr) {
-      const verdict: Verdict = sandboxFailureIsAssertion(sandbox)
+      const verdict: Verdict = sandboxFailureIsAssertion(sandbox) || sandboxNonExecutionIsBroken(sandbox)
         ? 'BLOCK'
         : brokenShip.verdict;
-      return { ...brokenShip, verdict };
+      return {
+        ...brokenShip,
+        verdict,
+        ...(sandboxNonExecutionIsBroken(sandbox)
+          ? { failureReason: sandbox.reason ?? 'sandbox did not execute the test runner' }
+          : {}),
+      };
     }
 
     let verdict: Verdict;
     if (sandboxFailureIsHarness(sandbox)) {
       return brokenShip;
+    } else if (sandboxNonExecutionIsBroken(sandbox)) {
+      return {
+        ...brokenShip,
+        verdict: 'BLOCK',
+        failureReason: sandbox.reason ?? 'sandbox did not execute the test runner',
+      };
     } else if (sandbox.executed) {
       // BLOCK only when structured assertion evidence fails on the PR head.
       verdict = sandbox.passed ? 'PASS' : 'BLOCK';
     } else {
-      // Never block on tests that were never run — unless the operator
-      // explicitly opted into fail-closed via blockWithoutSandbox.
-      verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
+      // An explicitly absent binding is the one configured non-execution state
+      // governed by blockWithoutSandbox. It is always an objection, never PASS:
+      // the flag controls whether that objection gates or remains neutral.
+      verdict = 'BLOCK';
       if (ship.blockWithoutSandbox) {
         // HITL: the operator chose fail-closed and the sandbox binding is
         // absent — this PR is now BLOCKED pending a human. Escalate a real ask
@@ -2843,7 +2880,9 @@ export async function runPurser(
     }
     return {
       ship: ship.name,
-      blocking: ship.blocking,
+      blocking: sandbox.executed || ship.blockWithoutSandbox
+        ? ship.blocking
+        : false,
       verdict,
       errored: false,
       findings: [],

@@ -57,6 +57,7 @@ const CHECKPOINT_BINDING = {
   reviewInputSha256: `sha256:${'4'.repeat(64)}`,
   mediatorOrdersSha256: 'absent',
   lookoutProjectionSha256: 'not-applicable',
+  executionReceiptKind: 'not-applicable' as const,
 };
 
 let state: GitHubState;
