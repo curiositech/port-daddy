@@ -2,7 +2,9 @@
 % Left: a legible digest line whose every claim zooms to a verifiable artifact.
 % Right: a Potemkin tile whose summary terminates (no zoom path) — the Normalbaum.
 % Design: artifact boxes spaced so they cannot collide; the zeta verdicts live
-% in the caption, not under the panels.
+% in the caption, not under the panels. Palette discipline: the broken zoom path is
+% carried by DASHING plus its label, never by a second hue — hhcobalt is the one
+% "pay attention here" accent program-wide (see also fig-cascade).
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -10,7 +12,6 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -22,7 +23,7 @@
   art/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
               minimum width=26mm,align=center,inner sep=4pt,font=\footnotesize},
   zoom/.style={-{Latex[length=2mm]},hhteal,thick},
-  dead/.style={-{Latex[length=2mm]},maydayred,thick,dashed},
+  dead/.style={-{Latex[length=2mm]},hhink,thick,dashed},
 ]
 
 % ─── LEFT: legibility-with-zoom (good) ───────────────────────────────────
@@ -43,9 +44,9 @@
   \node[font=\bfseries,text=hhink] at (2.4,3.7) {Potemkin digest (Normalbaum)};
   \node[tile,fill=hhsand!30] (psum) at (2.4,2.5)
     {\textbf{all green}\\``everything is fine''};
-  \node[draw=maydayred,thick,dashed,rounded corners=2pt,fill=maydayred!8,
+  \node[draw=hhink,thick,dashed,rounded corners=2pt,fill=hhpaper,
         minimum width=40mm,align=center,inner sep=4pt,
-        font=\footnotesize,text=maydayred] (void) at (2.4,0.5)
+        font=\footnotesize,text=hhink] (void) at (2.4,0.5)
     {(paraphrased away:\\diff, test, reasoning)};
   \draw[dead] (psum.south) -- (void.north);
 \end{scope}

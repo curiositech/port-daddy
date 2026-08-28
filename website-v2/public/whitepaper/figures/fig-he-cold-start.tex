@@ -1,0 +1,77 @@
+% Cold-start subsidy schedule as a regime diagram: the phase boundary is a
+% liquidity threshold on settled outcomes, not a calendar date. One axis, three
+% bands distinguished by fill weight and label case; cobalt reserved for the flip.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  band/.style={draw=hhebony,thick,rounded corners=2pt,minimum height=26mm,
+               minimum width=48mm,text width=42mm,inner sep=2pt,
+               anchor=south west,align=center},
+  note/.style={font=\scriptsize,align=center,text width=42mm,text=hhink},
+  axis/.style={-{Latex[length=3mm]},line width=0.9pt,draw=hhebony},
+]
+
+% ─── three regime bands, separated by fill weight and label case ────────
+\node[band,fill=hhsand!45] (p1) at (0,0)
+  {\textbf{Phase 1}\\[2pt]{\scshape seed the supply side}\\[3pt]
+   \scriptsize platform posts its own tasks\\
+   \scriptsize at above-market bounties\\
+   \scriptsize \emph{price to suppliers: negative}};
+\node[band,fill=hhsand!25] (p2)
+  at (50mm,0)
+  {\textbf{Phase 2}\\[2pt]{\scshape import a prior}\\[3pt]
+   \scriptsize external work history admitted\\
+   \scriptsize for partial credit\\
+   \scriptsize \emph{price to suppliers: zero}};
+\node[band,fill=hhsand!8] (p3)
+  at (100mm,0)
+  {\textbf{Phase 3}\\[2pt]{\scshape charge the demand side}\\[3pt]
+   \scriptsize transaction fee, listing fee,\\
+   \scriptsize small forfeited-bond spread\\
+   \scriptsize \emph{price to suppliers: positive}};
+
+% ─── the axis: liquidity, not time ──────────────────────────────────────
+\draw[axis] (-2mm,-8mm) -- (152mm,-8mm);
+\node[font=\footnotesize\itshape,anchor=north] at (74mm,-11mm)
+  {settled outcomes on the ledger to date \ (the liquidity proxy --- \emph{not} elapsed calendar time)};
+
+% ─── the flip: the one thing that gets the accent ──────────────────────
+\draw[hhcobalt,line width=1.4pt,dashed] (99mm,-9mm) -- (99mm,30mm);
+\node[draw=hhcobalt,line width=1.2pt,fill=hhpaper,rounded corners=2pt,
+      inner sep=4pt,font=\scriptsize,align=center,text width=44mm]
+      (flip) at (99mm,42mm)
+  {\textbf{the subsidy flips sides here}\\[2pt]
+   a liquidity threshold $\lambda^\star$ on settled\\
+   outcomes --- crossed, or not crossed};
+\draw[->,>=Latex,line width=1.1pt,draw=hhcobalt] (flip.south) -- (99mm,30.5mm);
+
+% ─── what a calendar date would have done ──────────────────────────────
+\node[note,anchor=north west] at (0,-20mm)
+  {A calendar date fires whether or not\\ the reputation data exists yet.};
+\node[note,anchor=north] at (100mm,-20mm)
+  {A liquidity threshold cannot fire early;\\
+   it can only fail to fire, which is\\ the safe direction to be wrong in.};
+
+\end{tikzpicture}%
+}
+\caption{The cold-start subsidy schedule, drawn against the quantity that actually
+gates it. The three phases are not a timetable: what moves the platform from
+paying suppliers to charging buyers is the stock of settled outcomes on the ledger,
+because that stock \emph{is} the bootstrap reputation data the second and third
+market sides need in order to exist at all. Reading the boundary as a date rather
+than a threshold is the specific failure this diagram is drawn to prevent --- a date
+can arrive while the shelf is still empty, whereas a threshold that has not been
+crossed simply keeps the subsidy on. The asymmetry is the point: mis-timing here is
+recoverable in one direction and not the other.}
+\label{fig:he-cold-start}
+\end{figure}

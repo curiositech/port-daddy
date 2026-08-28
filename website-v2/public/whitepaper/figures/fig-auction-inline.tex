@@ -15,33 +15,35 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                 inner sep=4pt,minimum width=20mm,align=center},
-  commons/.style={draw=hhebony,thick,fill=hhteal!40,rounded corners=2pt,
+  % One fill (sand) for every box; role is carried by border weight and label
+  % weight, not by hue. Cobalt is spent only on the Vickrey second-price node.
+  commons/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                   inner sep=4pt,minimum width=20mm,align=center},
-  escrow/.style={draw=hhebony,thick,fill=hhamber!30,rounded corners=2pt,
+  escrow/.style={draw=hhebony,line width=1.2pt,fill=hhsand,rounded corners=2pt,
                  inner sep=4pt,minimum width=20mm,align=center},
   ins/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
               align=center,minimum width=18mm},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 \begin{scope}[xshift=0cm]
-\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
+\node[font=\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
 \node[actor] (p1) at (1.2,3.2) {Principal};
 \node[escrow,below=10mm of p1] (esc) {Escrow $B_T = \mu(1+s)$};
 \node[commons,below=10mm of esc] (c1) {Commons};
-\draw[arr] (p1.south) -- node[right,font=\sffamily\footnotesize]
+\draw[arr] (p1.south) -- node[right,font=\footnotesize]
   {deposit $B_T$} (esc.north);
-\draw[arr] (esc.south) -- node[right,font=\sffamily\footnotesize]
+\draw[arr] (esc.south) -- node[right,font=\footnotesize]
   {on loss: $\min(d, B_T)$} (c1.north);
-\node[align=center,font=\sffamily\footnotesize,
+\node[align=center,font=\footnotesize,
       draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       below=8mm of c1,minimum width=42mm] (cost1)
   {{\bfseries Principal cost} \\ $= \mathbb{E}[d] + r \cdot B_T$};
 \end{scope}
 \begin{scope}[xshift=8.2cm]
-\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2)
+\node[font=\bfseries,anchor=center] at (1.2,4.2)
   {(b) Competitive Vickrey};
 \node[actor] (p2) at (1.2,3.2) {Principal};
 \node[ins,fill=hhsand,below=11mm of p2,xshift=-15mm] (i1) {$A$\\$q_A$};
@@ -49,15 +51,15 @@
 \node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
 \node[commons,below=18mm of i2] (c2) {Commons};
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
-      font=\sffamily\footnotesize,right=5mm of i3,align=center,text width=22mm]
+      font=\footnotesize,right=5mm of i3,align=center,text width=22mm]
   (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
 \draw[arr,line width=1.4pt,draw=hhcobalt] (i2.south) --
-  node[right,font=\sffamily\footnotesize,xshift=2mm]
+  node[right,font=\footnotesize,xshift=2mm]
   {underwrites $B_T$} (c2.north);
-\node[align=center,font=\sffamily\footnotesize,
+\node[align=center,font=\footnotesize,
       draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       below=8mm of c2,minimum width=42mm] (cost2)
   {{\bfseries Principal cost} \\ $= q^*$ (no idle capital)};

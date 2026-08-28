@@ -1,7 +1,11 @@
-% Figure 11 — role assignment in Hobbes' author/actor frame.
+% Figure 14 — role assignment in Hobbes' author/actor frame.
 % operator = author, daemon = sovereign-actor, agents = multitude.
 % Design: each role is a name + one line; each relation gets its own arrow
 % (down-arrows on the left, up-arrows on the right), one label per arrow.
+% Palette discipline: two colors only. hhink carries the structural relations
+% (authorize/revoke, rule/covenant); hhcobalt is reserved for the ONE relation this
+% section actually argues is novel — "legible to", the legible-sovereign inversion.
+% Label offsets are 2mm so no label rides its own arrow at 0.72\textwidth.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -27,18 +31,18 @@
   {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1), enforced by the daemon}};
 
 % one arrow per relation: down on the left, up on the right
-\draw[e,hhamber] ([xshift=-9mm]author.south) -- ([xshift=-9mm]actor.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{authorizes (scoped grant)};
-\draw[e,hhamber] ([xshift=9mm]actor.north) -- ([xshift=9mm]author.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{revoked by override};
+\draw[e,hhink] ([xshift=-9mm]author.south) -- ([xshift=-9mm]actor.north)
+  node[midway,left=2mm,font=\scriptsize,text=hhink]{authorizes (scoped grant)};
+\draw[e,hhink] ([xshift=9mm]actor.north) -- ([xshift=9mm]author.south)
+  node[midway,right=2mm,font=\scriptsize,text=hhink]{revoked by override};
 \draw[e,hhink] ([xshift=-9mm]actor.south) -- ([xshift=-9mm]mult.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{rules over};
-\draw[e,hhink] ([xshift=9mm]mult.north) -- ([xshift=9mm]actor.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{legible to};
+  node[midway,left=2mm,font=\scriptsize,text=hhink]{rules over};
+\draw[e,hhcobalt] ([xshift=9mm]mult.north) -- ([xshift=9mm]actor.south)
+  node[midway,right=2mm,font=\scriptsize\bfseries,text=hhcobalt]{legible to};
 
 % the covenant loop on the multitude
-\draw[e,hhteal] ([xshift=-3mm]mult.south west) to[bend right=40]
-  node[below=1mm,font=\scriptsize,text=hhink]{covenant among subjects}
+\draw[e,hhink] ([xshift=-3mm]mult.south west) to[bend right=40]
+  node[below=2mm,font=\scriptsize,text=hhink]{covenant among subjects}
   ([xshift=3mm]mult.south east);
 \end{tikzpicture}%
 }
@@ -47,7 +51,8 @@
 each-with-all; the \emph{daemon} is the sovereign-as-actor that exercises the
 instituted authority --- blocking, landing, escalating --- but, by the
 legible-sovereign amendment (Prop.~\ref{prop:legible-sovereign}), is the most
-legible actor, not the least; the \emph{operator} is the \emph{author} who owns the
+legible actor, not the least --- the one relation drawn in the accent color,
+because it is the inversion this chapter is arguing for; the \emph{operator} is the \emph{author} who owns the
 authority, issues scoped consent grants (Def.~\ref{def:consent}), and holds the
 inalienable override (Prop.~\ref{prop:override}). Naming the operator ``the
 sovereign'' would break the covenant; the author slot is the one Hobbes leaves for

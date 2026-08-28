@@ -33,8 +33,9 @@
 
   % ─── Settlement Escrow (Bottom) ─────────────────────────────────────────────
   \node[escrow] (E) at (0, -3.2) {
-    \textbf{\scshape 2-of-3 Multisig Settlement Escrow}\\[1pt]
-    {\footnotesize Non-Custodial: Can Refuse, Cannot Redirect}
+    \textbf{\scshape Settlement Escrow}\\[1pt]
+    {\footnotesize Custody bounded \emph{only if}}\\
+    {\footnotesize Prop.~\ref{thm:fh-escrow-bound}'s assumptions hold}
   };
 
   % ─── Causal Flows & Protocol Channels ───────────────────────────────────────
@@ -51,6 +52,6 @@
   \draw[accentarr] (E.east) to[out=0, in=-90] node[lbl, below right] {Damage measured at $B$} (HB.south);
 
 \end{tikzpicture}
-\caption{The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above provides shared correlation: each harbor publishes its signed epoch root, enabling decentralized equivocation detection. The settlement escrow below is structurally bounded (non-custodial 2-of-3 multisig: it cannot redirect funds or author unadjudicated transfers). The solid blue arrow denotes the capability transfer ceremony (\S\ref{sec:fh-xfer}); the dashed line denotes epidemic revocation gossip (\S\ref{sec:fh-revocation}).}
+\caption{The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above provides shared correlation: each harbor publishes its signed epoch root, enabling decentralized equivocation detection. The settlement escrow below is structurally bounded \emph{conditional on} a non-bypassable custody mechanism (\S\ref{sec:fh-escrow}); 2-of-3 threshold signing is one candidate, and this paper does not establish that condition for a deployed system. The solid blue arrow denotes the capability transfer ceremony (\S\ref{sec:fh-xfer}); the dashed line denotes epidemic revocation gossip (\S\ref{sec:fh-revocation}).}
 \label{fig:fh-topology}
 \end{figure}

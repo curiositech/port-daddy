@@ -1,8 +1,11 @@
-% Figure 6 — Signal Detection Theory view of the operator's forced-zoom decision.
+% Figure 7 — Signal Detection Theory view of the operator's forced-zoom decision.
 % Two overlapping distributions (safe vs dangerous actions); the criterion beta
 % slides; the asymmetric cost inequality pins where it should sit.
 % Design: error-region labels sit inside their regions (no pointer arrows);
 % the cost reasoning lives in the caption, the canvas keeps only the inequality.
+% Greyscale survival: the two distributions differ by DASH PATTERN as well as hue,
+% so "safe" and "dangerous" stay distinguishable in a monochrome print — the same
+% defense-in-depth fig-zoom-vs-potemkin uses for its dead zoom path.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -29,9 +32,9 @@
 
 % distributions
 \draw[hhteal,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{safe(\x)});
-\draw[hhcobalt,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
+\draw[hhcobalt,very thick,densely dashed,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
 \node[text=hhink,font=\bfseries\footnotesize] at (2.3,5.4) {safe actions};
-\node[text=hhink,font=\bfseries\footnotesize] at (7.4,5.4) {dangerous actions};
+\node[text=hhink,font=\bfseries\footnotesize] at (7.4,5.4) {dangerous actions {\normalfont(dashed)}};
 
 % criterion line beta
 \draw[hhamber,very thick,dashed] (5.0,0) -- (5.0,5.55)

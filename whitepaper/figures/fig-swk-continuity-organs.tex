@@ -24,15 +24,15 @@
 ]
 
 \node[organ,fill=hhsand!30] (mem) at (0,0)
-  {{\bfseries\footnotesize 1.\ Memory}\hfill{\footnotesize\color{hhteal}\textsf{implemented}}\\[3pt]
+  {{\bfseries\footnotesize 1.\ Memory}\hfill{\footnotesize\color{hhink}\textsc{implemented}}\\[3pt]
    append-only session notes; episodic story-beats; the operation log};
 
 \node[organ,fill=hhsand!30,right=8mm of mem] (chk)
-  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhcobalt}\textsf{partial}}\\[3pt]
+  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhink}\textsc{partial}}\\[3pt]
    recovery passes durable \emph{notes} --- not execution state};
 
 \node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{partial}}\\[3pt]
+  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhink}\textsc{partial}}\\[3pt]
    the durable, oracle-bound record of what an agent actually delivered};
 
 \draw[link,hhteal] (mem.east) -- (chk.west);
@@ -54,6 +54,9 @@ active session's note count from regressing). \textbf{Checkpoint} is
 handoff) passes the durable notes but does not capture execution state, so it is the
 weakest continuity link --- a checkpoint with teeth (a real execution-state
 snapshot, OP-4) is the literal foundation of a cross-machine reputation economy.
+A specified direction, event-sourced rehydration, would replay a pinned commit and a
+truncated message log into a successor; that restores the durable inputs to an
+agent's context, not the inference state itself, so OP-4 stays open.
 \textbf{The witnessed-outcome ledger}, on which reputation actually keys, has a
 \textsf{partial} shipped substrate: durable commitments, daemon-derived deadlines,
 oracle-bound closure, and overdue detection. Neutral graded outcomes, sanctions,

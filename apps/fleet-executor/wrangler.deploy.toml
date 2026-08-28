@@ -161,12 +161,16 @@ queue = "fleet-continuations"
 
 [[queues.consumers]]
 queue = "fleet-runs"
-# Fleet reviews can consume the full Worker wall-clock budget and each run has
-# its own bounded model fan-out. Keep one delivery per invocation AND one active
-# invocation so obsolete/current heads cannot multiply that fan-out, exhaust
-# model capacity, or race the stale-head check before either run finishes.
+# Fleet reviews consume the full Worker wall-clock budget and each run has its
+# own bounded model fan-out. One active invocation globally made every
+# checkpointed one-ship slice rejoin the back of the same FIFO: five live PRs
+# turned a sub-minute ship into a many-minute wait and left required checks
+# pending for hours. Permit a deliberately small, global three-run drain.
+# The durable intent fence admits only one sequence per delivery, while the
+# executor rechecks the PR head before each ship, so this increases throughput
+# without allowing duplicate work for a delivery or an unbounded spend burst.
 max_batch_size = 1
-max_concurrency = 1
+max_concurrency = 3
 max_batch_timeout = 30
 # The consumer intentionally completes at most one new provider-heavy ship per
 # invocation, checkpoints it, enqueues the next cumulative slice, and

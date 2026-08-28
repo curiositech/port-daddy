@@ -13,23 +13,23 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   actor/.style={draw=hhebony,fill=hhsand,rounded corners=2pt,
                 inner sep=5pt,minimum width=20mm,minimum height=9mm,
                 thick,align=center},
   ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
-             align=center,font=\sffamily\footnotesize},
+             align=center,font=\footnotesize},
   capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
                  minimum height=8mm,inner sep=2pt,
-                 font=\sffamily\bfseries\footnotesize,text=hhcobalt},
+                 font=\bfseries\footnotesize,text=hhcobalt},
   sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
-              inner sep=6pt,align=center,font=\sffamily\footnotesize},
+              inner sep=6pt,align=center,font=\footnotesize},
   ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt,
-             font=\sffamily\footnotesize},
+             font=\footnotesize},
   msg/.style={->,>=Latex,thick,draw=hhink},
   bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  mlbl/.style={font=\sffamily\footnotesize,inner sep=1pt,fill=hhpaper},
-  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
+  mlbl/.style={font=\footnotesize,inner sep=1pt,fill=hhpaper},
+  badlbl/.style={font=\footnotesize\itshape,text=hhcobalt,
                  inner sep=1pt,fill=hhpaper},
 ]
 \node[ch,fill=hhpaper] (pub) at (5.0,5.2) {public channel \texttt{pub} (Dolev-Yao)};

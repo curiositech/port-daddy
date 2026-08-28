@@ -137,7 +137,10 @@ repo-specific mechanics:
   `DYLD_*` absent, before soak or archive sealing. Package dylibs behind a
   verified executable-relative Mach-O rpath and keep
   `com.apple.security.cs.allow-dyld-environment-variables` out of the release
-  entitlements; do not trade a packaging defect for an injection surface.
+  entitlements; do not trade a packaging defect for an injection surface. FleetBar
+  release packaging must also sign every nested Mach-O under the bundled payload
+  inside-out; Bun JIT entitlements belong on the Bun executable only, never on
+  ordinary `.dylib` runtime libraries.
 - **Keep coordination content bounded; the SITREP is the visible value
   surface.** Coordination content (alerts/pheromones) stays invisible and
   bounded: with the SITREP dial off, a healthy no-op turn emits zero bytes and
@@ -662,6 +665,12 @@ re-asking them is the failure mode this section exists to kill.
    result into queue retry/DLQ before acknowledging the message. Keep ship
    checkpoints durable and post non-idempotent aggregate reviews only after
    the required check PATCH succeeds, so retries neither re-spend nor duplicate.
+   The logical-run deadline must also fit the configured roster: budget at
+   least one default AI-call window per ship plus explicit queue/checkpoint
+   overhead. A ceiling equal to `ship count x call deadline` has zero room for
+   continuations and will deterministically terminate healthy checkpointed
+   reviews before their final blocking ship. Prove the slow-success boundary
+   with a focused test whenever either deadline or roster size changes.
 4. **Answer every review thread.** Copilot and claude-review inline comments
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
@@ -790,6 +799,12 @@ daemon-witnessed runtime receipt.
 **Symptoms:** The daemon is healthy on its port but invisible in FleetBar's Daemons list; the operator concludes the feature "doesn't work" while it runs fine in the dark.
 **Fix:** Launch with the full berth env (dev-triple.sh exports it; other launch paths must export it by hand), then verify the entry appears in `~/.port-daddy/dev-daemons.json` before inviting the operator to look.
 **Why:** Registration is the daemon's identity on the operator surface. A daemon that never self-registers does not exist as far as the demo is concerned.
+
+### Prefix-Only Named Daemon Isolation
+**Detection:** A named daemon profile sets `PORT_DADDY_PREFIX` but leaves `PORT_DADDY_DB`, socket, IPC, PID, port, or heartbeat paths implicit.
+**Symptoms:** The profile appears isolated on its chosen port while a consumer that does not interpret the prefix silently opens the canonical registry or control files. Multiple profiles then own different process identities over the same durable truth, and a test daemon can stall or crash production startup.
+**Fix:** Build named-profile environments through `buildDaemonProfileEnv()` and assert every mutable runtime path equals the resolved profile path. Acceptance-test the running profile on a noncanonical port, then inspect its open files and require that no canonical registry handle appears.
+**Why:** A profile is a state-plane boundary, not a naming convention. Isolation must survive new consumers and refactors without depending on every module reimplementing prefix inference correctly.
 
 ### Demoing One Slice Of A Multi-PR Feature
 **Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.
