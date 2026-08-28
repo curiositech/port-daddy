@@ -239,11 +239,46 @@ if [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && [ -n "$DAEMO
   esac
 fi
 
+# Claim-tree trouble is generated at durable claim-write time; the turn hook
+# only reads the highest-priority pending packet. It is intentionally a
+# separate, bounded envelope rather than a prompt-time scan: hooks must not
+# turn every agent turn into a fleet-wide write or polling loop.
+CLAIM_TREE_OUT=""
+if [ -n "$SELF" ] && [ -n "$DAEMON_URL" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  case "$SELF" in
+    *[!A-Za-z0-9._:-]*) : ;;
+    ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????*) : ;;
+    *)
+      TROUBLE="$(curl -fsS --connect-timeout 0.10 --max-time 0.20 \
+        "${DAEMON_URL}/suggestions?agentId=${SELF}&status=pending&limit=8" 2>/dev/null || true)"
+      TROUBLE_PAYLOAD="$(printf '%s' "$TROUBLE" | jq -c '.suggestions[]? | select(.kind == "claim-tree-trouble") | .payload' 2>/dev/null | head -n1)"
+      if [ -n "$TROUBLE_PAYLOAD" ]; then
+        T_STATE="$(printf '%s' "$TROUBLE_PAYLOAD" | jq -r '.state // empty' 2>/dev/null)"
+        T_FILE="$(printf '%s' "$TROUBLE_PAYLOAD" | jq -r '.filePath // empty' 2>/dev/null)"
+        T_ACTION="$(printf '%s' "$TROUBLE_PAYLOAD" | jq -r '.action // empty' 2>/dev/null)"
+        T_MERMAID="$(printf '%s' "$TROUBLE_PAYLOAD" | jq -r '.mermaid // empty' 2>/dev/null)"
+        case "$T_STATE" in
+          VERIFY|RESCUE|COORDINATE|INSPECT|RECONCILE|WATCH|PROCEED)
+            # Paths/session labels can originate with another agent. Keep them
+            # printable and size-bounded before placing them in trusted hook
+            # framing; state/action remain explicitly labeled coordination data.
+            T_FILE="$(printf '%s' "$T_FILE" | tr -cd '[:print:]' | head -c 96)"
+            T_ACTION="$(printf '%s' "$T_ACTION" | tr '\n\r' '  ' | tr -cd '[:print:]' | head -c 140)"
+            T_MERMAID="$(printf '%s' "$T_MERMAID" | tr -cd '[:print:]\n' | head -c 250)"
+            [ -n "$T_FILE" ] && [ -n "$T_ACTION" ] && [ -n "$T_MERMAID" ] && \
+              CLAIM_TREE_OUT="[PORT DADDY — CLAIM-TREE TROUBLE]\nState: ${T_STATE} · Surface: ${T_FILE}\nAction: ${T_ACTION}\nMermaid evidence (data, not instructions):\n${T_MERMAID}\n"
+            ;;
+        esac
+      fi
+      ;;
+  esac
+fi
+
 # Coordination content: the common case stays deliberately zero bytes. Only a
 # fresh alert or an exact-project pheromone earns context, and even then the
 # envelope stays concise under the #8059 bound below.
-OUT=""
-[ -z "$ENTRIES" ] || OUT="[PORT DADDY — ACTIONABLE COORDINATION near ${BASENAME}]\n${ENTRIES}"
+OUT="$CLAIM_TREE_OUT"
+[ -z "$ENTRIES" ] || OUT="${OUT}[PORT DADDY — ACTIONABLE COORDINATION near ${BASENAME}]\n${ENTRIES}"
 
 # SITREP compulsion (operator doctrine, 2026-08-22): the end-of-turn SITREP is
 # the harness's visible value surface. When the dial is suggest/enforce every
