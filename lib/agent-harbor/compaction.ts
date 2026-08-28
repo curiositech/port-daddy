@@ -51,7 +51,6 @@ import { randomUUID } from 'node:crypto';
 import type { DatabaseInstance } from '../sqlite-runtime.js';
 import {
   appendEvent,
-  readEvents,
   type AppendResult,
   type HarborPayload,
   type LedgerRow,
@@ -124,6 +123,18 @@ export interface CompactionPacket {
   workspace?: { worktree?: string | null; files?: string[]; claims?: string[]; diffSummary?: string | null };
   commandsRun?: Array<{ command: string; exitCode?: number | null; resultSummary?: string; transcriptEventId?: string | null }>;
   reviewState?: { prRef?: string | null; ciState?: string | null; unresolvedThreads?: number };
+  /**
+   * Optional interactive-adapter proof. The event is re-read on resume; this
+   * is an opaque coverage receipt, never a copied tool transcript or output.
+   */
+  interactiveToolPairCoverage?: {
+    receiptEventId: string;
+    provider: string;
+    sessionId: string;
+    observationId: string;
+    coveredThroughLedgerSeq: number;
+    coverageRef: string;
+  };
   blockers?: string[];
   decisions?: Decision[];
   transcriptExcerpts?: Array<{ citation: Citation; excerpt?: string }>;
@@ -333,28 +344,145 @@ export function validateCompactionPacket(
 // Ledger extraction helpers (cited-by-construction)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function sessionTranscriptRows(db: DatabaseInstance, sessionId: string): LedgerRow[] {
-  const rows: LedgerRow[] = [];
-  const PAGE = 10_000;
-  let afterSeq = 0;
-  for (;;) {
-    const page = readEvents(db, { streamType: 'transcript-event', sessionId, afterSeq, limit: PAGE });
-    rows.push(...page);
-    if (page.length < PAGE) return rows;
-    afterSeq = page[page.length - 1].ledger_seq;
-  }
+/** Bounded construction limits: older evidence remains addressable by ledger handle. */
+export const MAX_COMPACTION_TAIL_EVENTS = 512;
+export const MAX_PACKET_COMMANDS = 64;
+export const MAX_PACKET_COMMAND_CHARS = 1_024;
+export const MAX_PACKET_COMMAND_RESULT_CHARS = 2_048;
+export const MAX_PACKET_EXCERPTS = 32;
+export const MAX_PACKET_EXCERPT_CHARS = 1_024;
+export const MAX_PACKET_EVENT_PAYLOAD_BYTES = 16 * 1024;
+export const MAX_COMPACTION_PACKET_BYTES = 96 * 1024;
+/** Metadata envelope allowance around a packet that already fits its own cap. */
+const MAX_COMPACTION_PACKET_EVENT_BYTES = MAX_COMPACTION_PACKET_BYTES + 4 * 1024;
+
+/**
+ * Read only the tail that can become convenience text in a packet.  Oversize
+ * source payloads remain in the append-only ledger, but are replaced with an
+ * empty structured payload before JavaScript sees them; a compactor must not
+ * parse an arbitrary multi-megabyte tool result on a provider hook deadline.
+ */
+function sessionTranscriptTail(
+  db: DatabaseInstance,
+  sessionId: string,
+  limit = MAX_COMPACTION_TAIL_EVENTS,
+  throughLedgerSeq?: number,
+): LedgerRow[] {
+  const rows = db.prepare(`
+    SELECT ledger_seq, event_id, stream_type, agent_node_id, session_id, run_id,
+           sequence, kind, occurred_at, ingested_at, idempotency_key, schema_id,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{"payloadJson":{}}' END AS payload_json,
+           content_hash, prev_hash
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event'
+      AND session_id = ?
+      AND (? IS NULL OR ledger_seq <= ?)
+    ORDER BY ledger_seq DESC
+    LIMIT ?
+  `).all(
+    MAX_PACKET_EVENT_PAYLOAD_BYTES,
+    sessionId,
+    throughLedgerSeq ?? null,
+    throughLedgerSeq ?? null,
+    Math.max(1, Math.min(limit, MAX_COMPACTION_TAIL_EVENTS)),
+  ) as LedgerRow[];
+  return rows.reverse();
+}
+
+function boundedText(value: string, maximum: number): string {
+  if (Buffer.byteLength(value, 'utf8') <= maximum) return value;
+  const suffix = '…[truncated]';
+  const utf8Prefix = (input: string, budget: number): string => {
+    let prefix = '';
+    let used = 0;
+    // `for…of` advances by Unicode code point, so no prefix ends midway
+    // through a UTF-8 rune and accidentally decodes into U+FFFD bytes.
+    for (const codePoint of input) {
+      const bytes = Buffer.byteLength(codePoint, 'utf8');
+      if (used + bytes > budget) break;
+      prefix += codePoint;
+      used += bytes;
+    }
+    return prefix;
+  };
+  const suffixBytes = Buffer.byteLength(suffix, 'utf8');
+  // Tiny caller budgets are still strict byte budgets: retain only a complete
+  // UTF-8 prefix of the suffix rather than appending a 14-byte marker.
+  if (maximum <= suffixBytes) return utf8Prefix(suffix, maximum);
+  return utf8Prefix(value, maximum - suffixBytes) + suffix;
 }
 
 /** Deterministic excerpt text from an event payload (bounded; never invents). */
 function excerptFromRow(row: LedgerRow, maxChars: number): string {
-  const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+  } catch {
+    // A malformed foreign payload stays a cited ledger handle, not packet text.
+  }
   const payloadJson = (payload.payloadJson ?? {}) as Record<string, unknown>;
   const text =
     (typeof payloadJson.text === 'string' && payloadJson.text) ||
     (typeof payloadJson.message === 'string' && payloadJson.message) ||
     (typeof payloadJson.command === 'string' && payloadJson.command) ||
     JSON.stringify(payloadJson);
-  return text.length > maxChars ? text.slice(0, maxChars) : text;
+  return boundedText(text, Math.min(Math.max(1, maxChars), MAX_PACKET_EXCERPT_CHARS));
+}
+
+/** Canonical interactive tool id forms; mirrors ContextContinuity validation. */
+function toolCallId(row: LedgerRow): string | null {
+  if (row.kind !== 'tool_call' && row.kind !== 'tool_result') return null;
+  try {
+    const outer = JSON.parse(row.payload_json) as { payloadJson?: unknown };
+    const payload = outer.payloadJson;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    const fields = payload as Record<string, unknown>;
+    const nested = fields.toolCall;
+    const candidates = [
+      fields.toolCallId,
+      fields.tool_call_id,
+      nested && typeof nested === 'object' && !Array.isArray(nested)
+        ? (nested as Record<string, unknown>).id
+        : null,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Filter a fixed-size convenience lens down to complete, correctly ordered
+ * tool pairs. Non-tool rows retain their order. Tool rows without a stable id,
+ * a mate in this exact lens, or a one-to-one ordering are omitted rather than
+ * being separated by an excerpt/bootstrap boundary. The immutable ledger and
+ * packet citations remain available for an explicit, pair-aware zoom.
+ */
+function omitSplitToolPairs(rows: LedgerRow[]): LedgerRow[] {
+  const calls = new Map<string, number[]>();
+  const results = new Map<string, number[]>();
+  for (const [index, row] of rows.entries()) {
+    const id = toolCallId(row);
+    if (!id) continue;
+    const target = row.kind === 'tool_call' ? calls : results;
+    const indexes = target.get(id) ?? [];
+    indexes.push(index);
+    target.set(id, indexes);
+  }
+  return rows.filter((row, index) => {
+    if (row.kind !== 'tool_call' && row.kind !== 'tool_result') return true;
+    const id = toolCallId(row);
+    if (!id) return false;
+    const callIndexes = calls.get(id) ?? [];
+    const resultIndexes = results.get(id) ?? [];
+    return callIndexes.length === 1
+      && resultIndexes.length === 1
+      && callIndexes[0] < resultIndexes[0]
+      && (row.kind === 'tool_call' ? callIndexes[0] : resultIndexes[0]) === index;
+  });
 }
 
 /**
@@ -365,21 +493,42 @@ function excerptFromRow(row: LedgerRow, maxChars: number): string {
  */
 export function extractCommandsRun(
   rows: LedgerRow[],
+  maximum = MAX_PACKET_COMMANDS,
 ): NonNullable<CompactionPacket['commandsRun']> {
   const commands: NonNullable<CompactionPacket['commandsRun']> = [];
   for (const row of rows) {
     if (row.kind !== 'shell_command') continue;
-    const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
     const payloadJson = (payload.payloadJson ?? {}) as Record<string, unknown>;
     if (!nonEmptyString(payloadJson.command)) continue;
     commands.push({
-      command: payloadJson.command,
+      command: boundedText(payloadJson.command, MAX_PACKET_COMMAND_CHARS),
       exitCode: typeof payloadJson.exitCode === 'number' ? payloadJson.exitCode : null,
-      resultSummary: typeof payloadJson.resultSummary === 'string' ? payloadJson.resultSummary : undefined,
+      resultSummary: typeof payloadJson.resultSummary === 'string'
+        ? boundedText(payloadJson.resultSummary, MAX_PACKET_COMMAND_RESULT_CHARS)
+        : undefined,
       transcriptEventId: row.event_id,
     });
   }
-  return commands;
+  return commands.slice(-Math.max(0, Math.min(maximum, MAX_PACKET_COMMANDS)));
+}
+
+function boundedCommands(
+  commands: CompactionPacket['commandsRun'] | undefined,
+): NonNullable<CompactionPacket['commandsRun']> {
+  return (commands ?? []).slice(-MAX_PACKET_COMMANDS).map((command) => ({
+    command: boundedText(command.command, MAX_PACKET_COMMAND_CHARS),
+    exitCode: command.exitCode ?? null,
+    resultSummary: typeof command.resultSummary === 'string'
+      ? boundedText(command.resultSummary, MAX_PACKET_COMMAND_RESULT_CHARS)
+      : undefined,
+    transcriptEventId: command.transcriptEventId ?? null,
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,6 +557,7 @@ export interface BuildPacketInput {
   omittedKnownRisks?: CompactionPacket['omittedKnownRisks'];
   workspace?: CompactionPacket['workspace'];
   reviewState?: CompactionPacket['reviewState'];
+  interactiveToolPairCoverage?: CompactionPacket['interactiveToolPairCoverage'];
   /** Merged with the commands auto-extracted from the transcript. */
   commandsRun?: CompactionPacket['commandsRun'];
   /** Active obligations known to the caller/daemon — drives the warning list. */
@@ -419,6 +569,8 @@ export interface BuildPacketInput {
   /** Append the compaction_packet transcript event (default true). */
   append?: boolean;
   packetId?: string;
+  /** Deterministic caller-owned event ID for crash/retry-safe packet writes. */
+  eventId?: string;
   createdAt?: string;
 }
 
@@ -428,6 +580,88 @@ export interface BuildPacketResult {
   pressure: PressureAssessment | null;
   /** Ledger append result for the compaction_packet event (null when append: false). */
   appendResult: AppendResult | null;
+}
+
+/**
+ * A deterministic packet event id is an idempotency key, not a hint. On a
+ * retry, return the already committed packet rather than a newly constructed
+ * in-memory body whose source head may have advanced while the caller crashed.
+ */
+interface PersistedPacketRetry {
+  packet: CompactionPacket;
+  appendResult: AppendResult;
+}
+
+/**
+ * Resolve an existing deterministic packet before any current-tail work. A
+ * missing row means the caller may proceed to construction; every other row
+ * is either the exact validated packet or a fail-closed event-id collision.
+ */
+function persistedPacketForRetry(
+  db: DatabaseInstance,
+  eventId: string,
+  expectedSessionId: string,
+): PersistedPacketRetry | null {
+  const row = db.prepare(`
+    SELECT ledger_seq, event_id, session_id, kind, content_hash, prev_hash,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(MAX_COMPACTION_PACKET_EVENT_BYTES, eventId) as {
+    ledger_seq: number;
+    event_id: string;
+    session_id: string | null;
+    kind: string | null;
+    content_hash: string | null;
+    prev_hash: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!row) return null;
+  if (row.session_id !== expectedSessionId || row.kind !== 'compaction_packet') {
+    throw new CompactionValidationError(
+      `deterministic packet event ${eventId} resolves to a different durable transcript event (event-id collision)`,
+      { passed: false, uncitedClaimCount: 0, missingObligationWarnings: [], errors: ['event-id collision'] },
+    );
+  }
+  try {
+    const outer = JSON.parse(row.payload_json) as { payloadJson?: CompactionPacket };
+    const packet = outer.payloadJson;
+    if (!packet || packet.transcriptEventId !== eventId || packet.sessionId !== expectedSessionId) {
+      throw new Error('stored payload does not identify the requested packet');
+    }
+    assertAgainstSchema('compaction-packet', packet);
+    const verdict = validateCompactionPacket(packet, {
+      db,
+      validatedBy: 'lib/agent-harbor/compaction.ts#persistedPacketForRetry',
+    });
+    if (!verdict.passed || packet.validator?.passed !== true) {
+      throw new Error((verdict.errors ?? ['stored packet validator failed']).join('; '));
+    }
+    if (!Number.isInteger(row.ledger_seq) || row.ledger_seq < 1) {
+      throw new Error('stored packet has no durable ledger sequence');
+    }
+    return {
+      packet,
+      appendResult: {
+        duplicate: true,
+        ledgerSeq: row.ledger_seq,
+        eventId: row.event_id,
+        contentHash: row.content_hash,
+        prevHash: row.prev_hash,
+      },
+    };
+  } catch (error) {
+    throw new CompactionValidationError(
+      `deterministic packet event ${eventId} has no reusable validated packet payload`,
+      {
+        passed: false,
+        uncitedClaimCount: 0,
+        missingObligationWarnings: [],
+        errors: [error instanceof Error ? error.message : String(error)],
+      },
+    );
+  }
 }
 
 /**
@@ -445,7 +679,23 @@ export interface BuildPacketResult {
  * schema), whose payload is the packet itself.
  */
 export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketInput): BuildPacketResult {
-  const rows = sessionTranscriptRows(db, input.sessionId);
+  // The deterministic event id is the retry boundary, not an append-time
+  // optimization. Check it before reading the current tail: a crashed caller
+  // can return after committing the packet while later tools keep appending.
+  // Reconstructing that newer tail may exceed a packet budget or otherwise
+  // fail even though the original durable packet is valid and must replay.
+  if (input.append !== false && input.eventId) {
+    const persisted = persistedPacketForRetry(db, input.eventId, input.sessionId);
+    if (persisted) {
+      return {
+        packet: persisted.packet,
+        pressure: null,
+        appendResult: persisted.appendResult,
+      };
+    }
+  }
+
+  const rows = sessionTranscriptTail(db, input.sessionId);
   if (rows.length === 0) {
     throw new CompactionValidationError(
       `session ${input.sessionId} has no transcript events — nothing to compact, no chain head to pin sourceTranscript to`,
@@ -484,18 +734,18 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
 
   // Cited-by-construction extractions.
   const extractedCommands = extractCommandsRun(rows);
-  const excerptCount = Math.max(0, input.excerptCount ?? 5);
-  const excerptMaxChars = Math.max(1, input.excerptMaxChars ?? 240);
+  const excerptCount = Math.min(MAX_PACKET_EXCERPTS, Math.max(0, input.excerptCount ?? 5));
+  const excerptMaxChars = Math.min(MAX_PACKET_EXCERPT_CHARS, Math.max(1, input.excerptMaxChars ?? 240));
   // slice(-0) === slice(0) would include the WHOLE transcript — the exact
   // opposite of "no excerpts" — so 0 must short-circuit to an empty lens set.
-  const excerptRows = excerptCount === 0 ? [] : rows.slice(-excerptCount);
+  const excerptRows = excerptCount === 0 ? [] : omitSplitToolPairs(rows.slice(-excerptCount));
   const transcriptExcerpts = excerptRows.map((row) => ({
     citation: { kind: 'transcript-event' as const, transcriptEventId: row.event_id },
     excerpt: excerptFromRow(row, excerptMaxChars),
   }));
 
   const packetId = input.packetId ?? `cpk_${randomUUID()}`;
-  const eventId = input.append === false ? null : `evt_cpk_${randomUUID()}`;
+  const eventId = input.append === false ? null : input.eventId ?? `evt_cpk_${randomUUID()}`;
   const packet: CompactionPacket = {
     schema: 'pd.agent-harbor.compaction-packet.v0',
     packetId,
@@ -510,8 +760,9 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
     factualClaims: input.factualClaims,
     omittedKnownRisks: input.omittedKnownRisks ?? [],
     workspace: input.workspace,
-    commandsRun: [...extractedCommands, ...(input.commandsRun ?? [])],
+    commandsRun: [...extractedCommands, ...boundedCommands(input.commandsRun)].slice(-MAX_PACKET_COMMANDS),
     reviewState: input.reviewState,
+    interactiveToolPairCoverage: input.interactiveToolPairCoverage,
     blockers: input.blockers ?? [],
     decisions: input.decisions ?? [],
     transcriptExcerpts,
@@ -528,6 +779,20 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
   };
   if (packet.workspace === undefined) delete packet.workspace;
   if (packet.reviewState === undefined) delete packet.reviewState;
+  if (packet.interactiveToolPairCoverage === undefined) delete packet.interactiveToolPairCoverage;
+
+  const serializedBytes = Buffer.byteLength(JSON.stringify(packet), 'utf8');
+  if (serializedBytes > MAX_COMPACTION_PACKET_BYTES) {
+    throw new CompactionValidationError(
+      `compaction packet for session ${input.sessionId} exceeds the ${MAX_COMPACTION_PACKET_BYTES}-byte packet budget`,
+      {
+        passed: false,
+        uncitedClaimCount: 0,
+        missingObligationWarnings: [],
+        errors: [`packet byte budget exceeded: ${serializedBytes}`],
+      },
+    );
+  }
 
   const verdict = validateCompactionPacket(packet, {
     db,
@@ -540,6 +805,22 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
       `compaction packet for session ${input.sessionId} failed the ch04 validator ` +
         `(${verdict.uncitedClaimCount} uncited claim(s)): ${(verdict.errors ?? []).join('; ')}`,
       verdict,
+    );
+  }
+
+  // The validator adds provenance and (on a failure) diagnostic metadata to
+  // the frozen packet. Budget the exact bytes that will be appended, not the
+  // smaller placeholder shape used to obtain the verdict.
+  const finalizedBytes = Buffer.byteLength(JSON.stringify(packet), 'utf8');
+  if (finalizedBytes > MAX_COMPACTION_PACKET_BYTES) {
+    throw new CompactionValidationError(
+      `compaction packet for session ${input.sessionId} exceeds the ${MAX_COMPACTION_PACKET_BYTES}-byte packet budget after validation`,
+      {
+        passed: false,
+        uncitedClaimCount: 0,
+        missingObligationWarnings: [],
+        errors: [`packet byte budget exceeded after validation: ${finalizedBytes}`],
+      },
     );
   }
 
@@ -561,6 +842,20 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
       payloadJson: packet as unknown as Record<string, unknown>,
     };
     appendResult = appendEvent(db, { streamType: 'transcript-event', payload: event });
+    if (appendResult.duplicate) {
+      const persisted = persistedPacketForRetry(db, appendResult.eventId, input.sessionId);
+      if (!persisted) {
+        throw new CompactionValidationError(
+          `deterministic packet event ${appendResult.eventId} disappeared during retry resolution`,
+          { passed: false, uncitedClaimCount: 0, missingObligationWarnings: [], errors: ['missing duplicate packet'] },
+        );
+      }
+      return {
+        packet: persisted.packet,
+        pressure,
+        appendResult: persisted.appendResult,
+      };
+    }
   }
 
   return { packet, pressure, appendResult };
@@ -574,17 +869,215 @@ export interface SuccessorBootstrap {
   packet: CompactionPacket;
   sessionId: string;
   agentNodeId: string;
+  /** The last cited durable pd-plan checkpoint, never reconstructed from a raw transcript tail. */
+  planCheckpoint: { transcriptEventId: string; content: string; capturedAt: string } | null;
   /**
-   * The pinned transcript prefix, as HANDLES (event id / sequence / kind /
-   * ledger seq) in replay order — the successor zooms into the ledger through
-   * these, it is not handed an unbudgeted transcript dump
+   * The bounded tail of the pinned transcript, as HANDLES (event id /
+   * sequence / kind / ledger seq) in replay order — the successor zooms into
+   * the ledger through these, it is not handed an unbudgeted transcript dump
    * (context-economics-for-agent-swarms: legibility-with-zoom).
    */
   transcriptPrefix: Array<{ transcriptEventId: string; sequence: number | null; kind: string | null; ledgerSeq: number }>;
+  /** True when older transcript handles remain available only by explicit ledger paging. */
+  transcriptPrefixTruncated: boolean;
   /** Ready-to-attach ContextEnvelope contextRefs entry for the packet. */
   contextRef: { kind: 'compaction-packet'; ref: string; droppable: false };
   /** Re-run validator verdict (never the packet's embedded self-report alone). */
   revalidation: PacketValidatorResult;
+}
+
+/**
+ * A bootstrap gives a continuation enough recent cited handles to orient, not
+ * an accidentally unbounded replay list. Earlier evidence remains addressable
+ * through the append-only ledger and packet citations.
+ */
+export const MAX_SUCCESSOR_TRANSCRIPT_HANDLES = 128;
+
+function planCheckpointForResume(
+  db: DatabaseInstance,
+  sessionId: string,
+  throughLedgerSeq: number,
+): SuccessorBootstrap['planCheckpoint'] {
+  const row = db.prepare(`
+    SELECT event_id, occurred_at,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{"payloadJson":{}}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event'
+      AND session_id = ?
+      AND kind = 'plan_checkpoint'
+      AND ledger_seq <= ?
+    ORDER BY ledger_seq DESC
+    LIMIT 1
+  `).get(sessionId, throughLedgerSeq) as {
+    event_id: string;
+    occurred_at: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!row) return null;
+  try {
+    const payload = JSON.parse(row.payload_json) as { payloadJson?: { planCheckpoint?: unknown } };
+    const checkpoint = payload.payloadJson?.planCheckpoint;
+    if (!checkpoint || typeof checkpoint !== 'object' || Array.isArray(checkpoint)) return null;
+    const content = (checkpoint as Record<string, unknown>).content;
+    if (typeof content !== 'string' || !content.trim() || Buffer.byteLength(content, 'utf8') > 16 * 1024) return null;
+    const capturedAt = (checkpoint as Record<string, unknown>).capturedAt;
+    return {
+      transcriptEventId: row.event_id,
+      content,
+      capturedAt: typeof capturedAt === 'string' ? capturedAt : row.occurred_at ?? new Date(0).toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function interactiveCoverageVerificationError(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  head: { ledgerSeq: number; kind: string | null; payloadJson: string },
+): string | null {
+  const proof = packet.interactiveToolPairCoverage;
+  const envelopeRef = packet.trigger.contextEnvelopeRef;
+  // The durable ContextEnvelope, not an optional packet field, decides whether
+  // this is an interactive packet. Otherwise a generic-looking packet could
+  // cite an interactive source head and silently skip the adapter coverage
+  // proof that made the boundary safe in the first place.
+  let interactiveEnvelope = false;
+  try {
+    if (head.kind !== 'context_pressure') return proof ? 'interactive packet source head is not the cited context-pressure event' : null;
+    if (typeof envelopeRef !== 'string' || !envelopeRef.trim()) return proof ? 'interactive packet has no cited ContextEnvelope reference' : null;
+    const outer = JSON.parse(head.payloadJson) as { payloadJson?: { contextEnvelope?: unknown } };
+    const envelope = outer.payloadJson?.contextEnvelope;
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) {
+      return proof ? 'interactive packet source head has no readable ContextEnvelope' : null;
+    }
+    if ((envelope as Record<string, unknown>).envelopeId !== envelopeRef) {
+      return proof ? 'interactive packet ContextEnvelope reference does not match its source head' : null;
+    }
+    const adapter = (envelope as Record<string, unknown>).sourceAdapter;
+    interactiveEnvelope = typeof adapter === 'string' && /^interactive:[a-z0-9-]+$/i.test(adapter);
+  } catch {
+    return proof ? 'interactive packet source head ContextEnvelope cannot be parsed' : null;
+  }
+  if (interactiveEnvelope && !proof) {
+    return 'interactive ContextEnvelope requires a daemon-owned tool-pair coverage proof';
+  }
+  if (!proof) return null;
+  if (proof.sessionId !== packet.sessionId || !proof.receiptEventId || !proof.observationId) {
+    return 'interactive tool-pair coverage proof is not bound to this packet session';
+  }
+  const row = db.prepare(`
+    SELECT ledger_seq, session_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{"payloadJson":{}}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(proof.receiptEventId) as {
+    ledger_seq: number;
+    session_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!row || row.session_id !== packet.sessionId || row.kind !== 'tool_pair_coverage') {
+    return 'interactive tool-pair coverage receipt is absent or belongs to a different session';
+  }
+  if (row.ledger_seq >= head.ledgerSeq) {
+    return 'interactive tool-pair coverage receipt does not precede the cited context-pressure head';
+  }
+  try {
+    const outer = JSON.parse(row.payload_json) as { payloadJson?: { toolPairCoverage?: unknown } };
+    const raw = outer.payloadJson?.toolPairCoverage;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'interactive tool-pair coverage receipt is malformed';
+    const coverage = raw as Record<string, unknown>;
+    if (
+      coverage.witness !== 'daemon-adapter'
+      || coverage.status !== 'complete'
+      || coverage.provider !== proof.provider
+      || coverage.sessionId !== proof.sessionId
+      || coverage.observationId !== proof.observationId
+      || coverage.coverageRef !== proof.coverageRef
+      || coverage.coveredThroughLedgerSeq !== proof.coveredThroughLedgerSeq
+    ) return 'interactive tool-pair coverage receipt does not match the packet proof';
+  } catch {
+    return 'interactive tool-pair coverage receipt cannot be parsed';
+  }
+  if (!Number.isInteger(proof.coveredThroughLedgerSeq) || proof.coveredThroughLedgerSeq < 0 || proof.coveredThroughLedgerSeq > head.ledgerSeq) {
+    return 'interactive tool-pair coverage cursor is outside the packet source boundary';
+  }
+  const unseenTool = db.prepare(`
+    SELECT 1 AS present
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event'
+      AND session_id = ?
+      AND ledger_seq > ?
+      AND ledger_seq <= ?
+      AND kind IN ('tool_call', 'tool_result')
+    LIMIT 1
+  `).get(packet.sessionId, proof.coveredThroughLedgerSeq, head.ledgerSeq) as { present: number } | undefined;
+  return unseenTool?.present === 1
+    ? 'interactive tool-pair coverage left an uncited tool event before the packet boundary'
+    : null;
+}
+
+/**
+ * Interactive packets are durable artifacts, not merely an inbound object a
+ * caller may re-shape. Bind the resume request to the appended packet event
+ * before trusting its cited context boundary or opaque coverage receipt.
+ */
+function interactivePacketReceiptVerificationError(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  sourceHeadLedgerSeq: number,
+): string | null {
+  if (!packet.interactiveToolPairCoverage) return null;
+  if (typeof packet.transcriptEventId !== 'string' || !packet.transcriptEventId.trim()) {
+    return 'interactive packet has no durable compaction-packet event reference';
+  }
+  const row = db.prepare(`
+    SELECT ledger_seq, session_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(MAX_COMPACTION_PACKET_EVENT_BYTES, packet.transcriptEventId) as {
+    ledger_seq: number;
+    session_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!row || row.session_id !== packet.sessionId || row.kind !== 'compaction_packet') {
+    return 'interactive packet durable compaction-packet event is absent or belongs to a different session';
+  }
+  if (row.ledger_seq <= sourceHeadLedgerSeq) {
+    return 'interactive packet durable compaction-packet event does not follow its cited source head';
+  }
+  try {
+    const outer = JSON.parse(row.payload_json) as { payloadJson?: CompactionPacket };
+    const durable = outer.payloadJson;
+    if (!durable || canonicalJson(durable) !== canonicalJson(packet)) {
+      return 'interactive packet does not match its durable compaction-packet event';
+    }
+  } catch {
+    return 'interactive packet durable compaction-packet event cannot be parsed';
+  }
+  return null;
+}
+
+/** Stable JSON comparison that treats omitted and undefined object members alike. */
+function canonicalJson(value: unknown): string {
+  const normalize = (candidate: unknown): unknown => {
+    if (Array.isArray(candidate)) return candidate.map(normalize);
+    if (candidate && typeof candidate === 'object') {
+      return Object.fromEntries(
+        Object.entries(candidate)
+          .filter(([, nested]) => nested !== undefined)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, nested]) => [key, normalize(nested)]),
+      );
+    }
+    return candidate;
+  };
+  return JSON.stringify(normalize(value));
 }
 
 /**
@@ -628,10 +1121,20 @@ export function resumeFromPacket(db: DatabaseInstance, packet: CompactionPacket)
   // Verify the sourceTranscript pin against the ledger's hash chain.
   const { headEventId, headHash, throughSequence } = packet.sourceTranscript;
   const head = db
-    .prepare(
-      "SELECT session_id, content_hash, sequence FROM harbor_events WHERE stream_type = 'transcript-event' AND event_id = ?",
-    )
-    .get(headEventId) as { session_id: string | null; content_hash: string | null; sequence: number | null } | undefined;
+    .prepare(`
+      SELECT ledger_seq, session_id, content_hash, sequence, kind,
+             CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json
+      FROM harbor_events
+      WHERE stream_type = 'transcript-event' AND event_id = ?
+    `)
+    .get(headEventId) as {
+      ledger_seq: number;
+      session_id: string | null;
+      content_hash: string | null;
+      sequence: number | null;
+      kind: string | null;
+      payload_json: string;
+    } | undefined;
   if (!head) {
     throw new ResumeVerificationError(
       `refusing packet ${packet.packetId}: sourceTranscript.headEventId ${headEventId} is not in the ledger`,
@@ -655,6 +1158,18 @@ export function resumeFromPacket(db: DatabaseInstance, packet: CompactionPacket)
         `the head event's sequence ${JSON.stringify(head.sequence)}`,
     );
   }
+  const packetReceiptError = interactivePacketReceiptVerificationError(db, packet, head.ledger_seq);
+  if (packetReceiptError) {
+    throw new ResumeVerificationError(`refusing packet ${packet.packetId}: ${packetReceiptError}`);
+  }
+  const coverageError = interactiveCoverageVerificationError(db, packet, {
+    ledgerSeq: head.ledger_seq,
+    kind: head.kind,
+    payloadJson: head.payload_json,
+  });
+  if (coverageError) {
+    throw new ResumeVerificationError(`refusing packet ${packet.packetId}: ${coverageError}`);
+  }
   const broken = verifySessionChain(db, packet.sessionId);
   if (broken) {
     throw new ResumeVerificationError(
@@ -663,21 +1178,38 @@ export function resumeFromPacket(db: DatabaseInstance, packet: CompactionPacket)
     );
   }
 
-  // Bounded prefix handles in replay order, up to and including the head.
-  const rows = sessionTranscriptRows(db, packet.sessionId);
-  const headIndex = rows.findIndex((r) => r.event_id === headEventId);
-  const prefix = rows.slice(0, headIndex + 1).map((row) => ({
+  // Bounded tail handles in replay order, up to and including the head. The
+  // name stays `transcriptPrefix` for the frozen bootstrap shape, but it is a
+  // pagination handle set rather than an implicit transcript export.
+  const rows = omitSplitToolPairs(sessionTranscriptTail(
+    db,
+    packet.sessionId,
+    MAX_SUCCESSOR_TRANSCRIPT_HANDLES,
+    head.ledger_seq,
+  ));
+  const prefix = rows.map((row) => ({
     transcriptEventId: row.event_id,
     sequence: row.sequence,
     kind: row.kind,
     ledgerSeq: row.ledger_seq,
   }));
+  const first = rows[0];
+  const older = first
+    ? db.prepare(`
+      SELECT 1 AS present
+      FROM harbor_events
+      WHERE stream_type = 'transcript-event' AND session_id = ? AND ledger_seq < ?
+      LIMIT 1
+    `).get(packet.sessionId, first.ledger_seq) as { present: number } | undefined
+    : undefined;
 
   return {
     packet,
     sessionId: packet.sessionId,
     agentNodeId: packet.agentNodeId,
+    planCheckpoint: planCheckpointForResume(db, packet.sessionId, head.ledger_seq),
     transcriptPrefix: prefix,
+    transcriptPrefixTruncated: older?.present === 1,
     contextRef: { kind: 'compaction-packet', ref: packet.packetId, droppable: false },
     revalidation,
   };

@@ -96,14 +96,107 @@ not shippable.
 `pd plan` is the resumability anchor across all bodies and vendors. A checkpoint
 is required at wave completion, before risky actions, and at the existing context
 pressure thresholds: prepare at 0.60, build a cited packet at 0.75, warn before
-broad work at 0.85, and compact or create a successor at 0.92. SessionStart,
-PreCompact, crash recovery, takeover, salvage, and fresh begin read the last plan
-before transcript recall.
+broad work at 0.85, and require a governed-successor directive at 0.92. The
+packet thresholds are evidence-gated: without a daemon-owned provider-session →
+plan binding, trusted measurement, current plan checkpoint, or complete
+tool-pair coverage, the daemon records no packet. This slice records the
+directive; it does not claim to spawn, resurrect, or silently replace a process.
+PreCompact checkpoints the durable plan before an interactive packet can be
+written. The bounded entry-path seam can expose an exact, revalidated packet
+and that last plan for an already-proven predecessor during active/closed
+re-begin, direct takeover, or post-auth salvage; a truly fresh begin remains
+`none` and never searches by similar identity or transcript. The seam is
+dependency-injected: until the daemon composition root supplies the verified
+ledger loader, production entry paths report `none` rather than pretending that
+packet continuation is active. Neither path dumps a predecessor transcript.
 
 The compactor never rewrites history and never separates a tool invocation from
 its result. It produces a cited packet whose parts declare priority, token cost,
 provenance, and whether they may be dropped. The original transcript remains
 append-only.
+
+### Interactive Squid implementation boundary
+
+The first live interactive producer is deliberately narrow: Claude Code only.
+Its `UserPromptSubmit` registration runs the existing prompt tentacle as
+`pd-hook-prompt --interactive-context-pressure`, so the .60/.75/.85/.92
+directive is refreshed at ordinary turn start through Claude's bounded
+`additionalContext`; Gemini, agy, and Codex retain their ordinary prompt hooks
+without a simulated pressure producer. The verified Claude `PreCompact` event
+([vendor reference](https://code.claude.com/docs/en/hooks)) remains the truthful
+compaction checkpoint. It can block only a manual missing-plan attempt; Claude
+discards its `systemMessage` and `continue` fields, so warnings are never claimed
+to be provider-visible there. `pd-hook-precompact` accepts at most 64 KiB of the provider lifecycle event and
+uses a bounded, authenticated local CLI transport to
+`POST /agent-harbor/interactive-context-pressure`; it never forwards a
+transcript, accepts hook-supplied usage, or manufactures token usage. The first
+gate is a daemon-owned provider-session → active `pd plan` binding, not an
+ambient `PD_SESSION_ID` or hook-supplied plan text. Without it, ingress returns
+`provider-session-unbound` and writes no receipt, envelope, or packet. Only after
+that binding does the daemon seek a trusted measurement: its absence is
+`measurement-unavailable`, also with no packet. Only an adapter-equipped daemon
+with a known daemon window/estimate may then combine a separately witnessed
+provider estimate using the conservative maximum, resolve the current plan from
+its durable `todo_list`, and demand complete daemon-owned tool-pair coverage.
+Unavailable or malformed coverage is `packet-withheld`; a missing current plan
+also withholds the packet. The default daemon wires none of the provider-session
+binding, usage, or tool-pair witnesses, so it issues no operational packet. No
+Codex, Gemini, or agy `PreCompact` equivalent is registered until a
+provider-native witness exists.
+
+Every trusted adapter measurement carries an opaque daemon-owned
+`measurementRef`; the observation identity includes that reference and any
+accepted native measurement time. An exact retry therefore replays its original
+boundary, while a later provider or tool-pair observation with the same rounded
+token count cannot reuse stale packet evidence. The bounded durable fallback
+uses the latest bounded provider-work event's sequence and hash as its
+corresponding watermark; plan, coverage, envelope, and packet receipts never
+advance their own next-turn observation.
+
+In an adapter-equipped daemon, when that evidence exists, the resulting contract
+is deterministic and recordable:
+
+| Pressure | Daemon result |
+| --- | --- |
+| 0.60 | prepare compaction and checkpoint the durable plan |
+| 0.75 | with a current `plan_checkpoint`, write a cited CompactionPacket whose plan obligations cite that event |
+| 0.85 | retain the packet and restrict broad or risky work |
+| 0.92 | allow provider compaction and require one governed-successor directive; no process is spawned by this hook |
+
+Before a packet is built, interactive transcript rows must prove complete,
+ordered tool-call/result pairs. A malformed, orphaned, duplicate, or unresolved
+pair yields `packet-withheld` rather than guessing. Repeating the same provider
+observation after crash/restart is idempotent. An explicit governed,
+packet-derived cross-backend continuation reads the verified packet, last plan
+checkpoint, and bounded citation/coverage handles with no raw transcript tail;
+the PreCompact outcome does not project a continuation or create a process by
+itself. (Other sanitized handoff capsule contracts may preserve bounded operator
+turns under their own rules.) `BufferedOutputRef` remains W8/W12's storage
+contract: this path may cite that narrow reference once it is available but does
+not introduce a second blob store.
+
+Porthole can record this boundary by showing (1) the Claude-only prompt command
+with `--interactive-context-pressure` plus its separate PreCompact config entry,
+and the absence of a pressure producer or simulated PreCompact entry for Codex,
+Gemini, and agy; the 0.60 prompt receipt must be a plan-first preparation
+directive (with the durable plan already `checkpointed`) and no packet, while
+0.75+ may cite a packet; (2) an
+unbound provider session returning `provider-session-unbound` with no receipt,
+envelope, or packet, including proof that ambient `PD_SESSION_ID` cannot select
+one; (3) hook input rejection for every non-envelope field, including usage,
+raw transcript text, plan text, and `BufferedOutputRef` objects;
+(4) a bound session with no witness returning `measurement-unavailable` and no
+packet, then an adapter-equipped measurement/coverage fixture resolving
+`max(provider, daemon)` or a daemon-only known window; (5) `packet-withheld` for
+missing, malformed, or incomplete tool-pair coverage and no packet for a missing
+current plan; (6) the four pressure transitions above, including a 0.92
+`governed-successor` directive that launches nothing; and (7) a crash/retry and
+explicit packet-derived cross-backend handoff that reuses the packet, plan, and
+bounded handles while showing an empty raw-transcript tail. When the daemon
+composition root supplies the verified lookup, Porthole can additionally show
+the same bounded `contextContinuation` projection on active/closed re-begin,
+direct takeover, and post-auth salvage; otherwise it must show `none`, not a
+simulated continuation.
 
 When context contains weakly coupled clusters, Port Daddy may propose a small
 synchronized workgroup. Clusters come from the task/claim/symbol graph plus the

@@ -44,6 +44,9 @@ import {
 } from '../../lib/agent-harbor/context-pressure.js';
 import {
   CompactionValidationError,
+  MAX_COMPACTION_PACKET_BYTES,
+  MAX_PACKET_COMMANDS,
+  MAX_SUCCESSOR_TRANSCRIPT_HANDLES,
   ResumeVerificationError,
   buildCompactionPacket,
   extractCommandsRun,
@@ -328,10 +331,148 @@ describe('agent-harbor M6 Longshoreman compactor', () => {
     expect(sessionChainHeadHash(db, SESSION)).toBe(after[after.length - 1].content_hash);
   });
 
+  it('returns the committed packet for a deterministic event-id retry after the transcript advances', () => {
+    const eventId = 'evt_cpk_retry_after_advance';
+    const first = buildCompactionPacket(db, packetInput({
+      packetId: 'cpk_retry_first',
+      eventId,
+      createdAt: '2026-08-27T12:00:00.000Z',
+    }));
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(7, 'assistant_message', { text: 'new evidence arrived after the first commit' }),
+    });
+
+    const retry = buildCompactionPacket(db, packetInput({
+      packetId: 'cpk_retry_phantom',
+      eventId,
+      createdAt: '2026-08-27T12:01:00.000Z',
+    }));
+
+    expect(retry.appendResult?.duplicate).toBe(true);
+    expect(retry.packet).toEqual(first.packet);
+    expect(retry.packet.packetId).toBe('cpk_retry_first');
+    expect(retry.packet.sourceTranscript.headEventId).toBe(first.packet.sourceTranscript.headEventId);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(1);
+  });
+
+  it('replays the committed deterministic packet before a later oversized tool tail can be reconstructed', () => {
+    const eventId = 'evt_cpk_retry_before_oversized_tail';
+    const first = buildCompactionPacket(db, packetInput({
+      packetId: 'cpk_retry_before_oversized_tail',
+      eventId,
+      createdAt: '2026-08-27T12:00:00.000Z',
+    }));
+
+    // This is valid durable evidence from later work, but reconstructing all
+    // 64 bounded command/result summaries would exceed the packet budget.
+    // A crash retry of the first event must replay its committed packet before
+    // inspecting that newer tail.
+    for (let sequence = 7; sequence <= 70; sequence++) {
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: evt(sequence, 'shell_command', {
+          command: `command-${sequence}-${'x'.repeat(1_000)}`,
+          exitCode: 0,
+          resultSummary: `result-${sequence}-${'y'.repeat(2_048)}`,
+        }),
+      });
+    }
+
+    const retry = buildCompactionPacket(db, packetInput({
+      packetId: 'cpk_phantom_later_tail',
+      eventId,
+      createdAt: '2026-08-27T12:01:00.000Z',
+    }));
+
+    expect(retry.appendResult).toMatchObject({ duplicate: true, eventId });
+    expect(retry.packet).toEqual(first.packet);
+    expect(retry.packet.sourceTranscript.headEventId).toBe(first.packet.sourceTranscript.headEventId);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(1);
+  });
+
+  it('fails closed when a deterministic packet id collides with another durable event', () => {
+    const eventId = 'evt_cpk_collision';
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        ...evt(6, 'assistant_message', { text: 'foreign event' }),
+        eventId,
+        sessionId: 'session_other_compaction_test',
+      },
+    });
+
+    expect(() => buildCompactionPacket(db, packetInput({ eventId }))).toThrow(CompactionValidationError);
+    expect(() => buildCompactionPacket(db, packetInput({ eventId }))).toThrow(/event-id collision/);
+  });
+
+  it('fails closed when a deterministic packet id resolves to a malformed stored packet', () => {
+    const eventId = 'evt_cpk_malformed_retry';
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        ...evt(6, 'compaction_packet', { not: 'a valid compaction packet' }),
+        eventId,
+      },
+    });
+
+    expect(() => buildCompactionPacket(db, packetInput({ eventId }))).toThrow(CompactionValidationError);
+    expect(() => buildCompactionPacket(db, packetInput({ eventId }))).toThrow(/no reusable validated packet payload/);
+  });
+
   it('excerptCount: 0 means ZERO excerpts, never the whole transcript (slice(-0) regression)', () => {
     const { packet } = buildCompactionPacket(db, packetInput({ excerptCount: 0 }));
     expect(packet.transcriptExcerpts).toEqual([]);
     expect(packet.validator.passed).toBe(true);
+  });
+
+  it('does not expose a tool result without its invocation when the excerpt cap cuts through a valid pair', () => {
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(6, 'tool_call', { toolCallId: 'excerpt-boundary' }) });
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(7, 'tool_result', { toolCallId: 'excerpt-boundary', content: 'paired' }) });
+    for (let sequence = 8; sequence <= 11; sequence++) {
+      appendEvent(db, { streamType: 'transcript-event', payload: evt(sequence, 'assistant_message', { text: `after pair ${sequence}` }) });
+    }
+
+    const { packet } = buildCompactionPacket(db, packetInput({ excerptCount: 5 }));
+    const citations = packet.transcriptExcerpts!.map((excerpt) => excerpt.citation.transcriptEventId);
+    expect(citations).not.toContain(`evt_${SESSION}_7`);
+    expect(citations).not.toContain(`evt_${SESSION}_6`);
+    expect(citations).toHaveLength(4);
+  });
+
+  it('omits every split tool row across ordinary intervening evidence and accepts canonical id variants only as a complete pair', () => {
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(6, 'tool_call', { tool_call_id: 'gapped-pair' }) });
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(7, 'assistant_message', { text: 'ordinary evidence between the pair' }) });
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(8, 'tool_result', { toolCall: { id: 'gapped-pair' }, content: 'paired' }) });
+
+    const gapped = buildCompactionPacket(db, packetInput({ excerptCount: 2, append: false })).packet;
+    expect(gapped.transcriptExcerpts!.map((excerpt) => excerpt.citation.transcriptEventId)).toEqual([`evt_${SESSION}_7`]);
+
+    const cleanDb = initDatabase({ inMemory: true });
+    ensureEventLedgerSchema(cleanDb);
+    try {
+      seedSession(cleanDb);
+      appendEvent(cleanDb, { streamType: 'transcript-event', payload: evt(6, 'tool_call', { tool_call_id: 'canonical-pair' }) });
+      appendEvent(cleanDb, { streamType: 'transcript-event', payload: evt(7, 'tool_result', { toolCall: { id: 'canonical-pair' }, content: 'paired' }) });
+      const complete = buildCompactionPacket(cleanDb, packetInput({ excerptCount: 2, append: false })).packet;
+      expect(complete.transcriptExcerpts!.map((excerpt) => excerpt.citation.transcriptEventId)).toEqual([
+        `evt_${SESSION}_6`,
+        `evt_${SESSION}_7`,
+      ]);
+    } finally {
+      closeDatabase(cleanDb);
+    }
+  });
+
+  it('omits an invocation when a packet boundary precedes its eventual result', () => {
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(6, 'tool_call', { toolCallId: 'future-result' }) });
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(7, 'assistant_message', { text: 'packet boundary before result' }) });
+
+    const { packet } = buildCompactionPacket(db, packetInput({ excerptCount: 2 }));
+    expect(packet.transcriptExcerpts!.map((excerpt) => excerpt.citation.transcriptEventId)).toEqual([`evt_${SESSION}_7`]);
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(20_008, 'tool_result', { toolCallId: 'future-result' }) });
   });
 
   it('derives the trigger from a ContextEnvelope when one is given (M6 gate: force threshold, see packet)', () => {
@@ -452,6 +593,55 @@ describe('agent-harbor M6 Longshoreman compactor', () => {
     expect(commands).toHaveLength(1);
     expect(commands[0].resultSummary).toBe('12 passed');
   });
+
+  it('bounds packet construction to a tail and never copies a huge tool command into the packet', () => {
+    // A long-lived session must not turn PreCompact into an unbounded replay.
+    for (let sequence = 6; sequence <= 10_006; sequence++) {
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: evt(sequence, 'assistant_message', { text: `old evidence ${sequence}` }),
+      });
+    }
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(10_007, 'shell_command', {
+        command: 'pd plan check 3',
+        resultSummary: 'checked',
+        exitCode: 0,
+      }),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(10_008, 'shell_command', {
+        command: 'x'.repeat(128 * 1024),
+        resultSummary: 'y'.repeat(128 * 1024),
+        exitCode: 0,
+      }),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(10_009, 'assistant_message', { text: 'tail evidence' }),
+    });
+    // SQLite's text LENGTH() counts characters, not UTF-8 bytes. This source
+    // stays below the former character threshold but exceeds the byte budget.
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(10_010, 'shell_command', {
+        command: '🦑'.repeat(5_000),
+        resultSummary: '🦑'.repeat(5_000),
+        exitCode: 0,
+      }),
+    });
+
+    const { packet } = buildCompactionPacket(db, packetInput());
+    expect(packet.sourceTranscript.throughSequence).toBe(10_010);
+    expect(packet.commandsRun).toHaveLength(1);
+    expect(packet.commandsRun?.[0]).toMatchObject({ command: 'pd plan check 3', resultSummary: 'checked' });
+    expect(packet.commandsRun?.length).toBeLessThanOrEqual(MAX_PACKET_COMMANDS);
+    expect(Buffer.byteLength(JSON.stringify(packet), 'utf8')).toBeLessThanOrEqual(MAX_COMPACTION_PACKET_BYTES);
+    expect(JSON.stringify(packet)).not.toContain('x'.repeat(4_096));
+    expect(JSON.stringify(packet)).not.toContain('🦑'.repeat(100));
+  });
 });
 
 describe('agent-harbor M6 successor resume (packet + transcript, append-only)', () => {
@@ -475,6 +665,7 @@ describe('agent-harbor M6 successor resume (packet + transcript, append-only)', 
     expect(bootstrap.revalidation.passed).toBe(true);
     // Prefix covers exactly the pinned transcript, in replay order.
     expect(bootstrap.transcriptPrefix).toHaveLength(5);
+    expect(bootstrap.transcriptPrefixTruncated).toBe(false);
     expect(bootstrap.transcriptPrefix[4].transcriptEventId).toBe(packet.sourceTranscript.headEventId);
     expect(bootstrap.transcriptPrefix.map((p) => p.sequence)).toEqual([1, 2, 3, 4, 5]);
     // Ready-to-attach context ref for the successor's ContextEnvelope.
@@ -482,6 +673,54 @@ describe('agent-harbor M6 successor resume (packet + transcript, append-only)', 
     // Resume wrote nothing.
     expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })).toHaveLength(6);
     expect(verifySessionChain(db, SESSION)).toBeNull();
+  });
+
+  it('keeps successor bootstrap handles bounded instead of exporting a long transcript', () => {
+    // The baseline packet has already appended sequence 6 in beforeEach.
+    for (let sequence = 7; sequence <= MAX_SUCCESSOR_TRANSCRIPT_HANDLES + 13; sequence++) {
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: evt(sequence, 'assistant_message', { text: `bounded handle ${sequence}` }),
+      });
+    }
+    const longPacket = buildCompactionPacket(db, packetInput()).packet;
+    const bootstrap = resumeFromPacket(db, longPacket);
+
+    expect(bootstrap.transcriptPrefix).toHaveLength(MAX_SUCCESSOR_TRANSCRIPT_HANDLES);
+    expect(bootstrap.transcriptPrefixTruncated).toBe(true);
+    expect(bootstrap.transcriptPrefix.at(-1)?.transcriptEventId).toBe(longPacket.sourceTranscript.headEventId);
+    expect(bootstrap.transcriptPrefix[0]?.sequence).toBeGreaterThan(1);
+  });
+
+  it('omits a leading tool result rather than splitting a valid pair at the bootstrap-handle cap', () => {
+    const existingRows = readEvents(db, { streamType: 'transcript-event', sessionId: SESSION }).length;
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(20_001, 'tool_call', { toolCallId: 'bootstrap-boundary' }),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(20_002, 'tool_result', { toolCallId: 'bootstrap-boundary', content: 'paired' }),
+    });
+    // Make the result the first of the last 128 source rows. The matching
+    // call remains immediately before that capped convenience lens.
+    for (let offset = 0; offset < MAX_SUCCESSOR_TRANSCRIPT_HANDLES - 1; offset++) {
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: evt(20_003 + offset, 'assistant_message', { text: `after bootstrap pair ${offset}` }),
+      });
+    }
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })).toHaveLength(
+      existingRows + 2 + MAX_SUCCESSOR_TRANSCRIPT_HANDLES - 1,
+    );
+
+    const longPacket = buildCompactionPacket(db, packetInput()).packet;
+    const bootstrap = resumeFromPacket(db, longPacket);
+    expect(bootstrap.transcriptPrefix).toHaveLength(MAX_SUCCESSOR_TRANSCRIPT_HANDLES - 1);
+    expect(bootstrap.transcriptPrefix.map((row) => row.transcriptEventId))
+      .not.toContain(`evt_${SESSION}_20002`);
+    expect(bootstrap.transcriptPrefix.map((row) => row.transcriptEventId))
+      .not.toContain(`evt_${SESSION}_20001`);
   });
 
   it('refuses a packet whose embedded validator says passed: false', () => {
