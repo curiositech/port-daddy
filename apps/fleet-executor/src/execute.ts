@@ -2051,6 +2051,20 @@ export async function executeFleet(
   const trustedContracts = new Map<string, string | null>();
   const graftsByShip = new Map<string, SkillGraft>();
   const checkpointBindings = new Map<string, ShipCheckpointBinding>();
+  // Lookout is the one ship whose prompt consumes repository state outside the
+  // PR under review. Read that projection exactly once per invocation, before
+  // constructing any checkpoint binding, then hand this same immutable string
+  // to both the binding and runShip. A changed GitHub projection invalidates
+  // Lookout; an unchanged projection can resume and let a one-ship slice move
+  // monotonically to the next ship.
+  let frozenLookoutProjection = '';
+  if (orderedShips.some(ship => ship.name === 'lookout')) {
+    const [openPullRequests, recentBranches] = await Promise.all([
+      fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
+      listRecentBranches(prCtx.owner, prCtx.repo, token),
+    ]);
+    frozenLookoutProjection = renderFleetContext(openPullRequests, recentBranches);
+  }
   // A PR title/body can change without moving its head SHA or delivery id.
   // Bind the exact live input projection once, then reuse that digest for each
   // ship's current trusted checkpoint proof without re-hashing a large diff.
@@ -2075,6 +2089,7 @@ export async function executeFleet(
         systemPrompt,
         reviewInputSha256,
         mediatorOrders,
+        ship.name === 'lookout' ? frozenLookoutProjection : null,
       ),
     );
   }
@@ -2085,32 +2100,15 @@ export async function executeFleet(
   // re-spending into the same ceiling. Same-delivery only: runId is
   // `run:<deliveryId>`, so a new push never inherits a stale verdict.
   //
-  // Mediator orders are intentionally injected into every user prompt and
-  // Lookout's prompt contains live cross-PR state. Neither is a static trusted
-  // config file, so a changed value disables resume for the affected work
-  // instead of letting a prior verdict pretend it reviewed the new context.
-  const resumeBindings = new Map(checkpointBindings);
-  if (mediatorOrders) {
-    resumeBindings.clear();
-    await transcript.step(
-      'ship-checkpoint-resume-disabled',
-      null,
-      'Checkpoint resume disabled because a mediator order changed the current review context',
-      { reason: 'mediator-orders' },
-    );
-  }
-  if (resumeBindings.delete('lookout')) {
-    await transcript.step(
-      'ship-checkpoint-resume-disabled',
-      'lookout',
-      'Checkpoint resume disabled because Lookout consumes live cross-PR context',
-      { reason: 'live-cross-pr-context' },
-    );
-  }
+  // Every dynamic prompt input now participates in its ship's binding:
+  // mediator orders bind every ship, while the frozen repository projection
+  // binds Lookout only. Therefore no blanket resume disable is necessary — an
+  // actual input change invalidates exactly the affected checkpoint, and a
+  // stable input lets one-ship continuations make monotonic progress.
   const resumedShips = await loadShipCheckpoints(
     env,
     runId,
-    resumeBindings,
+    checkpointBindings,
     async (ship, reason) => {
       const message = reason === 'non-resumable-result'
         ? `pd-${ship}: retained broken checkpoint is diagnostic only; re-running the ship`
@@ -2284,6 +2282,7 @@ export async function executeFleet(
             squidConsent,
             xoEnabled,
             mediatorOrders,
+            ship.name === 'lookout' ? frozenLookoutProjection : null,
             aiCircuit,
             providerAttempt,
             assertCurrentHead,
@@ -2676,6 +2675,8 @@ async function runShip(
    * whole re-run sees the human's instructions verbatim.
    */
   mediatorOrders = '',
+  /** Exact pre-binding Lookout projection; null for ships that do not consume it. */
+  frozenLookoutProjection: string | null = null,
   /** One circuit shared by every analytical ship in this queue delivery. */
   aiCircuit = new FleetAiCircuit(),
   /** Provider attempt after successful checkpoint continuations are excluded. */
@@ -2692,17 +2693,15 @@ async function runShip(
   try {
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
 
-    // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
-    // injected into every MAP chunk so it can spot contradictions and duplication
-    // against OTHER open PRs and feature branches. Best-effort (helpers return []
-    // on failure) — Lookout degrades to single-PR reasoning, never crashes.
+    // Lookout's tools: cross-PR / cross-branch awareness. The orchestrator
+    // fetched and froze this exact projection before checkpoint construction;
+    // reusing the same string here closes the binding-to-prompt TOCTOU seam.
     let fleetContext = mediatorOrders;
     if (ship.name === 'lookout') {
-      const [openPRs, branches] = await Promise.all([
-        fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
-        listRecentBranches(prCtx.owner, prCtx.repo, token),
-      ]);
-      fleetContext = mediatorOrders + renderFleetContext(openPRs, branches);
+      if (frozenLookoutProjection === null) {
+        throw new Error('missing frozen Lookout projection');
+      }
+      fleetContext = mediatorOrders + frozenLookoutProjection;
     }
 
     // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated

@@ -19,7 +19,8 @@
  * recorder's seq-0 restart on redelivery can never overwrite it. The runId is
  * already deterministic per delivery (`run:<deliveryId>`), so retries — and
  * DLQ replays of the same delivery — can revalidate predecessors against the
- * current trusted Fleet policy, contract, graft, prompt, and mediator orders,
+ * current trusted Fleet policy, contract, graft, prompt, mediator orders, and
+ * Lookout's frozen cross-PR/recent-branch projection,
  * then reconstruct
  * only matching ships without re-running them. A NEW push is a new delivery
  * and a new runId: checkpoints never leak across heads.
@@ -62,6 +63,16 @@ export interface ShipCheckpointBinding {
   reviewInputSha256: string;
   /** Exact mediator reinjection that shaped user-visible ship context, or an explicit absence sentinel. */
   mediatorOrdersSha256: string;
+  /**
+   * Exact rendered open-PR/recent-branch projection supplied to Lookout.
+   *
+   * `not-applicable` is canonical for every other ship. The field remains
+   * optional only while parsing binding-v3 rows written before this witness
+   * existed: an omitted value normalizes to `not-applicable`, which preserves
+   * unaffected ship checkpoints while necessarily invalidating an old Lookout
+   * row against the current projection hash.
+   */
+  lookoutProjectionSha256?: string;
 }
 
 /** Why a retained row was deliberately not allowed to resume. */
@@ -114,6 +125,8 @@ const SHA256_RE = /^sha256:[a-f0-9]{64}$/;
 const ABSENT_CONTRACT_DIGEST = 'absent';
 /** No Modify order was present for this delivery when the checkpoint was written. */
 const ABSENT_MEDIATOR_ORDERS_DIGEST = 'absent';
+/** This ship does not consume Lookout's cross-PR/recent-branch projection. */
+const NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST = 'not-applicable';
 
 /**
  * Digest text as lower-case SHA-256 with an algorithm prefix.
@@ -232,6 +245,8 @@ export async function createCheckpointReviewInputSha256(
  * @param systemPrompt Exact system prompt handed to the model.
  * @param reviewInputSha256 Digest of the exact live PR input projection.
  * @param mediatorOrders Exact consumed Modify-order context, or '' when none was present.
+ * @param lookoutProjection Exact rendered cross-PR/recent-branch projection
+ * supplied to Lookout, including the empty projection; null for other ships.
  * @returns Deterministic checkpoint binding for persistence and comparison.
  */
 export async function createShipCheckpointBinding(
@@ -241,16 +256,27 @@ export async function createShipCheckpointBinding(
   systemPrompt: string,
   reviewInputSha256: string,
   mediatorOrders = '',
+  lookoutProjection: string | null = null,
 ): Promise<ShipCheckpointBinding> {
   if (!SHA256_RE.test(reviewInputSha256)) {
     throw new Error('checkpoint review input digest must be a SHA-256 value');
   }
-  const [shipConfigSha256, contractSha256, graftSha256, systemPromptSha256, mediatorOrdersSha256] = await Promise.all([
+  const [
+    shipConfigSha256,
+    contractSha256,
+    graftSha256,
+    systemPromptSha256,
+    mediatorOrdersSha256,
+    lookoutProjectionSha256,
+  ] = await Promise.all([
     sha256(JSON.stringify(semanticShipConfigTuple(ship))),
     contract === null ? Promise.resolve(ABSENT_CONTRACT_DIGEST) : sha256(contract),
     sha256(graftText),
     sha256(systemPrompt),
     mediatorOrders === '' ? Promise.resolve(ABSENT_MEDIATOR_ORDERS_DIGEST) : sha256(mediatorOrders),
+    lookoutProjection === null
+      ? Promise.resolve(NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST)
+      : sha256(lookoutProjection),
   ]);
   return {
     bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
@@ -260,6 +286,7 @@ export async function createShipCheckpointBinding(
     systemPromptSha256,
     reviewInputSha256,
     mediatorOrdersSha256,
+    lookoutProjectionSha256,
   };
 }
 
@@ -296,6 +323,16 @@ function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | nul
   ) {
     return null;
   }
+  const lookoutProjectionSha256 = binding.lookoutProjectionSha256 === undefined
+    ? NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST
+    : binding.lookoutProjectionSha256;
+  if (
+    typeof lookoutProjectionSha256 !== 'string' ||
+    (lookoutProjectionSha256 !== NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST &&
+      !SHA256_RE.test(lookoutProjectionSha256))
+  ) {
+    return null;
+  }
   return {
     bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
     shipConfigSha256: binding.shipConfigSha256,
@@ -304,6 +341,7 @@ function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | nul
     systemPromptSha256: binding.systemPromptSha256,
     reviewInputSha256: binding.reviewInputSha256,
     mediatorOrdersSha256: binding.mediatorOrdersSha256,
+    lookoutProjectionSha256,
   };
 }
 
@@ -322,7 +360,9 @@ function sameShipCheckpointBinding(left: ShipCheckpointBinding, right: ShipCheck
     left.graftSha256 === right.graftSha256 &&
     left.systemPromptSha256 === right.systemPromptSha256 &&
     left.reviewInputSha256 === right.reviewInputSha256 &&
-    left.mediatorOrdersSha256 === right.mediatorOrdersSha256;
+    left.mediatorOrdersSha256 === right.mediatorOrdersSha256 &&
+    (left.lookoutProjectionSha256 ?? NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST) ===
+      (right.lookoutProjectionSha256 ?? NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST);
 }
 
 /**
@@ -520,7 +560,8 @@ export async function saveShipCheckpoint(
   binding: ShipCheckpointBinding,
 ): Promise<boolean> {
   if (!env.DB) return false;
-  if (!parseShipCheckpointBinding(binding)) return false;
+  const normalizedBinding = parseShipCheckpointBinding(binding);
+  if (!normalizedBinding) return false;
   // An ERROR or all-empty/no-usable-output result is a diagnostic observation,
   // not completed review evidence. Its regular transcript/spend records stay
   // durable, but a retry must make fresh model progress instead of inheriting
@@ -543,7 +584,7 @@ export async function saveShipCheckpoint(
         JSON.stringify({
           ...result,
           checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
-          checkpointBinding: binding,
+          checkpointBinding: normalizedBinding,
         }),
         Math.floor(Date.now() / 1000),
       )

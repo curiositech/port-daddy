@@ -13,7 +13,7 @@ import {
 } from '../src/ship-checkpoint.js';
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import { assessContextAdmission } from '../src/context-admission.js';
-import { MAX_DIFF_BYTES, PR_FILES_PAGE_SIZE } from '../src/github.js';
+import { MAX_DIFF_BYTES, PR_FILES_PAGE_SIZE, renderFleetContext } from '../src/github.js';
 import {
   freshState,
   installGitHubFetch,
@@ -101,6 +101,34 @@ const MEDIATOR_REVIEWER_PLUS_QA_YAML = REVIEWER_PLUS_QA_YAML.replace(
   '  name: test\n  mediator:\n    enabled: true\n    harbor: test-harbor\n',
 );
 
+const LOOKOUT_THEN_REVIEWER_QA_YAML = fleetYaml([
+  { name: 'lookout', blocking: false, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+  { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+  { name: 'qa', blocking: false, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+]);
+
+const MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML = LOOKOUT_THEN_REVIEWER_QA_YAML.replace(
+  '  name: test\n',
+  '  name: test\n  mediator:\n    enabled: true\n    harbor: test-harbor\n',
+);
+
+const CONTRACT_MINIMAL_PASS = '```json\n[]\n```\nFLEET-VERDICT: PASS';
+
+async function seedMediatorOrders(control: ReturnType<typeof memoryKV>, modifyText: string): Promise<void> {
+  await control.put(
+    'mediator:reinjection:erichowens/port-daddy:7',
+    JSON.stringify({
+      parleyId: '979f6940-e0b0-42b9-ab21-078bbb2acae6',
+      repo: 'erichowens/port-daddy',
+      pr: 7,
+      action: 'merge',
+      modifyText,
+      decidedBy: 'operator',
+      at: 1_756_320_000,
+    }),
+  );
+}
+
 /** Match the executor's live PR evidence digest for the shared GitHub harness. */
 async function checkpointReviewInputForState(): Promise<string> {
   const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
@@ -130,6 +158,7 @@ async function checkpointBindingForYaml(
   contract: string | null = null,
   graftText = '',
   mediatorOrders = '',
+  lookoutProjection: string | null = null,
 ) {
   const ship = parseFleetShips(config, 'pull_request:opened')?.find(candidate => candidate.name === shipName);
   if (!ship) throw new Error(`fixture does not declare ${shipName}`);
@@ -140,6 +169,7 @@ async function checkpointBindingForYaml(
     buildSystemPrompt(ship, contract, graftText),
     await checkpointReviewInputForState(),
     mediatorOrders,
+    lookoutProjection,
   );
 }
 
@@ -151,6 +181,7 @@ const TEST_CHECKPOINT_BINDING = {
   systemPromptSha256: `sha256:${'3'.repeat(64)}`,
   reviewInputSha256: `sha256:${'4'.repeat(64)}`,
   mediatorOrdersSha256: 'absent',
+  lookoutProjectionSha256: 'not-applicable',
 };
 
 const TEST_EXPECTED_CHECKPOINT_BINDINGS = new Map([
@@ -1562,6 +1593,262 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       .toEqual(['code-reviewer']);
   });
 
+  it('makes monotonic one-ship progress past Lookout and terminates with every ship executed once', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Stable peer work', draft: false, head: { ref: 'peer' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'peer' }];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['code-reviewer', 'qa'],
+    });
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('keeps stable nonempty mediator orders resumable across one-ship slices', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Stable peer work', draft: false, head: { ref: 'peer' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'peer' }];
+    const kv = memoryKV();
+    const control = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: control, AI: ai.ai, DB: d1.db });
+    const stableOrder = 'Keep the release boundary exact and preserve the proof receipts.';
+
+    await seedMediatorOrders(control, stableOrder);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toMatchObject({ kind: 'continuation', completedShip: 'lookout' });
+    await seedMediatorOrders(control, stableOrder);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toMatchObject({ kind: 'continuation', completedShip: 'code-reviewer' });
+    await seedMediatorOrders(control, stableOrder);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const mediatorDigests = d1.steps
+      .filter(step => step.kind === SHIP_CHECKPOINT_KIND)
+      .map(step => JSON.parse(String(step.detail)).checkpointBinding.mediatorOrdersSha256);
+    expect(new Set(mediatorDigests).size).toBe(1);
+    expect(mediatorDigests[0]).toMatch(/^sha256:/);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('binds and prompts Lookout with the identical frozen projection even if GitHub changes mid-call', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Projection A', draft: false, head: { ref: 'projection-a' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'projection-a' }];
+    const projectionA = renderFleetContext([
+      { number: 700, title: 'Projection A', draft: false, headRef: 'projection-a', baseRef: 'main' },
+    ], ['projection-a']);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+      onCall: call => {
+        if (call.ship !== 'lookout') return;
+        state.openPRs = [
+          { number: 701, title: 'Projection B', draft: false, head: { ref: 'projection-b' }, base: { ref: 'main' } },
+        ];
+        state.branches = [{ name: 'projection-b' }];
+      },
+    });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    const lookoutPrompt = ai.calls
+      .find(call => call.ship === 'lookout')
+      ?.messages.map(message => message.content).join('\n') ?? '';
+    expect(lookoutPrompt).toContain('#700');
+    expect(lookoutPrompt).toContain('projection-a');
+    expect(lookoutPrompt).not.toContain('#701');
+    expect(lookoutPrompt).not.toContain('projection-b');
+    const checkpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'lookout',
+    );
+    expect(JSON.parse(String(checkpoint?.detail)).checkpointBinding).toEqual(
+      await checkpointBindingForYaml(
+        LOOKOUT_THEN_REVIEWER_QA_YAML,
+        'lookout',
+        null,
+        '',
+        '',
+        projectionA,
+      ),
+    );
+  });
+
+  it('invalidates only Lookout when its frozen projection changes, then converges', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Projection A', draft: false, head: { ref: 'projection-a' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'projection-a' }];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    await executeFleet(makeJob(), env, { queueAttempt: 1, maxNewShipsPerInvocation: 1 });
+    await executeFleet(makeJob(), env, { queueAttempt: 2, maxNewShipsPerInvocation: 1 });
+    state.openPRs = [
+      { number: 701, title: 'Projection B', draft: false, head: { ref: 'projection-b' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'projection-b' }];
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['qa'],
+    });
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 4,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(2);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const invalidatedShips = d1.steps
+      .filter(step => step.kind === 'ship-checkpoint-invalidated')
+      .map(step => step.ship);
+    expect(new Set(invalidatedShips)).toEqual(new Set(['lookout']));
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('invalidates mediator-bound checkpoints on an order change and then converges', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Stable peer work', draft: false, head: { ref: 'peer' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'peer' }];
+    const kv = memoryKV();
+    const control = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: control, AI: ai.ai, DB: d1.db });
+    const orderA = 'Preserve the original release proof.';
+    const orderB = 'Re-record the release proof against the new boundary.';
+
+    await seedMediatorOrders(control, orderA);
+    await executeFleet(makeJob(), env, { queueAttempt: 1, maxNewShipsPerInvocation: 1 });
+    await seedMediatorOrders(control, orderA);
+    await executeFleet(makeJob(), env, { queueAttempt: 2, maxNewShipsPerInvocation: 1 });
+    await seedMediatorOrders(control, orderB);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['code-reviewer', 'qa'],
+    });
+    await seedMediatorOrders(control, orderB);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 4,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    await seedMediatorOrders(control, orderB);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 5,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(2);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(2);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const invalidatedShips = new Set(
+      d1.steps
+        .filter(step => step.kind === 'ship-checkpoint-invalidated')
+        .map(step => step.ship),
+    );
+    expect(invalidatedShips).toEqual(new Set(['lookout', 'code-reviewer']));
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
   it('does not schedule a continuation from a broken first ship with work remaining', async () => {
     // A checkpoint is the only authorization for a bounded invocation to leave
     // the rest of its roster for a later delivery. If a broken first ship were
@@ -2412,6 +2699,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(parseShipCheckpoint('qa', JSON.stringify({
       ...versionedGood,
       checkpointBinding: { ...TEST_CHECKPOINT_BINDING, mediatorOrdersSha256: 'sha256:not-a-digest' },
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, lookoutProjectionSha256: 'sha256:not-a-digest' },
     }))).toBeNull();
     // Unknown verdict, wrong types, and malformed finding payloads: refused.
     expect(parseShipCheckpoint('qa', JSON.stringify({ ...versionedGood, verdict: 'MAYBE' }))).toBeNull();
