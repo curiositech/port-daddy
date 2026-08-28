@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseInstance } from '../sqlite-runtime.js';
 import type { EpisodicMemory } from '../episodic-memory.js';
+import { supportsInteractiveCompactionPacketProvider } from '../squid/hook-shape.js';
 import {
   sanitizeHandoffCapsule,
   type GitleaksRunner,
@@ -14,12 +15,16 @@ import {
 } from './context-pressure.js';
 import {
   buildCompactionPacket,
+  interactiveCitedPlanCheckpointForPacket,
+  interactivePacketAuthorityVerificationError,
   MAX_COMPACTION_PACKET_BYTES,
   resumeFromPacket,
+  validateCompactionPacket,
   type CompactionPacket,
   type SuccessorBootstrap,
 } from './compaction.js';
 import { appendEvent, type HarborPayload, type LedgerRow } from './event-ledger.js';
+import { assertAgainstSchema } from './schema-validate.js';
 
 export const CONTEXT_CONTINUITY_SCHEMA = 'pd.agent-harbor.context-continuity.v0' as const;
 
@@ -583,7 +588,16 @@ function latestPlanContent(
 ): { sessionId: string | null; content: string; capturedAt: string } | null {
   const requested = sample.planCheckpoint;
   const now = sample.measuredAt ?? new Date().toISOString();
-  const sessionId = requested?.sessionId?.trim() || null;
+  // An adapter may carry a bounded plan snapshot, but it never gets to select
+  // another session's plan for the current ContextEnvelope. The outer event
+  // and the nested typed receipt must name the same durable session.
+  const requestedSessionId = requested?.sessionId;
+  if (
+    requestedSessionId !== undefined
+    && requestedSessionId !== null
+    && (typeof requestedSessionId !== 'string' || requestedSessionId !== sample.sessionId)
+  ) return null;
+  const sessionId = sample.sessionId;
   const hasNotes = db.prepare(
     "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = 'session_notes'",
   ).get() as { present: number } | undefined;
@@ -622,17 +636,17 @@ function appendPlanCheckpoint(
   const eventId = `evt_plan_${suffix}`;
   const existing = eventPayload(db, eventId)?.payloadJson as Record<string, unknown> | undefined;
   const existingPlan = existing?.planCheckpoint;
-  if (existingPlan && typeof existingPlan === 'object' && !Array.isArray(existingPlan)) {
+  if (existing) {
+    if (!existingPlan || typeof existingPlan !== 'object' || Array.isArray(existingPlan)) return null;
     const row = existingPlan as Record<string, unknown>;
     const content = nonEmptyBoundedText(row.content);
-    if (content) {
-      return {
-        eventId,
-        sessionId: typeof row.sessionId === 'string' ? row.sessionId : null,
-        content,
-        capturedAt: isoTimestamp(row.capturedAt, source.capturedAt),
-      };
-    }
+    if (!content || !planCheckpointSessionMatches(row.sessionId, sample.sessionId)) return null;
+    return {
+      eventId,
+      sessionId: typeof row.sessionId === 'string' ? row.sessionId : null,
+      content,
+      capturedAt: isoTimestamp(row.capturedAt, source.capturedAt),
+    };
   }
 
   appendEvent(db, {
@@ -666,6 +680,16 @@ function appendPlanCheckpoint(
 function sourceProvider(sourceAdapter: string): string | null {
   const match = /^interactive:([a-z0-9-]+)$/i.exec(sourceAdapter);
   return match?.[1]?.toLowerCase() ?? null;
+}
+
+function normalizedInteractiveSourceAdapter(sourceAdapter: unknown): string | null {
+  if (typeof sourceAdapter !== 'string') return null;
+  const provider = sourceProvider(sourceAdapter);
+  return provider ? `interactive:${provider}` : null;
+}
+
+function planCheckpointSessionMatches(value: unknown, sessionId: string): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && value === sessionId);
 }
 
 function coverageReceiptFromEvent(
@@ -777,6 +801,238 @@ function appendToolPairCoverageReceipt(
   return coverageReceiptFromEvent(db, eventId);
 }
 
+interface ExpectedVerifiedInteractiveBoundary {
+  suffix: string;
+  eventId: string;
+  envelope: ContextEnvelope;
+}
+
+/** Build the one deterministic post-evidence boundary an interactive packet may cite. */
+function expectedVerifiedInteractiveBoundary(
+  existingEnvelope: ContextEnvelope,
+  baseSuffix: string,
+  planCheckpoint: ContextPlanCheckpoint,
+  toolPairCoverageReceipt: ToolPairCoverageReceipt,
+): ExpectedVerifiedInteractiveBoundary {
+  const suffix = stableSuffix(baseSuffix, planCheckpoint.eventId, toolPairCoverageReceipt.eventId);
+  const eventId = `evt_ctx_verified_${suffix}`;
+  const envelopeId = `ctx_verified_${suffix}`;
+  const contextRefs = [...(existingEnvelope.contextRefs ?? [])];
+  const addRef = (ref: NonNullable<ContextEnvelope['contextRefs']>[number]) => {
+    if (!contextRefs.some((candidate) => candidate.kind === ref.kind && candidate.ref === ref.ref)) {
+      contextRefs.push(ref);
+    }
+  };
+  addRef({ kind: 'attachment', ref: `pd-plan:${planCheckpoint.eventId}`, droppable: false });
+  addRef({ kind: 'attachment', ref: `tool-pair-coverage:${toolPairCoverageReceipt.eventId}`, droppable: false });
+
+  const envelope: ContextEnvelope = {
+    ...existingEnvelope,
+    envelopeId,
+    sourceEventId: eventId,
+    contextRefs,
+  };
+  return { suffix, eventId, envelope };
+}
+
+/**
+ * Read a deterministic post-evidence boundary only when it is the exact
+ * derived clone. Identity fields alone are not authority: a substituted
+ * pressure/estimator or missing evidence ref would otherwise be replayable.
+ */
+function readVerifiedInteractiveBoundary(
+  db: DatabaseInstance,
+  sample: ContextContinuitySample,
+  expected: ExpectedVerifiedInteractiveBoundary,
+): ContextEnvelope | null {
+  // A deterministic verified boundary is an exact, derived receipt rather
+  // than merely a row with the right identity fields. Build the expected
+  // clone before querying so a same-ID collision cannot substitute pressure,
+  // estimator, or evidence refs that a later packet would treat as authority.
+  const existing = db.prepare(`
+    SELECT stream_type, session_id, agent_node_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE event_id = ?
+    LIMIT 1
+  `).get(MAX_CONTEXT_EVENT_PAYLOAD_BYTES, expected.eventId) as {
+    stream_type: string;
+    session_id: string | null;
+    agent_node_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!existing) return null;
+  if (
+    existing.stream_type !== 'transcript-event'
+    || existing.session_id !== sample.sessionId
+    || existing.agent_node_id !== sample.agentNodeId
+    || existing.kind !== 'context_pressure'
+  ) {
+    throw new Error(`verified interactive context boundary ${expected.eventId} collides with different durable evidence`);
+  }
+  let persisted: unknown;
+  try {
+    persisted = (JSON.parse(existing.payload_json) as { payloadJson?: { contextEnvelope?: unknown } })
+      .payloadJson?.contextEnvelope;
+  } catch {
+    throw new Error(`verified interactive context boundary ${expected.eventId} has no readable ContextEnvelope`);
+  }
+  if (
+    !persisted
+    || typeof persisted !== 'object'
+    || Array.isArray(persisted)
+    || canonicalContextJson(persisted) !== canonicalContextJson(expected.envelope)
+  ) {
+    throw new Error(`verified interactive context boundary ${expected.eventId} collides with different durable evidence`);
+  }
+  return persisted as ContextEnvelope;
+}
+
+/** Read the exact deterministic plan receipt without consulting mutable current plan state. */
+function persistedPlanCheckpointForInteractiveBoundary(
+  db: DatabaseInstance,
+  sample: ContextContinuitySample,
+  eventId: string,
+): ContextPlanCheckpoint | null {
+  const row = db.prepare(`
+    SELECT stream_type, session_id, agent_node_id, kind, occurred_at,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE event_id = ?
+    LIMIT 1
+  `).get(MAX_CONTEXT_EVENT_PAYLOAD_BYTES, eventId) as {
+    stream_type: string;
+    session_id: string | null;
+    agent_node_id: string | null;
+    kind: string | null;
+    occurred_at: string | null;
+    payload_json: string;
+  } | undefined;
+  if (
+    !row
+    || row.stream_type !== 'transcript-event'
+    || row.session_id !== sample.sessionId
+    || row.agent_node_id !== sample.agentNodeId
+    || row.kind !== 'plan_checkpoint'
+  ) return null;
+  try {
+    const checkpoint = (JSON.parse(row.payload_json) as { payloadJson?: { planCheckpoint?: unknown } })
+      .payloadJson?.planCheckpoint;
+    if (!checkpoint || typeof checkpoint !== 'object' || Array.isArray(checkpoint)) return null;
+    const value = checkpoint as Record<string, unknown>;
+    const content = nonEmptyBoundedText(value.content);
+    if (!content || !planCheckpointSessionMatches(value.sessionId, sample.sessionId)) return null;
+    return {
+      eventId,
+      sessionId: typeof value.sessionId === 'string' ? value.sessionId : null,
+      content,
+      capturedAt: isoTimestamp(value.capturedAt, row.occurred_at ?? new Date().toISOString()),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Read the exact deterministic daemon coverage receipt and bind it to this observation. */
+function persistedToolPairCoverageForInteractiveBoundary(
+  db: DatabaseInstance,
+  sample: ContextContinuitySample,
+  eventId: string,
+): ToolPairCoverageReceipt | null {
+  const row = db.prepare(`
+    SELECT stream_type, session_id, agent_node_id, kind
+    FROM harbor_events
+    WHERE event_id = ?
+    LIMIT 1
+  `).get(eventId) as {
+    stream_type: string;
+    session_id: string | null;
+    agent_node_id: string | null;
+    kind: string | null;
+  } | undefined;
+  if (
+    !row
+    || row.stream_type !== 'transcript-event'
+    || row.session_id !== sample.sessionId
+    || row.agent_node_id !== sample.agentNodeId
+    || row.kind !== 'tool_pair_coverage'
+  ) return null;
+  const receipt = coverageReceiptFromEvent(db, eventId);
+  const provider = sourceProvider(sample.sourceAdapter);
+  if (
+    !receipt
+    || !provider
+    || receipt.coverage.status !== 'complete'
+    || receipt.coverage.provider !== provider
+    || receipt.coverage.sessionId !== sample.sessionId
+    || receipt.coverage.observationId !== sample.observationId
+  ) return null;
+  return receipt;
+}
+
+/**
+ * Re-anchor a packet-withheld interactive observation after its missing
+ * evidence arrives. The base ContextEnvelope remains an honest record of the
+ * earlier withheld decision; this second, deterministic boundary is the one a
+ * packet may cite because both the current pd-plan and complete coverage
+ * receipt precede it. Its suffix deliberately depends only on stable receipt
+ * IDs, never the mutable ledger tail, so an exact retry replays it.
+ */
+function verifiedInteractiveBoundary(
+  db: DatabaseInstance,
+  sample: ContextContinuitySample,
+  existingEnvelope: ContextEnvelope,
+  baseSuffix: string,
+  planCheckpoint: ContextPlanCheckpoint,
+  toolPairCoverageReceipt: ToolPairCoverageReceipt,
+): { envelope: ContextEnvelope; suffix: string } {
+  const expected = expectedVerifiedInteractiveBoundary(
+    existingEnvelope,
+    baseSuffix,
+    planCheckpoint,
+    toolPairCoverageReceipt,
+  );
+  const persisted = readVerifiedInteractiveBoundary(db, sample, expected);
+  if (persisted) return { envelope: persisted, suffix: expected.suffix };
+  appendEvent(db, {
+    streamType: 'transcript-event',
+    payload: {
+      eventId: expected.eventId,
+      sessionId: sample.sessionId,
+      agentNodeId: sample.agentNodeId,
+      sequence: nextTranscriptSequence(db, sample.sessionId),
+      occurredAt: expected.envelope.measuredAt,
+      schemaVersion: 1,
+      kind: 'context_pressure',
+      visibility: 'operator',
+      source: {
+        adapter: sample.sourceAdapter,
+        idempotencyKey: `context-continuity-verified-boundary:${expected.suffix}`,
+      },
+      payloadJson: { contextEnvelope: expected.envelope },
+    },
+  });
+  return { envelope: expected.envelope, suffix: expected.suffix };
+}
+
+/** Stable comparison for deterministic derived envelope receipts. */
+function canonicalContextJson(value: unknown): string {
+  const normalize = (candidate: unknown): unknown => {
+    if (Array.isArray(candidate)) return candidate.map(normalize);
+    if (candidate && typeof candidate === 'object') {
+      return Object.fromEntries(
+        Object.entries(candidate)
+          .filter(([, nested]) => nested !== undefined)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, nested]) => [key, normalize(nested)]),
+      );
+    }
+    return candidate;
+  };
+  return JSON.stringify(normalize(value));
+}
+
 function planObligations(checkpoint: ContextPlanCheckpoint | null): NonNullable<CompactionPacket['obligations']> {
   if (!checkpoint) return [];
   const items = checkpoint.content.split('\n')
@@ -805,26 +1061,35 @@ function packetForEnvelope(
   sessionId: string,
   envelopeId: string,
   expectedEventId?: string,
+  expectedSourceHeadEventId?: string,
+  expectedAgentNodeId?: string,
 ): CompactionPacket | null {
   const rows = expectedEventId
     ? db.prepare(`
-      SELECT CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
+      SELECT event_id, agent_node_id,
+             CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
       FROM harbor_events
       WHERE stream_type = 'transcript-event' AND session_id = ? AND event_id = ? AND kind = 'compaction_packet'
       LIMIT 1
-    `).all(MAX_CONTEXT_PACKET_EVENT_BYTES, sessionId, expectedEventId) as Array<{ payload_json: string }>
+    `).all(MAX_CONTEXT_PACKET_EVENT_BYTES, sessionId, expectedEventId) as Array<{ event_id: string; agent_node_id: string | null; payload_json: string }>
     : db.prepare(`
-      SELECT CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
+      SELECT event_id, agent_node_id,
+             CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
       FROM harbor_events
       WHERE stream_type = 'transcript-event' AND session_id = ? AND kind = 'compaction_packet'
       ORDER BY ledger_seq DESC
       LIMIT 32
-    `).all(MAX_CONTEXT_PACKET_EVENT_BYTES, sessionId) as Array<{ payload_json: string }>;
+    `).all(MAX_CONTEXT_PACKET_EVENT_BYTES, sessionId) as Array<{ event_id: string; agent_node_id: string | null; payload_json: string }>;
   for (const row of rows) {
     try {
       const outer = JSON.parse(row.payload_json) as { payloadJson?: CompactionPacket };
       const packet = outer.payloadJson;
-      if (packet?.trigger?.contextEnvelopeRef === envelopeId) return packet;
+      if (
+        packet?.trigger?.contextEnvelopeRef === envelopeId
+        && packet.transcriptEventId === row.event_id
+        && (!expectedSourceHeadEventId || packet.sourceTranscript?.headEventId === expectedSourceHeadEventId)
+        && (!expectedAgentNodeId || (row.agent_node_id === expectedAgentNodeId && packet.agentNodeId === expectedAgentNodeId))
+      ) return packet;
     } catch {
       // Tolerant read: ignore foreign or malformed packet events.
     }
@@ -857,12 +1122,71 @@ function contextEnvelopeForPacket(
     const envelope = outer.payloadJson?.contextEnvelope;
     if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) return null;
     const value = envelope as ContextEnvelope;
-    return value.schema === 'pd.agent-harbor.context-envelope.v0' && value.envelopeId === envelopeId
-      ? value
-      : null;
+    if (value.schema !== 'pd.agent-harbor.context-envelope.v0' || value.envelopeId !== envelopeId) return null;
+    assessContextEnvelope(value);
+    return value;
   } catch {
     return null;
   }
+}
+
+/**
+ * A cached packet is only replayable with the exact ContextEnvelope in its
+ * source head. Envelope ids are references, not globally unique authority:
+ * callers must never substitute a same-id row from a different observation.
+ */
+function exactPacketEnvelopeForReplay(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  suppliedEnvelope: ContextEnvelope,
+  requested: Pick<ContextContinuitySample, 'sessionId' | 'agentNodeId' | 'sourceAdapter'>,
+): ContextEnvelope {
+  if (packet.sessionId !== requested.sessionId || packet.agentNodeId !== requested.agentNodeId) {
+    throw new Error(`refusing packet ${packet.packetId}: packet is not bound to the requesting session and agent`);
+  }
+  if (suppliedEnvelope.sessionId !== requested.sessionId || suppliedEnvelope.agentNodeId !== requested.agentNodeId) {
+    throw new Error(`refusing packet ${packet.packetId}: supplied ContextEnvelope is not bound to the requesting session and agent`);
+  }
+  try {
+    // Deferred PreCompact does not run the whole successor bootstrap, but it
+    // must never return a raw historical object whose frozen packet contract
+    // or self-reporting validator already says it is unsafe.
+    assertAgainstSchema('compaction-packet', packet);
+  } catch (error) {
+    throw new Error(`refusing packet ${packet.packetId}: packet fails the frozen compaction-packet schema (${error instanceof Error ? error.message : String(error)})`);
+  }
+  const revalidation = validateCompactionPacket(packet, {
+    db,
+    validatedBy: 'lib/agent-harbor/context-continuity.ts#exactPacketEnvelopeForReplay',
+  });
+  if (packet.validator?.passed !== true || !revalidation.passed) {
+    throw new Error(`refusing packet ${packet.packetId}: packet validator is not durably reusable (${(revalidation.errors ?? []).join('; ')})`);
+  }
+  const authorityError = interactivePacketAuthorityVerificationError(db, packet);
+  if (authorityError) throw new Error(`refusing packet ${packet.packetId}: ${authorityError}`);
+  const durableEnvelope = contextEnvelopeForPacket(db, packet);
+  if (!durableEnvelope) {
+    throw new Error(`refusing packet ${packet.packetId}: packet has no schema-valid ContextEnvelope at its cited source head`);
+  }
+  const requestedInteractiveAdapter = normalizedInteractiveSourceAdapter(requested.sourceAdapter);
+  const durableInteractiveAdapter = normalizedInteractiveSourceAdapter(durableEnvelope.sourceAdapter);
+  // Match in both directions. A generic historical packet is not a safe
+  // substitute for an interactive retry, and an interactive packet must not
+  // be handed to or relabelled by a generic/different adapter caller.
+  if (requestedInteractiveAdapter || durableInteractiveAdapter) {
+    const authorityAdapter = durableInteractiveAdapter ?? requestedInteractiveAdapter;
+    const authorityProvider = authorityAdapter ? sourceProvider(authorityAdapter) : null;
+    if (!authorityAdapter || !authorityProvider || !supportsInteractiveCompactionPacketProvider(authorityProvider)) {
+      throw new Error(`refusing packet ${packet.packetId}: ${authorityAdapter ?? 'interactive adapter'} has no verified compaction-packet issuance contract in this slice`);
+    }
+    if (requestedInteractiveAdapter !== durableInteractiveAdapter) {
+      throw new Error(`refusing packet ${packet.packetId}: requesting adapter does not match the cited interactive ContextEnvelope adapter`);
+    }
+  }
+  if (canonicalContextJson(durableEnvelope) !== canonicalContextJson(suppliedEnvelope)) {
+    throw new Error(`refusing packet ${packet.packetId}: supplied ContextEnvelope does not exactly match its durable source head`);
+  }
+  return durableEnvelope;
 }
 
 function verifiedBootstrap(
@@ -933,13 +1257,16 @@ export function loadLatestVerifiedContextBootstrap(
     };
   }
   const rows = db.prepare(`
-    SELECT CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json,
+    SELECT event_id, agent_node_id,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json,
            CASE WHEN LENGTH(CAST(payload_json AS BLOB)) > ? THEN 1 ELSE 0 END AS payload_oversize
     FROM harbor_events
     WHERE stream_type = 'transcript-event' AND session_id = ? AND kind = 'context_pressure'
     ORDER BY ledger_seq DESC
     LIMIT 32
   `).all(MAX_CONTEXT_EVENT_PAYLOAD_BYTES, MAX_CONTEXT_EVENT_PAYLOAD_BYTES, sessionId) as Array<{
+    event_id: string;
+    agent_node_id: string | null;
     payload_json: string;
     payload_oversize: number;
   }>;
@@ -957,7 +1284,7 @@ export function loadLatestVerifiedContextBootstrap(
       if (context.schema !== 'pd.agent-harbor.context-envelope.v0') {
         return { status: 'withheld', sourceSessionId: sessionId, packetId: null, reason: 'latest context envelope uses an unsupported schema' };
       }
-      const packet = packetForEnvelope(db, sessionId, context.envelopeId);
+      const packet = packetForEnvelope(db, sessionId, context.envelopeId, undefined, row.event_id, row.agent_node_id ?? undefined);
       if (!packet) {
         const adapter = (context as { sourceAdapter?: unknown }).sourceAdapter;
         const interactive = typeof adapter === 'string' && sourceProvider(adapter) !== null;
@@ -1043,6 +1370,16 @@ export function loadVerifiedContextBootstrapFromProjection(
 }
 
 function checkpointForPacket(db: DatabaseInstance, packet: CompactionPacket): ContextPlanCheckpoint | null {
+  const citedInteractivePlan = interactiveCitedPlanCheckpointForPacket(db, packet);
+  if (citedInteractivePlan.interactive) {
+    if (citedInteractivePlan.error || !citedInteractivePlan.checkpoint) return null;
+    return {
+      eventId: citedInteractivePlan.checkpoint.transcriptEventId,
+      sessionId: packet.sessionId,
+      content: citedInteractivePlan.checkpoint.content,
+      capturedAt: citedInteractivePlan.checkpoint.capturedAt,
+    };
+  }
   const head = db.prepare(`
     SELECT ledger_seq
     FROM harbor_events
@@ -1241,11 +1578,81 @@ function rememberHandoff(
   }).id;
 }
 
+/**
+ * Replay a committed packet without inspecting later provider/tool work. A
+ * retry is about the packet's original cited boundary, not a new observation;
+ * re-running current-tail coverage here would turn an unrelated later tool
+ * call into a false rejection after a crash or provider retry.
+ */
+function replayCommittedContextPacket(
+  db: DatabaseInstance,
+  deps: ContextContinuityCoordinatorDeps,
+  sample: ContextContinuitySample,
+  envelope: ContextEnvelope,
+  packet: CompactionPacket,
+): ContextContinuityResult {
+  // Deferred PreCompact replays intentionally avoid a full successor bootstrap
+  // on the provider's deadline, but they must still enforce the same derived
+  // context-boundary authority used by resume/takeover/fresh-begin paths.
+  const durableEnvelope = exactPacketEnvelopeForReplay(db, packet, envelope, sample);
+  const assessment = assessContextEnvelope(durableEnvelope);
+  const planCheckpoint = checkpointForPacket(db, packet);
+  const toolPairCoverageReceipt = packet.interactiveToolPairCoverage
+    ? coverageReceiptFromEvent(db, packet.interactiveToolPairCoverage.receiptEventId)
+    : null;
+  // A provider PreCompact deadline may not page an entire append-only
+  // session merely to replay an already-written receipt. Packet/schema
+  // validation happened before the write; full chain revalidation is
+  // reserved for the governed loader/continuation path below.
+  const verifiedBootstrap = sample.deferHandoffProjection
+    ? null
+    : resumeFromPacket(db, packet);
+  let bootstrap: SuccessorBootstrap | null = verifiedBootstrap;
+  let episodeId = handoffEpisodeId(db, packet.packetId);
+  if (!sample.deferHandoffProjection && deps.episodicMemory && episodeId === null) {
+    try {
+      const capsule = capsuleFromPacket(db, packet, sample, deps.gitleaksRunner);
+      episodeId = rememberHandoff(deps.episodicMemory, packet, sample, capsule);
+    } catch (error) {
+      deps.logger?.error('context_continuity_handoff_projection_failed', {
+        agentNodeId: sample.agentNodeId,
+        sessionId: sample.sessionId,
+        packetId: packet.packetId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return {
+    schema: CONTEXT_CONTINUITY_SCHEMA,
+    envelope: durableEnvelope,
+    assessment,
+    packet,
+    bootstrap,
+    handoffEpisodeId: episodeId,
+    replayed: true,
+    planCheckpoint,
+    // The verifier above proves the packet's original bounded coverage
+    // boundary. Do not reinterpret later provider events as evidence
+    // against this already committed observation.
+    toolPairIntegrity: packet.interactiveToolPairCoverage ? { valid: true, violations: [] } : null,
+    toolPairCoverage: toolPairCoverageReceipt?.coverage ?? null,
+    toolPairCoverageReceipt,
+    governance: contextGovernance(assessment, planCheckpoint),
+  };
+}
+
 export function createContextContinuityCoordinator(
   db: DatabaseInstance,
   deps: ContextContinuityCoordinatorDeps = {},
 ) {
   function record(sample: ContextContinuitySample): ContextContinuityResult {
+    const requestedInteractiveProvider = sourceProvider(sample.sourceAdapter);
+    if (
+      requestedInteractiveProvider
+      && !supportsInteractiveCompactionPacketProvider(requestedInteractiveProvider)
+    ) {
+      throw new Error(`interactive:${requestedInteractiveProvider} has no verified compaction-packet issuance contract in this slice`);
+    }
     // Interactive observation IDs are durable delivery keys.  Do not mix a
     // caller's mutable run/transcript metadata into that key: a retry must
     // replay the same packet even when a provider rotates an opaque reference.
@@ -1266,64 +1673,75 @@ export function createContextContinuityCoordinator(
     // and tempt callers to mint a second one. `resumeFromPacket` revalidates
     // the original cited head and durable receipt without treating later work
     // as part of that earlier boundary.
-    if (existingPayload?.contextEnvelope) {
-      const existingEnvelope = existingPayload.contextEnvelope as ContextEnvelope;
-      const existingPacket = packetForEnvelope(db, sample.sessionId, existingEnvelope.envelopeId, `evt_cpk_${suffix}`);
-      if (existingPacket) {
-        const assessment = assessContextEnvelope(existingEnvelope);
-        const planCheckpoint = checkpointForPacket(db, existingPacket);
-        const toolPairCoverageReceipt = existingPacket.interactiveToolPairCoverage
-          ? coverageReceiptFromEvent(db, existingPacket.interactiveToolPairCoverage.receiptEventId)
-          : null;
-        // A provider PreCompact deadline may not page an entire append-only
-        // session merely to replay an already-written receipt. Packet/schema
-        // validation happened before the write; full chain revalidation is
-        // reserved for the governed loader/continuation path below.
-        const verifiedBootstrap = sample.deferHandoffProjection
-          ? null
-          : resumeFromPacket(db, existingPacket);
-        let bootstrap: SuccessorBootstrap | null = verifiedBootstrap;
-        let episodeId = handoffEpisodeId(db, existingPacket.packetId);
-        if (!sample.deferHandoffProjection && deps.episodicMemory && episodeId === null) {
-          try {
-            const capsule = capsuleFromPacket(db, existingPacket, sample, deps.gitleaksRunner);
-            episodeId = rememberHandoff(deps.episodicMemory, existingPacket, sample, capsule);
-          } catch (error) {
-            deps.logger?.error('context_continuity_handoff_projection_failed', {
-              agentNodeId: sample.agentNodeId,
-              sessionId: sample.sessionId,
-              packetId: existingPacket.packetId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
+    const existingEnvelope = existingPayload?.contextEnvelope as ContextEnvelope | undefined;
+    if (
+      existingEnvelope
+      && (existingEnvelope.sessionId !== sample.sessionId || existingEnvelope.agentNodeId !== sample.agentNodeId)
+    ) {
+      throw new Error(`interactive context observation ${eventId} is already bound to a different session or agent`);
+    }
+    const existingPacket = existingEnvelope
+      ? packetForEnvelope(db, sample.sessionId, existingEnvelope.envelopeId, `evt_cpk_${suffix}`, eventId, sample.agentNodeId)
+      : null;
+    if (existingEnvelope && existingPacket) {
+      return replayCommittedContextPacket(db, deps, sample, existingEnvelope, existingPacket);
+    }
+    if (existingEnvelope) {
+      // A previously withheld base observation can later gain its plan and
+      // coverage receipts. Look up the deterministic verified descendant
+      // before examining the current tail, exactly as we do for a base packet:
+      // later tool work belongs to a later provider turn, never the old packet.
+      const verifiedSuffix = stableSuffix(
+        suffix,
+        `evt_plan_${suffix}`,
+        `evt_tool_coverage_${suffix}`,
+      );
+      const verifiedEnvelopeId = `ctx_verified_${verifiedSuffix}`;
+      const verifiedPacket = packetForEnvelope(
+        db,
+        sample.sessionId,
+        verifiedEnvelopeId,
+        `evt_cpk_${verifiedSuffix}`,
+        `evt_ctx_verified_${verifiedSuffix}`,
+        sample.agentNodeId,
+      );
+      if (verifiedPacket) {
+        const verifiedEnvelope = contextEnvelopeForPacket(db, verifiedPacket);
+        if (!verifiedEnvelope) {
+          throw new Error(`verified interactive packet ${verifiedPacket.packetId} has no readable context boundary`);
         }
-        return {
-          schema: CONTEXT_CONTINUITY_SCHEMA,
-          envelope: existingEnvelope,
-          assessment,
-          packet: existingPacket,
-          bootstrap,
-          handoffEpisodeId: episodeId,
-          replayed: true,
-          planCheckpoint,
-          // The verifier above proves the packet's original bounded coverage
-          // boundary. Do not reinterpret later provider events as evidence
-          // against this already committed observation.
-          toolPairIntegrity: existingPacket.interactiveToolPairCoverage ? { valid: true, violations: [] } : null,
-          toolPairCoverage: toolPairCoverageReceipt?.coverage ?? null,
-          toolPairCoverageReceipt,
-          governance: contextGovernance(assessment, planCheckpoint),
-        };
+        return replayCommittedContextPacket(db, deps, sample, verifiedEnvelope, verifiedPacket);
       }
     }
 
     const planCheckpoint = appendPlanCheckpoint(db, sample, suffix);
     const toolPairCoverageReceipt = appendToolPairCoverageReceipt(db, sample, suffix);
     let replayed = existing !== null;
+    let packetSuffix = suffix;
     let envelope: ContextEnvelope;
 
-    if (existingPayload?.contextEnvelope) {
-      envelope = existingPayload.contextEnvelope as ContextEnvelope;
+    if (existingEnvelope) {
+      const existingAssessment = assessContextEnvelope(existingEnvelope);
+      if (
+        sample.requireCompleteToolPairs
+        && !existingPacket
+        && existingAssessment.compactionNeeded
+        && planCheckpoint
+        && toolPairCoverageReceipt
+      ) {
+        const verified = verifiedInteractiveBoundary(
+          db,
+          sample,
+          existingEnvelope,
+          suffix,
+          planCheckpoint,
+          toolPairCoverageReceipt,
+        );
+        envelope = verified.envelope;
+        packetSuffix = verified.suffix;
+      } else {
+        envelope = existingEnvelope;
+      }
     } else {
       const daemonEstimate = Math.max(
         finiteNonNegative(sample.daemonUsedTokensEstimate),
@@ -1389,7 +1807,14 @@ export function createContextContinuityCoordinator(
 
     const assessment = assessContextEnvelope(envelope);
     const governance = contextGovernance(assessment, planCheckpoint);
-    let packet = packetForEnvelope(db, sample.sessionId, envelope.envelopeId, `evt_cpk_${suffix}`);
+    let packet = packetForEnvelope(
+      db,
+      sample.sessionId,
+      envelope.envelopeId,
+      `evt_cpk_${packetSuffix}`,
+      envelope.sourceEventId ?? undefined,
+      sample.agentNodeId,
+    );
     let bootstrap: SuccessorBootstrap | null = null;
     let episodeId = packet ? handoffEpisodeId(db, packet.packetId) : null;
     let toolPairIntegrity: ToolPairIntegrity | null = null;
@@ -1473,14 +1898,19 @@ export function createContextContinuityCoordinator(
             'Use the existing idempotent continuation receipt; never spawn a second successor for the same key.',
           ],
         },
-        packetId: `cpk_ctx_${suffix}`,
-        eventId: `evt_cpk_${suffix}`,
+        packetId: `cpk_ctx_${packetSuffix}`,
+        eventId: `evt_cpk_${packetSuffix}`,
       });
       packet = built.packet;
       replayed = false;
     }
 
     if (packet) {
+      // A concurrent or historical append can make this post-evidence lookup
+      // find a packet that was absent before we wrote the receipts. Verify its
+      // exact source envelope even on deferred PreCompact paths; otherwise a
+      // same-id alias could be returned without ever reaching resume.
+      envelope = exactPacketEnvelopeForReplay(db, packet, envelope, sample);
       // PreCompact keeps its hook deadline bounded: build-time packet checks
       // inspect only the capped tail and cited rows. The governed successor
       // path calls `resumeFromPacket`, whose whole-session hash-chain audit is
@@ -1607,7 +2037,7 @@ export function listContextContinuity(
       rowProjectDir = typeof envelope.projectDir === 'string' ? envelope.projectDir : null;
       if (options.projectDir && rowProjectDir !== options.projectDir) continue;
       const assessment = assessContextEnvelope(envelope);
-      const packet = packetForEnvelope(db, row.session_id, envelope.envelopeId);
+      const packet = packetForEnvelope(db, row.session_id, envelope.envelopeId, undefined, row.event_id, row.agent_node_id);
       if (packet) resumeFromPacket(db, packet);
       const continuation = packet ? continuationForPacket(db, packet.packetId) : null;
       const estimator = (envelope.estimator ?? {}) as Record<string, unknown>;

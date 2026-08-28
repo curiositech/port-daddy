@@ -47,8 +47,9 @@
  *     as ADR-0095's witnessing invariant and ADR-0096's macaroon authorityRef.
  */
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseInstance } from '../sqlite-runtime.js';
+import { supportsInteractiveCompactionPacketProvider } from '../squid/hook-shape.js';
 import {
   appendEvent,
   type AppendResult,
@@ -58,6 +59,7 @@ import {
 } from './event-ledger.js';
 import { assertAgainstSchema } from './schema-validate.js';
 import {
+  assessContextEnvelope,
   classifyPressure,
   type ContextEnvelope,
   type PressureAssessment,
@@ -355,6 +357,8 @@ export const MAX_PACKET_EVENT_PAYLOAD_BYTES = 16 * 1024;
 export const MAX_COMPACTION_PACKET_BYTES = 96 * 1024;
 /** Metadata envelope allowance around a packet that already fits its own cap. */
 const MAX_COMPACTION_PACKET_EVENT_BYTES = MAX_COMPACTION_PACKET_BYTES + 4 * 1024;
+/** One more than the accepted count lets authority fail closed on duplicate context ids. */
+const MAX_INTERACTIVE_CONTEXT_CANDIDATES = 33;
 
 /**
  * Read only the tail that can become convenience text in a packet.  Oversize
@@ -583,6 +587,56 @@ export interface BuildPacketResult {
 }
 
 /**
+ * A direct builder caller may supply an interactive ContextEnvelope, but it
+ * may not detach that envelope from the durable boundary the packet will pin.
+ * The coordinator writes the ContextEnvelope immediately before calling the
+ * builder; checking that relationship here keeps the exported builder from
+ * turning a later unrelated transcript row into an escape hatch around the
+ * interactive coverage proof.
+ */
+function interactiveInputBoundaryError(
+  contextEnvelope: ContextEnvelope | undefined,
+  head: Pick<LedgerRow, 'event_id' | 'kind' | 'payload_json'>,
+  expectedSessionId: string,
+  expectedAgentNodeId: string,
+): string | null {
+  const requestedAdapter = contextEnvelope?.sourceAdapter;
+  const providerMatch = typeof requestedAdapter === 'string'
+    ? /^interactive:([a-z0-9-]+)$/i.exec(requestedAdapter)
+    : null;
+  if (!contextEnvelope || !providerMatch) return null;
+  const issuanceError = interactiveProviderIssuanceError(providerMatch[1].toLowerCase());
+  if (issuanceError) return issuanceError;
+  try {
+    assertAgainstSchema('context-envelope', contextEnvelope);
+  } catch {
+    return 'interactive ContextEnvelope fails the frozen context-envelope schema';
+  }
+  if (contextEnvelope.sessionId !== expectedSessionId || contextEnvelope.agentNodeId !== expectedAgentNodeId) {
+    return 'interactive ContextEnvelope is not bound to this packet session and agent';
+  }
+  if (head.kind !== 'context_pressure') {
+    return 'interactive ContextEnvelope must be the durable context-pressure source head';
+  }
+  if (!contextEnvelope.sourceEventId || contextEnvelope.sourceEventId !== head.event_id) {
+    return 'interactive ContextEnvelope sourceEventId must identify the exact durable context-pressure source head';
+  }
+  try {
+    const outer = JSON.parse(head.payload_json) as { payloadJson?: { contextEnvelope?: unknown } };
+    const durable = outer.payloadJson?.contextEnvelope;
+    if (!durable || typeof durable !== 'object' || Array.isArray(durable)) {
+      return 'interactive context-pressure source head has no readable ContextEnvelope';
+    }
+    if (canonicalJson(durable) !== canonicalJson(contextEnvelope)) {
+      return 'interactive ContextEnvelope does not exactly match its durable context-pressure source head';
+    }
+  } catch {
+    return 'interactive context-pressure source head ContextEnvelope cannot be parsed';
+  }
+  return null;
+}
+
+/**
  * A deterministic packet event id is an idempotency key, not a hint. On a
  * retry, return the already committed packet rather than a newly constructed
  * in-memory body whose source head may have advanced while the caller crashed.
@@ -601,9 +655,10 @@ function persistedPacketForRetry(
   db: DatabaseInstance,
   eventId: string,
   expectedSessionId: string,
+  expectedAgentNodeId: string,
 ): PersistedPacketRetry | null {
   const row = db.prepare(`
-    SELECT ledger_seq, event_id, session_id, kind, content_hash, prev_hash,
+    SELECT ledger_seq, event_id, session_id, agent_node_id, kind, content_hash, prev_hash,
            CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
     FROM harbor_events
     WHERE stream_type = 'transcript-event' AND event_id = ?
@@ -612,13 +667,18 @@ function persistedPacketForRetry(
     ledger_seq: number;
     event_id: string;
     session_id: string | null;
+    agent_node_id: string | null;
     kind: string | null;
     content_hash: string | null;
     prev_hash: string | null;
     payload_json: string;
   } | undefined;
   if (!row) return null;
-  if (row.session_id !== expectedSessionId || row.kind !== 'compaction_packet') {
+  if (
+    row.session_id !== expectedSessionId
+    || row.agent_node_id !== expectedAgentNodeId
+    || row.kind !== 'compaction_packet'
+  ) {
     throw new CompactionValidationError(
       `deterministic packet event ${eventId} resolves to a different durable transcript event (event-id collision)`,
       { passed: false, uncitedClaimCount: 0, missingObligationWarnings: [], errors: ['event-id collision'] },
@@ -627,7 +687,12 @@ function persistedPacketForRetry(
   try {
     const outer = JSON.parse(row.payload_json) as { payloadJson?: CompactionPacket };
     const packet = outer.payloadJson;
-    if (!packet || packet.transcriptEventId !== eventId || packet.sessionId !== expectedSessionId) {
+    if (
+      !packet
+      || packet.transcriptEventId !== eventId
+      || packet.sessionId !== expectedSessionId
+      || packet.agentNodeId !== expectedAgentNodeId
+    ) {
       throw new Error('stored payload does not identify the requested packet');
     }
     assertAgainstSchema('compaction-packet', packet);
@@ -665,6 +730,39 @@ function persistedPacketForRetry(
 }
 
 /**
+ * A deterministic packet id is scoped to the exact interactive source
+ * boundary, not merely to a session and agent. Without this check an older
+ * generic packet can occupy an interactive retry key and be returned before
+ * the input ContextEnvelope/coverage contract is examined.
+ */
+function persistedInteractiveInputBoundaryError(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  input: Pick<BuildPacketInput, 'contextEnvelope' | 'sessionId' | 'agentNodeId'>,
+): string | null {
+  const requestedAdapter = input.contextEnvelope?.sourceAdapter;
+  if (typeof requestedAdapter !== 'string' || !/^interactive:[a-z0-9-]+$/i.test(requestedAdapter)) return null;
+  const requested = input.contextEnvelope!;
+  if (
+    packet.trigger.contextEnvelopeRef !== requested.envelopeId
+    || packet.sourceTranscript?.headEventId !== requested.sourceEventId
+  ) {
+    return 'persisted deterministic packet does not match the requested interactive ContextEnvelope boundary';
+  }
+  const head = db.prepare(`
+    SELECT ledger_seq, event_id, stream_type, agent_node_id, session_id, run_id,
+           sequence, kind, occurred_at, ingested_at, idempotency_key, schema_id,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json,
+           content_hash, prev_hash
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(MAX_PACKET_EVENT_PAYLOAD_BYTES, packet.sourceTranscript.headEventId) as LedgerRow | undefined;
+  if (!head) return 'persisted deterministic packet source head is absent from the ledger';
+  return interactiveInputBoundaryError(requested, head, input.sessionId, input.agentNodeId);
+}
+
+/**
  * Build, validate, and (by default) record a CompactionPacket for a session.
  *
  * Fail-closed: if the ch04 validator does not pass — an uncited factual
@@ -685,8 +783,32 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
   // Reconstructing that newer tail may exceed a packet budget or otherwise
   // fail even though the original durable packet is valid and must replay.
   if (input.append !== false && input.eventId) {
-    const persisted = persistedPacketForRetry(db, input.eventId, input.sessionId);
+    const persisted = persistedPacketForRetry(db, input.eventId, input.sessionId, input.agentNodeId);
     if (persisted) {
+      const inputBoundaryError = persistedInteractiveInputBoundaryError(db, persisted.packet, input);
+      if (inputBoundaryError) {
+        throw new CompactionValidationError(
+          `interactive compaction packet ${persisted.packet.packetId} has no valid persisted source boundary: ${inputBoundaryError}`,
+          {
+            passed: false,
+            uncitedClaimCount: 0,
+            missingObligationWarnings: [],
+            errors: [inputBoundaryError],
+          },
+        );
+      }
+      const authorityError = interactivePacketAuthorityVerificationError(db, persisted.packet);
+      if (authorityError) {
+        throw new CompactionValidationError(
+          `interactive compaction packet ${persisted.packet.packetId} has no valid persisted source boundary: ${authorityError}`,
+          {
+            passed: false,
+            uncitedClaimCount: 0,
+            missingObligationWarnings: [],
+            errors: [authorityError],
+          },
+        );
+      }
       return {
         packet: persisted.packet,
         pressure: null,
@@ -781,6 +903,61 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
   if (packet.reviewState === undefined) delete packet.reviewState;
   if (packet.interactiveToolPairCoverage === undefined) delete packet.interactiveToolPairCoverage;
 
+  const inputBoundaryError = interactiveInputBoundaryError(
+    input.contextEnvelope,
+    head,
+    input.sessionId,
+    input.agentNodeId,
+  );
+  if (inputBoundaryError) {
+    throw new CompactionValidationError(
+      `interactive compaction packet ${packet.packetId} has no valid source boundary: ${inputBoundaryError}`,
+      {
+        passed: false,
+        uncitedClaimCount: 0,
+        missingObligationWarnings: [],
+        errors: [inputBoundaryError],
+      },
+    );
+  }
+
+  // An interactive coverage receipt is authority, not convenience metadata.
+  // Validate it against the already durable source boundary BEFORE this packet
+  // is serialized or appended. Resume repeats this check because a packet is
+  // untrusted input there too, but deferring the first check would let a
+  // malformed or substituted receipt become durable evidence in the interim.
+  const coverageError = interactiveCoverageVerificationError(db, packet, {
+    eventId: head.event_id,
+    ledgerSeq: head.ledger_seq,
+    sessionId: head.session_id,
+    agentNodeId: head.agent_node_id,
+    kind: head.kind,
+    payloadJson: head.payload_json,
+  });
+  if (coverageError) {
+    throw new CompactionValidationError(
+      `interactive tool-pair coverage for compaction packet ${packet.packetId} is not valid at its source boundary: ${coverageError}`,
+      {
+        passed: false,
+        uncitedClaimCount: 0,
+        missingObligationWarnings: [],
+        errors: [coverageError],
+      },
+    );
+  }
+  const derivedBoundaryError = interactiveDerivedBoundaryVerificationError(db, packet);
+  if (derivedBoundaryError) {
+    throw new CompactionValidationError(
+      `interactive compaction packet ${packet.packetId} has no valid derived source boundary: ${derivedBoundaryError}`,
+      {
+        passed: false,
+        uncitedClaimCount: 0,
+        missingObligationWarnings: [],
+        errors: [derivedBoundaryError],
+      },
+    );
+  }
+
   const serializedBytes = Buffer.byteLength(JSON.stringify(packet), 'utf8');
   if (serializedBytes > MAX_COMPACTION_PACKET_BYTES) {
     throw new CompactionValidationError(
@@ -843,11 +1020,35 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
     };
     appendResult = appendEvent(db, { streamType: 'transcript-event', payload: event });
     if (appendResult.duplicate) {
-      const persisted = persistedPacketForRetry(db, appendResult.eventId, input.sessionId);
+      const persisted = persistedPacketForRetry(db, appendResult.eventId, input.sessionId, input.agentNodeId);
       if (!persisted) {
         throw new CompactionValidationError(
           `deterministic packet event ${appendResult.eventId} disappeared during retry resolution`,
           { passed: false, uncitedClaimCount: 0, missingObligationWarnings: [], errors: ['missing duplicate packet'] },
+        );
+      }
+      const inputBoundaryError = persistedInteractiveInputBoundaryError(db, persisted.packet, input);
+      if (inputBoundaryError) {
+        throw new CompactionValidationError(
+          `interactive compaction packet ${persisted.packet.packetId} has no valid persisted source boundary: ${inputBoundaryError}`,
+          {
+            passed: false,
+            uncitedClaimCount: 0,
+            missingObligationWarnings: [],
+            errors: [inputBoundaryError],
+          },
+        );
+      }
+      const authorityError = interactivePacketAuthorityVerificationError(db, persisted.packet);
+      if (authorityError) {
+        throw new CompactionValidationError(
+          `interactive compaction packet ${persisted.packet.packetId} has no valid persisted source boundary: ${authorityError}`,
+          {
+            passed: false,
+            uncitedClaimCount: 0,
+            missingObligationWarnings: [],
+            errors: [authorityError],
+          },
         );
       }
       return {
@@ -931,43 +1132,326 @@ function planCheckpointForResume(
   }
 }
 
+interface PacketSourceHead {
+  eventId: string;
+  ledgerSeq: number;
+  sessionId: string | null;
+  agentNodeId: string | null;
+  kind: string | null;
+  payloadJson: string;
+}
+
+interface InteractiveEnvelopeResolution {
+  interactive: boolean;
+  envelope: ContextEnvelope | null;
+  provider: string | null;
+  error: string | null;
+}
+
+function interactiveProvider(envelope: unknown): string | null {
+  if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) return null;
+  const adapter = (envelope as Record<string, unknown>).sourceAdapter;
+  const match = typeof adapter === 'string' ? /^interactive:([a-z0-9-]+)$/i.exec(adapter) : null;
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function interactiveProviderIssuanceError(provider: string): string | null {
+  if (supportsInteractiveCompactionPacketProvider(provider)) return null;
+  return `interactive:${provider} has no verified compaction-packet issuance contract in this slice`;
+}
+
+function interactiveEnvelopeBindingError(
+  envelope: ContextEnvelope,
+  head: PacketSourceHead,
+  packet: CompactionPacket,
+): string | null {
+  try {
+    // This is an authority boundary, not a tolerant projection: the frozen
+    // schema is required before a historical row can drive a continuation.
+    assessContextEnvelope(envelope);
+  } catch {
+    return 'interactive ContextEnvelope fails the frozen context-envelope schema';
+  }
+  if (head.kind !== 'context_pressure') return 'interactive packet source head is not the cited context-pressure event';
+  if (head.sessionId !== packet.sessionId || head.agentNodeId !== packet.agentNodeId) {
+    return 'interactive context-pressure source head is not bound to this packet session and agent';
+  }
+  if (envelope.sessionId !== packet.sessionId || envelope.agentNodeId !== packet.agentNodeId) {
+    return 'interactive ContextEnvelope is not bound to this packet session and agent';
+  }
+  if (envelope.sourceEventId !== head.eventId) {
+    return 'interactive ContextEnvelope sourceEventId does not identify its cited context-pressure head';
+  }
+  return null;
+}
+
+/**
+ * Resolve interactivity from the durable ContextEnvelope reference, not an
+ * optional proof field. A forged packet must not downgrade an interactive
+ * boundary to generic merely by repinning its transcript head to a later tool
+ * or assistant event and omitting `interactiveToolPairCoverage`.
+ */
+function resolveInteractiveSourceEnvelope(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  head: PacketSourceHead,
+): InteractiveEnvelopeResolution {
+  const proof = packet.interactiveToolPairCoverage;
+  const envelopeRef = packet.trigger.contextEnvelopeRef;
+  const direct = head.kind === 'context_pressure' ? contextEnvelopeFromPayload(head.payloadJson) : null;
+  const directProvider = interactiveProvider(direct);
+
+  if (directProvider) {
+    if (typeof envelopeRef !== 'string' || !envelopeRef.trim()) {
+      return { interactive: true, envelope: direct, provider: directProvider, error: 'interactive packet has no cited ContextEnvelope reference' };
+    }
+    if (direct?.envelopeId !== envelopeRef) {
+      return { interactive: true, envelope: direct, provider: directProvider, error: 'interactive packet ContextEnvelope reference does not match its source head' };
+    }
+    return {
+      interactive: true,
+      envelope: direct,
+      provider: directProvider,
+      error: interactiveProviderIssuanceError(directProvider)
+        ?? interactiveEnvelopeBindingError(direct, head, packet),
+    };
+  }
+
+  // A proof is an assertion of interactive authority. If the cited head does
+  // not resolve to the exact supported interactive ContextEnvelope, reject it
+  // instead of accepting a proof that is detached from its source boundary.
+  if (proof) {
+    if (head.kind !== 'context_pressure') {
+      return { interactive: true, envelope: null, provider: null, error: 'interactive packet source head is not the cited context-pressure event' };
+    }
+    if (typeof envelopeRef !== 'string' || !envelopeRef.trim()) {
+      return { interactive: true, envelope: direct, provider: null, error: 'interactive packet has no cited ContextEnvelope reference' };
+    }
+    if (!direct) {
+      return { interactive: true, envelope: null, provider: null, error: 'interactive packet source head has no readable ContextEnvelope' };
+    }
+    if (direct.envelopeId !== envelopeRef) {
+      return { interactive: true, envelope: direct, provider: null, error: 'interactive packet ContextEnvelope reference does not match its source head' };
+    }
+    return { interactive: true, envelope: direct, provider: null, error: 'interactive packet source ContextEnvelope is not a supported interactive adapter' };
+  }
+
+  if (typeof envelopeRef !== 'string' || !envelopeRef.trim()) {
+    return { interactive: false, envelope: null, provider: null, error: null };
+  }
+
+  // This is an exact structured-field lookup, bounded to make a duplicated
+  // envelope id fail closed rather than turn recovery into an unbounded scan.
+  const candidates = db.prepare(`
+    SELECT event_id,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) > 16384 THEN 1 ELSE 0 END AS payload_oversize,
+           json_extract(payload_json, '$.payloadJson.contextEnvelope.sourceAdapter') AS source_adapter
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event'
+      AND session_id = ?
+      AND kind = 'context_pressure'
+      AND json_valid(payload_json)
+      AND json_extract(payload_json, '$.payloadJson.contextEnvelope.envelopeId') = ?
+    ORDER BY ledger_seq DESC
+    LIMIT ?
+  `).all(packet.sessionId, envelopeRef, MAX_INTERACTIVE_CONTEXT_CANDIDATES) as Array<{
+    event_id: string;
+    payload_json: string;
+    payload_oversize: number;
+    source_adapter: string | null;
+  }>;
+  if (candidates.length >= MAX_INTERACTIVE_CONTEXT_CANDIDATES) {
+    return {
+      interactive: false,
+      envelope: null,
+      provider: null,
+      error: 'ContextEnvelope reference has too many durable candidates to verify boundedly',
+    };
+  }
+  for (const candidate of candidates) {
+    const candidateEnvelope = candidate.payload_oversize === 0
+      ? contextEnvelopeFromPayload(candidate.payload_json)
+      : null;
+    const provider = interactiveProvider(candidateEnvelope)
+      ?? (typeof candidate.source_adapter === 'string'
+        ? /^interactive:([a-z0-9-]+)$/i.exec(candidate.source_adapter)?.[1]?.toLowerCase() ?? null
+        : null);
+    if (provider) {
+      return {
+        interactive: true,
+        envelope: candidateEnvelope,
+        provider,
+        error: interactiveProviderIssuanceError(provider)
+          ?? (candidate.payload_oversize === 1
+            ? 'interactive ContextEnvelope reference cannot be verified within the bounded event budget'
+            : 'interactive ContextEnvelope reference does not name its exact cited context-pressure source head'),
+      };
+    }
+  }
+  return { interactive: false, envelope: null, provider: null, error: null };
+}
+
+function citedInteractivePlanEventId(envelope: ContextEnvelope): string | null {
+  if (!Array.isArray(envelope.contextRefs)) return null;
+  const planRefs = envelope.contextRefs
+    .filter((ref) => ref?.kind === 'attachment' && typeof ref.ref === 'string' && ref.ref.startsWith('pd-plan:'))
+    .map((ref) => ref.ref.slice('pd-plan:'.length))
+    .filter((eventId) => eventId.length > 0);
+  return planRefs.length === 1 ? planRefs[0] : null;
+}
+
+/** A plan event's outer ledger session is not enough: its typed receipt must not name another session. */
+function nestedPlanCheckpointSessionError(checkpoint: Record<string, unknown>, expectedSessionId: string): string | null {
+  const nestedSessionId = checkpoint.sessionId;
+  if (nestedSessionId === undefined || nestedSessionId === null) return null;
+  if (typeof nestedSessionId === 'string' && nestedSessionId === expectedSessionId) return null;
+  return 'interactive pd plan receipt nested session is not bound to this packet session';
+}
+
+interface ExactInteractivePlanLookup {
+  checkpoint: SuccessorBootstrap['planCheckpoint'];
+  error: string | null;
+}
+
+function exactInteractivePlanCheckpoint(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  head: PacketSourceHead,
+  planEventId: string,
+): ExactInteractivePlanLookup {
+  const row = db.prepare(`
+    SELECT ledger_seq, session_id, agent_node_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{"payloadJson":{}}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(planEventId) as {
+    ledger_seq: number;
+    session_id: string | null;
+    agent_node_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (
+    !row
+    || row.session_id !== packet.sessionId
+    || row.agent_node_id !== packet.agentNodeId
+    || row.kind !== 'plan_checkpoint'
+  ) return { checkpoint: null, error: 'interactive pd plan receipt is absent or is not bound to this packet session and agent' };
+  if (row.ledger_seq >= head.ledgerSeq) {
+    return { checkpoint: null, error: 'interactive pd plan receipt does not precede the cited context-pressure head' };
+  }
+  try {
+    const outer = JSON.parse(row.payload_json) as { payloadJson?: { planCheckpoint?: unknown } };
+    const raw = outer.payloadJson?.planCheckpoint;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { checkpoint: null, error: 'interactive pd plan receipt is malformed' };
+    }
+    const checkpoint = raw as Record<string, unknown>;
+    if (
+      checkpoint.schema !== 'pd.plan-checkpoint.v0'
+      || typeof checkpoint.content !== 'string'
+      || !checkpoint.content.trim()
+      || Buffer.byteLength(checkpoint.content, 'utf8') > 16 * 1024
+    ) return { checkpoint: null, error: 'interactive pd plan receipt is malformed' };
+    const nestedSessionError = nestedPlanCheckpointSessionError(checkpoint, packet.sessionId);
+    if (nestedSessionError) return { checkpoint: null, error: nestedSessionError };
+    return {
+      checkpoint: {
+        transcriptEventId: planEventId,
+        content: checkpoint.content,
+        capturedAt: typeof checkpoint.capturedAt === 'string' ? checkpoint.capturedAt : new Date(0).toISOString(),
+      },
+      error: null,
+    };
+  } catch {
+    return { checkpoint: null, error: 'interactive pd plan receipt cannot be parsed' };
+  }
+}
+
+function interactivePlanReceiptError(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+  head: PacketSourceHead,
+  planEventId: string,
+): string | null {
+  return exactInteractivePlanCheckpoint(db, packet, head, planEventId).error;
+}
+
+function interactiveBoundaryLineageError(
+  packet: CompactionPacket,
+  head: PacketSourceHead,
+  envelope: ContextEnvelope,
+  proof: NonNullable<CompactionPacket['interactiveToolPairCoverage']>,
+  planEventId: string,
+): string | null {
+  const expectedBaseSuffix = derivedInteractiveSuffix(packet.sessionId, proof.observationId);
+  if (proof.receiptEventId !== `evt_tool_coverage_${expectedBaseSuffix}`) {
+    return 'interactive daemon coverage receipt is not derived from this packet session and observation';
+  }
+  const verified = /^evt_ctx_verified_([a-f0-9]{24})$/i.exec(head.eventId);
+  if (verified) {
+    const expectedVerifiedSuffix = derivedInteractiveSuffix(
+      expectedBaseSuffix,
+      `evt_plan_${expectedBaseSuffix}`,
+      proof.receiptEventId,
+    );
+    if (verified[1] !== expectedVerifiedSuffix) {
+      return 'interactive verified boundary is not derived from this packet session and observation receipts';
+    }
+    if (
+      packet.packetId !== `cpk_ctx_${expectedVerifiedSuffix}`
+      || packet.transcriptEventId !== `evt_cpk_${expectedVerifiedSuffix}`
+    ) return 'interactive compaction packet identity is not derived from its verified context boundary';
+    return null;
+  }
+  const base = /^evt_ctx_([a-f0-9]{24})$/i.exec(head.eventId);
+  if (!base) return 'interactive base context-pressure boundary id is not deterministic';
+  const suffix = base[1];
+  if (
+    suffix !== expectedBaseSuffix
+    ||
+    envelope.envelopeId !== `ctx_${suffix}`
+    || envelope.sourceEventId !== head.eventId
+    || proof.receiptEventId !== `evt_tool_coverage_${suffix}`
+    || planEventId !== `evt_plan_${suffix}`
+  ) return 'interactive base boundary does not bind its exact context, pd plan, and daemon coverage receipts';
+  if (packet.trigger.contextEnvelopeRef !== envelope.envelopeId) {
+    return 'interactive packet ContextEnvelope reference does not match its source head';
+  }
+  if (packet.packetId !== `cpk_ctx_${suffix}` || packet.transcriptEventId !== `evt_cpk_${suffix}`) {
+    return 'interactive compaction packet identity is not derived from its base context boundary';
+  }
+  return null;
+}
+
 function interactiveCoverageVerificationError(
   db: DatabaseInstance,
   packet: CompactionPacket,
-  head: { ledgerSeq: number; kind: string | null; payloadJson: string },
+  head: PacketSourceHead,
 ): string | null {
   const proof = packet.interactiveToolPairCoverage;
-  const envelopeRef = packet.trigger.contextEnvelopeRef;
-  // The durable ContextEnvelope, not an optional packet field, decides whether
-  // this is an interactive packet. Otherwise a generic-looking packet could
-  // cite an interactive source head and silently skip the adapter coverage
-  // proof that made the boundary safe in the first place.
-  let interactiveEnvelope = false;
-  try {
-    if (head.kind !== 'context_pressure') return proof ? 'interactive packet source head is not the cited context-pressure event' : null;
-    if (typeof envelopeRef !== 'string' || !envelopeRef.trim()) return proof ? 'interactive packet has no cited ContextEnvelope reference' : null;
-    const outer = JSON.parse(head.payloadJson) as { payloadJson?: { contextEnvelope?: unknown } };
-    const envelope = outer.payloadJson?.contextEnvelope;
-    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) {
-      return proof ? 'interactive packet source head has no readable ContextEnvelope' : null;
-    }
-    if ((envelope as Record<string, unknown>).envelopeId !== envelopeRef) {
-      return proof ? 'interactive packet ContextEnvelope reference does not match its source head' : null;
-    }
-    const adapter = (envelope as Record<string, unknown>).sourceAdapter;
-    interactiveEnvelope = typeof adapter === 'string' && /^interactive:[a-z0-9-]+$/i.test(adapter);
-  } catch {
-    return proof ? 'interactive packet source head ContextEnvelope cannot be parsed' : null;
+  const resolution = resolveInteractiveSourceEnvelope(db, packet, head);
+  if (resolution.error) return resolution.error;
+  if (!resolution.interactive) {
+    return proof ? 'interactive tool-pair coverage proof is not bound to an interactive ContextEnvelope' : null;
   }
-  if (interactiveEnvelope && !proof) {
-    return 'interactive ContextEnvelope requires a daemon-owned tool-pair coverage proof';
-  }
-  if (!proof) return null;
+  const envelope = resolution.envelope;
+  if (!envelope || !resolution.provider) return 'interactive packet source ContextEnvelope cannot be verified';
+  if (!proof) return 'interactive ContextEnvelope requires a daemon-owned tool-pair coverage proof';
   if (proof.sessionId !== packet.sessionId || !proof.receiptEventId || !proof.observationId) {
     return 'interactive tool-pair coverage proof is not bound to this packet session';
   }
+  if (proof.provider.toLowerCase() !== resolution.provider) {
+    return 'interactive tool-pair coverage provider does not match the cited ContextEnvelope adapter';
+  }
+  const planEventId = citedInteractivePlanEventId(envelope);
+  if (!planEventId) return 'interactive ContextEnvelope has no single cited durable pd plan checkpoint';
+  const planError = interactivePlanReceiptError(db, packet, head, planEventId);
+  if (planError) return planError;
   const row = db.prepare(`
-    SELECT ledger_seq, session_id, kind,
+    SELECT ledger_seq, session_id, agent_node_id, kind,
            CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{"payloadJson":{}}' END AS payload_json
     FROM harbor_events
     WHERE stream_type = 'transcript-event' AND event_id = ?
@@ -975,14 +1459,24 @@ function interactiveCoverageVerificationError(
   `).get(proof.receiptEventId) as {
     ledger_seq: number;
     session_id: string | null;
+    agent_node_id: string | null;
     kind: string | null;
     payload_json: string;
   } | undefined;
-  if (!row || row.session_id !== packet.sessionId || row.kind !== 'tool_pair_coverage') {
-    return 'interactive tool-pair coverage receipt is absent or belongs to a different session';
-  }
+  if (
+    !row
+    || row.session_id !== packet.sessionId
+    || row.agent_node_id !== packet.agentNodeId
+    || row.kind !== 'tool_pair_coverage'
+  ) return 'interactive tool-pair coverage receipt is absent or is not bound to this packet session and agent';
   if (row.ledger_seq >= head.ledgerSeq) {
     return 'interactive tool-pair coverage receipt does not precede the cited context-pressure head';
+  }
+  if (!Number.isInteger(proof.coveredThroughLedgerSeq) || proof.coveredThroughLedgerSeq < 0 || proof.coveredThroughLedgerSeq > head.ledgerSeq) {
+    return 'interactive tool-pair coverage cursor is outside the packet source boundary';
+  }
+  if (row.ledger_seq <= proof.coveredThroughLedgerSeq) {
+    return 'interactive tool-pair coverage receipt does not follow its claimed coverage cursor';
   }
   try {
     const outer = JSON.parse(row.payload_json) as { payloadJson?: { toolPairCoverage?: unknown } };
@@ -1001,9 +1495,8 @@ function interactiveCoverageVerificationError(
   } catch {
     return 'interactive tool-pair coverage receipt cannot be parsed';
   }
-  if (!Number.isInteger(proof.coveredThroughLedgerSeq) || proof.coveredThroughLedgerSeq < 0 || proof.coveredThroughLedgerSeq > head.ledgerSeq) {
-    return 'interactive tool-pair coverage cursor is outside the packet source boundary';
-  }
+  const lineageError = interactiveBoundaryLineageError(packet, head, envelope, proof, planEventId);
+  if (lineageError) return lineageError;
   const unseenTool = db.prepare(`
     SELECT 1 AS present
     FROM harbor_events
@@ -1017,6 +1510,236 @@ function interactiveCoverageVerificationError(
   return unseenTool?.present === 1
     ? 'interactive tool-pair coverage left an uncited tool event before the packet boundary'
     : null;
+}
+
+function derivedInteractiveSuffix(...parts: string[]): string {
+  return createHash('sha256').update(parts.join('\0')).digest('hex').slice(0, 24);
+}
+
+function contextEnvelopeFromPayload(payloadJson: string): ContextEnvelope | null {
+  try {
+    const outer = JSON.parse(payloadJson) as { payloadJson?: { contextEnvelope?: unknown } };
+    const envelope = outer.payloadJson?.contextEnvelope;
+    return envelope && typeof envelope === 'object' && !Array.isArray(envelope)
+      ? envelope as ContextEnvelope
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface InteractiveCitedPlanCheckpointLookup {
+  interactive: boolean;
+  checkpoint: SuccessorBootstrap['planCheckpoint'];
+  error: string | null;
+}
+
+/**
+ * Read the one plan receipt cited by an interactive packet's exact durable
+ * ContextEnvelope. A later plan checkpoint may be useful operationally, but
+ * it is not authority to replace the plan the packet actually binds.
+ */
+export function interactiveCitedPlanCheckpointForPacket(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+): InteractiveCitedPlanCheckpointLookup {
+  const sourceHeadEventId = packet.sourceTranscript?.headEventId;
+  if (typeof sourceHeadEventId !== 'string' || !sourceHeadEventId) {
+    return { interactive: Boolean(packet.interactiveToolPairCoverage), checkpoint: null, error: 'packet sourceTranscript is incomplete' };
+  }
+  const head = db.prepare(`
+    SELECT ledger_seq, session_id, agent_node_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(sourceHeadEventId) as {
+    ledger_seq: number;
+    session_id: string | null;
+    agent_node_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!head) {
+    return { interactive: Boolean(packet.interactiveToolPairCoverage), checkpoint: null, error: `sourceTranscript.headEventId ${sourceHeadEventId} is not in the ledger` };
+  }
+  const resolution = resolveInteractiveSourceEnvelope(db, packet, {
+    eventId: sourceHeadEventId,
+    ledgerSeq: head.ledger_seq,
+    sessionId: head.session_id,
+    agentNodeId: head.agent_node_id,
+    kind: head.kind,
+    payloadJson: head.payload_json,
+  });
+  if (resolution.error) {
+    return { interactive: resolution.interactive, checkpoint: null, error: resolution.error };
+  }
+  if (!resolution.interactive) return { interactive: false, checkpoint: null, error: null };
+  if (!resolution.envelope) {
+    return { interactive: true, checkpoint: null, error: 'interactive packet source ContextEnvelope cannot be verified' };
+  }
+  const planEventId = citedInteractivePlanEventId(resolution.envelope);
+  if (!planEventId) {
+    return { interactive: true, checkpoint: null, error: 'interactive ContextEnvelope has no single cited durable pd plan checkpoint' };
+  }
+  const exact = exactInteractivePlanCheckpoint(db, packet, {
+    eventId: sourceHeadEventId,
+    ledgerSeq: head.ledger_seq,
+    sessionId: head.session_id,
+    agentNodeId: head.agent_node_id,
+    kind: head.kind,
+    payloadJson: head.payload_json,
+  }, planEventId);
+  return { interactive: true, checkpoint: exact.checkpoint, error: exact.error };
+}
+
+/**
+ * A verified interactive boundary is a deterministic clone, not merely a
+ * suitably named context event. This check lives with packet verification so
+ * resume, takeover, salvage, and a deferred provider replay all enforce the
+ * same authority rule without relying on the writer-side coordinator.
+ */
+export function interactiveDerivedBoundaryVerificationError(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+): string | null {
+  const headEventId = packet.sourceTranscript?.headEventId;
+  if (typeof headEventId !== 'string') return null;
+  const head = db.prepare(`
+    SELECT ledger_seq, session_id, agent_node_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(headEventId) as {
+    ledger_seq: number;
+    session_id: string | null;
+    agent_node_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!head || head.kind !== 'context_pressure') return null;
+  const envelope = contextEnvelopeFromPayload(head.payload_json);
+  const provider = interactiveProvider(envelope);
+  if (!envelope || !provider) return null;
+  const issuanceError = interactiveProviderIssuanceError(provider);
+  if (issuanceError) return issuanceError;
+  const verifiedMatch = /^evt_ctx_verified_([a-f0-9]{24})$/i.exec(headEventId);
+  if (!verifiedMatch) return null;
+  const proof = packet.interactiveToolPairCoverage;
+  const coverageMatch = /^evt_tool_coverage_([a-f0-9]{24})$/i.exec(proof?.receiptEventId ?? '');
+  if (!proof || !coverageMatch) return 'interactive verified boundary has no deterministic daemon coverage receipt';
+  const baseSuffix = coverageMatch[1];
+  const planEventId = `evt_plan_${baseSuffix}`;
+  const expectedSuffix = derivedInteractiveSuffix(baseSuffix, planEventId, proof.receiptEventId);
+  if (verifiedMatch[1] !== expectedSuffix) {
+    return 'interactive verified boundary id is not derived from its exact plan and coverage receipts';
+  }
+  if (
+    head.session_id !== packet.sessionId
+    || head.agent_node_id !== packet.agentNodeId
+    || envelope.envelopeId !== `ctx_verified_${expectedSuffix}`
+    || envelope.sourceEventId !== headEventId
+  ) {
+    return 'interactive verified boundary is not bound to its packet session, agent, and source head';
+  }
+  const base = db.prepare(`
+    SELECT ledger_seq, agent_node_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ? AND session_id = ?
+    LIMIT 1
+  `).get(`evt_ctx_${baseSuffix}`, packet.sessionId) as {
+    ledger_seq: number;
+    agent_node_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  const plan = db.prepare(`
+    SELECT ledger_seq, agent_node_id, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ? AND session_id = ?
+    LIMIT 1
+  `).get(planEventId, packet.sessionId) as {
+    ledger_seq: number;
+    agent_node_id: string | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  const coverage = db.prepare(`
+    SELECT ledger_seq, agent_node_id, kind
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ? AND session_id = ?
+    LIMIT 1
+  `).get(proof.receiptEventId, packet.sessionId) as {
+    ledger_seq: number;
+    agent_node_id: string | null;
+    kind: string | null;
+  } | undefined;
+  if (
+    !base
+    || base.kind !== 'context_pressure'
+    || base.agent_node_id !== packet.agentNodeId
+    || base.ledger_seq >= head.ledger_seq
+    || !plan
+    || plan.kind !== 'plan_checkpoint'
+    || plan.agent_node_id !== packet.agentNodeId
+    || plan.ledger_seq >= head.ledger_seq
+    || !coverage
+    || coverage.kind !== 'tool_pair_coverage'
+    || coverage.agent_node_id !== packet.agentNodeId
+    || coverage.ledger_seq >= head.ledger_seq
+  ) {
+    return 'interactive verified boundary is missing its preceding base context, pd plan, or daemon coverage receipt';
+  }
+  const baseEnvelope = contextEnvelopeFromPayload(base.payload_json);
+  if (
+    !baseEnvelope
+    || !Array.isArray(baseEnvelope.contextRefs)
+    || baseEnvelope.envelopeId !== `ctx_${baseSuffix}`
+    || baseEnvelope.sourceEventId !== `evt_ctx_${baseSuffix}`
+    || baseEnvelope.sessionId !== packet.sessionId
+    || baseEnvelope.agentNodeId !== packet.agentNodeId
+  ) {
+    return 'interactive verified boundary base ContextEnvelope is malformed';
+  }
+  try {
+    const planPayload = JSON.parse(plan.payload_json) as { payloadJson?: { planCheckpoint?: unknown } };
+    const checkpoint = planPayload.payloadJson?.planCheckpoint;
+    const checkpointContent = checkpoint && typeof checkpoint === 'object' && !Array.isArray(checkpoint)
+      ? (checkpoint as Record<string, unknown>).content
+      : null;
+    if (
+      !checkpoint
+      || typeof checkpoint !== 'object'
+      || Array.isArray(checkpoint)
+      || typeof checkpointContent !== 'string'
+      || !checkpointContent.trim()
+    ) return 'interactive verified boundary pd plan receipt is malformed';
+    const nestedSessionError = nestedPlanCheckpointSessionError(
+      checkpoint as Record<string, unknown>,
+      packet.sessionId,
+    );
+    if (nestedSessionError) return nestedSessionError;
+  } catch {
+    return 'interactive verified boundary pd plan receipt cannot be parsed';
+  }
+  const contextRefs = [...baseEnvelope.contextRefs];
+  const addRef = (ref: NonNullable<ContextEnvelope['contextRefs']>[number]) => {
+    if (!contextRefs.some((candidate) => candidate.kind === ref.kind && candidate.ref === ref.ref)) contextRefs.push(ref);
+  };
+  addRef({ kind: 'attachment', ref: `pd-plan:${planEventId}`, droppable: false });
+  addRef({ kind: 'attachment', ref: `tool-pair-coverage:${proof.receiptEventId}`, droppable: false });
+  const expected: ContextEnvelope = {
+    ...baseEnvelope,
+    envelopeId: `ctx_verified_${expectedSuffix}`,
+    sourceEventId: headEventId,
+    contextRefs,
+  };
+  return canonicalJson(envelope) === canonicalJson(expected)
+    ? null
+    : 'interactive verified boundary does not exactly match its base context plus plan and coverage receipts';
 }
 
 /**
@@ -1034,7 +1757,7 @@ function interactivePacketReceiptVerificationError(
     return 'interactive packet has no durable compaction-packet event reference';
   }
   const row = db.prepare(`
-    SELECT ledger_seq, session_id, kind,
+    SELECT ledger_seq, session_id, agent_node_id, kind,
            CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= ? THEN payload_json ELSE '{}' END AS payload_json
     FROM harbor_events
     WHERE stream_type = 'transcript-event' AND event_id = ?
@@ -1042,11 +1765,17 @@ function interactivePacketReceiptVerificationError(
   `).get(MAX_COMPACTION_PACKET_EVENT_BYTES, packet.transcriptEventId) as {
     ledger_seq: number;
     session_id: string | null;
+    agent_node_id: string | null;
     kind: string | null;
     payload_json: string;
   } | undefined;
-  if (!row || row.session_id !== packet.sessionId || row.kind !== 'compaction_packet') {
-    return 'interactive packet durable compaction-packet event is absent or belongs to a different session';
+  if (
+    !row
+    || row.session_id !== packet.sessionId
+    || row.agent_node_id !== packet.agentNodeId
+    || row.kind !== 'compaction_packet'
+  ) {
+    return 'interactive packet durable compaction-packet event is absent or is not bound to this packet session and agent';
   }
   if (row.ledger_seq <= sourceHeadLedgerSeq) {
     return 'interactive packet durable compaction-packet event does not follow its cited source head';
@@ -1061,6 +1790,55 @@ function interactivePacketReceiptVerificationError(
     return 'interactive packet durable compaction-packet event cannot be parsed';
   }
   return null;
+}
+
+/**
+ * Bounded authority check for already-persisted packets. Writer-side checks
+ * cannot protect deferred hook replay, deterministic retry, or a fresh
+ * continuation from artifacts emitted by an older build, so those paths share
+ * this source/head, durable-packet, coverage, and derived-boundary verifier.
+ */
+export function interactivePacketAuthorityVerificationError(
+  db: DatabaseInstance,
+  packet: CompactionPacket,
+): string | null {
+  const source = packet.sourceTranscript;
+  if (!source || typeof source.headEventId !== 'string' || typeof source.headHash !== 'string') {
+    return 'packet sourceTranscript is incomplete';
+  }
+  const head = db.prepare(`
+    SELECT ledger_seq, session_id, agent_node_id, content_hash, sequence, kind,
+           CASE WHEN LENGTH(CAST(payload_json AS BLOB)) <= 16384 THEN payload_json ELSE '{}' END AS payload_json
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event' AND event_id = ?
+    LIMIT 1
+  `).get(source.headEventId) as {
+    ledger_seq: number;
+    session_id: string | null;
+    agent_node_id: string | null;
+    content_hash: string | null;
+    sequence: number | null;
+    kind: string | null;
+    payload_json: string;
+  } | undefined;
+  if (!head) return `sourceTranscript.headEventId ${source.headEventId} is not in the ledger`;
+  if (head.session_id !== packet.sessionId) return `source head ${source.headEventId} belongs to a different session`;
+  if (head.content_hash !== source.headHash) return `sourceTranscript.headHash does not match durable source head ${source.headEventId}`;
+  if (source.throughSequence !== undefined && head.sequence !== source.throughSequence) {
+    return `sourceTranscript.throughSequence does not match durable source head ${source.headEventId}`;
+  }
+  const packetReceiptError = interactivePacketReceiptVerificationError(db, packet, head.ledger_seq);
+  if (packetReceiptError) return packetReceiptError;
+  const coverageError = interactiveCoverageVerificationError(db, packet, {
+    eventId: source.headEventId,
+    ledgerSeq: head.ledger_seq,
+    sessionId: head.session_id,
+    agentNodeId: head.agent_node_id,
+    kind: head.kind,
+    payloadJson: head.payload_json,
+  });
+  if (coverageError) return coverageError;
+  return interactiveDerivedBoundaryVerificationError(db, packet);
 }
 
 /** Stable JSON comparison that treats omitted and undefined object members alike. */
@@ -1158,17 +1936,15 @@ export function resumeFromPacket(db: DatabaseInstance, packet: CompactionPacket)
         `the head event's sequence ${JSON.stringify(head.sequence)}`,
     );
   }
-  const packetReceiptError = interactivePacketReceiptVerificationError(db, packet, head.ledger_seq);
-  if (packetReceiptError) {
-    throw new ResumeVerificationError(`refusing packet ${packet.packetId}: ${packetReceiptError}`);
+  const authorityError = interactivePacketAuthorityVerificationError(db, packet);
+  if (authorityError) {
+    throw new ResumeVerificationError(`refusing packet ${packet.packetId}: ${authorityError}`);
   }
-  const coverageError = interactiveCoverageVerificationError(db, packet, {
-    ledgerSeq: head.ledger_seq,
-    kind: head.kind,
-    payloadJson: head.payload_json,
-  });
-  if (coverageError) {
-    throw new ResumeVerificationError(`refusing packet ${packet.packetId}: ${coverageError}`);
+  const citedInteractivePlan = interactiveCitedPlanCheckpointForPacket(db, packet);
+  if (citedInteractivePlan.interactive && (citedInteractivePlan.error || !citedInteractivePlan.checkpoint)) {
+    throw new ResumeVerificationError(
+      `refusing packet ${packet.packetId}: ${citedInteractivePlan.error ?? 'interactive packet has no exact cited pd plan checkpoint'}`,
+    );
   }
   const broken = verifySessionChain(db, packet.sessionId);
   if (broken) {
@@ -1207,7 +1983,9 @@ export function resumeFromPacket(db: DatabaseInstance, packet: CompactionPacket)
     packet,
     sessionId: packet.sessionId,
     agentNodeId: packet.agentNodeId,
-    planCheckpoint: planCheckpointForResume(db, packet.sessionId, head.ledger_seq),
+    planCheckpoint: citedInteractivePlan.interactive
+      ? citedInteractivePlan.checkpoint
+      : planCheckpointForResume(db, packet.sessionId, head.ledger_seq),
     transcriptPrefix: prefix,
     transcriptPrefixTruncated: older?.present === 1,
     contextRef: { kind: 'compaction-packet', ref: packet.packetId, droppable: false },

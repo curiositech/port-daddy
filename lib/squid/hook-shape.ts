@@ -42,6 +42,19 @@ export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-h
 export const CLAUDE_REGISTERED_TENTACLES = [...REGISTERED_TENTACLES, 'pd-hook-precompact'] as const;
 
 /**
+ * A lifecycle-shaped `interactive:<provider>` label is not enough to mint or
+ * replay a context-compaction packet. This is the shared issuance authority
+ * for the hook installer, direct packet builder, and durable replay paths.
+ * Add a provider only alongside a verified native lifecycle witness and its
+ * daemon-owned usage/tool-pair evidence contract.
+ */
+export const INTERACTIVE_COMPACTION_PACKET_PROVIDERS = ['claude'] as const;
+
+export function supportsInteractiveCompactionPacketProvider(provider: string): boolean {
+  return (INTERACTIVE_COMPACTION_PACKET_PROVIDERS as readonly string[]).includes(provider.toLowerCase());
+}
+
+/**
  * Provider-specific wiring authority. Do not infer a PreCompact event merely
  * because a provider accepts some other lifecycle hook syntax.
  */

@@ -331,6 +331,171 @@ describe('agent-harbor M6 Longshoreman compactor', () => {
     expect(sessionChainHeadHash(db, SESSION)).toBe(after[after.length - 1].content_hash);
   });
 
+  it('refuses a forged interactive tool-pair coverage receipt before it can become a durable packet', () => {
+    const suffix = 'a'.repeat(24);
+    const planEventId = `evt_plan_${suffix}`;
+    const contextEventId = `evt_ctx_${suffix}`;
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(6, 'plan_checkpoint', {
+        planCheckpoint: {
+          schema: 'pd.plan-checkpoint.v0',
+          sessionId: SESSION,
+          content: '- [ ] Keep the coverage receipt cited',
+          capturedAt: '2026-08-27T12:00:00.000Z',
+        },
+      }, { eventId: planEventId }),
+    });
+    const envelope = {
+      ...buildContextEnvelope({
+        agentNodeId: NODE,
+        sessionId: SESSION,
+        windowTokens: 100_000,
+        usedTokensEstimate: 80_000,
+        envelopeId: `ctx_${suffix}`,
+        sourceEventId: contextEventId,
+        contextRefs: [{ kind: 'attachment', ref: `pd-plan:${planEventId}`, droppable: false }],
+      }),
+      sourceAdapter: 'interactive:claude',
+    };
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(7, 'context_pressure', { contextEnvelope: envelope }, { eventId: contextEventId }),
+    });
+
+    expect(() => buildCompactionPacket(db, packetInput({
+      contextEnvelope: envelope,
+      trigger: undefined,
+      interactiveToolPairCoverage: {
+        receiptEventId: 'evt_missing_coverage_receipt',
+        provider: 'claude',
+        sessionId: SESSION,
+        observationId: 'observation_forged_coverage',
+        coveredThroughLedgerSeq: 7,
+        coverageRef: 'opaque:forged',
+      },
+    }))).toThrow(/coverage receipt is absent/);
+
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(0);
+  });
+
+  it('requires coverage for an interactive source head before it can append a packet', () => {
+    const suffix = 'b'.repeat(24);
+    const planEventId = `evt_plan_${suffix}`;
+    const contextEventId = `evt_ctx_${suffix}`;
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(6, 'plan_checkpoint', {
+        planCheckpoint: {
+          schema: 'pd.plan-checkpoint.v0',
+          sessionId: SESSION,
+          content: '- [ ] Produce coverage before a packet',
+          capturedAt: '2026-08-27T12:00:00.000Z',
+        },
+      }, { eventId: planEventId }),
+    });
+    const envelope = {
+      ...buildContextEnvelope({
+        agentNodeId: NODE,
+        sessionId: SESSION,
+        windowTokens: 100_000,
+        usedTokensEstimate: 80_000,
+        envelopeId: `ctx_${suffix}`,
+        sourceEventId: contextEventId,
+        contextRefs: [{ kind: 'attachment', ref: `pd-plan:${planEventId}`, droppable: false }],
+      }),
+      sourceAdapter: 'interactive:claude',
+    };
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(7, 'context_pressure', { contextEnvelope: envelope }, { eventId: contextEventId }),
+    });
+
+    expect(() => buildCompactionPacket(db, packetInput({ contextEnvelope: envelope, trigger: undefined })))
+      .toThrow(/requires a daemon-owned tool-pair coverage proof/);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(0);
+  });
+
+  it('does not let a later transcript row detach an interactive envelope from its packet boundary', () => {
+    const envelope = {
+      ...buildContextEnvelope({
+        agentNodeId: NODE,
+        sessionId: SESSION,
+        windowTokens: 100_000,
+        usedTokensEstimate: 80_000,
+        envelopeId: 'ctx_interactive_detached_boundary',
+        sourceEventId: `evt_${SESSION}_6`,
+      }),
+      sourceAdapter: 'interactive:claude',
+    };
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(6, 'context_pressure', { contextEnvelope: envelope }),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(7, 'assistant_message', { text: 'later row must not become an interactive packet boundary' }),
+    });
+
+    expect(() => buildCompactionPacket(db, packetInput({ contextEnvelope: envelope, trigger: undefined })))
+      .toThrow(/must be the durable context-pressure source head/);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(0);
+  });
+
+  it('refuses a same-id interactive envelope whose pressure fields differ from durable evidence', () => {
+    const envelope = {
+      ...buildContextEnvelope({
+        agentNodeId: NODE,
+        sessionId: SESSION,
+        windowTokens: 100_000,
+        usedTokensEstimate: 80_000,
+        envelopeId: 'ctx_interactive_tampered_pressure',
+        sourceEventId: `evt_${SESSION}_6`,
+      }),
+      sourceAdapter: 'interactive:claude',
+    };
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(6, 'context_pressure', { contextEnvelope: envelope }),
+    });
+    const altered = { ...envelope, usedTokensEstimate: 75_000 };
+
+    expect(() => buildCompactionPacket(db, packetInput({ contextEnvelope: altered, trigger: undefined })))
+      .toThrow(/does not exactly match its durable context-pressure source head/);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(0);
+  });
+
+  it('refuses a duplicate interactive context-pressure row that reuses an earlier envelope boundary', () => {
+    const envelope = {
+      ...buildContextEnvelope({
+        agentNodeId: NODE,
+        sessionId: SESSION,
+        windowTokens: 100_000,
+        usedTokensEstimate: 80_000,
+        envelopeId: 'ctx_interactive_reused_boundary',
+        sourceEventId: `evt_${SESSION}_6`,
+      }),
+      sourceAdapter: 'interactive:claude',
+    };
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(6, 'context_pressure', { contextEnvelope: envelope }),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: evt(7, 'context_pressure', { contextEnvelope: envelope }),
+    });
+
+    expect(() => buildCompactionPacket(db, packetInput({ contextEnvelope: envelope, trigger: undefined })))
+      .toThrow(/sourceEventId must identify the exact durable context-pressure source head/);
+    expect(readEvents(db, { streamType: 'transcript-event', sessionId: SESSION })
+      .filter((row) => row.kind === 'compaction_packet')).toHaveLength(0);
+  });
+
   it('returns the committed packet for a deterministic event-id retry after the transcript advances', () => {
     const eventId = 'evt_cpk_retry_after_advance';
     const first = buildCompactionPacket(db, packetInput({

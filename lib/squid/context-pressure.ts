@@ -11,6 +11,7 @@
 import type { DatabaseInstance } from '../sqlite-runtime.js';
 import type { EpisodicMemory } from '../episodic-memory.js';
 import type { GitleaksRunner } from '../handoff-capsule.js';
+import { supportsInteractiveCompactionPacketProvider } from './hook-shape.js';
 import {
   createContextContinuityCoordinator,
   ToolPairCoverageError,
@@ -260,7 +261,11 @@ export function recordInteractiveContextPressure(
   deps: InteractiveContextPressureDeps = {},
 ): InteractiveContextPressureResult {
   const capability = INTERACTIVE_CONTEXT_CAPABILITIES[input.provider];
-  if (capability.preCompact !== 'supported') {
+  if (
+    capability.preCompact !== 'supported'
+    || capability.packetIssuance === 'not-supported'
+    || !supportsInteractiveCompactionPacketProvider(input.provider)
+  ) {
     return { status: 'unsupported', capability, directive: unmeasuredDirective(capability), continuity: null, error: null };
   }
 
