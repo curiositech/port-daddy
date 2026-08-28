@@ -247,7 +247,7 @@ export function mapChunkCharLimit(mapModel: string): number {
  * tokens) is ample diff context per call and keeps the memory product an
  * order of magnitude smaller.
  */
-const MAP_CHUNK_CHARS_CEILING = 48_000;
+export const MAP_CHUNK_CHARS_CEILING = 48_000;
 
 /**
  * Bound Workers AI fan-out so large diffs finish without a rate-limit

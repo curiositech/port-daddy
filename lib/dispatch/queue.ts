@@ -122,6 +122,44 @@ export interface Dispatch {
   mergePolicy: MergePolicy;
   /** Operator's reason on `pd review --reject`. Null until rejected. */
   rejectReason: string | null;
+  /**
+   * The dispatch this one succeeded, when it was minted by cross-backend
+   * failover. Null for an original dispatch.
+   *
+   * The succession is modelled as an EDGE rather than a state because "this run
+   * failed and another picked it up" is a relationship between two dispatches;
+   * making it a state would have meant an eleventh entry in a state machine that
+   * is deliberately closed.
+   */
+  predecessorDispatchId: string | null;
+  /** 0 for an original dispatch; n for the nth successor in one chain. */
+  failoverAttempt: number;
+  /** The backend that failed, so a lane can render "codex → claude-code". */
+  failoverFromBackend: string | null;
+  /**
+   * The ADR-0118 handoff episode carrying the sanitized capsule this successor
+   * was briefed with. Null for a same-family native resume, and null for an
+   * original dispatch.
+   */
+  handoffEpisodeId: string | null;
+  /**
+   * The agent id the body actually ran as, stamped when the body starts.
+   *
+   * Its absence was the reason a dispatch could not be joined to its transcript
+   * row: `fleet_transcripts` is keyed by the Conductor's `Launch.agentId`, and
+   * nothing carried that id back to the dispatch. Both the capsule builder and
+   * the per-lane live stream are downstream of this one column.
+   */
+  spawnedAgentId: string | null;
+  /**
+   * Backends this succession may still try, in order, frozen at the moment the
+   * ORIGINAL dispatch started.
+   *
+   * Frozen deliberately: reading the live preference order at failover time
+   * would let a profile edit mid-flight redirect a succession already underway,
+   * which makes the chain a lane renders disagree with the chain that ran.
+   */
+  failoverChain: string[] | null;
   createdAt: number;
   /** Timestamp of an explicit `dispatch run <id>` request; cleared on claim. */
   runRequestedAt?: number | null;
@@ -150,6 +188,17 @@ export interface ProposeDispatchInput {
   mergePolicy?: MergePolicy;
   /** Who proposed this. Defaults to 'operator'. */
   requestedBy?: string;
+  /**
+   * Cross-backend succession (ADR-0131). Set together by the failover path; an
+   * ordinary propose leaves all of them unset and the row reads exactly as
+   * before.
+   */
+  predecessorDispatchId?: string;
+  failoverAttempt?: number;
+  failoverFromBackend?: string;
+  handoffEpisodeId?: string;
+  /** The remaining preference order, frozen from the original dispatch. */
+  failoverChain?: string[];
 }
 
 export interface MaterializeDispatchProjectionInput extends ProposeDispatchInput {
@@ -240,6 +289,12 @@ interface DispatchRow {
   error_message: string | null;
   merge_policy: MergePolicy;
   reject_reason: string | null;
+  predecessor_dispatch_id: string | null;
+  failover_attempt: number;
+  failover_from_backend: string | null;
+  handoff_episode_id: string | null;
+  spawned_agent_id: string | null;
+  failover_chain_json: string | null;
   created_at: number;
   run_requested_at: number | null;
   claimed_at: number | null;
@@ -295,6 +350,23 @@ const SCHEMA_SQL = `
     merge_policy TEXT NOT NULL DEFAULT 'review'
       CHECK(merge_policy IN ('review','auto','never')),
     reject_reason TEXT,
+    -- Cross-backend failover (ADR-0131 helmsman-backend-failover). All additive
+    -- and all nullable: a dispatch that never fails over reads exactly as before.
+    -- The succession is an EDGE, not a state — the 8-state machine is unchanged,
+    -- because "this run failed and a successor picked it up" is a relationship
+    -- between two dispatches, not an eleventh thing a dispatch can be.
+    predecessor_dispatch_id TEXT,
+    failover_attempt INTEGER NOT NULL DEFAULT 0,
+    failover_from_backend TEXT,
+    handoff_episode_id TEXT,
+    -- The agent id the body actually ran as. Without it a dispatch cannot be
+    -- joined to its fleet_transcripts row, which is what both the handoff
+    -- capsule builder and the per-lane live stream need.
+    spawned_agent_id TEXT,
+    -- The remaining preference order this succession may still walk, as JSON.
+    -- Frozen on the ORIGINAL dispatch so a mid-flight profile edit cannot
+    -- redirect a succession already in progress.
+    failover_chain_json TEXT,
     created_at INTEGER NOT NULL,
     run_requested_at INTEGER,
     claimed_at INTEGER,
@@ -339,6 +411,28 @@ export function deriveBranchName(slug: string, id: string): string {
   return `dispatch/${slug}-${safeId}`;
 }
 
+/**
+ * Read the frozen failover chain off a row.
+ *
+ * Corruption is non-fatal by design, matching the tags column above: a
+ * succession that cannot read its chain should fall back to "no further
+ * backends" and settle honestly, not throw while unwinding a failure.
+ *
+ * @param json The stored JSON, or null.
+ * @returns The backend list, or null when absent or unreadable.
+ */
+function parseFailoverChain(json: string | null | undefined): string[] | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return null;
+    const chain = parsed.filter((b): b is string => typeof b === 'string' && b.length > 0);
+    return chain.length ? chain : null;
+  } catch {
+    return null;
+  }
+}
+
 function rowToDispatch(row: DispatchRow): Dispatch {
   let tags: string[] = [];
   try {
@@ -374,6 +468,12 @@ function rowToDispatch(row: DispatchRow): Dispatch {
     errorMessage: row.error_message,
     mergePolicy: row.merge_policy,
     rejectReason: row.reject_reason,
+    predecessorDispatchId: row.predecessor_dispatch_id ?? null,
+    failoverAttempt: row.failover_attempt ?? 0,
+    failoverFromBackend: row.failover_from_backend ?? null,
+    handoffEpisodeId: row.handoff_episode_id ?? null,
+    spawnedAgentId: row.spawned_agent_id ?? null,
+    failoverChain: parseFailoverChain(row.failover_chain_json),
     createdAt: row.created_at,
     runRequestedAt: row.run_requested_at,
     claimedAt: row.claimed_at,
@@ -510,11 +610,48 @@ export function legacyStatusToState(status: string): DispatchState {
   }
 }
 
+/**
+ * Add the failover/succession columns to an already-created `dispatches` table.
+ *
+ * The rationale for doing this here rather than in a numbered migration file:
+ * `dispatches` is created by this module's own `CREATE TABLE IF NOT EXISTS`, not
+ * by the core schema, so a DB that already has the table would never see a new
+ * column arrive any other way — and `IF NOT EXISTS` succeeds silently against
+ * the old shape, which is precisely how a schema drift boots "verified" and then
+ * fails every write. `migrations/088_dispatch_failover.sql` documents the same
+ * change for readers; this is the applier.
+ *
+ * Idempotent and additive: each column is added only when absent, and every one
+ * is nullable or defaulted, so an existing row needs no backfill.
+ *
+ * @param db The open database.
+ */
+function migrateDispatchFailoverColumns(db: Database.Database): void {
+  const existing = new Set(
+    (db.prepare('PRAGMA table_info(dispatches)').all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  const additions: Array<[string, string]> = [
+    ['predecessor_dispatch_id', 'TEXT'],
+    ['failover_attempt', 'INTEGER NOT NULL DEFAULT 0'],
+    ['failover_from_backend', 'TEXT'],
+    ['handoff_episode_id', 'TEXT'],
+    ['spawned_agent_id', 'TEXT'],
+    ['failover_chain_json', 'TEXT'],
+  ];
+  for (const [name, decl] of additions) {
+    if (existing.has(name)) continue;
+    db.exec(`ALTER TABLE dispatches ADD COLUMN ${name} ${decl}`);
+  }
+}
+
 export function createDispatchQueue(deps: DispatchQueueDeps) {
   const { db } = deps;
   const now = deps.now ?? (() => Date.now());
 
   db.exec(SCHEMA_SQL);
+  migrateDispatchFailoverColumns(db);
   const dispatchColumns = db.prepare(`PRAGMA table_info(dispatches)`).all() as Array<{ name: string }>;
   if (!dispatchColumns.some((column) => column.name === 'run_requested_at')) {
     db.exec(`ALTER TABLE dispatches ADD COLUMN run_requested_at INTEGER`);
@@ -541,11 +678,15 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     INSERT INTO dispatches (
       id, slug, goal, tags_json, state, requested_by, target_actor_id,
       reviewer_actor_id, base_branch, backend, budget_usd, timeout_ms,
-      merge_policy, created_at, claimed_at
+      merge_policy, created_at, claimed_at,
+      predecessor_dispatch_id, failover_attempt, failover_from_backend,
+      handoff_episode_id, failover_chain_json
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?, ?
+      ?, ?, ?,
+      ?, ?, ?,
+      ?, ?
     )
   `);
 
@@ -815,6 +956,13 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       mergePolicy,
       at,
       input.autoClaim ? at : null,
+      input.predecessorDispatchId ?? null,
+      input.failoverAttempt ?? 0,
+      input.failoverFromBackend ?? null,
+      input.handoffEpisodeId ?? null,
+      input.failoverChain && input.failoverChain.length
+        ? JSON.stringify(input.failoverChain)
+        : null,
     );
     const row = selectByIdStmt.get(input.id);
     if (!row) throw new Error(`materializeProjection: failed to insert dispatch ${input.id}`);
@@ -1194,9 +1342,30 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return { requeued, salvaged };
   }
 
+  /**
+   * Stamp the agent id a dispatch's body actually ran as.
+   *
+   * Called at body-start, not at settle, on purpose: the join it enables — a
+   * dispatch to its `fleet_transcripts` row — is what a LIVE lane needs while
+   * the body is still running, and what the handoff-capsule builder needs at the
+   * moment a body dies. Recording it only at the end would give both of them the
+   * id exactly when it stopped being useful.
+   *
+   * @param id The dispatch id.
+   * @param agentId The Conductor `Launch.agentId` the body runs as.
+   * @returns The updated dispatch, or null when the id is unknown.
+   */
+  function recordSpawnedAgent(id: string, agentId: string): Dispatch | null {
+    if (!agentId) return get(id);
+    db.prepare('UPDATE dispatches SET spawned_agent_id = ? WHERE id = ?').run(agentId, id);
+    return get(id);
+  }
+
+
   return {
     propose,
     materializeProjection,
+    recordSpawnedAgent,
     get,
     getBySessionId,
     list,

@@ -612,20 +612,20 @@ Use the right surface for the job (canonical doc: [docs/DELEGATION-MODES.md](doc
 ```bash
 # Preferred single-agent delegation
 pd agent "Review the last commit for regressions" \
-  --backend claude --model claude-haiku-4-5-20251001 --budget 0.35
+  --backend claude --tier low --budget 0.35
 
 # Harness lane: preflight + budget ceiling + tier sugar + stable tube in one shape
 pd agent harness codex "inspect the queue" --budget 0.50 --tier strong --channel harness:demo
 
 # Tracked mission record with status + logs
 pd sortie "Investigate flaky auth tests; summarize root cause" \
-  --backend claude --model claude-haiku-4-5-20251001 --budget 0.75
+  --backend claude --tier low --budget 0.75
 pd sortie list
 pd sortie status sortie-abc123
 pd sortie logs sortie-abc123
 
 # The primitive
-pd spawn --backend claude --model claude-haiku-4-5-20251001 \
+pd spawn --backend claude --tier low \
   --budget 0.50 --identity myapp:fixer -- "Summarize the latest auth diff"
 
 pd spawned              # list running/completed agents
@@ -821,9 +821,9 @@ three-hook installs; new installs never schedule them.
 Want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine? `pd squid` serves a small Anthropic-Messages-compatible endpoint on localhost, generates a fresh local token, injects `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` into a launched client, and forwards each request to `codex exec`:
 
 ```bash
-pd squid codex -- claude --model claude-sonnet-4-5
-pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5
-pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex -- claude --model claude-sonnet-4-5
+pd squid codex -- claude --model sonnet
+pd squid pro --codex-effort high -- claude --model sonnet
+pd squid bridge --codex-model-alias <client-model>=<codex-model> -- claude --model sonnet
 pd squid serve --port 8765     # bridge only; prints the token for curl/debugging
 ```
 
@@ -850,7 +850,7 @@ fleet:
     qa:
       trigger: git:committed          # React to pub/sub events
       backend: claude
-      model: claude-haiku-4-5-20251001
+      capability: cheap
       prompt: |
         Review the most recent commit. Find bugs. Write tests.
 
@@ -858,7 +858,7 @@ fleet:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
       run_on_start: false             # true only when boot-time work is intentional
       backend: claude
-      model: claude-haiku-4-5-20251001
+      capability: cheap
       prompt: "Summarize repo status; suggest the next maintenance action."
       on_success: publish git:status  # Chain agents via channels
 
@@ -887,7 +887,7 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your P
 curl http://localhost:9876/fleet/models             # Available backends & models
 ```
 
-Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path.
+Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path. Red Team declares the registry's high model tier so adversarial security review never inherits a weaker CLI default.
 
 Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues.
 

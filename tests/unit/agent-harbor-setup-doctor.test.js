@@ -301,6 +301,9 @@ describe('per-area judgments', () => {
 
 describe('transparent hook inventory (ch18 output)', () => {
   test('maps the composable pre-compact purpose to its shipped binary', () => {
+    // #9915 adds `preCompact` to SquidHookPurpose. Keep this forward-compatible
+    // seam explicit so metadata expansion cannot yield an undefined binary in
+    // the operator's setup/doctor inventory.
     expect(HOOK_BINARY_FOR_PURPOSE.preCompact).toBe('pd-hook-precompact');
   });
 

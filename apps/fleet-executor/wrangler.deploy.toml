@@ -213,10 +213,14 @@ DEFAULT_BRANCH = "main"
 PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 # XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
 # "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
-# Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
-# executor falls back to this default (resolveXoModel). The deepseek-r1 distill
-# emits <think> reasoning spans; the executor strips them before parsing.
-XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Workers AI ONLY — an override must be a `@cf/` id; any other value is ignored
+# and the executor falls back to its committed default (resolveXoModel).
+#
+# NO DEFAULT IS PINNED HERE (supplant, 2026-08-23). The default is the
+# `synthesisOfficer` cloud-plane role in config/models.yaml, reached through the
+# generated shared registry. Restating it here made this file a second place the
+# id had to be right, and the relay's copy of the same pattern had already gone
+# stale on a retired model. Set XO_MODEL only to override.
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):

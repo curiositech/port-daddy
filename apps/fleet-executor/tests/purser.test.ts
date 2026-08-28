@@ -12,6 +12,7 @@ import {
   type PurserMetrics,
 } from '../src/purser.js';
 import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/fleet.js';
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { aggregateConclusion } from '../src/verdict.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
@@ -2157,7 +2158,7 @@ describe('pd-fleet.yml purser parsing', () => {
     '      trigger: pull_request:opened',
     '      blocking: true',
     '      blockWithoutSandbox: true',
-    "      model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+    '      cf_role: shipDefault',
     '      testPaths:',
     '        - tests/purser',
     '',
@@ -2174,7 +2175,7 @@ describe('pd-fleet.yml purser parsing', () => {
     expect(p.testPaths).toEqual(['tests/purser']);
     // No graft configured ⇒ the purser gets the default skill-graft list.
     expect(p.graft).toEqual([...PURSER_DEFAULT_GRAFT]);
-    expect(p.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(p.cfModel).toBe(CF_ROLE_MODELS.shipDefault);
     expect(p.needsExecution).toBe(false); // cloud-executable by contract
     expect(p.prompt.length).toBeGreaterThan(0); // default persona prompt
   });
@@ -2189,10 +2190,23 @@ describe('pd-fleet.yml purser parsing', () => {
     expect(p.testPaths).toEqual(['tests/purser']); // testPaths untouched
   });
 
-  it('an unknown model pin on a purser is remapped to a known-good model', () => {
-    const yaml = YAML.replace("'@cf/qwen/qwen3-30b-a3b-fp8'", "'@cf/bogus/model'");
-    const p = parseFleetShips(yaml, 'pull_request:opened')!.find(s => s.name === 'purser')!;
-    expect(p.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  it('an unknown role pin on a purser is remapped to a known-good model', () => {
+    // The fixture pins a NON-DEFAULT role first, then breaks it. The earlier
+    // version of this test started from `shipDefault` and asserted the result
+    // was `shipDefault`, which is what the fallback produces anyway — so it
+    // passed whether the remap happened, whether the string replace matched, or
+    // whether the pin was read at all. An assertion that cannot fail is not a
+    // test. Starting from `reviewBot` makes the two outcomes distinguishable.
+    expect(CF_ROLE_MODELS.reviewBot).not.toBe(CF_ROLE_MODELS.shipDefault);
+    const honored = YAML.replace('cf_role: shipDefault', 'cf_role: reviewBot');
+    expect(
+      parseFleetShips(honored, 'pull_request:opened')!.find(s => s.name === 'purser')!.cfModel,
+    ).toBe(CF_ROLE_MODELS.reviewBot);
+
+    const broken = YAML.replace('cf_role: shipDefault', 'cf_role: bogus-role');
+    expect(
+      parseFleetShips(broken, 'pull_request:opened')!.find(s => s.name === 'purser')!.cfModel,
+    ).toBe(CF_ROLE_MODELS.shipDefault);
   });
 });
 

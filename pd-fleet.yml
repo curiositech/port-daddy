@@ -827,13 +827,15 @@ fleet:
 
     red-team:
       trigger: pull_request:opened
-      # Novel attack construction benefits from headroom. anthropic
-      # sonnet is a soft preference here, NOT a pin. On Cloudflare,
+      # Novel attack construction benefits from headroom. The primary target
+      # resolves through the registry's `high` rung; it is never left to a
+      # CLI default that could silently weaken this security review. On Cloudflare,
       # red-team runs DeepSeek V4-Pro (2026-08-22): 80.6% SWE-bench
       # Verified, a genuine reasoning flagship with a 1M-token window
       # for whole-PR attack surfaces — at red-team's tiny live volume
       # (21 calls per two weeks) it costs well under a dollar.
       backend: cli:claude-code
+      modelTier: high
       fallbacks:
         - backend: cli:codex
         - backend: anthropic

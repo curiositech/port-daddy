@@ -28,6 +28,12 @@ export const EFFECTIVE_CONTEXT_WINDOWS: Record<string, number> = {
   'claude-opus-4': 120_000,
   'claude-sonnet-4': 120_000,
   'claude-haiku-4': 120_000,
+  // Anthropic Opus 5 / Sonnet 5 / Fable 5 — 1M advertised (config/models.yaml).
+  // `claude-haiku-4-5` is unaffected: it still matches the `claude-haiku-4`
+  // prefix above at the same 200k advertised window.
+  'claude-opus-5': 600_000,
+  'claude-sonnet-5': 600_000,
+  'claude-fable-5': 600_000,
   // Legacy Anthropic shortnames
   'claude-3-5-sonnet': 120_000,
   'claude-3-5-haiku': 120_000,

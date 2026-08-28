@@ -31,6 +31,7 @@
  *     reasoning spans; {@link stripThinkSpans} removes them before parsing.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import type { Proposal } from './proposals.js';
 import type { Severity, ShipResult } from './verdict.js';
 import { extractAiText } from './ai-response.js';
@@ -44,7 +45,7 @@ import { requireContextAdmission } from './context-admission.js';
  * Default XO model. A Workers AI `@cf/` reasoning model — the operator's
  * standing order is Workers AI ONLY (never the Anthropic API in product code).
  */
-export const DEFAULT_XO_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
+export const DEFAULT_XO_MODEL = CF_ROLE_MODELS.synthesisOfficer;
 
 /** How many recently tracked ideas the editor pass shows the model (context cap). */
 export const XO_RECENT_IDEAS_LIMIT = 30;

@@ -81,6 +81,59 @@ describe('DispatchWorker — autonomous drain', () => {
     expect(status.inFlight).toBe(0);
   });
 
+  test('a dispatch that names a backend runs on THAT backend, not the daemon default', async () => {
+    // The worker's `backend` option is a DEFAULT, not an override. It used to be
+    // applied as `this.backend ?? claimed.backend`, so a daemon-wide setting
+    // silently won over the per-dispatch column — which makes cross-backend
+    // failover impossible by construction, since a successor's entire identity
+    // is "the same work, on the NEXT backend".
+    const d = queue.propose({ goal: 'run me on claude-code', backend: 'cli:claude-code' });
+    const seen = [];
+    const adapter = jest.fn(async ({ plan, queue: q }) => {
+      seen.push(plan.backend);
+      q.start(plan.dispatch.id);
+      q.produce({ id: plan.dispatch.id });
+      q.requestReview(plan.dispatch.id);
+      return { state: 'settled' };
+    });
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: adapter,
+      reaper: async () => {},
+      backend: 'cli:codex', // daemon-wide default, must NOT shadow the dispatch
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(seen).toEqual(['cli:claude-code']);
+    expect(queue.get(d.id).state).toBe('settled');
+  });
+
+  test('the worker backend applies when the dispatch names none', async () => {
+    queue.propose({ goal: 'no backend named' });
+    const seen = [];
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: jest.fn(async ({ plan, queue: q }) => {
+        seen.push(plan.backend);
+        q.start(plan.dispatch.id);
+        q.produce({ id: plan.dispatch.id });
+        q.requestReview(plan.dispatch.id);
+        return { state: 'settled' };
+      }),
+      reaper: async () => {},
+      backend: 'cli:claude-code',
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(seen).toEqual(['cli:claude-code']);
+  });
+
   test('bounds concurrency to maxConcurrency', async () => {
     for (let i = 0; i < 5; i++) queue.propose({ goal: `g${i}` });
     let peakInFlight = 0;
