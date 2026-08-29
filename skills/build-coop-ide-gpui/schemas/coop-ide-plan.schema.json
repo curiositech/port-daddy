@@ -34,7 +34,7 @@
     },
     "daemonIsCollabServer": {
       "type": "boolean",
-      "description": "True if the existing daemon is the collab server (Loro Protocol over the existing tube; snapshots to /blob; op-log to immutable notes) with no new sync backend stood up."
+      "description": "True if the existing daemon is the collab server (Loro Protocol over the existing tube; checkpoint/reconnect through the canonical editor-sync contract; salvage through typed operation receipts, never notes) with no new sync backend stood up."
     },
     "topologyBehindTransportTrait": {
       "type": "boolean",

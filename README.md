@@ -612,20 +612,20 @@ Use the right surface for the job (canonical doc: [docs/DELEGATION-MODES.md](doc
 ```bash
 # Preferred single-agent delegation
 pd agent "Review the last commit for regressions" \
-  --backend claude --model claude-haiku-4-5-20251001 --budget 0.35
+  --backend claude --tier low --budget 0.35
 
 # Harness lane: preflight + budget ceiling + tier sugar + stable tube in one shape
 pd agent harness codex "inspect the queue" --budget 0.50 --tier strong --channel harness:demo
 
 # Tracked mission record with status + logs
 pd sortie "Investigate flaky auth tests; summarize root cause" \
-  --backend claude --model claude-haiku-4-5-20251001 --budget 0.75
+  --backend claude --tier low --budget 0.75
 pd sortie list
 pd sortie status sortie-abc123
 pd sortie logs sortie-abc123
 
 # The primitive
-pd spawn --backend claude --model claude-haiku-4-5-20251001 \
+pd spawn --backend claude --tier low \
   --budget 0.50 --identity myapp:fixer -- "Summarize the latest auth diff"
 
 pd spawned              # list running/completed agents
@@ -821,9 +821,9 @@ three-hook installs; new installs never schedule them.
 Want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine? `pd squid` serves a small Anthropic-Messages-compatible endpoint on localhost, generates a fresh local token, injects `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` into a launched client, and forwards each request to `codex exec`:
 
 ```bash
-pd squid codex -- claude --model claude-sonnet-4-5
-pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5
-pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex -- claude --model claude-sonnet-4-5
+pd squid codex -- claude --model sonnet
+pd squid pro --codex-effort high -- claude --model sonnet
+pd squid bridge --codex-model-alias <client-model>=<codex-model> -- claude --model sonnet
 pd squid serve --port 8765     # bridge only; prints the token for curl/debugging
 ```
 
@@ -850,7 +850,7 @@ fleet:
     qa:
       trigger: git:committed          # React to pub/sub events
       backend: claude
-      model: claude-haiku-4-5-20251001
+      capability: cheap
       prompt: |
         Review the most recent commit. Find bugs. Write tests.
 
@@ -858,7 +858,7 @@ fleet:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
       run_on_start: false             # true only when boot-time work is intentional
       backend: claude
-      model: claude-haiku-4-5-20251001
+      capability: cheap
       prompt: "Summarize repo status; suggest the next maintenance action."
       on_success: publish git:status  # Chain agents via channels
 
@@ -887,7 +887,7 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your P
 curl http://localhost:9876/fleet/models             # Available backends & models
 ```
 
-Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path.
+Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path. Red Team declares the registry's high model tier so adversarial security review never inherits a weaker CLI default.
 
 Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues.
 
@@ -1087,7 +1087,11 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **115 paths, 146 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+
+The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
+
+The required future finalization contract retains descriptor-bound root/file identity plus both authority leases through the P3 transfer transaction, and transfers the exact file hash, parser/authority generations, and mutation lease/generation into the successor claim tuple. The mutation lease would exclude daemon-authorized writes through commit; an unrelated OS process could still bypass the daemon, so P3 must reject every later edit if the persisted root/file device+inode, content hash, or mutation generation no longer matches. That is detection at the next governed edit, not filesystem-wide prevention. The target transaction also writes canonical editor-owned provenance and its append-only outbox atomically. With no atomically idempotent derived-note sink, the row must stay durably pending with no retry churn and never fall back to `sessions.addNote`; once such a publisher and lifecycle scheduler exist, bounded startup and periodic passes retry the same idempotency key and persist one local publication receipt. These are unimplemented requirements, not behavior the current registered routes provide. The current tables have never shipped on `main`, so reconstruction supports only the exact current schema, not intermediate PR schemas.
 
 ```bash
 cat docs/openapi.yaml

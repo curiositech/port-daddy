@@ -339,11 +339,11 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     // about "2 map calls" failing for a reason with nothing to do with
     // map-reduce. A fixture that encodes a constant is a fixture that expires.
     //
-    // Sized against the LARGEST budget any known model yields, so the diff
-    // fans out whichever model the ship under test resolves to -- and stays
-    // correct if a model with a bigger window is added later.
-    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
-    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
+    // The ship under test uses the Qwen MAP model. Size this fixture against
+    // that model's real admission budget, including prompt framing, so each
+    // file is admitted while the pair still requires one REDUCE step.
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
       '+line\n'.repeat(linesPerFile);

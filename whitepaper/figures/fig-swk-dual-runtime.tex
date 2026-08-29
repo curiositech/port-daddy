@@ -7,7 +7,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -28,10 +28,10 @@
 \node[rt,fill=hhsand!30,below left=14mm and -4mm of iface] (test)
   {{\bfseries test runtime}\\ test-suite SQLite bindings\\ {\color{hhteal}truth is \emph{verified} here}};
 \node[rt,fill=hhsand!30,below right=14mm and -4mm of iface] (prod)
-  {{\bfseries deployment runtime}\\ the compiled single-binary daemon\\ {\color{hhcobalt}truth is \emph{computed} here}};
+  {{\bfseries deployment runtime}\\ the compiled single-binary daemon\\ {\color{hhamber}truth is \emph{computed} here}};
 
 \draw[->,>=Latex,thick,hhteal] (iface.south) -- (test.north);
-\draw[->,>=Latex,thick,hhcobalt] (iface.south) -- (prod.north);
+\draw[->,>=Latex,thick,hhamber] (iface.south) -- (prod.north);
 
 % The shim
 \node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,

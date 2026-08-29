@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -10,7 +17,74 @@ import {
   inlineInputs,
   namespaceLabels,
   rewriteCitations,
+  validateEditorialPlate,
 } from './generate-mega-whitepaper.mjs';
+
+const generatorSource = readFileSync(
+  resolve('scripts/generate-mega-whitepaper.mjs'),
+  'utf8',
+);
+
+const collectedVolumeSource = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'),
+  'utf8',
+);
+
+const collectedVolumeAppendices = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex'),
+  'utf8',
+);
+
+test('the new Chapter VII plate is inserted before its typeset chapter opening', () => {
+  assert.match(
+    generatorSource,
+    /plate: 'art\/collected-volume\/chapter-vii-federated-harbor\.jpg'/,
+  );
+  assert.match(
+    generatorSource,
+    /paper\.plate \? `\\\\pdchapterplate\{\$\{paper\.plate\}\}`/,
+  );
+});
+
+test('every collected-volume editorial plate resolves to a committed asset', () => {
+  const sources = [generatorSource, collectedVolumeSource, collectedVolumeAppendices];
+  const referencedArt = sources.flatMap((source) =>
+    [...source.matchAll(/art\/collected-volume\/[A-Za-z0-9._-]+\.(?:jpe?g|png)/g)]
+      .map((match) => match[0]),
+  );
+
+  assert.equal(referencedArt.length, 7, 'expected jacket, inside jacket, Chapter VII, and four coda plates');
+  for (const asset of referencedArt) {
+    assert.ok(
+      existsSync(resolve('website-v2/public/whitepaper', asset)),
+      `missing collected-volume editorial plate: ${asset}`,
+    );
+  }
+});
+
+test('the generator rejects missing, escaping, and unsupported editorial plates clearly', () => {
+  const fixtureDir = resolve('.cache/mega-generator-plate-test');
+  mkdirSync(fixtureDir, { recursive: true });
+  writeFileSync(resolve(fixtureDir, 'plate.png'), 'fixture', 'utf8');
+  try {
+    assert.doesNotThrow(() =>
+      validateEditorialPlate({ title: 'Fixture', plate: 'plate.png' }, fixtureDir));
+    assert.throws(
+      () => validateEditorialPlate({ title: 'Fixture', plate: 'missing.png' }, fixtureDir),
+      /Fixture: editorial plate is missing or unreadable: missing\.png/,
+    );
+    assert.throws(
+      () => validateEditorialPlate({ title: 'Fixture', plate: '../outside.png' }, fixtureDir),
+      /Fixture: editorial plate escapes/,
+    );
+    assert.throws(
+      () => validateEditorialPlate({ title: 'Fixture', plate: 'plate.pdf' }, fixtureDir),
+      /Fixture: editorial plate has an unsupported format: plate\.pdf/,
+    );
+  } finally {
+    rmSync(fixtureDir, { recursive: true, force: true });
+  }
+});
 
 test('missing local citations fail closed', () => {
   assert.throws(

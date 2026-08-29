@@ -96,7 +96,9 @@ not shippable.
 `pd plan` is the resumability anchor across all bodies and vendors. A checkpoint
 is required at wave completion, before risky actions, and at the existing context
 pressure thresholds: prepare at 0.60, build a cited packet at 0.75, warn before
-broad work at 0.85, and require a governed-successor directive at 0.92. The
+broad work at 0.85, and require a governed successor *boundary* directive at
+0.92. That directive records the evidence a separate, governed continuation may
+consume; the hook does not create or replace a process. The
 packet thresholds are evidence-gated: without a daemon-owned provider-session →
 plan binding, trusted measurement, current plan checkpoint, or complete
 tool-pair coverage, the daemon records no packet. This slice records the
@@ -161,7 +163,9 @@ is deterministic and recordable:
 | 0.60 | prepare compaction and checkpoint the durable plan |
 | 0.75 | with a current `plan_checkpoint`, write a cited CompactionPacket whose plan obligations cite that event |
 | 0.85 | retain the packet and restrict broad or risky work |
-| 0.92 | allow provider compaction and require one governed-successor directive; no process is spawned by this hook |
+| 0.92 | allow provider-owned compaction and record one governed-successor boundary directive; this hook creates no successor process |
+
+The ingress accepts only string loopback metadata. Empty or non-string `request.ip` values are rejected before payload parsing or ledger mutation; adapters and proxies must provide a verified value rather than relying on coercion.
 
 Before a packet is built, interactive transcript rows must prove complete,
 ordered tool-call/result pairs. A malformed, orphaned, duplicate, or unresolved

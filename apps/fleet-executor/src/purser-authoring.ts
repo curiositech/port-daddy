@@ -31,14 +31,10 @@
  *   - PER-FILE BUDGET. Each call spends its whole token allowance on one file
  *     instead of N files sharing one cap and truncating mid-string.
  *
- * NOT DONE HERE, deliberately: per-step MODEL tiering. `KNOWN_GOOD_CF_MODELS`
- * in fleet.ts honors exactly one Workers AI id today, so a `plan_model:` /
- * `author_model:` knob would parse, validate, and then resolve to the same
- * model for every step — the half-built shape that map-reduce-invariants.test.ts
- * exists to forbid. Widening the honored set is an operator cost decision, and
- * the step seam this module introduces is what makes it a one-line change when
- * that decision is made: {@link AuthorCall} already takes the step as an
- * argument.
+ * NOT DONE HERE: per-step MODEL tiering — it lives in fleet.ts, which resolves
+ * `plan_cf_role:` / `author_cf_role:` against the pinnable cloud-plane roles.
+ * The step seam this module introduces is what made that a small change:
+ * {@link AuthorCall} already takes the step as an argument.
  */
 
 import { stripThinkSpans } from './xo.js';

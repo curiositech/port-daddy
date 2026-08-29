@@ -205,11 +205,36 @@ describe('openaiAdapter — request shape', () => {
     const body = JSON.parse(init.body);
     expect(url).toBe('https://api.openai.com/v1/responses');
     expect(body.input).toEqual([{ role: 'user', content: 'hi' }]);
-    expect(body.reasoning).toEqual({ effort: 'minimal' });
     expect(body.store).toBe(false);
     expect(body.max_output_tokens).toBe(200);
     expect(body.max_completion_tokens).toBeUndefined();
     expect(body.max_tokens).toBeUndefined();
+    // `reasoning` is OMITTED for an id the registry does not carry, and this
+    // assertion replaces one that demanded a hardcoded `{ effort: 'minimal' }`.
+    // That constant was the defect: `minimal` is accepted by exactly one model
+    // in the current lineup, so sending it unconditionally returned HTTP 400 on
+    // four of the five rungs this backend resolves. For an UNKNOWN id there is
+    // no accepted set to consult, and guessing a value on top of an
+    // unrecognised model is two guesses instead of one — the provider's own
+    // default is correct and costs nothing to accept.
+    expect(body.reasoning).toBeUndefined();
+  });
+
+  test('a CATALOGUED reasoning model sends the effort its own row declares', async () => {
+    // The other half of the contract, which nothing covered before: a model the
+    // registry knows must carry a real effort, and it must be one that model
+    // actually accepts — the accepted sets differ per model and an unsupported
+    // value is rejected before a token is spent.
+    const { resolveModel, reasoningEffortsFor } = await import('../../lib/model-registry.js');
+    const model = resolveModel({ backend: 'openai', capability: 'high' });
+    const accepted = reasoningEffortsFor(model);
+    expect(accepted.length).toBeGreaterThan(0);
+
+    global.fetch.mockClear();
+    await openaiAdapter({ prompt: 'hi', model, maxTokens: 200 });
+    const [, init] = global.fetch.mock.calls[0];
+    const body = JSON.parse(init.body);
+    expect(accepted).toContain(body.reasoning?.effort);
   });
 
   test('native reasoning models (o-series) use Responses API max_output_tokens', async () => {

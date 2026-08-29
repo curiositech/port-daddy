@@ -42,11 +42,15 @@
 \draw[->,thick,hhamber] (5.2,4.6) -- (6.0,4.6) node[right,font=\scriptsize,text=hhink]{lax (fewer zooms)};
 \draw[->,thick,hhamber] (4.8,4.6) -- (4.0,4.6) node[left,font=\scriptsize,text=hhink]{stringent (more zooms)};
 
-% error-region labels: miss fits inside its region; false alarm is a thin
-% sliver, so its label sits clear of the curves with one short leader.
-\node[text=hhink,font=\scriptsize,align=center] at (4.25,0.8) {miss\\(waved through)};
-\node[text=hhink,font=\scriptsize,align=center,anchor=west] (fa) at (6.6,1.3) {false alarm\\(zoomed safe diff)};
-\draw[hhink,thin] (fa.west) -- (5.35,0.12);
+% Error labels name the event and lead directly to the correctly shaded tail.
+\node[draw=hhcobalt,thick,fill=hhcobalt!10,rounded corners=1pt,inner sep=3pt,
+      text=hhink,font=\scriptsize,align=center] (miss) at (4.0,1.02)
+  {\textbf{miss}\\dangerous act waved through};
+\draw[hhcobalt,thin] (miss.south) -- (4.55,0.18);
+\node[draw=hhteal,thick,fill=hhteal!10,rounded corners=1pt,inner sep=3pt,
+      text=hhink,font=\scriptsize,align=center,anchor=west] (fa) at (6.58,1.24)
+  {\textbf{false alarm}\\safe act zoomed};
+\draw[hhteal,thin] (fa.west) -- (5.35,0.12);
 
 % d-prime bracket
 \draw[<->,thick,hhink] (3,-0.7) -- (6,-0.7) node[midway,below,font=\footnotesize]{$d'$ (operator sensitivity)};

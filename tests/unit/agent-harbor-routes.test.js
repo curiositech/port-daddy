@@ -93,8 +93,19 @@ function seed(db) {
   appendEvent(db, { streamType: 'work-receipt', payload: fixture('work-receipt') });
 }
 
-function buildApp(db, sse = {}) {
+function buildApp(db, sse = {}, { withoutRequestIp = false, requestIp } = {}) {
   const app = Fastify();
+  if (withoutRequestIp || requestIp !== undefined) {
+    // Fastify normally supplies a string, but the local-only authority gate
+    // must still fail closed if an adapter/proxy leaves that metadata absent or malformed.
+    app.addHook('onRequest', (request, _reply, done) => {
+      Object.defineProperty(request, 'ip', {
+        configurable: true,
+        value: withoutRequestIp ? undefined : requestIp,
+      });
+      done();
+    });
+  }
   const episodicMemory = createEpisodicMemory(db);
   const sessions = createSessions(db);
   const actorSouls = createTestActorSouls(db);
@@ -387,6 +398,47 @@ describe('agent-harbor routes', () => {
         ...overrides,
       };
     }
+
+    test('fails closed before parsing or writing when request IP metadata is unavailable', async () => {
+      const { app: noIpApp } = buildApp(db, {}, { withoutRequestIp: true });
+      await noIpApp.ready();
+      try {
+        const response = await noIpApp.inject({
+          method: 'POST',
+          url: '/agent-harbor/interactive-context-pressure',
+          payload: requestPayload('provider-session-without-ip'),
+        });
+
+        expect(response.statusCode).toBe(403);
+        expect(response.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_REMOTE_UNAVAILABLE' });
+        expect(readEvents(db, { streamType: 'transcript-event' })
+          .map((row) => row.kind)).not.toContain('context_pressure');
+      } finally {
+        await noIpApp.close();
+      }
+    });
+
+    test.each([
+      ['an empty string', ''],
+      ['a non-string object', { forwarded: '127.0.0.1' }],
+    ])('fails closed before parsing or writing when request IP metadata is %s', async (_label, requestIp) => {
+      const { app: malformedIpApp } = buildApp(db, {}, { requestIp });
+      await malformedIpApp.ready();
+      try {
+        const response = await malformedIpApp.inject({
+          method: 'POST',
+          url: '/agent-harbor/interactive-context-pressure',
+          payload: requestPayload(`provider-session-${_label.replace(/\s+/g, '-')}`),
+        });
+
+        expect(response.statusCode).toBe(403);
+        expect(response.json()).toMatchObject({ code: 'INTERACTIVE_CONTEXT_REMOTE_UNAVAILABLE' });
+        expect(readEvents(db, { streamType: 'transcript-event' })
+          .map((row) => row.kind)).not.toContain('context_pressure');
+      } finally {
+        await malformedIpApp.close();
+      }
+    });
 
     test('binds a credentialed hook to its durable plan session and returns only a bounded receipt', async () => {
       const plan = startInteractivePlanSession({ sessions, actorSouls, providerSessionBindings });

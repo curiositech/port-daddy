@@ -12,12 +12,14 @@ import {
   type PurserMetrics,
 } from '../src/purser.js';
 import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/fleet.js';
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { aggregateConclusion } from '../src/verdict.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executability.js';
 import { encodeFingerprint, fingerprintDiff, withAuthoredTests } from '../src/purser-rerun.js';
 import { FleetAiCircuit, FleetAiDependencyError } from '../src/ai-resilience.js';
+import { assessContextAdmission } from '../src/context-admission.js';
 import {
   freshState,
   installGitHubFetch,
@@ -273,6 +275,173 @@ describe('parseSteelMan — extraction tolerance (2026-08-04: 1416 chars discard
 });
 
 describe('runPurser — steel-man failure modes', () => {
+  it('projects oversized PR metadata explicitly while every dispatched request remains admitted', async () => {
+    const responses = [STEELMAN_JSON, TESTS_JSON];
+    const run = vi.fn(async (
+      _model: string,
+      _request: { messages: Array<{ role: string; content: string }>; max_tokens: number },
+    ) => ({ response: responses[run.mock.calls.length - 1] ?? '' }));
+    const rec = recorder();
+    const bodyTail = 'BODY-TAIL-MUST-NOT-REACH-THE-MODEL';
+    const titleTail = 'TITLE-TAIL-MUST-NOT-REACH-THE-MODEL';
+
+    const result = await runPurser(
+      mkShip(),
+      mkCtx({
+        title: `${'T'.repeat(4_096)}${titleTail}`,
+        body: `${'B'.repeat(64_000)}${bodyTail}`,
+      }),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result.errored).toBe(false);
+    expect(run).toHaveBeenCalledTimes(2);
+    const firstRequest = run.mock.calls[0][1] as {
+      messages: Array<{ role: string; content: string }>;
+      max_tokens: number;
+    };
+    const user = firstRequest.messages.find(message => message.role === 'user')!.content;
+    expect(user).toContain('[PR title projection:');
+    expect(user).toContain('[PR description projection:');
+    expect(user).not.toContain(titleTail);
+    expect(user).not.toContain(bodyTail);
+
+    for (const [model, request] of run.mock.calls) {
+      const aiRequest = request as {
+        messages: Array<{ role: string; content: string }>;
+        max_tokens: number;
+      };
+      expect(
+        assessContextAdmission(
+          String(model),
+          aiRequest.messages,
+          aiRequest.max_tokens,
+        ).accepted,
+      ).toBe(true);
+    }
+  });
+
+  it('marks Purser’s own diff projection partial instead of returning a clean fleet result', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    const result = await runPurser(
+      mkShip(),
+      mkCtx({
+        diff:
+          'diff --git a/src/widget.ts b/src/widget.ts\n--- a/src/widget.ts\n+++ b/src/widget.ts\n' +
+          '+reviewed-prefix\n'.repeat(2_000),
+      }),
+      makeEnv({ AI: ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ errored: false, reviewCoverage: 'partial' });
+    expect(result.reviewCoverageReason).toContain('first 24000 characters');
+    expect(aggregateConclusion([result])).toBe('neutral');
+    expect(rec.steps).toContainEqual(expect.objectContaining({ kind: 'purser-context-partial' }));
+  });
+
+  it('does not reuse a prefix-only Purser fingerprint after GitHub truncates the raw diff', async () => {
+    const first = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: first.ai }), 'tok', rec.transcript, freshMetrics());
+
+    const second = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const truncated = await runPurser(
+      mkShip(),
+      mkCtx({ diffTruncated: true, diffBytes: 2_000_000 }),
+      makeEnv({ AI: second.ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(second.calls).toBeGreaterThan(0);
+    expect(truncated).toMatchObject({ errored: false, reviewCoverage: 'partial' });
+    expect(truncated.reviewCoverageReason).toContain('GitHub stopped the raw diff read');
+    expect(aggregateConclusion([truncated])).toBe('neutral');
+  });
+
+  it('marks an incomplete GitHub changed-file inventory as partial coverage', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    const result = await runPurser(
+      mkShip(),
+      mkCtx({ filesTruncated: true }),
+      makeEnv({ AI: ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ errored: false, reviewCoverage: 'partial' });
+    expect(result.reviewCoverageReason).toContain('incomplete changed-file inventory');
+    expect(aggregateConclusion([result])).toBe('neutral');
+    expect(rec.steps).toContainEqual(expect.objectContaining({ kind: 'purser-context-partial' }));
+  });
+
+  it('fails visibly before Workers AI when an indivisible full request exceeds capacity', async () => {
+    const run = vi.fn(async () => ({ response: STEELMAN_JSON }));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, prompt: 'system evidence '.repeat(4_000) }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      ship: 'purser',
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: expect.stringContaining('context admission rejected before model dispatch'),
+    });
+    expect(aggregateConclusion([result])).toBe('failure');
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({
+        model: '@cf/qwen/qwen3-30b-a3b-fp8',
+        contextWindowTokens: 32_768,
+      }),
+    }));
+  });
+
+  it('fails visibly before Workers AI when a configured Purser model has no context contract', async () => {
+    const run = vi.fn(async () => ({ response: STEELMAN_JSON }));
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, cfModel: '@cf/example/unknown-context' }),
+      mkCtx(),
+      makeEnv({ AI: { run } as unknown as Ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      errored: true,
+      failureReason: expect.stringContaining('has no known context window'),
+    });
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'ship-error',
+      detail: expect.objectContaining({
+        model: '@cf/example/unknown-context',
+        contextWindowTokens: null,
+      }),
+    }));
+  });
+
   it('propagates a silent AI deadline to the queue while provider budget remains', async () => {
     const run = vi.fn(() => new Promise<never>(() => undefined));
     const rec = recorder();
@@ -1989,7 +2158,7 @@ describe('pd-fleet.yml purser parsing', () => {
     '      trigger: pull_request:opened',
     '      blocking: true',
     '      blockWithoutSandbox: true',
-    "      model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+    '      cf_role: shipDefault',
     '      testPaths:',
     '        - tests/purser',
     '',
@@ -2006,7 +2175,7 @@ describe('pd-fleet.yml purser parsing', () => {
     expect(p.testPaths).toEqual(['tests/purser']);
     // No graft configured ⇒ the purser gets the default skill-graft list.
     expect(p.graft).toEqual([...PURSER_DEFAULT_GRAFT]);
-    expect(p.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(p.cfModel).toBe(CF_ROLE_MODELS.shipDefault);
     expect(p.needsExecution).toBe(false); // cloud-executable by contract
     expect(p.prompt.length).toBeGreaterThan(0); // default persona prompt
   });
@@ -2021,10 +2190,23 @@ describe('pd-fleet.yml purser parsing', () => {
     expect(p.testPaths).toEqual(['tests/purser']); // testPaths untouched
   });
 
-  it('an unknown model pin on a purser is remapped to a known-good model', () => {
-    const yaml = YAML.replace("'@cf/qwen/qwen3-30b-a3b-fp8'", "'@cf/bogus/model'");
-    const p = parseFleetShips(yaml, 'pull_request:opened')!.find(s => s.name === 'purser')!;
-    expect(p.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  it('an unknown role pin on a purser is remapped to a known-good model', () => {
+    // The fixture pins a NON-DEFAULT role first, then breaks it. The earlier
+    // version of this test started from `shipDefault` and asserted the result
+    // was `shipDefault`, which is what the fallback produces anyway — so it
+    // passed whether the remap happened, whether the string replace matched, or
+    // whether the pin was read at all. An assertion that cannot fail is not a
+    // test. Starting from `reviewBot` makes the two outcomes distinguishable.
+    expect(CF_ROLE_MODELS.reviewBot).not.toBe(CF_ROLE_MODELS.shipDefault);
+    const honored = YAML.replace('cf_role: shipDefault', 'cf_role: reviewBot');
+    expect(
+      parseFleetShips(honored, 'pull_request:opened')!.find(s => s.name === 'purser')!.cfModel,
+    ).toBe(CF_ROLE_MODELS.reviewBot);
+
+    const broken = YAML.replace('cf_role: shipDefault', 'cf_role: bogus-role');
+    expect(
+      parseFleetShips(broken, 'pull_request:opened')!.find(s => s.name === 'purser')!.cfModel,
+    ).toBe(CF_ROLE_MODELS.shipDefault);
   });
 });
 

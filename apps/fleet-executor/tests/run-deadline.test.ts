@@ -11,9 +11,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { executeFleet } from '../src/execute.js';
+import { buildSystemPrompt, executeFleet } from '../src/execute.js';
 import { RUN_ABSOLUTE_DEADLINE_MS } from '../src/ai-resilience.js';
-import { saveShipCheckpoint } from '../src/ship-checkpoint.js';
+import { parseFleetShips } from '../src/fleet.js';
+import {
+  createCheckpointReviewInputSha256,
+  createShipCheckpointBinding,
+  saveShipCheckpoint,
+} from '../src/ship-checkpoint.js';
 import {
   freshState,
   installGitHubFetch,
@@ -66,6 +71,31 @@ function seedToken(kv: KVNamespace): void {
     'github_inst_42',
     JSON.stringify({ token: 'seeded-tok', expiresAt: Date.now() + 3_600_000 }),
   );
+}
+
+/** Match the executor's pre-resume trusted config/contract/PR-input snapshot. */
+async function checkpointBindingForYaml(config: string, shipName: string) {
+  const ship = parseFleetShips(config, 'pull_request:opened')?.find(candidate => candidate.name === shipName);
+  if (!ship) throw new Error(`fixture does not declare ${shipName}`);
+  const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
+  const reviewInputSha256 = await createCheckpointReviewInputSha256({
+    owner: 'erichowens',
+    repo: 'port-daddy',
+    prNumber: 7,
+    title: state.prTitle ?? 'Test PR',
+    body: state.prBody ?? '',
+    headSha: state.prHeadSha,
+    headRef: state.prHeadRef ?? '',
+    baseSha: 'BASESHA',
+    baseRef: state.prBaseRef,
+    isFork: state.prHeadRepo !== state.prBaseRepo,
+    files: state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }],
+    diff,
+    diffBytes: new TextEncoder().encode(diff).byteLength,
+    diffTruncated: false,
+    filesTruncated: false,
+  });
+  return createShipCheckpointBinding(ship, null, '', buildSystemPrompt(ship, null), reviewInputSha256);
 }
 
 /** Seed this run's TRUE first-attempt start far enough in the past to have
@@ -180,6 +210,7 @@ describe('absolute run deadline (DO-NOT-SHIP finding on #9800)', () => {
         errored: false,
         findings: [],
       },
+      await checkpointBindingForYaml(REVIEWER_PLUS_QA, 'code-reviewer'),
     );
     const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
 

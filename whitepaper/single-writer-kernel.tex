@@ -769,7 +769,12 @@ CREATE TABLE claim_tickets (
 When Agent~$B$'s claim acquisition failed against the primary-key \texttt{UNIQUE} constraint, the error handler would insert an entry into \texttt{claim\_tickets}. When Agent~$A$ then called \texttt{release('auth.ts')}, the daemon would execute a single atomic transaction:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
 \item Delete Agent~$A$'s active claim row: \texttt{DELETE FROM claims WHERE resource = :r;}
-\item Read the lowest ticket: \texttt{SELECT agent\_id, seq\_num FROM claim\_tickets WHERE resource\_id = :r ORDER BY seq\_num ASC LIMIT 1;}
+\item Read the lowest ticket:
+\begin{lstlisting}[language=SQL,basicstyle=\small\ttfamily]
+SELECT agent_id, seq_num FROM claim_tickets
+WHERE resource_id = :r
+ORDER BY seq_num ASC LIMIT 1;
+\end{lstlisting}
 \item Atomically re-grant the claim: \texttt{INSERT INTO claims (resource, holder, ttl) VALUES (:r, :next\_agent, :ttl);}
 \item Remove the claimed ticket: \texttt{DELETE FROM claim\_tickets WHERE seq\_num = :next\_seq;}
 \end{enumerate}
@@ -2061,7 +2066,8 @@ Peter J. Ramadge and W. Murray Wonham.
 \newblock Supervisory Control of a Class of Discrete Event Processes.
 \newblock \textit{SIAM Journal on Control and Optimization}, 25(1):206--230, 1987.
 \newblock (Controllability and the supremal controllable sublanguage --- the general
-boundary of which Theorem~\ref{thm:decidability} is the commit-only instance.)
+boundary of which this chapter's Synchronous State Decidability theorem is the
+commit-only instance.)
 
 \bibitem{rw89}
 Peter J. Ramadge and W. Murray Wonham.
