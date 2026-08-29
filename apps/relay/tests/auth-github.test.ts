@@ -11,7 +11,8 @@
  *   - /auth/me: 401 without a session; the user (never the gh token) with one.
  *   - logout: clears the cookie and deletes the session.
  *   - resolveSession + userCanReadRepo: repo read 200 → true (cached), 404 →
- *     false; expired session → null.
+ *     false; renewed login does not inherit a stale decision; expired session
+ *     → null.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -24,6 +25,7 @@ import {
   handleAccountDelete,
   resolveSession,
   userCanReadRepo,
+  userIsRepoAdmin,
   userOwnsInstallation,
   isSameOrigin,
 } from '../src/auth-github.js';
@@ -268,6 +270,75 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(await userCanReadRepo(env, session, 'someone', 'private')).toBe(false);
   });
 
+  it('userCanReadRepo does not carry a cached denial into a renewed OAuth session', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const firstCookie = await loginAndGetCookie(env, kv);
+    const firstSession = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: firstCookie } }), env))!;
+
+    let allowed = false;
+    let repoCalls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: any) => {
+      const url = String(input);
+      if (url.includes('/repos/me/private')) {
+        repoCalls++;
+        return new Response('', { status: allowed ? 200 : 404 });
+      }
+      if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: 'gho_usertoken' }), { status: 200 });
+      if (url.endsWith('/user')) return new Response(JSON.stringify({ id: 4242, login: 'octocat', name: 'The Cat', avatar_url: 'https://x/a.png', email: null }), { status: 200 });
+      if (url.endsWith('/user/emails')) return new Response(JSON.stringify([{ email: 'cat@github.com', primary: true, verified: true }]), { status: 200 });
+      return new Response('unexpected ' + url, { status: 500 });
+    }));
+
+    expect(await userCanReadRepo(env, firstSession, 'me', 'private')).toBe(false);
+    allowed = true;
+    kv.store.set('oauth_state:renewed', '1');
+    const renewedLogin = await handleGithubCallback(
+      new Request(`${BASE}/auth/github/callback?code=c&state=renewed`),
+      env,
+    );
+    const secondCookie = renewedLogin.headers.get('Set-Cookie')!.split(';')[0];
+    const secondSession = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: secondCookie } }), env))!;
+    expect(secondSession.cacheNamespace).not.toBe(firstSession.cacheNamespace);
+    expect(await userCanReadRepo(env, secondSession, 'me', 'private')).toBe(true);
+    expect(repoCalls).toBe(2);
+  });
+
+  it('userCanReadRepo fails closed without caching transient GitHub failures', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const cookie = await loginAndGetCookie(env, kv);
+    const session = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: cookie } }), env))!;
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error('GitHub unavailable');
+      return new Response('', { status: 200 });
+    }));
+
+    expect(await userCanReadRepo(env, session, 'me', 'private')).toBe(false);
+    expect(kv.store.has(`repo_access:${session.user.id}:${session.cacheNamespace}:me/private`)).toBe(false);
+    expect(await userCanReadRepo(env, session, 'me', 'private')).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('userIsRepoAdmin isolates authorization decisions by browser session', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const cookie = await loginAndGetCookie(env, kv);
+    const first = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: cookie } }), env))!;
+    const second = { ...first, cacheNamespace: `${first.cacheNamespace}-renewed` };
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      return new Response(JSON.stringify({ permissions: { admin: calls > 1 } }), { status: 200 });
+    }));
+
+    expect(await userIsRepoAdmin(env, first, 'me', 'private')).toBe(false);
+    expect(await userIsRepoAdmin(env, second, 'me', 'private')).toBe(true);
+    expect(calls).toBe(2);
+  });
+
   it('userOwnsInstallation: gates billing on GitHub-confirmed ownership, fail-closed', async () => {
     const kv = makeKV();
     const env = makeEnv({}, kv, makeDb().db);
@@ -286,7 +357,7 @@ describe('/auth/me, logout, and session resolution', () => {
     // an installation the user does NOT own → false (the cross-tenant leak this closes)
     expect(await userOwnsInstallation(env, session, 99)).toBe(false);
     // fail-closed: a session with no gh token can prove nothing
-    expect(await userOwnsInstallation(env, { user: session.user, ghToken: null }, 42)).toBe(false);
+    expect(await userOwnsInstallation(env, { user: session.user, ghToken: null, cacheNamespace: session.cacheNamespace }, 42)).toBe(false);
   });
 });
 
