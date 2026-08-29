@@ -647,19 +647,19 @@ export async function handleBegin(
   });
   if (ui.lineworkEnabled({ stream: 'stderr' })) {
     const rows: ui.LineworkRow[] = [
-      { state: 'confirmed', label: 'agent', text: String(agentLabel), colorText: true },
-      { state: 'active', label: 'session', text: String(sessionLabel), colorText: true },
-      { state: 'pending', label: 'purpose', text: String(purpose), colorText: true },
-      { state: lifecycle.lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle.lifecycle, colorText: true },
+      { state: 'confirmed', label: 'agent', text: String(agentLabel) },
+      { state: 'active', label: 'session', text: String(sessionLabel) },
+      { state: 'pending', label: 'purpose', text: String(purpose) },
+      { state: lifecycle.lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle.lifecycle },
     ];
-    if (identity) rows.push({ state: 'active', label: 'identity', text: identity, colorText: true });
-    if (data.roadmapLink) rows.push({ state: 'confirmed', label: 'roadmap', text: String(data.roadmapLink), colorText: true });
-    if (data.sidequestReason) rows.push({ state: 'info', label: 'sidequest', text: String(data.sidequestReason), colorText: true });
-    if (rentReceipt) rows.push({ state: 'confirmed', label: 'rent', text: rentReceipt, colorText: true });
+    if (identity) rows.push({ state: 'active', label: 'identity', text: identity });
+    if (data.roadmapLink) rows.push({ state: 'confirmed', label: 'roadmap', text: String(data.roadmapLink) });
+    if (data.sidequestReason) rows.push({ state: 'info', label: 'sidequest', text: String(data.sidequestReason) });
+    if (rentReceipt) rows.push({ state: 'confirmed', label: 'rent', text: rentReceipt });
     if (data.worktree && typeof data.worktree === 'object') {
       const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
       const branch = worktree.branch ? `:${worktree.branch}` : '';
-      rows.push({ state: 'active', label: 'worktree', text: `${worktree.name || worktree.id || 'linked'}${branch}`, colorText: true });
+      rows.push({ state: 'active', label: 'worktree', text: `${worktree.name || worktree.id || 'linked'}${branch}` });
     }
     if (data.fileClaims) {
       const claims = data.fileClaims as string[];

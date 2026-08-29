@@ -30,24 +30,6 @@ describe('CLI story-linework renderer', () => {
     process.env = { ...envSnapshot };
   });
 
-  test('can paint identity-bearing labels and values by semantic tone', () => {
-    const rendered = renderLineworkPanel({
-      title: 'Session Anchored',
-      rows: [
-        { state: 'confirmed', label: 'agent', text: 'agent-green', colorText: true },
-        { state: 'active', label: 'session', text: 'session-blue', colorText: true },
-        { state: 'pending', label: 'purpose', text: 'purpose-orange', colorText: true },
-      ],
-      colorLevel: 'truecolor',
-    });
-    expect(rendered).toContain('\x1b[38;2;95;206;151magent');
-    expect(rendered).toContain('\x1b[38;2;125;180;255msession');
-    expect(rendered).toContain('\x1b[38;2;242;190;81mpurpose');
-    expect(rendered).toContain('\x1b[38;2;95;206;151magent-green');
-    expect(rendered).toContain('\x1b[38;2;125;180;255msession-blue');
-    expect(rendered).toContain('\x1b[38;2;242;190;81mpurpose-orange');
-  });
-
   test('state fixture covers healthy, pending, unknown, recovering, confirmed, blocked, and failed next action', () => {
     const rendered = renderLineworkPanel({
       title: 'Proof',

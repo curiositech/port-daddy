@@ -200,7 +200,7 @@ describe('port-daddy up/down Integration', () => {
       'test-nohealth:',
       'test-selective:',
       'test-remote:',
-      'configured-service-proof:'
+      'configured-service-proof:',
     ];
     try {
       const svcRes = await request('/services');
@@ -323,22 +323,22 @@ describe('port-daddy up/down Integration', () => {
       project: configuredProject,
       services: {
         app: {
-          cmd: 'node server.mjs',
+          dev: 'node server.mjs',
           dir: appDir,
-          healthPath: '/health',
-          env: { SERVICE_NAME: 'configured-app' }
-        }
-      }
+          health: '/health',
+          env: { SERVICE_NAME: 'configured-app' },
+        },
+      },
     }, null, 2));
-    // Deliberately disagree with .portdaddyrc: registration must use config.
+    // Deliberately disagree with the config: registration must use config.
     writeFileSync(join(tempDir, 'package.json'), JSON.stringify({
-      name: 'package-directory-inference-must-not-win'
+      name: 'package-directory-inference-must-not-win',
     }));
 
     upProcess = spawn(TSX_PATH, [CLI_PATH, 'up', '--dir', tempDir], {
       env: cliEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: true
+      detached: true,
     });
 
     const output = await waitForOutput(upProcess, 'service(s) running', 45000);
@@ -355,7 +355,7 @@ describe('port-daddy up/down Integration', () => {
 
     const discovery = spawnSync(TSX_PATH, [CLI_PATH, 'find', semanticId], {
       encoding: 'utf-8',
-      env: cliEnv()
+      env: cliEnv(),
     });
     expect(discovery.status).toBe(0);
     expect(discovery.stderr).toContain(semanticId);

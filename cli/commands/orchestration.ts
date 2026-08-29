@@ -13,7 +13,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 // Orchestration types
 import { normalizeServiceConfig, topologicalSort, createOrchestrator } from '../../lib/orchestrator.js';
 import { discoverServices, mergeWithConfig, suggestNames } from '../../lib/discover.js';
-import type { DiscoveredService } from '../../lib/discover.js';
+import type { DiscoveredService, SuggestNamesOptions } from '../../lib/discover.js';
 import { loadConfig } from '../../lib/config.js';
 import type { PortDaddyRcConfig } from '../../lib/config.js';
 
@@ -96,9 +96,9 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
 
   // 3. Suggest semantic identities
   const useGitBranch: boolean = options.branch === true;
-  const nameOpts = {
+  const nameOpts: SuggestNamesOptions = {
     ...(useGitBranch ? { useBranch: true } : {}),
-    ...(config?.project ? { project: config.project } : {})
+    ...(config ? { project: config.project } : {}),
   };
   const identitySuggestions = suggestNames(mergedServices, dir, nameOpts);
 

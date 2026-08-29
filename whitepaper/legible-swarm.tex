@@ -562,7 +562,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{0.29\textwidth}p{0.09\textwidth}p{0.30\textwidth}p{0.26\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.08\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
 \toprule
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
 \midrule
@@ -570,7 +570,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \texttt{agent-3} note on \path{auth/session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
 Third retry of the same failing test & $0.58$ & de-duplicated into the first occurrence & a fourth retry, or a different failure mode \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{A mockup of the ``what did the queue not show me, and why'' counter-surface.
 Each row names the item, its score, the \emph{rule} that suppressed it, and the
 condition that would bring it back. The regress does not vanish --- this surface is
@@ -1211,7 +1211,7 @@ through it at $C_{\text{fa}}=1$ and $a=0.2$ attention-seconds.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{0.30\textwidth}p{0.08\textwidth}p{0.12\textwidth}p{0.13\textwidth}p{0.13\textwidth}p{0.14\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
 \midrule
@@ -1219,7 +1219,7 @@ through it at $C_{\text{fa}}=1$ and $a=0.2$ attention-seconds.
 Refactor touching a public interface & $0.03$ & $40$ & $1.20$ & $1.17$ & zoom, barely \\
 Migration dropping a foreign key & $0.2$ & $500$ & $100.0$ & $1.00$ & forced zoom \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Equation~\ref{eq:sdt} on three action classes at $C_{\text{fa}}=1$,
 $a=0.2$. The first row is Mara's auto-land grant (\S\ref{sec:consent}) falling out of
 the arithmetic rather than being granted by taste. The third is decided by the
@@ -2548,10 +2548,10 @@ target whose proof is not carried in this paper. The two keys are orthogonal on
 purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordinary
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
-\begin{table}[H]
+\begin{table}[p]
 \centering
-\small
-\renewcommand{\arraystretch}{1.18}
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
 \begin{tabularx}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
 \toprule
 & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\

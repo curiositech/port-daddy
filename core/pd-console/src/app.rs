@@ -2755,7 +2755,23 @@ impl ConsoleView {
                 .and_then(|index| self.pane_blocks.get(index))
                 .cloned()
                 .unwrap_or_default();
-            return crate::mission_view::blocks(&self.work_mission, &live_work);
+            let pane = |id: &str| {
+                NAV.iter()
+                    .position(|item| item.id == id)
+                    .and_then(|index| self.pane_blocks.get(index))
+                    .cloned()
+                    .unwrap_or_default()
+            };
+            let launch_observability = crate::mission_view::launch_observability_blocks(
+                &pane("health"),
+                &pane("activity"),
+                &pane("ledger"),
+            );
+            return crate::mission_view::blocks(
+                &self.work_mission,
+                &live_work,
+                &launch_observability,
+            );
         }
         // The Harbor Editor surface reads its PERSISTENT pane (buffer + claims
         // + wedge), created once by `ensure_editor_states`. view() on an
@@ -5560,7 +5576,7 @@ fn commitment_accent(level: &str) -> u32 {
 ///
 /// This is a DISPLAY-ONLY lookup against the WorkPlan/predicted-DAG's own
 /// `model_tier` vocabulary (vendor nicknames — "opus"/"sonnet"/"haiku"/
-/// "gemini"/"codex"/"gpt"/"o1"/"o3"/"groq"/"llama"/"mixtral", see
+/// "gemini"/"sol"/"terra"/"luna"/"codex"/"gpt"/"o1"/"o3"/"groq"/"llama"/"mixtral", see
 /// work_plan.rs's `PredictedNode::model_tier`) — it never selects a backend
 /// or spawns anything (per this crate's own doc comment: "the console has no
 /// backend/model selection or direct spawn... launch path", agent.rs:1-6).
@@ -5583,7 +5599,7 @@ fn vendor_accent(tier: &str) -> u32 {
         t.accent
     } else if has_any(&["gemini"]) {
         t.landed
-    } else if has_any(&["codex", "gpt", "o1", "o3"]) {
+    } else if has_any(&["sol", "terra", "luna", "codex", "gpt", "o1", "o3"]) {
         0x_b6_9c_ff // violet — no palette role, matches the Vello codex chip
     } else if has_any(&["groq", "llama", "mixtral"]) {
         t.engaged

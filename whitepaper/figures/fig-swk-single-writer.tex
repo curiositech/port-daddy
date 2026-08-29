@@ -1,62 +1,53 @@
-% Figure — the single-writer serialization. Many client processes + the daemon
-% funnel through one writer; SQLite's file lock + a busy-wait serialize all
-% mutations. One decider => no agreement to reach (FLP sidestepped, not solved);
-% that whole argument, and the cross-machine boundary, live in the caption.
-
+% Figure 3 --- concurrent arrivals become one ordered commit history.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
-              minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
-  daemon/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
-                 minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
-  db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
-             aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
+\resizebox{0.91\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize,
+  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=8mm,font=\footnotesize\bfseries},
+  cell/.style={draw=hhgray,thick,fill=hhpaper,align=center,minimum height=8mm,font=\footnotesize,text=hhink},
+  active/.style={draw=hhteal,very thick,fill=hhteal!8,align=center,minimum height=8mm,font=\footnotesize\bfseries,text=hhink},
+  durable/.style={draw=hhamber,very thick,fill=hhamber!8,align=center,minimum height=8mm,font=\footnotesize,text=hhink},
 ]
-
-% ─── Many clients on the left ─────────────────────────────────────────────
-\node[cli] (c1) at (0,2.4) {command line};
-\node[cli] (c2) at (0,1.2) {command line};
-\node[cli] (c3) at (0,0)   {agent (tool bridge)};
-\node[cli] (c4) at (0,-1.2){agent (binary IPC)};
-\node[cli] (c5) at (0,-2.4){background worker};
-
-% ─── The single daemon (sole write connection) ────────────────────────────
-\node[daemon] (d) at (58mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
-  {\footnotesize\normalfont two transports over Unix sockets}};
-
-\foreach \c in {c1,c2,c3,c4,c5} {
-  \draw[->,>=Latex,hhebony] (\c.east) -- (d.west);
+% An aligned transaction ledger makes serialization visible without a hub diagram.
+\node[head,text width=35mm] at (-5.7,0.1) {concurrent arrivals};
+\node[head,text width=26mm] at (-2.25,0.1) {queue order};
+\node[head,text width=35mm] at (1.2,0.1) {sole writer turn};
+\node[head,text width=38mm] at (5.1,0.1) {durable history};
+\foreach \y/\caller/\slot/\turn/\commit in {
+  -1.08/{CLI request}/01/{wait}/{commit 01},
+  -2.18/{agent tool bridge}/02/{\textbf{active write}}/{commit 02},
+  -3.28/{binary IPC}/03/{wait}/{commit 03},
+  -4.38/{background worker}/04/{wait}/{commit 04},
+  -5.48/{next arrival}/05/{wait}/{commit 05}}
+{
+  \node[cell,text width=35mm] at (-5.7,\y) {\caller};
+  \node[cell,text width=26mm] at (-2.25,\y) {\slot};
+  \ifnum\slot=2
+    \node[active,text width=35mm] at (1.2,\y) {\turn};
+  \else
+    \node[cell,text width=35mm] at (1.2,\y) {\turn};
+  \fi
+  \node[durable,text width=38mm] at (5.1,\y) {\commit};
 }
-
-% ─── The single file ──────────────────────────────────────────────────────
-\node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
-\draw[<->,>=Latex,line width=1.2pt,hhcobalt] (d.east) -- (file.west);
-\node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
-  at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
-
+\node[draw=hhteal,very thick,fill=hhteal!7,text width=84mm,minimum height=8mm,align=center,font=\footnotesize] at (1.2,-6.32)
+  {one read--write connection; one total order};
+\node[text width=145mm,align=center,font=\footnotesize\itshape,text=hhgray] at (-0.15,-7.28)
+  {The next writer may begin only after the current commit returns; a second daemon is outside this model.};
 \end{tikzpicture}%
 }
-\caption{The single-writer serialization, the cleanest thing about the layer.
-Dozens of command-line invocations and agents funnel through \emph{one} writer ---
-the daemon, the sole holder of a read--write connection --- and SQLite's OS-level
-file lock plus a bounded busy-wait serialize all mutations. Because there is exactly
-one decider, there is no agreement to reach: the consensus impossibility of
-Fischer--Lynch--Paterson does not bite --- it is \emph{sidestepped}, not solved, and
-on one machine the system is CP with a central coordinator. This is not a gap; it is
-the layer's defining discipline. The boundary is exact: the instant a \emph{second}
-daemon shares this file, the assumption breaks and you have a distributed problem
---- which belongs to the cross-machine economy layer, not here.}
+\caption{The single-writer serialization. Concurrent command-line and agent requests are
+assigned one queue order; the daemon is the sole active read--write connection, so
+each successful mutation enters one durable commit history. There is no agreement
+protocol inside this machine: the system has one decider. The model ends if a second
+daemon shares the file, which is a cross-machine problem rather than a kernel
+property.}
 \label{fig:swk-single-writer}
 \end{figure}

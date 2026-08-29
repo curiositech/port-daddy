@@ -1,66 +1,47 @@
-% The float-plan / escrow ceremony: three-step signed handshake.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
-% ─── The Float-Plan Escrow Ceremony: Three-Step Signed Handshake ──────────────
+% Semantic contract: a three-party transaction sequence with one atomic gate.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  lane/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=34mm, align=center},
-  msgarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  stepbox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=48mm, align=left},
-  txnbox/.style={draw=hhcobalt, line width=0.75pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=4pt, font=\scriptsize, text width=38mm, align=center},
-  lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt}
-]
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \node[draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=39mm,minimum height=10mm,align=center] at (-4.6,1.85)
+    {\textbf{Requester}\\[-1pt]{\scriptsize\color{hhgray}signed intent}};
+  \node[draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=39mm,minimum height=10mm,align=center] at (0,1.85)
+    {\textbf{Daemon}\\[-1pt]{\scriptsize\color{hhgray}ledger authority}};
+  \node[draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=39mm,minimum height=10mm,align=center] at (4.6,1.85)
+    {\textbf{Worker}\\[-1pt]{\scriptsize\color{hhgray}execution}};
+  \foreach \x in {-4.6,0,4.6} {
+    \draw[hhgray,line width=.55pt] (\x,1.32) -- (\x,-2.45);
+  }
 
-  % ─── Lifeline Headers (Top) ─────────────────────────────────────────────────
-  \node[lane] (R) at (-4.2, 0) {\textbf{\scshape Requester $R$}\\[1pt]{\scriptsize Bounty Holder}};
-  \node[lane] (D) at (0.0, 0) {\textbf{\scshape Daemon $D$}\\[1pt]{\scriptsize Escrow Arbiter}};
-  \node[lane] (W) at (4.2, 0) {\textbf{\scshape Worker $W$}\\[1pt]{\scriptsize Claim Holder}};
+  \draw[-{Stealth[length=2.2mm]},draw=hhink,line width=.75pt]
+    (-4.6,.82) -- (0,.82)
+    node[midway,above=2pt,font=\footnotesize,fill=hhpaper,inner xsep=4pt]
+      {1. signed manifest $\langle task,oracle,bounty\rangle$};
 
-  % Lifeline dashed tracks
-  \draw[hhgray!40, line width=0.4pt, dashed] (R.south) -- ++(0, -5.2);
-  \draw[hhgray!40, line width=0.4pt, dashed] (D.south) -- ++(0, -5.2);
-  \draw[hhgray!40, line width=0.4pt, dashed] (W.south) -- ++(0, -5.2);
+  \fill[hhteal!8] (-1.35,.20) rectangle (1.35,-.58);
+  \draw[hhteal,line width=.8pt] (-1.35,.20) rectangle (1.35,-.58);
+  \node[font=\footnotesize\bfseries,align=center] at (0,-.02)
+    {2. wallet debit + escrow row};
+  \node[font=\scriptsize,text=hhgray] at (0,-.37) {one database commit};
 
-  % ─── Step 1: Requester submits signed FloatPlan ─────────────────────────────
-  \draw[msgarr] (-4.2, -1.0) -- node[lbl, above] {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} (0.0, -1.0);
-  \node[stepbox] at (6.8, -1.0) {
-    \textbf{Step 1: Float-Plan Submission}\\
-    $R$ signs task manifest, oracle acceptance criteria, and escrowed bounty.
-  };
+  \draw[hhamber,line width=1pt] (-6.2,-.86) -- (6.2,-.86);
+  \node[fill=hhpaper,inner xsep=6pt,font=\footnotesize\bfseries,text=hhamber]
+    at (0,-.86) {execution boundary};
+  \node[font=\scriptsize\itshape,text=hhgray] at (-3.1,-1.13)
+    {no worker state exists above this line};
 
-  % ─── Step 2: Atomic serialized balance debit ────────────────────────────────
-  \node[txnbox] at (0.0, -2.5) {
-    \textbf{Step 2: Atomic Escrow}\\[1pt]
-    \texttt{BEGIN EXCLUSIVE}\\[1pt]
-    Debit Wallet $\to$ Lock Escrow\\[1pt]
-    \texttt{COMMIT}
-  };
-
-  % ─── Step 3: Daemon signs proof-of-escrow to worker ─────────────────────────
-  \draw[msgarr] (0.0, -4.0) -- node[lbl, above] {$\mathsf{sign}_{D}\{\textit{anchor},\,\textit{plan hash}\}$} (4.2, -4.0);
-  \node[stepbox] at (6.8, -4.0) {
-    \textbf{Step 3: Execution Clearance}\\
-    $D$ presents signed proof of locked funds to $W$ (\textit{no-spawn-without-bond}).
-  };
-
+  \draw[-{Stealth[length=2.2mm]},draw=hhteal,line width=.9pt]
+    (0,-1.62) -- (4.6,-1.62)
+    node[midway,above=2pt,font=\footnotesize,fill=hhpaper,inner xsep=4pt]
+      {3. clearance $\langle plan\ hash,escrow\ id\rangle$};
+  \node[font=\scriptsize,align=center,text=hhgray] at (4.6,-2.10)
+    {worker admits the plan\\only after signature + row check};
 \end{tikzpicture}
-\caption{The float-plan escrow ceremony --- the atom every side of the market
-settles on. A three-step signed handshake over a standard digital-signature scheme:
-the requester signs a FloatPlan (task, machine-checkable acceptance criteria,
-budget, bounty); the daemon debits and escrows the value inside one serialized
-database transaction; the daemon then signs $\{\textit{anchor id},\,\textit{plan
-hash}\}$, proving to the worker that funds are pinned before any work begins. The
-conservation invariant ($\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$,
-verified over 10k random operation traces by a property test) holds at every step
-and is the \emph{implemented} floor the whole economy stands on --- the one claim
-this paper can make at the highest maturity.}
+\caption{The float-plan ceremony is a three-party transaction sequence. The
+requester signs intent; the daemon atomically debits the wallet and creates the
+escrow row; only then does the worker receive an execution clearance bound to that
+committed row. The horizontal boundary makes no-spawn-without-bond visible.}
 \label{fig:he-float-plan}
 \end{figure}

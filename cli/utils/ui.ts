@@ -69,9 +69,6 @@ export interface LineworkRow {
   label: string;
   text: string;
   signal?: SignalCode | null;
-  /** Paint the semantic label and value, not only its stripe/dot. Use for
-   *  identity-bearing rows where color is part of the scan grammar. */
-  colorText?: boolean;
 }
 
 export interface LineworkPanelOptions {
@@ -348,7 +345,6 @@ export function lineworkSignal(
 function resolveLineworkRow(row: LineworkRow): Required<Pick<LineworkRow, 'label' | 'text'>> & {
   tone: LineworkTone;
   signal?: SignalCode;
-  colorText: boolean;
 } {
   const visual = row.state ? lineworkVisual(row.state) : undefined;
   return {
@@ -356,7 +352,6 @@ function resolveLineworkRow(row: LineworkRow): Required<Pick<LineworkRow, 'label
     text: row.text,
     tone: row.tone ?? visual?.tone ?? 'info',
     signal: row.signal === null ? undefined : row.signal ?? visual?.signal,
-    colorText: row.colorText === true,
   };
 }
 
@@ -396,8 +391,7 @@ export function renderLineworkPanel(opts: LineworkPanelOptions): string {
     const stripe = paint('▌', row.tone, level);
     const dot = paint('●', row.tone, level);
     const labelWidth = Math.max(4, Math.min(11, width - 13));
-    const rawLabel = fitVisible(row.label, labelWidth);
-    const label = row.colorText ? paint(rawLabel, row.tone, level) : rawLabel;
+    const label = fitVisible(row.label, labelWidth);
     const prefix = `${stripe} ${dot} ${signal} ${label} `;
     const prefixWidth = visibleWidth(prefix);
     const inlineWidth = width - prefixWidth;
@@ -410,14 +404,12 @@ export function renderLineworkPanel(opts: LineworkPanelOptions): string {
       continue;
     }
     const firstChunk = wrapVisible(row.text, inlineWidth)[0];
-    const paintedFirstChunk = row.colorText ? paint(firstChunk, row.tone, level) : firstChunk;
-    lines.push(fitVisible(`${prefix}${paintedFirstChunk}`, width));
+    lines.push(fitVisible(`${prefix}${firstChunk}`, width));
     const remaining = row.text.trim().slice(firstChunk.length).trimStart();
     if (remaining) {
       const continuationIndent = 2;
       for (const chunk of wrapVisible(remaining, width - continuationIndent)) {
-        const paintedChunk = row.colorText ? paint(chunk, row.tone, level) : chunk;
-        lines.push(fitVisible(`${' '.repeat(continuationIndent)}${paintedChunk}`, width));
+        lines.push(fitVisible(`${' '.repeat(continuationIndent)}${chunk}`, width));
       }
     }
   }

@@ -1130,6 +1130,11 @@
       "summaryMd": "[dispatch] Take roadmap slice ideas-trove-queryable-surface. Audit the ..."
     },
     {
+      "slug": "interactive-squid-review-hardening",
+      "status": "now",
+      "summaryMd": "Harden interactive context-pressure ingress and successor-boundary contract"
+    },
+    {
       "slug": "io-wiring",
       "status": "now",
       "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
@@ -1278,11 +1283,6 @@
       "slug": "port-policy-registry",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
-    },
-    {
-      "slug": "porthole-harness-proof-v2-real-lifecycle-recordings-jump-cut",
-      "status": "now",
-      "summaryMd": "Replace narrated Porthole demos with reproducible harness evidence: real install and readiness, decoded model context, tmux collision refusal, declared time jump, pd up service, and durable Parley."
     },
     {
       "slug": "porthole-player-website-component",

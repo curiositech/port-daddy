@@ -160,6 +160,18 @@ export interface ShipResult {
    */
   noUsableOutput?: boolean;
   /**
+   * Whether this ship saw the reviewable source it was asked to judge.
+   *
+   * Absent means complete coverage (the common path). `partial` means one or
+   * more intact source files could not fit the model request or the bounded
+   * MAP cap omitted later chunks; `none` means the diff contained only derived
+   * artifacts / terminal evidence and no source was sent to a model. Neither
+   * state may render as a clean PASS in the required GitHub check.
+   */
+  reviewCoverage?: 'partial' | 'none';
+  /** Bounded human-readable explanation for an incomplete review. */
+  reviewCoverageReason?: string;
+  /**
    * Structured findings parsed from the ship's reduced output. Empty when the
    * ship found nothing; absent on legacy/test results that predate findings.
    */
@@ -280,7 +292,8 @@ export function aggregateConclusion(results: ShipResult[]): Conclusion {
 
   const advisoryObjection = results.some(r => !r.blocking && r.verdict === 'BLOCK' && !isBroken(r));
   const adjudicatedBreakage = results.some(r => isBroken(r) && r.brokenAdjudicated != null);
-  if (advisoryObjection || adjudicatedBreakage) return 'neutral';
+  const incompleteCoverage = results.some(r => r.reviewCoverage === 'partial' || r.reviewCoverage === 'none');
+  if (advisoryObjection || adjudicatedBreakage || incompleteCoverage) return 'neutral';
 
   return 'success';
 }

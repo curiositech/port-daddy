@@ -274,7 +274,6 @@ describe('Discover Module', () => {
       // Should lowercase and replace invalid chars
       expect(suggestions.app.project).toMatch(/^[a-z0-9-]+$/);
     });
-
     it('uses the configured project identity over package or directory inference', () => {
       const services = {
         app: { stack: null }
@@ -289,6 +288,54 @@ describe('Discover Module', () => {
         project: 'configured-service-proof',
         full: 'configured-service-proof:app:main'
       });
+    });
+
+    it('uses the exact configured identity when package metadata promises a different project', () => {
+      const services = {
+        app: { stack: null }
+      };
+
+      setupProject(tempDir, { name: 'service-proof' });
+      const suggestions = suggestNames(services, tempDir, {
+        project: ' porthole-service-proof '
+      });
+
+      expect(suggestions.app).toEqual({
+        project: 'porthole-service-proof',
+        stack: 'app',
+        context: 'main',
+        full: 'porthole-service-proof:app:main'
+      });
+    });
+
+    it('falls back to the inferred project when a configured identity is blank', () => {
+      const services = {
+        app: { stack: null }
+      };
+
+      setupProject(tempDir, { name: 'fallback-service-proof' });
+      const suggestions = suggestNames(services, tempDir, { project: '   ' });
+
+      expect(suggestions.app).toMatchObject({
+        project: 'fallback-service-proof',
+        full: 'fallback-service-proof:app:main'
+      });
+    });
+
+    it('ignores malformed configured project values instead of coercing or throwing', () => {
+      const services = {
+        app: { stack: null }
+      };
+
+      setupProject(tempDir, { name: 'package-service-proof' });
+      for (const project of [0, 7, null, [], {}]) {
+        const suggestions = suggestNames(services, tempDir, { project });
+
+        expect(suggestions.app).toMatchObject({
+          project: 'package-service-proof',
+          full: 'package-service-proof:app:main'
+        });
+      }
     });
   });
 
