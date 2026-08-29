@@ -1,87 +1,52 @@
-% Federated revocation gossip — three harbors, an issuer revoke event,
-% propagation timeline with the cross-witness audit hook.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
-% ─── Federated Revocation Gossip Timeline ─────────────────────────────────────
+% Semantic contract: a single revocation advances through a time-by-harbor state matrix.
+% Repeated harbor cartoons are deliberately avoided: rows are authorities, columns are epochs.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  harbor/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=4pt, minimum width=24mm, minimum height=11mm, align=center},
-  harborrev/.style={harbor, draw=hhcobalt, fill=hhcobalt!10},
-  filter/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=1.5pt, inner sep=2pt, minimum width=24mm, minimum height=6mm, align=center, font=\scriptsize},
-  filterrev/.style={filter, draw=hhcobalt, fill=hhcobalt!6, text=hhcobalt},
-  witnesslog/.style={draw=hhink, line width=0.65pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, minimum width=130mm, minimum height=12mm, align=center},
-  gossiparr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt, dashed},
-  publisharr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt},
-  tlabel/.style={font=\small\scshape}
+  x=1cm,y=1cm,font=\small,
+  state/.style={draw=hhink,line width=.55pt,fill=hhpaper,rounded corners=1.5pt,
+    minimum width=34mm,minimum height=8mm,align=center,inner sep=3pt,font=\scriptsize},
+  known/.style={state,draw=hhteal,line width=.8pt,fill=hhteal!9},
+  stale/.style={state,fill=hhsand!22,text=hhgray},
+  epoch/.style={font=\footnotesize\bfseries,align=center},
+  row/.style={font=\footnotesize\bfseries,anchor=east}
 ]
+  \node[draw=hhink,line width=.7pt,fill=hhsand!14,rounded corners=2pt,
+    minimum width=126mm,minimum height=13mm,align=center] (log) at (.55,3.0)
+    {\textbf{Federated witness log}\quad {\footnotesize signed epoch roots $\cdot$ cross-witness signatures $\cdot$ equivocation evidence}};
 
-  % ─── Timeline Column Headers ────────────────────────────────────────────────
-  \node[tlabel] at (-4.5, 3.4) {Epoch $t = 0$};
-  \node[tlabel] at (0.0, 3.4) {Epoch $t = \Delta$};
-  \node[tlabel] at (4.5, 3.4) {Epoch $t = 2\Delta$};
+  \node[epoch] at (-3.35,1.95) {$t=0$};
+  \node[epoch] at (.55,1.95) {$t=\Delta$};
+  \node[epoch] at (4.45,1.95) {$t=2\Delta$};
+  \node[row] at (-5.45,1.10) {Harbor $A$};
+  \node[row] at (-5.45,.15) {Harbor $B$};
+  \node[row] at (-5.45,-.80) {Harbor $C$};
 
-  % ─── Witness Log (Top Band) ─────────────────────────────────────────────────
-  \node[witnesslog] (W) at (0.0, 2.2) {
-    \textbf{\scshape Federated Witness Log} \quad {\footnotesize (Per-Epoch Boundary Publication)}\\[1pt]
-    {\scriptsize Epoch Roots $R_A^{(e)}, R_B^{(e)}, R_C^{(e)}$ \textperiodcentered\ Cross-Witness Signatures \textperiodcentered\ Equivocation Audit}
-  };
+  \node[known] (a0) at (-3.35,1.10) {revoked locally};
+  \node[known] (a1) at (.55,1.10) {revoked};
+  \node[known] (a2) at (4.45,1.10) {revoked};
+  \node[stale] (b0) at (-3.35,.15) {stale};
+  \node[known] (b1) at (.55,.15) {synchronized};
+  \node[known] (b2) at (4.45,.15) {synchronized};
+  \node[stale] (c0) at (-3.35,-.80) {stale};
+  \node[stale] (c1) at (.55,-.80) {stale};
+  \node[known] (c2) at (4.45,-.80) {synchronized};
 
-  % ─── Row A: Issuer (Revokes at t = 0) ───────────────────────────────────────
-  \node[harborrev] (A0) at (-4.5, 0.6) {\textbf{\scshape Harbor $A$}};
-  \node[filterrev, below=1.5pt of A0] (FA0) {$c \in F_A$ (Revoked)};
+  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.8pt]
+    (a0.south east) -- (b1.north west)
+    node[midway,fill=hhpaper,inner xsep=3pt,font=\scriptsize] {$A\!\to\!B$ delta};
+  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.8pt]
+    (b1.south east) -- (c2.north west)
+    node[midway,fill=hhpaper,inner xsep=3pt,font=\scriptsize] {$B\!\to\!C$ delta};
 
-  \node[harborrev] (A1) at (0.0, 0.6) {\textbf{\scshape Harbor $A$}};
-  \node[filterrev, below=1.5pt of A1] (FA1) {$c \in F_A$ (Revoked)};
+  \node[font=\scriptsize,text=hhgray] at (-3.35,2.42) {$R_A^{(e+1)}\uparrow$};
+  \node[font=\scriptsize,text=hhgray] at (.55,2.42) {$R_B^{(e+1)}\uparrow$};
+  \node[font=\scriptsize,text=hhgray] at (4.45,2.42) {$R_C^{(e+1)}\uparrow$};
 
-  \node[harborrev] (A2) at (4.5, 0.6) {\textbf{\scshape Harbor $A$}};
-  \node[filterrev, below=1.5pt of A2] (FA2) {$c \in F_A$ (Revoked)};
-
-  % ─── Row B: Propagates at t = Δ ─────────────────────────────────────────────
-  \node[harbor] (B0) at (-4.5, -1.3) {\textbf{\scshape Harbor $B$}};
-  \node[filter, below=1.5pt of B0] (FB0) {$c \notin F_B$ (\textit{Stale})};
-
-  \node[harborrev] (B1) at (0.0, -1.3) {\textbf{\scshape Harbor $B$}};
-  \node[filterrev, below=1.5pt of B1] (FB1) {$c \in F_B$ (Synchronized)};
-
-  \node[harborrev] (B2) at (4.5, -1.3) {\textbf{\scshape Harbor $B$}};
-  \node[filterrev, below=1.5pt of B2] (FB2) {$c \in F_B$ (Synchronized)};
-
-  % ─── Row C: Propagates at t = 2Δ ────────────────────────────────────────────
-  \node[harbor] (C0) at (-4.5, -3.2) {\textbf{\scshape Harbor $C$}};
-  \node[filter, below=1.5pt of C0] (FC0) {$c \notin F_C$ (\textit{Stale})};
-
-  \node[harbor] (C1) at (0.0, -3.2) {\textbf{\scshape Harbor $C$}};
-  \node[filter, below=1.5pt of C1] (FC1) {$c \notin F_C$ (\textit{Stale})};
-
-  \node[harborrev] (C2) at (4.5, -3.2) {\textbf{\scshape Harbor $C$}};
-  \node[filterrev, below=1.5pt of C2] (FC2) {$c \in F_C$ (Synchronized)};
-
-  % ─── Gossip Hops ────────────────────────────────────────────────────────────
-  \draw[gossiparr] (A0.south east) to[out=-30, in=150] node[lbl, midway] {Anti-Entropy Gossip} (B1.north west);
-  \draw[gossiparr] (B1.south east) to[out=-30, in=150] node[lbl, midway] {Anti-Entropy Gossip} (C2.north west);
-
-  % ─── Witness Log Publication Arrows ─────────────────────────────────────────
-  \draw[publisharr] (A0.north) -- node[lbl, left] {$R_A^{(e+1)}$} (A0.north |- W.south);
-  \draw[publisharr] (B1.north) -- node[lbl, right] {$R_B^{(e+1)}$} (B1.north |- W.south);
-  \draw[publisharr] (C2.north) -- node[lbl, right] {$R_C^{(e+1)}$} (C2.north |- W.south);
-
-  % ─── Convergence Note Box (Bottom) ──────────────────────────────────────────
-  \node[draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=6pt, text width=128mm, align=left, font=\scriptsize]
-    at (0.0, -4.8) {
-    \textbf{\scshape Epidemic Convergence Invariant:}
-    In a connected reliable overlay with randomized gossip fan-out, revocation propagates in expected $\Theta(\log m)$ rounds. The witness log enables immediate offline equivocation checks once signed epoch roots reach an auditor.
-  };
-
+  \draw[hhink,line width=.55pt] (-5.45,-1.55) -- (6.15,-1.55);
+  \node[font=\footnotesize,fill=hhpaper,inner xsep=6pt] at (.35,-1.55)
+    {connected reliable rounds: expected $\Theta(\log m)$ dissemination; a partition removes any deadline};
 \end{tikzpicture}
-\caption{Federated revocation propagation across three harbors. The append-only revocation log ensures that revocation events propagate epidemically ($\Delta$-spaced rounds). Per-epoch roots $R_X^{(e)}$ published to the shared witness log provide transparent, non-repudiable audit trails that generalize Certificate Transparency.}
+\caption{Revocation spreads epidemically in expected $\Theta(\log m)$ rounds under the stated connected, reliable-round model. This is an expectation, not a worst-case deadline: an unbounded partition still yields unbounded exposure. Rows identify the authority whose local filter decides admission; columns expose the stale-verifier window. Signed per-epoch roots make contradictory histories auditable after delivery without pretending the federation has a global clock.}
 \label{fig:fh-revocation}
 \end{figure}

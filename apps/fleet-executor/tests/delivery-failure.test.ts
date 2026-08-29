@@ -48,6 +48,16 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
+const CHECKPOINT_BINDING = {
+  bindingVersion: 3 as const,
+  shipConfigSha256: `sha256:${'1'.repeat(64)}`,
+  contractSha256: 'absent',
+  graftSha256: `sha256:${'2'.repeat(64)}`,
+  systemPromptSha256: `sha256:${'3'.repeat(64)}`,
+  reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  mediatorOrdersSha256: 'absent',
+};
+
 let state: GitHubState;
 
 beforeEach(() => {
@@ -295,10 +305,11 @@ describe('deadLetterSummary', () => {
     expect(summary).not.toContain('attempt 0');
   });
 
-  it('reports durable checkpoint progress and promises resume only for that work', () => {
+  it('reports retained checkpoint progress without promising an unverified resume', () => {
     const summary = deadLetterSummary('o', 'r', 7, null, 4, 2);
     expect(summary).toContain('2 ship(s) completed and checkpointed before the loss');
-    expect(summary).toContain('replay of this delivery resumes past them');
+    expect(summary).toContain('revalidates their current trusted policy and prompt');
+    expect(summary).not.toContain('replay of this delivery resumes past them');
     expect(summary).toContain(DEAD_LETTER_MARKER);
   });
 });
@@ -317,7 +328,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(isDeadLetteredSummary(state.completed[0].summary)).toBe(true);
   });
 
-  it('reads checkpoint progress into the DLQ check summary', async () => {
+  it('reads retained checkpoint progress into the DLQ check summary without promising reuse', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -329,11 +340,12 @@ describe('a dead-lettered check does not strand the head SHA', () => {
       verdict: 'PASS',
       errored: false,
       findings: [],
-    });
+    }, CHECKPOINT_BINDING);
 
     await handleDlqJob(makeJob(), env);
 
     expect(state.completed[0].summary).toContain('1 ship(s) completed and checkpointed');
+    expect(state.completed[0].summary).toContain('revalidates their current trusted policy and prompt');
   });
 
   it('does not mark a summary ships actually decided', () => {
@@ -401,6 +413,96 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }));
 
     // No new check, no completion, no model spend — the money guard holds.
+    expect(state.existingCheckRuns).toHaveLength(1);
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('mints a fresh check when an explicit reopen retries a completed neutral gate', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'neutral',
+      summary: 'Fleet deferred before reaching a verdict.',
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
+    );
+
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted).toHaveLength(1);
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
+  });
+
+  it('mints a fresh check when an explicit reopen retries a decided failure', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'failure',
+      summary: DECIDED_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
+    );
+
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted).toHaveLength(1);
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
+  });
+
+  it('does not rerun or spend when an explicit reopen finds a completed success', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'success',
+      summary: DECIDED_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    const result = await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
+    );
+
+    expect(result).toEqual({ kind: 'already-decided', conclusion: 'success' });
     expect(state.existingCheckRuns).toHaveLength(1);
     expect(state.completed).toHaveLength(0);
   });

@@ -1,0 +1,79 @@
+% Governance regimes induced by private allocation information and decisive rights.
+% Semantic form: 2x2 phase matrix.  The geometry, not prose, carries the claim.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  celltitle/.style={font=\bfseries\small,align=center,text=hhink},
+  cellsub/.style={font=\footnotesize,align=center,text=hhgray,text width=47mm},
+  axislabel/.style={font=\footnotesize\bfseries,text=hhink,align=center},
+  edgehint/.style={font=\footnotesize\itshape,text=hhgray},
+]
+
+% Fixed, equal cells.  No label crosses a boundary.
+\fill[hhsand!34]  (0,0) rectangle (5.2,3.0);
+\fill[hhteal!9]   (5.2,0) rectangle (10.4,3.0);
+\fill[hhsand!68]  (0,3.0) rectangle (5.2,6.0);
+\fill[hhamber!14] (5.2,3.0) rectangle (10.4,6.0);
+\draw[draw=hhebony,thick] (0,0) rectangle (10.4,6.0);
+\draw[draw=hhebony,dashed] (5.2,0) -- (5.2,6.0);
+\draw[draw=hhebony,dashed] (0,3.0) -- (10.4,3.0);
+
+% Four regimes, each kept inside its own cell.
+\node[celltitle] at (2.6,2.30) {Advisory, little gain};
+\node[cellsub] at (2.6,1.55)
+  {Needs are already visible; claims add coordination without changing the allocation.};
+
+\node[celltitle,text=hhteal] at (7.8,2.30) {Shared signals, local choice};
+\node[cellsub,text=hhink] at (7.8,1.55)
+  {Agents reveal conflicts while retaining the private information needed to resolve them.};
+
+\node[celltitle] at (2.6,5.05) {Exclusive locking defensible};
+\node[cellsub] at (2.6,4.20)
+  {When needs are knowable, decisive allocation adds determinism at negligible information loss.};
+
+\node[celltitle,text=hhamber] at (7.8,5.05) {Sen warning zone};
+\node[cellsub,text=hhink] at (7.8,4.20)
+  {A universal allocator combines decisive rights with information it cannot possess.};
+
+% Explicit design boundary and the paper's operating point.
+\node[fill=hhpaper,inner xsep=5pt,inner ysep=2pt,font=\footnotesize\bfseries]
+  at (5.2,6.0) {information boundary};
+\fill[hhteal] (9.55,0.48) circle (3.2pt);
+\draw[hhteal,thick] (9.55,0.48) circle (6pt);
+\node[font=\footnotesize\bfseries,text=hhteal,anchor=east] at (9.25,0.48)
+  {LLM-agent regime};
+
+% Axes and endpoint labels live outside the matrix.
+\draw[->,>=Latex,thick,draw=hhink] (0,-0.42) -- (10.8,-0.42);
+\node[axislabel,anchor=north] at (5.2,-0.78)
+  {private allocation information};
+\node[edgehint,anchor=north west] at (0,-0.47) {shared / knowable};
+\node[edgehint,anchor=north east] at (10.4,-0.47) {local / private};
+
+\draw[->,>=Latex,thick,draw=hhink] (-0.42,0) -- (-0.42,6.4);
+\node[axislabel,rotate=90,anchor=south] at (-0.88,3.0) {decisive rights};
+\node[edgehint,rotate=90,anchor=north west] at (-0.47,0) {advisory};
+\node[edgehint,rotate=90,anchor=north east] at (-0.47,6.0) {exclusive};
+
+% The denied inference is stated once, in a dedicated annotation rail.
+\draw[hhamber,very thick] (5.55,6.45) -- (10.4,6.45);
+\node[font=\footnotesize\bfseries,text=hhamber,anchor=south east]
+  at (10.4,6.55) {no universal allocator};
+
+\end{tikzpicture}%
+}
+\caption{Governance depends jointly on decisive rights and private allocation information. Exclusive locking is defensible when work needs are knowable; advisory coordination becomes preferable when the relevant information remains local to agents. The upper-right combination is Sen's warning zone: authority is asked to make a decisive allocation from information it cannot universally possess. The marked operating point is the regime claimed for LLM coding agents.}
+\label{fig:bonded-sen-regime}
+\end{figure}

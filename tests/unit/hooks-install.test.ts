@@ -99,10 +99,14 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(map.AfterAgent[0].hooks[0].timeout).toBe(1000); // Gemini timeouts are ms
   });
 
-  test('claude/agy use only UserPromptSubmit, direct PreToolUse, and Stop', () => {
-    for (const v of ['claude', 'agy'] as const) {
-      const map = buildJsonHookMap(v, (n) => `/x/${n}`);
-      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'Stop']);
+  test('Claude alone wires its verified PreCompact lifecycle event; agy does not simulate one', () => {
+    const claude = buildJsonHookMap('claude', (n) => `/x/${n}`);
+    const agy = buildJsonHookMap('agy', (n) => `/x/${n}`);
+    expect(Object.keys(claude)).toEqual(['UserPromptSubmit', 'PreToolUse', 'Stop', 'PreCompact']);
+    expect(claude.PreCompact[0].hooks[0].command).toBe('/x/pd-hook-precompact');
+    expect(claude.PreCompact[0].hooks[0].timeout).toBe(1);
+    expect(Object.keys(agy)).toEqual(['UserPromptSubmit', 'PreToolUse', 'Stop']);
+    for (const map of [claude, agy]) {
       expect(JSON.stringify(map)).not.toContain('statusMessage');
       expect(map.UserPromptSubmit[0].hooks[0].timeout).toBe(1);
       expect(map.Stop[0].matcher).toBeUndefined(); // fires on every turn end

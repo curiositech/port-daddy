@@ -1212,6 +1212,22 @@
         "sdk": false
       }
     },
+    "editor_recovery": {
+      "description": "Registered, authenticated Harbor Editor recovery scaffolding; not a usable pipeline. P1 Rust operation-receipt production, P1B, canonical Rust Loro recovery, daemon-verified root identity minting, content-bound symbol and file-mutation generation authorities, and the P3 same-database released-claim adapter remain unimplemented, so public routes stay fail-closed with 503. The required future transaction would commit canonical provenance and its append-only outbox atomically; no CLI, MCP, or SDK alias is exposed.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /editor/recovery/request",
+        "POST /editor/recovery/prepare",
+        "POST /editor/recovery/replay",
+        "POST /editor/recovery/finalize"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "harbormaster": {
       "description": "Canonical merge-owning actor body (ADR-0037) \u2014 serializes merges of dispatched work, routes conflicts back as sub-dispatches, blocks on branch-protection / CI-red failures. Two-key safety: dispatch.state='accepted' AND merge_queue.state='queued'.",
       "cli": [
@@ -1436,6 +1452,7 @@
       "sdk": [],
       "routes": [
         "GET /agent-harbor/context-continuity",
+        "POST /agent-harbor/interactive-context-pressure",
         "GET /agent-harbor/surface-gateway/capabilities",
         "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",
@@ -2097,7 +2114,10 @@
         "POST /roadmap/promote",
         "POST /roadmap/render",
         "POST /roadmap/chomp",
-        "POST /roadmap/import-markdown"
+        "POST /roadmap/import-markdown",
+        "GET /roadmap/search",
+        "POST /roadmap/reindex-search",
+        "POST /roadmap/items/:slug/export"
       ],
       "completions": [
         "roadmap"
@@ -2110,7 +2130,9 @@
       "mcp": [
         "roadmap_list",
         "roadmap_get",
-        "roadmap_promote"
+        "roadmap_promote",
+        "roadmap_search",
+        "roadmap_export"
       ]
     },
     "roadmap_activity": {

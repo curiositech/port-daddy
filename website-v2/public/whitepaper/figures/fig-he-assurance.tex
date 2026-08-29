@@ -1,0 +1,57 @@
+% Semantic contract: reviewer count buys geometric risk reduction at linear cost.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \begin{scope}[shift={(-5.8,0)}]
+    \node[anchor=west,font=\bfseries] at (0,2.35) {Residual defect risk};
+    \node[anchor=west,font=\scriptsize,text=hhgray] at (0,2.02) {$P_k=(1-d)^k$};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (5.0,0)
+      node[right,font=\scriptsize] {$k$ reviewers};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (0,1.75)
+      node[above,font=\scriptsize] {risk};
+    \foreach \x in {1,...,5} {
+      \draw[hhgray,line width=.35pt] (\x*.8,0) -- (\x*.8,-.08);
+      \node[font=\scriptsize,below=1pt] at (\x*.8,0) {\x};
+    }
+    \draw[hhteal,line width=1.25pt]
+      (0,1.55) .. controls (.75,.98) and (1.55,.56) .. (2.4,.31)
+      .. controls (3.15,.16) and (3.65,.08) .. (4.1,.045);
+    \fill[hhteal] (2.4,.31) circle (1.8pt);
+    \draw[hhteal,dashed,line width=.55pt] (2.4,0) -- (2.4,.31);
+    \node[font=\scriptsize,anchor=west,text=hhteal] at (2.55,.48)
+      {$k=3:\;6.4\%$ at $d=.6$};
+  \end{scope}
+
+  \begin{scope}[shift={(1.1,0)}]
+    \node[anchor=west,font=\bfseries] at (0,2.35) {Cumulative review cost};
+    \node[anchor=west,font=\scriptsize,text=hhgray] at (0,2.02) {$K_k=k(b+c_B)$};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (5.0,0)
+      node[right,font=\scriptsize] {$k$ reviewers};
+    \draw[-{Stealth[length=1.8mm]},hhink,line width=.6pt] (0,0) -- (0,1.75)
+      node[above,font=\scriptsize] {cost};
+    \foreach \x in {1,...,5} {
+      \draw[hhgray,line width=.35pt] (\x*.8,0) -- (\x*.8,-.08);
+      \node[font=\scriptsize,below=1pt] at (\x*.8,0) {\x};
+    }
+    \draw[hhamber,line width=1.25pt] (0,0) -- (4.1,1.55);
+    \fill[hhamber] (2.4,.91) circle (1.8pt);
+    \draw[hhamber,dashed,line width=.55pt] (2.4,0) -- (2.4,.91);
+    \node[font=\scriptsize,anchor=west,text=hhamber] at (2.55,1.05)
+      {$k=3:\;3(b+c_B)$};
+  \end{scope}
+
+  \node[draw=hhink,line width=.6pt,fill=hhsand!18,rounded corners=2pt,
+    text width=112mm,minimum height=17mm,align=center,font=\footnotesize]
+    at (0,-1.15)
+    {The geometric curve is valid only when reviewers are independent and
+     misreporting is deterred: $\rho dB\geq G$.\\[-1pt]
+     {\scriptsize\itshape\color{hhgray}same model family or shared blind spot
+     $\Rightarrow$ effective $k$ collapses toward one}};
+\end{tikzpicture}
+\caption{Purchased assurance has two different shapes: residual defect risk falls
+geometrically with independent reviewers, while bounty and bond-carry cost rise
+linearly. The marked $k=3$ operating point makes the trade visible without implying
+that headcount alone buys assurance. Independence and the deterrence condition
+$\rho dB\geq G$ are part of the claim, not footnotes.}
+\label{fig:he-assurance}
+\end{figure}

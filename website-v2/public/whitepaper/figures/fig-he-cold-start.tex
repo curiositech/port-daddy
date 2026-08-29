@@ -1,0 +1,40 @@
+% Semantic contract: the subsidy regime flips at measured liquidity, not elapsed time.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+  \path[fill=hhsand!24] (0,0) rectangle (3.3,4.0);
+  \path[fill=hhsand!12] (3.3,0) rectangle (5.35,4.0);
+  \path[fill=hhteal!7] (5.35,0) rectangle (10.4,4.0);
+  \draw[->,hhink,line width=.7pt] (0,0) -- (10.8,0)
+    node[right,font=\footnotesize] {settled outcomes};
+  \draw[->,hhink,line width=.7pt] (0,0) -- (0,4.35)
+    node[above,font=\footnotesize,align=center] {realized\\liquidity};
+
+  \path[fill=hhteal!12] (0,0) -- (0,.18) -- (1,.27) -- (2,.48) -- (3,.86)
+    -- (4,1.52) -- (5,2.45) -- (6,3.18) -- (7,3.62) -- (8,3.82)
+    -- (9,3.91) -- (10.4,3.95) -- (10.4,0) -- cycle;
+  \draw[hhteal,line width=1.15pt,smooth] plot coordinates
+    {(0,.18)(1,.27)(2,.48)(3,.86)(4,1.52)(5,2.45)(6,3.18)(7,3.62)(8,3.82)(9,3.91)(10.4,3.95)};
+  \draw[hhamber,line width=.9pt,dashed] (5.35,0) -- (5.35,4.12);
+
+  \node[font=\scriptsize\bfseries,align=center,text width=23mm,
+    fill=hhpaper,fill opacity=.88,text opacity=1,inner sep=2pt] at (1.55,3.48)
+    {SEED\\[-1pt]{\normalfont subsidize supply}};
+  \node[font=\scriptsize\bfseries,align=center,text width=23mm,
+    fill=hhpaper,fill opacity=.88,text opacity=1,inner sep=2pt] at (4.18,2.86)
+    {IMPORT\\[-1pt]{\normalfont credit prior work}};
+  \node[font=\scriptsize\bfseries,align=center,text width=28mm,
+    fill=hhpaper,fill opacity=.88,text opacity=1,inner sep=2pt] at (7.9,2.15)
+    {CHARGE\\[-1pt]{\normalfont observed depth exists}};
+  \node[font=\footnotesize\bfseries,fill=hhpaper,inner sep=3pt,text=hhamber] at (5.35,4.35)
+    {liquidity threshold $\lambda^\star$};
+
+  \node[font=\scriptsize,align=center] at (1.65,-.48) {supplier price $<0$};
+  \node[font=\scriptsize,align=center] at (4.32,-.48) {supplier price $=0$};
+  \node[font=\scriptsize,align=center] at (7.9,-.48) {supplier price $>0$};
+  \node[font=\scriptsize\itshape,text=hhgray] at (5.25,-1.0)
+    {calendar time is deliberately absent from this axis};
+\end{tikzpicture}
+\caption{The cold-start subsidy schedule is gated by measured market depth, not a date. Early settlements create the reputation stock needed to attract the second and third market sides. Only after the observed liquidity curve crosses $\lambda^\star$ does charging demand avoid the empty-market trap; if the threshold never fires, the system remains in the recoverable subsidized regime.}
+\label{fig:he-cold-start}
+\end{figure}

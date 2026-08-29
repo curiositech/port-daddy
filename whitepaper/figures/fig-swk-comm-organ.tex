@@ -1,70 +1,44 @@
-% Figure — the communication organ: the L0 tube envelope is the carrier that
-% the (specified) L1 typed speech act rides inside; stigmergic markers decay;
-% and the two delegation objects are disambiguated. The asides ("structural
-% defense against blackboard-rot", "never write bare delegation chain") live
-% in the caption.
-
+% Figure 6 --- the carrier, typed act, and two independent provenance records.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,inner sep=5pt,align=left},
-  built/.style={draw=hhink,line width=1.2pt},
-  designed/.style={draw=hhcobalt,line width=1.2pt,dash pattern=on 3pt off 2pt},
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize,
+  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=9mm,font=\footnotesize\bfseries},
+  carrier/.style={draw=hhamber,very thick,fill=hhamber!8,align=left,minimum height=18mm,font=\footnotesize,text=hhink},
+  act/.style={draw=hhteal,very thick,fill=hhteal!7,align=left,minimum height=18mm,font=\footnotesize,text=hhink},
+  cell/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=18mm,font=\footnotesize,text=hhink},
 ]
+\node[head,text width=39mm] at (-5.55,0.1) {carrier envelope};
+\node[head,text width=41mm] at (-1.2,0.1) {typed speech act};
+\node[head,text width=35mm] at (2.85,0.1) {durable cursor};
+\node[head,text width=35mm] at (6.7,0.1) {verification boundary};
 
-% ─── The nested envelope: bus envelope wraps the typed speech act ──────────
-\node[box,built,fill=hhsand!30,minimum width=88mm,minimum height=42mm,anchor=north west] (l0env) at (0,0) {};
-\node[anchor=north west,align=left,text width=82mm,font=\small]
-  at ([xshift=2.5mm,yshift=-2mm]l0env.north west)
-  {{\bfseries The bus envelope}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
-   durable, ordered, at-least-once;\\ channel publish/subscribe + history cursor};
-\node[box,designed,fill=hhpaper,text width=72mm,anchor=north west] (l1perf) at (5mm,-24mm)
-  {{\bfseries Typed speech act (rides \emph{inside})}\hfill{\footnotesize\textsf{specified}}\\[2pt]
-   a performative, a conversation id,\\ a coordination lineage, a reply deadline};
+\node[carrier,text width=39mm] at (-5.55,-1.6) {\textbf{bus}\quad implemented\\durable, ordered, at-least-once carrier};
+\node[act,text width=41mm] at (-1.2,-1.6) {\textbf{performative}\quad specified\\conversation id, reply deadline, coordination lineage};
+\node[cell,text width=35mm] at (2.85,-1.6) {history cursor\\replay begins at an addressable position};
+\node[cell,text width=35mm] at (6.7,-1.6) {message receipt\\actor, reason, and event reference};
 
-% ─── Stigmergic-marker decay panel ────────────────────────────────────────
-\node[box,built,fill=hhsand!30,text width=66mm,minimum height=42mm,anchor=north west] (pher) at (94mm,0)
-  {{\bfseries Stigmergic markers}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
-   numeric coordination signals in shared state;\\
-   per-kind exponential decay $w \cdot r^{\,\Delta t}$,\\
-   computed on a background tick \emph{and} at read time};
+\node[carrier,text width=39mm] at (-5.55,-3.85) {\textbf{stigmergic marker}\\numeric coordination signal with read-time decay};
+\node[cell,text width=41mm] at (-1.2,-3.85) {\textbf{authorization chain}\\hop-bound signatures answer \emph{who authorized whom}};
+\node[cell,text width=35mm] at (2.85,-3.85) {\textbf{coordination lineage}\\task ancestry answers \emph{what is already in flight}};
+\node[act,text width=35mm] at (6.7,-3.85) {\textbf{two checks, never one bare ``chain''}\\verify authority; detect loops};
 
-% ─── The two delegation objects (nomenclature fix) ────────────────────────
-\node[box,built,fill=hhsand!30,text width=78mm,anchor=north west] (authchain) at (0,-50mm)
-  {{\bfseries Authorization chain}\hfill{\footnotesize\textsf{implemented}, verified}\\[2pt]
-   a chain of digital signatures.\\ \emph{Proves who authorized whom.}};
-\node[box,designed,fill=hhpaper,text width=78mm,anchor=north west] (deltrace) at (94mm,-50mm)
-  {{\bfseries Coordination lineage}\hfill{\footnotesize\textsf{specified}}\\[2pt]
-   the task-lineage for loop detection.\\ \emph{Prevents ping-pong.}};
-
-\draw[->,>=Latex,thick,hhink] (deltrace.west) --
-  node[above,font=\scriptsize,align=center]{carried \emph{inside}}
-  (authchain.east);
-
+\node[draw=hhteal,very thick,fill=hhteal!7,text width=153mm,minimum height=9mm,align=center,font=\footnotesize] at (0.55,-5.85)
+ {the carrier is implemented; the semantics ride inside it; provenance remains separately inspectable};
 \end{tikzpicture}%
 }
-\caption{The communication organ. The \textbf{bus} envelope --- durable, ordered,
-at-least-once, history-cursored (\textsf{implemented}) --- is the carrier
-\emph{into which} the typed speech act is layered; the kernel ships the envelope,
-the coordination layer ships the semantics that ride inside it. \textbf{Stigmergic
-markers} implement coordination with per-kind exponential decay computed both on a
-background tick and \emph{at read time}, so the anti-blackboard-rot property is
-provided by the substrate rather than left to discipline. Finally, the figure fixes
-a dangerous naming collision --- never write bare ``delegation chain,'' it is two
-objects: the \emph{authorization chain} is the hop-bound, attenuation-monotonic,
-anti-replay chain of signatures that proves \emph{who authorized whom}; the
-\emph{coordination lineage} is the coordination object that prevents ping-pong ---
-a different thing entirely, carried \emph{inside} the authorization chain.}
+\caption{The communication organ separates carrier, speech act, cursor, and provenance.
+The implemented bus supplies durable ordered delivery and replay; the specified typed
+act rides inside that envelope. Authorization chains prove who authorized whom, while
+coordination lineage records task ancestry and prevents ping-pong. Treating those
+two records as one ``delegation chain'' erases the verification boundary.}
 \label{fig:swk-comm-organ}
 \end{figure}

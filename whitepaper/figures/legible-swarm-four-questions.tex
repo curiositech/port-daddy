@@ -1,53 +1,66 @@
-% Figure 4 — the four design questions as a decision flow for any read-surface.
-% Design: vertical spine, asked in order top to bottom (they are not branches);
-% each question's obligation sits to its right. No resizebox shrink — the text
-% renders at its natural size.
+% Figure 4 --- four ordered release checks for every read-surface.
+% The rail makes the conjunctive gate explicit: one omission holds the surface.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
+\resizebox{0.91\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  q/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-            align=left,inner sep=6pt,font=\footnotesize,text width=46mm,
-            minimum height=11mm},
-  act/.style={draw=hhteal,thick,rounded corners=2pt,fill=hhpaper,
-              align=left,inner sep=5pt,font=\footnotesize,text=hhink,text width=52mm},
-  edge/.style={-{Latex[length=2mm]},thick,hhink},
-  ob/.style={-{Latex[length=2mm]},thick,hhteal},
+  font=\footnotesize,
+  head/.style={fill=hhink,text=white,minimum height=7mm,align=center,font=\footnotesize\bfseries},
+  num/.style={circle,draw=hhamber,very thick,fill=hhsand!45,minimum size=8mm,font=\footnotesize\bfseries,text=hhamber},
+  question/.style={align=left,text width=29mm,font=\footnotesize\bfseries,text=hhink},
+  control/.style={align=left,text width=59mm,font=\footnotesize,text=hhink},
+  evidence/.style={align=left,text width=38mm,font=\footnotesize,text=hhgray},
 ]
-\node[q] (q1) at (0,0)    {\textbf{Q1.} Is the act irreversible?};
-\node[q] (q2) at (0,-1.7) {\textbf{Q2.} Administrative vs.\ m\^etis?};
-\node[q] (q3) at (0,-3.4) {\textbf{Q3.} Can the summary lie?};
-\node[q] (q4) at (0,-5.1) {\textbf{Q4.} Is the authority legible?};
-\node[q,draw=hhcobalt,very thick,text width=30mm] (ok) at (0,-6.8) {ship the surface};
+% Deliberately a rail and aligned evidence table, not a conventional flowchart.
+\node[head,text width=9mm] at (-6.7,0.2) {order};
+\node[head,text width=31mm] at (-3.0,0.2) {question};
+\node[head,text width=61mm] at (2.7,0.2) {required control};
+\node[head,text width=40mm] at (8.2,0.2) {verifiable return};
 
-\node[act] (a1) at (6.4,0)    {force a zoom; artifact one keystroke away};
-\node[act] (a2) at (6.4,-1.7) {flatten admin; link m\^etis verbatim};
-\node[act] (a3) at (6.4,-3.4) {point zoom at the artifact, not narration};
-\node[act] (a4) at (6.4,-5.1) {every act carries a named reason};
+\draw[hhamber,very thick] (-6.7,-0.55) -- (-6.7,-6.45);
+\foreach \y/\n in {-1.25/1,-2.72/2,-4.19/3,-5.66/4}{
+  \node[num] at (-6.7,\y) {\n};
+}
 
-\draw[ob] (q1.east) -- (a1.west);
-\draw[ob] (q2.east) -- (a2.west);
-\draw[ob] (q3.east) -- (a3.west);
-\draw[ob] (q4.east) -- (a4.west);
+\node[question] at (-3.0,-1.25) {Irreversible act?};
+\node[control] at (2.7,-1.25) {Force a zoom; put the independently checkable artifact one keystroke away.};
+\node[evidence] at (8.2,-1.25) {diff, test result, or committed file};
 
-\draw[edge] (q1) -- node[right=1pt,font=\scriptsize\itshape]{then} (q2);
-\draw[edge] (q2) -- node[right=1pt,font=\scriptsize\itshape]{then} (q3);
-\draw[edge] (q3) -- node[right=1pt,font=\scriptsize\itshape]{then} (q4);
-\draw[edge] (q4) -- (ok);
-\end{tikzpicture}
-\caption{The four design questions (\S\ref{sec:four-questions}) as a decision flow
-applied to every read-surface. They are asked in order, and each question binds an
-obligation (force-zoom, verbatim-link, artifact-target, named-reason) the surface
-must satisfy before it may ship. The procedure is the operational form of the one
-law (Def.~\ref{def:zoom}) and the legible-sovereign rule
-(Prop.~\ref{prop:legible-sovereign}).}
+\node[question] at (-3.0,-2.72) {Administrative or m\^etis?};
+\node[control] at (2.7,-2.72) {Flatten administrative state; retain m\^etis as a verbatim reference.};
+\node[evidence] at (8.2,-2.72) {structured field plus source artifact};
+
+\node[question] at (-3.0,-4.19) {Could the\\summary lie?};
+\node[control] at (2.7,-4.19) {Make zoom resolve to the artifact, not the agent's self-narration.};
+\node[evidence] at (8.2,-4.19) {addressable event, claim, or diff};
+
+\node[question] at (-3.0,-5.66) {Is authority\\legible?};
+\node[control] at (2.7,-5.66) {Attach a named reason to every coordinator act.};
+\node[evidence] at (8.2,-5.66) {reasoned action record};
+
+\draw[hhgray,thin] (-5.9,-1.99) -- (10.5,-1.99);
+\draw[hhgray,thin] (-5.9,-3.46) -- (10.5,-3.46);
+\draw[hhgray,thin] (-5.9,-4.93) -- (10.5,-4.93);
+
+\node[draw=hhteal,very thick,fill=hhteal!7,minimum height=8mm,text width=115mm,align=center,font=\footnotesize] at (1.7,-7.0)
+  {\textbf{release condition} \quad all four controls pass \quad $\Longrightarrow$ \quad \textbf{release the surface}};
+\node[draw=hhamber,thick,fill=hhamber!8,minimum height=8mm,text width=42mm,align=center,font=\footnotesize,text=hhamber] at (10.3,-7.0)
+  {otherwise: hold and name the missing control};
+\end{tikzpicture}%
+}
+\caption{The four design questions (\S\ref{sec:four-questions}) as an ordered
+release gate for every read-surface. The sequence forces a zoom for irreversible
+action, separates administrative state from verbatim m\^etis, rejects self-narration
+as a zoom target, and requires an authority reason. Any missing control holds the
+surface; all four give the operational form of the one law (Def.~\ref{def:zoom})
+and the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}).}
 \label{fig:four-questions}
 \end{figure}

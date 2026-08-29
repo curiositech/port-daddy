@@ -1,50 +1,56 @@
-% Figure 8 — the split ranker (Thm. split-ranker): shared candidate-generation +
-% decay substrate, two distinct scoring heads (fit vs regret).
-% Design: each box is a name, an objective, and a motto — the signals inventory
-% and the "not one ranker" verdict live in the caption.
+% Figure 11 --- one candidate substrate, two non-interchangeable ordering rules.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.8\textwidth}{!}{%
+\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
-              font=\footnotesize,text width=42mm},
-  head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
-               font=\footnotesize,text width=50mm},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  font=\footnotesize,
+  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=11mm,font=\footnotesize\bfseries},
+  sub/.style={draw=hhgray,thick,fill=hhsand!35,align=center,minimum height=9mm,font=\footnotesize,text=hhink},
+  item/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  fit/.style={draw=hhteal,very thick,fill=hhteal!7,align=center,minimum height=14mm,font=\footnotesize,text=hhink},
+  regret/.style={draw=hhamber,very thick,fill=hhamber!8,align=center,minimum height=14mm,font=\footnotesize,text=hhink},
 ]
-% shared substrate
-\node[box,fill=hhsand!30] (sub) at (0,0)
-  {\textbf{Shared substrate}\\candidate generation\\$+$ recency decay (Prop.~\ref{prop:decay})};
+% The aligned records expose the reversal without requiring implied geometry.
+\node[head,text width=43mm] at (-5.15,0.1) {shared\\candidate substrate};
+\node[head,text width=49mm] at (0.15,0.1) {discovery lane};
+\node[head,text width=49mm] at (5.45,0.1) {attention lane};
 
-% split
-\node[head,fill=hhsand!30] (fit) at (6.4,1.8)
-  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit} (Eq.~\ref{eq:fit})\\
-   \emph{``who is most capable?''}};
-\node[head,fill=hhsand!30] (reg) at (6.4,-1.8)
-  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})\\
-   \emph{``what is most dangerous?''}};
+\node[sub,text width=43mm] at (-5.15,-1.22) {same candidates $+$ recency decay\\(Prop.~\ref{prop:decay})};
+\node[sub,text width=49mm] at (0.15,-1.22) {maximize \emph{fit} (Eq.~\ref{eq:fit})\\capability match};
+\node[sub,text width=49mm] at (5.45,-1.22) {maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})\\costly omission};
 
-\draw[e] (sub.east) -- (fit.west);
-\draw[e] (sub.east) -- (reg.west);
+\node[item,text width=43mm] at (-5.15,-3.05) {\textbf{A} \quad capable collaborator; safe and reversible};
+\node[fit,text width=49mm] at (0.15,-3.05) {$\operatorname{fit}(A) > \operatorname{fit}(B)$\\\textbf{rank A, then B}};
+\node[regret,text width=49mm] at (5.45,-3.05) {$\operatorname{regret}(A) < \operatorname{regret}(B)$\\rank A below B};
+
+\node[item,text width=43mm] at (-5.15,-4.88) {\textbf{B} \quad off-topic, but irreversible, anomalous, or high-stakes};
+\node[fit,text width=49mm] at (0.15,-4.88) {rank B below A};
+\node[regret,text width=49mm] at (5.45,-4.88) {$\operatorname{regret}(B) > \operatorname{regret}(A)$\\\textbf{rank B, then A}};
+
+\node[draw=hhteal,very thick,fill=hhteal!7,minimum height=9mm,text width=74mm,align=center,font=\footnotesize] at (-2.55,-6.38)
+  {$A \succ_{\mathrm{fit}} B$};
+\node[draw=hhamber,very thick,fill=hhamber!8,minimum height=9mm,text width=74mm,align=center,font=\footnotesize] at (2.95,-6.38)
+  {$B \succ_{\mathrm{regret}} A$};
+\node[text width=137mm,align=center,font=\footnotesize\itshape,text=hhgray] at (0.2,-7.38)
+  {The same pair reverses order: the loss functions cannot be one objective with swapped weights.};
 \end{tikzpicture}%
 }
-\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
-operator's attention queue \emph{share} candidate generation and recency-decay
-(Prop.~\ref{prop:decay}) over the same signals --- claims, skills, notes, episodes,
-presence --- but apply distinct scoring heads: discovery maximizes \emph{fit}
-(capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
-\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
-item surfaced, the agent wants the most capable collaborator --- incompatible loss
-functions, not one objective with swapped weights, so the elegant ``one ranker''
-claim is false-as-stated and demoted to ``shared substrate, distinct heads.''}
+\caption{The split ranker (Thm.~\ref{thm:split-ranker}). Discovery and the operator's
+attention queue share candidate generation and recency decay
+(Prop.~\ref{prop:decay}) over the same signals, but apply distinct scoring heads:
+discovery maximizes \emph{fit} (Eq.~\ref{eq:fit}) while attention maximizes
+\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The aligned example gives
+$\operatorname{fit}(A)>\operatorname{fit}(B)$ and
+$\operatorname{regret}(B)>\operatorname{regret}(A)$, so the two rankings reverse
+the same pair. They are incompatible loss functions, not one objective with
+swapped weights.}
 \label{fig:split-ranker}
 \end{figure}

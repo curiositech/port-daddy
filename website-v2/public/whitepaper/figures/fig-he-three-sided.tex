@@ -1,77 +1,57 @@
-% The three-sided market: three sides, one escrow, divergent identity objects.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
-% ─── The Three-Sided Market: Three Sides, One Escrow ──────────────────────────
+% Semantic contract: heterogeneous exposures become typed rows in one journal;
+% the journal, not a central actor, preserves conservation and bounds outcomes.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  sidebox/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, text width=44mm, align=center, minimum height=20mm},
-  escrowbox/.style={draw=hhcobalt, line width=0.9pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=7pt, text width=68mm, align=center, minimum height=24mm},
-  oraclebox/.style={draw=hhink, line width=0.6pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, text width=88mm, align=center},
-  idbadge/.style={draw=hhcobalt!60, line width=0.5pt, fill=hhpaper, rounded corners=1.5pt, inner sep=3pt, font=\scriptsize, text width=42mm, align=center},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
+  x=1cm,y=1cm,font=\small,
+  flow/.style={-{Stealth[length=2mm]},draw=hhink,line width=.7pt},
+  typed/.style={draw=hhink,line width=.6pt,fill=hhsand!22,rounded corners=2pt,
+    text width=35mm,minimum height=11mm,inner sep=5pt,align=left},
+  outcome/.style={draw=hhink,line width=.6pt,fill=hhpaper,rounded corners=2pt,
+    text width=38mm,minimum height=12mm,inner sep=5pt,align=left}
 ]
+  \node[typed] (labor) at (-4.65,1.35)
+    {\textbf{Labor}\\[-1pt]{\scriptsize exposure: principal bond $B_L$}};
+  \node[typed] (capital) at (-4.65,0)
+    {\textbf{Rented capital}\\[-1pt]{\scriptsize exposure: asset at risk $E_K$}};
+  \node[typed] (ip) at (-4.65,-1.35)
+    {\textbf{Licensed IP}\\[-1pt]{\scriptsize exposure: content hash $h_I$}};
 
-  % ─── The Three Market Sides (Top) ───────────────────────────────────────────
-  \node[sidebox] (labor) at (-5.2, 3.2) {
-    \textbf{\scshape Side 1: Labor}\\[2pt]
-    {\footnotesize Operator-for-Hire / Agent Fleet}
-  };
-  \node[sidebox] (capital) at (0.0, 3.8) {
-    \textbf{\scshape Side 2: Capital}\\[2pt]
-    {\footnotesize Compute / Rented Agent Assets}
-  };
-  \node[sidebox] (ip) at (5.2, 3.2) {
-    \textbf{\scshape Side 3: IP}\\[2pt]
-    {\footnotesize Licensed Skills \& Tool Modules}
-  };
+  \node[draw=hhink,line width=.8pt,fill=hhsand!12,rounded corners=2pt,
+    minimum width=42mm,minimum height=47mm] (journal) at (0,0) {};
+  \node[font=\bfseries] at (0,1.72) {bounded escrow journal};
+  \draw[hhgray,line width=.45pt] (-1.93,1.35) -- (1.93,1.35);
+  \draw[hhgray,line width=.45pt] (-1.93,.45) -- (1.93,.45);
+  \draw[hhgray,line width=.45pt] (-1.93,-.45) -- (1.93,-.45);
+  \draw[hhgray,line width=.45pt] (-1.93,-1.35) -- (1.93,-1.35);
+  \node[anchor=west,font=\scriptsize] at (-1.72,.90)
+    {\textsc{debit}\quad wallet / rights};
+  \node[anchor=west,font=\scriptsize] at (-1.72,0)
+    {\textsc{hold}\quad typed exposure};
+  \node[anchor=west,font=\scriptsize] at (-1.72,-.90)
+    {\textsc{decide}\quad criterion + witness};
+  \node[font=\scriptsize\itshape,text=hhgray] at (0,-1.75)
+    {one atomic ledger turn};
 
-  % Identity Key Badges (Above each side)
-  \node[idbadge, above=3mm of labor] {Keys on \textbf{Principal} (human/org)};
-  \node[idbadge, above=3mm of capital] {Keys on \textbf{Asset Owner}};
-  \node[idbadge, above=3mm of ip] {Keys on \textbf{Content SHA} (skill version)};
+  \draw[flow] (labor.east) -- (journal.west |- labor.east);
+  \draw[flow] (capital.east) -- (journal.west |- capital.east);
+  \draw[flow] (ip.east) -- (journal.west |- ip.east);
 
-  % ─── The Single Settlement Escrow (Center) ──────────────────────────────────
-  \node[escrowbox] (esc) at (0.0, 0.2) {
-    \textbf{\scshape Unified Float-Plan Escrow}\\[2pt]
-    {\footnotesize 4-Bucket Ledger (Bounty, Bond, Reserve, Fee)}\\[1pt]
-    {\scriptsize \textbf{Conservation Invariant:} $\text{Wallet} + \text{Escrow} + \text{Commons} = \text{Supply}$}
-  };
-
-  % Flow lines converging from all three sides into escrow
-  \draw[flowarr] (labor.south) to[out=-90, in=165] (esc.west);
-  \draw[flowarr] (capital.south) -- (esc.north);
-  \draw[flowarr] (ip.south) to[out=-90, in=15] (esc.east);
-
-  % ─── The Oracle / Settlement State (Bottom) ─────────────────────────────────
-  \node[oraclebox, below=9mm of esc] (settle) {
-    \textbf{\scshape Ground-Truth Oracle Settlement}\\[2pt]
-    {\footnotesize $\mathsf{oracle}(\text{Acceptance}) \;\Longrightarrow\; \{\,\textbf{Success} \mid \textbf{Partial} \mid \textbf{Sabotage} \mid \textbf{Dispute}\,\}$}
-  };
-  \draw[accentarr] (esc.south) -- (settle.north);
-
+  \node[outcome,draw=hhteal] (release) at (4.65,.82)
+    {\textbf{criterion passes}\\[-1pt]{\scriptsize commit: release}};
+  \node[outcome,draw=hhamber] (return) at (4.65,-.82)
+    {\textbf{criterion fails}\\[-1pt]{\scriptsize commit: refund / bounded slash}};
+  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.85pt]
+    (journal.east |- release.west) -- (release.west);
+  \draw[-{Stealth[length=2mm]},draw=hhamber,line width=.85pt]
+    (journal.east |- return.west) -- (return.west);
+  \draw[hhink,line width=.55pt] (-6.15,-2.65) -- (6.15,-2.65);
+  \node[font=\footnotesize,fill=hhpaper,inner xsep=7pt] at (0,-2.65)
+    {$\Delta\text{wallet}+\Delta\text{escrow}+\Delta\text{commons}=0$};
 \end{tikzpicture}
-\caption{The three-sided market. Labor, capital (rented agents), and IP (licensed
-skills) are three distinct \emph{incentive constraints} --- not three UI tabs ---
-that all settle on a \emph{single} float-plan escrow, so conservation holds
-globally without a second ledger. This is the categorical heart of the design: the
-three sides are isomorphic at the conservation object (the escrow) and
-\textbf{non-isomorphic at the identity object} (each side keys reputation on a
-different entity, the dashed band). Calling it ``one structure, three decorations''
-without that qualifier is a decorative-analogy failure. The rider is mandatory: the
-market is three-sided by design and two-sided
-in shipped reality, because sides 2 and 3 presuppose a non-forgeable, durable
-identity (\S\ref{sec:keystone}). The economics per side: labor's margin is
-bounty $-$ slashed sub-bonds $-$ fee; capital's renter holds the runtime jail while
-the owner bears reputation; IP is metered with clawback, paid only on green
-settlement. The escrow and its conservation invariant are implemented and
-property-tested.}
+\caption{Labor, rented capital, and licensed IP enter one conserving journal as
+different typed exposure records. The escrow commits exactly one witnessed outcome:
+a criterion-conditioned release, or a refund with a bounded slash. No path bypasses
+the atomic ledger turn or redirects value to a third destination.}
 \label{fig:he-three-sided}
 \end{figure}

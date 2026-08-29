@@ -1,0 +1,58 @@
+% Figure 10 --- paired provenance rows show why pull evidence outweighs push claims.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  head/.style={draw=hhebony,very thick,fill=hhebony,text=white,align=center,
+               minimum height=8mm,font=\footnotesize\bfseries},
+  candidate/.style={draw=hhgray,thick,fill=hhsand!30,align=left,
+                    minimum height=15mm,font=\footnotesize,text=hhink},
+  push/.style={draw=hhamber,thick,fill=hhamber!8,align=left,
+               minimum height=15mm,font=\footnotesize,text=hhink},
+  pull/.style={draw=hhteal,very thick,fill=hhteal!7,align=left,
+               minimum height=15mm,font=\footnotesize,text=hhink},
+  result/.style={draw=hhink,thick,fill=hhpaper,align=center,
+                 minimum height=15mm,font=\footnotesize,text=hhink},
+]
+% The rows compare the same candidates; no arrow funnel can hide the evidence basis.
+\node[head,text width=26mm] at (-5.9,0.15) {same\\candidates};
+\node[head,text width=40mm] at (-2.05,0.15) {PUSH: self-report};
+\node[head,text width=57mm] at (2.85,0.15) {PULL: independent residue};
+\node[head,text width=30mm] at (7.05,0.15) {selection};
+
+\node[candidate,text width=26mm] at (-5.9,-1.28) {\textbf{A}\\migration\\capability};
+\node[push,text width=40mm] at (-2.05,-1.28) {\textbf{ident + skill}\\asserted capability};
+\node[pull,text width=57mm] at (2.85,-1.28) {\textbf{file + note + epis}\\no merged migration artifact};
+\node[result,text width=30mm] at (7.05,-1.28) {small verified\\weight};
+
+\node[candidate,text width=26mm] at (-5.9,-3.00) {\textbf{B}\\migration\\capability};
+\node[push,text width=40mm] at (-2.05,-3.00) {\textbf{ident + skill}\\the same assertion};
+\node[pull,text width=57mm] at (2.85,-3.00) {\textbf{file + note + epis + load}\\merged episode + owned artifact\\+ active load};
+\node[result,text width=30mm] at (7.05,-3.00) {\textbf{B ranks first}\\route by evidence};
+
+\node[draw=hhteal,very thick,fill=hhteal!7,text width=150mm,minimum height=9mm,
+      align=center,font=\footnotesize] at (0.45,-4.63)
+  {$\operatorname{fit}(c,q)=\operatorname{clamp}(z(c,q),0,1)$ \quad
+   \textbf{weight pull evidence more}: forging it requires doing the work};
+\end{tikzpicture}%
+}
+\caption{The discovery ranker weights \emph{pull} signals --- residue of work a
+candidate actually did, recorded for some other purpose --- over \emph{push}
+signals, what a candidate merely declares about itself (Eq.~\ref{eq:fit},
+Table~\ref{tab:fit-signals}). The paired rows hold the candidate capability claim
+constant and expose the discriminating evidence: declarations are cheap to make,
+but a merged episode, owned artifact, and current workload are expensive to forge.
+The selection therefore follows evidence weight, not confidence in self-report.
+This is the discovery-side instance of the same discipline digest-with-zoom
+(Def.~\ref{def:zoom}) applies to summaries: trust the claim that reaches an artifact.}
+\label{fig:pushpull}
+\end{figure}

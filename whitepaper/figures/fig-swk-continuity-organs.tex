@@ -8,7 +8,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -24,19 +24,19 @@
 ]
 
 \node[organ,fill=hhsand!30] (mem) at (0,0)
-  {{\bfseries\footnotesize 1.\ Memory}\hfill{\footnotesize\color{hhteal}\textsf{implemented}}\\[3pt]
+  {{\bfseries\footnotesize 1.\ Memory}\hfill{\footnotesize\color{hhink}\textsc{implemented}}\\[3pt]
    append-only session notes; episodic story-beats; the operation log};
 
 \node[organ,fill=hhsand!30,right=8mm of mem] (chk)
-  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhcobalt}\textsf{partial}}\\[3pt]
+  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhink}\textsc{partial}}\\[3pt]
    recovery passes durable \emph{notes} --- not execution state};
 
 \node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{partial}}\\[3pt]
+  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhink}\textsc{partial}}\\[3pt]
    the durable, oracle-bound record of what an agent actually delivered};
 
 \draw[link,hhteal] (mem.east) -- (chk.west);
-\draw[link,hhcobalt] (chk.east) -- (ledger.west);
+\draw[link,hhamber] (chk.east) -- (ledger.west);
 
 % The weakest-link marker over checkpoint
 \node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
@@ -54,8 +54,11 @@ active session's note count from regressing). \textbf{Checkpoint} is
 handoff) passes the durable notes but does not capture execution state, so it is the
 weakest continuity link --- a checkpoint with teeth (a real execution-state
 snapshot, OP-4) is the literal foundation of a cross-machine reputation economy.
+A specified direction, event-sourced rehydration, would replay a pinned commit and a
+truncated message log into a successor; that restores the durable inputs to an
+agent's context, not the inference state itself, so OP-4 stays open.
 \textbf{The witnessed-outcome ledger}, on which reputation actually keys, has a
-\textsf{partial} shipped substrate: durable commitments, daemon-derived deadlines,
+\textsf{partial} existing substrate: durable commitments, daemon-derived deadlines,
 oracle-bound closure, and overdue detection. Neutral graded outcomes, sanctions,
 and reputation binding do not yet exist. One ``the foundation is soft here'' claim,
 not three.}

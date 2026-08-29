@@ -1,47 +1,29 @@
-% Fig 7 — local non-forgeable identity vs cross-operator attestation.
+% Figure III.7 --- distinguish local identity evidence from federation evidence.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=58mm,minimum height=40mm] (alice) at (-4.2,0)
-    {};
-  \node[stp heading,anchor=north] at ([yshift=-4mm]alice.north)
-    {Alice's harbor};
-  \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
-    (alice-id) at ([yshift=4mm]alice.south)
-    {\textbf{local non-forgeable identity}\\
-     {\scriptsize one trusted daemon\\[-1pt]\textsc{partial}}\\[-1pt]
-     {\scriptsize Chapters I--III depend here}};
-
-  \node[stp box,minimum width=58mm,minimum height=40mm] (bob) at (4.2,0)
-    {};
-  \node[stp heading,anchor=north] at ([yshift=-4mm]bob.north)
-    {Bob's harbor};
-  \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
-    (bob-id) at ([yshift=4mm]bob.south)
-    {\textbf{local non-forgeable identity}\\
-     {\scriptsize one trusted daemon\\[-1pt]\textsc{partial}}\\[-1pt]
-     {\scriptsize Chapters I--III depend here}};
-
-  \draw[hhcobalt,line width=0.9pt,dashed] (0,-1.8) -- (0,1.8);
-  \node[stp label,anchor=south] at (0,1.8)
-    {trust boundary neither operator controls};
-
-  \node[stp accent box,minimum width=83mm,text width=76mm] (bridge) at (0,-3.35)
-    {\textbf{cross-operator attestation}\\
-     {\scriptsize binds keys across independently owned harbors}\\[-1pt]
-     {\scriptsize \textsc{proposed} \(\cdot\) unbuilt \(\cdot\) owed to Chapters IV and VII}};
-  \draw[stp dashed arrow] (bridge.north west) to[bend left=10] (alice-id.south);
-  \draw[stp dashed arrow] (bridge.north east) to[bend right=10] (bob-id.south);
+\begin{tikzpicture}[font=\footnotesize,
+  cell/.style={draw=hhink!62,line width=.38pt,fill=hhsand!17,minimum height=10mm,text width=43mm,align=left,inner sep=4pt},
+  head/.style={cell,fill=hhink,text=hhpaper,font=\footnotesize\bfseries,align=center},
+  ok/.style={cell,draw=hhteal!82,fill=hhteal!9},
+  gap/.style={cell,draw=hhamber!90,fill=hhamber!12},
+]
+  \node[font=\footnotesize\bfseries,text=hhgray,anchor=west] at (-5.25,2.65) {identity evidence has two non-interchangeable scopes};
+  \node[head,text width=28mm] at (-5.2,1.9) {evidence question};
+  \node[head] at (-1.45,1.9) {within one operator};
+  \node[head] at (3.35,1.9) {across independent operators};
+  \node[cell,text width=28mm] at (-5.2,.55) {Who minted the actor?};
+  \node[ok] at (-1.45,.55) {daemon-issued identity root\newline\textsc{partial: enforcement owed}};
+  \node[gap] at (3.35,.55) {no shared principal binding\newline\textsc{unbuilt}};
+  \node[cell,text width=28mm] at (-5.2,-1.05) {Can the history be checked?};
+  \node[ok] at (-1.45,-1.05) {registry and append-only log integrity};
+  \node[gap] at (3.35,-1.05) {attestation proof for another operator\newline\textsc{unbuilt}};
+  \node[cell,text width=28mm] at (-5.2,-2.65) {What does this paper rely on?};
+  \node[ok] at (-1.45,-2.65) {bounded local root for Chapters I--III};
+  \node[gap] at (3.35,-2.65) {explicit handoff to the market chapters};
+  \draw[hhamber,line width=1.1pt] (.9,-3.65) -- (5.8,-3.65);
+  \node[font=\footnotesize\bfseries,text=hhamber,anchor=north] at (3.35,-3.65) {a local proof does not become cross-operator identity};
 \end{tikzpicture}}
-\caption{\textbf{The keystone is two stones.} A \emph{local non-forgeable identity}
-secures identity \emph{within one trusted daemon} --- exactly what Chapters~I--III need
-and assume. The cross-operator boundary needs \emph{cross-operator attestation},
-which is unwritten --- a federated witness log gives log-\emph{integrity}, not
-identity-\emph{binding}. The reference system has laid part of the local stone
-(daemon-minted \texttt{actor-souls} and a bounded newcomer pool), but full write-boundary
-enforcement remains. This paper depends on that partial local stone and hands the market
-chapters the unbuilt one \emph{by name}, rather than borrowing the single-operator
-threat model across the boundary.}
+\caption{\textbf{The keystone has two distinct evidence scopes.} A \emph{local non-forgeable identity} binds an actor to one trusted daemon, the bounded assumption used in Chapters~I--III. A registry and witness log establish the integrity of that local history; they do not bind principals across independent operators. The missing cross-operator attestation is therefore named as an unbuilt market-layer obligation, rather than silently borrowing the single-operator threat model across the boundary.}
 \label{fig:keystone}
 \end{figure}

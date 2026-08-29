@@ -1,87 +1,74 @@
-% Governance / appeals four-step escalation — inline in §sec:governance.
+% Governance escalation as an ordered state rail with explicit exits.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  stagebox/.style={draw=hhebony,thick,rounded corners=3pt,
-                inner sep=6pt,minimum width=34mm,minimum height=22mm,
-                align=center},
-  esc/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  trig/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
-               align=center,text width=19mm},
-  term/.style={draw=hhebony,thick,fill=hhteal!25,rounded corners=3pt,
-               inner sep=8pt,align=left,minimum width=130mm,
-               font=\sffamily\footnotesize},
-  flow/.style={->,>=Latex,line width=1.2pt,draw=hhebony},
-  costlbl/.style={font=\sffamily\footnotesize,align=center},
+  font=\small,
+  station/.style={circle,draw=hhebony,very thick,fill=hhpaper,minimum size=9mm,inner sep=0pt,font=\bfseries},
+  stagelabel/.style={font=\small\bfseries,align=center,text=hhink,text width=38mm},
+  trigger/.style={font=\footnotesize\itshape,align=center,text=hhamber,text width=36mm},
+  outcome/.style={draw=hhteal,thick,fill=hhteal!7,rounded corners=2pt,minimum width=35mm,minimum height=9mm,font=\footnotesize\bfseries,align=center},
+  evid/.style={font=\footnotesize,align=center,text=hhink},
 ]
-% Four stage boxes; wide gaps so trigger labels fit cleanly above the arrow.
-\node[stagebox,fill=hhsand!70] (s1) at (0,0) {%
-  \sffamily\bfseries\footnotesize Stage 1\\[2pt]
-  \sffamily\bfseries\small Direct release\\[3pt]
-  \sffamily\itshape\footnotesize claimant releases\\
-  \sffamily\itshape\footnotesize the claim%
-};
-\node[stagebox,fill=hhsanddeep!70,right=28mm of s1] (s2) {%
-  \sffamily\bfseries\footnotesize Stage 2\\[2pt]
-  \sffamily\bfseries\small Time-out\\[3pt]
-  \sffamily\itshape\footnotesize TTL expires,\\
-  \sffamily\itshape\footnotesize auto-release%
-};
-\node[stagebox,fill=hhamber!40,right=28mm of s2] (s3) {%
-  \sffamily\bfseries\footnotesize Stage 3\\[2pt]
-  \sffamily\bfseries\small Bonded preemption\\[3pt]
-  \sffamily\itshape\footnotesize blocked agent posts\\
-  \sffamily\itshape\footnotesize $B_{\mathrm{preempt}}$%
-};
-\node[stagebox,fill=hhteal!35,right=28mm of s3] (s4) {%
-  \sffamily\bfseries\footnotesize Stage 4\\[2pt]
-  \sffamily\bfseries\small Human escalation\\[3pt]
-  \sffamily\itshape\footnotesize via \texttt{request}\\
-  \sffamily\itshape\footnotesize channel%
-};
-% Cost annotation below each stage box.
-\node[costlbl,below=2mm of s1.south] (c1) {\textbf{cost} 0};
-\node[costlbl,below=2mm of s2.south] (c2) {\textbf{cost} TTL latency};
-\node[costlbl,below=2mm of s3.south] (c3) {\textbf{cost} $B_{\mathrm{preempt}}$ (slashable)};
-\node[costlbl,below=2mm of s4.south] (c4) {\textbf{cost} human time};
-% Dashed escalation arrows; single-line trigger labels above each.
-\draw[esc] (s1.east) -- (s2.west);
-\node[trig,above=1mm of $(s1.east)!0.5!(s2.west)$]
-  {claimant unresponsive};
-\draw[esc] (s2.east) -- (s3.west);
-\node[trig,above=1mm of $(s2.east)!0.5!(s3.west)$]
-  {wait $>$ preempt bond};
-\draw[esc] (s3.east) -- (s4.west);
-\node[trig,above=1mm of $(s3.east)!0.5!(s4.west)$]
-  {stakes $>$ ceiling};
-% Collector bus below the cost labels; single drop into the terminal box.
-\coordinate (busY) at ($(c1.south)+(0,-8mm)$);
-\foreach \cn in {c1,c2,c3,c4} {
-  \draw[draw=hhebony,thick] (\cn.south) -- (\cn |- busY);
+
+% Entry condition and primary escalation rail.
+\node[draw=hhebony,thick,fill=hhsand!55,rounded corners=2pt,
+      inner xsep=8pt,inner ysep=5pt,font=\footnotesize\bfseries] (entry) at (-1.8,1.7)
+  {conflict reported};
+\draw[->,>=Latex,very thick,draw=hhebony] (entry.east) -- (0.0,1.7);
+
+\foreach \x/\n in {0/1,4.0/2,8.0/3,12.0/4} {
+  \node[station] (s\n) at (\x,1.7) {\n};
 }
-\draw[draw=hhebony,line width=1.4pt] (c1 |- busY) -- (c4 |- busY);
-\coordinate (busMid) at ($(c2 |- busY)!0.5!(c3 |- busY)$);
-\node[term,below=8mm of busMid] (output) {%
-  \textbf{Resolution recorded on the evidence chain.}\\[3pt]
-  $\bullet$\ Merkle-Forest binding (\S\ref{sec:merkle-forest})\\
-  $\bullet$\ 24-hour appeal window opens\\
-  $\bullet$\ Property~\ref{prop:appeal-sound}: chain grows monotonically%
-};
-\draw[flow] (busMid) -- (output.north);
+\draw[->,>=Latex,very thick,draw=hhebony] (s1) -- (s2);
+\draw[->,>=Latex,very thick,draw=hhebony] (s2) -- (s3);
+\draw[->,>=Latex,very thick,draw=hhebony] (s3) -- (s4);
+
+% Escalation triggers occupy a dedicated band above the rail.
+\node[trigger,text width=31mm] at (2.0,2.54) {holder retains\\claim};
+\node[trigger,text width=37mm] at (6.0,2.54) {waiting cost $>$ bond};
+\node[trigger,text width=40mm] at (10.0,2.54) {evidence ambiguous\\or stakes $>$ ceiling};
+\draw[hhamber,thick,dashed] (0.55,2.12) -- (3.45,2.12);
+\draw[hhamber,thick,dashed] (4.55,2.12) -- (7.45,2.12);
+\draw[hhamber,thick,dashed] (8.55,2.12) -- (11.45,2.12);
+
+% Stage names below the rail.
+\node[stagelabel] at (0,0.82) {Direct release};
+\node[stagelabel] at (4.0,0.82) {TTL expiry};
+\node[stagelabel] at (8.0,0.82) {Bonded\\preemption};
+\node[stagelabel] at (12.0,0.82) {Human ruling};
+
+% Every stage has a terminal resolution on a common baseline.
+\node[outcome] (o1) at (0,-0.35) {released by holder};
+\node[outcome] (o2) at (4.0,-0.35) {automatic release};
+\node[outcome] (o3) at (8.0,-0.35) {preempt + settle};
+\node[outcome] (o4) at (12.0,-0.35) {signed ruling};
+\foreach \n in {1,2,3,4} {
+  \draw[->,>=Latex,thick,draw=hhteal] (s\n.south) -- (o\n.north);
+}
+
+% Evidence is retained regardless of the exit used.
+\draw[hhebony,thick] (-0.7,-1.35) -- (12.7,-1.35);
+\foreach \n in {1,2,3,4} {
+  \draw[hhebony] (o\n.south) -- (o\n.south |- 0,-1.35);
+}
+\node[evid] at (6.0,-1.67)
+  {evidence rail: resolution $\cdot$ actor $\cdot$ reason $\cdot$ artifact $\cdot$ outcome};
+\node[evid,text=hhgray] at (6.0,-2.08)
+  {append to Merkle forest $\rightarrow$ open 24-hour appeal window};
+
 \end{tikzpicture}%
 }
-\caption{Governance and appeals: four-stage escalation path. The daemon resolves most disputes at stage~1 or~2 (zero or near-zero cost). Bonded preemption (stage~3) prices the blocked agent's claim that the holder is wrong; if the preemption is wrong, the bond is slashed under settlement. Human escalation (stage~4) is reserved for the cases the daemon cannot mechanically decide. \emph{Every} resolution is appended to the evidence chain with the same Merkle-Forest binding as any agent action, so all four stages remain auditable.}
+\caption{Disputes follow one ordered escalation path. Each station is both a possible resolution and a gate to stronger intervention: direct release, TTL expiry, bonded preemption, then human ruling. The lower rail is common to every exit, so escalation changes who decides and what it costs without dropping the evidence needed for appeal.}
 \label{fig:governance-flow}
 \end{figure}

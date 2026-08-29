@@ -1,0 +1,65 @@
+% Harbor Card lifecycle state machine — inline in §2.4, next to Property
+% "No Partial Reanimation". The claim of this figure is a MISSING edge, so the
+% absence is drawn explicitly (crossed-out arrow) rather than merely omitted:
+% a reader must not be able to mistake it for an oversight.
+%
+% No trust boundary here by design — this is the verifier's own state, not a
+% message crossing a channel. See fig-anchor-alg-confusion.tex for the
+% convention and the figures that need it.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  state/.style={draw=hhebony,thick,fill=hhsand,rounded corners=3pt,
+                minimum width=26mm,minimum height=11mm,align=center,inner sep=4pt},
+  terminal/.style={state,fill=hhsanddeep},
+  edge/.style={->,>=Latex,thick,draw=hhink},
+  never/.style={->,>=Latex,thick,draw=hhamber,dashed},
+  edgelbl/.style={font=\footnotesize,align=center},
+  invariant/.style={draw=hhamber,line width=.7pt,fill=hhsand!20,rounded corners=3pt,
+               inner sep=5pt,align=center,font=\footnotesize,text width=112mm},
+]
+
+\node[state] (valid) at (0,0) {\textbf{valid}\\[1pt]{\footnotesize admitted}};
+\node[terminal] (revoked) at (5.6,1.5) {\textbf{revoked}\\[1pt]{\footnotesize rejected}};
+\node[terminal] (expired) at (5.6,-1.5) {\textbf{expired}\\[1pt]{\footnotesize rejected}};
+
+\draw[edge] (valid.north east) -- node[edgelbl,above left=-1mm and -4mm]
+  {operator or daemon\\revokes \texttt{kid}} (revoked.west);
+\draw[edge] (valid.south east) -- node[edgelbl,below left=-1mm and -4mm]
+  {clock passes\\$t_0 + \tau$} (expired.west);
+\draw[edge] (revoked.south) -- node[edgelbl,right=1mm]
+  {$t_0+\tau$; entry\\may leave $R$} (expired.north);
+
+% The claim: there is NO way back. Drawn, not omitted.
+\draw[never] (revoked.north west) to[bend right=38]
+  node[pos=0.5,fill=hhpaper,draw=hhamber,thick,circle,inner sep=1pt,
+       font=\bfseries,text=hhamber] (crossmark) {$\times$}
+  (valid.north);
+\node[edgelbl,text=hhamber,anchor=south,align=center]
+  at ([yshift=3mm]crossmark.north) {no return edge};
+
+\node[invariant] at (2.8,-2.85)
+  {\textbf{No reanimation.}\quad A mistaken revocation is corrected by issuing
+   a new card ID; the rejected card never returns to the admission set.};
+
+\end{tikzpicture}
+\caption{The Harbor Card lifecycle. A card leaves the \textit{valid} state in
+exactly two ways --- an explicit revocation, or the clock reaching $t_0+\tau$ ---
+and returns from neither. The crossed dashed arrow is the figure's actual claim:
+the $\textit{revoked} \to \textit{valid}$ transition is \emph{absent by design}
+(Property~\ref{prop:no-reanim}), not merely undrawn. After expiry the entry may
+be dropped from the revocation log $R$ without weakening anything, because the
+card is already unacceptable on its \texttt{exp} claim alone.}
+\label{fig:anchor-card-lifecycle}
+\end{figure}

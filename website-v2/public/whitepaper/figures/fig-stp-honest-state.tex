@@ -17,13 +17,13 @@ Episodic memory (continuity organ 1) & \BUILT &
 Checkpoint / restart organ (organ 2) & \BUILTWEAK &
   \S\ref{sec:organs} --- forwards a summary, not execution state \\
 Outcome ledger (organ 3 --- reputation keys on it) & \BUILTWEAK &
-  \S\ref{sec:organs}, Def.~\ref{def:oracle}; commitments and oracle closure ship, grading does not \\
+  \S\ref{sec:organs}, Def.~\ref{def:oracle}; commitments and oracle closure are implemented, grading is not \\
 Cost meter (efficiency axis source) & \BUILT &
   \S\ref{sec:adr0049}; per-task accounting recorded today \\
 Bond / escrow / slash & \BUILT &
   used throughout; conservation property holds in the reference system \\
 Local non-forgeable identity & \BUILTWEAK &
-  \S\ref{sec:identity}, Thm.~\ref{thm:necessity}; actor-souls ship, full write gating does not \\
+  \S\ref{sec:identity}, Thm.~\ref{thm:necessity}; actor-souls are implemented, full write gating is not \\
 Cross-operator attestation & \VISION &
   \S\ref{sec:keystone}; named dependency owed to the market paper \\
 Reputation estimator (BT / Elo / TrueSkill / EigenTrust) &
@@ -31,8 +31,10 @@ Reputation estimator (BT / Elo / TrueSkill / EigenTrust) &
   \S\ref{sec:substrate}; design specified, nothing scores yet \\
 Multi-dimensional reputation, neutral judges & \VISION &
   \S\ref{sec:adr0049}, Protos.~\ref{proto:judge},~\ref{proto:skill} \\
-Grading-oracle incentive-compatibility (Conj.~\ref{conj:contract}) & \VISION &
-  \S\ref{sec:oracle}; named hole, two candidate closures, no proof \\
+Grading-oracle incentive-compatibility (Thm.~\ref{thm:tower-imported}) & \DESIGNED &
+  \S\ref{sec:oracle}; recursion closed by the companion paper ($\lambda{=}1{-}\rho d$), mechanism not deployed \\
+Honest root + audit telemetry for the tower & \VISION &
+  \S\ref{sec:oracle}; what the contraction theorem does \emph{not} supply \\
 Tombstone revocation of outcomes & \DESIGNED &
   \S\ref{sec:revoke}, Proto.~\ref{proto:tombstone}; convergence is the market paper's job \\
 \bottomrule

@@ -22,7 +22,7 @@ cloud-deployed, or documentation.
 |---|---|---|---|
 | Daemon (`port-daddy`) | The always-on coordination daemon | GitHub Release tarball → brew formula; `brew services` supervises it | **Yes** |
 | CLI (`pd`) | Launcher/CLI binary | Same tarball | **Yes** |
-| Squid harness | `pd-hook-prompt/-pre-tool/-post-tool` tentacles + `pd-statusline` | Same tarball, under `bin/` (pkgshare from 3.28) | **Yes** |
+| Squid harness | `pd-hook-prompt/-pre-tool/-post-tool` tentacles + `pd-statusline`; `pd-hook-precompact` is the packaged Claude-only, evidence-gated compaction checkpoint | Same tarball, under `bin/` (pkgshare from 3.28) | **Yes** |
 | Hooks | `hooks/sessionstart-pilot.mjs` SessionStart steering | Same tarball | **Yes** |
 | Agent skill | `skills/port-daddy-agent-skill` — `pd setup` symlinks it into every runtime | Same tarball from **3.28.0** (pre-binary npm formula shipped it from source; the binary tarballs 3.14–3.27 silently did NOT) | **Yes (3.28+)** |
 | Pilot agent | `agents/port-daddy-pilot` — rendered by `pd setup` per runtime | Same tarball from **3.28.0** | **Yes (3.28+)** |

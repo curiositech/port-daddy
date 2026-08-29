@@ -655,6 +655,15 @@ interface BackendRunResult {
    *  single final-output blob, so thinking + tool calls land in the transcript.
    *  Backends that only yield a final answer (simple API calls) leave it unset. */
   transcript?: StructuredTurn[];
+  /**
+   * True when this backend already appended its answer through the live delta
+   * sink.
+   *
+   * The spawn loop reads it to SKIP the batched end-of-run re-append. Recording
+   * both is how an operator ends up reading the same answer twice — the exact
+   * duplicate-turn bug that makes a live lane less trustworthy than no lane.
+   */
+  streamedTranscript?: boolean;
 }
 
 interface BackendRunContext {
@@ -709,7 +718,11 @@ async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResu
   return adaptLLMResult(result);
 }
 
-async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runClaude(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
   // Dynamic import with graceful fallback — use Function to avoid static analysis
   // of the module specifier (so tsc doesn't error on a missing optional dep)
   let Anthropic: unknown = null;
@@ -721,6 +734,7 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
     return { output: '', error: '@anthropic-ai/sdk is not installed. Run: npm install @anthropic-ai/sdk' };
   }
 
+  const sink = apiDeltaSink(context);
   try {
     const client = new (Anthropic as new (opts?: { apiKey?: string }) => {
       messages: {
@@ -731,16 +745,45 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
             output_tokens?: number;
           };
         }>;
+        stream(opts: Record<string, unknown>): {
+          on(event: string, cb: (delta: unknown) => void): unknown;
+          finalMessage(): Promise<{
+            content: Array<{ text?: string }>;
+            usage?: { input_tokens?: number; output_tokens?: number };
+          }>;
+        };
       };
     })({
       apiKey: getSecret('ANTHROPIC_API_KEY'),
     });
 
-    const response = await client.messages.create({
+    const request = {
       model,
       max_tokens: 8192,
       messages: [{ role: 'user', content: spec.task }],
-    });
+    };
+
+    // The SDK's `stream()` helper emits text deltas and still assembles the
+    // whole message, so the final result is byte-identical to the non-streamed
+    // path. That equivalence is the reason streaming can be a caller's choice
+    // rather than a separate code path: nothing downstream has to know.
+    if (sink) {
+      const stream = client.messages.stream(request);
+      stream.on('text', (delta: unknown) => {
+        if (typeof delta === 'string') sink.onTextDelta(delta);
+      });
+      const finalMessage = await stream.finalMessage();
+      const streamedText = finalMessage.content.map((c) => c.text ?? '').join('');
+      return {
+        output: streamedText,
+        error: null,
+        inputTokens: finalMessage.usage?.input_tokens,
+        outputTokens: finalMessage.usage?.output_tokens,
+        streamedTranscript: sink.finish(),
+      };
+    }
+
+    const response = await client.messages.create(request);
 
     const text = response.content.map((c) => c.text).join('');
     return {
@@ -750,96 +793,171 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
       outputTokens: response.usage?.output_tokens,
     };
   } catch (err) {
+    // Flush whatever streamed before the failure: partial output an operator
+    // already SAW must not vanish from the record when the run then dies.
+    sink?.finish();
     return { output: '', error: (err as Error).message };
   }
 }
 
-async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runGemini(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
   // REST-based: no SDK dep, and (critically) extracts exact usage tokens
   // (promptTokenCount + candidatesTokenCount + thoughtsTokenCount) so the
   // fail-closed telemetry policy can record an exact nonzero cost. The
   // legacy @google/generative-ai SDK path returned no usage and is deprecated.
+  const sink = apiDeltaSink(context);
   const result = await geminiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct thinking / functionCall / text turns from
   // the raw Gemini response so the transcript shows HOW it answered.
-  if (result.ok && result.raw !== undefined) {
-    const turns = parseGeminiTranscript(result.raw);
-    if (turns.length > 0) adapted.transcript = turns;
+  const turns = result.ok && result.raw !== undefined ? parseGeminiTranscript(result.raw) : [];
+  if (sink?.sawText() && turns.length > 0) {
+    // Streamed path: the ASSISTANT text already went through the sink turn by
+    // turn, so re-appending it would show the answer twice. Everything else —
+    // the reasoning summary, any function calls — never passes through a text
+    // sink at all, and would be silently lost if streaming simply skipped the
+    // structured pass. So append exactly the turns the stream could not carry.
+    for (const turn of turns) {
+      if (turn.role === 'assistant') continue;
+      sink.emitTurn(turn);
+    }
+  } else if (turns.length > 0) {
+    adapted.transcript = turns;
   }
+  adapted.streamedTranscript = sink?.finish() ?? false;
   return adapted;
 }
 
-async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runGroq(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await groqAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runLmStudio(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await lmstudioAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runDeepseek(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await deepseekAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runXai(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await xaiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runCloudflare(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await cloudflareAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct reasoning / tool_calls / message turns
-  // from the raw Workers AI result.
-  if (result.ok && result.raw !== undefined) {
-    const turns = parseCloudflareTranscript(result.raw);
-    if (turns.length > 0) adapted.transcript = turns;
+  // from the raw Workers AI result. On the streamed path the assistant text
+  // already went through the sink, so only the turns a text stream cannot carry
+  // are appended (see runGemini for the same reasoning).
+  const turns =
+    result.ok && result.raw !== undefined ? parseCloudflareTranscript(result.raw) : [];
+  if (sink?.sawText() && turns.length > 0) {
+    for (const turn of turns) {
+      if (turn.role === 'assistant') continue;
+      sink.emitTurn(turn);
+    }
+  } else if (turns.length > 0) {
+    adapted.transcript = turns;
   }
+  adapted.streamedTranscript = sink?.finish() ?? false;
   return adapted;
 }
 
-async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runOpenAI(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await openaiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
 /**
@@ -853,6 +971,120 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
  * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
  * Pro) for cost accounting at the wallet layer.
  */
+/**
+ * Turn a stream of tiny text fragments into a small number of transcript turns.
+ *
+ * WHY COALESCE AT ALL. An API backend emits deltas at token granularity — often
+ * a few characters each. Appending one transcript message per delta would write
+ * thousands of rows for a single answer, emit thousands of SSE frames, and give
+ * the operator a lane that scrolls one character at a time. Neither the store
+ * nor the eye wants that resolution.
+ *
+ * THE FLUSH RULE is three-part on purpose, and each part covers a case the
+ * others miss: a size threshold keeps a fast model from buffering a wall of
+ * text, a time threshold keeps a SLOW model from appearing frozen (the
+ * anti-Infinite-Spinner rule — a lane must show life), and a newline flush makes
+ * the seams fall on natural boundaries so a paragraph is not split mid-sentence.
+ *
+ * EXACTLY-ONCE. The returned `finish()` flushes the remainder and reports
+ * whether anything was streamed at all. That answer is what tells the spawn loop
+ * to SKIP the batched end-of-run re-append — recording both is how an operator
+ * ends up reading the same answer twice.
+ *
+ * @param emit Called with each coalesced text block.
+ * @param now Injected clock, so the time threshold is testable.
+ * @returns `push` for each delta, `sawText` for whether the provider streamed at
+ *          all, and `finish` returning whether anything was emitted.
+ */
+export function createDeltaCoalescer(
+  emit: (text: string) => void,
+  now: () => number = Date.now,
+): { push: (delta: string) => void; sawText: () => boolean; finish: () => boolean } {
+  const MIN_CHARS = 400;
+  const MIN_INTERVAL_MS = 250;
+  let buffer = '';
+  let lastFlush = now();
+  let emitted = false;
+  let sawText = false;
+
+  const flush = (): void => {
+    const text = buffer;
+    buffer = '';
+    lastFlush = now();
+    if (!text) return;
+    emitted = true;
+    emit(text);
+  };
+
+  return {
+    /** True once any text has been pushed, even if still buffered. */
+    sawText: () => sawText,
+    push: (delta: string) => {
+      if (!delta) return;
+      sawText = true;
+      buffer += delta;
+      const dueBySize = buffer.length >= MIN_CHARS;
+      const dueByTime = now() - lastFlush >= MIN_INTERVAL_MS;
+      const dueByBreak = delta.includes('\n');
+      if (dueBySize || dueByTime || dueByBreak) flush();
+    },
+    finish: () => {
+      flush();
+      return emitted;
+    },
+  };
+}
+
+/**
+ * Build the delta sink an API backend streams into, or undefined when nobody
+ * is listening.
+ *
+ * The purpose of the indirection is that every API backend gets identical
+ * streaming semantics from one place: same coalescing, same `assistant` role, same
+ * timestamps. Per-backend sinks would drift, and a lane that renders one
+ * backend differently from another is a lane an operator stops trusting.
+ *
+ * @param context The spawn's run context, carrying the transcript-delta sink.
+ * @returns A push/finish pair, or undefined when the spawn records no transcript.
+ */
+function apiDeltaSink(context?: BackendRunContext): ApiDeltaSink | undefined {
+  const sink = context?.onTranscriptDelta;
+  if (!sink) return undefined;
+  const coalescer = createDeltaCoalescer((text) => {
+    sink({ role: 'assistant', content: text, timestamp: Date.now() });
+  });
+  return {
+    onTextDelta: coalescer.push,
+    sawText: coalescer.sawText,
+    // A structured turn the text stream cannot express — a reasoning summary, a
+    // function call. Flushed FIRST so it lands before any buffered assistant
+    // text, preserving the order the model actually produced them in.
+    emitTurn: (turn: StructuredTurn) => {
+      coalescer.finish();
+      sink(turnToMessage(turn, Date.now()));
+    },
+    finish: coalescer.finish,
+  };
+}
+
+/** The streaming seam an API backend writes into. */
+interface ApiDeltaSink {
+  onTextDelta: (delta: string) => void;
+  /**
+   * Did the provider actually stream?
+   *
+   * Distinct from "was a sink offered": asking for a stream is a request, and a
+   * provider (or a proxy, or a model that does not support it) can answer with
+   * one whole JSON body instead. The two must not be conflated — treating an
+   * offered sink as proof of streaming drops the batch path's structured turns
+   * on every response that declined.
+   */
+  sawText: () => boolean;
+  emitTurn: (turn: StructuredTurn) => void;
+  /** Flush the remainder; returns whether anything was streamed at all. */
+  finish: () => boolean;
+}
+
 /** Map one backend StructuredTurn to a transcript message (live deltas + batch
  *  recording share this so a streamed turn and its end-of-run twin are identical). */
 function turnToMessage(turn: StructuredTurn, ts: number): TranscriptMessage {
@@ -2281,6 +2513,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // When true, the conversation is ALREADY persisted turn-by-turn, so the
     // end-of-run path skips the batched re-append to avoid duplicating it.
     let streamedLiveDeltas = false;
+    // Turns actually appended through the live path. The output summary counts
+    // recorded turns, and moving a backend from batch to streaming must not make
+    // its run look like it produced none — a summary that says "0 turns" about a
+    // run the operator watched arrive is worse than no summary.
+    let streamedTurnCount = 0;
 
     try {
       // Recording is a precondition: if the transcript row could not be opened
@@ -2325,6 +2562,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onTranscriptDelta: transcriptId
             ? (msg) => {
                 streamedLiveDeltas = true;
+                streamedTurnCount += 1;
                 txDelta(transcriptId, msg);
               }
             : undefined,
@@ -2336,14 +2574,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         };
         switch (runtime.effectiveBackend) {
           case 'ollama':    result = await runOllama(executionSpec, runtime.effectiveModel); break;
-          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel); break;
-          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel); break;
-          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel); break;
-          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel); break;
-          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel); break;
-          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel); break;
-          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel); break;
-          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel); break;
+          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel, childContext); break;
           case 'codex':     result = await runCodexCli(executionSpec, runtime.effectiveModel, childContext); break;
           case 'claude-cli': result = await runClaudeCli(executionSpec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(executionSpec, 'claude-code', childContext); break;
@@ -2357,6 +2595,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           default:
             result = { output: '', error: `Unknown backend: ${String(runtime.effectiveBackend)}` };
         }
+        // A backend that streamed its answer says so. The delta sink already
+        // sets this flag on its first append, so the OR is belt-and-braces —
+        // but stating it here means the "record it once" rule is legible at the
+        // one place that decides, rather than implied by a callback's side
+        // effect two hundred lines away.
+        if (result.streamedTranscript) streamedLiveDeltas = true;
       }
 
       if (result.childProcess) {
@@ -2478,8 +2722,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // flips the spawn to 'failed' (untracked work must not look successful).
     try {
       if (streamedLiveDeltas) {
-        // Live path (cli-tube streaming): every thinking / tool / assistant turn
-        // was already appended mid-run via onTranscriptDelta, so re-appending
+        // Live path: every thinking / tool / assistant turn was already appended
+        // mid-run via onTranscriptDelta — by the cli-tube backends parsing
+        // stream-json / --json per line, or (2026-08-23) by an API backend
+        // streaming its completion through the coalescer. Re-appending
         // `structuredTurns` or `output` here would duplicate the whole
         // conversation. Record nothing extra — the error turn below still fires.
       } else if (structuredTurns && !wasKilled) {
@@ -2501,7 +2747,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // transcripts.appendOutput() directly to add pr-comment / draft-pr /
       // commit artifacts.
       if (!wasKilled && transcriptId) {
-        const turnCount = structuredTurns?.length ?? 0;
+        const turnCount = structuredTurns?.length ?? streamedTurnCount;
         const summary = error
           ? `failed: ${error.slice(0, 160)}`
           : turnCount > 0

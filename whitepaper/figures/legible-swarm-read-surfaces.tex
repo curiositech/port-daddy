@@ -1,55 +1,71 @@
-% Figure 9 — the five built read-surfaces, each a token-compaction producing a
-% reader-specific digest. The swarm's coordination layer IS a distributed
-% compaction engine.
-% Design: each surface is a name + what it answers; the compaction mechanism
-% per surface lives in the caption.
+% Figure 12 --- one durable source ledger projected into five reader-specific views.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
+\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  raw/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=5pt,font=\footnotesize,text width=30mm},
-  prim/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,align=center,
-               inner sep=4pt,font=\footnotesize,text width=36mm,minimum height=12mm},
-  rdr/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=4pt,font=\footnotesize,text width=26mm},
-  e/.style={-{Latex[length=1.8mm]},thick,hhink},
+  font=\footnotesize,
+  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=8mm,font=\footnotesize\bfseries},
+  source/.style={draw=hhamber,very thick,fill=hhamber!8,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  surface/.style={draw=hhteal,very thick,fill=hhteal!7,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  cell/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
 ]
-\node[raw] (raw) at (0,0) {raw token\\trajectory\\(transcripts,\\diffs, events)};
+% A matrix keeps the single source and all five derived projections inspectable.
+\node[head,text width=32mm] at (-6.55,0.15) {raw event ledger};
+\node[head,text width=25mm] at (-3.45,0.15) {read surface};
+\node[head,text width=22mm] at (-0.78,0.15) {reader};
+\node[head,text width=29mm] at (2.33,0.15) {output};
+\node[head,text width=34mm] at (5.87,0.15) {zoom reference};
 
-\node[prim] (br)  at (5.4,3.2) {\textbf{Briefing}\\\emph{state on arrival}};
-\node[prim] (at)  at (5.4,1.6) {\textbf{Attention}\\\emph{what to look at now}};
-\node[prim] (ep)  at (5.4,0.0) {\textbf{Episodic memory}\\\emph{what happened before}};
-\node[prim] (ph)  at (5.4,-1.6){\textbf{Pheromone}\\\emph{the shared trace map}};
-\node[prim] (re)  at (5.4,-3.2){\textbf{Resurrection}\\\emph{notes, not checkpoints}};
+\node[source,text width=32mm,minimum height=67mm] at (-6.55,-3.79) {\textbf{E} = $(e_1,\ldots,e_N)$\\[2mm]claims, diffs, notes,\\episodes, events\\[2mm]\textcolor{hhamber}{durable references retained}};
 
-\node[rdr] (r1) at (10.4,3.2) {arriving agent};
-\node[rdr] (r2) at (10.4,1.6) {agent / operator queue};
-\node[rdr] (r3) at (10.4,0.0) {future self / successor};
-\node[rdr] (r4) at (10.4,-1.6){the swarm (stigmergic)};
-\node[rdr] (r5) at (10.4,-3.2){successor agent};
+\node[surface,text width=25mm] at (-3.45,-1.15) {\textbf{Briefing}\\arrival state};
+\node[cell,text width=22mm] at (-0.78,-1.15) {arriving agent};
+\node[cell,text width=29mm] at (2.33,-1.15) {handoff orientation};
+\node[cell,text width=34mm] at (5.87,-1.15) {claim, event, or diff reference};
 
-\foreach \p in {br,at,ep,ph,re}{ \draw[e] (raw) -- (\p); }
-\draw[e] (br)--(r1); \draw[e] (at)--(r2); \draw[e] (ep)--(r3);
-\draw[e] (ph)--(r4); \draw[e] (re)--(r5);
+\node[surface,text width=25mm] at (-3.45,-2.47) {\textbf{Attention}\\priority surface};
+\node[cell,text width=22mm] at (-0.78,-2.47) {operator queue};
+\node[cell,text width=29mm] at (2.33,-2.47) {what to inspect now};
+\node[cell,text width=34mm] at (5.87,-2.47) {reasoned act +\\artifact reference};
+
+\node[surface,text width=25mm] at (-3.45,-3.79) {\textbf{Episodic}\\memory recall cue};
+\node[cell,text width=22mm] at (-0.78,-3.79) {future self};
+\node[cell,text width=29mm] at (2.33,-3.79) {prior episode recall};
+\node[cell,text width=34mm] at (5.87,-3.79) {episode + supporting\\event references};
+
+\node[surface,text width=25mm] at (-3.45,-5.11) {\textbf{Pheromone}\\shared trace\\(decayed)};
+\node[cell,text width=22mm] at (-0.78,-5.11) {agents};
+\node[cell,text width=29mm] at (2.33,-5.11) {shared coordination\\signal};
+\node[cell,text width=34mm] at (5.87,-5.11) {claim or event reference\\with decay};
+
+\node[surface,text width=25mm] at (-3.45,-6.43) {\textbf{Resurrection}\\continuation handoff};
+\node[cell,text width=22mm] at (-0.78,-6.43) {successor agent};
+\node[cell,text width=29mm] at (2.33,-6.43) {continuation state};
+\node[cell,text width=34mm] at (5.87,-6.43) {note + episode +\\artifact references};
+
+% Five slots show that every surface is projected from the same ledger.
+\foreach \y in {-1.15,-2.47,-3.79,-5.11,-6.43}{
+  \draw[hhamber,very thick] (-4.95,\y) -- (-4.72,\y);
+}
+
+\node[draw=hhteal,very thick,fill=hhteal!7,text width=148mm,minimum height=8mm,align=center,font=\footnotesize] at (0.0,-7.72)
+  {\textbf{every output is a view; every view retains an addressable artifact path}};
 \end{tikzpicture}%
 }
-\caption{Five read-surfaces, each a token-compaction of the raw trajectory produced
-for a specific reader (\S\ref{sec:tokens-digest}): briefing is external note-taking,
-attention is precision compaction, episodic memory is recall-then-precision,
-pheromone is time-decay (forgetting), resurrection is a handoff summary. Viewed
-correctly, the swarm's coordination layer is a \emph{distributed compaction engine}
---- and because each surface is a compaction, each is governed by the same
-cost-and-legibility economics, the same recency-decay (Prop.~\ref{prop:decay}), and
-the same one law (Def.~\ref{def:zoom}).}
+\caption{Five read-surfaces as reader-specific projections of one raw event ledger
+(\S\ref{sec:tokens-digest}). Briefing gives an arriving agent state on arrival;
+attention gives the operator's queue its next inspectable item; episodic memory
+supports recall; pheromone supplies a decayed coordination trace; and resurrection
+gives a successor continuation state. Each output retains direct durable references
+to claims, notes, diffs, episodes, or events, so compaction never replaces the
+artifact it summarizes.}
 \label{fig:read-surfaces}
 \end{figure}

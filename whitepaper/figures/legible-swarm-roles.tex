@@ -1,56 +1,67 @@
-% Figure 11 — role assignment in Hobbes' author/actor frame.
-% operator = author, daemon = sovereign-actor, agents = multitude.
-% Design: each role is a name + one line; each relation gets its own arrow
-% (down-arrows on the left, up-arrows on the right), one label per arrow.
+% Figure 14 --- typed institutional relations in the author/actor frame.
+% Each row makes authority, target, and inspectable evidence explicit.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.72\textwidth}{!}{%
+\resizebox{0.93\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  role/.style={draw=hhebony,very thick,rounded corners=4pt,align=center,inner sep=7pt,
-               font=\footnotesize,text width=52mm},
-  e/.style={-{Latex[length=2.4mm]},very thick},
+  font=\footnotesize,
+  head/.style={text=white,align=center,font=\footnotesize\bfseries},
+  source/.style={draw=hhgray,thick,fill=hhsand!35,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  grant/.style={draw=hhamber,very thick,fill=hhamber!8,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  act/.style={draw=hhink,very thick,fill=hhpaper,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  peer/.style={draw=hhteal,very thick,fill=hhteal!7,align=left,minimum height=14mm,font=\footnotesize,text=hhink},
+  evidence/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=14mm,font=\footnotesize,text=hhgray},
 ]
-\node[role,fill=hhsand!30] (author) at (0,3.2)
-  {\textbf{Operator = AUTHOR}\\\emph{owns the authority; holds the inalienable override}};
-\node[role,fill=hhsand!30] (actor) at (0,0.2)
-  {\textbf{Daemon = SOVEREIGN (actor)}\\\emph{exercises the authority --- and is the \textbf{most} legible actor}};
-\node[role,fill=hhsand!30] (mult) at (0,-2.8)
-  {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1), enforced by the daemon}};
+% A typed relation ledger replaces ambiguous reciprocal geometry.
+% One continuous band avoids raster seams or overlapping header fills.
+\fill[hhink] (-7.45,-0.29) rectangle (8.52,0.59);
+\draw[white!55,thin] (-4.4,-0.29) -- (-4.4,0.59);
+\draw[white!55,thin] (1.05,-0.29) -- (1.05,0.59);
+\draw[white!55,thin] (5.15,-0.29) -- (5.15,0.59);
+\node[head,text width=28mm] at (-5.8,0.15) {source role};
+\node[head,text width=50mm] at (-1.7,0.15) {authority object / act};
+\node[head,text width=38mm] at (3.05,0.15) {target relation};
+\node[head,text width=33mm] at (6.85,0.15) {inspectable evidence};
 
-% one arrow per relation: down on the left, up on the right
-\draw[e,hhamber] ([xshift=-9mm]author.south) -- ([xshift=-9mm]actor.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{authorizes (scoped grant)};
-\draw[e,hhamber] ([xshift=9mm]actor.north) -- ([xshift=9mm]author.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{revoked by override};
-\draw[e,hhink] ([xshift=-9mm]actor.south) -- ([xshift=-9mm]mult.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{rules over};
-\draw[e,hhink] ([xshift=9mm]mult.north) -- ([xshift=9mm]actor.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{legible to};
+\node[source,text width=28mm] at (-5.8,-1.18) {\textbf{Operator}\\AUTHOR};
+\node[grant,text width=50mm] at (-1.7,-1.18) {\textbf{grant $g$}\\scope, consent, and revocation condition};
+\node[act,text width=38mm] at (3.05,-1.18) {\textbf{Daemon}\\ACTOR may exercise only $g$};
+\node[evidence,text width=33mm] at (6.85,-1.18) {grant record +\\audit identifier};
 
-% the covenant loop on the multitude
-\draw[e,hhteal] ([xshift=-3mm]mult.south west) to[bend right=40]
-  node[below=1mm,font=\scriptsize,text=hhink]{covenant among subjects}
-  ([xshift=3mm]mult.south east);
+\node[source,text width=28mm] at (-5.8,-2.67) {\textbf{Operator}\\AUTHOR};
+\node[grant,text width=50mm] at (-1.7,-2.67) {\textbf{override($g$)}\\revoke the authority};
+\node[act,text width=38mm] at (3.05,-2.67) {daemon grant no longer active};
+\node[evidence,text width=33mm] at (6.85,-2.67) {revocation event $+$ affected scope};
+
+\node[source,text width=28mm] at (-5.8,-4.16) {\textbf{Daemon}\\ACTOR};
+\node[act,text width=50mm] at (-1.7,-4.16) {\textbf{permitted act}\\block, land, escalate, or gate};
+\node[act,text width=38mm] at (3.05,-4.16) {\textbf{Agents}\\MULTITUDE};
+\node[evidence,text width=33mm] at (6.85,-4.16) {action receipt +\\artifact link};
+
+\node[source,text width=28mm] at (-5.8,-5.65) {\textbf{agent$_i$}};
+\node[peer,text width=50mm] at (-1.7,-5.65) {\textbf{each-with-all covenant}\\rule-of-road commitments};
+\node[peer,text width=38mm] at (3.05,-5.65) {\textbf{agent$_j$}\\peer subject};
+\node[evidence,text width=33mm] at (6.85,-5.65) {claim + event\\references};
+
+\node[draw=hhteal,very thick,fill=hhteal!7,text width=151mm,minimum height=9mm,align=center,font=\footnotesize] at (0.0,-7.0)
+  {\textbf{the covenant is among agents; the daemon enforces it but is not a peer party}};
 \end{tikzpicture}%
 }
 \caption{Role assignment (\S\ref{sec:roles}) in Hobbes' author/actor distinction
-(\emph{Leviathan} ch.~16). The \emph{agents} are the multitude who covenant
-each-with-all; the \emph{daemon} is the sovereign-as-actor that exercises the
-instituted authority --- blocking, landing, escalating --- but, by the
-legible-sovereign amendment (Prop.~\ref{prop:legible-sovereign}), is the most
-legible actor, not the least; the \emph{operator} is the \emph{author} who owns the
-authority, issues scoped consent grants (Def.~\ref{def:consent}), and holds the
-inalienable override (Prop.~\ref{prop:override}). Naming the operator ``the
-sovereign'' would break the covenant; the author slot is the one Hobbes leaves for
-the one who authorizes without personally acting.}
+(\emph{Leviathan} ch.~16). The operator is the author who owns authority, issues
+scoped consent grants (Def.~\ref{def:consent}), and retains the inalienable
+override (Prop.~\ref{prop:override}). The daemon is the sovereign-as-actor: it may
+block, land, escalate, or gate only under the recorded grant, and its acts must be
+legible through named receipts and artifact links. The agents are the multitude
+whose covenant is each-with-all; the daemon enforces that covenant without becoming
+one of its peer parties.}
 \label{fig:roles}
 \end{figure}

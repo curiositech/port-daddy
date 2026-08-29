@@ -1,56 +1,31 @@
-% Fig 4 — the three continuity organs with honest labels: memory BUILT, checkpoint PARTIAL, ledger PARTIAL.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
-% ─── The Three Continuity Organs ──────────────────────────────────────────────
+% Figure III.4 --- continuity is an evidence pipeline, not three product boxes.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  organ/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=7pt, text width=44mm, align=left, minimum height=28mm},
-  accentorgan/.style={organ, draw=hhcobalt, fill=hhcobalt!7},
-  repbox/.style={draw=hhcobalt, line width=0.85pt, fill=hhpaper, rounded corners=2pt, inner sep=6pt, text width=44mm, align=center},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize,
+  cell/.style={draw=hhink!62,line width=.38pt,fill=hhsand!17,minimum height=11mm,text width=31mm,align=left,inner sep=4pt},
+  head/.style={cell,fill=hhink,text=hhpaper,font=\footnotesize\bfseries,align=center},
+  organ/.style={cell,fill=hhteal!12,draw=hhteal!82,font=\footnotesize\bfseries},
 ]
-
-  \node[organ] (o1) at (-5.2, 0) {
-    \textbf{\scshape 1. Episodic Memory}\\[1pt]
-    {\scriptsize\textsc{[Implemented]}}\\[4pt]
-    \textit{What happened.}\\[2pt]
-    {\footnotesize Typed episodes scored by recency, importance, and relevance.}
-  };
-
-  \node[organ] (o2) at (0.0, 0) {
-    \textbf{\scshape 2. Checkpoint Organ}\\[1pt]
-    {\scriptsize\textsc{[Partial / Structured]}}\\[4pt]
-    \textit{Restorable state.}\\[2pt]
-    {\footnotesize Forwards structured event logs, notes, and worktree lineage.}
-  };
-
-  \node[accentorgan] (o3) at (5.2, 0) {
-    \textbf{\scshape 3. Outcome Ledger}\\[1pt]
-    {\scriptsize\textsc{[Core Implemented]}}\\[4pt]
-    \textit{Witnessed delivery.}\\[2pt]
-    {\footnotesize Append-only; closes only against machine-checkable oracles.}
-  };
-
-  \draw[flowarr] (o1) -- (o2);
-  \draw[flowarr] (o2) -- (o3);
-
-  \node[repbox, below=8mm of o3] (rep) {
-    \textbf{\scshape Multi-Dim Reputation}\\[1pt]
-    {\scriptsize Keys on witnessed outcome ledger (the third organ)}
-  };
-  \draw[accentarr] (o3) -- (rep);
-
-\end{tikzpicture}
-\caption{\textbf{The three continuity organs, honestly labelled.} Episodic memory (\BUILT) records what happened --- typed episodes promoted out of transient history. The checkpoint (\BUILTWEAK) is meant to preserve task lineage and worktree state across compaction boundaries, but today forwards a summary rather than execution state. The witnessed-outcome ledger (\BUILTWEAK) enforces non-repudiable delivery against external oracles and is the sole anchor reputation keys on; commitments and oracle closure ship, grading does not (\S\ref{sec:organs}).}
+  \node[head,text width=29mm] at (-5.2,2.3) {continuity organ};
+  \node[head] at (-1.75,2.3) {input artifact};
+  \node[head] at (1.75,2.3) {persistence rule};
+  \node[head] at (5.2,2.3) {output evidence};
+  \node[organ,text width=29mm] at (-5.2,.95) {Episodic memory\newline\textsc{implemented}};
+  \node[cell] at (-1.75,.95) {typed episode + source reference};
+  \node[cell] at (1.75,.95) {retain scored records; never promote a summary as evidence};
+  \node[cell] at (5.2,.95) {recalled episode is traceable to its source};
+  \node[organ,text width=29mm] at (-5.2,-.65) {Checkpoint\newline\textsc{partial}};
+  \node[cell] at (-1.75,-.65) {task state + worktree lineage};
+  \node[cell] at (1.75,-.65) {retain restart context; no execution-state claim};
+  \node[cell] at (5.2,-.65) {successor receives bounded, attributable context};
+  \node[organ,text width=29mm] at (-5.2,-2.25) {Outcome ledger\newline\textsc{partial}};
+  \node[cell] at (-1.75,-2.25) {commitment + oracle result};
+  \node[cell] at (1.75,-2.25) {append witnessed closure; preserve the audit reference};
+  \node[cell] at (5.2,-2.25) {reputation may consume this row only};
+  \draw[hhteal,line width=1.1pt] (-6.55,-3.25) -- (6.55,-3.25);
+  \node[font=\footnotesize\bfseries,text=hhteal,anchor=north] at (0,-3.25) {reputation reads witnessed outcomes, not transient state};
+\end{tikzpicture}}
+\caption{\textbf{The three continuity organs as an evidence contract.} Episodic memory (\BUILT) retains typed, source-addressable episodes. The checkpoint (\BUILTWEAK) carries task lineage and worktree context across compaction, but does not claim to restore execution state. The outcome ledger (\BUILTWEAK) appends commitments closed against oracles. Only that final, witnessed row is admissible as reputation evidence (\S\ref{sec:organs}). The maturity labels use the same \BUILT/\BUILTWEAK\ macros as the text.}
 \label{fig:organs}
 \end{figure}

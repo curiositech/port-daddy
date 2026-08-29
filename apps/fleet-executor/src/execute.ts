@@ -27,6 +27,7 @@ import {
   invalidateInstallationToken,
   fetchPRContext,
   fetchRepoFile,
+  fetchTrustedShipContract,
   fetchOpenPullRequests,
   listRecentBranches,
   renderFleetContext,
@@ -42,6 +43,7 @@ import {
   resolveFleetAppLogin,
   requireCurrentPullRequestHead,
   PullRequestHeadValidationError,
+  PullRequestDiffFetchError,
   type PRContext,
   type PullRequestHeadGuard,
   type ReviewComment,
@@ -82,7 +84,7 @@ import {
   runTestsInSandbox,
   sandboxCoordinationEnrollmentFromEnv,
 } from './sandbox-runner.js';
-import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
+import { createSkillGraftCache, type SkillGraft } from './skill-graft.js';
 import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import {
@@ -126,7 +128,13 @@ import { repairContractOutput } from './repair.js';
 import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
-import { loadShipCheckpoints, saveShipCheckpoint } from './ship-checkpoint.js';
+import {
+  createCheckpointReviewInputSha256,
+  createShipCheckpointBinding,
+  loadShipCheckpoints,
+  saveShipCheckpoint,
+  type ShipCheckpointBinding,
+} from './ship-checkpoint.js';
 import { countDeliveryContinuations } from './delivery-failure.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
@@ -136,6 +144,12 @@ import {
   MODEL_CONTEXT_TOKENS,
   hasKnownContextWindow,
 } from './spend.js';
+import {
+  ContextAdmissionError,
+  assessContextAdmission,
+  requireContextAdmission,
+  utf8ByteLength,
+} from './context-admission.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -233,7 +247,7 @@ export function mapChunkCharLimit(mapModel: string): number {
  * tokens) is ample diff context per call and keeps the memory product an
  * order of magnitude smaller.
  */
-const MAP_CHUNK_CHARS_CEILING = 48_000;
+export const MAP_CHUNK_CHARS_CEILING = 48_000;
 
 /**
  * Bound Workers AI fan-out so large diffs finish without a rate-limit
@@ -262,7 +276,176 @@ export const CHECK_NAME = 'Port Daddy Fleet';
  * ending in an unterminated `"`. A findings/proposals array is small; this is
  * generous headroom while still bounding cost per call.
  */
-const MAX_OUTPUT_TOKENS = 2048;
+/** Completion reserve applied to every conversational Fleet request. */
+export const MAX_OUTPUT_TOKENS = 2048;
+
+/**
+ * Extra room while turning a metadata-only MAP prompt into its final numbered
+ * chunk prompt. Full-request partitioning and the final dispatch both admit the
+ * actual request; this margin keeps ordinary chunks away from that refusal edge.
+ */
+const MAP_PROMPT_PARTITION_MARGIN_TOKENS = 1024;
+
+/** A bounded projection is enough to identify the PR without consuming the diff budget. */
+const MAP_TITLE_BYTE_LIMIT = 1024;
+const MAP_BODY_BYTE_LIMIT = 6 * 1024;
+const MAP_FLEET_CONTEXT_BYTE_LIMIT = 8 * 1024;
+const MAP_FILE_INDEX_LIMIT = 48;
+
+/**
+ * Derive a per-call MAP diff limit after reserving room for the actual system
+ * prompt, the projected PR metadata, and the requested completion. The old
+ * `mapChunkCharLimit(model)` was necessary but insufficient: it knew nothing
+ * about those other request components.
+ */
+function admittedMapChunkCharLimit(
+  model: string,
+  systemPrompt: string,
+  prCtx: PRContext,
+  fleetContext: string,
+): number {
+  const metadataOnly = buildUserMessage(prCtx, '', 0, 1, fleetContext);
+  const admission = assessContextAdmission(
+    model,
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: metadataOnly },
+    ],
+    MAX_OUTPUT_TOKENS,
+  );
+  if (!admission.accepted) throw new ContextAdmissionError(admission);
+
+  const available = admission.remainingInputTokens - MAP_PROMPT_PARTITION_MARGIN_TOKENS;
+  if (available <= 0) {
+    throw new ContextAdmissionError({
+      ...admission,
+      accepted: false,
+      remainingInputTokens: 0,
+      reason: 'system prompt and PR projection leave no safe budget for a diff chunk',
+    });
+  }
+
+  // A UTF-8 byte is a conservative one-token upper bound. This is only a soft
+  // partitioning limit; `partitionMapDiff` and the immediate pre-dispatch
+  // admission below remain authoritative for non-ASCII source.
+  return Math.min(mapChunkCharLimit(model), available);
+}
+
+interface OmittedMapSection {
+  paths: string[];
+  bytes: number;
+  reason: string;
+}
+
+interface MapChunkPartition {
+  chunks: string[];
+  omitted: OmittedMapSection[];
+  firstRejectedAdmission: ReturnType<typeof assessContextAdmission> | null;
+}
+
+/** Assess the exact full MAP prompt, not merely a diff-length heuristic. */
+function assessMapChunkAdmission(
+  model: string,
+  systemPrompt: string,
+  prCtx: PRContext,
+  diffChunk: string,
+  chunkIndex: number,
+  chunkCount: number,
+  fleetContext: string,
+) {
+  return assessContextAdmission(
+    model,
+    [
+      { role: 'system', content: systemPrompt },
+      {
+        role: 'user',
+        content: buildUserMessage(prCtx, diffChunk, chunkIndex, chunkCount, fleetContext),
+      },
+    ],
+    MAX_OUTPUT_TOKENS,
+  );
+}
+
+/**
+ * Re-pack a reviewable diff at `diff --git` boundaries using the *full* MAP
+ * request as the admission predicate. A character budget is a useful soft
+ * memory limit, but it cannot account for scope prose and per-chunk file
+ * indexes. When a compound candidate does not fit, we flush its intact prior
+ * files and try the new file alone; only a single file that itself cannot fit
+ * is recorded as omitted. This prevents a harmless prompt-overhead change
+ * from discarding otherwise reviewable source.
+ */
+function partitionMapDiff(
+  model: string,
+  systemPrompt: string,
+  prCtx: PRContext,
+  diff: string,
+  softCharLimit: number,
+  fleetContext: string,
+): MapChunkPartition {
+  const sections = splitDiffSections(diff);
+  // The final chunk count is not known until partitioning finishes. The number
+  // of source sections is an upper bound, so it retains the multi-chunk scope
+  // block (and its larger path-index form) whenever a final request could need
+  // it. Every dispatched request is admitted again with its exact final count.
+  const conservativeChunkCount = Math.max(1, sections.length);
+  const chunks: string[] = [];
+  const omitted: OmittedMapSection[] = [];
+  let firstRejectedAdmission: ReturnType<typeof assessContextAdmission> | null = null;
+  let current = '';
+
+  for (const section of sections) {
+    const candidate = current ? `${current}${section}` : section;
+    const exceedsSoftLimit = current.length > 0 && candidate.length > softCharLimit;
+    const candidateAdmission = exceedsSoftLimit
+      ? null
+      : assessMapChunkAdmission(
+          model,
+          systemPrompt,
+          prCtx,
+          candidate,
+          chunks.length,
+          conservativeChunkCount,
+          fleetContext,
+        );
+    if (candidateAdmission?.accepted) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) {
+      chunks.push(current);
+      current = '';
+    }
+
+    // The section is tried on its own even when the soft budget asked for a
+    // split. Soft limits shape memory/spend; only full request admission may
+    // declare an intact source file too large to review.
+    const singleAdmission = assessMapChunkAdmission(
+      model,
+      systemPrompt,
+      prCtx,
+      section,
+      chunks.length,
+      conservativeChunkCount,
+      fleetContext,
+    );
+    if (singleAdmission.accepted) {
+      current = section;
+      continue;
+    }
+
+    firstRejectedAdmission ??= singleAdmission;
+    omitted.push({
+      paths: filesInChunk(section).slice(0, 12),
+      bytes: utf8ByteLength(section),
+      reason: singleAdmission.reason ?? 'unknown context-admission failure',
+    });
+  }
+
+  if (current) chunks.push(current);
+  return { chunks, omitted, firstRejectedAdmission };
+}
 
 /**
  * Workers AI call options: a stable per-ship `x-session-affinity` key so the
@@ -473,6 +656,46 @@ const DELIVERY_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 /** Epoch seconds — the timestamp unit used by fleet_runs / fleet_run_steps. */
 function nowSec(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+/**
+ * Return the run-level reason a PR's source projection cannot support an exact
+ * surface-gate decision. The executor currently fetches one changed-file page;
+ * keeping the cap, parse failure, and raw-diff boundary explicit here ensures
+ * every call site makes the same safe decision.
+ */
+function incompletePrSourceCoverageReason(prCtx: PRContext): string | null {
+  const reasons: string[] = [];
+  if (prCtx.filesTruncated) {
+    reasons.push('GitHub changed-file inventory was unavailable, malformed, or truncated');
+  }
+  if (prCtx.files.length >= PR_FILES_PAGE_SIZE) {
+    reasons.push(`GitHub changed-file inventory reached the ${PR_FILES_PAGE_SIZE}-file first-page limit`);
+  }
+  if (prCtx.diffTruncated) {
+    reasons.push(`GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes`);
+  }
+  return reasons.length > 0 ? reasons.join('; ') : null;
+}
+
+/** Keep durable coverage explanations within the checkpoint parser's bound. */
+function appendReviewCoverageReason(existing: string | undefined, addition: string): string {
+  const combined = existing ? `${addition}; ${existing}` : addition;
+  return combined.length <= 2_048 ? combined : `${combined.slice(0, 2_045)}...`;
+}
+
+/**
+ * Source uncertainty applies to the WHOLE run, including errors and resumed
+ * checkpoints whose old result was complete under a prior fetch. A clean
+ * verdict must therefore become partial, which keeps aggregation neutral.
+ */
+function withIncompletePrSourceCoverage(result: ShipResult, reason: string | null): ShipResult {
+  if (!reason) return result;
+  return {
+    ...result,
+    reviewCoverage: 'partial',
+    reviewCoverageReason: appendReviewCoverageReason(result.reviewCoverageReason, reason),
+  };
 }
 
 function validDeliveryId(raw: unknown): string | null {
@@ -1135,6 +1358,50 @@ export interface FleetExecutionOptions {
 }
 
 /**
+ * Establish a visible in-progress gate before retrying an unavailable raw diff.
+ *
+ * Normal Fleet check creation follows authoritative PR-context fetch because it
+ * needs the live head. The signed webhook payload is nevertheless the only
+ * safe coordinate available when that fetch's raw-diff leg itself fails. This
+ * helper creates (or preserves) a pending check on that immutable payload head
+ * so an exhausted queue delivery reaches the DLQ with a real check to mark
+ * failed rather than leaving an invisible, passable-looking gap.
+ *
+ * @param owner GitHub repository owner.
+ * @param repo GitHub repository name.
+ * @param prPayload Signed webhook pull-request payload.
+ * @param token Installation token for the check API.
+ * @param detailsUrl Optional durable run-details URL.
+ * @returns Nothing after an existing or newly created gate is confirmed.
+ */
+async function ensureRawDiffFailureGate(
+  owner: string,
+  repo: string,
+  prPayload: Record<string, unknown>,
+  token: string,
+  detailsUrl: string | null,
+): Promise<void> {
+  const head = prPayload.head;
+  const headSha = head && typeof head === 'object'
+    ? (head as Record<string, unknown>).sha
+    : null;
+  if (typeof headSha !== 'string' || !headSha) {
+    throw new Error('raw diff unavailable and webhook payload omitted the pull request head SHA');
+  }
+  const existing = await findFleetCheckRunState(owner, repo, headSha, CHECK_NAME, token);
+  const alreadyDecided = existing?.status === 'completed' &&
+    (existing.conclusion === 'success' || existing.conclusion === 'failure') &&
+    !isDeadLetteredSummary(existing.summary);
+  if (alreadyDecided || (existing && existing.status !== 'completed')) return;
+  const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
+  if (!checkRunId) {
+    throw new Error(
+      `raw diff unavailable and could not establish the Port Daddy Fleet gate for ${owner}/${repo}@${headSha}`,
+    );
+  }
+}
+
+/**
  * Execute one verified Fleet delivery against the current pull-request head.
  * The design returns an explicit disposition only when the immutable webhook
  * head is stale, allowing the queue wrapper to close admission truth without
@@ -1313,14 +1580,15 @@ export async function executeFleet(
   let prCtx: PRContext;
   let fleetYaml: string | null;
   try {
-    [prCtx, fleetYaml] = await Promise.all([
-      fetchPRContext(owner, repo, prNumber, prPayload, token),
-      // ZERO-TRUST: config is read from the trusted branch, NEVER PR head.
-      fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
-    ]);
-  } catch (err) {
-    // One automatic remint on a likely-401, then retry the fetch.
-    if (is401(err)) {
+    try {
+      [prCtx, fleetYaml] = await Promise.all([
+        fetchPRContext(owner, repo, prNumber, prPayload, token),
+        // ZERO-TRUST: config is read from the trusted branch, NEVER PR head.
+        fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
+      ]);
+    } catch (err) {
+      // One automatic remint on a likely-401, then retry the fetch.
+      if (!is401(err)) throw err;
       await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
       token = await getInstallationTokenCached(
         env.GITHUB_APP_ID,
@@ -1333,9 +1601,15 @@ export async function executeFleet(
         fetchPRContext(owner, repo, prNumber, prPayload, token),
         fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
       ]);
-    } else {
-      throw err;
     }
+  } catch (err) {
+    // A non-OK raw diff is unavailable infrastructure, never an empty review.
+    // Create the payload-head gate before handing the error to the queue so an
+    // exhausted retry has an actual check run for the DLQ to fail.
+    if (err instanceof PullRequestDiffFetchError) {
+      await ensureRawDiffFailureGate(owner, repo, prPayload, token, detailsUrl);
+    }
+    throw err;
   }
 
   // A synchronize delivery can sit behind an expensive review long enough for
@@ -1441,13 +1715,15 @@ export async function executeFleet(
   // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
   // were then unreviewable at that SHA; reopening them re-ran all of GitHub
   // Actions CI while the fleet check never reappeared at all.
+  const explicitRerun = job.action === 'reopened' || job.action === 'ready_for_review';
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
   const deadLettered = isDeadLetteredSummary(existing?.summary);
   if (
     existing &&
     existing.status === 'completed' &&
     DECIDED.has(existing.conclusion ?? '') &&
-    !deadLettered
+    !deadLettered &&
+    !(existing.conclusion === 'failure' && explicitRerun)
   ) {
     console.log(
       `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
@@ -1466,11 +1742,25 @@ export async function executeFleet(
     );
   }
 
+  const completedNeedsReplacement = Boolean(
+    existing &&
+      existing.status === 'completed' &&
+      (deadLettered ||
+        existing.conclusion === 'neutral' ||
+        (existing.conclusion === 'failure' && explicitRerun)),
+  );
+  if (completedNeedsReplacement && !deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: delivery action ${job.action ?? 'unknown'} retries ` +
+        `completed ${existing?.conclusion ?? 'undecided'} check — minting a fresh gate.`,
+    );
+  }
+
   // A finished check cannot be reopened, so a dead-lettered one must not be
   // REUSED either: completing it again would be a no-op against a gate GitHub
   // considers closed. Mint a fresh check run instead — GitHub surfaces the
   // newest run of a given name, so the new one is what the branch rule reads.
-  let checkRunId = deadLettered ? null : existing?.id ?? null;
+  let checkRunId = completedNeedsReplacement ? null : existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
@@ -1713,6 +2003,30 @@ export async function executeFleet(
   // ideation ships run on them. Computed once per run from the PR's changed files.
   const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
   const docsOnly = isDocsOnly(changedPaths);
+  const sourceCoverageReason = incompletePrSourceCoverageReason(prCtx);
+  // An incomplete file list cannot prove a surface is untouched. Run every
+  // configured cloud ship and mark the final result partial/neutral instead of
+  // allowing an all-gated roster to silently become a green check.
+  const surfaceGate = (candidate: ShipConfig) =>
+    sourceCoverageReason == null
+      ? decideShipGate(candidate, changedPaths, docsOnly)
+      : { run: true as const, reason: 'source inventory incomplete' };
+  if (sourceCoverageReason) {
+    await transcript.step(
+      'source-inventory-incomplete',
+      null,
+      'PR source inventory is incomplete — surface gates disabled and a clean result cannot be complete',
+      {
+        reviewCoverage: 'partial',
+        reason: sourceCoverageReason,
+        filesTruncated: prCtx.filesTruncated,
+        fileCount: prCtx.files.length,
+        filePageSize: PR_FILES_PAGE_SIZE,
+        diffTruncated: prCtx.diffTruncated,
+        diffBytes: prCtx.diffBytes,
+      },
+    );
+  }
 
   // PURSER ordering: purser ships run AFTER every reviewer/ideation ship, so
   // the stacked-tests demand lands on top of (and can reference) the rest of
@@ -1730,12 +2044,85 @@ export async function executeFleet(
     fetchRepoFile(owner, repo, path, branch, token),
   );
 
+  // Snapshot every trusted input that can affect a resumption BEFORE reading
+  // checkpoints. `runShip` receives these exact values later, closing the
+  // time-of-check/time-of-use gap where a changed contract or graft could
+  // validate one result but prompt a rerun differently.
+  const trustedContracts = new Map<string, string | null>();
+  const graftsByShip = new Map<string, SkillGraft>();
+  const checkpointBindings = new Map<string, ShipCheckpointBinding>();
+  // A PR title/body can change without moving its head SHA or delivery id.
+  // Bind the exact live input projection once, then reuse that digest for each
+  // ship's current trusted checkpoint proof without re-hashing a large diff.
+  const reviewInputSha256 = await createCheckpointReviewInputSha256(prCtx);
+  for (const ship of orderedShips) {
+    const [contract, graft] = await Promise.all([
+      // Unlike the legacy best-effort helper, only a confirmed 404 means an
+      // absent contract. A 401/5xx must retry the whole delivery rather than
+      // turning an authority outage into a new contract-less review.
+      fetchTrustedShipContract(owner, repo, ship.name, branch, token),
+      skillGrafts.graftFor(ship.graft),
+    ]);
+    const systemPrompt = buildSystemPrompt(ship, contract, graft.text);
+    trustedContracts.set(ship.name, contract);
+    graftsByShip.set(ship.name, graft);
+    checkpointBindings.set(
+      ship.name,
+      await createShipCheckpointBinding(
+        ship,
+        contract,
+        graft.text,
+        systemPrompt,
+        reviewInputSha256,
+        mediatorOrders,
+      ),
+    );
+  }
+
   // Attempt checkpoints (src/ship-checkpoint.ts): ships completed by an
   // EARLIER attempt of this same delivery — a platform kill (memory/CPU) is
   // uncatchable, so retries must resume past finished work instead of
   // re-spending into the same ceiling. Same-delivery only: runId is
   // `run:<deliveryId>`, so a new push never inherits a stale verdict.
-  const resumedShips = await loadShipCheckpoints(env, runId);
+  //
+  // Mediator orders are intentionally injected into every user prompt and
+  // Lookout's prompt contains live cross-PR state. Neither is a static trusted
+  // config file, so a changed value disables resume for the affected work
+  // instead of letting a prior verdict pretend it reviewed the new context.
+  const resumeBindings = new Map(checkpointBindings);
+  if (mediatorOrders) {
+    resumeBindings.clear();
+    await transcript.step(
+      'ship-checkpoint-resume-disabled',
+      null,
+      'Checkpoint resume disabled because a mediator order changed the current review context',
+      { reason: 'mediator-orders' },
+    );
+  }
+  if (resumeBindings.delete('lookout')) {
+    await transcript.step(
+      'ship-checkpoint-resume-disabled',
+      'lookout',
+      'Checkpoint resume disabled because Lookout consumes live cross-PR context',
+      { reason: 'live-cross-pr-context' },
+    );
+  }
+  const resumedShips = await loadShipCheckpoints(
+    env,
+    runId,
+    resumeBindings,
+    async (ship, reason) => {
+      const message = reason === 'non-resumable-result'
+        ? `pd-${ship}: retained broken checkpoint is diagnostic only; re-running the ship`
+        : `pd-${ship}: retained checkpoint did not match the current trusted review inputs; re-running the ship`;
+      await transcript.step(
+        'ship-checkpoint-invalidated',
+        ship,
+        message,
+        { reason },
+      );
+    },
+  );
 
   const results: ShipResult[] = [];
   let newlyExecutedShips = 0;
@@ -1766,19 +2153,53 @@ export async function executeFleet(
       return;
     }
 
-    // Re-check the run's ABSOLUTE wall-clock budget before each ship. Raising
-    // the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
+    // RESUME: an earlier attempt of this delivery already completed this ship.
+    // Its comment is already posted (edit-in-place inside runShip), its
+    // telemetry/spend rows are already written; re-running would produce the
+    // identical result and pay for it again. Reuse the recorded verdict —
+    // findings included, so the final review and conclusion see the full run.
+    const resumed = resumedShips.get(ship.name);
+    if (resumed) {
+      await transcript.step(
+        'ship-resumed',
+        ship.name,
+        `pd-${ship.name}: resumed from a prior attempt's checkpoint — ${resumed.errored ? 'ERROR' : resumed.verdict} reused, no re-run`,
+        { verdict: resumed.verdict, errored: resumed.errored, findings: resumed.findings?.length ?? 0 },
+      );
+      results.push(withIncompletePrSourceCoverage(resumed, sourceCoverageReason));
+      continue;
+    }
+
+    // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
+    // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
+    // gated-out BLOCKING ship (red-team off its security surface) correctly does
+    // not block, matching its own "exit clean" contract.
+    const gate = surfaceGate(ship);
+    if (!gate.run) {
+      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
+        reason: gate.reason,
+        changedPathCount: changedPaths.length,
+      });
+      const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
+      results.push(skipped);
+      // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
+      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
+      continue;
+    }
+
+    // Re-check the run's ABSOLUTE wall-clock budget immediately before the
+    // first operation that can lead to fresh model spend. Resumed checkpoints
+    // and surface-gated ships above are free, trusted progress; stopping before
+    // reading them made an expired continuation falsely report "0 ships
+    // completed" and name the first roster entry instead of the actual next
+    // uncompleted ship. The deadline must prevent NEW spend, not suppress
+    // already-paid evidence.
+    //
+    // Raising the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
     // compensating run-level ceiling would let a roster of retrying ships spend
-    // hours — this is the bound that stops it regardless of how many queue
-    // continuations or provider retries got the run this far. Measured against
-    // the run's TRUE first-attempt start (runStartedAtSec), not "now" relative
-    // to this invocation, so it cannot be reset by re-enqueuing a continuation.
-    // Fails open exactly like the credit/pause gates above — a broken deadline
-    // check must never itself break a run — for both a missing value AND an
-    // implausible one (non-positive, or in the future relative to "now"): the
-    // same validity shape recordRunEnd's own durable-start fallback already
-    // uses, so a malformed created_at cannot manufacture a false deadline trip
-    // any more than it can manufacture a false elapsed-time report there.
+    // hours. This bound is measured against the logical run's TRUE first start,
+    // so queue continuations cannot reset it. Missing or implausible durable
+    // starts fail open, matching recordRunEnd's defensive fallback.
     const runStartedAtMs = runStartedAtSec != null ? runStartedAtSec * 1000 : null;
     if (runStartedAtMs != null && runStartedAtMs > 0 && runStartedAtMs <= Date.now()) {
       const runElapsedMs = Date.now() - runStartedAtMs;
@@ -1807,55 +2228,23 @@ export async function executeFleet(
       }
     }
 
-    // RESUME: an earlier attempt of this delivery already completed this ship.
-    // Its comment is already posted (edit-in-place inside runShip), its
-    // telemetry/spend rows are already written; re-running would produce the
-    // identical result and pay for it again. Reuse the recorded verdict —
-    // findings included, so the final review and conclusion see the full run.
-    const resumed = resumedShips.get(ship.name);
-    if (resumed) {
-      await transcript.step(
-        'ship-resumed',
-        ship.name,
-        `pd-${ship.name}: resumed from a prior attempt's checkpoint — ${resumed.errored ? 'ERROR' : resumed.verdict} reused, no re-run`,
-        { verdict: resumed.verdict, errored: resumed.errored, findings: resumed.findings?.length ?? 0 },
-      );
-      results.push(resumed);
-      continue;
-    }
-
-    // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
-    // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
-    // gated-out BLOCKING ship (red-team off its security surface) correctly does
-    // not block, matching its own "exit clean" contract.
-    const gate = decideShipGate(ship, changedPaths, docsOnly);
-    if (!gate.run) {
-      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
-        reason: gate.reason,
-        changedPathCount: changedPaths.length,
-      });
-      const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
-      results.push(skipped);
-      // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
-      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
-      continue;
-    }
-
     // Skill graft: build this ship's prompt prefix from its `graft:` list.
     // Unknown ids are a transcript WARNING, never a failure — the ship still
     // runs, just without the missing skill.
-    let graftText = '';
-    if (ship.graft.length > 0) {
-      const graft = await skillGrafts.graftFor(ship.graft);
-      graftText = graft.text;
-      if (graft.missing.length > 0) {
-        await transcript.step(
-          'skill-graft',
-          ship.name,
-          `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
-          { loaded: graft.loaded, missing: graft.missing, warning: true },
-        );
-      }
+    const graft = graftsByShip.get(ship.name);
+    const checkpointBinding = checkpointBindings.get(ship.name);
+    if (!graft || !checkpointBinding || !trustedContracts.has(ship.name)) {
+      throw new Error(`missing trusted checkpoint snapshot for pd-${ship.name}`);
+    }
+    const contract = trustedContracts.get(ship.name) ?? null;
+    const graftText = graft.text;
+    if (graft.missing.length > 0) {
+      await transcript.step(
+        'skill-graft',
+        ship.name,
+        `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
+        { loaded: graft.loaded, missing: graft.missing, warning: true },
+      );
     }
 
     const metrics = newShipMetrics();
@@ -1887,7 +2276,7 @@ export async function executeFleet(
             prCtx,
             token,
             env,
-            branch,
+            contract,
             transcript,
             metrics,
             graftText,
@@ -1906,6 +2295,7 @@ export async function executeFleet(
       return stopSupersededRun(error, true);
     }
     await flushShipTranscript(env, capture);
+    result = withIncompletePrSourceCoverage(result, sourceCoverageReason);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -1929,7 +2319,13 @@ export async function executeFleet(
     // rows are durable, so a resumed attempt never skips a ship whose
     // accounting was lost with the kill. Gated-out ships are not checkpointed:
     // re-deciding a skip costs nothing.
-    const checkpointSaved = await saveShipCheckpoint(env, runId, shipIndex, result);
+    const checkpointSaved = await saveShipCheckpoint(
+      env,
+      runId,
+      shipIndex,
+      result,
+      checkpointBinding,
+    );
     newlyExecutedShips += 1;
 
     // A retryable Workers AI fault exhausted its bounded delivery budget. The
@@ -1970,7 +2366,7 @@ export async function executeFleet(
         .slice(shipIndex + 1)
         .filter(candidate =>
           !resumedShips.has(candidate.name) &&
-          decideShipGate(candidate, changedPaths, docsOnly).run
+          surfaceGate(candidate).run
         )
         .map(candidate => candidate.name);
       if (remainingShips.length > 0) {
@@ -2005,12 +2401,16 @@ export async function executeFleet(
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
-  const conclusion = aggregateConclusion(results);
+  const aggregate = aggregateConclusion(results);
+  // Normally every result carries the partial marker above. Keep this explicit
+  // run-level fallback for an empty roster, where no ShipResult exists to keep
+  // an incomplete source projection from resolving as a clean success.
+  const conclusion = sourceCoverageReason && aggregate === 'success' ? 'neutral' : aggregate;
 
   // --- ONE GitHub Review with all inline comments + a roll-up summary -------
   // Inline review is the PRIMARY surface; the per-ship issue comments posted
   // during each runShip() remain for backward-compatible history.
-  const summary = buildSummary(results, conclusion);
+  const summary = buildSummary(results, conclusion, sourceCoverageReason);
 
   // --- XO TRIAGE (advisory-findings curation; src/xo.ts) --------------------
   // The XO ranks which ADVISORY findings are worth doing for THIS PR and the
@@ -2257,7 +2657,8 @@ async function runShip(
   prCtx: PRContext,
   token: string,
   env: ExecutorEnv,
-  branch: string,
+  /** Exact trusted contract snapshot that was bound before checkpoint lookup. */
+  contract: string | null,
   transcript: Transcript,
   metrics: ShipMetrics,
   /** Skill-graft prompt prefix ('' ⇒ none) — see src/skill-graft.ts. */
@@ -2289,40 +2690,7 @@ async function runShip(
   capture: ShipTranscript | null = null,
 ): Promise<ShipResult> {
   try {
-    // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
-    const contract = await fetchRepoFile(
-      prCtx.owner,
-      prCtx.repo,
-      `fleet/ships/${ship.name}.md`,
-      branch,
-      token,
-    ).catch(() => null);
-
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
-
-    // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
-    // snapshot is often the largest thing in a diff, and every chunk of it is a
-    // model call spent on output no human wrote — while displacing real code
-    // into later chunks, which is exactly what makes each reviewer's view of
-    // the change partial. Falls back to the full diff if the filter would leave
-    // nothing, so a genuinely all-generated PR still gets looked at rather than
-    // silently passing.
-    const reviewableDiff = filterDiffToReviewable(prCtx.diff);
-    const allChunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
-    // Cap the MAP fan-out per ship (#7743): memory, wall-clock and spend all
-    // scale with chunk count, and an oversized diff must degrade to an honest
-    // partial review — recorded below — rather than kill the whole run.
-    const chunks = allChunks.slice(0, MAX_MAP_CHUNKS_PER_SHIP);
-    if (allChunks.length > chunks.length) {
-      const dropped = allChunks.length - chunks.length;
-      const droppedChars = allChunks.slice(chunks.length).reduce((n, c) => n + c.length, 0);
-      await transcript.step(
-        'map-truncated',
-        ship.name,
-        `Diff truncated for review: ${dropped} of ${allChunks.length} chunks dropped (~${Math.round(droppedChars / 1000)}KB)`,
-        { keptChunks: chunks.length, totalChunks: allChunks.length, droppedChars },
-      );
-    }
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
@@ -2337,6 +2705,126 @@ async function runShip(
       fleetContext = mediatorOrders + renderFleetContext(openPRs, branches);
     }
 
+    // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
+    // snapshot is often the largest thing in a diff, and every chunk of it is a
+    // model call spent on output no human wrote — while displacing real code
+    // into later chunks, which is exactly what makes a reviewer's view of the
+    // change partial. Do not fall back to the raw diff when nothing remains:
+    // a terminal recording or derived proof artifact is evidence, not program
+    // source, and sending it anyway would defeat the filter at the exact point
+    // it matters most.
+    const reviewableDiff = filterDiffToReviewable(prCtx.diff);
+    if (prCtx.diff.trim() && !reviewableDiff.trim()) {
+      const sourceTruncationReason =
+        `GitHub stopped the diff read at ${prCtx.diffBytes} bytes; source after that boundary was not available for review`;
+      if (prCtx.diffTruncated) {
+        await transcript.step(
+          'source-fetch-truncated',
+          ship.name,
+          `pd-${ship.name}: source fetch truncated at ${prCtx.diffBytes} bytes — review coverage is partial`,
+          { diffBytes: prCtx.diffBytes, reviewCoverage: 'partial' },
+        );
+      }
+      await transcript.step(
+        'ship-skipped',
+        ship.name,
+        prCtx.diffTruncated
+          ? `pd-${ship.name}: skipped — the available diff prefix contains only generated artifacts or terminal evidence; unseen source may remain after the fetch cap`
+          : `pd-${ship.name}: skipped — diff contains only generated artifacts or terminal evidence; no reviewable source was sent to a model`,
+        {
+          reason: prCtx.diffTruncated ? 'source-fetch-truncated' : 'no-reviewable-source',
+          diffBytes: utf8ByteLength(prCtx.diff),
+        },
+      );
+      return {
+        ship: ship.name,
+        blocking: ship.blocking,
+        verdict: 'PASS',
+        errored: false,
+        reviewCoverage: prCtx.diffTruncated ? 'partial' : 'none',
+        reviewCoverageReason: prCtx.diffTruncated
+          ? sourceTruncationReason
+          : 'diff contains only generated artifacts or terminal evidence; no reviewable source was sent to a model',
+        findings: [],
+      };
+    }
+    const mapModel = mapModelFor(ship);
+    const partition = partitionMapDiff(
+      mapModel,
+      systemPrompt,
+      prCtx,
+      reviewableDiff,
+      admittedMapChunkCharLimit(mapModel, systemPrompt, prCtx, fleetContext),
+      fleetContext,
+    );
+    const allChunks = partition.chunks;
+    // Cap the MAP fan-out per ship (#7743): memory, wall-clock and spend all
+    // scale with chunk count, and an oversized diff must degrade to an honest
+    // partial review — recorded below — rather than kill the whole run.
+    const cappedChunks = allChunks.slice(0, MAX_MAP_CHUNKS_PER_SHIP);
+    if (allChunks.length > cappedChunks.length) {
+      const dropped = allChunks.length - cappedChunks.length;
+      const droppedChars = allChunks.slice(cappedChunks.length).reduce((n, c) => n + c.length, 0);
+      await transcript.step(
+        'map-truncated',
+        ship.name,
+        `Diff truncated for review: ${dropped} of ${allChunks.length} chunks dropped (~${Math.round(droppedChars / 1000)}KB)`,
+        { keptChunks: cappedChunks.length, totalChunks: allChunks.length, droppedChars },
+      );
+    }
+
+    // `partitionMapDiff` preserves a whole source file as the smallest
+    // reviewable unit. It re-packs compound candidates at those file boundaries
+    // against the full request before declaring a file indivisibly too large.
+    // That ensures a prompt-overhead change cannot silently drop several files
+    // that would each fit on their own.
+    const omittedForContext = partition.omitted;
+    const firstRejectedAdmission = partition.firstRejectedAdmission;
+    const chunks = cappedChunks;
+
+    if (omittedForContext.length > 0) {
+      await transcript.step(
+        'map-context-omitted',
+        ship.name,
+        `MAP pd-${ship.name}: omitted ${omittedForContext.length} indivisible chunk(s) that cannot fit the ${mapModel} request budget`,
+        {
+          omittedChunks: omittedForContext.length,
+          retainedChunks: chunks.length,
+          omitted: omittedForContext,
+        },
+      );
+    }
+    if (chunks.length === 0 && firstRejectedAdmission) {
+      throw new ContextAdmissionError(firstRejectedAdmission);
+    }
+
+    const coverageReasons: string[] = [];
+    if (prCtx.diffTruncated) {
+      await transcript.step(
+        'source-fetch-truncated',
+        ship.name,
+        `pd-${ship.name}: source fetch truncated at ${prCtx.diffBytes} bytes — review coverage is partial`,
+        { diffBytes: prCtx.diffBytes, reviewCoverage: 'partial' },
+      );
+      coverageReasons.push(
+        `GitHub stopped the diff read at ${prCtx.diffBytes} bytes; source after that boundary was not available for review`,
+      );
+    }
+    if (allChunks.length > cappedChunks.length) {
+      coverageReasons.push(
+        `MAP fan-out cap reviewed ${cappedChunks.length} of ${allChunks.length} context-safe chunks`,
+      );
+    }
+    if (omittedForContext.length > 0) {
+      coverageReasons.push(
+        `${omittedForContext.length} indivisible source file${omittedForContext.length === 1 ? '' : 's'} ` +
+          `exceeded the ${mapModel} context budget`,
+      );
+    }
+    const reviewCoverage = coverageReasons.length > 0
+      ? { reviewCoverage: 'partial' as const, reviewCoverageReason: coverageReasons.join('; ') }
+      : {};
+
     // --- MAP: one ship call per diff chunk ---------------------------------
     await assertCurrentHead(`before pd-${ship.name} MAP`);
     const partials = await mapWithConcurrency(chunks, MAP_CONCURRENCY, async (chunk, i) => {
@@ -2350,21 +2838,22 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
+      requireContextAdmission(mapModel, request.messages, MAX_OUTPUT_TOKENS);
       const res = await runCaptured(
         capture,
-        { phase: 'map', model: mapModelFor(ship), chunk: { index: i, count: chunks.length } },
+        { phase: 'map', model: mapModel, chunk: { index: i, count: chunks.length } },
         request,
         () =>
           aiCircuit.runForShip(ship.name, () =>
             env.AI.run(
-              mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
+              mapModel as Parameters<typeof env.AI.run>[0],
               request,
               aiOptions(env, ship.name),
             ),
           ),
       );
       const { text, shape } = extractAiText(res);
-      accumulateUsage(metrics, mapModelFor(ship), res, text);
+      accumulateUsage(metrics, mapModel, res, text);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -2373,7 +2862,7 @@ async function runShip(
       if (!text) {
         console.warn(
           `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
-            `${mapModelFor(ship)}: ${describeResponseShape(res)}`,
+            `${mapModel}: ${describeResponseShape(res)}`,
         );
       }
 
@@ -2394,7 +2883,9 @@ async function runShip(
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     if (chunks.length > 1) await assertCurrentHead(`before pd-${ship.name} REDUCE`);
-    let output = chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics, aiCircuit, capture);
+    let output = chunks.length === 1
+      ? partials[0] ?? ''
+      : await reduceFindings(ship, partials, env, metrics, aiCircuit, transcript, capture);
     if (chunks.length > 1) await assertCurrentHead(`after pd-${ship.name} REDUCE`);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
@@ -2455,11 +2946,14 @@ async function runShip(
       if (healed) usability = classifyShipOutput(output, { ideation: ship.ideation });
     }
     if (!usability.usable) {
-      return await recordNoUsableOutput(ship, transcript, usability.reason, {
-        strippedLength: usability.strippedLength,
-        rawLength: output.length,
-        chunkCount: chunks.length,
-      });
+      return {
+        ...(await recordNoUsableOutput(ship, transcript, usability.reason, {
+          strippedLength: usability.strippedLength,
+          rawLength: output.length,
+          chunkCount: chunks.length,
+        })),
+        ...reviewCoverage,
+      };
     }
 
     // --- IDEATION ships: proposals, not findings ---------------------------
@@ -2602,6 +3096,7 @@ async function runShip(
         verdict: 'PASS',
         errored: malformed,
         findings: [],
+        ...reviewCoverage,
       };
     }
 
@@ -2642,7 +3137,10 @@ async function runShip(
     // scope contract is the primary defence; this is the backstop, and a
     // backstop that can eat correct output is not worth having.
     const changedPaths = new Set(prCtx.files.map(f => f.filename));
-    const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
+    const fileListTrustworthy =
+      !prCtx.filesTruncated &&
+      changedPaths.size > 0 &&
+      prCtx.files.length < PR_FILES_PAGE_SIZE;
     const findings =
       parsedFindings === null || !fileListTrustworthy
         ? parsedFindings
@@ -2717,11 +3215,12 @@ async function runShip(
         verdict: ship.blocking ? 'BLOCK' : 'PASS',
         errored: true,
         findings: [],
+        ...reviewCoverage,
       };
     }
 
     const verdict: Verdict = verdictForTranscript ?? resolveVerdict(output, ship.blocking);
-    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings };
+    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings, ...reviewCoverage };
   } catch (error) {
     if (error instanceof PullRequestHeadValidationError) throw error;
     const failure = error instanceof FleetAiDependencyError
@@ -2972,6 +3471,8 @@ function buildStackPrBody(
 async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promise<number[]> {
   // transcript-capture: exempt (embeddings are not conversational — no
   // forensic value, high volume; see the RFC's call-site inventory)
+  // context-admission: exempt (embedding input has a distinct vector contract,
+  // not chat messages plus a requested completion to reserve)
   const res = await aiCircuit.run(() =>
     ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
   );
@@ -3063,8 +3564,7 @@ async function captureIdeas(
  */
 export function filterDiffToReviewable(diff: string): string {
   if (!diff || !diff.trim()) return diff;
-  return diff
-    .split(/(?=^diff --git )/m)
+  return splitDiffSections(diff)
     .filter(part => {
       if (!part.startsWith('diff --git ')) return true; // preamble, keep
       const path = pathFromDiffLine(part.split('\n', 1)[0] ?? '') ?? '';
@@ -3073,12 +3573,21 @@ export function filterDiffToReviewable(diff: string): string {
     .join('');
 }
 
+/**
+ * Preserve unified-diff file boundaries. A preamble is retained as its own
+ * section so every byte the caller supplied remains visible to a reviewer.
+ */
+function splitDiffSections(diff: string): string[] {
+  if (!diff || !diff.trim()) return [''];
+  const sections = diff.split(/(?=^diff --git )/m).filter(section => section.length > 0);
+  return sections.length > 0 ? sections : [diff];
+}
+
 export function chunkDiff(diff: string, limit: number = FALLBACK_MAP_CHUNK_CHARS): string[] {
   if (!diff || !diff.trim()) return [''];
 
   // Split BEFORE each `diff --git` header so each part is one file's hunks.
-  const parts = diff.split(/(?=^diff --git )/m).filter(p => p.length > 0);
-  if (parts.length === 0) return [diff];
+  const parts = splitDiffSections(diff);
 
   const chunks: string[] = [];
   let cur = '';
@@ -3144,9 +3653,117 @@ export async function mapWithConcurrency<T, R>(
   return results;
 }
 
+/** A bounded reduction tree always converges for the eight MAP partials we retain. */
+const MAX_REDUCE_PARTITION_LEVELS = 4;
+
+function reduceManagerSystem(ship: ShipConfig): string {
+  const mergeVerb = ship.ideation ? 'proposals' : 'findings';
+  return (
+    `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
+    `several partial reviews of different chunks of one PR diff. Merge them into ` +
+    `a SINGLE review of the whole PR. Deduplicate ${mergeVerb}.\n\n` +
+    (ship.ideation ? ideationOutputContract() : buildOutputContract()) +
+    (ship.blocking
+      ? '\n\nThis ship is BLOCKING: emit FLEET-VERDICT: BLOCK if any partial raised a HIGH finding or objected; otherwise FLEET-VERDICT: PASS.'
+      : '\n\nThis ship is ADVISORY: still emit exactly one FLEET-VERDICT line.')
+  );
+}
+
+function reduceUserMessage(partials: readonly string[]): string {
+  return partials
+    .map((partial, index) => `## Partial review ${index + 1} of ${partials.length}\n\n${partial || '(empty)'}`)
+    .join('\n\n');
+}
+
 /**
- * REDUCE step: one manager call that merges the per-chunk partial reviews into a
- * single structured findings block + exactly one FLEET-VERDICT line.
+ * Greedily partition independent MAP outputs into complete prompt groups. A
+ * group boundary is an output boundary, never an arbitrary byte slice, so the
+ * later synthesis can still understand every included review.
+ */
+function partitionReducePartials(
+  model: string,
+  managerSystem: string,
+  partials: readonly string[],
+): string[][] {
+  const groups: string[][] = [];
+  let current: string[] = [];
+
+  const fits = (candidate: readonly string[]) =>
+    assessContextAdmission(
+      model,
+      [
+        { role: 'system', content: managerSystem },
+        { role: 'user', content: reduceUserMessage(candidate) },
+      ],
+      MAX_OUTPUT_TOKENS,
+    );
+
+  for (const partial of partials) {
+    const candidate = [...current, partial];
+    if (fits(candidate).accepted) {
+      current = candidate;
+      continue;
+    }
+    if (current.length > 0) groups.push(current);
+    current = [partial];
+    const single = fits(current);
+    if (!single.accepted) throw new ContextAdmissionError(single);
+  }
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
+
+async function runReduceGroup(
+  ship: ShipConfig,
+  partials: readonly string[],
+  groupIndex: number,
+  groupCount: number,
+  managerSystem: string,
+  env: ExecutorEnv,
+  metrics: ShipMetrics,
+  aiCircuit: FleetAiCircuit,
+  capture: ShipTranscript | null,
+): Promise<string> {
+  const model = reduceModelFor(ship);
+  const request = {
+    messages: [
+      { role: 'system', content: managerSystem },
+      { role: 'user', content: reduceUserMessage(partials) },
+    ],
+    max_tokens: MAX_OUTPUT_TOKENS,
+    ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
+  };
+  requireContextAdmission(model, request.messages, MAX_OUTPUT_TOKENS);
+  const res = await runCaptured(
+    capture,
+    { phase: 'reduce', model, chunk: { index: groupIndex, count: groupCount } },
+    request,
+    () =>
+      aiCircuit.runForShip(ship.name, () =>
+        env.AI.run(
+          model as Parameters<typeof env.AI.run>[0],
+          request,
+          aiOptions(env, ship.name),
+        ),
+      ),
+  );
+  const { text } = extractAiText(res);
+  accumulateUsage(metrics, model, res, text);
+  if (!text) {
+    console.warn(
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${model}: ` +
+        `${describeResponseShape(res)}`,
+    );
+  }
+  return text;
+}
+
+/**
+ * REDUCE step: merge MAP outputs into one structured findings block. When the
+ * combined output would overflow the reducer's window, build a bounded tree of
+ * smaller reductions. This is deliberately a synthesis tree, not a text slice:
+ * each intermediary sees complete MAP outputs and its own output is requested
+ * under the same bounded contract before the next level consumes it.
  */
 async function reduceFindings(
   ship: ShipConfig,
@@ -3154,53 +3771,45 @@ async function reduceFindings(
   env: ExecutorEnv,
   metrics: ShipMetrics,
   aiCircuit: FleetAiCircuit,
+  transcript: Transcript,
   /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
   capture: ShipTranscript | null = null,
 ): Promise<string> {
-  const mergeVerb = ship.ideation ? 'proposals' : 'findings';
-  const managerSystem =
-    `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
-    `several partial reviews of different chunks of one PR diff. Merge them into ` +
-    `a SINGLE review of the whole PR. Deduplicate ${mergeVerb}.\n\n` +
-    (ship.ideation ? ideationOutputContract() : buildOutputContract()) +
-    (ship.blocking
-      ? '\n\nThis ship is BLOCKING: emit FLEET-VERDICT: BLOCK if any partial raised a HIGH finding or objected; otherwise FLEET-VERDICT: PASS.'
-      : '\n\nThis ship is ADVISORY: still emit exactly one FLEET-VERDICT line.');
+  const model = reduceModelFor(ship);
+  const managerSystem = reduceManagerSystem(ship);
+  let current = partials;
 
-  const userMessage = partials
-    .map((p, i) => `## Partial review ${i + 1} of ${partials.length}\n\n${p || '(empty)'}`)
-    .join('\n\n');
-
-  const request = {
-    messages: [
-      { role: 'system', content: managerSystem },
-      { role: 'user', content: userMessage },
-    ],
-    max_tokens: MAX_OUTPUT_TOKENS,
-    ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
-  };
-  const res = await runCaptured(
-    capture,
-    { phase: 'reduce', model: reduceModelFor(ship) },
-    request,
-    () =>
-      aiCircuit.runForShip(ship.name, () =>
-        env.AI.run(
-          ship.cfModel as Parameters<typeof env.AI.run>[0],
-          request,
-          aiOptions(env, ship.name),
-        ),
+  for (let level = 0; current.length > 1; level++) {
+    if (level >= MAX_REDUCE_PARTITION_LEVELS) {
+      throw new Error(
+        `reduce partition did not converge after ${MAX_REDUCE_PARTITION_LEVELS} levels for pd-${ship.name}`,
+      );
+    }
+    const groups = partitionReducePartials(model, managerSystem, current);
+    if (groups.length > 1) {
+      await transcript.step(
+        'reduce-partitioned',
+        ship.name,
+        `REDUCE pd-${ship.name}: partitioned ${current.length} partial review(s) into ${groups.length} context-safe group(s)`,
+        { level: level + 1, inputPartials: current.length, groups: groups.map(group => group.length) },
+      );
+    }
+    current = await mapWithConcurrency(groups, MAP_CONCURRENCY, (group, groupIndex) =>
+      runReduceGroup(
+        ship,
+        group,
+        groupIndex,
+        groups.length,
+        managerSystem,
+        env,
+        metrics,
+        aiCircuit,
+        capture,
       ),
-  );
-  const { text } = extractAiText(res);
-  accumulateUsage(metrics, reduceModelFor(ship), res, text);
-  if (!text) {
-    console.warn(
-      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${reduceModelFor(ship)}: ` +
-        `${describeResponseShape(res)}`,
     );
   }
-  return text;
+
+  return current[0] ?? '';
 }
 
 /**
@@ -3239,6 +3848,7 @@ async function shipRepairCall(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
+  requireContextAdmission(model, request.messages, MAX_OUTPUT_TOKENS);
   const res = await runCaptured(capture, { phase: 'repair', model }, request, () =>
     aiCircuit.runForShip(ship.name, () =>
       env.AI.run(
@@ -3253,7 +3863,7 @@ async function shipRepairCall(
   return text;
 }
 
-function buildSummary(results: ShipResult[], conclusion: string): string {
+function buildSummary(results: ShipResult[], conclusion: string, sourceCoverageReason: string | null = null): string {
   const lines = results.map(r => {
     const tag = r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
@@ -3267,15 +3877,23 @@ function buildSummary(results: ShipResult[], conclusion: string): string {
         `${r.brokenAdjudicated.reason}; not gating this PR; the fleet is on the hook`
       : ' (broken ship ⇒ run FAILED)';
     const cause = r.failureReason ? ` — ${r.failureReason}` : '';
+    const coverage = r.reviewCoverage === 'none'
+      ? `not reviewed — ${r.reviewCoverageReason ?? 'no reviewable source was sent to a model'}`
+      : r.reviewCoverage === 'partial'
+        ? `PARTIAL REVIEW (${r.verdict}) — ${r.reviewCoverageReason ?? 'some reviewable source was omitted'}`
+        : null;
     const state = r.noUsableOutput
       ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored
         ? `error${cause}${adjudication}`
-        : r.verdict;
+        : coverage ?? r.verdict;
     const advisory =
       !r.blocking && r.verdict === 'BLOCK' && !r.errored && !r.noUsableOutput ? ' (advisory)' : '';
     return `- pd-${r.ship}${tag}: ${state}${advisory}`;
   });
+  if (sourceCoverageReason) {
+    lines.push(`- fleet source coverage: PARTIAL REVIEW — ${sourceCoverageReason}`);
+  }
   lines.push('');
   lines.push(`Verdict: ${conclusion.toUpperCase()}`);
   return lines.join('\n');
@@ -3303,7 +3921,19 @@ function buildOutputContract(): string {
   );
 }
 
-function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
+/**
+ * Build the exact system prompt handed to a standard Fleet reviewer ship.
+ *
+ * This is exported for checkpoint-binding tests because a resumable verdict is
+ * valid only under the same prompt that produced it. The caller owns fetching
+ * the trusted contract and graft snapshot before invoking this pure renderer.
+ *
+ * @param ship Parsed trusted Fleet configuration.
+ * @param contract Exact trusted ship contract, or null when confirmed absent.
+ * @param graftText Exact trusted graft prefix selected for this ship.
+ * @returns The complete immutable system prompt for a model call.
+ */
+export function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
   const parts: string[] = [];
 
   // Grafted skills come FIRST: they are the repo's own playbooks, fetched from
@@ -3400,6 +4030,45 @@ function pathFromDiffLine(line: string): string | null {
   return null;
 }
 
+/** Return the largest UTF-8-safe prefix that fits inside a byte budget. */
+function utf8Prefix(value: string, maxBytes: number): string {
+  let low = 0;
+  let high = value.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (utf8ByteLength(value.slice(0, middle)) <= maxBytes) low = middle;
+    else high = middle - 1;
+  }
+  return value.slice(0, low);
+}
+
+/** Return the largest UTF-8-safe suffix that fits inside a byte budget. */
+function utf8Suffix(value: string, maxBytes: number): string {
+  let low = 0;
+  let high = value.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (utf8ByteLength(value.slice(value.length - middle)) <= maxBytes) low = middle;
+    else high = middle - 1;
+  }
+  return value.slice(value.length - low);
+}
+
+/**
+ * Bound auxiliary PR context without pretending it was complete. The diff is
+ * never sliced here; it is partitioned separately at file boundaries.
+ */
+function boundedPromptExcerpt(value: string, maxBytes: number, label: string): string {
+  if (!value.trim()) return '(none)';
+  const originalBytes = utf8ByteLength(value);
+  if (originalBytes <= maxBytes) return value;
+
+  const marker = `\n\n[${label} projected from ${originalBytes} bytes to fit the request budget]\n\n`;
+  const available = Math.max(0, maxBytes - utf8ByteLength(marker));
+  const headBytes = Math.floor(available * 0.75);
+  return `${utf8Prefix(value, headBytes)}${marker}${utf8Suffix(value, available - headBytes)}`;
+}
+
 /**
  * Build the MAP-stage prompt for one diff chunk.
  *
@@ -3444,17 +4113,28 @@ function buildUserMessage(
     ? prCtx.files.map(f => ({ filename: f.filename, adds: f.additions, dels: f.deletions }))
     : [...present].map(filename => ({ filename, adds: null as number | null, dels: null as number | null }));
 
-  // Mark in-chunk files so the model can bind a hunk to a path. Files from
-  // other chunks stay listed — the reviewer should know the PR is larger than
-  // what it can see — but are explicitly flagged as not visible here.
-  const fileList = fileRows
-    .map(r => {
-      const here = !partial || present.has(r.filename);
-      const mark = here ? '✔' : '·';
-      const counts = r.adds === null ? '' : ` (+${r.adds}/-${r.dels})`;
-      const note = here ? '' : '  — not in this chunk';
-      return `- ${mark} ${r.filename}${counts}${note}`;
+  // The diff itself is the authority for what this MAP call can cite. The
+  // file index is deliberately bounded: a very large PR's path inventory must
+  // never crowd out the actual code in the request budget.
+  const known = new Set(fileRows.map(row => row.filename));
+  for (const filename of present) {
+    if (!known.has(filename)) fileRows.push({ filename, adds: null, dels: null });
+  }
+  const inChunkRows = fileRows.filter(row => present.has(row.filename));
+  const indexedRows = inChunkRows.slice(0, MAP_FILE_INDEX_LIMIT);
+  const fileList = indexedRows
+    .map(row => {
+      const counts = row.adds === null ? '' : ` (+${row.adds}/-${row.dels})`;
+      return `- ✔ ${row.filename}${counts}`;
     })
+    .concat(
+      inChunkRows.length > indexedRows.length
+        ? [`- … ${inChunkRows.length - indexedRows.length} additional file(s) appear in the diff below`]
+        : [],
+      partial && fileRows.length > inChunkRows.length
+        ? [`- · ${fileRows.length - inChunkRows.length} changed file(s) belong to other chunk(s)`]
+        : [],
+    )
     .join('\n');
 
   const chunkNote = partial ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
@@ -3464,10 +4144,10 @@ function buildUserMessage(
 
 ## SCOPE — read before reviewing
 
-You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The files marked \`✔\`
-above are the ONLY ones whose changes are visible to you. Files marked \`·\` are
-part of this PR and were changed, but their hunks are in another chunk that a
-different reviewer is reading.
+You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The \`✔\`
+paths are a bounded index of files represented below; the diff is the authority
+for what you can see. Files marked \`·\` belong to another chunk. An indexed
+path may be omitted only when the index itself is bounded, never from the diff.
 
 Therefore, in this stage:
 
@@ -3476,22 +4156,26 @@ Therefore, in this stage:
   export, or a registration you did not encounter is almost certainly in a
   chunk you were not given. Claims of absence are decided later, by the stage
   that has every chunk.
-- **Every finding must cite a path marked \`✔\`**, and the code you quote must
-  appear verbatim in the diff below. A snippet from one file reported against
-  another file's path is worse than no finding at all.
+- **Every finding must cite a path and code that appear verbatim in the diff
+  below.** A snippet from one file reported against another file's path is
+  worse than no finding at all.
 - Report only defects you can see *in the code shown here*: a wrong condition,
   an unhandled case, a broken invariant, a real bug in these hunks.`
     : '';
 
-  const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
+  const contextBlock = fleetContext
+    ? `\n\n${boundedPromptExcerpt(fleetContext, MAP_FLEET_CONTEXT_BYTE_LIMIT, 'Fleet context')}`
+    : '';
+  const title = boundedPromptExcerpt(prCtx.title, MAP_TITLE_BYTE_LIMIT, 'PR title');
+  const body = boundedPromptExcerpt(prCtx.body, MAP_BODY_BYTE_LIMIT, 'PR description');
 
-  return `# PR #${prCtx.prNumber}: ${prCtx.title}
+  return `# PR #${prCtx.prNumber}: ${title}
 
 ## Changed files
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}${scopeBlock}${contextBlock}
+${body}${scopeBlock}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff

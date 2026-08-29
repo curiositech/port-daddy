@@ -1,6 +1,6 @@
 [package]
 name = "pd-console"
-version = "3.30.2"
+version = "3.30.5"
 edition = "2021"
 description = "Port Daddy operator console — GPU-native standalone app (ADR-0046 Phase 1). GPUI shell over the engine; a headless TUI repl renders the same panes."
 

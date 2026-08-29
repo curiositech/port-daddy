@@ -1,10 +1,9 @@
-% Sybil attack flow — placed inline near the A5 subsection in body.
+% Sybil attack sequence with an explicit accounting rail.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -14,71 +13,78 @@
 \centering
 \resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  adv/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
-              inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=maydayred},
-  sybil/.style={draw=maydayred,thick,fill=hhpaper,rounded corners=2pt,
-                inner sep=3pt,minimum width=16mm,align=center,
-                font=\sffamily\footnotesize,text=maydayred},
-  honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-                 inner sep=3pt,minimum width=16mm,align=center},
-  auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
-                  inner sep=5pt,align=center,minimum width=28mm},
-  payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=maydayred,dashed},
+  x=1cm,y=1cm,
+  font=\small,
+  >=Latex,
+  lane/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,
+               minimum width=29mm,minimum height=15mm,align=center,
+               inner xsep=8pt,inner ysep=6pt},
+  hostile/.style={lane,draw=maydayred,fill=maydayred!6,text=maydayred},
+  mechanism/.style={lane,fill=hhsand},
+  account/.style={lane,draw=hhteal,fill=hhteal!5},
+  guide/.style={draw=hhsanddeep,densely dashed,line width=.6pt},
+  message/.style={->,draw=hhink,thick},
+  attack/.style={->,draw=maydayred,thick,dashed},
+  settle/.style={->,draw=hhteal,thick},
+  label/.style={font=\footnotesize,fill=white,inner xsep=3pt,inner ysep=1.5pt},
+  steplabel/.style={font=\footnotesize\bfseries,text=hhink,anchor=east},
 ]
-% Layout: ATTACKER(0,0) → Sybils(3,y) → Auction(7,0) ← Honest(10.5,y)
-%         Winner(7,-2.4) ← Lossbox(3.5,-2.4)
-%         A5 box centred below, full width
-\node[adv] (attacker) at (0,0) {ATTACKER};
-\node[sybil] (s1) at (3, 0.9) {Sybil $S_1$\\dep $B_{\mathrm{dep}}$};
-\node[sybil] (s2) at (3, 0)   {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
-\node[sybil] (s3) at (3,-0.9) {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
-\draw[arr] (attacker.east) -- (s1.west);
-\draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]{spawn} (s2.west);
-\draw[arr] (attacker.east) -- (s3.west);
-% Auction in the centre
-\node[auction] (auction) at (7,0) {Vickrey auction\\$q^* = q_{(2)}$};
-% Honest bidders to the RIGHT of the auction
-\node[honest] (h1) at (10.5, 0.5) {Honest $H_1$};
-\node[honest] (h2) at (10.5,-0.5) {Honest $H_2$};
-% Sybil → Auction (bad, dashed)
-\draw[badarr] (s1.east) to[bend left=12]  (auction.north west);
-\draw[badarr] (s2.east) to                (auction.west);
-\draw[badarr] (s3.east) to[bend right=12] (auction.south west);
-% Annotation above auction
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
-      align=center,above=2mm of auction.north]
-  {sybils bid $(1{-}\varepsilon)\,q_{\min}^{\mathrm{honest}}$};
-% Honest → Auction (good, solid)
-\draw[arr] (h1.west) to[bend right=12] (auction.north east);
-\draw[arr] (h2.west) to[bend left=12]  (auction.south east);
-% Winner box below auction
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      align=center,font=\sffamily\bfseries,text=hhcobalt]
-  (winner) at (7,-2.2) {WINNER: $S_i$};
-\draw[arr,line width=1.4pt,draw=hhcobalt] (auction.south) -- (winner.north);
-% Loss box — placed below the sybil column, clear of sybil nodes
-\node[payout,fill=hhamber!20,minimum width=44mm,align=left,
-      text width=42mm]
-  (lossbox) at (2.8,-3.5)
-  {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
-   protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=hhcobalt,dashed] (winner.south west) to[bend right=20] (lossbox.east);
-% A5 finding box — centred below the entire diagram, wrapped width
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
-      align=left,text width=120mm,anchor=north]
-  at ($(lossbox.south)+(2.2,-6mm)$)
-  {{\bfseries A5 finding:} the deposit slash is capped at the coverage
-   $B_T = \mu(1+s)$. Past $B_{\mathrm{dep}} \geq B_T$, additional deposit
-   provides no extra deterrence. Closing A5 requires a composite
-   mechanism: $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
-   \text{per-class}\;B_{\mathrm{dep}}}$.};
-\end{tikzpicture}
+
+\node[hostile]   (attacker) at (1.7,4.15) {\textbf{Attacker}\\[-1pt]\footnotesize one principal};
+\node[hostile]   (identities) at (5.2,4.15) {\textbf{$K$ Sybil}\\[-1pt]\textbf{identities}\\[-1pt]\footnotesize $K\!\times\!B_{\mathrm{dep}}$ posted};
+\node[mechanism] (auction) at (8.7,4.15) {\textbf{Auction +}\\[-1pt]\textbf{verifier}\\[-1pt]\footnotesize honest bid reference};
+\node[account]   (commons) at (12.2,4.15) {\textbf{Collateral}\\[-1pt]\textbf{ledger}\\[-1pt]\footnotesize commons exposure};
+
+\foreach \x in {1.7,5.2,8.7,12.2}
+  \draw[guide] (\x,3.37) -- (\x,-0.45);
+
+\draw[->,thick,draw=hhink] (-0.15,3.35) -- (-0.15,-0.35)
+  node[below,font=\footnotesize] {time};
+\node[steplabel] at (-0.35,3.08) {1};
+\node[steplabel] at (-0.35,2.18) {2};
+\node[steplabel] at (-0.35,1.28) {3};
+\node[steplabel] at (-0.35,0.38) {4};
+
+\draw[attack] (1.7,3.08) -- (5.2,3.08)
+  node[label,midway] {fund $K$ identities};
+\draw[attack] (5.2,2.18) -- (8.7,2.18)
+  node[label,midway] {bid $(1-\varepsilon)q_{\min}^{\mathrm{honest}}$};
+\draw[message] (8.7,1.28) -- (5.2,1.28)
+  node[label,midway] {award; collect premium $q^*$};
+\draw[attack] (5.2,0.38) -- (8.7,0.38)
+  node[label,midway] {loss $d>0$: default};
+\draw[settle] (8.7,0.38) -- (12.2,0.38)
+  node[label,midway] {detect + slash};
+
+\node[anchor=west,font=\footnotesize\bfseries,text=hhink] at (0.15,-0.95)
+  {ACCOUNTING RAIL};
+\draw[thick,draw=hhebony] (0.15,-1.2) -- (13.75,-1.2);
+
+\node[draw=hhsanddeep,fill=hhpaper,thick,rounded corners=2pt,
+      text width=34mm,align=center,inner xsep=7pt,inner ysep=5pt]
+  (cashin) at (2.15,-2.05)
+  {\textbf{Attacker cash flow}\\$+q^* - \min(B_{\mathrm{dep}},B_T)$};
+\node[draw=hhamber,fill=hhamber!7,thick,rounded corners=2pt,
+      text width=35mm,align=center,inner xsep=7pt,inner ysep=5pt]
+  (cap) at (6.55,-2.05)
+  {\textbf{Coverage cap}\\$s=\min(B_{\mathrm{dep}},B_T)$};
+\node[draw=hhteal,fill=hhteal!5,thick,rounded corners=2pt,
+      text width=37mm,align=center,inner xsep=7pt,inner ysep=5pt]
+  (residual) at (11.15,-2.05)
+  {\textbf{Commons residual}\\$\max(0,d-s)$};
+\draw[settle] (cashin.east) -- (cap.west);
+\draw[settle] (cap.east) -- (residual.west);
+
+\draw[draw=hhamber,thick,densely dashed] (6.55,-2.76) -- (6.55,-3.30);
+\node[anchor=north,align=center,font=\footnotesize,text=hhamber]
+  at (6.55,-3.34)
+  {$B_{\mathrm{dep}}\ge B_T$ raises posted capital,\\not the maximum slash};
+\node[anchor=north west,align=left,font=\footnotesize,text=hhink]
+  at (9.0,-3.34)
+  {Bounded loss does not establish\\identity or eliminate repeat entry.};
+
+\end{tikzpicture}%
 }
-\caption{Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm{dep}}$, then undercuts honest bids by $\varepsilon$ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm{dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref{fig:sybil-mc-inline}.}
+\caption{Sybil attack sequence and accounting boundary. One principal funds $K$ identities, each posts a deposit and undercuts the honest quote, and the winning identity defaults after a loss. Detection transfers only $s=\min(B_{\mathrm{dep}},B_T)$ to the commons; the accounting rail makes the cap and residual exposure explicit. Increasing $B_{\mathrm{dep}}$ beyond coverage therefore cannot provide additional deterrence. Figure~\ref{fig:sybil-mc-inline} reports the corresponding sweep.}
 \label{fig:sybil-inline}
 \end{figure}

@@ -16,6 +16,15 @@
 # the event JSON when present; we fall back to $PWD. No node required.
 set -u
 
+# Only Claude's explicitly configured UserPromptSubmit command passes this
+# flag. It provides the context-admitting companion to PreCompact: pressure is
+# refreshed at turn start, where Claude accepts additionalContext, rather than
+# pretending a PreCompact systemMessage would be delivered.
+INTERACTIVE_CONTEXT_PRESSURE=0
+case "${1:-}" in
+  --interactive-context-pressure) INTERACTIVE_CONTEXT_PRESSURE=1 ;;
+esac
+
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
 # Prompt context is a scarce resource. Two actionable facts plus one heading is
@@ -45,6 +54,54 @@ CWD="$PWD"
 if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   J="$(printf '%s' "$EVENT" | jq -r '.cwd // .workspace // empty' 2>/dev/null || true)"
   [ -n "$J" ] && CWD="$J"
+fi
+
+# ── Claude turn-start context-pressure refresh ─────────────────────────────
+#
+# PreCompact can block a manual compaction, but Claude explicitly discards its
+# systemMessage/continue fields. The same daemon-owned pressure observation is
+# therefore refreshed through this Claude-only UserPromptSubmit invocation,
+# whose additionalContext is admitted on the next turn. No transcript, plan,
+# usage number, provider token, or BufferedOutputRef passes through this shell
+# boundary: only a provider session id reaches the authenticated CLI shim.
+CONTEXT_PRESSURE_OUT=""
+if [ "$INTERACTIVE_CONTEXT_PRESSURE" -eq 1 ] 2>/dev/null && command -v jq >/dev/null 2>&1; then
+  CONTEXT_SESSION_ID="$(printf '%s' "$EVENT" | jq -r '.session_id // empty' 2>/dev/null || true)"
+  case "$CONTEXT_SESSION_ID" in ''|*[!A-Za-z0-9._:-]*) CONTEXT_SESSION_ID="" ;; esac
+  if [ -n "$CONTEXT_SESSION_ID" ]; then
+    CONTEXT_DAEMON_SOURCE="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
+    case "$CONTEXT_DAEMON_SOURCE" in
+      http://localhost:*) CONTEXT_DAEMON_PORT="${CONTEXT_DAEMON_SOURCE#http://localhost:}" ;;
+      http://127.0.0.1:*) CONTEXT_DAEMON_PORT="${CONTEXT_DAEMON_SOURCE#http://127.0.0.1:}" ;;
+      *) CONTEXT_DAEMON_PORT="" ;;
+    esac
+    case "$CONTEXT_DAEMON_PORT" in ''|*[!0-9]*) CONTEXT_DAEMON_PORT="" ;; esac
+    if [ -n "$CONTEXT_DAEMON_PORT" ] && [ "$CONTEXT_DAEMON_PORT" -ge 1 ] 2>/dev/null && [ "$CONTEXT_DAEMON_PORT" -le 65535 ] 2>/dev/null; then
+      CONTEXT_CLI="${PD_SQUID_CLI:-}"
+      if [ -z "$CONTEXT_CLI" ]; then
+        CONTEXT_CLI="$(command -v pd 2>/dev/null || command -v port-daddy 2>/dev/null || true)"
+      fi
+      if [ -n "$CONTEXT_CLI" ]; then
+        CONTEXT_RESPONSE="$(PORT_DADDY_URL="http://127.0.0.1:${CONTEXT_DAEMON_PORT}" "$CONTEXT_CLI" squid hook-context-pressure \
+          --provider claude --provider-session "$CONTEXT_SESSION_ID" 2>/dev/null \
+          | head -c 4096 2>/dev/null || true)"
+        CONTEXT_STATUS="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.status // empty' 2>/dev/null || true)"
+        CONTEXT_REASON="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.reason // empty' 2>/dev/null || true)"
+        CONTEXT_PLAN="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.plan // empty' 2>/dev/null || true)"
+        CONTEXT_RISK="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.riskyWork // empty' 2>/dev/null || true)"
+        CONTEXT_CONTINUATION="$(printf '%s' "$CONTEXT_RESPONSE" | jq -r '.directive.continuation // empty' 2>/dev/null || true)"
+        case "$CONTEXT_STATUS:$CONTEXT_PLAN:$CONTEXT_RISK:$CONTEXT_CONTINUATION" in
+          # A freshly read durable plan is already `checkpointed` at .60; it
+          # must remain visible as the preparation instruction rather than
+          # waiting until packet issuance at .75.
+          recorded:prepare:*:*|recorded:checkpointed:*:*|recorded:checkpoint-required:*:packet-withheld|recorded:*:restricted:*|recorded:*:*:governed-successor|rejected:checkpoint-required:restricted:packet-withheld)
+            CONTEXT_REASON="$(printf '%s' "$CONTEXT_REASON" | tr '\r\n' ' ' | cut -c 1-320)"
+            [ -z "$CONTEXT_REASON" ] || CONTEXT_PRESSURE_OUT="[PORT DADDY — CONTEXT PRESSURE]\n${CONTEXT_REASON}"
+            ;;
+        esac
+      fi
+    fi
+  fi
 fi
 
 # Relevance: use the exact pd project root (or cwd when no marker is available),
@@ -201,11 +258,52 @@ $PHER
 EOF
 fi
 
+# Inbox/parley awareness: message bodies never enter prompt context here. The
+# hook asks only for the unread count, consumes one of the existing two bounded
+# coordination slots, and leaves read/acknowledgement to `pd attention`.
+SELF="${PD_ACTOR:-${PD_AGENT_ID:-}}"
+DAEMON_URL="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
+case "$DAEMON_URL" in */) DAEMON_URL="${DAEMON_URL%/}" ;; esac
+case "$DAEMON_URL" in
+  http://localhost:*) DAEMON_URL="http://127.0.0.1:${DAEMON_URL##*:}" ;;
+  http://127.0.0.1:*) : ;;
+  *) DAEMON_URL="" ;; # hooks never wait on DNS or a remote coordination plane
+esac
+if [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null && [ -n "$SELF" ] && [ -n "$DAEMON_URL" ] && command -v curl >/dev/null 2>&1; then
+  case "$SELF" in
+    *[!A-Za-z0-9._:-]*) : ;;
+    ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????*) : ;;
+    *)
+      # Capture one immutable response. Parse failure is deliberately silent:
+      # hooks fail open and must never turn malformed optional telemetry into a
+      # prompt warning or a second daemon request.
+      STATS="$(curl -fsS --connect-timeout 0.10 --max-time 0.20 \
+        "${DAEMON_URL}/agents/${SELF}/inbox/stats" 2>/dev/null || true)"
+      UNREAD=""
+      if command -v jq >/dev/null 2>&1; then
+        UNREAD="$(printf '%s' "$STATS" | jq -r '.unread // empty' 2>/dev/null || true)"
+      elif command -v sed >/dev/null 2>&1; then
+        UNREAD="$(printf '%s' "$STATS" | sed -nE 's/.*"unread"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' | head -n1)"
+      fi
+      case "$UNREAD" in
+        ''|*[!0-9]*|0) : ;;
+        *)
+          ENTRIES="${ENTRIES}- ${UNREAD} unread inbox/parley item(s); run pd attention before continuing.\n"
+          COUNT=$((COUNT + 1))
+          ;;
+      esac
+      ;;
+  esac
+fi
+
 # Coordination content: the common case stays deliberately zero bytes. Only a
 # fresh alert or an exact-project pheromone earns context, and even then the
 # envelope stays concise under the #8059 bound below.
 OUT=""
 [ -z "$ENTRIES" ] || OUT="[PORT DADDY — ACTIONABLE COORDINATION near ${BASENAME}]\n${ENTRIES}"
+if [ -n "$CONTEXT_PRESSURE_OUT" ]; then
+  if [ -n "$OUT" ]; then OUT="${CONTEXT_PRESSURE_OUT}\n${OUT}"; else OUT="$CONTEXT_PRESSURE_OUT"; fi
+fi
 
 # SITREP compulsion (operator doctrine, 2026-08-22): the end-of-turn SITREP is
 # the harness's visible value surface. When the dial is suggest/enforce every

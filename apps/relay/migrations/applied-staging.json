@@ -66,6 +66,34 @@
     {
       "file": "2026-08-23-user-roles.sql",
       "appliedAt": "2026-08-24T04:40:33Z"
+    },
+    {
+      "file": "2026-08-20-apns-device-tokens.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-22-seamanship-listings.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-22-seamanship-suggestions.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-22-snipe-chat-spend.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-23-fleet-ai-call-stats.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-23-harbor-invites.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-24-fleet-run-transcripts.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
     }
   ]
 }

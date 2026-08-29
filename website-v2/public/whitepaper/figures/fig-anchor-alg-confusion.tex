@@ -1,78 +1,39 @@
-% Algorithm-confusion attack defense — inline in §3.1 (Phase 1).
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: verification outcome follows control authority, not token shape.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-                inner sep=4pt,minimum width=22mm,align=center,font=\sffamily\bfseries\footnotesize},
-  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries\footnotesize,text=hhcobalt},
-  token/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-                font=\sffamily\footnotesize\ttfamily,align=left},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  ok/.style={draw=hhteal,fill=hhpaper,thick,rounded corners=2pt,
-             font=\sffamily\footnotesize,text=hhteal,inner sep=3pt},
-  rejected/.style={draw=hhcobalt,fill=hhpaper,thick,rounded corners=2pt,
-                   font=\sffamily\bfseries\footnotesize,text=hhcobalt,inner sep=3pt},
+  font=\small,
+  cell/.style={draw=hhink,line width=.55pt,minimum width=29mm,minimum height=12mm,
+    text width=27mm,inner sep=4pt,align=center},
+  head/.style={font=\scriptsize\bfseries,align=center,text width=27mm}
 ]
-% Top row: naive verifier path (attack succeeds)
-\node[actor] (daemon1) at (0,3.4) {Daemon};
-\node[token,right=8mm of daemon1] (tok1)
-  {\{alg: HS256, ...\}\\.signature($k$)};
-\node[bad,right=8mm of tok1] (attacker1) {ATTACKER};
-\node[token,right=8mm of attacker1] (tok1b)
-  {\{alg: \textbf{none}, ...\}\\.``''};
-\node[actor,right=8mm of tok1b] (naive) {Naive verifier};
-\node[rejected,right=4mm of naive,fill=hhcobalt!20] (accept-bad) {ACCEPT (bad!)};
-\draw[arr] (daemon1.east) -- node[above,font=\sffamily\footnotesize]
-  {issue} (tok1.west);
-\draw[badarr] (tok1.east) -- node[above,pos=0.5,font=\sffamily\tiny\itshape,
-                                  text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker1.west);
-\draw[badarr] (attacker1.east) -- (tok1b.west);
-\draw[badarr] (tok1b.east) -- (naive.west);
-\draw[badarr] (naive.east) -- (accept-bad.west);
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
-      above=2mm of naive.north,align=center]
-  {trusts alg header\\ from token};
-% Bottom row: pinned verifier path (attack rejected)
-\node[actor,below=22mm of daemon1] (daemon2) {Daemon};
-\node[token,right=8mm of daemon2] (tok2)
-  {\{alg: HS256, ...\}\\.signature($k$)};
-\node[bad,right=8mm of tok2] (attacker2) {ATTACKER};
-\node[token,right=8mm of attacker2] (tok2b)
-  {\{alg: \textbf{none}, ...\}\\.``''};
-\node[actor,right=8mm of tok2b,fill=hhteal!20] (pinned)
-  {Pinned verifier};
-\node[ok,right=4mm of pinned] (reject) {REJECT (good)};
-\draw[arr] (daemon2.east) -- (tok2.west);
-\draw[badarr] (tok2.east) -- node[above,pos=0.5,font=\sffamily\tiny\itshape,
-                                  text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker2.west);
-\draw[badarr] (attacker2.east) -- (tok2b.west);
-\draw[badarr] (tok2b.east) -- (pinned.west);
-\draw[arr,draw=hhteal,line width=1.4pt] (pinned.east) -- (reject.west);
-\node[font=\sffamily\footnotesize\itshape,text=hhteal,
-      above=2mm of pinned.north,align=center]
-  {pins alg at issuance,\\ ignores token's alg field};
-% Header labels
-\node[font=\sffamily\bfseries,left=2mm of daemon1.west,text=hhcobalt]
-  {(a)};
-\node[font=\sffamily\bfseries,left=2mm of daemon2.west,text=hhteal]
-  {(b)};
-\end{tikzpicture}%
-}
-\caption{Algorithm-confusion attack and the pinned-verifier defense. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker who can intercept the token rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band, then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: 5 attack patterns + 2 controls, all pass.}
+  \node[head] at (-4.5,1.55) {control authority};
+  \node[head] at (-1.5,1.55) {algorithm source};
+  \node[head] at (1.5,1.55) {verification trace};
+  \node[head] at (4.5,1.55) {tampered token};
+  \node[cell,fill=hhsand!42] at (-4.5,.55) {attacker-controlled};
+  \node[cell,fill=hhsand!42] at (-1.5,.55) {untrusted header\\\texttt{alg:none}};
+  \node[cell,fill=hhsand!42] at (1.5,.55) {signature check\\bypassed};
+  \node[cell,fill=hhsand!42,font=\bfseries] at (4.5,.55) {ACCEPT\\unsafe};
+  \node[cell,fill=hhteal!8,draw=hhteal,line width=.8pt] at (-4.5,-.75)
+    {issuer-controlled};
+  \node[cell,fill=hhteal!8,draw=hhteal,line width=.8pt] at (-1.5,-.75)
+    {authenticated policy\\Ed25519};
+  \node[cell,fill=hhteal!8,draw=hhteal,line width=.8pt] at (1.5,-.75)
+    {signature check\\fails};
+  \node[cell,fill=hhteal!14,draw=hhteal,line width=.8pt,font=\bfseries] at (4.5,-.75)
+    {REJECT\\safe};
+  \draw[-{Stealth[length=2mm]},hhink,line width=.6pt] (-3.02,.55) -- (-2.98,.55);
+  \draw[-{Stealth[length=2mm]},hhink,line width=.6pt] (-.02,.55) -- (.02,.55);
+  \draw[-{Stealth[length=2mm]},hhink,line width=.6pt] (2.98,.55) -- (3.02,.55);
+  \draw[-{Stealth[length=2mm]},hhteal,line width=.75pt] (-3.02,-.75) -- (-2.98,-.75);
+  \draw[-{Stealth[length=2mm]},hhteal,line width=.75pt] (-.02,-.75) -- (.02,-.75);
+  \draw[-{Stealth[length=2mm]},hhteal,line width=.75pt] (2.98,-.75) -- (3.02,-.75);
+  \node[font=\scriptsize\itshape,text=hhgray] at (0,-1.75)
+    {same bytes on the wire; only the authority boundary changes};
+\end{tikzpicture}
+\caption{Algorithm confusion is a control-authority failure. When the token
+selects its own rule, an attacker can bypass verification; when authenticated
+issuer policy pins Ed25519, the same tampered token is rejected.}
 \label{fig:anchor-alg-confusion}
 \end{figure}

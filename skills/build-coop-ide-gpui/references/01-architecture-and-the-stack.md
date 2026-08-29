@@ -26,7 +26,7 @@ The buffer merges bytes; the daemon governs intent; the harbor card decides who 
 ├──────────────────────────────────────────────────────────────────────┤
 │  LAYER 3 — COORDINATION KERNEL              the daemon on :9876        │
 │  claims (file/symbol/region) · POST /conflicts/predict · commit guard │
-│  · salvage · Ed25519 harbor cards · immutable-note audit trail        │
+│  · 503-only recovery scaffold · Ed25519 cards · immutable-note audit  │
 │  the GOVERNANCE OF INTENT. the layer Zed does not have.               │
 ├──────────────────────────────────────────────────────────────────────┤
 │  LAYER 4 — TRANSPORT per harbor topology    SyncTransport trait       │
@@ -35,7 +35,7 @@ The buffer merges bytes; the daemon governs intent; the harbor card decides who 
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-The discipline that makes this tractable: **each layer reuses a named, already-shipped PD asset, and the only genuinely from-scratch cost is Layer 2's buffer.** Layers 1, 3, and 4 are assembly of parts that exist. Hold that line — a buffer without Layer 3's claims and salvage is, in the battle plan's words, "a Potemkin editor, not the product" (§6). Refuse it.
+The discipline that makes this tractable: reuse named, shipped PD assets wherever they exist, while naming every missing authority. Layers 1, 3, and 4 contain substantial reusable pieces, but P3.5's typed receipt producer, canonical Rust Loro validator, and atomic released-claim finalizer are not built. Hold that line — a buffer without Layer 3's claims and authoritative recovery remains a Potemkin editor, and registered 503 routes do not close the gap.
 
 ---
 
@@ -90,7 +90,7 @@ This is the one hard, from-scratch cost, and the doc is honest about it (battle 
 
 ## 4. Layer 3 — the coordination kernel (the GOVERNANCE OF INTENT)
 
-**This is the layer Zed does not have, and it is already built.** The daemon on `:9876` *is* the collab server — no new sync backend (battle plan §3). A CRDT guarantees bytes merge; it never guarantees that *intent* agrees. "merges cleanly" ≠ "merges correctly." Layer 3 governs the difference.
+**Much of this layer exists, but authoritative editor recovery does not.** The daemon on `:9876` owns the collaboration and governance plane — no new sync backend (battle plan §3). Claims, conflict prediction, and the commit guard are reusable. The editor-recovery routes are registered 503-only scaffolding until the P1/P1B, canonical Rust Loro, verified scope, and P3 same-database claim-transfer authorities land.
 
 **Claims — a claim is a presence range the guard can refuse to merge across:**
 - File claims: `POST /sessions/:id/files`, `GET /files/who-owns` (`routes/sessions.ts`).
@@ -98,13 +98,13 @@ This is the one hard, from-scratch cost, and the doc is honest about it (battle 
 
 **The commit guard** is the semantic gate Zed's auto-merge skips: `pd guard check --staged` refuses if an edited region's claim is held by another *live* actor. **HARD RULE (battle plan §4, MEMORY canon):** the guard's refusal message points ONLY to the correct action (request handoff) and **never names a bypass flag.** An agent takes whatever exit the error hands it; advertising `--no-verify` to an agent is handing it the override.
 
-**Salvage — the headline differentiator.** A dead actor's op-log + claim persist to content-addressed `/blob` (`routes/blob.ts`) + immutable notes. `POST /recovery/request` surfaces "agent A left dirty work on parse_header (claim held, snapshot `blob:…`)"; a successor `POST /recovery/consume` replays A's ops onto the live doc, inherits the claim, and finishes — full provenance. "Zed loses this entirely" (battle plan §4, step 7). This is the demo that wins the category.
+**Authoritative recovery — the target headline differentiator.** The required design has daemon-owned typed operation receipts and sealed abandonment preserving a complete op log from sequence zero. An authenticated successor would use `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; only a canonical Rust replay receipt could permit one atomic P3 claim transfer, provenance write, and token consume. Those producer, validator, scope, symbol/file-mutation, and P3 authorities are unimplemented, so every public phase currently fails closed with 503 and zero phase effects.
 
 **Authz — capability-scoped, not trust-the-room.** Harbor enforcement envelopes (`PUT /harbors/:name/envelope`, dry-run `POST /harbors/:name/check`, `routes/harbors.ts`) backed by **signed Ed25519 cards** (`core/harbor-card-rs/src/lib.rs`, `HarborCardClaims{sub,harbor,cap[],iat,exp,jti}`, 218 LOC, Kani proof targets). An agent without a write-cap for `src/auth/*.rs` has its Loro ops **rejected at daemon ingress** — structural, not advisory. ADR-0053 DOM DADDY is the out-of-band ENFORCE path.
 
-**The agent bridge is also here.** `agent.rs` (the conversation mux, "ON THE PD BUS, backend-agnostic, ADR-0046", agent.rs:1) gives 8 backends, a per-agent tube channel, and typed SSE `StreamEnvelope`s (agent.rs:119) — inline per-file agent chat + steering for free. Plus the **ACP+MCP bridge**: expose PD claims/guard/salvage/nudge to ACP agents so PD coordinates the agents Zed/JetBrains already host. We win the swarm even if our own editor lags.
+**The agent bridge is also here.** `agent.rs` (the conversation mux, "ON THE PD BUS, backend-agnostic, ADR-0046", agent.rs:1) gives 8 backends, a per-agent tube channel, and typed SSE `StreamEnvelope`s (agent.rs:119) — inline per-file agent chat + steering for free. Plus the **ACP+MCP bridge**: expose PD claims/guard/nudge to ACP agents so PD coordinates the agents Zed/JetBrains already host. Editor recovery stays on its authenticated HTTP sidecar. We win the swarm even if our own editor lags.
 
-**Agents reach all of this through agent-neutral MCP tools** (`claim_region`, `release_region`, `coordination_preflight`, `salvage`) — first-class, **never Claude-specific** (battle plan §4). This is a hard PD canon: build for every agent backend, not one.
+**Agents reach claim coordination through agent-neutral MCP tools** (`claim_region`, `release_region`, `coordination_preflight`) — first-class, **never Claude-specific** (battle plan §4). Authenticated editor recovery remains an HTTP-only sidecar with no CLI/MCP bypass. This is a hard PD canon: build for every agent backend, not one.
 
 ---
 
@@ -114,7 +114,7 @@ The editor **never knows which water it is in.** Loro Protocol frames ride which
 
 | Harbor | Transport | Status | Maturity honesty |
 |---|---|---|---|
-| **Shared** (default) | Host daemon authoritative for ledger + `/blob`; joiners over daemon HTTP+SSE | **Pure reuse** — exists today | Lowest friction. Ship first. |
+| **Shared** (default) | Host daemon authoritative for the existing governance ledger; joiners over daemon HTTP+SSE. Authoritative editor recovery remains unavailable. | **Partial reuse** — governance exists; P3.5 authority does not | Lowest-friction topology once the missing authorities land. |
 | **LAN** | iroh 1.0 QUIC/mDNS for direct P2P doc+ephemeral sync; daemon tube SSE as coordination bus | **Net-new** — iroh appears nowhere in the codebase (verified) | Gated behind a topology phase, never the critical path. |
 | **Remote** | Daemon over the partial relay (`lib/relay-client.ts`, `routes/relay.ts`); Loro's E2E-encrypted channel keeps buffer private — only ciphertext + signed claim metadata transit | **Partial** — ADR-0027/0049 mesh is design-plus-partial, *not* the full iroh-relay NAT-traversal stack | Symmetric-NAT falls back to a (self-hostable) relay hop. The "pure P2P everywhere" story must stay honest. |
 
@@ -161,7 +161,7 @@ When the multi-quarter scope (battle plan §6: "This is a multi-quarter build") 
 **LOAD-BEARING — the product is a lie without these:**
 - Layer 2: the Loro buffer + per-PeerID authorship gutter (the one from-scratch cost; battle plan P1).
 - Layer 3: region claims rendered as Loro awareness ranges + `POST /conflicts/predict` overlap detection + the commit guard (the wedge; battle plan P3).
-- Layer 3: salvage — dead-replica op-log persistence + `recovery/consume` replay (the headline; battle plan P3.5).
+- Layer 3: salvage — typed operation receipts plus authenticated `/editor/recovery/{request,prepare,replay,finalize}` (the headline; battle plan P3.5).
 - Layer 3: capability enforcement via Ed25519 cards at daemon ingress (battle plan P4).
 - `rust-gpui-motion`'s frame-budget law (it is correctness, not motion).
 - `beautiful-gui-design`'s token model + the 14px font-floor + reduced-motion (accessibility canon).
@@ -200,6 +200,6 @@ When the multi-quarter scope (battle plan §6: "This is a multi-quarter build") 
 - `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/pane.rs` — the `Pane`/`Surface` contract (:79), `Tone` enum (:16), `Block` primitives (:42), `SurfaceAction`/`Subscription` (:55/:67).
 - `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/agent.rs` — the 8-backend tube mux (:1), `StreamEnvelope` (:119).
 - `/Users/erichowens/coding/port-daddy/routes/symbols.ts` — `POST /conflicts/predict` (the wedge).
-- `/Users/erichowens/coding/port-daddy/routes/recovery.ts` — salvage (the headline).
+- `/Users/erichowens/coding/port-daddy/routes/editor-recovery.ts` — authenticated, dependency-gated salvage sidecar (the headline).
 - `/Users/erichowens/coding/port-daddy/routes/harbors.ts` + `/Users/erichowens/coding/port-daddy/core/harbor-card-rs/src/lib.rs` — Ed25519 capability enforcement.
 - New: `/Users/erichowens/coding/port-daddy/core/pd-console/src/editor.rs` — the editor surface (P0). <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->

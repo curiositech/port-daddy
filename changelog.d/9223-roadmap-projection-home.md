@@ -1,3 +1,0 @@
-type: added
-
-- **Roadmap-home projection — one projection, three surfaces (WS-F slice F1).** `lib/roadmap-projection.ts` builds a versioned, deterministic view of roadmap items, the do-this-next rail, and their receipts, anchored through `resolveRoadmapHarbor` so every worktree of a repo projects identically. Design law 13 is encoded rather than described: an item renders LIVE only when a real receipt trail backs it, and is marked stale otherwise — the rail cannot fake freshness. Web account home, pd-console, and iOS consume this one projection instead of each re-deriving roadmap state. Evidence dated in the future is refused rather than clamped to "fresh", so a skewed or corrupt timestamp cannot pin an item permanently LIVE.
