@@ -25,6 +25,7 @@ import {
   handleAccountDelete,
   resolveSession,
   userCanReadRepo,
+  userIsRepoAdmin,
   userOwnsInstallation,
   isSameOrigin,
 } from '../src/auth-github.js';
@@ -301,6 +302,41 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(secondSession.cacheNamespace).not.toBe(firstSession.cacheNamespace);
     expect(await userCanReadRepo(env, secondSession, 'me', 'private')).toBe(true);
     expect(repoCalls).toBe(2);
+  });
+
+  it('userCanReadRepo fails closed without caching transient GitHub failures', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const cookie = await loginAndGetCookie(env, kv);
+    const session = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: cookie } }), env))!;
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error('GitHub unavailable');
+      return new Response('', { status: 200 });
+    }));
+
+    expect(await userCanReadRepo(env, session, 'me', 'private')).toBe(false);
+    expect(kv.store.has(`repo_access:${session.user.id}:${session.cacheNamespace}:me/private`)).toBe(false);
+    expect(await userCanReadRepo(env, session, 'me', 'private')).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('userIsRepoAdmin isolates authorization decisions by browser session', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const cookie = await loginAndGetCookie(env, kv);
+    const first = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: cookie } }), env))!;
+    const second = { ...first, cacheNamespace: `${first.cacheNamespace}-renewed` };
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      return new Response(JSON.stringify({ permissions: { admin: calls > 1 } }), { status: 200 });
+    }));
+
+    expect(await userIsRepoAdmin(env, first, 'me', 'private')).toBe(false);
+    expect(await userIsRepoAdmin(env, second, 'me', 'private')).toBe(true);
+    expect(calls).toBe(2);
   });
 
   it('userOwnsInstallation: gates billing on GitHub-confirmed ownership, fail-closed', async () => {

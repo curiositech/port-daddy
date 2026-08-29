@@ -504,10 +504,25 @@ export async function userCanReadRepo(
   const cached = await env.KV.get(cacheKey);
   if (cached === '1') return true;
   if (cached === '0') return false;
-  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
-  const ok = res.status === 200;
-  await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
-  return ok;
+  let res: Response;
+  try {
+    res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
+  } catch {
+    // A transport failure proves nothing about authorization. Fail closed for
+    // this request, but do not poison the session cache with a transient deny.
+    return false;
+  }
+  if (res.status === 200) {
+    await env.KV.put(cacheKey, '1', { expirationTtl: 300 });
+    return true;
+  }
+  if (res.status === 404) {
+    // GitHub intentionally hides inaccessible private repositories as 404.
+    await env.KV.put(cacheKey, '0', { expirationTtl: 300 });
+  }
+  // Rate limits, upstream errors, and malformed responses are unknown rather
+  // than durable denials; retry them on the next request.
+  return false;
 }
 
 /**
@@ -515,7 +530,7 @@ export async function userCanReadRepo(
  * own judgment? Reads the same `GET /repos/:owner/:repo` response
  * `userCanReadRepo` already makes (its `permissions.admin` field reflects the
  * CALLING user's own access level, not the repo's public visibility), cached
- * separately in KV for 5 minutes keyed by (user_id, repo).
+ * separately in KV for 5 minutes keyed by (user_id, browser session, repo).
  *
  * Why this exists: `repo_settings` writes that only affect the writer's own
  * account (e.g. the sitrep dial) only need read access to gate against
@@ -542,16 +557,24 @@ export async function userIsRepoAdmin(
   repo: string,
 ): Promise<boolean> {
   if (!session.ghToken) return false;
-  const cacheKey = `repo_admin:${session.user.id}:${owner}/${repo}`;
+  const cacheKey = `repo_admin:${session.user.id}:${session.cacheNamespace}:${owner}/${repo}`;
   const cached = await env.KV.get(cacheKey);
   if (cached === '1') return true;
   if (cached === '0') return false;
-  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
-  let admin = false;
-  if (res.status === 200) {
-    const body = await res.json().catch(() => null) as { permissions?: { admin?: boolean } } | null;
-    admin = body?.permissions?.admin === true;
+  let res: Response;
+  try {
+    res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
+  } catch {
+    return false;
   }
+  if (res.status === 404) {
+    await env.KV.put(cacheKey, '0', { expirationTtl: 300 });
+    return false;
+  }
+  if (res.status !== 200) return false;
+  const body = await res.json().catch(() => null) as { permissions?: { admin?: boolean } } | null;
+  if (!body || typeof body !== 'object') return false;
+  const admin = body.permissions?.admin === true;
   await env.KV.put(cacheKey, admin ? '1' : '0', { expirationTtl: 300 });
   return admin;
 }
@@ -560,7 +583,8 @@ export async function userIsRepoAdmin(
  * Does the session's user have access to GitHub App installation `installationId`?
  * GitHub is the single source of truth: `GET /user/installations` lists exactly
  * the app installations the authenticated user can act on. Fail-closed (no token
- * → false), cached in KV for 5 minutes keyed by (user_id, installationId). This
+ * → false), cached in KV for 5 minutes keyed by (user_id, browser session,
+ * installationId). This
  * is the tenant-ownership gate for the billing endpoints (ADR-0116): a signed-in
  * user may only touch billing for an installation GitHub says they own.
  */
@@ -570,7 +594,7 @@ export async function userOwnsInstallation(
   installationId: number,
 ): Promise<boolean> {
   if (!session.ghToken) return false;
-  const cacheKey = `inst_owner:${session.user.id}:${installationId}`;
+  const cacheKey = `inst_owner:${session.user.id}:${session.cacheNamespace}:${installationId}`;
   const cached = await env.KV.get(cacheKey);
   if (cached === '1') return true;
   if (cached === '0') return false;
@@ -580,8 +604,9 @@ export async function userOwnsInstallation(
     const res = await fetch(`${GH_API}/user/installations?per_page=100&page=${page}`, {
       headers: ghHeaders(session.ghToken),
     });
-    if (!res.ok) break;
-    const body = (await res.json()) as { installations?: Array<{ id?: number }> };
+    if (!res.ok) return false;
+    const body = await res.json().catch(() => null) as { installations?: Array<{ id?: number }> } | null;
+    if (!body || !Array.isArray(body.installations)) return false;
     const list = Array.isArray(body.installations) ? body.installations : [];
     if (list.some((i) => i.id === installationId)) ok = true;
     if (list.length < 100) break; // last page
