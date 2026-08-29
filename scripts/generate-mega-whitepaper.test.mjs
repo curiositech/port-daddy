@@ -17,6 +17,7 @@ import {
   inlineInputs,
   namespaceLabels,
   rewriteCitations,
+  validateEditorialPlate,
 } from './generate-mega-whitepaper.mjs';
 
 const generatorSource = readFileSync(
@@ -58,6 +59,30 @@ test('every collected-volume editorial plate resolves to a committed asset', () 
       existsSync(resolve('website-v2/public/whitepaper', asset)),
       `missing collected-volume editorial plate: ${asset}`,
     );
+  }
+});
+
+test('the generator rejects missing, escaping, and unsupported editorial plates clearly', () => {
+  const fixtureDir = resolve('.cache/mega-generator-plate-test');
+  mkdirSync(fixtureDir, { recursive: true });
+  writeFileSync(resolve(fixtureDir, 'plate.png'), 'fixture', 'utf8');
+  try {
+    assert.doesNotThrow(() =>
+      validateEditorialPlate({ title: 'Fixture', plate: 'plate.png' }, fixtureDir));
+    assert.throws(
+      () => validateEditorialPlate({ title: 'Fixture', plate: 'missing.png' }, fixtureDir),
+      /Fixture: editorial plate is missing or unreadable: missing\.png/,
+    );
+    assert.throws(
+      () => validateEditorialPlate({ title: 'Fixture', plate: '../outside.png' }, fixtureDir),
+      /Fixture: editorial plate escapes/,
+    );
+    assert.throws(
+      () => validateEditorialPlate({ title: 'Fixture', plate: 'plate.pdf' }, fixtureDir),
+      /Fixture: editorial plate has an unsupported format: plate\.pdf/,
+    );
+  } finally {
+    rmSync(fixtureDir, { recursive: true, force: true });
   }
 });
 

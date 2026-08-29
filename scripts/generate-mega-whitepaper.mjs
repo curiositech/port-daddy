@@ -13,7 +13,7 @@
  * silently from its chapters.
  */
 
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +21,10 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = resolve(
   repoRoot,
   process.argv[2] ?? '.cache/whitepaper-build/coordination-papers-mega-volume',
+);
+const editorialArtRoot = resolve(
+  repoRoot,
+  'website-v2/public/whitepaper',
 );
 
 const papers = [
@@ -86,6 +90,28 @@ function realContainedBy(root, target) {
   }
   const realRoot = realpathSync(root);
   return isContainedBy(realRoot, realTarget);
+}
+
+function validateEditorialPlate(paper, root = editorialArtRoot) {
+  if (!paper.plate) return;
+  if (typeof paper.plate !== 'string' || paper.plate.trim() !== paper.plate) {
+    throw new Error(`${paper.title}: editorial plate must be a non-empty relative path`);
+  }
+  if (!/\.(?:jpe?g|png)$/i.test(paper.plate)) {
+    throw new Error(`${paper.title}: editorial plate has an unsupported format: ${paper.plate}`);
+  }
+
+  const platePath = resolve(root, paper.plate);
+  if (!isContainedBy(root, platePath) || !realContainedBy(root, platePath)) {
+    throw new Error(`${paper.title}: editorial plate escapes ${root}: ${paper.plate}`);
+  }
+  try {
+    if (!statSync(platePath).isFile()) throw new Error('not a regular file');
+  } catch (error) {
+    throw new Error(
+      `${paper.title}: editorial plate is missing or unreadable: ${paper.plate} (${error.message})`,
+    );
+  }
 }
 
 function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
@@ -247,6 +273,8 @@ function collateReferences(prepared) {
 }
 
 function generate() {
+  for (const paper of papers) validateEditorialPlate(paper);
+
   const prepared = papers.map((paper) => {
     const sourcePath = resolve(repoRoot, paper.source);
     const rootBody = documentBody(readUtf8(sourcePath), paper.source);
@@ -303,4 +331,5 @@ export {
   inlineInputs,
   namespaceLabels,
   rewriteCitations,
+  validateEditorialPlate,
 };
