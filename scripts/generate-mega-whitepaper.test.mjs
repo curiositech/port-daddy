@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   rmSync,
@@ -23,6 +24,16 @@ const generatorSource = readFileSync(
   'utf8',
 );
 
+const collectedVolumeSource = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'),
+  'utf8',
+);
+
+const collectedVolumeAppendices = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex'),
+  'utf8',
+);
+
 test('the new Chapter VII plate is inserted before its typeset chapter opening', () => {
   assert.match(
     generatorSource,
@@ -32,6 +43,22 @@ test('the new Chapter VII plate is inserted before its typeset chapter opening',
     generatorSource,
     /paper\.plate \? `\\\\pdchapterplate\{\$\{paper\.plate\}\}`/,
   );
+});
+
+test('every collected-volume editorial plate resolves to a committed asset', () => {
+  const sources = [generatorSource, collectedVolumeSource, collectedVolumeAppendices];
+  const referencedArt = sources.flatMap((source) =>
+    [...source.matchAll(/art\/collected-volume\/[A-Za-z0-9._-]+\.(?:jpe?g|png)/g)]
+      .map((match) => match[0]),
+  );
+
+  assert.equal(referencedArt.length, 7, 'expected jacket, inside jacket, Chapter VII, and four coda plates');
+  for (const asset of referencedArt) {
+    assert.ok(
+      existsSync(resolve('website-v2/public/whitepaper', asset)),
+      `missing collected-volume editorial plate: ${asset}`,
+    );
+  }
 });
 
 test('missing local citations fail closed', () => {
