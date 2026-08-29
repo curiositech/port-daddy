@@ -2,10 +2,10 @@
 
 Reviewed artifact: `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf`
 
-- Build: 278 A4 pages, 32,424,926 bytes
-- SHA-256: `9d5db6a8464fbedaaa2daaa903145fc227a44a133b4ed5e6c51f4e2e28f7f5dd`
-- Contact sheet: `illuminated-mega-volume-color-contact-sheet.png`
-- Color tour: `illuminated-mega-volume-color-tour.gif`
+- Build: 278 A4 pages, 32,425,465 bytes
+- SHA-256: `b0ed988d166367da88ecdf4d63f15f26e624b050cd1c55ac7f8cc6f987d9020c`
+- Contact sheet: `illuminated-mega-volume-color-contact-sheet.png` (`aaa392e695bfc289b9c10c12335d3c0f9b01fe056160a9bd354a8fbf1170f1c9`)
+- Color tour: `illuminated-mega-volume-color-tour.gif` (`7488fc713d119f9ea0fdde9456fda819b22110ec8316981da6b6cab05691d783`)
 - Reviewed pages: front matter 1–3; Chapter VII plate/title 225–226; coda title/plates 262–266
 - Color review: full color at final page geometry; no grayscale surrogate used
 - Fit review: zero `Overfull` boxes and zero `Float too large` warnings in the final draft audit
