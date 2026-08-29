@@ -1,85 +1,70 @@
-% Cross-harbor settlement — bonded escrow, conditional atomic clear.
-
+% Cross-harbor settlement: four actor lanes, one bounded custody lane, and an
+% explicit Clear/Refuse terminal partition.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhink}{HTML}{1B1712}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
 
-% ─── Cross-Harbor Settlement Ceremony ─────────────────────────────────────────
 \begin{figure}[H]
 \centering
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  party/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=36mm, minimum height=18mm, align=center},
-  escrow/.style={draw=hhcobalt, line width=0.85pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=6pt, minimum width=48mm, minimum height=18mm, align=center},
-  stepbox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=42mm, align=left},
-  outcomebox/.style={draw=hhink, line width=0.6pt, fill=hhsand!35, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=36mm, align=center},
-  guardbox/.style={draw=hhcobalt!70, line width=0.65pt, fill=hhcobalt!5, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=42mm, align=left},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
+  font=\small,
+  actor/.style={draw=hhebony,line width=.65pt,fill=hhsand!25,
+                rounded corners=2pt,minimum width=28mm,minimum height=10mm,
+                inner sep=4pt,font=\footnotesize\bfseries,align=center},
+  terminal/.style={draw=hhebony,line width=.65pt,fill=hhpaper,
+                   rounded corners=2pt,minimum width=24mm,minimum height=11mm,
+                   inner sep=3pt,font=\footnotesize,align=center},
+  message/.style={-{Stealth[length=1.8mm,width=1.2mm]},draw=hhink,line width=.6pt},
+  evidence/.style={-{Stealth[length=1.8mm,width=1.2mm]},draw=hhteal,line width=.85pt},
+  lbl/.style={font=\scriptsize,fill=hhpaper,inner sep=2pt},
+  decision/.style={diamond,aspect=1.6,draw=hhamber,line width=.85pt,
+                   fill=hhamber!7,inner sep=2.5pt,font=\scriptsize\bfseries,align=center}
 ]
 
-  % ─── Parties at Top ─────────────────────────────────────────────────────────
-  \node[party] (PA) at (-4.8, 0) {
-    \textbf{\scshape Alice (Principal)}\\[1pt]
-    {\scriptsize Performance Bond Poster}
-  };
-  \node[escrow] (E) at (0.0, 0) {
-    \textbf{\scshape Settlement Escrow}\\[1pt]
-    {\scriptsize Custody bounded \emph{only if}}\\
-    {\scriptsize Prop.~\ref{thm:fh-escrow-bound}'s assumptions hold}
-  };
-  \node[party] (PB) at (4.8, 0) {
-    \textbf{\scshape Bob (Principal)}\\[1pt]
-    {\scriptsize Bounty \& Damage Claimant}
-  };
+\node[actor] (alice) at (-5.6,2.55) {ALICE\\[-1pt]\scriptsize bond poster};
+\node[actor] (bob) at (-1.9,2.55) {BOB\\[-1pt]\scriptsize claimant};
+\node[actor] (wit) at (1.9,2.55) {WITNESS\\[-1pt]\scriptsize evidence rail};
+\node[actor,draw=hhamber,fill=hhamber!7] (esc) at (5.6,2.55)
+  {ESCROW / ORACLE\\[-1pt]\scriptsize conditional custody};
+\foreach \n in {alice,bob,wit,esc}
+  \draw[hhebony!35,dashed,line width=.45pt] (\n.south) -- (\n.south |- 0,-2.55);
 
-  % ─── Steps 1, 2, 3 Below ────────────────────────────────────────────────────
-  \node[stepbox] (s1) at (-4.8, -2.4) {
-    \textbf{1. Bond Posting}\\[1pt]
-    $A$ mints work card for agent $\alpha$; posts performance bond $B_\alpha$ into the escrow.
-  };
+\draw[hhamber,dashed,line width=.75pt,rounded corners=3pt]
+  (3.55,3.05) rectangle (8.35,-2.90);
+\node[font=\scriptsize\bfseries,text=hhamber,fill=hhpaper,inner xsep=3pt]
+  at (5.95,3.38) {NON-BYPASSABLE CUSTODY BOUNDARY};
 
-  \node[stepbox] (s2) at (0.0, -2.4) {
-    \textbf{2. Damage Claim}\\[1pt]
-    Breach detected at $B$; Bob signs claim $\mathsf{cl}_B = (R_B^{(e)}, \text{evidence})$ to witness log.
-  };
+\draw[message] (-5.6,1.55) -- node[lbl,above]
+  {post $B_\alpha$ \;\textperiodcentered\; whitelist \;\textperiodcentered\; fee cap} (5.6,1.55);
+\draw[evidence] (-1.9,.55) -- node[lbl,above]
+  {$\mathsf{cl}_B=(R_B^{(e)},\mathrm{evidence})$} (1.9,.55);
+\draw[evidence] (1.9,-.43) -- node[lbl,above]
+  {inclusion proof \;\textperiodcentered\; oracle result} (5.6,-.43);
 
-  \node[stepbox] (s3) at (4.8, -2.4) {
-    \textbf{3. Oracle Verification}\\[1pt]
-    Escrow checks inclusion of $\alpha$'s actions in $R_B^{(e)}$ against step 1 criteria.
-  };
+\node[decision] (gate) at (5.6,-1.22) {criteria\\hold?};
+\draw[message] (5.6,-.43) -- (gate.north);
+\node[terminal,draw=hhteal,fill=hhteal!6] (clear) at (4.20,-2.35)
+  {\textbf{CLEAR}\\compensate $B$; refund remainder};
+\node[terminal,draw=hhamber,fill=hhamber!5] (refuse) at (7.00,-2.35)
+  {\textbf{REFUSE}\\return bond; retain proof};
+\draw[evidence] (gate.south west) -- node[lbl,left=1pt]{yes} (clear.north);
+\draw[message] (gate.south east) -- node[lbl,right=1pt]{no} (refuse.north);
 
-  \draw[flowarr] (PA.south) -- (s1.north);
-  \draw[flowarr] (E.south) -- (s2.north);
-  \draw[flowarr] (PB.south) -- (s3.north);
-
-  \draw[accentarr] (s1.east) -- (s2.west);
-  \draw[accentarr] (s2.east) -- (s3.west);
-
-  % ─── Outcomes and Structural Guard ──────────────────────────────────────────
-  \node[guardbox] (guard) at (-4.8, -4.8) {
-    \textbf{\scshape Custody Assumption:}\\
-    \emph{If} whitelist, fee cap, and single-terminal-transition are non-bypassable (Prop.~\ref{thm:fh-escrow-bound}), funds cannot be redirected. Not established here for a deployed system.
-  };
-
-  \node[outcomebox] (Op) at (0.5, -4.8) {
-    \textbf{\scshape Settlement: Clear}\\[1pt]
-    $B$ compensated from bond; remainder refunded to $A$.
-  };
-
-  \node[outcomebox] (Or) at (4.8, -4.8) {
-    \textbf{\scshape Settlement: Refuse}\\[1pt]
-    Bond returned to $A$; escrow logs evidence proof.
-  };
-
-  \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Op.north);
-  \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Or.north);
-
-\end{tikzpicture}
-\caption{Cross-harbor settlement protocol. The custody bounds are \emph{conditional}, not established: Property~\ref{thm:fh-escrow-bound} holds only where the recipient whitelist, fee cap, and single-terminal-transition rule cannot be bypassed by the escrow operator (\S\ref{sec:fh-escrow}); 2-of-3 threshold signing is one candidate way to arrange that. Under those assumptions the outcome space partitions into \textbf{Clear} or \textbf{Refuse}, bounding cross-harbor liability; without them the worst case is the full custodial balance.}
+\draw[hhebony,line width=.55pt] (-6.7,-3.35) -- (8.25,-3.35);
+\node[fill=hhpaper,inner xsep=4pt,font=\footnotesize,align=center] at (0,-3.35)
+  {BOUND HOLDS \emph{iff} recipient whitelist + fee cap + one terminal transition cannot be bypassed};
+\end{tikzpicture}%
+}
+\caption{Cross-harbor settlement as an actor sequence with an explicit custody
+boundary. Alice posts the performance bond and its release constraints; Bob
+publishes a signed claim; the witness supplies the inclusion proof; only then may
+the escrow/oracle partition the outcome into \textbf{Clear} or \textbf{Refuse}.
+The custody bound remains conditional: Property~\ref{thm:fh-escrow-bound} holds
+only where the recipient whitelist, fee cap, and single-terminal-transition rule
+cannot be bypassed by the escrow operator (\S\ref{sec:fh-escrow}).}
 \label{fig:fh-settlement}
 \end{figure}

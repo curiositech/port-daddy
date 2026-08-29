@@ -1,56 +1,74 @@
-% Figure 13 — the context-degradation cascade as a ladder; break any rung and the
-% cascade stops. Each rung paired with its cure.
-% Design: the two morals ("failures compound", "break any rung") live in the
-% caption, not under the columns. Palette discipline: the cascade arrows use
-% hhcobalt — the one "pay attention here" accent, already carrying the same meaning
-% in fig-sdt and fig-state-of-nature — and the cure arrows hhteal. No off-palette
-% color appears anywhere in this document's figure set.
+% Figure 13 --- a causal failure ladder with a parallel intervention rail.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  rung/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-               minimum width=58mm,minimum height=12mm,align=left,inner sep=6pt,
-               font=\footnotesize,text width=54mm},
-  cure/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
-               minimum width=52mm,minimum height=12mm,align=left,inner sep=5pt,
-               font=\footnotesize,text width=48mm,text=hhink},
-  e/.style={-{Latex[length=2.8mm]},very thick,hhcobalt},
-  ce/.style={-{Latex[length=2mm]},thick,hhteal},
+  font=\footnotesize,
+  stage/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=1pt,
+                minimum height=13mm,align=left,font=\footnotesize,text=hhink},
+  cure/.style={align=left,font=\footnotesize,text=hhink},
 ]
-\node[rung] (r1) at (0,6.6) {\textbf{1. Context rot}\\quality decays as window grows, nothing dropped};
-\node[rung] (r2) at (0,4.4) {\textbf{2. Lost-in-the-middle}\\mid-window facts paid-for but ignored};
-\node[rung] (r3) at (0,2.2) {\textbf{3. Recursive-summary collapse}\\summarizing summaries fabricates};
-\node[rung] (r4) at (0,0.0) {\textbf{4. Over-flattening (Scott)}\\digest becomes a replacement, not a lens};
+% The amber diagonal is causal; the teal rail is a distinct place to interrupt it.
+\node[font=\footnotesize\bfseries,text=hhamber,anchor=west] at (-6.75,3.85)
+  {failure ladder};
+\node[font=\footnotesize\bfseries,text=hhteal,anchor=west] at (5.35,3.85)
+  {countermeasure rail --- break any rung};
+\draw[hhteal,very thick] (5.7,3.35) -- (5.7,-3.05);
 
-\draw[e] (r1) -- (r2); \draw[e] (r2) -- (r3); \draw[e] (r3) -- (r4);
+\node[stage,text width=40mm] (r1) at (-5.0,2.75)
+  {\textbf{1. Context rot}\\window grows;\\fidelity decays};
+\node[stage,text width=40mm] (r2) at (-2.35,1.08)
+  {\textbf{2. Lost in the middle}\\paid-for facts disappear};
+\node[stage,text width=40mm] (r3) at (0.30,-0.60)
+  {\textbf{3. Recursive collapse}\\summary recurses;\\fabricates};
+\node[stage,text width=40mm] (r4) at (2.95,-2.28)
+  {\textbf{4. Over-flattening}\\digest replaces the artifact};
 
-\node[cure] (c1) at (7.8,6.6) {compact \emph{earlier}; budget to effective context};
-\node[cure] (c2) at (7.8,4.4) {edge-place load-bearing facts; shorten window};
-\node[cure] (c3) at (7.8,2.2) {\textbf{compact-from-artifacts}, never from the prior summary};
-\node[cure] (c4) at (7.8,0.0) {legibility-with-zoom by construction (a terminal cannot over-render)};
+\draw[-{Latex[length=2.4mm]},very thick,hhamber] (r1.south east) -- (r2.north west)
+  node[midway,above,font=\scriptsize,text=hhamber]{pressure};
+\draw[-{Latex[length=2.4mm]},very thick,hhamber] (r2.south east) -- (r3.north west)
+  node[midway,above,font=\scriptsize,text=hhamber]{salience loss};
+\draw[-{Latex[length=2.4mm]},very thick,hhamber] (r3.south east) -- (r4.north west)
+  node[midway,above,font=\scriptsize,text=hhamber]{replacement};
 
-\draw[ce] (r1) -- (c1); \draw[ce] (r2) -- (c2);
-\draw[ce] (r3) -- (c3); \draw[ce] (r4) -- (c4);
+\foreach \y/\n in {2.75/1,1.08/2,-0.60/3,-2.28/4}{
+  \fill[hhteal] (5.7,\y) circle (2.2pt);
+  \node[draw=hhteal,thin,fill=hhteal!7,circle,minimum size=5.5mm,
+        inner sep=0pt,font=\scriptsize\bfseries,text=hhteal] at (5.7,\y) {\n};
+}
+\draw[-{Latex[length=1.8mm]},thick,hhteal] (r1.east) -- (5.45,2.75);
+\draw[-{Latex[length=1.8mm]},thick,hhteal] (r2.east) -- (5.45,1.08);
+\draw[-{Latex[length=1.8mm]},very thick,hhteal] (r3.east) -- (5.45,-0.60);
+\draw[-{Latex[length=1.8mm]},thick,hhteal] (r4.east) -- (5.45,-2.28);
+
+\node[cure,text width=42mm,anchor=west] at (6.12,2.75)
+  {\textbf{compact earlier}\\budget to effective context};
+\node[cure,text width=42mm,anchor=west] at (6.12,1.08)
+  {\textbf{edge-place facts}\\shorten the window};
+\node[cure,text width=42mm,anchor=west] at (6.12,-0.60)
+  {\textbf{compact from artifacts}\\never from a prior summary};
+\node[cure,text width=42mm,anchor=west] at (6.12,-2.28)
+  {\textbf{legibility with zoom}\\keep the artifact addressable};
+\node[font=\scriptsize\itshape,text=hhteal,align=center,text width=44mm] at (7.75,-3.18)
+  {load-bearing break: rung 3\\keeps truth recoverable};
 \end{tikzpicture}%
 }
 \caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
 compact, naive compaction loses the middle, recursion fabricates, and the
-operator-facing digest over-flattens what's left --- the failures compound, hence
-``cascade.'' Each rung (left column, joined by blue arrows) has a cure (right
-column, joined by teal arrows), and breaking \emph{any} rung
-stops the cascade; the load-bearing cure is \emph{compact-from-artifacts} (rung~3),
-which a system with durable, addressable state (claims, notes, episodes) makes
-cheap. Cost and legibility share this surface: when compaction fails, the bill
-\emph{and} the truth degrade together.}
+operator-facing digest over-flattens what remains. The amber ladder encodes the
+causal order; the parallel teal rail places one countermeasure at each rung, so
+breaking any rung stops the cascade. The load-bearing intervention is
+\emph{compact-from-artifacts} (rung~3): durable, addressable claims, notes, and
+episodes make it possible to reconstruct a digest from evidence rather than from a
+previous summary. When compaction fails, the bill \emph{and} the truth degrade
+together.}
 \label{fig:cascade}
 \end{figure}

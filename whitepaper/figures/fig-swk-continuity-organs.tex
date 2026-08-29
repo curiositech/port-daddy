@@ -8,7 +8,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -36,7 +36,7 @@
    the durable, oracle-bound record of what an agent actually delivered};
 
 \draw[link,hhteal] (mem.east) -- (chk.west);
-\draw[link,hhcobalt] (chk.east) -- (ledger.west);
+\draw[link,hhamber] (chk.east) -- (ledger.west);
 
 % The weakest-link marker over checkpoint
 \node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
@@ -58,7 +58,7 @@ A specified direction, event-sourced rehydration, would replay a pinned commit a
 truncated message log into a successor; that restores the durable inputs to an
 agent's context, not the inference state itself, so OP-4 stays open.
 \textbf{The witnessed-outcome ledger}, on which reputation actually keys, has a
-\textsf{partial} shipped substrate: durable commitments, daemon-derived deadlines,
+\textsf{partial} existing substrate: durable commitments, daemon-derived deadlines,
 oracle-bound closure, and overdue detection. Neutral graded outcomes, sanctions,
 and reputation binding do not yet exist. One ``the foundation is soft here'' claim,
 not three.}

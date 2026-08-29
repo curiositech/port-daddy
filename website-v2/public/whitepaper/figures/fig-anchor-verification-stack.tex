@@ -1,113 +1,37 @@
-% Three-layer verification stack — inline at top of §4 Formal Verification Strategy.
-% Top  : ProVerif (symbolic, Dolev–Yao)
-% Mid  : Kani    (bounded model checking on Rust source)
-% Bot  : Runtime conformance tests (executed on deployed binary)
-%
-% Down arrows = each layer's claim is passed to the next as a property to preserve.
-% Up   arrows = "implementation verified to satisfy the design property."
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: three evidence layers separated by explicit assumption gaps.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  layer/.style={draw=hhebony,thick,rounded corners=4pt,
-                minimum width=130mm,minimum height=24mm,
-                align=left,inner sep=8pt,text width=120mm},
-  tool/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=3pt,font=\bfseries\footnotesize,text=hhamber},
-  obligation/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                     inner sep=3pt,font=\footnotesize,text=hhcobalt,
-                     align=center,text width=28mm},
-  evidence/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,font=\footnotesize,text=hhteal,
-                   align=center,text width=28mm},
-  bridgelbl/.style={font=\footnotesize\itshape,text=hhink,
-                    align=center,text width=42mm},
+  layer/.style={draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=38mm,minimum height=27mm,text width=34mm,
+    inner sep=6pt,align=center},
+  flow/.style={-{Stealth[length=2.2mm]},draw=hhink,line width=.65pt}
 ]
+  \node[layer] (spec) at (-4.7,0) {\textbf{Protocol model}\\[2pt]
+    {\footnotesize ProVerif}\\{\scriptsize proves secrecy, correspondence, attenuation}};
+  \node[layer] (source) at (0,0) {\textbf{Rust source}\\[2pt]
+    {\footnotesize Kani + tests}\\{\scriptsize checks subset logic, bounds, non-panic}};
+  \node[layer,draw=hhteal,line width=1pt] (runtime) at (4.7,0)
+    {\textbf{Running binary}\\[2pt]{\footnotesize conformance suite}\\
+     {\scriptsize checks selected attacks and the FFI boundary}};
 
-% ─── Top layer: ProVerif (symbolic, design-level) ─────────────────────────
-\node[layer,fill=hhsand!50] (top) at (0,0)
-  {{\bfseries\large ProVerif --- Symbolic, Dolev--Yao adversary} \\[4pt]
-   \textit{Verifies properties of the protocol \emph{as designed}, ignoring implementation
-   details. The attacker controls the entire network.}\\[3pt]
-   {\bfseries Claims:} secrecy \quad$\cdot$\quad modeled authentication
-   correspondence \quad$\cdot$\quad attenuation.};
-\node[tool,anchor=north east,above=-3pt of top.north east,xshift=-6pt]
-  {ProVerif 2.05};
-
-% ─── Middle layer: Kani (bounded model check on Rust) ─────────────────────
-\node[layer,fill=hhsanddeep!55,below=22mm of top] (mid)
-  {{\bfseries\large Kani --- Bounded model checking, Rust source} \\[4pt]
-   \textit{Checks bounded source properties of the \texttt{harbor-card-rs} crate;
-   this is not an automatic refinement proof from the symbolic model.}\\[3pt]
-   {\bfseries Claims:} memory safety \quad$\cdot$\quad
-   secret-independent source branching \quad$\cdot$\quad
-   capability-subset correctness \quad$\cdot$\quad parser non-panic on adversarial input.};
-\node[tool,anchor=north east,above=-3pt of mid.north east,xshift=-6pt]
-  {Kani / CBMC};
-
-% ─── Bottom layer: Runtime conformance tests ─────────────────────────────
-\node[layer,fill=hhamber!28,below=22mm of mid] (bot)
-  {{\bfseries\large Runtime conformance --- deployed binary} \\[4pt]
-   \textit{Executes the formally verified attack vectors against the running daemon
-   (FFI-bridged Rust core + Node.js daemon).}\\[3pt]
-   {\bfseries Claims:} 5 attack patterns rejected \quad$\cdot$\quad
-   2 positive controls admitted \quad$\cdot$\quad FFI boundary preserves invariants.};
-\node[tool,anchor=north east,above=-3pt of bot.north east,xshift=-6pt]
-  {jest + cargo test};
-
-% Anchor points on the layer borders for arrows (left side for down arrows,
-% right side for up arrows).
-\coordinate (topDL) at ([xshift=-30mm]top.south);
-\coordinate (topDR) at ([xshift=20mm]top.south);
-\coordinate (midUL) at ([xshift=-30mm]mid.north);
-\coordinate (midUR) at ([xshift=20mm]mid.north);
-\coordinate (midDL) at ([xshift=-30mm]mid.south);
-\coordinate (midDR) at ([xshift=20mm]mid.south);
-\coordinate (botUL) at ([xshift=-30mm]bot.north);
-\coordinate (botUR) at ([xshift=20mm]bot.north);
-
-% ─── Down arrows: design obligations flow downward ──────────────────────
-\draw[->,>=Latex,thick,draw=hhcobalt] (topDL) -- (midUL);
-\draw[->,>=Latex,thick,draw=hhcobalt] (midDL) -- (botUL);
-\node[obligation,anchor=east] at ([xshift=-3mm]$(topDL)!0.5!(midUL)$)
-  {symbolic claim $\Downarrow$ \\ specification gap};
-\node[obligation,anchor=east] at ([xshift=-3mm]$(midDL)!0.5!(botUL)$)
-  {source-level claim $\Downarrow$ \\ deployment gap};
-
-% ─── Up arrows: implementation evidence flows upward ────────────────────
-\draw[->,>=Latex,thick,draw=hhteal] (botUR) -- (midDR);
-\draw[->,>=Latex,thick,draw=hhteal] (midUR) -- (topDR);
-\node[evidence,anchor=west] at ([xshift=3mm]$(midDR)!0.5!(botUR)$)
-  {$\Uparrow$ FFI conformance \\ binary realizes Rust core};
-\node[evidence,anchor=west] at ([xshift=3mm]$(midUR)!0.5!(topDR)$)
-  {$\Uparrow$ bounded source \\ evidence};
-
-% ─── Centerline bridge labels ──────────────────────────────────────────
-\node[bridgelbl] at ($(top.south)!0.5!(mid.north)$)
-  {\textsc{bridge:} symbolic $\to$ source};
-\node[bridgelbl] at ($(mid.south)!0.5!(bot.north)$)
-  {\textsc{bridge:} source $\to$ deployed};
-
-\end{tikzpicture}%
-}
-\caption{Assurance flows through three independently-checked layers connected by two bridges that a human, not a tool, asserts hold. ProVerif (top) discharges design-level
-obligations against a Dolev--Yao adversary. Kani (middle) checks bounded Rust
-source-level properties that overlap with, but do not refine the full symbolic model.
-Runtime conformance tests (bottom) exercise the FFI-bridged binary with selected
-attack vectors; they reduce rather than eliminate the deployment gap. Cobalt arrows show
-obligations flowing down (what each lower layer must preserve); teal arrows show
-evidence flowing back up. The unproved bridges remain explicit assurance-case
-assumptions rather than inferred theorems.}
+  \draw[flow] (spec.east) -- (source.west);
+  \draw[flow] (source.east) -- (runtime.west);
+  \draw[hhamber,line width=.75pt,dashed] (-2.35,-1.42) -- (-2.35,1.42);
+  \draw[hhamber,line width=.75pt,dashed] (2.35,-1.42) -- (2.35,1.42);
+  \node[font=\scriptsize\bfseries,text=hhamber,fill=hhpaper,inner xsep=3pt]
+    at (-2.35,1.62) {specification gap};
+  \node[font=\scriptsize\bfseries,text=hhamber,fill=hhpaper,inner xsep=3pt]
+    at (2.35,1.62) {deployment gap};
+  \draw[-{Stealth[length=2.2mm]},hhteal,line width=.8pt]
+    (runtime.south) -- ++(0,-9mm) -| (spec.south);
+  \node[font=\footnotesize\itshape,text=hhteal,below=9mm of source]
+    {runtime evidence narrows both gaps; it does not erase them};
+\end{tikzpicture}
+\caption{Assurance crosses two explicit gaps: a verified protocol model is not
+automatically the Rust implementation, and verified source is not automatically the
+deployed binary. Runtime evidence flows back across the same boundaries without
+turning either assumption into a theorem.}
 \label{fig:anchor-verification-stack}
 \end{figure}

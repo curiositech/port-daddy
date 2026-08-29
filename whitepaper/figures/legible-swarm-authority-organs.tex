@@ -1,50 +1,56 @@
-% Figure 5 — the authority half: the organs by which the Leviathan rules.
-% Design: one bold name + one italic line per organ; engineering detail lives
-% in the caption and Appendix A.
+% Figure 5 --- an authority matrix: six distinct mechanisms, one consent boundary.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.97\textwidth}{!}{%
+\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=40mm,
-                minimum height=14mm,align=center,inner sep=4pt,
-                font=\footnotesize,text width=36mm,fill=hhsand!30},
-  hub/.style={draw=hhebony,very thick,circle,fill=hhsand!30,minimum size=20mm,
-              align=center,font=\bfseries\footnotesize},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
+  font=\footnotesize,
+  boundary/.style={draw=hhebony,very thick,fill=hhebony,text=white,align=center,
+                   minimum height=9mm,font=\footnotesize\bfseries},
+  organ/.style={draw=hhgray,thick,fill=hhpaper,rounded corners=1pt,align=left,
+                minimum height=16mm,font=\footnotesize,text=hhink},
 ]
-\node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
+% A common boundary governs six non-interchangeable input-to-output mechanisms.
+\node[boundary,text width=143mm] (boundary) at (0,3.0)
+  {consented authority boundary $g$ \quad scope $\mid$ reason $\mid$ audit $\mid$ override};
+\draw[hhgray,thin] (-7.45,2.38) -- (7.45,2.38);
+\draw[hhgray,thin] (-7.45,-2.15) -- (7.45,-2.15);
 
-\node[organ] (road) at (-5.4,3.0)
-  {\textbf{Roadmap-as-truth}\\\emph{what the authority answers to}};
-\node[organ] (rev) at (0,3.6)
-  {\textbf{Adversarial review}\\\emph{conflict-free quality organ}};
-\node[organ] (done) at (5.4,3.0)
-  {\textbf{Completionist completion}\\\emph{verifier-gated ``done''}};
-\node[organ] (land) at (-5.4,-3.0)
-  {\textbf{Thoughtful landing}\\\emph{conflict-aware merge order}};
-\node[organ] (guard) at (0,-3.6)
-  {\textbf{Footgun guards}\\\emph{prevent, or detect \& compensate}};
-\node[organ] (esc) at (5.4,-3.0)
-  {\textbf{Escalation to human}\\\emph{typed, prioritized interrupt}};
+\node[organ,draw=hhamber,text width=43mm] (road) at (-5.0,1.15)
+  {\textbf{Roadmap-as-truth}\\[-1pt]\textcolor{hhgray}{roadmap evidence $\longrightarrow$ bounded priority}};
+\node[organ,draw=hhteal,text width=43mm] (review) at (0,1.15)
+  {\textbf{Adversarial review}\\[-1pt]\textcolor{hhgray}{competing claims $\longrightarrow$ conflict-free gate}};
+\node[organ,draw=hhink,text width=43mm] (done) at (5.0,1.15)
+  {\textbf{Completionist completion}\\[-1pt]\textcolor{hhgray}{acceptance predicates $\longrightarrow$ verified done}};
 
-\draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
-\draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);
+\node[organ,draw=hhink,text width=43mm] (land) at (-5.0,-0.9)
+  {\textbf{Thoughtful landing}\\[-1pt]\textcolor{hhgray}{conflict set $\longrightarrow$ merge order}};
+\node[organ,draw=hhamber,text width=43mm] (guard) at (0,-0.9)
+  {\textbf{Footgun guards}\\[-1pt]\textcolor{hhgray}{proposed act $\longrightarrow$ block or compensate}};
+\node[organ,draw=hhteal,text width=43mm] (esc) at (5.0,-0.9)
+  {\textbf{Escalation to human}\\[-1pt]\textcolor{hhgray}{typed interrupt $\longrightarrow$ operator decision}};
+
+\foreach \n in {road,review,done,land,guard,esc}{
+  \draw[hhgray,thin] (boundary.south -| \n) -- (\n.north);
+}
+\node[draw=hhteal,very thick,fill=hhteal!7,text width=143mm,minimum height=8mm,
+      align=center,font=\footnotesize] at (0,-2.82)
+  {\textbf{shared return:} every authority act emits a named reason and an addressable artifact};
 \end{tikzpicture}%
 }
-\caption{The authority half (\S\ref{sec:authority-rules}): six organs by which the
-consented daemon \emph{rules}. The legibility read-surfaces
-(Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these organs make the
-authority \emph{act} --- and, per the legible-sovereign rule
-(Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event. The
-engineering status of each organ is recorded in Appendix~\ref{app:honest}.}
+\caption{The authority half (\S\ref{sec:authority-rules}): six distinct mechanisms
+by which the consented daemon \emph{acts}. The common boundary is the recorded grant
+$g$: every mechanism takes a legible input, produces a bounded authority result,
+and returns a named reason with an addressable artifact. Roadmap-as-truth answers
+what authority is for; adversarial review, completion, landing, footgun guards, and
+human escalation each constrain a different kind of act. The engineering status of
+each mechanism is recorded in Appendix~\ref{app:honest}.}
 \label{fig:authority-organs}
 \end{figure}
