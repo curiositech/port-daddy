@@ -24,12 +24,12 @@ const expectedSha256 = {
 };
 
 const publicationSha256 = {
-  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf': '599f5b5389aae34a7cb6d7a42abcf3c967d813268bbd9f75087d5f381fc6e21e',
-  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf': 'c38ceed5075dd2d891d0a9926f5abd1833a138e8158f9af117d1e68a1eb82ca2',
-  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf': 'd54e817d88510367c8f2c755bc8c358934e0623d40c94b55fd00572a53f00076',
+  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf': '0f200e575f5624b8826a11c4170bf18bf1e591e1d54710b264b62dfdffb42636',
+  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf': 'd9b133dbfec97e19c00978c6bc6c5f923c62321f828d3c80e923133e0a6dbfee',
+  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf': '9b7b81a945954d6b55ac869c59c0bc579480ab59c7377222d999b9be113171b8',
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': '44e0d08b1b80557d89c53e5f0a34c79d3a73930b0c41c806440403785172d9f9',
   'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': 'dbd1ddaaa4665aa2c28701aab07082271a188eb0e0631a7dd658950c1db5cb6d',
-  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'fefdfe6deb4bb9d0115aa042f2f19d3fb26579d2ce54f75a48912b374cfecfdc',
+  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'ba7f29dfd1946a4f1bdc4a38720985e01562c495a0b6fc5579dd6a2fad7c2ba9',
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': '9d5db6a8464fbedaaa2daaa903145fc227a44a133b4ed5e6c51f4e2e28f7f5dd',
 };
 
