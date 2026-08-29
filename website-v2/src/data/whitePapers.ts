@@ -161,6 +161,7 @@ export interface CollectedVolume {
   title: string
   subtitle: string
   pdfPath: string
+  downloadUrl: string
   date: string
   pages: number
   sizeKb: number
@@ -171,11 +172,13 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   id: 'coordination-papers-mega-volume',
   title: 'The Port Daddy Coordination Papers',
   subtitle:
-    'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
+    'Seven chapters in one coherent illuminated edition, with the collected jacket, a new Chapter VII plate, selected coda art, collated references, an implementation ledger, and a research roadmap.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  downloadUrl:
+    'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
-  pages: 272,
-  sizeKb: 2266,
+  pages: 278,
+  sizeKb: 31665,
   references: 202,
 }
 
@@ -258,7 +261,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
     pages: 48,
-    sizeKb: 881,
+    sizeKb: 905,
     status: 'Version 1.2 (collected-volume edition)',
     order: '01',
     chapter: 'I',
@@ -371,7 +374,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
     pages: 40,
-    sizeKb: 787,
+    sizeKb: 783,
     status: 'Version 1.2 (collected-volume edition)',
     order: '02',
     chapter: 'II',
@@ -598,7 +601,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
     pages: 37,
-    sizeKb: 750,
+    sizeKb: 775,
     status: 'Version 1.3 (collected-volume edition)',
     order: '04',
     chapter: 'IV',
@@ -943,7 +946,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
     pages: 32,
-    sizeKb: 751,
+    sizeKb: 757,
     status: 'Version 1.0 (revised pre-print)',
     order: '07',
     chapter: 'VII',

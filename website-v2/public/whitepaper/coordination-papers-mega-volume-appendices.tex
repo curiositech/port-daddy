@@ -279,5 +279,44 @@ Under complete hypervisor mediation of all I/O channels and correct gate enforce
 \noindent\emph{Status.} Claim (1) is verified on a finite model (exhaustive two-run equivalence to interleaving depth 7, all secret pairs, schedule secret-independence checked separately; gate-bypass and leaky-gate mutations caught with witness traces); the unbounded form is the standard unwinding obligation. Claims (2) and (3), formerly carried as research-ledger items A3 and A4, are now executed. Claim (2) is discharged by the $\epsilon$-conservation result: the release ledger's single atomic append-and-add transition keeps $\sigma = \sum_i \epsilon_i \le \mathcal{E}_{\mathrm{budget}}$ invariant over every interleaving (exhaustive check of two racing clients, all 15 reachable states, plus 2000 randomized instances, 0 violations; induction lifts to concurrency via single-writer serialization; spend-without-append and torn-write mutations caught in 1 step, the torn write driving an auditable recorded over-spend in 3; \texttt{a3\_epsilon\_ledger.py}), with the sequential vs.\ advanced (Dwork--Rothblum--Vadhan) composition crossover telling the contract which DP accounting to quote. Claim (3) is discharged by the canary power/SPRT result: the $1-\beta^k$ line is verified at $k=1,2,5$; uniform planting of $c$ canaries in $n$ spans gives the hypergeometric operating curve $\Pr(\text{detect} \mid \text{leak of } m \text{ spans})$ (at $n{=}10^4$, $c{=}100$, $\beta{=}0.2$: $0.554$ at $m{=}100$, $0.999$ at $m{=}800$; exact, approximate, and simulated agree), and Wald's SPRT prices expected alarm latency for sustained leaks (analytic 297 vs.\ simulated 359 gate outputs under leak, realized error rates at or below targets; \texttt{a4\_canary\_sprt.py}). The statements above remain conditioned exactly as they must be --- on complete channel mediation and correct gate enforcement, which are the residual oracles.
 
 \clearpage
+\phantomsection
+\addcontentsline{toc}{part}{Coda: Selected Plates}
+\begin{center}
+  \vspace*{2.2cm}
+  {\scshape\footnotesize\color{hhgray} Port Daddy Coordination Papers}\par
+  \vspace{0.25cm}
+  {\color{hhcobalt}\rule{0.28\textwidth}{1.1pt}}\par
+  \vspace{0.55cm}
+  {\Huge\bfseries Coda}\par
+  \vspace{0.2cm}
+  {\Large\itshape Selected Plates}\par
+  \vspace{0.65cm}
+  \begin{minipage}{0.72\textwidth}
+    \small\color{hhgray}
+    The analytical figures in the seven chapters are source-owned arguments:
+    measured plots, schedules, matrices, state machines, and evidence maps.
+    These plates are something else. They are editorial interpretations of the
+    chapters, reproduced unaltered and kept here so atmosphere never has to do
+    the work of evidence.
+  \end{minipage}
+\end{center}
+
+\pdcodaplate{Chapter I \textperiodcentered\ The Legible Swarm}
+  {art/collected-volume/coda-chapter-i-legible-swarm.png}
+  {The operator's sight line cuts through a crowd without turning the crowd into one mind.}
+
+\pdcodaplate{Chapter II \textperiodcentered\ The Single-Writer Kernel}
+  {art/collected-volume/coda-chapter-ii-single-writer-kernel.png}
+  {One decisive writer is an architectural constraint, not a claim to omniscience.}
+
+\pdcodaplate{Chapter III \textperiodcentered\ From Spawn to Person}
+  {art/collected-volume/coda-chapter-iii-spawn-to-person.jpg}
+  {Continuity is the evidence-bearing spine that remains when a process ends.}
+
+\pdcodaplate{Chapter VI \textperiodcentered\ The Bonded Commons}
+  {art/collected-volume/coda-chapter-vi-bonded-commons.png}
+  {A commons is sustained by visible roots, bounded claims, and consequences that conserve value.}
+
+\clearpage
 \addcontentsline{toc}{section}{References}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
