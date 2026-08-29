@@ -386,21 +386,33 @@ We will defend exactly one dependency chain and locate precisely where Port
 Daddy's reality stops along it:
 \begin{center}
 \resizebox{0.97\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=38mm] (foundation) at (-6,0)
-    {\textbf{memory + checkpoint}\\{\scriptsize implemented \(\cdot\) partial}};
-  \node[stp box,minimum width=26mm] (continuity) at (-2.5,0)
-    {\textbf{continuity}};
-  \node[stp accent box,minimum width=39mm] (person) at (1.1,0)
-    {\textbf{a person, not a spawn}\\{\scriptsize needs the specified ledger}};
-  \node[stp box,minimum width=29mm] (reputation) at (4.8,0)
-    {\textbf{reputation}};
-  \node[stp box,minimum width=31mm] (asset) at (8.1,0)
-    {\textbf{tradeable asset}\\{\scriptsize Chapter IV}};
-  \draw[stp arrow] (foundation) -- (continuity);
-  \draw[stp accent arrow] (continuity) -- (person);
-  \draw[stp arrow] (person) -- (reputation);
-  \draw[stp arrow] (reputation) -- (asset);
+\begin{tikzpicture}[pd figure]
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-7.2,0) -- (7.2,0);
+  \foreach \x in {-6.4,-3.25,0,3.25,6.4}
+    \draw[pd guide] (\x,-.28) -- (\x,.28);
+
+  \node[pd datum] at (-6.4,0) {};
+  \node[pd caution datum] at (-3.25,0) {};
+  \node[pd caution datum] at (0,0) {};
+  \node[pd caution datum] at (3.25,0) {};
+  \node[pd caution datum] at (6.4,0) {};
+
+  \node[pd direct label,anchor=south,align=center] at (-6.4,.42)
+    {memory + checkpoint\\[-1pt]{\tiny implemented / partial}};
+  \node[pd direct label,anchor=north,align=center] at (-3.25,-.42)
+    {continuity\\[-1pt]{\tiny partial}};
+  \node[pd direct label,anchor=south,align=center] at (0,.42)
+    {a person, not a spawn\\[-1pt]{\tiny needs the specified ledger}};
+  \node[pd direct label,anchor=north,align=center] at (3.25,-.42)
+    {reputation\\[-1pt]{\tiny specified}};
+  \node[pd direct label,anchor=south,align=center] at (6.4,.42)
+    {tradeable asset\\[-1pt]{\tiny Chapter IV / proposed}};
+
+  \draw[pd caution rule,line width=1.25pt] (-3.25,1.02) -- (3.25,1.02);
+  \node[pd note,text=hhamber,anchor=south] at (0,1.11)
+    {unfinished bridge: persistence + witnessed outcomes};
+  \node[pd axis label,anchor=north west] at (-7.2,-1.16)
+    {dependency order; each right-hand claim requires everything to its left};
 \end{tikzpicture}}
 \end{center}
 Read left-to-right it is a roadmap; read right-to-left it is a stack of

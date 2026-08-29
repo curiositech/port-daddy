@@ -301,6 +301,179 @@ false reading that the selected geometry must prevent.
 - Color job: teal is the verified test trajectory and final comparison; amber
   hatching is the unproved binding-divergence surface.
 
+## Volume III — From Spawn to Person
+
+### III.1 — continuity bridge (`fig:stack`)
+
+- Reader question: which transformation turns a legible process into something a
+  market can price, and which neighboring chapters supply or consume it?
+- Selected grammar: an evidence staircase on one accumulating spine, with chapter
+  ownership shown by measured spans rather than stacked prose slabs.
+- Rejected alternative: a vertical architecture stack; it treats chapter order as
+  containment and makes the bridge a sixth box.
+- False reading to prevent: continuity is an optional market embellishment. The
+  staircase makes every downstream state depend on the persistent identity step.
+- Color job: teal carries earned evidence; amber isolates the still-incomplete
+  continuity-to-reputation span.
+
+### III.2 — role versus person (`fig:role-person`)
+
+- Reader question: what stays fixed when bodies change, and what accumulates when
+  one identity changes roles?
+- Selected grammar: paired longitudinal traces: repeated fillers through one role
+  slot versus one identity ribbon crossing several role intervals.
+- Rejected alternative: a role card beside a chain of person cards; the prose
+  labels state the distinction without showing persistence.
+- False reading to prevent: the role itself earns reputation, or one process body
+  must remain alive. Only the identity ribbon carries witnessed outcomes forward.
+- Color job: teal is the persistent accountable thread; neutral marks are
+  replaceable role fillers.
+
+### III.3 — Parfitian continuity (`fig:parfit`)
+
+- Reader question: how can continuity be transitive when no incarnation directly
+  remembers the first?
+- Selected grammar: overlapping incarnation intervals aligned to witness marks and
+  a derived transitive ledger rail.
+- Rejected alternative: a stair-step of episode boxes; diagonal placement made
+  overlap look like handoff choreography rather than set intersection.
+- False reading to prevent: a shared process label or asserted memory establishes
+  continuity. Only adjacent witnessed overlap advances the rail.
+- Color job: teal is witnessed overlap and the derived chain; amber is a visible
+  no-overlap counterexample.
+
+### III.4 — three continuity organs (`fig:organs`)
+
+- Reader question: after a process dies, what does each organ preserve, and at
+  what evidentiary strength?
+- Selected grammar: three synchronized survival traces crossing a process-death
+  boundary.
+- Rejected alternative: an input/rule/output matrix; it turned temporal survival
+  into twelve prose cells.
+- False reading to prevent: a forwarded summary is execution state, or episodic
+  memory is admissible reputation evidence. The traces end at different depths.
+- Color job: teal is durable retained evidence; amber is the checkpoint gap between
+  summary continuity and execution-state restoration.
+
+### III.5 — honest maturity state (`fig:honest-state`)
+
+- Reader question: where does each claimed mechanism actually sit between shipped
+  and merely envisioned?
+- Selected grammar: grouped maturity dot plot on one ordered axis.
+- Rejected alternative: a twelve-row table; it allocates most ink to prose and
+  hides the distribution of maturity.
+- False reading to prevent: a designed mechanism is implemented, or a partial
+  substrate is reputation-grade. Shape and fill redundantly encode each status.
+- Color job: teal is built; amber hatch is partial; open neutral marks are designed
+  or vision, separated by axis position.
+
+### III.6 — whitewashing and Sybil cost (`fig:sybil`)
+
+- Reader question: how does principal-bound identity change both sanction escape
+  and quorum multiplication?
+- Selected grammar: paired attack-response plots: sanction retained over respawns
+  and voting weight over aliases.
+- Rejected alternative: two rows of identity boxes; it represented attacks as
+  names and arrows rather than as changes in attacker payoff.
+- False reading to prevent: daemon minting alone solves cross-operator identity, or
+  newcomer friction removes work capability. The plots bind the effect to one
+  principal and to economic ceiling only.
+- Color job: amber is the free-reset/free-replication attack curve; teal is the
+  principal-bound invariant.
+
+### III.7 — local and cross-operator identity (`fig:keystone`)
+
+- Reader question: which identity evidence crosses an operator boundary, and
+  where does the proof chain actually stop?
+- Selected grammar: aligned evidence rails crossing a marked trust boundary, with
+  the principal-binding rail visibly broken.
+- Rejected alternative: a two-column evidence table; it made scope look like a
+  checklist rather than a boundary-crossing property.
+- False reading to prevent: witness-log integrity binds a foreign key to a distinct
+  accountable principal. Log visibility continues; principal binding does not.
+- Color job: teal is evidence that remains verifiable; amber is the broken binding
+  segment.
+
+### III.8 — estimator family (`fig:estimators`)
+
+- Reader question: which estimator matches the topology of the observed signal?
+- Selected grammar: three small-multiple signal topologies: comparison graph,
+  directed trust network, and buyer-feedback distribution.
+- Rejected alternative: signal boxes connected to estimator boxes; it made the
+  signal type a reading exercise and erased topology.
+- False reading to prevent: Elo, EigenTrust, and marketplace feedback are
+  interchangeable score recipes. Each name sits under the data shape it requires.
+- Color job: teal marks observed relations; amber marks the full-history regime
+  selected for this harbor.
+
+### III.9 — four breaks in the bandit frame (`fig:not-bandit`)
+
+- Reader question: which assumptions make private routing bandit-shaped but make
+  public reputation a different problem?
+- Selected grammar: four paired diagnostic microplots: drift, vector outcome,
+  strategic response, and produced reward.
+- Rejected alternative: assumption/reality/tool table; it made four structural
+  breaks look like glossary entries.
+- False reading to prevent: the paper rejects all bandit methods. A separate
+  surviving exploration rail keeps private routing in scope.
+- Color job: neutral ink is the bandit ideal; amber shows each public-market break;
+  teal marks the bounded private-routing use.
+
+### III.10 — multidimensional reputation (`fig:multidim`)
+
+- Reader question: why must the three judged axes remain a vector until a buyer
+  applies a preference?
+- Selected grammar: parallel-coordinate outcome profiles followed by two buyer
+  weighting projections that reverse the preferred outcome.
+- Rejected alternative: three independent dot rows; it showed dimensions but not
+  the decision loss caused by premature scalarization.
+- False reading to prevent: the axes can be averaged once for everyone. The same
+  two outcomes reverse under legitimate buyer preferences.
+- Color job: teal and amber distinguish the two outcomes, redundantly carried by
+  line style and direct labels.
+
+### III.11 — neutral-judge market (`fig:judge-market`)
+
+- Reader question: where are neutrality and accountability established in the
+  judge-hiring ceremony?
+- Selected grammar: eligibility funnel feeding one horizontal ceremony, with an
+  aligned bond-exposure rail and a later re-audit return.
+- Rejected alternative: a swimlane table; time labels did not create motion and
+  the cells hid selection pressure.
+- False reading to prevent: selecting a reputable judge is sufficient. Conflicts
+  are removed before selection and bond exposure persists after the grade.
+- Color job: teal is verified eligibility and witnessed grade; amber is bond at
+  risk and the overturn path.
+
+### III.12 — rate-the-raters contraction (`fig:rate-raters`)
+
+- Reader question: what makes recursive auditing finite, and what remains outside
+  the theorem?
+- Selected grammar: logarithmic corruption-opportunity contraction curves for
+  heterogeneous and monoculture audit pools, ending at an explicit honest-root
+  boundary.
+- Rejected alternative: an upward tower of audit boxes beside equations; height
+  implied progress without showing contraction rate.
+- False reading to prevent: adding levels alone closes recursion, or the theorem
+  supplies the honest root. The plotted curves contract only under sealed sampling
+  and stop at a separately labeled root obligation.
+- Color job: teal is heterogeneous contraction; amber is the slower monoculture
+  case and the unresolved root boundary.
+
+### III.13 — tombstone compensation (`fig:tombstone`)
+
+- Reader question: how can an append-only ledger retract fraud while bounding the
+  time its reputation remains spendable?
+- Selected grammar: aligned immutable-entry timeline and reputation-contribution
+  step function, with the propagation window measured as $\tau$.
+- Rejected alternative: a provenance tree with crossed-out nodes; it showed
+  descendants but not append-only time or the spendable fraud window.
+- False reading to prevent: tombstoning deletes history or makes the fraud window
+  zero. The original remains on the ledger while its contribution drops only after
+  propagation.
+- Color job: amber is active fraudulent contribution and propagation delay; teal
+  is the corrected score after receipt.
+
 ## Corpus-wide controls
 
 - Neutral ink carries structure. Teal means verified, selected, conserved, or
