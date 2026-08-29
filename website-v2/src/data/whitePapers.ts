@@ -174,8 +174,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
     'Seven chapters in one coherent illuminated edition, with the collected jacket, a new Chapter VII plate, selected coda art, collated references, an implementation ledger, and a research roadmap.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
-  pages: 280,
-  sizeKb: 35831,
+  pages: 278,
+  sizeKb: 31665,
   references: 202,
 }
 

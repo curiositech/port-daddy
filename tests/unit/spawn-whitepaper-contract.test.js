@@ -30,7 +30,7 @@ const publicationSha256 = {
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': '44e0d08b1b80557d89c53e5f0a34c79d3a73930b0c41c806440403785172d9f9',
   'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': 'dbd1ddaaa4665aa2c28701aab07082271a188eb0e0631a7dd658950c1db5cb6d',
   'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'fefdfe6deb4bb9d0115aa042f2f19d3fb26579d2ce54f75a48912b374cfecfdc',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': 'b56c605cd2bd90a02dc294951c9b32c8bc73e4fa10f96dfc54c1124dc5091240',
+  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': '9d5db6a8464fbedaaa2daaa903145fc227a44a133b4ed5e6c51f4e2e28f7f5dd',
 };
 
 function text(path) {

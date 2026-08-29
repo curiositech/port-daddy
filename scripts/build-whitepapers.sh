@@ -102,8 +102,6 @@ paper_sources() {
       "$srcdir/art/collected-volume/coda-chapter-i-legible-swarm.png" \
       "$srcdir/art/collected-volume/coda-chapter-ii-single-writer-kernel.png" \
       "$srcdir/art/collected-volume/coda-chapter-iii-spawn-to-person.jpg" \
-      "$srcdir/art/collected-volume/coda-chapter-iv-harbor-economy.png" \
-      "$srcdir/art/collected-volume/coda-chapter-v-anchor-protocol.png" \
       "$srcdir/art/collected-volume/coda-chapter-vi-bonded-commons.png"
     paper_sources "whitepaper" "legible-swarm.tex"
     paper_sources "whitepaper" "single-writer-kernel.tex"
