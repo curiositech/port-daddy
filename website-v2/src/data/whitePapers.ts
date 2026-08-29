@@ -161,6 +161,7 @@ export interface CollectedVolume {
   title: string
   subtitle: string
   pdfPath: string
+  downloadUrl: string
   date: string
   pages: number
   sizeKb: number
@@ -173,6 +174,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   subtitle:
     'Seven chapters in one coherent illuminated edition, with the collected jacket, a new Chapter VII plate, selected coda art, collated references, an implementation ledger, and a research roadmap.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  downloadUrl:
+    'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
   pages: 278,
   sizeKb: 31665,
