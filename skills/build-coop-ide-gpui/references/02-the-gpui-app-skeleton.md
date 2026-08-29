@@ -374,7 +374,7 @@ To close the loop with the battle plan, the skeleton-to-Harbor map:
 | P1 buffer + Loro | `EditorPane`'s backing store | Swap disk `lines` → `LoroDoc`/`LoroText`; gutter colors by PeerID. **Same `Pane` impl, same `Block` output.** |
 | P2 LAN multiplayer | `Subscription`/`on_stream` (`pane.rs:71`/`:118`) + the lane SSE pipeline (`main.rs:277`) | Loro Protocol frames ride the existing tube SSE; `on_stream` folds remote ops. |
 | P3 claims (the wedge) | `Editor { region }` + `Tone::Conflicted`/`Gated` (`pane.rs:16`) + `ControlMsg` | `region` becomes the claimed range; a `ControlMsg::ClaimRegion` [planned] POSTs the claim; overlap paints a `Conflicted` band. |
-| P3.5 salvage | `ControlMsg` + `control_flash` | `ControlMsg::Salvage` [planned] → `/recovery/consume`. |
+| P3.5 salvage | `ControlMsg` + `control_flash` | Future only: a recovery action may be added after the typed receipt, canonical Rust Loro, verified scope, and atomic P3 transfer authorities land. The current `/editor/recovery/{request,prepare,replay,finalize}` routes are 503-only scaffolding, so no enabled `ControlMsg::Salvage` exists. |
 | Track B viz | a custom-paint `SurfaceKind` hosting a `canvas()`/wgpu pass | Owned by `gpui-shaders`; the skeleton only supplies the leaf. |
 
 The discipline that makes this map cheap is the one this whole doc argues for: **a pure pane tree, one object-safe surface contract, and a two-channel membrane between data and render.** Build those right and the Harbor Editor is assembly, not invention.

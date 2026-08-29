@@ -68,10 +68,12 @@ import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { buildHandoffFromTranscript } from './lib/dispatch/handoff-from-transcript.js';
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
+import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -114,6 +116,7 @@ import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
+import { createParleyStore } from './lib/parley-store.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
@@ -212,7 +215,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.30.4';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.5';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -701,9 +704,21 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
 });
 // The local daemon is one tenant. CAP0 owns any future authenticated tenant
 // binding; request data must never choose this STORE0 authority.
+const parleyStore = createParleyStore({ db, tenantId: 'local-daemon' });
+if (parleyStore.legacyMigration && !parleyStore.legacyMigration.replayed) {
+  logger.info('parley_legacy_tuple_migration_completed', {
+    migrationVersion: parleyStore.legacyMigration.migrationVersion,
+    sourceDigest: parleyStore.legacyMigration.sourceDigest,
+    sourceTupleRows: parleyStore.legacyMigration.sourceTupleRows,
+    importedRecords: parleyStore.legacyMigration.importedRecords,
+    importedTurns: parleyStore.legacyMigration.importedTurns,
+    importedSeenReceipts: parleyStore.legacyMigration.importedSeenReceipts,
+    importedSeenProvenance: parleyStore.legacyMigration.importedSeenProvenance,
+    importedOutcomes: parleyStore.legacyMigration.importedOutcomes,
+  });
+}
 const parley = createParley({
-  db,
-  tenantId: 'local-daemon',
+  store: parleyStore,
   agentInbox,
   notificationRecovery: {},
 });
@@ -735,7 +750,24 @@ const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
-const sugar = createSugar({ agents, sessions: sugarSessions, activityLog, roadmapItems, feedback, commitments });
+/**
+ * Resolve one predecessor's bounded continuity projection for every daemon
+ * entry point. The design purpose is to keep fresh-begin, takeover, and
+ * salvage flows evidence-led instead of replaying an unbounded transcript.
+ *
+ * @param sourceSessionId - Durable predecessor session identifier to revalidate.
+ * @returns The verified plan-plus-packet projection, or an explicit withheld state.
+ */
+const contextBootstrapLookup = (sourceSessionId: string) => loadLatestVerifiedContextBootstrap(db, sourceSessionId);
+const sugar = createSugar({
+  agents,
+  sessions: sugarSessions,
+  activityLog,
+  roadmapItems,
+  feedback,
+  commitments,
+  contextBootstrapLookup,
+});
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -1021,6 +1053,18 @@ const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 
   : 5000;
 // Optional model pin for dispatch work. Absent → the CLI's authenticated default.
 const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
+// Cross-backend failover (ADR-0131). OFF unless the operator turns it on: it
+// mints a second body — and spends a second time — with nobody in the loop, so
+// it is a deliberate choice, not a default. When on, the successor's warm brief
+// comes from the dead body's own transcript through the fail-closed sanitizer;
+// if that cannot be produced the successor runs cold with the original goal
+// rather than not running at all.
+const DISPATCH_FAILOVER_ENABLED = process.env.PD_DISPATCH_FAILOVER === 'true';
+const DISPATCH_FAILOVER_CHAIN = (process.env.PD_DISPATCH_FAILOVER_CHAIN ?? '')
+  .split(',')
+  .map((b) => b.trim())
+  .filter(Boolean);
+
 const dispatchWorker = DISPATCH_WORKER_ENABLED
   ? createDispatchWorker({
       queue: dispatchQueue,
@@ -1029,6 +1073,25 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       pollIntervalMs: DISPATCH_POLL_MS,
       workIntentService,
       model: DISPATCH_MODEL,
+      ...(DISPATCH_FAILOVER_ENABLED
+        ? {
+            failover: {
+              enabled: true,
+              ...(DISPATCH_FAILOVER_CHAIN.length
+                ? { preferredChain: DISPATCH_FAILOVER_CHAIN }
+                : {}),
+              buildHandoff: async ({ dispatch, fromBackend, toBackend }) => {
+                const handoff = await buildHandoffFromTranscript({
+                  dispatch,
+                  fromBackend,
+                  toBackend,
+                  deps: { transcripts },
+                });
+                return handoff ? { goal: handoff.goal, episodeId: handoff.episodeId } : null;
+              },
+            },
+          }
+        : {}),
       // THE INJECTION POINT: spawn every dispatch through the Conductor.
       spawnAdapter: createConductorSpawnAdapter(conductor),
     })
@@ -1630,6 +1693,7 @@ await registerAllRoutes(
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
+    contextBootstrapLookup,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

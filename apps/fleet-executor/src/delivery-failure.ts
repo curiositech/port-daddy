@@ -386,14 +386,15 @@ export function deadLetterSummary(
   const base =
     `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
     `dead-lettered). This gate is failed rather than left stuck in-progress.`;
-  // Resume progress (src/ship-checkpoint.ts): a dead-letter that completed N
-  // ships before the loss should say so — it tells the operator a DLQ replay
-  // will resume from ship N+1, not restart, and it distinguishes "died at the
-  // first ship" from "died one ship short of done".
+  // Retained checkpoint progress (src/ship-checkpoint.ts): a dead-letter that
+  // completed N ships before the loss should say so. The DLQ cannot know the
+  // later delivery's trusted config/contract/graft snapshot, so it must never
+  // promise reuse; the next execution revalidates every retained row before
+  // deciding whether it can resume.
   const progress =
     checkpointedShips > 0
-      ? `\n\n${checkpointedShips} ship(s) completed and checkpointed before the loss — a DLQ ` +
-        `replay of this delivery resumes past them instead of re-running the whole fleet.`
+      ? `\n\n${checkpointedShips} ship(s) completed and checkpointed before the loss. A later ` +
+        `replay revalidates their current trusted policy and prompt before it can resume past them.`
       : '';
   const continuationProgress =
     intentionalContinuations > 0

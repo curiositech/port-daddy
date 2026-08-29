@@ -15,6 +15,10 @@ import {
   type IdentityVerifier,
   type IdentityWriteVerdict,
 } from '../lib/identity-write-boundary.js';
+import {
+  projectContextContinuation,
+  type ContextBootstrapLookup,
+} from '../lib/sugar.js';
 
 interface StaleAgent {
   id: string;
@@ -61,6 +65,12 @@ interface ResurrectionRouteDeps {
    * bound to a different soul is 403.
    */
   actorSouls?: IdentityVerifier | null;
+  /**
+   * Read-only exact-session bridge to compaction evidence. A salvage claim
+   * remains usable without it, but never synthesizes continuity from notes or
+   * agent similarity when the daemon has not wired verified packet lookup.
+   */
+  contextBootstrapLookup?: ContextBootstrapLookup;
 }
 
 /**
@@ -72,7 +82,7 @@ interface ResurrectionRouteDeps {
 // Fastify plugin (dual-export)
 // =============================================================================
 export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, resurrection, messaging, actorSouls } = opts.deps;
+  const { logger, metrics, resurrection, messaging, actorSouls, contextBootstrapLookup } = opts.deps;
 
   /**
    * The strict identity gate for every salvage mutation.
@@ -172,6 +182,20 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
         return { error: result.error };
       }
 
+      // Claim is post-auth at this point. The queue's durable agent and
+      // context must agree on one predecessor session before it is eligible
+      // for a continuation lookup; a request-body id never participates.
+      const agentSessionId = typeof result.agent?.sessionId === 'string'
+        ? result.agent.sessionId
+        : null;
+      const contextSessionId = typeof result.context?.sessionId === 'string'
+        ? result.context.sessionId
+        : null;
+      const contextContinuation = projectContextContinuation(
+        agentSessionId && agentSessionId === contextSessionId ? agentSessionId : null,
+        contextBootstrapLookup,
+      );
+
       messaging.publish('salvage', JSON.stringify({
         event: 'claimed',
         agentId,
@@ -180,7 +204,7 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
       }));
 
       logger.info('salvage_claimed', { agentId, claimedByActorId: identity.verdict.actorId });
-      return result;
+      return { ...result, contextContinuation };
     } catch (error) {
       metrics.errors++;
       logger.error('salvage_claim_failed', { error: (error as Error).message });

@@ -6,7 +6,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -18,7 +18,7 @@
   font=\small,
   lane/.style={font=\footnotesize\bfseries},
   op/.style={draw=hhebony,thick,rounded corners=2pt,minimum height=7mm,align=center,font=\scriptsize},
-  lp/.style={circle,fill=hhcobalt,inner sep=1.6pt},
+  lp/.style={circle,fill=hhamber,inner sep=1.6pt},
 ]
 
 % time axis
@@ -48,7 +48,7 @@
 
 % vertical guides at LPs
 \foreach \p in {lpa,lpb,lprel,lpc} {
-  \draw[hhcobalt,dotted] (\p) -- (\p|-0,-6mm);
+  \draw[hhamber,dotted] (\p) -- (\p|-0,-6mm);
 }
 
 % the linearization order strip

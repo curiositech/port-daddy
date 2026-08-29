@@ -27,6 +27,12 @@ This skill turns a claim into a tested figure through four gates:
 3. compose it with a measured TikZ layout system; and
 4. render, inspect, revise, and retain the review record.
 
+For a canonical Port Daddy whitepaper figure whose semantic form is not yet approved, activate
+`whitepaper-figure-system` first and apply its stable atlas row or cross-volume reuse contract.
+Return here once the reader question, required evidence, counter-reading, and representation
+family are settled. This skill owns TikZ source, typography, spacing, rendering, page fit, and
+contact sheets; `whitepaper-figure-system` owns what the figure must mean.
+
 Run the local tool before trusting a figure:
 
 ```bash

@@ -1,40 +1,41 @@
-% Fig 3 — Parfitian continuity (transitive chain) vs Lockean connectedness (direct, non-transitive).
+% Figure III.3 --- continuity is carried by witnessed overlap, not a permanent subject.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
-% (no red/green accent: the palette below stays monochrome-plus-cobalt on purpose)
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[font=\small,node distance=34mm]
-\node[stp box,text width=31mm] (b) {incarnation 1\\{\scriptsize the ``boy''}};
-\node[stp box,text width=31mm,right=of b] (o) {incarnation 2\\{\scriptsize the ``officer''}};
-\node[stp box,text width=31mm,right=of o] (g) {incarnation 3\\{\scriptsize the ``general''}};
-
-% Direct memory connectedness (overlapping but NOT transitive)
-\draw[stp arrow] (b.north east) to[bend left=20]
-  node[stp label] {remembers} (o.north west);
-\draw[stp arrow] (o.north east) to[bend left=20]
-  node[stp label] {remembers} (g.north west);
-\draw[draw=hhgray,line width=0.55pt,dashed]
-  (b.south) to[bend right=15] node[stp label] {no direct memory required} (g.south);
-\draw[decorate,decoration={brace,mirror,amplitude=5pt},draw=hhcobalt,line width=0.8pt]
-  ([yshift=-15mm]b.south west) -- ([yshift=-15mm]g.south east)
-  node[midway,below=5mm,font=\footnotesize\bfseries,text=hhcobalt]
-  {continuity is the transitive overlapping chain};
-\end{tikzpicture}}
-\caption{\textbf{Continuity vs.\ connectedness.} Direct memory connectedness
-(the solid top arcs) overlaps but is not transitive --- the general need not
-remember being the boy (Reid's objection, the dashed arc). Parfit's repair:
-\emph{continuity}, the overlapping \emph{chain} of links, \textbf{is} transitive,
-and it is what survives. Reputation must accumulate across arbitrarily many
-incarnations, so it can only attach to the transitive thing --- the
-\textbf{witnessed-outcome ledger}, not the memory stream.}
+\resizebox{0.90\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize,
+  ep/.style={draw=hhgray,thick,fill=hhpaper,rounded corners=2pt,minimum height=8mm,align=center,font=\footnotesize,text=hhink},
+  overlap/.style={draw=hhteal,very thick,fill=hhteal!10,rounded corners=1pt,minimum height=8mm,align=center,font=\footnotesize\bfseries,text=hhink},
+]
+\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,0.55) {episode};
+\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-0.72) {witness};
+\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-1.99) {episode};
+\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-3.26) {witness};
+\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-4.53) {episode};
+\draw[hhgray,thin] (-4.9,0.1) -- (7.1,0.1);
+\draw[hhgray,thin] (-4.9,-2.44) -- (7.1,-2.44);
+\draw[hhgray,thin] (-4.9,-4.98) -- (7.1,-4.98);
+\node[ep,text width=42mm] at (-2.8,0.55) {incarnation 1\\witnessed outcomes $o_1,o_2$};
+\node[ep,text width=42mm] at (0.7,-1.99) {incarnation 2\\witnessed outcomes $o_2,o_3$};
+\node[ep,text width=42mm] at (4.2,-4.53) {incarnation 3\\witnessed outcomes $o_3,o_4$};
+\node[overlap,text width=32mm] at (-1.05,-0.72) {$o_2$ overlaps};
+\node[overlap,text width=32mm] at (2.45,-3.26) {$o_3$ overlaps};
+\draw[hhteal,very thick,-{Latex[length=2mm]}] (0.6,-0.72) -- (1.8,-1.42);
+\draw[hhteal,very thick,-{Latex[length=2mm]}] (4.1,-3.26) -- (4.15,-3.95);
+\node[draw=hhamber,very thick,fill=hhamber!8,text width=145mm,minimum height=9mm,align=center,font=\footnotesize] at (0.75,-6.15)
+ {transitive continuity: $o_1,o_2 \leadsto o_2,o_3 \leadsto o_3,o_4$; no permanent substrate is assumed};
+\end{tikzpicture}%
+}
+\caption{Continuity through overlapping episodes. Each incarnation carries witnessed
+outcomes; adjacent incarnations overlap on evidence, and those overlaps establish a
+transitive provenance chain. A gap without shared witness does not inherit the
+chain, so continuity is not inferred from a process label or an asserted memory.}
 \label{fig:parfit}
 \end{figure}

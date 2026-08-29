@@ -9,7 +9,12 @@ import {
   type SquidConformanceFacts,
   type SquidProviderConformance,
 } from '../../lib/squid/conformance.js';
-import { CODEX_PD_MARKER, REGISTERED_TENTACLES, TENTACLES } from '../../lib/squid/hook-shape.js';
+import {
+  CODEX_PD_MARKER,
+  REGISTERED_TENTACLES,
+  TENTACLES,
+  registeredTentaclesForProvider,
+} from '../../lib/squid/hook-shape.js';
 
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-conformance-selftest', `jest-${process.pid}`);
 
@@ -169,12 +174,15 @@ describe('Giant Squid conformance', () => {
     mkdirSync(join(pdHome, 'squid'), { recursive: true });
 
     const hookCommands = REGISTERED_TENTACLES.map((name) => ({ hooks: [{ type: 'command', command: `/gate/${name}` }] }));
+    const claudeHookCommands = registeredTentaclesForProvider('claude')
+      .map((name) => ({ hooks: [{ type: 'command', command: `/gate/${name}` }] }));
     writeFileSync(join(workspace, '.claude', 'settings.json'), JSON.stringify({
       statusLine: { command: '/gate/pd-statusline' },
       hooks: {
-        UserPromptSubmit: [hookCommands[0]],
-        PreToolUse: [hookCommands[1]],
-        Stop: [hookCommands[2]],
+        UserPromptSubmit: [claudeHookCommands[0]],
+        PreToolUse: [claudeHookCommands[1]],
+        Stop: [claudeHookCommands[2]],
+        PreCompact: [claudeHookCommands[3]],
         SessionStart: [{ hooks: [
           { type: 'command', command: '/gate/sessionstart-pilot.mjs' },
           { type: 'command', command: 'pd attention --json' },

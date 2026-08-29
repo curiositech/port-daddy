@@ -126,6 +126,39 @@ Port Daddy therefore emits no aggregate numeric conformance level: mechanics,
 discovery, transcript fidelity, and observed execution remain independently
 inspectable facts.
 
+### Interactive compaction evidence
+
+Interactive context pressure is a separate, deliberately narrow witness. Claude
+Code has the only registered interactive producer pair: a `UserPromptSubmit`
+turn-time refresh, which can return bounded `additionalContext`, and the verified
+`PreCompact` checkpoint. Both send bounded lifecycle metadata, never usage or raw
+transcript text, to the local daemon. PreCompact may block a manual missing-plan
+compaction but does not claim to deliver a warning through its discarded
+`systemMessage` or `continue` fields. Registration alone grants no packet authority: before any event is
+recorded, the daemon must resolve a daemon-owned provider-session → active,
+verified `pd plan` binding. The hook cannot select a plan from ambient
+`PD_SESSION_ID`; an unbound provider session is `provider-session-unbound` with
+no receipt or packet. After binding, the absence of a trusted daemon/provider
+measurement is `measurement-unavailable`; only then may an adapter-equipped
+daemon apply `max(provider, daemon)` when a separately witnessed provider report
+exists, or use its known daemon measurement. A cited packet additionally needs
+the current durable plan checkpoint and daemon-owned complete tool-pair coverage;
+unavailable or malformed coverage is `packet-withheld`. The default daemon wires
+no operational binding or usage/tool-pair witnesses, so it issues no interactive
+packet. Codex, Gemini, and agy have no simulated PreCompact registration. An
+explicit governed packet-derived continuation reads the durable plan plus bounded
+packet handles, never an exported provider transcript; it is not process
+resurrection and the hook does not itself launch a successor.
+
+Each trusted adapter measurement carries an opaque daemon-owned
+`measurementRef`. The daemon binds that reference, plus any accepted native
+measurement time, into the observation identity. A retry of the same watermark
+replays its existing envelope and packet; a later adapter or durable-ledger
+watermark creates a new boundary even when rounded usage and plan revision have
+not changed. The durable fallback watermark is derived only from the same
+bounded provider-work rows it measures, never from the plan, coverage, envelope,
+or packet receipts it writes itself.
+
 ## Discovery Probe
 
 `pd backend adapters --probe` is deliberately side-effect-free. It may:

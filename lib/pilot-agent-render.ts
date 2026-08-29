@@ -43,12 +43,24 @@ export interface PilotConfig {
   description: string;
   version?: string;
   color?: string;
+  /**
+   * Per-surface model intent.
+   *
+   * `claude_local` is a CLI short-alias (the value the local `claude` binary
+   * takes on `--model`), which is why it is a bare string and why the
+   * no-hardcoded-model-ids guard exempts this module. Every other surface
+   * declares a CAPABILITY and resolves through resolveModel() — the entries
+   * used to be vendor display strings ("Gemini 3.1 Pro (High)") and one stale
+   * API id, none of which any renderer read, so they drifted silently for as
+   * long as they existed. A declaration nothing consumes still has to be true,
+   * because the next person to consume it will believe it.
+   */
   model?: {
     claude_local?: string;
     claude_cloud?: unknown;
-    codex?: string;
-    gemini?: string;
-    antigravity?: string;
+    codex?: { capability?: string };
+    gemini?: { capability?: string };
+    antigravity?: { capability?: string };
   };
   skills?: string[];
   tools?: {

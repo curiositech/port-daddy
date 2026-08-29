@@ -156,7 +156,54 @@ impl MissionViewModel {
     }
 }
 
-pub fn blocks(model: &MissionViewModel, live_work: &[Block]) -> Vec<Block> {
+/// Compact, read-only launch evidence drawn from the console's existing live
+/// Health, Activity, and Cost panes. The Work receipt does not issue a second
+/// daemon request or guess a status; it projects the same refresh cycle the
+/// operator can inspect in full elsewhere.
+pub fn launch_observability_blocks(
+    health: &[Block],
+    activity: &[Block],
+    ledger: &[Block],
+) -> Vec<Block> {
+    let health_status = health.iter().find_map(|block| match block {
+        Block::Chip { label, .. } if label.starts_with("status:") => Some(block.clone()),
+        _ => None,
+    });
+    let recent_activity = activity.iter().find_map(|block| match block {
+        Block::Row(parts) if !parts.is_empty() => Some(parts.join(" · ")),
+        Block::KeyVal(key, value) if key == "status" || key == "error" => {
+            Some(format!("{key}: {value}"))
+        }
+        _ => None,
+    });
+    let recent_cost = ledger.iter().find_map(|block| match block {
+        Block::Chip { label, .. } if label.starts_with("spent (24h)") => Some(block.clone()),
+        Block::Chip { label, .. } if label == "cost data unavailable" => Some(block.clone()),
+        _ => None,
+    });
+
+    if health_status.is_none() && recent_activity.is_none() && recent_cost.is_none() {
+        return Vec::new();
+    }
+
+    let mut out = vec![Block::Gap, Block::Header("Launch observability".into())];
+    if let Some(status) = health_status {
+        out.push(status);
+    }
+    if let Some(activity) = recent_activity {
+        out.push(Block::KeyVal("recent activity".into(), activity));
+    }
+    if let Some(cost) = recent_cost {
+        out.push(cost);
+    }
+    out
+}
+
+pub fn blocks(
+    model: &MissionViewModel,
+    live_work: &[Block],
+    launch_observability: &[Block],
+) -> Vec<Block> {
     if model.intent_id.is_none() {
         return vec![
             Block::Header("What should Port Daddy do?".into()),
@@ -200,6 +247,8 @@ pub fn blocks(model: &MissionViewModel, live_work: &[Block]) -> Vec<Block> {
         });
     }
 
+    out.extend(launch_observability.iter().cloned());
+
     if !live_work.is_empty() && model.agent_id.is_some() {
         out.push(Block::Gap);
         out.push(Block::Header("Live work".into()));
@@ -226,7 +275,7 @@ mod tests {
 
     #[test]
     fn empty_screen_asks_for_an_outcome_in_plain_language() {
-        let rendered = blocks(&MissionViewModel::empty(), &[]);
+        let rendered = blocks(&MissionViewModel::empty(), &[], &[]);
         assert!(
             matches!(rendered[0], Block::Header(ref text) if text == "What should Port Daddy do?")
         );
@@ -250,6 +299,7 @@ mod tests {
                 text: "running tests".into(),
                 tone: Tone::Accent,
             }],
+            &[],
         );
         assert!(rendered.iter().any(|block| matches!(block, Block::KeyVal(key, value) if key == "agent" && value == "spawned-codex-7")));
         assert!(rendered
@@ -275,7 +325,7 @@ mod tests {
             })),
             ..MissionViewModel::default()
         };
-        let rendered = blocks(&model, &[]);
+        let rendered = blocks(&model, &[], &[]);
         assert!(rendered.iter().any(
             |block| matches!(block, Block::ArtifactRef { path, .. } if path.ends_with("/pull/123"))
         ));
@@ -322,5 +372,35 @@ mod tests {
         assert_eq!(model.backend.as_deref(), Some("cli:codex"));
         assert_eq!(model.model.as_deref(), Some("receipt-model-v1"));
         assert_eq!(model.branch.as_deref(), Some("codex/mission-3"));
+    }
+
+    #[test]
+    fn launch_observability_projects_the_live_panes_without_inventing_values() {
+        let rendered = launch_observability_blocks(
+            &[Block::Chip {
+                label: "status: healthy".into(),
+                tone: Tone::Landed,
+            }],
+            &[Block::Row(vec![
+                "now".into(),
+                "spawn.started".into(),
+                "agent-7".into(),
+                "running checks".into(),
+            ])],
+            &[Block::Chip {
+                label: "spent (24h)  $1.25".into(),
+                tone: Tone::Accent,
+            }],
+        );
+
+        assert!(rendered
+            .iter()
+            .any(|block| matches!(block, Block::Header(text) if text == "Launch observability")));
+        assert!(rendered.iter().any(
+            |block| matches!(block, Block::KeyVal(key, value) if key == "recent activity" && value.contains("spawn.started"))
+        ));
+        assert!(rendered.iter().any(
+            |block| matches!(block, Block::Chip { label, .. } if label == "spent (24h)  $1.25")
+        ));
     }
 }

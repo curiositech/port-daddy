@@ -51,6 +51,18 @@ export interface WorkIntentPayload extends HarborPayload {
       reviewerActorId?: string;
       mergePolicy?: MergePolicy;
       requestedBy?: string;
+      /**
+       * Cross-backend succession (ADR-0131). Carried through the intent rather
+       * than written onto the dispatch row afterwards, because a successor is a
+       * governed launch like any other — the worker's intent gate refuses an
+       * orphan row, so a successor written directly to the queue would be
+       * claimed and then rejected at the exact moment recovery mattered.
+       */
+      predecessorDispatchId?: string;
+      failoverAttempt?: number;
+      failoverFromBackend?: string;
+      handoffEpisodeId?: string;
+      failoverChain?: string[];
     };
   };
 }
@@ -109,6 +121,12 @@ export interface CaptureDispatchInput {
   requestedBy?: string;
   idempotencyKey?: string;
   autoClaim?: boolean;
+  /** Cross-backend succession fields, set only by the failover path. */
+  predecessorDispatchId?: string;
+  failoverAttempt?: number;
+  failoverFromBackend?: string;
+  handoffEpisodeId?: string | null;
+  failoverChain?: string[];
 }
 
 export interface CaptureResult {
@@ -354,6 +372,15 @@ function materializeDispatchProjectionFromIntent(
     mergePolicy: projection?.mergePolicy ?? (reviewRequired ? 'review' : 'never'),
     requestedBy: projection?.requestedBy ?? intent.operator,
     createdAt: millisFromIso(intent.createdAt),
+    ...(projection?.predecessorDispatchId
+      ? { predecessorDispatchId: projection.predecessorDispatchId }
+      : {}),
+    ...(projection?.failoverAttempt ? { failoverAttempt: projection.failoverAttempt } : {}),
+    ...(projection?.failoverFromBackend
+      ? { failoverFromBackend: projection.failoverFromBackend }
+      : {}),
+    ...(projection?.handoffEpisodeId ? { handoffEpisodeId: projection.handoffEpisodeId } : {}),
+    ...(projection?.failoverChain?.length ? { failoverChain: projection.failoverChain } : {}),
   });
 }
 
@@ -467,6 +494,15 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
           reviewerActorId: input.reviewerActorId,
           mergePolicy: input.mergePolicy,
           requestedBy: input.requestedBy,
+          ...(input.predecessorDispatchId
+            ? { predecessorDispatchId: input.predecessorDispatchId }
+            : {}),
+          ...(input.failoverAttempt ? { failoverAttempt: input.failoverAttempt } : {}),
+          ...(input.failoverFromBackend
+            ? { failoverFromBackend: input.failoverFromBackend }
+            : {}),
+          ...(input.handoffEpisodeId ? { handoffEpisodeId: input.handoffEpisodeId } : {}),
+          ...(input.failoverChain?.length ? { failoverChain: input.failoverChain } : {}),
         },
       },
     });

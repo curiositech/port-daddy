@@ -1,67 +1,93 @@
-% Magic-link single-use atomicity — inline in §sec:federated-sovereign.
+% Magic-link single-use atomicity as a two-consumer race on one time axis.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
+\resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
+  x=1cm,y=1cm,
   font=\small,
-  actor/.style={draw=hhebony,fill=hhsand,rounded corners=2pt,
-                inner sep=5pt,minimum width=20mm,minimum height=9mm,
-                thick,align=center},
-  ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
-             align=center,font=\footnotesize},
-  capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
-                 minimum height=8mm,inner sep=2pt,
-                 font=\bfseries\footnotesize,text=hhcobalt},
-  sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
-              inner sep=6pt,align=center,font=\footnotesize},
-  ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt,
-             font=\footnotesize},
-  msg/.style={->,>=Latex,thick,draw=hhink},
-  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  mlbl/.style={font=\footnotesize,inner sep=1pt,fill=hhpaper},
-  badlbl/.style={font=\footnotesize\itshape,text=hhcobalt,
-                 inner sep=1pt,fill=hhpaper},
+  >=Latex,
+  lane/.style={draw=hhsanddeep,line width=.65pt},
+  request/.style={->,draw=hhink,thick},
+  success/.style={->,draw=hhteal,very thick},
+  reject/.style={->,draw=maydayred,thick,dashed},
+  tag/.style={draw=hhebony,fill=hhpaper,rounded corners=2pt,
+              inner xsep=7pt,inner ysep=4pt,align=center},
+  outcome/.style={rounded corners=2pt,inner xsep=7pt,inner ysep=4pt,
+                  align=center,font=\footnotesize\bfseries},
 ]
-\node[ch,fill=hhpaper] (pub) at (5.0,5.2) {public channel \texttt{pub} (Dolev-Yao)};
-\node[actor] (issuer) at (-1.4,2.6) {\textbf{Issuer}};
-\node[ev,below=10mm of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
-\node[ch] (chTk) at (5.0,3.4) {private channel \texttt{ch\_tk}};
-\node[capbox,below=4mm of chTk] (capBox) {cap};
-\node[sql,below=4mm of capBox,minimum width=60mm] (sql)
-  {\textbf{atomic UPDATE} \emph{(SQLite serializes writers)}\\[2pt]
-   \texttt{UPDATE recovery\_tokens}\\
-   \texttt{SET consumed\_at=? WHERE token=?}\\
-   \texttt{AND consumed\_at IS NULL RETURNING *}};
-\node[actor] (consumer) at (11.0,2.6) {\textbf{Consumer}};
-\node[ev,below=22mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
-\node[actor,fill=hhpaper,draw=hhcobalt,
-      below=42mm of consumer.south] (consumer2)
-  {\textbf{2nd Consumer}};
-\draw[msg] (issuer.east) -- (chTk.west)
-  node[mlbl,pos=0.5] {\texttt{out(ch\_tk, ())}};
-\draw[msg] (issuer.north) |- (pub.west)
-  node[mlbl,pos=0.55,above] {\texttt{out(pub, mkLink)}};
-\draw[msg] (pub.east) -| (consumer.north);
-\draw[msg] (chTk.south) -- (capBox.north);
-\draw[msg] (capBox.south) -- (sql.north);
-\draw[msg] (sql.east) -| (consumer.south)
-  node[mlbl,pos=0.55,below] {\texttt{in(ch\_tk, cap)}};
-\draw[bad] (sql.south) |- (consumer2.west);
-\node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
-\draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);
-\draw[->,>=Latex,thick,draw=hhteal,dotted] (consumer.south) -- (eConsume.north);
+
+% Context strip and shared time axis.
+\node[draw=hhebony,fill=hhsand,rounded corners=3pt,thick,
+      minimum width=132mm,minimum height=9mm,align=center]
+  at (7.5,4.45)
+  {one issued token $tk$, bound to account $a$ \quad\textbullet\quad initial state: \texttt{consumed\_at IS NULL}};
+
+\draw[->,thick,draw=hhink] (1.7,3.65) -- (14.25,3.65)
+  node[right,font=\footnotesize] {time};
+\foreach \x/\lab in {2.7/$t_0$,5.2/$t_1$,7.7/$t_2$,11.3/$t_3$} {
+  \draw[draw=hhink] (\x,3.57) -- (\x,3.73);
+  \node[above,font=\footnotesize] at (\x,3.73) {\lab};
+}
+
+% Four aligned lanes.
+\node[anchor=east,font=\bfseries] at (1.55,2.75) {Consumer A};
+\node[anchor=east,font=\bfseries] at (1.55,1.75) {Consumer B};
+\node[anchor=east,font=\bfseries] at (1.55,0.55) {Token row};
+\node[anchor=east,font=\bfseries] at (1.55,-0.65) {Audit row};
+\foreach \y in {2.75,1.75,0.55,-0.65}
+  \draw[lane] (1.75,\y) -- (14.05,\y);
+
+% Concurrent requests converge only at the explicitly marked atomic drain.
+\node[tag,anchor=west] (callA) at (2.05,2.75) {present $tk$};
+\node[tag,anchor=west] (callB) at (2.35,1.75) {present the same $tk$};
+\draw[request] (callA.east) -- (7.15,2.75);
+\draw[request] (callB.east) -- (7.15,1.75);
+\node[font=\footnotesize\itshape,text=hhink,anchor=south]
+  at (4.75,3.03) {requests overlap};
+
+\fill[hhamber!9] (7.15,3.25) rectangle (8.25,-1.02);
+\draw[draw=hhamber,thick] (7.15,3.25) -- (7.15,-1.02);
+\draw[draw=hhamber,thick] (8.25,3.25) -- (8.25,-1.02);
+\node[rotate=90,font=\footnotesize\bfseries,text=hhamber]
+  at (7.70,0.98) {ATOMIC DRAIN};
+\node[anchor=north east,font=\scriptsize,align=right,text=hhamber]
+  at (7.55,-1.16) {one serialized SQL writer\\returns at most one row};
+
+% The token row makes the only state transition explicit.
+\draw[draw=hhink,very thick] (2.0,0.55) -- (7.15,0.55);
+\node[fill=white,inner xsep=4pt,font=\footnotesize] at (4.55,0.55)
+  {available};
+\draw[success] (8.25,0.55) -- (13.55,0.55);
+\node[fill=white,inner xsep=4pt,font=\footnotesize,text=hhteal]
+  at (10.85,0.55) {consumed by A};
+
+% Outcomes share the same drain point; no free-form routing.
+\draw[success] (8.25,2.75) -- (10.15,2.75);
+\node[outcome,draw=hhteal,fill=hhteal!6,text=hhteal,anchor=west]
+  (ok) at (10.15,2.75) {SUCCESS\\one returned row};
+\draw[reject] (8.25,1.75) -- (10.15,1.75);
+\node[outcome,draw=maydayred,fill=maydayred!5,text=maydayred,anchor=west]
+  (no) at (10.15,1.75) {REJECT\\zero returned rows};
+
+% Durable evidence records both decisions without granting a second success.
+\draw[success] (8.25,-0.65) -- (9.35,-0.65);
+\node[tag,draw=hhteal,anchor=west,font=\footnotesize]
+  at (9.35,-0.65) {receipt: $tk\mapsto A$};
+\node[anchor=north west,font=\scriptsize\itshape,text=hhink]
+  at (8.42,-1.16) {durable result: exactly one consumer};
+
 \end{tikzpicture}%
 }
-\caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
+\caption{Single-use magic-link race. Consumers A and B present the same account-bound token during one overlap window. Their transactions meet at one visible atomic drain: the first serialized update changes the token row from available to consumed and returns one row; the second observes the durable state and returns zero rows. The shared time axis exposes the concurrency and the serialization point that a two-arrow icon would hide.}
 \label{fig:magic-link-inline}
 \end{figure}

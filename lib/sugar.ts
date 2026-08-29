@@ -9,6 +9,7 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
+import type { VerifiedContextBootstrapLookup } from './agent-harbor/context-continuity.js';
 
 /** How recent an agent heartbeat counts as "a live process is driving this session right now". */
 const SESSION_DRIVING_TTL_MS = 180_000;
@@ -124,6 +125,162 @@ interface SugarDeps {
   gitOriginChecker?: GitOriginChecker;
   feedback?: FeedbackModule;
   commitments?: CommitmentsModule;
+  /**
+   * Read-only verified-context boundary supplied by the composition root. It
+   * is intentionally optional while older daemon embeddings lack the M6
+   * ledger, so a missing capability returns `none` rather than inventing a
+   * transcript-derived continuation.
+   */
+  contextBootstrapLookup?: ContextBootstrapLookup;
+}
+
+/**
+ * Exact-session lookup seam for the compaction ledger. A caller may ask only
+ * about a predecessor that the surrounding session operation has already
+ * proven; this function never performs identity, task, or workspace matching.
+ */
+export type ContextBootstrapLookup = (sourceSessionId: string) => VerifiedContextBootstrapLookup;
+
+/**
+ * Bounded entry-path continuation returned to a new or takeover session.
+ * `ready` contains just the verified packet identifiers and last checkpointed
+ * plan, not a raw provider transcript or the packet's cited excerpts.
+ */
+export type ContextContinuationProjection =
+  | { status: 'none' }
+  | {
+      status: 'withheld';
+      sourceSessionId: string;
+      packetId: string | null;
+      reason: 'verified-context-bootstrap-withheld' | 'verified-context-bootstrap-invalid';
+    }
+  | {
+      status: 'ready';
+      sourceSessionId: string;
+      packet: {
+        packetId: string;
+        createdAt: string;
+        sourceHeadEventId: string;
+        sourceHeadHash: string;
+        transcriptEventId: string | null;
+        contextEnvelopeRef: string | null;
+      };
+      planCheckpoint: {
+        transcriptEventId: string;
+        content: string;
+        capturedAt: string;
+      };
+    };
+
+const MAX_ENTRY_CONTEXT_ID_BYTES = 512;
+const MAX_ENTRY_CONTEXT_PLAN_BYTES = 16 * 1024;
+
+/**
+ * Project a verified compaction lookup into the small continuation contract
+ * that session entry paths may expose. The design validates the injected
+ * lookup again at the boundary: a malformed fixture or stale adapter is
+ * `withheld`, never a reason to substitute notes or raw transcript material.
+ *
+ * @param sourceSessionId - The exact predecessor established by the caller's
+ *   successful takeover or salvage operation.
+ * @param lookup - Optional daemon-owned lookup over the append-only ledger.
+ * @returns A bounded `none`, `ready`, or `withheld` continuation projection.
+ */
+export function projectContextContinuation(
+  sourceSessionId: string | null | undefined,
+  lookup?: ContextBootstrapLookup,
+): ContextContinuationProjection {
+  const source = typeof sourceSessionId === 'string' ? sourceSessionId.trim() : '';
+  if (!source || !lookup) return { status: 'none' };
+
+  try {
+    const result = lookup(source);
+    if (result.status === 'none') return { status: 'none' };
+    if (result.sourceSessionId !== source) {
+      return {
+        status: 'withheld',
+        sourceSessionId: source,
+        packetId: null,
+        reason: 'verified-context-bootstrap-invalid',
+      };
+    }
+    if (result.status === 'withheld') {
+      return {
+        status: 'withheld',
+        sourceSessionId: source,
+        packetId: typeof result.packetId === 'string'
+          && Buffer.byteLength(result.packetId, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+          ? result.packetId
+          : null,
+        reason: 'verified-context-bootstrap-withheld',
+      };
+    }
+
+    const { packet, bootstrap } = result;
+    const checkpoint = bootstrap.planCheckpoint;
+    const packetFields = [
+      packet.packetId,
+      packet.createdAt,
+      packet.sourceTranscript.headEventId,
+      packet.sourceTranscript.headHash,
+    ];
+    const checkpointIsBounded = checkpoint !== null && (
+      typeof checkpoint.transcriptEventId === 'string'
+      && typeof checkpoint.content === 'string'
+      && typeof checkpoint.capturedAt === 'string'
+      && Buffer.byteLength(checkpoint.transcriptEventId, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+      && Buffer.byteLength(checkpoint.capturedAt, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+      && Buffer.byteLength(checkpoint.content, 'utf8') <= MAX_ENTRY_CONTEXT_PLAN_BYTES
+    );
+    const packetIsBounded = packetFields.every((value) => typeof value === 'string'
+      && value.trim().length > 0
+      && Buffer.byteLength(value, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES);
+    const contextEnvelopeRef = typeof packet.trigger.contextEnvelopeRef === 'string'
+      && Buffer.byteLength(packet.trigger.contextEnvelopeRef, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+      ? packet.trigger.contextEnvelopeRef
+      : null;
+    if (
+      !packetIsBounded
+      || !checkpointIsBounded
+      || packet.sessionId !== source
+      || bootstrap.sessionId !== source
+      || bootstrap.packet.packetId !== packet.packetId
+      || !packet.validator.passed
+      || !bootstrap.revalidation.passed
+    ) {
+      return {
+        status: 'withheld',
+        sourceSessionId: source,
+        packetId: null,
+        reason: 'verified-context-bootstrap-invalid',
+      };
+    }
+
+    return {
+      status: 'ready',
+      sourceSessionId: source,
+      packet: {
+        packetId: packet.packetId,
+        createdAt: packet.createdAt,
+        sourceHeadEventId: packet.sourceTranscript.headEventId,
+        sourceHeadHash: packet.sourceTranscript.headHash,
+        transcriptEventId: packet.transcriptEventId ?? null,
+        contextEnvelopeRef,
+      },
+      planCheckpoint: {
+        transcriptEventId: checkpoint.transcriptEventId,
+        content: checkpoint.content,
+        capturedAt: checkpoint.capturedAt,
+      },
+    };
+  } catch {
+    return {
+      status: 'withheld',
+      sourceSessionId: source,
+      packetId: null,
+      reason: 'verified-context-bootstrap-invalid',
+    };
+  }
 }
 
 interface BeginOptions {
@@ -598,6 +755,13 @@ export function createSugar(deps: SugarDeps) {
             if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
             if (rent.roadmapCreated) resumed.roadmapCreated = true;
             if (rent.roadmapExisting) resumed.roadmapExisting = true;
+            // The takeover result, not a caller-provided field, proves which
+            // predecessor may contribute bounded context. A missing/invalid
+            // lookup remains `none`/`withheld`; it never falls back to notes.
+            resumed.contextContinuation = projectContextContinuation(
+              typeof takeoverRes.predecessorId === 'string' ? takeoverRes.predecessorId : null,
+              deps.contextBootstrapLookup,
+            );
 
             // Auto-enroll commitment for takeover
             if (deps.commitments) {
@@ -677,6 +841,13 @@ export function createSugar(deps: SugarDeps) {
           if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
           if (rent.roadmapCreated) resumed.roadmapCreated = true;
           if (rent.roadmapExisting) resumed.roadmapExisting = true;
+          // Re-attaching a harness to this exact durable session makes that
+          // session the explicit continuation source. It is never discovered
+          // by identity, workspace, agent, or prior-note similarity.
+          resumed.contextContinuation = projectContextContinuation(
+            resumedSessionId,
+            deps.contextBootstrapLookup,
+          );
           if (decision.warn === 'driven-elsewhere') {
             resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
           }
@@ -856,6 +1027,9 @@ export function createSugar(deps: SugarDeps) {
     if (rent.sidequestReason) response.sidequestReason = rent.sidequestReason;
     if (rent.roadmapCreated) response.roadmapCreated = true;
     if (rent.roadmapExisting) response.roadmapExisting = true;
+    // Fresh begin has no proven lineage. In particular, it must not search
+    // for a similar-looking historical session and attach its packet.
+    response.contextContinuation = { status: 'none' };
 
     // Include file claims if present
     if (sessionResult.files) {

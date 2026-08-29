@@ -1,34 +1,29 @@
-% Fig 13 — append a compensating tombstone; never rewrite settled history.
+% Figure III.13 --- revocation is an appended provenance fact with recomputation.
 \begin{figure}[H]
 \centering
 \resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=29mm] (e1) at (-6,0)
-    {outcome $o_1$\\{\scriptsize honest}};
-  \node[stp box,minimum width=29mm] (e2) at (-3,0)
-    {outcome $o_2$\\{\scriptsize honest}};
-  \node[stp box,minimum width=29mm] (e3) at (0,0)
-    {outcome $o_3$\\{\scriptsize fraudulent}};
-  \node[stp box,minimum width=29mm] (e4) at (3,0)
-    {outcome $o_4$\\{\scriptsize honest}};
-  \node[stp accent box,minimum width=34mm] (t) at (6.4,0)
-    {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
-  \draw[stp arrow] (e1) -- (e2);
-  \draw[stp arrow] (e2) -- (e3);
-  \draw[stp arrow] (e3) -- (e4);
-  \draw[stp accent arrow] (e4) -- (t);
-  \draw[stp dashed arrow] (t.north) .. controls +(0,12mm) and +(0,12mm) .. (e3.north);
-  \node[stp label] at (3.2,1.25) {compensating saga entry};
+\begin{tikzpicture}[font=\footnotesize,
+  record/.style={draw=hhink,line width=.55pt,fill=hhsand!18,rounded corners=2pt,minimum height=9mm,text width=29mm,align=center,inner sep=4pt},
+  affected/.style={record,draw=hhamber!92,fill=hhamber!11},
+  stable/.style={record,draw=hhteal!82,fill=hhteal!8},
+]
+  \node[record] (root) at (0,2.2) {root authorization\\[-1pt]\textsc{recorded}};
+  \node[affected] (bad) at (0,.35) {outcome $o_3$\\[-1pt]\textsc{fraudulent ancestor}};
+  \node[stable] (sib) at (5.0,.35) {sibling $s$\\[-1pt]\textsc{independent input}};
+  \node[affected] (d1) at (-2.55,-1.5) {derived outcome $d_1$\\[-1pt]\textsc{recompute}};
+  \node[affected] (d2) at (.45,-1.5) {derived outcome $d_2$\\[-1pt]\textsc{recompute}};
+  \node[stable] (keep) at (5.0,-1.5) {unaffected result\\[-1pt]\textsc{retains reference}};
+  \node[affected,text width=37mm] (stone) at (0,-3.45) {append tombstone $t(o_3)$\\[-1pt]\textsc{nullify and recompute; do not delete}};
+  \draw[hhink,line width=.65pt] (root) -- (bad);
+  \draw[hhteal,line width=.65pt] (root) -- (sib);
+  \draw[hhamber,line width=.75pt] (bad) -- (d1);
+  \draw[hhamber,line width=.75pt] (bad) -- (d2);
+  \draw[hhteal,line width=.65pt] (sib) -- (keep);
+  \draw[hhamber,line width=.85pt,-{Stealth[length=2.2mm,width=1.4mm]}] (bad.south) -- (stone.north);
+  \draw[hhamber,line width=.85pt] (bad.north west) -- (bad.south east);
+  \draw[hhamber,line width=.85pt] (bad.south west) -- (bad.north east);
+  \node[font=\footnotesize\itshape,text=hhamber,anchor=west] at (.35,-2.55) {the record remains inspectable; only its derivations change};
 \end{tikzpicture}}
-\caption{\textbf{Tombstone revocation on an append-only ledger} (never mutate in
-place). A fraudulent outcome is not deleted (that would break append-only and
-auditability); it is nullified by an appended \emph{tombstone} --- a saga-style
-compensating entry --- which propagates across harbors bounded by the
-revocation-convergence window (Chapter~IV); the poisoned point was spendable only
-during that window. ``Reputation never ends'' is corrected to: monotone in
-\emph{honest} outcomes (they are never silently erased), individually revocable via
-tombstone, with bounded memory (Liu--Skrzypacz) as a tunable parameter rather than a
-virtue --- $\infty$-memory freezes types and removes the incentive to keep
-performing.}
+\caption{\textbf{Tombstone revocation on an append-only provenance tree.} A fraudulent ancestor is not deleted: an appended \emph{tombstone} nullifies that record and requires its dependent outcomes to be recomputed. An independent sibling retains its reference. This preserves auditability while making individual outcomes revocable; memory length remains a tunable parameter rather than a claim that reputation is permanently monotone.}
 \label{fig:tombstone}
 \end{figure}
