@@ -1,65 +1,62 @@
-% Figure 3 — digest-with-zoom vs the Potemkin digest.
-% Left: a legible digest line whose every claim zooms to a verifiable artifact.
-% Right: a Potemkin tile whose summary terminates (no zoom path) — the Normalbaum.
-% Design: artifact boxes spaced so they cannot collide; the zeta verdicts live
-% in the caption, not under the panels. Palette discipline: the broken zoom path is
-% carried by DASHING plus its label, never by a second hue — hhcobalt is the one
-% "pay attention here" accent program-wide (see also fig-cascade).
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 3 — a reachability comparison. Evidence is represented as material
+% marks; the decisive difference is whether the summary has a total zoom path.
 \begin{figure}[H]
 \centering
-\resizebox{0.97\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  tile/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=46mm,
-               minimum height=11mm,align=center,inner sep=4pt},
-  art/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
-              minimum width=26mm,align=center,inner sep=4pt,font=\footnotesize},
-  zoom/.style={-{Latex[length=2mm]},hhteal,thick},
-  dead/.style={-{Latex[length=2mm]},hhink,thick,dashed},
-]
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=west] at (.15,4.55) {digest as lens};
+  \node[pd panel title,anchor=west] at (8.35,4.55) {digest as facade};
 
-% ─── LEFT: legibility-with-zoom (good) ───────────────────────────────────
-\begin{scope}
-  \node[font=\bfseries,text=hhink] at (3.0,3.7) {Digest-with-zoom $(\sigma,\zeta)$};
-  \node[tile,fill=hhsand!30] (sum) at (3.0,2.5)
-    {\textbf{state}: PR \#123 ``auth refactor''\\\emph{merged} $\cdot$ 1 critique round};
-  \node[art] (a1) at (0.0,0.5) {the diff\\(on disk)};
-  \node[art] (a2) at (3.0,0.5) {test log\\(green, verbatim)};
-  \node[art] (a3) at (6.0,0.5) {commit\\+ claim row};
-  \draw[zoom] (sum.south) -- (a1.north);
-  \draw[zoom] (sum.south) -- (a2.north);
-  \draw[zoom] (sum.south) -- (a3.north);
-\end{scope}
+  \draw[pd rule,rounded corners=2pt] (.15,3.55) rectangle (7.15,4.16);
+  \node[anchor=west,font=\footnotesize] at (.42,3.855)
+    {PR 123 \enspace auth refactor \enspace merged \enspace 1 critique};
+  \draw[pd rule,rounded corners=2pt] (8.35,3.55) rectangle (15.35,4.16);
+  \node[anchor=west,font=\footnotesize] at (8.62,3.855)
+    {ALL GREEN \enspace everything is fine};
 
-% ─── RIGHT: Potemkin digest (bad) ────────────────────────────────────────
-\begin{scope}[shift={(10.2,0)}]
-  \node[font=\bfseries,text=hhink] at (2.4,3.7) {Potemkin digest (Normalbaum)};
-  \node[tile,fill=hhsand!30] (psum) at (2.4,2.5)
-    {\textbf{all green}\\``everything is fine''};
-  \node[draw=hhink,thick,dashed,rounded corners=2pt,fill=hhpaper,
-        minimum width=40mm,align=center,inner sep=4pt,
-        font=\footnotesize,text=hhink] (void) at (2.4,0.5)
-    {(paraphrased away:\\diff, test, reasoning)};
-  \draw[dead] (psum.south) -- (void.north);
-\end{scope}
+  \coordinate (aperture) at (3.65,2.95);
+  \draw[pd focus rule,line width=1.2pt] (3.30,2.95) arc[start angle=180,end angle=360,x radius=.35,y radius=.14];
+  \draw[pd focus rule,line width=1.2pt] (3.30,2.95) arc[start angle=180,end angle=0,x radius=.35,y radius=.14];
+  \node[pd axis label,text=hhteal,anchor=east] at (3.18,2.95) {$\zeta$};
+  \draw[pd focus arrow] (3.65,3.55)--(aperture);
 
-\end{tikzpicture}%
-}
-\caption{The one law (Def.~\ref{def:zoom}) made concrete. \emph{Left}: a legible
-digest line summarizes only administrative \textbf{state} and exposes a total zoom
-$\zeta$ --- every claim reaches an operator-verifiable artifact (diff, test log,
-commit) --- m\^etis preserved, the lie catchable. \emph{Right}: the Potemkin digest
-paraphrases the work away; $\zeta$ is partial, the summary became a
-\emph{replacement} rather than a \emph{lens}, and the tile asserts a reality with no
-zoom path back to ground truth. This is Scott's \emph{Normalbaum}: gloriously
-legible to the yield table, fatal because it erased what it could not see.}
+  \coordinate (diff) at (1.10,.98);
+  \coordinate (test) at (3.65,.98);
+  \coordinate (commit) at (6.20,.98);
+  \draw[pd focus arrow] (aperture)--(diff);
+  \draw[pd focus arrow] (aperture)--(test);
+  \draw[pd focus arrow] (aperture)--(commit);
+
+  \draw[pd rule] (.55,.58) rectangle (1.65,1.38);
+  \foreach \y in {.74,.98,1.22}{\draw[pd hairline] (.70,\y)--(1.50,\y);}
+  \node[pd axis label,anchor=north] at (1.10,.47) {diff on disk};
+  \draw[pd rule] (3.05,.58) rectangle (4.25,1.38);
+  \draw[pd focus rule] (3.18,.98)--(3.35,1.16)--(3.58,.78)--(3.82,1.18)--(4.10,.98);
+  \node[pd axis label,anchor=north] at (3.65,.47) {verbatim test};
+  \draw[pd rule] (5.55,.58)--(6.85,.58)--(6.85,1.38)--(5.55,1.38)--cycle;
+  \node[font=\scriptsize\ttfamily] at (6.20,1.02) {8f31c2};
+  \node[pd axis label,anchor=north] at (6.20,.47) {commit + claim};
+
+  \draw[pd caution arrow] (11.85,3.55)--(11.85,2.92);
+  \draw[pd caution rule,line width=1.25pt] (8.70,2.72)--(15.0,2.72);
+  \node[pd direct label,text=hhamber,anchor=south] at (11.85,2.84)
+    {summary terminates};
+  \foreach \x/\glyph in {9.55/removed regression,11.85/failed stderr,14.15/unreviewed change}{
+    \draw[pd guide] (\x,2.66)--(\x,1.45);
+    \node[pd caution datum] at (\x,1.18) {};
+    \node[pd axis label,anchor=north,align=center] at (\x,.88) {\glyph};
+  }
+
+  \draw[decorate,decoration={brace,amplitude=4pt},pd hairline]
+    (.45,.15)--(6.85,.15);
+  \node[pd note,anchor=north] at (3.65,-.02) {every claim resolves to evidence};
+  \draw[decorate,decoration={brace,amplitude=4pt},pd hairline]
+    (8.70,.15)--(15.0,.15);
+  \node[pd note,anchor=north] at (11.85,-.02) {evidence exists; the surface cannot reach it};
+\end{tikzpicture}
+\caption{Two equally calm summaries with different reachability. The legible
+digest defines a total zoom function $\zeta$: each summarized claim resolves to
+the diff, verbatim test, or committed claim. The facade terminates at its own
+assertion while contrary evidence remains below the boundary. A safe summary is
+therefore an index into evidence, never its replacement.}
 \label{fig:zoom-vs-potemkin}
 \end{figure}

@@ -1,44 +1,39 @@
-% Figure 6 --- the carrier, typed act, and two independent provenance records.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 6 — one message cross-section with two orthogonal provenance traces.
 \begin{figure}[H]
 \centering
 \resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize,
-  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=9mm,font=\footnotesize\bfseries},
-  carrier/.style={draw=hhamber,very thick,fill=hhamber!8,align=left,minimum height=18mm,font=\footnotesize,text=hhink},
-  act/.style={draw=hhteal,very thick,fill=hhteal!7,align=left,minimum height=18mm,font=\footnotesize,text=hhink},
-  cell/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=18mm,font=\footnotesize,text=hhink},
-]
-\node[head,text width=39mm] at (-5.55,0.1) {carrier envelope};
-\node[head,text width=41mm] at (-1.2,0.1) {typed speech act};
-\node[head,text width=35mm] at (2.85,0.1) {durable cursor};
-\node[head,text width=35mm] at (6.7,0.1) {verification boundary};
-
-\node[carrier,text width=39mm] at (-5.55,-1.6) {\textbf{bus}\quad implemented\\durable, ordered, at-least-once carrier};
-\node[act,text width=41mm] at (-1.2,-1.6) {\textbf{performative}\quad specified\\conversation id, reply deadline, coordination lineage};
-\node[cell,text width=35mm] at (2.85,-1.6) {history cursor\\replay begins at an addressable position};
-\node[cell,text width=35mm] at (6.7,-1.6) {message receipt\\actor, reason, and event reference};
-
-\node[carrier,text width=39mm] at (-5.55,-3.85) {\textbf{stigmergic marker}\\numeric coordination signal with read-time decay};
-\node[cell,text width=41mm] at (-1.2,-3.85) {\textbf{authorization chain}\\hop-bound signatures answer \emph{who authorized whom}};
-\node[cell,text width=35mm] at (2.85,-3.85) {\textbf{coordination lineage}\\task ancestry answers \emph{what is already in flight}};
-\node[act,text width=35mm] at (6.7,-3.85) {\textbf{two checks, never one bare ``chain''}\\verify authority; detect loops};
-
-\node[draw=hhteal,very thick,fill=hhteal!7,text width=153mm,minimum height=9mm,align=center,font=\footnotesize] at (0.55,-5.85)
- {the carrier is implemented; the semantics ride inside it; provenance remains separately inspectable};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \pdfigaxis{1.0}{.55}{14.0}{durable history cursor}
+  \foreach \x in {2.0,3.4,4.8,6.2,7.6,9.0,10.4,11.8,13.2}
+    \draw[pd tick] (\x,.42)--(\x,.68);
+  \node[pd focus datum] at (7.6,.55) {};
+  \fill[hhsand!18] (2.0,2.0) rectangle (13.2,3.05);
+  \fill[hhteal!9] (4.15,2.0) rectangle (9.15,3.05);
+  \draw[pd rule] (2.0,2.0) rectangle (13.2,3.05);
+  \foreach \x in {4.15,9.15,10.55} \draw[pd hairline] (\x,2.0)--(\x,3.05);
+  \node[pd direct label] at (3.08,2.53) {version + TTL};
+  \node[pd direct label,text=hhteal] at (6.65,2.53) {typed act + conversation id};
+  \node[pd direct label] at (9.85,2.53) {actor};
+  \node[pd direct label] at (11.88,2.53) {reason + event ref};
+  \draw[pd focus arrow] (7.6,1.82)--(7.6,.82);
+  \draw[pd focus rule] (2.15,4.42)--(4.1,4.42)--(5.0,4.78)--(6.05,4.42)--(7.0,4.78)--(7.85,4.42);
+  \node[pd panel title,anchor=east] at (1.95,4.42) {authority};
+  \node[pd direct label,anchor=west] at (8.05,4.42) {who authorized whom};
+  \foreach \x in {4.1,5.0,6.05,7.0} \node[pd focus datum] at (\x,4.6) {};
+  \draw[pd caution rule] (2.15,5.65)--(3.45,5.65)--(4.35,6.0)--(5.4,5.65)--(6.35,6.0)--(7.2,5.65);
+  \node[pd panel title,anchor=east] at (1.95,5.65) {lineage};
+  \node[pd direct label,anchor=west] at (7.4,5.65) {what work is already in flight};
+  \foreach \x in {3.45,4.35,5.4,6.35} \node[pd caution datum] at (\x,5.82) {};
+  \draw[pd guide] (7.6,3.18)--(7.6,6.18);
+  \node[pd note,anchor=west] at (10.8,4.95)
+    {separate traces; separate checks};
 \end{tikzpicture}%
 }
-\caption{The communication organ separates carrier, speech act, cursor, and provenance.
-The implemented bus supplies durable ordered delivery and replay; the specified typed
-act rides inside that envelope. Authorization chains prove who authorized whom, while
-coordination lineage records task ancestry and prevents ping-pong. Treating those
-two records as one ``delegation chain'' erases the verification boundary.}
+\caption{A cross-section of the communication organ. The implemented bus supplies
+an addressable, ordered, at-least-once carrier; the typed act occupies a field
+inside that durable envelope. Two provenance traces remain orthogonal above it:
+the authorization trace answers who authorized whom, while coordination lineage
+answers what work is already in flight. Collapsing them into one generic
+``delegation chain'' destroys both verification questions.}
 \label{fig:swk-comm-organ}
 \end{figure}

@@ -1,66 +1,33 @@
-% Figure — the three continuity organs the whole economy rests on: memory
-% (implemented), checkpoint (partial: notes, not execution state), and the
-% witnessed-outcome ledger (partial substrate). Reputation keys on the richer
-% full reputation-grade third organ, which does not yet exist. The canonical
-% sentence lives in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 10 — evidence support narrows at the weakest continuity links.
 \begin{figure}[H]
 \centering
 \resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=50mm,
-                minimum height=24mm,align=left,inner sep=6pt,text width=46mm,anchor=north},
-  link/.style={->,>=Latex,line width=1.4pt},
-]
-
-\node[organ,fill=hhsand!30] (mem) at (0,0)
-  {{\bfseries\footnotesize 1.\ Memory}\hfill{\footnotesize\color{hhink}\textsc{implemented}}\\[3pt]
-   append-only session notes; episodic story-beats; the operation log};
-
-\node[organ,fill=hhsand!30,right=8mm of mem] (chk)
-  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhink}\textsc{partial}}\\[3pt]
-   recovery passes durable \emph{notes} --- not execution state};
-
-\node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhink}\textsc{partial}}\\[3pt]
-   the durable, oracle-bound record of what an agent actually delivered};
-
-\draw[link,hhteal] (mem.east) -- (chk.west);
-\draw[link,hhamber] (chk.east) -- (ledger.west);
-
-% The weakest-link marker over checkpoint
-\node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
-  {$\bigstar$ the weakest \emph{continuity} link};
-
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \fill[hhteal!13]
+    (1.1,1.90)--(3.15,1.90)--(4.15,2.35)--(7.45,2.35)--
+    (8.45,2.65)--(13.25,2.65)--(13.25,3.35)--(8.45,3.35)--
+    (7.45,3.65)--(4.15,3.65)--(3.15,4.10)--(1.1,4.10)--cycle;
+  \draw[pd focus rule,line width=1.15pt]
+    (1.1,3.0)--(3.15,3.0)--(4.15,3.0)--(5.25,3.0)--(7.4,3.0)--
+    (8.45,3.0)--(9.4,3.0)--(11.15,3.0)--(13.25,3.0);
+  \foreach \x/\lab in {1.25/{memory},4.15/{checkpoint},6.25/{continuity},8.45/{outcome ledger},10.55/{identity},12.75/{market}} {
+    \draw[pd guide] (\x,1.2)--(\x,4.72);
+    \node[pd axis label,anchor=north,align=center] at (\x,1.02) {\lab};
+  }
+  \node[pd focus datum] at (1.25,3.0) {};
+  \node[pd caution datum] at (4.15,3.0) {};
+  \node[pd caution datum] at (8.45,3.0) {};
+  \node[pd datum] at (10.55,3.0) {};
+  \node[pd direct label,anchor=south,text=hhamber] at (4.15,3.82) {notes, not execution state};
+  \node[pd direct label,anchor=south,text=hhamber] at (8.45,3.52) {partial outcome substrate};
+  \node[pd note,anchor=west] at (8.75,4.55) {support can only narrow downstream};
 \end{tikzpicture}%
 }
-\caption{The three continuity organs the entire economy stands on --- the canonical
-sentence the rest of the series depends on. The through-line of the series ---
-memory $\to$ checkpoint $\to$ continuity $\to$ durable identity $\to$ reputation
-$\to$ market --- bottoms out \emph{here}, in the kernel. \textbf{Memory} is
-\textsf{implemented}, and the kernel even forbids amnesia (a monitor rule keeps an
-active session's note count from regressing). \textbf{Checkpoint} is
-\textsf{partial}: recovery (heartbeat $\to$ stale/dead $\to$ queue $\to$ salvage
-handoff) passes the durable notes but does not capture execution state, so it is the
-weakest continuity link --- a checkpoint with teeth (a real execution-state
-snapshot, OP-4) is the literal foundation of a cross-machine reputation economy.
-A specified direction, event-sourced rehydration, would replay a pinned commit and a
-truncated message log into a successor; that restores the durable inputs to an
-agent's context, not the inference state itself, so OP-4 stays open.
-\textbf{The witnessed-outcome ledger}, on which reputation actually keys, has a
-\textsf{partial} existing substrate: durable commitments, daemon-derived deadlines,
-oracle-bound closure, and overdue detection. Neutral graded outcomes, sanctions,
-and reputation binding do not yet exist. One ``the foundation is soft here'' claim,
-not three.}
+\caption{The continuity chain as an evidence-support profile. Implemented memory is
+wide enough to preserve notes and events, but support narrows sharply at checkpoint
+because recovery does not preserve execution state. It narrows again at the
+partial witnessed-outcome ledger, before durable identity, reputation, and a market
+can inherit the claim. The profile makes the dependency explicit: downstream
+confidence cannot be wider than its weakest upstream evidence link.}
 \label{fig:swk-continuity-organs}
 \end{figure}
