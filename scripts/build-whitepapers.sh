@@ -95,7 +95,16 @@ paper_sources() {
   if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
     printf '%s\n' "$srcdir/$roottex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
       "$srcdir/coordination-papers-mega-volume-appendices.tex" \
-      "scripts/generate-mega-whitepaper.mjs"
+      "scripts/generate-mega-whitepaper.mjs" \
+      "$srcdir/art/collected-volume/collected-treatise-jacket.jpg" \
+      "$srcdir/art/collected-volume/collected-treatise-inside-jacket.jpg" \
+      "$srcdir/art/collected-volume/chapter-vii-federated-harbor.jpg" \
+      "$srcdir/art/collected-volume/coda-chapter-i-legible-swarm.png" \
+      "$srcdir/art/collected-volume/coda-chapter-ii-single-writer-kernel.png" \
+      "$srcdir/art/collected-volume/coda-chapter-iii-spawn-to-person.jpg" \
+      "$srcdir/art/collected-volume/coda-chapter-iv-harbor-economy.png" \
+      "$srcdir/art/collected-volume/coda-chapter-v-anchor-protocol.png" \
+      "$srcdir/art/collected-volume/coda-chapter-vi-bonded-commons.png"
     paper_sources "whitepaper" "legible-swarm.tex"
     paper_sources "whitepaper" "single-writer-kernel.tex"
     paper_sources "$PUB" "spawn-to-person.tex"

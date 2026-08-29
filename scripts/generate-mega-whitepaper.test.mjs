@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -11,6 +17,22 @@ import {
   namespaceLabels,
   rewriteCitations,
 } from './generate-mega-whitepaper.mjs';
+
+const generatorSource = readFileSync(
+  resolve('scripts/generate-mega-whitepaper.mjs'),
+  'utf8',
+);
+
+test('the new Chapter VII plate is inserted before its typeset chapter opening', () => {
+  assert.match(
+    generatorSource,
+    /plate: 'art\/collected-volume\/chapter-vii-federated-harbor\.jpg'/,
+  );
+  assert.match(
+    generatorSource,
+    /paper\.plate \? `\\\\pdchapterplate\{\$\{paper\.plate\}\}`/,
+  );
+});
 
 test('missing local citations fail closed', () => {
   assert.throws(

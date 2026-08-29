@@ -30,7 +30,7 @@ const papers = [
   { roman: 'IV', prefix: 'he', title: 'The Harbor Economy', source: 'website-v2/public/whitepaper/harbor-economy.tex' },
   { roman: 'V', prefix: 'anchor', title: 'The Anchor Protocol', source: 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex' },
   { roman: 'VI', prefix: 'bonded', title: 'The Bonded Commons', source: 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex' },
-  { roman: 'VII', prefix: 'fh', title: 'The Federated Harbor', source: 'website-v2/public/whitepaper/federated-harbor-whitepaper.tex' },
+  { roman: 'VII', prefix: 'fh', title: 'The Federated Harbor', source: 'website-v2/public/whitepaper/federated-harbor-whitepaper.tex', plate: 'art/collected-volume/chapter-vii-federated-harbor.jpg' },
 ];
 
 function readUtf8(path) {
@@ -264,9 +264,10 @@ function generate() {
     body = rewriteCitations(body, paper.citationMap, paper.source);
     return [
       `% SOURCE: ${paper.source}`,
+      paper.plate ? `\\pdchapterplate{${paper.plate}}` : '',
       `\\pdchapter{${paper.roman}}{${paper.title}}`,
       body.trim(),
-    ].join('\n\n');
+    ].filter(Boolean).join('\n\n');
   });
 
   canonicalReferences.sort(compareNormalizedReferences);

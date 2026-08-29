@@ -35,6 +35,8 @@ describe('collected-volume LaTeX preamble', () => {
       '\\newcommand{\\Designed}',
       '\\newcommand{\\Vision}',
       '\\newcommand{\\pdchapter}',
+      '\\newcommand{\\pdchapterplate}',
+      '\\newcommand{\\pdcodaplate}',
       '\\newcommand{\\pdchapterappendix}',
       '\\newcommand{\\pullquote}',
       '\\newcommand{\\xrefbox}',
