@@ -23,7 +23,8 @@
       "tests/unit/daemon-profiles.test.js",
       "features.manifest.json",
       "README.md",
-      "docs/operations/daemon-and-supervision.md"
+      "docs/operations/daemon-and-supervision.md",
+      "docs/roadmap/roadmap.snapshot.json"
     ],
     "stopCondition": "The daemon directory and named-berth identity tests pass, TypeScript typecheck exits 0, GPUI cargo check exits 0, the Agents pane tests pass, and a 520px live-data artifact shows the sortable ledger plus full selected-session evidence without offline-profile spam.",
     "nonGoals": [
@@ -119,6 +120,7 @@
         "core/pd-console/src/main.rs",
         "core/pd-console/src/sessions_pane.rs",
         "docs/operations/daemon-and-supervision.md",
+        "docs/roadmap/roadmap.snapshot.json",
         "features.manifest.json",
         "lib/daemon-profiles.ts",
         "routes/operator.ts",
@@ -126,7 +128,7 @@
         "tests/unit/operator-routes.test.js"
       ],
       "deleted": [],
-      "diffSummary": "+1453 -139 across source, test, manifest, documentation, receipt, and visual-proof files"
+      "diffSummary": "+1485 -142 across source, test, manifest, roadmap, documentation, receipt, and visual-proof files"
     }
   },
   "validation": {
@@ -157,7 +159,7 @@
         "passed": true
       },
       {
-        "name": "route manifest, portable model and daemon discovery contracts",
+        "name": "route manifest, portable model and daemon discovery contracts, and berth-coupled session deduplication",
         "command": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand tests/unit/manifest-enforcement.test.js tests/unit/no-hardcoded-model-ids.test.js tests/unit/no-hardcoded-daemon-url.test.js tests/unit/no-hardcoded-daemon-port.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js tests/unit/daemon-profiles.test.js",
         "exitCode": 0,
         "passed": true
@@ -209,7 +211,7 @@
     "verified": false
   },
   "provenance": {
-    "contentHash": "sha256:3c341e9bd09a0b00026ed8271b78aefb4580d9a9dbaa5026e9ddec13711a9296",
+    "contentHash": "sha256:5e41903a48ebf2b58c49aabd2db1a56a26cd06f40a51b7da389a374e9d491378",
     "signedBy": "codex:session-build-the-authoritative-cross-backend-pd-console-1fc9a67c401a",
     "signatureAlg": "none",
     "timestamp": "2026-08-30T13:42:02Z",

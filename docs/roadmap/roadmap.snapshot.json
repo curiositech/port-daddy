@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 313,
+  "count": 314,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1243,6 +1243,11 @@
       "slug": "pd-console-agentic-workbench",
       "status": "now",
       "summaryMd": "Make pd-console a conversation-first agentic coding workbench"
+    },
+    {
+      "slug": "pd-console-cross-backend-agent-switcher",
+      "status": "now",
+      "summaryMd": "Durable cross-backend Agents switcher in pd-console"
     },
     {
       "slug": "pd-console-cull-and-defects",

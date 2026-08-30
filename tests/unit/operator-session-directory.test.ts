@@ -55,18 +55,19 @@ describe('operator session directory', () => {
         };
       }
       if (url.includes('/agent-roster')) {
-        return url.includes('19991') ? { agents: [{
+        const feature = url.includes('19991');
+        return { agents: [{
           id: 'actor-1',
           liveness: 'alive',
           harness: {
-            id: 'codex-cli',
-            family: 'codex-cli',
-            label: 'Codex CLI',
-            backend: 'cli:codex',
-            model: 'gpt-5.6-sol',
+            id: feature ? 'claude-code' : 'codex-cli',
+            family: feature ? 'claude-code' : 'codex-cli',
+            label: feature ? 'Claude Code' : 'Codex CLI',
+            backend: feature ? 'cli:claude' : 'cli:codex',
+            model: feature ? 'provider-model-feature' : 'provider-model-stable',
             confidence: 'witnessed',
           },
-        }] } : { agents: [] };
+        }] };
       }
       const updatedAt = url.includes('19991') ? 200 : 100;
       return { sessions: [{
@@ -106,10 +107,11 @@ describe('operator session directory', () => {
     expect(result.sessions).toHaveLength(1);
     expect(result.sessions[0]).toEqual(expect.objectContaining({
       id: 'session-shared',
-      updatedAt: 200,
+      updatedAt: 100,
+      primaryLocationId: 'stable',
       provider: expect.objectContaining({
         adapterFamily: 'codex-cli',
-        model: 'gpt-5.6-sol',
+        model: 'provider-model-stable',
         confidence: 'witnessed',
       }),
       locations: expect.arrayContaining([

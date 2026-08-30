@@ -113,6 +113,11 @@ interface DirectoryTarget {
   profile: DaemonProfilePaths | null;
 }
 
+interface LocatedSession {
+  session: SessionDirectorySession;
+  location: SessionDirectoryLocation;
+}
+
 export interface BuildOperatorSessionDirectoryOptions {
   currentBerth?: DaemonBerthIdentity | null;
   homeDir?: string;
@@ -296,10 +301,29 @@ function normalizeSession(raw: RawSession, provider: SessionDirectoryProvider, l
   };
 }
 
-function preferSession(current: SessionDirectorySession, candidate: SessionDirectorySession): SessionDirectorySession {
-  if (candidate.updatedAt > current.updatedAt) return candidate;
-  if (candidate.updatedAt < current.updatedAt) return current;
-  if (current.provider.confidence === 'unknown' && candidate.provider.confidence !== 'unknown') return candidate;
+function locationRank(location: SessionDirectoryLocation): number {
+  if (location.state === 'online') return 2;
+  if (location.state === 'degraded') return 1;
+  return 0;
+}
+
+function isRoutable(candidate: LocatedSession): boolean {
+  return candidate.session.status === 'active'
+    && Boolean(candidate.session.agentId)
+    && candidate.session.liveness === 'alive'
+    && candidate.location.state !== 'offline';
+}
+
+/** Keep the projected record and its owning berth coupled during deduplication. */
+function preferSession(current: LocatedSession, candidate: LocatedSession): LocatedSession {
+  if (isRoutable(candidate) !== isRoutable(current)) return isRoutable(candidate) ? candidate : current;
+  if (candidate.location.current !== current.location.current) return candidate.location.current ? candidate : current;
+  const candidateLocationRank = locationRank(candidate.location);
+  const currentLocationRank = locationRank(current.location);
+  if (candidateLocationRank !== currentLocationRank) return candidateLocationRank > currentLocationRank ? candidate : current;
+  if (candidate.session.updatedAt > current.session.updatedAt) return candidate;
+  if (candidate.session.updatedAt < current.session.updatedAt) return current;
+  if (current.session.provider.confidence === 'unknown' && candidate.session.provider.confidence !== 'unknown') return candidate;
   return current;
 }
 
@@ -375,7 +399,7 @@ export async function buildOperatorSessionDirectory(
   }));
 
   const locations = snapshots.map((snapshot) => snapshot.location);
-  const merged = new Map<string, SessionDirectorySession>();
+  const merged = new Map<string, LocatedSession>();
   const sessionLocations = new Map<string, SessionDirectoryLocation[]>();
   for (const snapshot of snapshots) {
     const rosterById = new Map(snapshot.roster.map((agent) => [text(agent.id), agent]));
@@ -387,8 +411,9 @@ export async function buildOperatorSessionDirectory(
         optionalText(agent?.liveness) ?? (text(raw.status) === 'active' ? 'unknown' : 'historical'),
       );
       if (!normalized) continue;
+      const located = { session: normalized, location: snapshot.location };
       const prior = merged.get(normalized.id);
-      merged.set(normalized.id, prior ? preferSession(prior, normalized) : normalized);
+      merged.set(normalized.id, prior ? preferSession(prior, located) : located);
       const entries = sessionLocations.get(normalized.id) ?? [];
       entries.push(snapshot.location);
       sessionLocations.set(normalized.id, entries);
@@ -396,8 +421,10 @@ export async function buildOperatorSessionDirectory(
   }
 
   const sessions = [...merged.values()]
-    .map((session) => {
+    .map(({ session, location: primaryLocation }) => {
       const entries = (sessionLocations.get(session.id) ?? []).sort((left, right) => {
+        if (left.id === primaryLocation.id) return -1;
+        if (right.id === primaryLocation.id) return 1;
         if (left.current !== right.current) return left.current ? -1 : 1;
         if (left.state !== right.state) return left.state === 'online' ? -1 : 1;
         return Number(right.canonical) - Number(left.canonical);
@@ -405,7 +432,7 @@ export async function buildOperatorSessionDirectory(
       return {
         ...session,
         locations: entries,
-        primaryLocationId: entries[0]?.id ?? '',
+        primaryLocationId: primaryLocation.id,
       };
     })
     .sort((left, right) => right.updatedAt - left.updatedAt || left.id.localeCompare(right.id));
