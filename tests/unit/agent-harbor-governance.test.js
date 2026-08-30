@@ -76,6 +76,8 @@ const TOP_LEVEL_AGENT_HARBOR_SCHEMAS = [
   'context-envelope',
   'control-command',
   'cost-accrual-event',
+  'dream-rig-containment-report',
+  'dream-rig-containment-spec',
   'durable-agent-profile',
   'guidance-envelope',
   'handoff-capsule',

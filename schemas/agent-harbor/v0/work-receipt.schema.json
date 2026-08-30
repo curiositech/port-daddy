@@ -129,6 +129,10 @@
       },
       "required": ["transcriptHeadHash"]
     },
+    "containment": {
+      "$ref": "dream-rig-containment-report.schema.json",
+      "description": "Optional for ordinary work. Required by Dream Rig sealing before the receipt may be strong or rendered as trusted Porthole evidence."
+    },
     "strength": { "enum": ["strong", "weak"], "description": "A receipt below T4 transcript fidelity must be weak and carry a high-severity evidence risk." },
     "prRefs": { "type": "array", "items": { "type": "string" } },
     "verificationStatus": { "enum": ["unverified", "verified", "failed", null] },

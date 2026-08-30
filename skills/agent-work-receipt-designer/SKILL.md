@@ -91,6 +91,16 @@ Produce a single JSON object matching `schemas/work-receipt.schema.json` with al
 
 Use `scripts/receipt_lint.mjs` to score a receipt deterministically and return `{ pass, score, missingFields, findings, recommendations }`.
 
+### Dream Rig containment receipts
+
+When the work runs inside the Dream Rig, attach the normalized containment report to the receipt and lint with `--require-containment`:
+
+```bash
+node scripts/receipt_lint.mjs --input <receipt.json> --require-containment
+```
+
+The receipt may pass only when all five frozen threat classes are present, artifact-backed, and green. Missing report identity, unknown threat classes, malformed evidence, ambiguous metadata, or any red probe must block promotion. Porthole may render this evidence for people, but the containment report and receipt remain the authority.
+
 ## Anti-Patterns
 
 ### Receipt As Chat Transcript

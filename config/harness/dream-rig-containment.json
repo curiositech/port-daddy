@@ -1,0 +1,69 @@
+{
+  "schema": "pd.agent-harbor.dream-rig-containment-spec.v0",
+  "name": "dream-rig-lifecycle-scenario",
+  "isolationDimensions": [
+    "filesystem",
+    "network",
+    "process",
+    "secrets",
+    "resources"
+  ],
+  "egressPolicy": {
+    "mode": "allowlist",
+    "default": "deny",
+    "allow": []
+  },
+  "pathPolicy": {
+    "mode": "allowlist",
+    "jailRoot": "$SCENARIO_ROOT",
+    "allowedRoots": ["$SCENARIO_ROOT"],
+    "realpathChecked": true
+  },
+  "secretHandling": {
+    "mode": "fake-credentials",
+    "exposedToSandbox": true
+  },
+  "adversarialCases": [
+    {
+      "id": "ssrf-metadata",
+      "invariant": "Metadata, loopback, private, obfuscated-IP, and redirect destinations are refused before a socket is opened.",
+      "threatClass": "ssrf",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "assertSafeOutboundUrl plus redirect revalidation"
+    },
+    {
+      "id": "path-symlink-escape",
+      "invariant": "Direct traversal and a pre-planted symlink cannot escape the scenario root.",
+      "threatClass": "path-traversal",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath lexical and realpath checks"
+    },
+    {
+      "id": "secret-canary",
+      "invariant": "Only fake credentials reach the scenario, inherited secret material is scrubbed, and any canary egress is a failure.",
+      "threatClass": "secret-exfil",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "scrubRawSecretsFromEnv plus canary egress scan"
+    },
+    {
+      "id": "resource-process-tree",
+      "invariant": "The entire process tree is killed when process, memory, time, or disk limits are exceeded.",
+      "threatClass": "resource-exhaustion",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "scenario-local process-group and resource limits"
+    },
+    {
+      "id": "side-effect-persistence",
+      "invariant": "The scenario cannot install git hooks, launch agents, cron entries, or write outside its declared output sink.",
+      "threatClass": "side-effect-write",
+      "expected": "contained",
+      "failMode": "fail-closed",
+      "mechanism": "containPath sensitive-segment refusal plus capability ToolGate"
+    }
+  ],
+  "failMode": "fail-closed"
+}

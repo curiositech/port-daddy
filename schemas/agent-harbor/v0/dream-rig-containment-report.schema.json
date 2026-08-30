@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/dream-rig-containment-report.schema.json",
+  "title": "DreamRigContainmentReport",
+  "description": "Machine-verifiable containment result that must pass before a Dream Rig WorkReceipt can be strong.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.dream-rig-containment-report.v0" },
+    "reportId": { "type": "string", "minLength": 1 },
+    "specName": { "type": "string", "minLength": 1 },
+    "pass": { "type": "boolean" },
+    "coverageByThreatClass": {
+      "type": "object",
+      "properties": {
+        "ssrf": {
+          "$ref": "dream-rig-containment-report.schema.json#/$defs/coverage"
+        },
+        "path-traversal": {
+          "$ref": "dream-rig-containment-report.schema.json#/$defs/coverage"
+        },
+        "secret-exfil": {
+          "$ref": "dream-rig-containment-report.schema.json#/$defs/coverage"
+        },
+        "resource-exhaustion": {
+          "$ref": "dream-rig-containment-report.schema.json#/$defs/coverage"
+        },
+        "side-effect-write": {
+          "$ref": "dream-rig-containment-report.schema.json#/$defs/coverage"
+        }
+      },
+      "required": [
+        "ssrf",
+        "path-traversal",
+        "secret-exfil",
+        "resource-exhaustion",
+        "side-effect-write"
+      ],
+      "additionalProperties": false
+    },
+    "findings": { "type": "array", "items": { "type": "string" } },
+    "recommendations": { "type": "array", "items": { "type": "string" } },
+    "residualRisks": { "type": "array", "items": { "type": "string" } },
+    "probeResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "caseId": { "type": "string", "minLength": 1 },
+          "threatClass": {
+            "enum": [
+              "ssrf",
+              "path-traversal",
+              "secret-exfil",
+              "resource-exhaustion",
+              "side-effect-write"
+            ]
+          },
+          "contained": { "type": "boolean" },
+          "mechanism": { "type": "string", "minLength": 1 },
+          "exitCode": { "type": ["number", "null"] },
+          "artifactPath": { "type": ["string", "null"] },
+          "detail": { "type": "string" }
+        },
+        "required": ["caseId", "threatClass", "contained", "mechanism"],
+        "additionalProperties": true
+      }
+    },
+    "generatedAt": { "type": "string", "minLength": 1 }
+  },
+  "required": [
+    "schema",
+    "reportId",
+    "specName",
+    "pass",
+    "coverageByThreatClass",
+    "findings",
+    "recommendations",
+    "residualRisks",
+    "probeResults",
+    "generatedAt"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "containedAssertions": { "type": "integer", "minimum": 0 },
+        "evidencedContainments": { "type": "integer", "minimum": 0 },
+        "containmentRate": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": [
+        "total",
+        "containedAssertions",
+        "evidencedContainments",
+        "containmentRate"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
