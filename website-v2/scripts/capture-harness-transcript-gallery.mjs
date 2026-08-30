@@ -66,6 +66,25 @@ async function captureStillEvidence() {
     await settled.locator('.player-shell').screenshot({ path: join(artifactsDir, 'collision-red-refusal.png') });
     await settled.close();
 
+    const harnessContext = await browser.newPage({ viewport });
+    await openGallery(harnessContext, { reducedMotion: true });
+    await waitForScene(harnessContext, 'harness-next-turn');
+    await harnessContext.locator('.ph-term').filter({ hasText: 'PORT DADDY HARNESS' }).waitFor();
+    await harnessContext.locator('.player-shell').screenshot({
+      path: join(artifactsDir, 'harness-context.png'),
+    });
+    await harnessContext.close();
+
+    const brokenWatch = await browser.newPage({ viewport });
+    await openGallery(brokenWatch, { reducedMotion: false });
+    await waitForScene(brokenWatch, 'visibility');
+    await brokenWatch.locator('.ph-cut-marker').click();
+    await brokenWatch.locator('.ph-cut-notice').waitFor();
+    await brokenWatch.locator('.player-shell').screenshot({
+      path: join(artifactsDir, 'visibility-broken-axis.png'),
+    });
+    await brokenWatch.close();
+
     const portsConfiguration = await browser.newPage({ viewport });
     await openGallery(portsConfiguration, { reducedMotion: true });
     await waitForScene(portsConfiguration, 'ports');
