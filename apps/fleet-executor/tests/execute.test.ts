@@ -13,6 +13,7 @@ import {
 } from '../src/ship-checkpoint.js';
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import { assessContextAdmission } from '../src/context-admission.js';
+import { recordDeliveryContinuation } from '../src/delivery-failure.js';
 import { MAX_DIFF_BYTES, PR_FILES_PAGE_SIZE, renderFleetContext } from '../src/github.js';
 import {
   freshState,
@@ -1653,6 +1654,42 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     );
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('stops a repeated Lookout continuation before a third model call', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(String(state.completed[0].summary)).toContain('scheduler livelock, not progress');
+    const receipt = d1.steps.find(step => step.kind === 'continuation-livelock');
+    expect(receipt?.ship).toBe('lookout');
+    expect(JSON.parse(String(receipt?.detail))).toMatchObject({
+      conclusion: 'neutral',
+      completedShip: 'lookout',
+      remainingShips: unchangedRemaining,
+      repeats: 2,
+    });
   });
 
   it('freezes an exact empty Lookout projection when both GitHub context reads reject', async () => {

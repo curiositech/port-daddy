@@ -789,9 +789,15 @@ export function memoryD1(): D1Capture {
         if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const [runId, kind] = args;
-          const results = cap.steps
-            .filter(st => st.runId === runId && st.kind === String(kind))
-            .map(st => ({ ship: st.ship, detail: st.detail }));
+          let matching = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind));
+          if (/ORDER BY seq DESC/i.test(sql)) {
+            matching = [...matching].sort((a, b) => Number(b.seq) - Number(a.seq));
+          }
+          const limit = /LIMIT \?/i.test(sql) ? Number(args[2]) : Number.POSITIVE_INFINITY;
+          const results = matching
+            .slice(0, Number.isFinite(limit) ? limit : undefined)
+            .map(st => ({ seq: st.seq, ship: st.ship, title: st.title, detail: st.detail }));
           return { results };
         }
         return { results: [] };
