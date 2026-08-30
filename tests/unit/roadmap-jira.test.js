@@ -13,10 +13,17 @@ const CONFIG = {
   apiToken: 'jira-secret-token',
 };
 
-function response(status, body) {
+function response(status, body, values = {}) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: {
+      get(name) {
+        const match = Object.entries(values)
+          .find(([key]) => key.toLowerCase() === name.toLowerCase());
+        return match?.[1] ?? null;
+      },
+    },
     async json() { return body; },
   };
 }
@@ -108,12 +115,53 @@ describe('Jira roadmap reader', () => {
     release();
     const [a, b] = await Promise.all([first, second]);
     expect(calls).toBe(1);
+    expect(a).toBe(b);
     expect(a.issues).toEqual(b.issues);
 
     now = 50;
     const cached = await reader.read(CONFIG);
     expect(calls).toBe(1);
     expect(cached.cached).toBe(true);
+  });
+
+  test('honors Retry-After and bounds retries for transient Jira responses', async () => {
+    const delays = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      if (calls === 1) return response(429, {}, { 'Retry-After': '2' });
+      if (calls === 2) return response(503, {});
+      return response(200, { issues: [issue('ROAD-8')], isLast: true });
+    };
+    const reader = createJiraRoadmapReader({
+      fetchImpl,
+      sleep: async (delayMs) => { delays.push(delayMs); },
+      retryBaseDelayMs: 100,
+      maxRetries: 2,
+    });
+
+    const result = await reader.read(CONFIG);
+
+    expect(calls).toBe(3);
+    expect(delays).toEqual([2_000, 200]);
+    expect(result.issues.map((item) => item.key)).toEqual(['ROAD-8']);
+  });
+
+  test('fails fast when Retry-After exceeds the bounded console wait', async () => {
+    const delays = [];
+    let calls = 0;
+    const reader = createJiraRoadmapReader({
+      fetchImpl: async () => {
+        calls += 1;
+        return response(429, {}, { 'Retry-After': '30' });
+      },
+      sleep: async (delayMs) => { delays.push(delayMs); },
+      maxRetryDelayMs: 1_000,
+    });
+
+    await expect(reader.read(CONFIG)).rejects.toThrow('HTTP 429');
+    expect(calls).toBe(1);
+    expect(delays).toEqual([]);
   });
 
   test('labels a bounded partial result instead of presenting it as complete', async () => {

@@ -55,16 +55,21 @@ export interface JiraRoadmapResult {
   issues: JiraRoadmapIssue[];
 }
 
+export interface JiraFetchResponse {
+  ok: boolean;
+  status: number;
+  headers?: {
+    get(name: string): string | null;
+  };
+  json(): Promise<unknown>;
+}
+
 export interface JiraFetch {
   (url: string, init: {
     method: string;
     headers: Record<string, string>;
     body?: string;
-  }): Promise<{
-    ok: boolean;
-    status: number;
-    json(): Promise<unknown>;
-  }>;
+  }): Promise<JiraFetchResponse>;
 }
 
 export class JiraRoadmapError extends Error {
@@ -206,9 +211,24 @@ export interface JiraRoadmapReader {
 export interface JiraRoadmapReaderOptions {
   fetchImpl?: JiraFetch;
   now?: () => number;
+  sleep?: (delayMs: number) => Promise<void>;
   ttlMs?: number;
   maxPages?: number;
   maxIssues?: number;
+  maxRetries?: number;
+  retryBaseDelayMs?: number;
+  maxRetryDelayMs?: number;
+}
+
+function retryAfterMs(response: JiraFetchResponse, nowMs: number): number | undefined {
+  const value = response.headers?.get('retry-after')?.trim();
+  if (!value) return undefined;
+
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds * 1_000);
+
+  const dateMs = Date.parse(value);
+  return Number.isFinite(dateMs) ? Math.max(0, dateMs - nowMs) : undefined;
 }
 
 /**
@@ -221,9 +241,15 @@ export interface JiraRoadmapReaderOptions {
 export function createJiraRoadmapReader(options: JiraRoadmapReaderOptions = {}): JiraRoadmapReader {
   const fetchImpl: JiraFetch = options.fetchImpl ?? ((url, init) => fetch(url, init));
   const now = options.now ?? Date.now;
+  const sleep = options.sleep ?? ((delayMs: number) => new Promise<void>((resolve) => {
+    setTimeout(resolve, delayMs);
+  }));
   const ttlMs = options.ttlMs ?? 15_000;
   const maxPages = Math.max(1, options.maxPages ?? 10);
   const maxIssues = Math.max(1, options.maxIssues ?? 1_000);
+  const maxRetries = Math.min(4, Math.max(0, Math.trunc(options.maxRetries ?? 2)));
+  const retryBaseDelayMs = Math.max(0, options.retryBaseDelayMs ?? 250);
+  const maxRetryDelayMs = Math.max(0, options.maxRetryDelayMs ?? 10_000);
   const cache = new Map<string, { expiresAt: number; value: JiraRoadmapResult }>();
   const inflight = new Map<string, Promise<JiraRoadmapResult>>();
 
@@ -249,18 +275,34 @@ export function createJiraRoadmapReader(options: JiraRoadmapReaderOptions = {}):
       };
       if (nextPageToken) body.nextPageToken = nextPageToken;
 
-      const response = await fetchImpl(`${cfg.baseUrl}/rest/api/3/search/jql`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${cfg.email}:${cfg.apiToken}`).toString('base64')}`,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'port-daddy-roadmap-read',
-        },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        throw new JiraRoadmapError(`Jira issue search returned HTTP ${response.status}`);
+      let response: JiraFetchResponse;
+      for (let attempt = 0; ; attempt += 1) {
+        response = await fetchImpl(`${cfg.baseUrl}/rest/api/3/search/jql`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${Buffer.from(`${cfg.email}:${cfg.apiToken}`).toString('base64')}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'port-daddy-roadmap-read',
+          },
+          body: JSON.stringify(body),
+        });
+        if (response.ok) break;
+
+        const transient = response.status === 429
+          || response.status === 502
+          || response.status === 503
+          || response.status === 504;
+        const serverDelayMs = retryAfterMs(response, now());
+        const delayMs = serverDelayMs ?? retryBaseDelayMs * (2 ** attempt);
+        const canRetry = transient
+          && attempt < maxRetries
+          && Number.isFinite(delayMs)
+          && delayMs <= maxRetryDelayMs;
+        if (!canRetry) {
+          throw new JiraRoadmapError(`Jira issue search returned HTTP ${response.status}`);
+        }
+        await sleep(delayMs);
       }
       let decoded: unknown;
       try {
