@@ -1,74 +1,52 @@
-% Figure 2 — the seven organs of the kernel, each a contract over the same
-% single-writer SQLite/WAL substrate. The substrate organ is the floor; the
-% other six are tables-with-discipline on top of it. Maturity grade per organ.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 2 — seven contracts scored against one transactional pulse.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,
-                minimum width=52mm,minimum height=20mm,align=left,
-                inner sep=5pt,text width=48mm},
-  sub/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-              minimum width=168mm,minimum height=14mm,align=center,
-              inner sep=5pt,text width=160mm},
-]
-\newcommand{\modlbl}{\itshape\scriptsize\color{hhamber}}
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=.72cm]
+  \def\xL{3.15}
+  \def\xR{13.4}
+  \foreach \y/\name in {
+    7/{resource exclusion},6/{actor continuity},5/{message carriage},
+    4/{obligation evidence},3/{session memory},2/{self-attestation},1/{transactional substrate}}
+  {
+    \node[anchor=east,font=\scriptsize\bfseries] at (\xL-.22,\y) {\name};
+    \draw[pd hairline] (\xL,\y)--(\xR,\y);
+  }
+  \foreach \x in {4.0,5.5,7.15,8.85,10.55,12.25} {
+    \draw[pd guide] (\x,.72)--(\x,7.28);
+    \fill[hhink] (\x,.88) circle (1.55pt);
+  }
+  \node[pd axis label,anchor=north west] at (\xL,.62) {one SQLite/WAL commit history};
+  \draw[pd arrow] (\xL,.88)--(13.65,.88);
 
-% ─── Six organs in a 3x2 grid ─────────────────────────────────────────────
-\node[organ] (resource) at (0,0)
-  {{\bfseries Resource}\\ ports, file/region/symbol claims, named locks.\\
-   {\footnotesize\textsf{implemented}}};
-\node[organ,right=4mm of resource] (identity)
-  {{\bfseries Identity}\\ semantic actor names (project\,:\,stack\,:\,context); heartbeat.\\
-   {\footnotesize\textsf{implemented} (self-asserted)}};
-\node[organ,right=4mm of identity] (comm)
-  {{\bfseries Communication}\\ message bus, tuple space, stigmergic markers, two transports.\\
-   {\footnotesize\textsf{implemented}}};
+  \draw[pd focus rule] (3.55,7)--(4.0,7)--(4.0,7.28)--(5.5,7.28)--(5.5,7)--(12.9,7);
+  \foreach \x in {4.0,5.5,8.85,10.55} \node[pd focus datum] at (\x,7) {};
+  \draw[pd rule] (3.55,6)--(4.0,6)--(4.0,6.22)--(7.15,6.22)--(7.15,6)--(12.9,6);
+  \foreach \x in {4.0,7.15,12.25} \node[pd datum] at (\x,6) {};
+  \draw[pd focus rule] (3.55,5)--(5.5,5)--(5.5,5.24)--(8.85,5.24)--(8.85,5)--(12.9,5);
+  \foreach \x in {5.5,7.15,8.85,10.55,12.25} \node[pd focus datum] at (\x,5) {};
+  \draw[pd caution rule] (3.55,4)--(7.15,4)--(7.15,4.26)--(10.55,4.26)--(10.55,4)--(12.9,4);
+  \foreach \x in {7.15,10.55} \node[pd caution datum] at (\x,4) {};
+  \draw[pd rule] (3.55,3)--(4.0,3)--(4.0,3.2)--(12.25,3.2)--(12.25,3)--(12.9,3);
+  \foreach \x in {4.0,5.5,7.15,8.85,10.55,12.25} \node[pd datum] at (\x,3) {};
+  \draw[pd focus rule] (3.55,2)--(5.5,2)--(5.5,2.25)--(8.85,2.25)--(8.85,2)--(12.9,2);
+  \foreach \x in {5.5,8.85,12.25} \node[pd focus datum] at (\x,2) {};
+  \draw[pd rule,line width=1.5pt] (3.55,1)--(12.9,1);
+  \foreach \x in {4.0,5.5,7.15,8.85,10.55,12.25} \node[pd datum] at (\x,1) {};
 
-\node[organ,below=4mm of resource] (oblig)
-  {{\bfseries Obligation \& enforcement}\\ a policy monitor (regiment/detect) + commitments (enforce).\\
-   {\footnotesize\textsf{implemented}\,/\,\textsf{partial}}};
-\node[organ,below=4mm of identity] (cont)
-  {{\bfseries Continuity}\\ sessions, notes, recovery, episodic memory, audit log.\\
-   {\footnotesize\textsf{implemented}\,/\,\textsf{partial}}};
-\node[organ,below=4mm of comm] (attest)
-  {{\bfseries Self-attestation}\\ an invariant registry; boot gate, pre-flight, watchdog.\\
-   {\footnotesize\textsf{implemented}}};
-
-% ─── The substrate floor ──────────────────────────────────────────────────
-\node[sub,below=6mm of cont] (substrate)
-  {{\bfseries Substrate organ --- the single-writer transactional floor}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
-   \textit{one SQLite database in WAL mode: normal sync, bounded busy-wait, foreign keys}};
-
-% ─── Connect each organ to the substrate ──────────────────────────────────
-\foreach \o in {oblig,cont,attest} {
-  \draw[->,>=Latex,hhteal,thick] (\o.south) -- ([yshift=2pt]\o.south|-substrate.north);
-}
-\draw[->,>=Latex,hhteal,thick] (resource.south) -- ++(0,-3mm) -| ([xshift=-30mm]substrate.north);
-\draw[->,>=Latex,hhteal,thick] (comm.south) -- ++(0,-3mm) -| ([xshift=30mm]substrate.north);
-
+  \node[pd direct label,anchor=west,text=hhteal] at (13.0,5.35) {implemented};
+  \node[pd direct label,anchor=west,text=hhamber] at (13.0,4.0) {partial};
+  \node[pd direct label,anchor=west] at (13.0,6.0) {self-asserted};
+  \draw[pd focus rule] (12.82,2)--(12.82,7);
+  \draw[pd caution rule] (12.82,3.65)--(12.82,4.35);
 \end{tikzpicture}%
 }
-\caption{The kernel as \emph{seven organs}, each a contract the daemon must hold
-for the layers above to be coherent. Six organs are, mechanically, just tables
-\emph{with discipline} over a single shared file --- the \textbf{substrate organ},
-the single-writer transactional floor. The substrate's storage configuration
-\emph{is} the kernel's durability claim (the I1a/I1b split, \S\ref{sec:invariants});
-a runtime-shim layer keeps the deployment and test SQLite bindings in step, and
-everything else is convenience built on top of it. Maturity grades (\textsf{implemented} $\cdot$ \textsf{partial} $\cdot$
-\textsf{specified} $\cdot$ \textsf{proposed}) are per organ; note that the identity
-organ is implemented but \emph{self-asserted}, the gap a cross-machine economy must
-eventually close with cryptographic identity.}
+\caption{The kernel as seven contracts scored against one transactional pulse.
+Vertical guides are shared commit moments; the seven traces are different
+disciplines over the same WAL history, not seven stores or services. Teal traces
+are implemented carrier contracts, while the amber interruption marks the partial
+obligation/outcome evidence. Actor identity is mechanically present but remains
+self-asserted. The substrate is therefore the floor and the common timing source,
+not merely another feature in a catalogue.}
 \label{fig:swk-seven-organs}
 \end{figure}

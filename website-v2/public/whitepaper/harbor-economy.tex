@@ -45,6 +45,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % ─── Maturity markers (honest self-grading of every claim) ────────────────────
 % Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
@@ -253,7 +254,7 @@ cryptographic hop-bound authorization chain is analyzed in Chapter~V
   \BuiltWeak{} --- shipped but materially weaker than its name suggests.
   \Designed{} --- specified, with a proof or a written protocol, but not yet
   shipped.
-  \Vision{} --- a stated direction whose load-bearing part has no specification
+  \Vision{} --- a stated direction whose critical part has no specification
   yet.
   Nomenclature is likewise fixed: the cryptographic \emph{hop-bound authorization
   chain} (which proves who delegated what, and bounds it) is never conflated with
@@ -290,7 +291,7 @@ end to end to get their own answer out of it.}
 \label{tab:readers-map}
 \begin{tabular}{@{}p{3.6cm} p{6.2cm} p{4.6cm}@{}}
 \toprule
-\textbf{If you are\dots} & \textbf{\dots start here} & \textbf{\dots load-bearing artifact} \\
+\textbf{If you are\dots} & \textbf{\dots start here} & \textbf{\dots critical artifact} \\
 \midrule
 A founder asking ``what is the product'' &
   \S\ref{sec:thesis} (thesis) $\to$ \S\ref{sec:hosted-trust} (hosted trust) &
@@ -571,7 +572,7 @@ $W$ has a signed proof of locked funds; no process for this task can enter
 
 \subsection{The bond ledger conserves value (this is built)}
 
-The single most load-bearing primitive --- and the one that is \emph{actually}
+The single most consequential primitive --- and the one that is \emph{actually}
 \Built{} --- is the \textbf{bond-ledger module}: bond escrow for agent spawning. It
 debits a project wallet into an escrow row before spawn, refunds on clean exit, and
 slashes on breach, splitting the slash between the wallet and a commons pool. It
@@ -800,7 +801,7 @@ across harbors you do not own: an actual key-distribution and attestation story 
 the cross-operator threat model --- something that lets Alice's harbor trust that a
 key presented as ``Bob'' really is the one principal she has been building a
 reputation history against. \textbf{Status:} \Designed{}-to-\Vision{}; it has no
-implementation and only a partial specification for its load-bearing part. It is the
+implementation and only a partial specification for its critical part. It is the
 highest-leverage unbuilt keystone, and it gates the entire market thesis.
 \end{definition}
 
@@ -921,11 +922,11 @@ boundary.
 \input{figures/fig-fh-xfer-ceremony}
 
 The four-message ceremony (Figure~\ref{fig:fh-xfer}, written out as
-Protocol~\ref{prot:xfer}) has one load-bearing liveness property: after message (3),
+Protocol~\ref{prot:xfer}) has one decisive liveness property: after message (3),
 no further synchronous interaction with Harbor~$A$ is needed. The transferred card
 $C_B'$ is verifiable under Harbor~$B$'s key alone, so federation does not turn every
 authorization into a synchronous inter-machine round trip. The epoch root $R_A^{(e)}$
-bound into the envelope is the load-bearing primitive: a revocation issued by $A$
+bound into the envelope is the governing primitive: a revocation issued by $A$
 after epoch $e$ invalidates $C_B'$ as soon as the new root $R_A^{(e+1)}$ reaches the
 witness log that $B$ audits.
 
@@ -1145,7 +1146,7 @@ Reputation is the third side's existence condition. Two reconciliations matter h
 A tempting design slogan holds that reputation ``never ends'' --- no decay window an
 agent can outrun --- while the same design also requires that a fraudulent settled
 outcome be retractable. A property and its required violation cannot both be
-load-bearing.
+requirements.
 
 \keyidea{The reconciled statement: \textbf{reputation is monotone in \emph{honest}
 witnessed outcomes, but a witnessed outcome is itself revocable via a propagating
@@ -1408,7 +1409,7 @@ defended; they are holes.
 
 \noindent These six are not equally dangerous, and an implementer triaging them
 should not have to infer the stakes from the prose. Each one threatens a specific
-load-bearing promise made earlier in this paper:
+critical promise made earlier in this paper:
 
 \begin{table}[H]
 \centering
@@ -1646,7 +1647,7 @@ Purchased assurance therefore has to buy \emph{diversity} (distinct principals,
 distinct model families, sealed submissions) and not merely count $k$; otherwise the
 priced assurance level is an overstatement of the delivered one. The same
 requirement appears in \cite{harbor3} as the sealed multi-clique sampling hypothesis,
-where it is likewise load-bearing rather than hygienic.}
+where it is likewise required rather than hygienic.}
 
 The ground-truth oracle for grading the test-writers themselves is
 \textbf{mutation-testing kill rates} against held-out syntactic mutation operators,
@@ -1724,7 +1725,7 @@ Outcome ledger (organ 3 --- reputation keys here) & \BuiltWeak{} & commitments,
   neutral grading and reputation binding do not ship \\
 Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls}, lookup
   credentials, and a bounded newcomer pool ship; full write gating does not ship \\
-Cross-operator attestation & \Designed{}/\Vision{} & no spec for the load-bearing part \\
+Cross-operator attestation & \Designed{}/\Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
   Protocol~\ref{prot:xfer} \\
@@ -1751,7 +1752,7 @@ Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
 
 \section{Proof sketches}\label{app:proofs}
 
-We sketch the three load-bearing results; full proofs of the conservation results
+We sketch the three central results; full proofs of the conservation results
 appear in Chapter~VII (\emph{The Federated Harbor}).
 
 \begin{proof}[Proof sketch of Theorem~\ref{thm:functor}]

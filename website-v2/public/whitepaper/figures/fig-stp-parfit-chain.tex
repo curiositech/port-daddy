@@ -1,41 +1,50 @@
-% Figure III.3 --- continuity is carried by witnessed overlap, not a permanent subject.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure III.3 --- adjacent evidence overlap yields transitive continuity.
 \begin{figure}[H]
 \centering
-\resizebox{0.90\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize,
-  ep/.style={draw=hhgray,thick,fill=hhpaper,rounded corners=2pt,minimum height=8mm,align=center,font=\footnotesize,text=hhink},
-  overlap/.style={draw=hhteal,very thick,fill=hhteal!10,rounded corners=1pt,minimum height=8mm,align=center,font=\footnotesize\bfseries,text=hhink},
-]
-\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,0.55) {episode};
-\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-0.72) {witness};
-\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-1.99) {episode};
-\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-3.26) {witness};
-\node[font=\footnotesize\bfseries,text=hhgray] at (-5.9,-4.53) {episode};
-\draw[hhgray,thin] (-4.9,0.1) -- (7.1,0.1);
-\draw[hhgray,thin] (-4.9,-2.44) -- (7.1,-2.44);
-\draw[hhgray,thin] (-4.9,-4.98) -- (7.1,-4.98);
-\node[ep,text width=42mm] at (-2.8,0.55) {incarnation 1\\witnessed outcomes $o_1,o_2$};
-\node[ep,text width=42mm] at (0.7,-1.99) {incarnation 2\\witnessed outcomes $o_2,o_3$};
-\node[ep,text width=42mm] at (4.2,-4.53) {incarnation 3\\witnessed outcomes $o_3,o_4$};
-\node[overlap,text width=32mm] at (-1.05,-0.72) {$o_2$ overlaps};
-\node[overlap,text width=32mm] at (2.45,-3.26) {$o_3$ overlaps};
-\draw[hhteal,very thick,-{Latex[length=2mm]}] (0.6,-0.72) -- (1.8,-1.42);
-\draw[hhteal,very thick,-{Latex[length=2mm]}] (4.1,-3.26) -- (4.15,-3.95);
-\node[draw=hhamber,very thick,fill=hhamber!8,text width=145mm,minimum height=9mm,align=center,font=\footnotesize] at (0.75,-6.15)
- {transitive continuity: $o_1,o_2 \leadsto o_2,o_3 \leadsto o_3,o_4$; no permanent substrate is assumed};
-\end{tikzpicture}%
-}
-\caption{Continuity through overlapping episodes. Each incarnation carries witnessed
-outcomes; adjacent incarnations overlap on evidence, and those overlaps establish a
-transitive provenance chain. A gap without shared witness does not inherit the
-chain, so continuity is not inferred from a process label or an asserted memory.}
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.7,2.75)
+    {direct connectedness is local; continuity is the transitive closure};
+
+  % Incarnation intervals.
+  \draw[pd hairline,line width=5.5pt] (-5.7,1.55) -- (-.9,1.55);
+  \draw[pd hairline,line width=5.5pt] (-1.8,.35) -- (3.0,.35);
+  \draw[pd hairline,line width=5.5pt] (2.1,-.85) -- (6.1,-.85);
+  \node[pd direct label,anchor=east] at (-5.95,1.55) {incarnation 1};
+  \node[pd direct label,anchor=east] at (-2.05,.35) {incarnation 2};
+  \node[pd direct label,anchor=east] at (1.85,-.85) {incarnation 3};
+
+  % Evidence marks, with shared outcomes aligned vertically.
+  \foreach \x/\y/\lab in {-4.75/1.55/$o_1$,-1.35/1.55/$o_2$,-1.35/.35/$o_2$,2.55/.35/$o_3$,2.55/-.85/$o_3$,5.25/-.85/$o_4$} {
+    \node[pd datum] at (\x,\y) {};
+    \node[pd axis label,anchor=south] at (\x,\y+.18) {\lab};
+  }
+  \fill[hhteal!9] (-1.72,-.08) rectangle (-.98,1.98);
+  \draw[pd focus rule] (-1.35,.35) -- (-1.35,1.55);
+  \fill[hhteal!9] (2.18,-1.28) rectangle (2.92,.78);
+  \draw[pd focus rule] (2.55,-.85) -- (2.55,.35);
+  \node[pd direct label,text=hhteal,anchor=west] at (-.82,1.02) {shared witness $o_2$};
+  \node[pd direct label,text=hhteal,anchor=west] at (2.72,-.22) {shared witness $o_3$};
+
+  % Derived accountable chain.
+  \draw[pd focus rule,line width=1.4pt] (-5.7,-2.05) -- (6.1,-2.05);
+  \foreach \x in {-4.75,-1.35,2.55,5.25} \node[pd focus datum] at (\x,-2.05) {};
+  \node[pd direct label,text=hhteal,anchor=north] at (.2,-2.30)
+    {transitive ledger rail: $o_1\leadsto o_2\leadsto o_3\leadsto o_4$};
+
+  % Counterexample: a repeated name without an overlapping witness.
+  \draw[pd caution rule,dashed] (-5.7,-3.18) -- (-2.95,-3.18);
+  \draw[pd caution rule,dashed] (-2.15,-3.18) -- (.55,-3.18);
+  \node[pd direct label,text=hhamber,anchor=west] at (.85,-3.18)
+    {same label, no shared witness $\Rightarrow$ no inherited continuity};
+  \draw[pd caution rule] (-2.80,-3.48) -- (-2.30,-2.88);
+  \draw[pd caution rule] (-2.80,-2.88) -- (-2.30,-3.48);
+\end{tikzpicture}}
+\caption{\textbf{Parfitian continuity is an overlap chain, not permanent
+connectedness.} Incarnation 1 shares witnessed outcome $o_2$ with incarnation 2;
+incarnation 2 shares $o_3$ with incarnation 3. No later body must directly
+remember $o_1$: the overlapping evidence establishes the transitive ledger rail
+$o_1\leadsto o_2\leadsto o_3\leadsto o_4$. The dashed counterexample repeats a
+label without a shared witness and therefore inherits nothing.}
 \label{fig:parfit}
 \end{figure}
