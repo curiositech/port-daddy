@@ -1260,6 +1260,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         });
       }
 
+      // The authoritative claim is now durable, so project its bounded,
+      // fail-open coordination advice for the claimant's next Squid turn.
+      surfaceClaimTreeTrouble();
+
       return result;
 
     } catch (error) {
