@@ -531,6 +531,7 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
             port: preferredPort,
             enableFleet: options.fleet === true,
             enableFleetBar: options.fleetbar === true,
+            sourceDir: libDir,
           }),
           stdio: ['ignore', logFd, logFd],
           detached: true,
