@@ -189,6 +189,32 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
   });
 
+  it('detects repeated empty rosters as zero progress', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', []);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', []);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
+      completedShip: 'lookout',
+      remainingShips: [],
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    });
+  });
+
+  it('treats roster order as scheduler state', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser', 'snipe']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+  });
+
   it('fails open when continuation evidence is unavailable or malformed', async () => {
     const db = memoryD1();
     const env = makeEnv({ DB: db.db });
