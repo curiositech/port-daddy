@@ -9797,6 +9797,93 @@ mod add_pane_tests {
         );
     }
 
+    #[test]
+    fn work_reset_callback_clears_every_berth_scoped_projection() {
+        let mut cx = TestAppContext::single();
+        let view = cx.new(|cx| {
+            ConsoleView::new("http://127.0.0.1:43129".into(), Some("mission".into()), cx)
+        });
+
+        cx.update_entity(&view, |view, _cx| {
+            view.work_mission.goal = "stale mission".into();
+            view.work_mission.intent_id = Some("intent-stale".into());
+            view.work_mission.state = "in_progress".into();
+            view.work_plan_graph.title = "stale plan".into();
+            view.work_plan_graph
+                .waves
+                .push(crate::work_plan::PredictedWave::default());
+            view.work_graph_png_path = Some(std::path::PathBuf::from("stale-plan.png"));
+            view.work_intent_id = Some("intent-stale".into());
+            view.work_plan_state = "materialized".into();
+            view.work_correlation_id = Some("corr-stale".into());
+            view.work_next_action = Some("keep stale state".into());
+            view.work_execution_state = "in_progress".into();
+            view.work_execution_id = Some("execution-stale".into());
+            view.work_execution_projection = Some("dispatch-compat".into());
+            view.work_execution_session = Some("session-stale".into());
+            view.work_execution_worktree = Some("/repo/stale".into());
+            view.work_selected_node = Some("node-stale".into());
+
+            view.apply_work_update(WorkUpdate::Reset);
+
+            assert_eq!(view.work_mission.goal, "What should Port Daddy do?");
+            assert_eq!(view.work_mission.state, "not-started");
+            assert!(view.work_mission.intent_id.is_none());
+            assert!(view.work_plan_graph.title.is_empty());
+            assert!(view.work_plan_graph.waves.is_empty());
+            assert!(view.work_graph_png_path.is_none());
+            assert!(view.work_intent_id.is_none());
+            assert_eq!(view.work_plan_state, "not-started");
+            assert!(view.work_correlation_id.is_none());
+            assert!(view.work_next_action.is_none());
+            assert_eq!(view.work_execution_state, "not-started");
+            assert!(view.work_execution_id.is_none());
+            assert!(view.work_execution_projection.is_none());
+            assert!(view.work_execution_session.is_none());
+            assert!(view.work_execution_worktree.is_none());
+            assert!(view.work_selected_node.is_none());
+            assert_eq!(
+                view.control_flash.as_deref(),
+                Some("Mission context cleared for the selected daemon.")
+            );
+        });
+    }
+
+    #[test]
+    fn chat_callback_preserves_receipt_provenance_then_resets_the_berth() {
+        let mut cx = TestAppContext::single();
+        let view = cx.new(|cx| {
+            ConsoleView::new("http://127.0.0.1:43129".into(), Some("mission".into()), cx)
+        });
+
+        cx.update_entity(&view, |view, _cx| {
+            view.chat.push_mine("inspect the live mission");
+            view.chat.set_error("stale transport failure");
+
+            view.apply_chat_update(ChatUpdate::Receipt(ChatMsg::receipt(
+                "Port Daddy receipt",
+                "WorkIntent admitted",
+            )));
+
+            assert_eq!(view.chat.messages.len(), 2);
+            assert!(view.chat.error.is_none());
+            assert!(
+                view.chat.awaiting_reply,
+                "an admission receipt is not an attributed answer"
+            );
+            let receipt = view.chat.messages.last().expect("receipt turn");
+            assert_eq!(receipt.kind, ChatMsgKind::Receipt);
+            assert_eq!(receipt.sender, "Port Daddy receipt");
+            assert_eq!(receipt.text, "WorkIntent admitted");
+
+            view.apply_chat_update(ChatUpdate::Reset);
+
+            assert!(view.chat.messages.is_empty());
+            assert!(view.chat.error.is_none());
+            assert!(!view.chat.awaiting_reply);
+        });
+    }
+
     // The launcher-grid 1:1 invariant tests live in `crate::grid` (gpui-free) so
     // they run in the headless REPL bin under the rust-console gate.
 
