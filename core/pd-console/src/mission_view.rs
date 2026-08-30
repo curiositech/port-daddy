@@ -199,6 +199,20 @@ fn matching_chip(blocks: &[Block], prefix: &str) -> Option<String> {
     })
 }
 
+fn claim_count_summary(blocks: &[Block]) -> Option<String> {
+    let count = blocks.iter().find_map(|block| match block {
+        Block::KeyVal(key, value) if key == "total" || key == "active claims" => {
+            value.trim().parse::<usize>().ok()
+        }
+        Block::KeyVal(key, value) if key == "status" && value == "no active claims" => Some(0),
+        _ => None,
+    })?;
+    Some(format!(
+        "{count} claim{}",
+        if count == 1 { "" } else { "s" }
+    ))
+}
+
 fn skill_summary(plan: &PredictedDag) -> (String, String) {
     let skills = plan
         .waves
@@ -266,14 +280,8 @@ pub fn context_cards(
         )
     };
     let (skills_headline, skills_detail) = skill_summary(plan);
-    let claims_headline = matching_chip(claims, "0 claim")
-        .or_else(|| {
-            claims.iter().rev().find_map(|block| match block {
-                Block::Chip { label, .. } if label.contains("claim") => Some(label.clone()),
-                _ => None,
-            })
-        })
-        .unwrap_or_else(|| "Claims unavailable".into());
+    let claims_headline =
+        claim_count_summary(claims).unwrap_or_else(|| "Claims unavailable".into());
     let suggestion_headline = suggestions
         .iter()
         .find_map(|block| match block {
@@ -674,10 +682,7 @@ mod tests {
         let cards = context_cards(
             &model,
             &plan,
-            &[Block::Chip {
-                label: "2 claims active".into(),
-                tone: Tone::Engaged,
-            }],
+            &[Block::KeyVal("total".into(), "2".into())],
             &[Block::Chip {
                 label: "Inspect the claim tree".into(),
                 tone: Tone::Accent,
@@ -704,6 +709,47 @@ mod tests {
             .expect("receipt card");
         assert_eq!(receipt.headline, "execution execution-7");
         assert!(receipt.detail.contains("corr-7"));
+    }
+
+    #[test]
+    fn context_rail_ignores_claim_words_without_the_count_projection() {
+        let cards = context_cards(
+            &MissionViewModel::empty(),
+            &PredictedDag::default(),
+            &[Block::Chip {
+                label: "Inspect the claim tree".into(),
+                tone: Tone::Engaged,
+            }],
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+        );
+        let claims = cards
+            .iter()
+            .find(|card| card.eyebrow == "CLAIMS")
+            .expect("claims card");
+        assert_eq!(claims.headline, "Claims unavailable");
+    }
+
+    #[test]
+    fn context_rail_reads_the_explicit_empty_claims_projection() {
+        let cards = context_cards(
+            &MissionViewModel::empty(),
+            &PredictedDag::default(),
+            &[Block::KeyVal("status".into(), "no active claims".into())],
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+        );
+        let claims = cards
+            .iter()
+            .find(|card| card.eyebrow == "CLAIMS")
+            .expect("claims card");
+        assert_eq!(claims.headline, "0 claims");
     }
 
     #[test]
