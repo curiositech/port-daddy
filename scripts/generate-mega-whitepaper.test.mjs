@@ -16,11 +16,38 @@ const generatorSource = readFileSync(
   resolve('scripts/generate-mega-whitepaper.mjs'),
   'utf8',
 );
+const collectedVolumeSource = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'),
+  'utf8',
+);
+const seamsSource = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex'),
+  'utf8',
+);
 
 test('the collected-volume generator inserts prose seams and no editorial plates', () => {
   assert.match(generatorSource, /pdchapteropening\$\{paper\.roman\}/);
   assert.match(generatorSource, /pdchapterhandoff\$\{paper\.roman\}/);
   assert.doesNotMatch(generatorSource, /pdchapterplate|paper\.plate|editorial plate/i);
+});
+
+test('every generated chapter seam is defined by the collected-volume preamble', () => {
+  assert.match(
+    collectedVolumeSource,
+    /\\input\{coordination-papers-mega-volume-seams\.tex\}/,
+    'the collected volume must load the seam definitions before the generated body',
+  );
+
+  for (const roman of ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']) {
+    for (const kind of ['opening', 'handoff']) {
+      const command = `\\newcommand{\\pdchapter${kind}${roman}}`;
+      assert.equal(
+        seamsSource.split(command).length - 1,
+        1,
+        `expected exactly one definition of \\pdchapter${kind}${roman}`,
+      );
+    }
+  }
 });
 
 test('missing local citations fail closed', () => {
