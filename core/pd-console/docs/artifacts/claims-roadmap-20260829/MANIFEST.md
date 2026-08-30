@@ -1,16 +1,17 @@
 # Claims ledger and Jira roadmap proof
 
-Captured 2026-08-29 from branch
+Captured 2026-08-29 and re-proved 2026-08-30 from branch
 `codex/pd-console-claims-roadmap-20260829` in
 `/Users/erichowens/coding/tmp/pd-console-claims-roadmap-20260829`.
 
 ## Runtime witness
 
 - Exact-source development daemon: `claims-roadmap-20260829`
+- Exact source revision: `2e602a89f`
 - Daemon URL: `http://127.0.0.1:19958`
 - Source directory reported by `/health`:
   `/Users/erichowens/coding/tmp/pd-console-claims-roadmap-20260829`
-- Live `/files` cohort rendered by Claims: 425 active claims
+- Live `/files` cohort rendered by Claims: 391 active claims
 - Live `/roadmap/jira`: configured `false`, with the four managed FleetBar
   credential keys named and no secret values exposed
 - Release renderer:
