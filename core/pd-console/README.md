@@ -31,6 +31,11 @@ The normal journey needs no terminal vocabulary:
    checks arrive.
 4. Open the attached pull request from the same screen.
 
+Mission starts ordinary work. **Parley** remains an explicit coordination
+action for a real disagreement: convene it from a verified Sextant selection or
+with `pd parley` in the emergency CLI, then open its durable outcome as an
+inspector beside Mission. It is not a second default conversation.
+
 ## Native terminal drawer
 
 The **>_ CLI** control raises one persistent login shell over the current Mission

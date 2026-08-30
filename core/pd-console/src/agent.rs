@@ -1830,11 +1830,11 @@ mod tests {
 
     #[test]
     fn transcript_url_has_one_route_separator_and_encodes_the_id() {
-        let url =
-            transcript_url("http://127.0.0.1:9876/", "tx/one two").expect("daemon transcript URL");
+        let url = transcript_url("http://127.0.0.1:43129/", "tx/one two")
+            .expect("daemon transcript URL");
         assert_eq!(
             url.as_str(),
-            "http://127.0.0.1:9876/transcripts/tx%2Fone%20two"
+            "http://127.0.0.1:43129/transcripts/tx%2Fone%20two"
         );
     }
 

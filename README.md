@@ -475,7 +475,11 @@ pd parley respond <id> --position "yes, with region fallback"
 pd parley resolve <id>
 ```
 
-Parley decisions render in pd-console's Parley pane, including CONVENE/hold economics (ADR-0086).
+Mission is pd-console's ordinary operator entry point; Parley is an explicit
+coordination action, not an alternate default chat. Invoke it with `pd parley`
+from the emergency CLI or from a verified Sextant selection, then inspect the
+durable decision in pd-console's Parley inspector, including CONVENE/hold
+economics (ADR-0086).
 
 ### Inboxes, Integration & Waiting
 

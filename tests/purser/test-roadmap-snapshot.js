@@ -51,7 +51,7 @@ describe('roadmap snapshot', () => {
   });
 
   it('preserves an unrelated roadmap item', () => {
-    assertHealthyItem(snapshot.items, 'workintent-dispatch-isolation', 'backlog');
+    assertHealthyItem(snapshot.items, 'workintent-dispatch-isolation', 'now');
   });
 
   it('has a fresh, well-formed generation timestamp', () => {
