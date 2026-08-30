@@ -96,4 +96,26 @@ describe('pd actor admission grant', () => {
     expect(exitSpy).not.toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('oar_issued_receipt'));
   });
+
+  test.each([
+    [403, 'operator Unix socket authority required'],
+    [404, 'operator admission route unavailable'],
+  ])('surfaces daemon refusal status %s without printing a grant', async (status, error) => {
+    pdFetch.mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => ({ success: false, error, code: 'DAEMON_REFUSAL' }),
+    });
+
+    await expect(handleActors(['admission', 'grant'], {
+      identity: 'port-daddy:worker',
+      roadmap: 'workintent-dispatch-isolation',
+      worktree: '/Users/tester/coding/tmp/worker',
+      confirm: true,
+      json: true,
+    })).rejects.toThrow('process.exit:1');
+
+    expect(errorSpy).toHaveBeenLastCalledWith(expect.stringContaining(error));
+    expect(logSpy).not.toHaveBeenCalled();
+  });
 });

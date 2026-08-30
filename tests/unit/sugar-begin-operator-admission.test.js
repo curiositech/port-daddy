@@ -92,6 +92,7 @@ describe('POST /sugar/begin exact operator admission', () => {
         operatorIdentity: 'local:operator:uid:501',
       });
       expect(issued.success).toBe(true);
+      expect(issued.grant.worktreeRoot).toBe(ROOT);
       const response = await app.inject({
         method: 'POST',
         url: '/sugar/begin',
