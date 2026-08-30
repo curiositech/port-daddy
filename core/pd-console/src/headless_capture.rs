@@ -1193,6 +1193,158 @@ pub fn capture_to_path(path: &str) -> std::io::Result<usize> {
     capture_state_to_path(path, "in_progress")
 }
 
+/// Deterministic, TCC-independent proof of the title-deck zoom contract.
+/// This intentionally uses the render-agnostic raster and carries a visible
+/// provenance label; it is not represented as a GPUI/Metal framebuffer grab.
+pub fn capture_zoom_controls_to_path(path: &str, requested_percent: u16) -> std::io::Result<usize> {
+    let percent = requested_percent.clamp(
+        crate::presentation::MIN_ZOOM_PERCENT,
+        crate::presentation::MAX_ZOOM_PERCENT,
+    );
+    let factor = f32::from(percent) / 100.0;
+    let width = 1200usize;
+    // Keep every proof frame the same size while leaving enough vertical room
+    // for the 200% title deck, annotations, and provenance watermark.
+    let height = 320usize;
+    let logical_width = width as f32 / factor;
+    let compact = logical_width < 960.0;
+    let minimal = logical_width < 720.0;
+    let t = &DARK;
+    let bg = to_rgb(t.bg);
+    let panel = to_rgb(t.panel);
+    let raised = to_rgb(t.raised);
+    let line = to_rgb(t.resting);
+    let ink = to_rgb(t.ink);
+    let ink2 = to_rgb(t.ink2);
+    let muted = to_rgb(t.muted);
+    let accent = to_rgb(t.accent);
+    let engaged = to_rgb(t.engaged);
+    let s = |value: usize| ((value as f32 * factor).round() as usize).max(1);
+    let text_scale = if percent >= 150 { 3 } else { 2 };
+
+    let mut canvas = Canvas::new(width, height, bg);
+    let deck_h = s(48);
+    canvas.fill_rect(0, 0, width, deck_h, panel);
+    canvas.fill_rect(0, deck_h.saturating_sub(1), width, 1, line);
+
+    let mut x = s(78);
+    let port_w = s(58);
+    let daddy_w = s(70);
+    canvas.fill_rect(x, 0, port_w, deck_h, accent);
+    draw_text(
+        &mut canvas,
+        x + s(9),
+        s(15),
+        text_scale,
+        "PORT",
+        (251, 247, 239),
+    );
+    x += port_w;
+    canvas.fill_rect(x, 0, daddy_w, deck_h, engaged);
+    draw_text(
+        &mut canvas,
+        x + s(8),
+        s(15),
+        text_scale,
+        "DADDY",
+        (23, 25, 29),
+    );
+    x += daddy_w;
+
+    if !compact {
+        let version_w = s(150);
+        canvas.stroke_rect(x, 0, version_w, deck_h, line);
+        draw_text(&mut canvas, x + s(10), s(17), 1, "PD-CONSOLE / DEV", muted);
+        x += version_w + s(8);
+        draw_text(&mut canvas, x, s(17), 1, "MAIN  +  [VIEWS]", ink2);
+    }
+
+    // Primary controls are right-anchored, matching the flex spacer in GPUI.
+    let cli_w = s(76);
+    let optional_w = if minimal { 0 } else { s(146) };
+    let controls_w = s(104);
+    let right_pad = s(14);
+    let controls_x = width.saturating_sub(right_pad + cli_w + optional_w + controls_w + s(18));
+    let button_y = s(11);
+    let button_h = s(26);
+    let minus_w = s(28);
+    let reset_w = s(48);
+    let plus_w = s(28);
+    let mut bx = controls_x;
+    let zoom_labels = [
+        ("-".to_string(), minus_w),
+        (format!("{percent}%"), reset_w),
+        ("+".to_string(), plus_w),
+    ];
+    for (label, button_w) in zoom_labels {
+        canvas.fill_rect(bx, button_y, button_w, button_h, raised);
+        canvas.stroke_rect(bx, button_y, button_w, button_h, line);
+        let label_width = label.chars().count() * GLYPH_ADV * text_scale;
+        draw_text(
+            &mut canvas,
+            bx + button_w.saturating_sub(label_width) / 2,
+            button_y + s(6),
+            text_scale,
+            &label,
+            ink,
+        );
+        bx += button_w;
+    }
+
+    if !minimal {
+        bx += s(8);
+        draw_text(&mut canvas, bx, s(17), 1, "MOTION ON  LIGHT", ink2);
+    }
+    draw_text(
+        &mut canvas,
+        width.saturating_sub(cli_w + right_pad),
+        s(17),
+        1,
+        ">_ CLI",
+        ink2,
+    );
+
+    canvas.fill_rect(0, deck_h + s(16), width, 1, line);
+    draw_text(
+        &mut canvas,
+        s(24),
+        deck_h + s(32),
+        2,
+        &format!("ZOOM {percent}% / LOGICAL WIDTH {:.0}px", logical_width),
+        ink,
+    );
+    draw_text(
+        &mut canvas,
+        s(24),
+        deck_h + s(58),
+        1,
+        if compact {
+            "SECONDARY TITLE LABELS COLLAPSED; ZOOM CONTROLS REMAIN VISIBLE"
+        } else {
+            "FULL TITLE DECK; ZOOM CONTROLS REMAIN RIGHT-ANCHORED"
+        },
+        muted,
+    );
+    draw_text(
+        &mut canvas,
+        s(24),
+        height - 22,
+        1,
+        "RENDER-AGNOSTIC TITLE-DECK PROOF / NOT A GPUI-METAL FRAMEBUFFER CAPTURE",
+        engaged,
+    );
+
+    let png = canvas.to_png();
+    let output = std::path::Path::new(path);
+    if let Some(parent) = output.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    std::fs::write(output, &png)?;
+    Ok(png.len())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // isonim-gpui technique, ported to our gpui 0.2.2 pin.
 //
