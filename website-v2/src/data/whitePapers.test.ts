@@ -72,7 +72,7 @@ describe('whitepaper metadata sync', () => {
     // jacket, contents, chapter plates, and coda. Its PDF facts are therefore
     // authoritative; summing the seven separately typeset editions is not.
     expect(standalonePages).toBe(275)
-    expect(COLLECTED_VOLUME.pages).toBe(276)
+    expect(COLLECTED_VOLUME.pages).toBe(270)
   })
 
   test('every paper declares an on-disk PDF', () => {
