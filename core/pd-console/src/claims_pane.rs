@@ -9,9 +9,13 @@ use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, SurfaceAction, Tone};
 use crate::util::{age_short, arr, n, s};
 use anyhow::Result;
+use futures_util::{stream, StreamExt};
 use serde_json::Value;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
+
+const SESSION_JOIN_FAST_PATH_LIMIT: usize = 1_000;
+const SESSION_DETAIL_CONCURRENCY: usize = 8;
 
 #[derive(Debug, Clone, Default)]
 struct SessionMeta {
@@ -44,6 +48,67 @@ impl SessionMeta {
             durable: v.get("durable").and_then(Value::as_bool).unwrap_or(false),
         }
     }
+}
+
+fn referenced_session_ids(claims: &[Value]) -> Vec<String> {
+    claims
+        .iter()
+        .map(|claim| s(claim, "sessionId"))
+        .filter(|id| !id.is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn missing_session_ids(claims: &[Value], sessions: &HashMap<String, SessionMeta>) -> Vec<String> {
+    referenced_session_ids(claims)
+        .into_iter()
+        .filter(|id| !sessions.contains_key(id))
+        .collect()
+}
+
+fn session_detail_url(base: &str, session_id: &str) -> std::result::Result<reqwest::Url, String> {
+    let mut url =
+        reqwest::Url::parse(base).map_err(|error| format!("invalid daemon URL: {error}"))?;
+    {
+        let mut segments = url
+            .path_segments_mut()
+            .map_err(|_| "daemon URL cannot carry path segments".to_string())?;
+        segments.pop_if_empty().push("sessions").push(session_id);
+    }
+    Ok(url)
+}
+
+async fn fetch_session_meta(
+    client: reqwest::Client,
+    base: String,
+    session_id: String,
+) -> std::result::Result<(String, SessionMeta), (String, String)> {
+    let url =
+        session_detail_url(&base, &session_id).map_err(|error| (session_id.clone(), error))?;
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|error| (session_id.clone(), format!("request failed: {error}")))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err((session_id, format!("returned {status}")));
+    }
+    let data = response
+        .json::<Value>()
+        .await
+        .map_err(|error| (session_id.clone(), format!("invalid response: {error}")))?;
+    let session = data
+        .get("session")
+        .filter(|value| value.is_object())
+        .ok_or_else(|| {
+            (
+                session_id.clone(),
+                "response omitted session metadata".into(),
+            )
+        })?;
+    Ok((session_id, SessionMeta::from_value(session)))
 }
 
 #[derive(Debug, Clone)]
@@ -193,6 +258,7 @@ pub struct ClaimsPane {
     descending: bool,
     last_error: Option<String>,
     session_join_error: Option<String>,
+    session_join_notice: Option<String>,
 }
 
 impl Default for ClaimsPane {
@@ -204,6 +270,7 @@ impl Default for ClaimsPane {
             descending: true,
             last_error: None,
             session_join_error: None,
+            session_join_notice: None,
         }
     }
 }
@@ -337,6 +404,12 @@ impl Pane for ClaimsPane {
                 tone: Tone::Gated,
             });
         }
+        if let Some(notice) = &self.session_join_notice {
+            blocks.push(Block::WrappedText {
+                text: format!("SESSION METADATA RECOVERED\n{notice}"),
+                tone: Tone::Engaged,
+            });
+        }
         if self.claims.is_empty() {
             blocks.push(Block::KeyVal("status".into(), "no active claims".into()));
             return blocks;
@@ -417,25 +490,26 @@ impl Pane for ClaimsPane {
                 }
             };
 
+            let claim_values = arr(&claims_data, "claims");
             let mut sessions = HashMap::new();
-            self.session_join_error = None;
-            // /files only returns claims from ACTIVE sessions, so fetch that
-            // exact cohort and lift the default 50-row session cap. Without
-            // the explicit limit, a busy harbor silently loses the join for
-            // most claim rows and falls back to the same anonymous strings
-            // this ledger exists to replace.
+            let mut join_notices = Vec::new();
+            // This bounded collection is the fast path, not the correctness
+            // boundary. Every referenced session it omits is recovered by its
+            // exact /sessions/:id route below, with bounded concurrency and an
+            // explicit degradation notice. Large harbors therefore never turn
+            // claim owners back into anonymous strings because of a list cap.
             let sessions_url = format!(
-                "{}/sessions?allWorktrees=true&status=active&limit=1000",
-                daemon.base()
+                "{}/sessions?allWorktrees=true&status=active&limit={SESSION_JOIN_FAST_PATH_LIMIT}",
+                daemon.base(),
             );
             match daemon.http_client().get(&sessions_url).send().await {
                 Err(error) => {
-                    self.session_join_error = Some(format!("GET /sessions unavailable: {error}"))
+                    join_notices.push(format!("GET /sessions unavailable: {error}"));
                 }
                 Ok(response) => {
                     let status = response.status();
                     if !status.is_success() {
-                        self.session_join_error = Some(format!("GET /sessions returned {status}"));
+                        join_notices.push(format!("GET /sessions returned {status}"));
                     } else {
                         match response.json::<Value>().await {
                             Ok(data) => {
@@ -447,16 +521,97 @@ impl Pane for ClaimsPane {
                                 }
                             }
                             Err(error) => {
-                                self.session_join_error =
-                                    Some(format!("Invalid sessions response: {error}"))
+                                join_notices.push(format!("Invalid sessions response: {error}"));
                             }
                         }
                     }
                 }
             }
 
+            let missing_before = missing_session_ids(claim_values, &sessions);
+            if !missing_before.is_empty() {
+                let requested = missing_before.len();
+                let client = daemon.http_client().clone();
+                let base = daemon.base().to_string();
+                let recovered = stream::iter(missing_before.into_iter().map(|session_id| {
+                    fetch_session_meta(client.clone(), base.clone(), session_id)
+                }))
+                .buffer_unordered(SESSION_DETAIL_CONCURRENCY)
+                .collect::<Vec<_>>()
+                .await;
+
+                let mut recovered_count = 0;
+                let mut failures = Vec::new();
+                for result in recovered {
+                    match result {
+                        Ok((id, metadata)) => {
+                            sessions.insert(id, metadata);
+                            recovered_count += 1;
+                        }
+                        Err((id, reason)) => failures.push(format!("{id}: {reason}")),
+                    }
+                }
+                if recovered_count > 0 {
+                    join_notices.push(format!(
+                        "Bulk session index omitted {requested} referenced session(s); exact recovery restored {recovered_count}."
+                    ));
+                }
+                if !failures.is_empty() {
+                    let hidden = failures.len().saturating_sub(3);
+                    failures.truncate(3);
+                    let suffix = if hidden == 0 {
+                        String::new()
+                    } else {
+                        format!("; plus {hidden} more")
+                    };
+                    join_notices.push(format!(
+                        "Exact session recovery failed for {}{suffix}",
+                        failures.join("; ")
+                    ));
+                }
+            }
+
+            let malformed_claims = claim_values
+                .iter()
+                .filter(|claim| s(claim, "sessionId").is_empty())
+                .count();
+            if malformed_claims > 0 {
+                join_notices.push(format!(
+                    "{malformed_claims} claim(s) arrived without a session id."
+                ));
+            }
+            let still_missing = missing_session_ids(claim_values, &sessions);
+            let join_degraded = malformed_claims > 0 || !still_missing.is_empty();
+            if !still_missing.is_empty() {
+                let hidden = still_missing.len().saturating_sub(5);
+                let mut visible = still_missing;
+                visible.truncate(5);
+                let suffix = if hidden == 0 {
+                    String::new()
+                } else {
+                    format!("; plus {hidden} more")
+                };
+                join_notices.push(format!(
+                    "{} claim session(s) still lack metadata: {}{suffix}",
+                    visible.len() + hidden,
+                    visible.join(", ")
+                ));
+            }
+            let join_details = if claim_values.is_empty() || join_notices.is_empty() {
+                None
+            } else {
+                Some(join_notices.join("\n"))
+            };
+            if join_degraded {
+                self.session_join_error = join_details;
+                self.session_join_notice = None;
+            } else {
+                self.session_join_error = None;
+                self.session_join_notice = join_details;
+            }
+
             self.last_error = None;
-            self.claims = arr(&claims_data, "claims")
+            self.claims = claim_values
                 .iter()
                 .map(|value| ClaimEntry::from_value(value, &sessions))
                 .collect();
@@ -504,6 +659,86 @@ impl Pane for ClaimsPane {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+
+    fn claims_daemon_with_empty_bulk_join(detail_status: u16) -> (String, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind claims test daemon");
+        let base = format!(
+            "http://{}",
+            listener.local_addr().expect("test daemon address")
+        );
+        let handle = thread::spawn(move || {
+            for _ in 0..3 {
+                let (mut stream, _) = listener.accept().expect("accept claims request");
+                let mut request = [0_u8; 8_192];
+                let read = stream.read(&mut request).expect("read claims request");
+                let request = String::from_utf8_lossy(&request[..read]);
+                let (status, body) = if request.starts_with("GET /files ") {
+                    (
+                        200,
+                        json!({
+                            "success": true,
+                            "claims": [{
+                                "filePath": "src/recovered.rs",
+                                "sessionId": "session-recovered",
+                                "purpose": "prove exact metadata recovery",
+                                "agentId": "agent-recovered",
+                                "phase": "in_progress",
+                                "claimedAt": 42,
+                                "repoId": "port-daddy",
+                                "worldKind": "worktree",
+                                "worldId": "world-recovered",
+                                "nodeId": "claim-node:recovered"
+                            }]
+                        })
+                        .to_string(),
+                    )
+                } else if request.starts_with("GET /sessions?") {
+                    (200, json!({ "success": true, "sessions": [] }).to_string())
+                } else if request.starts_with("GET /sessions/session-recovered ") {
+                    (
+                        detail_status,
+                        json!({
+                            "success": detail_status == 200,
+                            "session": {
+                                "id": "session-recovered",
+                                "status": "active",
+                                "phase": "in_progress",
+                                "agentId": "agent-recovered",
+                                "worktreeId": "worktree-recovered",
+                                "identityProject": "port-daddy",
+                                "updatedAt": 43,
+                                "metadata": {
+                                    "identityString": "port-daddy:console:recovered",
+                                    "roadmapLink": "claims-roadmap",
+                                    "worktree": {
+                                        "name": "recovered-worktree",
+                                        "branch": "codex/recovered",
+                                        "root": "/repo/recovered"
+                                    }
+                                },
+                                "durable": true
+                            }
+                        })
+                        .to_string(),
+                    )
+                } else {
+                    (404, json!({ "success": false }).to_string())
+                };
+                let reason = if status == 200 { "OK" } else { "Not Found" };
+                let response = format!(
+                    "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .expect("write claims response");
+            }
+        });
+        (base, handle)
+    }
 
     fn entry(path: &str, purpose: &str, claimed_at: i64) -> ClaimEntry {
         let mut sessions = HashMap::new();
@@ -538,6 +773,75 @@ mod tests {
         assert_eq!(claim.scope(), "symbol ClaimsPane::view");
         assert!(claim.owner().contains("port-daddy:console:claims"));
         assert!(claim.worktree().contains("codex/claims"));
+    }
+
+    #[test]
+    fn missing_session_detection_is_exact_and_deduplicated() {
+        let claims = json!({
+            "claims": [
+                { "sessionId": "session-b" },
+                { "sessionId": "session-a" },
+                { "sessionId": "session-b" },
+                { "sessionId": "" },
+                {}
+            ]
+        });
+        let mut sessions = HashMap::new();
+        sessions.insert("session-a".into(), SessionMeta::default());
+
+        assert_eq!(
+            missing_session_ids(arr(&claims, "claims"), &sessions),
+            vec!["session-b"]
+        );
+    }
+
+    #[test]
+    fn exact_session_url_encodes_the_server_supplied_id_as_one_segment() {
+        let url = session_detail_url("http://127.0.0.1:9876/", "session/with space")
+            .expect("session detail URL");
+        assert_eq!(
+            url.as_str(),
+            "http://127.0.0.1:9876/sessions/session%2Fwith%20space"
+        );
+    }
+
+    #[tokio::test]
+    async fn refresh_recovers_metadata_omitted_by_a_successful_empty_bulk_join() {
+        let (base, server) = claims_daemon_with_empty_bulk_join(200);
+        let daemon = DaemonClient::new(base);
+        let mut pane = ClaimsPane::default();
+
+        pane.refresh(&daemon).await.expect("refresh claims");
+        server.join().expect("claims test daemon");
+
+        assert!(pane.session_join_error.is_none());
+        assert!(pane
+            .session_join_notice
+            .as_deref()
+            .is_some_and(|notice| notice.contains("exact recovery restored 1")));
+        let claim = pane.claims.first().expect("recovered claim");
+        assert_eq!(claim.session.identity, "port-daddy:console:recovered");
+        assert_eq!(claim.session.branch, "codex/recovered");
+        assert_eq!(claim.session.roadmap_link, "claims-roadmap");
+    }
+
+    #[tokio::test]
+    async fn refresh_exposes_an_exact_join_failure_instead_of_anonymous_silence() {
+        let (base, server) = claims_daemon_with_empty_bulk_join(404);
+        let daemon = DaemonClient::new(base);
+        let mut pane = ClaimsPane::default();
+
+        pane.refresh(&daemon).await.expect("refresh claims");
+        server.join().expect("claims test daemon");
+
+        assert!(pane.session_join_notice.is_none());
+        let error = pane
+            .session_join_error
+            .as_deref()
+            .expect("explicit join degradation");
+        assert!(error.contains("session-recovered: returned 404 Not Found"));
+        assert!(error.contains("still lack metadata"));
+        assert_eq!(pane.claims[0].owner(), "agent-recovered");
     }
 
     #[test]
