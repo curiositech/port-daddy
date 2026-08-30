@@ -17,6 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..');
 const artifactsDir = join(repoRoot, 'docs', 'artifacts', 'porthole-harness-proof-v2');
 const galleryUrl = process.argv[2] ?? 'http://127.0.0.1:4173/harness-proof-current.html';
+const mainHarnessUrl = process.argv[3];
 const browserExecutable = process.env.PD_PORTHOLE_CHROMIUM || chromium.executablePath();
 const viewport = { width: 1440, height: 1040 };
 
@@ -50,6 +51,44 @@ async function captureStillEvidence() {
     await openGallery(page, { reducedMotion: true });
     await page.screenshot({ path: join(artifactsDir, 'porthole-proof-gallery.png'), fullPage: true });
     await page.close();
+
+    const threePartyParley = await browser.newPage({ viewport });
+    await openGallery(threePartyParley, { reducedMotion: true });
+    await threePartyParley.locator('#parley-three-party').waitFor();
+    await threePartyParley.locator('#parley-three-party').screenshot({
+      path: join(artifactsDir, 'parley-three-party.png'),
+    });
+    await threePartyParley.close();
+
+    const mobileThreePartyParley = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openGallery(mobileThreePartyParley, { reducedMotion: true });
+    await mobileThreePartyParley.locator('#parley-three-party').waitFor();
+    await mobileThreePartyParley.locator('#parley-three-party').screenshot({
+      path: join(artifactsDir, 'parley-three-party-mobile.png'),
+    });
+    await mobileThreePartyParley.close();
+
+    const liveParley = await browser.newPage({ viewport });
+    await openGallery(liveParley, { reducedMotion: false });
+    await waitForScene(liveParley, 'parley');
+    await liveParley.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    // Capture before tmux exits its alternate screen so all four panes remain
+    // visible, but after the witness has observed every durable turn.
+    await liveParley.locator('.ph-term').filter({ hasText: 'CAUGHT UP · 6 durable turns' }).waitFor();
+    await liveParley.locator('.player-shell').screenshot({
+      path: join(artifactsDir, 'parley-live-tmux.png'),
+    });
+    await liveParley.close();
+
+    const mobileLiveParley = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openGallery(mobileLiveParley, { reducedMotion: false });
+    await waitForScene(mobileLiveParley, 'parley');
+    await mobileLiveParley.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await mobileLiveParley.locator('.ph-term').filter({ hasText: 'CAUGHT UP · 6 durable turns' }).waitFor();
+    await mobileLiveParley.locator('.player-shell').screenshot({
+      path: join(artifactsDir, 'parley-live-tmux-mobile.png'),
+    });
+    await mobileLiveParley.close();
 
     const collision = await browser.newPage({ viewport });
     await openGallery(collision, { reducedMotion: false });
@@ -107,6 +146,50 @@ async function captureStillEvidence() {
   }
 }
 
+async function captureMainHarnessStill() {
+  if (!mainHarnessUrl) return;
+
+  async function waitForMainHarnessParley(page) {
+    const section = page.locator('#parley-tmux-replay');
+    await section.waitFor();
+    await section.scrollIntoViewIfNeeded();
+    // PortholeEmbed is intersection-gated on the main site. Waiting for the
+    // section alone can capture the lazy placeholder before the cast mounts.
+    await section.locator('.ph-title').waitFor();
+    await section.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await section.locator('.ph-term').filter({ hasText: 'CAUGHT UP · 6 durable turns' }).waitFor();
+    await page.waitForTimeout(350);
+    return section;
+  }
+
+  const browser = await launch();
+  try {
+    const page = await browser.newPage({ viewport });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto(mainHarnessUrl, { waitUntil: 'domcontentloaded' });
+    const section = await waitForMainHarnessParley(page);
+    await page.addStyleTag({
+      content: 'header.sticky,.fixed.bottom-4.right-4{display:none!important}',
+    });
+    await section.screenshot({
+      path: join(artifactsDir, 'harness-page-parley.png'),
+    });
+
+    const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await mobile.emulateMedia({ reducedMotion: 'no-preference' });
+    await mobile.goto(mainHarnessUrl, { waitUntil: 'domcontentloaded' });
+    const mobileSection = await waitForMainHarnessParley(mobile);
+    await mobile.addStyleTag({
+      content: 'header.sticky,.fixed.bottom-4.right-4{display:none!important}',
+    });
+    await mobileSection.screenshot({
+      path: join(artifactsDir, 'harness-page-parley-mobile.png'),
+    });
+  } finally {
+    await browser.close();
+  }
+}
+
 async function record(target, run) {
   const videoDir = await mkdtemp(join(homedir(), 'coding', 'tmp', 'porthole-gallery-video-'));
   const browser = await launch();
@@ -128,6 +211,7 @@ async function record(target, run) {
 }
 
 await captureStillEvidence();
+await captureMainHarnessStill();
 
 await record('porthole-proof-gallery.webm', async (page) => {
   await openGallery(page, { reducedMotion: false });
@@ -136,6 +220,10 @@ await record('porthole-proof-gallery.webm', async (page) => {
   await waitForScene(page, 'collision');
   await page.locator('.ph-speed-chip', { hasText: '2×' }).click();
   await page.waitForTimeout(6500);
+  await waitForScene(page, 'parley');
+  await page.waitForTimeout(2400);
+  await page.locator('#parley-three-party').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(2400);
 });
 
 await record('collision-playback.webm', async (page) => {
@@ -144,5 +232,27 @@ await record('collision-playback.webm', async (page) => {
   await page.locator('.ph-speed-chip', { hasText: '2×' }).click();
   await page.waitForTimeout(25000);
 });
+
+await record('parley-live-tmux.webm', async (page) => {
+  await openGallery(page, { reducedMotion: false });
+  await waitForScene(page, 'parley');
+  await page.locator('.ph-speed-chip', { hasText: '2×' }).click();
+  await page.waitForTimeout(18000);
+});
+
+if (mainHarnessUrl) {
+  await record('harness-page-parley.webm', async (page) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto(mainHarnessUrl, { waitUntil: 'domcontentloaded' });
+    await page.locator('#what-is-a-harness').waitFor();
+    await page.locator('#what-is-a-harness').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1600);
+    await page.locator('#parley-tmux-replay').scrollIntoViewIfNeeded();
+    await page.locator('#parley-tmux-replay .ph-title').waitFor();
+    await page.waitForTimeout(3200);
+    await page.locator('#parley-suggestibility').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(2600);
+  });
+}
 
 console.log(`Captured Porthole proof evidence in ${artifactsDir}`);

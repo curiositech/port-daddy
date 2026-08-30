@@ -13,6 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const websiteRoot = join(here, '..');
 const repoRoot = join(websiteRoot, '..');
 const castsRoot = join(websiteRoot, 'public', 'casts', 'porthole');
+const parleyEvidencePath = join(websiteRoot, 'src', 'data', 'evidence', 'parley-979f6940.json');
 const outputPath = process.argv[2] ?? join(homedir(), 'coding', 'tmp', 'port-daddy-current-harness-transcripts.html');
 
 const scenes = [
@@ -58,19 +59,55 @@ const scenes = [
   },
   {
     id: 'parley', label: 'A decision survives adversarial review', station: 'Wardroom',
-    locus: 'Two sessions → durable decision receipt', format: 'tmux · 2 agents · durable receipts',
-    seed: 'Two agents disagree over capture-first versus authorize-first checkout settlement. Each has a separate worktree, identity, session, and inbox.',
-    intervention: 'The retained source transcript records the live two-agent exchange. The primary replay renders its returned JSON as a decision receipt instead of exposing debug protocol verbs.',
-    proof: 'Both panes show the same durable surface, ordered decision stages, the recorded risk, and caught-up receipts. It does not claim a settlement authority that the source has not exposed.',
-    authority: 'Real two-agent source cast · returned receipt JSON · no forged collapse',
+    cast: 'parley-source',
+    locus: 'Three sessions → six public turns → read-only witness', format: 'tmux · 3 sessions + witness · 160×44',
+    seed: 'Nora, Milo, and Aya disagree over capture order, inventory safety, and retry safety. Each owns a separate linked worktree, shell, identity, and Port Daddy session.',
+    intervention: 'The three panes conduct a real multiparty Parley. A fourth, visually distinct witness polls the durable record without a viewer identity and explains each public move as it commits.',
+    proof: 'The recording shows one proposal, two independent objections, a revision that answers both, two individual agreements, and caught-up read receipts. Public rationale is visible; private chain of thought is not claimed.',
+    authority: 'Real tmux PTYs · three real sessions · read-only Parley projection',
   },
 ];
 
 const integrationJoin = INTEGRATION_CONTRACTS.map(({ castClaimPatterns, ...contract }) => contract);
+const parleyProof = JSON.parse(await readFile(parleyEvidencePath, 'utf8'));
+
+if (parleyProof.participants?.length < 3 || parleyProof.status !== 'CONVENED' || parleyProof.outcome !== null) {
+  throw new Error('Three-party Parley evidence must remain CONVENED, unresolved, and visibly multi-party');
+}
+if (parleyProof.turns?.length !== parleyProof.displayedTurnCount
+  || parleyProof.turns.some((turn) => turn.at > parleyProof.commonReadThrough)) {
+  throw new Error('Three-party Parley evidence escaped its shared-read frontier');
+}
+
+const escapeHtml = (value) => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#039;');
+
+const safePartyColor = (value) => /^#[0-9a-f]{6}$/i.test(value) ? value : '#0b57c9';
+const participantById = new Map(parleyProof.participants.map((participant) => [participant.id, participant]));
+const parleyTurnsHtml = parleyProof.turns.map((turn) => {
+  const participant = participantById.get(turn.party);
+  if (!participant) throw new Error(`Unknown Parley participant ${turn.party}`);
+  const lane = parleyProof.participants.findIndex((candidate) => candidate.id === participant.id) + 1;
+  const time = new Date(turn.at).toISOString();
+  return `<li class="parley-turn"><span class="turn-no">T${String(turn.sequence).padStart(2, '0')}</span><article class="turn-card lane-${lane}" style="--party:${safePartyColor(participant.color)}"><div class="turn-meta"><span class="party-glyph ${escapeHtml(participant.shape)}" aria-hidden="true"></span><strong>${escapeHtml(participant.shortLabel)}</strong><span class="turn-action ${escapeHtml(turn.performative)}">${escapeHtml(turn.displayAction)}</span></div><p>${escapeHtml(turn.summary)}</p><details><summary>Inspect exact source turn</summary><p>${escapeHtml(turn.content)}</p><code>raw act: ${escapeHtml(turn.performative)} · ${escapeHtml(participant.id)} · ${escapeHtml(time)}</code></details></article></li>`;
+}).join('');
+
+const parleyPartiesHtml = parleyProof.participants.map((participant) => `<article class="party-card" style="--party:${safePartyColor(participant.color)}"><div><span class="party-glyph ${escapeHtml(participant.shape)}" aria-hidden="true"></span><strong>${escapeHtml(participant.shortLabel)}</strong></div><p>${escapeHtml(participant.role)}</p><code>${escapeHtml(participant.id)}</code></article>`).join('');
+
+const parleyReceiptsHtml = parleyProof.receipts.map((receipt) => {
+  const participant = participantById.get(receipt.party);
+  if (!participant) throw new Error(`Unknown Parley receipt party ${receipt.party}`);
+  const state = receipt.unseenTurns === 0 ? 'caught up' : `${receipt.unseenTurns} unseen`;
+  return `<span class="receipt-state ${receipt.unseenTurns === 0 ? 'complete' : 'unseen'}"><span class="party-glyph ${escapeHtml(participant.shape)}" style="--party:${safePartyColor(participant.color)}" aria-hidden="true"></span>${escapeHtml(participant.shortLabel)} · ${escapeHtml(state)}</span>`;
+}).join('');
 
 const casts = {};
 for (const scene of scenes) {
-  const bytes = await readFile(join(castsRoot, `${scene.id}.cast`));
+  const bytes = await readFile(join(castsRoot, `${scene.cast ?? scene.id}.cast`));
   casts[scene.id] = bytes.toString('utf8');
   scene.hash = createHash('sha256').update(bytes).digest('hex');
 }
@@ -138,6 +175,20 @@ h1{max-width:18ch;margin:9px 0 12px;font:700 clamp(34px,5vw,68px)/.98 var(--font
 .mast-aside b{display:block;margin-top:4px;font:750 20px/1.1 var(--font-mono)}
 .theme{justify-self:end;align-self:start;border:1px solid var(--border-default);background:var(--surface-raised);color:var(--text-primary);padding:8px 11px;cursor:pointer}
 .theme:focus-visible,.scene-tabs button:focus-visible{outline:3px solid var(--interactive-focus);outline-offset:3px}
+.decoder{margin:26px 0;border:1px solid var(--border-default);background:var(--surface-raised)}
+.decoder-head{display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);gap:18px;padding:18px;border-bottom:1px solid var(--border-default)}
+.decoder h2,.parley-board h2{margin:5px 0 8px;font:700 clamp(24px,3vw,38px)/1.04 var(--font-display)}
+.decoder-head p{max-width:72ch;margin:0;color:var(--text-secondary)}
+.layer-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border-default)}
+.layer-card{min-width:0;padding:16px;background:var(--surface-sunken)}
+.layer-card .layer-no{display:block;color:var(--brand-primary);font:850 12px/1 var(--font-mono)}
+.layer-card strong{display:block;margin:12px 0 7px;font:700 17px/1.15 var(--font-display)}
+.layer-card p{margin:0;color:var(--text-secondary);font-size:13px}
+.watch-guide{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin:16px 0;border:1px solid var(--border-default);background:var(--border-default)}
+.watch-step{padding:14px;background:var(--surface-raised)}
+.watch-step span{color:var(--brand-accent);font:850 11px/1 var(--font-mono)}
+.watch-step strong{display:block;margin:9px 0 5px;font:700 15px/1.15 var(--font-display)}
+.watch-step p{margin:0;color:var(--text-secondary);font-size:12px}
 .scene-tabs{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));margin:26px 0 0;border:1px solid var(--border-default);background:var(--border-default);gap:1px}
 .scene-tabs button{min-width:0;min-height:98px;padding:13px;text-align:left;border:0;background:var(--surface-raised);color:var(--text-secondary);cursor:pointer}
 .scene-tabs button span,.scene-tabs button small{display:block;font:700 10px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
@@ -160,6 +211,29 @@ h1{max-width:18ch;margin:9px 0 12px;font:700 clamp(34px,5vw,68px)/.98 var(--font
 .evidence-grid article{padding:18px;background:var(--surface-raised)}
 .evidence-grid h3{margin:7px 0;font:700 18px/1.2 var(--font-display)}
 .evidence-grid p{margin:0;color:var(--text-secondary)}
+.parley-board{margin-top:28px;border:1px solid var(--border-default);background:var(--surface-raised)}
+.parley-board-head{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:22px;padding:20px;border-bottom:1px solid var(--border-default)}
+.parley-board-head>div>p{max-width:72ch;margin:0;color:var(--text-secondary)}
+.parley-metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border-default);border:1px solid var(--border-default)}
+.parley-metrics div{padding:12px;background:var(--surface-sunken)}
+.parley-metrics span,.parley-metrics b{display:block;font-family:var(--font-mono)}
+.parley-metrics span{color:var(--text-muted);font-size:10px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.parley-metrics b{margin-top:4px;font-size:15px}.parley-metrics .warning{color:var(--status-warning)}.parley-metrics .error{color:var(--status-error)}
+.suggest-index{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border-default);border-bottom:1px solid var(--border-default)}
+.suggest-index div{padding:13px;background:var(--surface-sunken)}
+.suggest-index span,.suggest-index strong{display:block}.suggest-index span{color:var(--brand-primary);font:850 10px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}.suggest-index strong{margin-top:7px;font-size:13px}
+.party-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:18px 18px 0;background:var(--border-default);border:1px solid var(--border-default)}
+.party-card{min-width:0;padding:14px;background:var(--surface-sunken);border-top:6px solid var(--party)}
+.party-card>div,.turn-meta{display:flex;min-width:0;align-items:center;gap:8px;flex-wrap:wrap}.party-card>div strong{min-width:0;overflow-wrap:anywhere}.party-card p{margin:7px 0;color:var(--text-secondary);font-size:14px}.party-card code{display:block;overflow-wrap:anywhere;color:var(--text-muted);font-size:10px}
+.party-glyph{display:inline-block;width:13px;height:13px;flex:0 0 auto;border:2px solid var(--party);background:var(--party)}.party-glyph.circle{border-radius:50%}.party-glyph.diamond{transform:rotate(45deg)}
+.parley-turns{display:grid;gap:7px;margin:18px;padding:0;list-style:none}
+.parley-turn{display:grid;grid-template-columns:48px repeat(3,minmax(0,1fr));gap:7px}.turn-no{padding-top:13px;color:var(--text-muted);font:850 11px/1 var(--font-mono)}
+.turn-card{min-width:0;padding:13px;border:1px solid var(--border-default);border-left:7px solid var(--party);background:var(--surface-sunken)}.turn-card.lane-1{grid-column:2}.turn-card.lane-2{grid-column:3}.turn-card.lane-3{grid-column:4}
+.turn-meta strong{min-width:0;margin-right:auto;font-size:14px}.turn-action{padding:4px 6px;border:1px solid var(--border-strong);background:var(--surface-raised);color:var(--text-primary);font:850 10px/1.2 var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.turn-card>p{margin:10px 0 0;color:var(--text-primary);font-size:14px;font-weight:700}.turn-card details{margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default)}.turn-card summary{cursor:pointer;color:var(--brand-primary);font:850 10px/1.2 var(--font-mono);letter-spacing:.06em;text-transform:uppercase}.turn-card details p{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:var(--text-secondary);font:14px/1.55 var(--font-mono)}.turn-card details code{display:block;overflow-wrap:anywhere;color:var(--text-muted);font-size:10px}
+.parley-honesty{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:1px;margin:0 18px 18px;border:1px solid var(--border-default);background:var(--border-default)}.parley-honesty>div{padding:14px;background:var(--surface-sunken)}.parley-honesty h3{margin:6px 0;font:700 18px/1.2 var(--font-display)}.parley-honesty p{margin:0;color:var(--text-secondary)}
+.receipt-row{display:flex;flex-wrap:wrap;align-content:start;gap:8px}.receipt-state{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border-default);font:850 10px/1.2 var(--font-mono);text-transform:uppercase}.receipt-state.complete{color:var(--status-success)}.receipt-state.unseen{color:var(--status-warning)}
+.parley-source{display:block;margin:0;padding:13px 18px;border-top:1px solid var(--border-default);overflow-wrap:anywhere;white-space:normal;color:var(--text-muted);font:14px/1.5 var(--font-mono)}
 .integration-join{margin-top:28px;padding:20px;border:1px solid var(--border-default);background:var(--surface-raised)}
 .integration-join h2{margin:5px 0 8px;font:700 clamp(22px,3vw,34px)/1.05 var(--font-display)}
 .integration-join>p{max-width:78ch;margin:0;color:var(--text-secondary)}
@@ -173,8 +247,8 @@ ${portholeCss}
 .ph-root{--type-code-size:14px}
 .ph-win{border-color:var(--border-strong)}
 .ph-cut-notice{background:var(--ph-header-bg)}
-@media(max-width:980px){.mast{grid-template-columns:1fr}.scene-tabs{grid-template-columns:repeat(3,1fr)}.brief{grid-template-columns:1fr 1fr}.brief-main{grid-row:auto;grid-column:1/-1}.evidence-grid,.integration-slots{grid-template-columns:1fr}}
-@media(max-width:640px){.page{width:min(100% - 20px,1320px);padding-top:18px}.scene-tabs{grid-template-columns:1fr 1fr}.brief{grid-template-columns:1fr}.brief-main{grid-column:auto}.brief-main .scene-no{float:none;display:block;margin:0 0 9px}.mast-aside{grid-template-columns:1fr 1fr}.ph-term{font-size:12px;padding-left:28px}.ph-provenance{overflow-wrap:anywhere}}
+@media(max-width:980px){.mast,.decoder-head,.parley-board-head,.parley-honesty{grid-template-columns:1fr}.layer-grid,.watch-guide,.suggest-index{grid-template-columns:1fr 1fr}.scene-tabs{grid-template-columns:repeat(3,1fr)}.brief{grid-template-columns:1fr 1fr}.brief-main{grid-row:auto;grid-column:1/-1}.evidence-grid,.integration-slots{grid-template-columns:1fr}.parley-turn{grid-template-columns:38px 1fr}.turn-card.lane-1,.turn-card.lane-2,.turn-card.lane-3{grid-column:2}}
+@media(max-width:640px){.page{width:min(100% - 20px,1320px);padding-top:18px}.layer-grid,.watch-guide,.suggest-index,.party-grid{grid-template-columns:1fr}.scene-tabs{grid-template-columns:1fr 1fr}.brief{grid-template-columns:1fr}.brief-main{grid-column:auto}.brief-main .scene-no{float:none;display:block;margin:0 0 9px}.mast-aside{grid-template-columns:1fr 1fr}.party-grid,.parley-turns,.parley-honesty{margin-left:10px;margin-right:10px}.ph-term{font-size:12px;padding-left:28px}.ph-provenance{overflow-wrap:anywhere}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -184,18 +258,31 @@ ${portholeCss}
     <div>
       <div class="eyebrow">Port Daddy · harness evidence room · ${commit}</div>
       <h1>The harness is in the room.</h1>
-      <p>Six executable scenarios show what Port Daddy installs, injects, refuses, remembers, launches, and negotiates. Every terminal is selectable asciicast text. No GIF, no commented acting, no private production transcript.</p>
+      <p>A harness is the safety, control, and continuity layer around an agent. Six executable scenarios show what Port Daddy installs, injects, refuses, remembers, launches, and negotiates. Every terminal is selectable asciicast text. No GIF, no commented acting, no private production transcript.</p>
     </div>
     <div>
       <button class="theme" id="theme-toggle" type="button">◐ theme</button>
       <div class="mast-aside" aria-label="Corpus facts">
         <div><span class="kicker">Scenes</span><b>6</b></div>
-        <div><span class="kicker">Two-agent</span><b>4</b></div>
-        <div><span class="kicker">Silent cuts</span><b>declared</b></div>
-        <div><span class="kicker">Authority</span><b>PTY + hash</b></div>
+        <div><span class="kicker">Multi-agent</span><b>4</b></div>
+        <div><span class="kicker">Three-party record</span><b>1</b></div>
+        <div><span class="kicker">Authority</span><b>PTY + receipt</b></div>
       </div>
     </div>
   </header>
+
+  <section class="decoder" aria-labelledby="decoder-title">
+    <div class="decoder-head">
+      <div><span class="proof-key">Start here</span><h2 id="decoder-title">What is a harness?</h2></div>
+      <p>The agent still writes code and runs commands. The harness is the layer around those actions: it can provide timely context, check a risky edit, and leave a trace. Port Daddy keeps the team state durable. Porthole is the window that lets you replay and inspect the evidence.</p>
+    </div>
+    <div class="layer-grid">
+      <article class="layer-card"><span class="layer-no">01 · agent</span><strong>The worker at the keyboard</strong><p>Chooses commands, edits files, runs tests, and explains the result.</p></article>
+      <article class="layer-card"><span class="layer-no">02 · harness</span><strong>Seat belt + dashboard + flight recorder</strong><p>Connects before a turn, before an edit, and after a tool without replacing the worker.</p></article>
+      <article class="layer-card"><span class="layer-no">03 · Port Daddy</span><strong>The durable team control plane</strong><p>Owns identity, worktrees, claims, inbox delivery, Parley, limits, and receipts.</p></article>
+      <article class="layer-card"><span class="layer-no">04 · Porthole</span><strong>The inspectable evidence window</strong><p>Replays real terminal bytes and source time. It shows the run; it does not invent the decision.</p></article>
+    </div>
+  </section>
 
   <nav class="scene-tabs" id="scene-tabs" role="tablist" aria-label="Harness proof scenarios"></nav>
 
@@ -205,6 +292,13 @@ ${portholeCss}
     <div><span class="kicker">Seeded condition</span><p id="scene-seed"></p></div>
     <div><span class="kicker">Observed proof</span><p id="scene-proof"></p></div>
     <div><span class="kicker">Capture</span><p><span id="scene-format"></span><br>sha256 <code id="scene-hash"></code></p></div>
+  </section>
+
+  <section class="watch-guide" aria-label="How to read the harness videos">
+    <article class="watch-step"><span>01</span><strong>Read the brief</strong><p>Seed, intervention, and proof tell you what this recording may establish.</p></article>
+    <article class="watch-step"><span>02</span><strong>Follow each pane</strong><p>Separate panes are separate shells, worktrees, and agent identities.</p></article>
+    <article class="watch-step"><span>03</span><strong>Use the color legend</strong><p>Purple is harness context; blue is identity; orange is purpose; green is ready; red is a real refusal.</p></article>
+    <article class="watch-step"><span>04</span><strong>Find the read-back</strong><p>The later discovery, receipt, or refusal is what proves the command changed real state.</p></article>
   </section>
 
   <section class="player-shell" role="tabpanel" aria-label="Active harness transcript">
@@ -218,6 +312,31 @@ ${portholeCss}
     <article><span class="kicker">Observed</span><h3>Timestamped terminal bytes</h3><p>The recorder runs commands in real shells and tmux panes. Porthole interprets the emitted bytes into selectable DOM text with full scrollback.</p></article>
     <article><span class="kicker">Explained</span><h3>Fixture and intervention</h3><p>Each scene states what was seeded and what Port Daddy actually did. The notes do not upgrade a cast into stronger authority than it has.</p></article>
     <article><span class="kicker">Not implied</span><h3>Evidence, not a sealed receipt</h3><p>These casts do not prove omitted context, containment, cost, or merge safety. A normalized WorkReceipt must bind those facts separately.</p></article>
+  </section>
+
+  <section class="parley-board" id="parley-three-party" aria-labelledby="parley-three-party-title">
+    <div class="parley-board-head">
+      <div><span class="proof-key">Three-member Parley · durable drill-down</span><h2 id="parley-three-party-title">Suggestibility, with names and receipts.</h2><p>One agent proposed an ownership split. Two peers changed the evidence requirements, tightened the safety boundary, and recorded individual agreements. The Parley is still open and has no settlement. The chronology stays intact—even the critique that arrived after an early agreement—so influence remains visible instead of being flattened into a tidy story.</p></div>
+      <div class="parley-metrics" aria-label="Three-party Parley facts">
+        <div><span>State</span><b class="warning">${escapeHtml(parleyProof.status)} · still open</b></div>
+        <div><span>Settlement</span><b class="error">none</b></div>
+        <div><span>Parties</span><b>${parleyProof.participants.length}</b></div>
+        <div><span>Turns</span><b>${parleyProof.displayedTurnCount} shared · ${parleyProof.withheldTurnCount} withheld</b></div>
+      </div>
+    </div>
+    <div class="suggest-index" aria-label="Index of how suggestions changed the proposal">
+      <div><span>01 · proposal</span><strong>T01</strong></div>
+      <div><span>02 · suggestions + pressure</span><strong>T02 · T03 · T07</strong></div>
+      <div><span>03 · revisions</span><strong>T04 · T06</strong></div>
+      <div><span>04 · individual agreements (not settlement)</span><strong>T05 · T08</strong></div>
+    </div>
+    <div class="party-grid" aria-label="Parley participants">${parleyPartiesHtml}</div>
+    <ol class="parley-turns" aria-label="Chronological shared-read Parley turns">${parleyTurnsHtml}</ol>
+    <div class="parley-honesty">
+      <div><span class="proof-key">Read-frontier boundary</span><h3>Two later turns are deliberately not on this page.</h3><p>${escapeHtml(parleyProof.honestyNote)} This historical coordination record is distinct from the live three-session fixture above and from the still-unmerged Sugar experience.</p></div>
+      <div><span class="kicker">Captured read receipts</span><div class="receipt-row">${parleyReceiptsHtml}</div></div>
+    </div>
+    <code class="parley-source">Source ${escapeHtml(parleyProof.sourceEndpoint)} · ${escapeHtml(parleyProof.parleyId)} · response sha256 ${escapeHtml(parleyProof.sourceResponseSha256)}</code>
   </section>
 
   <section class="integration-join" aria-labelledby="integration-join-title">

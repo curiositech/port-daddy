@@ -2560,8 +2560,18 @@ export function createParleyStore(deps: ParleyStoreDeps) {
         lastError,
         createdAt,
       );
-      inserted += changes(result);
-      if (changes(result) === 0) {
+      const mutationCount = (result as { changes?: unknown } | null | undefined)?.changes;
+      if (typeof mutationCount !== 'number'
+        || !Number.isSafeInteger(mutationCount)
+        || mutationCount < 0) {
+        throw new Error('parley outbox insert returned an invalid SQLite mutation receipt');
+      }
+      // better-sqlite3 reports the one directly inserted outbox row. bun:sqlite
+      // also includes this table's quota-trigger ledger writes in `changes`.
+      // Both receipts prove one successful direct insert; neither is a row
+      // count that can be summed across intents.
+      if (mutationCount > 0) inserted += 1;
+      if (mutationCount === 0) {
         const existing = db.prepare(`
           SELECT parley_id, payload_hash, recipient_actor_id, inbox_target, from_actor_id, event_type
           FROM parley_notification_outbox

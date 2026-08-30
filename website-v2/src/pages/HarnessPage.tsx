@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { HarnessLifecycleVessel } from '@/components/harness/HarnessLifecycleVessel'
+import { ParleySuggestibilityMap } from '@/components/harness/ParleySuggestibilityMap'
+import { ParleyTmuxReplay } from '@/components/harness/ParleyTmuxReplay'
 import { PortholeEmbed } from '@/components/porthole/PortholeEmbed'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Button } from '@/components/ui/Button'
@@ -64,6 +66,64 @@ type Capability = {
     proof: string
   }
 }
+
+const PLAIN_LANGUAGE_LAYERS = [
+  {
+    n: '01',
+    eyebrow: 'The agent',
+    title: 'The worker at the keyboard.',
+    body:
+      'Claude, Codex, Gemini, or another coding agent reads the task, chooses commands, edits files, and reports what it did.',
+    icon: Terminal,
+  },
+  {
+    n: '02',
+    eyebrow: 'The harness',
+    title: 'The seat belt, dashboard, and flight recorder around the worker.',
+    body:
+      'A harness connects to the agent before a turn, before an edit, and after a tool. It can add timely context, stop a collision, and leave evidence without replacing the agent itself.',
+    icon: ShieldAlert,
+  },
+  {
+    n: '03',
+    eyebrow: 'Port Daddy',
+    title: 'The team’s durable control plane.',
+    body:
+      'Port Daddy remembers identities, worktrees, claims, inboxes, Parleys, budgets, and receipts. It is the shared source of truth when several agents work at once.',
+    icon: Users,
+  },
+  {
+    n: '04',
+    eyebrow: 'Porthole',
+    title: 'The evidence window you can pause and inspect.',
+    body:
+      'Porthole replays the real terminal bytes as selectable text and keeps source time visible. It shows what happened; it does not invent coordination or make the decision.',
+    icon: Radio,
+  },
+] as const
+
+const VIDEO_READING_GUIDE = [
+  {
+    n: '01',
+    title: 'Read the scene brief first.',
+    body: 'It names the starting condition, the intervention Port Daddy made, and the exact proof the recording is allowed to support.',
+  },
+  {
+    n: '02',
+    title: 'Treat each pane as a different point of view.',
+    body: 'Separate panes are separate shells, worktrees, and agent identities. A split screen is not one actor pretending to be several people.',
+  },
+  {
+    n: '03',
+    title: 'Use color as a legend, not decoration.',
+    body: 'Blue names session identity, orange names purpose, purple is Port Daddy model context, green is ready or accepted, and red is a real refusal or error.',
+  },
+  {
+    n: '04',
+    title: 'Look for the read-back.',
+    body: 'The interesting moment is not the command. It is the later discovery, receipt, refusal, or shared state that proves the command changed something real.',
+  },
+] as const
 
 const CAPABILITIES: readonly Capability[] = [
   {
@@ -487,6 +547,59 @@ export default function HarnessPage() {
           </PageContainer>
         </section>
 
+        {/* ── Plain-language decoder ────────────────────────────────── */}
+        <section
+          id="what-is-a-harness"
+          className="scroll-mt-24 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]"
+        >
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Start here"
+              title="A harness is the safety and continuity layer around an agent."
+              description="The agent still does the work. The harness makes the moments around that work observable and governable, while Port Daddy keeps the team state durable and Porthole lets a human inspect the evidence."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[22ch]"
+              bodyClassName="max-w-[58rem]"
+            />
+
+            <div className="mt-[var(--space-6)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] md:grid-cols-2 xl:grid-cols-4">
+              {PLAIN_LANGUAGE_LAYERS.map((layer) => (
+                <article key={layer.n} className="grid content-start gap-[var(--space-3)] bg-[var(--surface-base)] p-[var(--space-4)]">
+                  <div className="flex items-center justify-between gap-[var(--space-3)]">
+                    <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] text-[var(--brand-primary)]">
+                      <layer.icon size={19} />
+                    </span>
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-black text-[var(--text-muted)]">
+                      {layer.n}
+                    </span>
+                  </div>
+                  <PanelEyebrow className="text-[var(--brand-primary)]">{layer.eyebrow}</PanelEyebrow>
+                  <PanelTitle as="h3" size="card" className="max-w-[22ch]">
+                    {layer.title}
+                  </PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    {layer.body}
+                  </PanelBody>
+                </article>
+              ))}
+            </div>
+
+            <SurfacePanel elevation="quiet" padding="compact" className="mt-[var(--space-5)] grid gap-[var(--space-3)] border-l-[0.45rem] border-l-[var(--brand-accent)] lg:grid-cols-[minmax(12rem,0.35fr)_minmax(0,1fr)]">
+              <PanelTitle as="h3" size="nav" className="max-w-[16ch]">
+                What the videos are showing
+              </PanelTitle>
+              <PanelBody className="max-w-[62rem]">
+                First, an agent or operator runs a real command. Next, Port Daddy
+                injects context, checks ownership, coordinates another participant,
+                or refuses an unsafe action. Finally, the recording shows the
+                read-back that proves the result. The terminal is the view; the
+                daemon receipt is the authority.
+              </PanelBody>
+            </SurfacePanel>
+          </PageContainer>
+        </section>
+
         {/* ── The lifecycle vessel ───────────────────────────────────── */}
         <section id="lifecycle-vessel" className="scroll-mt-24 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
@@ -552,6 +665,20 @@ export default function HarnessPage() {
                 )
               })}
             </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Real three-shell Parley source ───────────────────────── */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <ParleyTmuxReplay />
+          </PageContainer>
+        </section>
+
+        {/* ── Three-party suggestibility proof ─────────────────────── */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <ParleySuggestibilityMap />
           </PageContainer>
         </section>
 
@@ -876,18 +1003,35 @@ pd squid codex --tier strong
                 </PanelBody>
               </div>
 
+              <div className="mb-[var(--space-6)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-2 lg:grid-cols-4" aria-label="How to read the harness recordings">
+                {VIDEO_READING_GUIDE.map((step) => (
+                  <article key={step.n} className="bg-[var(--surface-raised)] p-[var(--space-3)]">
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-black text-[var(--brand-accent)]">
+                      {step.n}
+                    </span>
+                    <PanelTitle as="h4" size="nav" className="mt-[var(--space-2)] max-w-[18ch]">
+                      {step.title}
+                    </PanelTitle>
+                    <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+                      {step.body}
+                    </PanelBody>
+                  </article>
+                ))}
+              </div>
+
               <SurfacePanel elevation="raised" padding="compact" className="grid gap-[var(--space-4)]">
                 <PortholeEmbed
-                  src="/casts/porthole/harness-next-turn.cast"
-                  label="Replay the exact bounded context the current prompt tentacle emitted"
+                  src="/casts/porthole/parley.cast"
+                  label="Replay the compact three-party decision receipt derived from the real tmux Parley above"
                 />
                 <div className="grid gap-[var(--space-2)]">
-                  <PanelEyebrow className="text-[var(--brand-primary)]">The envelope, verbatim</PanelEyebrow>
-                  <PanelTitle as="h4" size="card">This is what the agent actually receives.</PanelTitle>
+                  <PanelEyebrow className="text-[var(--brand-primary)]">Same Parley · compact receipt</PanelEyebrow>
+                  <PanelTitle as="h4" size="card">The live conversation becomes inspectable evidence.</PanelTitle>
                   <PanelBody size="compact" className="max-w-[64rem]">
-                    Recorded through the repository’s Porthole capture path against the real daemon and source CLI.
-                    It is replayable terminal data, not a GIF and not staged output. More lifecycle portholes land only
-                    after their corresponding hook can produce honest, bounded evidence.
+                    This second recording reads the same durable three-party Parley from Nora, Milo, and Aya’s separate
+                    sessions, then renders the returned decision path and read receipts in human language. The four-pane
+                    tmux above remains the protocol source. Sugar’s natural agent experience remains a join-only contract
+                    until its merged implementation can be re-verified and recorded.
                   </PanelBody>
                 </div>
               </SurfacePanel>

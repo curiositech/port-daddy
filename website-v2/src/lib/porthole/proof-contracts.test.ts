@@ -8,6 +8,7 @@ import {
   findJoinOnlyCastClaims,
   findPortholeCastCorpusFailures,
   findServiceDiscoveryFailures,
+  findThreePartyParleyFailures,
   findVisibilityTimelineFailures,
 } from '../../../scripts/porthole-proof-contracts.mjs'
 
@@ -83,6 +84,61 @@ describe('Porthole proof integration boundary', () => {
     expect(files).toHaveLength(8)
     expect(PORTHOLE_CAST_CORPUS.primary).not.toContain(PORTHOLE_CAST_CORPUS.rawProtocol)
     expect(findPortholeCastCorpusFailures(files)).toEqual([])
+  })
+
+  it('requires three real Parley sessions, a read-only witness, and three compact receipts', () => {
+    const source = [
+      'NORA◆ agent-settle-checkout-ownership-aaaaaaaa',
+      'MILO◇ agent-challenge-checkout-ownership-bbbbbbbb',
+      'AYA● agent-bind-checkout-retry-safety-cccccccc',
+      'PORT DADDY WITNESS · READ ONLY',
+      'public rationale as committed · no read receipt · no private chain of thought',
+      '◆ NORA  OPENING POSITION',
+      '◇ MILO  RISK EXPOSED',
+      '● AYA  CONSTRAINT ADDED',
+      '◆ NORA  PLAN CHANGED',
+      'CAUGHT UP · 6 durable turns',
+      'state CONVENED · settlement none',
+    ].join('\n')
+    const receipt = [
+      'DECISION RECEIPT · AUTHOR',
+      'DECISION RECEIPT · REVIEWER',
+      'DECISION RECEIPT · SAFETY-OWNER',
+      'DECISION PATH (6)',
+      'nora · caught up',
+      'milo · caught up',
+      'aya · caught up',
+    ].join('\n')
+
+    expect(findThreePartyParleyFailures(source, receipt)).toEqual([])
+    expect(findThreePartyParleyFailures(source.replace('PORT DADDY WITNESS · READ ONLY', 'silent helper'), receipt))
+      .toContain('parley-source.cast: missing read-only witness pane')
+  })
+
+  it('publishes only the shared-read frontier of the real three-party Parley', () => {
+    const evidence = JSON.parse(readFileSync(
+      new URL('../../data/evidence/parley-979f6940.json', import.meta.url),
+      'utf8',
+    )) as {
+      status: string
+      outcome: unknown
+      sourceTurnCount: number
+      displayedTurnCount: number
+      withheldTurnCount: number
+      commonReadThrough: number
+      participants: unknown[]
+      turns: Array<{ sequence: number; at: number }>
+      receipts: Array<{ unseenTurns: number }>
+    }
+
+    expect(evidence.status).toBe('CONVENED')
+    expect(evidence.outcome).toBeNull()
+    expect(evidence.participants).toHaveLength(3)
+    expect(evidence.turns.map((turn) => turn.sequence)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    expect(evidence.turns.every((turn) => turn.at <= evidence.commonReadThrough)).toBe(true)
+    expect(evidence.turns).toHaveLength(evidence.displayedTurnCount)
+    expect(evidence.sourceTurnCount - evidence.displayedTurnCount).toBe(evidence.withheldTurnCount)
+    expect(evidence.receipts.map((receipt) => receipt.unseenTurns)).toEqual([0, 1, 1])
   })
 
   it('rejects an unclassified cast rather than silently changing the public corpus', () => {

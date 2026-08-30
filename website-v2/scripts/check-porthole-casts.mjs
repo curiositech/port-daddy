@@ -26,6 +26,7 @@ import {
   findJoinOnlyCastClaims,
   findPortholeCastCorpusFailures,
   findServiceDiscoveryFailures,
+  findThreePartyParleyFailures,
   findVisibilityTimelineFailures,
 } from "./porthole-proof-contracts.mjs";
 
@@ -178,7 +179,12 @@ for (const file of files) {
     continue;
   }
   const command = typeof cast.head.command === "string" ? cast.head.command : "";
-  const expectedGeometry = command.includes("drive-tmux") ? [120, 34] : [100, 28];
+  const explicitGeometry = {
+    'parley-source.cast': [160, 44],
+    'parley.cast': [140, 40],
+  };
+  const expectedGeometry = explicitGeometry[file]
+    ?? (command.includes("drive-tmux") ? [120, 34] : [100, 28]);
   if (cast.cols !== expectedGeometry[0] || cast.rows !== expectedGeometry[1]) {
     fail(`${file}: recorded at ${cast.cols}x${cast.rows}, capture doctrine requires ${expectedGeometry[0]}x${expectedGeometry[1]} for this scene type (a mismatched geometry is how the legacy corpus got corrupted typed lines)`);
   }
@@ -250,7 +256,13 @@ for (const file of files) {
 }
 
 if (decodedByFile.has('parley.cast') && !decodedByFile.has('parley-source.cast')) {
-  fail('parley.cast: primary receipt is present without the preserved raw two-agent protocol transcript');
+  fail('parley.cast: primary receipt is present without the preserved raw three-session protocol transcript');
+}
+if (observedByFile.has('parley-source.cast') && observedByFile.has('parley.cast')) {
+  for (const failure of findThreePartyParleyFailures(
+    observedByFile.get('parley-source.cast'),
+    observedByFile.get('parley.cast'),
+  )) fail(failure);
 }
 
 for (const failure of findJoinOnlyCastClaims(observedByFile)) fail(failure);

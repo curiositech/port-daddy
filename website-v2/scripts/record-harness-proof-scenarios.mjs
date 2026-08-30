@@ -112,6 +112,7 @@ function run(bin, args, options = {}) {
 function promptColor(prompt) {
   if (prompt.startsWith('NORA')) return '\\033[1;38;5;114m';
   if (prompt.startsWith('MILO')) return '\\033[1;38;5;117m';
+  if (prompt.startsWith('AYA')) return '\\033[1;38;5;208m';
   if (prompt.startsWith('ENGINE')) return '\\033[1;38;5;221m';
   if (prompt.startsWith('BRIDGE')) return '\\033[1;38;5;81m';
   return '\\033[1;36m';
@@ -161,6 +162,32 @@ run_required() {
   fi
   return "$status"
 }
+run_silent_required() {
+  local text="$1" status=0
+  eval "$text" 2>&1 || status=$?
+  if [ "$status" -ne 0 ]; then
+    printf '\\033[1;41;97m REFUSED · witness exited %s \\033[0m\\n' "$status"
+    if [ -n "\${PD_PORTHOLE_FAILURE_FILE:-}" ]; then
+      printf '%s (exit %s)\n' "$text" "$status" > "$PD_PORTHOLE_FAILURE_FILE"
+    fi
+  fi
+  return "$status"
+}
+wait_for_files() {
+  local deadline=$((SECONDS + 45)) path ready
+  while true; do
+    ready=1
+    for path in "$@"; do
+      if [ ! -s "$path" ]; then ready=0; break; fi
+    done
+    if [ "$ready" -eq 1 ]; then return 0; fi
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      printf '\\033[1;41;97m REFUSED · timed out waiting for durable fixture barrier \\033[0m\\n'
+      return 124
+    fi
+    sleep 0.2
+  done
+}
 `;
 }
 
@@ -183,7 +210,7 @@ async function recordSingle({ slug, cwd, prompt, commands, env = {}, sourceCli =
   ], { cwd: dir, stdio: 'inherit', env: recordEnv });
 }
 
-async function recordTmux({ slug, left, right, durationSeconds, env = {} }) {
+async function recordTmux({ slug, left, right, third = null, witness = null, durationSeconds, env = {} }) {
   const dir = join(runRoot, slug);
   await mkdir(dir, { recursive: true });
   const socket = `pd-proof-${process.pid}-${slug}`;
@@ -208,13 +235,18 @@ setw -g automatic-rename off
 
   async function paneScript(side, spec) {
     const path = join(dir, `${side}.sh`);
-    const waitsAndCommands = spec.steps.map(({ wait = 0, command, allowFailure = false }) => {
+    const waitsAndCommands = spec.steps.map(({ wait = 0, command, allowFailure = false, silent = false }) => {
       if (command.trimStart().startsWith('#')) throw new Error(`${slug}/${side}: narration comments are forbidden`);
-      const runner = allowFailure ? 'run_cmd' : 'run_required';
+      const runner = silent ? 'run_silent_required' : allowFailure ? 'run_cmd' : 'run_required';
       const failFast = allowFailure ? '' : ' || exit $?';
       return `${wait > 0 ? `sleep ${wait}\n` : ''}${runner} ${q(command)}${failFast}\n`;
     }).join('');
-    await writeExecutable(path, shellPrelude({ cwd: spec.cwd, prompt: spec.prompt, env: { ...recordEnv, ...spec.env } })
+    await writeExecutable(path, shellPrelude({
+      cwd: spec.cwd,
+      prompt: spec.prompt,
+      env: { ...recordEnv, ...spec.env },
+      sourceCli: spec.sourceCli !== false,
+    })
       + waitsAndCommands
       + 'sleep 120\n');
     return path;
@@ -222,23 +254,50 @@ setw -g automatic-rename off
 
   const leftScript = await paneScript('left', left);
   const rightScript = await paneScript('right', right);
+  const thirdScript = third ? await paneScript('third', third) : null;
+  const witnessScript = witness ? await paneScript('witness', witness) : null;
+  const dimensions = witness
+    ? { cols: 160, rows: 44, mainWidth: 80 }
+    : third
+      ? { cols: 140, rows: 40, mainWidth: 70 }
+      : { cols: 120, rows: 34, mainWidth: 60 };
+  const extraPaneSetup = witness && third && thirdScript && witnessScript ? `
+THIRD_PANE="$(${q(tmux)} -L ${q(socket)} split-window -v -t "$LEFT_PANE" -P -F '#{pane_id}' -c ${q(third.cwd)} ${q(thirdScript)})"
+WITNESS_PANE="$(${q(tmux)} -L ${q(socket)} split-window -v -t "$RIGHT_PANE" -P -F '#{pane_id}' -c ${q(witness.cwd)} ${q(witnessScript)})"
+${q(tmux)} -L ${q(socket)} select-layout -t ${q(session)} tiled >/dev/null
+${q(tmux)} -L ${q(socket)} select-pane -t "$THIRD_PANE" -T ${q(third.title)}
+${q(tmux)} -L ${q(socket)} select-pane -t "$WITNESS_PANE" -T ${q(witness.title)}` : third && thirdScript ? `
+THIRD_PANE="$(${q(tmux)} -L ${q(socket)} split-window -v -t "$RIGHT_PANE" -P -F '#{pane_id}' -c ${q(third.cwd)} ${q(thirdScript)})"
+${q(tmux)} -L ${q(socket)} set-window-option -t ${q(session)} main-pane-width ${dimensions.mainWidth} >/dev/null
+${q(tmux)} -L ${q(socket)} select-layout -t ${q(session)} main-vertical >/dev/null
+${q(tmux)} -L ${q(socket)} select-pane -t "$THIRD_PANE" -T ${q(third.title)}` : `
+${q(tmux)} -L ${q(socket)} select-layout -t ${q(session)} even-horizontal >/dev/null`;
+  const extraPaneCapture = witness ? `
+printf '\\n'
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$THIRD_PANE"
+printf '\\n'
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$WITNESS_PANE"` : third ? `
+printf '\\n'
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$THIRD_PANE"` : '';
   const driver = join(dir, 'drive-tmux.sh');
   await writeExecutable(driver, `#!/usr/bin/env bash
 set -uo pipefail
-${q(tmux)} -L ${q(socket)} -f ${q(tmuxConfig)} new-session -d -x 120 -y 34 -s ${q(session)} -c ${q(left.cwd)} ${q(leftScript)}
-${q(tmux)} -L ${q(socket)} split-window -h -t ${q(session)} -c ${q(right.cwd)} ${q(rightScript)}
-${q(tmux)} -L ${q(socket)} select-layout -t ${q(session)} even-horizontal >/dev/null
-${q(tmux)} -L ${q(socket)} select-pane -t ${q(`${session}:0.0`)} -T ${q(left.title)}
-${q(tmux)} -L ${q(socket)} select-pane -t ${q(`${session}:0.1`)} -T ${q(right.title)}
+${q(tmux)} -L ${q(socket)} -f ${q(tmuxConfig)} new-session -d -x ${dimensions.cols} -y ${dimensions.rows} -s ${q(session)} -c ${q(left.cwd)} ${q(leftScript)}
+LEFT_PANE="$(${q(tmux)} -L ${q(socket)} display-message -p -t ${q(session)} '#{pane_id}')"
+RIGHT_PANE="$(${q(tmux)} -L ${q(socket)} split-window -h -t "$LEFT_PANE" -P -F '#{pane_id}' -c ${q(right.cwd)} ${q(rightScript)})"
+${extraPaneSetup}
+${q(tmux)} -L ${q(socket)} select-pane -t "$LEFT_PANE" -T ${q(left.title)}
+${q(tmux)} -L ${q(socket)} select-pane -t "$RIGHT_PANE" -T ${q(right.title)}
 (
   sleep ${durationSeconds}
   ${q(tmux)} -L ${q(socket)} detach-client -s ${q(session)} >/dev/null 2>&1 || true
 ) &
 ${q(tmux)} -L ${q(socket)} attach-session -t ${q(session)}
 printf '\n'
-${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t ${q(`${session}:0.0`)}
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$LEFT_PANE"
 printf '\n'
-${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t ${q(`${session}:0.1`)}
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$RIGHT_PANE"
+${extraPaneCapture}
 ${q(tmux)} -L ${q(socket)} kill-session -t ${q(session)} >/dev/null 2>&1 || true
 if [ -s ${q(failureFile)} ]; then
   printf 'Porthole required command failed: ' >&2
@@ -248,7 +307,7 @@ fi
 `);
   try {
     run(asciinema, [
-      'record', '--window-size', '120x34', '--headless', '--return', '--overwrite', '--quiet',
+      'record', '--window-size', `${dimensions.cols}x${dimensions.rows}`, '--headless', '--return', '--overwrite', '--quiet',
       '--command', `./${basename(driver)}`, join(castsDir, `${slug}.cast`),
     ], { cwd: dir, stdio: 'inherit', env: recordEnv });
   } finally {
@@ -279,6 +338,13 @@ async function addWorktrees(repo, name) {
   run('/usr/bin/git', ['worktree', 'add', '-b', `${name}-nora`, left], { cwd: repo });
   run('/usr/bin/git', ['worktree', 'add', '-b', `${name}-milo`, right], { cwd: repo });
   return { left, right };
+}
+
+async function addThreeWorktrees(repo, name) {
+  const worktrees = await addWorktrees(repo, name);
+  const third = join(runRoot, `${name}-aya`);
+  run('/usr/bin/git', ['worktree', 'add', '-b', `${name}-aya`, third], { cwd: repo });
+  return { ...worktrees, third };
 }
 
 if (wants('quickstart')) {
@@ -482,35 +548,61 @@ await recordTmux({
 
 if (wants('parley')) {
 const parleyRepo = await makeRepo('parley-proof', { 'src/checkout.ts': 'export function settle() { return "capture-first" }\n' });
-const parley = await addWorktrees(parleyRepo, 'parley-proof');
+const parley = await addThreeWorktrees(parleyRepo, 'parley-proof');
 const parleyShared = join(runRoot, 'parley-shared');
 const parleySharedRelative = '../parley-shared';
 await mkdir(parleyShared, { recursive: true });
 await recordTmux({
-  // Preserve the literal two-agent protocol transcript as supporting evidence.
-  // The gallery's primary cast below is a receipt rendered from this same
-  // durable state, so a visitor never has to read debug performatives to
-  // understand the product result.
+  // Preserve the literal three-agent protocol transcript as supporting
+  // evidence. Every pane owns a different worktree, session, prompt, and
+  // public rationale; the audience-facing commentary may explain these turns
+  // but may never replace or rewrite them.
   slug: 'parley-source',
-  durationSeconds: 72,
+  durationSeconds: 88,
+  env: {
+    PORT_DADDY_URL: recorderDaemonUrl,
+    PD_PARLEY_WITNESS: join(root, 'website-v2', 'scripts', 'render-parley-live-commentary.mjs'),
+  },
   left: {
     cwd: parley.left, prompt: 'NORA◆', title: 'NORA · proposal author', steps: [
       { command: `pd begin "settle checkout ownership" --identity ${fixtureProject}:nora-parley --lifecycle durable --sidequest "record public Parley proof"` },
       { command: `NORA=$(pd whoami --json | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).agentId'); printf '%s' "$NORA" > ${parleySharedRelative}/nora` },
-      { command: `until [ -s ${parleySharedRelative}/milo ]; do sleep 0.2; done; MILO=$(cat ${parleySharedRelative}/milo); pd parley call --surface src/checkout.ts --reason "capture-first and authorize-first branches disagree" --with "$NORA,$MILO" | tee ${parleySharedRelative}/call` },
-      { command: `PARLEY=$(sed -n 's/^Parley \\([^ ]*\\).*/\\1/p' ${parleySharedRelative}/call); printf '%s' "$PARLEY" > ${parleySharedRelative}/id; pd parley propose "$PARLEY" "Capture funds first, then authorize fulfillment; rollback remains bounded."` },
-      { command: `until [ -s ${parleySharedRelative}/critique-ready ]; do sleep 0.2; done; PARLEY=$(cat ${parleySharedRelative}/id); pd parley revise "$PARLEY" "Reserve funds, authorize inventory, then capture atomically; release reservation on refusal." --as "$NORA" && printf ready > ${parleySharedRelative}/revision-ready` },
-      { command: `until [ -s ${parleySharedRelative}/agreement-ready ]; do sleep 0.2; done; pd parley show "$(cat ${parleySharedRelative}/id)" --as "$NORA"` },
+      { command: `wait_for_files ${parleySharedRelative}/milo ${parleySharedRelative}/aya; MILO=$(cat ${parleySharedRelative}/milo); AYA=$(cat ${parleySharedRelative}/aya); pd parley call --surface src/checkout.ts --reason "capture-first, inventory safety, and retry safety disagree" --with "$NORA,$MILO,$AYA" | tee ${parleySharedRelative}/call` },
+      { command: `PARLEY=$(sed -n 's/^Parley \\([^ ]*\\).*/\\1/p' ${parleySharedRelative}/call); printf '%s' "$PARLEY" > ${parleySharedRelative}/id; pd parley propose "$PARLEY" "I own checkout flow. Capture funds first, then authorize fulfillment; rollback remains bounded."` },
+      { command: `wait_for_files ${parleySharedRelative}/critique-ready ${parleySharedRelative}/safety-ready; PARLEY=$(cat ${parleySharedRelative}/id); pd parley revise "$PARLEY" "I changed the plan: reserve inventory, authorize payment, then capture once under one idempotency key; release the reservation on refusal." --as "$NORA" && printf ready > ${parleySharedRelative}/revision-ready` },
+      { command: `wait_for_files ${parleySharedRelative}/milo-agreed ${parleySharedRelative}/aya-agreed; pd parley show "$(cat ${parleySharedRelative}/id)" --as "$NORA" && printf ready > ${parleySharedRelative}/complete` },
     ],
   },
   right: {
     cwd: parley.right, prompt: 'MILO◇', title: 'MILO · adversarial reviewer', steps: [
       { wait: 2, command: `pd begin "challenge checkout ownership" --identity ${fixtureProject}:milo-parley --lifecycle durable --sidequest "record public Parley proof"` },
       { command: `MILO=$(pd whoami --json | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).agentId'); printf '%s' "$MILO" > ${parleySharedRelative}/milo` },
-      { command: `until [ -s ${parleySharedRelative}/id ]; do sleep 0.2; done; PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY"` },
-      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley critique "$PARLEY" "Capture-first can charge an order that inventory later refuses; require a reservation receipt." --as "$MILO" && printf ready > ${parleySharedRelative}/critique-ready` },
-      { command: `until [ -s ${parleySharedRelative}/revision-ready ]; do sleep 0.2; done; PARLEY=$(cat ${parleySharedRelative}/id); pd parley agree "$PARLEY" "The revision closes the charge-without-inventory hole; I agree." --as "$MILO" && printf ready > ${parleySharedRelative}/agreement-ready` },
-      { wait: 5, command: `pd attention` },
+      { command: `wait_for_files ${parleySharedRelative}/id; PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY"` },
+      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley critique "$PARLEY" "I am the adversarial reviewer. Capture-first can charge an order that inventory later refuses; require a reservation receipt." --as "$MILO" && printf ready > ${parleySharedRelative}/critique-ready` },
+      { command: `wait_for_files ${parleySharedRelative}/revision-ready; PARLEY=$(cat ${parleySharedRelative}/id); pd parley agree "$PARLEY" "My charge-without-inventory objection is closed by the reservation receipt and capture-after-authorization order." --as "$MILO" && printf ready > ${parleySharedRelative}/milo-agreed` },
+      { command: `wait_for_files ${parleySharedRelative}/aya-agreed; pd parley show "$(cat ${parleySharedRelative}/id)" --as "$MILO"` },
+    ],
+  },
+  third: {
+    cwd: parley.third, prompt: 'AYA●', title: 'AYA · delivery safety owner', steps: [
+      { wait: 4, command: `pd begin "bind checkout retry safety" --identity ${fixtureProject}:aya-parley --lifecycle durable --sidequest "record public Parley proof"` },
+      { command: `AYA=$(pd whoami --json | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).agentId'); printf '%s' "$AYA" > ${parleySharedRelative}/aya` },
+      { command: `wait_for_files ${parleySharedRelative}/id; PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY"` },
+      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley respond "$PARLEY" --performative inform --content "I am the delivery safety owner. One idempotency key must bind reservation, authorization, and capture so retries cannot double-charge." --as "$AYA" && printf ready > ${parleySharedRelative}/safety-ready` },
+      { command: `wait_for_files ${parleySharedRelative}/revision-ready; PARLEY=$(cat ${parleySharedRelative}/id); pd parley agree "$PARLEY" "My retry-safety objection is closed because the same idempotency key now binds all three effects." --as "$AYA" && printf ready > ${parleySharedRelative}/aya-agreed` },
+      { command: `wait_for_files ${parleySharedRelative}/milo-agreed; pd parley show "$(cat ${parleySharedRelative}/id)" --as "$AYA"` },
+    ],
+  },
+  witness: {
+    cwd: parleyRepo,
+    prompt: 'WITNESS',
+    title: 'PORT DADDY WITNESS · read-only commentary',
+    sourceCli: false,
+    steps: [
+      {
+        silent: true,
+        command: `node "$PD_PARLEY_WITNESS" --id-file ${parleyShared}/id --done-file ${parleyShared}/complete --nora-file ${parleyShared}/nora --milo-file ${parleyShared}/milo --aya-file ${parleyShared}/aya --expected-turns 6`,
+      },
     ],
   },
 });
@@ -527,6 +619,11 @@ await recordTmux({
   right: {
     cwd: parley.right, prompt: 'MILO◇', title: 'MILO · adversarial reviewer', steps: [
       { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/milo)" --json | node "$PD_PARLEY_RECEIPT" --role reviewer` },
+    ],
+  },
+  third: {
+    cwd: parley.third, prompt: 'AYA●', title: 'AYA · delivery safety owner', steps: [
+      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/aya)" --json | node "$PD_PARLEY_RECEIPT" --role safety-owner` },
     ],
   },
 });

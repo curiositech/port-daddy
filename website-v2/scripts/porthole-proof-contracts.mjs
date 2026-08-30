@@ -90,6 +90,58 @@ export function findPortholeCastCorpusFailures(files) {
 }
 
 /**
+ * Requires the public Parley proof to bind one real multiparty source replay
+ * to its compact receipt projection. The source must show three distinct
+ * sessions plus a read-only witness; the primary receipt must stay free of
+ * raw performatives and show all three participants caught up.
+ *
+ * @param {string} sourceEvidence frame-observed text from parley-source.cast
+ * @param {string} receiptEvidence frame-observed text from parley.cast
+ * @returns {string[]} authenticity and presentation failures.
+ */
+export function findThreePartyParleyFailures(sourceEvidence, receiptEvidence) {
+  const failures = [];
+  const sourceRequirements = [
+    [/NORA◆/, 'Nora pane'],
+    [/MILO◇/, 'Milo pane'],
+    [/AYA●/, 'Aya pane'],
+    [/PORT DADDY WITNESS · READ ONLY/, 'read-only witness pane'],
+    [/public rationale as committed · no read receipt · no private chain of thought/, 'public-rationale boundary'],
+    [/◆ NORA\s+OPENING POSITION/, 'Nora opening-position commentary'],
+    [/◇ MILO\s+RISK EXPOSED/, 'Milo risk commentary'],
+    [/● AYA\s+CONSTRAINT ADDED/, 'Aya constraint commentary'],
+    [/◆ NORA\s+PLAN CHANGED/, 'Nora revision commentary'],
+    [/CAUGHT UP · 6 durable turns/, 'six-turn witness frontier'],
+    [/state CONVENED · settlement none/, 'unsettled durable state'],
+  ];
+  for (const [pattern, label] of sourceRequirements) {
+    if (!pattern.test(sourceEvidence)) failures.push(`parley-source.cast: missing ${label}`);
+  }
+  const agentIds = new Set(sourceEvidence.match(/agent-(?:settle-checkout-ownership|challenge-checkout-ownership|bind-checkout-retry-safety)-[a-f0-9]{8}\b/g) ?? []);
+  if (agentIds.size !== 3) {
+    failures.push(`parley-source.cast: expected three distinct session agent ids, observed ${agentIds.size}`);
+  }
+  if (/REFUSED ·/.test(sourceEvidence)) {
+    failures.push('parley-source.cast: a required Parley command failed inside the shipped source recording');
+  }
+
+  const receiptRoles = new Set(
+    [...receiptEvidence.matchAll(/DECISION RECEIPT · (AUTHOR|REVIEWER|SAFETY-OWNER)/g)].map((match) => match[1]),
+  );
+  if (receiptRoles.size !== 3) {
+    failures.push(`parley.cast: expected author, reviewer, and safety-owner receipts; observed ${receiptRoles.size}`);
+  }
+  if (!/DECISION PATH \(6\)/.test(receiptEvidence)) {
+    failures.push('parley.cast: compact receipt does not retain all six durable turns');
+  }
+  const caughtUp = receiptEvidence.match(/· caught up/g)?.length ?? 0;
+  if (caughtUp < 3) {
+    failures.push(`parley.cast: expected three caught-up participant receipts; observed ${caughtUp}`);
+  }
+  return failures;
+}
+
+/**
  * Validates the two intentionally contested collision operations from their
  * real replay bytes. Required-command markers live only in the recorder's
  * ephemeral run directory so unexpected failures abort capture; they are not
