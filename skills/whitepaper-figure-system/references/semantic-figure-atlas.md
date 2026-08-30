@@ -60,6 +60,33 @@ Use accounting flows, payoff or regime plots, cost intervals, or conservation eq
 to the corresponding paths. Width may encode conserved quantity only when it is actually
 proportional. Decorative seesaws, circles, or black bars are not economic diagrams.
 
+Choose the economic grammar from the reader's question, not from the presence of money words:
+
+| Reader question | First-choice grammar | Required geometry | Reject |
+|---|---|---|---|
+| What enters, is held, and leaves? | typed journal or stock--flow ledger | distinct inflow classes; one custody or settlement boundary; exhaustive terminal outflows; aligned conservation equation | coins, wallets, or currency symbols standing in for accounts |
+| Who can authorize, hold, redirect, or refuse value? | escrow/custody boundary with actor swimlanes | principals; custodian; authorization path; evidence path; permitted terminal outcomes; explicitly impossible redirection path | generic central bank node; arrows whose custody semantics are unlabeled |
+| When is capital tied up, paid, released, or exposed? | common-scale interval comparison or cash-flow timeline | shared horizon; reservation interval; premium/payment event; release event; retained tail; idle-capital interval | black bars over labels; timelines with incomparable scales |
+| How does risk change as assurance is purchased? | paired residual-risk and cumulative-cost curves | common intervention count; risk decay; marginal or cumulative cost; operating region; dependence assumption | shrinking rectangles; a slogan box containing the conclusion |
+| Where does a market or policy change regime? | threshold/phase-boundary plot | source-owned axes; measured or assumed boundary; labeled regimes; uncertainty or approximation error | a yes/no badge; equation floating above an unrelated sketch |
+| Which strategy dominates under which conditions? | payoff frontier, response surface, or aligned payoff table | strategies; state/parameter axes; payoff difference or dominance relation; tie/boundary; detection or enforcement term | seesaw; trophy; larger circle implying a better payoff |
+| How do losses, reserves, and tail exposure partition? | stacked exposure ledger or aligned small multiples | expected loss; reserve; premium; uncovered tail; same denominator and horizon | pie charts without measured shares; shield or danger icons |
+| How does allocation respond to price or scarcity? | supply/demand, auction allocation, or rank-order plot | bids/offers or quantities; clearing rule; rejected region; price or scarcity axis; allocation outcome | gavel scene; bidder avatars; decorative token stream |
+
+#### Economic typography and color contract
+
+- Put monetary units and time horizons in axis titles, column heads, or a single aligned note; do
+  not repeat them inside every mark.
+- Align equations to the path or ledger row they explain. An equation detached from its marks is
+  prose with a border, not a figure.
+- Use teal for verified, conserved, cleared, or admitted value; amber for conditional, exposed,
+  delayed, or residual value; neutral ink for ordinary state. Cobalt is not the default money
+  color and must never be used as an untyped emphasis wash.
+- A Sankey width is allowed only when the source supplies proportional quantities. Otherwise use
+  equal-width typed paths and label the accounting identity explicitly.
+- Show uncertainty, censoring, or simulation error as intervals, bands, or distributions. Never
+  smuggle uncertainty into blur, transparency, decorative noise, or an unexplained gradient.
+
 ### Architecture, institutions, and roles
 
 Use layered stacks for strata, symmetric endpoints for peers, and differentiated shapes for

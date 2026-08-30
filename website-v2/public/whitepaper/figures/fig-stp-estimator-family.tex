@@ -8,10 +8,10 @@
 
   \node[stp box,minimum width=54mm,text width=47mm] (s1) at (-3.5,2)
     {\textbf{pairwise / tournament}\\{\scriptsize ``agent A beat agent B''}};
-  \node[stp accent box,minimum width=61mm,text width=54mm] (e1) at (3.5,2)
+  \node[stp box,draw=hhamber,line width=.9pt,minimum width=61mm,text width=54mm] (e1) at (3.5,2)
     {\textbf{Bradley--Terry} (full-history MLE)\\
      {\scriptsize Elo \(\cdot\) TrueSkill for streaming updates}};
-  \draw[stp accent arrow] (s1) -- (e1);
+  \draw[-{Stealth[length=2.3mm,width=1.5mm]},draw=hhamber,line width=.8pt] (s1) -- (e1);
 
   \node[stp box,minimum width=54mm,text width=47mm] (s2) at (-3.5,0)
     {\textbf{trust propagation}\\{\scriptsize ``whom does the network trust?''}};

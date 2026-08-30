@@ -24,10 +24,10 @@
                 minimum width=26mm,minimum height=11mm,align=center,inner sep=4pt},
   terminal/.style={state,fill=hhsanddeep},
   edge/.style={->,>=Latex,thick,draw=hhink},
-  never/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  never/.style={->,>=Latex,thick,draw=hhamber,dashed},
   edgelbl/.style={font=\footnotesize,align=center},
-  note/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
-               inner sep=5pt,align=left,font=\footnotesize,text width=140mm},
+  invariant/.style={draw=hhamber,line width=.7pt,fill=hhsand!20,rounded corners=3pt,
+               inner sep=5pt,align=center,font=\footnotesize,text width=112mm},
 ]
 
 \node[state] (valid) at (0,0) {\textbf{valid}\\[1pt]{\footnotesize admitted}};
@@ -43,23 +43,15 @@
 
 % The claim: there is NO way back. Drawn, not omitted.
 \draw[never] (revoked.north west) to[bend right=38]
-  node[pos=0.5,fill=hhpaper,draw=hhcobalt,thick,circle,inner sep=1pt,
-       font=\bfseries,text=hhcobalt] (crossmark) {$\times$}
+  node[pos=0.5,fill=hhpaper,draw=hhamber,thick,circle,inner sep=1pt,
+       font=\bfseries,text=hhamber] (crossmark) {$\times$}
   (valid.north);
-\node[edgelbl,text=hhcobalt,anchor=south,text width=52mm]
-  at ([yshift=3mm]crossmark.north)
-  {\textbf{never} --- no un-revocation. Property~\ref{prop:no-reanim}: an
-   erroneous revocation is repaired by \emph{issuing a new card}, not by
-   restoring this one.};
+\node[edgelbl,text=hhamber,anchor=south,align=center]
+  at ([yshift=3mm]crossmark.north) {no return edge};
 
-\node[note,below=12mm of valid.south,anchor=north west,xshift=-13mm]
-  {{\bfseries Why the missing edge matters.}\quad
-   Acceptance is monotonically narrowing over a card's TTL
-   (Property~\ref{prop:filter-mono}), so a verifier that has once rejected a
-   \texttt{kid} inside $[t_0, t_0{+}\tau]$ will never later admit it. This is
-   what lets the revocation check be a pure \emph{gate} in front of admission,
-   and why the soundness argument for
-   Theorem~\ref{thm:injective} survives revocation unchanged.};
+\node[invariant] at (2.8,-2.85)
+  {\textbf{No reanimation.}\quad A mistaken revocation is corrected by issuing
+   a new card ID; the rejected card never returns to the admission set.};
 
 \end{tikzpicture}
 \caption{The Harbor Card lifecycle. A card leaves the \textit{valid} state in

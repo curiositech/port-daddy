@@ -1,54 +1,31 @@
-% Fig 4 — the three continuity organs, drawn in the shared `stp box` visual grammar.
-% Maturity labels use the paper's \BUILT / \BUILTWEAK macros so the in-figure label
-% and the caption cannot drift apart.
-
-% ─── The Three Continuity Organs ──────────────────────────────────────────────
+% Figure III.4 --- continuity is an evidence pipeline, not three product boxes.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-
-  \node[stp box,text width=44mm,align=left,minimum height=26mm] (o1) at (-5.2,0) {
-    \textbf{\scshape 1. Episodic memory}\\[1pt]
-    {\scriptsize\BUILT}\\[4pt]
-    \textit{What happened.}\\[2pt]
-    {\footnotesize Typed episodes scored by recency, importance, and relevance.}
-  };
-
-  \node[stp box,text width=44mm,align=left,minimum height=26mm] (o2) at (0,0) {
-    \textbf{\scshape 2. Checkpoint organ}\\[1pt]
-    {\scriptsize\BUILTWEAK}\\[4pt]
-    \textit{Restorable state.}\\[2pt]
-    {\footnotesize Forwards a summary and worktree lineage --- not execution state.}
-  };
-
-  \node[stp accent box,text width=44mm,align=left,minimum height=26mm] (o3) at (5.2,0) {
-    \textbf{\scshape 3. Outcome ledger}\\[1pt]
-    {\scriptsize\BUILTWEAK}\\[4pt]
-    \textit{Witnessed delivery.}\\[2pt]
-    {\footnotesize Commitments close against oracles; neutral grading does not ship.}
-  };
-
-  \draw[stp arrow] (o1) -- (o2);
-  \draw[stp arrow] (o2) -- (o3);
-
-  \node[stp box,text width=44mm,below=9mm of o3] (rep) {
-    \textbf{\scshape Multi-dim reputation}\\[1pt]
-    {\scriptsize\DESIGNED}\\[2pt]
-    {\scriptsize Keys on the witnessed-outcome ledger (the third organ)}
-  };
-  \draw[stp accent arrow] (o3) -- (rep);
-
+\begin{tikzpicture}[font=\footnotesize,
+  cell/.style={draw=hhink!62,line width=.38pt,fill=hhsand!17,minimum height=11mm,text width=31mm,align=left,inner sep=4pt},
+  head/.style={cell,fill=hhink,text=hhpaper,font=\footnotesize\bfseries,align=center},
+  organ/.style={cell,fill=hhteal!12,draw=hhteal!82,font=\footnotesize\bfseries},
+]
+  \node[head,text width=29mm] at (-5.2,2.3) {continuity organ};
+  \node[head] at (-1.75,2.3) {input artifact};
+  \node[head] at (1.75,2.3) {persistence rule};
+  \node[head] at (5.2,2.3) {output evidence};
+  \node[organ,text width=29mm] at (-5.2,.95) {Episodic memory\newline\textsc{implemented}};
+  \node[cell] at (-1.75,.95) {typed episode + source reference};
+  \node[cell] at (1.75,.95) {retain scored records; never promote a summary as evidence};
+  \node[cell] at (5.2,.95) {recalled episode is traceable to its source};
+  \node[organ,text width=29mm] at (-5.2,-.65) {Checkpoint\newline\textsc{partial}};
+  \node[cell] at (-1.75,-.65) {task state + worktree lineage};
+  \node[cell] at (1.75,-.65) {retain restart context; no execution-state claim};
+  \node[cell] at (5.2,-.65) {successor receives bounded, attributable context};
+  \node[organ,text width=29mm] at (-5.2,-2.25) {Outcome ledger\newline\textsc{partial}};
+  \node[cell] at (-1.75,-2.25) {commitment + oracle result};
+  \node[cell] at (1.75,-2.25) {append witnessed closure; preserve the audit reference};
+  \node[cell] at (5.2,-2.25) {reputation may consume this row only};
+  \draw[hhteal,line width=1.1pt] (-6.55,-3.25) -- (6.55,-3.25);
+  \node[font=\footnotesize\bfseries,text=hhteal,anchor=north] at (0,-3.25) {reputation reads witnessed outcomes, not transient state};
 \end{tikzpicture}}
-\caption{\textbf{The three continuity organs, honestly labelled.} Episodic memory
-(\BUILT) records what happened --- typed episodes promoted out of transient history.
-The checkpoint (\BUILTWEAK) is meant to preserve task lineage and worktree state
-across compaction boundaries, but today forwards a summary rather than execution
-state. The witnessed-outcome ledger (\BUILTWEAK) is the sole anchor reputation keys
-on --- the accented box --- and it is only partial: durable commitments and
-oracle-bound closure ship, neutral graded outcomes and sanctions do not
-(\S\ref{sec:organs}). Each organ's in-figure grade is set from the same
-\BUILT/\BUILTWEAK/\DESIGNED\ macros the body text uses, so the picture and the prose
-cannot disagree.}
+\caption{\textbf{The three continuity organs as an evidence contract.} Episodic memory (\BUILT) retains typed, source-addressable episodes. The checkpoint (\BUILTWEAK) carries task lineage and worktree context across compaction, but does not claim to restore execution state. The outcome ledger (\BUILTWEAK) appends commitments closed against oracles. Only that final, witnessed row is admissible as reputation evidence (\S\ref{sec:organs}). The maturity labels use the same \BUILT/\BUILTWEAK\ macros as the text.}
 \label{fig:organs}
 \end{figure}

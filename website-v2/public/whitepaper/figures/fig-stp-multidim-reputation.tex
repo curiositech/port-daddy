@@ -1,27 +1,31 @@
-% Fig 10 — preserve the quality vector; let each buyer choose its weights.
+% Figure III.10 --- quality remains a vector on common, independently judged axes.
 \begin{figure}[H]
 \centering
 \resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=38mm] (out) at (-5,1.8)
-    {\textbf{witnessed outcome}};
-  \node[stp accent box,minimum width=40mm] (vector) at (0,1.8)
-    {\textbf{quality vector}\\{\small $\mathbf q=(q_{\rm acc},q_{\rm aes},q_{\rm eff})$}};
-  \node[stp box,minimum width=42mm,text width=36mm] (buyer) at (5.2,1.8)
-    {\textbf{buyer applies $\mathbf w$}\\
-     {\scriptsize ``cheap'' versus ``careful''}};
-  \draw[stp accent arrow] (out) -- (vector);
-  \draw[stp accent arrow] (vector) -- (buyer);
-
-  \node[stp box,minimum width=43mm,text width=36mm] (acc) at (-5,-1.25)
-    {\textbf{accuracy} $q_{\rm acc}$\\{\scriptsize judged by a test oracle}};
-  \node[stp box,minimum width=43mm,text width=36mm] (aes) at (0,-1.25)
-    {\textbf{aesthetics} $q_{\rm aes}$\\{\scriptsize expert-reviewer judgment}};
-  \node[stp box,minimum width=43mm,text width=36mm] (eff) at (5,-1.25)
-    {\textbf{efficiency} $q_{\rm eff}$\\{\scriptsize judged by the cost ledger}};
-  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (acc.north);
-  \draw[stp arrow] (vector.south) -- (aes.north);
-  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (eff.north);
+\begin{tikzpicture}[font=\footnotesize]
+  \node[anchor=west,font=\footnotesize\bfseries] at (-1.6,2.45) {witnessed outcomes on a common 0--1 scale};
+  \node[anchor=west,font=\footnotesize\itshape,text=hhgray] at (4.1,2.1) {buyer keeps the vector; chooses weights later};
+  \foreach \y/\axis/\judge/\a/\b/\weight in {
+    1.45/accuracy/test oracle/5.8/4.5/$w_{\rm acc}$,
+    0/aesthetics/expert review/4.0/6.2/$w_{\rm aes}$,
+    -1.45/efficiency/cost ledger/5.0/3.5/$w_{\rm eff}$}
+  {
+    \node[anchor=east,font=\footnotesize\bfseries] at (-1.85,\y) {\axis};
+    \node[anchor=east,font=\footnotesize\itshape,text=hhgray] at (-1.85,\y-.38) {\judge};
+    \draw[hhgray!68,line width=.55pt] (0,\y) -- (7,\y);
+    \foreach \x in {0,3.5,7} \draw[hhgray!45,line width=.35pt] (\x,\y-.13) -- (\x,\y+.13);
+    \fill[hhink] (\a,\y) circle (1.6pt);
+    \fill[hhamber] (\b,\y) circle (1.6pt);
+    \node[anchor=west,font=\footnotesize] at (7.35,\y) {\weight};
+  }
+  \node[anchor=west,font=\footnotesize,text=hhgray] at (0,1.9) {$0$};
+  \node[anchor=west,font=\footnotesize,text=hhgray] at (3.35,1.9) {$.5$};
+  \node[anchor=west,font=\footnotesize,text=hhgray] at (6.8,1.9) {$1$};
+  \node[font=\footnotesize\bfseries,anchor=east] at (-.25,-2.45) {markers};
+  \fill[hhink] (.1,-2.45) circle (1.6pt); \node[anchor=west,font=\footnotesize] at (.28,-2.45) {outcome A};
+  \fill[hhamber] (2.05,-2.45) circle (1.6pt); \node[anchor=west,font=\footnotesize] at (2.23,-2.45) {outcome B};
+  \draw[hhteal,line width=1.05pt] (4.15,-2.45) -- (7.95,-2.45);
+  \node[font=\footnotesize\bfseries,text=hhteal,anchor=west] at (4.15,-2.8) {no scalar ``reputation score'' is stored};
 \end{tikzpicture}}
 \caption{\textbf{Multi-dimensional reputation.} A witnessed outcome
 carries a quality \emph{vector} $\mathbf{q}=(q_{\text{acc}},q_{\text{aes}},

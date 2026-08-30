@@ -3,7 +3,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -35,10 +35,10 @@
 \draw[stp arrow] (i1) -- (i2);
 \draw[stp arrow] (i2) -- (i3);
 \draw[stp arrow] (i3) -- (i4);
-\node[stp accent box,text width=92mm] (thread) at (1.7,-0.65)
+\node[stp box,draw=hhamber,line width=.9pt,text width=92mm] (thread) at (1.7,-0.65)
   {\textbf{continuity} --- witnessed history follows the identity, not the role};
-\draw[stp accent arrow] (i1.south) -- ++(0,-3mm) -| (thread.north west);
-\draw[stp accent arrow] (i4.south) -- ++(0,-3mm) -| (thread.north east);
+\draw[-{Stealth[length=2.3mm,width=1.5mm]},draw=hhamber,line width=.8pt] (i1.south) -- ++(0,-3mm) -| (thread.north west);
+\draw[-{Stealth[length=2.3mm,width=1.5mm]},draw=hhamber,line width=.8pt] (i4.south) -- ++(0,-3mm) -| (thread.north east);
 \end{tikzpicture}}
 \caption{\textbf{Role vs.\ person.} A \emph{role} (left) is an org-chart entry ---
 obligations, capabilities, authority --- fillable by any spawn and carrying no

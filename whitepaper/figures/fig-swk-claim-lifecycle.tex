@@ -7,7 +7,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -19,7 +19,7 @@
   font=\small,
   st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!30,
              minimum width=28mm,minimum height=12mm,align=center,font=\bfseries\footnotesize},
-  held/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=10pt,
+  held/.style={draw=hhamber,line width=1.4pt,fill=hhpaper,rounded corners=10pt,
                minimum width=32mm,minimum height=14mm,align=center,font=\bfseries\footnotesize},
   edge/.style={->,>=Latex,thick,hhebony,font=\scriptsize},
   selfedge/.style={->,>=Latex,thick,hhteal,font=\scriptsize},
@@ -43,7 +43,7 @@
   {\textbf{re-claim} by $a$ (I3): idempotent};
 
 % concurrent-loser self-loop below free
-\draw[selfedge,hhcobalt] (free.south) to[out=-115,in=-65,looseness=7] (free.south);
+\draw[selfedge,hhamber] (free.south) to[out=-115,in=-65,looseness=7] (free.south);
 \node[align=center,font=\scriptsize,text=hhink,below=10mm of free,text width=42mm]
   {concurrent acquire loses cleanly;\\ handed the holder (I2)};
 
@@ -72,7 +72,7 @@ deleted when encountered, not on a timer. The conspicuous missing state is
 \textsc{queued}: there is no wait-list and no fairness primitive, so a fast agent
 churning a hot resource can starve a slow one indefinitely --- open problem OP-1,
 which asks whether bounded-wait can be added without dragging a scheduler down into
-the kernel. \S\ref{sec:resource} specifies (but does not yet ship) a reactive
+the kernel. \S\ref{sec:resource} specifies (but does not yet implement) a reactive
 ticket-lock that would add the missing state for cooperatively released claims;
 claims returned by the lazy sweep would still bypass it, which is why OP-1 remains
 open.}

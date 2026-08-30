@@ -1,68 +1,49 @@
-% Capability attenuation — Russian doll. Inline in §2 Architecture or §3.3 Delegation.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: delegation monotonically reduces both rights and lifetime.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  capring/.style={draw=hhebony,thick,rounded corners=4pt,align=center,inner sep=6pt},
-  caplbl/.style={font=\footnotesize,align=center},
-  prin/.style={draw=hhebony,thick,fill=hhcobalt!30,rounded corners=2pt,
-               inner sep=4pt,font=\bfseries\footnotesize,align=center},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  na/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  x=1cm,y=1cm,font=\small,
+  cell/.style={draw=hhink,line width=.55pt,fill=hhpaper,minimum width=31mm,
+    minimum height=9mm,align=center,inner sep=4pt},
+  head/.style={draw=hhink,line width=.7pt,fill=hhsand!32,minimum width=31mm,
+    minimum height=10mm,align=center,inner sep=4pt}
 ]
-% Outermost capability: root cap from daemon (80mm wide, 56mm tall, centered).
-\node[capring,fill=hhsand,minimum width=80mm,minimum height=56mm] (root) at (0,0)
-  {};
-\node[caplbl,above=1mm of root.north]
-  {\textbf{Root cap (daemon)}: \texttt{db:*}, \texttt{fs:*}, \texttt{net:*}, TTL = 1h};
-% Middle capability: AgentA cap — STRICT SUBSET of root (smaller and well inside).
-% root spans x in (-4, 4) and y in (-2.8, 2.8). Place mid offset slightly down-left.
-\node[capring,fill=hhsanddeep,minimum width=58mm,minimum height=36mm]
-  (mid) at (-0.6,-0.6) {};
-\node[caplbl,above=0.5mm of mid.north]
-  {\textbf{AgentA cap}: \texttt{db:write}, \texttt{fs:read}, TTL = 15m};
-% Innermost capability: AgentB cap — STRICT SUBSET of mid.
-% mid spans x in (-3.5, 2.3) and y in (-2.4, 1.2). Place inner offset further down-left.
-\node[capring,fill=hhamber!40,minimum width=32mm,minimum height=18mm]
-  (inner) at (-1.4,-1.2)
-  {{\bfseries AgentB cap}\\\texttt{db:write}, TTL = 5m};
-% AgentA principal: outside the rings on the right; delegates the AgentA cap.
-\node[prin,right=12mm of mid.east,fill=hhsand!50] (agentA) {AgentA};
-\draw[arr] (agentA.west) -- node[above,font=\footnotesize] {delegate}
-  (mid.east);
-% AgentB principal: outside the rings below; receives the AgentB cap.
-\node[prin,below=12mm of inner.south,fill=hhamber!20] (agentB) {AgentB};
-\draw[arr] (inner.south) -- (agentB.north);
-% Invariants side panel.
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,align=left,
-      inner sep=5pt,minimum width=58mm,right=12mm of agentA]
-  (invbox)
-  {{\bfseries Attenuation invariants:}\\[2pt]
-   $\bullet$ child cap $\subsetneq$ parent cap\\
-   $\bullet$ child TTL $<$ parent TTL\\
-   $\bullet$ child cannot re-grant beyond child cap};
-% Daemon principal: above the invariants panel so it does not overlap it.
-\node[prin,above=8mm of invbox.north,fill=hhcobalt!30] (daemon) {Daemon};
-\draw[arr] (daemon.south west) -- node[left,font=\footnotesize] {issue}
-  (root.north east);
-% Forbidden grant attempt
-\node[font=\footnotesize\itshape,text=hhcobalt,
-      below=6mm of agentB,align=center]
-  (forbid) {AgentB cannot grant \texttt{net:*} downstream};
-\draw[na] (agentB.south) -- (forbid.north);
-\end{tikzpicture}%
-}
-\caption{Every delegated capability is a strict subset of its parent's, in both rights and TTL, so a chain of delegations can only narrow authority, never widen it. AgentB inherits only what AgentA explicitly delegates and cannot re-grant capabilities it does not hold. This is enforced both at issuance (the parent signs over the child's attenuated claim set) and at verification (the verifier checks the chain of \texttt{is\_subset} relations).}
+  \node[font=\scriptsize\bfseries,text=hhgray,anchor=east] at (-5.15,1.45) {delegation hop};
+  \node[font=\scriptsize\bfseries,text=hhgray,anchor=east] at (-5.15,.45) {rights};
+  \node[font=\scriptsize\bfseries,text=hhgray,anchor=east] at (-5.15,-.55) {lifetime};
+
+  \node[head] at (-3.55,1.45) {\textbf{Root}};
+  \node[cell] at (-3.55,.45) {\scriptsize \texttt{net:*}, \texttt{db:*}, \texttt{fs:*}};
+  \node[cell] at (-3.55,-.55) {\scriptsize TTL $\leq 60$ min};
+  \node[head] at (0,1.45) {\textbf{Hop 1}};
+  \node[cell] at (0,.45) {\scriptsize \texttt{db:write}, \texttt{fs:read}};
+  \node[cell] at (0,-.55) {\scriptsize TTL $\leq 15$ min};
+  \node[head] at (3.55,1.45) {\textbf{Hop 2}};
+  \node[cell] at (3.55,.45) {\scriptsize \texttt{db:write}};
+  \node[cell] at (3.55,-.55) {\scriptsize TTL $\leq 5$ min};
+
+  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (-1.78,.45) {$\supset$};
+  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (1.78,.45) {$\supset$};
+  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (-1.78,-.55) {$>$};
+  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (1.78,-.55) {$>$};
+
+  \node[draw=hhamber,line width=.75pt,fill=hhsand!16,rounded corners=2pt,
+    minimum width=54mm,minimum height=10mm,align=center] (attempt) at (0,-1.85)
+    {\footnotesize Hop 2 attempts to add \texttt{net:*}};
+  \node[draw=hhamber,line width=.9pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=25mm,minimum height=10mm,font=\footnotesize\bfseries] (reject) at (4.1,-1.85)
+    {REJECT};
+  \draw[-{Stealth[length=2mm]},draw=hhamber,line width=.9pt] (attempt.east) -- (reject.west)
+    node[midway,above=10pt,font=\scriptsize,fill=hhpaper,inner xsep=3pt]
+      {absent from $C_1$};
+
+  \draw[hhink,line width=.55pt] (-5.0,-2.75) -- (5.3,-2.75);
+  \node[font=\footnotesize,fill=hhpaper,inner xsep=6pt] at (0,-2.65)
+    {$C_2\subseteq C_1\subseteq C_0\quad\land\quad T_2<T_1<T_0$};
+\end{tikzpicture}
+\caption{Delegation attenuates along two independent dimensions. Each child has
+no more authority and a shorter lifetime than its parent. The explicit rejected
+trace shows the verifier rule: a later hop cannot reintroduce a right removed by
+an earlier hop, even if the immediate child signs the attempt.}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

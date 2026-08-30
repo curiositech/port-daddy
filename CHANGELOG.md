@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.30.5] - 2026-08-28
+
+### Added
+- **Claude Code gains a fail-closed, plan-first context-pressure bridge.** Its configured `UserPromptSubmit` tentacle refreshes the 0.60/.75/.85/.92 ladder through bounded `additionalContext`; `pd-hook-precompact` remains the Claude-only truthful compaction checkpoint and blocks only a manual missing-plan case. Both forward lifecycle metadata, never usage or transcript text; Agent Harbor first requires a daemon-owned provider-session → `pd plan` binding and returns `provider-session-unbound` with no packet when it is absent, rather than selecting ambient `PD_SESSION_ID`. A configured adapter integration then requires trusted measurement, a current plan checkpoint, and daemon-owned tool-pair coverage before it can write a cited packet using `max(provider, daemon)`; the default daemon issues no packet, and any explicit governed packet-derived continuation starts from the durable plan plus bounded handles rather than a raw transcript or automatic resurrection.
+- **Whitepaper authors can now use a tested TikZ figure-engineering skill.** `skills/tikz-figure-engineering/` selects a visual grammar from the reader task, provides publication-layout and package guidance, and includes a local PDF/PNG render, strict-fit, source-audit, and contact-sheet workflow.
+
+### Fixed
+- **Fleet reviews no longer serialize every active pull request through one worker.** `apps/fleet-executor/wrangler.deploy.toml` now drains at most three checkpointed review slices at once, preserving each run's head checks, delivery fence, retry budget, and fail-closed dead-letter path while removing the backlog that left required `Port Daddy Fleet` checks pending for hours.
+- **Legacy Parleys survive the Store0 cutover.** `lib/parley-store.ts` imports validated v3.30.2 tuple authority once under SQLite's writer lock, leaves source tuples untouched, preserves deterministic transcript/frontier/outcome evidence with a versioned receipt, and keeps migrated records readable across daemon restarts.
+
 ## [3.30.4] - 2026-08-28
 
 ### Added
