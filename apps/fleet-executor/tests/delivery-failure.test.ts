@@ -178,6 +178,17 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     });
   });
 
+  it('permits a shrinking roster when the same ship completes consecutive slices', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+  });
+
   it('fails open when continuation evidence is unavailable or malformed', async () => {
     const db = memoryD1();
     const env = makeEnv({ DB: db.db });
