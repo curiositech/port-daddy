@@ -7,11 +7,11 @@ Captured 2026-08-29 and re-proved 2026-08-30 from branch
 ## Runtime witness
 
 - Exact-source development daemon: `claims-roadmap-20260829`
-- Exact source revision: `2e602a89f`
+- Exact source revision: `76b925455`
 - Daemon URL: `http://127.0.0.1:19958`
 - Source directory reported by `/health`:
   `/Users/erichowens/coding/tmp/pd-console-claims-roadmap-20260829`
-- Live `/files` cohort rendered by Claims: 391 active claims
+- Live `/files` cohort rendered by Claims: 372 active claims
 - Live `/roadmap/jira`: configured `false`, with the four managed FleetBar
   credential keys named and no secret values exposed
 - Release renderer:
@@ -25,8 +25,8 @@ fixture is a live Jira account.
 
 ## Artifacts
 
-- `claims-ledger-wide.png`: path-sorted live claims, selected current-session row,
-  and complete inspector
+- `claims-ledger-wide.png`: path-sorted live claims, a selected live row, and its
+  complete inspector
 - `claims-ledger-owner-sort.png`: the same live cohort sorted by owner
 - `claims-ledger-narrow.png`: 520-pixel lossless wrapping proof
 - `roadmap-wide.png`: local Port Daddy authority plus separate Jira read-through
