@@ -15,7 +15,7 @@ these artifacts were committed.
 | `website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf` | 28 | 713588 | `cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1` |
 | `website-v2/public/whitepaper/agent-transactions-whitepaper.pdf` | 52 | 930338 | `0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960` |
 | `website-v2/public/whitepaper/federated-harbor-whitepaper.pdf` | 31 | 689269 | `cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247` |
-| `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf` | 270 | 2243580 | `abcc9da02b017164082f11593bd8ca0b354f3b8a08a8742a77d4423b0998d7df` |
+| `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf` | 270 | 2244412 | `7886660dc50cd23a206cda020ad219d51008cbe999d1e23f178eb979c2cd1b92` |
 | `docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png` | — | — | `e74fad8acce50400e536f8a81120643b48ff1589d8d1e3ff3da479a3b45768f6` |
 | `docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif` | 7 frames | — | `fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f` |
 
