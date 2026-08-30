@@ -159,69 +159,6 @@ export function ParleyTmuxReplay() {
           </div>
         </div>
 
-        <div className="grid min-w-0 gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] lg:grid-cols-[minmax(0,1.25fr)_repeat(4,minmax(0,0.75fr))]">
-          <div className="bg-[var(--surface-raised)] p-[var(--space-4)]">
-            <PanelEyebrow className="text-[var(--brand-accent)]">Target doctrine · not shipped by this cast</PanelEyebrow>
-            <PanelTitle as="h3" size="card" className="mt-[var(--space-2)] max-w-[22ch]">
-              Parley should find the agents. Agents should not have to discover Parley.
-            </PanelTitle>
-            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-              Today’s recording is manual and all three sessions are live. The intended product is
-              a daemon-convened, natural-language consultation with explicit rights for anyone who
-              is offline. Detection may be automatic; consent and authority may not be fabricated.
-            </PanelBody>
-          </div>
-          {[
-            ['01 · notice', 'Detect nearness', 'Claims, symbols, plans, and cited evidence reveal that two efforts are about to collide.'],
-            ['02 · summon', 'Reach across time', 'A durable invitation waits for Nora even if Otis arrives hours after her session ended.'],
-            ['03 · protect', 'Never puppet the sleeper', 'Only a verified continuation may resume Nora. Otherwise her record can inform, but cannot consent for her.'],
-            ['04 · receipt', 'Keep dissent visible', 'Agreement is individual. A contested surface stays held until authority, evidence, and objections are settled.'],
-          ].map(([eyebrow, title, body]) => (
-            <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]" key={eyebrow}>
-              <PanelEyebrow className="text-[var(--brand-primary)]">{eyebrow}</PanelEyebrow>
-              <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">{title}</strong>
-              <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">{body}</PanelBody>
-            </article>
-          ))}
-        </div>
-
-        <div className="grid min-w-0 gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] lg:grid-cols-[minmax(0,1.15fr)_repeat(3,minmax(0,0.95fr))]">
-          <div className="bg-[var(--surface-raised)] p-[var(--space-4)]">
-            <PanelEyebrow className="text-[var(--status-warning)]">Across shifts · proposed authority contract</PanelEyebrow>
-            <PanelTitle as="h3" size="card" className="mt-[var(--space-2)] max-w-[24ch]">
-              If Nora is offline, her absence is a fact. It is not a vote.
-            </PanelTitle>
-            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-              The safe design is consent-leased reentry: Port Daddy can preserve the summons and
-              protect the contested surface, but no initiator gets to animate Nora’s identity.
-            </PanelBody>
-          </div>
-          <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
-            <PanelEyebrow>What salvage loads now</PanelEyebrow>
-            <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">A bounded continuity brief</strong>
-            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-              Identity, purpose, session, staleness, notes, and sometimes a verified context packet
-              plus last plan. Not a process, hidden model state, worktree, claims, or full transcript.
-            </PanelBody>
-          </article>
-          <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
-            <PanelEyebrow>Who may speak</PanelEyebrow>
-            <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">Resume or name the successor</strong>
-            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-              A revalidated same-family session may continue. Otherwise a fresh, clearly labeled
-              successor receives new credentials. Nora’s record may inform it; it cannot assent as Nora.
-            </PanelBody>
-          </article>
-          <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
-            <PanelEyebrow>What Parley may decide</PanelEyebrow>
-            <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">A recommendation, not a capability</strong>
-            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-              Agreement, dissent, decline, delegation, silence, and expiry stay visible. Any edit,
-              claim, push, or deploy still needs separate current authority.
-            </PanelBody>
-          </article>
-        </div>
-
         <div className="grid min-w-0 gap-[var(--space-4)] xl:grid-cols-[minmax(0,1.75fr)_minmax(18rem,0.65fr)]">
           <div className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-1">
             <PortholeEmbed

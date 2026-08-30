@@ -28,10 +28,10 @@ const scenes = [
   },
   {
     id: 'harness-next-turn', label: 'The model sees the harness, not transport sludge', station: 'Harness context',
-    locus: 'PostToolUse → Ink Cloud → UserPromptSubmit', format: 'single shell · 100×28',
-    seed: 'A harnessed agent has one unread Postmaster message, one recent write pheromone, and a relevant policy document in its repository.',
-    intervention: 'The post-tool tentacle records ambient state. Squid decodes the next-turn hook envelope and renders the exact additionalContext as a distinct model-context block.',
-    proof: 'The transcript labels audience and delivery explicitly, shows the model context between hard harness boundaries, then reads the durable inbox and suggested document.',
+    locus: 'UserPromptSubmit → unread count → pd attention', format: 'single shell · 100×28',
+    seed: 'A harnessed agent has one unread Postmaster message and a relevant policy document in its repository.',
+    intervention: 'The registered turn-start tentacle admits only the unread count and standing SITREP contract. Squid renders that exact additionalContext separately; pd attention and idea search reveal the authorized details afterward.',
+    proof: 'The transcript labels audience and delivery explicitly, shows the bounded model context between hard harness boundaries, then reads the durable message and discovers the source document without using the retired per-tool observer.',
     authority: 'Real hook scripts · real daemon inbox · real hybrid idea search',
   },
   {

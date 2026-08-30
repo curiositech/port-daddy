@@ -174,16 +174,16 @@ async function captureMainHarnessStill() {
   if (!mainHarnessUrl) return;
 
   async function waitForMainHarnessParley(page) {
-    const section = page.locator('#parley-tmux-replay');
-    await section.waitFor();
-    await section.scrollIntoViewIfNeeded();
+    const primary = page.locator('#parley-primary-proof');
+    await primary.waitFor();
+    await primary.scrollIntoViewIfNeeded();
     // PortholeEmbed is intersection-gated on the main site. Waiting for the
     // section alone can capture the lazy placeholder before the cast mounts.
-    await section.locator('.ph-title').waitFor();
-    await section.locator('.ph-speed-chip', { hasText: '2×' }).click();
-    await section.locator('.ph-term').filter({ hasText: 'CAUGHT UP · 6 durable turns' }).waitFor();
+    await primary.locator('.ph-title').waitFor();
+    await primary.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await primary.locator('.ph-term').filter({ hasText: 'DECISION PATH (6)' }).waitFor();
     await page.waitForTimeout(350);
-    return section;
+    return primary;
   }
 
   const browser = await launch();
@@ -287,14 +287,39 @@ if (mainHarnessUrl) {
   await record('harness-page-parley.webm', async (page) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.goto(mainHarnessUrl, { waitUntil: 'domcontentloaded' });
-    await page.locator('#what-is-a-harness').waitFor();
-    await page.locator('#what-is-a-harness').scrollIntoViewIfNeeded();
-    await page.waitForTimeout(1600);
-    await page.locator('#parley-tmux-replay').scrollIntoViewIfNeeded();
-    await page.locator('#parley-tmux-replay .ph-title').waitFor();
-    await page.waitForTimeout(3200);
-    await page.locator('#parley-suggestibility').scrollIntoViewIfNeeded();
-    await page.waitForTimeout(2600);
+    const workbench = page.locator('#proof-workbench');
+    await workbench.waitFor();
+    await workbench.scrollIntoViewIfNeeded();
+    await workbench.locator('.ph-title').waitFor();
+    await workbench.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await page.waitForTimeout(4200);
+
+    await page.getByRole('button', { name: /06 · shared decision/i }).click();
+    await workbench.locator('.ph-title', { hasText: 'A plan changes under three distinct roles.' }).waitFor();
+    await workbench.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await page.waitForTimeout(4200);
+
+    const primary = page.locator('#parley-primary-proof');
+    await primary.scrollIntoViewIfNeeded();
+    await primary.locator('.ph-title').waitFor();
+    await primary.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await primary.locator('.ph-term').filter({ hasText: 'DECISION PATH (6)' }).waitFor();
+    await page.waitForTimeout(1800);
+
+    const drillDown = page.locator('#parley-tmux-replay');
+    await drillDown.scrollIntoViewIfNeeded();
+    await drillDown.locator('.ph-title').waitFor();
+    await drillDown.locator('.ph-speed-chip', { hasText: '2×' }).click();
+    await drillDown.locator('.ph-term').filter({ hasText: 'CAUGHT UP · 6 durable turns' }).waitFor();
+    await page.waitForTimeout(1200);
+
+    const nora = page.locator('#pane-history-nora');
+    await nora.scrollIntoViewIfNeeded();
+    await nora.hover();
+    await page.mouse.wheel(0, -900);
+    await page.waitForTimeout(900);
+    await page.getByRole('button', { name: 'Jump Nora tmux pane scrollback to latest' }).click();
+    await page.waitForTimeout(900);
   });
 }
 

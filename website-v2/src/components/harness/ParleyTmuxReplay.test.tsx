@@ -24,12 +24,8 @@ describe('ParleyTmuxReplay', () => {
     expect(screen.getByText('Port Daddy witness')).toBeTruthy()
     expect(screen.getByText('Three real shells')).toBeTruthy()
     expect(screen.getByText('Six durable turns')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Parley should find the agents. Agents should not have to discover Parley.' })).toBeTruthy()
-    expect(screen.getByText(/Today’s recording is manual and all three sessions are live/i)).toBeTruthy()
-    expect(screen.getByText('Never puppet the sleeper')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'If Nora is offline, her absence is a fact. It is not a vote.' })).toBeTruthy()
-    expect(screen.getByText(/Not a process, hidden model state, worktree, claims, or full transcript/i)).toBeTruthy()
-    expect(screen.getByText(/still needs separate current authority/i)).toBeTruthy()
+    expect(screen.queryByText(/Target doctrine/i)).toBeNull()
+    expect(screen.queryByRole('heading', { name: /If Nora is offline/i })).toBeNull()
   })
 
   it('renders four independently focusable pane histories captured by tmux before teardown', () => {

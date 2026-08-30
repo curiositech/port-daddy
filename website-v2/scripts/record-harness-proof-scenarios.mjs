@@ -461,19 +461,17 @@ const harnessRepo = await makeRepo('harness-context', {
   'docs/checkout-policy.md': '# Checkout policy\n',
 });
 const harnessWt = (await addWorktrees(harnessRepo, 'harness-context')).left;
-// `pd squid tap` truthfully names the tentacle that produced the injection.
-// Stage a symlink to the real tentacle under the fixture HOME so the capture
-// retains authentic provenance without revealing a developer checkout path.
+// `pd squid tap` truthfully names the registered turn-start tentacle that
+// produced the injection. Stage only that live tentacle under the fixture HOME
+// so the capture retains authentic provenance without implying the retired
+// per-tool observer is still part of the harness lifecycle.
 const harnessPdHome = join(runRoot, '.port-daddy');
 const stagedPromptTentacle = join(harnessPdHome, 'bin', 'squid', 'pd-hook-prompt');
-const stagedPostTentacle = join(runRoot, 'pd-hook-post-tool');
 await mkdir(dirname(stagedPromptTentacle), { recursive: true });
 await symlink(join(root, 'bin', 'pd-hook-prompt'), stagedPromptTentacle);
-await symlink(join(root, 'bin', 'pd-hook-post-tool'), stagedPostTentacle);
 run(nodeBin, [cli, 'begin', 'reconcile checkout policy with current reservation logic', '--identity', `${fixtureProject}:harness`, '--lifecycle', 'durable', '--sidequest', 'public harness evidence fixture'], { cwd: harnessWt });
 const who = JSON.parse(run(nodeBin, [cli, 'whoami', '--json'], { cwd: harnessWt }));
 run(nodeBin, [cli, 'send', who.agentId, 'Postmaster: the checkout-policy Parley has an unread critique waiting.'], { cwd: root });
-const harnessMatrix = join(runRoot, 'harness-context.matrix.env');
 await recordSingle({
   slug: 'harness-next-turn',
   cwd: harnessWt,
@@ -485,11 +483,8 @@ await recordSingle({
     PD_ACTOR: who.agentId,
     PD_AGENT_ID: who.agentId,
     PD_SESSION_ID: who.sessionId,
-    PD_MATRIX_FILE: harnessMatrix,
-    PD_HOOK_POST: stagedPostTentacle,
   },
   commands: [
-    `printf '%s' '{"cwd":".","tool_name":"Write","tool_input":{"file_path":"src/checkout.ts"}}' | "$PD_HOOK_POST"`,
     'pd squid tap',
     'pd attention',
     'pd ideas search "checkout ownership policy" --sources markdown --limit 3',
