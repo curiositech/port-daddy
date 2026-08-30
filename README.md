@@ -97,16 +97,7 @@ npm install -g port-daddy
 pd setup
 ```
 
-`pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and offers FleetBar.
-
-Optional signed Mac menu-bar app from the public site:
-
-```bash
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256
-shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256
-unzip PortDaddy-FleetBar-macOS-arm64.zip
-```
+`pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and installs the exact matching signed FleetBar release on macOS. FleetBar updates itself from its out-of-date card: it verifies the version-pinned archive checksum, Curiositech Developer ID, and Apple notarization before replacing the app, preserves the previous bundle for rollback, and relaunches through launchd. The operator never has to hunt for a download or run an update command.
 
 ### 3. Verify
 
