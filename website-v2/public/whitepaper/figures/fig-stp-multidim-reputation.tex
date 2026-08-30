@@ -1,37 +1,51 @@
-% Figure III.10 --- quality remains a vector on common, independently judged axes.
+% Figure III.10 --- the same outcome vectors reverse under legitimate buyer weights.
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize]
-  \node[anchor=west,font=\footnotesize\bfseries] at (-1.6,2.45) {witnessed outcomes on a common 0--1 scale};
-  \node[anchor=west,font=\footnotesize\itshape,text=hhgray] at (4.1,2.1) {buyer keeps the vector; chooses weights later};
-  \foreach \y/\axis/\judge/\a/\b/\weight in {
-    1.45/accuracy/test oracle/5.8/4.5/$w_{\rm acc}$,
-    0/aesthetics/expert review/4.0/6.2/$w_{\rm aes}$,
-    -1.45/efficiency/cost ledger/5.0/3.5/$w_{\rm eff}$}
-  {
-    \node[anchor=east,font=\footnotesize\bfseries] at (-1.85,\y) {\axis};
-    \node[anchor=east,font=\footnotesize\itshape,text=hhgray] at (-1.85,\y-.38) {\judge};
-    \draw[hhgray!68,line width=.55pt] (0,\y) -- (7,\y);
-    \foreach \x in {0,3.5,7} \draw[hhgray!45,line width=.35pt] (\x,\y-.13) -- (\x,\y+.13);
-    \fill[hhink] (\a,\y) circle (1.6pt);
-    \fill[hhamber] (\b,\y) circle (1.6pt);
-    \node[anchor=west,font=\footnotesize] at (7.35,\y) {\weight};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.05)
+    {witnessed outcome profiles remain vectors};
+
+  % Three independently judged axes.
+  \foreach \x/\axis/\judge in {-4.4/accuracy/test oracle,0/aesthetics/expert reviewer,4.4/efficiency/cost ledger} {
+    \draw[pd hairline] (\x,-.35) -- (\x,2.45);
+    \foreach \y/\lab in {-.35/0,.35/.25,1.05/.5,1.75/.75,2.45/1}
+      \draw[pd tick] (\x-.11,\y) -- (\x+.11,\y);
+    \node[pd direct label,anchor=north,align=center] at (\x,-.58)
+      {\textbf{\axis}\\[-1pt]{\tiny \judge}};
   }
-  \node[anchor=west,font=\footnotesize,text=hhgray] at (0,1.9) {$0$};
-  \node[anchor=west,font=\footnotesize,text=hhgray] at (3.35,1.9) {$.5$};
-  \node[anchor=west,font=\footnotesize,text=hhgray] at (6.8,1.9) {$1$};
-  \node[font=\footnotesize\bfseries,anchor=east] at (-.25,-2.45) {markers};
-  \fill[hhink] (.1,-2.45) circle (1.6pt); \node[anchor=west,font=\footnotesize] at (.28,-2.45) {outcome A};
-  \fill[hhamber] (2.05,-2.45) circle (1.6pt); \node[anchor=west,font=\footnotesize] at (2.23,-2.45) {outcome B};
-  \draw[hhteal,line width=1.05pt] (4.15,-2.45) -- (7.95,-2.45);
-  \node[font=\footnotesize\bfseries,text=hhteal,anchor=west] at (4.15,-2.8) {no scalar ``reputation score'' is stored};
+  % A=(1,.85,.45), B=(.75,.55,1)
+  \draw[pd focus rule,line width=1.5pt] (-4.4,2.45) -- (0,2.03) -- (4.4,.91);
+  \draw[pd caution rule,dashed,line width=1.5pt] (-4.4,1.75) -- (0,1.19) -- (4.4,2.45);
+  \foreach \x/\y in {-4.4/2.45,0/2.03,4.4/.91} \node[pd focus datum] at (\x,\y) {};
+  \foreach \x/\y in {-4.4/1.75,0/1.19,4.4/2.45} \node[pd caution datum] at (\x,\y) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.65,.91) {outcome A};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.65,2.45) {outcome B};
+
+  % Buyer-specific projections; same vectors, opposite decisions.
+  \node[pd panel title,anchor=west] at (-6.8,-1.55)
+    {buyers apply preferences after disclosure};
+  \draw[pd hairline] (-5.25,-2.35) -- (5.8,-2.35);
+  \draw[pd hairline] (-5.25,-3.20) -- (5.8,-3.20);
+  \node[pd direct label,anchor=east] at (-5.45,-2.35)
+    {security buyer\\[-1pt]{\tiny weights $.60,.30,.10$}};
+  \node[pd direct label,anchor=east] at (-5.45,-3.20)
+    {cost buyer\\[-1pt]{\tiny weights $.15,.15,.70$}};
+  \node[pd focus datum] at (4.10,-2.35) {};
+  \node[pd caution datum] at (1.85,-2.35) {};
+  \node[pd focus datum] at (-.70,-3.20) {};
+  \node[pd caution datum] at (4.00,-3.20) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.30,-2.35) {A selected};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.20,-3.20) {B selected};
+  \node[pd axis label,anchor=north] at (-5.25,-3.45) {lower weighted fit};
+  \node[pd axis label,anchor=north] at (5.8,-3.45) {higher weighted fit};
 \end{tikzpicture}}
-\caption{\textbf{Multi-dimensional reputation.} A witnessed outcome
-carries a quality \emph{vector} $\mathbf{q}=(q_{\text{acc}},q_{\text{aes}},
-q_{\text{eff}})$. Each axis is scored by a \emph{different} competent judge: a test
-oracle for accuracy, a senior reviewer for aesthetics, the cost meter for
-efficiency. The buyer reads the vector and applies their own weights --- which is
-exactly what avoids collapsing quality into one Goodhart-able scalar.}
+\caption{\textbf{One quality vector supports legitimate preference reversal.}
+Outcome A is strongest on accuracy and aesthetics; outcome B is strongest on
+efficiency. Each axis is independently judged, then disclosed without a universal
+scalar. A security-weighted buyer selects A while a cost-weighted buyer selects B.
+Premature averaging would erase one of these valid decisions and create a single
+Goodhart target. Color is redundant with solid-versus-dashed profiles and direct
+labels.}
 \label{fig:multidim}
 \end{figure}

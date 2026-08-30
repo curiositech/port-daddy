@@ -1,45 +1,43 @@
-% Semantic contract: show the propagation event sequence and the verifier exposure window.
+% Semantic contract: each verifier has its own exposure interval; logarithmic
+% dissemination is an expectation, not a wall-clock deadline.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  x=1cm,y=1cm,font=\small,
-  cell/.style={draw=hhink,line width=.55pt,fill=hhpaper,rounded corners=1.5pt,
-    minimum width=34mm,minimum height=9mm,align=center,inner sep=3pt,font=\scriptsize},
-  observed/.style={cell,draw=hhteal,line width=.8pt,fill=hhteal!9},
-  row/.style={font=\footnotesize\bfseries,anchor=east},
-  time/.style={font=\footnotesize\bfseries}
-]
-  \node[time] at (-3.45,2.05) {$t=0$};
-  \node[time] at (.35,2.05) {$t+\Delta$};
-  \node[time] at (4.15,2.05) {$t+2\Delta$};
-  \node[row] at (-5.45,1.15) {observers};
-  \node[row] at (-5.45,.05) {verifier effect};
-  \node[row] at (-5.45,-1.05) {durable evidence};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xzero{-4.5}
+  \def\xend{5.4}
+  \foreach \y/\peer/\wake in {2.4/A/-4.5,1.35/B/-1.4,.3/C/2.0,-.75/D/-.6,-1.8/E/2.0} {
+    \node[pd axis label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
+    \draw[draw=hhamber,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
+    \draw[draw=hhpaper,line width=1pt,line cap=round] (\xzero,\y) -- (\wake,\y);
+    \draw[draw=hhteal,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
+    \node[pd focus datum,minimum size=4.8pt,inner sep=0pt] at (\wake,\y) {};
+  }
+  \draw[pd focus rule]
+    (-4.5,2.4) -- (-4.5,1.95) -- (-1.4,1.95) -- (-1.4,1.35)
+    (-4.5,1.95) -- (-.6,1.95) -- (-.6,-.75)
+    (-1.4,1.35) -- (-1.4,.82) -- (2,.82) -- (2,.3)
+    (-.6,-.75) -- (-.6,-1.28) -- (2,-1.28) -- (2,-1.8);
+  \node[pd direct label,text=hhteal,anchor=south west] at (-4.35,2.62)
+    {authoritative append};
 
-  \node[observed] (o0) at (-3.45,1.15) {$\{A\}$};
-  \node[observed] (o1) at (.35,1.15) {$\{A,B,D\}$};
-  \node[observed] (o2) at (4.15,1.15) {$\{A,B,C,D,E\}$};
-  \node[cell] (v0) at (-3.45,.05) {$A$ rejects};
-  \node[cell] (v1) at (.35,.05) {$A,B,D$ reject};
-  \node[cell] (v2) at (4.15,.05) {all observed peers reject};
-  \node[cell,fill=hhsand!22] (e0) at (-3.45,-1.05) {authoritative append};
-  \node[cell,fill=hhsand!16] (e1) at (.35,-1.05) {idempotent delta};
-  \node[cell,fill=hhsand!10] (e2) at (4.15,-1.05) {converged version vector};
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xzero,-2.32) -- (\xend,-2.32);
+  \foreach \x/\lab in {-4.5/$t$,-1.4/$t+\Delta$,2/$t+2\Delta$} {
+    \draw[pd tick] (\x,-2.23) -- (\x,-2.42);
+    \node[pd axis label,anchor=north] at (\x,-2.48) {\lab};
+  }
+  \node[pd axis label,anchor=west] at (\xend,-2.32) {time};
+  \node[pd direct label,text=hhamber,anchor=north west] at (-4.5,-2.98)
+    {amber interval: verifier may still admit the card};
 
-  \draw[-{Stealth[length=2mm]},draw=hhink,line width=.7pt] (o0.east) -- (o1.west);
-  \draw[-{Stealth[length=2mm]},draw=hhink,line width=.7pt] (o1.east) -- (o2.west);
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.7pt] (e0.east) -- (e1.west);
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.7pt] (e1.east) -- (e2.west);
-
-  \draw[hhamber,line width=1pt] (-5.25,-1.72) -- (3.95,-1.72);
-  \node[font=\footnotesize,fill=hhpaper,inner xsep=6pt,text=hhamber] at (-.65,-1.72)
-    {exposure window: some honest verifiers remain stale};
-  \draw[hhteal,line width=1pt] (3.95,-1.72) -- (5.85,-1.72);
-  \node[font=\scriptsize,text=hhteal,anchor=west] at (4.05,-2.02) {all observed peers reject};
-
-  \node[font=\footnotesize,align=center,text width=126mm] at (.35,-2.62)
-    {Connected reliable rounds give expected $\Theta(\log m)$ dissemination. Version vectors make replayed deltas idempotent; a partition removes every finite delivery deadline.};
+  \draw[pd caution rule,dashed] (4.05,-2.9) -- (4.05,2.85);
+  \draw[pd caution arrow] (4.05,-2.78) -- (5.2,-2.78);
+  \node[pd direct label,text=hhamber,anchor=west] at (5.25,-2.78) {partition $\Rightarrow$ no finite deadline};
 \end{tikzpicture}
-\caption{One authoritative revocation advances through a measurable observation frontier. The middle row makes the security consequence explicit: until a verifier has received the delta, it may still admit the card. The final column is convergence in this illustrative execution, not a delivery guarantee.}
+\caption{A revocation advances as an observation frontier, leaving a distinct
+stale-exposure interval on every verifier lane. This execution converges after
+two rounds; the protocol claim is only expected $\Theta(\log m)$ dissemination
+under connected reliable rounds. The dashed partition marker separates that
+expectation from a guarantee: an unbounded partition removes every finite
+delivery deadline.}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

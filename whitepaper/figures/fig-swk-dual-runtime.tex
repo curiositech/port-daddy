@@ -1,56 +1,40 @@
-% Figure — the dual-runtime soundness hazard (I11). The runtime under which
-% truth is COMPUTED (the compiled binary) is not the runtime under which it is
-% TESTED. A shim bridges pragmas/options; the hazard and OP-3 (differential
-% testing) live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 12 — parity is a trajectory comparison, not a two-box architecture.
 \begin{figure}[H]
 \centering
-\resizebox{0.7\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  api/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-              minimum width=60mm,minimum height=12mm,align=center,font=\bfseries},
-  rt/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=52mm,
-             minimum height=18mm,align=center,font=\footnotesize},
-]
-
-\node[api] (iface) at (0,0) {one database interface\\ {\footnotesize\normalfont (a single abstraction over the bindings)}};
-
-\node[rt,fill=hhsand!30,below left=14mm and -4mm of iface] (test)
-  {{\bfseries test runtime}\\ test-suite SQLite bindings\\ {\color{hhteal}truth is \emph{verified} here}};
-\node[rt,fill=hhsand!30,below right=14mm and -4mm of iface] (prod)
-  {{\bfseries deployment runtime}\\ the compiled single-binary daemon\\ {\color{hhamber}truth is \emph{computed} here}};
-
-\draw[->,>=Latex,thick,hhteal] (iface.south) -- (test.north);
-\draw[->,>=Latex,thick,hhamber] (iface.south) -- (prod.north);
-
-% The shim
-\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      font=\scriptsize,align=center,below=10mm of iface]
-  (shim) {a runtime-shim layer\\ normalizes pragma/option differences};
-
+\resizebox{0.89\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \foreach \x/\op in {2.0/{open},4.25/{pragma},6.5/{write},8.75/{crash},11.0/{reopen},13.0/{read}} {
+    \draw[pd guide] (\x,1.0)--(\x,5.95);
+    \node[pd axis label,anchor=north] at (\x,.78) {\op};
+  }
+  \node[pd panel title,anchor=east] at (1.35,4.85) {test};
+  \node[pd panel title,anchor=east] at (1.35,2.15) {deployment};
+  \draw[pd focus rule,line width=1.35pt]
+    (2.0,4.85)--(4.25,4.85)--(6.5,5.15)--(8.75,4.55)--(11.0,4.85)--(13.0,4.85);
+  \draw[pd rule,line width=1.35pt]
+    (2.0,2.15)--(4.25,2.15)--(6.5,2.45)--(8.75,1.85)--(11.0,2.15)--(13.0,2.15);
+  \foreach \x/\y in {2.0/4.85,4.25/4.85,6.5/5.15,8.75/4.55,11.0/4.85,13.0/4.85}
+    \node[pd focus datum] at (\x,\y) {};
+  \foreach \x/\y in {2.0/2.15,4.25/2.15,6.5/2.45,8.75/1.85,11.0/2.15,13.0/2.15}
+    \node[pd datum] at (\x,\y) {};
+  \draw[pd caution arrow] (6.5,4.55)--(6.5,2.72);
+  \fill[pd hatch] (5.85,2.62) rectangle (7.15,4.42);
+  \node[pd direct label,anchor=west,text=hhamber] at (7.35,3.52)
+    {binding semantics may diverge};
+  \draw[pd focus rule] (12.7,4.42)--(13.3,4.42);
+  \draw[pd focus rule] (12.7,2.58)--(13.3,2.58);
+  \draw[pd focus arrow] (13.0,4.32)--(13.0,2.68);
+  \node[pd direct label,anchor=west,text=hhteal] at (13.35,3.52)
+    {compare observable state};
+  \node[pd note,anchor=west] at (1.75,6.25)
+    {same operation sequence; parity is earned only by matching outcomes};
 \end{tikzpicture}%
 }
-\caption{The dual-runtime substrate, a genuine kernel property easily mistaken for
-an implementation detail. One database interface is satisfied by \emph{two} sets of
-SQLite bindings: the test-suite bindings (where invariants are \emph{verified}) and
-the deployment bindings in the compiled daemon (where truth is actually
-\emph{computed}). A shim normalizes their pragma and option interfaces, but the
-bridge is not a proof: an invariant green under test can fail in deployment if the
-bindings diverge in lock or pragma semantics --- the recurring ``green in the test
-runtime, broken in deployment'' failure, which is why CI must \emph{boot the
-deployment runtime} and exercise its endpoints, not merely build it. Invariant I11
-(runtime parity) is therefore \textsf{partial}, and open problem OP-3 asks for the
-differential-test harness --- identical operation sequences against both runtimes,
-asserting identical observable state --- that would make it a theorem.}
+\caption{Runtime parity as a trajectory comparison. The same operation sequence
+is applied to the test binding and to the compiled deployment daemon; the harness
+must compare observable state after reopen, not merely confirm that both programs
+build. The hatched gap is the unproved surface where pragma, locking, or checkpoint
+semantics can diverge. A shim aligns interfaces, but only booting the deployment
+runtime and differential testing can collapse that gap into a verified invariant.}
 \label{fig:swk-dual-runtime}
 \end{figure}

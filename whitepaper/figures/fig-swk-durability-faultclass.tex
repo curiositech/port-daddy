@@ -1,45 +1,38 @@
-% Figure 4 --- fault class, not a decorative storage journey, determines the guarantee.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 4 — durability is a fault-reach boundary, not a storage checklist.
 \begin{figure}[H]
 \centering
-\resizebox{0.91\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize,
-  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=9mm,font=\footnotesize\bfseries},
-  cell/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=16mm,font=\footnotesize,text=hhink},
-  yes/.style={draw=hhteal,very thick,fill=hhteal!8,align=center,minimum height=16mm,font=\footnotesize\bfseries,text=hhink},
-  no/.style={draw=hhamber,very thick,fill=hhamber!8,align=center,minimum height=16mm,font=\footnotesize\bfseries,text=hhink},
-]
-\node[head,text width=33mm] at (-5.9,0.1) {fault class};
-\node[head,text width=35mm] at (-2.2,0.1) {returned-success claim};
-\node[head,text width=32mm] at (1.45,0.1) {default guarantee};
-\node[head,text width=47mm] at (5.65,0.1) {boundary / remedy};
-
-\node[cell,text width=33mm] at (-5.9,-1.55) {\textbf{process crash}\\the daemon dies; OS remains live};
-\node[cell,text width=35mm] at (-2.2,-1.55) {I1a: returned write survives};
-\node[yes,text width=32mm] at (1.45,-1.55) {SURVIVES};
-\node[cell,text width=47mm] at (5.65,-1.55) {OS page cache remains available after the process exits};
-
-\node[cell,text width=33mm] at (-5.9,-3.6) {\textbf{OS crash / power loss}\\the page cache is lost};
-\node[cell,text width=35mm] at (-2.2,-3.6) {I1b: returned write survives};
-\node[no,text width=32mm] at (1.45,-3.6) {NOT\\GUARANTEED};
-\node[cell,text width=47mm] at (5.65,-3.6) {normal WAL synchronization waits for checkpoint; use full sync or checkpoint-on-commit};
-
-\node[draw=hhgray,thick,fill=hhsand!30,text width=150mm,minimum height=10mm,align=center,font=\footnotesize] at (-0.15,-5.55)
- {\textbf{one returned write, two fault boundaries:} crash consistency is not power-loss durability};
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \pdfigaxis{1.2}{.65}{13.5}{fault reaches farther}
+  \foreach \x/\lbl in {3.1/{process},6.15/{OS + cache},9.25/{power},12.25/{storage device}} {
+    \draw[pd tick] (\x,.5)--(\x,.8);
+    \node[pd axis label,anchor=north] at (\x,.43) {\lbl};
+  }
+  \fill[hhteal!12] (1.45,2.0) rectangle (5.95,2.82);
+  \draw[pd focus rule,line width=1.35pt] (1.45,2.41)--(5.95,2.41);
+  \draw[pd focus rule] (5.95,1.72)--(5.95,3.1);
+  \node[pd panel title,anchor=east] at (1.2,2.41) {default};
+  \node[pd direct label,anchor=west,text=hhteal] at (2.05,2.41)
+    {returned success survives process crash};
+  \fill[hhsand!22] (1.45,3.55) rectangle (9.05,4.37);
+  \draw[pd rule,line width=1.25pt] (1.45,3.96)--(9.05,3.96);
+  \draw[pd caution rule] (9.05,3.25)--(9.05,4.65);
+  \node[pd panel title,anchor=east] at (1.2,3.96) {full sync};
+  \node[pd direct label,anchor=west] at (2.05,3.96)
+    {commit waits beyond volatile cache};
+  \fill[pd hatch] (6.0,1.55) rectangle (13.0,4.75);
+  \node[pd direct label,anchor=south west,text=hhamber] at (6.18,4.86)
+    {not guaranteed by the default contract};
+  \node[pd caution datum] at (5.95,2.41) {};
+  \node[pd caution datum] at (9.05,3.96) {};
 \end{tikzpicture}%
 }
-\caption{Durability by fault class. Under the default WAL configuration, a returned
-write survives a process crash (I1a), because the operating system remains live,
-but it is not guaranteed to survive an OS crash or power loss (I1b), because normal
-synchronization may defer persistence to checkpoint. Full synchronization or a
-checkpoint on the commit path changes the latter boundary; the kernel does not pay
-that cost by default.}
+\caption{Durability as a boundary in fault reach. Under normal WAL
+synchronization, a returned write crosses the process-crash boundary because the
+operating system and its cache remain live; the contract ends before OS crash or
+power loss. Full synchronization can move that boundary outward by waiting beyond
+volatile cache, but neither band claims immunity to arbitrary media failure. The
+figure therefore separates crash consistency from power-loss durability instead
+of presenting a universal ``saved'' state.}
 \label{fig:swk-durability-faultclass}
 \end{figure}

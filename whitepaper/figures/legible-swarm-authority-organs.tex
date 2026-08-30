@@ -1,56 +1,54 @@
-% Figure 5 --- an authority matrix: six distinct mechanisms, one consent boundary.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 5 — six distinct authority instruments crossing one recorded boundary.
+% Repeated vertical small multiples reveal the common contract without turning
+% the mechanisms into prose cells.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\footnotesize,
-  boundary/.style={draw=hhebony,very thick,fill=hhebony,text=white,align=center,
-                   minimum height=9mm,font=\footnotesize\bfseries},
-  organ/.style={draw=hhgray,thick,fill=hhpaper,rounded corners=1pt,align=left,
-                minimum height=16mm,font=\footnotesize,text=hhink},
-]
-% A common boundary governs six non-interchangeable input-to-output mechanisms.
-\node[boundary,text width=143mm] (boundary) at (0,3.0)
-  {consented authority boundary $g$ \quad scope $\mid$ reason $\mid$ audit $\mid$ override};
-\draw[hhgray,thin] (-7.45,2.38) -- (7.45,2.38);
-\draw[hhgray,thin] (-7.45,-2.15) -- (7.45,-2.15);
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \fill[hhteal!7] (.35,1.75) rectangle (15.25,2.58);
+  \draw[pd focus rule] (.35,1.75)--(15.25,1.75);
+  \draw[pd focus rule] (.35,2.58)--(15.25,2.58);
+  \node[pd direct label,text=hhteal,anchor=west,font=\footnotesize\bfseries]
+    at (.55,2.18) {recorded grant $g$};
+  \node[pd axis label,anchor=east] at (15.05,2.18)
+    {scope $\cdot$ reason $\cdot$ audit $\cdot$ override};
 
-\node[organ,draw=hhamber,text width=43mm] (road) at (-5.0,1.15)
-  {\textbf{Roadmap-as-truth}\\[-1pt]\textcolor{hhgray}{roadmap evidence $\longrightarrow$ bounded priority}};
-\node[organ,draw=hhteal,text width=43mm] (review) at (0,1.15)
-  {\textbf{Adversarial review}\\[-1pt]\textcolor{hhgray}{competing claims $\longrightarrow$ conflict-free gate}};
-\node[organ,draw=hhink,text width=43mm] (done) at (5.0,1.15)
-  {\textbf{Completionist completion}\\[-1pt]\textcolor{hhgray}{acceptance predicates $\longrightarrow$ verified done}};
+  \foreach \x/\name/\in/\out in {
+    1.65/roadmap/evidence/priority,
+    4.10/review/rival claims/gate,
+    6.55/completion/predicate/done,
+    9.00/landing/conflicts/order,
+    11.45/guard/proposed act/block,
+    13.90/escalation/interrupt/decision}{
+    \draw[pd guide] (\x,.35)--(\x,4.15);
+    \node[pd panel title,anchor=south,align=center] at (\x,4.28) {\name};
+    \node[pd axis label,anchor=south,align=center] at (\x,3.54) {\in};
+    \node[pd datum] at (\x,3.36) {};
+    \draw[pd arrow] (\x,3.25)--(\x,2.68);
+    \node[pd focus datum] at (\x,2.17) {};
+    \draw[pd focus arrow] (\x,1.64)--(\x,1.06);
+    \node[pd axis label,anchor=north,align=center] at (\x,.88) {\out};
+  }
 
-\node[organ,draw=hhink,text width=43mm] (land) at (-5.0,-0.9)
-  {\textbf{Thoughtful landing}\\[-1pt]\textcolor{hhgray}{conflict set $\longrightarrow$ merge order}};
-\node[organ,draw=hhamber,text width=43mm] (guard) at (0,-0.9)
-  {\textbf{Footgun guards}\\[-1pt]\textcolor{hhgray}{proposed act $\longrightarrow$ block or compensate}};
-\node[organ,draw=hhteal,text width=43mm] (esc) at (5.0,-0.9)
-  {\textbf{Escalation to human}\\[-1pt]\textcolor{hhgray}{typed interrupt $\longrightarrow$ operator decision}};
+  % Six terse glyphs make the instruments distinguishable without a legend.
+  \draw[pd rule] (1.35,3.05)--(1.65,3.30)--(1.95,3.12);
+  \draw[pd rule] (3.73,3.15)--(4.47,3.15);
+  \draw[pd caution arrow] (3.78,3.02)--(4.34,3.02);
+  \draw[pd focus rule] (6.25,3.12)--(6.47,2.94)--(6.88,3.42);
+  \draw[pd rule] (8.66,3.38)--(9.00,3.08)--(9.34,3.38);
+  \draw[pd rule] (8.66,2.92)--(9.00,3.08)--(9.34,2.92);
+  \draw[pd caution rule,line width=2pt] (11.12,3.10)--(11.78,3.10);
+  \draw[pd focus arrow] (13.90,2.94)--(13.90,3.48);
 
-\foreach \n in {road,review,done,land,guard,esc}{
-  \draw[hhgray,thin] (boundary.south -| \n) -- (\n.north);
-}
-\node[draw=hhteal,very thick,fill=hhteal!7,text width=143mm,minimum height=8mm,
-      align=center,font=\footnotesize] at (0,-2.82)
-  {\textbf{shared return:} every authority act emits a named reason and an addressable artifact};
-\end{tikzpicture}%
-}
-\caption{The authority half (\S\ref{sec:authority-rules}): six distinct mechanisms
-by which the consented daemon \emph{acts}. The common boundary is the recorded grant
-$g$: every mechanism takes a legible input, produces a bounded authority result,
-and returns a named reason with an addressable artifact. Roadmap-as-truth answers
-what authority is for; adversarial review, completion, landing, footgun guards, and
-human escalation each constrain a different kind of act. The engineering status of
-each mechanism is recorded in Appendix~\ref{app:honest}.}
+  \draw[decorate,decoration={brace,amplitude=4pt},pd hairline]
+    (.70,.22)--(14.85,.22);
+  \node[pd note,anchor=north] at (7.78,.05)
+    {different acts; one legible authority contract and one inspectable return};
+\end{tikzpicture}
+\caption{Six authority mechanisms as distinct instruments crossing one consent
+boundary. Their inputs and outcomes differ—evidence becomes priority, rival
+claims become a gate, a predicate becomes verified completion, conflicts become
+an order, a proposed act may be blocked, and an interrupt reaches the operator.
+What they share is the recorded grant $g$: scope, named reason, audit identity,
+override, and an addressable return artifact.}
 \label{fig:authority-organs}
 \end{figure}
