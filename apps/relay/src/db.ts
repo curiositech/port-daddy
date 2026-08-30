@@ -963,7 +963,7 @@ export interface HarborMemberListRow {
   login: string | null;
 }
 
-function isUniqueViolation(e: unknown): boolean {
+export function isUniqueViolation(e: unknown): boolean {
   const m = e instanceof Error ? e.message : String(e);
   return m.includes('UNIQUE constraint failed') || m.includes('SQLITE_CONSTRAINT');
 }
@@ -1079,6 +1079,193 @@ export async function listHarborsForUser(
     )
     .bind(userId)
     .all<HarborRow & { role: HarborRole }>();
+  return r.results ?? [];
+}
+
+// ── Device keys (WS-B slice B3) ────────────────────────────────────────────
+//
+// device_id is made globally unique by the migration's
+// device_keys_device_id_idx (see migrations/2026-08-26-b3-device-keys.sql) —
+// getDeviceKeyOwner below assumes that constraint; it is what lets a bare
+// device_id resolve to its owning account with one indexed lookup.
+
+export interface DeviceKeyRow {
+  user_id: string;
+  device_id: string;
+  x25519_pubkey: string;
+  created_at: number;
+  updated_at: number;
+}
+
+/**
+ * Upsert (user_id, device_id) → pubkey. Returns 'rotated' if this updated an
+ * existing (user_id, device_id) row, 'inserted' if it created one, or
+ * 'conflict' if device_id is already claimed by a DIFFERENT user_id.
+ *
+ * device_id is globally unique (device_keys_device_id_idx, on top of the
+ * (user_id, device_id) primary key) so a caller-chosen id can collide across
+ * accounts, not just within one — that's a routine, client-triggerable case
+ * (DEVICE_ID_RE accepts any 1-128 char string), not a theoretical one. The
+ * ON CONFLICT clause below only names the PK, so a cross-account collision
+ * hits the OTHER unique index and throws instead of upserting; any
+ * unique-violation caught here is necessarily that case, since a same-account
+ * collision would have gone through ON CONFLICT and never thrown at all.
+ */
+export async function upsertDeviceKey(
+  db: D1Database,
+  k: { userId: string; deviceId: string; pubkey: string; now: number },
+): Promise<'inserted' | 'rotated' | 'conflict'> {
+  const existing = await db
+    .prepare('SELECT 1 FROM device_keys WHERE user_id = ? AND device_id = ?')
+    .bind(k.userId, k.deviceId)
+    .first();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO device_keys (user_id, device_id, x25519_pubkey, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (user_id, device_id) DO UPDATE SET
+           x25519_pubkey = excluded.x25519_pubkey, updated_at = excluded.updated_at`,
+      )
+      .bind(k.userId, k.deviceId, k.pubkey, k.now, k.now)
+      .run();
+  } catch (e) {
+    if (!isUniqueViolation(e)) throw e;
+    return 'conflict';
+  }
+  return existing !== null ? 'rotated' : 'inserted';
+}
+
+export async function getDeviceKey(db: D1Database, userId: string, deviceId: string): Promise<DeviceKeyRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM device_keys WHERE user_id = ? AND device_id = ?')
+    .bind(userId, deviceId)
+    .first<DeviceKeyRow>();
+  return row ?? null;
+}
+
+export async function listDeviceKeys(db: D1Database, userId: string): Promise<DeviceKeyRow[]> {
+  const r = await db
+    .prepare('SELECT * FROM device_keys WHERE user_id = ? ORDER BY updated_at DESC')
+    .bind(userId)
+    .all<DeviceKeyRow>();
+  return r.results ?? [];
+}
+
+/**
+ * Resolve a device_id to its owning account, ASSUMING device_id is made
+ * globally unique by the migration's device_keys_device_id_idx.
+ */
+export async function getDeviceKeyOwner(
+  db: D1Database,
+  deviceId: string,
+): Promise<{ userId: string; pubkey: string; updatedAt: number } | null> {
+  const row = await db
+    .prepare('SELECT user_id, x25519_pubkey, updated_at FROM device_keys WHERE device_id = ?')
+    .bind(deviceId)
+    .first<{ user_id: string; x25519_pubkey: string; updated_at: number }>();
+  return row ? { userId: row.user_id, pubkey: row.x25519_pubkey, updatedAt: row.updated_at } : null;
+}
+
+// ── Harbor key wraps (WS-B slice B3) ───────────────────────────────────────
+//
+// Every column here mirrors lib/pd-vault-ts.ts's KeyWrapAad + WrappedKey wire
+// shapes field-for-field (see the migration's comment). enc/ciphertext are
+// Base64URL TEXT, opaque to the relay — never decoded, never inspected here.
+
+export interface HarborKeyWrapRow {
+  harbor_id: string;
+  authority_epoch: number;
+  recipient_device_id: string;
+  key_purpose: string;
+  key_id: string;
+  grant: string;
+  recipient_user_id: string;
+  enc: string;
+  ciphertext: string;
+  wrapped_by: string;
+  created_at: number;
+}
+
+/**
+ * Insert one wrap. 'conflict' when the (harbor,epoch,device,purpose,keyId)
+ * coordinate is already occupied by a DIFFERENT enc/ciphertext; 'replay' when
+ * it is occupied by the byte-identical enc+ciphertext (idempotent retry);
+ * 'ok' on a fresh insert. Mirrors the CAS-then-disambiguate idiom
+ * consumeHarborInvite/createHarborInvite already use in this file.
+ */
+export async function insertHarborKeyWrap(
+  db: D1Database,
+  w: {
+    harborId: string;
+    authorityEpoch: number;
+    recipientDeviceId: string;
+    keyPurpose: string;
+    keyId: string;
+    grant: string;
+    recipientUserId: string;
+    enc: string;
+    ciphertext: string;
+    wrappedBy: string;
+    now: number;
+  },
+): Promise<'ok' | 'replay' | 'conflict'> {
+  try {
+    await db
+      .prepare(
+        `INSERT INTO harbor_key_wraps
+           (harbor_id, authority_epoch, recipient_device_id, key_purpose, key_id, grant,
+            recipient_user_id, enc, ciphertext, wrapped_by, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        w.harborId,
+        w.authorityEpoch,
+        w.recipientDeviceId,
+        w.keyPurpose,
+        w.keyId,
+        w.grant,
+        w.recipientUserId,
+        w.enc,
+        w.ciphertext,
+        w.wrappedBy,
+        w.now,
+      )
+      .run();
+    return 'ok';
+  } catch (e) {
+    if (!isUniqueViolation(e)) throw e;
+    const existing = await db
+      .prepare(
+        `SELECT enc, ciphertext FROM harbor_key_wraps
+         WHERE harbor_id = ? AND authority_epoch = ? AND recipient_device_id = ? AND key_purpose = ? AND key_id = ?`,
+      )
+      .bind(w.harborId, w.authorityEpoch, w.recipientDeviceId, w.keyPurpose, w.keyId)
+      .first<{ enc: string; ciphertext: string }>();
+    return existing && existing.enc === w.enc && existing.ciphertext === w.ciphertext ? 'replay' : 'conflict';
+  }
+}
+
+export async function listHarborKeyWraps(
+  db: D1Database,
+  harborId: string,
+  recipientDeviceId: string,
+  sinceEpoch?: number,
+): Promise<HarborKeyWrapRow[]> {
+  const r =
+    sinceEpoch === undefined
+      ? await db
+          .prepare(
+            'SELECT * FROM harbor_key_wraps WHERE harbor_id = ? AND recipient_device_id = ? ORDER BY authority_epoch ASC',
+          )
+          .bind(harborId, recipientDeviceId)
+          .all<HarborKeyWrapRow>()
+      : await db
+          .prepare(
+            'SELECT * FROM harbor_key_wraps WHERE harbor_id = ? AND recipient_device_id = ? AND authority_epoch >= ? ORDER BY authority_epoch ASC',
+          )
+          .bind(harborId, recipientDeviceId, sinceEpoch)
+          .all<HarborKeyWrapRow>();
   return r.results ?? [];
 }
 

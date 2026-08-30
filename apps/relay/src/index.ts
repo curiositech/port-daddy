@@ -111,6 +111,11 @@
  *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
  *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
  *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
+ *   POST /v1/devices/keys                          (any authed user; register/rotate my device's X25519 pubkey)
+ *   GET  /v1/devices/keys                          (any authed user; list my own registered devices)
+ *   GET  /v1/harbors/:namespace/:name/devices/:deviceId/key (member-gated; a peer device's pubkey)
+ *   POST /v1/harbors/:namespace/:name/wraps        (member-gated; post an HPKE-wrapped envelope; blind relay)
+ *   GET  /v1/harbors/:namespace/:name/wraps        (member-gated + device-ownership-gated; fetch pending wraps)
  *   PUT  /v1/harbor/card                     (signed self-report of declared capabilities; X5)
  *   GET  /v1/harbor/directory                (public; listed/consented harbors only; X5)
  *   GET  /v1/harbor/whois?q=                 (public; TF-IDF + demonstrated ranking; X5)
@@ -289,6 +294,13 @@ import {
   handleGetParley,
   handleRespondParley,
 } from './parleys.js';
+import {
+  handleRegisterDeviceKey,
+  handleListDeviceKeys,
+  handleGetHarborDeviceKey,
+  handlePostHarborWrap,
+  handleGetHarborWraps,
+} from './device-keys.js';
 import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
 import {
   handleCoordinationGrant,
@@ -607,6 +619,14 @@ export default {
     else if (pathname.startsWith('/v1/push/apns/devices/') && method === 'DELETE') {
       const deviceId = decodeURIComponent(pathname.slice('/v1/push/apns/devices/'.length));
       response = await handleUnregisterApnsDevice(request, env, deviceId);
+    }
+
+    // ── Device keys (WS-B slice B3; src/device-keys.ts) ───────────────────────
+    else if (pathname === '/v1/devices/keys' && method === 'POST') {
+      response = await handleRegisterDeviceKey(request, env);
+    }
+    else if (pathname === '/v1/devices/keys' && method === 'GET') {
+      response = await handleListDeviceKeys(request, env);
     }
 
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
@@ -943,6 +963,12 @@ export default {
         response = await handleGetParley(request, env, ns, name, parleyId);
       } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 5 && parts[4] === 'respond' && method === 'POST') {
         response = await handleRespondParley(request, env, ns, name, parleyId);
+      } else if (ns && name && sub === 'devices' && parts.length === 5 && parts[3] && parts[4] === 'key' && method === 'GET') {
+        response = await handleGetHarborDeviceKey(request, env, ns, name, parts[3]);
+      } else if (ns && name && parts.length === 3 && sub === 'wraps' && method === 'POST') {
+        response = await handlePostHarborWrap(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'wraps' && method === 'GET') {
+        response = await handleGetHarborWraps(request, env, ns, name);
       } else {
         response = notFound();
       }
