@@ -62,7 +62,7 @@ const observedByFile = new Map();
  * checks the lifecycle boundary a viewer actually exercises: changing scenes
  * destroys the prior player before it mounts the next one.  A string check
  * would not catch a retained-but-never-disconnected observer, so the test
- * replaces the platform observer with a counter and drives five real tab
+ * replaces the platform observer with a counter and drives six real tab
  * clicks through the embedded client bundle.
  */
 async function checkGalleryResizeObserverLifecycle() {
@@ -116,13 +116,24 @@ async function checkGalleryResizeObserverLifecycle() {
   });
 
   try {
+    const encoded = dom.window.document.querySelector('#gallery-data')?.textContent;
+    const gallery = encoded ? JSON.parse(encoded) : null;
+    const receiptScene = gallery?.scenes?.find((scene) => scene.id === 'parley');
+    const sourceScene = gallery?.scenes?.find((scene) => scene.id === 'parley-source');
+    if (receiptScene?.cast !== 'parley') {
+      fail('harness-proof-current.html: primary Wardroom scene must use performative-free parley.cast');
+    }
+    if (sourceScene?.cast !== 'parley-source' || !/drill-down/i.test(`${sourceScene?.station ?? ''} ${sourceScene?.label ?? ''}`)) {
+      fail('harness-proof-current.html: parley-source.cast must remain an explicitly labeled drill-down scene');
+    }
+
     // `activate(0)` is intentionally fire-and-forget in the real gallery.
     // Let that initial async cast load finish before we begin exercising the
     // same public scene-switch path; otherwise a closing JSDOM can make an
     // in-flight, already-replaced player look like a gallery failure.
     const settle = () => new Promise((resolve) => dom.window.setTimeout(resolve, 0));
     await settle();
-    const sceneIds = ["harness-next-turn", "collision", "visibility", "ports", "parley"];
+    const sceneIds = ["harness-next-turn", "collision", "visibility", "ports", "parley", "parley-source"];
     for (const [index, id] of sceneIds.entries()) {
       const button = dom.window.document.querySelector(`#scene-tab-${id}`);
       if (!(button instanceof dom.window.HTMLButtonElement)) {
@@ -140,10 +151,10 @@ async function checkGalleryResizeObserverLifecycle() {
     }
 
     const disconnects = observers.reduce((count, observer) => count + observer.disconnectCount, 0);
-    if (observers.length !== 6 || disconnects !== 5) {
-      fail(`harness-proof-current.html: five scene switches must create 6 observers and disconnect the 5 retired players (created=${observers.length}, disconnected=${disconnects})`);
+    if (observers.length !== 7 || disconnects !== 6) {
+      fail(`harness-proof-current.html: six scene switches must create 7 observers and disconnect the 6 retired players (created=${observers.length}, disconnected=${disconnects})`);
     } else {
-      console.log("[check-porthole-casts] gallery lifecycle clean — 6 ResizeObserver instances created; 5 retired players disconnected.");
+      console.log("[check-porthole-casts] gallery lifecycle clean — 7 ResizeObserver instances created; 6 retired players disconnected.");
     }
   } finally {
     dom.window.close();

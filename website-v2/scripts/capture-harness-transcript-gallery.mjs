@@ -70,7 +70,7 @@ async function captureStillEvidence() {
 
     const liveParley = await browser.newPage({ viewport });
     await openGallery(liveParley, { reducedMotion: false });
-    await waitForScene(liveParley, 'parley');
+    await waitForScene(liveParley, 'parley-source');
     await liveParley.locator('.ph-speed-chip', { hasText: '2×' }).click();
     // Capture before tmux exits its alternate screen so all four panes remain
     // visible, but after the witness has observed every durable turn.
@@ -82,7 +82,7 @@ async function captureStillEvidence() {
 
     const mobileLiveParley = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await openGallery(mobileLiveParley, { reducedMotion: false });
-    await waitForScene(mobileLiveParley, 'parley');
+    await waitForScene(mobileLiveParley, 'parley-source');
     await mobileLiveParley.locator('.ph-speed-chip', { hasText: '2×' }).click();
     await mobileLiveParley.locator('.ph-term').filter({ hasText: 'CAUGHT UP · 6 durable turns' }).waitFor();
     await mobileLiveParley.locator('.player-shell').screenshot({
@@ -221,6 +221,8 @@ await record('porthole-proof-gallery.webm', async (page) => {
   await page.locator('.ph-speed-chip', { hasText: '2×' }).click();
   await page.waitForTimeout(6500);
   await waitForScene(page, 'parley');
+  await page.waitForTimeout(1600);
+  await waitForScene(page, 'parley-source');
   await page.waitForTimeout(2400);
   await page.locator('#parley-three-party').scrollIntoViewIfNeeded();
   await page.waitForTimeout(2400);
@@ -235,7 +237,7 @@ await record('collision-playback.webm', async (page) => {
 
 await record('parley-live-tmux.webm', async (page) => {
   await openGallery(page, { reducedMotion: false });
-  await waitForScene(page, 'parley');
+  await waitForScene(page, 'parley-source');
   await page.locator('.ph-speed-chip', { hasText: '2×' }).click();
   await page.waitForTimeout(18000);
 });

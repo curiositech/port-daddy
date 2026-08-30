@@ -59,11 +59,20 @@ const scenes = [
   },
   {
     id: 'parley', label: 'A decision survives adversarial review', station: 'Wardroom',
+    cast: 'parley',
+    locus: 'Three receipts → six public turns → caught up', format: 'tmux · 3 receipt panes · 140×40',
+    seed: 'Nora, Milo, and Aya disagree over capture order, inventory safety, and retry safety in one durable three-party Parley.',
+    intervention: 'Each participant reads the same durable record through a compact decision-receipt projection. Raw protocol commands stay out of this primary scene.',
+    proof: 'The three panes identify proposal author, adversarial reviewer, and delivery-safety owner; all show six durable turns, CONVENED state, no global settlement, and caught-up receipts.',
+    authority: 'Real Parley record · three participant-bound receipt projections · no raw performatives',
+  },
+  {
+    id: 'parley-source', label: 'Drill into the real four-pane protocol source', station: 'Protocol source · drill-down',
     cast: 'parley-source',
     locus: 'Three sessions → six public turns → read-only witness', format: 'tmux · 3 sessions + witness · 160×44',
-    seed: 'Nora, Milo, and Aya disagree over capture order, inventory safety, and retry safety. Each owns a separate linked worktree, shell, identity, and Port Daddy session.',
-    intervention: 'The three panes conduct a real multiparty Parley. A fourth, visually distinct witness polls the durable record without a viewer identity and explains each public move as it commits.',
-    proof: 'The recording shows one proposal, two independent objections, a revision that answers both, two individual agreements, and caught-up read receipts. Public rationale is visible; private chain of thought is not claimed.',
+    seed: 'The receipt-primary view is not enough for a protocol audit. Nora, Milo, and Aya therefore remain available in their distinct linked worktrees, shells, identities, and Port Daddy sessions.',
+    intervention: 'This explicitly secondary view exposes the three live protocol panes. A fourth, visually distinct witness polls the durable record without a viewer identity and explains each public move as it commits.',
+    proof: 'The source shows one proposal, two independent objections, a revision that answers both, two individual agreements, and caught-up read receipts. Public rationale is visible; private chain of thought is not claimed.',
     authority: 'Real tmux PTYs · three real sessions · read-only Parley projection',
   },
 ];
