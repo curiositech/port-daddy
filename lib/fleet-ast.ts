@@ -117,10 +117,10 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   identity?:      StringNode;
   timeout?:       IntNode;
   allowedTools?:  StringNode;
-  /** Opt-in: pull a windags-pattern skill shortlist into this ship's task
+  /** Opt-in: pull native Jury-rig skill guidance into this ship's task
    *  text before it spawns (lib/skill-graft.ts). Default false — existing
    *  ships are unaffected unless a pd-fleet.yml author sets this. */
-  skillGraft?:    BoolNode;
+  juryRig?:       BoolNode;
   fallbacks?:     RuntimeTargetNode[];
   cooldownMs?:    IntNode;
   dedupeWindowMs?: IntNode;
@@ -363,7 +363,7 @@ function parseAgentMap(
     identity:      gStr(m, 'identity',    gr),
     timeout:       gInt(m, 'timeout',     gr),
     allowedTools:  gStr(m, 'allowedTools', gr) ?? gStr(m, 'allowed_tools', gr),
-    skillGraft:    gBool(m, 'skill_graft', gr) ?? gBool(m, 'skillGraft', gr),
+    juryRig:       gBool(m, 'jury_rig', gr),
     fallbacks:     extractRuntimeTargets(gNode(m, 'fallbacks'), gr),
     cooldownMs:    gInt(m, 'cooldown_ms',        gr),
     dedupeWindowMs:gInt(m, 'dedupe_window_ms',   gr),
@@ -642,7 +642,7 @@ export function astToConfig(ast: FleetAst): FleetConfig {
       identity:       a.identity?.value,
       timeout:        a.timeout?.value,
       allowedTools:   a.allowedTools?.value,
-      skillGraft:     a.skillGraft?.value ?? false,
+      juryRig:        a.juryRig?.value ?? false,
       fallbacks,
       cooldownMs:     normMs(a.cooldownMs),
       dedupeWindowMs: normMs(a.dedupeWindowMs),

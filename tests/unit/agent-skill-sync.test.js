@@ -14,6 +14,7 @@ import { join, relative } from 'node:path';
 
 const {
   collectSkillUnion,
+  defaultSkillCatalogRoots,
   ensureGeminiPortDaddyExtension,
   runtimeSkillTargets,
   syncAgentSkills,
@@ -41,6 +42,26 @@ function writeSkill(root, rel, name, description = 'test skill') {
 }
 
 describe('cross-tool agent skill sync', () => {
+  test('default catalog uses local and explicit roots without WinDAGs runtime discovery', () => {
+    const projectRoot = join(tmpRoot, 'project');
+    const home = join(tmpRoot, 'home');
+    const explicit = join(tmpRoot, 'explicit-skills');
+    mkdirSync(join(projectRoot, 'skills'), { recursive: true });
+    mkdirSync(join(home, '.agents', 'skills'), { recursive: true });
+    mkdirSync(explicit, { recursive: true });
+
+    const previous = process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+    process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = explicit;
+    try {
+      const roots = defaultSkillCatalogRoots(projectRoot, home);
+      expect(roots.map((root) => root.label)).toEqual(expect.arrayContaining(['env:1', 'port-daddy', 'user-agents']));
+      expect(roots.some((root) => /windags|workgroup-ai/i.test(`${root.label}:${root.path}`))).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+      else process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = previous;
+    }
+  });
+
   test('collectSkillUnion resolves duplicate ids by source order and candidate quality', () => {
     const windags = join(tmpRoot, 'windags');
     const workgroup = join(tmpRoot, 'workgroup');

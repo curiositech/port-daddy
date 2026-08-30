@@ -428,7 +428,7 @@ function printUsage(): void {
   list                     List installed skills
   search <query>           Search skills by name/description
   show <skill-id>          Print a skill's SKILL.md
-  sync                     Sync skills from windags home
+  sync                     Sync skills from local and configured roots
   outcomes [--ship name]   Show skill application outcomes
   index                    Rebuild the skill search catalog
 

@@ -1,8 +1,8 @@
 /**
- * pd skill-graft — operator/agent surface for the native skill-graft index.
+ * pd jury-rig — operator/agent surface for native skill discovery.
  *
  * The fleet engine uses the same library on the live spawn path when a ship
- * sets `skill_graft: true`. This CLI is intentionally thin: inspect a query,
+ * sets `jury_rig: true`. This CLI is intentionally thin: inspect a query,
  * warm/rescan the catalog out of band, or fetch one skill-owned reference file.
  */
 
@@ -20,7 +20,7 @@ import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
 
-interface SkillGraftCliOptions extends CLIOptions {
+interface JuryRigCliOptions extends CLIOptions {
   root?: string;
   'top-limit'?: string | number;
   'shortlist-limit'?: string | number;
@@ -31,7 +31,7 @@ interface SkillGraftCliOptions extends CLIOptions {
   'db-dir'?: string;
 }
 
-function rootFromOptions(options: SkillGraftCliOptions): string {
+function rootFromOptions(options: JuryRigCliOptions): string {
   const raw = (typeof options.root === 'string' && options.root)
     || (typeof options.dir === 'string' && options.dir)
     || process.cwd();
@@ -53,7 +53,7 @@ function optionalPositiveInt(value: unknown): number | undefined {
  * @param projectRoot Resolved project root used by explicit scans.
  * @returns Labeled catalog roots for query, reference, or reconciliation.
  */
-function catalogRoots(options: SkillGraftCliOptions, projectRoot: string) {
+function catalogRoots(options: JuryRigCliOptions, projectRoot: string) {
   const explicit = (typeof options.root === 'string' && options.root)
     || (typeof options.dir === 'string' && options.dir);
   return explicit
@@ -61,7 +61,7 @@ function catalogRoots(options: SkillGraftCliOptions, projectRoot: string) {
     : defaultSkillCatalogRoots(projectRoot).map((root) => ({ label: root.label, path: root.path }));
 }
 
-function createIndex(options: SkillGraftCliOptions): SkillGraftIndex {
+function createIndex(options: JuryRigCliOptions): SkillGraftIndex {
   const projectRoot = rootFromOptions(options);
   const runtime = resolveSkillGraftRuntime();
   return createSkillGraftIndex({
@@ -79,13 +79,13 @@ function createIndex(options: SkillGraftCliOptions): SkillGraftIndex {
 function queryFromArgs(args: string[]): string {
   const text = args.join(' ').trim();
   if (!text) {
-    console.error('Usage: pd skill-graft query "<task>" [--root <path>] [--json]');
+    console.error('Usage: pd jury-rig query "<task>" [--root <path>] [--json]');
     process.exitCode = 1;
   }
   return text;
 }
 
-async function handleQuery(args: string[], options: SkillGraftCliOptions): Promise<void> {
+async function handleQuery(args: string[], options: JuryRigCliOptions): Promise<void> {
   const query = queryFromArgs(args);
   if (!query) return;
 
@@ -107,11 +107,11 @@ async function handleQuery(args: string[], options: SkillGraftCliOptions): Promi
   }
   console.log(rendered);
   if (result.semanticTier === 'lexical-only') {
-    ui.info('Semantic Tool2Vec tier is cold or unconfigured; run `pd skill-graft warm` after setting PD_SKILL_GRAFT_BACKEND, or `pd doctor` to repair the shared embedder cache.');
+    ui.info('Semantic Tool2Vec tier is cold or unconfigured; run `pd jury-rig warm` after setting PD_SKILL_GRAFT_BACKEND, or `pd doctor` to repair the shared embedder cache.');
   }
 }
 
-async function handleWarm(options: SkillGraftCliOptions): Promise<void> {
+async function handleWarm(options: JuryRigCliOptions): Promise<void> {
   const projectRoot = rootFromOptions(options);
   const reconciler = createTool2VecReconciler({
     projectRoot,
@@ -142,15 +142,15 @@ async function handleWarm(options: SkillGraftCliOptions): Promise<void> {
   }
   console.log(`  Coverage: ${stats.current}/${stats.total} current (${stats.coveragePct}%) · state ${stats.state}`);
   if (stats.stoppedEarly && stats.state === 'cold') {
-    ui.info('Warm-up checkpointed this batch; daemon ticks or another `pd skill-graft warm` resume at the next missing skill.');
+    ui.info('Warm-up checkpointed this batch; daemon ticks or another `pd jury-rig warm` resume at the next missing skill.');
   }
   if (stats.state === 'embedder-down' || stats.state === 'generator-down') process.exitCode = 1;
 }
 
-async function handleReference(args: string[], options: SkillGraftCliOptions): Promise<void> {
+async function handleReference(args: string[], options: JuryRigCliOptions): Promise<void> {
   const [skillId, filePath] = args;
   if (!skillId || !filePath) {
-    console.error('Usage: pd skill-graft reference <skill-id> <path-within-skill> [--root <path>] [--json]');
+    console.error('Usage: pd jury-rig reference <skill-id> <path-within-skill> [--root <path>] [--json]');
     process.exitCode = 1;
     return;
   }
@@ -173,20 +173,20 @@ async function handleReference(args: string[], options: SkillGraftCliOptions): P
 }
 
 function printHelp(): void {
-  console.log(`Skill Graft — inspect and warm native skill guidance for fleet ships
+  console.log(`Jury-rig — discover and safely load native skill guidance
 
 Usage:
-  pd skill-graft query "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
-  pd skill-graft warm [--root <path>] [--max-skills <n> | --all] [--local-only] [--json]
-  pd skill-graft reference <skill-id> <path-within-skill> [--root <path>] [--json]
+  pd jury-rig query "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
+  pd jury-rig warm [--root <path>] [--max-skills <n> | --all] [--local-only] [--json]
+  pd jury-rig reference <skill-id> <path-within-skill> [--root <path>] [--json]
 
 The same lib/skill-graft.ts index is used by lib/fleet-engine.ts when a
-pd-fleet.yml ship opts into skill_graft: true. query is safe on a cold cache:
+pd-fleet.yml ship opts into jury_rig: true. query is safe on a cold cache:
 it scans the full user skill catalog and ranks via BM25 until Tool2Vec
 centroids are warmed. Warm-up is content-hash checkpointed and safe to resume.`);
 }
 
-export async function handleSkillGraft(positional: string[], options: SkillGraftCliOptions): Promise<void> {
+export async function handleJuryRig(positional: string[], options: JuryRigCliOptions): Promise<void> {
   const subcommand = positional[0] || 'help';
   const args = positional.slice(1);
 

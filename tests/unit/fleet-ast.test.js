@@ -19,6 +19,13 @@ const SOURCE = readFileSync(STARTER_PATH, 'utf-8');
 // ─── parseFleetSource ─────────────────────────────────────────────────────────
 
 describe('parseFleetSource', () => {
+  test('parses only the Jury-rig fleet opt-in and ignores the removed skill-graft keys', () => {
+    const current = astToConfig(parseFleetSource(`name: test\nagents:\n  - name: current\n    task: test\n    jury_rig: true\n`));
+    const removed = astToConfig(parseFleetSource(`name: test\nagents:\n  - name: removed\n    task: test\n    skill_graft: true\n`));
+    expect(current.agents[0].juryRig).toBe(true);
+    expect(removed.agents[0].juryRig).toBe(false);
+  });
+
   it('returns null for empty source', () => {
     expect(parseFleetSource('')).toBeNull();
     expect(parseFleetSource('   \n\t  ')).toBeNull();

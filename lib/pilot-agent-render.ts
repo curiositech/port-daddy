@@ -65,7 +65,6 @@ export interface PilotConfig {
   skills?: string[];
   tools?: {
     portDaddyMcp?: string[];
-    windagsMcp?: string[];
     editorLocal?: string[];
     cloudToolset?: string;
     custom?: Array<Record<string, unknown>>;
@@ -97,7 +96,6 @@ export function extractSystemPrompt(agentMd: string): string {
 export function claudeToolList(config: PilotConfig): string[] {
   const tools: string[] = [];
   for (const t of config.tools?.portDaddyMcp ?? []) tools.push(`mcp__port-daddy__${t}`);
-  for (const t of config.tools?.windagsMcp ?? []) tools.push(`mcp__windags__${t}`);
   for (const t of config.tools?.editorLocal ?? []) tools.push(t);
   return tools;
 }

@@ -92,8 +92,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   ideas: 'silent',
   graph: 'silent',
   embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
-  'skill-graft': 'notify', // worst case: `skill-graft warm` refreshes the local graft cache; reads are silent
-  skillgraft: 'notify',    // alias of skill-graft
+  'jury-rig': 'notify', // worst case: `jury-rig warm` refreshes the local skill cache; reads are silent
   memory: 'silent',
   booty: 'notify',          // worst case: `booty add` writes blobs + provenance rows; `booty list` is silent (refined below)
   seamanship: 'notify',     // worst case: `seamanship sync`/`index` write the local skill catalog
@@ -239,16 +238,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'embed stdin': 'silent',
   'embed prefetch': 'notify',
 
-  // skill-graft: query/reference are read-only; warm refreshes the shared local
+  // jury-rig: query/reference are read-only; warm refreshes the shared local
   // skill index and may call the configured graft backend when enabled.
-  'skill-graft': 'silent',         // default subcommand = query
-  'skill-graft query': 'silent',
-  'skill-graft reference': 'silent',
-  'skill-graft warm': 'notify',
-  'skillgraft': 'silent',
-  'skillgraft query': 'silent',
-  'skillgraft reference': 'silent',
-  'skillgraft warm': 'notify',
+  'jury-rig': 'silent',         // default subcommand = query
+  'jury-rig query': 'silent',
+  'jury-rig reference': 'silent',
+  'jury-rig warm': 'notify',
 
   // booty: default/list/help are read-only; add writes artifact bytes into the
   // blob store plus a provenance row (slice S4a).

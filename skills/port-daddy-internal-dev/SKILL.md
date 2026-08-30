@@ -98,10 +98,9 @@ repo-specific mechanics:
   whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
   Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
   Commons, Federated Harbor); note drift in the PR.
-- **Skill matching.** If you're missing a matching skill, pause and do skill
-  research. The intended home is a **seamanship** match-cascade/graft selector
-  (proposed, not yet built — modelled on windags `windags_skill_induct` /
-  `windags_skill_graft`); until it lands, match by hand against `skills/`.
+- **Skill matching.** If you're missing a matching skill, pause and run
+  `pd jury-rig query`. It uses Port Daddy's native hybrid catalog and guarded
+  reference loader; no external skill runtime is required.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
@@ -582,25 +581,25 @@ before-window stats and gets judged on its after-window. The gpt-oss-20b
 author tier (#8870: 75% repair failure, half the fleet's verdicts washed out)
 is the tombstone for choosing a tier off a price note without a scoreboard.
 
-## Catalog-First Reflex (windags MCP, internal edition)
+## Catalog-First Reflex (Jury-rig, internal edition)
 
-Port Daddy contributors are not exempt from the catalog. The 600+ skills
-in `~/coding/windags-skills/` cover most patterns you'll hit while
-editing this codebase: rate limiting, caching, websocket protocols,
+Port Daddy contributors are not exempt from the local catalog. Project,
+user, and explicitly configured skill roots cover most patterns you'll hit
+while editing this codebase: rate limiting, caching, websocket protocols,
 distributed transactions, pre-mortems, evaluation harnesses, design
 systems for the website, and more.
 
 ```bash
-windags_skill_search "<the thing you're about to do>"
-windags_skill_graft <skill-id> [skill-id...]
+pd jury-rig query "<the thing you're about to do>"
+pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
 **Before every contributor slice**, one search. Examples that have paid off:
 
-- Editing the daemon's lock-acquire path? `windags_skill_search "distributed lock semantics"` → grafts `distributed-algorithms` and `sagas-garcia-molina-salem-1987`.
-- Adding a new MCP tool description? `windags_skill_search "MCP tool description writing"` → grafts `mcp-creator` if relevant.
-- Touching the website? `windags_skill_search "responsive layout master"` and friends — the design-system skills ship with usable component patterns.
-- Writing pre-release tests? `windags_skill_search "adversarial QA"` → grafts `qa-automation-specialist` or `webapp-testing`.
+- Editing the daemon's lock-acquire path? `pd jury-rig query "distributed lock semantics"` surfaces the closest local guidance.
+- Adding a new MCP tool description? `pd jury-rig query "MCP tool description writing"` surfaces `mcp-creator` when installed.
+- Touching the website? `pd jury-rig query "responsive layout master"` finds the available design-system skills.
+- Writing pre-release tests? `pd jury-rig query "adversarial QA"` finds installed QA and web-app testing guidance.
 
 If the catalog is wrong or stale for our domain, that's a Cartographer
 issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>. Use case: <internal slice>."`
@@ -907,11 +906,11 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You staged by explicit path; `git add -A` does not appear in your shell history for this slice.
 - [ ] Every public surface affected has been updated in this slice OR a Lookout message names the gap.
 - [ ] If you touched an internal actor's body, you updated the actor-roster reference and the matching `decisions/` entry.
-- [ ] If you renamed or removed a CLI / API / MCP surface, you provided a migration path and a deprecation window.
+- [ ] If you renamed or removed a CLI / API / MCP surface, you followed the repo's supplant rule unless the operator explicitly requested compatibility.
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran `windags_skill_search` for the slice's domain before starting.
+- [ ] You ran `pd jury-rig query` for the slice's domain before starting.
 - [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 
