@@ -1,65 +1,44 @@
-% Figure — the kernel's deontic split (Jones & Sergot). Prohibition is handled
-% two ways (regimented pre-commit vs detected post-commit); obligation is
-% enforced by oracle-bound commitments; permission is a recorded capability.
-% The worked example lists and the unifying sentence live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 7 — three normative kinds shown as three different mechanisms in time.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  col/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-              minimum width=54mm,minimum height=34mm,align=left,
-              inner sep=6pt,text width=50mm,anchor=north},
-]
-
-% ─── Prohibition ──────────────────────────────────────────────────────────
-\node[col] (prohib) at (0,0)
-  {{\bfseries Prohibition}\quad\textit{``you must not''}\\[4pt]
-   {\color{hhamber}\textbf{Regimented}}: pre-commit, truly unreachable
-   \emph{(uniqueness constraint / boot gate)}\\[4pt]
-   {\color{hhteal}\textbf{Enforced}}: post-commit, detected \& compensated
-   \emph{(the policy monitor)}};
-
-% ─── Obligation ───────────────────────────────────────────────────────────
-\node[col,right=5mm of prohib] (oblig)
-  {{\bfseries Obligation}\quad\textit{``you ought''}\\[4pt]
-   durable, \emph{violable} commitments\\[4pt]
-   \textbf{Law 1} (I5): the deadline is daemon-derived, never agent-supplied\\[4pt]
-   \textbf{Law 2} (I6): closing as `done' demands an oracle reference};
-
-% ─── Permission ───────────────────────────────────────────────────────────
-\node[col,right=5mm of oblig] (perm)
-  {{\bfseries Permission}\quad\textit{``you may''}\\[4pt]
-   a recorded \textbf{capability} attached to an actor\\[4pt]
-   capability $=$ \emph{ability};\\ permission $=$ \emph{normative status}\\[2pt]
-   --- ``able but forbidden'' stays expressible};
-
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \foreach \y/\name in {5.7/{prohibition},3.55/{obligation},1.35/{permission}} {
+    \node[anchor=east,font=\small\bfseries] at (2.0,\y) {\name};
+    \draw[pd hairline] (2.3,\y)--(13.7,\y);
+  }
+  \node[pd axis label,anchor=west] at (13.78,.55) {time};
+  \draw[pd caution arrow] (2.6,5.7)--(5.0,5.7);
+  \draw[pd caution rule,line width=1.5pt] (5.0,5.15)--(5.0,6.25);
+  \node[pd direct label,anchor=south,text=hhamber] at (5.0,6.34) {pre-effect refusal};
+  \draw[pd focus arrow] (7.0,5.7)--(9.15,5.7);
+  \node[pd datum] at (9.15,5.7) {};
+  \draw[pd caution arrow] (9.15,5.7)--(11.35,5.7);
+  \node[pd caution datum] at (11.35,5.7) {};
+  \node[pd direct label,anchor=south] at (9.15,6.34) {commit};
+  \node[pd direct label,anchor=south,text=hhamber] at (11.35,6.34) {detect + compensate};
+  \node[pd focus datum] at (3.05,3.55) {};
+  \draw[pd focus rule,line width=1.45pt] (3.05,3.55)--(9.75,3.55);
+  \draw[pd caution rule] (7.15,3.0)--(7.15,4.1);
+  \node[pd direct label,anchor=south,text=hhamber] at (7.15,4.17) {daemon deadline};
+  \node[pd terminal,draw=hhteal,inner xsep=5pt,inner ysep=3pt] at (9.75,3.55) {oracle close};
+  \node[pd note,anchor=west] at (10.55,3.02) {violable until evidenced};
+  \draw[pd rule,line width=1.35pt] (2.8,1.65)--(12.2,1.65);
+  \draw[pd focus rule,line width=1.35pt] (2.8,1.05)--(7.1,1.05);
+  \draw[pd caution rule,line width=1.35pt] (7.1,1.05)--(10.05,1.05);
+  \draw[pd focus rule,line width=1.35pt] (10.05,1.05)--(12.2,1.05);
+  \node[pd direct label,anchor=east] at (2.55,1.65) {ability};
+  \node[pd direct label,anchor=east] at (2.55,1.05) {status};
+  \fill[pd hatch] (7.1,.78) rectangle (10.05,1.9);
+  \node[pd direct label,text=hhamber] at (8.58,2.12) {able, but forbidden};
 \end{tikzpicture}%
 }
-\caption{The kernel's deontic split (Jones \& Sergot), the formal core of its
-obligation/enforcement organ: \emph{prohibition} is regimented \emph{or} detected,
-\emph{obligation} is enforced by oracle-bound commitments, \emph{permission} is a
-recorded capability --- and the coordination layer's deontic binding is a direct
-lift of this split. The regimented set (double-claim, duplicate-identity squat,
-serve-from-test-database, refuse-to-serve on a failed self-check) is rejected
-pre-commit by a uniqueness constraint or fail-closed boot gate; everything the
-policy monitor \emph{subscribes} to (heartbeat freshness, note monotonicity,
-capability escalation, lock-owner validity) is detected post-commit and compensated.
-Commitments follow Cohen \& Levesque's persistent goals: open $\to$ done $\mid$
-abandoned $\mid$ superseded, with Law~1 closing the Goodhart hole on deadlines and
-Law~2 refusing free-text closure. And capability (ability) is kept distinct from
-permission (normative status) so that ``able but forbidden'' --- e.g.\ a dangerous
-override flag that \emph{exists} but \emph{must not be used} --- remains
-representable, the very state a guardrail-bypass discipline depends on.}
+\caption{Three normative kinds require three different mechanisms. A prohibition
+is either regimented before effect or detected after commit and compensated. An
+obligation is a durable but violable interval whose deadline is daemon-derived and
+whose successful closure requires typed evidence. Permission is a recorded
+normative status distinct from raw ability, so an actor can remain technically able
+while forbidden. The traces cannot be collapsed into one generic policy box
+without erasing the distinctions the kernel must preserve.}
 \label{fig:swk-deontic-split}
 \end{figure}

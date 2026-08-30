@@ -1,74 +1,44 @@
-% Figure 13 --- a causal failure ladder with a parallel intervention rail.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 13 — truth recoverability across a four-stage degradation cascade.
+% The curve is schematic; interventions are transverse cuts that stop propagation.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\footnotesize,
-  stage/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=1pt,
-                minimum height=13mm,align=left,font=\footnotesize,text=hhink},
-  cure/.style={align=left,font=\footnotesize,text=hhink},
-]
-% The amber diagonal is causal; the teal rail is a distinct place to interrupt it.
-\node[font=\footnotesize\bfseries,text=hhamber,anchor=west] at (-6.75,3.85)
-  {failure ladder};
-\node[font=\footnotesize\bfseries,text=hhteal,anchor=west] at (5.35,3.85)
-  {countermeasure rail --- break any rung};
-\draw[hhteal,very thick] (5.7,3.35) -- (5.7,-3.05);
+\begin{tikzpicture}[pd figure,x=.94cm,y=.92cm]
+  \draw[pd arrow] (.45,.35)--(15.15,.35);
+  \draw[pd arrow] (.45,.35)--(.45,5.15);
+  \node[pd axis label,anchor=west] at (13.15,.04) {cascade progression};
+  \node[pd axis label,rotate=90,anchor=south] at (-.12,2.75)
+    {recoverable truth};
 
-\node[stage,text width=40mm] (r1) at (-5.0,2.75)
-  {\textbf{1. Context rot}\\window grows;\\fidelity decays};
-\node[stage,text width=40mm] (r2) at (-2.35,1.08)
-  {\textbf{2. Lost in the middle}\\paid-for facts disappear};
-\node[stage,text width=40mm] (r3) at (0.30,-0.60)
-  {\textbf{3. Recursive collapse}\\summary recurses;\\fabricates};
-\node[stage,text width=40mm] (r4) at (2.95,-2.28)
-  {\textbf{4. Over-flattening}\\digest replaces the artifact};
+  \draw[pd caution rule,line width=1.2pt]
+    plot[smooth] coordinates {(.85,4.62)(4.15,4.00)(7.45,2.95)(10.75,1.55)(14.25,.72)};
+  \foreach \x/\y/\n/\lab in {
+    .85/4.62/1/context rot,
+    4.15/4.00/2/lost in the middle,
+    7.45/2.95/3/recursive collapse,
+    10.75/1.55/4/over-flattening}{
+    \node[pd caution datum] at (\x,\y) {};
+    \node[pd panel title,anchor=north,align=center] at (\x,-.12) {\n\\\lab};
+  }
 
-\draw[-{Latex[length=2.4mm]},very thick,hhamber] (r1.south east) -- (r2.north west)
-  node[midway,above,font=\scriptsize,text=hhamber]{pressure};
-\draw[-{Latex[length=2.4mm]},very thick,hhamber] (r2.south east) -- (r3.north west)
-  node[midway,above,font=\scriptsize,text=hhamber]{salience loss};
-\draw[-{Latex[length=2.4mm]},very thick,hhamber] (r3.south east) -- (r4.north west)
-  node[midway,above,font=\scriptsize,text=hhamber]{replacement};
-
-\foreach \y/\n in {2.75/1,1.08/2,-0.60/3,-2.28/4}{
-  \fill[hhteal] (5.7,\y) circle (2.2pt);
-  \node[draw=hhteal,thin,fill=hhteal!7,circle,minimum size=5.5mm,
-        inner sep=0pt,font=\scriptsize\bfseries,text=hhteal] at (5.7,\y) {\n};
-}
-\draw[-{Latex[length=1.8mm]},thick,hhteal] (r1.east) -- (5.45,2.75);
-\draw[-{Latex[length=1.8mm]},thick,hhteal] (r2.east) -- (5.45,1.08);
-\draw[-{Latex[length=1.8mm]},very thick,hhteal] (r3.east) -- (5.45,-0.60);
-\draw[-{Latex[length=1.8mm]},thick,hhteal] (r4.east) -- (5.45,-2.28);
-
-\node[cure,text width=42mm,anchor=west] at (6.12,2.75)
-  {\textbf{compact earlier}\\budget to effective context};
-\node[cure,text width=42mm,anchor=west] at (6.12,1.08)
-  {\textbf{edge-place facts}\\shorten the window};
-\node[cure,text width=42mm,anchor=west] at (6.12,-0.60)
-  {\textbf{compact from artifacts}\\never from a prior summary};
-\node[cure,text width=42mm,anchor=west] at (6.12,-2.28)
-  {\textbf{legibility with zoom}\\keep the artifact addressable};
-\node[font=\scriptsize\itshape,text=hhteal,align=center,text width=44mm] at (7.75,-3.18)
-  {load-bearing break: rung 3\\keeps truth recoverable};
-\end{tikzpicture}%
-}
-\caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
-compact, naive compaction loses the middle, recursion fabricates, and the
-operator-facing digest over-flattens what remains. The amber ladder encodes the
-causal order; the parallel teal rail places one countermeasure at each rung, so
-breaking any rung stops the cascade. The load-bearing intervention is
-\emph{compact-from-artifacts} (rung~3): durable, addressable claims, notes, and
-episodes make it possible to reconstruct a digest from evidence rather than from a
-previous summary. When compaction fails, the bill \emph{and} the truth degrade
-together.}
+  % Countermeasures cut the causal path at the stage they address.
+  \foreach \x/\y/\short in {
+    2.45/4.38/compact earlier,
+    5.80/3.52/edge-place facts,
+    9.05/2.28/from artifacts,
+    12.55/1.08/zoom path}{
+    \draw[pd focus rule,line width=1.5pt] (\x,\y-.42)--(\x,\y+.42);
+    \node[pd direct label,text=hhteal,anchor=south,align=center] at (\x,\y+.52) {\short};
+  }
+  \draw[pd focus arrow] (9.05,2.80)--(9.05,4.65);
+  \node[pd direct label,text=hhteal,anchor=south,align=center] at (9.50,4.72)
+    {critical break\\reconstruct from evidence};
+  \node[pd note,anchor=west] at (.85,.72) {schematic causal order; not a measured decay curve};
+\end{tikzpicture}
+\caption{The context-degradation cascade as loss of recoverable truth. Context
+rot creates pressure to compact; middle loss removes paid-for facts; recursive
+summarization fabricates; and the final digest replaces the artifact. A
+countermeasure can interrupt each transition. The decisive cut is
+compact-from-artifacts: rebuilding from durable, addressable evidence prevents
+an earlier summary from becoming the next summary’s ground truth.}
 \label{fig:cascade}
 \end{figure}

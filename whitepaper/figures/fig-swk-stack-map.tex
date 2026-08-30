@@ -1,80 +1,55 @@
-% Figure 1 — the four-layer coordination stack. Where THIS paper sits: the two
-% lowest layers (substrate + the implemented half of coordination), what it
-% ASSUMES from the machine below, what it PROVIDES upward.
-% Design: one bold title + small-caps whom per layer, one italic content line;
-% companion attributions and the assumes/provides inventories live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 1 — architectural section through the coordination stack.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  rung/.style={draw=hhebony,thick,rounded corners=4pt,
-               minimum width=130mm,minimum height=15mm,
-               align=left,inner sep=7pt,text width=122mm},
-  here/.style={draw=hhamber,line width=1.6pt,fill=hhsand!30,
-               rounded corners=4pt,minimum width=130mm,minimum height=15mm,
-               align=left,inner sep=7pt,text width=122mm},
-]
+\resizebox{0.91\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \fill[hhpaper] (0,0) rectangle (13.6,6.6);
+  \fill[hhink] (0,.0) rectangle (13.6,.58);
+  \fill[hhteal!8] (0,.58) rectangle (13.6,2.18);
+  \fill[hhteal!4] (0,2.18) rectangle (13.6,3.66);
+  \fill[hhsand!18] (0,3.66) rectangle (13.6,5.02);
+  \fill[hhsand!10] (0,5.02) rectangle (13.6,6.38);
+  \foreach \y in {.58,2.18,3.66,5.02,6.38}
+    \draw[pd hairline] (0,\y)--(13.6,\y);
 
-% ─── The four layers, top (economy) to bottom (machine) ───────────────────
-\node[rung,fill=hhsand!30] (l3) at (0,0)
-  {{\bfseries Economy \& federation}\hfill{\footnotesize\textsc{for the market}}\\[2pt]
-   \textit{settlement ledger, escrow, reputation, cross-machine federation}};
-\node[rung,fill=hhsand!30,below=7mm of l3] (l2)
-  {{\bfseries Legibility \& authority}\hfill{\footnotesize\textsc{for the operator}}\\[2pt]
-   \textit{digest-with-zoom, roadmap-as-truth, adversarial review, the console}};
-\node[here,below=7mm of l2] (l1)
-  {{\bfseries Coordination protocol}\hfill{\footnotesize\textsc{for the agents}}\\[2pt]
-   \textit{typed speech acts, commitments, delegation, a policy monitor}};
-\node[here,below=7mm of l1] (l0)
-  {{\bfseries Substrate --- the daemon (the kernel)}\hfill{\footnotesize\textsc{for the machine}}\\[2pt]
-   \textit{always-on SQLite/WAL source of truth: ports, claims, sessions, bus, memory}};
-\node[rung,fill=hhebony,text=hhpaper,below=11mm of l0] (os)
-  {{\bfseries The machine / operating system}\hfill{\footnotesize\textsc{the floor}}\\[2pt]
-   \textit{POSIX file lock $\cdot$ wall clock $\cdot$ Unix sockets $\cdot$ keychain $\cdot$ supervisor}};
+  \node[anchor=west,font=\scriptsize\bfseries,text=white] at (.22,.29) {MACHINE FLOOR};
+  \node[anchor=west,font=\small\bfseries] at (.35,1.62) {substrate};
+  \node[anchor=west,font=\small\bfseries] at (.35,3.10) {coordination};
+  \node[anchor=west,font=\small\bfseries] at (.35,4.48) {legibility};
+  \node[anchor=west,font=\small\bfseries] at (.35,5.84) {economy + federation};
 
-% "this paper" flags
-\node[anchor=west,font=\bfseries\footnotesize,text=hhamber]
-  at ([xshift=3mm]l1.east) {$\blacktriangleleft$ this paper (carrier half)};
-\node[anchor=west,font=\bfseries\footnotesize,text=hhamber]
-  at ([xshift=3mm]l0.east) {$\blacktriangleleft$ this paper (core)};
+  \node[pd axis label,anchor=west] at (3.80,1.62)
+    {one writer \quad claims \quad sessions \quad bus \quad memory};
+  \node[pd axis label,anchor=west] at (3.80,3.10)
+    {typed acts \quad commitments \quad delegation \quad policy observation};
+  \node[pd axis label,anchor=west] at (3.80,4.48)
+    {digest with zoom \quad review \quad operator surface};
+  \node[pd axis label,anchor=west] at (3.80,5.84)
+    {settlement \quad reputation \quad cross-machine federation};
 
-% ─── assumes (down) / provides (up) across the floor ──────────────────────
-\draw[->,>=Latex,very thick,hhamber]
-  ([xshift=18mm]l0.south) -- ([xshift=18mm]os.north)
-  node[midway,right=1mm,font=\scriptsize\itshape,text=hhink]{assumes};
-\draw[->,>=Latex,very thick,hhteal]
-  ([xshift=-18mm]os.north) -- ([xshift=-18mm]l0.south)
-  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{provides};
+  \draw[pd focus rule,line width=2.1pt] (12.55,.72)--(12.55,3.56);
+  \draw[pd focus rule] (12.28,.72)--(12.82,.72);
+  \draw[pd focus rule] (12.28,3.56)--(12.82,3.56);
+  \node[rotate=90,anchor=south,font=\scriptsize\bfseries,text=hhteal]
+    at (13.02,2.14) {CHAPTER II};
+  \node[pd axis label,anchor=west] at (10.55,2.83) {carrier half};
+  \draw[pd guide] (10.35,2.18)--(12.48,2.18);
 
-% ─── layer-API chain up the stack ─────────────────────────────────────────
-\draw[->,>=Latex,thick,hhteal] ([xshift=-18mm]l0.north) -- ([xshift=-18mm]l1.south);
-\draw[->,>=Latex,thick,hhteal] ([xshift=-18mm]l1.north) -- ([xshift=-18mm]l2.south)
-  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{layer API};
-\draw[->,>=Latex,thick,hhteal] ([xshift=-18mm]l2.north) -- ([xshift=-18mm]l3.south);
+  \draw[pd focus arrow] (5.15,.15)--(5.15,1.05)
+    node[pd direct label,anchor=east,pos=.58] {provides};
+  \draw[pd caution arrow] (8.36,1.05)--(8.36,.15)
+    node[pd direct label,anchor=west,pos=.58] {assumes};
+  \node[font=\scriptsize,text=white] at (7.05,.29)
+    {file lock \quad clock \quad socket \quad supervisor};
 
+  \draw[pd rule] (0,0) rectangle (13.6,6.38);
 \end{tikzpicture}%
 }
-\caption{The four-layer coordination stack. Each layer serves a different
-\emph{whom} (machine, agents, operator, market). \textbf{Chapter II owns the two
-lowest layers}: all of the substrate (the kernel) and the implemented carrier half
-of coordination (the message bus, stigmergic markers, commitments, the cryptographic
-authorization chain, the policy monitor); the coordination \emph{semantics}
-(protocol state machines, the agent sandbox) and the whole legibility layer belong
-to Chapters~I and~IV (Chapter~I: \emph{The Legible Swarm}; Chapter~IV: \emph{The Harbor Economy} owns the
-market rung). From the machine the substrate \emph{assumes} only an advisory file
-lock, one clock, and a supervisor; upward it \emph{provides} atomic TTL'd claims, a
-durable bus, the deontic split, and an audit log. Later chapters build on or
-cross-cut this floor; chapter numbers are not layer numbers.}
+\caption{An architectural section through the four-layer coordination stack.
+Chapter II occupies the complete transactional substrate and the implemented
+carrier half of coordination; it does not claim the semantic, operator, or market
+layers above. The dark machine floor is the narrow dependency boundary: the kernel
+assumes a file lock, clock, socket, and supervisor, then provides a single-writer
+record on which every higher layer rests. Chapter numbers are not layer numbers.}
 \label{fig:swk-stack-map}
 \end{figure}

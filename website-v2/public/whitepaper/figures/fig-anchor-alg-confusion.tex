@@ -1,39 +1,49 @@
-% Semantic contract: verification outcome follows control authority, not token shape.
+% Semantic contract: identical token bytes diverge only where control over the
+% verification rule changes hands.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\small,
-  cell/.style={draw=hhink,line width=.55pt,minimum width=29mm,minimum height=12mm,
-    text width=27mm,inner sep=4pt,align=center},
-  head/.style={font=\scriptsize\bfseries,align=center,text width=27mm}
-]
-  \node[head] at (-4.5,1.55) {control authority};
-  \node[head] at (-1.5,1.55) {algorithm source};
-  \node[head] at (1.5,1.55) {verification trace};
-  \node[head] at (4.5,1.55) {tampered token};
-  \node[cell,fill=hhsand!42] at (-4.5,.55) {attacker-controlled};
-  \node[cell,fill=hhsand!42] at (-1.5,.55) {untrusted header\\\texttt{alg:none}};
-  \node[cell,fill=hhsand!42] at (1.5,.55) {signature check\\bypassed};
-  \node[cell,fill=hhsand!42,font=\bfseries] at (4.5,.55) {ACCEPT\\unsafe};
-  \node[cell,fill=hhteal!8,draw=hhteal,line width=.8pt] at (-4.5,-.75)
-    {issuer-controlled};
-  \node[cell,fill=hhteal!8,draw=hhteal,line width=.8pt] at (-1.5,-.75)
-    {authenticated policy\\Ed25519};
-  \node[cell,fill=hhteal!8,draw=hhteal,line width=.8pt] at (1.5,-.75)
-    {signature check\\fails};
-  \node[cell,fill=hhteal!14,draw=hhteal,line width=.8pt,font=\bfseries] at (4.5,-.75)
-    {REJECT\\safe};
-  \draw[-{Stealth[length=2mm]},hhink,line width=.6pt] (-3.02,.55) -- (-2.98,.55);
-  \draw[-{Stealth[length=2mm]},hhink,line width=.6pt] (-.02,.55) -- (.02,.55);
-  \draw[-{Stealth[length=2mm]},hhink,line width=.6pt] (2.98,.55) -- (3.02,.55);
-  \draw[-{Stealth[length=2mm]},hhteal,line width=.75pt] (-3.02,-.75) -- (-2.98,-.75);
-  \draw[-{Stealth[length=2mm]},hhteal,line width=.75pt] (-.02,-.75) -- (.02,-.75);
-  \draw[-{Stealth[length=2mm]},hhteal,line width=.75pt] (2.98,-.75) -- (3.02,-.75);
-  \node[font=\scriptsize\itshape,text=hhgray] at (0,-1.75)
-    {same bytes on the wire; only the authority boundary changes};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \draw[pd rule,line width=1.2pt] (-5.8,1.85) -- (-3.7,1.85);
+  \foreach \x in {-5.55,-5.12,-4.69,-4.26,-3.83}
+    \draw[hhink,line width=2.7pt] (\x,1.72) -- (\x,1.98);
+  \node[pd direct label,anchor=north west] at (-5.8,1.48)
+    {header \texttt{alg:none} \quad tampered payload};
+
+  \coordinate (fork) at (-2.8,1.85);
+  \draw[pd rule] (-3.7,1.85) -- (fork);
+  \node[diamond,draw=hhink,fill=hhpaper,minimum size=8mm,inner sep=0pt] at (fork) {};
+  \node[pd direct label,anchor=south] at (-2.8,2.18) {rule source};
+
+  \draw[pd caution arrow] (fork) to[out=20,in=180] (0.0,3.0);
+  \node[pd direct label,text=hhamber,anchor=south] at (.15,3.2)
+    {untrusted header};
+  \draw[pd caution arrow] (0.0,3.0) -- (2.6,3.0);
+  \draw[draw=hhamber,line width=.9pt] (1.0,2.72) -- (1.55,3.28);
+  \draw[draw=hhamber,line width=.9pt] (1.0,3.28) -- (1.55,2.72);
+  \node[pd direct label,text=hhamber,anchor=south] at (1.65,3.5)
+    {bypassed};
+  \node[regular polygon,regular polygon sides=3,fill=hhamber,draw=none,
+    minimum size=7mm,inner sep=0pt,rotate=90] at (3.15,3.0) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (3.55,3.0) {ACCEPT};
+
+  \draw[pd focus arrow] (fork) to[out=-20,in=180] (0.0,.7);
+  \node[pd direct label,text=hhteal,anchor=east] at (.55,.33)
+    {issuer policy};
+  \draw[pd focus arrow] (0.0,.7) -- (2.6,.7);
+  \draw[draw=hhteal,line width=1pt] (1.28,.7) circle (4.2mm);
+  \node[font=\scriptsize\bfseries,text=hhteal] at (1.28,.7) {Ed};
+  \node[circle,draw=hhteal,line width=1pt,minimum size=7mm,inner sep=0pt] at (3.15,.7) {};
+  \draw[draw=hhteal,line width=1pt] (2.93,.48) -- (3.37,.92);
+  \draw[draw=hhteal,line width=1pt] (2.93,.92) -- (3.37,.48);
+  \node[pd direct label,text=hhteal,anchor=west] at (3.55,.7) {REJECT};
+
+  \draw[pd caution rule,dashed] (-2.15,-.1) -- (-2.15,3.75);
+  \node[pd note,text=hhamber,anchor=north,align=center] at (-2.15,-.18)
+    {authority boundary};
 \end{tikzpicture}
-\caption{Algorithm confusion is a control-authority failure. When the token
-selects its own rule, an attacker can bypass verification; when authenticated
-issuer policy pins Ed25519, the same tampered token is rejected.}
+\caption{Algorithm confusion occurs at the rule-selection boundary, not in the
+token's shape. Identical tampered bytes are accepted when the token selects its
+own verifier and rejected when authenticated issuer policy pins Ed25519. The
+fork isolates the only causal difference: control of the verification rule.}
 \label{fig:anchor-alg-confusion}
 \end{figure}

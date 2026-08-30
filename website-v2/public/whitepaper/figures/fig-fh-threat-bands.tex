@@ -1,76 +1,56 @@
-% Federated-Harbor assurance ledger. Aligned lookup replaces three prose cards.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.10 --- assurance maturity as position, not a prose matrix.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \fill[hhteal!7] (-4.35,2.10) rectangle (-.45,-4.18);
-  \fill[hhsand!38] (-.45,2.10) rectangle (3.55,-4.18);
-  \fill[hhamber!5] (3.55,2.10) rectangle (7.45,-4.18);
-  \draw[hhebony,line width=.7pt] (-7.05,2.90) rectangle (7.45,-4.18);
-  \draw[hhebony,line width=.55pt] (-7.05,2.10) -- (7.45,2.10);
-  \foreach \x in {-4.35,-.45,3.55} {\draw[hhebony!65,line width=.45pt] (\x,2.90) -- (\x,-4.18);}
-  \foreach \y in {1.20,.30,-.60,-1.50,-2.40,-3.30} {\draw[hhebony!30,line width=.4pt] (-7.05,\y) -- (7.45,\y);}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.45)
+    {assurance advances only when a threat acquires an artifact or theorem};
+  \foreach \y/\lab in {2.55/identity + replay,1.75/revocation,.95/equivocation,.15/settlement,-.65/cold-start admission,-1.45/cartel monitoring,-2.25/centralization}
+    {\node[pd direct label,anchor=east] at (-4.35,\y) {\lab};
+     \draw[pd guide] (-4.05,\y)--(6.35,\y);}
 
-  \node[font=\footnotesize\bfseries] at (-5.70,2.50) {THREAT};
-  \node[font=\footnotesize\bfseries,text=hhteal,align=center] at (-2.40,2.50)
-    {MECHANIZED\\[-1pt]\scriptsize proof artifact};
-  \node[font=\footnotesize\bfseries,align=center] at (1.55,2.50)
-    {BOUNDED\\[-1pt]\scriptsize named window / condition};
-  \node[font=\footnotesize\bfseries,text=hhamber,align=center] at (5.50,2.50)
-    {OPEN\\[-1pt]\scriptsize no theorem yet};
+  % Evidence positions and uncertainty intervals.
+  \draw[pd focus rule,line width=1.2pt] (-4.05,2.55)--(5.15,2.55);
+  \node[pd focus datum] at (5.15,2.55) {};
+  \node[pd note,anchor=west] at (5.42,2.55) {signed card + epoch root};
 
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,1.65) {identity + replay};
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,.75) {revocation};
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-.15) {equivocation};
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-1.05) {settlement};
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-1.95) {cold-start admission};
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-2.85) {cartel monitoring};
-  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-3.75) {centralization};
+  \draw[pd caution rule,line width=1.2pt] (-4.05,1.75)--(1.95,1.75);
+  \node[pd caution datum] at (1.95,1.75) {};
+  \node[pd note,anchor=west] at (2.22,1.75) {$\Theta(\log m)$ only under reliable rounds};
 
-  \node[align=center,font=\scriptsize,text=hhteal] at (-2.40,1.65)
-    {$\checkmark$ signed card\\attenuation + epoch root};
-  \foreach \y in {.75,-.15,-1.05,-1.95,-2.85,-3.75}
-    {\node[font=\scriptsize,text=hhebony!35] at (-2.40,\y) {--};}
+  \draw[pd caution rule,line width=1.2pt] (-4.05,.95)--(1.55,.95);
+  \node[pd caution datum] at (1.55,.95) {};
+  \node[pd note,anchor=west] at (1.82,.95) {proof after roots co-locate};
 
-  \node[font=\scriptsize,text=hhebony!35] at (1.55,1.65) {--};
-  \node[align=center,font=\scriptsize] at (1.55,.75)
-    {$\Theta(\log m)$ reliable rounds\\no deadline under partition};
-  \node[align=center,font=\scriptsize] at (1.55,-.15)
-    {proof after roots co-locate\\witness bond prices fault};
-  \node[align=center,font=\scriptsize] at (1.55,-1.05)
-    {Clear / Refuse\\if custody gate holds};
-  \foreach \y in {-1.95,-2.85,-3.75}
-    {\node[font=\scriptsize,text=hhebony!35] at (1.55,\y) {--};}
+  \draw[pd caution rule,line width=2.0pt] (-.55,.15)--(2.05,.15);
+  \draw[pd caution rule,line width=1.2pt] (-4.05,.15)--(1.35,.15);
+  \node[pd caution datum] at (1.35,.15) {};
+  \node[pd note,anchor=west] at (2.28,.15) {bound ranges from bypassable to gated};
 
-  \foreach \y in {1.65,.75,-.15}
-    {\node[font=\scriptsize,text=hhebony!35] at (5.50,\y) {--};}
-  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-1.05)
-    {deployed custody\\not established};
-  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-1.95)
-    {reputation too thin\\to price the bond};
-  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-2.85)
-    {monitoring model\\must be specified};
-  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-3.75)
-    {structural pull;\\pushback, not proof};
+  \draw[pd caution rule,line width=1.2pt] (-4.05,-.65)--(-.70,-.65);
+  \node[pd caution datum] at (-.70,-.65) {};
+  \node[pd note,anchor=west] at (-.43,-.65) {thin reputation cannot yet price bond};
 
-  \draw[-{Stealth[length=2mm,width=1.25mm]},hhebony,line width=.65pt]
-    (-4.15,-4.68) -- (7.10,-4.68);
-  \node[fill=hhpaper,inner xsep=4pt,font=\footnotesize] at (1.45,-4.68)
-    {artifact $\longrightarrow$ named bound $\longrightarrow$ acknowledged gap};
-\end{tikzpicture}%
-}
-\caption{Assurance ledger for the Federated Harbor. Each threat occupies one
-row, so the reader can compare what is mechanized, what is only bounded by a
-named window or condition, and what remains open. The left column names proof
-artifacts; the middle column states the bound and its failure condition; the
-right column preserves unresolved risk instead of decorating it away. Future
-work moves a row left only by supplying the missing artifact or theorem.}
+  \draw[pd caution rule,line width=1.2pt] (-4.05,-1.45)--(-1.05,-1.45);
+  \node[pd caution datum] at (-1.05,-1.45) {};
+  \node[pd note,anchor=west] at (-.78,-1.45) {monitoring game incomplete};
+
+  \draw[pd caution rule,line width=1.2pt] (-4.05,-2.25)--(-1.55,-2.25);
+  \node[pd caution datum] at (-1.55,-2.25) {};
+  \node[pd note,anchor=west] at (-1.28,-2.25) {pushback is not a bound};
+
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.05,-2.85)--(6.15,-2.85);
+  \foreach \x/\lab in {-4.05/OPEN,.75/CONDITIONAL,5.55/MECHANIZED}
+    {\draw[pd rule] (\x,-2.96)--(\x,-2.74);
+     \node[pd axis label,anchor=north] at (\x,-3.02) {\lab};}
+  \node[pd axis label,anchor=south] at (.75,-2.74) {assurance position};
+\end{tikzpicture}}
+\caption{\textbf{The assurance landscape is uneven and falsifiable.} Position
+encodes how far each threat has moved from an acknowledged gap toward a mechanized
+artifact. Identity and replay have the strongest concrete evidence. Revocation,
+equivocation, and settlement are conditional on named connectivity or custody
+hypotheses; the thick settlement interval shows how widely its assurance moves if
+the gate is bypassable. Cold start, cartel monitoring, and centralization remain
+open. A row advances only when the missing artifact or theorem exists.}
 \label{fig:fh-threat-bands}
 \end{figure}

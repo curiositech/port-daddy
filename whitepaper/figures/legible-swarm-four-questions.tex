@@ -1,66 +1,62 @@
-% Figure 4 --- four ordered release checks for every read-surface.
-% The rail makes the conjunctive gate explicit: one omission holds the surface.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 4 — four conjunctive proofs on one release rail. Every stage uses a
+% distinct glyph; failure is a visible break, not another prose row.
 \begin{figure}[H]
 \centering
-\resizebox{0.91\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\footnotesize,
-  head/.style={fill=hhink,text=white,minimum height=7mm,align=center,font=\footnotesize\bfseries},
-  num/.style={circle,draw=hhamber,very thick,fill=hhsand!45,minimum size=8mm,font=\footnotesize\bfseries,text=hhamber},
-  question/.style={align=left,text width=29mm,font=\footnotesize\bfseries,text=hhink},
-  control/.style={align=left,text width=59mm,font=\footnotesize,text=hhink},
-  evidence/.style={align=left,text width=38mm,font=\footnotesize,text=hhgray},
-]
-% Deliberately a rail and aligned evidence table, not a conventional flowchart.
-\node[head,text width=9mm] at (-6.7,0.2) {order};
-\node[head,text width=31mm] at (-3.0,0.2) {question};
-\node[head,text width=61mm] at (2.7,0.2) {required control};
-\node[head,text width=40mm] at (8.2,0.2) {verifiable return};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \draw[pd hairline,line width=1.15pt] (.65,1.78)--(14.55,1.78);
+  \draw[pd focus arrow,line width=1.15pt] (14.55,1.78)--(15.25,1.78);
+  \node[pd direct label,text=hhteal,anchor=west,font=\footnotesize\bfseries]
+    at (15.02,2.04) {release};
 
-\draw[hhamber,very thick] (-6.7,-0.55) -- (-6.7,-6.45);
-\foreach \y/\n in {-1.25/1,-2.72/2,-4.19/3,-5.66/4}{
-  \node[num] at (-6.7,\y) {\n};
-}
+  \foreach \x/\n in {2.0/1,5.55/2,9.10/3,12.65/4}{
+    \node[font=\scriptsize\bfseries,text=hhgray] at (\x,3.82) {0\n};
+    \draw[pd focus rule,line width=1.25pt] (\x,1.48)--(\x,2.08);
+    \node[pd focus datum] at (\x,1.78) {};
+  }
 
-\node[question] at (-3.0,-1.25) {Irreversible act?};
-\node[control] at (2.7,-1.25) {Force a zoom; put the independently checkable artifact one keystroke away.};
-\node[evidence] at (8.2,-1.25) {diff, test result, or committed file};
+  \draw[pd rule] (1.35,2.62) rectangle (2.65,3.35);
+  \draw[pd focus rule] (1.72,2.99) circle (.18);
+  \draw[pd focus rule] (1.90,2.99)--(2.31,2.99);
+  \node[pd panel title,anchor=north,align=center] at (2.0,1.30)
+    {irreversible?};
+  \node[pd axis label,anchor=north,align=center] at (2.0,.86)
+    {artifact one key away};
 
-\node[question] at (-3.0,-2.72) {Administrative or m\^etis?};
-\node[control] at (2.7,-2.72) {Flatten administrative state; retain m\^etis as a verbatim reference.};
-\node[evidence] at (8.2,-2.72) {structured field plus source artifact};
+  \draw[pd rule] (4.85,2.60) rectangle (5.35,3.36);
+  \foreach \y in {2.76,2.98,3.20}{\draw[pd hairline] (4.95,\y)--(5.25,\y);}
+  \draw[pd focus rule] (5.73,2.62).. controls (5.93,2.82) and (5.93,3.16)..(6.20,3.34);
+  \draw[pd focus rule] (5.73,2.98).. controls (5.95,3.12) and (6.02,2.72)..(6.20,2.62);
+  \node[pd panel title,anchor=north,align=center] at (5.55,1.30)
+    {state or m\^etis?};
+  \node[pd axis label,anchor=north,align=center] at (5.55,.86)
+    {flatten state; link trace};
 
-\node[question] at (-3.0,-4.19) {Could the\\summary lie?};
-\node[control] at (2.7,-4.19) {Make zoom resolve to the artifact, not the agent's self-narration.};
-\node[evidence] at (8.2,-4.19) {addressable event, claim, or diff};
+  \draw[pd rule] (8.45,2.74)--(9.02,3.32)--(9.74,2.62);
+  \draw[pd focus rule,line width=1.2pt] (8.62,2.87)--(8.92,2.65)--(9.54,3.22);
+  \node[pd panel title,anchor=north,align=center] at (9.10,1.30)
+    {could it lie?};
+  \node[pd axis label,anchor=north,align=center] at (9.10,.86)
+    {resolve beyond self-report};
 
-\node[question] at (-3.0,-5.66) {Is authority\\legible?};
-\node[control] at (2.7,-5.66) {Attach a named reason to every coordinator act.};
-\node[evidence] at (8.2,-5.66) {reasoned action record};
+  \draw[pd rule] (12.05,2.62) arc[start angle=210,end angle=-30,x radius=.70,y radius=.44];
+  \draw[pd focus arrow] (12.22,2.78) arc[start angle=210,end angle=40,x radius=.52,y radius=.30];
+  \node[font=\scriptsize\bfseries] at (12.65,2.99) {why};
+  \node[pd panel title,anchor=north,align=center] at (12.65,1.30)
+    {authority legible?};
+  \node[pd axis label,anchor=north,align=center] at (12.65,.86)
+    {return a named reason};
 
-\draw[hhgray,thin] (-5.9,-1.99) -- (10.5,-1.99);
-\draw[hhgray,thin] (-5.9,-3.46) -- (10.5,-3.46);
-\draw[hhgray,thin] (-5.9,-4.93) -- (10.5,-4.93);
-
-\node[draw=hhteal,very thick,fill=hhteal!7,minimum height=8mm,text width=115mm,align=center,font=\footnotesize] at (1.7,-7.0)
-  {\textbf{release condition} \quad all four controls pass \quad $\Longrightarrow$ \quad \textbf{release the surface}};
-\node[draw=hhamber,thick,fill=hhamber!8,minimum height=8mm,text width=42mm,align=center,font=\footnotesize,text=hhamber] at (10.3,-7.0)
-  {otherwise: hold and name the missing control};
-\end{tikzpicture}%
-}
-\caption{The four design questions (\S\ref{sec:four-questions}) as an ordered
-release gate for every read-surface. The sequence forces a zoom for irreversible
-action, separates administrative state from verbatim m\^etis, rejects self-narration
-as a zoom target, and requires an authority reason. Any missing control holds the
-surface; all four give the operational form of the one law (Def.~\ref{def:zoom})
-and the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}).}
+  \draw[pd caution rule] (5.95,.25)--(7.05,.25);
+  \draw[pd caution rule] (7.55,.25)--(8.65,.25);
+  \draw[pd caution rule,line width=1.2pt] (7.13,.10)--(7.47,.40);
+  \draw[pd caution rule,line width=1.2pt] (7.47,.10)--(7.13,.40);
+  \node[pd note,text=hhamber,anchor=north] at (7.30,.02)
+    {one missing proof holds the surface};
+\end{tikzpicture}
+\caption{A read-surface earns release through four independent proofs, in
+order: irreversible action exposes its artifact; administrative state remains
+separate from verbatim m\^etis; a claim resolves beyond the author’s
+self-report; and every coordinator act returns a named reason. The rail is
+conjunctive: one missing proof breaks release.}
 \label{fig:four-questions}
 \end{figure}
