@@ -170,16 +170,16 @@ export interface CollectedVolume {
 
 export const COLLECTED_VOLUME: CollectedVolume = {
   id: 'coordination-papers-mega-volume',
-  title: 'The Port Daddy Coordination Papers',
+  title: 'The Harbor, the Person, and the Economy',
   subtitle:
-    'Seven chapters in one coherent illuminated edition, with the collected jacket, a new Chapter VII plate, selected coda art, collated references, an implementation ledger, and a research roadmap.',
+    'Seven papers on accountable autonomous work, unified by one claim: authority, evidence, and consequence must remain coupled at every effect boundary.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
-  pages: 276,
-  sizeKb: 31614,
-  references: 202,
+  pages: 270,
+  sizeKb: 2190,
+  references: 221,
 }
 
 /**

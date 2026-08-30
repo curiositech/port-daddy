@@ -20,9 +20,6 @@ export const subjectRoot = resolve(process.env.MEGA_VOLUME_SUBJECT_ROOT ?? repoR
 
 const generatorRelative = 'scripts/generate-mega-whitepaper.mjs';
 const buildScriptRelative = 'scripts/build-whitepapers.sh';
-const chapterPlateRelative =
-  'website-v2/public/whitepaper/art/collected-volume/chapter-vii-federated-harbor.jpg';
-
 export function subjectAvailable() {
   return existsSync(resolve(subjectRoot, generatorRelative));
 }
@@ -58,8 +55,6 @@ export function makeFixture() {
     resolve(subjectRoot, 'website-v2/public/whitepaper'),
     resolve(root, 'website-v2/public/whitepaper'),
   );
-  mkdirSync(dirname(resolve(root, chapterPlateRelative)), { recursive: true });
-  cpSync(resolve(subjectRoot, chapterPlateRelative), resolve(root, chapterPlateRelative));
   return root;
 }
 

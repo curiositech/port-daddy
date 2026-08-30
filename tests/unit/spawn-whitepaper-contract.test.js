@@ -30,7 +30,7 @@ const publicationSha256 = {
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': 'cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1',
   'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': '0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960',
   'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': 'a45cf5fc57a41859695d4a3d5a00ddd75086873b9ced370f363c447b9a3b5049',
+  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': 'abcc9da02b017164082f11593bd8ca0b354f3b8a08a8742a77d4423b0998d7df',
 };
 
 function text(path) {
@@ -140,7 +140,7 @@ function parseGif(gif) {
 }
 
 describe('Spawn-to-Person publication contract', () => {
-  test('maturity labels say partial only where the runtime has a grounded substrate', () => {
+  test('the maturity plot marks partial only where the runtime has a grounded substrate', () => {
     const source = text(paths.source);
     const honest = text(paths.honest);
     const keystone = text(paths.keystone);
