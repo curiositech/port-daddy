@@ -49,6 +49,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     // satisfies I2 (NO_SPAWN_ON_MAIN): the Conductor mints the branch the plan
     // names, so the run never touches the operator's main checkout.
     worktree: 'create',
+    workdir: d.projectDir ?? undefined,
     worktreePath: plan.worktreePath,
     worktreeBranch: plan.branch,
     worktreeBaseRef: plan.baseRef,

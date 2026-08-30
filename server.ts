@@ -979,11 +979,18 @@ const conductor = createConductor({
     // I2 NO_SPAWN_ON_MAIN is satisfied here: carve a fresh off-main worktree on
     // the dispatch branch, then scope-disable the Coordination Guard inside it so
     // the autonomous agent can commit without an interactive `pd begin` session.
-    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
-      // Not a dispatch-shaped intent — fall back to the intent's own workdir.
-      return intent.workdir;
+    const dispatchShaped = intent.source === 'dispatch'
+      || Boolean(intent.worktreePath || intent.worktreeBranch || intent.worktreeBaseRef);
+    if (!dispatchShaped) return intent.workdir;
+    if (!intent.workdir) {
+      throw new Error('dispatch launch is missing its durable source project binding');
     }
-    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef);
+    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
+      throw new Error('dispatch launch is missing its worktree path, branch, or base ref');
+    }
+    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef, {
+      repoWorkdir: intent.workdir,
+    });
     disableGuardInWorktree(intent.worktreePath);
     return intent.worktreePath;
   },

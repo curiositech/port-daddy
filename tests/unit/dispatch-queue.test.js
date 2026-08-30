@@ -53,6 +53,7 @@ describe('propose', () => {
       tags: ['design', 'marketing'],
       budgetUsd: 4,
       timeoutMs: 60 * 60 * 1000,
+      projectDir: '/Users/operator/coding/project',
     });
     expect(d.id).toEqual(expect.any(String));
     expect(d.slug).toBe('normalize-the-design-tokens-across-the-marketing-site');
@@ -64,6 +65,7 @@ describe('propose', () => {
     expect(d.tags).toEqual(['design', 'marketing']);
     expect(d.budgetUsd).toBe(4);
     expect(d.timeoutMs).toBe(60 * 60 * 1000);
+    expect(d.projectDir).toBe('/Users/operator/coding/project');
     expect(d.createdAt).toBe(clock);
     expect(d.claimedAt).toBeNull();
   });
@@ -114,6 +116,11 @@ describe('propose', () => {
   test('rejects empty goal', () => {
     expect(() => queue.propose({ goal: '' })).toThrow(/goal text/);
     expect(() => queue.propose({ goal: '   ' })).toThrow(/goal text/);
+  });
+
+  test('rejects a relative source project binding', () => {
+    expect(() => queue.propose({ goal: 'foo', projectDir: 'relative/project' }))
+      .toThrow(/projectDir must be an absolute path/);
   });
 
   test('rejects goal over 4000 chars', () => {
@@ -660,6 +667,7 @@ describe('migration from nightshift_intents', () => {
     expect(migrated.branch).toBe('night-shift/fix-the-thing-abcd1234'); // preserved
     expect(migrated.resultArtifact).toBe('https://github.com/foo/bar/pull/7');
     expect(migrated.baseBranch).toBe('main'); // default
+    expect(migrated.projectDir).toBeNull(); // additive migration preserves old rows honestly
     expect(migrated.mergePolicy).toBe('review'); // default
     expect(migrated.requestedBy).toBe('operator');
     expect(migrated.costUsd).toBeCloseTo(1.23);
