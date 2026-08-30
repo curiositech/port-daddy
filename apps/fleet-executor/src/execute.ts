@@ -135,7 +135,10 @@ import {
   saveShipCheckpoint,
   type ShipCheckpointBinding,
 } from './ship-checkpoint.js';
-import { countDeliveryContinuations } from './delivery-failure.js';
+import {
+  countDeliveryContinuations,
+  readDeliveryContinuationLivelock,
+} from './delivery-failure.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -1788,6 +1791,41 @@ export async function executeFleet(
   // The run's TRUE first-attempt start, surviving every continuation/retry —
   // see RUN_ABSOLUTE_DEADLINE_MS and the per-ship-loop check below.
   const runStartedAtSec = await getRunStartedAtSec(env, runId);
+  // A healthy one-ship slice strictly changes the remaining roster. Two
+  // identical durable receipts prove zero progress; stop before a third model
+  // call instead of spending until the three-hour wall-clock deadline.
+  const continuationLivelock = await readDeliveryContinuationLivelock(env, runId);
+  if (continuationLivelock) {
+    const remaining = continuationLivelock.remainingShips.map(ship => `pd-${ship}`).join(', ');
+    const summary =
+      `Fleet stopped because ${continuationLivelock.repeats} consecutive checkpoint continuations ` +
+      `completed pd-${continuationLivelock.completedShip} while leaving the same ` +
+      `${continuationLivelock.remainingShips.length} ship(s) pending (${remaining || 'none'}). ` +
+      `This is a scheduler livelock, not progress; no additional model call was made. Re-push after ` +
+      `repairing checkpoint resume or continuation selection.`;
+    try {
+      await transcript.step(
+        'continuation-livelock',
+        continuationLivelock.completedShip,
+        'Check concluded: neutral (checkpoint continuation repeated without progress)',
+        {
+          checkRunId,
+          conclusion: 'neutral',
+          completedShip: continuationLivelock.completedShip,
+          remainingShips: continuationLivelock.remainingShips,
+          repeats: continuationLivelock.repeats,
+        },
+      );
+    } catch (error) {
+      // The durable evidence is best-effort here: a D1 outage must not prevent
+      // the GitHub check from reaching the terminal state this guard exists to
+      // guarantee.
+      console.error('[fleet] failed to record continuation livelock receipt', error);
+    }
+    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
   // Record what each ship IS (model, role, blocking/execution posture) once,
   // before any of them run — see recordShipsConfigInTranscript's docstring.
   await recordShipsConfigInTranscript(transcript, cloudShips);
