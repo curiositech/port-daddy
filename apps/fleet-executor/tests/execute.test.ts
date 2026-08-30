@@ -1721,6 +1721,43 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(d1.runs.find(run => run.id === 'run:delivery-abc')?.conclusion).toBe('neutral');
   });
 
+  it('finalizes a repeated continuation when its run conclusion mirror cannot be written', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const db = {
+      prepare(sql: string) {
+        if (!/UPDATE fleet_runs/i.test(sql)) return d1.db.prepare(sql);
+        return {
+          bind() {
+            return {
+              async run() {
+                throw new Error('D1 unavailable (simulated run conclusion failure)');
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    const ai = aiStub({ perShip: {} });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(d1.steps.filter(step => step.kind === 'continuation-livelock')).toHaveLength(1);
+    expect(d1.runs.find(run => run.id === 'run:delivery-abc')?.conclusion).toBe('pending');
+  });
+
   it('freezes an exact empty Lookout projection when both GitHub context reads reject', async () => {
     state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
     const installedFetch = globalThis.fetch;
