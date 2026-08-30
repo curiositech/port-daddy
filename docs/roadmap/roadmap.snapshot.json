@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 312,
+  "count": 313,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1238,6 +1238,11 @@
       "slug": "pd-anchor-scheduler-ffi-wiring",
       "status": "now",
       "summaryMd": "Wire pd-anchor's Rust CPM scheduler (schedule.rs / pd_schedule_dag_json FFI export) to the TS daemon via a kernel-preferred koffi loader (lib/planner-schedule-ffi.ts), replacing the pure-TS fallback routes/roadmap.ts always ran. Closes a zero-test-coverage gap on the FFI boundary and adds the first rustdoc+doctest example under the new Rust-documentation law. Shipped as PR #3828."
+    },
+    {
+      "slug": "pd-console-agentic-workbench",
+      "status": "now",
+      "summaryMd": "Make pd-console a conversation-first agentic coding workbench"
     },
     {
       "slug": "pd-console-cull-and-defects",
