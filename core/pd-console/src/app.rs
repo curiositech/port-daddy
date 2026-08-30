@@ -9450,15 +9450,7 @@ impl Render for ConsoleView {
                 let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
                 let platform = ev.keystroke.modifiers.platform;
-                let zoom_action = if platform && (key == "+" || key == "=") {
-                    Some(ZoomAction::In)
-                } else if platform && key == "-" {
-                    Some(ZoomAction::Out)
-                } else if platform && key == "0" {
-                    Some(ZoomAction::Reset)
-                } else {
-                    None
-                };
+                let zoom_action = presentation::action_for_shortcut(&key, platform);
                 if let Some(action) = zoom_action {
                     this.apply_presentation_zoom(action, window, cx);
                     cx.stop_propagation();

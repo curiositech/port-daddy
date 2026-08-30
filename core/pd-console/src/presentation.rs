@@ -26,6 +26,20 @@ pub enum ZoomAction {
     In,
 }
 
+/// Classify the cross-platform application zoom shortcuts before focused
+/// editors, chat inputs, or PTYs can consume them.
+pub fn action_for_shortcut(key: &str, platform_modifier: bool) -> Option<ZoomAction> {
+    if !platform_modifier {
+        return None;
+    }
+    match key {
+        "+" | "=" => Some(ZoomAction::In),
+        "-" => Some(ZoomAction::Out),
+        "0" => Some(ZoomAction::Reset),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct PresentationPreferences {
@@ -170,6 +184,16 @@ mod tests {
         assert_eq!(next_zoom_percent(110, ZoomAction::Reset), 100);
         assert_eq!(next_zoom_percent(190, ZoomAction::In), 200);
         assert_eq!(next_zoom_percent(200, ZoomAction::In), 200);
+    }
+
+    #[test]
+    fn platform_shortcuts_map_to_zoom_actions_before_focused_input() {
+        assert_eq!(action_for_shortcut("+", true), Some(ZoomAction::In));
+        assert_eq!(action_for_shortcut("=", true), Some(ZoomAction::In));
+        assert_eq!(action_for_shortcut("-", true), Some(ZoomAction::Out));
+        assert_eq!(action_for_shortcut("0", true), Some(ZoomAction::Reset));
+        assert_eq!(action_for_shortcut("+", false), None);
+        assert_eq!(action_for_shortcut("x", true), None);
     }
 
     #[test]
