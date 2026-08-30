@@ -1803,18 +1803,25 @@ export async function executeFleet(
       `${continuationLivelock.remainingShips.length} ship(s) pending (${remaining || 'none'}). ` +
       `This is a scheduler livelock, not progress; no additional model call was made. Re-push after ` +
       `repairing checkpoint resume or continuation selection.`;
-    await transcript.step(
-      'continuation-livelock',
-      continuationLivelock.completedShip,
-      'Check concluded: neutral (checkpoint continuation repeated without progress)',
-      {
-        checkRunId,
-        conclusion: 'neutral',
-        completedShip: continuationLivelock.completedShip,
-        remainingShips: continuationLivelock.remainingShips,
-        repeats: continuationLivelock.repeats,
-      },
-    );
+    try {
+      await transcript.step(
+        'continuation-livelock',
+        continuationLivelock.completedShip,
+        'Check concluded: neutral (checkpoint continuation repeated without progress)',
+        {
+          checkRunId,
+          conclusion: 'neutral',
+          completedShip: continuationLivelock.completedShip,
+          remainingShips: continuationLivelock.remainingShips,
+          repeats: continuationLivelock.repeats,
+        },
+      );
+    } catch (error) {
+      // The durable evidence is best-effort here: a D1 outage must not prevent
+      // the GitHub check from reaching the terminal state this guard exists to
+      // guarantee.
+      console.error('[fleet] failed to record continuation livelock receipt', error);
+    }
     await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;

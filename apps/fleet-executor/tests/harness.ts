@@ -591,6 +591,8 @@ export interface D1Capture {
   creditTableMissing: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
+  /** Set true to make the next fleet_run_steps insert throw, then reset. */
+  failNextStepInsert: boolean;
   /**
    * When true, the NEXT logical-run upsert into `fleet_runs`
    * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
@@ -621,6 +623,7 @@ export function memoryD1(): D1Capture {
     ledger: [],
     creditTableMissing: false,
     failAll: false,
+    failNextStepInsert: false,
     failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
@@ -630,6 +633,10 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
+        if (cap.failNextStepInsert && /INTO fleet_run_steps/i.test(sql)) {
+          cap.failNextStepInsert = false;
+          throw new Error('D1 unavailable (simulated transcript step failure)');
+        }
         if (
           cap.failNextRecordRunStartInsert
           && /INSERT INTO fleet_runs/i.test(sql)
