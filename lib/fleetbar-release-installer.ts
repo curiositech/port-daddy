@@ -17,6 +17,8 @@ const RELEASE_REPOSITORY = 'curiositech/port-daddy';
 const BUNDLE_IDENTIFIER = 'ai.portdaddy.FleetBar';
 const DEVELOPER_TEAM = 'P5H9P59X2M';
 const LAUNCH_AGENT_LABEL = 'com.portdaddy.fleetbar';
+const DOWNLOAD_TIMEOUT_MS = 60_000;
+const COMMAND_TIMEOUT_MS = 60_000;
 
 export interface FleetBarReleaseArtifact {
   version: string;
@@ -66,9 +68,16 @@ export function parseFleetBarChecksum(text: string, archiveName: string): string
 }
 
 function run(executable: string, args: string[], accepted = [0]): string {
-  const result = spawnSync(executable, args, { encoding: 'utf8' });
+  const result = spawnSync(executable, args, {
+    encoding: 'utf8',
+    timeout: COMMAND_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+  });
   const status = result.status ?? -1;
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
+  if (result.error) {
+    throw new Error(`${basename(executable)} failed: ${result.error.message}`);
+  }
   if (!accepted.includes(status)) {
     throw new Error(`${basename(executable)} failed (${status})${output ? `: ${output}` : ''}`);
   }
@@ -138,7 +147,11 @@ function currentUid(): number {
 }
 
 async function download(url: string): Promise<Buffer> {
-  const response = await fetch(url, { redirect: 'follow', cache: 'no-store' });
+  const response = await fetch(url, {
+    redirect: 'follow',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+  });
   if (!response.ok) throw new Error(`download failed with HTTP ${response.status}: ${url}`);
   return Buffer.from(await response.arrayBuffer());
 }
