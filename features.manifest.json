@@ -272,7 +272,10 @@
         "GET /actors/:param/inbox/stats",
         "PUT /actors/:param/inbox/read-all",
         "POST /actors/:param/message",
-        "POST /actors/register"
+        "POST /actors/register",
+        "GET /operator/admission-grants",
+        "GET /operator/admission-grants/:param",
+        "POST /operator/admission-grants"
       ],
       "completions": [
         "actor",
@@ -281,7 +284,8 @@
       "docs": {
         "readme": true,
         "sdk": true
-      }
+      },
+      "_note": "ADR-0136 exact operator admission reuses the actor command family. `pd actor admission grant` issues one non-secret, TTL-bound grant over the owner-only Unix socket; `pd begin --admission-grant` consumes it only when the daemon's live identity/worktree/branch/remote/head/base/roadmap tuple still matches. No SDK method is exposed in this slice because grant issuance is an operator action, not agent authority."
     },
     "cartographer": {
       "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033) + session/agent linkage (ADR-0034)",

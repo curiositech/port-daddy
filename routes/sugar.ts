@@ -9,6 +9,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { ActorSouls } from '../lib/actor-souls.js';
+import type { OperatorAdmissionGrants } from '../lib/operator-admission-grants.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -24,7 +25,7 @@ import { isReservedIdentityName } from '../lib/reserved-identity-names.js';
  * credential once, so `register` is required here in addition to the verify /
  * resolve pair the shared boundary uses.
  */
-type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register'>;
+type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register' | 'mint'>;
 
 interface SugarRouteDeps {
   sugar: {
@@ -46,14 +47,31 @@ interface SugarRouteDeps {
    * requires; `/sugar/done` and `/sugar/relink` reject without one.
    */
   actorSouls?: SugarActorSouls | null;
+  /** Exact one-shot operator actuator. It is distinct from newcomer quota. */
+  operatorAdmissionGrants?: Pick<OperatorAdmissionGrants, 'consumeAndMint'> | null;
 }
 
 type BeginLifecycle = 'durable' | 'ephemeral';
+type VerifiedBeginVerdict = Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
 
 function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
   return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
+}
+
+function beginFailureStatus(result: Record<string, unknown>): number {
+  return result.code === 'AGENT_REGISTRATION_FAILED'
+    || result.code === 'WORKTREE_REQUIRED'
+    || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
+    || result.code === 'MAIN_WORKTREE_CROWDED'
+    || result.code === 'ROADMAP_RENT_CONFLICT'
+    || result.code === 'ROADMAP_SLUG_UNKNOWN'
+    || result.code === 'ROADMAP_TITLE_REQUIRED'
+    || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
+    || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
+    ? 400
+    : 500;
 }
 
 
@@ -62,7 +80,7 @@ function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
 // =============================================================================
 export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sugar, metrics, logger, actorSouls } = deps;
+  const { sugar, metrics, logger, actorSouls, operatorAdmissionGrants } = deps;
 
   /**
    * Resolve the identity for `/sugar/begin` — the fleet's mint door.
@@ -97,17 +115,28 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
    */
   const resolveBeginIdentity = (
     request: FastifyRequest,
-    asserted: { agentId?: unknown; identity?: unknown },
+    asserted: {
+      agentId?: unknown;
+      identity?: unknown;
+      admissionGrantId?: unknown;
+      worktree?: unknown;
+      roadmapLink?: unknown;
+    },
+    startGrantedBegin?: (verdict: VerifiedBeginVerdict) => Record<string, unknown>,
   ):
     | {
         success: true;
-        verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
+        verdict: VerifiedBeginVerdict;
         mintedCredential: string | null;
+        prestartedResult?: Record<string, unknown>;
       }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
     const credential = extractActorCredential(request.headers as Record<string, unknown>, request.body);
     const agentId = typeof asserted.agentId === 'string' && asserted.agentId.trim() ? asserted.agentId.trim() : null;
     const identity = typeof asserted.identity === 'string' && asserted.identity.trim() ? asserted.identity.trim() : null;
+    const admissionGrantId = typeof asserted.admissionGrantId === 'string' && asserted.admissionGrantId.trim()
+      ? asserted.admissionGrantId.trim()
+      : null;
 
     const reservedNameRejection = (name: string) => ({
       success: false as const,
@@ -233,6 +262,115 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       return reservedNameRejection(name);
     }
 
+    // An explicit operator grant is a separate, exact admission actuator. The
+    // public grant id is not authority by itself: the grant store re-probes the
+    // canonical worktree and requires the identity + roadmap tuple to match
+    // before it atomically marks the one-shot grant consumed and mints one
+    // ordinary newcomer soul. This path never reads or mutates newcomer_pool.
+    if (admissionGrantId) {
+      if (!operatorAdmissionGrants) {
+        return {
+          success: false,
+          httpStatus: 503,
+          result: {
+            success: false,
+            error: 'operator admission grant service is unavailable',
+            code: 'GRANT_STORE_UNAVAILABLE',
+          },
+        };
+      }
+      const worktree = asserted.worktree && typeof asserted.worktree === 'object'
+        ? asserted.worktree as Record<string, unknown>
+        : null;
+      const worktreeRoot = typeof worktree?.root === 'string' ? worktree.root : '';
+      const roadmapSlug = typeof asserted.roadmapLink === 'string' ? asserted.roadmapLink.trim() : '';
+      if (!identity || !worktreeRoot || !roadmapSlug) {
+        return {
+          success: false,
+          httpStatus: 400,
+          result: {
+            success: false,
+            error: 'operator admission requires exact identity, linked worktree, and roadmap bindings',
+            code: 'GRANT_BINDING_REQUIRED',
+          },
+        };
+      }
+      if (!startGrantedBegin) {
+        return {
+          success: false,
+          httpStatus: 503,
+          result: {
+            success: false,
+            error: 'operator admission session transaction is unavailable',
+            code: 'GRANT_ENACTMENT_UNAVAILABLE',
+          },
+        };
+      }
+      const granted = operatorAdmissionGrants.consumeAndMint({
+        grantId: admissionGrantId,
+        identity,
+        worktreeRoot,
+        roadmapSlug,
+      }, () => {
+        const minted = actorSouls.mint({ alias: identity, credentialKind: 'soul-secret' });
+        const verdict: VerifiedBeginVerdict = {
+          ok: true,
+          kind: 'verified',
+          actorId: minted.actorId,
+          agentId: agentId ?? identity,
+          soulClass: 'newcomer',
+          identity: {
+            verified: true,
+            actorId: minted.actorId,
+            soulClass: 'newcomer',
+          },
+        };
+        const enactment = startGrantedBegin(verdict);
+        return {
+          ...minted,
+          verdict,
+          enactment,
+          accepted: enactment.success === true,
+          error: typeof enactment.error === 'string' ? enactment.error : 'session admission failed',
+        };
+      });
+      if (!granted.success) {
+        if (granted.code === 'GRANT_ENACTMENT_REJECTED' && granted.enactment && typeof granted.enactment === 'object') {
+          const enactment = granted.enactment as Record<string, unknown>;
+          return {
+            success: false,
+            httpStatus: beginFailureStatus(enactment),
+            result: enactment,
+          };
+        }
+        const httpStatus = granted.code === 'GRANT_NOT_FOUND'
+          ? 404
+          : granted.code === 'GRANT_EXPIRED'
+            ? 410
+            : granted.code === 'STORE_UNAVAILABLE'
+              ? 503
+              : granted.code === 'VALIDATION_ERROR'
+                ? 400
+                : 409;
+        logger.error('identity_write_rejected', {
+          route: 'POST /sugar/begin',
+          code: granted.code,
+          admissionGrantId,
+        });
+        return {
+          success: false,
+          httpStatus,
+          result: { success: false, error: granted.error, code: granted.code },
+        };
+      }
+      return {
+        success: true,
+        verdict: granted.verdict,
+        mintedCredential: granted.credential,
+        prestartedResult: granted.enactment as Record<string, unknown>,
+      };
+    }
+
     // Mint a fresh newcomer soul. The identity's project scopes the shared
     // newcomer admission pool; the alias is NOT bound (identities like
     // "proj:node:dev" are shared display strings across a fleet, and binding
@@ -328,6 +466,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         roadmapLink,
         sidequestReason,
         roadmapNewTitle,
+        admissionGrantId,
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
@@ -367,12 +506,43 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         };
       }
 
+      const startBegin = (verdict: VerifiedBeginVerdict): Record<string, unknown> => sugar.begin({
+        purpose,
+        identity,
+        agentId,
+        name,
+        type,
+        files,
+        force,
+        // The session row is a durable attributed record: stamp the daemon's
+        // identity verdict into its metadata (the caller-supplied `identity`
+        // metadata key can never pre-fill the daemon's verdict slot).
+        metadata: stampIdentityMetadata(
+          metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
+          verdict,
+        ),
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+        bypassCrowdedGate,
+        lifecycle,
+        roadmapLink,
+        sidequestReason,
+        roadmapNewTitle,
+      });
+
       // #8877 / ADR-0122: begin is the mint door. Verify a presented
       // credential (401/403 on forgery or laundering), or mint a fresh soul
       // for an uncredentialed caller whose asserted names are unowned — and
       // return that credential ONCE so every later attributed write can
       // present it.
-      const beginIdentity = resolveBeginIdentity(request, { agentId, identity });
+      const beginIdentity = resolveBeginIdentity(request, {
+        agentId,
+        identity,
+        admissionGrantId,
+        worktree,
+        roadmapLink,
+      }, startBegin);
       if (!beginIdentity.success) {
         logger.warn('sugar_begin_rejected', {
           code: beginIdentity.result.code,
@@ -387,43 +557,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return beginIdentity.result;
       }
 
-      const result = sugar.begin({
-        purpose,
-        identity,
-        agentId,
-        name,
-        type,
-        files,
-        force,
-        // The session row is a durable attributed record: stamp the daemon's
-        // identity verdict into its metadata (the caller-supplied `identity`
-        // metadata key can never pre-fill the daemon's verdict slot).
-        metadata: stampIdentityMetadata(
-          metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
-          beginIdentity.verdict,
-        ),
-        worktree,
-        requireLinkedWorktree,
-        allowMainWorktree,
-        bypassCrowdedGate,
-        lifecycle,
-        roadmapLink,
-        sidequestReason,
-        roadmapNewTitle,
-      });
+      const result = beginIdentity.prestartedResult ?? startBegin(beginIdentity.verdict);
 
       if (!result.success) {
-        const status = result.code === 'AGENT_REGISTRATION_FAILED'
-          || result.code === 'WORKTREE_REQUIRED'
-          || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
-          || result.code === 'MAIN_WORKTREE_CROWDED'
-          || result.code === 'ROADMAP_RENT_CONFLICT'
-          || result.code === 'ROADMAP_SLUG_UNKNOWN'
-          || result.code === 'ROADMAP_TITLE_REQUIRED'
-          || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
-          || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
-          ? 400
-          : 500;
+        const status = beginFailureStatus(result);
         logger.warn('sugar_begin_rejected', {
           code: result.code,
           error: result.error,

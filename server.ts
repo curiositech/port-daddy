@@ -105,6 +105,7 @@ import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
+import { createOperatorAdmissionGrants } from './lib/operator-admission-grants.js';
 import { createCounters } from './lib/counters.js';
 import { createUsageTelemetry } from './lib/usage-telemetry.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
@@ -810,6 +811,7 @@ const actorSouls = createActorSouls(db, {
     ? { newcomerAdmitMax: newcomerAdmitMaxEnv }
     : {}),
 });
+const operatorAdmissionGrants = createOperatorAdmissionGrants(db);
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -1694,7 +1696,7 @@ await registerAllRoutes(
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     contextBootstrapLookup,
-    bonds, budgetGuard, budgetPause, actorSouls,
+    bonds, budgetGuard, budgetPause, actorSouls, operatorAdmissionGrants,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
