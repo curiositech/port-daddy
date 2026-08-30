@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 311,
+  "count": 312,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -988,6 +988,11 @@
       "slug": "fleetbar-developer-id-signing",
       "status": "backlog",
       "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
+    },
+    {
+      "slug": "fleetbar-operator-attention-and-update",
+      "status": "now",
+      "summaryMd": "FleetBar must update itself from the daemon's exact signed release, show progress/failure, preserve rollback, and expose notifications, sound, semantic icon presence, and honest operator availability."
     },
     {
       "slug": "fleetbar-visual-task-intake",
