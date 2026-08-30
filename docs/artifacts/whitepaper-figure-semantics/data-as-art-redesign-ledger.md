@@ -916,6 +916,90 @@ false reading that the selected geometry must prevent.
 - Color job: neutral ink is disposable process authority; teal is evidence
   continuity and settlement; amber is funded residual exposure.
 
+## Volume VII — The Federated Harbor
+
+The five analytical figures are shared with the Harbor Economy's federation
+section. They were nevertheless rebuilt once from their source arguments and
+re-inspected here in the publication context of Volume VII; reuse is semantic,
+not a license to skip page-level review.
+
+### VII.1 — sovereign federation topology (`fig:fh-topology`)
+
+- Reader question: what is shared across two harbors without becoming a shared
+  root of authority?
+- Selected grammar: four aligned functional rails crossing two sovereign fields
+  separated by an explicit no-shared-root fracture.
+- Rejected alternative: a central witness or escrow box connected to two harbor
+  boxes; it made the supporting services look like a superior sovereign.
+- False reading to prevent: the witness log authorizes work, the escrow supplies
+  identity, or one harbor inherits the other's root authority.
+- Color job: teal is verifiable correlation and attenuation; amber is conditional
+  settlement exposure.
+
+### VII.2 — assurance posture (`fig:fh-threat-bands`)
+
+- Reader question: how far toward mechanized assurance has each federation threat
+  advanced, and what named condition blocks further movement?
+- Selected grammar: an ordered assurance dot plot with direct artifact and
+  hypothesis labels.
+- Rejected alternative: a closed/partial/open status matrix; colored prose cells
+  hid the distribution and turned conditionality into a category label.
+- False reading to prevent: partial means nearly solved, or prose alone can move a
+  threat toward mechanized assurance.
+- Color job: teal is concrete mechanized evidence; amber is a conditional or open
+  endpoint, redundantly separated on the assurance axis.
+
+### VII.3 — cross-harbor transfer (`fig:fh-xfer`)
+
+- Reader question: how does authority attenuate while source reachback leaves the
+  destination hot path?
+- Selected grammar: a narrowing capability envelope over the four-message
+  ceremony, paired with a reachback-dependency change point.
+- Rejected alternative: a four-message sequence diagram; it showed who spoke but
+  not what authority changed or when local verification became sufficient.
+- False reading to prevent: transfer copies the full source capability, or every
+  later use synchronously calls the issuing harbor.
+- Color job: teal is the valid attenuation envelope and destination-local phase;
+  amber is the remaining source-participation interval.
+
+### VII.4 — federated revocation (`fig:fh-revocation`)
+
+- Reader question: which verifier remains stale at each round, and how large is
+  the locally spendable revocation window?
+- Selected grammar: a time-by-harbor staleness heatmap with a stepped observation
+  frontier.
+- Rejected alternative: epoch columns of state boxes and diagonal gossip arrows;
+  it encoded the same matrix less legibly and obscured exposure duration.
+- False reading to prevent: the teal staircase is a global clock, or expected
+  logarithmic dissemination supplies a finite deadline under partition.
+- Color job: amber area is stale admissibility exposure; teal begins at local
+  observation and refusal.
+
+### VII.5 — conditional settlement (`fig:fh-settlement`)
+
+- Reader question: which transition restriction bounds custody loss, and what
+  happens when the operator can bypass it?
+- Selected grammar: paired outcome-state graphs differing by exactly one extra
+  transition, aligned to their worst-case loss.
+- Rejected alternative: actors enclosed by a custody boundary; the rectangle
+  asserted safety without exposing the bypass counterfactual.
+- False reading to prevent: threshold signing alone proves the extraction bound.
+  The whitelist, fee cap, and one terminal transition must be non-bypassable.
+- Color job: teal is the lawful Clear/Refuse partition; amber is the extra edge to
+  full-balance exposure.
+
+### VII.A — verification registry (`tab:fh-status`)
+
+- Reader question: what is the exact method, result, and artifact for a named claim?
+- Selected grammar: retain a compact appendix table because the task is keyed
+  lookup of exact values, not comparison or pattern discovery.
+- Rejected alternative: a second decorative status visualization; it would
+  duplicate Figure VII.2 while making artifact paths harder to retrieve.
+- False reading to prevent: the table is an analytical figure or its ordering is
+  a maturity ranking. Figure VII.2 carries the argument; the registry carries
+  audit coordinates.
+- Color job: no color dependence; status words remain explicit.
+
 ## Corpus-wide controls
 
 - Neutral ink carries structure. Teal means verified, selected, conserved, or
