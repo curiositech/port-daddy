@@ -386,6 +386,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // skillgraft: read current-hash Tool2Vec coverage and start bounded local
     // reconciliation. `pd skill-graft <status|warm>` is the CLI surface.
     skillgraft: ['skill-graft', 'skillgraft'],
+    // operatoradmission: exact operator-consent grants are issued/read through
+    // `pd actors operator-grant`; consumption is `pd begin --admission-grant`.
+    operatoradmission: ['actors', 'begin'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
