@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 311,
+  "count": 312,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -858,6 +858,11 @@
       "slug": "durable-asynchronous-spawn-receipts",
       "status": "now",
       "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
+      "slug": "exact-operator-admission-grant",
+      "status": "now",
+      "summaryMd": "Issue one exact operator-authorized admission grant for a provenance-bound worker identity"
     },
     {
       "slug": "exit-criteria",

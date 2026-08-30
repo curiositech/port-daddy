@@ -19,8 +19,8 @@ describe('pd begin credential output boundary', () => {
     expect(JSON.stringify(response)).not.toContain(secret);
   });
 
-  test('POSIX and fish exports contain selectors but never an authority variable', () => {
-    for (const shell of ['/bin/zsh', '/opt/homebrew/bin/fish']) {
+  test('bash, zsh, and fish exports contain selectors but never an authority variable', () => {
+    for (const shell of ['/bin/bash', '/bin/zsh', '/opt/homebrew/bin/fish']) {
       const output = renderBeginSessionExports('agent-safe', 'session-safe', shell).join('\n');
       expect(output).toContain('PD_AGENT_ID');
       expect(output).toContain('PD_SESSION_ID');

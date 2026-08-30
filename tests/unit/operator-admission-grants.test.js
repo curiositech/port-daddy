@@ -202,11 +202,13 @@ describe('exact operator admission grants', () => {
     }
   });
 
-  test('refuses dirty, detached, or main worktrees before persisting anything', () => {
+  test('refuses dirty, detached, main, or non-canonical-remote worktrees before persisting anything', () => {
     for (const badProbe of [
       { clean: false },
       { branch: null },
       { linked: false },
+      { remote: null },
+      { remote: 'https://github.com/curiositech/port-daddy.git' },
     ]) {
       const { db, grants, setProbe } = fixture();
       try {

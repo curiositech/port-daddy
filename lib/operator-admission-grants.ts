@@ -250,6 +250,12 @@ function validateProbe(probe: OperatorAdmissionWorktreeProbe): string | null {
   if (!probe.linked) return 'worktree must be a linked worktree, never the main checkout';
   if (!probe.branch) return 'worktree must have an attached branch';
   if (!probe.clean) return 'worktree must be clean';
+  if (
+    typeof probe.remote !== 'string'
+    || (!/^file:\/.+/.test(probe.remote) && !/^[a-z0-9.-]+\/.+/i.test(probe.remote))
+  ) {
+    return 'worktree origin remote must be present and normalized';
+  }
   if (!/^[0-9a-f]{40,64}$/i.test(probe.head) || !/^[0-9a-f]{40,64}$/i.test(probe.base)) {
     return 'worktree head/base must be exact commit ids';
   }
